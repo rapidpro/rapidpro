@@ -1724,11 +1724,11 @@ class OrgTest(TembaTest):
 
         AirtimeTransfer.objects.create(
             org=self.org,
-            recipient="+250788123123",
-            amount="100",
             contact=contact,
-            created_by=self.admin,
-            modified_by=self.admin,
+            status=AirtimeTransfer.STATUS_SUCCESS,
+            recipient="+250788123123",
+            desired_amount=Decimal("100"),
+            actual_amount=Decimal("0"),
         )
 
         self.assertTrue(self.org.has_airtime_transfers())

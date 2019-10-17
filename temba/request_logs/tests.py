@@ -17,14 +17,14 @@ class ClassifierTest(TembaTest):
         self.setUpSecondaryOrg()
 
         # create some classifiers
-        self.c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {})
+        self.c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {}, sync=False)
         self.c1.intents.create(
             name="book_flight", external_id="book_flight", created_on=timezone.now(), is_active=True
         )
         self.c1.intents.create(name="book_hotel", external_id="book_hotel", created_on=timezone.now(), is_active=False)
         self.c1.intents.create(name="book_car", external_id="book_car", created_on=timezone.now(), is_active=True)
 
-        self.c2 = Classifier.create(self.org, self.admin, WitType.slug, "Old Booker", {})
+        self.c2 = Classifier.create(self.org, self.admin, WitType.slug, "Old Booker", {}, sync=False)
         self.c2.is_active = False
         self.c2.save()
 
