@@ -237,11 +237,11 @@ class Command(BaseCommand):
         with connection.cursor() as cursor:
             cursor.execute("SELECT version();")
             row = cursor.fetchone()
-            if row[0].find("PostgreSQL 11") == 0:
+            if row[0].find("PostgreSQL 10") == 0:
                 self._log(self.style.SUCCESS("OK") + "\n")
             else:
                 self._log(
-                    "\n" + self.style.ERROR("Incorrect Postgres Version, needs to be PG11, found: " + row[0]) + "\n"
+                    "\n" + self.style.ERROR("Incorrect Postgres Version, needs to be PG10, found: " + row[0]) + "\n"
                 )
                 sys.exit(1)
 
