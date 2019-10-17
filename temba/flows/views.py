@@ -35,8 +35,6 @@ from django.views.generic import FormView
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
-
-# from temba.contacts.fields import OmniboxField
 from temba.contacts.models import TEL_SCHEME, WHATSAPP_SCHEME, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
