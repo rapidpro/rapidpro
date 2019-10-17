@@ -1,3 +1,8 @@
+v5.1.55
+----------
+ * Sync intents on classifier creation
+ * Trim HTTP logs older than 3 days
+
 v5.1.54
 ----------
  * remove fragile AT links to configuration pages
