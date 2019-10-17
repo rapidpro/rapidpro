@@ -1,12 +1,11 @@
-from smartmin.models import SmartModel
-
 from django.db import models
+from django.utils import timezone
 
 from temba.contacts.models import Contact
 from temba.orgs.models import Org
 
 
-class AirtimeTransfer(SmartModel):
+class AirtimeTransfer(models.Model):
     STATUS_SUCCESS = "S"
     STATUS_FAILED = "F"
     STATUS_CHOICES = ((STATUS_SUCCESS, "Success"), (STATUS_FAILED, "Failed"))
@@ -29,3 +28,6 @@ class AirtimeTransfer(SmartModel):
     desired_amount = models.DecimalField(max_digits=10, decimal_places=2)
 
     actual_amount = models.DecimalField(max_digits=10, decimal_places=2)
+
+    # when this was created
+    created_on = models.DateTimeField(default=timezone.now)

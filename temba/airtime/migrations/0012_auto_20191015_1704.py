@@ -15,6 +15,10 @@ class Migration(migrations.Migration):
         migrations.RemoveField(model_name="airtimetransfer", name="message"),
         migrations.RemoveField(model_name="airtimetransfer", name="response"),
         migrations.RemoveField(model_name="airtimetransfer", name="channel"),
+        migrations.RemoveField(model_name="airtimetransfer", name="created_by"),
+        migrations.RemoveField(model_name="airtimetransfer", name="is_active"),
+        migrations.RemoveField(model_name="airtimetransfer", name="modified_by"),
+        migrations.RemoveField(model_name="airtimetransfer", name="modified_on"),
         migrations.AlterField(
             model_name="airtimetransfer", name="amount", field=models.DecimalField(decimal_places=2, max_digits=10)
         ),
@@ -37,6 +41,11 @@ class Migration(migrations.Migration):
             field=models.CharField(choices=[("S", "Success"), ("F", "Failed")], max_length=1),
         ),
         migrations.RenameField(model_name="airtimetransfer", old_name="denomination", new_name="currency"),
+        migrations.AlterField(
+            model_name="airtimetransfer",
+            name="created_on",
+            field=models.DateTimeField(default=django.utils.timezone.now),
+        ),
         migrations.AddField(
             model_name="airtimetransfer", name="sender", field=models.CharField(max_length=64, null=True)
         ),
