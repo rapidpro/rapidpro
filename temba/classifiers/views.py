@@ -1,10 +1,12 @@
+from smartmin.views import SmartCRUDL, SmartDeleteView, SmartFormView, SmartReadView, SmartTemplateView
+
 from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
-from smartmin.views import SmartCRUDL, SmartTemplateView, SmartReadView, SmartFormView, SmartDeleteView
 
-from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin, ModalMixin
+from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+
 from .models import Classifier
 
 

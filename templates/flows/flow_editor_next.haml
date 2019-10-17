@@ -92,12 +92,20 @@
     #toolbar {
       visibility: visible;
       position: relative;
-      height: 40px;
-      padding: 20px 30px;
+      padding: 18px 30px;
       background-color: #f9f9f9;
       background-position: 13px 13px;
       background-image: linear-gradient(0deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent),linear-gradient(90deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent);
       background-size: 40px 40px;
+    }
+
+    #pending {
+      position: relative;
+      right: 0;
+      width: 40%;
+      height: 36px;
+      margin: 0 auto;
+      text-align: center;
     }
 
     #rp-flow-editor {
@@ -118,6 +126,12 @@
 
     #rp-flow-editor .language-selector {
       top: -15px !important;
+    }
+
+    rp-loading {
+      margin-left: 30px;
+      padding-top: 5px;
+      display: block;
     }
 
 -block extra-script
@@ -265,7 +279,12 @@
       -elif flow.flow_type == 'S'
         .icon-mobile
       {{ flow.name }}
+    -if is_starting
+      #pending
+        %div{class:"alert alert-info"}
+          -blocktrans
+            This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
 
   #rp-flow-editor
-    %img{src:"{{STATIC_URL}}/images/loader-circles.gif", style:"position: relative; left: 20px; top: 4px; margin: 0 auto"}
+    <rp-loading units="10" size="8"></rp-loading>
 

@@ -1,8 +1,10 @@
+from smartmin.views import SmartCRUDL, SmartListView, SmartReadView
+
 from django.shortcuts import get_object_or_404
-from smartmin.views import SmartCRUDL, SmartReadView, SmartListView
 
 from temba.classifiers.models import Classifier
 from temba.orgs.views import OrgPermsMixin
+
 from .models import HTTPLog
 
 
