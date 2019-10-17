@@ -1605,10 +1605,11 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.get_object()
 
             result_fields = []
-            for result_field in flow.metadata["results"]:
-                result_field = result_field.copy()
-                result_field["has_categories"] = "true" if len(result_field["categories"]) > 1 else "false"
-                result_fields.append(result_field)
+            for result_field in flow.metadata[Flow.METADATA_RESULTS]:
+                if not result_field["name"].startswith("_"):
+                    result_field = result_field.copy()
+                    result_field["has_categories"] = "true" if len(result_field["categories"]) > 1 else "false"
+                    result_fields.append(result_field)
             context["result_fields"] = result_fields
 
             context["categories"] = flow.get_category_counts()["counts"]

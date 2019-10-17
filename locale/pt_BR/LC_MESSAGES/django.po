@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-14 17:15+0000\n"
+"POT-Creation-Date: 2019-10-17 16:28+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -606,8 +606,8 @@ msgstr "URL de Retorno de Chamada"
 #| "      "
 msgid ""
 "\n"
-"                You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
-"                <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
+"                You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page,\n"
+"                then clicking on Callback URL.\n"
 "                "
 msgstr ""
 "\n"
@@ -626,8 +626,8 @@ msgstr "URL de entrega"
 #| "      "
 msgid ""
 "\n"
-"                You can set the delivery URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
-"                <a href=\"http://www.africastalking.com/account/sms/dlrcallback\" target=\"africastalking\">Delivery Reports</a>.\n"
+"                You can set the delivery URL on your Africa's Talking account by visiting the SMS Dashboard page,\n"
+"                then clicking on Delivery Reports.\n"
 "                "
 msgstr ""
 "\n"
@@ -5065,6 +5065,9 @@ msgstr ""
 msgid "Classifier Called"
 msgstr "Evento do transmissor"
 
+msgid "Airtime Transferred"
+msgstr ""
+
 msgid "Never"
 msgstr "Nunca"
 
@@ -5359,23 +5362,13 @@ msgstr "tiver uma data"
 msgid "Ward"
 msgstr ""
 
-msgid "Data posted Log"
+msgid "HTTP Logs"
 msgstr ""
 
 #, fuzzy
 #| msgid "Export Data"
 msgid "No Data"
 msgstr "Exportar dados"
-
-#, fuzzy
-#| msgid "Response To"
-msgid "Responses Log"
-msgstr "Respondido para"
-
-#, fuzzy
-#| msgid "Response"
-msgid "No Response"
-msgstr "Respostas"
 
 #, python-format
 msgid ""
@@ -11099,6 +11092,16 @@ msgstr "Escolha quando você gostaria de iniciar o fluxo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Remover telefone"
+
+#, fuzzy
+#~| msgid "Response To"
+#~ msgid "Responses Log"
+#~ msgstr "Respondido para"
+
+#, fuzzy
+#~| msgid "Response"
+#~ msgid "No Response"
+#~ msgstr "Respostas"
 
 #, fuzzy
 #~| msgid "The type of this message"

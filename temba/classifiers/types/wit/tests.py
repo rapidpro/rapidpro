@@ -1,10 +1,10 @@
 from unittest.mock import patch
 
+from django.contrib.auth.models import Group
 from django.urls import reverse
 
 from temba.classifiers.models import Classifier
 from temba.tests import MockResponse, TembaTest
-from django.contrib.auth.models import Group
 
 from .type import WitType
 
@@ -148,6 +148,7 @@ class WitTypeTest(TembaTest):
             mock_get.side_effect = [
                 MockResponse(200, '["intent", "wit$age_of_person"]'),
                 MockResponse(200, '{"builtin": false, "name": "intent"}'),
+                MockResponse(200, INTENT_RESPONSE),
             ]
 
             response = self.client.post(url, post_data)
@@ -157,3 +158,6 @@ class WitTypeTest(TembaTest):
             self.assertEqual("wit", c.classifier_type)
             self.assertEqual("sesame", c.config[WitType.CONFIG_ACCESS_TOKEN])
             self.assertEqual("12345", c.config[WitType.CONFIG_APP_ID])
+
+            # should have intents too
+            self.assertEqual(2, c.intents.all().count())

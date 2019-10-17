@@ -24,9 +24,9 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
-from temba.classifiers.models import Classifier
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
+from temba.classifiers.models import Classifier
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.msgs.models import Label, Msg
 from temba.orgs.models import Org
@@ -2871,10 +2871,11 @@ class ExportFlowResultsTask(BaseExportTask):
         flows = list(self.flows.filter(is_active=True))
         for flow in flows:
             for result_field in flow.metadata["results"]:
-                result_field = result_field.copy()
-                result_field["flow_uuid"] = flow.uuid
-                result_field["flow_name"] = flow.name
-                result_fields.append(result_field)
+                if not result_field["name"].startswith("_"):
+                    result_field = result_field.copy()
+                    result_field["flow_uuid"] = flow.uuid
+                    result_field["flow_name"] = flow.name
+                    result_fields.append(result_field)
 
             if flow.flow_type == Flow.TYPE_SURVEY:
                 show_submitted_by = True

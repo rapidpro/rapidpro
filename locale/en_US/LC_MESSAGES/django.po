@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-14 17:15+0000\n"
+"POT-Creation-Date: 2019-10-17 16:28+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -489,8 +489,8 @@ msgstr ""
 
 msgid ""
 "\n"
-"                You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
-"                <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
+"                You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page,\n"
+"                then clicking on Callback URL.\n"
 "                "
 msgstr ""
 
@@ -499,8 +499,8 @@ msgstr ""
 
 msgid ""
 "\n"
-"                You can set the delivery URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
-"                <a href=\"http://www.africastalking.com/account/sms/dlrcallback\" target=\"africastalking\">Delivery Reports</a>.\n"
+"                You can set the delivery URL on your Africa's Talking account by visiting the SMS Dashboard page,\n"
+"                then clicking on Delivery Reports.\n"
 "                "
 msgstr ""
 
@@ -3894,6 +3894,9 @@ msgstr ""
 msgid "Classifier Called"
 msgstr ""
 
+msgid "Airtime Transferred"
+msgstr ""
+
 msgid "Never"
 msgstr ""
 
@@ -4151,16 +4154,10 @@ msgstr ""
 msgid "Ward"
 msgstr ""
 
-msgid "Data posted Log"
+msgid "HTTP Logs"
 msgstr ""
 
 msgid "No Data"
-msgstr ""
-
-msgid "Responses Log"
-msgstr ""
-
-msgid "No Response"
 msgstr ""
 
 #, python-format

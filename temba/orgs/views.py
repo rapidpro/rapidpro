@@ -549,7 +549,7 @@ class OrgCRUDL(SmartCRUDL):
         "service",
         "surveyor",
         "transfer_credits",
-        "transfer_to_account",
+        "dtone_account",
         "smtp_server",
     )
 
@@ -2272,7 +2272,7 @@ class OrgCRUDL(SmartCRUDL):
             # show archives
             formax.add_section("archives", reverse("archives.archive_message"), icon="icon-box", action="link")
 
-    class DTOneAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+    class DtoneAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
         success_message = ""
 
