@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-16 21:10+0000\n"
+"POT-Creation-Date: 2019-10-17 20:46+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -5205,6 +5205,9 @@ msgstr ""
 msgid "Classifier Called"
 msgstr ""
 
+msgid "Airtime Transferred"
+msgstr ""
+
 msgid "Never"
 msgstr "Jamais"
 
@@ -5501,23 +5504,13 @@ msgstr "a un district"
 msgid "Ward"
 msgstr ""
 
-msgid "Data posted Log"
+msgid "HTTP Logs"
 msgstr ""
 
 #, fuzzy
 #| msgid "Export Data"
 msgid "No Data"
 msgstr "Exporter les données"
-
-#, fuzzy
-#| msgid "Response To"
-msgid "Responses Log"
-msgstr "réponse Pour"
-
-#, fuzzy
-#| msgid "Response"
-msgid "No Response"
-msgstr "Réponse"
 
 #, python-format
 msgid ""
@@ -11610,6 +11603,16 @@ msgstr "Créer un contact"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Response To"
+#~ msgid "Responses Log"
+#~ msgstr "réponse Pour"
+
+#, fuzzy
+#~| msgid "Response"
+#~ msgid "No Response"
+#~ msgstr "Réponse"
 
 #, fuzzy
 #~| msgid "The flow that is being started"

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-16 21:10+0000\n"
+"POT-Creation-Date: 2019-10-17 20:46+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3915,6 +3915,9 @@ msgstr ""
 msgid "Classifier Called"
 msgstr ""
 
+msgid "Airtime Transferred"
+msgstr ""
+
 msgid "Never"
 msgstr ""
 
@@ -4172,16 +4175,10 @@ msgstr ""
 msgid "Ward"
 msgstr ""
 
-msgid "Data posted Log"
+msgid "HTTP Logs"
 msgstr ""
 
 msgid "No Data"
-msgstr ""
-
-msgid "Responses Log"
-msgstr ""
-
-msgid "No Response"
 msgstr ""
 
 #, python-format
