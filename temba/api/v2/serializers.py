@@ -696,12 +696,12 @@ class ContactFieldWriteSerializer(WriteSerializer):
 
     def validate(self, data):
 
-        fields_count = ContactField.user_fields.count_active_for_org(org=self.context["org"])
-        if not self.instance and fields_count >= ContactField.MAX_ORG_CONTACTFIELDS:
+        field_count = ContactField.user_fields.count_active_for_org(org=self.context["org"])
+        if not self.instance and field_count >= settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG:
             raise serializers.ValidationError(
                 "This org has %s contact fields and the limit is %s. "
                 "You must delete existing ones before you can "
-                "create new ones." % (fields_count, ContactField.MAX_ORG_CONTACTFIELDS)
+                "create new ones." % (field_count, settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG)
             )
 
         return data

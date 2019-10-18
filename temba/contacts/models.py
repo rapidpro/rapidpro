@@ -415,7 +415,6 @@ class ContactField(SmartModel):
 
     MAX_KEY_LEN = 36
     MAX_LABEL_LEN = 36
-    MAX_ORG_CONTACTFIELDS = 200
 
     # fields that cannot be updated by user
     IMMUTABLE_FIELDS = ("id", "created_on")
