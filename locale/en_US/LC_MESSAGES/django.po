@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-17 20:46+0000\n"
+"POT-Creation-Date: 2019-10-18 18:20+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6535,6 +6535,9 @@ msgid "Remove Label"
 msgstr ""
 
 msgid "Are you sure you want to remove this label?"
+msgstr ""
+
+msgid "You cannot remove a label which has child labels. Please remove all children first."
 msgstr ""
 
 msgid "Unlabel"
