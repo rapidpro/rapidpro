@@ -1,3 +1,11 @@
+v5.1.57
+----------
+ * Check pg_dump version when creating dumps
+ * Add missing block super in extra script blocks
+ * Fix omnibox being not actually required on send message form
+ * Rework airtime transfers to have separate http logs
+ * Allow flow starts by query
+
 v5.1.55
 ----------
  * Sync intents on classifier creation

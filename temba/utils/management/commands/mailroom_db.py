@@ -1,5 +1,6 @@
 import json
-from subprocess import CalledProcessError, check_call
+import subprocess
+import sys
 
 import pytz
 from django_redis import get_redis_connection
@@ -219,14 +220,26 @@ class Command(BaseCommand):
     help = "Generates a database suitable for mailroom testing"
 
     def handle(self, *args, **kwargs):
+        self._log("Checking Postgres database version... ")
+
+        result = subprocess.run(["pg_dump", "--version"], stdout=subprocess.PIPE)
+        version = result.stdout.decode("utf8")
+        if version.split(" ")[-1].find("11.") == 0:
+            self._log(self.style.SUCCESS("OK") + "\n")
+        else:
+            self._log(
+                "\n" + self.style.ERROR("Incorrect pg_dump version, needs version 11.*, found: " + version) + "\n"
+            )
+            sys.exit(1)
+
         self._log("Initializing mailroom_test database...\n")
 
         # drop and recreate the mailroom_test db and user
-        check_call('psql -c "DROP DATABASE IF EXISTS mailroom_test;"', shell=True)
-        check_call('psql -c "CREATE DATABASE mailroom_test;"', shell=True)
-        check_call('psql -c "DROP USER IF EXISTS mailroom_test;"', shell=True)
-        check_call("psql -c \"CREATE USER mailroom_test PASSWORD 'temba';\"", shell=True)
-        check_call('psql -c "ALTER ROLE mailroom_test WITH SUPERUSER;"', shell=True)
+        subprocess.check_call('psql -c "DROP DATABASE IF EXISTS mailroom_test;"', shell=True)
+        subprocess.check_call('psql -c "CREATE DATABASE mailroom_test;"', shell=True)
+        subprocess.check_call('psql -c "DROP USER IF EXISTS mailroom_test;"', shell=True)
+        subprocess.check_call("psql -c \"CREATE USER mailroom_test PASSWORD 'temba';\"", shell=True)
+        subprocess.check_call('psql -c "ALTER ROLE mailroom_test WITH SUPERUSER;"', shell=True)
 
         # always use mailroom_test as our db
         settings.DATABASES["default"]["NAME"] = "mailroom_test"
@@ -258,7 +271,7 @@ class Command(BaseCommand):
             self.create_org(spec, superuser, country, locations)
 
         # dump our file
-        check_call("pg_dump -Fc mailroom_test > mailroom_test.dump", shell=True)
+        subprocess.check_call("pg_dump -Fc mailroom_test > mailroom_test.dump", shell=True)
 
         self._log("\n" + self.style.SUCCESS("Success!") + " Dump file: mailroom_test.dump\n\n")
 
@@ -271,12 +284,12 @@ class Command(BaseCommand):
         # load dump into current db with pg_restore
         db_config = settings.DATABASES["default"]
         try:
-            check_call(
+            subprocess.check_call(
                 f"export PGPASSWORD={db_config['PASSWORD']} && pg_restore -h {db_config['HOST']} "
                 f"-p {db_config['PORT']} -U {db_config['USER']} -w -d {db_config['NAME']} {path}",
                 shell=True,
             )
-        except CalledProcessError:  # pragma: no cover
+        except subprocess.CalledProcessError:  # pragma: no cover
             raise CommandError("Error occurred whilst calling pg_restore to load locations dump")
 
         # fetch as tuples of (WARD, DISTRICT, STATE)

@@ -35,7 +35,6 @@ from django.views.generic import FormView
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
-from temba.contacts.fields import OmniboxField
 from temba.contacts.models import TEL_SCHEME, WHATSAPP_SCHEME, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
@@ -47,6 +46,7 @@ from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
 from temba.utils import analytics, json, on_transaction_commit, str_to_bool
+from temba.utils.fields import ContactSearchWidget, JSONField, OmniboxChoice, SelectWidget
 from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm, NonAtomicMixin
 
@@ -1188,6 +1188,7 @@ class FlowCRUDL(SmartCRUDL):
             whatsapp_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=WHATSAPP_SCHEME)
             context["has_whatsapp_channel"] = whatsapp_channel is not None
             context["dev_mode"] = dev_mode
+            context["is_starting"] = flow.is_starting()
 
             return context
 
@@ -1789,13 +1790,13 @@ class FlowCRUDL(SmartCRUDL):
             def __init__(self, *args, **kwargs):
                 self.user = kwargs.pop("user")
                 self.flow = kwargs.pop("flow")
-
                 super().__init__(*args, **kwargs)
-                self.fields["omnibox"].set_user(self.user)
 
-            omnibox = OmniboxField(
+            omnibox = JSONField(
                 label=_("Contacts & Groups"),
+                required=False,
                 help_text=_("These contacts will be added to the flow, sending the first message if appropriate."),
+                widget=OmniboxChoice(attrs={"placeholder": _("Recipients, enter contacts or groups")}),
             )
 
             restart_participants = forms.BooleanField(
@@ -1812,14 +1813,57 @@ class FlowCRUDL(SmartCRUDL):
                 help_text=_("Include contacts currently active in a flow"),
             )
 
+            start_type = forms.ChoiceField(
+                widget=SelectWidget(attrs={"placeholder": _("Select contacts or groups to start in the flow")}),
+                choices=(
+                    ("select", _("Enter contacts and groups to start below")),
+                    ("query", _("Search for contacts to start")),
+                ),
+                initial="select",
+            )
+
+            contact_query = forms.CharField(
+                required=False, widget=ContactSearchWidget(attrs={"placeholder": _("Enter contact query")})
+            )
+
+            def clean_contact_query(self):
+                contact_query = self.cleaned_data["contact_query"]
+                start_type = self.data["start_type"]
+
+                if start_type == "query":
+
+                    if not contact_query.strip():
+                        raise ValidationError(_("Contact query is required"))
+
+                    # try parsing our query
+                    from temba.contacts.search import parse_query, SearchException
+
+                    try:
+                        parse_query(text=contact_query)
+                    except SearchException:
+                        raise ValidationError(_("Please enter a valid contact query"))
+
+                return contact_query
+
             def clean_omnibox(self):
                 starting = self.cleaned_data["omnibox"]
-                if not starting["groups"] and not starting["contacts"]:  # pragma: needs cover
+                start_type = self.data["start_type"]
+
+                if start_type == "select" and not starting:  # pragma: needs cover
                     raise ValidationError(_("You must specify at least one contact or one group to start a flow."))
 
-                return starting
+                # convert to groups and contacts
+                org = self.user.get_org()
+                group_ids = [item["id"] for item in starting if item["type"] == "group"]
+                contact_ids = [item["id"] for item in starting if item["type"] == "contact"]
+
+                return {
+                    "groups": ContactGroup.all_groups.filter(uuid__in=group_ids, org=org, is_active=True),
+                    "contacts": Contact.objects.filter(uuid__in=contact_ids, org=org, is_active=True),
+                }
 
             def clean(self):
+
                 cleaned = super().clean()
 
                 # check whether there are any flow starts that are incomplete
@@ -1844,7 +1888,7 @@ class FlowCRUDL(SmartCRUDL):
                 fields = ("omnibox", "restart_participants", "include_active")
 
         form_class = BroadcastForm
-        fields = ("omnibox", "restart_participants", "include_active")
+        fields = ("omnibox", "restart_participants", "include_active", "start_type", "contact_query")
         success_message = ""
         submit_button_name = _("Add Contacts to Flow")
         success_url = "uuid@flows.flow_editor"
@@ -1862,7 +1906,11 @@ class FlowCRUDL(SmartCRUDL):
                 # check to see we are using templates
                 templates = flow.metadata.get(Flow.METADATA_DEPENDENCIES, {}).get("templates", [])
                 if not templates:
-                    warnings.append(_("This flow does not use message templates."))
+                    warnings.append(
+                        _(
+                            "This flow does not use message templates. You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
+                        )
+                    )
 
                 # check that this template is synced and ready to go
                 for ref in templates:
@@ -1893,20 +1941,32 @@ class FlowCRUDL(SmartCRUDL):
             form = self.form
             flow = self.object
 
+            start_type = form.cleaned_data["start_type"]
+
             # save off our broadcast info
-            omnibox = form.cleaned_data["omnibox"]
+            groups = []
+            contacts = []
+            contact_query = None
+
+            if start_type == "query":
+                contact_query = form.cleaned_data["contact_query"]
+            else:
+                omnibox = form.cleaned_data["omnibox"]
+                groups = list(omnibox["groups"])
+                contacts = list(omnibox["contacts"])
 
             analytics.track(
                 self.request.user.username,
                 "temba.flow_broadcast",
-                dict(contacts=len(omnibox["contacts"]), groups=len(omnibox["groups"])),
+                dict(contacts=len(contacts), groups=len(groups), query=contact_query),
             )
 
             # activate all our contacts
             flow.async_start(
                 self.request.user,
-                list(omnibox["groups"]),
-                list(omnibox["contacts"]),
+                groups,
+                contacts,
+                contact_query,
                 restart_participants=form.cleaned_data["restart_participants"],
                 include_active=form.cleaned_data["include_active"],
             )

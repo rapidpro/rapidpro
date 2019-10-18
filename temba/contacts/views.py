@@ -36,6 +36,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel
+from temba.contacts.search import ContactQuery
 from temba.contacts.templatetags.contacts import MISSING_VALUE
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
@@ -511,6 +512,7 @@ class ContactCRUDL(SmartCRUDL):
     actions = (
         "create",
         "update",
+        "search",
         "stopped",
         "list",
         "import",
@@ -1211,6 +1213,56 @@ class ContactCRUDL(SmartCRUDL):
             context["start_date"] = contact.org.get_delete_date(archive_type=Archive.TYPE_MSG)
             return context
 
+    class Search(ContactListView):
+        template_name = "contacts/contact_list.haml"
+
+        def get(self, request, *args, **kwargs):
+            org = self.request.user.get_org()
+            query = self.request.GET.get("search", None)
+            samples = int(self.request.GET.get("samples", 10))
+
+            if not query:
+                return JsonResponse({"total": 0, "sample": [], "fields": {}})
+
+            try:
+                summary = Contact.query_summary(org, query, samples)
+            except SearchException:
+                return JsonResponse({"total": 0, "sample": [], "query": "", "error": "Invalid query"})
+
+            # serialize our contact sample
+            json_contacts = []
+            for contact in summary["sample"]:
+
+                primary_urn = contact.get_urn()
+                if primary_urn:
+                    primary_urn = primary_urn.get_display(org=org, international=True)
+                else:
+                    primary_urn = "--"
+
+                contact_json = {
+                    "name": contact.name,
+                    "fields": contact.fields if contact.fields else {},
+                    "primary_urn_formatted": primary_urn,
+                }
+                contact_json["created_on"] = org.format_datetime(contact.created_on, False)
+
+                json_contacts.append(contact_json)
+            summary["sample"] = json_contacts
+
+            # serialize our parsed query
+            fields = {}
+            parsed_query = summary["query"]
+            if parsed_query:
+                prop_map = parsed_query.get_prop_map(org)
+                for key, value in prop_map.items():
+                    prop_type, prop = value
+                    if prop_type == ContactQuery.PROP_FIELD:
+                        fields[str(prop.uuid)] = {"label": prop.label, "type": prop_type}
+
+            summary["query"] = parsed_query.as_text()
+            summary["fields"] = fields
+            return JsonResponse(summary)
+
     class List(ContactActionMixin, ContactListView):
         title = _("Contacts")
         system_group = ContactGroup.TYPE_ALL
@@ -1695,9 +1747,8 @@ class CreateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
     def clean(self):
         super().clean()
 
-        cnt_active_userfields_per_org = ContactField.user_fields.count_active_for_org(org=self.org)
-
-        if cnt_active_userfields_per_org >= settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG:
+        field_count = ContactField.user_fields.count_active_for_org(org=self.org)
+        if field_count >= settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG:
             raise forms.ValidationError(
                 _(
                     f"Cannot create a new Contact Field, maximum allowed per org: {settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG}"

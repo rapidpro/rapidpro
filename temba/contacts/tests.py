@@ -4224,6 +4224,53 @@ class ContactTest(TembaTest):
         )
         self.assertFormError(response, "form", "name", "Name is used by another group")
 
+    def test_contacts_search(self):
+        search_url = reverse("contacts.contact_search")
+        self.login(self.admin)
+        with patch("temba.utils.es.ES") as mock_ES:
+
+            from elasticsearch_dsl.utils import AttrList
+
+            hits = AttrList([{"id": self.frank.id}])
+            hits.total = 1
+            mock_ES.search.return_value = {"_hits": hits}
+
+            response = self.client.get(search_url + "?search=Frank")
+            self.assertEqual(200, response.status_code)
+            results = response.json()
+
+            # check that we get a total and a sample
+            self.assertEqual(1, results["total"])
+            self.assertEqual(1, len(results["sample"]))
+            self.assertEqual("+250 782 222 222", results["sample"][0]["primary_urn_formatted"])
+
+            # our query should get expanded into a proper query
+            self.assertEqual('name ~ "Frank"', results["query"])
+
+            # check no primary urn
+            self.frank.urns.all().delete()
+            response = self.client.get(search_url + "?search=Frank")
+            self.assertEqual(200, response.status_code)
+            results = response.json()
+            self.assertEqual("--", results["sample"][0]["primary_urn_formatted"])
+
+            # no query, no results
+            response = self.client.get(search_url)
+            results = response.json()
+            self.assertEqual(0, results["total"])
+
+            # bogus query
+            response = self.client.get(search_url + '?search=name="notclosed')
+            results = response.json()
+            self.assertEqual("Invalid query", results["error"])
+            self.assertEqual(0, results["total"])
+
+            # if we query a field, it should show up in our field dict
+            age = self.create_field("age", "Age", Value.TYPE_NUMBER)
+            response = self.client.get(search_url + "?search=age>32")
+            results = response.json()
+            self.assertEqual("Age", results["fields"][str(age.uuid)]["label"])
+
     def test_update_and_list(self):
         self.setUpLocations()
 

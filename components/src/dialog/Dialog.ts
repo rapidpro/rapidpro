@@ -8,8 +8,21 @@ import { styleMap } from 'lit-html/directives/style-map.js';
 @customElement("rp-dialog")
 export default class Dialog extends RapidElement {
 
+  static get widths(): { [size: string]: string } {
+    return {
+      'small' : '350px',
+      'medium' : '500px',
+      'large' : '655px'
+    }
+  }
+
   static get styles() {
     return css`
+
+      :host {
+        position: absolute;
+        z-index: 10000;
+      }
 
       .mask {
         width: 100%;
@@ -23,13 +36,12 @@ export default class Dialog extends RapidElement {
       }
 
       .dialog {
-        width: 500px;
         margin: 0px auto; 
         top: -200px;
         position: relative;
         transition: top ease-in-out 200ms;
         border-radius: var(--curvature); 
-        box-shadow: 0px 0px 0px 4px rgba(0,0,0,.04);
+        box-shadow: 0px 0px 2px 4px rgba(0,0,0,.06);
         overflow: hidden;
       }
 
@@ -47,8 +59,9 @@ export default class Dialog extends RapidElement {
       }
 
       .title {
-        padding: 10px 20px;
-        font-size: 18px;
+        font-size: 20px;
+        padding: 16px;
+        font-weight: 300;
         color: var(--color-text-light);
         background: var(--color-primary-dark);
       }
@@ -61,7 +74,7 @@ export default class Dialog extends RapidElement {
       }
 
       rp-button {
-        margin-left: 5px;
+        margin-left: 10px;
       }
   `;
   }
@@ -75,6 +88,9 @@ export default class Dialog extends RapidElement {
 
   @property()
   body: string;
+
+  @property()
+  size: string = "medium";
 
   @property()
   primaryButtonName: string = "Ok";
@@ -134,10 +150,11 @@ export default class Dialog extends RapidElement {
     const height = this.getDocumentHeight();
 
     const maskStyle = { height: `${height + 100}px`}
+    const dialogStyle = { width: Dialog.widths[this.size] }
 
     return html`
         <div class="mask ${this.open ? 'open' : ''}" style=${styleMap(maskStyle)}>
-          <div @keyup=${this.handleKeyUp} class="dialog">
+          <div @keyup=${this.handleKeyUp} style=${styleMap(dialogStyle)} class="dialog">
             <div class="header">
               <div class="title">${this.title}</div>
             </div>

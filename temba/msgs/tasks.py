@@ -6,19 +6,19 @@ from django.utils import timezone
 
 from celery.task import task
 
-from temba.utils import analytics
 from temba.channels.models import Channel
+from temba.utils import analytics
 from temba.utils.celery import nonoverlapping_task
 
 from .models import (
+    ERRORED,
+    OUTGOING,
     Broadcast,
     BroadcastMsgCount,
     ExportMessagesTask,
     LabelCount,
     Msg,
     SystemLabelCount,
-    OUTGOING,
-    ERRORED,
 )
 
 logger = logging.getLogger(__name__)

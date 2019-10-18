@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-18 20:30+0000\n"
+"POT-Creation-Date: 2019-10-18 21:44+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2859,6 +2859,9 @@ msgstr ""
 msgid "These contacts will be added to the flow, sending the first message if appropriate."
 msgstr ""
 
+msgid "Recipients, enter contacts or groups"
+msgstr ""
+
 msgid "Restart Participants"
 msgstr ""
 
@@ -2869,6 +2872,24 @@ msgid "Include Active Contacts"
 msgstr ""
 
 msgid "Include contacts currently active in a flow"
+msgstr ""
+
+msgid "Select contacts or groups to start in the flow"
+msgstr ""
+
+msgid "Enter contacts and groups to start below"
+msgstr ""
+
+msgid "Search for contacts to start"
+msgstr ""
+
+msgid "Enter contact query"
+msgstr ""
+
+msgid "Contact query is required"
+msgstr ""
+
+msgid "Please enter a valid contact query"
 msgstr ""
 
 msgid "You must specify at least one contact or one group to start a flow."
@@ -2883,7 +2904,7 @@ msgstr ""
 msgid "Add Contacts to Flow"
 msgstr ""
 
-msgid "This flow does not use message templates."
+msgid "This flow does not use message templates. You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
 msgstr ""
 
 msgid "The message template {ref['name']} does not exist on your account and cannot be sent."
@@ -6318,9 +6339,6 @@ msgstr ""
 msgid "Interrupt contacts currently active in flows"
 msgstr ""
 
-msgid "You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
-msgstr ""
-
 msgid "This flow has never been started."
 msgstr ""
 
@@ -6517,6 +6535,9 @@ msgid "Remove Label"
 msgstr ""
 
 msgid "Are you sure you want to remove this label?"
+msgstr ""
+
+msgid "You cannot remove a label which has child labels. Please remove all children first."
 msgstr ""
 
 msgid "Unlabel"
@@ -8775,4 +8796,11 @@ msgid "Choose when you would like the flow to start."
 msgstr ""
 
 msgid "Facebook Channel"
+msgstr ""
+
+msgid "Enter a query"
+msgstr ""
+
+#, python-brace-format
+msgid "Found ${count} for ${query}"
 msgstr ""

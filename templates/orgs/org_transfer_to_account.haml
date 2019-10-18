@@ -59,6 +59,7 @@
     -trans " on the TransferTo site."
 
 -block extra-script
+  {{block.super}}
   :javascript
     function confirmTransferToDisconnect() {
       removalConfirmation("disconnect-transferto", "Disconnect");

@@ -1,5 +1,6 @@
 import axios, { AxiosResponse, CancelToken, AxiosRequestConfig } from 'axios';
 import { html, TemplateResult } from 'lit-html';
+const dynamicTemplate = require('es6-dynamic-template');
 
 export interface Asset {
     key?: string;
@@ -136,4 +137,29 @@ export const getElementOffset = (
         width: rect.width,
         height: rect.height
     };
+};
+
+export const plural = (count: number, singular: string, plural: string) => {
+    return count === 1 ? singular : plural;
+};
+
+export const range = (start: number, end: number) =>
+    Array.from({ length: end - start }, (v: number, k: number) => k + start);
+
+export const fillTemplate = (
+    template: string,
+    replacements: { [key: string]: string | number }
+): TemplateResult => {
+    for (const key in replacements) {
+        const className = key + '-replaced';
+        replacements[
+            key
+        ] = `<span class="${className}">${replacements[key]}</span>`;
+    }
+
+    const templateDiv = document.createElement('div');
+    templateDiv.innerHTML = dynamicTemplate(template, replacements);
+    return html`
+        ${templateDiv}
+    `;
 };

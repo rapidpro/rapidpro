@@ -1,9 +1,11 @@
-from ...models import ClassifierType, Intent
-from .views import ConnectView
+import requests
+
+from django.utils import timezone
+
 from temba.request_logs.models import HTTPLog
 
-import requests
-from django.utils import timezone
+from ...models import ClassifierType, Intent
+from .views import ConnectView
 
 
 class WitType(ClassifierType):

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-18 20:30+0000\n"
+"POT-Creation-Date: 2019-10-18 21:44+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -4001,6 +4001,11 @@ msgstr "Contacts & Groupes"
 msgid "These contacts will be added to the flow, sending the first message if appropriate."
 msgstr "Ces contacts seront ajoutés au flux, en envoyant le premier message, si possible."
 
+#, fuzzy
+#| msgid "Create Contact Group"
+msgid "Recipients, enter contacts or groups"
+msgstr "Créer un groupe de contact"
+
 msgid "Restart Participants"
 msgstr "Redémarrez participants"
 
@@ -4015,6 +4020,36 @@ msgstr "Archivés les contacts"
 msgid "Include contacts currently active in a flow"
 msgstr ""
 
+#, fuzzy
+#| msgid "Contacts that will start the flow"
+msgid "Select contacts or groups to start in the flow"
+msgstr "Contacts qui débuteront le flux"
+
+#, fuzzy
+#| msgid "Unlimited Contacts and Groups"
+msgid "Enter contacts and groups to start below"
+msgstr "Contacts et groupes illimités"
+
+#, fuzzy
+#| msgid "Your Contacts"
+msgid "Search for contacts to start"
+msgstr "Vos contacts"
+
+#, fuzzy
+#| msgid "Create Contact"
+msgid "Enter contact query"
+msgstr "Créer un contact"
+
+#, fuzzy
+#| msgid "Contact First Name"
+msgid "Contact query is required"
+msgstr "Prénom du Contact"
+
+#, fuzzy
+#| msgid "Please enter at least 8 characters"
+msgid "Please enter a valid contact query"
+msgstr "S'il vous plaît entrer au moins 8 caractères"
+
 msgid "You must specify at least one contact or one group to start a flow."
 msgstr ""
 
@@ -4027,10 +4062,8 @@ msgstr ""
 msgid "Add Contacts to Flow"
 msgstr "Ajouter des contact à un flux"
 
-#, fuzzy
-#| msgid "The flow that is being started"
-msgid "This flow does not use message templates."
-msgstr "Le flux qui est démarrée"
+msgid "This flow does not use message templates. You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
+msgstr ""
 
 msgid "The message template {ref['name']} does not exist on your account and cannot be sent."
 msgstr ""
@@ -8506,9 +8539,6 @@ msgstr "Aucun contact n'a commencé ce flux."
 msgid "Interrupt contacts currently active in flows"
 msgstr ""
 
-msgid "You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
-msgstr ""
-
 #, fuzzy
 #| msgid "The flow that is being started"
 msgid "This flow has never been started."
@@ -8771,6 +8801,9 @@ msgstr "Supprimer le libellé"
 
 msgid "Are you sure you want to remove this label?"
 msgstr "Etes-vous sûr de vouloir supprimer ce libellé?"
+
+msgid "You cannot remove a label which has child labels. Please remove all children first."
+msgstr ""
 
 msgid "Unlabel"
 msgstr "Sans étiquette"
@@ -11571,6 +11604,20 @@ msgid "Facebook Channel"
 msgstr "Supprimer téléphone"
 
 #, fuzzy
+#| msgid "Enter Claim Code"
+msgid "Enter a query"
+msgstr "Entrez le code Claim"
+
+#, python-brace-format
+msgid "Found ${count} for ${query}"
+msgstr ""
+
+#, fuzzy
+#~| msgid "The flow that is being started"
+#~ msgid "This flow does not use message templates."
+#~ msgstr "Le flux qui est démarrée"
+
+#, fuzzy
 #~| msgid "Your Nexmo API key and secret seem invalid. Please check them again and retry."
 #~ msgid "Your TransferTo API key and secret seem invalid. Please check them again and retry."
 #~ msgstr "Votre clé API Nexmo et secret semblent invalide. S'il vous plaît vérifier à nouveau et réessayez."
@@ -11836,9 +11883,6 @@ msgstr "Supprimer téléphone"
 
 #~ msgid "Groups that will start the flow"
 #~ msgstr "Les groupes qui débuteront le flux"
-
-#~ msgid "Contacts that will start the flow"
-#~ msgstr "Contacts qui débuteront le flux"
 
 #~ msgid "Whether to restart any participants already in this flow"
 #~ msgstr " Soit pour redémarrer tous les participants déjà dans ce flux"
@@ -14543,9 +14587,6 @@ msgstr "Supprimer téléphone"
 
 #~ msgid "Unlimited Flows"
 #~ msgstr "flux illimités"
-
-#~ msgid "Unlimited Contacts and Groups"
-#~ msgstr "Contacts et groupes illimités"
 
 #~ msgid "REST API for sending messages"
 #~ msgstr "API REST pour l'envoi de messages"

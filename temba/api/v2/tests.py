@@ -23,8 +23,8 @@ from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
-from temba.classifiers.types.wit import WitType
 from temba.classifiers.types.luis import LuisType
+from temba.classifiers.types.wit import WitType
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.locations.models import BoundaryAlias
@@ -2324,7 +2324,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "flow_uuid=%s&campaign_uuid=%s&dependencies=xx" % (flow.uuid, campaign.uuid))
         self.assertResponseError(response, None, "dependencies must be one of none, flows, all")
 
-    @patch.object(ContactField, "MAX_ORG_CONTACTFIELDS", new=10)
+    @override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=10)
     def test_fields(self):
         url = reverse("api.v2.fields")
 
@@ -2393,7 +2393,7 @@ class APITest(TembaTest):
 
         ContactField.user_fields.all().delete()
 
-        for i in range(ContactField.MAX_ORG_CONTACTFIELDS):
+        for i in range(settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG):
             ContactField.get_or_create(self.org, self.admin, "field%d" % i, "Field%d" % i)
 
         response = self.postJSON(url, None, {"label": "Age", "value_type": "numeric"})

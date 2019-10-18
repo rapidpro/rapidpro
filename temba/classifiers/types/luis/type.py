@@ -1,8 +1,11 @@
-from ...models import ClassifierType, Intent
-from temba.request_logs.models import HTTPLog
-from .views import ConnectView
-from django.utils import timezone
 import requests
+
+from django.utils import timezone
+
+from temba.request_logs.models import HTTPLog
+
+from ...models import ClassifierType, Intent
+from .views import ConnectView
 
 
 class LuisType(ClassifierType):

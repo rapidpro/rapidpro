@@ -44,7 +44,7 @@ from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.utils import json
 
-from .tasks import squash_msgcounts, retry_errored_messages
+from .tasks import retry_errored_messages, squash_msgcounts
 from .templatetags.sms import as_icon
 
 
