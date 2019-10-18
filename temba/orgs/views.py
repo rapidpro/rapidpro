@@ -2299,12 +2299,12 @@ class OrgCRUDL(SmartCRUDL):
 
                     except Exception:
                         raise ValidationError(
-                            _("Your DTOne API key and secret seem invalid. " "Please check them again and retry.")
+                            _("Your DTOne API key and secret seem invalid. Please check them again and retry.")
                         )
 
                     if error_code != 0 and info_txt != "pong":
                         raise ValidationError(
-                            _("Connecting to your DTOne account " "failed with error text: %s") % error_txt
+                            _("Connecting to your DTOne account failed with error text: %s") % error_txt
                         )
 
                 return self.cleaned_data
