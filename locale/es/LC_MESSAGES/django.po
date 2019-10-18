@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-17 16:28+0000\n"
+"POT-Creation-Date: 2019-10-18 20:30+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -5225,11 +5225,11 @@ msgstr "Token API"
 
 #, fuzzy
 #| msgid "Your Nexmo API key and secret seem invalid. Please check them again and retry."
-msgid "Your TransferTo API key and secret seem invalid. Please check them again and retry."
+msgid "Your DTOne API key and secret seem invalid. Please check them again and retry."
 msgstr "Su clave y código secreto API de Nexmo son inválidos. Por favor, verifíquelos e inténtelo nuevamente."
 
 #, python-format
-msgid "Connecting to your TransferTo account failed with error text: %s"
+msgid "Connecting to your DTOne account failed with error text: %s"
 msgstr ""
 
 #, fuzzy
@@ -11758,6 +11758,11 @@ msgstr "Elija cuándo le gustaría que empiece el flujo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Borrar teléfono"
+
+#, fuzzy
+#~| msgid "Your Nexmo API key and secret seem invalid. Please check them again and retry."
+#~ msgid "Your TransferTo API key and secret seem invalid. Please check them again and retry."
+#~ msgstr "Su clave y código secreto API de Nexmo son inválidos. Por favor, verifíquelos e inténtelo nuevamente."
 
 #, fuzzy
 #~| msgid "Response To"

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-17 16:28+0000\n"
+"POT-Creation-Date: 2019-10-18 20:30+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3782,11 +3782,11 @@ msgstr ""
 msgid "API Token"
 msgstr ""
 
-msgid "Your TransferTo API key and secret seem invalid. Please check them again and retry."
+msgid "Your DTOne API key and secret seem invalid. Please check them again and retry."
 msgstr ""
 
 #, python-format
-msgid "Connecting to your TransferTo account failed with error text: %s"
+msgid "Connecting to your DTOne account failed with error text: %s"
 msgstr ""
 
 msgid "Account SID"
