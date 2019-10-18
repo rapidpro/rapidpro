@@ -2,6 +2,7 @@ import { customElement, TemplateResult, html, property, css } from 'lit-element'
 import { CustomEventType } from '../interfaces';
 import RapidElement, { EventHandler } from '../RapidElement';
 import { styleMap } from 'lit-html/directives/style-map.js';
+import { getClasses } from '../utils';
 
 @customElement("rp-options")
 export default class Options extends RapidElement {
@@ -11,16 +12,17 @@ export default class Options extends RapidElement {
       .options-container {
         visibility: hidden;
         position: fixed;
-        border-radius: var(--curvature);
-        border: 0px solid var(--color-borders);
-        box-shadow: 0px 0px 2px 0px rgb(204, 204, 204);
-        background: #fff;
+        border-radius: var(--curvature-widget);
+        background: var(--color-widget-bg-focused);
+        box-shadow: var(--widget-box-shadow-focused);
+        border: 1px solid var(--color-focus);
         z-index: 1;
+        user-select: none;        
+        border-radius: var(--curvature-widget);
       }
 
       .options {
-        border-radius: var(--curvature);
-        background: #fff;
+        border-radius: var(--curvature-widget);
         overflow-y: scroll;
         max-height: 225px;
         border: none;
@@ -32,8 +34,8 @@ export default class Options extends RapidElement {
 
       .option {
         font-size: 14px;
-        padding: 7px 14px;
-        border-radius: var(--curvature);
+        padding: 5px 10px;
+        border-radius: var(--curvature-widget);
         margin: 3px;
         cursor: pointer;
         color: var(--color-text);
@@ -52,7 +54,7 @@ export default class Options extends RapidElement {
       code {
         background: rgba(0,0,0,.15);
         padding: 1px 5px;
-        border-radius: var(--curvature);
+        border-radius: var(--curvature-widget);
       }
     `
   }
@@ -66,6 +68,12 @@ export default class Options extends RapidElement {
   @property({type: Number})
   width: number;
 
+  @property({type: Number})
+  marginHorizontal: number = 0;
+
+  @property({type: Number})
+  marginVertical: number = 3;
+
   @property({type: Object})
   anchorTo: HTMLElement
 
@@ -76,7 +84,10 @@ export default class Options extends RapidElement {
   cursorIndex: number = 0;
 
   @property({type: Array})
-  options: any[]
+  options: any[];
+
+  @property({type: Boolean})
+  poppedTop: boolean;
 
   @property({attribute: false})
   renderOption: (option: any, selected: boolean) => void;
@@ -92,6 +103,7 @@ export default class Options extends RapidElement {
 
     // if our cursor changed, lets make sure our scrollbox is showing it
     if(changedProperties.has("cursorIndex")) {
+
       const focusedEle = this.shadowRoot.querySelector(".focused") as HTMLDivElement;
       if (focusedEle) {
         const scrollBox =  this.shadowRoot.querySelector(".options");
@@ -109,9 +121,12 @@ export default class Options extends RapidElement {
       }
     }
 
+    
     if(changedProperties.has("options")) {
       this.calculatePosition();
-      this.cursorIndex = 0;
+      if (!changedProperties.has("cursorIndex")) {
+        this.setCursor(0);
+      }
     }
   }
 
@@ -161,6 +176,7 @@ export default class Options extends RapidElement {
       } else if (evt.key === "Enter" || evt.key === "Tab") {
         this.handleSelection(evt.key === "Tab");
         evt.preventDefault();
+        evt.stopPropagation();
       }
 
       if(evt.key === "Escape") {
@@ -177,46 +193,63 @@ export default class Options extends RapidElement {
 
       if (topTop > 0 && anchorBounds.bottom + optionsBounds.height > window.innerHeight) {
         this.top = topTop; //  + window.pageYOffset;
+        this.poppedTop = true;
       } else {
         this.top = anchorBounds.bottom; //  + window.pageYOffset;
+        this.poppedTop = false;
       }
 
       this.left = anchorBounds.left;
-      this.width = anchorBounds.width;
+      this.width = anchorBounds.width - 2 - (this.marginHorizontal * 2);
     }
   }
 
   public getEventHandlers(): EventHandler[] {
     return [
-      { event: 'keydown', method: this.handleKeyDown },
-      { event: 'scroll', method: this.calculatePosition }
+      { event: 'keydown', method: this.handleKeyDown, isDocument: true },
+      { event: 'scroll', method: this.calculatePosition, isDocument: true }
     ]
   }
 
   public render(): TemplateResult {
     const renderOption = (this.renderOption || this.renderOptionDefault).bind(this);
 
+    let vertical = this.marginVertical;
+    if (this.poppedTop) {
+      vertical *= -1;
+    }
+
     const containerStyle = {
       top: `${this.top}px`,
       left: `${this.left}px`,
-      width: `${this.width}px`
+      width: `${this.width}px`,
+      'margin-left': `${this.marginHorizontal}px`,
+      'margin-top': `${vertical}px`
     }
 
     const optionsStyle = {
       width: `${this.width}px`
     }
 
+    const classes = getClasses({
+      "show": this.visible,
+      "top": this.poppedTop
+    });
+
     return html`
-      <div class="options-container ${this.visible ? "show": ""}" style=${styleMap(containerStyle)}>
+      <div class="options-container ${classes}" style=${styleMap(containerStyle)}>
         <div class="options" style=${styleMap(optionsStyle)}>
           ${this.options.map((option: any, index: number)=>html`
             <div 
-              @mouseover=${(evt: MouseEvent)=>{
+              @mousemove=${(evt: MouseEvent)=>{
                   if (Math.abs(evt.movementX) + Math.abs(evt.movementY) > 0) {
                     this.setCursor(index);
                   }
               }}
-              @click=${()=>{this.handleSelection();}}
+              @click=${(evt: MouseEvent)=>{ 
+                evt.preventDefault(); 
+                this.fireCustomEvent(CustomEventType.Selection, { selected: option });
+              }}
               class="option ${index == this.cursorIndex ? 'focused' : ''}">
                 ${renderOption(option, index == this.cursorIndex)}
             </div>

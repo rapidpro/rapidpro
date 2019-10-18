@@ -42,6 +42,7 @@
         Connect Twilio
 
 -block extra-script
+  {{block.super}}
   :javascript
     function confirmTwilioDisconnect() {
       removalConfirmation("disconnect-twilio", "Disconnect");

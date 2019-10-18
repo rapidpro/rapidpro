@@ -44,6 +44,11 @@ export default class Completion extends RapidElement {
         display: block;
       }
 
+      rp-options {
+        --widget-box-shadow-focused: 0 0 4px rgba(0, 0, 0, 0.15);
+        --color-focus: #e6e6e6;
+      }
+
       .comp-container {
         position: relative;
         height: 100%;
@@ -71,7 +76,7 @@ export default class Completion extends RapidElement {
         margin: 5px;
         background: var(--color-primary-light);
         color: rgba(0, 0, 0, .5);
-        border-radius: var(--curvature);
+        border-radius: var(--curvature-widget);
         font-size: 90%;
       }
 
@@ -80,6 +85,8 @@ export default class Completion extends RapidElement {
         background: var(--color-primary-light);
         color: rgba(0, 0, 0, .5);
         font-size: 80%;
+        border-bottom-left-radius: var(--curvature-widget);
+        border-bottom-right-radius: var(--curvature-widget);
       }
 
       code {

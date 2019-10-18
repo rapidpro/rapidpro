@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from temba.request_logs.models import HTTPLog
 from temba.tests import MockResponse, TembaTest
+
 from .models import Classifier
 from .tasks import sync_classifier_intents
 from .types.luis import LuisType

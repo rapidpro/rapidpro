@@ -1,3 +1,16 @@
+export interface URN {
+    scheme: string;
+    path: string;
+}
+
+export interface Contact {
+    urns: URN[];
+    primary_urn_formatted: string;
+    name: string;
+    fields: {[uuid: string]: { text: string }};
+    created_on: Date;
+}
+
 export interface FeatureProperties {
     name: string;
     osm_id: string;

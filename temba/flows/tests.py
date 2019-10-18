@@ -2916,14 +2916,66 @@ class FlowCRUDLTest(TembaTest):
         response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
 
         self.assertEqual(
-            ["omnibox", "restart_participants", "include_active", "loc"], list(response.context["form"].fields.keys())
+            ["omnibox", "restart_participants", "include_active", "start_type", "contact_query", "loc"],
+            list(response.context["form"].fields.keys()),
         )
+
+        # create flow start with a query
+        with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
+
+            self.client.post(
+                reverse("flows.flow_broadcast", args=[flow.id]),
+                {
+                    "contact_query": "frank",
+                    "start_type": "query",
+                    "restart_participants": "on",
+                    "include_active": "on",
+                },
+                follow=True,
+            )
+
+            start = FlowStart.objects.get()
+            self.assertEqual(flow, start.flow)
+            self.assertEqual(FlowStart.STATUS_PENDING, start.status)
+            self.assertTrue(start.restart_participants)
+            self.assertTrue(start.include_active)
+            self.assertEqual("frank", start.query)
+
+            mock_queue_flow_start.assert_called_once_with(start)
+
+        FlowStart.objects.all().delete()
+
+        # create flow start with a bogus query
+        response = self.client.post(
+            reverse("flows.flow_broadcast", args=[flow.id]),
+            {
+                "contact_query": 'name = "frank',
+                "start_type": "query",
+                "restart_participants": "on",
+                "include_active": "on",
+            },
+            follow=True,
+        )
+
+        self.assertFormError(response, "form", "contact_query", "Please enter a valid contact query")
+
+        # create flow start with an empty query
+        response = self.client.post(
+            reverse("flows.flow_broadcast", args=[flow.id]),
+            {"contact_query": "", "start_type": "query", "restart_participants": "on", "include_active": "on"},
+            follow=True,
+        )
+
+        self.assertFormError(response, "form", "contact_query", "Contact query is required")
 
         # create flow start with restart_participants and include_active both enabled
         with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
+
+            selection = json.dumps({"id": contact.uuid, "name": contact.name, "type": "contact"})
+
             self.client.post(
                 reverse("flows.flow_broadcast", args=[flow.id]),
-                {"omnibox": "c-%s" % contact.uuid, "restart_participants": "on", "include_active": "on"},
+                {"omnibox": selection, "start_type": "select", "restart_participants": "on", "include_active": "on"},
                 follow=True,
             )
 
@@ -2941,7 +2993,9 @@ class FlowCRUDLTest(TembaTest):
         # create flow start with restart_participants and include_active both enabled
         with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
             self.client.post(
-                reverse("flows.flow_broadcast", args=[flow.id]), {"omnibox": "c-%s" % contact.uuid}, follow=True
+                reverse("flows.flow_broadcast", args=[flow.id]),
+                {"omnibox": selection, "start_type": "select"},
+                follow=True,
             )
 
             start = FlowStart.objects.get()
@@ -2956,7 +3010,9 @@ class FlowCRUDLTest(TembaTest):
         # trying to start again should fail because there is already a pending start for this flow
         with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
             response = self.client.post(
-                reverse("flows.flow_broadcast", args=[flow.id]), {"omnibox": "c-%s" % contact.uuid}, follow=True
+                reverse("flows.flow_broadcast", args=[flow.id]),
+                {"omnibox": selection, "start_type": "select"},
+                follow=True,
             )
 
             # should have an error now

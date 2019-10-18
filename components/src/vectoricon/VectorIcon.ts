@@ -8,6 +8,12 @@ export default class VectorIcon extends LitElement {
     return css`
       :host {
         display: inline-block;
+        --icon-color: var(--color-text);
+      }
+
+      svg {
+        transition: transform ease-in-out 150ms;
+        fill: var(--icon-color);
       }
   `;
   }
@@ -22,15 +28,11 @@ export default class VectorIcon extends LitElement {
   size: number = 16;
 
   @property({type: String})
-  color: string = "#999";
-
-  @property({type: String})
   hoverColor: string = "#666";
 
   public render(): TemplateResult {
 
     const svgStyle = {
-      fill: `${this.color}`,
       width: `${this.size}px`,
       height:`${this.size}px`,
     }
