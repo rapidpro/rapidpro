@@ -308,7 +308,7 @@ class TriggerTest(TembaTest):
         tommorrow = now + timedelta(days=1)
         tommorrow_stamp = time.mktime(tommorrow.timetuple())
 
-        # try to create trigger without a flow
+        # try to create trigger without a flow or omnibox
         response = self.client.post(
             reverse("triggers.trigger_schedule"),
             {
@@ -338,7 +338,22 @@ class TriggerTest(TembaTest):
 
         self.assertEqual(response.context["form"].fields["flow"].queryset.all().count(), 1)
 
-        # this time provide a flow..
+        # this time provide a flow but leave out omnibox..
+        response = self.client.post(
+            reverse("triggers.trigger_schedule"),
+            {
+                "flow": flow.id,
+                "omnibox": f"",
+                "repeat_period": "D",
+                "start": "later",
+                "start_datetime_value": str(tommorrow_stamp),
+            },
+        )
+        self.assertEqual(list(response.context["form"].errors.keys()), ["omnibox"])
+        self.assertFalse(Trigger.objects.all())
+        self.assertFalse(Schedule.objects.all())
+
+        # ok, really create it
         self.client.post(
             reverse("triggers.trigger_schedule"),
             {
