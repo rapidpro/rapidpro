@@ -44,6 +44,7 @@
         -trans "Connect Nexmo"
 
 -block extra-script
+  {{block.super}}
   :javascript
     function confirmNexmoDisconnect() {
       removalConfirmation("disconnect-nexmo", "Disconnect");
