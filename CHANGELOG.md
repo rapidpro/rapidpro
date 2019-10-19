@@ -1,3 +1,9 @@
+v5.1.58
+----------
+ * Unify max contact fields
+ * Don't allow deletion of flow labels with children
+ * Rename TransferTo to DTOne
+
 v5.1.57
 ----------
  * Check pg_dump version when creating dumps
