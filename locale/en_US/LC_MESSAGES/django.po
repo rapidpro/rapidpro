@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-18 18:20+0000\n"
+"POT-Creation-Date: 2019-10-18 22:17+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3803,11 +3803,11 @@ msgstr ""
 msgid "API Token"
 msgstr ""
 
-msgid "Your TransferTo API key and secret seem invalid. Please check them again and retry."
+msgid "Your DTOne API key and secret seem invalid. Please check them again and retry."
 msgstr ""
 
 #, python-format
-msgid "Connecting to your TransferTo account failed with error text: %s"
+msgid "Connecting to your DTOne account failed with error text: %s"
 msgstr ""
 
 msgid "Account SID"
@@ -7270,6 +7270,46 @@ msgid ""
 "    "
 msgstr ""
 
+msgid "DTOne Account"
+msgstr ""
+
+msgid "Connected to DTOne Account"
+msgstr ""
+
+msgid "No DTOne account connected."
+msgstr ""
+
+msgid ""
+"\n"
+"      Adding a DTOne account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected\n"
+"      you can transfer airtime credit within your Flows. To signup for an account, visit\n"
+"    "
+msgstr ""
+
+msgid "Transfer Log"
+msgstr ""
+
+msgid "Your account is connected to a DTOne account"
+msgstr ""
+
+msgid "your DTOne account. Doing so will cause the payment actions in your flows to no longer be processed."
+msgstr ""
+
+msgid "Disconnect DTOne"
+msgstr ""
+
+msgid ""
+"\n"
+"          This will disconnect your DTOne account. Payment actions will no longer be processed. Are you sure you want to proceed?\n"
+"        "
+msgstr ""
+
+msgid "You can find your API Token by clicking on "
+msgstr ""
+
+msgid " on the DTOne site."
+msgstr ""
+
 #, python-format
 msgid ""
 "\n"
@@ -7578,46 +7618,6 @@ msgid ""
 "\n"
 "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
 "  "
-msgstr ""
-
-msgid "TransferTo Account"
-msgstr ""
-
-msgid "Connected to TransferTo Account"
-msgstr ""
-
-msgid "No TransferTo account connected."
-msgstr ""
-
-msgid ""
-"\n"
-"      Adding a TransferTo account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected\n"
-"      you can transfer airtime credit within your Flows. To signup for an account, visit\n"
-"    "
-msgstr ""
-
-msgid "Transfer Log"
-msgstr ""
-
-msgid "Your account is connected to the TransferTo account"
-msgstr ""
-
-msgid "your TransferTo account. Doing so will cause the payment actions in your flows to no longer be processed."
-msgstr ""
-
-msgid "Disconnect TransferTo"
-msgstr ""
-
-msgid ""
-"\n"
-"          This will disconnect your TransferTo account. Payment actions will no longer be processed. Are you sure you want to proceed?\n"
-"        "
-msgstr ""
-
-msgid "You can find your API Token by clicking on "
-msgstr ""
-
-msgid " on the TransferTo site."
 msgstr ""
 
 msgid "Disconnect Twilio"

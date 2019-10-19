@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-18 18:20+0000\n"
+"POT-Creation-Date: 2019-10-18 22:17+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3186,20 +3186,23 @@ msgid "The name of your LUIS app"
 msgstr "El nombre de su organización"
 
 #, fuzzy
-#| msgid "The file name for our export"
+#| msgid "The name of your organization"
 msgid "The id for your LUIS app"
-msgstr "El nombre del archivo para nuestra exportación"
-
-msgid "The name of the version of your LUIS app to use"
-msgstr ""
+msgstr "El nombre de su organización"
 
 #, fuzzy
-#| msgid "The file name for our export"
-msgid "The primary key for your LUIS app"
-msgstr "El nombre del archivo para nuestra exportación"
+msgid "The name of the version of your LUIS app to use"
+msgstr "El nombre de su organización"
 
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The primary key for your LUIS app"
+msgstr "El nombre de su organización"
+
+#, fuzzy
+#| msgid "The name of your organization"
 msgid "The endpoint URL for your LUIS app"
-msgstr ""
+msgstr "El nombre de su organización"
 
 #, fuzzy
 #| msgid "Invalid claim code, please check and try again."
@@ -5255,11 +5258,11 @@ msgstr "Token API"
 
 #, fuzzy
 #| msgid "Your Nexmo API key and secret seem invalid. Please check them again and retry."
-msgid "Your TransferTo API key and secret seem invalid. Please check them again and retry."
+msgid "Your DTOne API key and secret seem invalid. Please check them again and retry."
 msgstr "Su clave y código secreto API de Nexmo son inválidos. Por favor, verifíquelos e inténtelo nuevamente."
 
 #, python-format
-msgid "Connecting to your TransferTo account failed with error text: %s"
+msgid "Connecting to your DTOne account failed with error text: %s"
 msgstr ""
 
 #, fuzzy
@@ -5374,8 +5377,10 @@ msgstr "Registrar para beta público"
 msgid "Intents Synced"
 msgstr ""
 
+#, fuzzy
+#| msgid "Channel Event"
 msgid "Classifier Called"
-msgstr ""
+msgstr "Evento del transmisor"
 
 msgid "Airtime Transferred"
 msgstr ""
@@ -9850,6 +9855,56 @@ msgid ""
 "    "
 msgstr ""
 
+#, fuzzy
+#| msgid "Manage %(name)s Accounts"
+msgid "DTOne Account"
+msgstr "Manejar las cuentas de %(name)s "
+
+#, fuzzy
+#| msgid "Connect Zenvia Account"
+msgid "Connected to DTOne Account"
+msgstr "Conectar la cuenta de Zenvia"
+
+msgid "No DTOne account connected."
+msgstr ""
+
+msgid ""
+"\n"
+"      Adding a DTOne account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected\n"
+"      you can transfer airtime credit within your Flows. To signup for an account, visit\n"
+"    "
+msgstr ""
+
+msgid "Transfer Log"
+msgstr ""
+
+#, fuzzy
+#| msgid "This account is connected to a Nexmo account."
+msgid "Your account is connected to a DTOne account"
+msgstr "Esta cuenta está conectada a una cuenta Nexmo."
+
+msgid "your DTOne account. Doing so will cause the payment actions in your flows to no longer be processed."
+msgstr ""
+
+#, fuzzy
+#| msgid "Disconnected"
+msgid "Disconnect DTOne"
+msgstr "Desconectado"
+
+msgid ""
+"\n"
+"          This will disconnect your DTOne account. Payment actions will no longer be processed. Are you sure you want to proceed?\n"
+"        "
+msgstr ""
+
+msgid "You can find your API Token by clicking on "
+msgstr ""
+
+#, fuzzy
+#| msgid "at around the same time."
+msgid " on the DTOne site."
+msgstr "aproximadamente a la misma hora."
+
 #, python-format
 msgid ""
 "\n"
@@ -10221,54 +10276,6 @@ msgstr ""
 "    Su dirección de correo electrónico es <span class='attn'>%(email)s</span>.\n"
 "\n"
 "  "
-
-#, fuzzy
-#| msgid "Nexmo Account."
-msgid "TransferTo Account"
-msgstr "Cuenta Nexmo."
-
-#, fuzzy
-#| msgid "Connect Zenvia Account"
-msgid "Connected to TransferTo Account"
-msgstr "Conectar la cuenta de Zenvia"
-
-msgid "No TransferTo account connected."
-msgstr ""
-
-msgid ""
-"\n"
-"      Adding a TransferTo account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected\n"
-"      you can transfer airtime credit within your Flows. To signup for an account, visit\n"
-"    "
-msgstr ""
-
-msgid "Transfer Log"
-msgstr ""
-
-#, fuzzy
-#| msgid "This account is connected to a Nexmo account."
-msgid "Your account is connected to the TransferTo account"
-msgstr "Esta cuenta está conectada a una cuenta Nexmo."
-
-msgid "your TransferTo account. Doing so will cause the payment actions in your flows to no longer be processed."
-msgstr ""
-
-#, fuzzy
-#| msgid "Disconnect Nexmo"
-msgid "Disconnect TransferTo"
-msgstr "Desconectar Nexmo"
-
-msgid ""
-"\n"
-"          This will disconnect your TransferTo account. Payment actions will no longer be processed. Are you sure you want to proceed?\n"
-"        "
-msgstr ""
-
-msgid "You can find your API Token by clicking on "
-msgstr ""
-
-msgid " on the TransferTo site."
-msgstr ""
 
 msgid "Disconnect Twilio"
 msgstr "Desconectar Twilio"
@@ -11788,13 +11795,33 @@ msgid "Facebook Channel"
 msgstr "Borrar teléfono"
 
 #, fuzzy
-#| msgid "Create Contact"
+#| msgid "Enter Claim Code"
 msgid "Enter a query"
-msgstr "Crear Contacto"
+msgstr "Ingrese el código de pedido"
 
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Nexmo Account."
+#~ msgid "TransferTo Account"
+#~ msgstr "Cuenta Nexmo."
+
+#, fuzzy
+#~| msgid "Disconnect Nexmo"
+#~ msgid "Disconnect TransferTo"
+#~ msgstr "Desconectar Nexmo"
+
+#, fuzzy
+#~| msgid "The flow that is being started"
+#~ msgid "This flow does not use message templates."
+#~ msgstr "El flujo que se ha empezado"
+
+#, fuzzy
+#~| msgid "Your Nexmo API key and secret seem invalid. Please check them again and retry."
+#~ msgid "Your TransferTo API key and secret seem invalid. Please check them again and retry."
+#~ msgstr "Su clave y código secreto API de Nexmo son inválidos. Por favor, verifíquelos e inténtelo nuevamente."
 
 #, fuzzy
 #~| msgid "Response To"
@@ -11805,11 +11832,6 @@ msgstr ""
 #~| msgid "Response"
 #~ msgid "No Response"
 #~ msgstr "Respuesta"
-
-#, fuzzy
-#~| msgid "The flow that is being started"
-#~ msgid "This flow does not use message templates."
-#~ msgstr "El flujo que se ha empezado"
 
 #, fuzzy
 #~| msgid "The type of this message"

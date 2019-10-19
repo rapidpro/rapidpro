@@ -2,8 +2,8 @@ from unittest.mock import patch
 
 from django.urls import reverse
 
+from temba.airtime.dtone import DTOneClient
 from temba.airtime.models import AirtimeTransfer
-from temba.airtime.transferto import TransferToClient
 from temba.tests import AnonymousOrg, MigrationTest, MockResponse, TembaTest
 
 
@@ -100,13 +100,13 @@ class AirtimeCRUDLTest(TembaTest):
             self.assertFalse(response.context["show_logs"])
 
 
-class TransferToClientTest(TembaTest):
+class DTOneClientTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.client = TransferToClient("mrrapid", "234325")
+        self.client = DTOneClient("mrrapid", "234325")
 
-    @patch("temba.airtime.transferto.TransferToClient._request_key")
+    @patch("temba.airtime.dtone.DTOneClient._request_key")
     @patch("requests.post")
     def test_ping(self, mock_post, mock_request_key):
         mock_request_key.return_value = "123456"
@@ -130,11 +130,11 @@ class TransferToClientTest(TembaTest):
             response,
         )
         mock_post.assert_called_once_with(
-            "https://airtime.transferto.com/cgi-bin/shop/topup",
+            "https://airtime-api.dtone.com/cgi-bin/shop/topup",
             {"login": "mrrapid", "key": "123456", "md5": "4ff2ddfae96f8d902eb7d5b2c7b490c9", "action": "ping"},
         )
 
-    @patch("temba.airtime.transferto.TransferToClient._request_key")
+    @patch("temba.airtime.dtone.DTOneClient._request_key")
     @patch("requests.post")
     def test_check_wallet(self, mock_post, mock_request_key):
         mock_request_key.return_value = "123456"
@@ -162,7 +162,7 @@ class TransferToClientTest(TembaTest):
             response,
         )
         mock_post.assert_called_once_with(
-            "https://airtime.transferto.com/cgi-bin/shop/topup",
+            "https://airtime-api.dtone.com/cgi-bin/shop/topup",
             {"login": "mrrapid", "key": "123456", "md5": "4ff2ddfae96f8d902eb7d5b2c7b490c9", "action": "check_wallet"},
         )
 

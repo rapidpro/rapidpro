@@ -126,9 +126,9 @@ class Org(SmartModel):
     CONFIG_TWILIO_TOKEN = "ACCOUNT_TOKEN"
     CONFIG_NEXMO_KEY = "NEXMO_KEY"
     CONFIG_NEXMO_SECRET = "NEXMO_SECRET"
-    CONFIG_TRANSFERTO_LOGIN = "TRANSFERTO_ACCOUNT_LOGIN"
-    CONFIG_TRANSFERTO_API_TOKEN = "TRANSFERTO_AIRTIME_API_TOKEN"
-    CONFIG_TRANSFERTO_CURRENCY = "TRANSFERTO_ACCOUNT_CURRENCY"
+    CONFIG_DTONE_LOGIN = "TRANSFERTO_ACCOUNT_LOGIN"
+    CONFIG_DTONE_API_TOKEN = "TRANSFERTO_AIRTIME_API_TOKEN"
+    CONFIG_DTONE_CURRENCY = "TRANSFERTO_ACCOUNT_CURRENCY"
     CONFIG_CHATBASE_AGENT_NAME = "CHATBASE_AGENT_NAME"
     CONFIG_CHATBASE_API_KEY = "CHATBASE_API_KEY"
     CONFIG_CHATBASE_VERSION = "CHATBASE_VERSION"
@@ -651,7 +651,7 @@ class Org(SmartModel):
     def get_channel_countries(self):
         channel_countries = []
 
-        if not self.is_connected_to_transferto():
+        if not self.is_connected_to_dtone():
             return channel_countries
 
         channel_country_codes = self.channels.filter(is_active=True).exclude(country=None)
@@ -743,12 +743,9 @@ class Org(SmartModel):
         self.modified_by = user
         self.save(update_fields=("config", "modified_by", "modified_on"))
 
-    def connect_transferto(self, account_login, airtime_api_token, user):
+    def connect_dtone(self, account_login, airtime_api_token, user):
         self.config.update(
-            {
-                Org.CONFIG_TRANSFERTO_LOGIN: account_login.strip(),
-                Org.CONFIG_TRANSFERTO_API_TOKEN: airtime_api_token.strip(),
-            }
+            {Org.CONFIG_DTONE_LOGIN: account_login.strip(), Org.CONFIG_DTONE_API_TOKEN: airtime_api_token.strip()}
         )
         self.modified_by = user
         self.save(update_fields=("config", "modified_by", "modified_on"))
@@ -774,9 +771,9 @@ class Org(SmartModel):
             return self.config.get(Org.CONFIG_TWILIO_SID) and self.config.get(Org.CONFIG_TWILIO_TOKEN)
         return False
 
-    def is_connected_to_transferto(self):
+    def is_connected_to_dtone(self):
         if self.config:
-            return self.config.get(Org.CONFIG_TRANSFERTO_LOGIN) and self.config.get(Org.CONFIG_TRANSFERTO_API_TOKEN)
+            return self.config.get(Org.CONFIG_DTONE_LOGIN) and self.config.get(Org.CONFIG_DTONE_API_TOKEN)
         return False
 
     def remove_nexmo_account(self, user):
@@ -801,11 +798,11 @@ class Org(SmartModel):
             self.modified_by = user
             self.save(update_fields=("config", "modified_by", "modified_on"))
 
-    def remove_transferto_account(self, user):
+    def remove_dtone_account(self, user):
         if self.config:
-            self.config.pop(Org.CONFIG_TRANSFERTO_LOGIN, None)
-            self.config.pop(Org.CONFIG_TRANSFERTO_API_TOKEN, None)
-            self.config.pop(Org.CONFIG_TRANSFERTO_CURRENCY, None)
+            self.config.pop(Org.CONFIG_DTONE_LOGIN, None)
+            self.config.pop(Org.CONFIG_DTONE_API_TOKEN, None)
+            self.config.pop(Org.CONFIG_DTONE_CURRENCY, None)
             self.modified_by = user
             self.save(update_fields=("config", "modified_by", "modified_on"))
 
@@ -817,12 +814,12 @@ class Org(SmartModel):
             self.modified_by = user
             self.save(update_fields=("config", "modified_by", "modified_on"))
 
-    def refresh_transferto_account_currency(self):
-        client = self.get_transferto_client()
+    def refresh_dtone_account_currency(self):
+        client = self.get_dtone_client()
         response = client.check_wallet()
         account_currency = response.get("currency", "")
 
-        self.config.update({Org.CONFIG_TRANSFERTO_CURRENCY: account_currency})
+        self.config.update({Org.CONFIG_DTONE_CURRENCY: account_currency})
         self.save(update_fields=("config", "modified_on"))
 
     def get_twilio_client(self):
@@ -841,14 +838,14 @@ class Org(SmartModel):
             return NexmoClient(api_key, api_secret)
         return None
 
-    def get_transferto_client(self):
-        from temba.airtime.transferto import TransferToClient
+    def get_dtone_client(self):
+        from temba.airtime.dtone import DTOneClient
 
-        login = self.config.get(Org.CONFIG_TRANSFERTO_LOGIN)
-        api_token = self.config.get(Org.CONFIG_TRANSFERTO_API_TOKEN)
+        login = self.config.get(Org.CONFIG_DTONE_LOGIN)
+        api_token = self.config.get(Org.CONFIG_DTONE_API_TOKEN)
 
         if login and api_token:
-            return TransferToClient(login, api_token)
+            return DTOneClient(login, api_token)
         return None
 
     def get_chatbase_credentials(self):

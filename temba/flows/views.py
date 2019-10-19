@@ -1069,7 +1069,7 @@ class FlowCRUDL(SmartCRUDL):
             context["media_url"] = f"{settings.STORAGE_URL}/"
             context["static_url"] = static_url
             context["is_starting"] = flow.is_starting()
-            context["has_airtime_service"] = bool(flow.org.is_connected_to_transferto())
+            context["has_airtime_service"] = bool(flow.org.is_connected_to_dtone())
             context["has_mailroom"] = bool(settings.MAILROOM_URL)
             return context
 

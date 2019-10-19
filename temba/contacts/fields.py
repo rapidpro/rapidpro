@@ -1,9 +1,8 @@
 from django import forms
-from django.forms import widgets
+from django.forms import ValidationError, widgets
 
 from temba.utils import json
 
-from django.forms import ValidationError
 from .models import URN, Contact, ContactGroup, ContactURN
 
 
