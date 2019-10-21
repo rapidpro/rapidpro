@@ -175,6 +175,7 @@
       onLoad: handleEditorLoaded,
       onActivityClicked: handleActivityClicked,
       mutable: {{mutable|lower}},
+      filters: {{feature_filters|to_json}},
 
       endpoints: {
 
@@ -182,6 +183,7 @@
         fields: api + 'fields.json',
         labels: api + 'labels.json',
         channels: api + 'channels.json',
+        classifiers: api + 'classifiers.json',
         resthooks: api + 'resthooks.json',
         templates: api + 'templates.json',
         flows: api + 'flows.json?archived=false',
