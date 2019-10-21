@@ -1,5 +1,6 @@
 import itertools
 import logging
+import smtplib
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -978,6 +979,10 @@ class OrgCRUDL(SmartCRUDL):
                             True,
                         )
 
+                    except smtplib.SMTPException as e:
+                        raise ValidationError(
+                            _("Failed to send email with STMP server configuration with error '%s'") % str(e)
+                        )
                     except Exception:
                         raise ValidationError(_("Failed to send email with STMP server configuration"))
 
