@@ -951,6 +951,36 @@ class OrgCRUDL(SmartCRUDL):
                         raise ValidationError(_("You must enter the SMTP port"))
 
                     self.cleaned_data["smtp_password"] = smtp_password
+
+                    try:
+                        from temba.utils.email import send_custom_smtp_email
+
+                        admin_emails = [admin.email for admin in self.instance.get_org_admins().order_by("email")]
+
+                        branding = self.instance.get_branding()
+                        subject = _("%(name)s SMTP configuration test") % branding
+                        body = (
+                            _(
+                                "This email is a test to confirm the custom SMTP server configuration added on %(name)s account"
+                            )
+                            % branding
+                        )
+
+                        send_custom_smtp_email(
+                            admin_emails,
+                            subject,
+                            body,
+                            smtp_from_email,
+                            smtp_host,
+                            smtp_port,
+                            smtp_username,
+                            smtp_password,
+                            True,
+                        )
+
+                    except Exception:
+                        raise ValidationError(_("Failed to send email with STMP server configuration"))
+
                 return self.cleaned_data
 
             class Meta:
