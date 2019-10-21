@@ -961,7 +961,7 @@ class OrgCRUDL(SmartCRUDL):
                         subject = _("%(name)s SMTP configuration test") % branding
                         body = (
                             _(
-                                "This email is a test to confirm the custom SMTP server configuration added on %(name)s account"
+                                "This email is a test to confirm the custom SMTP server configuration added to your %(name)s account."
                             )
                             % branding
                         )
