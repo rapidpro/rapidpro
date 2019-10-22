@@ -16,9 +16,11 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
 
+from temba.api.models import Resthook
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
+from temba.classifiers.models import Classifier
 from temba.contacts.models import WHATSAPP_SCHEME, Contact, ContactField, ContactGroup
 from temba.mailroom import FlowValidationException
 from temba.msgs.models import Label
@@ -361,15 +363,11 @@ class FlowTest(TembaTest):
         self.assertEqual([], json.loads(response.context["feature_filters"]))
 
         # with zapier
-        from temba.api.models import Resthook
-
         Resthook.objects.create(org=self.flow.org, created_by=self.admin, modified_by=self.admin)
         response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
         self.assertEqual(["resthook"], json.loads(response.context["feature_filters"]))
 
         # add in a classifier
-        from temba.classifiers.models import Classifier
-
         Classifier.objects.create(org=self.flow.org, config="", created_by=self.admin, modified_by=self.admin)
         response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
         self.assertEqual(["classifier", "resthook"], json.loads(response.context["feature_filters"]))
