@@ -16,9 +16,11 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
 
+from temba.api.models import Resthook
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
+from temba.classifiers.models import Classifier
 from temba.contacts.models import WHATSAPP_SCHEME, Contact, ContactField, ContactGroup
 from temba.mailroom import FlowValidationException
 from temba.msgs.models import Label
@@ -352,6 +354,36 @@ class FlowTest(TembaTest):
 
         response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
         self.assertFalse(response.context["mutable"])
+
+    def test_feature_filters(self):
+        self.login(self.admin)
+
+        # empty feature set
+        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        self.assertEqual([], json.loads(response.context["feature_filters"]))
+
+        # with zapier
+        Resthook.objects.create(org=self.flow.org, created_by=self.admin, modified_by=self.admin)
+        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        self.assertEqual(["resthook"], json.loads(response.context["feature_filters"]))
+
+        # add in a classifier
+        Classifier.objects.create(org=self.flow.org, config="", created_by=self.admin, modified_by=self.admin)
+        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        self.assertEqual(["classifier", "resthook"], json.loads(response.context["feature_filters"]))
+
+        # add in an airtime connection
+        self.flow.org.connect_dtone("login", "token", self.admin)
+        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        self.assertEqual(["airtime", "classifier", "resthook"], json.loads(response.context["feature_filters"]))
+
+        # change our channel to use a whatsapp scheme
+        self.channel.schemes = [WHATSAPP_SCHEME]
+        self.channel.save()
+        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        self.assertEqual(
+            ["whatsapp", "airtime", "classifier", "resthook"], json.loads(response.context["feature_filters"])
+        )
 
     def test_flow_editor(self):
         self.login(self.admin)
