@@ -12,8 +12,8 @@ INTENT_RESPONSE = """
 {
     "intents": [
         "intent",
-        "positivo",
-        "negativo"
+        "positive",
+        "negative"
     ]
 }
 """
