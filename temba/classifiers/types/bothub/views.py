@@ -8,9 +8,7 @@ from temba.classifiers.views import BaseConnectView
 class ConnectView(BaseConnectView):
     class Form(forms.Form):
         name = forms.CharField(help_text=_("Your app's name"))
-        repository_token = forms.CharField(
-            help_text=_("Your app's server access token")
-        )
+        repository_token = forms.CharField(help_text=_("Your app's server access token"))
 
         def clean(self):
             cleaned = super().clean()
@@ -21,16 +19,11 @@ class ConnectView(BaseConnectView):
 
             # try a basic call to see available entities
             response = requests.get(
-                "https://nlp.bothub.it/info/",
-                headers={"Authorization": f"Bearer {cleaned['repository_token']}"},
+                "https://nlp.bothub.it/info/", headers={"Authorization": f"Bearer {cleaned['repository_token']}"}
             )
 
             if response.status_code != 200:
-                raise forms.ValidationError(
-                    _(
-                        "Unable to access bothub with credentials, please check and try again"
-                    )
-                )
+                raise forms.ValidationError(_("Unable to access bothub with credentials, please check and try again"))
 
             return cleaned
 
@@ -42,11 +35,7 @@ class ConnectView(BaseConnectView):
         config = {BotHubType.CONFIG_ACCESS_TOKEN: form.cleaned_data["repository_token"]}
 
         self.object = Classifier.create(
-            self.org,
-            self.request.user,
-            BotHubType.slug,
-            form.cleaned_data["name"],
-            config,
+            self.org, self.request.user, BotHubType.slug, form.cleaned_data["name"], config
         )
 
         return super().form_valid(form)

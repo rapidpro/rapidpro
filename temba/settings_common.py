@@ -984,7 +984,11 @@ SEND_MESSAGES = False
 #         could cause emails to be sent in test environment
 SEND_EMAILS = False
 
-CLASSIFIER_TYPES = ["temba.classifiers.types.wit.WitType", "temba.classifiers.types.luis.LuisType", "temba.classifiers.types.bothub.BotHubType"]
+CLASSIFIER_TYPES = [
+    "temba.classifiers.types.wit.WitType",
+    "temba.classifiers.types.luis.LuisType",
+    "temba.classifiers.types.bothub.BotHubType",
+]
 
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",

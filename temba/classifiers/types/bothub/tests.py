@@ -26,10 +26,7 @@ class BotHubTypeTest(TembaTest):
             self.user,
             BotHubType.slug,
             "Booker",
-            {
-                BotHubType.CONFIG_ACCESS_TOKEN: "123456789",
-                BotHubType.INTENT_URL: "https://nlp.bothub.it/info/",
-            },
+            {BotHubType.CONFIG_ACCESS_TOKEN: "123456789", BotHubType.INTENT_URL: "https://nlp.bothub.it/info/"},
         )
 
         with patch("requests.get") as mock_get:
@@ -82,10 +79,7 @@ class BotHubTypeTest(TembaTest):
             self.assertEqual(200, response.status_code)
             self.assertFalse(Classifier.objects.all())
 
-            self.assertContains(
-                response,
-                "Unable to access bothub with credentials, please check and try again",
-            )
+            self.assertContains(response, "Unable to access bothub with credentials, please check and try again")
 
         # all good
         with patch("requests.get") as mock_get:
