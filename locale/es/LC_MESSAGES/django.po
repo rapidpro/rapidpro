@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-18 22:17+0000\n"
+"POT-Creation-Date: 2019-10-22 19:25+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3182,6 +3182,21 @@ msgstr "Llamadas"
 
 #, fuzzy
 #| msgid "The name of your organization"
+msgid "The name from your repository"
+msgstr "El nombre de su repositorio"
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "Access Token from your repository"
+msgstr "Token de acceso desde su repositorio"
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Unable to access bothub with credentials, please check and try again"
+msgstr "No se puede acceder a acceso a bothub con credenciales, verifique e intente nuevamente."
+
+#, fuzzy
+#| msgid "The name of your organization"
 msgid "The name of your LUIS app"
 msgstr "El nombre de su organización"
 
@@ -3218,7 +3233,7 @@ msgid "Your app's ID"
 msgstr ""
 
 msgid "Your app's server access token"
-msgstr ""
+msgstr "Token de acceso desde su repositorio"
 
 #, fuzzy
 #| msgid "Invalid claim code, please check and try again."

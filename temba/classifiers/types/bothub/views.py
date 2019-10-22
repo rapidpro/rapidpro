@@ -7,8 +7,8 @@ from temba.classifiers.views import BaseConnectView
 
 class ConnectView(BaseConnectView):
     class Form(forms.Form):
-        name = forms.CharField(help_text=_("Your app's name"))
-        repository_token = forms.CharField(help_text=_("Your app's server access token"))
+        name = forms.CharField(help_text=_("The name from your repository"))
+        repository_token = forms.CharField(help_text=_("Access Token from your repository"))
 
         def clean(self):
             cleaned = super().clean()

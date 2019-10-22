@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-18 22:17+0000\n"
+"POT-Creation-Date: 2019-10-22 19:25+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2016,6 +2016,15 @@ msgid "Sorry, no numbers found, please enter another pattern and try again."
 msgstr ""
 
 msgid "Calls"
+msgstr ""
+
+msgid "The name from your repository"
+msgstr ""
+
+msgid "Access Token from your repository"
+msgstr ""
+
+msgid "Unable to access bothub with credentials, please check and try again"
 msgstr ""
 
 msgid "The name of your LUIS app"
