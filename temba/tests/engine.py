@@ -4,6 +4,7 @@ from django.utils import timezone
 
 from temba.api.models import WebHookResult
 from temba.channels.models import Channel
+from temba.contacts.models import URN
 from temba.flows.models import Flow, FlowRun, FlowSession
 from temba.msgs.models import Msg
 from temba.utils.text import slugify_with
@@ -117,6 +118,12 @@ class MockSessionWriter:
         )
         return self
 
+    def add_contact_urn(self, scheme, path):
+        urns = [str(u) for u in self.contact.get_urns()]
+        urns.append(URN.from_parts(scheme, path))
+        self._log_event("contact_urns_changed", urns=urns)
+        return self
+
     def send_msg(self, text, channel=None):
         self._log_event(
             "msg_created",
@@ -127,6 +134,26 @@ class MockSessionWriter:
                 "channel": self._channel_ref(channel),
             },
         )
+        return self
+
+    def send_email(self, addresses, subject, body):
+        self._log_event("email_created", addresses=addresses, subject=subject, body=body)
+        return self
+
+    def set_contact_field(self, field_key, field_name, value):
+        self._log_event(
+            "contact_field_changed",
+            field={"key": field_key, "name": field_name},
+            value={"text": value} if value else None,
+        )
+        return self
+
+    def set_contact_language(self, language):
+        self._log_event("contact_language_changed", language=language)
+        return self
+
+    def set_contact_name(self, name):
+        self._log_event("contact_name_changed", name=name)
         return self
 
     def call_webhook(self, method, url, payload, status="success", status_code=200, response_body="{}"):
@@ -188,7 +215,7 @@ class MockSessionWriter:
         if not self.session:
             interrupted_on = self.output["trigger"]["triggered_on"]  # which would have happened at trigger time
 
-            self.contact.flowsession_set.filter(status=FlowSession.STATUS_WAITING).update(
+            self.contact.sessions.filter(status=FlowSession.STATUS_WAITING).update(
                 status=FlowSession.STATUS_INTERRUPTED, ended_on=timezone.now()
             )
             self.contact.runs.filter(is_active=True).update(

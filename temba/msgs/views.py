@@ -78,7 +78,7 @@ def send_message_auto_complete_processor(request):
 
 
 class SendMessageForm(Form):
-    omnibox = OmniboxField()
+    omnibox = OmniboxField(required=False)
     text = forms.CharField(widget=forms.Textarea, max_length=640)
     schedule = forms.BooleanField(widget=forms.HiddenInput, required=False)
     step_node = forms.CharField(widget=forms.HiddenInput, max_length=36, required=False)
@@ -719,10 +719,10 @@ class MsgCRUDL(SmartCRUDL):
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<label_id>\d+)/$" % (path, action)
+            return r"^%s/%s/(?P<label>[^/]+)/$" % (path, action)
 
         def derive_label(self):
-            return Label.all_objects.get(org=self.request.user.get_org(), id=self.kwargs["label_id"])
+            return self.request.user.get_org().msgs_labels.get(uuid=self.kwargs["label"])
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
@@ -841,7 +841,7 @@ class LabelCRUDL(SmartCRUDL):
             self.object = Label.get_or_create_folder(user.get_org(), user, obj.name)
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        success_url = "id@msgs.msg_filter"
+        success_url = "uuid@msgs.msg_filter"
         success_message = ""
 
         def get_form_kwargs(self):
@@ -866,6 +866,6 @@ class LabelCRUDL(SmartCRUDL):
 
         def post(self, request, *args, **kwargs):
             label = self.get_object()
-            label.release()
+            label.release(self.request.user)
 
             return HttpResponseRedirect(self.get_redirect_url())

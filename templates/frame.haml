@@ -40,20 +40,6 @@
       conditionalLoad('bower/jquery/jquery.js', '//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.js');
       conditionalLoad('bower/jquery-migrate/jquery-migrate.min.js', null);
 
-    // ==== ANGULAR ====
-    :javascript
-
-      // this has to be loaded before angular
-      conditionalLoad('lib/angular-file-upload-1.6.12/angular-file-upload-shim.js', null);
-
-      // our angular scripts
-      conditionalLoad('bower/angular/angular.js', null);
-      conditionalLoad('bower/angular-animate/angular-animate.js', null);
-
-      // this must be loaded after angular
-      conditionalLoad('lib/angular-file-upload-1.6.12/angular-file-upload.js', null)
-
-
     -# this view make it possible to process translations from javascript land
     <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
 
@@ -107,9 +93,8 @@
       %script{src:"{{ STATIC_URL }}coffee/temba.coffee", type:"text/coffeescript"}
       %script{src:"{{ STATIC_URL }}coffee/formax.coffee", type:"text/coffeescript"}
       %script{src:"{{ STATIC_URL }}coffee/completions.coffee", type:"text/coffeescript"}
-
-    %script{src:"{{STATIC_URL}}components/rp-components.js"}
-  
+    
+    -include "includes/components-head.html"
     -include "includes/frame_top.html"
 
     -if brand.favico
@@ -124,27 +109,34 @@
 
       :css
         html {
-          font-family: 'Helvetica Neue', 'RobotoThin', sans-serif;
-          font-size: 13px;
-          font-weight: 200;
 
-          /* Old style matching, squared off, borded inputs, select2 colors */
-          --curvature: 0px;
-          --color-widget-bg: #fff;
-          --color-widget-bg-focused: #fff;
-          --color-widget-shadow-focused: rgba(0, 0, 0, 0.15);
-          --color-widget-border: rgb(204,204,204);
-          --color-selection: #3875d7;
-         
-          /* primary colors, should be dark */
+          --font-family: 'Roboto', sans-serif;
           --primary-rgb: 35, 135, 202;
           --secondary-rgb: 0, 77, 129;
+          --focus-rgb: 82, 168, 236;
+          --error-rgb: 255, 99, 71;
+
+          /* Old style matching, squared off, borded inputs, select2 colors */
+          --curvature: 4px;
+          --curvature-widget: 0px;
+          --color-focus: rgba(var(--focus-rgb), 0.8);
+          --color-widget-bg: #fff;
+          --color-widget-bg-focused: #fff;
+          --color-widget-border: rgb(204,204,204);
+         
+          /* primary colors, should be dark */
+          --color-selection: rgb(var(--primary-rgb));
 
           /** --- secondary configuration, only for fine tuning --- */
 
+
+          --widget-box-shadow-focused: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(var(--focus-rgb), 0.6);
+          --widget-box-shadow-focused-error: inset 0 1px 1px rgba(var(--error-rgb), 0.075), 0 0 8px rgba(var(--error-rgb), 0.6);
+
           /* page text, borders, widgets */
-          --color-text: #666;
+          --color-text: #777;
           --color-borders: rgba(0,0,0,.07);
+          --color-placeholder: #ccc;
  
           /* light colors, panel backgrounds, selection, etc */
           --color-primary-light: #eee;
@@ -154,9 +146,11 @@
           --color-primary-dark: rgb(var(--primary-rgb));
           --color-secondary-dark: rgb(var(--secondary-rgb));
 
+
           /* light text goes over dark, dark over lights */
           --color-text-light: rgba(255,255,255,.92);
           --color-text-dark: rgba(0,0,0,.5);
+          --color-text-dark-secondary: rgba(0,0,0,.25);
 
           /* solid overlays with text */
           --color-overlay-dark: rgba(0,0,0,.2);
@@ -179,6 +173,19 @@
           --color-label-secondary: rgba(0,0,0,.2);
           --color-label-secondary-text: rgba(255, 255, 255, .9);    
 
+          --color-info: #c0d9eb;
+          --color-warning: #fff6c0;
+          --color-error: rgb(var(--error-rgb));
+
+          font-size: 13px;
+          font-weight: 200;
+          font-family: var(--font-family);
+
+        }
+
+        rp-select:focus {
+          outline: none;
+          box-shadow: none;
         }
 
       -compress css
@@ -235,6 +242,7 @@
 
 -load smartmin
 {% block body %}
+-include "includes/components-body.html"
 %body#pageBody
   .page-wrap
 

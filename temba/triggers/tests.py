@@ -8,10 +8,9 @@ from django.utils import timezone
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup
-from temba.flows.models import Flow, FlowStart
+from temba.flows.models import Flow
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
-from temba.schedules.tasks import check_schedule_task
 from temba.tests import MockResponse, TembaTest
 
 from .models import Trigger
@@ -309,7 +308,7 @@ class TriggerTest(TembaTest):
         tommorrow = now + timedelta(days=1)
         tommorrow_stamp = time.mktime(tommorrow.timetuple())
 
-        # try to create trigger without a flow
+        # try to create trigger without a flow or omnibox
         response = self.client.post(
             reverse("triggers.trigger_schedule"),
             {
@@ -339,7 +338,22 @@ class TriggerTest(TembaTest):
 
         self.assertEqual(response.context["form"].fields["flow"].queryset.all().count(), 1)
 
-        # this time provide a flow..
+        # this time provide a flow but leave out omnibox..
+        response = self.client.post(
+            reverse("triggers.trigger_schedule"),
+            {
+                "flow": flow.id,
+                "omnibox": f"",
+                "repeat_period": "D",
+                "start": "later",
+                "start_datetime_value": str(tommorrow_stamp),
+            },
+        )
+        self.assertEqual(list(response.context["form"].errors.keys()), ["omnibox"])
+        self.assertFalse(Trigger.objects.all())
+        self.assertFalse(Schedule.objects.all())
+
+        # ok, really create it
         self.client.post(
             reverse("triggers.trigger_schedule"),
             {
@@ -407,21 +421,6 @@ class TriggerTest(TembaTest):
         self.assertTrue(trigger.schedule.next_fire)
         self.assertEqual(set(trigger.groups.all()), {linkin_park})
         self.assertEqual(set(trigger.contacts.all()), {shinoda})
-
-        # move it to the past
-        schedule = trigger.schedule
-        schedule.next_fire = timezone.now() - timedelta(days=1)
-        schedule.save(update_fields=["next_fire"])
-
-        # get it fired
-        check_schedule_task()
-
-        # should have created a flow start
-        self.assertIsNotNone(FlowStart.objects.get())
-
-        # schedule should be in the future now
-        schedule.refresh_from_db()
-        self.assertTrue(schedule.next_fire > timezone.now())
 
     def test_join_group_trigger(self):
         self.login(self.admin)
@@ -903,53 +902,3 @@ class TriggerTest(TembaTest):
         self.assertEqual(Schedule.objects.count(), 0)
         self.assertEqual(ContactGroup.user_groups.count(), 1)
         self.assertEqual(Flow.objects.count(), 1)
-
-    @patch("temba.flows.models.FlowStart.async_start")
-    def test_fire_from_schedule(self, mock_async_start):
-        flow = self.create_flow()
-        group = self.create_group("Trigger Group", [])
-
-        # an archived trigger shouldn't do anything
-        Trigger.objects.create(
-            org=self.org,
-            flow=flow,
-            trigger_type=Trigger.TYPE_SCHEDULE,
-            created_by=self.admin,
-            modified_by=self.admin,
-            is_archived=True,
-            is_active=True,
-        ).fire_from_schedule()
-
-        mock_async_start.assert_not_called()
-
-        # an inactive trigger shouldn't do anything
-        Trigger.objects.create(
-            org=self.org,
-            flow=flow,
-            trigger_type=Trigger.TYPE_SCHEDULE,
-            created_by=self.admin,
-            modified_by=self.admin,
-            is_archived=False,
-            is_active=False,
-        ).fire_from_schedule()
-
-        mock_async_start.assert_not_called()
-
-        # an trigger with no groups or contacts shouldn't do anything
-        trigger = Trigger.objects.create(
-            org=self.org,
-            flow=flow,
-            trigger_type=Trigger.TYPE_SCHEDULE,
-            created_by=self.admin,
-            modified_by=self.admin,
-            is_archived=False,
-            is_active=True,
-        )
-        trigger.fire_from_schedule()
-
-        mock_async_start.assert_not_called()
-
-        trigger.groups.add(group)
-        trigger.fire_from_schedule()
-
-        mock_async_start.assert_called_once()

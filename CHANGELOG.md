@@ -1,3 +1,100 @@
+v5.1.59
+----------
+ * Update flow editor to version 1.7.0
+ * Add Split by Intent action in flows
+ * Update Send Airtime action for use with DTOne
+
+v5.1.58
+----------
+ * Unify max contact fields
+ * Don't allow deletion of flow labels with children
+ * Rename TransferTo to DTOne
+
+v5.1.57
+----------
+ * Check pg_dump version when creating dumps
+ * Add missing block super in extra script blocks
+ * Fix omnibox being not actually required on send message form
+ * Rework airtime transfers to have separate http logs
+ * Allow flow starts by query
+
+v5.1.55
+----------
+ * Sync intents on classifier creation
+ * Trim HTTP logs older than 3 days
+
+v5.1.54
+----------
+ * remove fragile AT links to configuration pages
+ * Exclude hidden results from flow results page
+ * Exclude results with names starting with _ from exports
+
+v5.1.53
+----------
+ * Classifier models and views
+ * HTTPLog models and views
+
+v5.1.52
+----------
+ * add prefetch to retry
+
+v5.1.51
+----------
+ * Add ThinQ Channel Type
+
+v5.1.50
+----------
+ * Fix contact history rendering of broadcast messages with null recipient count
+ * Fix for start_session action in the editor
+
+v5.1.49
+----------
+ * Fire schedules in Mailroom instead of celery
+
+v5.1.48
+----------
+ * Rework contact history to include engine events
+
+v5.1.47
+----------
+ * Update to flow editor 1.6.20
+
+v5.1.46
+----------
+ * Rev Flow Editor v1.6.19
+
+v5.1.45
+----------
+ * Fix rendering of campaigns on export page
+ * Fix ivr channel logs
+ * Make FlowRun.status non-NULL
+ * Make FlowSession.uuid unique and indexed
+
+v5.1.44
+----------
+ * Tidy up fields on flow activity models
+ 
+
+v5.1.43
+----------
+ * Fix styling on create flow dialog
+ * Make user fields nullable on broadcasts
+ * Populate repeat_minute_of_hour in data migration
+
+v5.1.42
+----------
+ * Update trigger update views to take into account new schedule fields
+
+v5.1.41
+----------
+ * Update docs on flow start extra to be accessible via @trigger
+ * Change input selector to work cross-browser on send modal
+ * Don't inner scroll for modax fetches
+
+v5.1.40
+----------
+ * Fix issues with web components in Microsoft Edge
+
 v5.1.37
 ----------
  * Cleanup Schedule class

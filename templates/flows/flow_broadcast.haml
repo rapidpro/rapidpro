@@ -27,6 +27,22 @@
         color: #666 !important;
       }
 
+      .hidden {
+        display: none;
+      }
+
+      .start-type {
+        margin-bottom: 10px;
+      }
+
+      rp-contact-search {
+        font-size: 90%;
+      }
+
+      rp-alert {
+        margin-bottom: 10px;
+      }
+
 
   -if object.flow_type == 'M' and not send_channel
     %p
@@ -49,8 +65,19 @@
         is a service which provides voice-enabled numbers which you can add as channels in your {{ name }} account.
 
   -else
-    .field.omnibox
+    -if warnings
+      %rp-alert{level: "warning"}
+        -for warning in warnings
+          %div= warning
+
+    .field.start-type
+      {% render_field 'start_type' %}
+
+    .field.omnibox{class:'{% if not form.start_type.value == "select" %}hidden{%endif%}'}
       {% render_field 'omnibox' %}
+
+    .field.query{class:'{% if form.start_type.value == "select" %}hidden{%endif%}'}
+      {% render_field 'contact_query' %}
 
     .start-options
       .control-group.restart-participants
@@ -71,13 +98,6 @@
               %label{ for:"id_include_active" }
                 -trans "Interrupt contacts currently active in flows"
 
-    -if warnings
-      %div.warning
-        -for warning in warnings
-          %p= warning
-
-        %p
-          -trans "You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
 
 -block form-buttons
   -if send_channel
@@ -104,17 +124,33 @@
         %span.attn
           -trans "{{ complete_count }} times."
 
--block extra-script
-  {{ block.super }}
-  :javascript
-    prepareOmnibox();
-
 -block modal-script
   {{block.super}}
   :javascript
+
+    function addClass(ele, className) {
+      ele.classList.add(className);
+    }
+
+    function removeClass(ele, className) {
+      ele.classList.remove(className);
+    }
+
+    var queryField = document.querySelector('.query');
+    var recipientsField = document.querySelector('.omnibox');
+
+    document.querySelector("rp-select[name='start_type']").addEventListener("rp-selection", function(evt) {
+      var selected = evt.detail.selected;
+      if (selected.value === "query") {
+        removeClass(queryField, "hidden");
+        addClass(recipientsField, "hidden");
+      } else {
+        addClass(queryField, "hidden");
+        removeClass(recipientsField, "hidden");
+      }
+    });
+
     $(document).ready(function () {
       useFontCheckbox("#id_restart_participants");
       useFontCheckbox("#id_include_active");
     });
-
-    prepareOmnibox();

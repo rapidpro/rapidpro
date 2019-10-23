@@ -86,6 +86,18 @@ URN_SCHEME_CONFIG = (
 
 IMPORT_HEADERS = tuple((f"URN:{c[0]}", c[0]) for c in URN_SCHEME_CONFIG)
 
+# events from sessions to include in contact history
+HISTORY_INCLUDE_EVENTS = {
+    "contact_language_changed",
+    "contact_field_changed",
+    "contact_groups_changed",
+    "contact_name_changed",
+    "contact_urns_changed",
+    "email_created",
+    "input_labels_added",
+    "run_result_changed",
+}
+
 
 class URN(object):
     """
@@ -417,7 +429,6 @@ class ContactField(SmartModel):
 
     MAX_KEY_LEN = 36
     MAX_LABEL_LEN = 36
-    MAX_ORG_CONTACTFIELDS = 200
 
     # fields that cannot be updated by user
     IMMUTABLE_FIELDS = ("id", "created_on")
@@ -785,6 +796,16 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return obj
 
     @classmethod
+    def query_summary(cls, org, query, max_results=10):
+        from .search import contact_es_search
+        from temba.utils.es import ES
+
+        search_object, parsed_query = contact_es_search(org, query)
+        results = search_object.source(include=["id"]).using(ES)[0:max_results].execute()
+        contact_sample = list(mapEStoDB(Contact, results))
+        return {"total": results.hits.total, "sample": contact_sample, "query": parsed_query}
+
+    @classmethod
     def query_elasticsearch_for_ids(cls, org, query, group=None):
         from .search import contact_es_search, SearchException
         from temba.utils.es import ES
@@ -813,59 +834,98 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         return scheduled_broadcasts.order_by("schedule__next_fire")
 
-    def get_activity(self, after, before):
+    def get_history(self, after, before):
         """
-        Gets this contact's activity of messages, calls, runs etc in the given time window
+        Gets this contact's history of messages, calls, runs etc in the given time window
         """
-        from temba.api.models import WebHookResult
         from temba.ivr.models import IVRCall
-        from temba.msgs.models import Msg
+        from temba.msgs.models import Msg, INCOMING, OUTGOING
 
-        msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
-        msgs = (
-            msgs.exclude(visibility=Msg.VISIBILITY_DELETED)
+        msgs = list(
+            self.msgs.filter(created_on__gte=after, created_on__lt=before)
+            .exclude(visibility=Msg.VISIBILITY_DELETED)
             .order_by("-created_on")
             .select_related("channel")
             .prefetch_related("channel_logs")[:MAX_HISTORY]
         )
+        msgs_in = filter(lambda m: m.direction == INCOMING, msgs)
+        msgs_out = filter(lambda m: m.direction == OUTGOING, msgs)
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
-        started_runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__is_system=True)
-        started_runs = started_runs.order_by("-created_on").select_related("flow")[:MAX_HISTORY]
-
-        exited_runs = self.runs.filter(exited_on__gte=after, exited_on__lt=before).exclude(flow__is_system=True)
-        exited_runs = exited_runs.exclude(exit_type=None).order_by("-created_on").select_related("flow")[:MAX_HISTORY]
-
-        channel_events = self.channel_events.filter(created_on__gte=after, created_on__lt=before)
-        channel_events = channel_events.order_by("-created_on").select_related("channel")[:MAX_HISTORY]
-
-        event_fires = self.campaign_fires.filter(fired__gte=after, fired__lt=before).exclude(fired=None)
-        event_fires = event_fires.order_by("-fired").select_related("event__campaign")[:MAX_HISTORY]
-
-        webhook_results = WebHookResult.objects.filter(created_on__gte=after, created_on__lt=before, contact=self)
-        webhook_results = webhook_results.order_by("-created_on")[:MAX_HISTORY]
-
-        # and the contact's failed IVR calls
-        calls = IVRCall.objects.filter(
-            contact=self,
-            created_on__gte=after,
-            created_on__lt=before,
-            status__in=[IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED, IVRCall.COMPLETED],
+        started_runs = (
+            self.runs.filter(created_on__gte=after, created_on__lt=before)
+            .exclude(flow__is_system=True)
+            .order_by("-created_on")
+            .select_related("flow")[:MAX_HISTORY]
         )
-        calls = calls.order_by("-created_on").select_related("channel")[:MAX_HISTORY]
+
+        exited_runs = (
+            self.runs.filter(exited_on__gte=after, exited_on__lt=before)
+            .exclude(flow__is_system=True)
+            .exclude(exit_type=None)
+            .order_by("-created_on")
+            .select_related("flow")[:MAX_HISTORY]
+        )
+
+        channel_events = (
+            self.channel_events.filter(created_on__gte=after, created_on__lt=before)
+            .order_by("-created_on")
+            .select_related("channel")[:MAX_HISTORY]
+        )
+
+        campaign_events = (
+            self.campaign_fires.filter(fired__gte=after, fired__lt=before)
+            .exclude(fired=None)
+            .order_by("-fired")
+            .select_related("event__campaign")[:MAX_HISTORY]
+        )
+
+        webhook_results = self.webhook_results.filter(created_on__gte=after, created_on__lt=before).order_by(
+            "-created_on"
+        )[:MAX_HISTORY]
+
+        calls = (
+            IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
+            .filter(status__in=[IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED, IVRCall.COMPLETED])
+            .order_by("-created_on")
+            .select_related("channel")[:MAX_HISTORY]
+        )
+
+        session_events = self.get_session_events(after, before, HISTORY_INCLUDE_EVENTS)
 
         # wrap items, chain and sort by time
-        activity = chain(
-            [{"type": "msg", "time": m.created_on, "obj": m} for m in msgs],
-            [{"type": "run-start", "time": r.created_on, "obj": r} for r in started_runs],
-            [{"type": "run-exit", "time": r.exited_on, "obj": r} for r in exited_runs],
-            [{"type": "channel-event", "time": e.created_on, "obj": e} for e in channel_events],
-            [{"type": "event-fire", "time": f.fired, "obj": f} for f in event_fires],
-            [{"type": "webhook-result", "time": r.created_on, "obj": r} for r in webhook_results],
-            [{"type": "call", "time": c.created_on, "obj": c} for c in calls],
+        events = chain(
+            [{"type": "msg_created", "created_on": m.created_on, "obj": m} for m in msgs_out],
+            [{"type": "msg_received", "created_on": m.created_on, "obj": m} for m in msgs_in],
+            [{"type": "flow_entered", "created_on": r.created_on, "obj": r} for r in started_runs],
+            [{"type": "flow_exited", "created_on": r.exited_on, "obj": r} for r in exited_runs],
+            [{"type": "channel_event", "created_on": e.created_on, "obj": e} for e in channel_events],
+            [{"type": "campaign_fired", "created_on": f.fired, "obj": f} for f in campaign_events],
+            [{"type": "webhook_called", "created_on": r.created_on, "obj": r} for r in webhook_results],
+            [{"type": "call_started", "created_on": c.created_on, "obj": c} for c in calls],
+            session_events,
         )
 
-        return sorted(activity, key=lambda i: i["time"], reverse=True)[:MAX_HISTORY]
+        return sorted(events, key=lambda i: i["created_on"], reverse=True)[:MAX_HISTORY]
+
+    def get_session_events(self, after, before, types):
+        """
+        Extracts events from this contacts sessions that overlap with the given time window
+        """
+        sessions = self.sessions.filter(
+            Q(created_on__gte=after, created_on__lt=before) | Q(ended_on__gte=after, ended_on__lt=before)
+        )
+        events = []
+        for session in sessions:
+            for run in session.output.get("runs", []):
+                for event in run.get("events", []):
+                    event["session_uuid"] = str(session.uuid)
+                    event["created_on"] = iso8601.parse_date(event["created_on"])
+
+                    if event["type"] in types and after <= event["created_on"] < before:
+                        events.append(event)
+
+        return events
 
     def get_field_json(self, field):
         """
@@ -1958,10 +2018,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             for msg in self.msgs.all():
                 msg.release()
 
-            # release any channel connections
-            for conn in self.connections.all():
-                conn.release()
-
             # any urns currently owned by us
             for urn in self.urns.all():
 
@@ -1971,7 +2027,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 for msg in urn.msgs.all():
                     msg.release()
 
-                # same thing goes for sessions
+                # same thing goes for connections
                 for conn in urn.connections.all():
                     conn.release()
 
@@ -1984,6 +2040,12 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             # release our runs too
             for run in self.runs.all():
                 run.release()
+
+            for session in self.sessions.all():
+                session.release()
+
+            for conn in self.connections.all():  # pragma: needs cover
+                conn.release()
 
             # and any event fire history
             self.campaign_fires.all().delete()

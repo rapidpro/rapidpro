@@ -13,6 +13,7 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
 from temba.contacts.models import TEL_SCHEME, Contact, ContactField, ContactURN
 from temba.flows.legacy.expressions import get_function_listing
+from temba.flows.models import Flow
 from temba.msgs.models import (
     DELIVERED,
     ERRORED,
@@ -43,7 +44,7 @@ from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.utils import json
 
-from .tasks import squash_msgcounts
+from .tasks import retry_errored_messages, squash_msgcounts
 from .templatetags.sms import as_icon
 
 
@@ -460,47 +461,50 @@ class MsgTest(TembaTest):
 
         # test removing a label
         self.do_msg_action(inbox_url, [msg2], "label", label1, label_add=False)
-        self.assertEqual(set(label1.msgs.all()), {msg1})
+        self.assertEqual({msg1}, set(label1.msgs.all()))
 
         # label more messages
         self.do_msg_action(inbox_url, [msg1, msg2, msg3], "label", label3)
-        self.assertEqual(set(label1.msgs.all()), {msg1})
-        self.assertEqual(set(label3.msgs.all()), {msg1, msg2, msg3})
+        self.assertEqual({msg1}, set(label1.msgs.all()))
+        self.assertEqual({msg1, msg2, msg3}, set(label3.msgs.all()))
 
         # update our label name
-        response = self.client.get(reverse("msgs.label_update", args=[label1.pk]))
+        response = self.client.get(reverse("msgs.label_update", args=[label1.id]))
+
         self.assertEqual(200, response.status_code)
         self.assertIn("folder", response.context["form"].fields)
 
-        post_data = dict(name="Foo")
-        response = self.client.post(reverse("msgs.label_update", args=[label1.pk]), post_data)
+        response = self.client.post(reverse("msgs.label_update", args=[label1.id]), {"name": "Foo"})
+        label1.refresh_from_db()
+
         self.assertEqual(302, response.status_code)
-        label1 = Label.label_objects.get(pk=label1.pk)
         self.assertEqual("Foo", label1.name)
 
         # test deleting the label
-        response = self.client.get(reverse("msgs.label_delete", args=[label1.pk]))
+        response = self.client.get(reverse("msgs.label_delete", args=[label1.id]))
         self.assertEqual(200, response.status_code)
 
-        response = self.client.post(reverse("msgs.label_delete", args=[label1.pk]))
+        response = self.client.post(reverse("msgs.label_delete", args=[label1.id]))
+        label1.refresh_from_db()
+
         self.assertEqual(302, response.status_code)
-        self.assertFalse(Label.label_objects.filter(pk=label1.id))
+        self.assertFalse(label1.is_active)
 
         # shouldn't have a remove on the update page
 
         # test archiving a msg
-        self.assertEqual(set(msg1.labels.all()), {label3})
-        post_data = dict(action="archive", objects=msg1.pk)
+        self.assertEqual({label3}, set(msg1.labels.all()))
 
-        response = self.client.post(inbox_url, post_data, follow=True)
+        response = self.client.post(inbox_url, {"action": "archive", "objects": msg1.id}, follow=True)
+
         self.assertEqual(response.status_code, 200)
 
         # now one msg is archived
-        self.assertEqual(list(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED)), [msg1])
+        self.assertEqual({msg1}, set(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED)))
 
         # archiving doesn't remove labels
-        msg1 = Msg.objects.get(pk=msg1.pk)
-        self.assertEqual(set(msg1.labels.all()), {label3})
+        msg1.refresh_from_db()
+        self.assertEqual({label3}, set(msg1.labels.all()))
 
         # visit the the archived messages page
         archive_url = reverse("msgs.msg_archived")
@@ -598,6 +602,43 @@ class MsgTest(TembaTest):
 
         self.assertEqual(set(response.context["object_list"]), {msg3, msg2, msg1})
         self.assertEqual(response.context["actions"], ["label"])
+
+    def test_retry_errored(self):
+        # change our default channel to external
+        self.channel.channel_type = "EX"
+        self.channel.save()
+
+        android_channel = Channel.create(
+            self.org,
+            self.user,
+            "RW",
+            "A",
+            name="Android Channel",
+            address="+250785551414",
+            device="Nexus 5X",
+            secret="12345678",
+            config={Channel.CONFIG_FCM_ID: "123"},
+        )
+
+        msg1 = self.create_outgoing_msg(self.joe, "errored", status="E", channel=self.channel)
+        msg1.next_attempt = timezone.now()
+        msg1.save(update_fields=["next_attempt"])
+
+        msg2 = self.create_outgoing_msg(self.joe, "android", status="E", channel=android_channel)
+        msg2.next_attempt = timezone.now()
+        msg2.save(update_fields=["next_attempt"])
+
+        msg3 = self.create_outgoing_msg(self.joe, "failed", status="F", channel=self.channel)
+
+        retry_errored_messages()
+
+        msg1.refresh_from_db()
+        msg2.refresh_from_db()
+        msg3.refresh_from_db()
+
+        self.assertEqual("W", msg1.status)
+        self.assertEqual("E", msg2.status)
+        self.assertEqual("F", msg3.status)
 
     def test_failed(self):
         failed_url = reverse("msgs.msg_failed")
@@ -1396,7 +1437,7 @@ class MsgTest(TembaTest):
         )
 
         # filter page should have an export option
-        response = self.client.get(reverse("msgs.msg_filter", args=[label.id]))
+        response = self.client.get(reverse("msgs.msg_filter", args=[label.uuid]))
         self.assertContains(response, "Export")
 
         # try export with user label
@@ -1698,12 +1739,12 @@ class MsgCRUDLTest(TembaTest):
 
         # can't visit a filter page as a non-org user
         self.login(self.non_org_user)
-        response = self.client.get(reverse("msgs.msg_filter", args=[label3.pk]))
+        response = self.client.get(reverse("msgs.msg_filter", args=[label3.uuid]))
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
         # can as org viewer user
         self.login(self.user)
-        response = self.client.get(reverse("msgs.msg_filter", args=[label3.pk]))
+        response = self.client.get(reverse("msgs.msg_filter", args=[label3.uuid]))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["actions"], ["unlabel", "label"])
         self.assertNotContains(response, reverse("msgs.label_update", args=[label3.pk]))  # can't update label
@@ -1713,7 +1754,7 @@ class MsgCRUDLTest(TembaTest):
         self.assertEqual(list(response.context["object_list"]), [msg6, msg3, msg2, msg1])
 
         # check viewing a folder
-        response = self.client.get(reverse("msgs.msg_filter", args=[folder.pk]))
+        response = self.client.get(reverse("msgs.msg_filter", args=[folder.uuid]))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["actions"], ["unlabel", "label"])
         self.assertNotContains(response, reverse("msgs.label_update", args=[folder.pk]))  # can't update folder
@@ -1723,20 +1764,20 @@ class MsgCRUDLTest(TembaTest):
         self.assertEqual(list(response.context["object_list"]), [msg3, msg2, msg1])
 
         # search on folder by message text
-        response = self.client.get("%s?search=test2" % reverse("msgs.msg_filter", args=[folder.pk]))
+        response = self.client.get("%s?search=test2" % reverse("msgs.msg_filter", args=[folder.uuid]))
         self.assertEqual(set(response.context_data["object_list"]), {msg2})
 
         # search on label by contact name
-        response = self.client.get("%s?search=joe" % reverse("msgs.msg_filter", args=[label3.pk]))
+        response = self.client.get("%s?search=joe" % reverse("msgs.msg_filter", args=[label3.uuid]))
         self.assertEqual(set(response.context_data["object_list"]), {msg1, msg6})
 
         # check admin users see edit and delete options for labels and folders
         self.login(self.admin)
-        response = self.client.get(reverse("msgs.msg_filter", args=[folder.pk]))
+        response = self.client.get(reverse("msgs.msg_filter", args=[folder.uuid]))
         self.assertContains(response, reverse("msgs.label_update", args=[folder.pk]))
         self.assertContains(response, reverse("msgs.label_delete", args=[folder.pk]))
 
-        response = self.client.get(reverse("msgs.msg_filter", args=[label1.pk]))
+        response = self.client.get(reverse("msgs.msg_filter", args=[label1.uuid]))
         self.assertContains(response, reverse("msgs.label_update", args=[label1.pk]))
         self.assertContains(response, reverse("msgs.label_delete", args=[label1.pk]))
 
@@ -2241,13 +2282,6 @@ class BroadcastCRUDLTest(TembaTest):
 
         self.assertEqual(response.context["object_list"].count(), 0)
 
-        broadcast.fire()
-
-        # view again with 1 item in Send History
-        response = self.client.get(reverse("msgs.broadcast_schedule_read", args=[broadcast.pk]))
-        self.assertEqual(response.context["object"], broadcast)
-        self.assertEqual(response.context["object_list"].count(), 1)
-
 
 class LabelTest(TembaTest):
     def setUp(self):
@@ -2258,16 +2292,45 @@ class LabelTest(TembaTest):
 
     def test_get_or_create(self):
         label1 = Label.get_or_create(self.org, self.user, "Spam")
-        self.assertEqual(label1.name, "Spam")
+        self.assertEqual("Spam", label1.name)
         self.assertIsNone(label1.folder)
 
         followup = Label.get_or_create_folder(self.org, self.user, "Follow up")
         label2 = Label.get_or_create(self.org, self.user, "Complaints", followup)
-        self.assertEqual(label2.name, "Complaints")
-        self.assertEqual(label2.folder, followup)
+        self.assertEqual("Complaints", label2.name)
+        self.assertEqual(followup, label2.folder)
+
+        label2.release(self.admin)
+
+        # will return existing label by name and strip whitespace
+        self.assertEqual(label1, Label.get_or_create(self.org, self.user, "Spam"))
+        self.assertEqual(label1, Label.get_or_create(self.org, self.user, "  Spam   "))
+
+        # but only if it's active
+        self.assertNotEqual(label2, Label.get_or_create(self.org, self.user, "Complaints"))
 
         # don't allow invalid name
         self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "+Important")
+
+        # can't use a non-folder as a folder
+        self.assertRaises(AssertionError, Label.get_or_create, self.org, self.user, "Important", label1)
+
+    def test_get_or_create_folder(self):
+        folder1 = Label.get_or_create_folder(self.org, self.user, "Spam")
+        self.assertEqual("Spam", folder1.name)
+        self.assertIsNone(folder1.folder)
+
+        # will return existing label by name and strip whitespace
+        self.assertEqual(folder1, Label.get_or_create_folder(self.org, self.user, "Spam"))
+        self.assertEqual(folder1, Label.get_or_create_folder(self.org, self.user, "  Spam   "))
+
+        folder1.release(self.admin)
+
+        # but only if it's active
+        self.assertNotEqual(folder1, Label.get_or_create_folder(self.org, self.user, "Spam"))
+
+        # don't allow invalid name
+        self.assertRaises(ValueError, Label.get_or_create_folder, self.org, self.user, "+Important")
 
     def test_is_valid_name(self):
         self.assertTrue(Label.is_valid_name("x"))
@@ -2373,6 +2436,9 @@ class LabelTest(TembaTest):
         label1 = Label.get_or_create(self.org, self.user, "Spam", folder1)
         label2 = Label.get_or_create(self.org, self.user, "Social", folder1)
         label3 = Label.get_or_create(self.org, self.user, "Other")
+        label4 = Label.get_or_create(self.org, self.user, "Deleted")
+
+        label4.release(self.user)
 
         msg1 = self.create_incoming_msg(self.joe, "Message 1")
         msg2 = self.create_incoming_msg(self.joe, "Message 2")
@@ -2406,7 +2472,7 @@ class LabelTest(TembaTest):
                 ],
             )
 
-    def test_delete_folder(self):
+    def test_delete(self):
         folder1 = Label.get_or_create_folder(self.org, self.user, "Folder")
         label1 = Label.get_or_create(self.org, self.user, "Spam", folder1)
         label2 = Label.get_or_create(self.org, self.user, "Social", folder1)
@@ -2420,24 +2486,29 @@ class LabelTest(TembaTest):
         label2.toggle_label([msg1], add=True)
         label3.toggle_label([msg3], add=True)
 
-        folder1.release()
+        ExportMessagesTask.create(self.org, self.admin, label=label1)
 
-        self.assertFalse(Label.all_objects.filter(pk=folder1.pk).exists())
+        folder1.release(self.admin)
+        folder1.refresh_from_db()
 
-        # check that contained labels are also deleted
-        self.assertEqual(Label.all_objects.filter(pk__in=[label1.pk, label2.pk]).count(), 0)
-        self.assertEqual(set(Msg.objects.get(pk=msg1.pk).labels.all()), set())
-        self.assertEqual(set(Msg.objects.get(pk=msg2.pk).labels.all()), set())
-        self.assertEqual(set(Msg.objects.get(pk=msg3.pk).labels.all()), {label3})
+        self.assertFalse(folder1.is_active)
+        self.assertEqual(self.admin, folder1.modified_by)
 
-        label3.release()
+        # check that contained labels are also released
+        self.assertEqual(0, Label.all_objects.filter(id__in=[label1.id, label2.id], is_active=True).count())
+        self.assertEqual(set(), set(Msg.objects.get(id=msg1.id).labels.all()))
+        self.assertEqual(set(), set(Msg.objects.get(id=msg2.id).labels.all()))
+        self.assertEqual({label3}, set(Msg.objects.get(id=msg3.id).labels.all()))
 
-        self.assertFalse(Label.all_objects.filter(pk=label3.pk).exists())
-        self.assertEqual(set(Msg.objects.get(pk=msg3.pk).labels.all()), set())
+        label3.release(self.admin)
+        label3.refresh_from_db()
+
+        self.assertFalse(label3.is_active)
+        self.assertEqual(self.admin, label3.modified_by)
+        self.assertEqual(set(), set(Msg.objects.get(id=msg3.id).labels.all()))
 
 
 class LabelCRUDLTest(TembaTest):
-    @patch.object(Label, "MAX_ORG_LABELS", new=10)
     def test_create_and_update(self):
         create_label_url = reverse("msgs.label_create")
         create_folder_url = reverse("msgs.label_create_folder")
@@ -2445,84 +2516,91 @@ class LabelCRUDLTest(TembaTest):
         self.login(self.admin)
 
         # try to create label with invalid name
-        response = self.client.post(create_label_url, dict(name="+label_one"))
+        response = self.client.post(create_label_url, {"name": "+Spam"})
         self.assertFormError(response, "form", "name", "Name must not be blank or begin with punctuation")
 
         # try again with valid name
-        self.client.post(create_label_url, dict(name="label_one"), follow=True)
+        self.client.post(create_label_url, {"name": "Spam"}, follow=True)
 
-        label_one = Label.label_objects.get()
-        self.assertEqual(label_one.name, "label_one")
-        self.assertIsNone(label_one.folder)
+        label1 = Label.label_objects.get()
+        self.assertEqual("Spam", label1.name)
+        self.assertIsNone(label1.folder)
 
         # check that we can't create another with same name
-        response = self.client.post(create_label_url, dict(name="label_one"))
+        response = self.client.post(create_label_url, {"name": "Spam"})
         self.assertFormError(response, "form", "name", "Name must be unique")
 
         # create a folder
-        self.client.post(create_folder_url, dict(name="Folder"), follow=True)
+        self.client.post(create_folder_url, {"name": "Folder"}, follow=True)
         folder = Label.folder_objects.get(name="Folder")
 
         # and a label in it
-        self.client.post(create_label_url, dict(name="label_two", folder=folder.pk), follow=True)
-        label_two = Label.label_objects.get(name="label_two")
-        self.assertEqual(label_two.folder, folder)
+        self.client.post(create_label_url, {"name": "Spam2", "folder": folder.id}, follow=True)
+        label2 = Label.label_objects.get(name="Spam2")
+        self.assertEqual(folder, label2.folder)
 
         # update label one
-        self.client.post(reverse("msgs.label_update", args=[label_one.pk]), dict(name="label_1"))
+        self.client.post(reverse("msgs.label_update", args=[label1.id]), {"name": "Spam1"})
 
-        label_one = Label.label_objects.get(pk=label_one.pk)
-        self.assertEqual(label_one.name, "label_1")
-        self.assertIsNone(label_one.folder)
+        label1.refresh_from_db()
+
+        self.assertEqual("Spam1", label1.name)
+        self.assertIsNone(label1.folder)
 
         # try to update to invalid label name
-        response = self.client.post(reverse("msgs.label_update", args=[label_one.pk]), dict(name="+label_1"))
+        response = self.client.post(reverse("msgs.label_update", args=[label1.id]), {"name": "+Spam"})
         self.assertFormError(response, "form", "name", "Name must not be blank or begin with punctuation")
 
-        self.release(Label.folder_objects.all())
-        self.release(Label.label_objects.all())
-
-        for i in range(Label.MAX_ORG_LABELS):
-            Label.get_or_create(self.org, self.user, "label%d" % i)
-
-        response = self.client.post(create_label_url, dict(name="Label"))
-        self.assertFormError(
-            response,
-            "form",
-            "name",
-            "This org has 10 labels and the limit is 10. "
-            "You must delete existing ones before you can create new ones.",
-        )
+        # try creating a new label after reaching the limit on labels
+        current_count = Label.all_objects.filter(org=self.org, is_active=True).count()
+        with patch.object(Label, "MAX_ORG_LABELS", current_count):
+            response = self.client.post(create_label_url, {"name": "CoolStuff"})
+            self.assertFormError(
+                response,
+                "form",
+                "name",
+                "This org has 3 labels and the limit is 3. "
+                "You must delete existing ones before you can create new ones.",
+            )
 
     def test_label_delete(self):
-        label_one = Label.get_or_create(self.org, self.user, "label1")
+        label1 = Label.get_or_create(self.org, self.user, "Spam")
 
-        delete_url = reverse("msgs.label_delete", args=[label_one.pk])
+        delete_url = reverse("msgs.label_delete", args=[label1.id])
 
+        # regular users can't delete labels
         self.login(self.user)
         response = self.client.get(delete_url)
-        self.assertEqual(response.status_code, 302)
 
+        self.assertEqual(302, response.status_code)
+
+        label1.refresh_from_db()
+
+        self.assertTrue(label1.is_active)
+
+        # admin users can
         self.login(self.admin)
-        response = self.client.get(delete_url)
-        self.assertEqual(response.status_code, 200)
+        response = self.client.post(delete_url)
+
+        self.assertEqual(302, response.status_code)
+
+        label1.refresh_from_db()
+
+        self.assertFalse(label1.is_active)
 
     def test_label_delete_with_flow_dependency(self):
-
-        label_one = Label.get_or_create(self.org, self.user, "label1")
-
-        from temba.flows.models import Flow
+        label1 = Label.get_or_create(self.org, self.user, "Spam")
 
         self.get_flow("dependencies")
         flow = Flow.objects.filter(name="Dependencies").first()
 
-        flow.label_dependencies.add(label_one)
+        flow.label_dependencies.add(label1)
 
         # release method raises ValueError
         with self.assertRaises(ValueError) as release_error:
-            label_one.release()
+            label1.release(self.admin)
 
-        self.assertEqual(str(release_error.exception), f"Cannot delete Label: {label_one.name}, used by 1 flows")
+        self.assertEqual(str(release_error.exception), f"Cannot delete Label: {label1.name}, used by 1 flows")
 
     def test_list(self):
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
@@ -2544,10 +2622,10 @@ class LabelCRUDLTest(TembaTest):
         results = response.json()
 
         # results should be A-Z and not include folders or labels from other orgs
-        self.assertEqual(len(results), 3)
-        self.assertEqual(results[0]["text"], "Important")
-        self.assertEqual(results[1]["text"], "Junk")
-        self.assertEqual(results[2]["text"], "Spam")
+        self.assertEqual(3, len(results))
+        self.assertEqual("Important", results[0]["text"])
+        self.assertEqual("Junk", results[1]["text"])
+        self.assertEqual("Spam", results[2]["text"])
 
 
 class SystemLabelTest(TembaTest):

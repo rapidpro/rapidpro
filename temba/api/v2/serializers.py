@@ -13,6 +13,7 @@ from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
+from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary
@@ -480,6 +481,22 @@ class ChannelReadSerializer(ReadSerializer):
         fields = ("uuid", "name", "address", "country", "device", "last_seen", "created_on")
 
 
+class ClassifierReadSerializer(ReadSerializer):
+    type = serializers.SerializerMethodField()
+    intents = serializers.SerializerMethodField()
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    def get_type(self, obj):
+        return obj.classifier_type
+
+    def get_intents(self, obj):
+        return [i.name for i in obj.intents.filter(is_active=True).order_by("name")]
+
+    class Meta:
+        model = Classifier
+        fields = ("uuid", "name", "type", "intents", "created_on")
+
+
 class ContactReadSerializer(ReadSerializer):
     name = serializers.SerializerMethodField()
     language = serializers.SerializerMethodField()
@@ -679,12 +696,12 @@ class ContactFieldWriteSerializer(WriteSerializer):
 
     def validate(self, data):
 
-        fields_count = ContactField.user_fields.count_active_for_org(org=self.context["org"])
-        if not self.instance and fields_count >= ContactField.MAX_ORG_CONTACTFIELDS:
+        field_count = ContactField.user_fields.count_active_for_org(org=self.context["org"])
+        if not self.instance and field_count >= settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG:
             raise serializers.ValidationError(
                 "This org has %s contact fields and the limit is %s. "
                 "You must delete existing ones before you can "
-                "create new ones." % (fields_count, ContactField.MAX_ORG_CONTACTFIELDS)
+                "create new ones." % (field_count, settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG)
             )
 
         return data

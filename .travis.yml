@@ -10,7 +10,8 @@ services:
   - redis-server
 
 env:
-  - PGDB=10
+  - PGDB=11 PGIS=2.5
+  - PGDB=10 PGIS=2.4
 
 cache:
   directories:
@@ -18,7 +19,7 @@ cache:
 
 before_install:
   # install the chosen PG version
-  - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install postgresql-$PGDB postgresql-client-$PGDB postgresql-$PGDB-postgis-2.4 postgresql-$PGDB-postgis-2.4-scripts
+  - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install postgresql-$PGDB postgresql-client-$PGDB postgresql-$PGDB-postgis-$PGIS postgresql-$PGDB-postgis-$PGIS-scripts
   - sudo -E sed -i -e '/local.*peer/s/postgres/all/' -e 's/peer\|md5/trust/g' /etc/postgresql/*/main/pg_hba.conf
   - sudo -E sed -i 's/port = 5433/port = 5432/' /etc/postgresql/*/main/postgresql.conf
 
@@ -100,8 +101,8 @@ script:
   
   # generate our locale messages
   - python manage.py makemessages -a -e haml,html,txt,py --ignore="env/*" --no-location --no-wrap | awk '/warning/ { print "makemessages contains warnings"; exit 1 }'
-  - python manage.py makemessages -d djangojs -a --ignore="env/*" --ignore="static/bower/*" --ignore="node_modules/*" --no-location --no-wrap
-  - python manage.py makemessages -d djangojs -a --ignore="env/*" --ignore="static/bower/*" --ignore="node_modules/*" --no-location --no-wrap | awk '/warning/ { print "makemessages for djangojs contains warnings"; exit 1 }'
+  - python manage.py makemessages -d djangojs -a --ignore="env/*" --ignore="static/bower/*" --ignore="static/components/*" --ignore="node_modules/*" --no-location --no-wrap
+  - python manage.py makemessages -d djangojs -a --ignore="env/*" --ignore="static/bower/*" --ignore="static/components/*" --ignore="node_modules/*" --no-location --no-wrap | awk '/warning/ { print "makemessages for djangojs contains warnings"; exit 1 }'
 
   # fail if there are changes
   - git diff --numstat

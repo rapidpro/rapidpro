@@ -1,12 +1,13 @@
 @font-face {
   font-family: 'temba';
-  src:  url('fonts/temba.eot?mud7pj');
-  src:  url('fonts/temba.eot?mud7pj#iefix') format('embedded-opentype'),
-    url('fonts/temba.ttf?mud7pj') format('truetype'),
-    url('fonts/temba.woff?mud7pj') format('woff'),
-    url('fonts/temba.svg?mud7pj#temba') format('svg');
+  src:  url('fonts/temba.eot?1uwrn0');
+  src:  url('fonts/temba.eot?1uwrn0#iefix') format('embedded-opentype'),
+    url('fonts/temba.ttf?1uwrn0') format('truetype'),
+    url('fonts/temba.woff?1uwrn0') format('woff'),
+    url('fonts/temba.svg?1uwrn0#temba') format('svg');
   font-weight: normal;
   font-style: normal;
+  font-display: block;
 }
 
 [class^="icon-"], [class*=" icon-"] {
@@ -24,8 +25,32 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-.icon-activity:before {
-  content: "\e0a7";
+.icon-chip:before {
+  content: "\e911";
+}
+.icon-luis:before {
+  content: "\e90f";
+}
+.icon-wit:before {
+  content: "\e910";
+}
+.icon-thinq:before {
+  content: "\e900";
+}
+.icon-whatsapp:before {
+  content: "\ea93";
+}
+.icon-wechat:before {
+  content: "\ea94";
+}
+.icon-circle-2:before {
+  content: "\e000";
+}
+.icon-radio-unchecked:before {
+  content: "\e001";
+}
+.icon-radio-checked:before {
+  content: "\e002";
 }
 .icon-address-book:before {
   content: "\e01d";
@@ -744,38 +769,38 @@
 .icon-twilio_original:before {
   content: "\e09a";
 }
-.icon-twitter:before {
-  content: "\e007";
+.icon-telegram:before {
+  content: "\e901";
 }
-.icon-untitled-2:before {
-  content: "\e075";
+.icon-file_download:before {
+  content: "\e903";
 }
-.icon-untitled-3:before {
-  content: "\e073";
+.icon-chatbase:before {
+  content: "\e904";
 }
-.icon-upload:before {
-  content: "\e022";
+.icon-quick-reply:before {
+  content: "\e905";
 }
-.icon-user:before {
-  content: "\e03b";
+.icon-facebook-official:before {
+  content: "\e906";
 }
-.icon-user-add:before {
-  content: "\e00b";
+.icon-jiochat:before {
+  content: "\e907";
 }
-.icon-user-block:before {
-  content: "\e605";
+.icon-line:before {
+  content: "\e908";
 }
-.icon-freshchat:before {
+.icon-viber:before {
+  content: "\e909";
+}
+.icon-cloud-lightning:before {
+  content: "\e90a";
+}
+.icon-junebug:before {
+  content: "\e90c";
+}
+.icon-fcm:before {
   content: "\e90e";
-}
-.icon-user-delete:before {
-  content: "\e607";
-}
-.icon-user-remove:before {
-  content: "\e604";
-}
-.icon-user-restore:before {
-  content: "\e606";
 }
 .icon-users:before {
   content: "\e00c";
@@ -812,4 +837,16 @@
 }
 .icon-wrench:before {
   content: "\e04c";
+}
+.icon-signalwire:before {
+  content: "\e90d";
+}
+.icon-template:before {
+  content: "\e90b";
+}
+.icon-arrow-up51:before {
+  content: "\edc7";
+}
+.icon-mtarget:before {
+  content: "\e902";
 }

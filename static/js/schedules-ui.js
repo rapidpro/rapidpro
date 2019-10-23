@@ -1,7 +1,3 @@
-function setNextFireText(nextFireTimeUnix) {
-    var nextFire = moment(nextFireTimeUnix * 1000)
-    $('.next-fire').text(nextFire.format("MMMM Do YYYY [at] ha"));
-}
 
 function initializeDatetimePicker(minDate, initialDate, showButtons) {
 

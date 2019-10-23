@@ -16,16 +16,17 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
 
+from temba.api.models import Resthook
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
+from temba.classifiers.models import Classifier
 from temba.contacts.models import WHATSAPP_SCHEME, Contact, ContactField, ContactGroup
-from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
 from temba.msgs.models import Label
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, MigrationTest, MockResponse, TembaTest, matchers
+from temba.tests import AnonymousOrg, MockResponse, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
@@ -353,6 +354,36 @@ class FlowTest(TembaTest):
 
         response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
         self.assertFalse(response.context["mutable"])
+
+    def test_feature_filters(self):
+        self.login(self.admin)
+
+        # empty feature set
+        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        self.assertEqual([], json.loads(response.context["feature_filters"]))
+
+        # with zapier
+        Resthook.objects.create(org=self.flow.org, created_by=self.admin, modified_by=self.admin)
+        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        self.assertEqual(["resthook"], json.loads(response.context["feature_filters"]))
+
+        # add in a classifier
+        Classifier.objects.create(org=self.flow.org, config="", created_by=self.admin, modified_by=self.admin)
+        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        self.assertEqual(["classifier", "resthook"], json.loads(response.context["feature_filters"]))
+
+        # add in an airtime connection
+        self.flow.org.connect_dtone("login", "token", self.admin)
+        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        self.assertEqual(["airtime", "classifier", "resthook"], json.loads(response.context["feature_filters"]))
+
+        # change our channel to use a whatsapp scheme
+        self.channel.schemes = [WHATSAPP_SCHEME]
+        self.channel.save()
+        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        self.assertEqual(
+            ["whatsapp", "airtime", "classifier", "resthook"], json.loads(response.context["feature_filters"])
+        )
 
     def test_flow_editor(self):
         self.login(self.admin)
@@ -1656,6 +1687,38 @@ class FlowTest(TembaTest):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_flow_results_with_hidden_results(self):
+        flow = self.get_flow("color_v13")
+        flow_nodes = flow.as_json()["nodes"]
+        color_split = flow_nodes[4]
+
+        # add a spec for a hidden result to this flow.. which should not be included below
+        flow.metadata[Flow.METADATA_RESULTS].append(
+            {
+                "key": "_color_classification",
+                "name": "_Color Classification",
+                "categories": ["Success", "Skipped", "Failure"],
+                "node_uuids": [color_split["uuid"]],
+            }
+        )
+
+        self.login(self.admin)
+        response = self.client.get(reverse("flows.flow_results", args=[flow.uuid]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["result_fields"],
+            [
+                {
+                    "key": "color",
+                    "name": "Color",
+                    "categories": ["Orange", "Blue", "Other", "Nothing"],
+                    "node_uuids": [color_split["uuid"]],
+                    "has_categories": "true",
+                }
+            ],
+        )
+
     def test_views_viewers(self):
         # create a viewer
         self.viewer = self.create_user("Viewer")
@@ -2885,14 +2948,66 @@ class FlowCRUDLTest(TembaTest):
         response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
 
         self.assertEqual(
-            ["omnibox", "restart_participants", "include_active", "loc"], list(response.context["form"].fields.keys())
+            ["omnibox", "restart_participants", "include_active", "start_type", "contact_query", "loc"],
+            list(response.context["form"].fields.keys()),
         )
+
+        # create flow start with a query
+        with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
+
+            self.client.post(
+                reverse("flows.flow_broadcast", args=[flow.id]),
+                {
+                    "contact_query": "frank",
+                    "start_type": "query",
+                    "restart_participants": "on",
+                    "include_active": "on",
+                },
+                follow=True,
+            )
+
+            start = FlowStart.objects.get()
+            self.assertEqual(flow, start.flow)
+            self.assertEqual(FlowStart.STATUS_PENDING, start.status)
+            self.assertTrue(start.restart_participants)
+            self.assertTrue(start.include_active)
+            self.assertEqual("frank", start.query)
+
+            mock_queue_flow_start.assert_called_once_with(start)
+
+        FlowStart.objects.all().delete()
+
+        # create flow start with a bogus query
+        response = self.client.post(
+            reverse("flows.flow_broadcast", args=[flow.id]),
+            {
+                "contact_query": 'name = "frank',
+                "start_type": "query",
+                "restart_participants": "on",
+                "include_active": "on",
+            },
+            follow=True,
+        )
+
+        self.assertFormError(response, "form", "contact_query", "Please enter a valid contact query")
+
+        # create flow start with an empty query
+        response = self.client.post(
+            reverse("flows.flow_broadcast", args=[flow.id]),
+            {"contact_query": "", "start_type": "query", "restart_participants": "on", "include_active": "on"},
+            follow=True,
+        )
+
+        self.assertFormError(response, "form", "contact_query", "Contact query is required")
 
         # create flow start with restart_participants and include_active both enabled
         with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
+
+            selection = json.dumps({"id": contact.uuid, "name": contact.name, "type": "contact"})
+
             self.client.post(
                 reverse("flows.flow_broadcast", args=[flow.id]),
-                {"omnibox": "c-%s" % contact.uuid, "restart_participants": "on", "include_active": "on"},
+                {"omnibox": selection, "start_type": "select", "restart_participants": "on", "include_active": "on"},
                 follow=True,
             )
 
@@ -2910,7 +3025,9 @@ class FlowCRUDLTest(TembaTest):
         # create flow start with restart_participants and include_active both enabled
         with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
             self.client.post(
-                reverse("flows.flow_broadcast", args=[flow.id]), {"omnibox": "c-%s" % contact.uuid}, follow=True
+                reverse("flows.flow_broadcast", args=[flow.id]),
+                {"omnibox": selection, "start_type": "select"},
+                follow=True,
             )
 
             start = FlowStart.objects.get()
@@ -2925,7 +3042,9 @@ class FlowCRUDLTest(TembaTest):
         # trying to start again should fail because there is already a pending start for this flow
         with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
             response = self.client.post(
-                reverse("flows.flow_broadcast", args=[flow.id]), {"omnibox": "c-%s" % contact.uuid}, follow=True
+                reverse("flows.flow_broadcast", args=[flow.id]),
+                {"omnibox": selection, "start_type": "select"},
+                follow=True,
             )
 
             # should have an error now
@@ -3746,27 +3865,16 @@ class FlowSessionTest(TembaTest):
         flow = self.get_flow("color")
 
         # create some runs that have sessions
-        run1 = FlowRun.objects.create(
-            org=self.org, flow=flow, contact=contact, session=FlowSession.create(contact, None)
-        )
-        run2 = FlowRun.objects.create(
-            org=self.org, flow=flow, contact=contact, session=FlowSession.create(contact, None)
-        )
-        run3 = FlowRun.objects.create(
-            org=self.org, flow=flow, contact=contact, session=FlowSession.create(contact, None)
-        )
+        session1 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact)
+        session2 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact)
+        session3 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact)
+        run1 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session1)
+        run2 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session2)
+        run3 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session3)
 
-        # create an IVR run and session
-        connection = IVRCall.objects.create(
-            channel=self.channel,
-            contact=contact,
-            contact_urn=contact.urns.get(),
-            direction=IVRCall.OUTGOING,
-            org=self.org,
-            status=IVRCall.PENDING,
-        )
-        session = FlowSession.create(contact, connection)
-        run4 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, connection=connection, session=session)
+        # create an IVR call with session
+        call = self.create_incoming_call(flow, contact)
+        run4 = call.runs.get()
 
         self.assertIsNotNone(run1.session)
         self.assertIsNotNone(run2.session)
@@ -3842,6 +3950,16 @@ class ExportFlowResultsTest(TembaTest):
         color_other = flow_nodes[3]
         orange_reply = flow_nodes[1]
 
+        # add a spec for a hidden result to this flow
+        flow.metadata[Flow.METADATA_RESULTS].append(
+            {
+                "key": "_color_classification",
+                "name": "_Color Classification",
+                "categories": ["Success", "Skipped", "Failure"],
+                "node_uuids": [color_split["uuid"]],
+            }
+        )
+
         self.contact.update_urns(self.admin, ["tel:+250788382382", "twitter:erictweets"])
         devs = self.create_group("Devs", [self.contact])
 
@@ -3874,6 +3992,7 @@ class ExportFlowResultsTest(TembaTest):
             .wait()
             .resume(msg=contact1_in2)
             .set_result("Color", "orange", "Orange", "orange")
+            .set_result("_Color Classification", "orange", "Success", "color_selection")  # hidden result
             .visit(orange_reply)
             .send_msg(
                 "I love orange too! You said: orange which is category: Orange You are: 0788 382 382 SMS: orange Flow: color: orange",
@@ -5345,24 +5464,24 @@ class ExportFlowResultsTest(TembaTest):
 class FlowLabelTest(TembaTest):
     def test_label_model(self):
         # test a the creation of a unique label when we have a long word(more than 32 caracters)
-        response = FlowLabel.create_unique("alongwordcomposedofmorethanthirtytwoletters", self.org, parent=None)
+        response = FlowLabel.create(self.org, "alongwordcomposedofmorethanthirtytwoletters", parent=None)
         self.assertEqual(response.name, "alongwordcomposedofmorethanthirt")
 
         # try to create another label which starts with the same 32 caracteres
         # the one we already have
-        label = FlowLabel.create_unique("alongwordcomposedofmorethanthirtytwocaracteres", self.org, parent=None)
+        label = FlowLabel.create(self.org, "alongwordcomposedofmorethanthirtytwocaracteres", parent=None)
 
         self.assertEqual(label.name, "alongwordcomposedofmorethanthi 2")
         self.assertEqual(str(label), "alongwordcomposedofmorethanthi 2")
-        label = FlowLabel.create_unique("child", self.org, parent=label)
+        label = FlowLabel.create(self.org, "child", parent=label)
         self.assertEqual(str(label), "alongwordcomposedofmorethanthi 2 > child")
 
-        FlowLabel.create_unique("dog", self.org)
-        FlowLabel.create_unique("dog", self.org)
-        dog3 = FlowLabel.create_unique("dog", self.org)
+        FlowLabel.create(self.org, "dog")
+        FlowLabel.create(self.org, "dog")
+        dog3 = FlowLabel.create(self.org, "dog")
         self.assertEqual("dog 3", dog3.name)
 
-        dog4 = FlowLabel.create_unique("dog ", self.org)
+        dog4 = FlowLabel.create(self.org, "dog ")
         self.assertEqual("dog 4", dog4.name)
 
         # view the parent label, should see the child
@@ -5384,7 +5503,7 @@ class FlowLabelTest(TembaTest):
         self.assertFalse(response.context["object_list"])
 
     def test_toggle_label(self):
-        label = FlowLabel.create_unique("toggle me", self.org)
+        label = FlowLabel.create(self.org, "toggle me")
         flow = self.get_flow("favorites")
 
         changed = label.toggle_label([flow], True)
@@ -5426,7 +5545,7 @@ class FlowLabelTest(TembaTest):
         self.assertEqual(FlowLabel.objects.all().count(), 3)
 
     def test_delete(self):
-        label_one = FlowLabel.create_unique("label1", self.org)
+        label_one = FlowLabel.create(self.org, "label1")
 
         delete_url = reverse("flows.flowlabel_delete", args=[label_one.pk])
 
@@ -5441,7 +5560,7 @@ class FlowLabelTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
     def test_update(self):
-        label_one = FlowLabel.create_unique("label1", self.org)
+        label_one = FlowLabel.create(self.org, "label1")
         update_url = reverse("flows.flowlabel_update", args=[label_one.pk])
 
         # not logged in, no dice
@@ -5588,7 +5707,7 @@ class FlowSessionCRUDLTest(TembaTest):
         session = MockSessionWriter(contact, flow).wait().save().session
 
         # normal users can't see session json
-        url = reverse("flows.flowsession_json", args=[session.id])
+        url = reverse("flows.flowsession_json", args=[session.uuid])
         response = self.client.get(url)
         self.assertLoginRedirect(response)
 
@@ -5639,83 +5758,3 @@ class SystemChecksTest(TembaTest):
 
         with override_settings(MAILROOM_URL=None):
             self.assertEqual(mailroom_url(None)[0].msg, "No mailroom URL set, simulation will not be available")
-
-
-class PopulateSessionUUIDMigrationTest(MigrationTest):
-    app = "flows"
-    migrate_from = "0210_drop_action_log"
-    migrate_to = "0211_populate_session_uuid"
-
-    def setUpBeforeMigration(self, apps):
-        # override the batch size constant
-        patcher = patch("temba.flows.migrations.0211_populate_session_uuid.BATCH_SIZE", 2)
-        patcher.start()
-        self.addCleanup(patcher.stop)
-
-        contact = self.create_contact("Bob", twitter="bob")
-
-        FlowSession.objects.create(org=contact.org, contact=contact, uuid=None)
-        FlowSession.objects.create(org=contact.org, contact=contact, uuid=None)
-        FlowSession.objects.create(org=contact.org, contact=contact, uuid=None)
-
-    def test_merged(self):
-        self.assertEqual(FlowSession.objects.count(), 3)
-        self.assertEqual(FlowSession.objects.filter(uuid=None).count(), 0)
-
-
-class PopulateRunStatusMigrationTest(MigrationTest):
-    app = "flows"
-    migrate_from = "0213_flowrun_status"
-    migrate_to = "0214_populate_run_status"
-
-    def setUpBeforeMigration(self, apps):
-        # override the batch size constant
-        patcher = patch("temba.flows.migrations.0214_populate_run_status.BATCH_SIZE", 2)
-        patcher.start()
-        self.addCleanup(patcher.stop)
-
-        flow1 = Flow.create_single_message(self.org, self.admin, {"eng": "Hi there"}, "eng")
-        flow2 = Flow.create_single_message(self.org, self.admin, {"eng": "Goodbye"}, "eng")
-        contact = self.create_contact("Bob", twitter="bob")
-
-        completed = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact, status="C")
-        failed = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact, status="F")
-        waiting1 = FlowSession.objects.create(
-            uuid=uuid4(), org=self.org, contact=contact, status="W", current_flow=flow1
-        )
-        waiting2 = FlowSession.objects.create(
-            uuid=uuid4(), org=self.org, contact=contact, status="W", current_flow=flow2
-        )
-
-        def create_run(exit_type, is_active, session=None):
-            FlowRun.objects.create(
-                org=self.org, contact=contact, flow=flow1, exit_type=exit_type, is_active=is_active, session=session
-            )
-
-        create_run(exit_type="I", is_active=False, session=failed)
-        create_run(exit_type="C", is_active=False)
-        create_run(exit_type="I", is_active=False)
-        create_run(exit_type="E", is_active=False)
-        create_run(exit_type="Z", is_active=False)
-        create_run(exit_type=None, is_active=True, session=waiting1)
-        create_run(exit_type=None, is_active=True, session=waiting2)  # session is waiting but different flow
-        create_run(exit_type=None, is_active=True, session=completed)  # shouldn't occur
-        create_run(exit_type=None, is_active=True)
-        create_run(exit_type=None, is_active=False)  # shouldn't occur
-
-    def test_migrate(self):
-        self.assertEqual(
-            list(FlowRun.objects.values_list("status", flat=True).order_by("id")),
-            [
-                FlowRun.STATUS_FAILED,
-                FlowRun.STATUS_COMPLETED,
-                FlowRun.STATUS_INTERRUPTED,
-                FlowRun.STATUS_EXPIRED,
-                FlowRun.STATUS_COMPLETED,
-                FlowRun.STATUS_WAITING,
-                FlowRun.STATUS_ACTIVE,
-                FlowRun.STATUS_ACTIVE,
-                FlowRun.STATUS_ACTIVE,
-                FlowRun.STATUS_INTERRUPTED,
-            ],
-        )

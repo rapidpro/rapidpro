@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-19 18:17+0000\n"
+"POT-Creation-Date: 2019-10-18 22:17+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -605,8 +605,8 @@ msgstr "URL de rappel"
 #| "      "
 msgid ""
 "\n"
-"                You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
-"                <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
+"                You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page,\n"
+"                then clicking on Callback URL.\n"
 "                "
 msgstr ""
 "\n"
@@ -625,8 +625,8 @@ msgstr "URL de Livraison "
 #| "      "
 msgid ""
 "\n"
-"                You can set the delivery URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
-"                <a href=\"http://www.africastalking.com/account/sms/dlrcallback\" target=\"africastalking\">Delivery Reports</a>.\n"
+"                You can set the delivery URL on your Africa's Talking account by visiting the SMS Dashboard page,\n"
+"                then clicking on Delivery Reports.\n"
 "                "
 msgstr ""
 "\n"
@@ -2371,6 +2371,81 @@ msgid "Your authentication token is invalid, please check and try again"
 msgstr "Code Claim invalide, s'il vous plaît vérifier et essayer à nouveau."
 
 #, fuzzy
+msgid ""
+"If you have a number with <a href=\"https://thinq.com\">ThinQ</a> you can connect it in a few easy steps to\n"
+"        automate your SMS numbers."
+msgstr ""
+"\n"
+"Si vous êtes basé au Kenya, vous pouvez acheter un code court à %(link_start)sAfrica's talking%(link_end)s et le connecter à TextIt en quelques simples étapes."
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your Africa's Talking connection you'll need to set the following callback URLs on the\n"
+#| "        Africa's Talking website under your account.\n"
+#| "\n"
+#| "      "
+msgid ""
+"\n"
+"        To finish configuring your ThinQ connection you'll need to set the following callback URLs\n"
+"        on the ThinQ website on the SMS -> SMS Configuration page.\n"
+"        "
+msgstr ""
+"\n"
+"Pour finir de configurer votre connection Africa's Talking vous devrez établir les rappels URLs suivants sur le\n"
+"site Africa's Talking sous votre compte."
+
+#, fuzzy
+#| msgid "Configuration"
+msgid "Inbound SMS Configuration"
+msgstr "Configuration"
+
+msgid ""
+"\n"
+"                Set your Inbound SMS Configuration URL to the above, making sure you select \"URL\" for Attachment Type.\n"
+"                "
+msgstr ""
+
+#, fuzzy
+#| msgid "Configuration"
+msgid "Outbound SMS Configuration"
+msgstr "Configuration"
+
+msgid ""
+"\n"
+"                Set your Delivery Confirmation URL to the above, making sure you select \"Form-Data\" as the Delivery\n"
+"                Notification Format.\n"
+"                "
+msgstr ""
+
+#, fuzzy
+#| msgid "Your Twilio Account SID"
+msgid "Your ThinQ account id"
+msgstr "Votre compte Twilio SID"
+
+#, fuzzy
+msgid "The ThinQ number you want to connect"
+msgstr "Le pays ce numéro de téléphone est utilisé dans"
+
+msgid "United States"
+msgstr "États-Unis"
+
+#, fuzzy
+#| msgid "The file name for our export"
+msgid "The user name for you API token"
+msgstr "Le nom de fichier pour notre exportation"
+
+#, fuzzy
+#| msgid "Your API Token is"
+msgid "Your API token"
+msgstr "Votre API Token est"
+
+#, fuzzy
+#| msgid "Invalid phone number, please include the country code. ex: +250788123123"
+msgid "Invalid phone number, please include the country code. ex: +12065551212"
+msgstr "Numéro de téléphone incorrect, s'il vous plaît inclure le code du pays. ex: +250788123123"
+
+#, fuzzy
 #| msgid ""
 #| "\n"
 #| "                Easily add a two way number you have configured with <a href=\"http://infobip.com\">Infobip</a> using their APIs.\n"
@@ -2829,9 +2904,6 @@ msgstr "Le mot de passe fournit par l'opérateur pour utiliser leur API"
 msgid "United Kingdom"
 msgstr "Royaume-Uni"
 
-msgid "United States"
-msgstr "États-Unis"
-
 msgid "Scension Island"
 msgstr ""
 
@@ -3008,6 +3080,72 @@ msgstr "Désolés, aucun numéro, s'il vous plaît entrer un autre code de zone 
 
 msgid "Calls"
 msgstr ""
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The name of your LUIS app"
+msgstr "Le nom de votre organisation"
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The id for your LUIS app"
+msgstr "Le nom de votre organisation"
+
+#, fuzzy
+msgid "The name of the version of your LUIS app to use"
+msgstr "Le nom de votre organisation"
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The primary key for your LUIS app"
+msgstr "Le nom de votre organisation"
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The endpoint URL for your LUIS app"
+msgstr "Le nom de votre organisation"
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Unable to get intents for your app, please check credentials and try again"
+msgstr "Code Claim invalide, s'il vous plaît vérifier et essayer à nouveau."
+
+#, fuzzy
+#| msgid "Your last name"
+msgid "Your app's name"
+msgstr "Votre nom"
+
+msgid "Your app's ID"
+msgstr ""
+
+msgid "Your app's server access token"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Unable to access wit.ai with credentials, please check and try again"
+msgstr "Code Claim invalide, s'il vous plaît vérifier et essayer à nouveau."
+
+msgid "Unable to get intent entity, make sure you have at least one intent defined"
+msgstr ""
+
+#, fuzzy
+#| msgid "Connect Hub9"
+msgid "Connect"
+msgstr "Connectez Hub9"
+
+#, fuzzy
+#| msgid "Delete"
+msgid "Delete Classifier"
+msgstr "Effacer"
+
+#, fuzzy
+#| msgid "Your flow has been removed."
+msgid "Your classifier has been deleted."
+msgstr "Votre flux a été supprimé."
+
+msgid "Delete"
+msgstr "Effacer"
 
 #, fuzzy
 msgid "Phone number"
@@ -3376,9 +3514,6 @@ msgstr "Débloquer"
 msgid "Unstop"
 msgstr ""
 
-msgid "Delete"
-msgstr "Effacer"
-
 msgid "Save as Group"
 msgstr ""
 
@@ -3590,39 +3725,6 @@ msgstr ""
 msgid "Malformed flow, encountered non-localized definition"
 msgstr ""
 
-msgid "The flow where the activity occurred"
-msgstr ""
-
-msgid "Which flow node they came from"
-msgstr ""
-
-msgid "Which flow node they went to"
-msgstr ""
-
-msgid "When the activity occured with hourly precision"
-msgstr ""
-
-msgid "The flow node UUID of the first step"
-msgstr ""
-
-#, fuzzy
-#| msgid "The type of this message"
-msgid "The UUID of the first step"
-msgstr "Le type de ce message"
-
-msgid "The flow node UUID of the second step"
-msgstr ""
-
-#, fuzzy
-#| msgid "The type of this message"
-msgid "The UUID of the second step"
-msgstr "Le type de ce message"
-
-#, fuzzy
-#| msgid "When the user switched to this plan"
-msgid "When the run visited this path segment"
-msgstr "Lorsque l'utilisateur passe à ce plan"
-
 msgid "The flows to export"
 msgstr "Les flux d'exportation"
 
@@ -3630,13 +3732,6 @@ msgstr "Les flux d'exportation"
 #| msgid "The JSON encoded configurations for this report"
 msgid "Any configuration options for this flow export"
 msgstr "Les configurations JSON codées pour ce rapport"
-
-msgid "Unique Identifier"
-msgstr ""
-
-#, fuzzy
-msgid "The unique identifier for this label"
-msgstr "Le nom de ce contact"
 
 msgid "The name of this flow label"
 msgstr "Le nom de ce label de flux"
@@ -3963,6 +4058,11 @@ msgstr "Contacts & Groupes"
 msgid "These contacts will be added to the flow, sending the first message if appropriate."
 msgstr "Ces contacts seront ajoutés au flux, en envoyant le premier message, si possible."
 
+#, fuzzy
+#| msgid "Create Contact Group"
+msgid "Recipients, enter contacts or groups"
+msgstr "Créer un groupe de contact"
+
 msgid "Restart Participants"
 msgstr "Redémarrez participants"
 
@@ -3977,6 +4077,36 @@ msgstr "Archivés les contacts"
 msgid "Include contacts currently active in a flow"
 msgstr ""
 
+#, fuzzy
+#| msgid "Contacts that will start the flow"
+msgid "Select contacts or groups to start in the flow"
+msgstr "Contacts qui débuteront le flux"
+
+#, fuzzy
+#| msgid "Unlimited Contacts and Groups"
+msgid "Enter contacts and groups to start below"
+msgstr "Contacts et groupes illimités"
+
+#, fuzzy
+#| msgid "Your Contacts"
+msgid "Search for contacts to start"
+msgstr "Vos contacts"
+
+#, fuzzy
+#| msgid "Create Contact"
+msgid "Enter contact query"
+msgstr "Créer un contact"
+
+#, fuzzy
+#| msgid "Contact First Name"
+msgid "Contact query is required"
+msgstr "Prénom du Contact"
+
+#, fuzzy
+#| msgid "Please enter at least 8 characters"
+msgid "Please enter a valid contact query"
+msgstr "S'il vous plaît entrer au moins 8 caractères"
+
 msgid "You must specify at least one contact or one group to start a flow."
 msgstr ""
 
@@ -3989,10 +4119,8 @@ msgstr ""
 msgid "Add Contacts to Flow"
 msgstr "Ajouter des contact à un flux"
 
-#, fuzzy
-#| msgid "The flow that is being started"
-msgid "This flow does not use message templates."
-msgstr "Le flux qui est démarrée"
+msgid "This flow does not use message templates. You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
+msgstr ""
 
 msgid "The message template {ref['name']} does not exist on your account and cannot be sent."
 msgstr ""
@@ -4298,11 +4426,6 @@ msgstr "Le nom de ce label"
 #| msgid "Elderly"
 msgid "Folder"
 msgstr "assez âgé"
-
-#, fuzzy
-#| msgid "Label Type"
-msgid "Label type"
-msgstr "Type de label"
 
 msgid "The date for the oldest message to export"
 msgstr ""
@@ -5006,13 +5129,11 @@ msgstr "Déconnexion"
 msgid "Add Channel"
 msgstr "Channel"
 
+msgid "Add Classifier"
+msgstr ""
+
 msgid "Import"
 msgstr "Importer"
-
-#, fuzzy
-#| msgid "Connect Hub9"
-msgid "Connect"
-msgstr "Connectez Hub9"
 
 msgid "Login"
 msgstr ""
@@ -5022,11 +5143,11 @@ msgstr "Signal API"
 
 #, fuzzy
 #| msgid "Your Nexmo API key and secret seem invalid. Please check them again and retry."
-msgid "Your TransferTo API key and secret seem invalid. Please check them again and retry."
+msgid "Your DTOne API key and secret seem invalid. Please check them again and retry."
 msgstr "Votre clé API Nexmo et secret semblent invalide. S'il vous plaît vérifier à nouveau et réessayez."
 
 #, python-format
-msgid "Connecting to your TransferTo account failed with error text: %s"
+msgid "Connecting to your DTOne account failed with error text: %s"
 msgstr ""
 
 #, fuzzy
@@ -5137,6 +5258,17 @@ msgstr "L' id  vimeo utilise pour cette vidéo"
 
 msgid "Register for public beta"
 msgstr "Inscrivez-vous à la version bêta publique"
+
+msgid "Intents Synced"
+msgstr ""
+
+#, fuzzy
+#| msgid "Channel Event"
+msgid "Classifier Called"
+msgstr "Evénement du relayeur"
+
+msgid "Airtime Transferred"
+msgstr ""
 
 msgid "Never"
 msgstr "Jamais"
@@ -5338,6 +5470,9 @@ msgstr ""
 msgid "The organization of the user."
 msgstr "L'Organisation de l'utilisateur."
 
+msgid "Unique Identifier"
+msgstr ""
+
 #, fuzzy
 msgid "The unique identifier for this object"
 msgstr "Le nom de ce contact"
@@ -5431,23 +5566,13 @@ msgstr "a un district"
 msgid "Ward"
 msgstr ""
 
-msgid "Data posted Log"
+msgid "HTTP Logs"
 msgstr ""
 
 #, fuzzy
 #| msgid "Export Data"
 msgid "No Data"
 msgstr "Exporter les données"
-
-#, fuzzy
-#| msgid "Response To"
-msgid "Responses Log"
-msgstr "réponse Pour"
-
-#, fuzzy
-#| msgid "Response"
-msgid "No Response"
-msgstr "Réponse"
 
 #, python-format
 msgid ""
@@ -5925,6 +6050,9 @@ msgstr ""
 #, fuzzy
 msgid "IP Addresses"
 msgstr "Adresse e-mail"
+
+msgid "Additionally you will need to make sure the following IP addresses are whitelisted"
+msgstr ""
 
 msgid "Are you sure you want to remove this number from your account?"
 msgstr "Etes-vous sûr de vouloir supprimer ce numéro de votre compte?"
@@ -7482,6 +7610,63 @@ msgstr ""
 msgid "No synced templates at this time."
 msgstr ""
 
+#, fuzzy
+#| msgid "Connect Vumi"
+msgid "Connect a Classifier"
+msgstr "Connectez Vumi"
+
+msgid ""
+"\n"
+"            Classifiers let you interpret words and phrases into intents you can act on. Various services let you\n"
+"            train your own classifier which you can then use in your flows to draw meaning from the unstructured text your\n"
+"            contacts send you.\n"
+"\n"
+"          "
+msgstr ""
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "            unsent messages\n"
+#| "          "
+#| msgid_plural ""
+#| "\n"
+#| "            unsent message\n"
+#| "          "
+msgid ""
+"\n"
+"            Select your provider below to get started.\n"
+"\n"
+"          "
+msgstr ""
+"\n"
+"            message non-envoyé\n"
+"          "
+
+msgid "Classifier"
+msgstr ""
+
+msgid "Classifier Log"
+msgstr ""
+
+msgid "Intents are synced every 5 minutes"
+msgstr ""
+
+#, fuzzy
+#| msgid "Activate"
+msgid "Active Intents"
+msgstr "activer"
+
+msgid "No synced intents at this time."
+msgstr ""
+
+#, fuzzy
+msgid "Are you sure you want to remove this classifier from your account?"
+msgstr "Etes-vous sûr de vouloir supprimer ce numéro de votre compte?"
+
+msgid "This classifier cannot be removed because it in use."
+msgstr ""
+
 msgid "Hold up!"
 msgstr "Attendez!"
 
@@ -7515,6 +7700,11 @@ msgstr ""
 
 msgid "Update Contact Group"
 msgstr "Mise à jour de Groupe de contacts"
+
+#, fuzzy
+#| msgid "Plan Start"
+msgid "Call Started"
+msgstr "Démarrer le plan"
 
 #, fuzzy
 #| msgid "Missed Outgoing Call"
@@ -7555,10 +7745,116 @@ msgstr "Appel entrant"
 msgid "Unknown/Unsupported"
 msgstr ""
 
+#, python-format
+msgid ""
+"\n"
+"            Field <b>%(name)s</b> updated to <b>%(value)s</b>\n"
+"          "
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          Install the %(name)s app\n"
+#| "\n"
+#| "        "
+msgid ""
+"\n"
+"            Field <b>%(name)s</b> cleared\n"
+"\n"
+"          "
+msgstr ""
+"\n"
+"Installer l'app %(name)s"
+
 #, fuzzy
-#| msgid "Plan Start"
-msgid "Call Started"
-msgstr "Démarrer le plan"
+#| msgid "Add to Group"
+msgid "Added to groups"
+msgstr "Ajouter au groupe"
+
+#, fuzzy
+#| msgid "Remove from Group"
+msgid "Removed from groups"
+msgstr "Supprimer du groupe"
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "            unsent messages\n"
+#| "          "
+#| msgid_plural ""
+#| "\n"
+#| "            unsent message\n"
+#| "          "
+msgid ""
+"\n"
+"            Language updated to <b>%(language)s</b>\n"
+"          "
+msgstr ""
+"\n"
+"            message non-envoyé\n"
+"          "
+
+#, fuzzy
+#| msgid "Language"
+msgid "Language cleared"
+msgstr "Langue"
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          Install the %(name)s app\n"
+#| "\n"
+#| "        "
+msgid ""
+"\n"
+"            Name updated to <b>%(name)s</b>\n"
+"          "
+msgstr ""
+"\n"
+"Installer l'app %(name)s"
+
+#, fuzzy
+#| msgid "Name already used"
+msgid "Name cleared"
+msgstr "Nom déjà utilisé"
+
+#, fuzzy
+#| msgid "Update Fields"
+msgid "URNs updated to"
+msgstr "Mettre à jour les champs"
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          Install the %(name)s app\n"
+#| "\n"
+#| "        "
+msgid ""
+"\n"
+"          Email sent with subject <b>%(subject)s</b>\n"
+"\n"
+"        "
+msgstr ""
+"\n"
+"Installer l'app %(name)s"
+
+#, fuzzy
+#| msgid "Start Flow"
+msgid "Started"
+msgstr "Lancer un Flux"
+
+#, fuzzy
+msgid "Message labelled as"
+msgstr "Message"
+
+#, python-format
+msgid ""
+"\n"
+"          Run result <b>%(name)s</b> updated to <b>%(value)s</b> with category <b>%(category)s</b>\n"
+"\n"
+"        "
+msgstr ""
 
 msgid "Successfully called"
 msgstr ""
@@ -8300,9 +8596,6 @@ msgstr "Aucun contact n'a commencé ce flux."
 msgid "Interrupt contacts currently active in flows"
 msgstr ""
 
-msgid "You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
-msgstr ""
-
 #, fuzzy
 #| msgid "The flow that is being started"
 msgid "This flow has never been started."
@@ -8565,6 +8858,9 @@ msgstr "Supprimer le libellé"
 
 msgid "Are you sure you want to remove this label?"
 msgstr "Etes-vous sûr de vouloir supprimer ce libellé?"
+
+msgid "You cannot remove a label which has child labels. Please remove all children first."
+msgstr ""
 
 msgid "Unlabel"
 msgstr "Sans étiquette"
@@ -9470,6 +9766,56 @@ msgid ""
 "    "
 msgstr ""
 
+#, fuzzy
+#| msgid "Manage %(name)s Accounts"
+msgid "DTOne Account"
+msgstr "Gérer %(name)s des comptes"
+
+#, fuzzy
+#| msgid "Connect Zenvia Account"
+msgid "Connected to DTOne Account"
+msgstr "Connectez votre compte Zenvia"
+
+msgid "No DTOne account connected."
+msgstr ""
+
+msgid ""
+"\n"
+"      Adding a DTOne account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected\n"
+"      you can transfer airtime credit within your Flows. To signup for an account, visit\n"
+"    "
+msgstr ""
+
+msgid "Transfer Log"
+msgstr ""
+
+#, fuzzy
+#| msgid "This account is connected to a Nexmo account."
+msgid "Your account is connected to a DTOne account"
+msgstr "Ce compte est connecté à un compte Nexmo."
+
+msgid "your DTOne account. Doing so will cause the payment actions in your flows to no longer be processed."
+msgstr ""
+
+#, fuzzy
+#| msgid "Disconnected"
+msgid "Disconnect DTOne"
+msgstr "Deconnecter"
+
+msgid ""
+"\n"
+"          This will disconnect your DTOne account. Payment actions will no longer be processed. Are you sure you want to proceed?\n"
+"        "
+msgstr ""
+
+msgid "You can find your API Token by clicking on "
+msgstr ""
+
+#, fuzzy
+#| msgid "at around the same time."
+msgid " on the DTOne site."
+msgstr "à peu prés au même moment."
+
 #, python-format
 msgid ""
 "\n"
@@ -9834,54 +10180,6 @@ msgid ""
 msgstr ""
 "\n"
 "Il ne <span class='attn'>se répétera pas</span>."
-
-#, fuzzy
-#| msgid "Nexmo Account."
-msgid "TransferTo Account"
-msgstr "Compte Nexmo"
-
-#, fuzzy
-#| msgid "Connect Zenvia Account"
-msgid "Connected to TransferTo Account"
-msgstr "Connectez votre compte Zenvia"
-
-msgid "No TransferTo account connected."
-msgstr ""
-
-msgid ""
-"\n"
-"      Adding a TransferTo account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected\n"
-"      you can transfer airtime credit within your Flows. To signup for an account, visit\n"
-"    "
-msgstr ""
-
-msgid "Transfer Log"
-msgstr ""
-
-#, fuzzy
-#| msgid "This account is connected to a Nexmo account."
-msgid "Your account is connected to the TransferTo account"
-msgstr "Ce compte est connecté à un compte Nexmo."
-
-msgid "your TransferTo account. Doing so will cause the payment actions in your flows to no longer be processed."
-msgstr ""
-
-#, fuzzy
-#| msgid "Disconnect Nexmo"
-msgid "Disconnect TransferTo"
-msgstr "Déconnectez Nexmo"
-
-msgid ""
-"\n"
-"          This will disconnect your TransferTo account. Payment actions will no longer be processed. Are you sure you want to proceed?\n"
-"        "
-msgstr ""
-
-msgid "You can find your API Token by clicking on "
-msgstr ""
-
-msgid " on the TransferTo site."
-msgstr ""
 
 msgid "Disconnect Twilio"
 msgstr "Déconnecter Twilio"
@@ -11081,6 +11379,28 @@ msgid "More Videos"
 msgstr "Plus de vidéos"
 
 #, fuzzy
+msgid "Classifier Events"
+msgstr "Evénement du relayeur"
+
+#, fuzzy
+#| msgid "Recent Channel Events"
+msgid "Recent Classifier Events"
+msgstr "Channel récents événements"
+
+msgid "Classifier: "
+msgstr ""
+
+#, fuzzy
+#| msgid "Channel Event"
+msgid "Classifier Event"
+msgstr "Evénement du relayeur"
+
+#, fuzzy
+#| msgid "Channel Error"
+msgid "Connection Error"
+msgstr "Erreur Relayeur"
+
+#, fuzzy
 #| msgid "Create Schedule"
 msgid "Leave unscheduled"
 msgstr "Créer un planning"
@@ -11113,7 +11433,7 @@ msgstr "Dim"
 
 #, fuzzy
 #| msgid "When this message was sent to the endpoint"
-msgid "The next message will be sent "
+msgid "The next message will be sent on"
 msgstr "Lorsque ce message a été envoyé à l'ordinateur d'extrémité"
 
 msgid "It will repeat every"
@@ -11299,14 +11619,9 @@ msgstr "Appel manqué déclencheur activé. Changer flux qui commence sur un app
 msgid "Catch all trigger activated. Change flow that catches all messages."
 msgstr "Attrapez tous déclencheur activé. Changer flux qui attire tous les messages."
 
-msgid ""
-"\n"
-"          The next message will be sent <span class='attn next-fire'/>.\n"
-"\n"
-"        "
-msgstr ""
-"\n"
-"Le prochain message sera envoyé <span class='attn next-fire'/>."
+#, fuzzy
+msgid "The next time the flow will be started is"
+msgstr "Quel flux sera débuté"
 
 msgid "month"
 msgstr "Mois"
@@ -11346,6 +11661,78 @@ msgstr "Choisissez le moment où vous desirer que le flux démarre. "
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Supprimer téléphone"
+
+#, fuzzy
+#| msgid "Enter Claim Code"
+msgid "Enter a query"
+msgstr "Entrez le code Claim"
+
+#, python-brace-format
+msgid "Found ${count} for ${query}"
+msgstr ""
+
+#, fuzzy
+#~| msgid "Nexmo Account."
+#~ msgid "TransferTo Account"
+#~ msgstr "Compte Nexmo"
+
+#, fuzzy
+#~| msgid "Disconnect Nexmo"
+#~ msgid "Disconnect TransferTo"
+#~ msgstr "Déconnectez Nexmo"
+
+#, fuzzy
+#~| msgid "The flow that is being started"
+#~ msgid "This flow does not use message templates."
+#~ msgstr "Le flux qui est démarrée"
+
+#, fuzzy
+#~| msgid "Your Nexmo API key and secret seem invalid. Please check them again and retry."
+#~ msgid "Your TransferTo API key and secret seem invalid. Please check them again and retry."
+#~ msgstr "Votre clé API Nexmo et secret semblent invalide. S'il vous plaît vérifier à nouveau et réessayez."
+
+#, fuzzy
+#~| msgid "Response To"
+#~ msgid "Responses Log"
+#~ msgstr "réponse Pour"
+
+#, fuzzy
+#~| msgid "Response"
+#~ msgid "No Response"
+#~ msgstr "Réponse"
+
+#, fuzzy
+#~| msgid "The type of this message"
+#~ msgid "The UUID of the first step"
+#~ msgstr "Le type de ce message"
+
+#, fuzzy
+#~| msgid "The type of this message"
+#~ msgid "The UUID of the second step"
+#~ msgstr "Le type de ce message"
+
+#, fuzzy
+#~| msgid "When the user switched to this plan"
+#~ msgid "When the run visited this path segment"
+#~ msgstr "Lorsque l'utilisateur passe à ce plan"
+
+#, fuzzy
+#~ msgid "The unique identifier for this label"
+#~ msgstr "Le nom de ce contact"
+
+#~ msgid ""
+#~ "\n"
+#~ "          The next message will be sent <span class='attn next-fire'/>.\n"
+#~ "\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "Le prochain message sera envoyé <span class='attn next-fire'/>."
+
+#, fuzzy
+#~| msgid "Label Type"
+#~ msgid "Label type"
+#~ msgstr "Type de label"
 
 #~ msgid "Can't create an incoming message without an org"
 #~ msgstr "Vous ne pouvez pas créer un message entrant sans une organisation"
@@ -11565,9 +11952,6 @@ msgstr "Supprimer téléphone"
 
 #~ msgid "Groups that will start the flow"
 #~ msgstr "Les groupes qui débuteront le flux"
-
-#~ msgid "Contacts that will start the flow"
-#~ msgstr "Contacts qui débuteront le flux"
 
 #~ msgid "Whether to restart any participants already in this flow"
 #~ msgstr " Soit pour redémarrer tous les participants déjà dans ce flux"
@@ -12113,11 +12497,6 @@ msgstr "Supprimer téléphone"
 #~ msgstr "API Docs"
 
 #, fuzzy
-#~| msgid "Invalid claim code, please check and try again."
-#~ msgid "Invalid page access token, please check it and try again."
-#~ msgstr "Code Claim invalide, s'il vous plaît vérifier et essayer à nouveau."
-
-#, fuzzy
 #~ msgid "Your phone number has been removed."
 #~ msgstr "Votre flux a été supprimé."
 
@@ -12577,11 +12956,6 @@ msgstr "Supprimer téléphone"
 #~| msgid "Connect Twilio"
 #~ msgid "Connect plivo"
 #~ msgstr "Connectez avec Twilio"
-
-#, fuzzy
-#~| msgid "Connect Vumi"
-#~ msgid "Connect Viber"
-#~ msgstr "Connectez Vumi"
 
 #, fuzzy
 #~| msgid ""
@@ -13600,9 +13974,6 @@ msgstr "Supprimer téléphone"
 #~ msgid "Destination"
 #~ msgstr "destination"
 
-#~ msgid "Channel Error"
-#~ msgstr "Erreur Relayeur"
-
 #~ msgid "No Response Body"
 #~ msgstr "Pas de corps de réponse"
 
@@ -14035,9 +14406,6 @@ msgstr "Supprimer téléphone"
 #~ msgid "WebHook events are being forwarded to"
 #~ msgstr "Événements WebHook sont renvoyés à"
 
-#~ msgid "Your API Token is"
-#~ msgstr "Votre API Token est"
-
 #~ msgid "There have been"
 #~ msgstr "Il ya eu des"
 
@@ -14288,9 +14656,6 @@ msgstr "Supprimer téléphone"
 
 #~ msgid "Unlimited Flows"
 #~ msgstr "flux illimités"
-
-#~ msgid "Unlimited Contacts and Groups"
-#~ msgstr "Contacts et groupes illimités"
 
 #~ msgid "REST API for sending messages"
 #~ msgstr "API REST pour l'envoi de messages"

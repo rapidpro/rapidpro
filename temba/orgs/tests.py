@@ -35,13 +35,15 @@ from temba.contacts.models import (
     ContactField,
     ContactGroup,
     ContactURN,
+    ExportContactsTask,
 )
-from temba.flows.models import ActionSet, Flow, FlowRun
+from temba.flows.models import ActionSet, ExportFlowResultsTask, Flow, FlowLabel, FlowRun
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
-from temba.msgs.models import Label, Msg
+from temba.msgs.models import ExportMessagesTask, Label, Msg
 from temba.orgs.models import Debit, UserSettings
 from temba.tests import ESMockWithScroll, MockResponse, TembaTest, matchers
+from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
@@ -178,7 +180,7 @@ class OrgDeleteTest(TembaTest):
 
         self.setUpLocations()
 
-        # create a second org
+        # create a second child org
         self.child_org = Org.objects.create(
             name="Child Org",
             timezone=pytz.timezone("Africa/Kigali"),
@@ -211,21 +213,52 @@ class OrgDeleteTest(TembaTest):
         # now allocate some credits to our child org
         self.org.allocate_credits(self.admin, self.child_org, 300)
 
+        parent_contact = self.create_contact("Parent Contact", "+2345123", org=self.parent_org)
+        child_contact = self.create_contact("Child Contact", "+3456123", org=self.child_org)
+
+        # add some fields
+        parent_field = self.create_field("age", "Parent Age", org=self.parent_org)
+        child_field = self.create_field("age", "Child Age", org=self.child_org)
+
+        # add some groups
+        parent_group = self.create_group("Parent Customers", contacts=[parent_contact], org=self.parent_org)
+        child_group = self.create_group("Parent Customers", contacts=[child_contact], org=self.child_org)
+
+        # add some labels
+        parent_label = self.create_label("Parent Spam", org=self.parent_org)
+        child_label = self.create_label("Child Spam", org=self.child_org)
+
         # bring in some flows
-        favorites = self.get_flow("favorites")
-        parent_contact = self.create_contact("Parent Contact", "+2345123")
-        FlowRun.objects.create(org=self.org, flow=favorites, contact=parent_contact)
+        parent_flow = self.get_flow("color_v13")
+        flow_nodes = parent_flow.as_json()["nodes"]
+        (
+            MockSessionWriter(parent_contact, parent_flow)
+            .visit(flow_nodes[0])
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(flow_nodes[4])
+            .wait()
+            .resume(msg=self.create_incoming_msg(parent_contact, "blue"))
+            .set_result("Color", "blue", "Blue", "blue")
+            .complete()
+            .save()
+        )
 
         # and our child org too
         self.org = self.child_org
-        color = self.get_flow("color")
-        child_contact = self.create_contact("Child Contact", "+3456123")
-        FlowRun.objects.create(org=self.org, flow=color, contact=child_contact)
+        child_flow = self.get_flow("color")
+
+        FlowRun.objects.create(org=self.org, flow=child_flow, contact=child_contact)
+
+        # labels for our flows
+        flow_label1 = FlowLabel.create(self.parent_org, "Cool Parent Flows")
+        flow_label2 = FlowLabel.create(self.child_org, "Cool Child Flows")
+        parent_flow.labels.add(flow_label1)
+        child_flow.labels.add(flow_label2)
 
         # triggers for our flows
         parent_trigger = Trigger.create(
             self.parent_org,
-            flow=favorites,
+            flow=parent_flow,
             trigger_type=Trigger.TYPE_KEYWORD,
             user=self.user,
             channel=self.channel,
@@ -235,7 +268,7 @@ class OrgDeleteTest(TembaTest):
 
         child_trigger = Trigger.create(
             self.child_org,
-            flow=color,
+            flow=child_flow,
             trigger_type=Trigger.TYPE_KEYWORD,
             user=self.user,
             channel=self.child_channel,
@@ -249,6 +282,16 @@ class OrgDeleteTest(TembaTest):
 
         # create some archives
         self.mock_s3 = MockS3Client()
+
+        # make some exports
+        ExportFlowResultsTask.create(self.parent_org, self.admin, [parent_flow], [parent_field], True, True, (), ())
+        ExportFlowResultsTask.create(self.child_org, self.admin, [child_flow], [child_field], True, True, (), ())
+
+        ExportContactsTask.create(self.parent_org, self.admin, group=parent_group)
+        ExportContactsTask.create(self.child_org, self.admin, group=child_group)
+
+        ExportMessagesTask.create(self.parent_org, self.admin, label=parent_label, groups=[parent_group])
+        ExportMessagesTask.create(self.child_org, self.admin, label=child_label, groups=[child_group])
 
         def create_archive(org, period, rollup=None):
             file = f"{org.id}/archive{Archive.objects.all().count()}.jsonl.gz"
@@ -313,6 +356,9 @@ class OrgDeleteTest(TembaTest):
 
                 # as are our webhook events
                 self.assertFalse(WebHookEvent.objects.filter(org=org).exists())
+
+                # and labels
+                self.assertFalse(Label.all_objects.filter(org=org).exists())
             else:
 
                 org.refresh_from_db()
@@ -334,7 +380,7 @@ class OrgDeleteTest(TembaTest):
     def test_release_child_immediately(self):
 
         # 300 credits were given to our child org and each used one
-        self.assertEqual(699, self.parent_org.get_credits_remaining())
+        self.assertEqual(698, self.parent_org.get_credits_remaining())
         self.assertEqual(299, self.child_org.get_credits_remaining())
 
         # release our child org
@@ -342,7 +388,7 @@ class OrgDeleteTest(TembaTest):
 
         # our unused credits are returned to the parent
         self.parent_org.clear_credit_cache()
-        self.assertEqual(998, self.parent_org.get_credits_remaining())
+        self.assertEqual(996, self.parent_org.get_credits_remaining())
 
 
 class OrgTest(TembaTest):
@@ -407,7 +453,7 @@ class OrgTest(TembaTest):
     def test_get_channel_countries(self):
         self.assertEqual(self.org.get_channel_countries(), [])
 
-        self.org.connect_transferto("mylogin", "api_token", self.admin)
+        self.org.connect_dtone("mylogin", "api_token", self.admin)
 
         self.assertEqual(
             self.org.get_channel_countries(),
@@ -601,9 +647,10 @@ class OrgTest(TembaTest):
 
         # we also can't start flows
         flow = self.create_flow()
+        omni_mark = json.dumps({"id": mark.uuid, "name": mark.name, "type": "contact"})
         self.client.post(
             reverse("flows.flow_broadcast", args=[flow.id]),
-            {"omnibox": f"c-{mark.uuid}", "restart_participants": "on"},
+            {"start_type": "select", "omnibox": omni_mark, "restart_participants": "on"},
             follow=True,
         )
 
@@ -646,7 +693,7 @@ class OrgTest(TembaTest):
 
         self.client.post(
             reverse("flows.flow_broadcast", args=[flow.id]),
-            {"omnibox": f"c-{mark.uuid}", "restart_participants": "on"},
+            {"start_type": "select", "omnibox": omni_mark, "restart_participants": "on"},
             follow=True,
         )
 
@@ -1677,64 +1724,64 @@ class OrgTest(TembaTest):
 
         AirtimeTransfer.objects.create(
             org=self.org,
-            recipient="+250788123123",
-            amount="100",
             contact=contact,
-            created_by=self.admin,
-            modified_by=self.admin,
+            status=AirtimeTransfer.STATUS_SUCCESS,
+            recipient="+250788123123",
+            desired_amount=Decimal("100"),
+            actual_amount=Decimal("0"),
         )
 
         self.assertTrue(self.org.has_airtime_transfers())
 
-    def test_transferto_model_methods(self):
+    def test_dtone_model_methods(self):
         org = self.org
 
         org.refresh_from_db()
-        self.assertFalse(org.is_connected_to_transferto())
-        self.assertIsNone(org.get_transferto_client())
+        self.assertFalse(org.is_connected_to_dtone())
+        self.assertIsNone(org.get_dtone_client())
 
-        org.connect_transferto("login", "token", self.admin)
+        org.connect_dtone("login", "token", self.admin)
         org.refresh_from_db()
 
-        self.assertTrue(org.is_connected_to_transferto())
-        self.assertIsNotNone(org.get_transferto_client())
+        self.assertTrue(org.is_connected_to_dtone())
+        self.assertIsNotNone(org.get_dtone_client())
         self.assertEqual(org.modified_by, self.admin)
 
-        org.remove_transferto_account(self.admin)
+        org.remove_dtone_account(self.admin)
         org.refresh_from_db()
 
-        self.assertFalse(org.is_connected_to_transferto())
-        self.assertIsNone(org.get_transferto_client())
+        self.assertFalse(org.is_connected_to_dtone())
+        self.assertIsNone(org.get_dtone_client())
         self.assertEqual(org.modified_by, self.admin)
 
-    def test_transferto_account(self):
+    def test_dtone_account(self):
         self.login(self.admin)
 
-        # connect transferTo
-        transferto_account_url = reverse("orgs.org_transfer_to_account")
+        # connect DTOne
+        dtone_account_url = reverse("orgs.org_dtone_account")
 
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, "Unexpected content")
             response = self.client.post(
-                transferto_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
+                dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
             )
 
-            self.assertContains(response, "Your TransferTo API key and secret seem invalid.")
-            self.assertFalse(self.org.is_connected_to_transferto())
+            self.assertContains(response, "Your DTOne API key and secret seem invalid.")
+            self.assertFalse(self.org.is_connected_to_dtone())
 
             mock_post.return_value = MockResponse(
                 200, "authentication_key=123\r\nerror_code=400\r\nerror_txt=Failed Authentication\r\n"
             )
 
             response = self.client.post(
-                transferto_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
+                dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
             )
 
             self.assertContains(
-                response, "Connecting to your TransferTo account failed with error text: Failed Authentication"
+                response, "Connecting to your DTOne account failed with error text: Failed Authentication"
             )
 
-            self.assertFalse(self.org.is_connected_to_transferto())
+            self.assertFalse(self.org.is_connected_to_dtone())
 
             mock_post.return_value = MockResponse(
                 200,
@@ -1745,56 +1792,56 @@ class OrgTest(TembaTest):
             )
 
             response = self.client.post(
-                transferto_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
+                dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
             )
             self.assertNoFormErrors(response)
-            # transferTo should be connected
+            # DTOne should be connected
             self.org = Org.objects.get(pk=self.org.pk)
-            self.assertTrue(self.org.is_connected_to_transferto())
+            self.assertTrue(self.org.is_connected_to_dtone())
             self.assertEqual(self.org.config["TRANSFERTO_ACCOUNT_LOGIN"], "login")
             self.assertEqual(self.org.config["TRANSFERTO_AIRTIME_API_TOKEN"], "token")
 
-            response = self.client.get(transferto_account_url)
-            self.assertEqual(response.context["transferto_account_login"], "login")
+            response = self.client.get(dtone_account_url)
+            self.assertEqual(response.context["dtone_account_login"], "login")
 
             # and disconnect
             response = self.client.post(
-                transferto_account_url, dict(account_login="login", airtime_api_token="token", disconnect="true")
+                dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="true")
             )
 
             self.assertNoFormErrors(response)
             self.org = Org.objects.get(pk=self.org.pk)
-            self.assertFalse(self.org.is_connected_to_transferto())
+            self.assertFalse(self.org.is_connected_to_dtone())
             self.assertNotIn("TRANSFERTO_ACCOUNT_LOGIN", self.org.config)
             self.assertNotIn("TRANSFERTO_AIRTIME_API_TOKEN", self.org.config)
 
             mock_post.side_effect = Exception("foo")
             response = self.client.post(
-                transferto_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
+                dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
             )
-            self.assertContains(response, "Your TransferTo API key and secret seem invalid.")
-            self.assertFalse(self.org.is_connected_to_transferto())
+            self.assertContains(response, "Your DTOne API key and secret seem invalid.")
+            self.assertFalse(self.org.is_connected_to_dtone())
 
         # no account connected, do not show the button to Transfer logs
-        response = self.client.get(transferto_account_url, HTTP_X_FORMAX=True)
+        response = self.client.get(dtone_account_url, HTTP_X_FORMAX=True)
         self.assertNotContains(response, reverse("airtime.airtimetransfer_list"))
-        self.assertNotContains(response, "%s?disconnect=true" % reverse("orgs.org_transfer_to_account"))
+        self.assertNotContains(response, "%s?disconnect=true" % reverse("orgs.org_dtone_account"))
 
-        response = self.client.get(transferto_account_url)
+        response = self.client.get(dtone_account_url)
         self.assertNotContains(response, reverse("airtime.airtimetransfer_list"))
-        self.assertNotContains(response, "%s?disconnect=true" % reverse("orgs.org_transfer_to_account"))
+        self.assertNotContains(response, "%s?disconnect=true" % reverse("orgs.org_dtone_account"))
 
-        self.org.connect_transferto("login", "token", self.admin)
+        self.org.connect_dtone("login", "token", self.admin)
 
         # links not show if request is not from formax
-        response = self.client.get(transferto_account_url)
+        response = self.client.get(dtone_account_url)
         self.assertNotContains(response, reverse("airtime.airtimetransfer_list"))
-        self.assertNotContains(response, "%s?disconnect=true" % reverse("orgs.org_transfer_to_account"))
+        self.assertNotContains(response, "%s?disconnect=true" % reverse("orgs.org_dtone_account"))
 
         # link show for formax requests
-        response = self.client.get(transferto_account_url, HTTP_X_FORMAX=True)
+        response = self.client.get(dtone_account_url, HTTP_X_FORMAX=True)
         self.assertContains(response, reverse("airtime.airtimetransfer_list"))
-        self.assertContains(response, "%s?disconnect=true" % reverse("orgs.org_transfer_to_account"))
+        self.assertContains(response, "%s?disconnect=true" % reverse("orgs.org_dtone_account"))
 
     def test_chatbase_account(self):
         self.login(self.admin)
@@ -3871,6 +3918,9 @@ class BulkExportTest(TembaTest):
 
         # our campaign
         self.assertContains(response, "Appointment Schedule")
+        self.assertNotContains(
+            response, "&quot;Appointment Schedule&quot;"
+        )  # previous bug rendered campaign names incorrectly
 
         # now let's export!
         post_data = dict(

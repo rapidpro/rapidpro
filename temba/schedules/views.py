@@ -49,14 +49,8 @@ class ScheduleCRUDL(SmartCRUDL):
 
         def get_success_url(self):
             broadcast = self.get_object().get_broadcast()
-            trigger = self.get_object().get_trigger()
-
-            if broadcast:
-                return reverse("msgs.broadcast_schedule_list")
-            elif trigger:  # pragma: needs cover
-                return reverse("triggers.trigger_list")
-
-            return reverse("public.public_welcome")
+            assert broadcast is not None
+            return reverse("msgs.broadcast_schedule_list")
 
         def derive_success_message(self):
             return None

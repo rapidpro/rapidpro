@@ -15,6 +15,14 @@ Single-colored icons can be modified like so:
 }
 ========================================== */
 
+.icon-group-two-filled {
+  width: 1.125em;
+}
+
+.icon-group-filled {
+  width: 1.375em;
+}
+
 .icon-textit {
   width: 1.412109375em;
 }

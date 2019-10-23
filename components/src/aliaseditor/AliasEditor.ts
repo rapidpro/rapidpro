@@ -5,7 +5,8 @@ import { getUrl, postUrl } from '../utils';
 import autosize from 'autosize';
 import Button from '../button/Button';
 import TextInput from '../textinput/TextInput';
-
+import { styleMap } from 'lit-html/directives/style-map.js';
+import FormElement from '../FormElement';
 
 @customElement("alias-editor")
 export default class AliasEditor extends LitElement {
@@ -202,6 +203,8 @@ export default class AliasEditor extends LitElement {
   private handleSearchSelection(evt: CustomEvent) {
     const selection = evt.detail.selected as FeatureProperties;
     this.showAliasDialog(selection);
+    const select = this.shadowRoot.querySelector("rp-select") as FormElement;
+    select.clear();
   }
 
   private renderFeature(feature: FeatureProperties, remainingPath: FeatureProperties[]): TemplateResult {
@@ -214,8 +217,6 @@ export default class AliasEditor extends LitElement {
           @mouseout=${() => { this.hovered = null }}
           class="level-${feature.level}"
         >
-
- 
 
         <div class="feature-name ${ clickable ? 'clickable' : ''}" 
           @click=${() => { if (clickable) {this.handlePlaceClicked(feature) }}}>
@@ -297,19 +298,23 @@ export default class AliasEditor extends LitElement {
     }
   }
 
+  private getOptions(response: AxiosResponse) {
+    return response.data.filter((option: any) => option.level > 0);
+  }
+
+  private getOptionsComplete(newestOptions: FeatureProperties[], response: AxiosResponse) {
+    return newestOptions.length === 0;
+  }
+
   private renderOptionDetail(option: FeatureProperties, selected: boolean): TemplateResult {
-    const style = html`
-      <style>
-        rp-label {
-          margin-top: 3px;
-          margin-right: 3px;
-        }
-      </style>
-    `;
+    const labelStyles = {
+      marginTop: '3px',
+      marginRight: '3px'
+    }
 
     const aliasList = option.aliases.split('\n');
-    const aliases = aliasList.map((alias: string)=>alias.trim().length > 0 ? html`<rp-label class="alias" dark>${alias}</rp-label>`: null);
-    return html`${style}<div class="path">${option.path.replace(/>/gi, "‣")}</div><div class="aliases">${aliases}</div>`;    
+    const aliases = aliasList.map((alias: string)=>alias.trim().length > 0 ? html`<rp-label style=${styleMap(labelStyles)} class="alias" dark>${alias}</rp-label>`: null);
+    return html`<div class="path">${option.path.replace(/>/gi, "‣")}</div><div class="aliases">${aliases}</div>`;    
   }
 
   public render(): TemplateResult {
@@ -327,11 +332,14 @@ export default class AliasEditor extends LitElement {
     return html`
       <div id="left-column">
         <div class="search">
-          <rp-select 
+          <rp-select
             placeholder="Search" 
-            endpoint="${this.getEndpoint()}boundaries/${this.path[0].osm_id}/?q="
+            endpoint="${this.getEndpoint()}boundaries/${this.path[0].osm_id}/?"
             .renderOptionDetail=${this.renderOptionDetail}
+            .getOptions=${this.getOptions}
+            .isComplete=${this.getOptionsComplete}
             @rp-selection=${this.handleSearchSelection.bind(this)}
+            searchable
           ></rp-select>
       </div>
         <div class="feature-tree">

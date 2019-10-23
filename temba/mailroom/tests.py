@@ -202,6 +202,7 @@ class MailroomQueueTest(TembaTest):
                     "flow_type": "M",
                     "contact_ids": [jim.id],
                     "group_ids": [bobs.id],
+                    "query": None,
                     "restart_participants": True,
                     "include_active": True,
                     "extra": {"foo": "bar"},
