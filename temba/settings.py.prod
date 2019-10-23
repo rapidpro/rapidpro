@@ -50,7 +50,7 @@ BRANDING = {
         "email": brand_info.get("email"),
         "support_email": brand_info.get("email"),
         "link": "https://{}".format(brand_info.get("domain")),
-        "api_link": "https://{}/api/v2/explorer".format(brand_info.get("domain")),
+        "api_link": "https://{}".format(brand_info.get("domain")),
         "docs_link": brand_info.get("docs_link"),
         "domain": brand_info.get("domain"),
         "favico": "brands/{}/push.ico".format(brand_info.get("folder")),
