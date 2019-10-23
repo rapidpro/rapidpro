@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-23 18:07+0000\n"
+"POT-Creation-Date: 2019-10-23 19:25+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4876,6 +4876,22 @@ msgstr ""
 #| msgid "You must enter your Twilio Account SID"
 msgid "You must enter the SMTP port"
 msgstr "Você deve inserir o seu SID da conta Twilio"
+
+#, fuzzy, python-format
+#| msgid "Configuration"
+msgid "%(name)s SMTP configuration test"
+msgstr "Configuração"
+
+#, python-format
+msgid "This email is a test to confirm the custom SMTP server configuration added to your %(name)s account."
+msgstr ""
+
+#, python-format
+msgid "Failed to send email with STMP server configuration with error '%s'"
+msgstr ""
+
+msgid "Failed to send email with STMP server configuration"
+msgstr ""
 
 msgid "Topups"
 msgstr ""
@@ -11148,16 +11164,6 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
-
-#, fuzzy
-#~| msgid "The name of your organization"
-#~ msgid "The name from your repository"
-#~ msgstr "Nome do seu repositorio"
-
-#, fuzzy
-#~| msgid "The name of your organization"
-#~ msgid "Access Token from your repository"
-#~ msgstr "Token de acesso do seu repositorio"
 
 #, fuzzy
 #~| msgid "Nexmo Account."

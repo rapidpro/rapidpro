@@ -1,5 +1,6 @@
 import datetime
 import io
+import smtplib
 from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import Mock, patch
@@ -1935,6 +1936,7 @@ class OrgTest(TembaTest):
         response = self.client.get(resthook_url)
         self.assertFalse(response.context["current_resthooks"])
 
+    @override_settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True)
     def test_smtp_server(self):
         self.login(self.admin)
 
@@ -1948,6 +1950,7 @@ class OrgTest(TembaTest):
             '[{"message": "You must enter a from email", "code": ""}]',
             response.context["form"].errors["__all__"].as_json(),
         )
+        self.assertEqual(len(mail.outbox), 0)
 
         response = self.client.post(
             smtp_server_url, {"smtp_from_email": "foobar.com", "disconnect": "false"}, follow=True
@@ -1956,6 +1959,7 @@ class OrgTest(TembaTest):
             '[{"message": "Please enter a valid email address", "code": ""}]',
             response.context["form"].errors["__all__"].as_json(),
         )
+        self.assertEqual(len(mail.outbox), 0)
 
         response = self.client.post(
             smtp_server_url, {"smtp_from_email": "foo@bar.com", "disconnect": "false"}, follow=True
@@ -1964,6 +1968,7 @@ class OrgTest(TembaTest):
             '[{"message": "You must enter the SMTP host", "code": ""}]',
             response.context["form"].errors["__all__"].as_json(),
         )
+        self.assertEqual(len(mail.outbox), 0)
 
         response = self.client.post(
             smtp_server_url,
@@ -1974,6 +1979,7 @@ class OrgTest(TembaTest):
             '[{"message": "You must enter the SMTP username", "code": ""}]',
             response.context["form"].errors["__all__"].as_json(),
         )
+        self.assertEqual(len(mail.outbox), 0)
 
         response = self.client.post(
             smtp_server_url,
@@ -1989,6 +1995,7 @@ class OrgTest(TembaTest):
             '[{"message": "You must enter the SMTP password", "code": ""}]',
             response.context["form"].errors["__all__"].as_json(),
         )
+        self.assertEqual(len(mail.outbox), 0)
 
         response = self.client.post(
             smtp_server_url,
@@ -2005,6 +2012,46 @@ class OrgTest(TembaTest):
             '[{"message": "You must enter the SMTP port", "code": ""}]',
             response.context["form"].errors["__all__"].as_json(),
         )
+        self.assertEqual(len(mail.outbox), 0)
+
+        with patch("temba.utils.email.send_custom_smtp_email") as mock_send_smtp_email:
+            mock_send_smtp_email.side_effect = smtplib.SMTPException("SMTP Error")
+            response = self.client.post(
+                smtp_server_url,
+                {
+                    "smtp_from_email": "foo@bar.com",
+                    "smtp_host": "smtp.example.com",
+                    "smtp_username": "support@example.com",
+                    "smtp_password": "secret",
+                    "smtp_port": "465",
+                    "disconnect": "false",
+                },
+                follow=True,
+            )
+            self.assertEqual(
+                '[{"message": "Failed to send email with STMP server configuration with error \'SMTP Error\'", "code": ""}]',
+                response.context["form"].errors["__all__"].as_json(),
+            )
+            self.assertEqual(len(mail.outbox), 0)
+
+            mock_send_smtp_email.side_effect = Exception("Unexpected Error")
+            response = self.client.post(
+                smtp_server_url,
+                {
+                    "smtp_from_email": "foo@bar.com",
+                    "smtp_host": "smtp.example.com",
+                    "smtp_username": "support@example.com",
+                    "smtp_password": "secret",
+                    "smtp_port": "465",
+                    "disconnect": "false",
+                },
+                follow=True,
+            )
+            self.assertEqual(
+                '[{"message": "Failed to send email with STMP server configuration", "code": ""}]',
+                response.context["form"].errors["__all__"].as_json(),
+            )
+            self.assertEqual(len(mail.outbox), 0)
 
         response = self.client.post(
             smtp_server_url,
@@ -2018,6 +2065,7 @@ class OrgTest(TembaTest):
             },
             follow=True,
         )
+        self.assertEqual(len(mail.outbox), 1)
 
         self.org.refresh_from_db()
         self.assertTrue(self.org.has_smtp_config())
