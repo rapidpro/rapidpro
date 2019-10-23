@@ -1,10 +1,10 @@
 from unittest.mock import patch
 
+from django.contrib.auth.models import Group
 from django.urls import reverse
 
 from temba.classifiers.models import Classifier
 from temba.tests import MockResponse, TembaTest
-from django.contrib.auth.models import Group
 
 from .type import BotHubType
 
@@ -70,7 +70,7 @@ class BotHubTypeTest(TembaTest):
 
         # ok, will everything out
         post_data["name"] = "Bothub Test Repository"
-        post_data["repository_token"] = "123456789"
+        post_data["access_token"] = "123456789"
 
         # can't connect
         with patch("requests.get") as mock_get:

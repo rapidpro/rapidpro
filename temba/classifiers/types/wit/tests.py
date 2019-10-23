@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-from django.contrib.auth.models import Group
 from django.urls import reverse
 
 from temba.classifiers.models import Classifier
@@ -96,9 +95,6 @@ class WitTypeTest(TembaTest):
         self.assertTrue(c.is_active)
 
     def test_connect(self):
-        # add admin to beta group
-        self.admin.groups.add(Group.objects.get(name="Beta"))
-
         url = reverse("classifiers.classifier_connect")
         response = self.client.get(url)
         self.assertRedirect(response, "/users/login/")

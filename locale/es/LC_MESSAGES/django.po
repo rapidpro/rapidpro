@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-22 19:25+0000\n"
+"POT-Creation-Date: 2019-10-23 18:07+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3182,13 +3182,11 @@ msgstr "Llamadas"
 
 #, fuzzy
 #| msgid "The name of your organization"
-msgid "The name from your repository"
-msgstr "El nombre de su repositorio"
+msgid "The name of your bot"
+msgstr "El nombre de su organización"
 
-#, fuzzy
-#| msgid "The name of your organization"
-msgid "Access Token from your repository"
-msgstr "Token de acceso desde su repositorio"
+msgid "Access token for your bot, leave out leading Bearer"
+msgstr ""
 
 #, fuzzy
 #| msgid "Invalid claim code, please check and try again."
@@ -11817,6 +11815,16 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "The name of your organization"
+#~ msgid "The name from your repository"
+#~ msgstr "El nombre de su repositorio"
+
+#, fuzzy
+#~| msgid "The name of your organization"
+#~ msgid "Access Token from your repository"
+#~ msgstr "Token de acceso desde su repositorio"
 
 #, fuzzy
 #~| msgid "Nexmo Account."
