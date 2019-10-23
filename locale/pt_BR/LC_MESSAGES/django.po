@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-18 22:17+0000\n"
+"POT-Creation-Date: 2019-10-22 19:25+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -2909,6 +2909,21 @@ msgstr "Desculpe, não foram encontrados números, por favor entre com outro có
 
 msgid "Calls"
 msgstr ""
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The name from your repository"
+msgstr "Nome do seu repositorio"
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "Access Token from your repository"
+msgstr "Token de acesso do seu repositorio"
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Unable to access bothub with credentials, please check and try again"
+msgstr "Código de requisição inválido, por favor, verifique-o e tente novamente."
 
 #, fuzzy
 #| msgid "The name of your organization"
