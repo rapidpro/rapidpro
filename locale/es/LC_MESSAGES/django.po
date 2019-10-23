@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-21 19:57+0000\n"
+"POT-Creation-Date: 2019-10-23 19:25+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3179,6 +3179,19 @@ msgstr "Lo sentimos, no se encontraron números, por favor, ingrese otro código
 
 msgid "Calls"
 msgstr "Llamadas"
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The name of your bot"
+msgstr "El nombre de su organización"
+
+msgid "Access token for your bot, leave out leading Bearer"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Unable to access bothub with credentials, please check and try again"
+msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
 
 #, fuzzy
 #| msgid "The name of your organization"
