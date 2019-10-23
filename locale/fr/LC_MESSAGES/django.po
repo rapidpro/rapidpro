@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-18 22:17+0000\n"
+"POT-Creation-Date: 2019-10-23 18:07+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -3028,6 +3028,19 @@ msgstr "Désolés, aucun numéro, s'il vous plaît entrer un autre code de zone 
 
 msgid "Calls"
 msgstr ""
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The name of your bot"
+msgstr "Le nom de votre organisation"
+
+msgid "Access token for your bot, leave out leading Bearer"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Unable to access bothub with credentials, please check and try again"
+msgstr "Impossible d'accéder aux deux noms d'utilisateur avec les informations d'identification. Veuillez vérifier et réessayer."
 
 #, fuzzy
 #| msgid "The name of your organization"
@@ -11613,6 +11626,16 @@ msgstr "Entrez le code Claim"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "The name of your organization"
+#~ msgid "The name from your repository"
+#~ msgstr "Le nom de votre organisation"
+
+#, fuzzy
+#~| msgid "The name of your organization"
+#~ msgid "Access Token from your repository"
+#~ msgstr "Le nom de votre organisation"
 
 #, fuzzy
 #~| msgid "Nexmo Account."

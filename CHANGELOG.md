@@ -1,3 +1,7 @@
+v5.1.60
+----------
+ * Add Bothub classifier type
+
 v5.1.59
 ----------
  * Update flow editor to version 1.7.0

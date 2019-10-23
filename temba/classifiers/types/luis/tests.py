@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-from django.contrib.auth.models import Group
 from django.urls import reverse
 
 from temba.classifiers.models import Classifier
@@ -59,9 +58,6 @@ class LuisTypeTest(TembaTest):
             self.assertEqual("b1a3c0ad-e912-4b55-a62e-6fcb77751bc5", car.external_id)
 
     def test_connect(self):
-        # add admin to beta group
-        self.admin.groups.add(Group.objects.get(name="Beta"))
-
         url = reverse("classifiers.classifier_connect")
         response = self.client.get(url)
         self.assertRedirect(response, "/users/login/")
