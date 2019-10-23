@@ -11,7 +11,7 @@
         -with event.obj as transfer
           -if transfer.status == 'S'
             -blocktrans with amount=transfer.actual_amount currency=transfer.currency
-              Transferred {{ amount }} {{ currency }} of airtime
+              Transferred <b>{{ amount }}</b> <b>{{ currency }}</b> of airtime
           -else
             -trans "Airtime transfer failed"
 
