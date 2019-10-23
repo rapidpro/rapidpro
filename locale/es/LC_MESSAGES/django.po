@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-23 18:07+0000\n"
+"POT-Creation-Date: 2019-10-23 19:25+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3191,7 +3191,7 @@ msgstr ""
 #, fuzzy
 #| msgid "Invalid claim code, please check and try again."
 msgid "Unable to access bothub with credentials, please check and try again"
-msgstr "No se puede acceder a acceso a bothub con credenciales, verifique e intente nuevamente."
+msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
 
 #, fuzzy
 #| msgid "The name of your organization"
@@ -3231,7 +3231,7 @@ msgid "Your app's ID"
 msgstr ""
 
 msgid "Your app's server access token"
-msgstr "Token de acceso desde su repositorio"
+msgstr ""
 
 #, fuzzy
 #| msgid "Invalid claim code, please check and try again."
@@ -5162,6 +5162,22 @@ msgstr ""
 #| msgid "You must enter your Twilio Account SID"
 msgid "You must enter the SMTP port"
 msgstr "Debe ingresar el SID de su Cuenta Twilio"
+
+#, fuzzy, python-format
+#| msgid "Configuration"
+msgid "%(name)s SMTP configuration test"
+msgstr "Configuración"
+
+#, python-format
+msgid "This email is a test to confirm the custom SMTP server configuration added to your %(name)s account."
+msgstr ""
+
+#, python-format
+msgid "Failed to send email with STMP server configuration with error '%s'"
+msgstr ""
+
+msgid "Failed to send email with STMP server configuration"
+msgstr ""
 
 msgid "Topups"
 msgstr ""
@@ -11815,16 +11831,6 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
-
-#, fuzzy
-#~| msgid "The name of your organization"
-#~ msgid "The name from your repository"
-#~ msgstr "El nombre de su repositorio"
-
-#, fuzzy
-#~| msgid "The name of your organization"
-#~ msgid "Access Token from your repository"
-#~ msgstr "Token de acceso desde su repositorio"
 
 #, fuzzy
 #~| msgid "Nexmo Account."
