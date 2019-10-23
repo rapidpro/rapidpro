@@ -35,6 +35,7 @@ from django.views.generic import FormView
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
+from temba.classifiers.models import Classifier
 from temba.contacts.models import TEL_SCHEME, WHATSAPP_SCHEME, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
@@ -1185,10 +1186,25 @@ class FlowCRUDL(SmartCRUDL):
                 context["mutable"] = self.has_org_perm("flows.flow_update") and not self.request.user.is_superuser
                 context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
 
-            whatsapp_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=WHATSAPP_SCHEME)
-            context["has_whatsapp_channel"] = whatsapp_channel is not None
             context["dev_mode"] = dev_mode
             context["is_starting"] = flow.is_starting()
+
+            feature_filters = []
+
+            whatsapp_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=WHATSAPP_SCHEME)
+            if whatsapp_channel is not None:
+                feature_filters.append("whatsapp")
+
+            if flow.org.is_connected_to_dtone():
+                feature_filters.append("airtime")
+
+            if Classifier.objects.filter(org=flow.org, is_active=True):
+                feature_filters.append("classifier")
+
+            if flow.org.get_resthooks():
+                feature_filters.append("resthook")
+
+            context["feature_filters"] = json.dumps(feature_filters)
 
             return context
 

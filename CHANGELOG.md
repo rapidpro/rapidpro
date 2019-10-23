@@ -1,3 +1,9 @@
+v5.1.59
+----------
+ * Update flow editor to version 1.7.0
+ * Add Split by Intent action in flows
+ * Update Send Airtime action for use with DTOne
+
 v5.1.58
 ----------
  * Unify max contact fields
