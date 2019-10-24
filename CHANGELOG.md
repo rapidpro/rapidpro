@@ -1,3 +1,8 @@
+v5.1.61
+----------
+ * Tweak styling on contact field list page
+ * Send test email when the SMTP server config are set
+
 v5.1.60
 ----------
  * Add Bothub classifier type
