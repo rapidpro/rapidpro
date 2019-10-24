@@ -1,3 +1,7 @@
+v5.1.63
+----------
+ * Update to flow editor v1.7.2
+
 v5.1.62
 ----------
  * Validate repeat_days_of_week when updating schedules
