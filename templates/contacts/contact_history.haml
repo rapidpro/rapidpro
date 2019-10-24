@@ -7,7 +7,15 @@
         {{ event|history_icon }}
 
     %td.details.wrapped
-      -if event.type == 'call_started'
+      -if event.type == 'airtime_transferred'
+        -with event.obj as transfer
+          -if transfer.status == 'S'
+            -blocktrans with amount=transfer.actual_amount currency=transfer.currency
+              Transferred <b>{{ amount }}</b> <b>{{ currency }}</b> of airtime
+          -else
+            -trans "Airtime transfer failed"
+
+      -elif event.type == 'call_started'
         -with event.obj as call
           -if call.status == 'D'
             -trans "Call Started"
@@ -150,6 +158,10 @@
       .log-icon
         -if event.type == 'msg_created' or event.type == 'msg_received' or event.type == 'call_started'
           {% channel_log_link event.obj %}
+
+        -elif event.type == 'airtime_transferred'
+          %a(href="{% url 'airtime.airtimetransfer_read' event.obj.id %}")
+            .icon-docs-2
 
         -elif event.type == 'webhook_called'
           %a(href="{% url 'api.webhookresult_read' event.obj.id %}")

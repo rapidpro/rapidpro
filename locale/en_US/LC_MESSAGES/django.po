@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-23 21:26+0000\n"
+"POT-Creation-Date: 2019-10-24 15:23+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -5713,6 +5713,16 @@ msgid "Dynamic group based on:"
 msgstr ""
 
 msgid "Update Contact Group"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"              Transferred <b>%(amount)s</b> <b>%(currency)s</b> of airtime\n"
+"            "
+msgstr ""
+
+msgid "Airtime transfer failed"
 msgstr ""
 
 msgid "Call Started"

@@ -15,7 +15,7 @@ class AirtimeTransfer(models.Model):
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
 
     # the contact this transfer was to
-    contact = models.ForeignKey(Contact, on_delete=models.PROTECT)
+    contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="airtime_transfers")
 
     # URN that received the transfer
     recipient = models.CharField(max_length=64)

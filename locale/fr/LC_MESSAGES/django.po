@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-23 21:26+0000\n"
+"POT-Creation-Date: 2019-10-24 15:23+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -3040,7 +3040,7 @@ msgstr ""
 #, fuzzy
 #| msgid "Invalid claim code, please check and try again."
 msgid "Unable to access bothub with credentials, please check and try again"
-msgstr "Code Claim invalide, s'il vous plaît vérifier et essayer à nouveau."
+msgstr "Impossible d'accéder aux deux noms d'utilisateur avec les informations d'identification. Veuillez vérifier et réessayer."
 
 #, fuzzy
 #| msgid "The name of your organization"
@@ -7677,6 +7677,18 @@ msgstr ""
 msgid "Update Contact Group"
 msgstr "Mise à jour de Groupe de contacts"
 
+#, fuzzy, python-format
+msgid ""
+"\n"
+"              Transferred <b>%(amount)s</b> <b>%(currency)s</b> of airtime\n"
+"            "
+msgstr ""
+"\n"
+"%(sms_sent)s Envoyé"
+
+msgid "Airtime transfer failed"
+msgstr ""
+
 #, fuzzy
 #| msgid "Plan Start"
 msgid "Call Started"
@@ -11646,6 +11658,16 @@ msgstr "Entrez le code Claim"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "The name of your organization"
+#~ msgid "The name from your repository"
+#~ msgstr "Le nom de votre organisation"
+
+#, fuzzy
+#~| msgid "The name of your organization"
+#~ msgid "Access Token from your repository"
+#~ msgstr "Le nom de votre organisation"
 
 #, fuzzy
 #~| msgid "Nexmo Account."

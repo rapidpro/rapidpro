@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-23 21:26+0000\n"
+"POT-Creation-Date: 2019-10-24 15:23+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -7371,6 +7371,18 @@ msgstr ""
 msgid "Update Contact Group"
 msgstr "Atualizar grupo de contato"
 
+#, fuzzy, python-format
+msgid ""
+"\n"
+"              Transferred <b>%(amount)s</b> <b>%(currency)s</b> of airtime\n"
+"            "
+msgstr ""
+"\n"
+"%(sms_sent)s Enviadas"
+
+msgid "Airtime transfer failed"
+msgstr ""
+
 #, fuzzy
 #| msgid "Plan Start"
 msgid "Call Started"
@@ -11168,6 +11180,16 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "The name of your organization"
+#~ msgid "The name from your repository"
+#~ msgstr "Nome do seu repositorio"
+
+#, fuzzy
+#~| msgid "The name of your organization"
+#~ msgid "Access Token from your repository"
+#~ msgstr "Token de acesso do seu repositorio"
 
 #, fuzzy
 #~| msgid "Nexmo Account."

@@ -39,6 +39,7 @@ URN_SCHEME_ICONS = {
 }
 
 ACTIVITY_ICONS = {
+    "airtime_transferred": "icon-cash",
     "call_started": "icon-phone",
     "campaign_fired": "icon-clock",
     "channel_event": "icon-power",
