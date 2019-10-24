@@ -163,18 +163,16 @@ class Schedule(SmartModel):
 
             return next_fire
 
+        # if weekly, move forward until we're in the future and on an appropriate day of the week
         elif schedule.repeat_period == Schedule.REPEAT_WEEKLY:
             assert schedule.repeat_days_of_week != "" and schedule.repeat_days_of_week is not None
 
-            while (
-                next_fire <= now
-                or Schedule.DAYS_OF_WEEK_OFFSET[next_fire.weekday()] not in schedule.repeat_days_of_week
-            ):
+            while next_fire <= now or cls._day_of_week(next_fire) not in schedule.repeat_days_of_week:
                 next_fire = tz.normalize(tz.normalize(next_fire + timedelta(days=1)).replace(hour=hour, minute=minute))
 
             return next_fire
 
-        if schedule.repeat_period == Schedule.REPEAT_DAILY:
+        elif schedule.repeat_period == Schedule.REPEAT_DAILY:
             while next_fire <= now:
                 next_fire = tz.normalize(tz.normalize(next_fire + timedelta(days=1)).replace(hour=hour, minute=minute))
 
@@ -182,6 +180,13 @@ class Schedule(SmartModel):
 
     def get_repeat_days_display(self):
         return [Schedule.DAYS_OF_WEEK_DISPLAY[d] for d in self.repeat_days_of_week]
+
+    @staticmethod
+    def _day_of_week(d):
+        """
+        Converts a datetime to a day of the week code (M..U)
+        """
+        return Schedule.DAYS_OF_WEEK_OFFSET[d.weekday()]
 
     def __str__(self):
         repeat = f"{self.repeat_period} {self.repeat_day_of_month} {self.repeat_days_of_week} {self.repeat_hour_of_day}:{self.repeat_minute_of_hour}"

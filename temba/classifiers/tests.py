@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-from django.contrib.auth.models import Group
 from django.urls import reverse
 from django.utils import timezone
 
@@ -105,12 +104,7 @@ class ClassifierTest(TembaTest):
         self.assertNotContains(response, "Old Booker")
         self.assertNotContains(response, "Org 2 Booker")
 
-        # shouldn't contain connect page
         connect_url = reverse("classifiers.classifier_connect")
-        self.assertNotContains(response, connect_url)
-
-        # but if we are beta it does
-        self.admin.groups.add(Group.objects.get(name="Beta"))
         response = self.client.get(reverse("orgs.org_home"))
         self.assertContains(response, connect_url)
 

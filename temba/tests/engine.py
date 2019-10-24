@@ -170,6 +170,17 @@ class MockSessionWriter:
         )
         return self
 
+    def transfer_airtime(self, sender, recipient, currency, desired_amount, actual_amount):
+        self._log_event(
+            "airtime_transferred",
+            sender=sender,
+            recipient=recipient,
+            currency=currency,
+            desired_amount=desired_amount,
+            actual_amount=actual_amount,
+        )
+        return self
+
     def wait(self):
         self.output["wait"] = {"type": "msg"}
         self.output["status"] = "waiting"

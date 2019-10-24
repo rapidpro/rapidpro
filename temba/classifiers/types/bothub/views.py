@@ -1,14 +1,16 @@
 import requests
+
 from django import forms
 from django.utils.translation import ugettext_lazy as _
+
 from temba.classifiers.models import Classifier
 from temba.classifiers.views import BaseConnectView
 
 
 class ConnectView(BaseConnectView):
     class Form(forms.Form):
-        name = forms.CharField(help_text=_("The name from your repository"))
-        repository_token = forms.CharField(help_text=_("Access Token from your repository"))
+        name = forms.CharField(help_text=_("The name of your bot"))
+        access_token = forms.CharField(help_text=_("Access token for your bot, leave out leading Bearer"))
 
         def clean(self):
             cleaned = super().clean()
@@ -19,7 +21,7 @@ class ConnectView(BaseConnectView):
 
             # try a basic call to see available entities
             response = requests.get(
-                "https://nlp.bothub.it/info/", headers={"Authorization": f"Bearer {cleaned['repository_token']}"}
+                "https://nlp.bothub.it/info/", headers={"Authorization": f"Bearer {cleaned['access_token']}"}
             )
 
             if response.status_code != 200:
@@ -32,7 +34,7 @@ class ConnectView(BaseConnectView):
     def form_valid(self, form):
         from .type import BotHubType
 
-        config = {BotHubType.CONFIG_ACCESS_TOKEN: form.cleaned_data["repository_token"]}
+        config = {BotHubType.CONFIG_ACCESS_TOKEN: form.cleaned_data["access_token"]}
 
         self.object = Classifier.create(
             self.org, self.request.user, BotHubType.slug, form.cleaned_data["name"], config

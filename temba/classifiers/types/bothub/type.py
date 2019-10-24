@@ -1,9 +1,11 @@
-from ...models import ClassifierType, Intent
-from .views import ConnectView
+import requests
+
+from django.utils import timezone
+
 from temba.request_logs.models import HTTPLog
 
-import requests
-from django.utils import timezone
+from ...models import ClassifierType, Intent
+from .views import ConnectView
 
 
 class BotHubType(ClassifierType):
@@ -19,11 +21,11 @@ class BotHubType(ClassifierType):
 
     connect_view = ConnectView
     connect_blurb = """
-        <a href="https://bothub.it">Bothub</a> is the open source and easy training NLP system developed by Ilhasoft and supported by UNICEF. It already supports 29 languages ​​and is evolving to include languages ​​and dialects of remote cultures. It´s ideal for bots of any size and complexity.
+        <a href="https://bothub.it">Bothub</a> is an Open Source NLP platform. It supports 29 languages ​​and is evolving to include the languages ​​and dialects of remote cultures.
         """
 
     form_blurb = """
-        You can your repository on Bothub here, with the name and with repository token.
+        You can find the access token for your bot on the Integration tab.
         """
 
     INTENT_URL = "https://nlp.bothub.it/info/"
