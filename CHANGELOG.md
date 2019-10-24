@@ -1,3 +1,8 @@
+v5.1.62
+----------
+ * Validate repeat_days_of_week when updating schedules
+ * Include airtime transfers in contact history
+
 v5.1.61
 ----------
  * Tweak styling on contact field list page
