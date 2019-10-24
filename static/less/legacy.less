@@ -154,10 +154,9 @@ a:hover.clear-link {
 }
 
 #id_text {
-  width: 510px;
-  height: 50px;
-  padding: 10px;
-  margin-right: 15px;
+  width: 100%;
+  height: 120px;
+  margin-bottom: 15px;
 }
 
 #id_send {
@@ -1619,6 +1618,7 @@ tr.checked {
 
 .select2-container-multi .select2-choices .select2-search-field input.select2-active {
   background: #fff url('../images/loader-bars.gif?asdfasdf') no-repeat 100% !important;
+  box-shadow: none;
 }
 
 .select2tag {
@@ -1691,12 +1691,13 @@ tr.checked {
 .select2-temba-field, .select2-temba-user-group-field {
   width: 520px;
   box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
-  -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
-  -moz-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
   border-radius: 0px;
   -webkit-border-radius: 0px;
   margin-bottom: 5px;
+}
 
+.controls .select2-temba-field input:focus {
+  box-shadow: none !important;
 }
 
 .select2-no-search {
@@ -1750,11 +1751,6 @@ tr.checked {
     color: #666;
   }
 
-  #id_text {
-    width: 96%;
-    min-height: 80px;
-  }
-
   #counter {
     font-size: 12px;
     float: right;
@@ -1769,8 +1765,61 @@ tr.checked {
 // *******************************
 // Smartmin
 // *******************************
+.control-group.error .control-label, .control-group.error .help-block, .control-group.error .help-inline {
+  color: var(--color-error);
+}
+
+.controls {
+  input, textarea, select {
+    margin-bottom: 0px !important;
+
+    &:focus {
+      border-color: var(--color-focus) !important;
+      box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(var(--focus-rgb), 0.6) !important;    
+    }
+  }
+}
+
+input:focus:invalid, textarea:focus:invalid, select:focus:invalid {
+  // border-color: var(--color-error)!important;
+  // color: var(--color-error) !important;
+  color: var(--color-text) !important;
+  border-color: var(--color-focus) !important;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(var(--focus-rgb), 0.6) !important;
+}
+
+.control-group.error .control-label {
+  color: var(--color-error) !important;
+}
+  
+.control-group.error  {
+  input, select, texarea {
+    border-color: var(--color-error);
+    color: var(--color-error);
+    &:focus, &.invalid:focus {
+      border-color: var(--color-error) !important;
+      color: var(--color-error) !important;
+      box-shadow: inset 0 1px 1px rgba(var(--error-rgb), 0.075), 0 0 6px var(--color-error) !important;
+    }
+  }
+}
+
+form.smartmin-form .alert-error {
+  background: rgba(255, 181, 181, .17);
+  border: none;
+  border-left: 6px solid var(--color-error);
+  color: var(--color-error);
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+form.smartmin-form ul.errorlist {
+  font-size: 12px;
+}
+
 form.smartmin-form ul.errorlist li {
-  color: #b94a48;
+  text-shadow: none;
+  line-height: inherit;
 }
 
 .form-horizontal .form-actions {
@@ -1796,6 +1845,10 @@ form.smartmin-form ul.errorlist li {
     margin-left: 0;
   }
 
+}
+
+#active-modal .fetched-content {
+  
 }
 
 .modal, .send-message {
@@ -1841,9 +1894,8 @@ form.smartmin-form ul.errorlist li {
 
   .modal-body {
 
-    overflow-x: hidden;
     padding: 20px;
-    max-height: 430px;
+    position: initial;
 
     .details {
       color: #ccc;
@@ -1882,12 +1934,18 @@ form.smartmin-form ul.errorlist li {
 
     .help-block {
       color: @color-font-lightgrey !important;
-      font-size: 13px !important;
-      margin-top: -5px !important;
+      font-size: 12px !important;
+      margin: 5px 0px 10px 0px !important;
+
+      margin-block-start: 0;
+      margin-block-end: 0;
 
       ul.errorlist {
+        margin-top: 8px;
         li {
-          color: #952624 !important;
+          color: var(--color-error) !important;
+          padding: 3px 8px;
+          border-left: 6px solid var(--color-error);
         }
       }
     }
@@ -2265,7 +2323,7 @@ input[type='radio'] {
   background-color: @color-alert-error + #222;
   border: 1px solid @color-alert-error;
   text-shadow: none;
-  width: 560px;
+  width: 100%;
 
   ul.errorlist {
     margin: 0px;
@@ -2276,6 +2334,11 @@ input[type='radio'] {
     background-color: #fff;
     border: 0;
     box-shadow: none;
+
+    --focus-rgb: var(--error-rgb);
+    --color-focus: var(--color-error);
+    --widget-box-shadow-focused: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(var(--focus-rgb), 0.6);
+    --color-widget-border: var(--color-error);
   }
 }
 

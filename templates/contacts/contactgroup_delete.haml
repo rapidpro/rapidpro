@@ -50,7 +50,7 @@
           There are {{counter}} campaigns using this group. It cannot be deleted until it is removed from the
 
       -for campaign in campaigns
-        <a href="{%url 'campaigns.campaign_read' campaign.id%}">{{campaign.name}}</a>{{forloop|oxford}}
+        <a href="{% url 'campaigns.campaign_read' campaign.id %}">{{campaign.name}}</a>{{forloop|oxford}}
 
       -blocktrans count counter=campaigns|length
         campaign.

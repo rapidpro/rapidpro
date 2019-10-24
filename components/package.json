@@ -1,0 +1,39 @@
+{
+  "name": "rp-components",
+  "version": "0.0.1",
+  "description": "Web Components for rapid pro",
+  "author": "Nyaruka",
+  "homepage": "https://github.com/rapidpro/rapidpro/",
+  "license": "AGPL-3.0-only",
+  "repository": "https://github.com/rapidpro/rapidpro/",
+  "scripts": {
+    "build": "webpack --mode production",
+    "start": "webpack-dev-server --mode development",
+    "start:build": "http-server dist -o"
+  },
+  "dependencies": {
+    "autosize": "4.0.2",
+    "axios": "0.18.0",
+    "es6-dynamic-template": "2.0.0",
+    "flru": "1.0.2",
+    "leaflet": "1.5.1",
+    "lit-element": "^2.0.1",
+    "lit-html": "^1.0.0",
+    "marked": "0.7.0",
+    "textarea-caret": "3.1.0"
+  },
+  "devDependencies": {
+    "@open-wc/building-webpack": "2.6.1",
+    "@types/autosize": "3.0.6",
+    "@types/leaflet": "1.4.4",
+    "@types/textarea-caret": "3.0.0",
+    "http-server": "0.11.1",
+    "owc-dev-server": "^0.3.0",
+    "ts-loader": "6.0.1",
+    "typescript": "3.4.5",
+    "webpack": "4.32.0",
+    "webpack-cli": "3.3.2",
+    "webpack-dev-server": "3.4.1",
+    "webpack-merge": "4.2.1"
+  }
+}

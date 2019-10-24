@@ -1,0 +1,83 @@
+{
+  "version": "13",
+  "site": "https://app.rapidpro.io",
+  "flows": [
+    {
+      "name": "Has Group Without Name",
+      "uuid": "74e9b272-5b32-4810-953b-20e0df385e56",
+      "spec_version": "13.0.0",
+      "language": "eng",
+      "type": "messaging",
+      "nodes": [
+        {
+          "uuid": "2e930192-4e7c-4d67-aac6-d22f6f4c929e",
+          "actions": [],
+          "router": {
+            "type": "switch",
+            "cases": [
+              {
+                "uuid": "1eeea626-ce71-4395-b6d4-ab01a754c775",
+                "type": "has_group",
+                "arguments": [
+                  "0eaacd64-e32f-45bb-9853-213209e24779"
+                ],
+                "category_uuid": "0fb2f8d9-46a5-4b20-8d63-c849d67a28a3"
+              }
+            ],
+            "categories": [
+              {
+                "uuid": "0fb2f8d9-46a5-4b20-8d63-c849d67a28a3",
+                "name": "Approved",
+                "exit_uuid": "ae69f78e-8d03-4e9c-84f3-2e11c6694be6"
+              },
+              {
+                "uuid": "c4fac67c-dead-4d06-9add-50a56537a1c5",
+                "name": "Other",
+                "exit_uuid": "85445d80-3ee2-4bdb-b0f0-0bc7b2499ad0"
+              }
+            ],
+            "default_category_uuid": "c4fac67c-dead-4d06-9add-50a56537a1c5",
+            "operand": "@contact.groups",
+            "result_name": ""
+          },
+          "exits": [
+            {
+              "uuid": "ae69f78e-8d03-4e9c-84f3-2e11c6694be6"
+            },
+            {
+              "uuid": "85445d80-3ee2-4bdb-b0f0-0bc7b2499ad0"
+            }
+          ]
+        }
+      ],
+      "_ui": {
+        "nodes": {
+          "2e930192-4e7c-4d67-aac6-d22f6f4c929e": {
+            "type": "split_by_groups",
+            "position": {
+              "left": 0,
+              "top": 0
+            },
+            "config": {
+              "cases": {}
+            }
+          }
+        }
+      },
+      "revision": 2,
+      "expire_after_minutes": 10080,
+      "version": "13.0.0",
+      "localization": {}
+    }
+  ],
+  "campaigns": [],
+  "triggers": [],
+  "fields": [],
+  "groups": [
+    {
+      "uuid": "0eaacd64-e32f-45bb-9853-213209e24779",
+      "name": "Approved",
+      "query": null
+    }
+  ]
+}

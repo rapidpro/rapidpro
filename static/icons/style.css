@@ -1,0 +1,52 @@
+.icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  stroke-width: 0;
+  stroke: currentColor;
+  fill: currentColor;
+}
+
+/* ==========================================
+Single-colored icons can be modified like so:
+.icon-name {
+  font-size: 32px;
+  color: red;
+}
+========================================== */
+
+.icon-group-two-filled {
+  width: 1.125em;
+}
+
+.icon-group-filled {
+  width: 1.375em;
+}
+
+.icon-textit {
+  width: 1.412109375em;
+}
+
+.icon-rapidpro {
+  width: 4.71875em;
+}
+
+.icon-kannel {
+  width: 0.7734375em;
+}
+
+.icon-chatbase {
+  width: 1.474609375em;
+}
+
+.icon-facebook-official {
+  width: 0.857421875em;
+}
+
+.icon-jiochat {
+  width: 1.001953125em;
+}
+
+.icon-line {
+  width: 1.001953125em;
+}

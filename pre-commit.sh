@@ -17,5 +17,11 @@ if [ -n "$FILES" ]; then
 fi
 
 if [ -n "$FILES" ]; then
-    flake8 $FILES 
+    flake8_errors=$(flake8 --exit-zero $FILES)
+
+    if [ ! -z "$flake8_errors" ]; then
+        rm -f .commit
+        echo "$flake8_errors"
+        exit 1
+    fi
 fi

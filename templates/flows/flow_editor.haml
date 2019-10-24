@@ -33,6 +33,19 @@
 -block extra-script
   {{ block.super }}
 
+  // ==== ANGULAR ====
+  :javascript
+
+    // this has to be loaded before angular
+    conditionalLoad('lib/angular-file-upload-1.6.12/angular-file-upload-shim.js', null);
+
+    // our angular scripts
+    conditionalLoad('bower/angular/angular.js', null);
+    conditionalLoad('bower/angular-animate/angular-animate.js', null);
+
+    // this must be loaded after angular
+    conditionalLoad('lib/angular-file-upload-1.6.12/angular-file-upload.js', null)
+
   -if org_perms.flows.flow_delete
     :javascript
       $(".delete-flow").live('click', function() {    
@@ -66,7 +79,7 @@
     window.mediaURL = '{{media_url}}';
     window.staticURL = '{{static_url}}';
     window.hasAirtimeService = {{has_airtime_service|lower}};
-    window.connectAirtimeServiceURL = '{% url "orgs.org_home" %}#id-transferto';
+    window.connectAirtimeServiceURL = '{% url "orgs.org_home" %}#id-dtone';
     window.contactName = '{{user.get_full_name}}';
 
     $('.draggable').draggable();
