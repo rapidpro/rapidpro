@@ -1,3 +1,21 @@
+v5.1.63
+----------
+ * Update to flow editor v1.7.2
+
+v5.1.62
+----------
+ * Validate repeat_days_of_week when updating schedules
+ * Include airtime transfers in contact history
+
+v5.1.61
+----------
+ * Tweak styling on contact field list page
+ * Send test email when the SMTP server config are set
+
+v5.1.60
+----------
+ * Add Bothub classifier type
+
 v5.1.59
 ----------
  * Update flow editor to version 1.7.0

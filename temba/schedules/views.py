@@ -6,6 +6,7 @@ from django import forms
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.timezone import get_current_timezone_name
+from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.views import OrgPermsMixin
 
@@ -30,6 +31,15 @@ class ScheduleForm(BaseScheduleForm, forms.ModelForm):
     repeat_days_of_week = forms.CharField(required=False)
     start = forms.CharField(max_length=16)
     start_datetime_value = forms.IntegerField(required=False)
+
+    def clean_repeat_days_of_week(self):
+        data = self.cleaned_data["repeat_days_of_week"]
+        if data:
+            for c in data:
+                if c not in Schedule.DAYS_OF_WEEK_OFFSET:
+                    raise forms.ValidationError(_("%(day)s is not a valid day of the week"), params={"day": c})
+
+        return data
 
     class Meta:
         model = Schedule

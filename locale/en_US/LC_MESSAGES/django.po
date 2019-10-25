@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-18 22:17+0000\n"
+"POT-Creation-Date: 2019-10-24 15:23+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2054,6 +2054,15 @@ msgstr ""
 msgid "Calls"
 msgstr ""
 
+msgid "The name of your bot"
+msgstr ""
+
+msgid "Access token for your bot, leave out leading Bearer"
+msgstr ""
+
+msgid "Unable to access bothub with credentials, please check and try again"
+msgstr ""
+
 msgid "The name of your LUIS app"
 msgstr ""
 
@@ -3751,6 +3760,21 @@ msgstr ""
 msgid "You must enter the SMTP port"
 msgstr ""
 
+#, python-format
+msgid "%(name)s SMTP configuration test"
+msgstr ""
+
+#, python-format
+msgid "This email is a test to confirm the custom SMTP server configuration added to your %(name)s account."
+msgstr ""
+
+#, python-format
+msgid "Failed to send email with STMP server configuration with error '%s'"
+msgstr ""
+
+msgid "Failed to send email with STMP server configuration"
+msgstr ""
+
 msgid "Topups"
 msgstr ""
 
@@ -3967,6 +3991,10 @@ msgid "Weekly"
 msgstr ""
 
 msgid "Monthly"
+msgstr ""
+
+#, python-format
+msgid "%(day)s is not a valid day of the week"
 msgstr ""
 
 msgid "English"
@@ -5724,6 +5752,16 @@ msgid "Dynamic group based on:"
 msgstr ""
 
 msgid "Update Contact Group"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"              Transferred <b>%(amount)s</b> <b>%(currency)s</b> of airtime\n"
+"            "
+msgstr ""
+
+msgid "Airtime transfer failed"
 msgstr ""
 
 msgid "Call Started"

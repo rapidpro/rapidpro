@@ -891,6 +891,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             .select_related("channel")[:MAX_HISTORY]
         )
 
+        transfers = self.airtime_transfers.filter(created_on__gte=after, created_on__lt=before).order_by(
+            "-created_on"
+        )[:MAX_HISTORY]
+
         session_events = self.get_session_events(after, before, HISTORY_INCLUDE_EVENTS)
 
         # wrap items, chain and sort by time
@@ -903,6 +907,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             [{"type": "campaign_fired", "created_on": f.fired, "obj": f} for f in campaign_events],
             [{"type": "webhook_called", "created_on": r.created_on, "obj": r} for r in webhook_results],
             [{"type": "call_started", "created_on": c.created_on, "obj": c} for c in calls],
+            [{"type": "airtime_transferred", "created_on": t.created_on, "obj": t} for t in transfers],
             session_events,
         )
 

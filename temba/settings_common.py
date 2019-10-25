@@ -471,7 +471,7 @@ PERMISSIONS = {
 GROUP_PERMISSIONS = {
     "Service Users": ("flows.flow_assets", "msgs.msg_create"),  # internal Temba services have limited permissions
     "Alpha": (),
-    "Beta": ("classifiers.classifier_connect",),
+    "Beta": (),
     "Dashboard": ("orgs.org_dashboard",),
     "Surveyors": (
         "contacts.contact_api",
@@ -529,6 +529,7 @@ GROUP_PERMISSIONS = {
         "campaigns.campaign.*",
         "campaigns.campaignevent.*",
         "classifiers.classifier_api",
+        "classifiers.classifier_connect",
         "classifiers.classifier_read",
         "classifiers.classifier_delete",
         "classifiers.classifier_list",
@@ -984,7 +985,11 @@ SEND_MESSAGES = False
 #         could cause emails to be sent in test environment
 SEND_EMAILS = False
 
-CLASSIFIER_TYPES = ["temba.classifiers.types.wit.WitType", "temba.classifiers.types.luis.LuisType"]
+CLASSIFIER_TYPES = [
+    "temba.classifiers.types.wit.WitType",
+    "temba.classifiers.types.luis.LuisType",
+    "temba.classifiers.types.bothub.BotHubType",
+]
 
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
