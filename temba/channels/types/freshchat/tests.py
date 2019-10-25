@@ -5,7 +5,7 @@ from temba.tests import TembaTest
 from ...models import Channel
 
 
-class FrreshChatTypeTest(TembaTest):
+class FreshChatTypeTest(TembaTest):
     def setUp(self):
         super().setUp()
 
