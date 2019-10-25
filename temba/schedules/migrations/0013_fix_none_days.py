@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def fix_none_days(apps, schema_editor):
+def fix_none_days(apps, schema_editor):  # pragma: no cover
     Schedule = apps.get_model("schedules", "Schedule")
     updated = Schedule.objects.filter(repeat_days_of_week__in=("None", "NaN")).update(repeat_days_of_week=None)
     if updated:
