@@ -38,6 +38,12 @@
 
     $(document).ready(function() {
         select2div("#id_schedule_flow", "520px", '{% trans "Flow to start" %}');
+
+        var initialDate;
+        {% if form.start_datetime_value.value %}
+          initialDate = new Date({{form.start_datetime_value.value}} * 1000);
+        {% endif %}
+        
         var minDate = new Date();
         var minutes = minDate.getMinutes();
         if (minutes > 0) {
@@ -45,7 +51,7 @@
             minDate.setHours(minDate.getHours() + 1);
         }
 
-        initializeDatetimePicker(minDate, undefined, false);
+        initializeDatetimePicker(minDate, initialDate, false);
 
         // initialize our omnibox
         prepareOmnibox();
