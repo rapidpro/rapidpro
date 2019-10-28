@@ -18,11 +18,15 @@ function initializeDatetimePicker(minDate, initialDate, showButtons) {
     if (hasInitial) {
         initialHour = initialDate.getHours();
         initialMinute = initialDate.getMinutes();
+        $('#start-datetime').val(
+            initial.format('dddd, MMMM D, YYYY [at] h:mm a')
+        );
     }
 
+    var timeFormat = 'h:mm tt';
     $('#start-datetime').datetimepicker({
         dateFormat: 'DD, MM d, yy',
-        timeFormat: 'h:mm tt',
+        timeFormat: timeFormat,
         pickerTimeFormat: "'Start at' " + timeFormat,
         separator: ' at ',
         showMinute: true,
