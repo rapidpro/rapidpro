@@ -1,0 +1,138 @@
+-extends "smartmin/read.html"
+
+-load smartmin temba compress humanize channels
+-load i18n tz
+
+
+-block fields
+
+-block title
+  .medium-help.float-left{class:'{{object.get_type.icon}}'}
+
+  %h2.font_normalize.header-margin.title
+    {{ object.get_type.name }}
+    -trans "Classifier"
+    %span -
+    {{ object.name }}
+
+
+  .header-margin
+    %a.btn.btn-tiny(href="{% url 'request_logs.httplog_list' 'classifier' classifier.uuid %}")
+      -trans "Classifier Log"
+
+-block content
+  %div(style="float:right;line-height:40px")
+    -trans "Intents are synced every 5 minutes"
+  %h3
+    -trans "Active Intents"
+
+  %table.list-table.table.table-bordered.table-striped.table-condensed.message-stats-table
+    %thead
+      %tr
+        %th
+          -trans "Name"
+        %th
+          -trans "External ID"
+        %th
+          -trans "Created On"
+
+    %tbody
+      -for intent in object.active_intents
+        %tr
+          %td.intent-name
+            {{ intent.name }}
+
+          %td.intent-id
+            {{ intent.external_id }}
+
+          %td.intent-created
+            {{ intent.created_on }}
+
+        -empty
+          %tr.empty
+            %td(colspan=3)
+              -trans "No synced intents at this time."
+
+-block post-content
+  - if org_perms.classifiers.classifier_delete
+    .deletion.hide
+      .title
+        -trans "Delete Classifier"
+      .body
+        %p
+          {% if object.dependent_flows.count == 0 %}
+          -trans "Are you sure you want to remove this classifier from your account?"
+          {% else %}
+          - trans "This classifier cannot be removed because it in use."
+          {% endif %}
+
+        %p
+          {% if object.dependent_flows.count == 0 %}
+            -trans "Once it is removed, it will be gone forever. There is no way to undo this operation."
+          {% else %}
+            {% blocktrans count num_flows=object.dependent_flows.count %}
+            Used by {{num_flows}} flow:
+            {% plural %}
+            Used by {{num_flows}} flows:
+            {% endblocktrans %}
+
+          %ul
+          - for flow in object.dependent_flows.all
+            %li
+              %a{href:"{% url 'flows.flow_editor' flow.uuid %}"}
+                {{ flow.name }}
+
+          {% endif %}
+
+    %a#deletion-form.posterize{href:'{% url "classifiers.classifier_delete" object.uuid %}'}
+
+-block extra-script
+  {{block.super}}
+
+  :javascript
+    {% if org_perms.classifiers.classifier_delete %}
+      $(".delete-classifier").live('click', function(){
+        modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
+        modal.addClass('alert');
+
+        {% if object.dependent_flows.count == 0 %}
+            modal.setListeners({onPrimary: function(){
+              $('#deletion-form').click();
+            }}, false);
+            modal.setPrimaryButton('{% trans "Delete" %}');
+
+        {% else %}
+            modal.hideSecondaryButton();
+            modal.setListeners({onPrimary: function(){
+              modal.dismiss();
+            }}, false);
+            modal.setPrimaryButton('{% trans "Ok" %}');
+        {% endif %}
+
+        modal.show();
+        });
+    {% endif %}
+
+-block extra-style
+  {{ block.super }}
+
+  :css
+    td {
+      padding: 5px;
+    }
+
+    td.intent-id {
+      font-family: monospace;
+      width: 400px;
+    }
+
+    td.intent-created {
+      width: 200px;
+    }
+
+-block summary
+  {{ classifier.get_type.name }}
+  -trans "Classifier"
+  %span -
+  %strong
+    {{ classifier.name }}

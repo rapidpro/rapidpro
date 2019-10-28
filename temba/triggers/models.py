@@ -1,24 +1,20 @@
 from smartmin.models import SmartModel
-from temba_expressions.utils import tokenize
 
 from django.conf import settings
 from django.db import models
-from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.models import Channel, ChannelEvent
+from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup
-from temba.flows.models import Flow, FlowRun, FlowStart
-from temba.ivr.models import IVRCall
-from temba.msgs.models import Msg
+from temba.flows.models import Flow
 from temba.orgs.models import Org
 
 
 class Trigger(SmartModel):
     """
-    A Trigger is used to start a user in a flow based on an event. For example, triggers might fire
-    for missed calls, inboud sms messages starting with a keyword, or on a repeating schedule.
+    A Trigger is used to start a user in a flow based on an event. For example, triggers might fire for missed calls,
+    inbound messages starting with a keyword, or on a repeating schedule.
     """
 
     TYPE_CATCH_ALL = "C"
@@ -57,9 +53,11 @@ class Trigger(SmartModel):
     EXPORT_GROUPS = "groups"
     EXPORT_CHANNEL = "channel"
 
-    org = models.ForeignKey(
-        Org, on_delete=models.PROTECT, verbose_name=_("Org"), help_text=_("The organization this trigger belongs to")
-    )
+    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+
+    trigger_type = models.CharField(max_length=1, choices=TRIGGER_TYPES, default=TYPE_KEYWORD)
+
+    is_archived = models.BooleanField(default=False)
 
     keyword = models.CharField(
         verbose_name=_("Keyword"),
@@ -85,18 +83,6 @@ class Trigger(SmartModel):
         related_name="triggers",
     )
 
-    last_triggered = models.DateTimeField(
-        verbose_name=_("Last Triggered"), default=None, null=True, help_text=_("The last time this trigger was fired")
-    )
-
-    trigger_count = models.IntegerField(
-        verbose_name=_("Trigger Count"), default=0, help_text=_("How many times this trigger has fired")
-    )
-
-    is_archived = models.BooleanField(
-        verbose_name=_("Is Archived"), default=False, help_text=_("Whether this trigger is archived")
-    )
-
     groups = models.ManyToManyField(
         ContactGroup, verbose_name=_("Groups"), help_text=_("The groups to broadcast the flow to")
     )
@@ -113,14 +99,6 @@ class Trigger(SmartModel):
         blank=True,
         related_name="trigger",
         help_text=_("Our recurring schedule"),
-    )
-
-    trigger_type = models.CharField(
-        max_length=1,
-        choices=TRIGGER_TYPES,
-        default=TYPE_KEYWORD,
-        verbose_name=_("Trigger Type"),
-        help_text=_("The type of this trigger"),
     )
 
     match_type = models.CharField(
@@ -155,11 +133,6 @@ class Trigger(SmartModel):
                 trigger.channel.get_type().activate_trigger(trigger)
 
         return trigger
-
-    def __str__(self):
-        if self.trigger_type == Trigger.TYPE_KEYWORD:
-            return self.keyword
-        return self.get_trigger_type_display()  # pragma: needs cover
 
     def trigger_scopes(self):
         """
@@ -249,7 +222,7 @@ class Trigger(SmartModel):
                     group = ContactGroup.user_groups.filter(org=org, uuid=group_spec["uuid"]).first()
 
                 if not group:
-                    group = ContactGroup.get_user_group(org, group_spec["name"])
+                    group = ContactGroup.get_user_group_by_name(org, group_spec["name"])
 
                 if not group:
                     group = ContactGroup.create_static(org, user, group_spec["name"])  # pragma: needs cover
@@ -297,143 +270,6 @@ class Trigger(SmartModel):
                     trigger.groups.add(group)
 
     @classmethod
-    def get_triggers_of_type(cls, org, trigger_type):
-        return Trigger.objects.filter(org=org, trigger_type=trigger_type, is_active=True, is_archived=False)
-
-    @classmethod
-    def catch_triggers(cls, entity, trigger_type, channel, referrer_id=None, extra=None):  # pragma: no cover
-        if isinstance(entity, Msg):
-            contact = entity.contact
-            start_msg = entity
-        elif isinstance(entity, ChannelEvent) or isinstance(entity, IVRCall):
-            contact = entity.contact
-            start_msg = Msg(org=entity.org, contact=contact, channel=entity.channel, created_on=timezone.now(), id=0)
-        elif isinstance(entity, Contact):
-            contact = entity
-            start_msg = Msg(org=entity.org, contact=contact, channel=channel, created_on=timezone.now(), id=0)
-        else:  # pragma: needs cover
-            raise ValueError("Entity must be of type msg, call or contact")
-
-        triggers = Trigger.get_triggers_of_type(entity.org, trigger_type)
-
-        if trigger_type in [Trigger.TYPE_NEW_CONVERSATION, Trigger.TYPE_REFERRAL]:
-            triggers = triggers.filter(models.Q(channel=channel) | models.Q(channel=None))
-
-        if referrer_id is not None:
-            triggers = triggers.filter(models.Q(referrer_id__iexact=referrer_id) | models.Q(referrer_id=""))
-
-            # if we catch more than one trigger with a referrer_id, ignore the catchall
-            if len(triggers) > 1:
-                triggers = triggers.exclude(referrer_id="")
-        elif trigger_type == Trigger.TYPE_REFERRAL:
-            triggers = triggers.filter(referrer_id="")
-
-        # is there a match for a group specific trigger?
-        group_ids = contact.user_groups.values_list("pk", flat=True)
-        group_triggers = triggers.filter(groups__in=group_ids).order_by("groups__name")
-
-        # if we match with a group restriction, that takes precedence
-        if group_triggers:
-            triggers = group_triggers
-
-        # otherwise, restrict to triggers that don't filter by group
-        else:
-            triggers = triggers.filter(groups=None)
-
-        # only fire the first matching trigger
-        if triggers:
-            contact.ensure_unstopped()
-            triggers[0].flow.start([], [contact], start_msg=start_msg, restart_participants=True, extra=extra)
-
-        return bool(triggers)
-
-    @classmethod
-    def find_and_handle(cls, msg):
-        words = tokenize(msg.text)
-
-        # skip if message doesn't have any words
-        if not words:
-            return False
-
-        # skip if message contact is currently active in a flow
-        active_run_qs = FlowRun.objects.filter(
-            is_active=True, contact=msg.contact, flow__is_active=True, flow__is_archived=False
-        )
-        active_run = active_run_qs.order_by("-created_on", "-pk").first()
-
-        if active_run and active_run.flow.ignore_triggers and not active_run.is_completed():
-            return False
-
-        # find a matching keyword trigger with an active flow
-        trigger = Trigger.objects.filter(
-            org=msg.org,
-            is_archived=False,
-            is_active=True,
-            trigger_type=cls.TYPE_KEYWORD,
-            flow__is_archived=False,
-            flow__is_active=True,
-        )
-
-        # if message text is only one word, then we can match 'only-word' triggers too
-        match_types = (cls.MATCH_FIRST_WORD, cls.MATCH_ONLY_WORD) if len(words) == 1 else (cls.MATCH_FIRST_WORD,)
-        trigger = trigger.filter(keyword__iexact=words[0], match_type__in=match_types)
-
-        # trigger needs to match the contact's groups or be non-group specific
-        trigger = trigger.filter(Q(groups__in=msg.contact.user_groups.all()) | Q(groups=None))
-
-        trigger = trigger.prefetch_related("groups", "groups__contacts").order_by("groups__name").first()
-
-        # if no trigger for contact groups find there is a no group trigger
-        if not trigger:
-            return False
-
-        contact = msg.contact
-        contact.ensure_unstopped()
-
-        # if we have an associated flow, start this contact in it
-        trigger.flow.start([], [contact], start_msg=msg, restart_participants=True)
-
-        return True
-
-    @classmethod
-    def find_flow_for_inbound_call(cls, contact):
-
-        groups_ids = contact.user_groups.values_list("pk", flat=True)
-
-        # Check first if we have a trigger for the contact groups
-        matching = (
-            Trigger.objects.filter(
-                is_archived=False,
-                is_active=True,
-                org=contact.org,
-                trigger_type=Trigger.TYPE_INBOUND_CALL,
-                flow__is_archived=False,
-                flow__is_active=True,
-                groups__in=groups_ids,
-            )
-            .order_by("groups__name")
-            .prefetch_related("groups", "groups__contacts")
-        )
-
-        # If no trigger for contact groups find there is a no group trigger
-        if not matching:
-            matching = Trigger.objects.filter(
-                is_archived=False,
-                is_active=True,
-                org=contact.org,
-                trigger_type=Trigger.TYPE_INBOUND_CALL,
-                flow__is_archived=False,
-                flow__is_active=True,
-                groups=None,
-            ).prefetch_related("groups", "groups__contacts")
-
-        if not matching:
-            return None
-
-        trigger = matching[0]
-        return trigger.flow
-
-    @classmethod
     def apply_action_archive(cls, user, triggers):
         for trigger in triggers:
             trigger.archive(user)
@@ -456,25 +292,6 @@ class Trigger(SmartModel):
 
         return [t.pk for t in triggers]
 
-    def fire(self):
-        """
-        Fires this trigger in response to a schedule
-        """
-
-        # do nothing if this trigger is no longer active
-        if self.is_archived or not self.is_active:
-            return
-
-        groups = list(self.groups.all())
-        contacts = list(self.contacts.all())
-
-        # do nothing if there are no groups or contacts
-        if not groups and not contacts:
-            return
-
-        start = FlowStart.create(self.flow, self.created_by, groups=groups, contacts=contacts)
-        start.async_start()
-
     def as_export_def(self):
         """
         The definition of this trigger for export.
@@ -489,10 +306,13 @@ class Trigger(SmartModel):
 
     def release(self):
         """
-        Releases this Trigger
+        Releases this trigger
         """
 
         self.delete()
 
         if self.schedule:
             self.schedule.delete()
+
+    def __str__(self):
+        return f'Trigger[type={self.trigger_type}, flow="{self.flow.name}"]'

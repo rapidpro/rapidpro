@@ -1,0 +1,50 @@
+{
+  "version": "13",
+  "flows": [
+    {
+      "uuid": "1a737778-2cef-4e2f-830e-33a9d3921741",
+      "name": "Send Only",
+      "spec_version": "13.0.0",
+      "language": "eng",
+      "type": "messaging",
+      "revision": 3,
+      "expire_after_minutes": 10080,
+      "localization": {},
+      "nodes": [
+        {
+          "uuid": "bbfb4d96-3963-4b36-8faa-1f46144b8ef8",
+          "actions": [
+            {
+              "uuid": "eaac3f31-c181-48c4-a008-eb9ecfdfdfac",
+              "type": "send_msg",
+              "text": "This is the first message."
+            },
+            {
+              "uuid": "6fe55458-4055-4a2a-b79c-52a878358851",
+              "type": "send_msg",
+              "text": "This is the second message."
+            }
+          ],
+          "exits": [
+            {
+              "uuid": "ec43a6c3-9a78-47d9-a22e-57a5382936af"
+            }
+          ]
+        }
+      ],
+      "_ui": {
+        "nodes": {
+          "bbfb4d96-3963-4b36-8faa-1f46144b8ef8": {
+            "type": "execute_actions",
+            "position": {
+              "left": 100,
+              "top": 0
+            }
+          }
+        },
+        "stickies": {}
+      }
+    }
+  ],
+  "triggers": []
+}

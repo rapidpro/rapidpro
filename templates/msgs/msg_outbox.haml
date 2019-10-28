@@ -41,7 +41,7 @@
               .value-labels
                 - for label in object.labels.all
                   %span.label.label-info.lbl{ data-id: '{{label.id}}' }
-                    %a{href:"{% url 'msgs.msg_filter' label.pk%}"}
+                    %a{href:"{% url 'msgs.msg_filter' label.uuid %}"}
                       {{label.name}}
 
             -if object.attachments

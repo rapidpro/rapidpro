@@ -7,32 +7,10 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.msgs.models import Broadcast
-from temba.tests import MigrationTest, TembaTest
-from temba.triggers.models import Trigger
+from temba.tests import TembaTest
 from temba.utils import json
 
 from .models import Schedule
-
-MONDAY = 0  # 2
-TUESDAY = 1  # 4
-WEDNESDAY = 2  # 8
-THURSDAY = 3  # 16
-FRIDAY = 4  # 32
-SATURDAY = 5  # 64
-SUNDAY = 6  # 128
-
-
-def create_schedule(user, repeat_period, repeat_days=(), start_date=None):
-    if not start_date:
-        # Test date is 10am on a Thursday, Jan 3rd
-        start_date = datetime(2013, 1, 3, hour=10, minute=0).replace(tzinfo=pytz.utc)
-
-    # create a our bitmask from repeat_days
-    bitmask = 0
-    for day in repeat_days:
-        bitmask += pow(2, (day + 1) % 7)
-
-    return Schedule.create_schedule(start_date, repeat_period, user, bitmask)
 
 
 class ScheduleTest(TembaTest):
@@ -41,239 +19,191 @@ class ScheduleTest(TembaTest):
         self.joe = self.create_contact(name="Joe Blow", number="123")
 
     def test_get_repeat_days_display(self):
-        sched = Schedule.create_schedule(timezone.now(), "W", self.user, repeat_days=2)
+        sched = Schedule.create_schedule(self.org, self.user, timezone.now(), Schedule.REPEAT_WEEKLY, "M")
         self.assertEqual(sched.get_repeat_days_display(), ["Monday"])
 
-        sched = Schedule.create_schedule(timezone.now(), "W", self.user, repeat_days=244)
+        sched = Schedule.create_schedule(self.org, self.user, timezone.now(), Schedule.REPEAT_WEEKLY, "TRFSU")
         self.assertEqual(sched.get_repeat_days_display(), ["Tuesday", "Thursday", "Friday", "Saturday", "Sunday"])
 
-        sched = Schedule.create_schedule(timezone.now(), "W", self.user, repeat_days=255)
+        sched = Schedule.create_schedule(self.org, self.user, timezone.now(), Schedule.REPEAT_WEEKLY, "MTWRFSU")
         self.assertEqual(
             sched.get_repeat_days_display(),
             ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
         )
 
-    def test_schedule(self):
-        # updates two days later on Saturday
-        tomorrow = timezone.now() + timedelta(days=1)
-        sched = create_schedule(self.admin, "W", [THURSDAY, SATURDAY], start_date=tomorrow)
-
-        self.assertTrue(sched.has_pending_fire())
-        self.assertEqual(sched.status, "S")
-
-        self.assertEqual(sched.get_repeat_days_display(), ["Thursday", "Saturday"])
-
-        sched.unschedule()
-        self.assertEqual(sched.status, "U")
-
-    def assertScheduleFires(self, sched, start, dates):
-        last = start
-        for date in dates:
-            d = sched.get_next_fire(last)
-            self.assertEqual(d, date)
-
-            last = d
-
-    def test_month_fire(self):
-        start = datetime(2019, 1, 31, hour=10).replace(tzinfo=pytz.utc)
-        sched = create_schedule(self.admin, "M", start_date=start)
-        create = datetime(2019, 1, 8, hour=10).replace(tzinfo=pytz.utc)
-
-        self.assertScheduleFires(
-            sched,
-            create,
-            [
-                datetime(2019, 1, 31, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 2, 28, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 3, 31, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 4, 30, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 5, 31, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 6, 30, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 7, 31, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 8, 31, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 9, 30, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 10, 31, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 11, 30, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 12, 31, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2020, 1, 31, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2020, 2, 29, hour=10).replace(tzinfo=pytz.utc),
-            ],
-        )
-
-        start = datetime(2019, 1, 5, hour=10).replace(tzinfo=pytz.utc)
-        sched = create_schedule(self.admin, "M", start_date=start)
-        create = datetime(2019, 1, 8, hour=10).replace(tzinfo=pytz.utc)
-
-        self.assertScheduleFires(
-            sched,
-            create,
-            [
-                datetime(2019, 2, 5, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 3, 5, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 4, 5, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 5, 5, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 6, 5, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 7, 5, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 8, 5, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 9, 5, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 10, 5, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 11, 5, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2019, 12, 5, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2020, 1, 5, hour=10).replace(tzinfo=pytz.utc),
-                datetime(2020, 2, 5, hour=10).replace(tzinfo=pytz.utc),
-            ],
-        )
-
     def test_next_fire(self):
+        default_tz = pytz.timezone("Africa/Kigali")
 
-        # updates two days later on Saturday
-        sched = create_schedule(self.admin, "W", [THURSDAY, SATURDAY])
+        tcs = [
+            dict(
+                label="one time in the past (noop)",
+                trigger_date=datetime(2013, 1, 2, hour=10),
+                now=datetime(2013, 1, 3, hour=9),
+                repeat_period=Schedule.REPEAT_NEVER,
+                first=None,
+                next=[None],
+            ),
+            dict(
+                label="one time in the future (fire once)",
+                trigger_date=datetime(2013, 1, 2, hour=10),
+                now=datetime(2013, 1, 1, hour=9),
+                repeat_period=Schedule.REPEAT_NEVER,
+                first=datetime(2013, 1, 2, hour=10),
+                next=[],
+            ),
+            dict(
+                label="daily repeating starting in the past",
+                trigger_date=datetime(2013, 1, 2, hour=10),
+                now=datetime(2013, 1, 3, hour=9),
+                repeat_period=Schedule.REPEAT_DAILY,
+                first=datetime(2013, 1, 3, hour=10),
+                next=[datetime(2013, 1, 4, hour=10), datetime(2013, 1, 5, hour=10)],
+            ),
+            dict(
+                label="monthly across start of DST",
+                trigger_date=datetime(2019, 2, 10, hour=10),
+                now=datetime(2019, 1, 1, hour=9),
+                repeat_period=Schedule.REPEAT_MONTHLY,
+                tz=pytz.timezone("America/Los_Angeles"),
+                first=datetime(2019, 2, 10, hour=10),
+                next=[
+                    datetime(2019, 3, 10, hour=10),
+                    datetime(2019, 4, 10, hour=10),
+                    datetime(2019, 5, 10, hour=10),
+                    datetime(2019, 6, 10, hour=10),
+                    datetime(2019, 7, 10, hour=10),
+                    datetime(2019, 8, 10, hour=10),
+                    datetime(2019, 9, 10, hour=10),
+                    datetime(2019, 10, 10, hour=10),
+                    datetime(2019, 11, 10, hour=10),
+                ],
+            ),
+            dict(
+                label="weekly across start of DST",
+                trigger_date=datetime(2019, 3, 2, hour=10),
+                now=datetime(2019, 1, 1, hour=9),
+                repeat_period=Schedule.REPEAT_WEEKLY,
+                repeat_days_of_week="S",
+                tz=pytz.timezone("America/Los_Angeles"),
+                first=datetime(2019, 3, 2, hour=10),
+                next=[datetime(2019, 3, 9, hour=10), datetime(2019, 3, 16, hour=10)],
+            ),
+            dict(
+                label="weekly across end of DST",
+                trigger_date=datetime(2019, 11, 2, hour=10),
+                now=datetime(2019, 11, 1, hour=9),
+                repeat_period=Schedule.REPEAT_WEEKLY,
+                repeat_days_of_week="S",
+                tz=pytz.timezone("America/Los_Angeles"),
+                first=datetime(2019, 11, 2, hour=10),
+                next=[datetime(2019, 11, 9, hour=10), datetime(2019, 11, 16, hour=10)],
+            ),
+            dict(
+                label="daily across start of DST",
+                trigger_date=datetime(2019, 3, 8, hour=10),
+                now=datetime(2019, 1, 1, hour=9),
+                repeat_period=Schedule.REPEAT_DAILY,
+                tz=pytz.timezone("America/Los_Angeles"),
+                first=datetime(2019, 3, 8, hour=10),
+                next=[datetime(2019, 3, 9, hour=10), datetime(2019, 3, 10, hour=10), datetime(2019, 3, 11, hour=10)],
+            ),
+            dict(
+                label="daily across end of DST",
+                trigger_date=datetime(2019, 11, 2, hour=10),
+                now=datetime(2019, 1, 1, hour=9),
+                repeat_period=Schedule.REPEAT_DAILY,
+                tz=pytz.timezone("America/Los_Angeles"),
+                first=datetime(2019, 11, 2, hour=10),
+                next=[datetime(2019, 11, 3, hour=10), datetime(2019, 11, 4, hour=10), datetime(2019, 11, 5, hour=10)],
+            ),
+            dict(
+                label="weekly repeating starting on non weekly day of the week",
+                trigger_date=datetime(2013, 1, 2, hour=10),
+                now=datetime(2013, 1, 2, hour=9),
+                repeat_period=Schedule.REPEAT_WEEKLY,
+                repeat_days_of_week="RS",
+                first=datetime(2013, 1, 2, hour=10),
+                next=[
+                    datetime(2013, 1, 3, hour=10),
+                    datetime(2013, 1, 5, hour=10),
+                    datetime(2013, 1, 10, hour=10),
+                    datetime(2013, 1, 12, hour=10),
+                ],
+            ),
+            dict(
+                label="weekly repeat starting in the past",
+                trigger_date=datetime(2013, 1, 2, hour=10),
+                now=datetime(2013, 1, 3, hour=9),
+                repeat_period=Schedule.REPEAT_WEEKLY,
+                repeat_days_of_week="RS",
+                first=datetime(2013, 1, 3, hour=10),
+                next=[datetime(2013, 1, 5, hour=10), datetime(2013, 1, 10, hour=10), datetime(2013, 1, 12, hour=10)],
+            ),
+            dict(
+                label="monthly repeat starting in the past",
+                trigger_date=datetime(2013, 1, 2, hour=10, minute=35),
+                now=datetime(2013, 1, 3, hour=9),
+                repeat_period=Schedule.REPEAT_MONTHLY,
+                first=datetime(2013, 2, 2, hour=10, minute=35),
+                next=[
+                    datetime(2013, 3, 2, hour=10, minute=35),
+                    datetime(2013, 4, 2, hour=10, minute=35),
+                    datetime(2013, 5, 2, hour=10, minute=35),
+                ],
+            ),
+            dict(
+                label="monthly on 31st",
+                trigger_date=datetime(2013, 1, 31, hour=10, minute=35),
+                now=datetime(2013, 1, 3, hour=9),
+                repeat_period=Schedule.REPEAT_MONTHLY,
+                first=datetime(2013, 1, 31, hour=10, minute=35),
+                next=[
+                    datetime(2013, 2, 28, hour=10, minute=35),
+                    datetime(2013, 3, 31, hour=10, minute=35),
+                    datetime(2013, 4, 30, hour=10, minute=35),
+                ],
+            ),
+        ]
 
-        self.assertEqual(sched.repeat_days, 80)
-        self.assertEqual(
-            datetime(2013, 1, 5, hour=10).replace(tzinfo=timezone.pytz.utc), sched.get_next_fire(sched.next_fire)
-        )
+        for tc in tcs:
+            tz = tc.get("tz", default_tz)
+            self.org.timezone = tz
 
-        # updates six days later on Wednesday
-        sched = create_schedule(self.admin, "W", [WEDNESDAY, THURSDAY])
-        self.assertEqual(
-            datetime(2013, 1, 9, hour=10).replace(tzinfo=timezone.pytz.utc), sched.get_next_fire(sched.next_fire)
-        )
+            label = tc["label"]
+            trigger_date = tz.localize(tc["trigger_date"])
+            now = tz.localize(tc["now"])
 
-        # since we are starting thursday, a thursday should be 7 days out
-        sched = create_schedule(self.admin, "W", [THURSDAY])
-        self.assertEqual(
-            datetime(2013, 1, 10, hour=10).replace(tzinfo=timezone.pytz.utc), sched.get_next_fire(sched.next_fire)
-        )
+            sched = Schedule.create_schedule(
+                self.org,
+                self.admin,
+                trigger_date,
+                tc["repeat_period"],
+                repeat_days_of_week=tc.get("repeat_days_of_week"),
+                now=now,
+            )
 
-        # now update, should advance to next thursday (present time)
-        now = timezone.now()
-        next_update = datetime(now.year, now.month, now.day, hour=10).replace(tzinfo=timezone.pytz.utc)
+            first = tc.get("first")
+            first = tz.localize(first) if first else None
 
-        # make sure we are looking at the following week if it is a thursday
-        if next_update.weekday() == THURSDAY:  # pragma: no cover
-            next_update += timedelta(days=7)
+            self.assertEqual(tc["repeat_period"], sched.repeat_period, label)
+            self.assertEqual(tc.get("repeat_days_of_week"), sched.repeat_days_of_week, label)
 
-        else:  # pragma: no cover
-            # add days until we get to the next thursday
-            while next_update.weekday() != THURSDAY:
-                next_update += timedelta(days=1)
+            if tc["repeat_period"] != Schedule.REPEAT_NEVER:
+                self.assertEqual(trigger_date.hour, sched.repeat_hour_of_day, label)
+                self.assertEqual(trigger_date.minute, sched.repeat_minute_of_hour, label)
+            else:
+                self.assertIsNone(sched.repeat_hour_of_day, label)
+                self.assertIsNone(sched.repeat_minute_of_hour, label)
 
-        self.assertTrue(sched.update_schedule())
-        self.assertEqual(next_update, sched.next_fire)
+            self.assertEqual(first, sched.next_fire, label)
 
-        # try a weekly schedule
-        sched = create_schedule(self.admin, "W", [THURSDAY])
-        self.assertEqual(datetime(2013, 1, 10, hour=10).replace(tzinfo=pytz.utc), sched.get_next_fire(sched.next_fire))
-        self.assertTrue(sched.update_schedule())
-        self.assertEqual(next_update, sched.next_fire)
-
-        # lastly, a daily schedule
-        sched = create_schedule(self.admin, "D")
-        self.assertEqual(datetime(2013, 1, 4, hour=10).replace(tzinfo=pytz.utc), sched.get_next_fire(sched.next_fire))
-
-        sched = create_schedule(self.admin, "M")
-        self.assertEqual(datetime(2013, 2, 3, hour=10).replace(tzinfo=pytz.utc), sched.get_next_fire(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2013, 4, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2013, 4, 3, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-
-        sched = create_schedule(self.admin, "M", start_date=datetime(2014, 1, 31, hour=10).replace(tzinfo=pytz.utc))
-        self.assertEqual(datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc), sched.get_next_fire(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 2, 28).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 3, 31, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 3, 31).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 4, 30, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-
-        sched = create_schedule(self.admin, "M", start_date=datetime(2014, 1, 31, hour=10).replace(tzinfo=pytz.utc))
-        self.assertEqual(
-            datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc),
-            sched.get_next_fire(datetime(2014, 2, 27, hour=10).replace(tzinfo=pytz.utc)),
-        )
-
-        sched = create_schedule(self.admin, "M", start_date=datetime(2014, 1, 29, hour=10).replace(tzinfo=pytz.utc))
-        self.assertTrue(sched.update_schedule(datetime(2014, 2, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 3, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 3, 29, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 4, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 4, 29, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-
-        sched = create_schedule(self.admin, "M", start_date=datetime(2013, 12, 27, hour=10).replace(tzinfo=pytz.utc))
-        self.assertTrue(sched.update_schedule(datetime(2014, 1, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 1, 27, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 2, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 2, 27, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 3, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 3, 27, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 4, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 4, 27, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-
-        sched = create_schedule(self.admin, "M", start_date=datetime(2013, 12, 28, hour=10).replace(tzinfo=pytz.utc))
-        self.assertTrue(sched.update_schedule(datetime(2014, 1, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 1, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 2, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 3, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 3, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 4, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 4, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-
-        sched = create_schedule(self.admin, "M", start_date=datetime(2013, 12, 29, hour=10).replace(tzinfo=pytz.utc))
-        self.assertTrue(sched.update_schedule(datetime(2014, 1, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 1, 29, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 2, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 3, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 3, 29, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 4, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 4, 29, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-
-        sched = create_schedule(self.admin, "M", start_date=datetime(2013, 12, 30, hour=10).replace(tzinfo=pytz.utc))
-        self.assertTrue(sched.update_schedule(datetime(2014, 1, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 1, 30, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 2, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 3, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 3, 30, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 4, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 4, 30, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-
-        sched = create_schedule(self.admin, "M", start_date=datetime(2013, 12, 31, hour=10).replace(tzinfo=pytz.utc))
-        self.assertTrue(sched.update_schedule(datetime(2014, 1, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 1, 31, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 2, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 3, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 3, 31, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 4, 1).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 4, 30, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-
-        sched = create_schedule(self.admin, "M", start_date=datetime(2013, 12, 31, hour=10).replace(tzinfo=pytz.utc))
-        self.assertTrue(sched.update_schedule(datetime(2013, 12, 31).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 1, 31, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 1, 31).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 2, 28).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 3, 31, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 3, 31).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 4, 30, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 4, 30).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 5, 31, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-
-        sched = create_schedule(self.admin, "M", start_date=datetime(2013, 12, 5, hour=10).replace(tzinfo=pytz.utc))
-        self.assertTrue(sched.update_schedule(datetime(2013, 12, 5).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 1, 5, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 1, 5).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 2, 5, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 2, 5).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 3, 5, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 3, 5).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 4, 5, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
-        self.assertTrue(sched.update_schedule(datetime(2014, 4, 5).replace(tzinfo=pytz.utc)))
-        self.assertEqual(str(datetime(2014, 5, 5, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+            next_fire = sched.next_fire
+            for next in tc["next"]:
+                next_fire = Schedule.get_next_fire(sched, next_fire)
+                expected_next = tz.localize(next) if next else None
+                self.assertEqual(expected_next, next_fire, f"{label}: {expected_next} != {next_fire}")
 
     def test_schedule_ui(self):
-
         self.login(self.admin)
 
         joe = self.create_contact("Joe Blow", "123")
@@ -297,6 +227,13 @@ class ScheduleTest(TembaTest):
         )
         self.assertIn("/broadcast/schedule_read", response["redirect"])
 
+        # should have a schedule with no next fire
+        bcast = Broadcast.objects.get()
+        schedule = bcast.schedule
+
+        self.assertIsNone(schedule.next_fire)
+        self.assertEqual(Schedule.REPEAT_NEVER, schedule.repeat_period)
+
         # fetch our formax page
         response = self.client.get(response["redirect"])
         self.assertContains(response, "id-schedule")
@@ -307,15 +244,43 @@ class ScheduleTest(TembaTest):
         self.client.post(reverse("msgs.broadcast_update", args=[broadcast.pk]), post_data)
         self.assertEqual(Broadcast.objects.get(id=broadcast.id).text, {"base": "An updated scheduled message"})
 
+        start = datetime(2045, 9, 19, hour=10, minute=15, second=0, microsecond=0)
+        start = pytz.utc.normalize(self.org.timezone.localize(start))
+        start_stamp = time.mktime(start.timetuple())
+
         # update the schedule
-        post_data = dict(repeat_period="W", repeat_days=6, start="later", start_datetime_value=1)
+        post_data = dict(
+            repeat_period=Schedule.REPEAT_WEEKLY,
+            repeat_days_of_week="W",
+            start="later",
+            start_datetime_value=start_stamp,
+        )
         response = self.client.post(reverse("schedules.schedule_update", args=[broadcast.schedule.pk]), post_data)
 
-        # broadcast = Broadcast.objects.get(pk=broadcast.pk)
-        # self.assertTrue(broadcast.schedule.has_pending_fire())
+        # assert out next fire was updated properly
+        schedule.refresh_from_db()
+        self.assertEqual(Schedule.REPEAT_WEEKLY, schedule.repeat_period)
+        self.assertEqual("W", schedule.repeat_days_of_week)
+        self.assertEqual(10, schedule.repeat_hour_of_day)
+        self.assertEqual(15, schedule.repeat_minute_of_hour)
+        self.assertEqual(start, schedule.next_fire)
+
+        # manually set our fire in the past
+        schedule.next_fire = timezone.now() - timedelta(days=1)
+        schedule.save(update_fields=["next_fire"])
+
+        self.assertIsNotNone(str(schedule))
 
     def test_update(self):
-        sched = create_schedule(self.admin, "W", [THURSDAY, SATURDAY])
+        self.login(self.admin)
+        post_data = dict(
+            text="A scheduled message to Joe", omnibox="c-%s" % self.joe.uuid, sender=self.channel.pk, schedule=True
+        )
+        response = self.client.post(reverse("msgs.broadcast_send"), post_data, follow=True)
+
+        bcast = Broadcast.objects.get()
+        sched = bcast.schedule
+
         update_url = reverse("schedules.schedule_update", args=[sched.pk])
 
         # viewer can't access
@@ -339,90 +304,106 @@ class ScheduleTest(TembaTest):
         tommorrow = now + timedelta(days=1)
         tommorrow_stamp = time.mktime(tommorrow.timetuple())
 
-        post_data = dict()
-        post_data["start"] = "never"
-        post_data["repeat_period"] = "O"
+        self.client.post(update_url, {"start": "never", "repeat_period": "O"})
+
+        schedule = Schedule.objects.get(pk=sched.pk)
+        self.assertIsNone(schedule.next_fire)
+
+        self.client.post(update_url, {"start": "stop", "repeat_period": "O"})
+
+        schedule.refresh_from_db()
+        self.assertIsNone(schedule.next_fire)
+
+        post_data = {"start": "now", "repeat_period": "O", "start_datetime_value": "%d" % now_stamp}
 
         response = self.client.post(update_url, post_data)
 
-        schedule = Schedule.objects.get(pk=sched.pk)
-        self.assertEqual(schedule.status, "U")
-
-        post_data = dict()
-        post_data["start"] = "stop"
-        post_data["repeat_period"] = "O"
-
-        response = self.client.post(update_url, post_data)
-
-        schedule = Schedule.objects.get(pk=sched.pk)
-        self.assertEqual(schedule.status, "U")
-
-        post_data = dict()
-        post_data["start"] = "now"
-        post_data["repeat_period"] = "O"
-        post_data["start_datetime_value"] = "%d" % now_stamp
-
-        response = self.client.post(update_url, post_data)
-
-        schedule = Schedule.objects.get(pk=sched.pk)
+        schedule.refresh_from_db()
         self.assertEqual(schedule.repeat_period, "O")
         self.assertFalse(schedule.next_fire)
 
-        post_data = dict()
-        post_data["repeat_period"] = "D"
-        post_data["start"] = "later"
-        post_data["start_datetime_value"] = "%d" % tommorrow_stamp
+        post_data = {"repeat_period": "D", "start": "later", "start_datetime_value": "%d" % tommorrow_stamp}
 
         response = self.client.post(update_url, post_data)
 
-        schedule = Schedule.objects.get(pk=sched.pk)
+        schedule.refresh_from_db()
         self.assertEqual(schedule.repeat_period, "D")
 
-        post_data = dict()
-        post_data["repeat_period"] = "D"
-        post_data["start"] = "later"
+        post_data = {"repeat_period": "D", "start": "later", "start_datetime_value": "%d" % tommorrow_stamp}
 
         response = self.client.post(update_url, post_data)
 
-        schedule = Schedule.objects.get(pk=sched.pk)
+        schedule.refresh_from_db()
         self.assertEqual(schedule.repeat_period, "D")
 
-    def test_calculating_next_fire(self):
+        # can't omit repeat_days_of_week for weekly
+        response = self.client.post(
+            update_url,
+            {
+                "repeat_period": "W",
+                "start": "later",
+                "repeat_days_of_week": "",
+                "start_datetime_value": str(now_stamp),
+            },
+        )
 
-        self.org.timezone = pytz.timezone("US/Eastern")
-        self.org.save()
+        self.assertFormError(response, "form", "__all__", "Must specify at least one day of the week")
 
-        tz = self.org.timezone
-        eleven_fifteen_est = tz.localize(datetime(2013, 1, 3, hour=23, minute=15, second=0, microsecond=0))
+        schedule.refresh_from_db()
+        self.assertEqual(schedule.repeat_period, "D")  # unchanged
+        self.assertEqual(schedule.repeat_days_of_week, "")
 
-        # Test date is 10:15am on a Thursday, Jan 3rd
-        schedule = create_schedule(self.admin, "D", start_date=eleven_fifteen_est)
-        schedule.save()
+        # can't set repeat_days_of_week to invalid day
+        response = self.client.post(
+            update_url,
+            {
+                "repeat_period": "W",
+                "start": "later",
+                "repeat_days_of_week": "X",
+                "start_datetime_value": str(now_stamp),
+            },
+        )
 
-        Broadcast.create(self.org, self.admin, "Message", schedule=schedule, contacts=[self.joe])
-        schedule = Schedule.objects.get(pk=schedule.pk)
+        self.assertFormError(response, "form", "repeat_days_of_week", "X is not a valid day of the week")
 
-        # when is the next fire once our first one passes
-        sched_date = tz.localize(datetime(2013, 1, 3, hour=23, minute=30, second=0, microsecond=0))
+        schedule.refresh_from_db()
+        self.assertEqual(schedule.repeat_period, "D")  # unchanged
+        self.assertEqual(schedule.repeat_days_of_week, "")
 
-        schedule.update_schedule(sched_date)
-        self.assertEqual("2013-01-04 23:15:00-05:00", str(schedule.next_fire))
+        # can set to valid days
+        response = self.client.post(
+            update_url,
+            {
+                "repeat_period": "W",
+                "start": "later",
+                "repeat_days_of_week": "MF",
+                "start_datetime_value": str(now_stamp),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+
+        schedule.refresh_from_db()
+        self.assertEqual(schedule.repeat_period, "W")
+        self.assertEqual(schedule.repeat_days_of_week, "MF")
 
     def test_update_near_day_boundary(self):
-
         self.org.timezone = pytz.timezone("US/Eastern")
         self.org.save()
         tz = self.org.timezone
 
-        sched = create_schedule(self.admin, "D")
-        Broadcast.create(self.org, self.admin, "Message", schedule=sched, contacts=[self.joe])
-        sched = Schedule.objects.get(pk=sched.pk)
+        self.login(self.admin)
+        post_data = dict(
+            text="A scheduled message to Joe", omnibox="c-%s" % self.joe.uuid, sender=self.channel.pk, schedule=True
+        )
+        self.client.post(reverse("msgs.broadcast_send"), post_data, follow=True)
+
+        bcast = Broadcast.objects.get()
+        sched = bcast.schedule
 
         update_url = reverse("schedules.schedule_update", args=[sched.pk])
 
-        self.login(self.admin)
-
-        # way off into the future
+        # way off into the future, but at 11pm NYT
         start_date = datetime(2050, 1, 3, 23, 0, 0, 0)
         start_date = tz.localize(start_date)
         start_date = pytz.utc.normalize(start_date.astimezone(pytz.utc))
@@ -437,8 +418,7 @@ class ScheduleTest(TembaTest):
         # 11pm in NY should be 4am UTC the next day
         self.assertEqual("2050-01-04 04:00:00+00:00", str(sched.next_fire))
 
-        # a time in the past
-        start_date = datetime(2010, 1, 3, 23, 45, 0, 0)
+        start_date = datetime(2050, 1, 3, 23, 45, 0, 0)
         start_date = tz.localize(start_date)
         start_date = pytz.utc.normalize(start_date.astimezone(pytz.utc))
 
@@ -451,29 +431,3 @@ class ScheduleTest(TembaTest):
 
         # next fire should fall at the right hour and minute
         self.assertIn("04:45:00+00:00", str(sched.next_fire))
-
-
-class RemoveOrphansMigrationTest(MigrationTest):
-    app = "schedules"
-    migrate_from = "0006_initial"
-    migrate_to = "0007_remove_orphans"
-
-    def setUpBeforeMigration(self, apps):
-        contact1 = self.create_contact("Bob", twitter="bob")
-        favorites = self.get_flow("favorites")
-
-        # create schedule attached to a trigger
-        self.trigger = Trigger.create(
-            self.org, self.admin, Trigger.TYPE_SCHEDULE, flow=favorites, schedule=create_schedule(self.admin, "D")
-        )
-
-        # create schedule attached to a broadcast
-        self.broadcast = Broadcast.create(
-            self.org, self.admin, "hi there", contacts=[contact1], schedule=create_schedule(self.admin, "W")
-        )
-
-        # create orphan schedule
-        create_schedule(self.admin, "M")
-
-    def test_merged(self):
-        self.assertEqual(Schedule.objects.count(), 2)

@@ -15,14 +15,12 @@ from django_redis import get_redis_connection
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.management import BaseCommand, CommandError
-from django.core.management.base import CommandParser
-from django.db import connection, transaction
+from django.db import connection
 from django.utils import timezone
 
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
-from temba.channels.tasks import squash_channelcounts
 from temba.contacts.models import (
     TEL_SCHEME,
     TWITTER_SCHEME,
@@ -33,13 +31,10 @@ from temba.contacts.models import (
     ContactGroupCount,
     ContactURN,
 )
-from temba.flows.models import Flow, FlowRun, FlowStart
-from temba.flows.tasks import squash_flowpathcounts, squash_flowruncounts
+from temba.flows.models import Flow
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Label, Msg
-from temba.msgs.tasks import squash_msgcounts
+from temba.msgs.models import Label
 from temba.orgs.models import Org
-from temba.orgs.tasks import squash_topupcredits
 from temba.utils import chunk_list
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.values.constants import Value
@@ -64,10 +59,10 @@ ORG_NAMES = (
 
 # the users, channels, groups, labels and fields to create for each organization
 USERS = (
-    {"email": "org%d.admin@nyaruka.com", "role": "administrators"},
-    {"email": "org%d.editor@nyaruka.com", "role": "editors"},
-    {"email": "org%d.viewer@nyaruka.com", "role": "viewers"},
-    {"email": "org%d.surveyor@nyaruka.com", "role": "surveyors"},
+    {"email": "admin%d@nyaruka.com", "role": "administrators"},
+    {"email": "editor%d@nyaruka.com", "role": "editors"},
+    {"email": "viewer%d@nyaruka.com", "role": "viewers"},
+    {"email": "surveyor%d@nyaruka.com", "role": "surveyors"},
 )
 CHANNELS = (
     {"name": "Android", "channel_type": Channel.TYPE_ANDROID, "scheme": "tel", "address": "1234"},
@@ -99,20 +94,7 @@ GROUPS = (
     },
 )
 LABELS = ("Reporting", "Testing", "Youth", "Farming", "Health", "Education", "Trade", "Driving", "Building", "Spam")
-FLOWS = (
-    {
-        "name": "Favorites",
-        "file": "favorites_timeout.json",
-        "templates": (
-            ["blue", "mutzig", "bob"],
-            ["orange", "green", "primus", "jeb"],
-            ["red", "skol", "rowan"],
-            ["red", "turbo", "nic"],
-        ),
-    },
-    {"name": "SMS Form", "file": "sms_form.json", "templates": (["22 F Seattle"], ["35 M MIAMI"])},
-    {"name": "Pick a Number", "file": "pick_a_number.json", "templates": (["1"], ["4"], ["5"], ["7"], ["8"])},
-)
+FLOWS = ("favorites_timeout.json", "sms_form.json", "pick_a_number.json")
 CAMPAIGNS = (
     {
         "name": "Doctor Reminders",
@@ -146,43 +128,23 @@ CONTACT_IS_BLOCKED_PROB = 0.01  # 1/100 contacts are blocked
 CONTACT_IS_DELETED_PROB = 0.005  # 1/200 contacts are deleted
 CONTACT_HAS_FIELD_PROB = 0.8  # 8/10 fields set for each contact
 
-RUN_RESPONSE_PROB = 0.1  # 1/10 runs will be responded to
-INBOX_MESSAGES = (("What is", "I like", "No"), ("beer", "tea", "coffee"), ("thank you", "please", "today"))
-
 
 class Command(BaseCommand):
-    COMMAND_GENERATE = "generate"
-    COMMAND_SIMULATE = "simulate"
-
     help = "Generates a database suitable for performance testing"
 
     # https://docs.djangoproject.com/en/2.0/releases/2.0/#call-command-validates-the-options-it-receives
-    stealth_options = ("num_orgs", "num_contacts", "seed", "org_id", "num_runs", "flow_name", "seed")
+    stealth_options = ("num_orgs", "num_contacts", "seed")
 
     def add_arguments(self, parser):
-        subparsers = parser.add_subparsers(
-            dest="command", help="Command to perform", parser_class=lambda **kw: CommandParser(**kw)
-        )
+        parser.add_argument("--orgs", type=int, action="store", dest="num_orgs", default=10)
+        parser.add_argument("--contacts", type=int, action="store", dest="num_contacts", default=10000)
+        parser.add_argument("--seed", type=int, action="store", dest="seed", default=None)
+        parser.add_argument("--password", type=str, action="store", dest="password", default=USER_PASSWORD)
 
-        gen_parser = subparsers.add_parser("generate", help="Generates a clean testing database")
-        gen_parser.add_argument("--orgs", type=int, action="store", dest="num_orgs", default=10)
-        gen_parser.add_argument("--contacts", type=int, action="store", dest="num_contacts", default=10000)
-        gen_parser.add_argument("--seed", type=int, action="store", dest="seed", default=None)
-        gen_parser.add_argument("--password", type=str, action="store", dest="password", default=USER_PASSWORD)
-
-        sim_parser = subparsers.add_parser("simulate", help="Simulates activity on an existing database")
-        sim_parser.add_argument("--org", type=int, action="store", dest="org_id", default=None)
-        sim_parser.add_argument("--runs", type=int, action="store", dest="num_runs", default=1000)
-        sim_parser.add_argument("--flow", type=str, action="store", dest="flow_name", default=None)
-        sim_parser.add_argument("--seed", type=int, action="store", dest="seed", default=None)
-
-    def handle(self, command, *args, **kwargs):
+    def handle(self, *args, **kwargs):
         start = time.time()
 
-        if command == self.COMMAND_GENERATE:
-            self.handle_generate(kwargs["num_orgs"], kwargs["num_contacts"], kwargs["seed"], kwargs["password"])
-        else:
-            self.handle_simulate(kwargs["num_runs"], kwargs["org_id"], kwargs["flow_name"], kwargs["seed"])
+        self.handle_generate(kwargs["num_orgs"], kwargs["num_contacts"], kwargs["seed"], kwargs["password"])
 
         time_taken = time.time() - start
         self._log("Completed in %d secs, peak memory usage: %d MiB\n" % (int(time_taken), int(self.peak_memory())))
@@ -227,51 +189,6 @@ class Command(BaseCommand):
         self.create_flows(orgs)
         self.create_archives(orgs)
         self.create_campaigns(orgs)
-
-    def handle_simulate(self, num_runs, org_id, flow_name, seed):
-        """
-        Prepares to resume simulating flow activity on an existing database
-        """
-        self._log("Resuming flow activity simulation on existing database...\n")
-
-        orgs = Org.objects.order_by("id")
-        if org_id:
-            orgs = orgs.filter(id=org_id)
-
-        if not orgs:
-            raise CommandError("Can't simulate activity on an empty database")
-
-        self.configure_random(len(orgs), seed)
-
-        # in real life Nexmo messages are throttled, but that's not necessary for this simulation
-        Channel.get_type_from_code("NX").max_tps = None
-
-        inputs_by_flow_name = {f["name"]: f["templates"] for f in FLOWS}
-
-        self._log("Preparing existing orgs... ")
-
-        for org in orgs:
-            flows = org.flows.order_by("id").exclude(is_system=True)
-
-            if flow_name:
-                flows = flows.filter(name=flow_name)
-            flows = list(flows)
-
-            for flow in flows:
-                flow.input_templates = inputs_by_flow_name[flow.name]
-
-            org.cache = {
-                "users": list(org.get_org_users().order_by("id")),
-                "channels": list(org.channels.order_by("id")),
-                "groups": list(ContactGroup.user_groups.filter(org=org).order_by("id")),
-                "flows": flows,
-                "contacts": list(org.contacts.values_list("id", flat=True)),  # only ids to save memory
-                "activity": None,
-            }
-
-        self._log(self.style.SUCCESS("OK") + "\n")
-
-        self.simulate_activity(orgs, num_runs)
 
     def configure_random(self, num_orgs, seed=None):
         if not seed:
@@ -518,7 +435,7 @@ class Command(BaseCommand):
         for org in orgs:
             user = org.cache["users"][0]
             for f in FLOWS:
-                with open("media/test_flows/" + f["file"], "r") as flow_file:
+                with open("media/test_flows/" + f, "r") as flow_file:
                     org.import_app(json.load(flow_file), user)
 
         self._log(self.style.SUCCESS("OK") + "\n")
@@ -740,119 +657,6 @@ class Command(BaseCommand):
 
         ContactURN.objects.bulk_create(batch_urns)
         ContactGroup.contacts.through.objects.bulk_create(batch_memberships)
-
-    def simulate_activity(self, orgs, num_runs):
-        self._log("Starting simulation. Ctrl+C to cancel...\n")
-        start = time.time()
-
-        runs = 0
-        while runs < num_runs:
-            try:
-                with transaction.atomic():
-                    # make sure every org has an active flow
-                    for org in orgs:
-                        if not org.cache["activity"]:
-                            self.start_flow_activity(org)
-
-                with transaction.atomic():
-                    org = self.random_org(orgs)
-
-                    if self.probability(0.1):
-                        self.create_unsolicited_incoming(org)
-                    else:
-                        self.create_flow_run(org)
-                        runs += 1
-
-            except KeyboardInterrupt:
-                self._log("Shutting down...\n")
-                break
-
-        self._log("Simulation ran for %d seconds\n" % int(time.time() - start))
-
-        squash_channelcounts()
-        squash_flowpathcounts()
-        squash_flowruncounts()
-        squash_topupcredits()
-        squash_msgcounts()
-
-    def start_flow_activity(self, org):
-        assert not org.cache["activity"]
-
-        user = org.cache["users"][0]
-        flow = self.random_choice(org.cache["flows"])
-
-        if self.probability(0.9):
-            # start a random group using a flow start
-            group = self.random_choice(org.cache["groups"])
-            contacts_started = list(group.contacts.values_list("id", flat=True))
-
-            self._log(
-                " > Starting flow %s for group %s (%d) in org %s\n"
-                % (flow.name, group.name, len(contacts_started), org.name)
-            )
-
-            start = FlowStart.create(flow, user, groups=[group], restart_participants=True)
-            start.start()
-        else:
-            # start a random individual without a flow start
-            if not org.cache["contacts"]:
-                return
-
-            contact = Contact.objects.get(id=self.random_choice(org.cache["contacts"]))
-            contacts_started = [contact.id]
-
-            self._log(" > Starting flow %s for contact #%d in org %s\n" % (flow.name, contact.id, org.name))
-
-            flow.start([], [contact], restart_participants=True)
-
-        org.cache["activity"] = {"flow": flow, "unresponded": contacts_started, "started": list(contacts_started)}
-
-    def end_flow_activity(self, org):
-        self._log(" > Ending flow %s for in org %s\n" % (org.cache["activity"]["flow"].name, org.name))
-
-        org.cache["activity"] = None
-
-        runs = FlowRun.objects.filter(org=org, is_active=True)
-        FlowRun.bulk_exit(runs, FlowRun.EXIT_TYPE_EXPIRED)
-
-    def create_flow_run(self, org):
-        activity = org.cache["activity"]
-        flow = activity["flow"]
-
-        if activity["unresponded"]:
-            contact_id = self.random_choice(activity["unresponded"])
-            activity["unresponded"].remove(contact_id)
-
-            contact = Contact.objects.get(id=contact_id)
-            urn = contact.urns.first()
-
-            if urn:
-                self._log(" > Receiving flow responses for flow %s in org %s\n" % (flow.name, flow.org.name))
-
-                inputs = self.random_choice(flow.input_templates)
-
-                for text in inputs:
-                    channel = flow.org.cache["channels"][0]
-                    Msg.create_incoming(channel, str(urn), text)
-
-        # if more than 10% of contacts have responded, consider flow activity over
-        if len(activity["unresponded"]) <= (len(activity["started"]) * 0.9):
-            self.end_flow_activity(flow.org)
-
-    def create_unsolicited_incoming(self, org):
-        if not org.cache["contacts"]:
-            return
-
-        self._log(" > Receiving unsolicited incoming message in org %s\n" % org.name)
-
-        available_contacts = list(set(org.cache["contacts"]) - set(org.cache["activity"]["started"]))
-        if available_contacts:
-            contact = Contact.objects.get(id=self.random_choice(available_contacts))
-            channel = self.random_choice(org.cache["channels"])
-            urn = contact.urns.first()
-            if urn:
-                text = " ".join([self.random_choice(l) for l in INBOX_MESSAGES])
-                Msg.create_incoming(channel, str(urn), text)
 
     def probability(self, prob):
         return self.random.random() < prob

@@ -38,6 +38,7 @@
     {% endblocktrans%}
 
 -block extra-script
+  {{block.super}}
   :javascript
     $(document).ready(function() {
 

@@ -15,7 +15,7 @@ class TwimlAPITypeTest(TembaTest):
         # remove any existing channels
         self.org.channels.update(is_active=False)
 
-    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.rest.Client", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_channel_claim_page(self):
         claim_url = reverse("channels.types.twiml_api.claim")
@@ -29,7 +29,7 @@ class TwimlAPITypeTest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "TwiML")
 
-    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.rest.Client", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_channel_claim_form_error_invalid_data(self):
         claim_url = reverse("channels.types.twiml_api.claim")
@@ -46,7 +46,7 @@ class TwimlAPITypeTest(TembaTest):
         self.assertFormError(response, "form", "url", "This field is required.")
         self.assertFormError(response, "form", "role", "This field is required.")
 
-    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.rest.Client", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_channel_claim_form_valid_data(self):
         claim_url = reverse("channels.types.twiml_api.claim")
@@ -79,7 +79,7 @@ class TwimlAPITypeTest(TembaTest):
         response = self.client.get(reverse("channels.channel_configuration", args=[channel.uuid]))
         self.assertContains(response, reverse("courier.tw", args=[channel.uuid, "receive"]))
 
-    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.rest.Client", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_channel_claim_form_valid_data_shortcode(self):
         claim_url = reverse("channels.types.twiml_api.claim")
@@ -112,7 +112,7 @@ class TwimlAPITypeTest(TembaTest):
         response = self.client.get(reverse("channels.channel_configuration", args=[channel.uuid]))
         self.assertContains(response, reverse("courier.tw", args=[channel.uuid, "receive"]))
 
-    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.rest.Client", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_channel_claim_form_without_account_sid(self):
         claim_url = reverse("channels.types.twiml_api.claim")
