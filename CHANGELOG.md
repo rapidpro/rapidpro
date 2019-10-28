@@ -1,3 +1,8 @@
+v5.2.0
+----------
+ * Show date for broadcast schedules
+ * Honor initial datetime on trigger schedule ui
+
 v5.1.64
 ----------
  * Update to flow editor version 1.7.3
