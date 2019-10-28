@@ -24,14 +24,6 @@ class BaseScheduleForm(object):
 
         return None
 
-
-class ScheduleForm(BaseScheduleForm, forms.ModelForm):
-    start = forms.ChoiceField(choices=(("stop", "Stop Schedule"), ("later", "Schedule for later")))
-    repeat_period = forms.ChoiceField(choices=Schedule.REPEAT_CHOICES)
-    repeat_days_of_week = forms.CharField(required=False)
-    start = forms.CharField(max_length=16)
-    start_datetime_value = forms.IntegerField(required=False)
-
     def clean_repeat_days_of_week(self):
         data = self.cleaned_data["repeat_days_of_week"]
         if data:
@@ -47,6 +39,14 @@ class ScheduleForm(BaseScheduleForm, forms.ModelForm):
             raise forms.ValidationError(_("Must specify at least one day of the week"))
 
         return data
+
+
+class ScheduleForm(BaseScheduleForm, forms.ModelForm):
+    start = forms.ChoiceField(choices=(("stop", "Stop Schedule"), ("later", "Schedule for later")))
+    repeat_period = forms.ChoiceField(choices=Schedule.REPEAT_CHOICES)
+    repeat_days_of_week = forms.CharField(required=False)
+    start = forms.CharField(max_length=16)
+    start_datetime_value = forms.IntegerField(required=False)
 
     class Meta:
         model = Schedule
