@@ -179,7 +179,7 @@ class Schedule(SmartModel):
             return next_fire
 
     def get_repeat_days_display(self):
-        return [Schedule.DAYS_OF_WEEK_DISPLAY[d] for d in self.repeat_days_of_week]
+        return [Schedule.DAYS_OF_WEEK_DISPLAY[d] for d in self.repeat_days_of_week] if self.repeat_days_of_week else ""
 
     @staticmethod
     def _day_of_week(d):

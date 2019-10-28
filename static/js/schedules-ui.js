@@ -61,6 +61,7 @@ $("#modal, #id-schedule, #id-trigger-schedule").on('change', "select[name=repeat
         }
 
         $(".weekly-repeat-options").slideDown();
+        $(".weekly-repeat-options").removeClass('hide');
         updateDailySelection();
 
     } else {
@@ -141,6 +142,9 @@ $(document).ready(function() {
         } else if (id == 'stop-option' && !$(this).hasClass('unchanged')) {
             actionButton.val('Cancel Schedule').addClass('btn-danger').removeClass('btn-primary btn-success');
             recurrence.slideUp();
+
+            $('select[name=repeat_period]').val("O");
+            $(".weekly-repeat-options").hide();
         } else {
             actionButton.val('Done').removeClass('btn-success btn-primary btn-danger');
             recurrence.slideUp();
