@@ -39,9 +39,7 @@ class FreshChatTypeTest(TembaTest):
         self.assertContains(response, "Connect FreshChat")
 
         post_data = response.context["form"].initial
-        post_data[
-            "webhook_key"
-        ] = "-----BEGIN RSA PUBLIC KEY----- MIIBIDAQAB -----END RSA PUBLIC KEY-----"
+        post_data["webhook_key"] = "-----BEGIN RSA PUBLIC KEY----- MIIBIDAQAB -----END RSA PUBLIC KEY-----"
         post_data["auth_token"] = "eyJVTI0LTm5WZ2Ut"
         post_data["agent_id"] = "c0534f78-b6e9-4f79-8853-11cedfc1f35b"
         post_data["title"] = "FreshChat"
@@ -50,10 +48,7 @@ class FreshChatTypeTest(TembaTest):
         # assert our channel got created
         channel = Channel.objects.get(address="c0534f78-b6e9-4f79-8853-11cedfc1f35b")
         self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], "eyJVTI0LTm5WZ2Ut")
-        self.assertEqual(
-            channel.config[Channel.CONFIG_USERNAME],
-            "c0534f78-b6e9-4f79-8853-11cedfc1f35b",
-        )
+        self.assertEqual(channel.config[Channel.CONFIG_USERNAME], "c0534f78-b6e9-4f79-8853-11cedfc1f35b")
         self.assertEqual(
             channel.config[Channel.CONFIG_SECRET],
             "-----BEGIN RSA PUBLIC KEY----- MIIBIDAQAB -----END RSA PUBLIC KEY-----",
