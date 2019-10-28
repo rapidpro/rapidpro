@@ -173,11 +173,18 @@
   #msg-box 
     %h5
       -trans "Compose message"
-    %form#send
-      {% csrf_token %}
-      %input#id_text.form-control{type:"text"}
-      %button#id_send.btn.btn-primary{type:"submit"}
-        -trans "Send"
+    -if send_channel
+      %form#send
+        {% csrf_token %}
+        %input#id_text.form-control{type:"text"}
+        %button#id_send.btn.btn-primary{type:"submit"}
+          -trans "Send"
+    -else
+        -blocktrans with name=brand.name
+          To get started you need to add a channel to your account. A channel is a phone number or social network
+          account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
+          Android phone and your own cell phone plan, or we can connect you with a service provider in your country
+          directly.
 
   %h5
     -trans "Message History"
@@ -205,6 +212,8 @@
 
 
 -block post-content
+  -include "msgs/msg_send_modal.haml"
+
   -if org_perms.contacts.contact_delete
     .deletion.hide
       .title
