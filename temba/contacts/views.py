@@ -1226,8 +1226,8 @@ class ContactCRUDL(SmartCRUDL):
 
             try:
                 summary = Contact.query_summary(org, query, samples)
-            except SearchException:
-                return JsonResponse({"total": 0, "sample": [], "query": "", "error": "Invalid query"})
+            except SearchException as e:
+                return JsonResponse({"total": 0, "sample": [], "query": "", "error": str(e)})
 
             # serialize our contact sample
             json_contacts = []

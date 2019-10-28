@@ -12,7 +12,7 @@ export default class Alert extends LitElement {
 
       .rp-alert {
         color: var(--color-text-dark);
-        padding: 10px;
+        padding: 8px;
         border-left: 6px inset rgba(0,0,0,.2);
         border-radius: var(--curvature-widget);
         font-size: 12px;
@@ -27,8 +27,8 @@ export default class Alert extends LitElement {
       }
 
       .error {
-        background: var(--color-error);
-        color: var(--color-text-light);
+        border-left: 6px solid var(--color-error);
+        color: var(--color-error);
       }
     `;
   }
