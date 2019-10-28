@@ -41,6 +41,13 @@ class ScheduleForm(BaseScheduleForm, forms.ModelForm):
 
         return data
 
+    def clean(self):
+        data = self.cleaned_data
+        if data["repeat_period"] == Schedule.REPEAT_WEEKLY and not data.get("repeat_days_of_week"):
+            raise forms.ValidationError(_("Must specify at least one day of the week"))
+
+        return data
+
     class Meta:
         model = Schedule
         fields = "__all__"
@@ -68,7 +75,7 @@ class ScheduleCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             org = self.get_object().org
             context = super().get_context_data(**kwargs)
-            context["days"] = self.get_object().repeat_days_of_week
+            context["days"] = self.get_object().repeat_days_of_week or ""
             context["user_tz"] = get_current_timezone_name()
             context["user_tz_offset"] = int(timezone.now().astimezone(org.timezone).utcoffset().total_seconds() // 60)
             return context

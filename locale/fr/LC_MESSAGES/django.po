@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-24 15:23+0000\n"
+"POT-Creation-Date: 2019-10-25 20:40+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -5317,6 +5317,9 @@ msgstr "mensuellement"
 
 #, python-format
 msgid "%(day)s is not a valid day of the week"
+msgstr ""
+
+msgid "Must specify at least one day of the week"
 msgstr ""
 
 msgid "English"
