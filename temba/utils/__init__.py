@@ -8,7 +8,7 @@ from django_countries import countries
 from django.conf import settings
 from django.db import transaction
 
-TRANSFERTO_COUNTRY_NAMES = {"Democratic Republic of the Congo": "CD", "Ivory Coast": "CI", "United States": "US"}
+DTONE_COUNTRY_NAMES = {"Democratic Republic of the Congo": "CD", "Ivory Coast": "CI", "United States": "US"}
 
 
 def str_to_bool(text):
@@ -165,7 +165,7 @@ def get_country_code_by_name(name):
     code = countries.by_name(name)
 
     if not code:
-        code = TRANSFERTO_COUNTRY_NAMES.get(name, None)
+        code = DTONE_COUNTRY_NAMES.get(name, None)
 
     return code if code else None
 

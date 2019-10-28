@@ -9,7 +9,6 @@ from django.utils.timesince import timesince
 
 from celery.task import task
 
-from temba.orgs.models import Org
 from temba.utils.celery import nonoverlapping_task
 
 from .models import (
@@ -28,13 +27,6 @@ FLOW_TIMEOUT_KEY = "flow_timeouts_%y_%m_%d"
 logger = logging.getLogger(__name__)
 
 
-@task(track_started=True, name="send_email_action_task")
-def send_email_action_task(org_id, recipients, subject, message):
-    org = Org.objects.filter(pk=org_id, is_active=True).first()
-    if org:
-        org.email_action_send(recipients, subject, message)
-
-
 @task(track_started=True, name="update_run_expirations_task")
 def update_run_expirations_task(flow_id):
     """
@@ -44,18 +36,6 @@ def update_run_expirations_task(flow_id):
         if run.path:
             last_arrived_on = iso8601.parse_date(run.path[-1]["arrived_on"])
             run.update_expiration(last_arrived_on)
-
-
-@task(track_started=True, name="continue_parent_flows")  # pragma: no cover
-def continue_parent_flows(run_ids):
-    runs = FlowRun.objects.filter(pk__in=run_ids)
-    FlowRun.continue_parent_flow_runs(runs)
-
-
-@task(track_started=True, name="interrupt_flow_runs_task")
-def interrupt_flow_runs_task(flow_id):
-    runs = FlowRun.objects.filter(is_active=True, exit_type=None, flow_id=flow_id)
-    FlowRun.bulk_exit(runs, FlowRun.EXIT_TYPE_INTERRUPTED)
 
 
 @task(track_started=True, name="export_flow_results_task")

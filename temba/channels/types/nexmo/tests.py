@@ -8,7 +8,7 @@ from temba.channels.models import Channel
 from temba.tests import MockResponse, TembaTest
 from temba.utils import json
 
-from .client import Client
+from .client import NexmoClient
 
 
 def mock_json_response(status_code, data):
@@ -198,13 +198,7 @@ class NexmoTypeTest(TembaTest):
 
             self.assertContains(response, reverse("courier.nx", args=[channel.uuid, "receive"]))
             self.assertContains(response, reverse("courier.nx", args=[channel.uuid, "status"]))
-            self.assertContains(response, reverse("handlers.nexmo_call_handler", args=["answer", channel.uuid]))
-
-            call_handler_event_url = reverse("handlers.nexmo_call_handler", args=["event", channel.uuid])
-            response = self.client.get(call_handler_event_url)
-
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(len(response.content), 0)
+            self.assertContains(response, reverse("mailroom.ivr_handler", args=[channel.uuid, "incoming"]))
 
     def test_deactivate(self):
         # convert our test channel to be a Nexmo channel
@@ -214,23 +208,25 @@ class NexmoTypeTest(TembaTest):
         channel.config = {Channel.CONFIG_NEXMO_APP_ID: "myappid", Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: "secret"}
         channel.save(update_fields=("channel_type", "config"))
 
-        # mock an authentication failure during the release process
+        # mock a 404 response from Nexmo during deactivation
         with self.settings(IS_PROD=True):
-            with patch("temba.channels.types.nexmo.client.Client.delete_application") as mock_delete_application:
+            with patch("nexmo.Client.delete_application") as mock_delete_application:
+                mock_delete_application.side_effect = nexmo.ClientError("404 response")
+
                 # releasing shouldn't blow up on auth failures
                 channel.release()
                 channel.refresh_from_db()
 
                 self.assertFalse(channel.is_active)
 
-                mock_delete_application.assert_called_once_with("myappid")
+                mock_delete_application.assert_called_once_with(application_id="myappid")
 
 
 class ClientTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.client = Client("abc123", "asecret")
+        self.client = NexmoClient("abc123", "asecret")
 
     @patch("nexmo.Client.get_balance")
     def test_check_credentials(self, mock_get_balance):
@@ -276,7 +272,7 @@ class ClientTest(TembaTest):
 
         mock_delete_application.assert_called_once_with(application_id="myappid")
 
-    @patch("temba.channels.types.nexmo.client.Client.RATE_LIMIT_PAUSE", 0)
+    @patch("temba.channels.types.nexmo.client.NexmoClient.RATE_LIMIT_PAUSE", 0)
     @patch("nexmo.Client.get_account_numbers")
     def test_retry(self, mock_get_account_numbers):
         mock_get_account_numbers.side_effect = [

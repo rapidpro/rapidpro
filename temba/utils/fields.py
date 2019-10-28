@@ -1,3 +1,5 @@
+import json
+
 from django import forms
 from django.forms import widgets
 
@@ -11,3 +13,50 @@ class Select2Field(forms.Field):
 
     def to_python(self, value):
         return value
+
+
+class JSONField(forms.Field):
+    def to_python(self, value):
+        return value
+
+
+class SelectWidget(forms.Select):
+    template_name = "utils/forms/select.haml"
+
+    def render(self, name, value, attrs=None, renderer=None):
+        return super().render(name, value, attrs)
+
+
+class ContactSearchWidget(forms.Widget):
+    template_name = "utils/forms/contact_search.haml"
+
+
+class CompletionTextarea(forms.Widget):
+    template_name = "utils/forms/completion_textarea.haml"
+
+    def __init__(self, attrs=None):
+        default_attrs = {"width": "100%", "height": "100%"}
+        if attrs:
+            default_attrs.update(attrs)
+        super().__init__(default_attrs)
+
+
+class OmniboxChoice(forms.Widget):
+    template_name = "utils/forms/omnibox_choice.haml"
+
+    def __init__(self, attrs=None):
+        default_attrs = {"width": "100%", "height": "100%"}
+        if attrs:
+            default_attrs.update(attrs)
+        super().__init__(default_attrs)
+
+    def render(self, name, value, attrs=None, renderer=None):
+        if value:
+            value = json.dumps(value)
+        return super().render(name, value, attrs)
+
+    def value_from_datadict(self, data, files, name):
+        selected = []
+        for item in data.getlist(name):
+            selected.append(json.loads(item))
+        return selected

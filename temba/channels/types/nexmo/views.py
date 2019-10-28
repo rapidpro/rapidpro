@@ -14,7 +14,7 @@ from temba.channels.views import (
     BaseClaimNumberMixin,
     ClaimViewMixin,
 )
-from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, Org
+from temba.orgs.models import Org
 from temba.utils import analytics
 from temba.utils.models import generate_uuid
 
@@ -164,8 +164,8 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         config = {
             Channel.CONFIG_NEXMO_APP_ID: app_id,
             Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: app_private_key,
-            Channel.CONFIG_NEXMO_API_KEY: org_config[NEXMO_KEY],
-            Channel.CONFIG_NEXMO_API_SECRET: org_config[NEXMO_SECRET],
+            Channel.CONFIG_NEXMO_API_KEY: org_config[Org.CONFIG_NEXMO_KEY],
+            Channel.CONFIG_NEXMO_API_SECRET: org_config[Org.CONFIG_NEXMO_SECRET],
             Channel.CONFIG_CALLBACK_DOMAIN: callback_domain,
         }
 

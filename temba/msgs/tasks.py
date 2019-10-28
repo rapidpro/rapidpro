@@ -6,10 +6,20 @@ from django.utils import timezone
 
 from celery.task import task
 
+from temba.channels.models import Channel
 from temba.utils import analytics
 from temba.utils.celery import nonoverlapping_task
 
-from .models import Broadcast, BroadcastMsgCount, ExportMessagesTask, LabelCount, Msg, SystemLabelCount
+from .models import (
+    ERRORED,
+    OUTGOING,
+    Broadcast,
+    BroadcastMsgCount,
+    ExportMessagesTask,
+    LabelCount,
+    Msg,
+    SystemLabelCount,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +44,7 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
     )
 
     broadcast = Broadcast.create(org, user, text, contact_ids=contact_ids)
-    broadcast.send(expressions_context={})
+    broadcast.send()
 
     analytics.track(user.username, "temba.broadcast_created", dict(contacts=len(contact_ids), groups=0, urns=0))
 
@@ -121,6 +131,21 @@ def export_messages_task(export_id):
     Export messages to a file and e-mail a link to the user
     """
     ExportMessagesTask.objects.get(id=export_id).perform()
+
+
+@nonoverlapping_task(track_started=True, name="retry_errored_messages", lock_timeout=300)
+def retry_errored_messages():
+    """
+    Requeues any messages that have errored and have a next attempt in the past
+    """
+    errored_msgs = (
+        Msg.objects.filter(direction=OUTGOING, status=ERRORED, next_attempt__lte=timezone.now())
+        .exclude(topup=None)
+        .exclude(channel__channel_type=Channel.TYPE_ANDROID)
+        .order_by("created_on")
+        .prefetch_related("channel")[:5000]
+    )
+    Msg.send_messages(errored_msgs)
 
 
 @nonoverlapping_task(track_started=True, name="squash_msgcounts", lock_timeout=7200)

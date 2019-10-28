@@ -70,13 +70,13 @@ class AdminBoundary(MPTTModel, models.Model):
     geometries = GeometryManager()
 
     @staticmethod
-    def get_geojson_dump(features):
+    def get_geojson_dump(name, features):
         # build a feature collection
         feature_collection = geojson.FeatureCollection(features)
-        return geojson.dumps(feature_collection)
+        return geojson.dumps({"name": name, "geometry": feature_collection})
 
     def as_json(self):
-        result = dict(osm_id=self.osm_id, name=self.name, level=self.level, aliases="")
+        result = dict(osm_id=self.osm_id, name=self.name, level=self.level, aliases="", path=self.path)
 
         if self.parent:
             result["parent_osm_id"] = self.parent.osm_id
@@ -93,13 +93,13 @@ class AdminBoundary(MPTTModel, models.Model):
         )
 
     def get_geojson(self):
-        return AdminBoundary.get_geojson_dump([self.get_geojson_feature()])
+        return AdminBoundary.get_geojson_dump(self.name, [self.get_geojson_feature()])
 
     def get_children_geojson(self):
         children = []
         for child in self.children.all():
             children.append(child.get_geojson_feature())
-        return AdminBoundary.get_geojson_dump(children)
+        return AdminBoundary.get_geojson_dump(self.name, children)
 
     def update(self, **kwargs):
         AdminBoundary.objects.filter(id=self.id).update(**kwargs)

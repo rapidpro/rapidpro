@@ -29,7 +29,7 @@
         Recipient
           -if object.msg
             %a{href:'{% url "contacts.contact_read" object.msg.contact.uuid %}'}
-              {{object.msg.contact_urn.path}}
+              {{object.msg.contact_urn.get_display}}
           -elif object.connection_type
             %a{href:'{% url "contacts.contact_read" object.contact.uuid %}'}
               {{object.contact_urn.path}}
@@ -68,7 +68,7 @@
           {{object.msg.get_status_display}}
 
   -if object.connection_type
-    -for log in object.get_logs
+    -for log in object.channel_logs.all
       -include "channels/channellog_log.haml"
   -else
     -for log in object.log_group

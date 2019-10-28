@@ -1,4 +1,5 @@
 import time
+from enum import Enum
 
 from django_redis import get_redis_connection
 
@@ -17,12 +18,20 @@ CONTACT_QUEUE = "c:%d:%d"
 BATCH_QUEUE = "batch"
 HANDLER_QUEUE = "handler"
 
-# task types
-START_FLOW_TASK = "start_flow"
-HANDLE_CONTACT_EVENT_TASK = "handle_contact_event"
-MSG_EVENT_TASK = "msg_event"
-MO_MISS_EVENT_TASK = "mo_miss"
-SEND_BROADCAST_TASK = "send_broadcast"
+
+class HandlerTask(Enum):
+    CONTACT_EVENT = "handle_contact_event"
+
+
+class ContactEvent(Enum):
+    MSG = "msg_event"
+    MO_MISS = "mo_miss"
+
+
+class BatchTask(Enum):
+    START_FLOW = "start_flow"
+    SEND_BROADCAST = "send_broadcast"
+    INTERRUPT_SESSIONS = "interrupt_sessions"
 
 
 def queue_msg_handling(msg):
@@ -44,7 +53,7 @@ def queue_msg_handling(msg):
         "new_contact": getattr(msg.contact, "is_new", False),
     }
 
-    _queue_handler_task(msg.org_id, msg.contact_id, MSG_EVENT_TASK, msg_task)
+    _queue_handler_task(msg.org_id, msg.contact_id, ContactEvent.MSG, msg_task)
 
 
 def queue_mo_miss_event(event):
@@ -54,7 +63,7 @@ def queue_mo_miss_event(event):
 
     event_task = {
         "id": event.id,
-        "event_type": MO_MISS_EVENT_TASK,
+        "event_type": ContactEvent.MO_MISS.value,
         "org_id": event.org_id,
         "channel_id": event.channel_id,
         "contact_id": event.contact_id,
@@ -64,7 +73,7 @@ def queue_mo_miss_event(event):
         "new_contact": getattr(event.contact, "is_new", False),
     }
 
-    _queue_handler_task(event.org_id, event.contact_id, MO_MISS_EVENT_TASK, event_task)
+    _queue_handler_task(event.org_id, event.contact_id, ContactEvent.MO_MISS, event_task)
 
 
 def queue_broadcast(broadcast):
@@ -74,7 +83,7 @@ def queue_broadcast(broadcast):
 
     task = {
         "translations": {lang: {"text": text} for lang, text in broadcast.text.items()},
-        "template_state": "legacy",
+        "template_state": broadcast.get_template_state(),
         "base_language": broadcast.base_language,
         "urns": [u.urn for u in broadcast.urns.all()],
         "contact_ids": list(broadcast.contacts.values_list("id", flat=True)),
@@ -83,7 +92,7 @@ def queue_broadcast(broadcast):
         "org_id": broadcast.org_id,
     }
 
-    _queue_batch_task(broadcast.org_id, SEND_BROADCAST_TASK, task, HIGH_PRIORITY)
+    _queue_batch_task(broadcast.org_id, BatchTask.SEND_BROADCAST, task, HIGH_PRIORITY)
 
 
 def queue_flow_start(start):
@@ -100,12 +109,31 @@ def queue_flow_start(start):
         "flow_type": start.flow.flow_type,
         "contact_ids": list(start.contacts.values_list("id", flat=True)),
         "group_ids": list(start.groups.values_list("id", flat=True)),
+        "query": start.query,
         "restart_participants": start.restart_participants,
         "include_active": start.include_active,
         "extra": start.extra,
     }
 
-    _queue_batch_task(org_id, START_FLOW_TASK, task, HIGH_PRIORITY)
+    _queue_batch_task(org_id, BatchTask.START_FLOW, task, HIGH_PRIORITY)
+
+
+def queue_interrupt(org, *, contacts=None, channel=None, flow=None):
+    """
+    Queues an interrupt task for handling by mailroom
+    """
+
+    assert contacts or channel or flow, "must specify either a set of contacts or a channel or a flow"
+
+    task = {}
+    if contacts:
+        task["contact_ids"] = [c.id for c in contacts]
+    if channel:
+        task["channel_ids"] = [channel.id]
+    if flow:
+        task["flow_ids"] = [flow.id]
+
+    _queue_batch_task(org.id, BatchTask.INTERRUPT_SESSIONS, task, HIGH_PRIORITY)
 
 
 def _queue_batch_task(org_id, task_type, task, priority):
@@ -135,7 +163,7 @@ def _queue_handler_task(org_id, contact_id, task_type, task):
 
     # then push a contact handling event to the org queue
     event_task = {"contact_id": contact_id}
-    _queue_task(pipe, org_id, HANDLER_QUEUE, HANDLE_CONTACT_EVENT_TASK, event_task, HIGH_PRIORITY)
+    _queue_task(pipe, org_id, HANDLER_QUEUE, HandlerTask.CONTACT_EVENT, event_task, HIGH_PRIORITY)
     pipe.execute()
 
 
@@ -173,4 +201,4 @@ def _create_mailroom_task(org_id, task_type, task):
     """
     Returns a mailroom format task job based on the task type and passed in task
     """
-    return {"type": task_type, "org_id": org_id, "task": task, "queued_on": timezone.now()}
+    return {"type": task_type.value, "org_id": org_id, "task": task, "queued_on": timezone.now()}
