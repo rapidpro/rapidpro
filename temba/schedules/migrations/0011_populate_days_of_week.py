@@ -58,6 +58,6 @@ def populate_days_of_week(apps, schema_editor):  # pragma: no cover
 
 class Migration(migrations.Migration):
 
-    dependencies = [("schedules", "0009_auto_20190822_1823")]
+    dependencies = [("schedules", "0010_populate_org")]
 
     operations = [migrations.RunPython(populate_days_of_week, noop)]
