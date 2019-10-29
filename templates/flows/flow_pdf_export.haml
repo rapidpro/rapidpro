@@ -12,6 +12,24 @@
   -compress css
     {% lessblock %}
       :plain
+
+        body, html {
+          margin: 0;
+          padding: 0;
+        }
+
+        #flow {
+          height: auto !important;
+        }
+
+        #flow .node.action-node .action, #flow .node.rule-node .rules .rule {
+          color: #333 !important;
+        }
+
+        .print-header, .logo, #header, #big-logo, ul#top-menu, .org-header, .languages, #show-simulator {
+          display: none;
+        }
+
         .empty {
           margin-left: 30px;
 

@@ -424,6 +424,7 @@ PERMISSIONS = {
         "simulate",
         "upload_action_recording",
         "upload_media_action",
+        "pdf_export",
     ),
     "flows.flowsession": ("json",),
     "msgs.msg": (
@@ -761,6 +762,7 @@ GROUP_PERMISSIONS = {
         "flows.flow_revisions",
         "flows.flow_run_table",
         "flows.flow_simulate",
+        "flows.flow_pdf_export",
         "msgs.broadcast_schedule_list",
         "msgs.broadcast_schedule_read",
         "msgs.msg_archived",
