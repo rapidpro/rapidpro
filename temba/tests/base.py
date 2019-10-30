@@ -1,5 +1,5 @@
 import shutil
-from datetime import datetime, timedelta
+from datetime import datetime
 from uuid import uuid4
 
 import pytz
@@ -375,33 +375,19 @@ class TembaTestMixin:
         """
         Asserts the cell values in the given worksheet row. Date values are converted using the provided timezone.
         """
-        expected_values = []
-        for expected in values:
-            # if expected value is datetime, localize and remove microseconds
-            if isinstance(expected, datetime):
-                expected = expected.astimezone(tz).replace(microsecond=0, tzinfo=None)
 
-            expected_values.append(expected)
+        row = tuple(sheet.rows)[row_num]
 
-        rows = tuple(sheet.rows)
-
-        actual_values = []
-        for cell in rows[row_num]:
-            actual = cell.value
-
+        for index, expected in enumerate(values):
+            actual = row[index].value if index < len(row) else None
             if actual is None:
                 actual = ""
 
-            actual_values.append(actual)
+            # if expected value is datetime, localize and remove microseconds since Excel doesn't have that accuracy
+            if tz and isinstance(expected, datetime):
+                expected = expected.astimezone(tz).replace(microsecond=0, tzinfo=None)
 
-        for index, expected in enumerate(expected_values):
-            actual = actual_values[index]
-
-            if isinstance(expected, datetime):
-                close_enough = abs(expected - actual) < timedelta(seconds=1)
-                self.assertTrue(close_enough, f"datetime value {expected} doesn't match {actual} in column {index}")
-            else:
-                self.assertEqual(expected, actual, f"mismatch in column {index}")
+            self.assertEqual(expected, actual, f"mismatch in cell {chr(index+65)}{row_num+1}")
 
     def assertExcelSheet(self, sheet, rows, tz=None):
         """
