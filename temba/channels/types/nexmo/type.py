@@ -1,6 +1,6 @@
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.models import ChannelType
+from temba.channels.models import Channel, ChannelType
 from temba.channels.types.nexmo.views import ClaimView
 from temba.channels.views import UpdateNexmoForm
 from temba.contacts.models import TEL_SCHEME
@@ -68,7 +68,7 @@ class NexmoType(ChannelType):
         ),
         dict(
             label=_("Callback URL for Incoming Call"),
-            url="https://{{ channel.callback_domain }}{% url 'handlers.nexmo_call_handler' 'answer' channel.uuid %}",
+            url="https://{{ channel.callback_domain }}{% url 'mailroom.ivr_handler' channel.uuid 'incoming' %}",
             description=_("The callback URL is called by Nexmo when you receive an incoming call."),
         ),
     )
@@ -97,3 +97,9 @@ class NexmoType(ChannelType):
         org = user.get_org()
         countrycode = timezone_to_country_code(org.timezone)
         return countrycode in NEXMO_RECOMMENDED_COUNTRIES
+
+    def deactivate(self, channel):
+        app_id = channel.config.get(Channel.CONFIG_NEXMO_APP_ID)
+        if app_id:
+            client = channel.org.get_nexmo_client()
+            client.delete_application(app_id)

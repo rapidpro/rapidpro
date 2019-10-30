@@ -1,14 +1,127 @@
 -load contacts humanize smartmin temba i18n sms
 
--for item in activity
-  %tr{class:"{{item|history_class}}"}
+-for event in history
+  %tr(class="{{event|history_class}}")
     %td.icon
-      %span.det{title:'{% if item.obj.channel %}{{item.obj.channel.get_channel_type_name}} {{item.obj.channel.get_name}}{% endif %}'}
-        {{item|activity_icon}}
+      %span.det(title='{% if event.obj.channel %}{{event.obj.channel.get_channel_type_name}} {{event.obj.channel.get_name}}{% endif %}')
+        {{ event|history_icon }}
 
     %td.details.wrapped
-      -if item.type == 'msg'
-        -with item.obj as msg
+      -if event.type == 'airtime_transferred'
+        -with event.obj as transfer
+          -if transfer.status == 'S'
+            -blocktrans with amount=transfer.actual_amount currency=transfer.currency
+              Transferred <b>{{ amount }}</b> <b>{{ currency }}</b> of airtime
+          -else
+            -trans "Airtime transfer failed"
+
+      -elif event.type == 'call_started'
+        -with event.obj as call
+          -if call.status == 'D'
+            -trans "Call Started"
+          -else
+            {{ call.get_status_display }}
+
+      -elif event.type == 'campaign_fired'
+        -with event.obj as eventfire
+          %a(href='{%url "campaigns.campaign_read" eventfire.event.campaign.id %}')><
+            {{ eventfire.event.campaign.name }}
+
+          -if eventfire.fired_result == 'S'
+            &nbsp;skipped
+          -else
+            &nbsp;triggered
+
+          %a(href='{%url "campaigns.campaignevent_read" eventfire.event.id %}')
+            {{ eventfire.event|campaign_event_time }}
+
+      -elif event.type == 'channel_event'
+        -with event.obj as ch_event
+          -if ch_event.event_type == 'mt_miss'
+            -trans "Missed outgoing call"
+          -if ch_event.event_type == 'mo_miss'
+            -trans "Missed incoming call"
+          -elif ch_event.event_type == 'new_conversation'
+            -trans "Started Conversation"
+          -elif ch_event.event_type == 'welcome_message'
+            -trans "Welcome Message Sent"
+          -elif ch_event.event_type == 'referral'
+            -trans "Referred"
+          -elif ch_event.event_type == 'follow'
+            -trans "Followed"
+          -elif ch_event.event_type == 'stop_contact'
+            -trans "Stopped"
+          -elif ch_event.event_type == 'mt_call'
+            -trans "Outgoing Phone Call"
+            ({{ ch_event.extra.duration|format_seconds }})
+          -elif ch_event.event_type == 'mo_call'
+            -trans "Incoming Phone call"
+            ({{ ch_event.extra.duration|format_seconds }})
+          -else
+            -trans "Unknown/Unsupported"
+
+      -elif event.type == 'contact_field_changed'
+        -if event.value
+          -blocktrans with name=event.field.name value=event.value.text
+            Field <b>{{ name }}</b> updated to <b>{{ value }}</b>
+        -else
+          -blocktrans with name=event.field.name
+            Field <b>{{ name }}</b> cleared
+
+      -elif event.type == 'contact_groups_changed'
+        -if event.groups_added
+          -trans "Added to groups"
+          -for group in event.groups_added
+            <a href="{% url 'contacts.contact_filter' group.uuid %}">{{ group.name }}</a>{{ forloop|oxford }}
+        -if event.groups_added and event.groups_removed
+          %br
+        -if event.groups_removed
+          -trans "Removed from groups"
+          -for group in event.groups_removed
+            <a href="{% url 'contacts.contact_filter' group.uuid %}">{{ group.name }}</a>{{ forloop|oxford }}
+
+      -elif event.type == 'contact_language_changed'
+        -if event.language
+          -blocktrans with language=event.language
+            Language updated to <b>{{ language }}</b>
+        -else
+          -trans "Language cleared"
+
+      -elif event.type == 'contact_name_changed'
+        -if event.name
+          -blocktrans with name=event.name
+            Name updated to <b>{{ name }}</b>
+        -else
+          -trans "Name cleared"
+
+      -elif event.type == 'contact_urns_changed'
+        -trans "URNs updated to"
+        -for urn in event.urns
+          <b>{{ urn|format_urn:user_org }}</b>{{ forloop|oxford }}
+
+      -elif event.type == 'email_created'
+        -blocktrans with subject=event.subject
+          Email sent with subject <b>{{ subject }}</b>
+
+      -elif event.type == 'flow_entered' or event.type == 'flow_exited'
+        -with event.obj as run
+          .activity-run
+            .activity-body
+              .summary
+              -if event.type == 'flow_exited'
+                {{ run.get_exit_type_display }}
+              -else
+                -trans "Started"
+              %a(href="{% url 'flows.flow_editor' run.flow.uuid %}")
+                {{ run.flow.name }}
+
+      -elif event.type == 'input_labels_added'
+        -trans "Message labelled as"
+        -for label in event.labels
+          <a href="{% url 'msgs.msg_filter' label.uuid %}">{{ label.name }}</a>{{ forloop|oxford }}
+
+      -elif event.type == 'msg_created' or event.type == 'msg_received'
+        -with event.obj as msg
           .activity-message
             -if msg.direction == 'O' and msg.broadcast.recipient_count > 1
               .sent-to
@@ -16,99 +129,47 @@
                   Broadcast to {{msg.broadcast.recipient_count|intcomma}} recipients
 
             .activity-body
-              -if item.obj.text
-                .text{ style:"{% if msg.attachments %}margin-bottom:10px{% endif %}" }
-                  {{item.obj.text}}
+              -if msg.text
+                .text(style="{% if msg.attachments %}margin-bottom:10px{% endif %}")
+                  {{ msg.text }}
 
               -for attachment in msg.attachments
                 {% attachment_button attachment %}
 
-      -elif item.type == 'channel-event'
-        -with item.obj as event
-          -if event.event_type == 'mt_miss'
-            -trans "Missed outgoing call"
-          -if event.event_type == 'mo_miss'
-            -trans "Missed incoming call"
-          -elif event.event_type == 'new_conversation'
-            -trans "Started Conversation"
-          -elif event.event_type == 'welcome_message'
-            -trans "Welcome Message Sent"
-          -elif event.event_type == 'referral'
-            -trans "Referred"
-          -elif event.event_type == 'follow'
-            -trans "Followed"
-          -elif event.event_type == 'stop_contact'
-            -trans "Stopped"
-          -elif event.event_type == 'mt_call'
-            -trans "Outgoing Phone Call"
-            ({{event.extra.duration|format_seconds}})
-          -elif event.event_type == 'mo_call'
-            -trans "Incoming Phone call"
-            ({{event.extra.duration|format_seconds}})
-          -else
-            -trans "Unknown/Unsupported"
+      -elif event.type == 'run_result_changed'
+        -blocktrans with name=event.name category=event.category value=event.value
+          Run result <b>{{ name }}</b> updated to <b>{{ value }}</b> with category <b>{{ category }}</b>
 
-      -elif item.type == 'call'
-        -with item.obj as call
-          -if call.status == 'D'
-            -trans "Call Started"
-          -else
-            {{call.get_status_display}}
-
-      -elif item.type == 'run-start' or item.type == 'run-exit'
-        -with item.obj as run
-          .activity-run
-            .activity-body
-              .summary
-              -if item.type == 'run-exit'
-                {{ run.get_exit_type_display }}
-              -else
-                Started
-              %a{href:'{% url "flows.flow_editor" run.flow.uuid %}'}
-                {{run.flow.name}}
-
-      -elif item.type == 'event-fire'
-        -with item.obj as eventfire
-          %a{href:'{%url "campaigns.campaign_read" eventfire.event.campaign.pk %}'}><
-            {{eventfire.event.campaign.name}}
-
-          -if eventfire.fired_result == 'S'
-            &nbsp;skipped
-          -else
-            &nbsp;triggered
-
-          %a{href:'{%url "campaigns.campaignevent_read" eventfire.event.pk %}'}
-            {{eventfire.event|event_time}}
-
-      -elif item.type == 'webhook-result'
-        -with item.obj as result
+      -elif event.type == 'webhook_called'
+        -with event.obj as result
           -if result.is_success
             -trans "Successfully called"
           -else
             -trans "Failed to call"
-          {{result.url|truncatechars:100}}
+          {{ result.url|truncatechars:100 }}
 
     %td.created_on
       %span.time
         %span.short
-          {% short_datetime item.time %}
+          {% short_datetime event.created_on %}
         %span.long.hide
-          {% pretty_datetime item.time %}
+          {% pretty_datetime event.created_on %}
 
       .log-icon
-        -if not user_org.is_anon or perms.contacts.contact_break_anon
-          -if item.type == 'msg' or item.type == 'call'
-            {% channel_log_link item.obj %}
+        -if event.type == 'msg_created' or event.type == 'msg_received' or event.type == 'call_started'
+          {% channel_log_link event.obj %}
 
-          -if perms.flows.flowsession_json
-            -if item.type == 'run-start' or item.type == 'run-exit'
-              -if item.obj.session_id
-                %a{href:"{% url 'flows.flowsession_json' item.obj.session_id %}"}
-                  .icon-docs-2
+        -elif event.type == 'airtime_transferred'
+          %a(href="{% url 'airtime.airtimetransfer_read' event.obj.id %}")
+            .icon-docs-2
 
-          -if item.type == 'webhook-result'
-            %a{href:"{%url 'api.webhookresult_read' item.obj.id %}"}
-              .icon-docs-2
+        -elif event.type == 'webhook_called'
+          %a(href="{% url 'api.webhookresult_read' event.obj.id %}")
+            .icon-docs-2
+
+        -elif event.type == 'flow_entered' and perms.flows.flowsession_json and event.obj.session
+          %a(href="{% url 'flows.flowsession_json' event.obj.session.uuid %}")
+            .icon-docs-2
 
 -if has_older and not recent_only
   %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{after}}&before={{before}}", 
@@ -121,8 +182,7 @@
     %tr.archive-note
       %td(colspan=3)><
         -blocktrans with start=start_date
-          Any messages prior to {{start}} can be found in your
+          Any messages prior to {{ start }} can be found in your
         %a(href="{% url 'archives.archive_message'%}")><
           -trans "archive"
         \.
-

@@ -49,7 +49,13 @@ class APIPermission(BasePermission):
                 return False
 
             codename = view.permission.split(".")[-1]
-            return role_group.permissions.filter(codename=codename).exists()
+            has_perm = role_group.permissions.filter(codename=codename).exists()
+
+            # viewers can only ever get from the API
+            if role_group.name == "Viewers":
+                return has_perm and request.method == "GET"
+
+            return has_perm
 
         else:  # pragma: no cover
             return True
@@ -94,22 +100,11 @@ class Resthook(SmartModel):
 
         return resthook
 
-    def get_subscriber_urls(self):
-        return [s.target_url for s in self.subscribers.filter(is_active=True).order_by("created_on")]
-
     def add_subscriber(self, url, user):
         subscriber = self.subscribers.create(target_url=url, created_by=user, modified_by=user)
         self.modified_by = user
         self.save(update_fields=["modified_on", "modified_by"])
         return subscriber
-
-    def remove_subscriber(self, url, user):
-        now = timezone.now()
-        self.subscribers.filter(target_url=url, is_active=True).update(
-            is_active=False, modified_on=now, modified_by=user
-        )
-        self.modified_by = user
-        self.save(update_fields=["modified_on", "modified_by"])
 
     def release(self, user):
         # release any active subscribers
@@ -171,11 +166,6 @@ class WebHookEvent(models.Model):
 
     # when this event was created
     created_on = models.DateTimeField(default=timezone.now)
-
-    # TODO drop these when mailroom no longer writes them
-    status = models.CharField(max_length=1, null=True)
-    event = models.CharField(max_length=16, null=True)
-    try_count = models.IntegerField(null=True)
 
     def release(self):
         self.delete()
@@ -366,16 +356,3 @@ def api_token(user):
 
 
 User.api_token = property(api_token)
-
-
-def get_api_user():
-    """
-    Returns a user that can be used to associate events created by the API service
-    """
-    user = User.objects.filter(username="api")
-    if user:
-        return user[0]
-    else:
-        user = User.objects.create_user("api", "code@temba.com")
-        user.groups.add(Group.objects.get(name="Service Users"))
-        return user

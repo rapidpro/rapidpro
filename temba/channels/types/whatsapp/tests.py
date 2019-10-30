@@ -13,7 +13,7 @@ from .tasks import (
     refresh_whatsapp_templates,
     refresh_whatsapp_tokens,
 )
-from .type import CONFIG_FB_TEMPLATE_LIST_DOMAIN, CONFIG_FB_BUSINESS_ID, WhatsAppType
+from .type import CONFIG_FB_BUSINESS_ID, CONFIG_FB_TEMPLATE_LIST_DOMAIN, WhatsAppType
 
 
 class WhatsAppTypeTest(TembaTest):

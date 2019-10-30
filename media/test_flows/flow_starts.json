@@ -12,14 +12,7 @@
             "x": 100,
             "destination": "f4eba3d0-3bfc-4564-a3ee-662cb0fac950",
             "uuid": "f1eaf53b-27d8-4e93-818e-4c4808b21976",
-            "actions": [
-              {
-                "field": "name",
-                "type": "save",
-                "value": "Greg",
-                "label": "Contact Name"
-              }
-            ]
+            "actions": []
           }
         ],
         "last_saved": "2015-03-31T13:24:32.741812Z",
