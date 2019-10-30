@@ -26,10 +26,13 @@ class BaseScheduleForm(object):
 
     def clean_repeat_days_of_week(self):
         data = self.cleaned_data["repeat_days_of_week"]
-        if data:
-            for c in data:
-                if c not in Schedule.DAYS_OF_WEEK_OFFSET:
-                    raise forms.ValidationError(_("%(day)s is not a valid day of the week"), params={"day": c})
+
+        # validate days of the week for weekly schedules
+        if self.cleaned_data["repeat_period"] == Schedule.REPEAT_WEEKLY:
+            if data:
+                for c in data:
+                    if c not in Schedule.DAYS_OF_WEEK_OFFSET:
+                        raise forms.ValidationError(_("%(day)s is not a valid day of the week"), params={"day": c})
 
         return data
 

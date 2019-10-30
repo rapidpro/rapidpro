@@ -181,6 +181,22 @@ def omnibox_mixed_search(org, search, types):
     return results  # sorted(results, key=lambda o: o.name if hasattr(o, 'name') else o.path)
 
 
+def omnibox_serialize(org, groups, contacts):
+    """
+    Shortcut for proper way to serialize a queryset of groups and contacts for omnibox component
+    """
+    return omnibox_results_to_dict(org, list(groups) + list(contacts), 2)
+
+
+def omnibox_deserialize(org, omnibox):
+    group_ids = [item["id"] for item in omnibox if item["type"] == "group"]
+    contact_ids = [item["id"] for item in omnibox if item["type"] == "contact"]
+    return {
+        "groups": ContactGroup.all_groups.filter(uuid__in=group_ids, org=org, is_active=True),
+        "contacts": Contact.objects.filter(uuid__in=contact_ids, org=org, is_active=True),
+    }
+
+
 def omnibox_results_to_dict(org, results, version="1"):
     """
     Converts the result of a omnibox query (queryset of contacts, groups or URNs, or a list) into a dict {id, text}

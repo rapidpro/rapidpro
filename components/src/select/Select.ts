@@ -26,6 +26,7 @@ export default class Select extends FormElement {
       :host {
         transition: all ease-in-out 200ms;
         display: block;
+        line-height: normal;
       }
 
       input::placeholder {
@@ -120,6 +121,7 @@ export default class Select extends FormElement {
       .selected .selected-item {
         display: flex;
         overflow: hidden;
+        font-size: 13px;
       }
 
       .multi .selected .selected-item {
@@ -135,13 +137,14 @@ export default class Select extends FormElement {
       }
 
       .selected-item .name {
-        padding: 5px 4px;
+        padding: 6px 4px;
         font-size: 13px;
+        line-height: 14px;
       }
 
       .multi .selected-item .name {
         padding: 3px 4px;  
-        font-size: 90%;
+        font-size: 11px;
         margin: 0;
         flex: 1;
         align-self: center;
@@ -268,36 +271,6 @@ export default class Select extends FormElement {
   private lruCache = flru(20);
   private staticOptions: StaticOption[] = [];
   
-  public constructor() {
-    super();
-
-    if (this.searchable) {
-      this.quietMillis = 200;
-    }
-
-    for (const child of this.children) {
-      if (child.tagName === "RP-OPTION") {
-        const name = child.getAttribute("name");
-        const value = child.getAttribute("value");
-
-        const option = {name, value};
-        this.staticOptions.push(option);
-
-        if (child.getAttribute("selected") !== null) {
-          if (this.getAttribute("multi") !== null) {
-            this.addValue(option);
-          } else {
-            this.setValue(option);
-          }
-        }
-      }
-    }
-
-    if (!this.hasAttribute('tabindex')) {
-      this.setAttribute('tabindex', "0");
-    }
-  }
-
   public updated(changedProperties: Map<string, any>) {
     super.updated(changedProperties);
 
@@ -530,6 +503,36 @@ export default class Select extends FormElement {
   public firstUpdated(changedProperties: any) {
     super.firstUpdated(changedProperties);
     this.anchorElement = this.shadowRoot.querySelector(".select-container");
+
+    if (this.searchable) {
+      this.quietMillis = 200;
+    }
+
+    if (!this.hasAttribute('tabindex')) {
+      this.setAttribute('tabindex', "0");
+    }
+
+    // wait until children are created before adding our static options
+    window.setTimeout(()=>{
+      for (const child of this.children) {
+        if (child.tagName === "RP-OPTION") {
+          const name = child.getAttribute("name");
+          const value = child.getAttribute("value");  
+          const option = {name, value};
+          this.staticOptions.push(option);
+  
+          if (child.getAttribute("selected") !== null) {
+            if (this.getAttribute("multi") !== null) {
+              this.addValue(option);
+            } else {
+              this.setValue(option);
+            }
+          }
+        }
+      }
+  
+    }, 0)
+
   }
 
   private handleArrowClick(event: MouseEvent): void {
@@ -572,7 +575,6 @@ export default class Select extends FormElement {
     // if we are single select and have a selection, no input
     if (!this.multi && this.values.length > 0) {
       hasInput = false;
-      
     }
 
     return html`

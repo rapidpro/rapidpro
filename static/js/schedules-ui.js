@@ -118,6 +118,7 @@ function resetStartDatetime() {
         datetime.val('');
         $('#schedule-next-run').show();
     }
+
     datetime.focus();
     setDatetimeValue(datetime.val());
 
