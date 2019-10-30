@@ -3,6 +3,7 @@ import RapidElement from '../RapidElement';
 import axios, { CancelTokenSource, AxiosResponse } from 'axios';
 import { getUrl, plural, fillTemplate } from '../utils';
 import TextInput from '../textinput/TextInput';
+import '../alert/Alert';
 import { Contact } from '../interfaces';
 import { styleMap } from 'lit-html/directives/style-map';
 
@@ -89,6 +90,10 @@ export default class ContactSearch extends RapidElement {
         margin-top: 10px;
         margin-right: 10px;
         opacity: 0;
+      }
+
+      .error {
+        margin-top: 10px;
       }
     `
   }
@@ -205,6 +210,8 @@ export default class ContactSearch extends RapidElement {
           </tr>
           </table>
         `;
+      } else {
+        summary = html`<div class="error"><rp-alert level="error">${this.summary.error}</rp-alert></div>`
       }
     }
 

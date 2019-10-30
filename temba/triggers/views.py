@@ -426,7 +426,7 @@ class TriggerCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             if self.get_object().schedule:
-                context["days"] = self.get_object().schedule.repeat_days_of_week
+                context["days"] = self.get_object().schedule.repeat_days_of_week or ""
             context["user_tz"] = get_current_timezone_name()
             context["user_tz_offset"] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() // 60)
             return context
