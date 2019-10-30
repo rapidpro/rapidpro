@@ -656,9 +656,6 @@ class TriggerCRUDL(SmartCRUDL):
             return context
 
         def form_invalid(self, form):
-            import pdb
-
-            pdb.set_trace()
             if "_format" in self.request.GET and self.request.GET["_format"] == "json":  # pragma: needs cover
                 return HttpResponse(
                     json.dumps(dict(status="error", errors=form.errors)), content_type="application/json", status=400

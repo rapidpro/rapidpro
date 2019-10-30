@@ -1,3 +1,4 @@
+import json
 import operator
 from functools import reduce
 
@@ -181,11 +182,16 @@ def omnibox_mixed_search(org, search, types):
     return results  # sorted(results, key=lambda o: o.name if hasattr(o, 'name') else o.path)
 
 
-def omnibox_serialize(org, groups, contacts):
+def omnibox_serialize(org, groups, contacts, json_encode=False):
     """
     Shortcut for proper way to serialize a queryset of groups and contacts for omnibox component
     """
-    return omnibox_results_to_dict(org, list(groups) + list(contacts), 2)
+    serialized = omnibox_results_to_dict(org, list(groups) + list(contacts), 2)
+
+    if json_encode:
+        return [json.dumps(_) for _ in serialized]
+
+    return serialized
 
 
 def omnibox_deserialize(org, omnibox):
