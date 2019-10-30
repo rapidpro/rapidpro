@@ -422,6 +422,35 @@ class TriggerTest(TembaTest):
         self.assertEqual(set(trigger.groups.all()), {linkin_park})
         self.assertEqual(set(trigger.contacts.all()), {shinoda})
 
+        # can't submit weekly repeat without specifying the days to repeat on
+        response = self.client.post(
+            update_url,
+            {
+                "flow": flow.id,
+                "omnibox": f"g-{linkin_park.uuid}",
+                "repeat_period": "W",
+                "start": "later",
+                "start_datetime_value": str(now_stamp),
+            },
+        )
+
+        self.assertFormError(response, "form", "__all__", "Must specify at least one day of the week")
+
+        # or submit with invalid days
+        response = self.client.post(
+            update_url,
+            {
+                "flow": flow.id,
+                "omnibox": f"g-{linkin_park.uuid}",
+                "repeat_period": "W",
+                "repeat_days_of_week": "X",
+                "start": "later",
+                "start_datetime_value": str(now_stamp),
+            },
+        )
+
+        self.assertFormError(response, "form", "repeat_days_of_week", "X is not a valid day of the week")
+
     def test_join_group_trigger(self):
         self.login(self.admin)
         group = self.create_group(name="Chat", contacts=[])

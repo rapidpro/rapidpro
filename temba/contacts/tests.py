@@ -4290,7 +4290,7 @@ class ContactTest(TembaTest):
             # bogus query
             response = self.client.get(search_url + '?search=name="notclosed')
             results = response.json()
-            self.assertEqual("Invalid query", results["error"])
+            self.assertEqual('Search query contains an error at: "', results["error"])
             self.assertEqual(0, results["total"])
 
             # if we query a field, it should show up in our field dict
