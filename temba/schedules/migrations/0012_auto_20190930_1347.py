@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("schedules", "0011_populate_org")]
+    dependencies = [("schedules", "0011_populate_days_of_week")]
 
     operations = [
         migrations.RemoveField(model_name="schedule", name="repeat_days"),
