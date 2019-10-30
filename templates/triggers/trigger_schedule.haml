@@ -41,8 +41,6 @@
     var user_tz_offset = {{ user_tz_offset }};
 
     $(document).ready(function() {
-        // select2div("#id_schedule_flow", "520px", '{% trans "Flow to start" %}');
-
         var initialDate;
         {% if form.start_datetime_value.value %}
           initialDate = new Date({{form.start_datetime_value.value}} * 1000);
@@ -56,9 +54,6 @@
         }
 
         initializeDatetimePicker(minDate, initialDate, false);
-
-        // initialize our omnibox
-        // prepareOmnibox();
     });
 
 
