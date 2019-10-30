@@ -1,3 +1,7 @@
+v5.2.1
+----------
+ * Fix order of Schedule migrations (thanks @matmsa27)
+
 v5.2.0
 ----------
  * Show date for broadcast schedules
