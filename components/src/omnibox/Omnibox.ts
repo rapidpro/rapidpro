@@ -64,9 +64,6 @@ export default class Omnibox extends RapidElement {
   @property({type: Boolean})
   urns: boolean = false;
 
-  @property({type: String})
-  queryParameter: string = "search";
-
   @property({type: Array})
   value: OmniOption[] = [];
 
@@ -123,7 +120,7 @@ export default class Omnibox extends RapidElement {
 
   private getEndpoint() {
     const endpoint = this.endpoint;
-    let types="types=";
+    let types="&types=";
     if (this.groups) {
       types += "g";
     }
@@ -144,8 +141,8 @@ export default class Omnibox extends RapidElement {
       <rp-select 
         name=${this.name}
         endpoint=${this.getEndpoint()}
-        queryParam=${this.queryParameter}
         placeholder=${this.placeholder}
+        queryParam="search"
         .values=${this.value}
         .renderOption=${this.renderOption.bind(this)}
         .renderSelectedItem=${this.renderSelection.bind(this)}

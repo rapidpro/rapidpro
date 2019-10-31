@@ -211,7 +211,7 @@ export default class Select extends FormElement {
   @property()
   endpoint: string;
 
-  @property()
+  @property({type: String})
   queryParam: string = 'q';
 
   @property({type: String})
@@ -412,9 +412,11 @@ export default class Select extends FormElement {
   }
 
   private handleFocus(): void {
-    this.focused = true;
-    if (this.searchOnFocus) {
-      this.requestUpdate("input");
+    if (!this.focused) {
+      this.focused = true;
+      if (this.searchOnFocus) {
+        this.requestUpdate("input");
+      }
     }
   }
 
@@ -431,7 +433,6 @@ export default class Select extends FormElement {
   }
 
   private handleKeyDown(evt: KeyboardEvent) {
-
     // see if we should open our options on a key event
     if(evt.key === 'Enter' || evt.key === 'ArrowDown' || (evt.key === 'n' && evt.ctrlKey)) {
       if (this.options.length === 0) {
@@ -475,19 +476,20 @@ export default class Select extends FormElement {
   }
 
   private handleContainerClick(event: MouseEvent) {
-    const input = this.shadowRoot.querySelector('input');
-    if(input) {
-      input.focus();
-      input.click();
-      return;
-    }
+    if ((event.target as any).tagName !== "INPUT") {
+      const input = this.shadowRoot.querySelector('input');
+      if(input) {
+        input.click();
+        return;
+      }
 
-    if (this.options.length > 0) {
-      this.options = [];
-      event.preventDefault();
-      event.stopPropagation();
-    } else {
-      this.requestUpdate("input");
+      if (this.options.length > 0) {
+        this.options = [];
+        event.preventDefault();
+        event.stopPropagation();
+      } else {
+        this.requestUpdate("input");
+      }
     }
   }
   
@@ -500,8 +502,10 @@ export default class Select extends FormElement {
     ];
   }
 
+  
   public firstUpdated(changedProperties: any) {
     super.firstUpdated(changedProperties);
+
     this.anchorElement = this.shadowRoot.querySelector(".select-container");
 
     if (this.searchable) {
