@@ -5567,6 +5567,11 @@ msgstr[1] "Respuesta"
 msgid "The message to send in response after they join the group (optional)"
 msgstr "El mensaje para enviar como respuesta después de unirse al grupo (opcional)"
 
+#, fuzzy
+#| msgid "Select All"
+msgid "Select a flow"
+msgstr "Elegir todos"
+
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr "Los grupos y contactos al que se comunicará el flujo"
 

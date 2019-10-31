@@ -1,3 +1,13 @@
+v5.2.5
+----------
+ * Fix various Schedule trigger UI validation errors
+ * Fix intermittently failing excel export tests
+ * Add noop reverse in migration
+
+v5.2.1
+----------
+ * Fix order of Schedule migrations (thanks @matmsa27)
+
 v5.2.0
 ----------
  * Show date for broadcast schedules
