@@ -4204,6 +4204,12 @@ class ExportFlowResultsTest(TembaTest):
         contact1_out3 = contact1_run1.get_messages().get(text__startswith="I love orange too")
         contact3_out1 = contact3_run1.get_messages().get(text="What is your favorite color?")
 
+        def msg_event_time(run, text):
+            for evt in run.get_msg_events():
+                if evt["msg"]["text"] == text:
+                    return iso8601.parse_date(evt["created_on"])
+            raise self.fail(f"no such message on run with text '{text}'")
+
         self.assertExcelRow(
             sheet_msgs,
             1,
@@ -4222,7 +4228,7 @@ class ExportFlowResultsTest(TembaTest):
             sheet_msgs,
             2,
             [
-                contact1_out1.contact.uuid,
+                self.contact.uuid,
                 "+250788382382",
                 "Eric",
                 contact1_out1.created_on,
@@ -4236,10 +4242,10 @@ class ExportFlowResultsTest(TembaTest):
             sheet_msgs,
             3,
             [
-                contact1_in1.contact.uuid,
+                self.contact.uuid,
                 "+250788382382",
                 "Eric",
-                contact1_in1.created_on,
+                msg_event_time(contact1_run1, "light beige"),
                 "IN",
                 "light beige",
                 "Test Channel",
@@ -4250,7 +4256,7 @@ class ExportFlowResultsTest(TembaTest):
             sheet_msgs,
             4,
             [
-                contact1_out2.contact.uuid,
+                self.contact.uuid,
                 "+250788382382",
                 "Eric",
                 contact1_out2.created_on,
@@ -4264,10 +4270,10 @@ class ExportFlowResultsTest(TembaTest):
             sheet_msgs,
             5,
             [
-                contact1_in2.contact.uuid,
+                self.contact.uuid,
                 "+250788382382",
                 "Eric",
-                contact1_in2.created_on,
+                msg_event_time(contact1_run1, "orange"),
                 "IN",
                 "orange",
                 "Test Channel",
@@ -4278,7 +4284,7 @@ class ExportFlowResultsTest(TembaTest):
             sheet_msgs,
             6,
             [
-                contact1_out3.contact.uuid,
+                self.contact.uuid,
                 "+250788382382",
                 "Eric",
                 contact1_out3.created_on,
@@ -5095,12 +5101,11 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_in1.contact.uuid,
                 "+250788382382",
                 "Eric",
-                contact1_in1.created_on,
+                matchers.Datetime(),
                 "IN",
                 "light beige",
                 "Test Channel",
             ],
-            tz,
         )
         self.assertExcelRow(
             sheet_msgs,
@@ -5119,8 +5124,7 @@ class ExportFlowResultsTest(TembaTest):
         self.assertExcelRow(
             sheet_msgs,
             5,
-            [contact1_in2.contact.uuid, "+250788382382", "Eric", contact1_in2.created_on, "IN", "red", "Test Channel"],
-            tz,
+            [contact1_in2.contact.uuid, "+250788382382", "Eric", matchers.Datetime(), "IN", "red", "Test Channel"],
         )
         self.assertExcelRow(
             sheet_msgs,
@@ -5417,7 +5421,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # no channel or phone
-        self.assertExcelRow(sheet_msgs, 2, [run.contact.uuid, "", "Eric", in1.created_on, "IN", "blue", ""], tz)
+        self.assertExcelRow(sheet_msgs, 2, [run.contact.uuid, "", "Eric", matchers.Datetime(), "IN", "blue", ""])
 
         # now try setting a submitted by on our run
         run.submitted_by = self.admin
