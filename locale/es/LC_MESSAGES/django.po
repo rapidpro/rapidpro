@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-25 20:40+0000\n"
+"POT-Creation-Date: 2019-10-30 00:35+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -5566,6 +5566,11 @@ msgstr[1] "Respuesta"
 
 msgid "The message to send in response after they join the group (optional)"
 msgstr "El mensaje para enviar como respuesta después de unirse al grupo (opcional)"
+
+#, fuzzy
+#| msgid "Select All"
+msgid "Select a flow"
+msgstr "Elegir todos"
 
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr "Los grupos y contactos al que se comunicará el flujo"

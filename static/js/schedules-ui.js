@@ -16,8 +16,11 @@ function initializeDatetimePicker(minDate, initialDate, showButtons) {
     var initialMinute = null;
 
     if (hasInitial) {
-        initialHour = initialDate.getHours();
-        initialMinute = initialDate.getMinutes();
+        // use our timezone shifted values
+        initialHour = initial.hour();
+        initialMinute = initial.minute();
+        initialDate = initial.toDate();
+
         $('#start-datetime').val(
             initial.format('dddd, MMMM D, YYYY [at] h:mm a')
         );
@@ -118,6 +121,7 @@ function resetStartDatetime() {
         datetime.val('');
         $('#schedule-next-run').show();
     }
+
     datetime.focus();
     setDatetimeValue(datetime.val());
 
