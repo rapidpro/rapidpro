@@ -2132,7 +2132,7 @@ class ContactTest(TembaTest):
 
         # escaped quotes
         query = parse_query(r'name ~ "O\"Learly"')
-        self.assertEqual(query.as_text(), r'name ~ "O\"Learly"')
+        self.assertEqual(query.as_text(), r'name ~ "O"Learly"')
 
     def test_contact_elastic_search(self):
         gender = ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type=Value.TYPE_TEXT)
