@@ -35,6 +35,8 @@ class TelegramType(ChannelType):
     attachment_support = True
     free_sending = True
 
+    redact_response_keys = {"first_name", "last_name", "username"}
+
     def activate(self, channel):
         config = channel.config
         bot = telegram.Bot(config["auth_token"])

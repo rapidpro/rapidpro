@@ -1,6 +1,5 @@
 import locale
 import resource
-from decimal import Decimal
 from itertools import islice
 
 import iso8601
@@ -9,7 +8,7 @@ from django_countries import countries
 from django.conf import settings
 from django.db import transaction
 
-TRANSFERTO_COUNTRY_NAMES = {"Democratic Republic of the Congo": "CD", "Ivory Coast": "CI", "United States": "US"}
+DTONE_COUNTRY_NAMES = {"Democratic Republic of the Congo": "CD", "Ivory Coast": "CI", "United States": "US"}
 
 
 def str_to_bool(text):
@@ -42,9 +41,7 @@ def format_number(val):
     if not val.is_finite():
         return ""
 
-    # convert our decimal to a value without exponent
-    val = val.quantize(Decimal(1)) if val == val.to_integral() else val.normalize()
-    val = str(val)
+    val = format(val, "f")
 
     if "." in val:
         val = val.rstrip("0").rstrip(".")  # e.g. 12.3000 -> 12.3
@@ -168,7 +165,7 @@ def get_country_code_by_name(name):
     code = countries.by_name(name)
 
     if not code:
-        code = TRANSFERTO_COUNTRY_NAMES.get(name, None)
+        code = DTONE_COUNTRY_NAMES.get(name, None)
 
     return code if code else None
 

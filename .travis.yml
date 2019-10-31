@@ -1,32 +1,41 @@
 # use container-based Ubuntu Trusty
-dist: trusty
+dist: bionic
 sudo: true
 
 language: python
 python:
-  - "3.6.6"
+  - "3.6.8"
 
 services:
   - redis-server
 
 env:
-  - PGDB=10
-  - PGDB=9.6
+  - PGDB=11 PGIS=2.5
+  - PGDB=10 PGIS=2.4
 
 cache:
   directories:
     - "$HOME/.cache/pip"
 
 before_install:
-  - sudo -E service postgresql stop 9.2
-  - sudo -E service postgresql stop 9.3
-  - sudo -E service postgresql stop 9.4
-  - sudo -E service postgresql stop 9.5
-  - sudo -E service postgresql stop 9.6
-  - sudo -E apt-get -yq --no-install-suggests --no-install-recommends $(travis_apt_get_options) install postgresql-$PGDB postgresql-client-$PGDB postgresql-$PGDB-postgis-2.4 postgresql-$PGDB-postgis-2.4-scripts
+  # install the chosen PG version
+  - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install postgresql-$PGDB postgresql-client-$PGDB postgresql-$PGDB-postgis-$PGIS postgresql-$PGDB-postgis-$PGIS-scripts
   - sudo -E sed -i -e '/local.*peer/s/postgres/all/' -e 's/peer\|md5/trust/g' /etc/postgresql/*/main/pg_hba.conf
   - sudo -E sed -i 's/port = 5433/port = 5432/' /etc/postgresql/*/main/postgresql.conf
-  - sudo -E service postgresql restart $PGDB
+
+  # give PG some time to finish setup
+  - sleep 10
+
+  # stop any running postgres versions
+  - sudo -E service postgresql stop 10
+  - sudo -E ps axuwww | grep -i postg
+
+  # possibly a Travis bug but data directory sometimes not initialized
+  - if [ ! -d /var/ramfs/postgresql/$PGDB/main ]; then sudo -u postgres /usr/lib/postgresql/$PGDB/bin/initdb -D /var/ramfs/postgresql/$PGDB/main; fi
+
+  # start the chosen PG version
+  - sudo -E systemctl -l restart postgresql@$PGDB-main
+  - sudo -E systemctl -l status postgresql@$PGDB-main
 
 install:
   # install Elasticsearch
@@ -36,12 +45,12 @@ install:
   - ./elasticsearch-${ES_VERSION}/bin/elasticsearch &
 
   # install mailroom
-  - MAILROOM_VERSION=1.0.1
+  - MAILROOM_VERSION=2.0.32
   - wget https://github.com/nyaruka/mailroom/releases/download/v${MAILROOM_VERSION}/mailroom_${MAILROOM_VERSION}_linux_amd64.tar.gz
   - tar -xvf mailroom_${MAILROOM_VERSION}_linux_amd64.tar.gz mailroom
 
   # install rp-indexer
-  - RPINDEXER_VERSION=1.0.25
+  - RPINDEXER_VERSION=2.0.0
   - wget https://github.com/nyaruka/rp-indexer/releases/download/v${RPINDEXER_VERSION}/rp-indexer_${RPINDEXER_VERSION}_linux_amd64.tar.gz
   - tar -xvf rp-indexer_${RPINDEXER_VERSION}_linux_amd64.tar.gz
 
@@ -91,8 +100,8 @@ script:
   
   # generate our locale messages
   - python manage.py makemessages -a -e haml,html,txt,py --ignore="env/*" --no-location --no-wrap | awk '/warning/ { print "makemessages contains warnings"; exit 1 }'
-  - python manage.py makemessages -d djangojs -a --ignore="env/*" --ignore="static/bower/*" --ignore="node_modules/*" --no-location --no-wrap
-  - python manage.py makemessages -d djangojs -a --ignore="env/*" --ignore="static/bower/*" --ignore="node_modules/*" --no-location --no-wrap | awk '/warning/ { print "makemessages for djangojs contains warnings"; exit 1 }'
+  - python manage.py makemessages -d djangojs -a --ignore="env/*" --ignore="static/bower/*" --ignore="static/components/*" --ignore="node_modules/*" --no-location --no-wrap
+  - python manage.py makemessages -d djangojs -a --ignore="env/*" --ignore="static/bower/*" --ignore="static/components/*" --ignore="node_modules/*" --no-location --no-wrap | awk '/warning/ { print "makemessages for djangojs contains warnings"; exit 1 }'
 
   # fail if there are changes
   - git diff --numstat

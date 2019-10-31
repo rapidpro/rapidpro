@@ -61,7 +61,7 @@
                 - for node in labels
                   - if node.obj.is_folder
                     %li{ class:'{% if current_label.id == node.obj.id %}active{% endif %} lbl-parent {% if current_label.id == node.obj.id or current_label.folder_id == node.obj.id %}expanded{% endif %}' }
-                      %a{'href':'{% url "msgs.msg_filter" node.obj.id %}'}
+                      %a{'href':'{% url "msgs.msg_filter" node.obj.uuid %}'}
                         {{ node.obj.name }}
                         - if node.children
                           - if current_label.id == node.obj.id or current_label.folder_id == node.obj.id
@@ -72,11 +72,11 @@
                       %ul.nav.nav-list.level2
                         - for child in node.children
                           %li{ class:'{% if current_label.id == child.obj.id %}active{% endif %}' }
-                            %a{ href:"{% url 'msgs.msg_filter' child.obj.id %}" }
+                            %a{ href:"{% url 'msgs.msg_filter' child.obj.uuid %}" }
                               {{ child.obj.name }} ({{ child.count | intcomma }})
                   - else
                     %li{ class:'{% if current_label.id == node.obj.id %}active{% endif %}' }
-                      %a{ href:"{% url 'msgs.msg_filter' node.obj.id %}", class:'{% if current_label.id == node.obj.id %}active{% endif %}' }
+                      %a{ href:"{% url 'msgs.msg_filter' node.obj.uuid %}", class:'{% if current_label.id == node.obj.id %}active{% endif %}' }
                         {{ node.obj.name }} ({{ node.count | intcomma }})
 
           %div{style:"margin-top: 10px"}
@@ -193,7 +193,7 @@
                           .value-labels
                             - for label in object.labels.all
                               %span.label.label-info.lbl{ data-id: '{{label.id}}' }
-                                %a{href:"{% url 'msgs.msg_filter' label.pk%}"}
+                                %a{href:"{% url 'msgs.msg_filter' label.uuid %}"}
                                   {{label.name}}
 
                         -if object.attachments

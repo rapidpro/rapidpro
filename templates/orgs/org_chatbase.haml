@@ -52,6 +52,7 @@
     %a#disconnect-chatbase-form.posterize{href:'{% url "orgs.org_chatbase" %}?disconnect=true'}
 
 -block extra-script
+  {{block.super}}
   :javascript
     $(document).ready(function() {
       select2div('#id_type');

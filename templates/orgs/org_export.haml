@@ -182,7 +182,7 @@
           .exportable{class:'{{forloop.parentloop.counter0}}-{{ exportable|verbose_name_plural }}'}
             %input{name:'{{exportable|verbose_name_plural}}', value:'{{exportable.pk}}', id:'{{exportable|verbose_name_plural}}-{{exportable.pk}}', type:'checkbox'}
             %label{for: '{{exportable|verbose_name_plural}}-{{exportable.pk}}'}
-              {{ exportable }}
+              {{ exportable.name }}
 
     -if singles
 
@@ -210,7 +210,7 @@
           .exportable{class:'{{ exportable|verbose_name_plural }}'}
             %input{name:'{{exportable|verbose_name_plural}}', value:'{{exportable.pk}}', id:'{{exportable|verbose_name_plural}}_{{exportable.pk}}', type:'checkbox'}
             %label{for: '{{exportable|verbose_name_plural}}_{{exportable.pk}}'}
-              {{ exportable }}
+              {{ exportable.name }}
 
     %hr
     %a.btn.select-all

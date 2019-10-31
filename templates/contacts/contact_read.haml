@@ -69,7 +69,7 @@
           -if org_perms.contacts.contact_update and not group.is_dynamic
             %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.uuid %}"}
               = group.name
-              %a.btn.btn-primary.btn-mini{href:"#", onclick:'removeContactFromGroup({{group.pk}}, {{contact.pk}})'} x
+              %a.btn.btn-primary.btn-mini{href:"#", onclick:'removeContactFromGroup({{group.id}}, {{contact.id}})'} x
           -else
             %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.uuid %}"}
               = group.name
@@ -333,6 +333,10 @@
                 background: #fafafa;
               }
 
+              &.new-session {
+                background: #f0f0f0;
+              }
+
               .icon {
                 color: rgba(0, 0, 0, 0.20);
               }
@@ -357,6 +361,10 @@
                 color: rgba(0,0,0,.20);
                 padding: 5px;
               }
+            }
+
+            b {
+              color: #666
             }
           }
 
@@ -555,9 +563,9 @@
 
     {% if org_perms.contacts.contact_update %}
     function removeContactFromGroup(groupId, contactId){
-      id = '#group_' + groupId + '_' + contactId;
-      $.post('{% url 'contacts.contact_read' contact.uuid %}', {contact: contactId, group: groupId}, function(groupId, contactId) {
-        $(id).remove();
+      var elementId = '#group_' + groupId + '_' + contactId;
+      $.post('{% url 'contacts.contact_read' contact.uuid %}' + '?action=remove_from_group', {contact: contactId, group: groupId}, function() {
+        $(elementId).remove();
       });
     }
     {% endif %}

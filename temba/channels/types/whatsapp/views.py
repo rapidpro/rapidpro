@@ -1,7 +1,6 @@
 import requests
 from smartmin.views import SmartFormView, SmartReadView, SmartUpdateView
 
-
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 

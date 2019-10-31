@@ -61,21 +61,24 @@
                       - else
                         %td
 
-                      -for field in fields
-                        %td{class:'value-{{field}} {% get_class field obj %}' }
-                          {% get_value obj field %}
-                      -if obj.flow_count or obj.campaign_count or obj.contactgroup_count
-                        %td{class:'field-dependencies'}
+                      %td{ style:"min-width: 240px" }
+                        {{ obj.label }}
+                      %td
+                        -if obj.show_in_table
+                          %span.label.label-info
+                            -trans "Featured"
+                      %td{ style:"font-family: monospace; font-size: 12px;" }
+                        @fields.{{ obj.key }}
+                      %td
+                        {{ obj.get_value_type_display }}
+                      %td{class:'field-dependencies'}
+                        -if obj.flow_count or obj.campaign_count or obj.contactgroup_count
                           %a{href:"#", class:'field-dependencies', onClick:"showDetailContactFieldModal({{ obj.id }}, \"{{ obj.label }}\");"}
                             {% blocktrans count counter=obj.flow_count|add:obj.campaign_count|add:obj.contactgroup_count %}
                               {{counter}} Use
                             {% plural %}
                               {{counter}} Uses
                             {% endblocktrans %}
-                      -else
-                        %td
-
-                      %td
 
                   - empty
                     %tr.empty_list
@@ -316,23 +319,6 @@
 
     .drag-icon {
       width: 15px;
-    }
-
-    .value-label {
-      min-width: 240px;
-    }
-    .value-key {
-      width: 240px;
-    }
-    .value-value_type {
-      width: 80px;
-    }
-    .value-show_in_table {
-      width: 50px;
-    }
-
-    td.value-show_in_table {
-      text-align: center;
     }
 
     td.field-dependencies {
