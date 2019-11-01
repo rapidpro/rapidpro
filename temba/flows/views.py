@@ -1101,12 +1101,14 @@ class FlowCRUDL(SmartCRUDL):
 
             pdfkit.from_url(url=url, output_path=output_path, options=options)
 
-            import codecs
+            from django.http import FileResponse, Http404
 
-            with codecs.open(output_path, "r", encoding="utf-8", errors="ignore") as pdf:
-                response = HttpResponse(pdf.read(), content_type="application/pdf")
-                response["Content-Disposition"] = "attachment; filename=%s.pdf" % slug_flow
-                return response
+            try:
+                return FileResponse(
+                    open(output_path, "rb"), content_type="application/pdf"
+                )
+            except FileNotFoundError:
+                raise Http404()
 
         def derive_title(self):
             return self.object.name
