@@ -264,7 +264,7 @@
   -include "msgs/msg_send_modal.html"
   -include "delete_modal_include.html"
 
-  %form{method:'POST', class:'pdf_export hide'}
+  %form{method:'POST', class:'pdf_export_next hide'}
     -csrf_token
     %input{type:'hidden', id:'pdf_export_lang', name:'pdf_export_lang'}
 

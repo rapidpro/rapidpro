@@ -1320,6 +1320,8 @@ class FlowCRUDL(SmartCRUDL):
                 reverse("flows.flow_pdf_export_next", args=[self.object.uuid]),
             )
 
+            print(url)
+            
             if pdf_export_lang:
                 url += "?pdf_export_lang=%s" % pdf_export_lang
 
@@ -1331,12 +1333,14 @@ class FlowCRUDL(SmartCRUDL):
 
             pdfkit.from_url(url=url, output_path=output_path, options=options)
 
-            import codecs
+            from django.http import FileResponse, Http404
 
-            with codecs.open(output_path, "r", encoding="utf-8", errors="ignore") as pdf:
-                response = HttpResponse(pdf, content_type="application/pdf")
-                response["Content-Disposition"] = "attachment; filename=%s.pdf" % slug_flow
-                return response
+            try:
+                return FileResponse(
+                    open(output_path, "rb"), content_type="application/pdf"
+                )
+            except FileNotFoundError:
+                raise Http404()
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -1427,8 +1431,8 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_export"):
                 links.append(dict(title=_("Export"), href="%s?flow=%s" % (reverse("orgs.org_export"), flow.id)))
 
-            # if self.has_org_perm("flows.flow_pdf_export"):
-            #     links.append(dict(title=_("Export to PDF"), href="javascript:;", js_class="pdf_export_submit"))
+            if self.has_org_perm("flows.flow_pdf_export"):
+                links.append(dict(title=_("Export to PDF"), href="javascript:;", js_class="pdf_export_submit"))
 
             if self.has_org_perm("flows.flow_delete"):
                 links.append(dict(divider=True)),
