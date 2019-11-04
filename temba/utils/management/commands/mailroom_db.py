@@ -51,6 +51,13 @@ ORG1 = dict(
             config=dict(app_id="67890", access_token="sesame"),
             intents=(dict(name="register", external_id="register"),),
         ),
+        dict(
+            uuid="859b436d-3005-4e43-9ad5-3de5f26ede4c",
+            classifier_type="bh",
+            name="BotHub",
+            config=dict(access_token="access_token"),
+            intents=(dict(name="intent", external_id="intent"),),
+        ),
     ),
     channels=(
         dict(
