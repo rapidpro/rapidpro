@@ -1,3 +1,7 @@
+v5.2.6
+----------
+ * Change slug for Bothub classifier to 'bothub'
+
 v5.2.5
 ----------
  * Fix various Schedule trigger UI validation errors
