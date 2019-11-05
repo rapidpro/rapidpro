@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-05 15:09+0000\n"
+"POT-Creation-Date: 2019-11-05 15:35+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -9767,9 +9767,12 @@ msgstr ""
 msgid "DT One Account"
 msgstr "Gérer %(name)s des comptes"
 
-#, fuzzy
+#, fuzzy, python-format
 #| msgid "Connect Zenvia Account"
-msgid "Connected to DT One Account"
+msgid ""
+"\n"
+"      Connected to DT One account <b>%(login)s</b>.\n"
+"    "
 msgstr "Connectez votre compte Zenvia"
 
 msgid "No DT One account connected."
