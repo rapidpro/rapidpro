@@ -1,3 +1,13 @@
+v5.2.6
+----------
+ * Change slug for Bothub classifier to 'bothub'
+
+v5.2.5
+----------
+ * Fix various Schedule trigger UI validation errors
+ * Fix intermittently failing excel export tests
+ * Add noop reverse in migration
+
 v5.2.1
 ----------
  * Fix order of Schedule migrations (thanks @matmsa27)

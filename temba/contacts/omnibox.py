@@ -1,3 +1,4 @@
+import json
 import operator
 from functools import reduce
 
@@ -179,6 +180,27 @@ def omnibox_mixed_search(org, search, types):
             results += list(urns.prefetch_related("contact").order_by(Upper("path"))[:per_type_limit])
 
     return results  # sorted(results, key=lambda o: o.name if hasattr(o, 'name') else o.path)
+
+
+def omnibox_serialize(org, groups, contacts, json_encode=False):
+    """
+    Shortcut for proper way to serialize a queryset of groups and contacts for omnibox component
+    """
+    serialized = omnibox_results_to_dict(org, list(groups) + list(contacts), 2)
+
+    if json_encode:
+        return [json.dumps(_) for _ in serialized]
+
+    return serialized
+
+
+def omnibox_deserialize(org, omnibox):
+    group_ids = [item["id"] for item in omnibox if item["type"] == "group"]
+    contact_ids = [item["id"] for item in omnibox if item["type"] == "contact"]
+    return {
+        "groups": ContactGroup.all_groups.filter(uuid__in=group_ids, org=org, is_active=True),
+        "contacts": Contact.objects.filter(uuid__in=contact_ids, org=org, is_active=True),
+    }
 
 
 def omnibox_results_to_dict(org, results, version="1"):

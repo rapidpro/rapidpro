@@ -70,9 +70,9 @@
     #schedule-options
       -if object.schedule
         %label.schedule-options-label{for:"later-option"}
-        %input#start-datetime{ name:'start_datetime', value:'{% trans "Select a date" %}'}
-        %input#start-datetime-value{ hidden:'true', name:'start_datetime_value', value:''}
-        %input#later-option{name:'start',type:'hidden',value:'later'}
+        %input#start-datetime{ name:'start_datetime', disabled: 'true'}
+        %input#start-datetime-value{ hidden:'true', name:'start_datetime_value'}
+        %input#later-option{name:'start', type:'hidden', value:'later', tabindex:1}
 
     #recurrence{class:'{% if not object.schedule.next_fire %}hide{%endif%}'}
       .repeat-period
@@ -143,9 +143,10 @@
         $('#id_groups').select2({ containerCssClass: "select2-temba-field" });
       {% endif %}
 
-      $('#id_flow').select2({
+      $('select#id_flow').select2({
         minimumResultsForSearch: -1
       });
+
       $('#id_match_type').select2({
         containerCssClass: "select2-temba-field",
         minimumResultsForSearch: -1
@@ -162,9 +163,21 @@
       }
 
       {% if object.schedule.next_fire and object.schedule.next_fire|timeuntil != "0 minutes" %}
-        initializeDatetimePicker(minDate, new Date({{object.schedule.next_fire|date:"U"}} * 1000));
+        // honor our form value if we have a validation failure
+        {% if form.start_datetime_value.value %}
+          initializeDatetimePicker(minDate, new Date({{form.start_datetime_value.value}} * 1000));
+        {% else %}
+          initializeDatetimePicker(minDate, new Date({{object.schedule.next_fire|date:"U"}} * 1000));
+        {% endif %}
       {% else %}
         initializeDatetimePicker(minDate);
       {% endif %}
+
+      // re-enable our datetime widget after load, this works around
+      // an issue with jquery datetimepicker that shows the picker on load
+      window.setTimeout(function(){
+        $("input#start-datetime").attr('disabled', false);
+      }, 0);
+
     });
 
