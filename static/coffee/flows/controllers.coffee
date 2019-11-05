@@ -146,9 +146,9 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
     return $scope.dialog
 
   showConnectDTOne = ->
-    modal = new ConfirmationModal(gettext("DTOne Disconnected"), gettext("No DTOne account connected. Please first connect your DTOne account."))
+    modal = new ConfirmationModal(gettext("DT One Disconnected"), gettext("No DT One account connected. Please first connect your DT One account."))
     modal.addClass('airtime-warning')
-    modal.setPrimaryButton(gettext("Connect DTOne Account"))
+    modal.setPrimaryButton(gettext("Connect DT One Account"))
     modal.setListeners
       onPrimary: ->
         document.location.href = window.connectAirtimeServiceURL
