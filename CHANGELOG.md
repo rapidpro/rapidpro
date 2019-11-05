@@ -1,3 +1,10 @@
+v5.3.0
+----------
+ * Fix DT One branding and add new icon
+ * Fix validation problem on update schedule trigger form
+ * Use brand when granting orgs, not host
+ * Update contactsql parser to support same quotes escaping as goflow
+
 v5.2.6
 ----------
  * Change slug for Bothub classifier to 'bothub'
