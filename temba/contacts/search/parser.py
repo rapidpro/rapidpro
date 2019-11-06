@@ -940,7 +940,7 @@ class ContactQLVisitor(ParseTreeVisitor):
         literal : STRING
         """
         value = ctx.getText()[1:-1]
-        return value.replace('""', '"')  # unescape embedded quotes
+        return value.replace(r"\"", '"')  # unescape embedded quotes
 
 
 def parse_query(text, optimize=True, as_anon=False):

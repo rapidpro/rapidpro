@@ -1758,7 +1758,7 @@ class OrgTest(TembaTest):
     def test_dtone_account(self):
         self.login(self.admin)
 
-        # connect DTOne
+        # connect DT One
         dtone_account_url = reverse("orgs.org_dtone_account")
 
         with patch("requests.post") as mock_post:
@@ -1767,7 +1767,7 @@ class OrgTest(TembaTest):
                 dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
             )
 
-            self.assertContains(response, "Your DTOne API key and secret seem invalid.")
+            self.assertContains(response, "Your DT One API key and secret seem invalid.")
             self.assertFalse(self.org.is_connected_to_dtone())
 
             mock_post.return_value = MockResponse(
@@ -1779,7 +1779,7 @@ class OrgTest(TembaTest):
             )
 
             self.assertContains(
-                response, "Connecting to your DTOne account failed with error text: Failed Authentication"
+                response, "Connecting to your DT One account failed with error text: Failed Authentication"
             )
 
             self.assertFalse(self.org.is_connected_to_dtone())
@@ -1796,7 +1796,7 @@ class OrgTest(TembaTest):
                 dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
             )
             self.assertNoFormErrors(response)
-            # DTOne should be connected
+            # DT One should be connected
             self.org = Org.objects.get(pk=self.org.pk)
             self.assertTrue(self.org.is_connected_to_dtone())
             self.assertEqual(self.org.config["TRANSFERTO_ACCOUNT_LOGIN"], "login")
@@ -1820,7 +1820,7 @@ class OrgTest(TembaTest):
             response = self.client.post(
                 dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
             )
-            self.assertContains(response, "Your DTOne API key and secret seem invalid.")
+            self.assertContains(response, "Your DT One API key and secret seem invalid.")
             self.assertFalse(self.org.is_connected_to_dtone())
 
         # no account connected, do not show the button to Transfer logs

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-25 20:40+0000\n"
+"POT-Creation-Date: 2019-11-05 15:35+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3866,11 +3866,11 @@ msgstr ""
 msgid "API Token"
 msgstr ""
 
-msgid "Your DTOne API key and secret seem invalid. Please check them again and retry."
+msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
 msgstr ""
 
 #, python-format
-msgid "Connecting to your DTOne account failed with error text: %s"
+msgid "Connecting to your DT One account failed with error text: %s"
 msgstr ""
 
 msgid "Account SID"
@@ -4111,6 +4111,9 @@ msgstr[0] ""
 msgstr[1] ""
 
 msgid "The message to send in response after they join the group (optional)"
+msgstr ""
+
+msgid "Select a flow"
 msgstr ""
 
 msgid "The groups and contacts the flow will be broadcast to"
@@ -7350,18 +7353,22 @@ msgid ""
 "    "
 msgstr ""
 
-msgid "DTOne Account"
+msgid "DT One Account"
 msgstr ""
 
-msgid "Connected to DTOne Account"
+#, python-format
+msgid ""
+"\n"
+"      Connected to DT One account <b>%(login)s</b>.\n"
+"    "
 msgstr ""
 
-msgid "No DTOne account connected."
+msgid "No DT One account connected."
 msgstr ""
 
 msgid ""
 "\n"
-"      Adding a DTOne account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected\n"
+"      Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected\n"
 "      you can transfer airtime credit within your Flows. To signup for an account, visit\n"
 "    "
 msgstr ""
@@ -7369,25 +7376,25 @@ msgstr ""
 msgid "Transfer Log"
 msgstr ""
 
-msgid "Your account is connected to a DTOne account"
+msgid "Your account is connected to a DT One account"
 msgstr ""
 
-msgid "your DTOne account. Doing so will cause the payment actions in your flows to no longer be processed."
+msgid "your DT One account. Doing so will cause the payment actions in your flows to no longer be processed."
 msgstr ""
 
-msgid "Disconnect DTOne"
+msgid "Disconnect DT One"
 msgstr ""
 
 msgid ""
 "\n"
-"          This will disconnect your DTOne account. Payment actions will no longer be processed. Are you sure you want to proceed?\n"
+"          This will disconnect your DT One account. Payment actions will no longer be processed. Are you sure you want to proceed?\n"
 "        "
 msgstr ""
 
 msgid "You can find your API Token by clicking on "
 msgstr ""
 
-msgid " on the DTOne site."
+msgid " on the DT One site."
 msgstr ""
 
 #, python-format

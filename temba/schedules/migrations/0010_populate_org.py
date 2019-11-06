@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("triggers", "0016_auto_20190816_1517"),
         ("msgs", "0134_remove_broadcast_purged"),
-        ("schedules", "0010_populate_days_of_week"),
+        ("schedules", "0009_auto_20190822_1823"),
     ]
 
     operations = [migrations.RunPython(populate_org, noop)]

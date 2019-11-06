@@ -110,7 +110,7 @@
       :css
         html {
 
-          --font-family: 'Roboto', sans-serif;
+          --font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
           --primary-rgb: 35, 135, 202;
           --secondary-rgb: 0, 77, 129;
           --focus-rgb: 82, 168, 236;
@@ -233,12 +233,12 @@
       -block extra-less
       -block extra-style
 
-  -for incl in brand.head_includes
-    -include incl
+    -for incl in brand.head_includes
+      -include incl
 
-  <!--[if lt IE 9]>
-    %script{src:"//html5shim.googlecode.com/svn/trunk/html5.js"}
-  <![endif]-->
+    <!--[if lt IE 9]>
+      %script{src:"//html5shim.googlecode.com/svn/trunk/html5.js"}
+    <![endif]-->
 
 -load smartmin
 {% block body %}

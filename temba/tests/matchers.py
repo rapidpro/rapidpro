@@ -1,3 +1,6 @@
+from datetime import datetime
+
+import pytz
 import regex
 
 from temba.utils.dates import FULL_ISO8601_REGEX
@@ -54,3 +57,15 @@ class Dict(MatcherMixin, dict):
 
     def __eq__(self, other):
         return isinstance(other, dict)
+
+
+class Datetime(MatcherMixin, datetime):
+    """
+    Matches any datetime
+    """
+
+    def __new__(cls):
+        return datetime.__new__(cls, 2019, 10, 30, 13, 39, 30, 123456, pytz.UTC)
+
+    def __eq__(self, other):
+        return isinstance(other, datetime)

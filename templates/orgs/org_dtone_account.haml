@@ -7,21 +7,21 @@
 -block title-text
   .title-text
     %h1
-      -trans "DTOne Account"
+      -trans "DT One Account"
 
 -block summary
   -if object.is_connected_to_dtone
-    -trans "Connected to DTOne Account"
-    {{ dtone_account_login }}.
+    -blocktrans with login=dtone_account_login
+      Connected to DT One account <b>{{ login }}</b>.
   -else
-    -trans "No DTOne account connected."
+    -trans "No DT One account connected."
 
 -block pre-form
   -if not object.is_connected_to_dtone
     -blocktrans
-      Adding a DTOne account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected
+      Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected
       you can transfer airtime credit within your Flows. To signup for an account, visit
-    <a target='_new' href='https://www.dtone.com/'>DTOne</a>.
+    <a target='_new' href='https://www.dtone.com/'>DT One</a>.
     %hr
 
 -block fields
@@ -36,27 +36,27 @@
       -trans "Transfer Log"
 
     %p
-      -trans "Your account is connected to a DTOne account"
+      -trans "Your account is connected to a DT One account"
       {{ dtone_account_login }}.
 
     %p
       -trans "If you no longer want it connected, you can"
       %a{href:'javascript:confirmDTOneDisconnect();'}
         -trans "disconnect"
-      -trans "your DTOne account. Doing so will cause the payment actions in your flows to no longer be processed."
+      -trans "your DT One account. Doing so will cause the payment actions in your flows to no longer be processed."
 
     .disconnect-dtone.hide
       .title
-        -trans "Disconnect DTOne"
+        -trans "Disconnect DT One"
       .body
         -blocktrans
-          This will disconnect your DTOne account. Payment actions will no longer be processed. Are you sure you want to proceed?
+          This will disconnect your DT One account. Payment actions will no longer be processed. Are you sure you want to proceed?
     %a#disconnect-dtone-form.posterize{href:'{% url "orgs.org_dtone_account" %}?disconnect=true'}
   -else
     -trans "You can find your API Token by clicking on "
     %a{href:'https://tshop-app.dtone.com', target:'_new'}><
       Developer
-    -trans " on the DTOne site."
+    -trans " on the DT One site."
 
 -block extra-script
   {{block.super}}
