@@ -1319,8 +1319,6 @@ class FlowCRUDL(SmartCRUDL):
                 settings.HOSTNAME,
                 reverse("flows.flow_pdf_export_next", args=[self.object.uuid]),
             )
-
-            print(url)
             
             if pdf_export_lang:
                 url += "?pdf_export_lang=%s" % pdf_export_lang
@@ -1431,8 +1429,8 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_export"):
                 links.append(dict(title=_("Export"), href="%s?flow=%s" % (reverse("orgs.org_export"), flow.id)))
 
-            if self.has_org_perm("flows.flow_pdf_export"):
-                links.append(dict(title=_("Export to PDF"), href="javascript:;", js_class="pdf_export_submit"))
+            if self.has_org_perm("flows.flow_pdf_export_next"):
+                links.append(dict(title=_("Export to PDF"), href="javascript:;", js_class="pdf_export_next_submit"))
 
             if self.has_org_perm("flows.flow_delete"):
                 links.append(dict(divider=True)),
@@ -1458,7 +1456,7 @@ class FlowCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
 
         def get_context_data(self, *args, **kwargs):
-            context = super(FlowCRUDL.PdfExport, self).get_context_data(*args, **kwargs)
+            context = super(FlowCRUDL.PdfExportNext, self).get_context_data(*args, **kwargs)
 
             context["media_url"] = "%s://%s/" % ("http" if settings.DEBUG else "https", settings.AWS_BUCKET_DOMAIN)
 

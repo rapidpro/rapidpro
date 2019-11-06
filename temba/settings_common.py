@@ -425,6 +425,7 @@ PERMISSIONS = {
         "upload_action_recording",
         "upload_media_action",
         "pdf_export",
+        "pdf_export_next",
     ),
     "flows.flowsession": ("json",),
     "msgs.msg": (
