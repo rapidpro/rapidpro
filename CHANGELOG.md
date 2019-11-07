@@ -1,3 +1,7 @@
+v5.3.1
+----------
+ * Update documentation for FB webhook events to subscribe to
+
 v5.3.0
 ----------
  * Fix DT One branding and add new icon
