@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-08 16:54+0000\n"
+"POT-Creation-Date: 2019-11-08 19:42+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -2996,12 +2996,11 @@ msgid "Delete"
 msgstr "Deletar"
 
 #, fuzzy
-#| msgid "Channel Event"
-msgid "Classifier synced"
-msgstr "Evento do transmissor"
+msgid "Your classifier has been synched."
+msgstr "Seu número de telefone agora está conectado"
 
 #, fuzzy
-msgid "Unable to sync classifier"
+msgid "Unable to sync classifier. See the log for details."
 msgstr "Conectar Nexmo."
 
 #, fuzzy
@@ -11205,6 +11204,11 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Channel Event"
+#~ msgid "Classifier synced"
+#~ msgstr "Evento do transmissor"
 
 #, fuzzy
 #~| msgid "The name of your organization"

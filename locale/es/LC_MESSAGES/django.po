@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-08 16:54+0000\n"
+"POT-Creation-Date: 2019-11-08 19:42+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3268,13 +3268,13 @@ msgid "Delete"
 msgstr "Borrar"
 
 #, fuzzy
-#| msgid "Channel Event"
-msgid "Classifier synced"
-msgstr "Evento del transmisor"
+#| msgid "Your flow has been removed."
+msgid "Your classifier has been synched."
+msgstr "Su flujo ha sido retirado."
 
 #, fuzzy
 #| msgid "Connect Vumi"
-msgid "Unable to sync classifier"
+msgid "Unable to sync classifier. See the log for details."
 msgstr "Conectar Vumi"
 
 #, fuzzy
@@ -11876,6 +11876,11 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Channel Event"
+#~ msgid "Classifier synced"
+#~ msgstr "Evento del transmisor"
 
 #, fuzzy
 #~| msgid "The name of your organization"
