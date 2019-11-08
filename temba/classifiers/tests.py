@@ -7,7 +7,6 @@ from temba.request_logs.models import HTTPLog
 from temba.tests import MockResponse, TembaTest
 
 from .models import Classifier
-from .tasks import sync_classifier_intents
 from .types.luis import LuisType
 from .types.wit import WitType
 
@@ -64,7 +63,7 @@ class ClassifierTest(TembaTest):
 
     def test_syncing(self):
         # will fail due to missing keys
-        sync_classifier_intents(self.c1.id)
+        self.c1.async_sync()
 
         # no intents should have been changed / removed as this was an error
         self.assertEqual(2, self.c1.active_intents().count())
@@ -76,7 +75,7 @@ class ClassifierTest(TembaTest):
         # try again
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(200, INTENT_RESPONSE)
-            sync_classifier_intents(self.c1.id)
+            self.c1.async_sync()
 
             # should have three active intents
             intents = self.c1.active_intents()
@@ -119,6 +118,10 @@ class ClassifierTest(TembaTest):
         self.assertNotContains(response, "book_hotel")
         self.assertContains(response, "book_car")
 
-        # and link to logs
+        # a link to logs
         log_url = reverse("request_logs.httplog_list", args=["classifier", self.c1.uuid])
         self.assertContains(response, log_url)
+
+        # and buttons for delete and sync
+        self.assertContains(response, reverse("classifiers.classifier_sync", args=[self.c1.id]))
+        self.assertContains(response, reverse("classifiers.classifier_delete", args=[self.c1.uuid]))
