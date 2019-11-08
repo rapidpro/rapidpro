@@ -8,7 +8,6 @@ from smartmin.views import (
 )
 
 from django.contrib import messages
-from django.core.exceptions import ValidationError
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
@@ -92,16 +91,18 @@ class ClassifierCRUDL(SmartCRUDL):
     class Sync(OrgObjPermsMixin, SmartUpdateView):
         fields = ()
         success_url = "uuid@classifiers.classifier_read"
-        success_message = _("Classifier synced")
+        success_message = ""
 
-        def save(self, obj):
+        def post(self, *args, **kwargs):
+            self.object = self.get_object()
+
             try:
-                obj.sync()
+                self.object.sync()
+                messages.info(self.request, _("Your classifier has been synched."))
             except Exception:
-                # TODO this doesn't work.. just blows up the request
-                raise ValidationError(_("Unable to sync classifier"))
+                messages.error(self.request, _("Unable to sync classifier. See the log for details."))
 
-            return obj
+            return HttpResponseRedirect(self.get_success_url())
 
     class Connect(OrgPermsMixin, SmartTemplateView):
         def get_context_data(self, **kwargs):

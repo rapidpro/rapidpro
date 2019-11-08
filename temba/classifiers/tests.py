@@ -47,19 +47,19 @@ class ClassifierTest(TembaTest):
         self.setUpSecondaryOrg()
 
         # create some classifiers
-        self.c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {})
+        self.c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {}, sync=False)
         self.c1.intents.create(
             name="book_flight", external_id="book_flight", created_on=timezone.now(), is_active=True
         )
         self.c1.intents.create(name="book_hotel", external_id="book_hotel", created_on=timezone.now(), is_active=False)
         self.c1.intents.create(name="book_car", external_id="book_car", created_on=timezone.now(), is_active=True)
 
-        self.c2 = Classifier.create(self.org, self.admin, WitType.slug, "Old Booker", {})
+        self.c2 = Classifier.create(self.org, self.admin, WitType.slug, "Old Booker", {}, sync=False)
         self.c2.is_active = False
         self.c2.save()
 
         # on another org
-        self.c3 = Classifier.create(self.org2, self.admin, LuisType.slug, "Org2 Booker", {})
+        self.c3 = Classifier.create(self.org2, self.admin, LuisType.slug, "Org2 Booker", {}, sync=False)
 
     def test_syncing(self):
         # will fail due to missing keys
@@ -93,7 +93,7 @@ class ClassifierTest(TembaTest):
             # one classifier log
             self.assertEqual(1, HTTPLog.objects.filter(classifier=self.c1, org=self.org).count())
 
-    def test_templates(self):
+    def test_views(self):
         # fetch org home page
         self.login(self.admin)
         response = self.client.get(reverse("orgs.org_home"))
@@ -125,3 +125,20 @@ class ClassifierTest(TembaTest):
         # and buttons for delete and sync
         self.assertContains(response, reverse("classifiers.classifier_sync", args=[self.c1.id]))
         self.assertContains(response, reverse("classifiers.classifier_delete", args=[self.c1.uuid]))
+
+        self.c1.intents.all().delete()
+
+        with patch("temba.classifiers.models.Classifier.sync") as mock_sync:
+
+            # request a sync
+            response = self.client.post(reverse("classifiers.classifier_sync", args=[self.c1.id]), follow=True)
+            self.assertEqual(200, response.status_code)
+            self.assertContains(response, "Your classifier has been synched.")
+
+            mock_sync.assert_called_once()
+
+            mock_sync.side_effect = ValueError("BOOM")
+
+            response = self.client.post(reverse("classifiers.classifier_sync", args=[self.c1.id]), follow=True)
+            self.assertEqual(200, response.status_code)
+            self.assertContains(response, "Unable to sync classifier. See the log for details.")
