@@ -159,6 +159,10 @@ class ChannelTest(TembaTest):
         # now we should be IVR capable
         self.assertTrue(self.org.supports_ivr())
 
+        # we cannot add multiple callers
+        response = self.client.post(reverse("channels.channel_create_caller"), post_data)
+        self.assertFormError(response, "form", "channel", "Sorry, a caller has already been added for that number")
+
         # should now have the option to disable
         self.login(self.admin)
         response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
