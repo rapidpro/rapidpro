@@ -12,12 +12,14 @@ import stripe
 import stripe.error
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
+from smartmin.tests import SmartminTestMixin
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.core.exceptions import ValidationError
 from django.http import HttpRequest, HttpResponse
+from django.test import TransactionTestCase
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -28,6 +30,8 @@ from temba.api.models import APIToken, Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
+from temba.classifiers.models import Classifier
+from temba.classifiers.types.wit import WitType
 from temba.contacts.models import (
     TEL_SCHEME,
     TWITTER_SCHEME,
@@ -43,7 +47,8 @@ from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
 from temba.orgs.models import Debit, UserSettings
-from temba.tests import ESMockWithScroll, MockResponse, TembaTest, matchers
+from temba.request_logs.models import HTTPLog
+from temba.tests import ESMockWithScroll, MockResponse, TembaTest, TembaTestMixin, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
@@ -175,10 +180,9 @@ class UserTest(TembaTest):
         self.assertFalse(self.org.is_active)
 
 
-class OrgDeleteTest(TembaTest):
+class OrgDeleteTest(TransactionTestCase, TembaTestMixin, SmartminTestMixin):
     def setUp(self):
-        super().setUp()
-
+        self.setUpOrg()
         self.setUpLocations()
 
         # create a second child org
@@ -202,6 +206,20 @@ class OrgDeleteTest(TembaTest):
             device="Nexus 5X",
             secret="54321",
             config={Channel.CONFIG_FCM_ID: "123"},
+        )
+
+        # add a classifier
+        self.c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {}, sync=False)
+
+        HTTPLog.objects.create(
+            classifier=self.c1,
+            url="http://org2.bar/zap",
+            request="GET /zap",
+            response=" OK 200",
+            is_error=False,
+            log_type=HTTPLog.CLASSIFIER_CALLED,
+            request_time=10,
+            org=self.org,
         )
 
         # our user is a member of two orgs
@@ -243,6 +261,7 @@ class OrgDeleteTest(TembaTest):
             .complete()
             .save()
         )
+        parent_flow.channel_dependencies.add(self.channel)
 
         # and our child org too
         self.org = self.child_org
@@ -379,7 +398,6 @@ class OrgDeleteTest(TembaTest):
         self.release_org(self.parent_org, self.child_org, immediately=True)
 
     def test_release_child_immediately(self):
-
         # 300 credits were given to our child org and each used one
         self.assertEqual(698, self.parent_org.get_credits_remaining())
         self.assertEqual(299, self.child_org.get_credits_remaining())

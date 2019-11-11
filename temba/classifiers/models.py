@@ -91,7 +91,7 @@ class Classifier(SmartModel):
     config = JSONField()
 
     # the org this classifier is part of
-    org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT)
+    org = models.ForeignKey("orgs.Org", related_name="classifiers", on_delete=models.PROTECT)
 
     @classmethod
     def create(cls, org, user, classifier_type, name, config, sync=True):
@@ -183,6 +183,9 @@ class Classifier(SmartModel):
         dependent_flows_count = self.dependent_flows.count()
         if dependent_flows_count > 0:
             raise ValueError(f"Cannot delete Classifier: {self.name}, used by {dependent_flows_count} flows")
+
+        # delete our intents
+        self.intents.all().delete()
 
         self.is_active = False
         self.save(update_fields=["is_active"])

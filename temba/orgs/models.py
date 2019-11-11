@@ -1923,7 +1923,11 @@ class Org(SmartModel):
         self.is_active = False
         self.save(update_fields=("is_active", "modified_on"))
 
-        # immediately release our channels
+        # clear all our channel dependencies on our flows
+        for flow in self.flows.all():
+            flow.channel_dependencies.clear()
+
+        # and immediately release our channels
         from temba.channels.models import Channel
 
         for channel in Channel.objects.filter(org=self, is_active=True):
@@ -1998,7 +2002,7 @@ class Org(SmartModel):
 
         # delete our contacts
         for contact in self.contacts.all():
-            contact.release(contact.modified_by)
+            contact.release(contact.modified_by, full=True, immediately=True)
             contact.delete()
 
         # delete our fields
@@ -2019,6 +2023,14 @@ class Org(SmartModel):
             channel.logs.all().delete()
 
             channel.delete()
+
+        for log in self.http_logs.all():
+            log.release()
+
+        # delete our classifiers
+        for classifier in self.classifiers.all():
+            classifier.release()
+            classifier.delete()
 
         # release all archives objects and files for this org
         Archive.release_org_archives(self)

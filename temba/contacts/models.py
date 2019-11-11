@@ -1973,7 +1973,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         # re-add them to any dynamic groups they would belong to
         self.reevaluate_dynamic_groups()
 
-    def release(self, user, *, immediately=True):
+    def release(self, user, *, full=True, immediately=False):
         """
         Marks this contact for deletion
         """
@@ -1996,11 +1996,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             self.fields = None
             self.save(update_fields=("name", "is_active", "fields", "modified_on"), handle_update=False)
 
-        # kick off a task to remove all the things related to us
-        if immediately:
-            from temba.contacts.tasks import full_release_contact
+        # if we are removing everything do so
+        if full:
+            if immediately:
+                self._full_release()
+            else:
+                from temba.contacts.tasks import full_release_contact
 
-            full_release_contact.delay(self.id)
+                full_release_contact.delay(self.id)
 
     def _full_release(self):
         with transaction.atomic():
