@@ -1156,7 +1156,7 @@ class ContactTest(TembaTest):
         self.assertEqual(2, len(contact.fields))
 
         # first try a regular release and make sure our urns are anonymized
-        contact.release(self.admin, immediately=False)
+        contact.release(self.admin, full=False)
         self.assertEqual(2, contact.urns.all().count())
         for urn in contact.urns.all():
             uuid.UUID(urn.path, version=4)
