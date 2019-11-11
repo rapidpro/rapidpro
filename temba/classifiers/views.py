@@ -1,4 +1,11 @@
-from smartmin.views import SmartCRUDL, SmartDeleteView, SmartFormView, SmartReadView, SmartTemplateView
+from smartmin.views import (
+    SmartCRUDL,
+    SmartDeleteView,
+    SmartFormView,
+    SmartReadView,
+    SmartTemplateView,
+    SmartUpdateView,
+)
 
 from django.contrib import messages
 from django.http import HttpResponseRedirect
@@ -38,7 +45,7 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
 
 class ClassifierCRUDL(SmartCRUDL):
     model = Classifier
-    actions = ("read", "connect", "delete")
+    actions = ("read", "connect", "delete", "sync")
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
         slug_url_kwarg = "uuid"
@@ -63,14 +70,39 @@ class ClassifierCRUDL(SmartCRUDL):
 
         def get_gear_links(self):
             links = []
-            if self.has_org_perm("channels.channel_delete"):
-                links.append(dict(title=_("Delete"), js_class="delete-classifier", href="#1"))
+            if self.has_org_perm("classifiers.classifier_sync"):
+                links.append(
+                    dict(
+                        title=_("Sync"),
+                        style="btn-secondary",
+                        posterize=True,
+                        href=reverse("classifiers.classifier_sync", args=[self.object.id]),
+                    )
+                )
+            if self.has_org_perm("classifiers.classifier_delete"):
+                links.append(dict(title=_("Delete"), js_class="delete-classifier", href="#"))
 
             return links
 
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)
             return queryset.filter(org=self.request.user.get_org(), is_active=True)
+
+    class Sync(OrgObjPermsMixin, SmartUpdateView):
+        fields = ()
+        success_url = "uuid@classifiers.classifier_read"
+        success_message = ""
+
+        def post(self, *args, **kwargs):
+            self.object = self.get_object()
+
+            try:
+                self.object.sync()
+                messages.info(self.request, _("Your classifier has been synched."))
+            except Exception:
+                messages.error(self.request, _("Unable to sync classifier. See the log for details."))
+
+            return HttpResponseRedirect(self.get_success_url())
 
     class Connect(OrgPermsMixin, SmartTemplateView):
         def get_context_data(self, **kwargs):
