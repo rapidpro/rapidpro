@@ -1,3 +1,7 @@
+v5.3.2
+----------
+ * Allow manual syncing of classifiers
+
 v5.3.1
 ----------
  * Update documentation for FB webhook events to subscribe to
