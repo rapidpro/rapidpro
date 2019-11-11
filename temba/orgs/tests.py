@@ -30,6 +30,8 @@ from temba.api.models import APIToken, Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
+from temba.classifiers.models import Classifier
+from temba.classifiers.types.wit import WitType
 from temba.contacts.models import (
     TEL_SCHEME,
     TWITTER_SCHEME,
@@ -205,6 +207,9 @@ class OrgDeleteTest(TransactionTestCase, TembaTestMixin, SmartminTestMixin):
             config={Channel.CONFIG_FCM_ID: "123"},
         )
 
+        # add a classifier
+        self.c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {}, sync=False)
+
         # our user is a member of two orgs
         self.parent_org = self.org
         self.child_org.administrators.add(self.user)
@@ -244,6 +249,7 @@ class OrgDeleteTest(TransactionTestCase, TembaTestMixin, SmartminTestMixin):
             .complete()
             .save()
         )
+        parent_flow.channel_dependencies.add(self.channel)
 
         # and our child org too
         self.org = self.child_org

@@ -76,6 +76,9 @@ class HTTPLog(models.Model):
     def status_code(self):
         return self.response.split(" ")[1] if self.response else None
 
+    def release(self):
+        self.delete()
+
     @classmethod
     def trim(cls):
         """

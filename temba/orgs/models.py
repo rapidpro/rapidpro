@@ -2024,6 +2024,14 @@ class Org(SmartModel):
 
             channel.delete()
 
+        for log in self.http_logs.all():
+            log.release()
+
+        # delete our classifiers
+        for classifier in self.classifiers.all():
+            classifier.release()
+            classifier.delete()
+
         # release all archives objects and files for this org
         Archive.release_org_archives(self)
 
