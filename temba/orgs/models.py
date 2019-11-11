@@ -1998,7 +1998,7 @@ class Org(SmartModel):
 
         # delete our contacts
         for contact in self.contacts.all():
-            contact.release(contact.modified_by)
+            contact.release(contact.modified_by, full=True, immediately=True)
             contact.delete()
 
         # delete our fields
