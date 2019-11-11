@@ -1923,7 +1923,11 @@ class Org(SmartModel):
         self.is_active = False
         self.save(update_fields=("is_active", "modified_on"))
 
-        # immediately release our channels
+        # clear all our channel dependencies on our flows
+        for flow in self.flows.all():
+            flow.channel_dependencies.clear()
+
+        # and immediately release our channels
         from temba.channels.models import Channel
 
         for channel in Channel.objects.filter(org=self, is_active=True):
