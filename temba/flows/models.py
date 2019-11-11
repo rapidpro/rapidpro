@@ -1746,6 +1746,10 @@ class Flow(TembaModel):
         for trigger in self.triggers.all():
             trigger.release()
 
+        # release any starts
+        for start in self.starts.all():
+            start.release()
+
         self.group_dependencies.clear()
         self.flow_dependencies.clear()
         self.field_dependencies.clear()
@@ -3230,6 +3234,14 @@ class FlowStart(models.Model):
 
     def async_start(self):
         mailroom.queue_flow_start(self)
+
+    def release(self):
+        with transaction.atomic():
+            self.groups.clear()
+            self.contacts.clear()
+            self.connections.clear()
+            FlowRun.objects.filter(start=self).update(start=None)
+            self.delete()
 
     def __str__(self):  # pragma: no cover
         return f"FlowStart[id={self.id}, flow={self.flow.uuid}]"
