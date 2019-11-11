@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-06 08:43+0000\n"
+"POT-Creation-Date: 2019-11-11 14:15+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1995,6 +1995,9 @@ msgid "A connection to a Twilio account is required"
 msgstr ""
 
 msgid "Sorry, a caller cannot be added for that number"
+msgstr ""
+
+msgid "Sorry, a caller has already been added for that number"
 msgstr ""
 
 msgid "Connect Android Channel"

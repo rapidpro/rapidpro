@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-06 08:43+0000\n"
+"POT-Creation-Date: 2019-11-11 14:15+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3152,6 +3152,11 @@ msgid "A connection to a Twilio account is required"
 msgstr "Se requiere una conexión a una cuenta Nexmo"
 
 msgid "Sorry, a caller cannot be added for that number"
+msgstr "Lo sentimos, no se puede agregar un interlocutor para ese número"
+
+#, fuzzy
+#| msgid "Sorry, a caller cannot be added for that number"
+msgid "Sorry, a caller has already been added for that number"
 msgstr "Lo sentimos, no se puede agregar un interlocutor para ese número"
 
 #, fuzzy
