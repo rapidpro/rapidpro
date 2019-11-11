@@ -1,3 +1,7 @@
+v5.3.3
+----------
+ * Add releasing to Classifiers and HTTPLogs
+
 v5.3.2
 ----------
  * Allow manual syncing of classifiers
