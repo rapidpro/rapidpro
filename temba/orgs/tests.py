@@ -47,6 +47,7 @@ from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
 from temba.orgs.models import Debit, UserSettings
+from temba.request_logs.models import HTTPLog
 from temba.tests import ESMockWithScroll, MockResponse, TembaTest, TembaTestMixin, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
@@ -209,6 +210,17 @@ class OrgDeleteTest(TransactionTestCase, TembaTestMixin, SmartminTestMixin):
 
         # add a classifier
         self.c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {}, sync=False)
+
+        HTTPLog.objects.create(
+            classifier=self.c1,
+            url="http://org2.bar/zap",
+            request="GET /zap",
+            response=" OK 200",
+            is_error=False,
+            log_type=HTTPLog.CLASSIFIER_CALLED,
+            request_time=10,
+            org=self.org,
+        )
 
         # our user is a member of two orgs
         self.parent_org = self.org

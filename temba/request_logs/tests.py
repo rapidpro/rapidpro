@@ -79,3 +79,7 @@ class ClassifierTest(TembaTest):
         # should only have one log remaining and should be l2
         self.assertEqual(1, HTTPLog.objects.all().count())
         self.assertIsNotNone(HTTPLog.objects.filter(id=l2.id))
+
+        # release l2
+        l2.release()
+        self.assertIsNone(HTTPLog.objects.filter(id=l2.id))
