@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-11 14:36+0000\n"
+"POT-Creation-Date: 2019-11-08 19:42+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -3054,9 +3054,12 @@ msgstr "Impossible d'accéder aux deux noms d'utilisateur avec les informations 
 msgid "The name of your LUIS app"
 msgstr "Le nom de votre organisation"
 
+msgid "App ID"
+msgstr ""
+
 #, fuzzy
 #| msgid "The name of your organization"
-msgid "The id for your LUIS app"
+msgid "The ID for your LUIS app"
 msgstr "Le nom de votre organisation"
 
 #, fuzzy
@@ -3112,8 +3115,23 @@ msgstr "Effacer"
 msgid "Your classifier has been deleted."
 msgstr "Votre flux a été supprimé."
 
+#, fuzzy
+#| msgid "Synced on"
+msgid "Sync"
+msgstr "synchronisé sur"
+
 msgid "Delete"
 msgstr "Effacer"
+
+#, fuzzy
+#| msgid "Your flow has been removed."
+msgid "Your classifier has been synched."
+msgstr "Votre flux a été supprimé."
+
+#, fuzzy
+#| msgid "Connect Vumi"
+msgid "Unable to sync classifier. See the log for details."
+msgstr "Connectez Vumi"
 
 #, fuzzy
 msgid "Phone number"
@@ -7638,7 +7656,7 @@ msgstr ""
 msgid "Classifier Log"
 msgstr ""
 
-msgid "Intents are synced every 5 minutes"
+msgid "Intents are synced automatically every 5 minutes"
 msgstr ""
 
 #, fuzzy
@@ -11674,6 +11692,11 @@ msgstr "Entrez le code Claim"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Channel Event"
+#~ msgid "Classifier synced"
+#~ msgstr "Evénement du relayeur"
 
 #, fuzzy
 #~| msgid "The name of your organization"

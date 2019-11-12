@@ -10,7 +10,7 @@ from temba.classifiers.views import BaseConnectView
 class ConnectView(BaseConnectView):
     class Form(forms.Form):
         name = forms.CharField(help_text=_("The name of your LUIS app"))
-        app_id = forms.CharField(help_text=_("The id for your LUIS app"))
+        app_id = forms.CharField(label=_("App ID"), help_text=_("The ID for your LUIS app"))
         version = forms.CharField(help_text=_("The name of the version of your LUIS app to use"))
         primary_key = forms.CharField(help_text=_("The primary key for your LUIS app"))
         endpoint_url = forms.URLField(help_text=_("The endpoint URL for your LUIS app"))

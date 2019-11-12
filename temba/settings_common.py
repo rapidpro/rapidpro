@@ -327,7 +327,7 @@ PERMISSIONS = {
     "api.resthooksubscriber": ("api",),
     "campaigns.campaign": ("api", "archived", "archive", "activate"),
     "campaigns.campaignevent": ("api",),
-    "classifiers.classifier": ("connect", "api"),
+    "classifiers.classifier": ("connect", "api", "sync"),
     "classifiers.intent": ("api",),
     "contacts.contact": (
         "api",
@@ -533,6 +533,7 @@ GROUP_PERMISSIONS = {
         "classifiers.classifier_read",
         "classifiers.classifier_delete",
         "classifiers.classifier_list",
+        "classifiers.classifier_sync",
         "classifiers.intent_api",
         "contacts.contact_api",
         "contacts.contact_block",

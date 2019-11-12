@@ -33,13 +33,13 @@ class BotHubTypeTest(TembaTest):
             mock_get.return_value = MockResponse(400, '{ "error": "true" }')
             logs = []
             with self.assertRaises(Exception):
-                BotHubType.get_active_intents_from_api(c, logs)
+                c.get_type().get_active_intents_from_api(c, logs)
                 self.assertEqual(1, len(logs))
 
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(200, INTENT_RESPONSE)
             logs = []
-            intents = BotHubType.get_active_intents_from_api(c, logs)
+            intents = c.get_type().get_active_intents_from_api(c, logs)
             self.assertEqual(1, len(logs))
             self.assertEqual(3, len(intents))
             intent = intents[0]
