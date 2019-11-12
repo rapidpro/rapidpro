@@ -2004,6 +2004,9 @@ class Org(SmartModel):
 
             flow.delete()
 
+        # delete any remaining sessions
+        self.sessions.all().delete()
+
         # delete our contacts
         for contact in self.contacts.all():
             contact.release(contact.modified_by, full=True, immediately=True)
@@ -2057,7 +2060,19 @@ class Org(SmartModel):
 
         for resthook in self.resthooks.all():
             resthook.release(self.modified_by)
+            for sub in resthook.subscribers.all():
+                sub.delete()
             resthook.delete()
+
+        # delete org languages
+        Org.objects.filter(id=self.id).update(primary_language=None)
+        self.languages.all().delete()
+
+        # delete other related objects
+        self.api_tokens.all().delete()
+        self.invitations.all().delete()
+        self.credit_alerts.all().delete()
+        self.system_labels.all().delete()
 
         # now what we've all been waiting for
         self.delete()
