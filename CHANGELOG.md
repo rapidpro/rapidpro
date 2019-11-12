@@ -1,3 +1,7 @@
+v5.3.5
+----------
+ * release Campaigns when releasing Orgs
+
 v5.3.4
 ----------
  * Release flow starts when releasing flows
