@@ -1767,7 +1767,7 @@ class Org(SmartModel):
 
         if include_campaigns:
             all_campaigns = (
-                self.campaign_set.filter(is_active=True).select_related("group").prefetch_related(*campaign_prefetches)
+                self.campaigns.filter(is_active=True).select_related("group").prefetch_related(*campaign_prefetches)
             )
         else:
             all_campaigns = Campaign.objects.none()
@@ -1787,7 +1787,7 @@ class Org(SmartModel):
         # in flow-group-flow relationships - only relationships that go through a campaign
         campaigns_by_group = defaultdict(list)
         if include_campaigns:
-            for campaign in self.campaign_set.filter(is_active=True).select_related("group"):
+            for campaign in self.campaigns.filter(is_active=True).select_related("group"):
                 campaigns_by_group[campaign.group].append(campaign)
 
         for c, deps in dependencies.items():
@@ -1980,10 +1980,14 @@ class Org(SmartModel):
         # delete our flow labels
         self.flow_labels.all().delete()
 
+        # delete all our campaigns and associated events
+        for c in self.campaigns.all():
+            c._full_release()
+
         # delete everything associated with our flows
         for flow in self.flows.all():
 
-            # we want to manually release runs so we dont fire a task to do it
+            # we want to manually release runs so we don't fire a task to do it
             flow.release()
             flow.release_runs()
 
