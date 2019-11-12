@@ -2323,14 +2323,21 @@ class ContactURN(models.Model):
         max_length=128, help_text="The scheme for this URN, broken out for optimization reasons, ex: tel"
     )
 
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, help_text="The organization for this URN, can be null")
+    org = models.ForeignKey(
+        Org, related_name="urns", on_delete=models.PROTECT, help_text="The organization for this URN, can be null"
+    )
 
     priority = models.IntegerField(
         default=PRIORITY_STANDARD, help_text="The priority of this URN for the contact it is associated with"
     )
 
     channel = models.ForeignKey(
-        Channel, on_delete=models.PROTECT, null=True, blank=True, help_text="The preferred channel for this URN"
+        Channel,
+        related_name="urns",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        help_text="The preferred channel for this URN",
     )
 
     auth = models.TextField(null=True, help_text=_("Any authentication information needed by this URN"))

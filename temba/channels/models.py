@@ -947,7 +947,6 @@ class Channel(TembaModel):
         """
         Releases this channel making it inactive
         """
-
         dependent_flows_count = self.dependent_flows.count()
         if dependent_flows_count > 0:
             raise ValueError(f"Cannot delete Channel: {self.get_name()}, used by {dependent_flows_count} flows")
@@ -957,6 +956,9 @@ class Channel(TembaModel):
         # release any channels working on our behalf as well
         for delegate_channel in Channel.objects.filter(parent=self, org=self.org):
             delegate_channel.release()
+
+        # unassociate them
+        Channel.objects.filter(parent=self).update(parent=None)
 
         # release any alerts we sent
         for alert in self.alerts.all():
