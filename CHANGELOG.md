@@ -1,3 +1,7 @@
+v5.3.4
+----------
+ * Release flow starts when releasing flows
+
 v5.3.3
 ----------
  * Add releasing to Classifiers and HTTPLogs
