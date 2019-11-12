@@ -510,9 +510,10 @@ class Flow(TembaModel):
                     expires_after_minutes=flow_expires,
                 )
 
-            # mak sure the flow is unarchived
-            flow.is_archived = False
-            flow.save(update_fields=("is_archived",))
+            # make sure the flow is unarchived
+            if flow.is_archived:
+                flow.is_archived = False
+                flow.save(update_fields=("is_archived",))
 
             dependency_mapping[flow_uuid] = str(flow.uuid)
             created_flows.append((flow, flow_def))
