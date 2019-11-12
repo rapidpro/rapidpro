@@ -1,3 +1,7 @@
+v5.3.7
+----------
+ * Release URNs on Org release
+
 v5.3.6
 ----------
  * Release Channel sync events and alarms
