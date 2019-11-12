@@ -251,6 +251,7 @@ INSTALLED_APPS = (
     "temba.values",
     "temba.airtime",
     "temba.sql",
+    "temba.links",
 )
 
 # the last installed app that uses smartmin permissions
@@ -426,6 +427,10 @@ PERMISSIONS = {
         "upload_media_action",
     ),
     "flows.flowsession": ("json",),
+    "links.link": (
+        "archived",
+        "read",
+    ),
     "msgs.msg": (
         "api",
         "archive",
@@ -625,6 +630,10 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "templates.template_api",
+        "links.link.*",
+        "links.link_read",
+        "links.link_archived",
+        "links.link_update",
         "triggers.trigger.*",
     ),
     "Editors": (
@@ -716,6 +725,10 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "templates.template_api",
+        "links.link.*",
+        "links.link_read",
+        "links.link_archived",
+        "links.link_update",
         "triggers.trigger.*",
     ),
     "Viewers": (
