@@ -1,0 +1,15 @@
+{% load tz %}
+{% load i18n %}
+
+<p>{% trans "Hi there!" %}</p>
+
+<p>{% trans "Your trackable link export is ready." %}</p>
+
+<p>{% trans "Download your CSV file here:" %}
+    <br/>
+{{ link }}
+</p>
+<br/>
+<p>{% trans "Thanks," %}</p>
+
+<p>{% blocktrans with brand=branding.name %}The {{ brand }} Team {% endblocktrans %}</p>

@@ -1,0 +1,143 @@
+-extends "smartmin/list.html"
+-load smartmin sms temba compress
+-load i18n humanize
+
+-block title-icon
+  .title-icon
+    %span.glyph.icon-easy
+
+-block page-title
+  -trans "Trackable Links"
+
+-block page-top
+  {% render as page_top %}
+    {{block.super}}
+  {% endrender %}
+  -if org_has_links
+    {{page_top}}
+
+-block top-form
+  - if view.search_fields
+    - block search-form
+      %form
+        %input.input-medium.search-query{type:'text', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
+        -if request.REQUEST.status
+          %input{type:'hidden', name:'status', value:'{{request.REQUEST.status}}'}
+
+-block content
+
+  #pjax
+    -block pjax
+      .row-fluid
+        .span3.sidebox
+          %div{style:"margin-bottom: 10px"}
+            - if org_perms.links.link_create
+              %a.btn.btn-primary.btn-block.create_link.new-link{href:"#"}
+                -trans "Create Trackable Link"
+
+          #sidebar-nav
+            %ul.nav.nav-list.level1
+              %li.nav-header
+                -trans "Links"
+              - for folder in folders
+                %li{'class':"{% if folder.url == request_url %}active{% endif %}" }
+                  %a{'href':'{{folder.url}}'}
+                    {{ folder.label }} ({{ folder.count }})
+
+        -block link-list
+          .span9
+            - block buttons
+              .pull-right
+                -block buttons-right
+
+              .list-buttons-container
+                .list-buttons
+
+                  - if 'restore' in actions and org_perms.links.link_update
+                    %span.btn-group
+                      %a.object-btn-restore{href:'#'}
+                        %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Activate" %}'}
+                          .glyph.icon-easy
+
+                  - if 'archive' in actions and org_perms.links.link_update
+                    %span.btn-group
+                      %a.object-btn-archive{href:'#'}
+                        %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Archive" %}'}
+                          .glyph.icon-box
+
+            %table.list-table.link-list.object-list.table.table-condensed{style: '{% if not org_perms.links.link_update %}margin-top:10px{% endif %}'}
+              %tbody
+                -for object in object_list
+                  -with object.get_and_clear_unread_responses as new_responses
+                    %tr.link.object-row.select-row{ data-object-uuid: "{{object.uuid}}", data-object-id: "{{ object.id }}" }
+                      %td.link.checkbox.object-row-checkbox
+                        .glyph.icon-checkbox-unchecked.link-checkbox.object-row-checkbox
+
+                      %td.value-name
+
+                        {{ object.name }}
+
+                      -if not object.clicks_count
+                        %td.value-status
+                          -trans "No clicks"
+
+                      -else
+                        %td.value-status
+                          {% blocktrans count clicks_count=object.clicks_count %}
+                            {{ clicks_count }} click
+                          {% plural %}
+                            {{ clicks_count }} clicks
+                          {% endblocktrans %}
+
+                -empty
+                  %tr.link
+                    %td.link
+                      -trans "No matching links."
+
+            - block paginator
+              - if object_list.count
+                .paginator
+                  - include "smartmin/sidebar_pagination.haml"
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+
+    {% if org_perms.links.link_update %}
+
+    function postLabelChanges(linksIds, labelId, addLabel, number, onError) {
+
+         fetchPJAXContent("", "#pjax", { postData: { objects: linksIds, label: labelId, add: addLabel, action: 'label', pjax: 'true', number:number },
+
+         forceReload: true, onSuccess: function(data, textStatus) {
+
+           // if there is a live modal, hide it
+           var modal = $("#active-modal");
+           if ((modal).is(":visible")) {
+             modal.data('object').dismiss();
+           }
+
+           $("#pjax").html(data);
+           recheckIds();
+         }, onError: onError});
+    }
+
+    {% endif %}
+
+    $(document).ready( function() {
+
+      $(document).on('click', 'tr.link td:nth-child(n+2)', function(e){
+         document.location = '/link/read/' + $(this).parent().data("object-uuid");
+      });
+
+      {% if org_perms.links.link_create %}
+      $(".create_link").live('click', function() {
+        var modal = new Modax('{% trans "Create Trackable Link" %}', '{% url "links.link_create" %}');
+        modal.setIcon('icon-easy');
+        modal.setRedirectOnSuccess(true);
+        modal.show();
+      });
+      {% endif %}
+
+    });
