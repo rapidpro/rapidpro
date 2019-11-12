@@ -3241,6 +3241,7 @@ class FlowStart(models.Model):
             self.contacts.clear()
             self.connections.clear()
             FlowRun.objects.filter(start=self).update(start=None)
+            FlowStartCount.objects.filter(start=self).delete()
             self.delete()
 
     def __str__(self):  # pragma: no cover
