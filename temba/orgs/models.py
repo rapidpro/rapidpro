@@ -2009,6 +2009,9 @@ class Org(SmartModel):
             contact.release(contact.modified_by, full=True, immediately=True)
             contact.delete()
 
+        # delete all our URNs
+        self.urns.all().delete()
+
         # delete our fields
         for contactfield in self.contactfields(manager="all_fields").all():
             contactfield.release(contactfield.modified_by)
