@@ -4101,8 +4101,11 @@ class BulkExportTest(TembaTest):
         confirm_appointment = Flow.objects.get(name="Confirm Appointment", is_active=True)
         self.assertEqual(60, confirm_appointment.expires_after_minutes)
 
-        # now delete a flow
+        # should be unarchived
         register = Flow.objects.filter(name="Register Patient").first()
+        self.assertFalse(register.is_archived)
+
+        # now delete a flow
         register.is_active = False
         register.save()
 
