@@ -29,7 +29,7 @@ from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
-from temba.channels.models import Channel
+from temba.channels.models import Alert, Channel, SyncEvent
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.wit import WitType
 from temba.contacts.models import (
@@ -185,6 +185,16 @@ class OrgDeleteTest(TransactionTestCase, TembaTestMixin, SmartminTestMixin):
     def setUp(self):
         self.setUpOrg()
         self.setUpLocations()
+
+        # set up a sync event and alert on our channel
+        SyncEvent.create(
+            self.channel,
+            dict(pending=[], retry=[], power_source="P", power_status="full", power_level="100", network_type="W"),
+            [],
+        )
+        Alert.objects.create(
+            channel=self.channel, alert_type=Alert.TYPE_SMS, created_by=self.admin, modified_by=self.admin
+        )
 
         # create a second child org
         self.child_org = Org.objects.create(

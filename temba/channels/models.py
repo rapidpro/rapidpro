@@ -870,11 +870,11 @@ class Channel(TembaModel):
         return messages
 
     def get_recent_syncs(self):
-        return self.syncevent_set.filter(created_on__gt=timezone.now() - timedelta(hours=1)).order_by("-created_on")
+        return self.sync_events.filter(created_on__gt=timezone.now() - timedelta(hours=1)).order_by("-created_on")
 
     def get_last_sync(self):
         if not hasattr(self, "_last_sync"):
-            last_sync = self.syncevent_set.order_by("-created_on").first()
+            last_sync = self.sync_events.order_by("-created_on").first()
 
             self._last_sync = last_sync
 
@@ -957,6 +957,14 @@ class Channel(TembaModel):
         # release any channels working on our behalf as well
         for delegate_channel in Channel.objects.filter(parent=self, org=self.org):
             delegate_channel.release()
+
+        # release any alerts we sent
+        for alert in self.alerts.all():
+            alert.release()
+
+        # any related sync events
+        for sync_event in self.sync_events.all():
+            sync_event.release()
 
         # only call out to external aggregator services if we are on prod servers
         if settings.IS_PROD:
@@ -1467,6 +1475,7 @@ class ChannelLog(models.Model):
 class SyncEvent(SmartModel):
     channel = models.ForeignKey(
         Channel,
+        related_name="sync_events",
         on_delete=models.PROTECT,
         verbose_name=_("Channel"),
         help_text=_("The channel that synced to the server"),
@@ -1544,7 +1553,7 @@ class SyncEvent(SmartModel):
         return sync_event
 
     def release(self):
-        for alert in self.alert_set.all():
+        for alert in self.alerts.all():
             alert.release()
         self.delete()
 
@@ -1586,10 +1595,15 @@ class Alert(SmartModel):
     )  # channel has many unsent messages
 
     channel = models.ForeignKey(
-        Channel, on_delete=models.PROTECT, verbose_name=_("Channel"), help_text=_("The channel that this alert is for")
+        Channel,
+        related_name="alerts",
+        on_delete=models.PROTECT,
+        verbose_name=_("Channel"),
+        help_text=_("The channel that this alert is for"),
     )
     sync_event = models.ForeignKey(
         SyncEvent,
+        related_name="alerts",
         on_delete=models.PROTECT,
         verbose_name=_("Sync Event"),
         null=True,
