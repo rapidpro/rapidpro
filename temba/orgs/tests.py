@@ -42,7 +42,7 @@ from temba.contacts.models import (
     ContactURN,
     ExportContactsTask,
 )
-from temba.flows.models import ActionSet, ExportFlowResultsTask, Flow, FlowLabel, FlowRun
+from temba.flows.models import ActionSet, ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
@@ -285,6 +285,8 @@ class OrgDeleteTest(TransactionTestCase, TembaTestMixin, SmartminTestMixin):
             keyword="favorites",
         )
         parent_trigger.groups.add(self.parent_org.all_groups.all().first())
+
+        FlowStart.objects.create(flow=parent_flow)
 
         child_trigger = Trigger.create(
             self.child_org,
