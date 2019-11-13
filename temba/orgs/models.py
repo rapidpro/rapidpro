@@ -2071,6 +2071,10 @@ class Org(SmartModel):
         self.api_tokens.all().delete()
         self.invitations.all().delete()
         self.credit_alerts.all().delete()
+        self.broadcast_set.all().delete()
+        self.schedules.all().delete()
+
+        # needs to come after deletion of msgs and broadcasts as those insert new counts
         self.system_labels.all().delete()
 
         # now what we've all been waiting for
