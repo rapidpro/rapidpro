@@ -1,3 +1,8 @@
+v5.3.8
+----------
+ * Make sure imported flows are unarchived
+ * Validate we do not have a caller on a channel before adding a new one
+
 v5.3.7
 ----------
  * Release URNs on Org release
