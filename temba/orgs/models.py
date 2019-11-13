@@ -1986,7 +1986,6 @@ class Org(SmartModel):
 
         # delete everything associated with our flows
         for flow in self.flows.all():
-
             # we want to manually release runs so we don't fire a task to do it
             flow.release()
             flow.release_runs()
@@ -2004,7 +2003,7 @@ class Org(SmartModel):
 
             flow.delete()
 
-        # delete any remaining sessions
+        # delete all sessions
         self.sessions.all().delete()
 
         # delete our contacts

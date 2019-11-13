@@ -2024,9 +2024,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             # clear any runs that reference us
             FlowRun.objects.filter(parent=self).update(parent=None)
 
-            # and any sessions that refer to us
-            FlowSession.objects.filter(run=self).update(run=None)
-
             # and any recent runs
             for recent in FlowPathRecentRun.objects.filter(run=self):
                 recent.release()
