@@ -379,6 +379,7 @@ class OrgDeleteTest(TransactionTestCase, TembaTestMixin, SmartminTestMixin):
 
             # add in some webhook results
             resthook = Resthook.get_or_create(org, "registration", self.admin)
+            resthook.subscribers.create(target_url="http://foo.bar", created_by=self.admin, modified_by=self.admin)
             WebHookEvent.objects.create(org=org, resthook=resthook, data={})
             WebHookResult.objects.create(
                 org=self.org, url="http://foo.bar", request="GET http://foo.bar", status_code=200, response="zap!"

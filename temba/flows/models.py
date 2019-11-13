@@ -1764,9 +1764,11 @@ class Flow(TembaModel):
         """
         Exits all flow runs
         """
-
         # grab the ids of all our runs
         run_ids = self.runs.all().values_list("id", flat=True)
+
+        # clear our association with any related sessions
+        self.sessions.all().update(current_flow=None)
 
         # batch this for 1,000 runs at a time so we don't grab locks for too long
         for id_batch in chunk_list(run_ids, 1000):
@@ -1809,7 +1811,7 @@ class FlowSession(models.Model):
     session_type = models.CharField(max_length=1, choices=Flow.FLOW_TYPES, default=Flow.TYPE_MESSAGE, null=True)
 
     # the organization this session belongs to
-    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    org = models.ForeignKey(Org, related_name="sessions", on_delete=models.PROTECT)
 
     # the contact that this session is with
     contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="sessions")
@@ -1841,7 +1843,7 @@ class FlowSession(models.Model):
     wait_started_on = models.DateTimeField(null=True)
 
     # the flow of the waiting run
-    current_flow = models.ForeignKey("flows.Flow", null=True, on_delete=models.PROTECT)
+    current_flow = models.ForeignKey("flows.Flow", related_name="sessions", null=True, on_delete=models.PROTECT)
 
     def release(self):
         self.delete()

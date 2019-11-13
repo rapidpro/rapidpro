@@ -1986,7 +1986,6 @@ class Org(SmartModel):
 
         # delete everything associated with our flows
         for flow in self.flows.all():
-
             # we want to manually release runs so we don't fire a task to do it
             flow.release()
             flow.release_runs()
@@ -2003,6 +2002,9 @@ class Org(SmartModel):
             flow.exit_counts.all().delete()
 
             flow.delete()
+
+        # delete all sessions
+        self.sessions.all().delete()
 
         # delete our contacts
         for contact in self.contacts.all():
@@ -2057,7 +2059,19 @@ class Org(SmartModel):
 
         for resthook in self.resthooks.all():
             resthook.release(self.modified_by)
+            for sub in resthook.subscribers.all():
+                sub.delete()
             resthook.delete()
+
+        # delete org languages
+        Org.objects.filter(id=self.id).update(primary_language=None)
+        self.languages.all().delete()
+
+        # delete other related objects
+        self.api_tokens.all().delete()
+        self.invitations.all().delete()
+        self.credit_alerts.all().delete()
+        self.system_labels.all().delete()
 
         # now what we've all been waiting for
         self.delete()
