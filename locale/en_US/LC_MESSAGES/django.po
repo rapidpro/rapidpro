@@ -1994,7 +1994,10 @@ msgstr ""
 msgid "A connection to a Twilio account is required"
 msgstr ""
 
-msgid "Sorry, a caller cannot be added for that number"
+msgid "A caller cannot be added for that number"
+msgstr ""
+
+msgid "A caller has already been added for that number"
 msgstr ""
 
 msgid "Connect Android Channel"
