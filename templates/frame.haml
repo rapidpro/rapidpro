@@ -385,9 +385,10 @@
 
     <script type="text/javascript" src="{{ STATIC_URL }}js/libs/jquery.url.js"></script>
 
-    <form id="posterizer" method="post">
-      {% csrf_token %}
-    </form>
+    - if not request.META.HTTP_X_FORMAX or formax
+      <form id="posterizer" method="post">
+        {% csrf_token %}
+      </form>
 
     :javascript
       $(document).ready(function() {
@@ -435,7 +436,7 @@
           timeout:300
         });
 
-
+        {% if not request.META.HTTP_X_FORMAX or formax %}
         $("a.posterize").click(function(event){
           event.preventDefault();
           event.stopPropagation();
@@ -451,6 +452,7 @@
 
           $("#posterizer").submit();
         });
+        {% endif %}
       });
 {% endblock body %}
 
