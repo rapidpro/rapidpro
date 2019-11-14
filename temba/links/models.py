@@ -11,7 +11,7 @@ from smartmin.models import SmartModel
 
 from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact
-from temba.contacts.search import SearchException, contact_es_search
+from temba.contacts.search import SearchException
 from temba.orgs.models import Org
 from temba.utils import chunk_list
 from temba.utils.dates import datetime_to_str
@@ -100,10 +100,8 @@ class Link(TembaModel):
         contacts = LinkContacts.objects.filter(link=self, created_on__gte=after, created_on__lt=before)
         if search:
             try:
-                real_contacts = Contact.objects.filter(id__in=contacts.values_list('contact__id')).only('id')
-                # TODO re-code this contact search because now it is using ES
-                search_contacts = contact_es_search(self.org, search, real_contacts)
-                contacts = contacts.filter(contact__id__in=search_contacts.values_list('id'))
+                contacts = Contact.objects.filter(models.Q(name__contains=search),
+                                                  id__in=contacts.values_list('contact__id')).only('id')
             except SearchException as e:
                 self.search_error = str(e.message)
                 contacts = Contact.objects.none()
