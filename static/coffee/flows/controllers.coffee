@@ -975,6 +975,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   formData = {}
   formData.resthook = ""
+  formData.shorten_url = ""
 
   if options.nodeType == 'rules' or options.nodeType == 'ivr'
 
@@ -1732,6 +1733,14 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
       else if rulesetConfig.type == 'resthook'
         ruleset.config = {'resthook': splitEditor.resthook.selected[0]['id']}
+
+      else if rulesetConfig.type == 'shorten_url'
+        ruleset.config = {
+          'shorten_url': {
+            'text': splitEditor.shorten_url.selected[0]['text'],
+            'id': splitEditor.shorten_url.selected[0]['id']
+          }
+        }
 
       else if rulesetConfig.type == 'webhook'
 
