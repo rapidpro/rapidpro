@@ -48,7 +48,8 @@ from django.views.generic import View
 from temba.api.models import APIToken
 from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
-from temba.flows.models import Flow
+from temba.flows.models import Flow, RuleSet
+from temba.links.models import Link
 from temba.formax import FormaxMixin
 from temba.utils import analytics, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address
@@ -640,7 +641,14 @@ class OrgCRUDL(SmartCRUDL):
             flows = Flow.objects.filter(id__in=self.request.POST.getlist("flows"), org=org, is_active=True)
             campaigns = Campaign.objects.filter(id__in=self.request.POST.getlist("campaigns"), org=org, is_active=True)
 
-            components = set(itertools.chain(flows, campaigns))
+            shorten_url_rulesets = RuleSet.objects.filter(flow__id__in=[flow.id for flow in flows],
+                                                          ruleset_type=RuleSet.TYPE_SHORTEN_URL).only("config").order_by("id")
+            links = []
+            if shorten_url_rulesets:
+                links_uuid = [item.config[RuleSet.TYPE_SHORTEN_URL]["id"] for item in shorten_url_rulesets]
+                links = Link.objects.filter(uuid__in=links_uuid)
+
+            components = set(itertools.chain(flows, campaigns, links))
 
             # add triggers for the selected flows
             for flow in flows:

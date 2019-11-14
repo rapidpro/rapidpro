@@ -164,6 +164,7 @@ class Org(SmartModel):
     EXPORT_TRIGGERS = "triggers"
     EXPORT_FIELDS = "fields"
     EXPORT_GROUPS = "groups"
+    EXPORT_LINKS = "links"
 
     EARLIEST_IMPORT_VERSION = "3"
     CURRENT_EXPORT_VERSION = "13"
@@ -458,10 +459,12 @@ class Org(SmartModel):
         from temba.campaigns.models import Campaign
         from temba.flows.models import Flow
         from temba.triggers.models import Trigger
+        from temba.links.models import Link
 
         exported_flows = []
         exported_campaigns = []
         exported_triggers = []
+        exported_links = []
 
         # users can't choose which fields/groups to export - we just include all the dependencies
         fields = set()
@@ -493,12 +496,16 @@ class Org(SmartModel):
                 if include_groups:
                     groups.update(component.groups.all())
 
+            elif isinstance(component, Link):
+                exported_links.append(component.as_json())
+
         return {
             Org.EXPORT_VERSION: Org.CURRENT_EXPORT_VERSION,
             Org.EXPORT_SITE: site_link,
             Org.EXPORT_FLOWS: exported_flows,
             Org.EXPORT_CAMPAIGNS: exported_campaigns,
             Org.EXPORT_TRIGGERS: exported_triggers,
+            Org.EXPORT_LINKS: exported_links,
             Org.EXPORT_FIELDS: [f.as_export_def() for f in sorted(fields, key=lambda f: f.key)],
             Org.EXPORT_GROUPS: [g.as_export_def() for g in sorted(groups, key=lambda g: g.name)],
         }

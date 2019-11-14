@@ -790,6 +790,11 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "links.link_export",
+        "links.link_archived",
+        "links.link_history",
+        "links.link_list",
+        "links.link_read",
         "triggers.trigger_archived",
         "triggers.trigger_list",
     ),
@@ -1125,3 +1130,6 @@ ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 
 # Maximum active ContactFields users can have in an Org
 MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
+
+FDL_API_KEY = "FirebaseDynamicLinkAPIKey"
+FDL_URL = "FirebaseDynamicLinkURL"
