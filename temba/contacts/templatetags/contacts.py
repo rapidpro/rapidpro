@@ -138,7 +138,7 @@ def history_icon(item):
     variant = None
 
     if event_type == "msg_created":
-        if obj.broadcast and obj.broadcast.recipient_count and obj.broadcast.recipient_count > 1:
+        if obj.broadcast and obj.broadcast.get_message_count() and obj.broadcast.get_message_count() > 1:
             variant = "failed" if obj.status in ("E", "F") else "broadcast"
         elif obj.msg_type == "V":
             variant = "voice"

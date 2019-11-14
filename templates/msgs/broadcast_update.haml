@@ -43,21 +43,11 @@
 
 -block summary
 
-  -if broadcast.recipient_count
-    -blocktrans with count_comma=broadcast.recipient_count|intcomma count cc=broadcast.recipient_count
-      The message will be sent to
-      %span.attn
-        {{ count_comma }} recipients
-      -plural
-        The message will be sent to
-        %span.attn
-          {{ count_comma }} recipients
+  -blocktrans with recipients_display=broadcast.get_recipients_display
+    The message will be sent to
+    %span.attn
+      {{recipients_display}}
 
     #broadcast_preview
       {{ object.get_default_text }}
 
-  -else
-    -blocktrans
-      %span.attn
-        Nobody
-      will be notified about this broadcast.

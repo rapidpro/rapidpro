@@ -15,12 +15,7 @@
         %tr.select-row{class:'{% cycle row1 row1 %}', onClick:'document.location="{% url "msgs.broadcast_schedule_read" object.id %}"'}
 
           %td.value-contacts.field_phone
-            -if object.recipient_count
-              {% blocktrans with count_comma=object.recipient_count|intcomma count cc=object.recipient_count %}
-                {{ count_comma }} recipient
-              {% plural %}
-                {{ count_comma }} recipients
-              {% endblocktrans %}
+            {{object.get_recipients_display}}
 
           %td.value-text.field_text
             {{ object.get_default_text }}

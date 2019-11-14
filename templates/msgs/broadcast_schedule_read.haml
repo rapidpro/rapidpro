@@ -30,12 +30,7 @@
             -for object in object_list
               %tr{class:'{% cycle row1 row2 %}'}
                 %td
-                  -if object.recipient_count
-                    {% blocktrans with count_comma=object.recipient_count|intcomma count cc=object.recipient_count %}
-                      {{ count_comma }} recipient
-                    {% plural %}
-                      {{ count_comma }} recipients
-                    {% endblocktrans %}
+                  {{object.get_recipients_display}}
                 %td
                   {{ object.get_default_text }}
                 %td

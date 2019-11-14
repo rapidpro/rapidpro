@@ -13,12 +13,7 @@
 
           %td.value-phone.field_phone
             %nobr
-              -if broadcast.recipient_count > 0
-                {% blocktrans count counter=broadcast.recipient_count %}
-                1 contact
-                {% plural %}
-                {{counter}} contacts
-                {% endblocktrans %}
+              {{broadcast.get_recipients_display}}
 
           %td.value-text.field_text.wrapped
             {{ broadcast.get_default_text }}

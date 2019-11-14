@@ -23,7 +23,7 @@ from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.courier import push_courier_msgs
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.models import URN, Contact, ContactGroup, ContactGroupCount, ContactURN
+from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import chunk_list, extract_constants, on_transaction_commit
@@ -280,6 +280,23 @@ class Broadcast(models.Model):
     def get_message_count(self):
         return BroadcastMsgCount.get_count(self)
 
+    def get_recipients_display(self):
+        if self.status in (WIRED, SENT, DELIVERED):
+            return _("%s recipients" % self.get_message_count())
+
+        groups_count = self.groups.count()
+        contacts_count = self.contacts.count()
+        urns_count = self.urns.count()
+
+        if groups_count == 1 and contacts_count == 0 and urns_count == 0:
+            return _("%s recipients" % self.groups.first().get_member_count())
+        if groups_count == 0 and urns_count == 0:
+            return _("%s recipients" % contacts_count)
+        if groups_count == 0 and contacts_count == 0:
+            return _("%s recipients" % urns_count)
+
+        return _("%s groups, %s contacts, %s urns" % (groups_count, contacts_count, urns_count))
+
     def get_default_text(self):
         """
         Gets the appropriate display text for the broadcast without a contact
@@ -319,31 +336,20 @@ class Broadcast(models.Model):
         """
         Sets the recipients which may be contact groups, contacts or contact URNs.
         """
-        recipient_count = 0
-
         if groups:
             self.groups.add(*groups)
-            for c in ContactGroupCount.get_totals(groups).values():
-                recipient_count += c
 
         if contacts:
             self.contacts.add(*contacts)
-            recipient_count += len(contacts)
 
         if urns:
             self.urns.add(*urns)
-            recipient_count += len(urns)
 
         if contact_ids:
             RelatedModel = self.contacts.through
             for chunk in chunk_list(contact_ids, 1000):
                 bulk_contacts = [RelatedModel(contact_id=id, broadcast_id=self.id) for id in chunk]
                 RelatedModel.objects.bulk_create(bulk_contacts)
-            recipient_count += len(contact_ids)
-
-        # set an estimate of our number of recipients, we calculate this more carefully when actually sent
-        self.recipient_count = recipient_count
-        self.save(update_fields=["recipient_count"])
 
     def _get_preferred_languages(self, contact=None, org=None):
         """
