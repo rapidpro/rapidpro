@@ -278,20 +278,20 @@ class Broadcast(models.Model):
 
     def get_recipients_display(self):
         if self.status in (WIRED, SENT, DELIVERED):
-            return _("%s recipients" % self.get_message_count())
+            return _(f"{self.get_message_count()} recipients")
 
         groups_count = self.groups.count()
         contacts_count = self.contacts.count()
         urns_count = self.urns.count()
 
         if groups_count == 1 and contacts_count == 0 and urns_count == 0:
-            return _("%s recipients" % self.groups.first().get_member_count())
+            return _(f"{self.groups.first().get_member_count()} recipients")
         if groups_count == 0 and urns_count == 0:
-            return _("%s recipients" % contacts_count)
+            return _(f"{contacts_count} recipients")
         if groups_count == 0 and contacts_count == 0:
-            return _("%s recipients" % urns_count)
+            return _(f"{urns_count} recipients")
 
-        return _("%s groups, %s contacts, %s urns" % (groups_count, contacts_count, urns_count))
+        return _(f"{groups_count} groups, {contacts_count}  contacts, {urns_count} urns")
 
     def get_default_text(self):
         """
