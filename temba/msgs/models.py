@@ -122,10 +122,6 @@ class Broadcast(models.Model):
         help_text=_("Individual URNs included in this message"),
     )
 
-    recipient_count = models.IntegerField(
-        verbose_name=_("Number of recipients"), null=True, help_text=_("Number of urns which received this broadcast")
-    )
-
     channel = models.ForeignKey(
         Channel,
         on_delete=models.PROTECT,
