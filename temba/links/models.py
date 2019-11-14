@@ -30,19 +30,15 @@ class LinkException(Exception):
 
 class Link(TembaModel):
 
-    name = models.CharField(max_length=64,
-                            help_text=_("The name for this trackable link"))
+    name = models.CharField(max_length=64, help_text=_("The name for this trackable link"))
 
-    destination = models.URLField(max_length=255,
-                                  help_text="The destination URL for this trackable link")
+    destination = models.URLField(max_length=255, help_text="The destination URL for this trackable link")
 
     org = models.ForeignKey(Org, related_name="links", on_delete=models.CASCADE)
 
-    is_archived = models.BooleanField(default=False,
-                                      help_text=_("Whether this trackable link is archived"))
+    is_archived = models.BooleanField(default=False, help_text=_("Whether this trackable link is archived"))
 
-    clicks_count = models.PositiveIntegerField(default=0,
-                                               help_text="Clicks count for this trackable link")
+    clicks_count = models.PositiveIntegerField(default=0, help_text="Clicks count for this trackable link")
 
     @classmethod
     def create(cls, org, user, name, destination):
@@ -100,18 +96,17 @@ class Link(TembaModel):
         contacts = LinkContacts.objects.filter(link=self, created_on__gte=after, created_on__lt=before)
         if search:
             try:
-                contacts = Contact.objects.filter(models.Q(name__contains=search),
-                                                  id__in=contacts.values_list('contact__id')).only('id')
+                contacts = Contact.objects.filter(
+                    models.Q(name__contains=search), id__in=contacts.values_list("contact__id")
+                ).only("id")
             except SearchException as e:
                 self.search_error = str(e.message)
                 contacts = Contact.objects.none()
 
         # wrap items, chain and sort by time
-        activity = chain(
-            [{"type": "contact", "time": c.created_on, "obj": c} for c in contacts]
-        )
+        activity = chain([{"type": "contact", "time": c.created_on, "obj": c} for c in contacts])
 
-        return sorted(activity, key=lambda i: i['time'], reverse=True)[:MAX_HISTORY]
+        return sorted(activity, key=lambda i: i["time"], reverse=True)[:MAX_HISTORY]
 
     def __str__(self):
         return self.name
@@ -123,9 +118,12 @@ class Link(TembaModel):
 class LinkContacts(SmartModel):
     link = models.ForeignKey(Link, related_name="contacts", on_delete=models.CASCADE)
 
-    contact = models.ForeignKey(Contact, related_name="contact_links",
-                                help_text=_("The users which clicked on this link"),
-                                on_delete=models.CASCADE)
+    contact = models.ForeignKey(
+        Contact,
+        related_name="contact_links",
+        help_text=_("The users which clicked on this link"),
+        on_delete=models.CASCADE,
+    )
 
     def __str__(self):
         return f"{self.contact.get_display()}"
@@ -136,9 +134,9 @@ class ExportLinksTask(BaseExportTask):
     email_subject = "Your trackable link export is ready"
     email_template = "links/email/links_export_download"
 
-    link = models.ForeignKey(Link, null=True, related_name="exports",
-                             help_text=_("The trackable link to export"),
-                             on_delete=models.CASCADE)
+    link = models.ForeignKey(
+        Link, null=True, related_name="exports", help_text=_("The trackable link to export"), on_delete=models.CASCADE
+    )
 
     @classmethod
     def create(cls, org, user, link):
@@ -146,10 +144,12 @@ class ExportLinksTask(BaseExportTask):
 
     def get_export_fields_and_schemes(self):
 
-        fields = [dict(label="Contact UUID", key=Contact.UUID, id=0, field=None, urn_scheme=None),
-                  dict(label="Name", key=Contact.NAME, id=0, field=None, urn_scheme=None),
-                  dict(label="Date", key="date", id=0, field=None, urn_scheme=None),
-                  dict(label="Destination Link", key="destination", id=0, field=None, urn_scheme=None)]
+        fields = [
+            dict(label="Contact UUID", key=Contact.UUID, id=0, field=None, urn_scheme=None),
+            dict(label="Name", key=Contact.NAME, id=0, field=None, urn_scheme=None),
+            dict(label="Date", key="date", id=0, field=None, urn_scheme=None),
+            dict(label="Destination Link", key="destination", id=0, field=None, urn_scheme=None),
+        ]
 
         # anon orgs also get an ID column that is just the PK
         if self.org.is_anon:
@@ -160,7 +160,11 @@ class ExportLinksTask(BaseExportTask):
     def write_export(self):
         fields, scheme_counts = self.get_export_fields_and_schemes()
 
-        contact_ids = self.link.contacts.filter(contact__is_test=False).order_by("contact__name", "contact__id").values_list("id", flat=True)
+        contact_ids = (
+            self.link.contacts.filter(contact__is_test=False)
+            .order_by("contact__name", "contact__id")
+            .values_list("id", flat=True)
+        )
 
         # create our exporter
         exporter = TableExporter(self, "Links", [f["label"] for f in fields])
@@ -187,10 +191,11 @@ class ExportLinksTask(BaseExportTask):
                         field_value = contact.contact.get_display()
                     elif field["key"] == Contact.UUID:
                         field_value = contact.contact.uuid
-                    elif field["key"] == 'date':
-                        field_value = datetime_to_str(contact.created_on, format="%m-%d-%Y %H:%M:%S",
-                                                      tz=self.link.org.timezone)
-                    elif field["key"] == 'destination':
+                    elif field["key"] == "date":
+                        field_value = datetime_to_str(
+                            contact.created_on, format="%m-%d-%Y %H:%M:%S", tz=self.link.org.timezone
+                        )
+                    elif field["key"] == "destination":
                         field_value = contact.link.destination
                     else:
                         field_value = contact.contact.get_field_display(field["field"])
@@ -212,10 +217,17 @@ class ExportLinksTask(BaseExportTask):
                     elapsed = time.time() - start
                     predicted = int(elapsed / (current_contact / (len(contact_ids) * 1.0)))
 
-                    print("Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)" %
-                          (self.org.name, current_contact * 100 / len(contact_ids),
-                           "{:,}".format(current_contact), "{:,}".format(len(contact_ids)),
-                           time.time() - start, predicted))
+                    print(
+                        "Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)"
+                        % (
+                            self.org.name,
+                            current_contact * 100 / len(contact_ids),
+                            "{:,}".format(current_contact),
+                            "{:,}".format(len(contact_ids)),
+                            time.time() - start,
+                            predicted,
+                        )
+                    )
 
         return exporter.save_file()
 

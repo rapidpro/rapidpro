@@ -28,8 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 class LinkActionForm(BaseActionForm):
-    allowed_actions = (("archive", _("Archive Links")),
-                       ("restore", _("Restore Links")))
+    allowed_actions = (("archive", _("Archive Links")), ("restore", _("Restore Links")))
 
     model = Link
     has_is_active = True
@@ -39,7 +38,6 @@ class LinkActionForm(BaseActionForm):
 
 
 class LinkActionMixin(SmartListView):
-
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
@@ -58,7 +56,6 @@ class LinkActionMixin(SmartListView):
 
 
 class BaseFlowForm(forms.ModelForm):
-
     class Meta:
         model = Link
         fields = "__all__"
@@ -78,7 +75,6 @@ class LinkCRUDL(SmartCRUDL):
                 return queryset.filter(org=self.request.user.get_org())
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
-
         class LinkCreateForm(BaseFlowForm):
             def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -89,7 +85,8 @@ class LinkCRUDL(SmartCRUDL):
                 fields = ("name", "destination")
                 widgets = {
                     "destination": forms.URLInput(
-                        attrs={"placeholder": "E.g. http://example.com, https://example.com"}),
+                        attrs={"placeholder": "E.g. http://example.com, https://example.com"}
+                    )
                 }
 
         form_class = LinkCreateForm
@@ -137,8 +134,14 @@ class LinkCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Edit"), style="btn-primary", js_class="update-link", href="#"))
 
             if self.has_org_perm("links.link_export"):
-                links.append(dict(title=_("Export"), style="btn-primary", js_class="posterize",
-                                  href=reverse("links.link_export", args=(self.object.pk,))))
+                links.append(
+                    dict(
+                        title=_("Export"),
+                        style="btn-primary",
+                        js_class="posterize",
+                        href=reverse("links.link_export", args=(self.object.pk,)),
+                    )
+                )
 
             return links
 
@@ -181,6 +184,7 @@ class LinkCRUDL(SmartCRUDL):
 
             # mark our after as the last item in our list
             from temba.links.models import MAX_HISTORY
+
             if len(activity) >= MAX_HISTORY:
                 after = activity[-1]["time"]
 
@@ -198,7 +202,6 @@ class LinkCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class LinkUpdateForm(BaseFlowForm):
-
             def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.user = user
@@ -208,7 +211,8 @@ class LinkCRUDL(SmartCRUDL):
                 fields = ("name", "destination")
                 widgets = {
                     "destination": forms.URLInput(
-                        attrs={"placeholder": "E.g. http://example.com, https://example.com"}),
+                        attrs={"placeholder": "E.g. http://example.com, https://example.com"}
+                    )
                 }
 
         success_message = ""
@@ -243,14 +247,22 @@ class LinkCRUDL(SmartCRUDL):
             # is there already an export taking place?
             existing = ExportLinksTask.get_recent_unfinished(org)
             if existing:
-                messages.info(self.request,
-                              _(f"There is already an export in progress, started by {existing.created_by.username}. "
-                                f"You must wait for that export to complete before starting another."))
+                messages.info(
+                    self.request,
+                    _(
+                        f"There is already an export in progress, started by {existing.created_by.username}. "
+                        f"You must wait for that export to complete before starting another."
+                    ),
+                )
 
             # otherwise, off we go
             else:
-                previous_export = ExportLinksTask.objects.filter(org=org, created_by=user).order_by("-modified_on").first()
-                if previous_export and previous_export.created_on < timezone.now() - timedelta(hours=24):  # pragma: needs cover
+                previous_export = (
+                    ExportLinksTask.objects.filter(org=org, created_by=user).order_by("-modified_on").first()
+                )
+                if previous_export and previous_export.created_on < timezone.now() - timedelta(
+                    hours=24
+                ):  # pragma: needs cover
                     analytics.track(self.request.user.username, "temba.link_exported")
 
                 export = ExportLinksTask.create(org, user, link)
@@ -258,13 +270,19 @@ class LinkCRUDL(SmartCRUDL):
                 on_transaction_commit(lambda: export_link_task.delay(export.pk))
 
                 if not getattr(settings, "CELERY_ALWAYS_EAGER", False):  # pragma: no cover
-                    messages.info(self.request,
-                                  _(f"We are preparing your export. We will e-mail you at {self.request.user.username} when it is ready."))
+                    messages.info(
+                        self.request,
+                        _(
+                            f"We are preparing your export. We will e-mail you at {self.request.user.username} when it is ready."
+                        ),
+                    )
 
                 else:
                     dl_url = reverse("assets.download", kwargs=dict(type="link_export", pk=export.pk))
-                    messages.info(self.request,
-                                  _(f"Export complete, you can find it here: {dl_url} (production users will get an email)"))
+                    messages.info(
+                        self.request,
+                        _(f"Export complete, you can find it here: {dl_url} (production users will get an email)"),
+                    )
 
             return HttpResponseRedirect(redirect or reverse("links.link_read", args=[link.uuid]))
 
@@ -273,7 +291,7 @@ class LinkCRUDL(SmartCRUDL):
         refresh = 10000
         fields = ("name", "modified_on")
         default_template = "links/link_list.html"
-        default_order = ("-created_on")
+        default_order = "-created_on"
         search_fields = ("name__icontains",)
 
         def get_context_data(self, **kwargs):
@@ -293,11 +311,16 @@ class LinkCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             return [
-                dict(label="Active", url=reverse("links.link_list"),
-                     count=Link.objects.filter(is_active=True, is_archived=False, org=org).count()),
-
-                dict(label="Archived", url=reverse("links.link_archived"),
-                     count=Link.objects.filter(is_active=True, is_archived=True, org=org).count())
+                dict(
+                    label="Active",
+                    url=reverse("links.link_list"),
+                    count=Link.objects.filter(is_active=True, is_archived=False, org=org).count(),
+                ),
+                dict(
+                    label="Archived",
+                    url=reverse("links.link_archived"),
+                    count=Link.objects.filter(is_active=True, is_archived=True, org=org).count(),
+                ),
             ]
 
     class Archived(BaseList):

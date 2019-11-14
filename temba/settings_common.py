@@ -427,13 +427,7 @@ PERMISSIONS = {
         "upload_media_action",
     ),
     "flows.flowsession": ("json",),
-    "links.link": (
-        "archived",
-        "read",
-        "history",
-        "export",
-        "api",
-    ),
+    "links.link": ("archived", "read", "history", "export", "api"),
     "msgs.msg": (
         "api",
         "archive",
