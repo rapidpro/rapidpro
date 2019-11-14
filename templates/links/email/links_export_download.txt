@@ -4,7 +4,9 @@
 {% blocktrans with brand=branding.name %}
 Hi there!
 
-You can download your {{ brand }} trackable link export by clicking on the following link:
+Your trackable link export is ready.
+
+Download your file here:
 {% endblocktrans %}
 {{ link }}
 
