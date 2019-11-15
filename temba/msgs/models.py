@@ -280,18 +280,18 @@ class Broadcast(models.Model):
         if self.status in (WIRED, SENT, DELIVERED):
             return {"recipients": self.get_message_count(), "groups": 0, "contacts": 0, "urns": 0}
 
-        groups_count = self.groups.count()
-        contacts_count = self.contacts.count()
-        urns_count = self.urns.count()
+        group_count = self.groups.count()
+        contact_count = self.contacts.count()
+        urn_count = self.urns.count()
 
-        if groups_count == 1 and contacts_count == 0 and urns_count == 0:
+        if group_count == 1 and contact_count == 0 and urn_count == 0:
             return {"recipients": self.groups.first().get_member_count(), "groups": 0, "contacts": 0, "urns": 0}
-        if groups_count == 0 and urns_count == 0:
-            return {"recipients": contacts_count, "groups": 0, "contacts": 0, "urns": 0}
-        if groups_count == 0 and contacts_count == 0:
-            return {"recipients": urns_count, "groups": 0, "contacts": 0, "urns": 0}
+        if group_count == 0 and urn_count == 0:
+            return {"recipients": contact_count, "groups": 0, "contacts": 0, "urns": 0}
+        if group_count == 0 and contact_count == 0:
+            return {"recipients": urn_count, "groups": 0, "contacts": 0, "urns": 0}
 
-        return {"recipients": 0, "groups": groups_count, "contacts": contacts_count, "urns": urns_count}
+        return {"recipients": 0, "groups": group_count, "contacts": contact_count, "urns": urn_count}
 
     def get_default_text(self):
         """
@@ -1165,7 +1165,7 @@ class SystemLabel(object):
         elif label_type == cls.TYPE_FAILED:
             qs = Msg.objects.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status=FAILED)
         elif label_type == cls.TYPE_SCHEDULED:
-            qs = Broadcast.objects.exclude(schedule=None)
+            qs = Broadcast.objects.exclude(schedule=None).prefetch_related("groups", "contacts", "urns")
         elif label_type == cls.TYPE_CALLS:
             qs = ChannelEvent.objects.filter(event_type__in=ChannelEvent.CALL_TYPES)
         else:  # pragma: needs cover
