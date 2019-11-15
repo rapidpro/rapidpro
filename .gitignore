@@ -6,12 +6,13 @@
 *~
 .envrc
 .commit
+*.env
 
 # temba
 dump.rdb
 .coverage
 coverage_html_report
-env
+.ßenv
 build
 config/gen
 config/settings.py

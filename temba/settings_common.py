@@ -33,15 +33,15 @@ POSTGIS_VERSION = (2, 1)
 # set the mail settings, override these in your settings.py
 # if your site was at http://temba.io, it might look like this:
 # -----------------------------------------------------------------------------------
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_HOST_USER = "server@temba.io"
-DEFAULT_FROM_EMAIL = "server@temba.io"
-EMAIL_HOST_PASSWORD = "mypassword"
+EMAIL_HOST = os.environ['EMAIL_HOST']
+EMAIL_HOST_USER = os.environ['EMAIL_HOST_USER']
+DEFAULT_FROM_EMAIL = os.environ['DEFAULT_FROM_EMAIL']
+EMAIL_HOST_PASSWORD = os.environ['EMAIL_HOST_PASSWORD']
 EMAIL_USE_TLS = True
 
 # Used when sending email from within a flow and the user hasn't configured
 # their own SMTP server.
-FLOW_FROM_EMAIL = "no-reply@temba.io"
+FLOW_FROM_EMAIL = os.environ['FLOW_FROM_EMAIL']
 
 # HTTP Headers using for outgoing requests to other services
 OUTGOING_REQUEST_HEADERS = {"User-agent": "RapidPro"}
@@ -52,11 +52,11 @@ STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
 # -----------------------------------------------------------------------------------
 # AWS S3 storage used in production
 # -----------------------------------------------------------------------------------
-AWS_ACCESS_KEY_ID = "aws_access_key_id"
-AWS_SECRET_ACCESS_KEY = "aws_secret_access_key"
-AWS_DEFAULT_ACL = "private"
+AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
+AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
+AWS_DEFAULT_ACL = os.environ['AWS_SECRET_ACCESS_KEY']
 
-AWS_STORAGE_BUCKET_NAME = "dl-temba-io"
+AWS_STORAGE_BUCKET_NAME = os.environ['AWS_STORAGE_BUCKET_NAME']
 AWS_BUCKET_DOMAIN = AWS_STORAGE_BUCKET_NAME + ".s3.amazonaws.com"
 
 # bucket where archives files are stored
@@ -111,7 +111,7 @@ STATICFILES_FINDERS = (
 )
 
 # Make this unique, and don't share it with anybody.
-SECRET_KEY = "your own secret key"
+SECRET_KEY = os.environ['SECRET_KEY']
 
 EMAIL_CONTEXT_PROCESSORS = ("temba.utils.email.link_components",)
 
@@ -828,12 +828,12 @@ TEST_EXCLUDE = ("smartmin",)
 # Need a PostgreSQL database on localhost with postgis extension installed.
 # -----------------------------------------------------------------------------------
 _default_database_config = {
-    "ENGINE": "django.contrib.gis.db.backends.postgis",
-    "NAME": "temba",
-    "USER": "temba",
-    "PASSWORD": "temba",
-    "HOST": "localhost",
-    "PORT": "5432",
+    "ENGINE": os.environ['ENGINE'],
+    "NAME": os.environ['NAME'],
+    "USER": os.environ['USER'],
+    "PASSWORD": os.environ['PASSWORD'],
+    "HOST": os.environ['HOST'],
+    "PORT": os.environ['PORT'],
     "ATOMIC_REQUESTS": True,
     "CONN_MAX_AGE": 60,
     "OPTIONS": {},
@@ -888,13 +888,13 @@ CELERY_TASK_MAP = {"send_msg_task": "temba.channels.tasks.send_msg_task"}
 # -----------------------------------------------------------------------------------
 # Async tasks with celery
 # -----------------------------------------------------------------------------------
-REDIS_HOST = "localhost"
-REDIS_PORT = 6379
+REDIS_HOST = os.environ['REDIS_HOST']
+REDIS_PORT = os.environ['REDIS_HOST']
 
 # we use a redis db of 10 for testing so that we maintain caches for dev
 REDIS_DB = 10 if TESTING else 15
 
-BROKER_URL = "redis://%s:%d/%d" % (REDIS_HOST, REDIS_PORT, REDIS_DB)
+BROKER_URL = "redis://%s:%s/%s" % (REDIS_HOST, REDIS_PORT, REDIS_DB)
 
 # by default, celery doesn't have any timeout on our redis connections, this fixes that
 BROKER_TRANSPORT_OPTIONS = {"socket_timeout": 5}
@@ -904,7 +904,7 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 
 IS_PROD = False
-HOSTNAME = "localhost"
+HOSTNAME = os.environ['HOSTNAME']
 
 # The URL and port of the proxy server to use when needed (if any, in requests format)
 OUTGOING_PROXIES = {}
@@ -1115,7 +1115,7 @@ MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
 
 
 # ElasticSearch configuration (URL RFC-1738)
-ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
+ELASTICSEARCH_URL = os.environ['ELASTICSEARCH_URL']
 
 # Maximum active ContactFields users can have in an Org
 MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255

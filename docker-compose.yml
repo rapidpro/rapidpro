@@ -1,0 +1,122 @@
+#
+# NOTE: This docker-compose is not used for building the rapidpro docker
+#       releases, it is a compose file for local development purposes.
+#
+
+version: '3.0' 
+services:  
+    # working_dir: ${PWD}:/root/rapidpro
+  golang:
+    image: golang
+
+  redis:
+    container_name: redis
+    image: redis
+    restart: always
+    env_file: ./redis.env
+    ports:
+      - 6379:6379
+
+  postgresql:
+    image: mdillon/postgis:9.6 
+    restart: always
+    env_file: ./db.env
+    command: ["--autovacuum=off"]
+    # volumes: 
+    #   - db_data:/var/lib/postgresql/db-data 
+    ports:
+      - 5433:5433
+
+  mailroom:
+    image: praekeltfoundation/mailroom
+    command: "./mailroom"
+    depends_on:
+      - golang
+    links:
+      - golang
+    # volumes:
+    #   - data01:/usr/share/mailroom/data
+    ports:
+      - 9200:9200
+
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.3.1
+    container_name: es01
+    env_file: ./es.env
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    # volumes:
+    #   - data01:/usr/share/elasticsearch/data
+    ports:
+      - 9201:9201
+    networks:
+      - elastic
+
+  rapidpro:
+    container_name: rapidpro
+    # image: rapidpro/rapidpro
+    build:
+      context: .
+      dockerfile: ./Dockerfile 
+    restart: always 
+    env_file: ./.env
+    volumes: 
+      - ${PWD}:/usr/src/rapidpro-app
+    depends_on:
+      - redis
+      - postgresql
+      - es01
+    links:
+      - redis
+      - postgresql
+      - es01
+      - mailroom
+    command: sh -c "./start.sh"
+    ports:
+      - '8000:8000'
+
+  celery_base:
+    image: sdehaan/rapidpro:v4
+    depends_on:
+      - rapidpro
+    links:
+      - redis
+      - postgresql
+    env_file: .env
+    command: ["/venv/bin/celery", "--beat", "--app=temba", "worker", "--loglevel=INFO", "--queues=celery,flows"]
+  celery_msgs:
+    image: sdehaan/rapidpro:v4
+    depends_on:
+      - rapidpro
+    links:
+      - redis
+      - postgresql
+    env_file: .env
+    command: ["/venv/bin/celery", "--app=temba", "worker", "--loglevel=INFO", "--queues=msgs,handler"]
+  # redis:
+  #   image: redis:alpine
+
+  courier:
+   image: praekeltfoundation/courier
+   depends_on:
+     - rapidpro
+   links:
+     - redis
+     - postgresql
+   env_file: ./.env
+
+volumes:
+  db_data:
+    driver: local 
+  data01:
+    driver: local
+  data02:
+    driver: local
+  data03:
+    driver: local
+
+networks:
+  elastic:
+    driver: bridge
