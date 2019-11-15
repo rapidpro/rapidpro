@@ -37,8 +37,8 @@
                         -plural
                           {{ count_comma }} recipients
                     -else
-                      -blocktrans
-                        {{recipient_counts.groups}} groups, {{recipient_counts.contacts}} contacts, {{recipient_counts.urns}} urns
+                      -blocktrans with group_count=recipient_counts.groups contact_group=recipient_counts.contacts urn_count=recipient_counts.urns
+                        {{ group_count }} groups, {{ contact_count }} contacts, {{ urn_count }} urns
                 %td
                   {{ object.get_default_text }}
                 %td
