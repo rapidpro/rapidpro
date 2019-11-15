@@ -22,7 +22,7 @@
                   -plural
                     {{ count_comma }} recipients
               -else
-                -blocktrans with group_count=recipient_counts.groups contact_group=recipient_counts.contacts urn_count=recipient_counts.urns
+                -blocktrans with group_count=recipient_counts.groups contact_count=recipient_counts.contacts urn_count=recipient_counts.urns
                   {{ group_count }} groups, {{ contact_count }} contacts, {{ urn_count }} urns
 
           %td.value-text.field_text
