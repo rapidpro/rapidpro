@@ -276,22 +276,22 @@ class Broadcast(models.Model):
     def get_message_count(self):
         return BroadcastMsgCount.get_count(self)
 
-    def get_recipients_display(self):
+    def get_recipients_counts(self):
         if self.status in (WIRED, SENT, DELIVERED):
-            return _(f"{self.get_message_count()} recipients")
+            return {"recipients": self.get_message_count(), "groups": 0, "contacts": 0, "urns": 0}
 
         groups_count = self.groups.count()
         contacts_count = self.contacts.count()
         urns_count = self.urns.count()
 
         if groups_count == 1 and contacts_count == 0 and urns_count == 0:
-            return _(f"{self.groups.first().get_member_count()} recipients")
+            return {"recipients": self.groups.first().get_member_count(), "groups": 0, "contacts": 0, "urns": 0}
         if groups_count == 0 and urns_count == 0:
-            return _(f"{contacts_count} recipients")
+            return {"recipients": contacts_count, "groups": 0, "contacts": 0, "urns": 0}
         if groups_count == 0 and contacts_count == 0:
-            return _(f"{urns_count} recipients")
+            return {"recipients": urns_count, "groups": 0, "contacts": 0, "urns": 0}
 
-        return _(f"{groups_count} groups, {contacts_count}  contacts, {urns_count} urns")
+        return {"recipients": 0, "groups": groups_count, "contacts": contacts_count, "urns": urns_count}
 
     def get_default_text(self):
         """

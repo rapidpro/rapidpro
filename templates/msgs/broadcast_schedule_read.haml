@@ -30,7 +30,15 @@
             -for object in object_list
               %tr{class:'{% cycle row1 row2 %}'}
                 %td
-                  {{object.get_recipients_display}}
+                  -with recipient_counts=object.get_recipients_counts
+                    -if recipient_counts.recipients > 0
+                      -blocktrans with count_comma=recipient_counts.recipients|intcomma count counter=recipient_counts.recipients
+                        {{ count_comma }} recipient
+                        -plural
+                          {{ count_comma }} recipients
+                    -else
+                      -blocktrans
+                        {{recipient_counts.groups}} groups, {{recipient_counts.contacts}} contacts, {{recipient_counts.urns}} urns
                 %td
                   {{ object.get_default_text }}
                 %td

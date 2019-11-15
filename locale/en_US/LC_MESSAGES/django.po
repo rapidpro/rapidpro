@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-14 15:53+0000\n"
+"POT-Creation-Date: 2019-11-15 09:12+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3032,24 +3032,6 @@ msgid "The localized versions of the media"
 msgstr ""
 
 msgid "The metadata for messages of this broadcast"
-msgstr ""
-
-msgid "{self.get_message_count()} recipients"
-msgstr ""
-
-msgid "{self.groups.first().get_member_count()} recipients"
-msgstr ""
-
-#, python-brace-format
-msgid "{contacts_count} recipients"
-msgstr ""
-
-#, python-brace-format
-msgid "{urns_count} recipients"
-msgstr ""
-
-#, python-brace-format
-msgid "{groups_count} groups, {contacts_count}  contacts, {urns_count} urns"
 msgstr ""
 
 msgid "Visible"
@@ -6753,10 +6735,49 @@ msgid ""
 "        "
 msgstr ""
 
+#, python-format
+msgid ""
+"\n"
+"                  %(count_comma)s recipient\n"
+"                  "
+msgid_plural ""
+"\n"
+"                    %(count_comma)s recipients\n"
+"                "
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid ""
+"\n"
+"                  %(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns\n"
+"\n"
+"                "
+msgstr ""
+
 msgid "No Matching schedules"
 msgstr ""
 
 msgid "Send History"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"                        %(count_comma)s recipient\n"
+"                        "
+msgid_plural ""
+"\n"
+"                          %(count_comma)s recipients\n"
+"                      "
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid ""
+"\n"
+"                        %(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns\n"
+"                      "
 msgstr ""
 
 msgid "Write the message that will get sent when the scheduled time arrives"
@@ -6765,16 +6786,30 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"    The message will be sent to\n"
-"    <span class='attn'>\n"
-"      %(recipients_display)s\n"
+"        The message will be sent to\n"
+"        <span class='attn'>\n"
+"          %(count_comma)s recipients\n"
+"        </span>\n"
+"        "
+msgid_plural ""
 "\n"
-"    </span>\n"
-"    <div id='broadcast_preview'>\n"
-"      %(object.get_default_text)s\n"
+"          The message will be sent to\n"
+"          <span class='attn'>\n"
+"            %(count_comma)s recipients\n"
+"          </span>\n"
+"      "
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid ""
 "\n"
-"    </div>\n"
-"  "
+"        The message will be sent to\n"
+"        <span class='attn'>\n"
+"          %(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns\n"
+"\n"
+"        </span>\n"
+"      "
 msgstr ""
 
 msgid "Your message export is ready."
@@ -6880,6 +6915,26 @@ msgid_plural ""
 "              "
 msgstr[0] ""
 msgstr[1] ""
+
+#, python-format
+msgid ""
+"\n"
+"                    1 recipient\n"
+"                    "
+msgid_plural ""
+"\n"
+"                      %(counter)s recipients\n"
+"                  "
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid ""
+"\n"
+"                    %(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns\n"
+"\n"
+"                  "
+msgstr ""
 
 msgid "(sending)"
 msgstr ""
