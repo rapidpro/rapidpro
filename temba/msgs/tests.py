@@ -1892,6 +1892,59 @@ class BroadcastTest(TembaTest):
             tc["twitter_outgoing_count"],
         )
 
+    def test_get_recipients_counts(self):
+        contact, urn_obj = Contact.get_or_create(self.channel.org, "tel:250788382382", user=self.admin)
+
+        broadcast1 = self.create_broadcast(
+            self.user, "Very old broadcast", groups=[self.joe_and_frank], contacts=[self.kevin, self.lucy]
+        )
+        self.assertEqual({"recipients": 4, "groups": 0, "contacts": 0, "urns": 0}, broadcast1.get_recipients_counts())
+
+        broadcast2 = Broadcast.create(
+            self.org,
+            self.user,
+            {"eng": "Hello everyone", "spa": "Hola a todos", "fra": "Salut à tous"},
+            base_language="eng",
+            groups=[self.joe_and_frank],
+            contacts=[],
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
+        )
+        self.assertEqual({"recipients": 2, "groups": 0, "contacts": 0, "urns": 0}, broadcast2.get_recipients_counts())
+
+        broadcast3 = Broadcast.create(
+            self.org,
+            self.user,
+            {"eng": "Hello everyone", "spa": "Hola a todos", "fra": "Salut à tous"},
+            base_language="eng",
+            groups=[],
+            contacts=[self.kevin, self.lucy, self.joe],
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
+        )
+        self.assertEqual({"recipients": 3, "groups": 0, "contacts": 0, "urns": 0}, broadcast3.get_recipients_counts())
+
+        broadcast4 = Broadcast.create(
+            self.org,
+            self.user,
+            {"eng": "Hello everyone", "spa": "Hola a todos", "fra": "Salut à tous"},
+            base_language="eng",
+            groups=[],
+            contacts=[],
+            urns=[urn_obj],
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
+        )
+        self.assertEqual({"recipients": 1, "groups": 0, "contacts": 0, "urns": 0}, broadcast4.get_recipients_counts())
+
+        broadcast5 = Broadcast.create(
+            self.org,
+            self.user,
+            {"eng": "Hello everyone", "spa": "Hola a todos", "fra": "Salut à tous"},
+            base_language="eng",
+            groups=[self.joe_and_frank],
+            contacts=[self.kevin, self.lucy],
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
+        )
+        self.assertEqual({"recipients": 0, "groups": 1, "contacts": 2, "urns": 0}, broadcast5.get_recipients_counts())
+
     def test_archive_release(self):
         self.run_msg_release_test(
             {
