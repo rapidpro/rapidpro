@@ -276,7 +276,7 @@ class Broadcast(models.Model):
     def get_message_count(self):
         return BroadcastMsgCount.get_count(self)
 
-    def get_recipients_counts(self):
+    def get_recipient_counts(self):
         if self.status in (WIRED, SENT, DELIVERED):
             return {"recipients": self.get_message_count(), "groups": 0, "contacts": 0, "urns": 0}
 
