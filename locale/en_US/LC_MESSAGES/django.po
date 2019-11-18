@@ -949,6 +949,42 @@ msgstr ""
 msgid "Check if you want this channel to send notifications to contacts."
 msgstr ""
 
+msgid "Connect your approved <a href=\"https://www.freshworks.com/live-chat-software/\" target=\"_blank\">FreshChat</a> Channel"
+msgstr ""
+
+msgid ""
+"\n"
+"        To use your FreshChat channel you'll have to configure the FreshChat server to direct messages to the url below.\n"
+"        "
+msgstr ""
+
+msgid "POST FreshChat trigger to this address."
+msgstr ""
+
+msgid "FreshChat Environment Title"
+msgstr ""
+
+msgid "The name of your environment"
+msgstr ""
+
+msgid "FreshChat Webhook Public Key"
+msgstr ""
+
+msgid "Webhook Public Key used to verify signatures"
+msgstr ""
+
+msgid "FreshChat Agent ID"
+msgstr ""
+
+msgid "The UUID of the Agent you want RP to Use."
+msgstr ""
+
+msgid "FreshChat API Auth Token"
+msgstr ""
+
+msgid "The API auth token- leave out the bearer"
+msgstr ""
+
 msgid ""
 "If you are based in the Phillipines, you can integrate {{ brand.name }} with Globe Labs to send\n"
 "                       and receive messages on your shortcode."
@@ -2124,6 +2160,9 @@ msgid "Firebase Cloud Messaging identifier"
 msgstr ""
 
 msgid "WhatsApp identifier"
+msgstr ""
+
+msgid "Freshchat identifier"
 msgstr ""
 
 msgid "Label"
