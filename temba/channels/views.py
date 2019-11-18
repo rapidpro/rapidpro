@@ -1824,7 +1824,9 @@ class ChannelCRUDL(SmartCRUDL):
                 channel = self.cleaned_data["channel"]
                 channel = self.org.channels.filter(pk=channel).first()
                 if not channel:
-                    raise forms.ValidationError(_("Sorry, a caller cannot be added for that number"))
+                    raise forms.ValidationError(_("A caller cannot be added for that number"))
+                if channel.get_caller():
+                    raise forms.ValidationError(_("A caller has already been added for that number"))
                 return channel
 
         form_class = CallerForm

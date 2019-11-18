@@ -11,7 +11,7 @@ from .models import HTTPLog
 from .tasks import trim_http_logs_task
 
 
-class ClassifierTest(TembaTest):
+class HTTPLogTest(TembaTest):
     def setUp(self):
         super().setUp()
         self.setUpSecondaryOrg()
@@ -78,4 +78,8 @@ class ClassifierTest(TembaTest):
 
         # should only have one log remaining and should be l2
         self.assertEqual(1, HTTPLog.objects.all().count())
-        self.assertIsNotNone(HTTPLog.objects.filter(id=l2.id))
+        self.assertTrue(HTTPLog.objects.filter(id=l2.id))
+
+        # release l2
+        l2.release()
+        self.assertFalse(HTTPLog.objects.filter(id=l2.id))

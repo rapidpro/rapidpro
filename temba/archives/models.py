@@ -95,7 +95,7 @@ class Archive(models.Model):
 
         # find any remaining S3 files and remove them for this org
         s3 = cls.s3_client()
-        archive_files = s3.list_objects_v2(Bucket=settings.ARCHIVE_BUCKET, Prefix=f"{org.id}/")["Contents"]
+        archive_files = s3.list_objects_v2(Bucket=settings.ARCHIVE_BUCKET, Prefix=f"{org.id}/").get("Contents", [])
         for archive_file in archive_files:
             s3.delete_object(Bucket=settings.ARCHIVE_BUCKET, Key=archive_file["Key"])
 

@@ -1,3 +1,36 @@
+v5.3.8
+----------
+ * Make sure imported flows are unarchived
+ * Validate we do not have a caller on a channel before adding a new one
+
+v5.3.7
+----------
+ * Release URNs on Org release
+
+v5.3.6
+----------
+ * Release Channel sync events and alarms
+
+v5.3.5
+----------
+ * release Campaigns when releasing Orgs
+
+v5.3.4
+----------
+ * Release flow starts when releasing flows
+
+v5.3.3
+----------
+ * Add releasing to Classifiers and HTTPLogs
+
+v5.3.2
+----------
+ * Allow manual syncing of classifiers
+
+v5.3.1
+----------
+ * Update documentation for FB webhook events to subscribe to
+
 v5.3.0
 ----------
  * Fix DT One branding and add new icon

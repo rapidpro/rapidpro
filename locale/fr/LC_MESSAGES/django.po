@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-05 15:35+0000\n"
+"POT-Creation-Date: 2019-11-08 19:42+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -3052,7 +3052,14 @@ msgstr "Une connexion à un compte Nexmo est nécessaire"
 msgid "A connection to a Twilio account is required"
 msgstr "Une connexion à un compte Nexmo est nécessaire"
 
-msgid "Sorry, a caller cannot be added for that number"
+#, fuzzy
+#| msgid "Sorry, a caller cannot be added for that number"
+msgid "A caller cannot be added for that number"
+msgstr "Désolé, un appelant ne peut être ajouté à ce numéro"
+
+#, fuzzy
+#| msgid "Sorry, a caller cannot be added for that number"
+msgid "A caller has already been added for that number"
 msgstr "Désolé, un appelant ne peut être ajouté à ce numéro"
 
 #, fuzzy
@@ -3099,9 +3106,12 @@ msgstr "Impossible d'accéder aux deux noms d'utilisateur avec les informations 
 msgid "The name of your LUIS app"
 msgstr "Le nom de votre organisation"
 
+msgid "App ID"
+msgstr ""
+
 #, fuzzy
 #| msgid "The name of your organization"
-msgid "The id for your LUIS app"
+msgid "The ID for your LUIS app"
 msgstr "Le nom de votre organisation"
 
 #, fuzzy
@@ -3157,8 +3167,23 @@ msgstr "Effacer"
 msgid "Your classifier has been deleted."
 msgstr "Votre flux a été supprimé."
 
+#, fuzzy
+#| msgid "Synced on"
+msgid "Sync"
+msgstr "synchronisé sur"
+
 msgid "Delete"
 msgstr "Effacer"
+
+#, fuzzy
+#| msgid "Your flow has been removed."
+msgid "Your classifier has been synched."
+msgstr "Votre flux a été supprimé."
+
+#, fuzzy
+#| msgid "Connect Vumi"
+msgid "Unable to sync classifier. See the log for details."
+msgstr "Connectez Vumi"
 
 #, fuzzy
 msgid "Phone number"
@@ -7093,9 +7118,7 @@ msgstr ""
 msgid ""
 "\n"
 "    To finish configuring your Facebook connection, you'll need to enter the following webhook URL and token on your application's\n"
-"    Messenger settings page. Make sure to check all boxes within the 'Webhooks' section to subscribe to all incoming Facebook events\n"
-"    and referral parameters (<code>messaging_referrals</code>), within the same section, select the page whose events you'd like the\n"
-"    webhook to subscribe to.\n"
+"    Messenger settings page. Make sure to check all boxes within the 'Webhooks' section to subscribe to incoming Facebook events and referral parameters in the following list.\n"
 "\n"
 "  "
 msgstr ""
@@ -7690,7 +7713,7 @@ msgstr ""
 msgid "Classifier Log"
 msgstr ""
 
-msgid "Intents are synced every 5 minutes"
+msgid "Intents are synced automatically every 5 minutes"
 msgstr ""
 
 #, fuzzy
@@ -11726,6 +11749,11 @@ msgstr "Entrez le code Claim"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Channel Event"
+#~ msgid "Classifier synced"
+#~ msgstr "Evénement du relayeur"
 
 #, fuzzy
 #~| msgid "The name of your organization"
