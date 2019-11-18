@@ -40,6 +40,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_SECRET: webhook_key,
         }
 
-        self.object = Channel.create(org, self.request.user, None, self.channel_type, name=title, config=config)
+        self.object = Channel.create(
+            org, self.request.user, None, self.channel_type, address=agent_id, name=title, config=config
+        )
 
         return super().form_valid(form)

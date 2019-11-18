@@ -1156,7 +1156,7 @@ class ContactTest(TembaTest):
         self.assertEqual(2, len(contact.fields))
 
         # first try a regular release and make sure our urns are anonymized
-        contact.release(self.admin, immediately=False)
+        contact.release(self.admin, full=False)
         self.assertEqual(2, contact.urns.all().count())
         for urn in contact.urns.all():
             uuid.UUID(urn.path, version=4)
@@ -1872,6 +1872,12 @@ class ContactTest(TembaTest):
             )
         )
 
+        # values can contain quotes
+        self.joe.set_field(self.admin, "gender", 'M"F')
+        self.assertTrue(evaluate_query(self.org, r'gender = "M\"F"', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, r'gender != "M\"F"', contact_json=self.joe.as_search_json()))
+        self.joe.set_field(self.admin, "gender", "male")
+
         # non-existent field or attribute
         self.assertRaises(
             SearchException, evaluate_query, self.org, "credits > 10", contact_json=self.joe.as_search_json()
@@ -2123,6 +2129,10 @@ class ContactTest(TembaTest):
 
         query = parse_query("email ~ user@example.com")
         self.assertEqual(query.as_text(), 'email ~ "user@example.com"')
+
+        # escaped quotes
+        query = parse_query(r'name ~ "O\"Learly"')
+        self.assertEqual(query.as_text(), r'name ~ "O"Learly"')
 
     def test_contact_elastic_search(self):
         gender = ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type=Value.TYPE_TEXT)
@@ -4290,7 +4300,7 @@ class ContactTest(TembaTest):
             # bogus query
             response = self.client.get(search_url + '?search=name="notclosed')
             results = response.json()
-            self.assertEqual("Invalid query", results["error"])
+            self.assertEqual('Search query contains an error at: "', results["error"])
             self.assertEqual(0, results["total"])
 
             # if we query a field, it should show up in our field dict

@@ -1,3 +1,72 @@
+v5.3.8
+----------
+ * Make sure imported flows are unarchived
+ * Validate we do not have a caller on a channel before adding a new one
+
+v5.3.7
+----------
+ * Release URNs on Org release
+
+v5.3.6
+----------
+ * Release Channel sync events and alarms
+
+v5.3.5
+----------
+ * release Campaigns when releasing Orgs
+
+v5.3.4
+----------
+ * Release flow starts when releasing flows
+
+v5.3.3
+----------
+ * Add releasing to Classifiers and HTTPLogs
+
+v5.3.2
+----------
+ * Allow manual syncing of classifiers
+
+v5.3.1
+----------
+ * Update documentation for FB webhook events to subscribe to
+
+v5.3.0
+----------
+ * Fix DT One branding and add new icon
+ * Fix validation problem on update schedule trigger form
+ * Use brand when granting orgs, not host
+ * Update contactsql parser to support same quotes escaping as goflow
+
+v5.2.6
+----------
+ * Change slug for Bothub classifier to 'bothub'
+
+v5.2.5
+----------
+ * Fix various Schedule trigger UI validation errors
+ * Fix intermittently failing excel export tests
+ * Add noop reverse in migration
+
+v5.2.1
+----------
+ * Fix order of Schedule migrations (thanks @matmsa27)
+
+v5.2.0
+----------
+ * Show date for broadcast schedules
+ * Honor initial datetime on trigger schedule ui
+
+v5.1.64
+----------
+ * Update to flow editor version 1.7.3
+ * Fix weekly buttons resetting on trigger schedule form validation
+ * Validate schedule details on schedule trigger form
+ * Show query editors in contact search
+ * Add migration to fix schedules with None/NaN repeat_days_of_week values
+ * Move IE9 shim into the main template header
+ * Update README with final 5.0 versions
+
 v5.1.63
 ----------
  * Update to flow editor v1.7.2

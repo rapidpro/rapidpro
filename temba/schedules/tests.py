@@ -336,13 +336,56 @@ class ScheduleTest(TembaTest):
         schedule.refresh_from_db()
         self.assertEqual(schedule.repeat_period, "D")
 
-        response = self.client.post(update_url, {"repeat_period": "W", "start": "later", "repeat_days_of_week": "X"})
+        # can't omit repeat_days_of_week for weekly
+        response = self.client.post(
+            update_url,
+            {
+                "repeat_period": "W",
+                "start": "later",
+                "repeat_days_of_week": "",
+                "start_datetime_value": str(now_stamp),
+            },
+        )
+
+        self.assertFormError(response, "form", "__all__", "Must specify at least one day of the week")
+
+        schedule.refresh_from_db()
+        self.assertEqual(schedule.repeat_period, "D")  # unchanged
+        self.assertEqual(schedule.repeat_days_of_week, "")
 
         # can't set repeat_days_of_week to invalid day
+        response = self.client.post(
+            update_url,
+            {
+                "repeat_period": "W",
+                "start": "later",
+                "repeat_days_of_week": "X",
+                "start_datetime_value": str(now_stamp),
+            },
+        )
+
         self.assertFormError(response, "form", "repeat_days_of_week", "X is not a valid day of the week")
 
         schedule.refresh_from_db()
-        self.assertEqual(schedule.repeat_days_of_week, "")  # unchanged
+        self.assertEqual(schedule.repeat_period, "D")  # unchanged
+        self.assertEqual(schedule.repeat_days_of_week, "")
+
+        # can set to valid days
+        response = self.client.post(
+            update_url,
+            {
+                "repeat_period": "W",
+                "start": "later",
+                "repeat_days_of_week": "MF",
+                "start_datetime_value": str(now_stamp),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+
+        schedule.refresh_from_db()
+        self.assertEqual(schedule.repeat_period, "W")
+        self.assertEqual(schedule.repeat_days_of_week, "MF")
 
     def test_update_near_day_boundary(self):
         self.org.timezone = pytz.timezone("US/Eastern")

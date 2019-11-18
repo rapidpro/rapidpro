@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup
+from temba.contacts.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
@@ -308,11 +309,13 @@ class TriggerTest(TembaTest):
         tommorrow = now + timedelta(days=1)
         tommorrow_stamp = time.mktime(tommorrow.timetuple())
 
+        omnibox_selection = omnibox_serialize(flow.org, [linkin_park], [stromae], True)
+
         # try to create trigger without a flow or omnibox
         response = self.client.post(
             reverse("triggers.trigger_schedule"),
             {
-                "omnibox": f"g-{linkin_park.uuid},c-{stromae.uuid}",
+                "omnibox": omnibox_selection,
                 "repeat_period": "D",
                 "start": "later",
                 "start_datetime_value": str(tommorrow_stamp),
@@ -341,13 +344,7 @@ class TriggerTest(TembaTest):
         # this time provide a flow but leave out omnibox..
         response = self.client.post(
             reverse("triggers.trigger_schedule"),
-            {
-                "flow": flow.id,
-                "omnibox": f"",
-                "repeat_period": "D",
-                "start": "later",
-                "start_datetime_value": str(tommorrow_stamp),
-            },
+            {"flow": flow.id, "repeat_period": "D", "start": "later", "start_datetime_value": str(tommorrow_stamp)},
         )
         self.assertEqual(list(response.context["form"].errors.keys()), ["omnibox"])
         self.assertFalse(Trigger.objects.all())
@@ -358,7 +355,7 @@ class TriggerTest(TembaTest):
             reverse("triggers.trigger_schedule"),
             {
                 "flow": flow.id,
-                "omnibox": f"g-{linkin_park.uuid},c-{stromae.uuid}",
+                "omnibox": omnibox_selection,
                 "repeat_period": "D",
                 "start": "later",
                 "start_datetime_value": str(tommorrow_stamp),
@@ -371,7 +368,7 @@ class TriggerTest(TembaTest):
             reverse("triggers.trigger_schedule"),
             {
                 "flow": flow.id,
-                "omnibox": f"g-{linkin_park.uuid},c-{stromae.uuid}",
+                "omnibox": omnibox_selection,
                 "repeat_period": "D",
                 "start": "later",
                 "start_datetime_value": str(tommorrow_stamp),
@@ -393,7 +390,7 @@ class TriggerTest(TembaTest):
         response = self.client.post(
             update_url,
             {
-                "omnibox": f"g-{linkin_park.uuid},c-{stromae.uuid}",
+                "omnibox": omnibox_selection,
                 "repeat_period": "O",
                 "start": "later",
                 "start_datetime_value": str(now_stamp),
@@ -407,7 +404,7 @@ class TriggerTest(TembaTest):
             update_url,
             {
                 "flow": flow.id,
-                "omnibox": f"g-{linkin_park.uuid},c-{shinoda.uuid}",
+                "omnibox": omnibox_serialize(flow.org, [linkin_park], [shinoda], True),
                 "repeat_period": "D",
                 "start": "later",
                 "start_datetime_value": str(now_stamp),
@@ -421,6 +418,35 @@ class TriggerTest(TembaTest):
         self.assertTrue(trigger.schedule.next_fire)
         self.assertEqual(set(trigger.groups.all()), {linkin_park})
         self.assertEqual(set(trigger.contacts.all()), {shinoda})
+
+        # can't submit weekly repeat without specifying the days to repeat on
+        response = self.client.post(
+            update_url,
+            {
+                "flow": flow.id,
+                "omnibox": omnibox_selection,
+                "repeat_period": "W",
+                "start": "later",
+                "start_datetime_value": str(now_stamp),
+            },
+        )
+
+        self.assertFormError(response, "form", "__all__", "Must specify at least one day of the week")
+
+        # or submit with invalid days
+        response = self.client.post(
+            update_url,
+            {
+                "flow": flow.id,
+                "omnibox": omnibox_selection,
+                "repeat_period": "W",
+                "repeat_days_of_week": "X",
+                "start": "later",
+                "start_datetime_value": str(now_stamp),
+            },
+        )
+
+        self.assertFormError(response, "form", "repeat_days_of_week", "X is not a valid day of the week")
 
     def test_join_group_trigger(self):
         self.login(self.admin)

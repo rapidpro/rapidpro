@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-24 15:23+0000\n"
+"POT-Creation-Date: 2019-11-08 19:42+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -3052,7 +3052,14 @@ msgstr "Une connexion à un compte Nexmo est nécessaire"
 msgid "A connection to a Twilio account is required"
 msgstr "Une connexion à un compte Nexmo est nécessaire"
 
-msgid "Sorry, a caller cannot be added for that number"
+#, fuzzy
+#| msgid "Sorry, a caller cannot be added for that number"
+msgid "A caller cannot be added for that number"
+msgstr "Désolé, un appelant ne peut être ajouté à ce numéro"
+
+#, fuzzy
+#| msgid "Sorry, a caller cannot be added for that number"
+msgid "A caller has already been added for that number"
 msgstr "Désolé, un appelant ne peut être ajouté à ce numéro"
 
 #, fuzzy
@@ -3099,9 +3106,12 @@ msgstr "Impossible d'accéder aux deux noms d'utilisateur avec les informations 
 msgid "The name of your LUIS app"
 msgstr "Le nom de votre organisation"
 
+msgid "App ID"
+msgstr ""
+
 #, fuzzy
 #| msgid "The name of your organization"
-msgid "The id for your LUIS app"
+msgid "The ID for your LUIS app"
 msgstr "Le nom de votre organisation"
 
 #, fuzzy
@@ -3157,8 +3167,23 @@ msgstr "Effacer"
 msgid "Your classifier has been deleted."
 msgstr "Votre flux a été supprimé."
 
+#, fuzzy
+#| msgid "Synced on"
+msgid "Sync"
+msgstr "synchronisé sur"
+
 msgid "Delete"
 msgstr "Effacer"
+
+#, fuzzy
+#| msgid "Your flow has been removed."
+msgid "Your classifier has been synched."
+msgstr "Votre flux a été supprimé."
+
+#, fuzzy
+#| msgid "Connect Vumi"
+msgid "Unable to sync classifier. See the log for details."
+msgstr "Connectez Vumi"
 
 #, fuzzy
 msgid "Phone number"
@@ -5172,11 +5197,11 @@ msgstr "Signal API"
 
 #, fuzzy
 #| msgid "Your Nexmo API key and secret seem invalid. Please check them again and retry."
-msgid "Your DTOne API key and secret seem invalid. Please check them again and retry."
+msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
 msgstr "Votre clé API Nexmo et secret semblent invalide. S'il vous plaît vérifier à nouveau et réessayez."
 
 #, python-format
-msgid "Connecting to your DTOne account failed with error text: %s"
+msgid "Connecting to your DT One account failed with error text: %s"
 msgstr ""
 
 #, fuzzy
@@ -5319,6 +5344,9 @@ msgstr "mensuellement"
 msgid "%(day)s is not a valid day of the week"
 msgstr ""
 
+msgid "Must specify at least one day of the week"
+msgstr ""
+
 msgid "English"
 msgstr "Anglais"
 
@@ -5448,6 +5476,11 @@ msgstr[1] "Réponse"
 
 msgid "The message to send in response after they join the group (optional)"
 msgstr "Le message à envoyer en réponse suite à leur entrée dans le groupe (facultatif)"
+
+#, fuzzy
+#| msgid "Select All"
+msgid "Select a flow"
+msgstr "Tout sélectionner"
 
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr "Les groupes et les contacts du flux seront diffusés à"
@@ -7085,9 +7118,7 @@ msgstr ""
 msgid ""
 "\n"
 "    To finish configuring your Facebook connection, you'll need to enter the following webhook URL and token on your application's\n"
-"    Messenger settings page. Make sure to check all boxes within the 'Webhooks' section to subscribe to all incoming Facebook events\n"
-"    and referral parameters (<code>messaging_referrals</code>), within the same section, select the page whose events you'd like the\n"
-"    webhook to subscribe to.\n"
+"    Messenger settings page. Make sure to check all boxes within the 'Webhooks' section to subscribe to incoming Facebook events and referral parameters in the following list.\n"
 "\n"
 "  "
 msgstr ""
@@ -7682,7 +7713,7 @@ msgstr ""
 msgid "Classifier Log"
 msgstr ""
 
-msgid "Intents are synced every 5 minutes"
+msgid "Intents are synced automatically every 5 minutes"
 msgstr ""
 
 #, fuzzy
@@ -9813,20 +9844,23 @@ msgstr ""
 
 #, fuzzy
 #| msgid "Manage %(name)s Accounts"
-msgid "DTOne Account"
+msgid "DT One Account"
 msgstr "Gérer %(name)s des comptes"
 
-#, fuzzy
+#, fuzzy, python-format
 #| msgid "Connect Zenvia Account"
-msgid "Connected to DTOne Account"
+msgid ""
+"\n"
+"      Connected to DT One account <b>%(login)s</b>.\n"
+"    "
 msgstr "Connectez votre compte Zenvia"
 
-msgid "No DTOne account connected."
+msgid "No DT One account connected."
 msgstr ""
 
 msgid ""
 "\n"
-"      Adding a DTOne account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected\n"
+"      Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected\n"
 "      you can transfer airtime credit within your Flows. To signup for an account, visit\n"
 "    "
 msgstr ""
@@ -9836,20 +9870,20 @@ msgstr ""
 
 #, fuzzy
 #| msgid "This account is connected to a Nexmo account."
-msgid "Your account is connected to a DTOne account"
+msgid "Your account is connected to a DT One account"
 msgstr "Ce compte est connecté à un compte Nexmo."
 
-msgid "your DTOne account. Doing so will cause the payment actions in your flows to no longer be processed."
+msgid "your DT One account. Doing so will cause the payment actions in your flows to no longer be processed."
 msgstr ""
 
 #, fuzzy
 #| msgid "Disconnected"
-msgid "Disconnect DTOne"
+msgid "Disconnect DT One"
 msgstr "Deconnecter"
 
 msgid ""
 "\n"
-"          This will disconnect your DTOne account. Payment actions will no longer be processed. Are you sure you want to proceed?\n"
+"          This will disconnect your DT One account. Payment actions will no longer be processed. Are you sure you want to proceed?\n"
 "        "
 msgstr ""
 
@@ -9858,7 +9892,7 @@ msgstr ""
 
 #, fuzzy
 #| msgid "at around the same time."
-msgid " on the DTOne site."
+msgid " on the DT One site."
 msgstr "à peu prés au même moment."
 
 #, python-format
@@ -11715,6 +11749,11 @@ msgstr "Entrez le code Claim"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Channel Event"
+#~ msgid "Classifier synced"
+#~ msgstr "Evénement du relayeur"
 
 #, fuzzy
 #~| msgid "The name of your organization"

@@ -1954,7 +1954,7 @@ class OrgCRUDL(SmartCRUDL):
 
             slug = Org.get_unique_slug(self.form.cleaned_data["name"])
             obj.slug = slug
-            obj.brand = self.request.branding.get("host", settings.DEFAULT_BRAND)
+            obj.brand = self.request.branding.get("brand", settings.DEFAULT_BRAND)
 
             if obj.timezone.zone in pytz.country_timezones("US"):
                 obj.date_format = Org.DATE_FORMAT_MONTH_FIRST
@@ -2264,17 +2264,13 @@ class OrgCRUDL(SmartCRUDL):
                     formax.add_section(
                         "dtone",
                         reverse("orgs.org_dtone_account"),
-                        icon="icon-transferto",
+                        icon="icon-dtone",
                         action="redirect",
                         button=_("Connect"),
                     )
                 else:  # pragma: needs cover
                     formax.add_section(
-                        "dtone",
-                        reverse("orgs.org_dtone_account"),
-                        icon="icon-transferto",
-                        action="redirect",
-                        nobutton=True,
+                        "dtone", reverse("orgs.org_dtone_account"), icon="icon-dtone", action="redirect", nobutton=True
                     )
 
             if self.has_org_perm("orgs.org_chatbase"):
@@ -2334,12 +2330,12 @@ class OrgCRUDL(SmartCRUDL):
 
                     except Exception:
                         raise ValidationError(
-                            _("Your DTOne API key and secret seem invalid. Please check them again and retry.")
+                            _("Your DT One API key and secret seem invalid. Please check them again and retry.")
                         )
 
                     if error_code != 0 and info_txt != "pong":
                         raise ValidationError(
-                            _("Connecting to your DTOne account failed with error text: %s") % error_txt
+                            _("Connecting to your DT One account failed with error text: %s") % error_txt
                         )
 
                 return self.cleaned_data

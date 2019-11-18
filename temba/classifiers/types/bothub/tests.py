@@ -33,13 +33,13 @@ class BotHubTypeTest(TembaTest):
             mock_get.return_value = MockResponse(400, '{ "error": "true" }')
             logs = []
             with self.assertRaises(Exception):
-                BotHubType.get_active_intents_from_api(c, logs)
+                c.get_type().get_active_intents_from_api(c, logs)
                 self.assertEqual(1, len(logs))
 
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(200, INTENT_RESPONSE)
             logs = []
-            intents = BotHubType.get_active_intents_from_api(c, logs)
+            intents = c.get_type().get_active_intents_from_api(c, logs)
             self.assertEqual(1, len(logs))
             self.assertEqual(3, len(intents))
             intent = intents[0]
@@ -58,7 +58,7 @@ class BotHubTypeTest(TembaTest):
         response = self.client.get(url)
 
         # should have url for claiming our type
-        url = reverse("classifiers.types.bh.connect")
+        url = reverse("classifiers.types.bothub.connect")
         self.assertContains(response, url)
 
         response = self.client.get(url)
@@ -89,5 +89,5 @@ class BotHubTypeTest(TembaTest):
 
             c = Classifier.objects.get()
             self.assertEqual("Bothub Test Repository", c.name)
-            self.assertEqual("bh", c.classifier_type)
+            self.assertEqual("bothub", c.classifier_type)
             self.assertEqual("123456789", c.config[BotHubType.CONFIG_ACCESS_TOKEN])

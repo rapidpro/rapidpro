@@ -1987,7 +1987,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         # re-add them to any dynamic groups they would belong to
         self.reevaluate_dynamic_groups()
 
-    def release(self, user, *, immediately=True):
+    def release(self, user, *, full=True, immediately=False):
         """
         Marks this contact for deletion
         """
@@ -2010,11 +2010,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             self.fields = None
             self.save(update_fields=("name", "is_active", "fields", "modified_on"), handle_update=False)
 
-        # kick off a task to remove all the things related to us
-        if immediately:
-            from temba.contacts.tasks import full_release_contact
+        # if we are removing everything do so
+        if full:
+            if immediately:
+                self._full_release()
+            else:
+                from temba.contacts.tasks import full_release_contact
 
-            full_release_contact.delay(self.id)
+                full_release_contact.delay(self.id)
 
     def _full_release(self):
         with transaction.atomic():
@@ -2335,14 +2338,21 @@ class ContactURN(models.Model):
         max_length=128, help_text="The scheme for this URN, broken out for optimization reasons, ex: tel"
     )
 
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, help_text="The organization for this URN, can be null")
+    org = models.ForeignKey(
+        Org, related_name="urns", on_delete=models.PROTECT, help_text="The organization for this URN, can be null"
+    )
 
     priority = models.IntegerField(
         default=PRIORITY_STANDARD, help_text="The priority of this URN for the contact it is associated with"
     )
 
     channel = models.ForeignKey(
-        Channel, on_delete=models.PROTECT, null=True, blank=True, help_text="The preferred channel for this URN"
+        Channel,
+        related_name="urns",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        help_text="The preferred channel for this URN",
     )
 
     auth = models.TextField(null=True, help_text=_("Any authentication information needed by this URN"))

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-24 15:23+0000\n"
+"POT-Creation-Date: 2019-11-08 19:42+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2030,7 +2030,10 @@ msgstr ""
 msgid "A connection to a Twilio account is required"
 msgstr ""
 
-msgid "Sorry, a caller cannot be added for that number"
+msgid "A caller cannot be added for that number"
+msgstr ""
+
+msgid "A caller has already been added for that number"
 msgstr ""
 
 msgid "Connect Android Channel"
@@ -2066,7 +2069,10 @@ msgstr ""
 msgid "The name of your LUIS app"
 msgstr ""
 
-msgid "The id for your LUIS app"
+msgid "App ID"
+msgstr ""
+
+msgid "The ID for your LUIS app"
 msgstr ""
 
 msgid "The name of the version of your LUIS app to use"
@@ -2105,7 +2111,16 @@ msgstr ""
 msgid "Your classifier has been deleted."
 msgstr ""
 
+msgid "Sync"
+msgstr ""
+
 msgid "Delete"
+msgstr ""
+
+msgid "Your classifier has been synched."
+msgstr ""
+
+msgid "Unable to sync classifier. See the log for details."
 msgstr ""
 
 msgid "Phone number"
@@ -3866,11 +3881,11 @@ msgstr ""
 msgid "API Token"
 msgstr ""
 
-msgid "Your DTOne API key and secret seem invalid. Please check them again and retry."
+msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
 msgstr ""
 
 #, python-format
-msgid "Connecting to your DTOne account failed with error text: %s"
+msgid "Connecting to your DT One account failed with error text: %s"
 msgstr ""
 
 msgid "Account SID"
@@ -3997,6 +4012,9 @@ msgstr ""
 msgid "%(day)s is not a valid day of the week"
 msgstr ""
 
+msgid "Must specify at least one day of the week"
+msgstr ""
+
 msgid "English"
 msgstr ""
 
@@ -4108,6 +4126,9 @@ msgstr[0] ""
 msgstr[1] ""
 
 msgid "The message to send in response after they join the group (optional)"
+msgstr ""
+
+msgid "Select a flow"
 msgstr ""
 
 msgid "The groups and contacts the flow will be broadcast to"
@@ -5250,9 +5271,7 @@ msgstr ""
 msgid ""
 "\n"
 "    To finish configuring your Facebook connection, you'll need to enter the following webhook URL and token on your application's\n"
-"    Messenger settings page. Make sure to check all boxes within the 'Webhooks' section to subscribe to all incoming Facebook events\n"
-"    and referral parameters (<code>messaging_referrals</code>), within the same section, select the page whose events you'd like the\n"
-"    webhook to subscribe to.\n"
+"    Messenger settings page. Make sure to check all boxes within the 'Webhooks' section to subscribe to incoming Facebook events and referral parameters in the following list.\n"
 "\n"
 "  "
 msgstr ""
@@ -5714,7 +5733,7 @@ msgstr ""
 msgid "Classifier Log"
 msgstr ""
 
-msgid "Intents are synced every 5 minutes"
+msgid "Intents are synced automatically every 5 minutes"
 msgstr ""
 
 msgid "Active Intents"
@@ -7347,18 +7366,22 @@ msgid ""
 "    "
 msgstr ""
 
-msgid "DTOne Account"
+msgid "DT One Account"
 msgstr ""
 
-msgid "Connected to DTOne Account"
+#, python-format
+msgid ""
+"\n"
+"      Connected to DT One account <b>%(login)s</b>.\n"
+"    "
 msgstr ""
 
-msgid "No DTOne account connected."
+msgid "No DT One account connected."
 msgstr ""
 
 msgid ""
 "\n"
-"      Adding a DTOne account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected\n"
+"      Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected\n"
 "      you can transfer airtime credit within your Flows. To signup for an account, visit\n"
 "    "
 msgstr ""
@@ -7366,25 +7389,25 @@ msgstr ""
 msgid "Transfer Log"
 msgstr ""
 
-msgid "Your account is connected to a DTOne account"
+msgid "Your account is connected to a DT One account"
 msgstr ""
 
-msgid "your DTOne account. Doing so will cause the payment actions in your flows to no longer be processed."
+msgid "your DT One account. Doing so will cause the payment actions in your flows to no longer be processed."
 msgstr ""
 
-msgid "Disconnect DTOne"
+msgid "Disconnect DT One"
 msgstr ""
 
 msgid ""
 "\n"
-"          This will disconnect your DTOne account. Payment actions will no longer be processed. Are you sure you want to proceed?\n"
+"          This will disconnect your DT One account. Payment actions will no longer be processed. Are you sure you want to proceed?\n"
 "        "
 msgstr ""
 
 msgid "You can find your API Token by clicking on "
 msgstr ""
 
-msgid " on the DTOne site."
+msgid " on the DT One site."
 msgstr ""
 
 #, python-format
