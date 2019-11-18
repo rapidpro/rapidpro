@@ -2881,7 +2881,14 @@ msgstr "É obrigatório uma conexão com uma conta Nexmo"
 msgid "A connection to a Twilio account is required"
 msgstr "É obrigatório uma conexão com uma conta Nexmo"
 
-msgid "Sorry, a caller cannot be added for that number"
+#, fuzzy
+#| msgid "Sorry, a caller cannot be added for that number"
+msgid "A caller cannot be added for that number"
+msgstr "Desculpe, um originador de chamada não pode ser adicionado para esse número"
+
+#, fuzzy
+#| msgid "Sorry, a caller cannot be added for that number"
+msgid "A caller has already been added for that number"
 msgstr "Desculpe, um originador de chamada não pode ser adicionado para esse número"
 
 #, fuzzy
