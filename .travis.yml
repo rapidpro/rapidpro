@@ -106,7 +106,7 @@ script:
   # fail if there are changes
   - git diff --numstat
   - git diff locale/
-  - git diff -U0 --summary --color=never | awk '/^+"/ && $0 !~ /POT-Creation-Date/ && $0 !~ /fuzzy/ { print $0, "\n\nMake messages needs to be rerun, see travis.yml or command"; exit 1; }'
+  - git diff -U0 --summary --color=never | awk '/^+"/ && $0 !~ /POT-Creation-Date/ && $0 !~ /fuzzy/ { print $0, "\n\nMake messages needs to be rerun, see travis.yml for command"; exit 1; }'
 
   # check for model changes not reflected in a migration
   - python manage.py makemigrations --settings=temba.settings_travis --dry-run | grep 'No changes detected' || (echo 'There are changes which require migrations.' && exit 1)
