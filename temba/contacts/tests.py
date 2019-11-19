@@ -6842,6 +6842,7 @@ class ContactFieldTest(TembaTest):
     def test_make_key(self):
         self.assertEqual("first_name", ContactField.make_key("First Name"))
         self.assertEqual("second_name", ContactField.make_key("Second   Name  "))
+        self.assertEqual("caf", ContactField.make_key("café"))
         self.assertEqual(
             "323_ffsn_slfs_ksflskfs_fk_anfaddgas",
             ContactField.make_key("  ^%$# %$$ $##323 ffsn slfs ksflskfs!!!! fk$%%%$$$anfaDDGAS ))))))))) "),

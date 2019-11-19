@@ -239,6 +239,7 @@ INSTALLED_APPS = (
     "temba.request_logs",
     "temba.classifiers",
     "temba.dashboard",
+    "temba.globals",
     "temba.public",
     "temba.policies",
     "temba.schedules",
@@ -351,6 +352,7 @@ PERMISSIONS = {
     "contacts.contactgroup": ("api",),
     "ivr.ivrcall": ("start",),
     "archives.archive": ("api", "run", "message"),
+    "globals.global": ("api", "detail"),
     "locations.adminboundary": ("alias", "api", "boundaries", "geometry"),
     "orgs.org": (
         "accounts",
@@ -558,6 +560,7 @@ GROUP_PERMISSIONS = {
         "contacts.contactfield.*",
         "contacts.contactgroup.*",
         "csv_imports.importtask.*",
+        "globals.global.*",
         "ivr.ivrcall.*",
         "locations.adminboundary_alias",
         "locations.adminboundary_api",
@@ -1118,5 +1121,6 @@ MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
 # ElasticSearch configuration (URL RFC-1738)
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 
-# Maximum active ContactFields users can have in an Org
+# Maximum active objects are org can have
 MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
+MAX_ACTIVE_GLOBALS_PER_ORG = 255

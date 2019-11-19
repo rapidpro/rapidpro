@@ -28,6 +28,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
 from temba.classifiers.models import Classifier
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
+from temba.globals.models import Global
 from temba.msgs.models import Label, Msg
 from temba.orgs.models import Org
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
@@ -299,6 +300,8 @@ class Flow(TembaModel):
         blank=True,
         help_text=_("Any fields this flow depends on"),
     )
+
+    global_dependencies = models.ManyToManyField(Global, related_name="dependent_flows")
 
     channel_dependencies = models.ManyToManyField(Channel, related_name="dependent_flows")
 
@@ -1685,6 +1688,7 @@ class Flow(TembaModel):
         channel_uuids = [g["uuid"] for g in dependencies.get("channels", [])]
         label_uuids = [g["uuid"] for g in dependencies.get("labels", [])]
         classifier_uuids = [c["uuid"] for c in dependencies.get("classifiers", [])]
+        global_keys = [g["key"] for g in dependencies.get("globals", [])]
 
         # still need to do lazy creation of fields in the case of a flow import
         if len(field_keys):
@@ -1708,6 +1712,7 @@ class Flow(TembaModel):
         channels = Channel.objects.filter(org=self.org, uuid__in=channel_uuids, is_active=True)
         labels = Label.label_objects.filter(org=self.org, uuid__in=label_uuids)
         classifiers = Classifier.objects.filter(org=self.org, uuid__in=classifier_uuids)
+        globals = self.org.globals.filter(key__in=global_keys, is_active=True)
 
         self.field_dependencies.clear()
         self.field_dependencies.add(*fields)
@@ -1726,6 +1731,9 @@ class Flow(TembaModel):
 
         self.classifier_dependencies.clear()
         self.classifier_dependencies.add(*classifiers)
+
+        self.global_dependencies.clear()
+        self.global_dependencies.add(*globals)
 
     def release(self):
         """
