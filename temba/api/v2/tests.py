@@ -27,6 +27,7 @@ from temba.classifiers.types.luis import LuisType
 from temba.classifiers.types.wit import WitType
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
+from temba.globals.models import Global
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
@@ -2566,6 +2567,42 @@ class APITest(TembaTest):
 
         response = self.fetchJSON(url)
         self.assertResultsByUUID(response, [color, survey])
+
+    def test_globals(self):
+        url = reverse("api.v2.globals")
+        self.assertEndpointAccess(url)
+
+        # create some globals
+        global1 = Global.get_or_create(self.org, self.admin, "org_name", "Org Name", "Acme Ltd")
+        global2 = Global.get_or_create(self.org, self.admin, "access_token", "Access Token", "23464373")
+
+        # on another org
+        Global.get_or_create(self.org2, self.admin, "thingy", "Thingy", "xyz")
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+            response = self.fetchJSON(url)
+
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertEqual(
+            resp_json["results"],
+            [
+                {
+                    "key": "access_token",
+                    "name": "Access Token",
+                    "value": "23464373",
+                    "modified_on": format_datetime(global2.modified_on),
+                },
+                {
+                    "key": "org_name",
+                    "name": "Org Name",
+                    "value": "Acme Ltd",
+                    "modified_on": format_datetime(global1.modified_on),
+                },
+            ],
+        )
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_groups(self):
