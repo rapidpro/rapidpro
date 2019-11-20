@@ -28,6 +28,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
 from temba.classifiers.models import Classifier
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
+from temba.globals.models import Global
 from temba.msgs.models import Label, Msg
 from temba.orgs.models import Org
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
@@ -299,6 +300,8 @@ class Flow(TembaModel):
         blank=True,
         help_text=_("Any fields this flow depends on"),
     )
+
+    global_dependencies = models.ManyToManyField(Global, related_name="dependent_flows")
 
     channel_dependencies = models.ManyToManyField(Channel, related_name="dependent_flows")
 
