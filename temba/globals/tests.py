@@ -10,6 +10,7 @@ class GlobalTest(TembaTest):
         self.assertEqual("org_name", global1.key)
         self.assertEqual("Org Name", global1.name)
         self.assertEqual("Acme Ltd", global1.value)
+        self.assertEqual("global[key=org_name,name=Org Name]", str(global1))
 
         global1.release()
 
