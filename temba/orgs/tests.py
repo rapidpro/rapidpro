@@ -43,6 +43,7 @@ from temba.contacts.models import (
     ExportContactsTask,
 )
 from temba.flows.models import ActionSet, ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
+from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
@@ -221,6 +222,9 @@ class OrgDeleteTest(TransactionTestCase, TembaTestMixin, SmartminTestMixin):
 
         # add a classifier
         self.c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {}, sync=False)
+
+        # add a global
+        self.global1 = Global.get_or_create(self.org, self.admin, "org_name", "Org Name", "Acme Ltd")
 
         HTTPLog.objects.create(
             classifier=self.c1,

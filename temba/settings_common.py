@@ -239,6 +239,7 @@ INSTALLED_APPS = (
     "temba.request_logs",
     "temba.classifiers",
     "temba.dashboard",
+    "temba.globals",
     "temba.public",
     "temba.policies",
     "temba.schedules",

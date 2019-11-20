@@ -2036,6 +2036,9 @@ class Org(SmartModel):
         for log in self.http_logs.all():
             log.release()
 
+        for g in self.globals.all():
+            g.release()
+
         # delete our classifiers
         for classifier in self.classifiers.all():
             classifier.release()
