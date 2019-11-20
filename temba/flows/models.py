@@ -2299,6 +2299,7 @@ class FlowRevision(SmartModel):
     """
     JSON definitions for previous flow revisions
     """
+
     LAST_TRIM_KEY = "temba:last_flow_revision_trim"
 
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="revisions")
@@ -2321,11 +2322,7 @@ class FlowRevision(SmartModel):
         count = 0
 
         # find all flows with revisions in the past day
-        for fr in (
-            FlowRevision.objects.filter(created_on__gt=since)
-            .distinct("flow_id")
-            .only("flow_id")
-        ):
+        for fr in FlowRevision.objects.filter(created_on__gt=since).distinct("flow_id").only("flow_id"):
             # trim that flow
             count += FlowRevision.trim_for_flow(fr.flow_id)
 
