@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-08 19:42+0000\n"
+"POT-Creation-Date: 2019-11-20 19:12+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4331,6 +4331,29 @@ msgstr ""
 
 msgid "Name already used"
 msgstr "Nombre ya utilizado"
+
+#, python-brace-format
+msgid "Cannot create a new global, maximum allowed per org: {settings.MAX_ACTIVE_GLOBALS_PER_ORG}"
+msgstr ""
+
+#, fuzzy
+#| msgid "Field names can only contain letters, numbers, spaces and hypens"
+msgid "Global names can only contain letters, numbers and hypens"
+msgstr "Los nombres en los campos solo pueden contener letras, números, espacios y guiones"
+
+#, python-brace-format
+msgid "Global names must be unique. '{name}' is duplicated"
+msgstr ""
+
+#, fuzzy, python-brace-format
+#| msgid "Using a Local Number"
+msgid "Global name '{name}' isn't a valid name"
+msgstr "Con un número local"
+
+#, fuzzy
+#| msgid "Manage Fields"
+msgid "Manage Globals"
+msgstr "Manejar campos"
 
 #, fuzzy
 #| msgid "After 5 minutes"
@@ -9213,6 +9236,65 @@ msgstr ""
 msgid "Ask a series of questions to collect data from your contacts."
 msgstr "Haga una serie de preguntas para obtener los datos de sus contactos."
 
+#, python-format
+msgid ""
+"\n"
+"    You have <b>%(counter)s</b> global configured\n"
+"    "
+msgid_plural ""
+"\n"
+"    You have <b>%(counter)s</b> globals configured\n"
+"    "
+msgstr[0] ""
+msgstr[1] ""
+
+#, fuzzy
+msgid "You do not have any globals configured."
+msgstr "Debe elegir un país para su organización."
+
+#, fuzzy
+#| msgid "Create Flow"
+msgid "Create Global"
+msgstr "Crear Flujos"
+
+msgid "Globals"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "                              %(completed_percentage)s%% completion\n"
+#| "                            "
+msgid ""
+"\n"
+"                                %(counter)s Use\n"
+"                              "
+msgid_plural ""
+"\n"
+"                                %(counter)s Uses\n"
+"                              "
+msgstr[0] ""
+"\n"
+"                              %(completed_percentage)s%% completion\n"
+"                            "
+msgstr[1] ""
+"\n"
+"                              %(completed_percentage)s%% completion\n"
+"                            "
+
+msgid "No globals"
+msgstr ""
+
+#, fuzzy
+#| msgid "Update Label"
+msgid "Update Global"
+msgstr "Actualizar etiqueta"
+
+#, fuzzy
+#| msgid "Create Flow"
+msgid "Delete Global"
+msgstr "Crear Flujos"
+
 msgid ""
 "\n"
 "    Sorry, importing has not been enabled on your account.\n"
@@ -14068,10 +14150,6 @@ msgstr ""
 
 #~ msgid "Export Label Messages"
 #~ msgstr "Exportar mensajes con etiquetas"
-
-#, fuzzy
-#~ msgid "You do not have any languages configured for your organization."
-#~ msgstr "Debe elegir un país para su organización."
 
 #~ msgid "Twilio"
 #~ msgstr "Twilio"

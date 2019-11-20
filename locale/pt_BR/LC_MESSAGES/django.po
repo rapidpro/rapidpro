@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-08 19:42+0000\n"
+"POT-Creation-Date: 2019-11-20 19:12+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4051,6 +4051,27 @@ msgstr ""
 #, fuzzy
 msgid "Name already used"
 msgstr "Esse endereço de e-mail já está sendo usado"
+
+#, python-brace-format
+msgid "Cannot create a new global, maximum allowed per org: {settings.MAX_ACTIVE_GLOBALS_PER_ORG}"
+msgstr ""
+
+msgid "Global names can only contain letters, numbers and hypens"
+msgstr ""
+
+#, python-brace-format
+msgid "Global names must be unique. '{name}' is duplicated"
+msgstr ""
+
+#, fuzzy, python-brace-format
+#| msgid "Using a Local Number"
+msgid "Global name '{name}' isn't a valid name"
+msgstr "Use um número local"
+
+#, fuzzy
+#| msgid "Manage Fields"
+msgid "Manage Globals"
+msgstr "Gerenciar campos"
 
 msgid "After 1 minute"
 msgstr ""
@@ -8662,6 +8683,59 @@ msgstr ""
 
 msgid "Ask a series of questions to collect data from your contacts."
 msgstr "Fazer uma série de perguntas para coletar informações de seus contatos."
+
+#, python-format
+msgid ""
+"\n"
+"    You have <b>%(counter)s</b> global configured\n"
+"    "
+msgid_plural ""
+"\n"
+"    You have <b>%(counter)s</b> globals configured\n"
+"    "
+msgstr[0] ""
+msgstr[1] ""
+
+#, fuzzy
+msgid "You do not have any globals configured."
+msgstr "Nosso Id da classe do cliente para sua organização"
+
+#, fuzzy
+#| msgid "Create Flow"
+msgid "Create Global"
+msgstr "Criar fluxo"
+
+msgid "Globals"
+msgstr ""
+
+#, fuzzy, python-format
+msgid ""
+"\n"
+"                                %(counter)s Use\n"
+"                              "
+msgid_plural ""
+"\n"
+"                                %(counter)s Uses\n"
+"                              "
+msgstr[0] ""
+"\n"
+"%(participant_count)s participante %(participant_count_plr)s, %(completed_count)s completos"
+msgstr[1] ""
+"\n"
+"%(participant_count)s participante %(participant_count_plr)s, %(completed_count)s completos"
+
+msgid "No globals"
+msgstr ""
+
+#, fuzzy
+#| msgid "Update Label"
+msgid "Update Global"
+msgstr "Atualizar rótulo"
+
+#, fuzzy
+#| msgid "Create Flow"
+msgid "Delete Global"
+msgstr "Criar fluxo"
 
 msgid ""
 "\n"
@@ -13321,10 +13395,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "Export Label Messages"
 #~ msgstr "Rotular mensagens"
-
-#, fuzzy
-#~ msgid "You do not have any languages configured for your organization."
-#~ msgstr "Nosso Id da classe do cliente para sua organização"
 
 #~ msgid "Twilio"
 #~ msgstr "Twilio"

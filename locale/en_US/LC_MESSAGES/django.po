@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-08 19:42+0000\n"
+"POT-Creation-Date: 2019-11-20 19:12+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2978,6 +2978,24 @@ msgid "Your message template {template.name} is not approved and cannot be sent.
 msgstr ""
 
 msgid "Name already used"
+msgstr ""
+
+#, python-brace-format
+msgid "Cannot create a new global, maximum allowed per org: {settings.MAX_ACTIVE_GLOBALS_PER_ORG}"
+msgstr ""
+
+msgid "Global names can only contain letters, numbers and hypens"
+msgstr ""
+
+#, python-brace-format
+msgid "Global names must be unique. '{name}' is duplicated"
+msgstr ""
+
+#, python-brace-format
+msgid "Global name '{name}' isn't a valid name"
+msgstr ""
+
+msgid "Manage Globals"
 msgstr ""
 
 msgid "After 1 minute"
@@ -6708,6 +6726,48 @@ msgid ""
 msgstr ""
 
 msgid "Ask a series of questions to collect data from your contacts."
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"    You have <b>%(counter)s</b> global configured\n"
+"    "
+msgid_plural ""
+"\n"
+"    You have <b>%(counter)s</b> globals configured\n"
+"    "
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "You do not have any globals configured."
+msgstr ""
+
+msgid "Create Global"
+msgstr ""
+
+msgid "Globals"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"                                %(counter)s Use\n"
+"                              "
+msgid_plural ""
+"\n"
+"                                %(counter)s Uses\n"
+"                              "
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "No globals"
+msgstr ""
+
+msgid "Update Global"
+msgstr ""
+
+msgid "Delete Global"
 msgstr ""
 
 msgid ""
