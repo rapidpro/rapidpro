@@ -5773,6 +5773,8 @@ class SystemChecksTest(TembaTest):
 
 class FlowRevisionTest(TembaTest):
     def test_trim_revisions(self):
+        start = timezone.now()
+
         color = self.get_flow("color")
         clinic = self.get_flow("the_clinic")
 
@@ -5823,7 +5825,7 @@ class FlowRevisionTest(TembaTest):
 
         # trim our flow revisions, should be left with original (today), 25 from yesterday, 1 per day for 5 days = 31
         self.assertEqual(76, FlowRevision.objects.filter(flow=color).count())
-        self.assertEqual(45, FlowRevision.trim())
+        self.assertEqual(45, FlowRevision.trim(start))
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
         self.assertEqual(
             7,
@@ -5839,6 +5841,11 @@ class FlowRevisionTest(TembaTest):
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
 
         # call our task
+        trim_flow_revisions()
+        self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
+        self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
+
+        # call again (testing reading redis key)
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())

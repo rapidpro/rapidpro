@@ -2,10 +2,13 @@ import logging
 from datetime import timedelta
 
 import iso8601
+import pytz
 
 from django.conf import settings
 from django.utils import timezone
 from django.utils.timesince import timesince
+from django_redis import get_redis_connection
+from datetime import datetime
 
 from celery.task import task
 
@@ -67,9 +70,17 @@ def squash_flowruncounts():
 
 @nonoverlapping_task(track_started=True, name="trim_flow_revisions")
 def trim_flow_revisions():
-    count = FlowRevision.trim()
-    print(f"Trimmed {count} flow revisions")
+    # get when the last time we trimmed was
+    r = get_redis_connection()
+    last_trim = r.get(FlowRevision.LAST_TRIM_KEY)
+    if not last_trim:
+        last_trim = 0
 
+    last_trim = datetime.utcfromtimestamp(last_trim).astimezone(pytz.utc)
+    count = FlowRevision.trim(last_trim)
+
+    r.set(FlowRevision.LAST_TRIM_KEY, timezone.now().timestamp())
+    print(f"Trimmed {count} flow revisions since {last_trim}")
 
 @nonoverlapping_task(track_started=True, name="trim_flow_sessions")
 def trim_flow_sessions():

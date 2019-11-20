@@ -19,7 +19,7 @@ from django.contrib.auth.models import Group, User
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
-from django.db.models import Max, Min, Q, Sum
+from django.db.models import Max, Q, Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -2299,6 +2299,7 @@ class FlowRevision(SmartModel):
     """
     JSON definitions for previous flow revisions
     """
+    LAST_TRIM_KEY = "temba:last_flow_revision_trim"
 
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="revisions")
 
@@ -2311,16 +2312,17 @@ class FlowRevision(SmartModel):
     revision = models.IntegerField(null=True, help_text=_("Revision number for this definition"))
 
     @classmethod
-    def trim(cls):
+    def trim(cls, since):
         """
-        For any flow that has a new revision in the past 24 hours, trims all the flows
+        For any flow that has a new revision since the passed in date, trim revisions
+        :param since: datetime of when to trim
         :return: The number of trimmed revisions
         """
         count = 0
 
         # find all flows with revisions in the past day
         for fr in (
-            FlowRevision.objects.filter(created_on__gt=timezone.now() - timedelta(days=1))
+            FlowRevision.objects.filter(created_on__gt=since)
             .distinct("flow_id")
             .only("flow_id")
         ):
@@ -2353,11 +2355,10 @@ class FlowRevision(SmartModel):
         # find the ids of the first revision for each day starting at the cutoff
         keepers = (
             FlowRevision.objects.filter(flow=flow_id, created_on__lt=cutoff)
-            .order_by("created_on")
             .annotate(created_date=TruncDate("created_on"))
             .values("created_date")
-            .annotate(id=Min("id"))
-            .values_list("id", flat=True)
+            .annotate(max_id=Max("id"))
+            .values_list("max_id", flat=True)
         )
 
         # delete the rest
