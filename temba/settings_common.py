@@ -1013,6 +1013,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.external.ExternalType",
     "temba.channels.types.facebook.FacebookType",
     "temba.channels.types.firebase.FirebaseCloudMessagingType",
+    "temba.channels.types.freshchat.FreshChatType",
     "temba.channels.types.globe.GlobeType",
     "temba.channels.types.highconnection.HighConnectionType",
     "temba.channels.types.hormuud.HormuudType",

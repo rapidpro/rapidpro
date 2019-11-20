@@ -1293,6 +1293,58 @@ msgstr "Notificações de e-mail"
 msgid "Check if you want this channel to send notifications to contacts."
 msgstr ""
 
+msgid "Connect your approved <a href=\"https://www.freshworks.com/live-chat-software/\" target=\"_blank\">FreshChat</a> Channel"
+msgstr ""
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your Hub9 connection you'll need to provide them with the following details.\n"
+#| "\n"
+#| "      "
+msgid ""
+"\n"
+"        To use your FreshChat channel you'll have to configure the FreshChat server to direct messages to the url below.\n"
+"        "
+msgstr ""
+"\n"
+"Para finalizar a configuração da sua conexão com o Hub9, você terá que fornece-los com os seguintes detalhes."
+
+msgid "POST FreshChat trigger to this address."
+msgstr ""
+
+#, fuzzy
+#| msgid "Edit Name"
+msgid "FreshChat Environment Title"
+msgstr "Editar nome"
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The name of your environment"
+msgstr "Nome da sua organização"
+
+msgid "FreshChat Webhook Public Key"
+msgstr ""
+
+msgid "Webhook Public Key used to verify signatures"
+msgstr ""
+
+msgid "FreshChat Agent ID"
+msgstr ""
+
+#, fuzzy
+#| msgid "The type of this message"
+msgid "The UUID of the Agent you want RP to Use."
+msgstr "O tipo dessa mensagem"
+
+msgid "FreshChat API Auth Token"
+msgstr ""
+
+#, fuzzy
+#| msgid "The power level of the battery"
+msgid "The API auth token- leave out the bearer"
+msgstr "Nível de energia da bateria"
+
 #, fuzzy
 msgid ""
 "If you are based in the Phillipines, you can integrate {{ brand.name }} with Globe Labs to send\n"
@@ -2881,7 +2933,14 @@ msgstr "É obrigatório uma conexão com uma conta Nexmo"
 msgid "A connection to a Twilio account is required"
 msgstr "É obrigatório uma conexão com uma conta Nexmo"
 
-msgid "Sorry, a caller cannot be added for that number"
+#, fuzzy
+#| msgid "Sorry, a caller cannot be added for that number"
+msgid "A caller cannot be added for that number"
+msgstr "Desculpe, um originador de chamada não pode ser adicionado para esse número"
+
+#, fuzzy
+#| msgid "Sorry, a caller cannot be added for that number"
+msgid "A caller has already been added for that number"
 msgstr "Desculpe, um originador de chamada não pode ser adicionado para esse número"
 
 #, fuzzy
@@ -3051,6 +3110,11 @@ msgstr ""
 #, fuzzy
 #| msgid "External ID"
 msgid "WhatsApp identifier"
+msgstr "ID Externo"
+
+#, fuzzy
+#| msgid "External ID"
+msgid "Freshchat identifier"
 msgstr "ID Externo"
 
 msgid "Label"

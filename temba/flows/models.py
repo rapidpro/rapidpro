@@ -513,6 +513,11 @@ class Flow(TembaModel):
                     expires_after_minutes=flow_expires,
                 )
 
+            # make sure the flow is unarchived
+            if flow.is_archived:
+                flow.is_archived = False
+                flow.save(update_fields=("is_archived",))
+
             dependency_mapping[flow_uuid] = str(flow.uuid)
             created_flows.append((flow, flow_def))
 
@@ -1754,11 +1759,16 @@ class Flow(TembaModel):
         for trigger in self.triggers.all():
             trigger.release()
 
+        # release any starts
+        for start in self.starts.all():
+            start.release()
+
         self.group_dependencies.clear()
         self.flow_dependencies.clear()
         self.field_dependencies.clear()
         self.channel_dependencies.clear()
         self.label_dependencies.clear()
+        self.classifier_dependencies.clear()
 
         # queue mailroom to interrupt sessions where contact is currently in this flow
         mailroom.queue_interrupt(self.org, flow=self)
@@ -1767,9 +1777,11 @@ class Flow(TembaModel):
         """
         Exits all flow runs
         """
-
         # grab the ids of all our runs
         run_ids = self.runs.all().values_list("id", flat=True)
+
+        # clear our association with any related sessions
+        self.sessions.all().update(current_flow=None)
 
         # batch this for 1,000 runs at a time so we don't grab locks for too long
         for id_batch in chunk_list(run_ids, 1000):
@@ -1812,7 +1824,7 @@ class FlowSession(models.Model):
     session_type = models.CharField(max_length=1, choices=Flow.FLOW_TYPES, default=Flow.TYPE_MESSAGE, null=True)
 
     # the organization this session belongs to
-    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    org = models.ForeignKey(Org, related_name="sessions", on_delete=models.PROTECT)
 
     # the contact that this session is with
     contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="sessions")
@@ -1844,7 +1856,7 @@ class FlowSession(models.Model):
     wait_started_on = models.DateTimeField(null=True)
 
     # the flow of the waiting run
-    current_flow = models.ForeignKey("flows.Flow", null=True, on_delete=models.PROTECT)
+    current_flow = models.ForeignKey("flows.Flow", related_name="sessions", null=True, on_delete=models.PROTECT)
 
     def release(self):
         self.delete()
@@ -3237,6 +3249,15 @@ class FlowStart(models.Model):
 
     def async_start(self):
         mailroom.queue_flow_start(self)
+
+    def release(self):
+        with transaction.atomic():
+            self.groups.clear()
+            self.contacts.clear()
+            self.connections.clear()
+            FlowRun.objects.filter(start=self).update(start=None)
+            FlowStartCount.objects.filter(start=self).delete()
+            self.delete()
 
     def __str__(self):  # pragma: no cover
         return f"FlowStart[id={self.id}, flow={self.flow.uuid}]"

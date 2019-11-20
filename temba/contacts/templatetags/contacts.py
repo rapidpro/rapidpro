@@ -8,6 +8,7 @@ from temba.contacts.models import (
     EXTERNAL_SCHEME,
     FACEBOOK_SCHEME,
     FCM_SCHEME,
+    FRESHCHAT_SCHEME,
     LINE_SCHEME,
     TEL_SCHEME,
     TELEGRAM_SCHEME,
@@ -35,6 +36,7 @@ URN_SCHEME_ICONS = {
     LINE_SCHEME: "icon-line",
     EXTERNAL_SCHEME: "icon-channel-external",
     FCM_SCHEME: "icon-fcm",
+    FRESHCHAT_SCHEME: "icon-freshchat",
     WHATSAPP_SCHEME: "icon-whatsapp",
 }
 
