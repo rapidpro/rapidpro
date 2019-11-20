@@ -11,6 +11,7 @@ from openpyxl import load_workbook
 
 from django.conf import settings
 from django.contrib.auth.models import Group
+from django.db.models.functions import TruncDate
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -5762,3 +5763,60 @@ class SystemChecksTest(TembaTest):
 
         with override_settings(MAILROOM_URL=None):
             self.assertEqual(mailroom_url(None)[0].msg, "No mailroom URL set, simulation will not be available")
+
+
+class FlowRevisionTest(TembaTest):
+    def test_trim_revisions(self):
+        color = self.get_flow("color")
+        clinic = self.get_flow("the_clinic")
+
+        revision = 100
+        FlowRevision.objects.filter(flow=color).update(revision=revision)
+
+        # make a bunch of revisions for color on the same day
+        created = timezone.now().replace(hour=6) - timedelta(days=1)
+        for i in range(25):
+            revision -= 1
+            created = created - timedelta(minutes=1)
+            FlowRevision.objects.create(
+                flow=color,
+                definition=dict(),
+                revision=revision,
+                created_by=self.admin,
+                modified_by=self.admin,
+                created_on=created,
+                modified_on=created,
+            )
+
+        # then for 5 days prior, make a few more
+        for i in range(5):
+            created = created - timedelta(days=1)
+            for i in range(10):
+                revision -= 1
+                created = created - timedelta(minutes=1)
+                FlowRevision.objects.create(
+                    flow=color,
+                    definition=dict(),
+                    revision=revision,
+                    created_by=self.admin,
+                    modified_by=self.admin,
+                    created_on=created,
+                    modified_on=created,
+                )
+
+        # trim our flow revisions, should be left with original (today), 25 from yesterday, 1 per day for 5 days = 31
+        self.assertEqual(76, FlowRevision.objects.filter(flow=color).count())
+        self.assertEqual(45, FlowRevision.trim())
+        self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
+        self.assertEqual(
+            7,
+            FlowRevision.objects.filter(flow=color)
+            .annotate(created_date=TruncDate("created_on"))
+            .distinct("created_date")
+            .count(),
+        )
+
+        # trim our clinic flow manually, should remain unchanged
+        self.assertEqual(1, FlowRevision.objects.filter(flow=clinic).count())
+        self.assertEqual(0, FlowRevision.trim_for_flow(clinic.id))
+        self.assertEqual(1, FlowRevision.objects.filter(flow=clinic).count())
