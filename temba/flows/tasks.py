@@ -69,6 +69,8 @@ def squash_flowruncounts():
 
 @nonoverlapping_task(track_started=True, name="trim_flow_revisions")
 def trim_flow_revisions():
+    start = timezone.now()
+
     # get when the last time we trimmed was
     r = get_redis_connection()
     last_trim = r.get(FlowRevision.LAST_TRIM_KEY)
@@ -79,7 +81,9 @@ def trim_flow_revisions():
     count = FlowRevision.trim(last_trim)
 
     r.set(FlowRevision.LAST_TRIM_KEY, int(timezone.now().timestamp()))
-    print(f"Trimmed {count} flow revisions since {last_trim}")
+
+    elapsed = timesince(start)
+    print(f"Trimmed {count} flow revisions since {last_trim} in {elapsed}")
 
 
 @nonoverlapping_task(track_started=True, name="trim_flow_sessions")
