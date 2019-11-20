@@ -2321,7 +2321,7 @@ class FlowRevision(SmartModel):
         """
         count = 0
 
-        # find all flows with revisions in the past day
+        # find all flows with revisions since the passed in date
         for fr in FlowRevision.objects.filter(created_on__gt=since).distinct("flow_id").only("flow_id"):
             # trim that flow
             count += FlowRevision.trim_for_flow(fr.flow_id)
