@@ -17,6 +17,7 @@ from .models import (
     FlowNodeCount,
     FlowPathCount,
     FlowPathRecentRun,
+    FlowRevision,
     FlowRun,
     FlowRunCount,
     FlowSession,
@@ -62,6 +63,12 @@ def squash_flowruncounts():
     FlowCategoryCount.squash()
     FlowPathRecentRun.prune()
     FlowStartCount.squash()
+
+
+@nonoverlapping_task(track_started=True, name="trim_flow_revisions")
+def trim_flow_revisions():
+    count = FlowRevision.trim()
+    print(f"Trimmed {count} flow revisions")
 
 
 @nonoverlapping_task(track_started=True, name="trim_flow_sessions")

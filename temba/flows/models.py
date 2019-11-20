@@ -2313,7 +2313,7 @@ class FlowRevision(SmartModel):
     @classmethod
     def trim(cls):
         """
-        Trims all our flow revisions.
+        For any flow that has a new revision in the past 24 hours, trims all the flows
         :return: The number of trimmed revisions
         """
         count = 0
@@ -2344,6 +2344,7 @@ class FlowRevision(SmartModel):
         # find what date cutoff we will use for "25 most recent"
         cutoff = FlowRevision.objects.filter(flow=flow_id).order_by("-created_on")[24:25]
 
+        # fewer than 25 revisions
         if not cutoff:
             return 0
 
@@ -2352,7 +2353,7 @@ class FlowRevision(SmartModel):
         # find the ids of the first revision for each day starting at the cutoff
         keepers = (
             FlowRevision.objects.filter(flow=flow_id, created_on__lt=cutoff)
-            .order_by("-created_on")
+            .order_by("created_on")
             .annotate(created_date=TruncDate("created_on"))
             .values("created_date")
             .annotate(id=Min("id"))
@@ -2360,7 +2361,7 @@ class FlowRevision(SmartModel):
         )
 
         # delete the rest
-        return FlowRevision.objects.filter(created_on__lt=cutoff).exclude(id__in=keepers).delete()[0]
+        return FlowRevision.objects.filter(flow=flow_id, created_on__lt=cutoff).exclude(id__in=keepers).delete()[0]
 
     @classmethod
     def is_legacy_definition(cls, definition):
