@@ -8,6 +8,7 @@ from django.db.models import Count, Q
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.models import Org
+from temba.utils.text import unsnakify
 
 
 class Global(SmartModel):
@@ -31,6 +32,19 @@ class Global(SmartModel):
 
     @classmethod
     def get_or_create(cls, org, user, key, name, value):
+        existing = org.globals.filter(key__iexact=key, is_active=True).first()
+        if existing:
+            if not name:
+                name = unsnakify(key)
+
+            name = cls.get_unique_name(org, name)
+
+            existing.name = name
+            existing.value = value
+            existing.modified_by = user
+            existing.save(update_fields=("name", "value", "modified_by"))
+            return existing
+
         return cls.objects.create(org=org, key=key, name=name, value=value, created_by=user, modified_by=user)
 
     @classmethod
@@ -48,6 +62,22 @@ class Global(SmartModel):
     @classmethod
     def is_valid_name(cls, name):
         return regex.match(r"^[A-Za-z0-9\- ]+$", name, regex.V0) and len(name) <= cls.MAX_NAME_LEN
+
+    @classmethod
+    def get_unique_name(cls, org, base_name):
+        """
+        Generates a unique name based on the given base name
+        """
+        name = base_name[:64].strip()
+        count = 2
+        while True:
+            if not cls.objects.filter(org=org, name=name, is_active=True).exists():
+                break
+
+            name = "%s %d" % (base_name[:59].strip(), count)
+            count += 1
+
+        return name
 
     @classmethod
     def get_with_usage(cls, org):

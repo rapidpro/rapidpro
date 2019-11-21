@@ -34,6 +34,31 @@ class GlobalTest(TembaTest):
 
         self.assertEqual(0, Global.objects.count())
 
+    def test_make_key(self):
+        self.assertEqual("org_name", Global.make_key("Org Name"))
+        self.assertEqual("account_name", Global.make_key("Account   Name  "))
+        self.assertEqual("caf", Global.make_key("café"))
+        self.assertEqual(
+            "323_ffsn_slfs_ksflskfs_fk_anfaddgas",
+            Global.make_key("  ^%$# %$$ $##323 ffsn slfs ksflskfs!!!! fk$%%%$$$anfaDDGAS ))))))))) "),
+        )
+
+    def test_is_valid_key(self):
+        self.assertTrue(Global.is_valid_key("token"))
+        self.assertTrue(Global.is_valid_key("token_now_2"))
+        self.assertTrue(Global.is_valid_key("email"))
+        self.assertFalse(Global.is_valid_key("Token"))  # must be lowercase
+        self.assertFalse(Global.is_valid_key("token!"))  # can't have punctuation
+        self.assertFalse(Global.is_valid_key("âge"))  # a-z only
+        self.assertFalse(Global.is_valid_key("2up"))  # can't start with a number
+        self.assertFalse(Global.is_valid_key("a" * 37))  # too long
+
+    def test_is_valid_name(self):
+        self.assertTrue(Global.is_valid_name("Age"))
+        self.assertTrue(Global.is_valid_name("Age Now 2"))
+        self.assertFalse(Global.is_valid_name("Age_Now"))  # can't have punctuation
+        self.assertFalse(Global.is_valid_name("âge"))  # a-z only
+
 
 class GlobalCRUDLTest(TembaTest):
     def setUp(self):
@@ -58,3 +83,72 @@ class GlobalCRUDLTest(TembaTest):
 
         response = self.client.get(list_url + "?search=access")
         self.assertEqual(list(response.context["object_list"]), [self.global2])
+
+    def test_create(self):
+        create_url = reverse("globals.global_create")
+        self.login(self.user)
+
+        response = self.client.get(create_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.get(create_url)
+        self.assertEqual(200, response.status_code)
+
+        # we got a form with expected form fields
+        self.assertEqual(["name", "value", "loc"], list(response.context["form"].fields.keys()))
+
+        # try to submit with invalid name and missing value
+        response = self.client.post(create_url, {"name": "/?:"})
+        self.assertEqual(200, response.status_code)
+        self.assertFormError(response, "form", "name", "Global names can only contain letters, numbers and hypens")
+        self.assertFormError(response, "form", "value", "This field is required.")
+
+        self.client.post(create_url, {"name": "Secret", "value": "[xyz]"})
+
+        self.assertTrue(Global.objects.filter(org=self.org, name="Secret", value="[xyz]").exists())
+
+    def test_update(self):
+        update_url = reverse("globals.global_update", args=[self.global1.id])
+        self.login(self.user)
+
+        response = self.client.get(update_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.get(update_url)
+        self.assertEqual(200, response.status_code)
+
+        # we got a form with expected form fields
+        self.assertEqual(["value", "loc"], list(response.context["form"].fields.keys()))
+
+        # try to submit with missing value
+        response = self.client.post(update_url, {})
+        self.assertEqual(200, response.status_code)
+        self.assertFormError(response, "form", "value", "This field is required.")
+
+        self.client.post(update_url, {"value": "Acme Holdings"})
+
+        self.global1.refresh_from_db()
+        self.assertEqual("Org Name", self.global1.name)
+        self.assertEqual("Acme Holdings", self.global1.value)
+
+    def test_delete(self):
+        self.login(self.admin)
+
+        delete_url = reverse("globals.global_delete", args=[self.global1.id])
+
+        response = self.client.post(delete_url)
+        self.assertEqual(302, response.status_code)
+        self.assertEqual(0, Global.objects.filter(id=self.global1.id).count())
+
+        # can't delete if global is being used
+        flow1 = self.get_flow("color")
+        flow1.global_dependencies.add(self.global2)
+
+        delete_url = reverse("globals.global_delete", args=[self.global2.id])
+
+        with self.assertRaises(ValueError):
+            self.client.post(delete_url)

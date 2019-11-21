@@ -1696,7 +1696,7 @@ class Flow(TembaModel):
         classifier_uuids = [c["uuid"] for c in dependencies.get("classifiers", [])]
         global_keys = [g["key"] for g in dependencies.get("globals", [])]
 
-        # still need to do lazy creation of fields in the case of a flow import
+        # fields won't have been included in old imports so may need to be lazily created here
         if len(field_keys):
             active_org_fields = set(
                 ContactField.user_fields.active_for_org(org=self.org).values_list("key", flat=True)
@@ -1708,9 +1708,7 @@ class Flow(TembaModel):
             # create any field that doesn't already exist
             for field in fields_to_create:
                 if ContactField.is_valid_key(field):
-                    # reverse slug to get a reasonable label
-                    label = " ".join([word.capitalize() for word in field.split("_")])
-                    ContactField.get_or_create(self.org, self.modified_by, field, label)
+                    ContactField.get_or_create(self.org, self.modified_by, field)
 
         fields = ContactField.user_fields.filter(org=self.org, key__in=field_keys)
         flows = self.org.flows.filter(uuid__in=flow_uuids)

@@ -27,7 +27,10 @@ class CreateGlobalForm(forms.ModelForm):
                 _(f"Cannot create a new global, maximum allowed per org: {settings.MAX_ACTIVE_GLOBALS_PER_ORG}")
             )
 
-        name = cleaned_data.get("name", "")
+        return cleaned_data
+
+    def clean_name(self):
+        name = self.cleaned_data["name"]
 
         if not Global.is_valid_name(name):
             raise forms.ValidationError(_("Global names can only contain letters, numbers and hypens"))
@@ -40,7 +43,7 @@ class CreateGlobalForm(forms.ModelForm):
         if not Global.is_valid_key(Global.make_key(name)):
             raise forms.ValidationError(_(f"Global name '{name}' isn't a valid name"))
 
-        return cleaned_data
+        return name
 
     class Meta:
         model = Global
@@ -101,7 +104,7 @@ class GlobalCRUDL(SmartCRUDL):
             return kwargs
 
     class Delete(OrgPermsMixin, SmartDeleteView):
-        success_url = "@globals.global_list"
+        redirect_url = "@globals.global_list"
         success_message = ""
         http_method_names = ("get", "post")
 
