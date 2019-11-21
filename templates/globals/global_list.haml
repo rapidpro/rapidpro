@@ -11,9 +11,9 @@
 - block summary
   -if global_count
     {% blocktrans with counter=global_count|intcomma count num=global_count  %}
-    You have <b>{{ counter }}</b> global configured
+    You have <b>{{ counter }} global</b> configured
     {% plural %}
-    You have <b>{{ counter }}</b> globals configured
+    You have <b>{{ counter }} globals</b> configured
     {% endblocktrans %}
   -else
     -trans "You do not have any globals configured."

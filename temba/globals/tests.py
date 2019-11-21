@@ -67,7 +67,10 @@ class GlobalCRUDLTest(TembaTest):
         self.global1 = Global.get_or_create(self.org, self.admin, "org_name", "Org Name", "Acme Ltd")
         self.global2 = Global.get_or_create(self.org, self.admin, "access_token", "Access Token", "23464373")
 
-    def test_list(self):
+        self.flow = self.get_flow("color")
+        self.flow.global_dependencies.add(self.global1)
+
+    def test_list_views(self):
         list_url = reverse("globals.global_list")
         self.login(self.user)
 
@@ -80,8 +83,14 @@ class GlobalCRUDLTest(TembaTest):
         self.assertEqual(list(response.context["object_list"]), [self.global2, self.global1])
         self.assertContains(response, "Acme Ltd")
         self.assertContains(response, "23464373")
+        self.assertContains(response, "1 Use")
 
         response = self.client.get(list_url + "?search=access")
+        self.assertEqual(list(response.context["object_list"]), [self.global2])
+
+        unused_url = reverse("globals.global_unused")
+
+        response = self.client.get(unused_url)
         self.assertEqual(list(response.context["object_list"]), [self.global2])
 
     def test_create(self):
@@ -138,17 +147,16 @@ class GlobalCRUDLTest(TembaTest):
     def test_delete(self):
         self.login(self.admin)
 
-        delete_url = reverse("globals.global_delete", args=[self.global1.id])
+        delete_url = reverse("globals.global_delete", args=[self.global2.id])
 
         response = self.client.post(delete_url)
         self.assertEqual(302, response.status_code)
-        self.assertEqual(0, Global.objects.filter(id=self.global1.id).count())
+        self.assertEqual(0, Global.objects.filter(id=self.global2.id).count())
 
         # can't delete if global is being used
-        flow1 = self.get_flow("color")
-        flow1.global_dependencies.add(self.global2)
-
-        delete_url = reverse("globals.global_delete", args=[self.global2.id])
+        delete_url = reverse("globals.global_delete", args=[self.global1.id])
 
         with self.assertRaises(ValueError):
             self.client.post(delete_url)
+
+        self.assertEqual(1, Global.objects.filter(id=self.global1.id).count())

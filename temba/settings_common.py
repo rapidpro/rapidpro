@@ -352,7 +352,7 @@ PERMISSIONS = {
     "contacts.contactgroup": ("api",),
     "ivr.ivrcall": ("start",),
     "archives.archive": ("api", "run", "message"),
-    "globals.global": ("api", "detail"),
+    "globals.global": ("api", "unused", "detail"),
     "locations.adminboundary": ("alias", "api", "boundaries", "geometry"),
     "orgs.org": (
         "accounts",

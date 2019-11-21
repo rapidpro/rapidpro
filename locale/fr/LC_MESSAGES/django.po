@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-20 19:12+0000\n"
+"POT-Creation-Date: 2019-11-21 18:10+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -4190,6 +4190,12 @@ msgstr "Utilisation d'un numéro local"
 #| msgid "Manage Fields"
 msgid "Manage Globals"
 msgstr "Gérer les champs"
+
+msgid "All"
+msgstr "Tous"
+
+msgid "Unused"
+msgstr ""
 
 #, fuzzy
 #| msgid "After 5 minutes"
@@ -9041,9 +9047,6 @@ msgstr "statistiques"
 msgid "Runs"
 msgstr ""
 
-msgid "All"
-msgstr "Tous"
-
 #, fuzzy
 #| msgid "Response"
 msgid "Responded"
@@ -9069,11 +9072,11 @@ msgstr "Poser une série de questions visant à recueillir les données de vos c
 #, python-format
 msgid ""
 "\n"
-"    You have <b>%(counter)s</b> global configured\n"
+"    You have <b>%(counter)s global</b> configured\n"
 "    "
 msgid_plural ""
 "\n"
-"    You have <b>%(counter)s</b> globals configured\n"
+"    You have <b>%(counter)s globals</b> configured\n"
 "    "
 msgstr[0] ""
 msgstr[1] ""

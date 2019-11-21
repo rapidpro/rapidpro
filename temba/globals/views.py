@@ -64,7 +64,7 @@ class UpdateGlobalForm(forms.ModelForm):
 
 class GlobalCRUDL(SmartCRUDL):
     model = Global
-    actions = ("create", "update", "delete", "list", "detail")
+    actions = ("create", "update", "delete", "list", "unused", "detail")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = CreateGlobalForm
@@ -125,25 +125,35 @@ class GlobalCRUDL(SmartCRUDL):
         title = _("Manage Globals")
         fields = ("name", "key", "value")
         search_fields = ("name__icontains", "key__icontains")
-        default_order = ("name",)
+        default_order = ("key",)
         paginate_by = 250
 
         def get_queryset(self, **kwargs):
-            return super().get_queryset(**kwargs).filter(org=self.org, is_active=True)
+            qs = super().get_queryset(**kwargs).filter(org=self.org, is_active=True)
+
+            return Global.annotate_usage(qs)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
-            active_count = self.org.globals.filter(is_active=True).count()
-
-            context["global_categories"] = [
-                {"label": "All", "count": active_count, "url": reverse("globals.global_list")}
-            ]
+            org_globals = self.org.globals.filter(is_active=True)
+            all_count = org_globals.count()
 
             if "HTTP_X_FORMAX" in self.request.META:
-                context["global_count"] = active_count
+                context["global_count"] = all_count
+            else:
+                unused_count = Global.annotate_usage(org_globals).filter(usage_count=0).count()
+
+                context["global_categories"] = [
+                    {"label": _("All"), "count": all_count, "url": reverse("globals.global_list")},
+                    {"label": _("Unused"), "count": unused_count, "url": reverse("globals.global_unused")},
+                ]
 
             return context
+
+    class Unused(List):
+        def get_queryset(self, **kwargs):
+            return super().get_queryset(**kwargs).filter(usage_count=0)
 
     class Detail(OrgObjPermsMixin, SmartReadView):
         template_name = "globals/global_detail.haml"

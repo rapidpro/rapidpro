@@ -80,14 +80,14 @@ class Global(SmartModel):
         return name
 
     @classmethod
-    def get_with_usage(cls, org):
-        return org.globals.filter(is_active=True).annotate(
-            _usage_count=Count("dependent_flows", distinct=True, filter=Q(dependent_flows__is_active=True))
+    def annotate_usage(cls, queryset):
+        return queryset.annotate(
+            usage_count=Count("dependent_flows", distinct=True, filter=Q(dependent_flows__is_active=True))
         )
 
     def get_usage_count(self):
-        if hasattr(self, "_usage_count"):
-            return self._usage_count
+        if hasattr(self, "usage_count"):
+            return self.usage_count
 
         return self.dependent_flows.count()
 
