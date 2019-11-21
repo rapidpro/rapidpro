@@ -15,6 +15,19 @@ class GlobalTest(TembaTest):
         self.assertEqual("Acme Ltd", global1.value)
         self.assertEqual("global[key=org_name,name=Org Name]", str(global1))
 
+        # update value if provided
+        g1 = Global.get_or_create(self.org, self.admin, "org_name", "Org Name", "Acme Holdings")
+        self.assertEqual(global1, g1)
+
+        global1.refresh_from_db()
+        self.assertEqual("Acme Holdings", global1.value)
+
+        # generate name if not provided
+        global3 = Global.get_or_create(self.org, self.admin, "secret_value", name="", value="")
+        self.assertEqual("secret_value", global3.key)
+        self.assertEqual("Secret Value", global3.name)
+        self.assertEqual("", global3.value)
+
         flow1 = self.get_flow("color")
         flow2 = self.get_flow("favorites")
 
@@ -25,12 +38,14 @@ class GlobalTest(TembaTest):
         self.assertEqual(1, global2.get_usage_count())
 
         with self.assertNumQueries(1):
-            g1, g2 = Global.annotate_usage(self.org.globals.order_by("id"))
+            g1, g2, g3 = Global.annotate_usage(self.org.globals.order_by("id"))
             self.assertEqual(2, g1.get_usage_count())
             self.assertEqual(1, g2.get_usage_count())
+            self.assertEqual(0, g3.get_usage_count())
 
         global1.release()
         global2.release()
+        global3.release()
 
         self.assertEqual(0, Global.objects.count())
 

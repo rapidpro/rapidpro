@@ -34,16 +34,16 @@ class Global(SmartModel):
     def get_or_create(cls, org, user, key, name, value):
         existing = org.globals.filter(key__iexact=key, is_active=True).first()
         if existing:
-            if not name:
-                name = unsnakify(key)
-
-            name = cls.get_unique_name(org, name)
-
-            existing.name = name
-            existing.value = value
-            existing.modified_by = user
-            existing.save(update_fields=("name", "value", "modified_by"))
+            if value:
+                existing.value = value
+                existing.modified_by = user
+                existing.save(update_fields=("value", "modified_by"))
             return existing
+
+        if not name:
+            name = unsnakify(key)
+
+        name = cls.get_unique_name(org, name)
 
         return cls.objects.create(org=org, key=key, name=name, value=value, created_by=user, modified_by=user)
 
