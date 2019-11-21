@@ -23,6 +23,7 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.contacts.models import WHATSAPP_SCHEME, Contact, ContactField, ContactGroup
+from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.msgs.models import Label
 from temba.orgs.models import Language
@@ -1944,6 +1945,12 @@ class FlowTest(TembaTest):
         # but others should still be there
         for name in group_names[1:]:
             self.assertIsNotNone(flow.group_dependencies.filter(name=name).first())
+
+    def test_global_dependencies(self):
+        self.get_flow("dependencies_v13")
+
+        # global should have been created with blank value
+        Global.objects.get(name="Org Name", key="org_name", value="")
 
     def test_label_dependencies(self):
         self.get_flow("add_label")
