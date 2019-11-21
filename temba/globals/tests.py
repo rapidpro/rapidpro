@@ -25,7 +25,7 @@ class GlobalTest(TembaTest):
         self.assertEqual(1, global2.get_usage_count())
 
         with self.assertNumQueries(1):
-            g1, g2 = Global.get_with_usage(self.org)
+            g1, g2 = Global.annotate_usage(self.org.globals.order_by("id"))
             self.assertEqual(2, g1.get_usage_count())
             self.assertEqual(1, g2.get_usage_count())
 
