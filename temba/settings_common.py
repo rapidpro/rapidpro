@@ -872,6 +872,7 @@ CELERYBEAT_SCHEDULE = {
     "trim-http-logs": {"task": "trim_http_logs_task", "schedule": crontab(hour=3, minute=0)},
     "trim-webhook-event": {"task": "trim_webhook_event_task", "schedule": crontab(hour=3, minute=0)},
     "trim-event-fires": {"task": "trim_event_fires_task", "schedule": timedelta(seconds=900)},
+    "trim-flow-revisions": {"task": "trim_flow_revisions", "schedule": crontab(hour=0, minute=0)},
     "trim-flow-sessions": {"task": "trim_flow_sessions", "schedule": crontab(hour=0, minute=0)},
     "squash-flowruncounts": {"task": "squash_flowruncounts", "schedule": timedelta(seconds=60)},
     "squash-flowpathcounts": {"task": "squash_flowpathcounts", "schedule": timedelta(seconds=60)},
