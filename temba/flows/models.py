@@ -20,6 +20,7 @@ from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
 from django.db.models import Max, Q, Sum
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
@@ -2302,6 +2303,8 @@ class FlowRevision(SmartModel):
     JSON definitions for previous flow revisions
     """
 
+    LAST_TRIM_KEY = "temba:last_flow_revision_trim"
+
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="revisions")
 
     definition = JSONAsTextField(help_text=_("The JSON flow definition"), default=dict)
@@ -2311,6 +2314,55 @@ class FlowRevision(SmartModel):
     )
 
     revision = models.IntegerField(null=True, help_text=_("Revision number for this definition"))
+
+    @classmethod
+    def trim(cls, since):
+        """
+        For any flow that has a new revision since the passed in date, trim revisions
+        :param since: datetime of when to trim
+        :return: The number of trimmed revisions
+        """
+        count = 0
+
+        # find all flows with revisions since the passed in date
+        for fr in FlowRevision.objects.filter(created_on__gt=since).distinct("flow_id").only("flow_id"):
+            # trim that flow
+            count += FlowRevision.trim_for_flow(fr.flow_id)
+
+        return count
+
+    @classmethod
+    def trim_for_flow(cls, flow_id):
+        """
+        Trims the revisions for the passed in flow.
+
+        Our logic is:
+         * always keep last 25 revisions
+         * for any revision beyond those, collapse to first revision for that day
+
+        :param flow: the id of the flow to trim revisions for
+        :return: the number of trimmed revisions
+        """
+        # find what date cutoff we will use for "25 most recent"
+        cutoff = FlowRevision.objects.filter(flow=flow_id).order_by("-created_on")[24:25]
+
+        # fewer than 25 revisions
+        if not cutoff:
+            return 0
+
+        cutoff = cutoff[0].created_on
+
+        # find the ids of the first revision for each day starting at the cutoff
+        keepers = (
+            FlowRevision.objects.filter(flow=flow_id, created_on__lt=cutoff)
+            .annotate(created_date=TruncDate("created_on"))
+            .values("created_date")
+            .annotate(max_id=Max("id"))
+            .values_list("max_id", flat=True)
+        )
+
+        # delete the rest
+        return FlowRevision.objects.filter(flow=flow_id, created_on__lt=cutoff).exclude(id__in=keepers).delete()[0]
 
     @classmethod
     def is_legacy_definition(cls, definition):
