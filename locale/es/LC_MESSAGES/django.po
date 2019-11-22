@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-22 19:27+0000\n"
+"POT-Creation-Date: 2019-11-22 20:58+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3753,7 +3753,7 @@ msgid "Can't be a reserved word"
 msgstr "El nombre del campo '%s' es una palabra reservada"
 
 #, python-format
-msgid "Cannot create a new field as maximum is %(max)s."
+msgid "Cannot create a new field as limit is %(limit)s."
 msgstr ""
 
 msgid "Manage Contact Fields"

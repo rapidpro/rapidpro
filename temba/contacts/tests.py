@@ -7647,7 +7647,7 @@ class ContactFieldTest(TembaTest):
             response = self.client.post(create_cf_url, post_data)
 
             self.assertEqual(response.status_code, 200)
-            self.assertFormError(response, "form", None, "Cannot create a new field as maximum is 2.")
+            self.assertFormError(response, "form", None, "Cannot create a new field as limit is 2.")
 
         # value_type not supported
         post_data = {"label": "teefilter", "value_type": "J"}
