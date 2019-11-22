@@ -5,10 +5,13 @@ import time
 import requests
 from django_redis import get_redis_connection
 
+from django.utils import timezone
+
 from celery.task import task
 
 from temba.channels.models import Channel
 from temba.contacts.models import WHATSAPP_SCHEME, ContactURN
+from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
 from temba.utils import chunk_list
 
@@ -137,14 +140,21 @@ def refresh_whatsapp_templates():
                 # that have been setup earlier for backwards compatibility
                 facebook_template_domain = channel.config.get(CONFIG_FB_TEMPLATE_LIST_DOMAIN, "graph.facebook.com")
                 facebook_business_id = channel.config.get(CONFIG_FB_BUSINESS_ID)
+                url = TEMPLATE_LIST_URL % (facebook_template_domain, facebook_business_id)
+
                 # we should never need to paginate because facebook limits accounts to 255 templates
+                start = timezone.now()
                 response = requests.get(
-                    TEMPLATE_LIST_URL % (facebook_template_domain, facebook_business_id),
-                    params=dict(access_token=channel.config[CONFIG_FB_ACCESS_TOKEN], limit=255),
+                    url, params=dict(access_token=channel.config[CONFIG_FB_ACCESS_TOKEN], limit=255)
                 )
+                elapsed = (timezone.now() - start).total_seconds() * 1000
+
+                log = HTTPLog.from_response(HTTPLog.CHANNEL_REQUESTS, url, response, channel=channel)
+                log.request_time = elapsed
+                log.save()
 
                 if response.status_code != 200:  # pragma: no cover
-                    raise Exception(f"received non 200 status: {response.status_code} {response.content}")
+                    continue
 
                 # run through all our templates making sure they are present in our DB
                 seen = []
