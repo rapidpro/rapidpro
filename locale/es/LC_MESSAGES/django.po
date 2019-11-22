@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-22 18:11+0000\n"
+"POT-Creation-Date: 2019-11-22 19:27+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3674,7 +3674,7 @@ msgstr "Exportación completa, puede encontrarla aquí: %s (los usuarios de prod
 
 #, fuzzy
 #| msgid "Field names can only contain letters, numbers, spaces and hypens"
-msgid "Field names can only contain letters, numbers, hypens"
+msgid "Can only contain letters, numbers and hypens."
 msgstr "Los nombres en los campos solo pueden contener letras, números, espacios y guiones"
 
 #, python-format
@@ -3743,17 +3743,13 @@ msgid "Contact unstopped"
 msgstr "Teléfono del contacto"
 
 #, fuzzy
-#| msgid "Field names can only contain letters, numbers, spaces and hypens"
-msgid "Field names can only contain letters, numbers and hypens"
-msgstr "Los nombres en los campos solo pueden contener letras, números, espacios y guiones"
+#| msgid "Alias names must be unique, try again."
+msgid "Must be unique."
+msgstr "Los apelativos deben ser únicos, inténtelo de nuevo."
 
-#, python-brace-format
-msgid "Field names must be unique. '{label}' is duplicated"
-msgstr ""
-
-#, fuzzy, python-brace-format
+#, fuzzy
 #| msgid "Field name '%s' is a reserved word"
-msgid "Field name '{label}' is a reserved word"
+msgid "Can't be a reserved word"
 msgstr "El nombre del campo '%s' es una palabra reservada"
 
 #, python-format
@@ -4335,16 +4331,6 @@ msgstr "Nombre ya utilizado"
 #, python-format
 msgid "Cannot create a new global as limit is %(limit)s."
 msgstr ""
-
-#, fuzzy
-#| msgid "Field names can only contain letters, numbers, spaces and hypens"
-msgid "Can only contain letters, numbers and hypens."
-msgstr "Los nombres en los campos solo pueden contener letras, números, espacios y guiones"
-
-#, fuzzy
-#| msgid "Alias names must be unique, try again."
-msgid "Must be unique."
-msgstr "Los apelativos deben ser únicos, inténtelo de nuevo."
 
 #, fuzzy
 #| msgid "Using a Local Number"
@@ -12071,6 +12057,16 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Field names can only contain letters, numbers, spaces and hypens"
+#~ msgid "Field names can only contain letters, numbers, hypens"
+#~ msgstr "Los nombres en los campos solo pueden contener letras, números, espacios y guiones"
+
+#, fuzzy
+#~| msgid "Field names can only contain letters, numbers, spaces and hypens"
+#~ msgid "Field names can only contain letters, numbers and hypens"
+#~ msgstr "Los nombres en los campos solo pueden contener letras, números, espacios y guiones"
 
 #, fuzzy, python-format
 #~ msgid ""

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-22 18:11+0000\n"
+"POT-Creation-Date: 2019-11-22 19:27+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3396,7 +3396,7 @@ msgstr ""
 msgid "Export complete, you can find it here: %s (production users will get an email)"
 msgstr ""
 
-msgid "Field names can only contain letters, numbers, hypens"
+msgid "Can only contain letters, numbers and hypens."
 msgstr ""
 
 #, python-format
@@ -3467,15 +3467,11 @@ msgstr "Telefone do contato"
 msgid "Contact unstopped"
 msgstr "Telefone do contato"
 
-msgid "Field names can only contain letters, numbers and hypens"
-msgstr ""
+#, fuzzy
+msgid "Must be unique."
+msgstr "Número de telefone inválido, tente novamente."
 
-#, python-brace-format
-msgid "Field names must be unique. '{label}' is duplicated"
-msgstr ""
-
-#, python-brace-format
-msgid "Field name '{label}' is a reserved word"
+msgid "Can't be a reserved word"
 msgstr ""
 
 #, python-format
@@ -4055,13 +4051,6 @@ msgstr "Esse endereço de e-mail já está sendo usado"
 #, python-format
 msgid "Cannot create a new global as limit is %(limit)s."
 msgstr ""
-
-msgid "Can only contain letters, numbers and hypens."
-msgstr ""
-
-#, fuzzy
-msgid "Must be unique."
-msgstr "Número de telefone inválido, tente novamente."
 
 #, fuzzy
 #| msgid "Using a Local Number"

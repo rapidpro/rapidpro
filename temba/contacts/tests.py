@@ -5872,7 +5872,7 @@ class ContactTest(TembaTest):
         post_data["column_country_label"] = "}{i$t0rY"  # supports only numbers, letters, hyphens
 
         response = self.client.post(customize_url, post_data, follow=True)
-        self.assertFormError(response, "form", None, "Field names can only contain letters, numbers, hypens")
+        self.assertFormError(response, "form", None, "Can only contain letters, numbers and hypens.")
 
         post_data["column_country_label"] = "Whatevaar"  # reset invalid label value with a valid one
         post_data["column_joined_label"] = "District"
@@ -7576,7 +7576,7 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(create_cf_url, post_data)
 
         # field cannot be created because there is an active field 'First'
-        self.assertFormError(response, "form", None, "Field names must be unique. 'First' is duplicated")
+        self.assertFormError(response, "form", None, "Must be unique.")
 
         # then we hide the field
         ContactField.hide_field(self.org, self.admin, key="first")
@@ -7613,7 +7613,7 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(create_cf_url, post_data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Field names can only contain letters, numbers and hypens")
+        self.assertFormError(response, "form", None, "Can only contain letters, numbers and hypens.")
         self.assertFormError(response, "form", "value_type", "This field is required.")
 
         # a form with an invalid label
@@ -7622,7 +7622,7 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(create_cf_url, post_data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Field names can only contain letters, numbers and hypens")
+        self.assertFormError(response, "form", None, "Can only contain letters, numbers and hypens.")
 
         # a form trying to create a field that already exists
         post_data = {"label": "First"}
@@ -7630,7 +7630,7 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(create_cf_url, post_data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Field names must be unique. 'First' is duplicated")
+        self.assertFormError(response, "form", None, "Must be unique.")
 
         # a form creating a field that does not have a valid key
         post_data = {"label": "modified by"}
@@ -7638,7 +7638,7 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(create_cf_url, post_data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Field name 'modified by' is a reserved word")
+        self.assertFormError(response, "form", None, "Can't be a reserved word")
 
         with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=2):
             # a valid form, but ORG has reached max active fields limit
@@ -7647,9 +7647,7 @@ class ContactFieldTest(TembaTest):
             response = self.client.post(create_cf_url, post_data)
 
             self.assertEqual(response.status_code, 200)
-            self.assertFormError(
-                response, "form", None, "Cannot create a new Contact Field, maximum allowed per org: 2"
-            )
+            self.assertFormError(response, "form", None, "Cannot create a new field as maximum is 2.")
 
         # value_type not supported
         post_data = {"label": "teefilter", "value_type": "J"}
@@ -7719,7 +7717,7 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(update_cf_url, post_data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Field names can only contain letters, numbers and hypens")
+        self.assertFormError(response, "form", None, "Can only contain letters, numbers and hypens.")
         self.assertFormError(response, "form", "value_type", "This field is required.")
 
         # a form with an invalid label
@@ -7728,7 +7726,7 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(update_cf_url, post_data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Field names can only contain letters, numbers and hypens")
+        self.assertFormError(response, "form", None, "Can only contain letters, numbers and hypens.")
 
         # a form trying to create a field that already exists
         post_data = {"label": "Second"}
@@ -7736,7 +7734,7 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(update_cf_url, post_data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Field names must be unique. 'Second' is duplicated")
+        self.assertFormError(response, "form", None, "Must be unique.")
 
         # a form creating a field that does not have a valid key
         post_data = {"label": "modified by"}
@@ -7744,7 +7742,7 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(update_cf_url, post_data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Field name 'modified by' is a reserved word")
+        self.assertFormError(response, "form", None, "Can't be a reserved word")
 
         # value_type not supported
         post_data = {"label": "teefilter", "value_type": "J"}

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-22 18:11+0000\n"
+"POT-Creation-Date: 2019-11-22 19:27+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -3519,7 +3519,7 @@ msgstr "Nous vous enverrons un mail à %s quand il est prêt."
 msgid "Export complete, you can find it here: %s (production users will get an email)"
 msgstr "Exportation terminée, vous pouvez le trouver ici: %s (les utilisateurs de production recevront un e-mail)"
 
-msgid "Field names can only contain letters, numbers, hypens"
+msgid "Can only contain letters, numbers and hypens."
 msgstr ""
 
 #, python-format
@@ -3587,15 +3587,10 @@ msgstr "Contact"
 msgid "Contact unstopped"
 msgstr "Contact"
 
-msgid "Field names can only contain letters, numbers and hypens"
+msgid "Must be unique."
 msgstr ""
 
-#, python-brace-format
-msgid "Field names must be unique. '{label}' is duplicated"
-msgstr ""
-
-#, python-brace-format
-msgid "Field name '{label}' is a reserved word"
+msgid "Can't be a reserved word"
 msgstr ""
 
 #, python-format
@@ -4172,12 +4167,6 @@ msgstr "Nom déjà utilisé"
 
 #, python-format
 msgid "Cannot create a new global as limit is %(limit)s."
-msgstr ""
-
-msgid "Can only contain letters, numbers and hypens."
-msgstr ""
-
-msgid "Must be unique."
 msgstr ""
 
 #, fuzzy
