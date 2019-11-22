@@ -39,10 +39,10 @@ class CreateGlobalForm(forms.ModelForm):
         exists = self.org.globals.filter(is_active=True, name__iexact=name.lower()).exists()
 
         if self.instance.name != name and exists:
-            raise forms.ValidationError(_(f"Must be unique."))
+            raise forms.ValidationError(_("Must be unique."))
 
         if not Global.is_valid_key(Global.make_key(name)):
-            raise forms.ValidationError(_(f"Isn't a valid name"))
+            raise forms.ValidationError(_("Isn't a valid name"))
 
         return name
 

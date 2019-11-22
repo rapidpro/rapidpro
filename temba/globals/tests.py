@@ -131,6 +131,11 @@ class GlobalCRUDLTest(TembaTest):
         self.assertFormError(response, "form", "name", "Can only contain letters, numbers and hypens.")
         self.assertFormError(response, "form", "value", "This field is required.")
 
+        # try to submit with name that would become invalid key
+        response = self.client.post(create_url, {"name": "-"})
+        self.assertEqual(200, response.status_code)
+        self.assertFormError(response, "form", "name", "Isn't a valid name")
+
         # submit with valid values
         self.client.post(create_url, {"name": "Secret", "value": "[xyz]"})
         self.assertTrue(Global.objects.filter(org=self.org, name="Secret", value="[xyz]").exists())
@@ -174,6 +179,19 @@ class GlobalCRUDLTest(TembaTest):
         self.global1.refresh_from_db()
         self.assertEqual("Org Name", self.global1.name)
         self.assertEqual("Acme Holdings", self.global1.value)
+
+    def test_detail(self):
+        detail_url = reverse("globals.global_detail", args=[self.global1.id])
+        self.login(self.user)
+
+        response = self.client.get(detail_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.get(detail_url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual([self.flow], list(response.context["dep_flows"]))
 
     def test_delete(self):
         self.login(self.admin)
