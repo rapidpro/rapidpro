@@ -3948,10 +3948,12 @@ class ContactTest(TembaTest):
         self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-notification"></span>')
 
         msg.status = "S"
-        self.assertEqual(history_icon(item), '<span class="glyph icon-bullhorn"></span>')
+        with patch("temba.msgs.models.Broadcast.get_message_count") as mock_get_message_count:
+            mock_get_message_count.return_value = 2
+            self.assertEqual(history_icon(item), '<span class="glyph icon-bullhorn"></span>')
 
-        msg.broadcast.recipient_count = None
-        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-right"></span>')
+            mock_get_message_count.return_value = 0
+            self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-right"></span>')
 
         item = {"type": "flow_entered", "obj": run}
         self.assertEqual(history_icon(item), '<span class="glyph icon-tree-2"></span>')

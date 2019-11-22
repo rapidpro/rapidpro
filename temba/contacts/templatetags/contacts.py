@@ -4,11 +4,11 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.campaigns.models import EventFire
 from temba.contacts.models import (
-    FRESHCHAT_SCHEME,
     EMAIL_SCHEME,
     EXTERNAL_SCHEME,
     FACEBOOK_SCHEME,
     FCM_SCHEME,
+    FRESHCHAT_SCHEME,
     LINE_SCHEME,
     TEL_SCHEME,
     TELEGRAM_SCHEME,
@@ -140,7 +140,7 @@ def history_icon(item):
     variant = None
 
     if event_type == "msg_created":
-        if obj.broadcast and obj.broadcast.recipient_count and obj.broadcast.recipient_count > 1:
+        if obj.broadcast and obj.broadcast.get_message_count() and obj.broadcast.get_message_count() > 1:
             variant = "failed" if obj.status in ("E", "F") else "broadcast"
         elif obj.msg_type == "V":
             variant = "voice"

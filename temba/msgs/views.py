@@ -655,9 +655,13 @@ class MsgCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
 
             # stuff in any pending broadcasts
-            context["pending_broadcasts"] = Broadcast.objects.filter(
-                org=self.request.user.get_org(), status__in=[QUEUED, INITIALIZING], schedule=None
-            ).order_by("-created_on")
+            context["pending_broadcasts"] = (
+                Broadcast.objects.filter(
+                    org=self.request.user.get_org(), status__in=[QUEUED, INITIALIZING], schedule=None
+                )
+                .prefetch_related("groups", "contacts", "urns")
+                .order_by("-created_on")
+            )
             return context
 
         def get_queryset(self, **kwargs):

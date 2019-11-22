@@ -42,22 +42,21 @@
 
 
 -block summary
-
-  -if broadcast.recipient_count
-    -blocktrans with count_comma=broadcast.recipient_count|intcomma count cc=broadcast.recipient_count
-      The message will be sent to
-      %span.attn
-        {{ count_comma }} recipients
-      -plural
+  -with recipient_counts=broadcast.get_recipient_counts
+    -if recipient_counts.recipients > 0
+      -blocktrans with count_comma=recipient_counts.recipients|intcomma count counter=recipient_counts.recipients
         The message will be sent to
         %span.attn
           {{ count_comma }} recipients
+        -plural
+          The message will be sent to
+          %span.attn
+            {{ count_comma }} recipients
+    -else
+      -blocktrans with group_count=recipient_counts.groups contact_count=recipient_counts.contacts urn_count=recipient_counts.urns
+        The message will be sent to
+        %span.attn
+          {{ group_count }} groups, {{ contact_count }} contacts, {{ urn_count }} urns
 
-    #broadcast_preview
-      {{ object.get_default_text }}
-
-  -else
-    -blocktrans
-      %span.attn
-        Nobody
-      will be notified about this broadcast.
+  #broadcast_preview
+    {{ object.get_default_text }}
