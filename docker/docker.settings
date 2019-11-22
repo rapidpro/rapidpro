@@ -156,3 +156,7 @@ MAILROOM_URL = os.environ.get("MAILROOM_URL", "http://localhost:8090")
 MAILROOM_AUTH_TOKEN = os.environ.get("MAILROOM_AUTH_TOKEN", "")
 
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
+
+MSG_FIELD_SIZE = int(os.environ.get("MSG_FIELD_SIZE", 640))
+VALUE_FIELD_SIZE = int(os.environ.get("VALUE_FIELD_SIZE", 640))
+FLOWRUN_FIELDS_SIZE = int(os.environ.get("FLOWRUN_FIELDS_SIZE", 256))
