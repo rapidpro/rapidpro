@@ -149,7 +149,7 @@ def refresh_whatsapp_templates():
                 )
                 elapsed = (timezone.now() - start).total_seconds() * 1000
 
-                log = HTTPLog.from_response(HTTPLog.CHANNEL_REQUESTS, url, response, channel=channel)
+                log = HTTPLog.from_response(HTTPLog.WHATSAPP_TEMPLATE_SYNCED, url, response, channel=channel)
                 log.request_time = elapsed
                 log.save()
 

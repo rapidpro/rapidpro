@@ -335,4 +335,5 @@ class WhatsAppTypeTest(TembaTest):
         channel = Channel.objects.get()
 
         self.assertEqual("example.org", channel.config[CONFIG_FB_TEMPLATE_LIST_DOMAIN])
-        self.assertTrue(channel.http_logs.filter(log_type=HTTPLog.CHANNEL_REQUESTS))
+        self.assertEqual(1, channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATE_SYNCED).count())
+        self.assertEqual(1, channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATE_SYNCED).count())
