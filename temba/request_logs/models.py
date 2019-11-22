@@ -25,14 +25,14 @@ class HTTPLog(models.Model):
     INTENTS_SYNCED = "intents_synced"
     CLASSIFIER_CALLED = "classifier_called"
     AIRTIME_TRANSFERRED = "airtime_transferred"
-    WHATSAPP_TEMPLATE_SYNCED = "whatsapp_templates_synced"
+    WHATSAPP_TEMPLATES_SYNCED = "whatsapp_templates_synced"
 
     # possible log type choices and descriptive names
     LOG_TYPE_CHOICES = (
         (INTENTS_SYNCED, _("Intents Synced")),
         (CLASSIFIER_CALLED, _("Classifier Called")),
         (AIRTIME_TRANSFERRED, _("Airtime Transferred")),
-        (WHATSAPP_TEMPLATE_SYNCED, _("Whatsapp template Synced")),
+        (WHATSAPP_TEMPLATES_SYNCED, _("Whatsapp templates Synced")),
     )
 
     # the classifier this log is for
