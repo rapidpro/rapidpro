@@ -6302,7 +6302,7 @@ class TimeoutTest(Test):
 
     @classmethod
     def from_json(cls, org, json):
-        return TimeoutTest(int(json.get(TimeoutTest.MINUTES)))
+        return TimeoutTest(float(json.get(TimeoutTest.MINUTES)))
 
     def as_json(self):  # pragma: no cover
         return {"type": TimeoutTest.TYPE, TimeoutTest.MINUTES: self.minutes}

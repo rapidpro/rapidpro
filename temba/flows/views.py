@@ -1169,7 +1169,7 @@ class FlowCRUDL(SmartCRUDL):
                 response = requests.get("http://localhost:3000/asset-manifest.json")
                 data = response.json()
             else:
-                with open("node_modules/@nyaruka/flow-editor/build/asset-manifest.json") as json_file:
+                with open("node_modules/@greatnonprofits-nfp/flow-editor/build/asset-manifest.json") as json_file:
                     data = json.load(json_file)
 
             for key, filename in data.get("files").items():
