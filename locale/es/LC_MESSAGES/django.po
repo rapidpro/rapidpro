@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-21 18:10+0000\n"
+"POT-Creation-Date: 2019-11-22 17:55+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3756,8 +3756,8 @@ msgstr ""
 msgid "Field name '{label}' is a reserved word"
 msgstr "El nombre del campo '%s' es una palabra reservada"
 
-#, python-brace-format
-msgid "Cannot create a new Contact Field, maximum allowed per org: {settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG}"
+#, python-format
+msgid "Cannot create a new field as maximum is %(max)s."
 msgstr ""
 
 msgid "Manage Contact Fields"
@@ -4332,22 +4332,23 @@ msgstr ""
 msgid "Name already used"
 msgstr "Nombre ya utilizado"
 
-#, python-brace-format
-msgid "Cannot create a new global, maximum allowed per org: {settings.MAX_ACTIVE_GLOBALS_PER_ORG}"
+#, python-format
+msgid "Cannot create a new global as limit is %(limit)s."
 msgstr ""
 
 #, fuzzy
 #| msgid "Field names can only contain letters, numbers, spaces and hypens"
-msgid "Global names can only contain letters, numbers and hypens"
+msgid "Can only contain letters, numbers and hypens."
 msgstr "Los nombres en los campos solo pueden contener letras, números, espacios y guiones"
 
-#, python-brace-format
-msgid "Global names must be unique. '{name}' is duplicated"
-msgstr ""
+#, fuzzy
+#| msgid "Alias names must be unique, try again."
+msgid "Must be unique."
+msgstr "Los apelativos deben ser únicos, inténtelo de nuevo."
 
-#, fuzzy, python-brace-format
+#, fuzzy
 #| msgid "Using a Local Number"
-msgid "Global name '{name}' isn't a valid name"
+msgid "Isn't a valid name"
 msgstr "Con un número local"
 
 #, fuzzy
@@ -12027,6 +12028,16 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Field names can only contain letters, numbers, spaces and hypens"
+#~ msgid "Global names can only contain letters, numbers and hypens"
+#~ msgstr "Los nombres en los campos solo pueden contener letras, números, espacios y guiones"
+
+#, fuzzy, python-brace-format
+#~| msgid "Using a Local Number"
+#~ msgid "Global name '{name}' isn't a valid name"
+#~ msgstr "Con un número local"
 
 #, fuzzy
 #~| msgid "Channel Event"

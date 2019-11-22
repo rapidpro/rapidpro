@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-21 18:10+0000\n"
+"POT-Creation-Date: 2019-11-22 17:55+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2492,8 +2492,8 @@ msgstr ""
 msgid "Field name '{label}' is a reserved word"
 msgstr ""
 
-#, python-brace-format
-msgid "Cannot create a new Contact Field, maximum allowed per org: {settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG}"
+#, python-format
+msgid "Cannot create a new field as maximum is %(max)s."
 msgstr ""
 
 msgid "Manage Contact Fields"
@@ -2980,19 +2980,17 @@ msgstr ""
 msgid "Name already used"
 msgstr ""
 
-#, python-brace-format
-msgid "Cannot create a new global, maximum allowed per org: {settings.MAX_ACTIVE_GLOBALS_PER_ORG}"
+#, python-format
+msgid "Cannot create a new global as limit is %(limit)s."
 msgstr ""
 
-msgid "Global names can only contain letters, numbers and hypens"
+msgid "Can only contain letters, numbers and hypens."
 msgstr ""
 
-#, python-brace-format
-msgid "Global names must be unique. '{name}' is duplicated"
+msgid "Must be unique."
 msgstr ""
 
-#, python-brace-format
-msgid "Global name '{name}' isn't a valid name"
+msgid "Isn't a valid name"
 msgstr ""
 
 msgid "Manage Globals"

@@ -43,8 +43,6 @@ class Global(SmartModel):
         if not name:
             name = unsnakify(key)
 
-        name = cls.get_unique_name(org, name)
-
         return cls.objects.create(org=org, key=key, name=name, value=value, created_by=user, modified_by=user)
 
     @classmethod
@@ -62,22 +60,6 @@ class Global(SmartModel):
     @classmethod
     def is_valid_name(cls, name):
         return regex.match(r"^[A-Za-z0-9\- ]+$", name, regex.V0) and len(name) <= cls.MAX_NAME_LEN
-
-    @classmethod
-    def get_unique_name(cls, org, base_name):
-        """
-        Generates a unique name based on the given base name
-        """
-        name = base_name[:64].strip()
-        count = 2
-        while True:
-            if not cls.objects.filter(org=org, name=name, is_active=True).exists():
-                break
-
-            name = "%s %d" % (base_name[:59].strip(), count)
-            count += 1
-
-        return name
 
     @classmethod
     def annotate_usage(cls, queryset):

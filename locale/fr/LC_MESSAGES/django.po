@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-21 18:10+0000\n"
+"POT-Creation-Date: 2019-11-22 17:55+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -3598,8 +3598,8 @@ msgstr ""
 msgid "Field name '{label}' is a reserved word"
 msgstr ""
 
-#, python-brace-format
-msgid "Cannot create a new Contact Field, maximum allowed per org: {settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG}"
+#, python-format
+msgid "Cannot create a new field as maximum is %(max)s."
 msgstr ""
 
 msgid "Manage Contact Fields"
@@ -4170,20 +4170,19 @@ msgstr ""
 msgid "Name already used"
 msgstr "Nom déjà utilisé"
 
-#, python-brace-format
-msgid "Cannot create a new global, maximum allowed per org: {settings.MAX_ACTIVE_GLOBALS_PER_ORG}"
+#, python-format
+msgid "Cannot create a new global as limit is %(limit)s."
 msgstr ""
 
-msgid "Global names can only contain letters, numbers and hypens"
+msgid "Can only contain letters, numbers and hypens."
 msgstr ""
 
-#, python-brace-format
-msgid "Global names must be unique. '{name}' is duplicated"
+msgid "Must be unique."
 msgstr ""
 
-#, fuzzy, python-brace-format
+#, fuzzy
 #| msgid "Using a Local Number"
-msgid "Global name '{name}' isn't a valid name"
+msgid "Isn't a valid name"
 msgstr "Utilisation d'un numéro local"
 
 #, fuzzy
@@ -11836,6 +11835,11 @@ msgstr "Entrez le code Claim"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy, python-brace-format
+#~| msgid "Using a Local Number"
+#~ msgid "Global name '{name}' isn't a valid name"
+#~ msgstr "Utilisation d'un numéro local"
 
 #, fuzzy
 #~| msgid "Channel Event"

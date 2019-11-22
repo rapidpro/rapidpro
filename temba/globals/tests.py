@@ -1,3 +1,4 @@
+from django.test.utils import override_settings
 from django.urls import reverse
 
 from temba.tests import TembaTest
@@ -108,6 +109,7 @@ class GlobalCRUDLTest(TembaTest):
         response = self.client.get(unused_url)
         self.assertEqual(list(response.context["object_list"]), [self.global2])
 
+    @override_settings(MAX_ACTIVE_GLOBALS_PER_ORG=4)
     def test_create(self):
         create_url = reverse("globals.global_create")
         self.login(self.user)
@@ -126,12 +128,26 @@ class GlobalCRUDLTest(TembaTest):
         # try to submit with invalid name and missing value
         response = self.client.post(create_url, {"name": "/?:"})
         self.assertEqual(200, response.status_code)
-        self.assertFormError(response, "form", "name", "Global names can only contain letters, numbers and hypens")
+        self.assertFormError(response, "form", "name", "Can only contain letters, numbers and hypens.")
         self.assertFormError(response, "form", "value", "This field is required.")
 
+        # submit with valid values
         self.client.post(create_url, {"name": "Secret", "value": "[xyz]"})
-
         self.assertTrue(Global.objects.filter(org=self.org, name="Secret", value="[xyz]").exists())
+
+        # try to submit with same name
+        response = self.client.post(create_url, {"name": "Secret", "value": "[abc]"})
+        self.assertEqual(200, response.status_code)
+        self.assertFormError(response, "form", "name", "Must be unique.")
+
+        # works if name is unique
+        self.client.post(create_url, {"name": "Secret2", "value": "[abc]"})
+        self.assertTrue(Global.objects.filter(org=self.org, name="Secret2", value="[abc]").exists())
+
+        # try to create another now that we've reached the limit
+        response = self.client.post(create_url, {"name": "Secret3", "value": "[xyz]"})
+        self.assertEqual(200, response.status_code)
+        self.assertFormError(response, "form", "__all__", "Cannot create a new global as limit is 4.")
 
     def test_update(self):
         update_url = reverse("globals.global_update", args=[self.global1.id])

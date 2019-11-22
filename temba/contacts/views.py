@@ -1750,9 +1750,8 @@ class CreateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
         field_count = ContactField.user_fields.count_active_for_org(org=self.org)
         if field_count >= settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG:
             raise forms.ValidationError(
-                _(
-                    f"Cannot create a new Contact Field, maximum allowed per org: {settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG}"
-                )
+                _(f"Cannot create a new field as maximum is %(max)s."),
+                params={"max": settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG},
             )
 
 

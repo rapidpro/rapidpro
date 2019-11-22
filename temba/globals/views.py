@@ -24,7 +24,8 @@ class CreateGlobalForm(forms.ModelForm):
 
         if self.org.globals.filter(is_active=True).count() >= settings.MAX_ACTIVE_GLOBALS_PER_ORG:
             raise forms.ValidationError(
-                _(f"Cannot create a new global, maximum allowed per org: {settings.MAX_ACTIVE_GLOBALS_PER_ORG}")
+                _("Cannot create a new global as limit is %(limit)s."),
+                params={"limit": settings.MAX_ACTIVE_GLOBALS_PER_ORG},
             )
 
         return cleaned_data
@@ -33,15 +34,15 @@ class CreateGlobalForm(forms.ModelForm):
         name = self.cleaned_data["name"]
 
         if not Global.is_valid_name(name):
-            raise forms.ValidationError(_("Global names can only contain letters, numbers and hypens"))
+            raise forms.ValidationError(_("Can only contain letters, numbers and hypens."))
 
         exists = self.org.globals.filter(is_active=True, name__iexact=name.lower()).exists()
 
         if self.instance.name != name and exists:
-            raise forms.ValidationError(_(f"Global names must be unique. '{name}' is duplicated"))
+            raise forms.ValidationError(_(f"Must be unique."))
 
         if not Global.is_valid_key(Global.make_key(name)):
-            raise forms.ValidationError(_(f"Global name '{name}' isn't a valid name"))
+            raise forms.ValidationError(_(f"Isn't a valid name"))
 
         return name
 
@@ -130,7 +131,6 @@ class GlobalCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs).filter(org=self.org, is_active=True)
-
             return Global.annotate_usage(qs)
 
         def get_context_data(self, **kwargs):
