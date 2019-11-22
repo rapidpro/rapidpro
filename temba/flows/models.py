@@ -20,6 +20,7 @@ from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
 from django.db.models import Max, Q, Sum
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
@@ -28,6 +29,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
 from temba.classifiers.models import Classifier
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
+from temba.globals.models import Global
 from temba.msgs.models import Label, Msg
 from temba.orgs.models import Org
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
@@ -300,6 +302,8 @@ class Flow(TembaModel):
         help_text=_("Any fields this flow depends on"),
     )
 
+    global_dependencies = models.ManyToManyField(Global, related_name="dependent_flows")
+
     channel_dependencies = models.ManyToManyField(Channel, related_name="dependent_flows")
 
     label_dependencies = models.ManyToManyField(Label, related_name="dependent_flows")
@@ -509,6 +513,11 @@ class Flow(TembaModel):
                     flow_type=flow_type,
                     expires_after_minutes=flow_expires,
                 )
+
+            # make sure the flow is unarchived
+            if flow.is_archived:
+                flow.is_archived = False
+                flow.save(update_fields=("is_archived",))
 
             dependency_mapping[flow_uuid] = str(flow.uuid)
             created_flows.append((flow, flow_def))
@@ -1746,11 +1755,16 @@ class Flow(TembaModel):
         for trigger in self.triggers.all():
             trigger.release()
 
+        # release any starts
+        for start in self.starts.all():
+            start.release()
+
         self.group_dependencies.clear()
         self.flow_dependencies.clear()
         self.field_dependencies.clear()
         self.channel_dependencies.clear()
         self.label_dependencies.clear()
+        self.classifier_dependencies.clear()
 
         # queue mailroom to interrupt sessions where contact is currently in this flow
         mailroom.queue_interrupt(self.org, flow=self)
@@ -1759,9 +1773,11 @@ class Flow(TembaModel):
         """
         Exits all flow runs
         """
-
         # grab the ids of all our runs
         run_ids = self.runs.all().values_list("id", flat=True)
+
+        # clear our association with any related sessions
+        self.sessions.all().update(current_flow=None)
 
         # batch this for 1,000 runs at a time so we don't grab locks for too long
         for id_batch in chunk_list(run_ids, 1000):
@@ -1804,7 +1820,7 @@ class FlowSession(models.Model):
     session_type = models.CharField(max_length=1, choices=Flow.FLOW_TYPES, default=Flow.TYPE_MESSAGE, null=True)
 
     # the organization this session belongs to
-    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    org = models.ForeignKey(Org, related_name="sessions", on_delete=models.PROTECT)
 
     # the contact that this session is with
     contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="sessions")
@@ -1836,7 +1852,7 @@ class FlowSession(models.Model):
     wait_started_on = models.DateTimeField(null=True)
 
     # the flow of the waiting run
-    current_flow = models.ForeignKey("flows.Flow", null=True, on_delete=models.PROTECT)
+    current_flow = models.ForeignKey("flows.Flow", related_name="sessions", null=True, on_delete=models.PROTECT)
 
     def release(self):
         self.delete()
@@ -2287,6 +2303,8 @@ class FlowRevision(SmartModel):
     JSON definitions for previous flow revisions
     """
 
+    LAST_TRIM_KEY = "temba:last_flow_revision_trim"
+
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="revisions")
 
     definition = JSONAsTextField(help_text=_("The JSON flow definition"), default=dict)
@@ -2296,6 +2314,55 @@ class FlowRevision(SmartModel):
     )
 
     revision = models.IntegerField(null=True, help_text=_("Revision number for this definition"))
+
+    @classmethod
+    def trim(cls, since):
+        """
+        For any flow that has a new revision since the passed in date, trim revisions
+        :param since: datetime of when to trim
+        :return: The number of trimmed revisions
+        """
+        count = 0
+
+        # find all flows with revisions since the passed in date
+        for fr in FlowRevision.objects.filter(created_on__gt=since).distinct("flow_id").only("flow_id"):
+            # trim that flow
+            count += FlowRevision.trim_for_flow(fr.flow_id)
+
+        return count
+
+    @classmethod
+    def trim_for_flow(cls, flow_id):
+        """
+        Trims the revisions for the passed in flow.
+
+        Our logic is:
+         * always keep last 25 revisions
+         * for any revision beyond those, collapse to first revision for that day
+
+        :param flow: the id of the flow to trim revisions for
+        :return: the number of trimmed revisions
+        """
+        # find what date cutoff we will use for "25 most recent"
+        cutoff = FlowRevision.objects.filter(flow=flow_id).order_by("-created_on")[24:25]
+
+        # fewer than 25 revisions
+        if not cutoff:
+            return 0
+
+        cutoff = cutoff[0].created_on
+
+        # find the ids of the first revision for each day starting at the cutoff
+        keepers = (
+            FlowRevision.objects.filter(flow=flow_id, created_on__lt=cutoff)
+            .annotate(created_date=TruncDate("created_on"))
+            .values("created_date")
+            .annotate(max_id=Max("id"))
+            .values_list("max_id", flat=True)
+        )
+
+        # delete the rest
+        return FlowRevision.objects.filter(flow=flow_id, created_on__lt=cutoff).exclude(id__in=keepers).delete()[0]
 
     @classmethod
     def is_legacy_definition(cls, definition):
@@ -3229,6 +3296,15 @@ class FlowStart(models.Model):
 
     def async_start(self):
         mailroom.queue_flow_start(self)
+
+    def release(self):
+        with transaction.atomic():
+            self.groups.clear()
+            self.contacts.clear()
+            self.connections.clear()
+            FlowRun.objects.filter(start=self).update(start=None)
+            FlowStartCount.objects.filter(start=self).delete()
+            self.delete()
 
     def __str__(self):  # pragma: no cover
         return f"FlowStart[id={self.id}, flow={self.flow.uuid}]"

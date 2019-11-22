@@ -123,10 +123,10 @@
       -elif event.type == 'msg_created' or event.type == 'msg_received'
         -with event.obj as msg
           .activity-message
-            -if msg.direction == 'O' and msg.broadcast.recipient_count > 1
+            -if msg.direction == 'O' and msg.broadcast.get_message_count > 1
               .sent-to
                 .summary
-                  Broadcast to {{msg.broadcast.recipient_count|intcomma}} recipients
+                  Broadcast to {{msg.broadcast.get_message_count|intcomma}} recipients
 
             .activity-body
               -if msg.text

@@ -159,6 +159,10 @@ class ChannelTest(TembaTest):
         # now we should be IVR capable
         self.assertTrue(self.org.supports_ivr())
 
+        # we cannot add multiple callers
+        response = self.client.post(reverse("channels.channel_create_caller"), post_data)
+        self.assertFormError(response, "form", "channel", "A caller has already been added for that number")
+
         # should now have the option to disable
         self.login(self.admin)
         response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
@@ -167,9 +171,7 @@ class ChannelTest(TembaTest):
         # try adding a caller for an invalid channel
         response = self.client.post("%s?channel=20000" % reverse("channels.channel_create_caller"))
         self.assertEqual(200, response.status_code)
-        self.assertEqual(
-            "Sorry, a caller cannot be added for that number", response.context["form"].errors["channel"][0]
-        )
+        self.assertFormError(response, "form", "channel", "A caller cannot be added for that number")
 
         # disable our twilio connection
         self.org.remove_twilio_account(self.admin)

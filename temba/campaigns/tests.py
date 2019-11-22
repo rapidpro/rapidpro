@@ -11,7 +11,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ImportTas
 from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, Org
-from temba.tests import ESMockWithScroll, MigrationTest, TembaTest, matchers
+from temba.tests import ESMockWithScroll, TembaTest, matchers
 from temba.utils import json
 from temba.values.constants import Value
 
@@ -1703,29 +1703,3 @@ class CampaignTest(TembaTest):
         self.assertEqual(campaign_event.event_type, "M")
         self.assertEqual(campaign_event.message, {"base": "oy, pancake man, come back"})
         self.assertEqual(campaign_event.delivery_hour, -1)
-
-
-class MigrateMsgEventsMigrationTest(MigrationTest):
-    app = "campaigns"
-    migrate_from = "0031_cleanup"
-    migrate_to = "0032_migrate_msg_events"
-
-    def setUpBeforeMigration(self, apps):
-        farmers = self.create_group("Farmers", [])
-        created_on = self.org.contactfields.get(key="created_on")
-        campaign = Campaign.create(self.org, self.admin, "Reminders", farmers)
-
-        self.event1 = CampaignEvent.create_message_event(
-            self.org,
-            self.admin,
-            campaign,
-            offset=3,
-            unit="D",
-            message={"eng": "Hi @contact.age", "spa": "Hola @contact.age"},
-            base_language="eng",
-            relative_to=created_on,
-        )
-
-    def test_migrated(self):
-        self.event1.refresh_from_db()
-        self.assertEqual({"eng": "Hi @fields.age", "spa": "Hola @fields.age"}, self.event1.message)

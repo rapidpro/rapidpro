@@ -1,7 +1,9 @@
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import iso8601
+import pytz
+from django_redis import get_redis_connection
 
 from django.conf import settings
 from django.utils import timezone
@@ -17,6 +19,7 @@ from .models import (
     FlowNodeCount,
     FlowPathCount,
     FlowPathRecentRun,
+    FlowRevision,
     FlowRun,
     FlowRunCount,
     FlowSession,
@@ -62,6 +65,25 @@ def squash_flowruncounts():
     FlowCategoryCount.squash()
     FlowPathRecentRun.prune()
     FlowStartCount.squash()
+
+
+@nonoverlapping_task(track_started=True, name="trim_flow_revisions")
+def trim_flow_revisions():
+    start = timezone.now()
+
+    # get when the last time we trimmed was
+    r = get_redis_connection()
+    last_trim = r.get(FlowRevision.LAST_TRIM_KEY)
+    if not last_trim:
+        last_trim = 0
+
+    last_trim = datetime.utcfromtimestamp(int(last_trim)).astimezone(pytz.utc)
+    count = FlowRevision.trim(last_trim)
+
+    r.set(FlowRevision.LAST_TRIM_KEY, int(timezone.now().timestamp()))
+
+    elapsed = timesince(start)
+    print(f"Trimmed {count} flow revisions since {last_trim} in {elapsed}")
 
 
 @nonoverlapping_task(track_started=True, name="trim_flow_sessions")

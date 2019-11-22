@@ -23,7 +23,7 @@ from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.courier import push_courier_msgs
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.models import URN, Contact, ContactGroup, ContactGroupCount, ContactURN
+from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import chunk_list, extract_constants, on_transaction_commit
@@ -280,6 +280,23 @@ class Broadcast(models.Model):
     def get_message_count(self):
         return BroadcastMsgCount.get_count(self)
 
+    def get_recipient_counts(self):
+        if self.status in (WIRED, SENT, DELIVERED):
+            return {"recipients": self.get_message_count(), "groups": 0, "contacts": 0, "urns": 0}
+
+        group_count = self.groups.count()
+        contact_count = self.contacts.count()
+        urn_count = self.urns.count()
+
+        if group_count == 1 and contact_count == 0 and urn_count == 0:
+            return {"recipients": self.groups.first().get_member_count(), "groups": 0, "contacts": 0, "urns": 0}
+        if group_count == 0 and urn_count == 0:
+            return {"recipients": contact_count, "groups": 0, "contacts": 0, "urns": 0}
+        if group_count == 0 and contact_count == 0:
+            return {"recipients": urn_count, "groups": 0, "contacts": 0, "urns": 0}
+
+        return {"recipients": 0, "groups": group_count, "contacts": contact_count, "urns": urn_count}
+
     def get_default_text(self):
         """
         Gets the appropriate display text for the broadcast without a contact
@@ -319,31 +336,20 @@ class Broadcast(models.Model):
         """
         Sets the recipients which may be contact groups, contacts or contact URNs.
         """
-        recipient_count = 0
-
         if groups:
             self.groups.add(*groups)
-            for c in ContactGroupCount.get_totals(groups).values():
-                recipient_count += c
 
         if contacts:
             self.contacts.add(*contacts)
-            recipient_count += len(contacts)
 
         if urns:
             self.urns.add(*urns)
-            recipient_count += len(urns)
 
         if contact_ids:
             RelatedModel = self.contacts.through
             for chunk in chunk_list(contact_ids, 1000):
                 bulk_contacts = [RelatedModel(contact_id=id, broadcast_id=self.id) for id in chunk]
                 RelatedModel.objects.bulk_create(bulk_contacts)
-            recipient_count += len(contact_ids)
-
-        # set an estimate of our number of recipients, we calculate this more carefully when actually sent
-        self.recipient_count = recipient_count
-        self.save(update_fields=["recipient_count"])
 
     def _get_preferred_languages(self, contact=None, org=None):
         """
@@ -1163,7 +1169,7 @@ class SystemLabel(object):
         elif label_type == cls.TYPE_FAILED:
             qs = Msg.objects.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status=FAILED)
         elif label_type == cls.TYPE_SCHEDULED:
-            qs = Broadcast.objects.exclude(schedule=None)
+            qs = Broadcast.objects.exclude(schedule=None).prefetch_related("groups", "contacts", "urns")
         elif label_type == cls.TYPE_CALLS:
             qs = ChannelEvent.objects.filter(event_type__in=ChannelEvent.CALL_TYPES)
         else:  # pragma: needs cover
