@@ -179,6 +179,7 @@ class CampaignCRUDL(SmartCRUDL):
 
             group = forms.ModelChoiceField(
                 queryset=ContactGroup.user_groups.none(),
+                required=True,
                 empty_label=None,
                 widget=SelectWidget(
                     attrs={"placeholder": _("Select a group to base the campaign on"), "searchable": True}
