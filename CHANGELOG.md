@@ -1,3 +1,13 @@
+v5.3.10
+----------
+ * Add read API endpoint for globals
+
+v5.3.9
+----------
+ * Add trimming task for flow revisions
+ * Add models for globals support
+ * Add FreshChat channel support
+
 v5.3.8
 ----------
  * Make sure imported flows are unarchived
