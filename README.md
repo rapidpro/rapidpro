@@ -43,7 +43,7 @@ details which version of these dependencies you need to run with it.
 ## Updating FlowEditor version
 
 ```
-% npm install @nyaruka/flow-editor@whatver-version --save
+% npm install @greatnonprofits-nfp/flow-editor@whatver-version --save
 ```
 
 ### Get Involved
