@@ -1104,9 +1104,7 @@ class FlowCRUDL(SmartCRUDL):
             from django.http import FileResponse, Http404
 
             try:
-                return FileResponse(
-                    open(output_path, "rb"), content_type="application/pdf"
-                )
+                return FileResponse(open(output_path, "rb"), content_type="application/pdf")
             except FileNotFoundError:
                 raise Http404()
 
@@ -1319,7 +1317,7 @@ class FlowCRUDL(SmartCRUDL):
                 settings.HOSTNAME,
                 reverse("flows.flow_pdf_export_next", args=[self.object.uuid]),
             )
-            
+
             if pdf_export_lang:
                 url += "?pdf_export_lang=%s" % pdf_export_lang
 
@@ -1334,9 +1332,7 @@ class FlowCRUDL(SmartCRUDL):
             from django.http import FileResponse, Http404
 
             try:
-                return FileResponse(
-                    open(output_path, "rb"), content_type="application/pdf"
-                )
+                return FileResponse(open(output_path, "rb"), content_type="application/pdf")
             except FileNotFoundError:
                 raise Http404()
 
