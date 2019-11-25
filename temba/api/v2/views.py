@@ -1972,14 +1972,15 @@ class GlobalsEndpoint(ListAPIMixin, BaseAPIView):
             "next": null,
             "previous": null,
             "results": [
-            {
-                "key": "org_name",
-                "name": "Org Name",
-                "value": "Acme Ltd",
-                "modified_on": "2013-02-27T09:06:15.456"
-            },
-            ...
-
+                {
+                    "key": "org_name",
+                    "name": "Org Name",
+                    "value": "Acme Ltd",
+                    "modified_on": "2013-02-27T09:06:15.456"
+                },
+                ...
+            ]
+        }
     """
 
     permission = "globals.global_api"
