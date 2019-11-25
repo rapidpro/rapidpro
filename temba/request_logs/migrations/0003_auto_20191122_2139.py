@@ -24,7 +24,7 @@ class Migration(migrations.Migration):
                     ("intents_synced", "Intents Synced"),
                     ("classifier_called", "Classifier Called"),
                     ("airtime_transferred", "Airtime Transferred"),
-                    ("whatsapp_templates_synced", "Whatsapp templates Synced"),
+                    ("whatsapp_templates_synced", "Whatsapp Templates Synced"),
                 ],
                 max_length=32,
             ),
