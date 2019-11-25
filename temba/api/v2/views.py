@@ -1952,26 +1952,35 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
 class GlobalsEndpoint(ListAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list the active globals on your account.
+
     ## Listing Globals
+
     A **GET** returns the globals for your organization, most recently modified first.
+
      * **key** - the key of the global
      * **name** - the name of the global
      * **value** - the value of the global
      * **modified_on** - when this global was modified
+
     Example:
+
         GET /api/v2/globals.json
+
     Response:
+
         {
             "next": null,
             "previous": null,
             "results": [
-            {
-                "key": "org_name",
-                "name": "Org Name",
-                "value": "Acme Ltd",
-                "modified_on": "2013-02-27T09:06:15.456"
-            },
-            ...
+                {
+                    "key": "org_name",
+                    "name": "Org Name",
+                    "value": "Acme Ltd",
+                    "modified_on": "2013-02-27T09:06:15.456"
+                },
+                ...
+            ]
+        }
     """
 
     permission = "globals.global_api"
