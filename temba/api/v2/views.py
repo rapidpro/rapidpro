@@ -33,6 +33,7 @@ from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ContactURN
 from temba.contacts.tasks import release_group_task
 from temba.flows.models import Flow, FlowRun, FlowStart
+from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
 from temba.templates.models import Template, TemplateTranslation
@@ -63,6 +64,7 @@ from .serializers import (
     FlowRunReadSerializer,
     FlowStartReadSerializer,
     FlowStartWriteSerializer,
+    GlobalReadSerializer,
     LabelReadSerializer,
     LabelWriteSerializer,
     MsgBulkActionSerializer,
@@ -94,6 +96,7 @@ class RootView(views.APIView):
      * [/api/v2/fields](/api/v2/fields) - to list, create or update contact fields
      * [/api/v2/flow_starts](/api/v2/flow_starts) - to list flow starts and start contacts in flows
      * [/api/v2/flows](/api/v2/flows) - to list flows
+     * [/api/v2/globals](/api/v2/globals) - to list globals
      * [/api/v2/groups](/api/v2/groups) - to list, create, update or delete contact groups
      * [/api/v2/labels](/api/v2/labels) - to list, create, update or delete message labels
      * [/api/v2/messages](/api/v2/messages) - to list messages
@@ -196,6 +199,7 @@ class RootView(views.APIView):
                 "fields": reverse("api.v2.fields", request=request),
                 "flow_starts": reverse("api.v2.flow_starts", request=request),
                 "flows": reverse("api.v2.flows", request=request),
+                "globals": reverse("api.v2.globals", request=request),
                 "groups": reverse("api.v2.groups", request=request),
                 "labels": reverse("api.v2.labels", request=request),
                 "messages": reverse("api.v2.messages", request=request),
@@ -242,6 +246,7 @@ class ExplorerView(SmartTemplateView):
             FlowsEndpoint.get_read_explorer(),
             FlowStartsEndpoint.get_read_explorer(),
             FlowStartsEndpoint.get_write_explorer(),
+            GlobalsEndpoint.get_read_explorer(),
             GroupsEndpoint.get_read_explorer(),
             GroupsEndpoint.get_write_explorer(),
             GroupsEndpoint.get_delete_explorer(),
@@ -1939,6 +1944,61 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
                     "name": "after",
                     "required": False,
                     "help": "Only return flows modified after this date, ex: 2017-01-28T18:00:00.000",
+                },
+            ],
+        }
+
+
+class GlobalsEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to list the active globals on your account.
+    ## Listing Globals
+    A **GET** returns the globals for your organization, most recently modified first.
+     * **key** - the key of the global
+     * **name** - the name of the global
+     * **value** - the value of the global
+     * **modified_on** - when this global was modified
+    Example:
+        GET /api/v2/globals.json
+    Response:
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "key": "org_name",
+                "name": "Org Name",
+                "value": "Acme Ltd",
+                "modified_on": "2013-02-27T09:06:15.456"
+            },
+            ...
+    """
+
+    permission = "globals.global_api"
+    model = Global
+    serializer_class = GlobalReadSerializer
+    pagination_class = ModifiedOnCursorPagination
+
+    def filter_queryset(self, queryset):
+        return self.filter_before_after(queryset, "modified_on")
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            "method": "GET",
+            "title": "List Globals",
+            "url": reverse("api.v2.globals"),
+            "slug": "globals-list",
+            "params": [
+                {
+                    "name": "before",
+                    "required": False,
+                    "help": "Only return globals modified before this date, ex: 2015-01-28T18:00:00.000",
+                },
+                {
+                    "name": "after",
+                    "required": False,
+                    "help": "Only return globals modified after this date, ex: 2015-01-28T18:00:00.000",
                 },
             ],
         }
