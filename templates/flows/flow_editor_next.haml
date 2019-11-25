@@ -92,12 +92,20 @@
     #toolbar {
       visibility: visible;
       position: relative;
-      height: 40px;
-      padding: 20px 30px;
+      padding: 18px 30px;
       background-color: #f9f9f9;
       background-position: 13px 13px;
       background-image: linear-gradient(0deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent),linear-gradient(90deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent);
       background-size: 40px 40px;
+    }
+
+    #pending {
+      position: relative;
+      right: 0;
+      width: 40%;
+      height: 36px;
+      margin: 0 auto;
+      text-align: center;
     }
 
     #rp-flow-editor {
@@ -118,6 +126,12 @@
 
     #rp-flow-editor .language-selector {
       top: -15px !important;
+    }
+
+    rp-loading {
+      margin-left: 30px;
+      padding-top: 5px;
+      display: block;
     }
 
 -block extra-script
@@ -160,6 +174,8 @@
       showTemplates: "{{has_whatsapp_channel}}" == "True",
       onLoad: handleEditorLoaded,
       onActivityClicked: handleActivityClicked,
+      mutable: {{mutable|lower}},
+      filters: {{feature_filters|to_json}},
 
       endpoints: {
 
@@ -167,6 +183,7 @@
         fields: api + 'fields.json',
         labels: api + 'labels.json',
         channels: api + 'channels.json',
+        classifiers: api + 'classifiers.json',
         resthooks: api + 'resthooks.json',
         templates: api + 'templates.json',
         flows: api + 'flows.json?archived=false',
@@ -179,8 +196,9 @@
         languages: base + 'language',
         environment: base + 'environment',
         activity: '/flow/activity/{{object.uuid}}/',
-        recipients: '/contact/omnibox?v=2&types=gcu',
+        recipients: '/contact/omnibox?v=2&types=gc',
 
+        completion: '/mr/docs/completion.json',
         functions: '/mr/docs/functions.json',
         simulateStart: '/flow/simulate/{{object.id}}/',
         simulateResume: '/flow/simulate/{{object.id}}/'
@@ -263,7 +281,12 @@
       -elif flow.flow_type == 'S'
         .icon-mobile
       {{ flow.name }}
+    -if is_starting
+      #pending
+        %div{class:"alert alert-info"}
+          -blocktrans
+            This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
 
   #rp-flow-editor
-    %img{src:"{{STATIC_URL}}/images/loader-circles.gif", style:"position: relative; left: 20px; top: 4px; margin: 0 auto"}
+    <rp-loading units="10" size="8"></rp-loading>
 

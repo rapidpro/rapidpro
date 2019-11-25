@@ -8,7 +8,7 @@ from django.db import migrations
 
 
 def ensure_anon_user_exists(apps, schema_editor):
-    if not User.objects.filter(username=settings.ANONYMOUS_USER_NAME).exists():
+    if not User.objects.filter(username=settings.ANONYMOUS_USER_NAME).exists():  # pragma: no cover
         user = User(username=settings.ANONYMOUS_USER_NAME)
         user.set_unusable_password()
         user.save()

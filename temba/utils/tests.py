@@ -14,7 +14,6 @@ import pytz
 from django_redis import get_redis_connection
 from openpyxl import load_workbook
 from smartmin.tests import SmartminTestMixin
-from temba_expressions.evaluator import DateStyle, EvaluationContext
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -29,6 +28,7 @@ from celery.app.task import Task
 
 import temba.utils.analytics
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
+from temba.flows.models import FlowRun
 from temba.orgs.models import Org, UserSettings
 from temba.tests import ESMockWithScroll, TembaTest, matchers
 from temba.utils import json
@@ -40,9 +40,9 @@ from . import (
     format_number,
     get_country_code_by_name,
     percentage,
+    redact,
     sizeof_fmt,
     str_to_bool,
-    voicexml,
 )
 from .cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from .celery import nonoverlapping_task
@@ -59,22 +59,13 @@ from .dates import (
 )
 from .email import is_valid_address, send_simple_email
 from .export import TableExporter
-from .expressions import (
-    _build_function_signature,
-    evaluate_template,
-    evaluate_template_compat,
-    get_function_listing,
-    migrate_template,
-)
 from .gsm7 import calculate_num_segments, is_gsm7, replace_non_gsm7_accents
 from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
-from .models import JSONAsTextField
-from .nexmo import NCCOException, NCCOResponse
+from .models import JSONAsTextField, patch_queryset_count
 from .templatetags.temba import short_datetime
 from .text import clean_string, decode_base64, random_string, slugify_with, truncate
 from .timezones import TimeZoneFormField, timezone_to_country_code
-from .voicexml import VoiceXMLException
 
 
 class InitTest(TembaTest):
@@ -170,6 +161,10 @@ class InitTest(TembaTest):
         self.assertEqual("-12300", format_number(Decimal("-123E+2")))
         self.assertEqual("-12350", format_number(Decimal("-123.5E+2")))
         self.assertEqual("-1.235", format_number(Decimal("-123.5E-2")))
+        self.assertEqual(
+            "-1000000000000001467812345696542157800075344236445874615",
+            format_number(Decimal("-1000000000000001467812345696542157800075344236445874615")),
+        )
         self.assertEqual("", format_number(Decimal("NaN")))
 
     def test_slugify_with(self):
@@ -232,6 +227,7 @@ class DatesTest(TembaTest):
         tz = pytz.timezone("Africa/Kigali")
         d2 = tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5, 6))
 
+        self.assertIsNone(datetime_to_str(None, "%Y-%m-%d %H:%M", tz=tz))
         self.assertEqual(datetime_to_str(d2, "%Y-%m-%d %H:%M", tz=tz), "2014-01-02 03:04")
         self.assertEqual(datetime_to_str(d2, "%Y/%m/%d %H:%M", tz=pytz.UTC), "2014/01/02 01:04")
 
@@ -875,292 +871,6 @@ class CeleryTest(TembaTest):
         self.assertEqual(task_calls, ["1-11-12", "2-21-22", "3-31-32"])
 
 
-class ExpressionsTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-
-        contact = self.create_contact("Joe Blow", "123", language="eng")
-
-        variables = dict()
-        variables["contact"] = contact.build_expressions_context()
-        variables["flow"] = dict(
-            water_source="Well",  # key with underscore
-            blank="",  # blank string
-            arabic="اثنين ثلاثة",  # RTL chars
-            english="two three",  # LTR chars
-            urlstuff=" =&\u0628",  # stuff that needs URL encoding
-            users=5,  # numeric as int
-            count="5",  # numeric as string
-            average=2.5,  # numeric as float
-            joined=datetime.datetime(2014, 12, 1, 9, 0, 0, 0, timezone.utc),  # date as datetime
-            started="1/12/14 9:00",
-        )  # date as string
-
-        self.context = EvaluationContext(variables, timezone.utc, DateStyle.DAY_FIRST)
-
-    def test_evaluate_template(self):
-        self.assertEqual(("Hello World", []), evaluate_template("Hello World", self.context))  # no expressions
-        self.assertEqual(
-            ("Hello = Well 5", []), evaluate_template("Hello = @(flow.water_source) @flow.users", self.context)
-        )
-        self.assertEqual(
-            ("xxJoexx", []), evaluate_template("xx@(contact.first_name)xx", self.context)
-        )  # no whitespace
-        self.assertEqual(
-            ('Hello "World"', []), evaluate_template('@( "Hello ""World""" )', self.context)
-        )  # string with escaping
-        self.assertEqual(
-            ("Hello World", []), evaluate_template('@( "Hello" & " " & "World" )', self.context)
-        )  # string concatenation
-        self.assertEqual(
-            ('("', []), evaluate_template('@("(" & """")', self.context)
-        )  # string literals containing delimiters
-        self.assertEqual(
-            ("Joe Blow and Joe Blow", []), evaluate_template("@contact and @(contact)", self.context)
-        )  # old and new style
-        self.assertEqual(
-            ("Joe Blow language is set to 'eng'", []),
-            evaluate_template("@contact language is set to '@contact.language'", self.context),
-        )  # language
-
-        # test LTR and RTL mixing
-        self.assertEqual(
-            ("one two three four", []), evaluate_template("one @flow.english four", self.context)
-        )  # LTR var, LTR value, LTR text
-        self.assertEqual(
-            ("one اثنين ثلاثة four", []), evaluate_template("one @flow.arabic four", self.context)
-        )  # LTR var, RTL value, LTR text
-        self.assertEqual(
-            ("واحد اثنين ثلاثة أربعة", []), evaluate_template("واحد @flow.arabic أربعة", self.context)
-        )  # LTR var, RTL value, RTL text
-        self.assertEqual(
-            ("واحد two three أربعة", []), evaluate_template("واحد @flow.english أربعة", self.context)
-        )  # LTR var, LTR value, RTL text
-
-        # test decimal arithmetic
-        self.assertEqual(("Result: 7", []), evaluate_template("Result: @(flow.users + 2)", self.context))  # var is int
-        self.assertEqual(
-            ("Result: 0", []), evaluate_template("Result: @(flow.count - 5)", self.context)
-        )  # var is string
-        self.assertEqual(
-            ("Result: 0.5", []), evaluate_template("Result: @(5 / (flow.users * 2))", self.context)
-        )  # result is decimal
-        self.assertEqual(
-            ("Result: -10", []), evaluate_template("Result: @(-5 - flow.users)", self.context)
-        )  # negatives
-
-        # test date arithmetic
-        self.assertEqual(
-            ("Date: 2014-12-02T09:00:00+00:00", []), evaluate_template("Date: @(flow.joined + 1)", self.context)
-        )  # var is datetime
-        self.assertEqual(
-            ("Date: 2014-11-28T09:00:00+00:00", []), evaluate_template("Date: @(flow.started - 3)", self.context)
-        )  # var is string
-        self.assertEqual(
-            ("Date: 04-07-2014", []), evaluate_template("Date: @(DATE(2014, 7, 1) + 3)", self.context)
-        )  # date constructor
-        self.assertEqual(
-            ("Date: 2014-12-01T11:30:00+00:00", []),
-            evaluate_template("Date: @(flow.joined + TIME(2, 30, 0))", self.context),
-        )  # time addition to datetime var
-        self.assertEqual(
-            ("Date: 2014-12-01T06:30:00+00:00", []),
-            evaluate_template("Date: @(flow.joined - TIME(2, 30, 0))", self.context),
-        )  # time subtraction from string var
-
-        # test function calls
-        self.assertEqual(
-            ("Hello joe", []), evaluate_template("Hello @(lower(contact.first_name))", self.context)
-        )  # use lowercase for function name
-        self.assertEqual(
-            ("Hello JOE", []), evaluate_template("Hello @(UPPER(contact.first_name))", self.context)
-        )  # use uppercase for function name
-        self.assertEqual(
-            ("Bonjour world", []), evaluate_template('@(SUBSTITUTE("Hello world", "Hello", "Bonjour"))', self.context)
-        )  # string arguments
-        self.assertRegex(
-            evaluate_template("Today is @(TODAY())", self.context)[0], r"Today is \d\d-\d\d-\d\d\d\d"
-        )  # function with no args
-        self.assertEqual(
-            ("3", []), evaluate_template("@(LEN( 1.2 ))", self.context)
-        )  # auto decimal -> string conversion
-        self.assertEqual(
-            ("25", []), evaluate_template("@(LEN(flow.joined))", self.context)
-        )  # auto datetime -> string conversion
-        self.assertEqual(
-            ("2", []), evaluate_template('@(WORD_COUNT("abc-def", FALSE))', self.context)
-        )  # built-in variable
-        self.assertEqual(
-            ("TRUE", []), evaluate_template("@(OR(AND(True, flow.count = flow.users, 1), 0))", self.context)
-        )  # booleans / varargs
-        self.assertEqual(
-            ("yes", []), evaluate_template('@(IF(IF(flow.count > 4, "x", "y") = "x", "yes", "no"))', self.context)
-        )  # nested conditional
-
-        # evaluation errors
-        self.assertEqual(
-            ("Error: @()", ["Expression error at: )"]), evaluate_template("Error: @()", self.context)
-        )  # syntax error due to empty expression
-        self.assertEqual(
-            ("Error: @('2')", ["Expression error at: '"]), evaluate_template("Error: @('2')", self.context)
-        )  # don't support single quote string literals
-        self.assertEqual(
-            ("Error: @(2 / 0)", ["Division by zero"]), evaluate_template("Error: @(2 / 0)", self.context)
-        )  # division by zero
-        self.assertEqual(
-            ("Error: @(1 + flow.blank)", ["Expression could not be evaluated as decimal or date arithmetic"]),
-            evaluate_template("Error: @(1 + flow.blank)", self.context),
-        )  # string that isn't numeric
-        self.assertEqual(
-            ("Well @flow.boil", ["Undefined variable: flow.boil"]),
-            evaluate_template("@flow.water_source @flow.boil", self.context),
-        )  # undefined variables
-        self.assertEqual(
-            ("Hello @(XXX(1, 2))", ["Undefined function: XXX"]), evaluate_template("Hello @(XXX(1, 2))", self.context)
-        )  # undefined function
-        self.assertEqual(
-            ('Hello @(ABS(1, "x", TRUE))', ["Too many arguments provided for function ABS"]),
-            evaluate_template('Hello @(ABS(1, "x", TRUE))', self.context),
-        )  # wrong number of args
-        self.assertEqual(
-            ("Hello @(REPT(flow.blank, -2))", ['Error calling function REPT with arguments "", -2']),
-            evaluate_template("Hello @(REPT(flow.blank, -2))", self.context),
-        )  # internal function error
-
-    def test_evaluate_template_compat(self):
-        # test old style expressions, i.e. @ and with filters
-        self.assertEqual(
-            ("Hello World Joe Joe", []),
-            evaluate_template_compat("Hello World @contact.first_name @contact.first_name", self.context),
-        )
-        self.assertEqual(("Hello World Joe Blow", []), evaluate_template_compat("Hello World @contact", self.context))
-        self.assertEqual(
-            ("Hello World: Well", []), evaluate_template_compat("Hello World: @flow.water_source", self.context)
-        )
-        self.assertEqual(("Hello World: ", []), evaluate_template_compat("Hello World: @flow.blank", self.context))
-        self.assertEqual(
-            ("Hello اثنين ثلاثة thanks", []), evaluate_template_compat("Hello @flow.arabic thanks", self.context)
-        )
-        self.assertEqual(
-            (" %20%3D%26%D8%A8 ", []), evaluate_template_compat(" @flow.urlstuff ", self.context, True)
-        )  # url encoding enabled
-        self.assertEqual(
-            ("Hello Joe", []), evaluate_template_compat("Hello @contact.first_name|notthere", self.context)
-        )
-        self.assertEqual(
-            ("Hello joe", []), evaluate_template_compat("Hello @contact.first_name|lower_case", self.context)
-        )
-        self.assertEqual(
-            ("Hello Joe", []),
-            evaluate_template_compat("Hello @contact.first_name|lower_case|capitalize", self.context),
-        )
-        self.assertEqual(("Hello Joe", []), evaluate_template_compat("Hello @contact|first_word", self.context))
-        self.assertEqual(
-            ("Hello Blow", []), evaluate_template_compat("Hello @contact|remove_first_word|title_case", self.context)
-        )
-        self.assertEqual(("Hello Joe Blow", []), evaluate_template_compat("Hello @contact|title_case", self.context))
-        self.assertEqual(
-            ("Hello JOE", []), evaluate_template_compat("Hello @contact.first_name|upper_case", self.context)
-        )
-        self.assertEqual(
-            ("Hello Joe from info@example.com", []),
-            evaluate_template_compat("Hello @contact.first_name from info@example.com", self.context),
-        )
-        self.assertEqual(("Joe", []), evaluate_template_compat("@contact.first_name", self.context))
-        self.assertEqual(("foo@nicpottier.com", []), evaluate_template_compat("foo@nicpottier.com", self.context))
-        self.assertEqual(
-            ("@nicpottier is on twitter", []), evaluate_template_compat("@nicpottier is on twitter", self.context)
-        )
-
-    def test_migrate_template(self):
-        self.assertEqual(
-            migrate_template("Hi @contact.name|upper_case|capitalize from @flow.chw|lower_case"),
-            "Hi @(PROPER(UPPER(contact.name))) from @(LOWER(flow.chw))",
-        )
-        self.assertEqual(migrate_template('Hi @date.now|time_delta:"1"'), "Hi @(date.now + 1)")
-        self.assertEqual(migrate_template('Hi @date.now|time_delta:"-3"'), "Hi @(date.now - 3)")
-
-        self.assertEqual(migrate_template("Hi =contact.name"), "Hi @contact.name")
-        self.assertEqual(migrate_template("Hi =(contact.name)"), "Hi @(contact.name)")
-        self.assertEqual(migrate_template("Hi =NOW() =(TODAY())"), "Hi @(NOW()) @(TODAY())")
-        self.assertEqual(migrate_template('Hi =LEN("@=")'), 'Hi @(LEN("@="))')
-
-        # handle @ expressions embedded inside = expressions, with optional surrounding quotes
-        self.assertEqual(
-            migrate_template('=AND("Malkapur"= "@flow.stuff.category", 13 = @extra.Depar_city|upper_case)'),
-            '@(AND("Malkapur"= flow.stuff.category, 13 = UPPER(extra.Depar_city)))',
-        )
-
-        # don't convert unnecessarily
-        self.assertEqual(migrate_template("Hi @contact.name from @flow.chw"), "Hi @contact.name from @flow.chw")
-
-        # don't convert things that aren't expressions
-        self.assertEqual(migrate_template("Reply 1=Yes, 2=No"), "Reply 1=Yes, 2=No")
-
-    def test_get_function_listing(self):
-        listing = get_function_listing()
-        self.assertEqual(
-            listing[0],
-            {"signature": "ABS(number)", "name": "ABS", "display": "Returns the absolute value of a number"},
-        )
-
-    def test_build_function_signature(self):
-        self.assertEqual("ABS()", _build_function_signature(dict(name="ABS", params=[])))
-
-        self.assertEqual(
-            "ABS(number)",
-            _build_function_signature(dict(name="ABS", params=[dict(optional=False, name="number", vararg=False)])),
-        )
-
-        self.assertEqual(
-            "ABS(number, ...)",
-            _build_function_signature(dict(name="ABS", params=[dict(optional=False, name="number", vararg=True)])),
-        )
-
-        self.assertEqual(
-            "ABS([number])",
-            _build_function_signature(dict(name="ABS", params=[dict(optional=True, name="number", vararg=False)])),
-        )
-
-        self.assertEqual(
-            "ABS([number], ...)",
-            _build_function_signature(dict(name="ABS", params=[dict(optional=True, name="number", vararg=True)])),
-        )
-
-        self.assertEqual(
-            "MOD(number, divisor)",
-            _build_function_signature(
-                dict(
-                    name="MOD",
-                    params=[
-                        dict(optional=False, name="number", vararg=False),
-                        dict(optional=False, name="divisor", vararg=False),
-                    ],
-                )
-            ),
-        )
-
-        self.assertEqual(
-            "MOD(number, ..., divisor)",
-            _build_function_signature(
-                dict(
-                    name="MOD",
-                    params=[
-                        dict(optional=False, name="number", vararg=True),
-                        dict(optional=False, name="divisor", vararg=False),
-                    ],
-                )
-            ),
-        )
-
-    def test_percentage(self):
-        self.assertEqual(0, percentage(0, 100))
-        self.assertEqual(0, percentage(0, 0))
-        self.assertEqual(0, percentage(100, 0))
-        self.assertEqual(75, percentage(75, 100))
-        self.assertEqual(76, percentage(759, 1000))
-
-
 class GSM7Test(TembaTest):
     def test_is_gsm7(self):
         self.assertTrue(is_gsm7("Hello World! {} <>"))
@@ -1214,7 +924,7 @@ class ModelsTest(TembaTest):
     def test_require_update_fields(self):
         contact = self.create_contact("Bob", twitter="bobby")
         flow = self.get_flow("color")
-        run, = flow.start([], [contact])
+        run = FlowRun.objects.create(org=self.org, flow=flow, contact=contact)
 
         # we can save if we specify update_fields
         run.modified_on = timezone.now()
@@ -1240,6 +950,16 @@ class ModelsTest(TembaTest):
                 curr += 1
 
         self.assertEqual(curr, 100)
+
+    def test_patch_queryset_count(self):
+        self.create_contact("Ann", twitter="ann")
+        self.create_contact("Bob", twitter="bob")
+
+        with self.assertNumQueries(0):
+            qs = Contact.objects.all()
+            patch_queryset_count(qs, lambda: 33)
+
+            self.assertEqual(qs.count(), 33)
 
 
 class ExportTest(TembaTest):
@@ -1355,413 +1075,6 @@ class CurrencyTest(TembaTest):
         self.assertIsNone(currency_for_country("XX"))
 
 
-class VoiceXMLTest(TembaTest):
-    def test_context_managers(self):
-        response = voicexml.VXMLResponse()
-        self.assertEqual(response, response.__enter__())
-        self.assertFalse(response.__exit__(None, None, None))
-
-    def test_response(self):
-        response = voicexml.VXMLResponse()
-        self.assertEqual(response.document, '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>')
-        self.assertEqual(
-            str(response), '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form></form></vxml>'
-        )
-
-        response.document += "</form></vxml>"
-        self.assertEqual(
-            str(response), '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form></form></vxml>'
-        )
-
-    def test_join(self):
-        response1 = voicexml.VXMLResponse()
-        response2 = voicexml.VXMLResponse()
-
-        response1.document += "Allo "
-        response2.document += "Hey "
-
-        # the content of response2 should be prepended before the content of response1
-        self.assertEqual(
-            str(response1.join(response2)),
-            '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>Hey Allo </form></vxml>',
-        )
-
-    def test_say(self):
-        response = voicexml.VXMLResponse()
-        response.say("Hello")
-
-        self.assertEqual(
-            str(response),
-            '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
-            "<block><prompt>Hello</prompt></block></form></vxml>",
-        )
-
-    def test_play(self):
-        response = voicexml.VXMLResponse()
-
-        with self.assertRaises(VoiceXMLException):
-            response.play()
-
-        response.play(digits="123")
-        self.assertEqual(
-            str(response),
-            '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
-            "<block><prompt>123</prompt></block></form></vxml>",
-        )
-
-        response = voicexml.VXMLResponse()
-        response.play(url="http://example.com/audio.wav")
-
-        self.assertEqual(
-            str(response),
-            '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
-            '<block><prompt><audio src="http://example.com/audio.wav" /></prompt></block></form></vxml>',
-        )
-
-    def test_pause(self):
-        response = voicexml.VXMLResponse()
-
-        response.pause()
-        self.assertEqual(
-            str(response),
-            '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
-            "<block><prompt><break /></prompt></block></form></vxml>",
-        )
-
-        response = voicexml.VXMLResponse()
-
-        response.pause(length=40)
-        self.assertEqual(
-            str(response),
-            '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
-            '<block><prompt><break time="40s"/></prompt></block></form></vxml>',
-        )
-
-    def test_redirect(self):
-        response = voicexml.VXMLResponse()
-        response.redirect("http://example.com/")
-
-        self.assertEqual(
-            str(response),
-            '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
-            '<subdialog src="http://example.com/" ></subdialog></form></vxml>',
-        )
-
-    def test_hangup(self):
-        response = voicexml.VXMLResponse()
-        response.hangup()
-
-        self.assertEqual(
-            str(response), '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form><exit /></form></vxml>'
-        )
-
-    def test_reject(self):
-        response = voicexml.VXMLResponse()
-        response.reject(reason="some")
-
-        self.assertEqual(
-            str(response), '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form><exit /></form></vxml>'
-        )
-
-    def test_gather(self):
-        response = voicexml.VXMLResponse()
-        response.gather()
-
-        self.assertEqual(
-            str(response),
-            '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
-            '<field name="Digits"><grammar termchar="#" src="builtin:dtmf/digits" />'
-            "</field></form></vxml>",
-        )
-
-        response = voicexml.VXMLResponse()
-        response.gather(action="http://example.com")
-
-        self.assertEqual(
-            str(response),
-            '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
-            '<field name="Digits"><grammar termchar="#" src="builtin:dtmf/digits" />'
-            '<nomatch><submit next="http://example.com?empty=1" method="post" /></nomatch></field>'
-            '<filled><submit next="http://example.com" method="post" /></filled></form></vxml>',
-        )
-
-        response = voicexml.VXMLResponse()
-        response.gather(action="http://example.com", num_digits=1, timeout=45, finish_on_key="*")
-
-        self.assertEqual(
-            str(response),
-            '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
-            '<field name="Digits"><grammar termtimeout="45s" timeout="45s" termchar="*" '
-            'src="builtin:dtmf/digits?minlength=1;maxlength=1" />'
-            '<nomatch><submit next="http://example.com?empty=1" method="post" /></nomatch></field>'
-            '<filled><submit next="http://example.com" method="post" /></filled></form></vxml>',
-        )
-
-    def test_record(self):
-        response = voicexml.VXMLResponse()
-        response.record()
-
-        self.assertEqual(
-            str(response),
-            '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
-            '<record name="UserRecording" beep="true" finalsilence="4000ms" '
-            'dtmfterm="true" type="audio/x-wav"></record></form></vxml>',
-        )
-
-        response = voicexml.VXMLResponse()
-        response.record(action="http://example.com", method="post", max_length=60)
-
-        self.assertEqual(
-            str(response),
-            '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
-            '<record name="UserRecording" beep="true" maxtime="60s" finalsilence="4000ms" '
-            'dtmfterm="true" type="audio/x-wav">'
-            '<filled><submit next="http://example.com" method="post" '
-            'enctype="multipart/form-data" /></filled></record></form></vxml>',
-        )
-
-
-class NCCOTest(TembaTest):
-    def test_context_managers(self):
-        response = NCCOResponse()
-        self.assertEqual(response, response.__enter__())
-        self.assertFalse(response.__exit__(None, None, None))
-
-    def test_response(self):
-        response = NCCOResponse()
-        self.assertEqual(response.document, [])
-        self.assertEqual(json.loads(str(response)), [])
-
-    def test_join(self):
-        response1 = NCCOResponse()
-        response2 = NCCOResponse()
-
-        response1.document.append(dict(action="foo"))
-        response2.document.append(dict(action="bar"))
-
-        # the content of response2 should be prepended before the content of response1
-        self.assertEqual(json.loads(str(response1.join(response2))), [dict(action="bar"), dict(action="foo")])
-
-    def test_say(self):
-        response = NCCOResponse()
-        response.say("Hello")
-
-        self.assertEqual(json.loads(str(response)), [dict(action="talk", text="Hello", bargeIn=False)])
-
-    def test_play(self):
-        response = NCCOResponse()
-
-        with self.assertRaises(NCCOException):
-            response.play()
-
-        response.play(digits="123")
-        self.assertEqual(json.loads(str(response)), [dict(action="talk", text="123", bargeIn=False)])
-
-        response = NCCOResponse()
-        response.play(url="http://example.com/audio.wav")
-
-        self.assertEqual(
-            json.loads(str(response)),
-            [dict(action="stream", bargeIn=False, streamUrl=["http://example.com/audio.wav"])],
-        )
-
-        response = NCCOResponse()
-        response.play(url="http://example.com/audio.wav", digits="123")
-
-        self.assertEqual(
-            json.loads(str(response)),
-            [dict(action="stream", bargeIn=False, streamUrl=["http://example.com/audio.wav"])],
-        )
-
-    def test_bargeIn(self):
-        response = NCCOResponse()
-        response.say("Hello")
-        response.redirect("http://example.com/")
-
-        self.assertEqual(
-            json.loads(str(response)),
-            [
-                dict(action="talk", text="Hello", bargeIn=True),
-                dict(action="input", maxDigits=1, timeOut=1, eventUrl=["%s?input_redirect=1" % "http://example.com/"]),
-            ],
-        )
-
-        response = NCCOResponse()
-        response.say("Hello")
-        response.redirect("http://example.com/")
-        response.say("Goodbye")
-
-        self.assertEqual(
-            json.loads(str(response)),
-            [
-                dict(action="talk", text="Hello", bargeIn=True),
-                dict(action="input", maxDigits=1, timeOut=1, eventUrl=["%s?input_redirect=1" % "http://example.com/"]),
-                dict(action="talk", text="Goodbye", bargeIn=False),
-            ],
-        )
-
-        response = NCCOResponse()
-        response.say("Hello")
-        response.redirect("http://example.com/")
-        response.say("Please make a recording")
-        response.record(action="http://example.com", method="post", max_length=60)
-        response.say("Thanks")
-        response.say("Allo")
-        response.say("Cool")
-        response.redirect("http://example.com/")
-        response.say("Bye")
-
-        self.assertEqual(
-            json.loads(str(response)),
-            [
-                dict(action="talk", text="Hello", bargeIn=True),
-                dict(action="input", maxDigits=1, timeOut=1, eventUrl=["%s?input_redirect=1" % "http://example.com/"]),
-                dict(action="talk", text="Please make a recording", bargeIn=False),
-                dict(
-                    format="wav",
-                    eventMethod="post",
-                    eventUrl=["http://example.com"],
-                    endOnSilence=4,
-                    timeOut=60,
-                    endOnKey="#",
-                    action="record",
-                    beepStart=True,
-                ),
-                dict(action="input", maxDigits=1, timeOut=1, eventUrl=["%s?save_media=1" % "http://example.com"]),
-                dict(action="talk", text="Thanks", bargeIn=False),
-                dict(action="talk", text="Allo", bargeIn=False),
-                dict(action="talk", text="Cool", bargeIn=True),
-                dict(action="input", maxDigits=1, timeOut=1, eventUrl=["%s?input_redirect=1" % "http://example.com/"]),
-                dict(action="talk", text="Bye", bargeIn=False),
-            ],
-        )
-
-        response = NCCOResponse()
-        response.play(url="http://example.com/audio.wav")
-        response.redirect("http://example.com/")
-        response.say("Goodbye")
-
-        self.assertEqual(
-            json.loads(str(response)),
-            [
-                dict(action="stream", bargeIn=True, streamUrl=["http://example.com/audio.wav"]),
-                dict(action="input", maxDigits=1, timeOut=1, eventUrl=["%s?input_redirect=1" % "http://example.com/"]),
-                dict(action="talk", text="Goodbye", bargeIn=False),
-            ],
-        )
-
-    def test_pause(self):
-        response = NCCOResponse()
-        response.pause()
-
-    def test_redirect(self):
-        response = NCCOResponse()
-        response.redirect("http://example.com/")
-
-        self.assertEqual(
-            json.loads(str(response)),
-            [dict(action="input", maxDigits=1, timeOut=1, eventUrl=["%s?input_redirect=1" % "http://example.com/"])],
-        )
-
-        response = NCCOResponse()
-        response.redirect("http://example.com/?param=12")
-
-        self.assertEqual(
-            json.loads(str(response)),
-            [dict(action="input", maxDigits=1, timeOut=1, eventUrl=["http://example.com/?param=12&input_redirect=1"])],
-        )
-
-    def test_hangup(self):
-        response = NCCOResponse()
-        response.hangup()
-
-    def test_reject(self):
-        response = NCCOResponse()
-        response.reject()
-
-    def test_gather(self):
-        response = NCCOResponse()
-        response.gather()
-
-        self.assertEqual(json.loads(str(response)), [dict(action="input", submitOnHash=True)])
-
-        response = NCCOResponse()
-        response.gather(action="http://example.com")
-
-        self.assertEqual(
-            json.loads(str(response)),
-            [dict(eventMethod="post", action="input", submitOnHash=True, eventUrl=["http://example.com"])],
-        )
-
-        response = NCCOResponse()
-        response.gather(action="http://example.com", num_digits=1, timeout=45, finish_on_key="*")
-
-        self.assertEqual(
-            json.loads(str(response)),
-            [
-                dict(
-                    maxDigits=1,
-                    eventMethod="post",
-                    action="input",
-                    submitOnHash=False,
-                    eventUrl=["http://example.com"],
-                    timeOut=45,
-                )
-            ],
-        )
-
-    def test_record(self):
-        response = NCCOResponse()
-        response.record()
-
-        self.assertEqual(
-            json.loads(str(response)),
-            [
-                dict(format="wav", endOnSilence=4, beepStart=True, action="record", endOnKey="#"),
-                dict(action="input", maxDigits=1, timeOut=1, eventUrl=["None?save_media=1"]),
-            ],
-        )
-
-        response = NCCOResponse()
-        response.record(action="http://example.com", method="post", max_length=60)
-
-        self.assertEqual(
-            json.loads(str(response)),
-            [
-                dict(
-                    format="wav",
-                    eventMethod="post",
-                    eventUrl=["http://example.com"],
-                    endOnSilence=4,
-                    timeOut=60,
-                    endOnKey="#",
-                    action="record",
-                    beepStart=True,
-                ),
-                dict(action="input", maxDigits=1, timeOut=1, eventUrl=["%s?save_media=1" % "http://example.com"]),
-            ],
-        )
-        response = NCCOResponse()
-        response.record(action="http://example.com?param=12", method="post", max_length=60)
-
-        self.assertEqual(
-            json.loads(str(response)),
-            [
-                dict(
-                    format="wav",
-                    eventMethod="post",
-                    eventUrl=["http://example.com?param=12"],
-                    endOnSilence=4,
-                    timeOut=60,
-                    endOnKey="#",
-                    action="record",
-                    beepStart=True,
-                ),
-                dict(action="input", maxDigits=1, timeOut=1, eventUrl=["http://example.com?param=12&save_media=1"]),
-            ],
-        )
-
-
 class MiddlewareTest(TembaTest):
     def test_org_header(self):
         response = self.client.get(reverse("public.public_index"))
@@ -1808,7 +1121,7 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
         self.create_anonymous_user()
 
         with ESMockWithScroll():
-            call_command("test_db", "generate", num_orgs=3, num_contacts=30, seed=1234)
+            call_command("test_db", num_orgs=3, num_contacts=30, seed=1234)
 
         org1, org2, org3 = tuple(Org.objects.order_by("id"))
 
@@ -1837,10 +1150,7 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
 
         # check generate can't be run again on a now non-empty database
         with self.assertRaises(CommandError):
-            call_command("test_db", "generate", num_orgs=3, num_contacts=30, seed=1234)
-
-        # but simulate can
-        call_command("test_db", "simulate", num_runs=2)
+            call_command("test_db", num_orgs=3, num_contacts=30, seed=1234)
 
 
 class JsonModelTestDefaultNull(models.Model):
@@ -2323,4 +1633,135 @@ class AnalyticsTest(TestCase):
             website="https://example.com",
             industry="Mining",
             monthly_spend="a lot",
+        )
+
+
+class RedactTest(TestCase):
+    def test_variations(self):
+        # phone number variations
+        self.assertEqual(
+            redact._variations("+593979099111"),
+            [
+                "%2B593979099111",
+                "0593979099111",
+                "+593979099111",
+                "593979099111",
+                "93979099111",
+                "3979099111",
+                "979099111",
+                "79099111",
+                "9099111",
+            ],
+        )
+
+        # reserved XML/HTML characters escaped and unescaped
+        self.assertEqual(
+            redact._variations("<?&>"),
+            [
+                "0&lt;?&amp;&gt;",
+                "+&lt;?&amp;&gt;",
+                "%2B%3C%3F%26%3E",
+                "&lt;?&amp;&gt;",
+                "0%3C%3F%26%3E",
+                "%3C%3F%26%3E",
+                "0<?&>",
+                "+<?&>",
+                "<?&>",
+            ],
+        )
+
+        # reserved JSON characters escaped and unescaped
+        self.assertEqual(
+            redact._variations("\n\r\t😄"),
+            [
+                "%2B%0A%0D%09%F0%9F%98%84",
+                "0%0A%0D%09%F0%9F%98%84",
+                "%0A%0D%09%F0%9F%98%84",
+                "0\\n\\r\\t\\ud83d\\ude04",
+                "+\\n\\r\\t\\ud83d\\ude04",
+                "\\n\\r\\t\\ud83d\\ude04",
+                "0\n\r\t😄",
+                "+\n\r\t😄",
+                "\n\r\t😄",
+            ],
+        )
+
+    def test_text(self):
+        # no match returns original and false
+        self.assertEqual(redact.text("this is <+private>", "<public>", "********"), "this is <+private>")
+        self.assertEqual(redact.text("this is 0123456789", "9876543210", "********"), "this is 0123456789")
+
+        # text contains un-encoded raw value to be redacted
+        self.assertEqual(redact.text("this is <+private>", "<+private>", "********"), "this is ********")
+
+        # text contains URL encoded version of the value to be redacted
+        self.assertEqual(redact.text("this is %2Bprivate", "+private", "********"), "this is ********")
+
+        # text contains JSON encoded version of the value to be redacted
+        self.assertEqual(redact.text('this is "+private"', "+private", "********"), 'this is "********"')
+
+        # text contains XML encoded version of the value to be redacted
+        self.assertEqual(redact.text("this is &lt;+private&gt;", "<+private>", "********"), "this is ********")
+
+        # test matching the value partially
+        self.assertEqual(redact.text("this is 123456789", "+123456789", "********"), "this is ********")
+
+        self.assertEqual(redact.text("this is +123456789", "123456789", "********"), "this is ********")
+        self.assertEqual(redact.text("this is 123456789", "0123456789", "********"), "this is ********")
+
+        # '3456789' matches the input string
+        self.assertEqual(redact.text("this is 03456789", "+123456789", "********"), "this is 0********")
+
+        # only rightmost 7 chars of the test matches
+        self.assertEqual(redact.text("this is 0123456789", "xxx3456789", "********"), "this is 012********")
+
+        # all matches replaced
+        self.assertEqual(
+            redact.text('{"number_full": "+593979099111", "number_short": "0979099111"}', "+593979099111", "********"),
+            '{"number_full": "********", "number_short": "0********"}',
+        )
+
+        # custom mask
+        self.assertEqual(redact.text("this is private", "private", "🌼🌼🌼🌼"), "this is 🌼🌼🌼🌼")
+
+    def test_http_trace(self):
+        # not an HTTP trace
+        self.assertEqual(redact.http_trace("hello", "12345", "********", ("name",)), "********")
+
+        # a JSON body
+        self.assertEqual(
+            redact.http_trace(
+                'POST /c/t/23524/receive HTTP/1.1\r\nHost: yy12345\r\n\r\n{"name": "Bob Smith", "number": "xx12345"}',
+                "12345",
+                "********",
+                ("name",),
+            ),
+            'POST /c/t/23524/receive HTTP/1.1\r\nHost: yy********\r\n\r\n{"name": "********", "number": "xx********"}',
+        )
+
+        # a URL-encoded body
+        self.assertEqual(
+            redact.http_trace(
+                "POST /c/t/23524/receive HTTP/1.1\r\nHost: yy12345\r\n\r\nnumber=xx12345&name=Bob+Smith",
+                "12345",
+                "********",
+                ("name",),
+            ),
+            "POST /c/t/23524/receive HTTP/1.1\r\nHost: yy********\r\n\r\nnumber=xx********&name=********",
+        )
+
+        # a body with neither encoding redacted as text if body keys not provided
+        self.assertEqual(
+            redact.http_trace(
+                "POST /c/t/23524/receive HTTP/1.1\r\nHost: yy12345\r\n\r\n//xx12345//", "12345", "********"
+            ),
+            "POST /c/t/23524/receive HTTP/1.1\r\nHost: yy********\r\n\r\n//xx********//",
+        )
+
+        # a body with neither encoding returned as is if body keys provided but we couldn't parse the body
+        self.assertEqual(
+            redact.http_trace(
+                "POST /c/t/23524/receive HTTP/1.1\r\nHost: yy12345\r\n\r\n//xx12345//", "12345", "********", ("name",)
+            ),
+            "POST /c/t/23524/receive HTTP/1.1\r\nHost: yy********\r\n\r\n********",
         )

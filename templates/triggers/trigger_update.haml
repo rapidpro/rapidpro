@@ -14,8 +14,8 @@
     -spaceless
 
       -if object.schedule
-        -blocktrans
-          The next message will be sent <span class='attn next-fire'/>.
+        -trans "The next time the flow will be started is"
+        <span class='attn next-fire'>{% pretty_datetime object.schedule.next_fire %}</span>.
 
     -if not object.schedule.repeat_period == 'O'
       -if object.schedule.repeat_period == 'W' and object.schedule.repeat_days
@@ -70,32 +70,32 @@
     #schedule-options
       -if object.schedule
         %label.schedule-options-label{for:"later-option"}
-        %input#start-datetime{ name:'start_datetime', value:'{% trans "Select a date" %}'}
-        %input#start-datetime-value{ hidden:'true', name:'start_datetime_value', value:''}
-        %input#later-option{name:'start',type:'hidden',value:'later'}
+        %input#start-datetime{ name:'start_datetime', disabled: 'true'}
+        %input#start-datetime-value{ hidden:'true', name:'start_datetime_value'}
+        %input#later-option{name:'start', type:'hidden', value:'later', tabindex:1}
 
-    #recurrence{class:'{% if object.schedule.status != "S" %}hide{%endif%}'}
+    #recurrence{class:'{% if not object.schedule.next_fire %}hide{%endif%}'}
       .repeat-period
         %p.instructions
           -render_field 'repeat_period'
       .weekly-repeat-options{class:'{% if form.initial.repeat_period == "W" %}{% else%}hide{%endif%}'}
         .btn-group{'data-toggle':'buttons-checkbox'}
-          #mon.btn{value:2, class:'{% if 0 in days %}active{% endif %}'}
+          #mon.btn{value:"M", class:'{% if "M" in days %}active{% endif %}'}
             -trans "Mon"
-          #tue.btn{value:4, class:'{% if 1 in days %}active{% endif %}'}
+          #tue.btn{value:"T", class:'{% if "T" in days %}active{% endif %}'}
             -trans "Tue"
-          #wed.btn{value:8, class:'{% if 2 in days %}active{% endif %}'}
+          #wed.btn{value:"W", class:'{% if "W" in days %}active{% endif %}'}
             -trans "Wed"
-          #thu.btn{value:16, class:'{% if 3 in days %}active{% endif %}'}
+          #thu.btn{value:"R", class:'{% if "R" in days %}active{% endif %}'}
             -trans "Thu"
-          #fri.btn{value:32, class:'{% if 4 in days %}active{% endif %}'}
+          #fri.btn{value:"F", class:'{% if "F" in days %}active{% endif %}'}
             -trans "Fri"
-          #sat.btn{value:64, class:'{% if 5 in days %}active{% endif %}'}
+          #sat.btn{value:"S", class:'{% if "S" in days %}active{% endif %}'}
             -trans "Sat"
-          #sun.btn{value:128, class:'{% if 6 in days %}active{% endif %}'}
+          #sun.btn{value:"U", class:'{% if "U" in days %}active{% endif %}'}
             -trans "Sun"
 
-        %input#repeat-days-value{name:'repeat_days', type:'hidden'}
+      %input#repeat-days-value{name:'repeat_days_of_week', type:'hidden', value:'{{days}}'}
 
     -else
       {{block.super}}
@@ -143,11 +143,10 @@
         $('#id_groups').select2({ containerCssClass: "select2-temba-field" });
       {% endif %}
 
-      new AutoComplete({{ completions|to_json }}, {{ function_completions|to_json }}).bind($('#id_response'));
-
-      $('#id_flow').select2({
+      $('select#id_flow').select2({
         minimumResultsForSearch: -1
       });
+
       $('#id_match_type').select2({
         containerCssClass: "select2-temba-field",
         minimumResultsForSearch: -1
@@ -164,12 +163,21 @@
       }
 
       {% if object.schedule.next_fire and object.schedule.next_fire|timeuntil != "0 minutes" %}
-        initializeDatetimePicker(minDate, new Date({{object.schedule.next_fire|date:"U"}} * 1000));
+        // honor our form value if we have a validation failure
+        {% if form.start_datetime_value.value %}
+          initializeDatetimePicker(minDate, new Date({{form.start_datetime_value.value}} * 1000));
+        {% else %}
+          initializeDatetimePicker(minDate, new Date({{object.schedule.next_fire|date:"U"}} * 1000));
+        {% endif %}
       {% else %}
         initializeDatetimePicker(minDate);
       {% endif %}
-      {% if object.schedule.next_fire %}
-      setNextFireText({{ object.schedule.next_fire|date:"U" }})
-      {% endif %}
+
+      // re-enable our datetime widget after load, this works around
+      // an issue with jquery datetimepicker that shows the picker on load
+      window.setTimeout(function(){
+        $("input#start-datetime").attr('disabled', false);
+      }, 0);
+
     });
 

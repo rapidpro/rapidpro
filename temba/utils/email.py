@@ -54,6 +54,7 @@ def send_simple_email(recipients, subject, body, from_email=None):
     :param recipients: address or list of addresses to send the mail to
     :param subject: subject of the email
     :param body: body of the email
+    :param from_email: from email address
     """
     if from_email is None:
         from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "website@rapidpro.io")
@@ -68,7 +69,6 @@ def send_custom_smtp_email(
 ):
     """
     Sends a text email to the given recipients using the SMTP configuration
-
     :param recipients: address or list of addresses to send the mail to
     :param subject: subject of the email
     :param body: body of the email

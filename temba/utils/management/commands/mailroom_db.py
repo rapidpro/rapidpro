@@ -1,5 +1,6 @@
 import json
-from subprocess import CalledProcessError, check_call
+import subprocess
+import sys
 
 import pytz
 from django_redis import get_redis_connection
@@ -12,6 +13,7 @@ from django.utils import timezone
 
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
+from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow
 from temba.locations.models import AdminBoundary
@@ -31,6 +33,32 @@ ORG1 = dict(
     has_locations=True,
     languages=("eng", "fra"),
     sequence_start=10000,
+    classifiers=(
+        dict(
+            uuid="097e026c-ae79-4740-af67-656dbedf0263",
+            classifier_type="luis",
+            name="LUIS",
+            config=dict(app_id="12345", version="0.1", endpoint_url="https://foo.com", primary_key="sesame"),
+            intents=(
+                dict(name="book_flight", external_id="10406609-9749-47d4-bd2b-f3b778d5a491"),
+                dict(name="book_car", external_id="65eae80b-c0fb-4054-9d64-10de08e59a62"),
+            ),
+        ),
+        dict(
+            uuid="ff2a817c-040a-4eb2-8404-7d92e8b79dd0",
+            classifier_type="wit",
+            name="Wit.ai",
+            config=dict(app_id="67890", access_token="sesame"),
+            intents=(dict(name="register", external_id="register"),),
+        ),
+        dict(
+            uuid="859b436d-3005-4e43-9ad5-3de5f26ede4c",
+            classifier_type="bothub",
+            name="BotHub",
+            config=dict(access_token="access_token"),
+            intents=(dict(name="intent", external_id="intent"),),
+        ),
+    ),
     channels=(
         dict(
             name="Twilio",
@@ -179,6 +207,7 @@ ORG2 = dict(
             uuid="a89bc872-3763-4b95-91d9-31d4e56c6651",
         ),
     ),
+    classifiers=(),
     groups=(dict(name="Doctors", uuid="492e438c-02e5-43a4-953a-57410b7fe3dd", size=120),),
     fields=(),
     contacts=(dict(name="Fred", urns=["tel:+250700000005"], uuid="26d20b72-f7d8-44dc-87f2-aae046dbff95"),),
@@ -198,14 +227,26 @@ class Command(BaseCommand):
     help = "Generates a database suitable for mailroom testing"
 
     def handle(self, *args, **kwargs):
+        self._log("Checking Postgres database version... ")
+
+        result = subprocess.run(["pg_dump", "--version"], stdout=subprocess.PIPE)
+        version = result.stdout.decode("utf8")
+        if version.split(" ")[-1].find("11.") == 0:
+            self._log(self.style.SUCCESS("OK") + "\n")
+        else:
+            self._log(
+                "\n" + self.style.ERROR("Incorrect pg_dump version, needs version 11.*, found: " + version) + "\n"
+            )
+            sys.exit(1)
+
         self._log("Initializing mailroom_test database...\n")
 
         # drop and recreate the mailroom_test db and user
-        check_call('psql -c "DROP DATABASE IF EXISTS mailroom_test;"', shell=True)
-        check_call('psql -c "CREATE DATABASE mailroom_test;"', shell=True)
-        check_call('psql -c "DROP USER IF EXISTS mailroom_test;"', shell=True)
-        check_call("psql -c \"CREATE USER mailroom_test PASSWORD 'temba';\"", shell=True)
-        check_call('psql -c "ALTER ROLE mailroom_test WITH SUPERUSER;"', shell=True)
+        subprocess.check_call('psql -c "DROP DATABASE IF EXISTS mailroom_test;"', shell=True)
+        subprocess.check_call('psql -c "CREATE DATABASE mailroom_test;"', shell=True)
+        subprocess.check_call('psql -c "DROP USER IF EXISTS mailroom_test;"', shell=True)
+        subprocess.check_call("psql -c \"CREATE USER mailroom_test PASSWORD 'temba';\"", shell=True)
+        subprocess.check_call('psql -c "ALTER ROLE mailroom_test WITH SUPERUSER;"', shell=True)
 
         # always use mailroom_test as our db
         settings.DATABASES["default"]["NAME"] = "mailroom_test"
@@ -237,7 +278,7 @@ class Command(BaseCommand):
             self.create_org(spec, superuser, country, locations)
 
         # dump our file
-        check_call("pg_dump -Fc mailroom_test > mailroom_test.dump", shell=True)
+        subprocess.check_call("pg_dump -Fc mailroom_test > mailroom_test.dump", shell=True)
 
         self._log("\n" + self.style.SUCCESS("Success!") + " Dump file: mailroom_test.dump\n\n")
 
@@ -250,12 +291,12 @@ class Command(BaseCommand):
         # load dump into current db with pg_restore
         db_config = settings.DATABASES["default"]
         try:
-            check_call(
+            subprocess.check_call(
                 f"export PGPASSWORD={db_config['PASSWORD']} && pg_restore -h {db_config['HOST']} "
                 f"-p {db_config['PORT']} -U {db_config['USER']} -w -d {db_config['NAME']} {path}",
                 shell=True,
             )
-        except CalledProcessError:  # pragma: no cover
+        except subprocess.CalledProcessError:  # pragma: no cover
             raise CommandError("Error occurred whilst calling pg_restore to load locations dump")
 
         # fetch as tuples of (WARD, DISTRICT, STATE)
@@ -307,6 +348,7 @@ class Command(BaseCommand):
         self.create_group_contacts(spec, org, superuser)
         self.create_campaigns(spec, org, superuser)
         self.create_templates(spec, org, superuser)
+        self.create_classifiers(spec, org, superuser)
 
         return org
 
@@ -325,6 +367,28 @@ class Command(BaseCommand):
                 created_by=user,
                 modified_by=user,
             )
+
+        self._log(self.style.SUCCESS("OK") + "\n")
+
+    def create_classifiers(self, spec, org, user):
+        self._log(f"Creating {len(spec['classifiers'])} classifiers... ")
+
+        for c in spec["classifiers"]:
+            classifier = Classifier.objects.create(
+                org=org,
+                name=c["name"],
+                config=c["config"],
+                classifier_type=c["classifier_type"],
+                uuid=c["uuid"],
+                created_by=user,
+                modified_by=user,
+            )
+
+            # add the intents
+            for intent in c["intents"]:
+                classifier.intents.create(
+                    name=intent["name"], external_id=intent["external_id"], created_on=timezone.now()
+                )
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
@@ -371,7 +435,7 @@ class Command(BaseCommand):
         self._log(f"Creating {len(spec['flows'])} flows... ")
 
         for f in spec["flows"]:
-            with open("media/test_flows/" + f["file"], "r") as flow_file:
+            with open("media/test_flows/mailroom/" + f["file"], "r") as flow_file:
                 org.import_app(json.load(flow_file), user)
 
                 # set the uuid on this flow

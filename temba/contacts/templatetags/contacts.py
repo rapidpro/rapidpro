@@ -14,6 +14,7 @@ from temba.contacts.models import (
     TWILIO_SCHEME,
     TWITTER_SCHEME,
     TWITTERID_SCHEME,
+    URN,
     WHATSAPP_SCHEME,
     ContactField,
     ContactURN,
@@ -38,23 +39,33 @@ URN_SCHEME_ICONS = {
 }
 
 ACTIVITY_ICONS = {
-    "EventFire": "icon-clock",
-    "FlowRun": "icon-tree-2",
-    "Broadcast": "icon-bullhorn",
-    "Incoming": "icon-bubble-user",
-    "Outgoing": "icon-bubble-right",
-    "Failed": "icon-bubble-notification",
-    "Delivered": "icon-bubble-check",
-    "Call": "icon-phone",
-    "IVRCall": "icon-call-outgoing",
-    "DTMF": "icon-call-incoming",
-    "MissedIncoming": "icon-call-incoming",
-    "MissedOutgoing": "icon-call-outgoing",
-    "Expired": "icon-clock",
-    "Interrupted": "icon-warning",
-    "Completed": "icon-checkmark",
-    "WebHookResult": "icon-cloud-upload",
-    "Unknown": "icon-power",
+    "airtime_transferred": "icon-cash",
+    "call_started": "icon-phone",
+    "campaign_fired": "icon-clock",
+    "channel_event": "icon-power",
+    "channel_event:missed_incoming": "icon-call-incoming",
+    "channel_event:missed_outgoing": "icon-call-outgoing",
+    "contact_field_changed": "icon-pencil",
+    "contact_groups_changed": "icon-users",
+    "contact_language_changed": "icon-language",
+    "contact_name_changed": "icon-vcard",
+    "contact_urns_changed": "icon-address-book",
+    "email_created": "icon-envelop",
+    "flow_entered": "icon-tree-2",
+    "flow_exited:expired": "icon-clock",
+    "flow_exited:interrupted": "icon-warning",
+    "flow_exited:completed": "icon-checkmark",
+    "input_labels_added": "icon-tags",
+    "msg_created": "icon-bubble-right",
+    "msg_created:broadcast": "icon-bullhorn",
+    "msg_created:failed": "icon-bubble-notification",
+    "msg_created:delivered": "icon-bubble-check",
+    "msg_created:voice": "icon-call-outgoing",
+    "msg_received": "icon-bubble-user",
+    "msg_received:voice": "icon-call-incoming",
+    "run_result_changed": "icon-bars",
+    "session_started": "icon-new",
+    "webhook_called": "icon-cloud-upload",
 }
 
 MISSING_VALUE = "--"
@@ -92,10 +103,13 @@ def name(contact, org):
 
 @register.filter
 def format_urn(urn, org):
-    urn_val = urn.get_display(org=org, international=True)
-    if urn_val == ContactURN.ANON_MASK:
+    if org and org.is_anon:
         return ContactURN.ANON_MASK_HTML
-    return urn_val
+
+    if isinstance(urn, ContactURN):
+        return urn.get_display(org=org, international=True)
+    else:
+        return URN.format(urn, international=True)
 
 
 @register.filter
@@ -118,70 +132,72 @@ def urn_icon(urn):
 
 
 @register.filter
-def activity_icon(item):
-    obj = item["obj"]
+def history_icon(item):
+    event_type = item["type"]
+    obj = item.get("obj")
+    variant = None
 
-    if item["type"] == "msg":
-        if obj.broadcast and obj.broadcast.recipient_count > 1:
-            icon = "Failed" if obj.status in ("E", "F") else "Broadcast"
+    if event_type == "msg_created":
+        if obj.broadcast and obj.broadcast.recipient_count and obj.broadcast.recipient_count > 1:
+            variant = "failed" if obj.status in ("E", "F") else "broadcast"
         elif obj.msg_type == "V":
-            icon = "DTMF" if obj.direction == "I" else "IVRCall"
-        elif obj.direction == "I":
-            icon = "Incoming"
+            variant = "voice"
         else:
             if obj.status in ("F", "E"):
-                icon = "Failed"
+                variant = "failed"
             elif obj.status == "D":
-                icon = "Delivered"
-            else:
-                icon = "Outgoing"
-    elif item["type"] == "run-start":
-        icon = "FlowRun"
-    elif item["type"] == "run-exit":
-        if obj.exit_type == "C":
-            icon = "Completed"
-        elif obj.exit_type == "I":
-            icon = "Interrupted"
-        else:
-            icon = "Expired"
-    elif item["type"] == "channel-event":
-        if obj.event_type == "mo_miss":
-            icon = "MissedIncoming"
-        elif obj.event_type == "mt_miss":
-            icon = "MissedOutgoing"
-        else:
-            icon = "Icon-Power"
-    else:
-        icon = type(obj).__name__
+                variant = "delivered"
 
-    return mark_safe('<span class="glyph %s"></span>' % (ACTIVITY_ICONS.get(icon, "")))
+    elif event_type == "msg_received":
+        if obj.msg_type == "V":
+            variant = "voice"
+
+    elif event_type == "flow_exited":
+        if obj.exit_type == "C":
+            variant = "completed"
+        elif obj.exit_type == "I":
+            variant = "interrupted"
+        else:
+            variant = "expired"
+
+    elif event_type == "channel_event":
+        if obj.event_type == "mo_miss":
+            variant = "missed_incoming"
+        elif obj.event_type == "mt_miss":
+            variant = "missed_outgoing"
+
+    if variant:
+        glyph_name = ACTIVITY_ICONS[event_type + ":" + variant]
+    else:
+        glyph_name = ACTIVITY_ICONS[event_type]
+
+    return mark_safe(f'<span class="glyph {glyph_name}"></span>')
 
 
 @register.filter
 def history_class(item):
-    obj = item["obj"]
+    obj = item.get("obj")
     classes = []
 
-    if item["type"] in ("msg", "broadcast"):
+    if item["type"] in ("msg_created", "msg_received"):
         classes.append("msg")
         if obj.status in (ERRORED, FAILED):
             classes.append("warning")
     else:
         classes.append("non-msg")
 
-        if item["type"] == "webhook-result" and not obj.is_success:
+        if item["type"] == "webhook_called" and not obj.is_success:
             classes.append("warning")
-
-        if item["type"] == "call" and obj.status == IVRCall.FAILED:
+        elif item["type"] == "call_started" and obj.status == IVRCall.FAILED:
             classes.append("warning")
-
-        if item["type"] == "event-fire" and obj.fired_result == EventFire.SKIPPED:
+        elif item["type"] == "campaign_fired" and obj.fired_result == EventFire.RESULT_SKIPPED:
             classes.append("skipped")
+
     return " ".join(classes)
 
 
 @register.filter
-def event_time(event):
+def campaign_event_time(event):
 
     unit = event.unit
     if abs(event.offset) == 1:

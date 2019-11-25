@@ -31,8 +31,8 @@
           %ul
             -for campaign_event in dep_campaignevents
               %li
-                %a{href:"{% url 'campaigns.campaignevent_read' campaign_event.pk %}"}
-                  {{campaign_event.campaign}} --
+                %a{href:"{% url 'campaigns.campaignevent_read' campaign_event.id %}"}
+                  {{campaign_event.campaign.name}} --
 
                   -# representation copied from templates/campaigns/campaignevent_read.haml
                   -if campaign_event.offset < 0

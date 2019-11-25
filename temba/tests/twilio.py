@@ -1,6 +1,5 @@
 from twilio.request_validator import RequestValidator
-
-from temba.ivr.clients import TwilioClient
+from twilio.rest import Client
 
 
 class MockRequestValidator(RequestValidator):
@@ -11,7 +10,7 @@ class MockRequestValidator(RequestValidator):
         return True
 
 
-class MockTwilioClient(TwilioClient):
+class MockTwilioClient(Client):
     def __init__(self, sid, token, org=None, base=None):
         self.org = org
         self.base = base

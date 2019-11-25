@@ -1,12 +1,13 @@
 @font-face {
   font-family: 'temba';
-  src:  url('fonts/temba.eot?vjhjnr');
-  src:  url('fonts/temba.eot?vjhjnr#iefix') format('embedded-opentype'),
-    url('fonts/temba.ttf?vjhjnr') format('truetype'),
-    url('fonts/temba.woff?vjhjnr') format('woff'),
-    url('fonts/temba.svg?vjhjnr#temba') format('svg');
+  src:  url('fonts/temba.eot?f7w571');
+  src:  url('fonts/temba.eot?f7w571#iefix') format('embedded-opentype'),
+    url('fonts/temba.ttf?f7w571') format('truetype'),
+    url('fonts/temba.woff?f7w571') format('woff'),
+    url('fonts/temba.svg?f7w571#temba') format('svg');
   font-weight: normal;
   font-style: normal;
+  font-display: block;
 }
 
 [class^="icon-"], [class*=" icon-"] {
@@ -24,17 +25,20 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-.icon-signalwire:before {
-  content: "\e90d";
+.icon-bothub:before {
+  content: "\e900";
 }
-.icon-template:before {
-  content: "\e90b";
+.icon-chip:before {
+  content: "\e911";
 }
-.icon-arrow-up51:before {
-  content: "\edc7";
+.icon-luis:before {
+  content: "\e90f";
 }
-.icon-mtarget:before {
-  content: "\e902";
+.icon-wit:before {
+  content: "\e910";
+}
+.icon-thinq:before {
+  content: "\e901";
 }
 .icon-whatsapp:before {
   content: "\ea93";
@@ -760,37 +764,37 @@
   content: "\e80b";
 }
 .icon-telegram:before {
-  content: "\e900";
+  content: "\e902";
 }
 .icon-file_download:before {
-  content: "\e901";
-}
-.icon-chatbase:before {
   content: "\e903";
 }
-.icon-quick-reply:before {
+.icon-chatbase:before {
   content: "\e904";
 }
-.icon-facebook-official:before {
+.icon-quick-reply:before {
   content: "\e905";
 }
-.icon-jiochat:before {
+.icon-facebook-official:before {
   content: "\e906";
 }
-.icon-line:before {
+.icon-jiochat:before {
   content: "\e907";
 }
-.icon-viber:before {
+.icon-line:before {
   content: "\e908";
 }
-.icon-cloud-lightning:before {
+.icon-viber:before {
   content: "\e909";
 }
-.icon-junebug:before {
+.icon-cloud-lightning:before {
   content: "\e90a";
 }
-.icon-fcm:before {
+.icon-junebug:before {
   content: "\e90c";
+}
+.icon-fcm:before {
+  content: "\e90e";
 }
 .icon-headphones:before {
   content: "\e948";
@@ -809,4 +813,16 @@
 }
 .icon-nav-docs-inverted:before {
   content: "\f15c";
+}
+.icon-signalwire:before {
+  content: "\e90d";
+}
+.icon-template:before {
+  content: "\e90b";
+}
+.icon-arrow-up51:before {
+  content: "\edc7";
+}
+.icon-mtarget:before {
+  content: "\e912";
 }

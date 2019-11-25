@@ -1,3 +1,4 @@
+import json
 import operator
 from functools import reduce
 
@@ -100,12 +101,7 @@ def omnibox_mixed_search(org, search, types):
         if org.is_anon and search_id is not None:
             search_text = f"id = {search_id}"
         elif search:
-            # we use trigrams on Elasticsearch, minimum required length for a term is 3
-            filtered_search_terms = (
-                search_term for search_term in search_terms if search_term != "" and len(search_term) >= 3
-            )
-
-            search_text = " AND ".join(f"name ~ {search_term}" for search_term in filtered_search_terms)
+            search_text = " AND ".join(f"name ~ {search_term}" for search_term in search_terms)
 
         else:
             search_text = None
@@ -138,7 +134,7 @@ def omnibox_mixed_search(org, search, types):
         if search:
             # we use trigrams on Elasticsearch, minimum required length for a term is 3
             filtered_search_terms = (
-                search_term for search_term in search_terms if search_term != "" and len(search_term) >= 3
+                search_term for search_term in search_terms if search_term != ""  # and len(search_term) >= 3
             )
 
             must_condition = [{"match_phrase": {"urns.path": search_term}} for search_term in filtered_search_terms]
@@ -184,6 +180,27 @@ def omnibox_mixed_search(org, search, types):
             results += list(urns.prefetch_related("contact").order_by(Upper("path"))[:per_type_limit])
 
     return results  # sorted(results, key=lambda o: o.name if hasattr(o, 'name') else o.path)
+
+
+def omnibox_serialize(org, groups, contacts, json_encode=False):
+    """
+    Shortcut for proper way to serialize a queryset of groups and contacts for omnibox component
+    """
+    serialized = omnibox_results_to_dict(org, list(groups) + list(contacts), 2)
+
+    if json_encode:
+        return [json.dumps(_) for _ in serialized]
+
+    return serialized
+
+
+def omnibox_deserialize(org, omnibox):
+    group_ids = [item["id"] for item in omnibox if item["type"] == "group"]
+    contact_ids = [item["id"] for item in omnibox if item["type"] == "contact"]
+    return {
+        "groups": ContactGroup.all_groups.filter(uuid__in=group_ids, org=org, is_active=True),
+        "contacts": Contact.objects.filter(uuid__in=contact_ids, org=org, is_active=True),
+    }
 
 
 def omnibox_results_to_dict(org, results, version="1"):
