@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-26 10:47+0000\n"
+"POT-Creation-Date: 2019-11-26 16:06+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -2907,6 +2907,11 @@ msgstr "ID del grupo o contacto inválido "
 msgid "Contacts refresh begun, it may take a few minutes to complete."
 msgstr ""
 
+#, fuzzy
+#| msgid "Synced on"
+msgid "Sync Logs"
+msgstr "Sincronizado el"
+
 msgid "Your enterprise WhatsApp number"
 msgstr ""
 
@@ -4397,14 +4402,6 @@ msgstr ""
 #, fuzzy
 msgid "Individual URNs included in this message"
 msgstr "Contactos individuales incluidos en este mensaje"
-
-#, fuzzy
-msgid "Number of recipients"
-msgstr "Número de créditos"
-
-#, fuzzy
-msgid "Number of urns which received this broadcast"
-msgstr "El estátus actual para esta comunicación"
 
 msgid "Channel to use for message sending"
 msgstr ""
@@ -12000,6 +11997,14 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "Number of recipients"
+#~ msgstr "Número de créditos"
+
+#, fuzzy
+#~ msgid "Number of urns which received this broadcast"
+#~ msgstr "El estátus actual para esta comunicación"
 
 #, fuzzy, python-brace-format
 #~ msgid "{contacts_count} recipients"
