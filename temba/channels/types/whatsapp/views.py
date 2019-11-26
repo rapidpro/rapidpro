@@ -49,12 +49,7 @@ class TemplatesView(OrgPermsMixin, SmartReadView):
     template_name = "channels/types/whatsapp/templates.html"
 
     def get_gear_links(self):
-        links = []
-        if self.has_org_perm("channels.channel_read"):
-            links.append(
-                dict(title=_("Sync Logs"), href=reverse("channels.types.whatsapp.sync_logs", args=[self.object.uuid]))
-            )
-        return links
+        return [dict(title=_("Sync Logs"), href=reverse("channels.types.whatsapp.sync_logs", args=[self.object.uuid]))]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -80,16 +75,12 @@ class SyncLogsView(OrgPermsMixin, SmartReadView):
     template_name = "channels/types/whatsapp/sync_logs.html"
 
     def get_gear_links(self):
-        links = []
-        if self.has_org_perm("channels.channel_read"):
-            links.append(
-                dict(
-                    title=_("Message Templates"),
-                    href=reverse("channels.types.whatsapp.templates", args=[self.object.uuid]),
-                )
+        return [
+            dict(
+                title=_("Message Templates"),
+                href=reverse("channels.types.whatsapp.templates", args=[self.object.uuid]),
             )
-
-        return links
+        ]
 
     def get_queryset(self):
         queryset = super().get_queryset()

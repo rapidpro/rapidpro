@@ -346,8 +346,8 @@ class WhatsAppTypeTest(TembaTest):
         self.assertContains(response, "Whatsapp Templates Synced")
         self.assertContains(response, reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
 
-        sycn_log = channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).first()
-        log_url = reverse("request_logs.httplog_read", args=[sycn_log.id])
+        sync_log = channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).first()
+        log_url = reverse("request_logs.httplog_read", args=[sync_log.id])
         self.assertContains(response, log_url)
 
         response = self.client.get(log_url)
