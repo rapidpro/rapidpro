@@ -6,6 +6,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import URN
 from temba.orgs.views import OrgPermsMixin
+from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
 from temba.utils.views import PostOnlyMixin
 
@@ -55,6 +56,33 @@ class TemplatesView(OrgPermsMixin, SmartReadView):
 
         # include all our templates as well
         context["translations"] = TemplateTranslation.objects.filter(channel=self.object).order_by("template__name")
+        return context
+
+
+class SyncLogsView(OrgPermsMixin, SmartReadView):
+    """
+    Displays a simple table of the Whatsapp Templates Synced requests for this channel
+    """
+
+    model = Channel
+    fields = ()
+    permission = "channels.channel_read"
+    slug_url_kwarg = "uuid"
+    template_name = "channels/types/whatsapp/sync_logs.html"
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return queryset.filter(org=self.get_user().get_org())
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # include all our http sync logs as well
+        context["sync_logs"] = (
+            HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, channel=self.object)
+            .order_by("-created_on")
+            .prefetch_related("channel")
+        )
         return context
 
 

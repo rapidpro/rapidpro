@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-25 15:43+0000\n"
+"POT-Creation-Date: 2019-11-26 10:47+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -7668,6 +7668,11 @@ msgid ""
 "  "
 msgstr ""
 
+#, fuzzy
+#| msgid "Has Template Error"
+msgid "Whatsapp Templates Events"
+msgstr "A une erreur sur le modèle établit"
+
 msgid "Templates"
 msgstr ""
 
@@ -12822,9 +12827,6 @@ msgstr ""
 #~| msgid "When this message was created"
 #~ msgid "When the message arrived"
 #~ msgstr "Lorsque ce message a été créé"
-
-#~ msgid "Has Template Error"
-#~ msgstr "A une erreur sur le modèle établit"
 
 #~ msgid "Whether data for variable substitution are missing"
 #~ msgstr "Si les données de substitution de variables sont manquantes"

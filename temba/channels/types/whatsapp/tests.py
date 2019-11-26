@@ -337,3 +337,17 @@ class WhatsAppTypeTest(TembaTest):
         self.assertEqual("example.org", channel.config[CONFIG_FB_TEMPLATE_LIST_DOMAIN])
         self.assertEqual(1, channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).count())
         self.assertEqual(1, channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).count())
+
+        # hit our sync logs page
+        response = self.client.get(reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
+
+        # should have our log
+        self.assertContains(response, "Whatsapp Templates Synced")
+
+        sycn_log = channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).first()
+        log_url = reverse("request_logs.httplog_read", args=[sycn_log.id])
+        self.assertContains(response, log_url)
+
+        response = self.client.get(log_url)
+        self.assertContains(response, "200")
+        self.assertContains(response, "https://example.org/v3.3/1234/message_templates")

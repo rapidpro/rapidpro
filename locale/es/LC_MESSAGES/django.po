@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-25 15:43+0000\n"
+"POT-Creation-Date: 2019-11-26 10:47+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -7874,6 +7874,11 @@ msgid ""
 "  "
 msgstr ""
 
+#, fuzzy
+#| msgid "Has Template Error"
+msgid "Whatsapp Templates Events"
+msgstr "Tiene un error en la plantilla"
+
 msgid "Templates"
 msgstr ""
 
@@ -13048,9 +13053,6 @@ msgstr ""
 
 #~ msgid "The priority for this message to be sent, higher is higher priority"
 #~ msgstr "La prioridad de envío de este mensaje, mayor es mayor prioridad"
-
-#~ msgid "Has Template Error"
-#~ msgstr "Tiene un error en la plantilla"
 
 #~ msgid "Whether data for variable substitution are missing"
 #~ msgstr "Si están faltando datos para el reemplazo de variables"
