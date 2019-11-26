@@ -1,5 +1,5 @@
 import { customElement, property } from 'lit-element/lib/decorators';
-import { LitElement, TemplateResult, html, css } from 'lit-element';
+import { TemplateResult, html, css } from 'lit-element';
 import Button from '../button/Button';
 import RapidElement from '../RapidElement';
 import { CustomEventType } from '../interfaces';
@@ -58,7 +58,7 @@ export default class Dialog extends RapidElement {
         top: 100px;
       }
 
-      .title {
+      .header-text {
         font-size: 20px;
         padding: 16px;
         font-weight: 300;
@@ -84,7 +84,7 @@ export default class Dialog extends RapidElement {
   open: boolean;
 
   @property()
-  title: string;
+  header: string;
 
   @property()
   body: string;
@@ -152,12 +152,15 @@ export default class Dialog extends RapidElement {
     const maskStyle = { height: `${height + 100}px`}
     const dialogStyle = { width: Dialog.widths[this.size] }
 
+    let header = this.header ? html`
+      <div class="header">
+        <div class="header-text">${this.header}</div>
+      </div>` : null;
+
     return html`
         <div class="mask ${this.open ? 'open' : ''}" style=${styleMap(maskStyle)}>
           <div @keyup=${this.handleKeyUp} style=${styleMap(dialogStyle)} class="dialog">
-            <div class="header">
-              <div class="title">${this.title}</div>
-            </div>
+            ${header}
             <div class="body" @keypress=${this.handleKeyUp}>${this.body ? this.body : html`<slot></slot>`}</div>
             <div class="footer">
               <rp-button @click=${this.handleClick} name=${this.primaryButtonName} inProgessName=${this.inProgressName} primary>}</rp-button>

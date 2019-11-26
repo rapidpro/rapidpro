@@ -65,6 +65,7 @@
         --color-text-light: rgba(255,255,255,.92);
         --color-text-dark: rgba(0,0,0,.5);
         --color-text-dark-secondary: rgba(0,0,0,.2);
+        --color-text-help: rgba(0,0,0,.3);
 
         /* --color-selection: #3875d7; */
         --color-selection: rgb(var(--primary-rgb));
@@ -114,6 +115,30 @@
 
     </style>
 
+
+    <div class="example">
+      <div class="example-header">Modax on Button</div>
+      <rp-modax header="Create Campaign" endpoint="/campaign/create/">
+        <rp-button name="Create Campaign" primary></rp-button>
+      </rp-modax>
+    </div>
+
+    <div class="example">
+      <div class="example-header">Modax on Button</div>
+      <rp-modax header="Update Campaign" endpoint="/campaign/update/20006/">
+        <rp-button name="Update Campaign" primary></rp-button>
+      </rp-modax>
+    </div>
+
+    <div class="example">
+      <div class="example-header">Modax in Menu</div>
+      <rp-modax header="Update Campaign" endpoint="/campaign/update/20006/">
+        Update Campaign
+      </rp-modax>
+    </div>
+
+
+    <div style="display: none">
     <div class="example">
       <div class="example-header">Contact Search</div>
       <rp-contact-search 
@@ -245,7 +270,7 @@
     <!--rp-dialog 
       size="medium"
       id="start-flow"
-      title="Start Flow"
+      header="Start Flow"
     >
       <div style="position:relative">    
         <div style="padding:20px; overflow-y: scroll;">
@@ -258,6 +283,7 @@
         </div>
       </div>
     </rp-dialog -->
+    </div>
 
     <script>
       /*

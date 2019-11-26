@@ -27,6 +27,11 @@ export default class Select extends FormElement {
         transition: all ease-in-out 200ms;
         display: block;
         line-height: normal;
+        outline: none;
+      }
+
+      :host:focus {
+        outline: none;
       }
 
       input::placeholder {
@@ -582,37 +587,39 @@ export default class Select extends FormElement {
     }
 
     return html`
-      <div class="select-container ${classes}" @click=${this.handleContainerClick}>
-        <div class="left">
-          <div class="selected">
-            ${this.values.map((selected: any, index: number)=>html`
-              <div  class="selected-item ${index===this.selectedIndex ? 'focused' : ''}">
-                ${this.multi ? html`<div class="remove-item" @click=${(evt: MouseEvent)=>{ 
-                  evt.preventDefault(); 
-                  evt.stopPropagation(); 
-                  this.removeSelection(selected)
-                }}><rp-icon name="x" size="8"></rp-icon></div>` : null }
-                ${this.renderSelectedItem(selected)}
-              </div>`)
-            }
-            ${hasInput ? html`<input 
-              style=${styleMap({'display': 'inline-block'})}
-              @keyup=${this.handleKeyUp}
-              @keydown=${this.handleKeyDown}
-              @click=${this.handleClick}
-              type="text" 
-              placeholder=${placeholder} 
-              .value=${this.input} />`: placeholderDiv}
+      <rp-field name=${this.name} label=${this.label} help_text=${this.helpText} .errors=${this.errors}>
+        <div class="select-container ${classes}" @click=${this.handleContainerClick}>
+          <div class="left">
+            <div class="selected">
+              ${this.values.map((selected: any, index: number)=>html`
+                <div  class="selected-item ${index===this.selectedIndex ? 'focused' : ''}">
+                  ${this.multi ? html`<div class="remove-item" @click=${(evt: MouseEvent)=>{ 
+                    evt.preventDefault(); 
+                    evt.stopPropagation(); 
+                    this.removeSelection(selected)
+                  }}><rp-icon name="x" size="8"></rp-icon></div>` : null }
+                  ${this.renderSelectedItem(selected)}
+                </div>`)
+              }
+              ${hasInput ? html`<input 
+                style=${styleMap({'display': 'inline-block'})}
+                @keyup=${this.handleKeyUp}
+                @keydown=${this.handleKeyDown}
+                @click=${this.handleClick}
+                type="text" 
+                placeholder=${placeholder} 
+                .value=${this.input} />`: placeholderDiv}
+            </div>
+          </div>
+          
+          <div class="right" @click=${this.handleArrowClick}>
+            <rp-icon 
+              size="12"
+              name="arrow-down-bold" 
+              class="arrow ${this.options.length > 0 ? 'open' : ''}"></rp-icon>
           </div>
         </div>
-        
-        <div class="right" @click=${this.handleArrowClick}>
-          <rp-icon 
-            size="12"
-            name="arrow-down-bold" 
-            class="arrow ${this.options.length > 0 ? 'open' : ''}"></rp-icon>
-        </div>
-      </div>
+      </rp-field>
 
       <rp-options
         @rp-selection=${this.handleOptionSelection}

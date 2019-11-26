@@ -45,7 +45,7 @@ export default class Loading extends LitElement {
 
   public render(): TemplateResult {
 
-    const margin = this.size / 3;
+    const margin = this.size / 2;
 
     return html`<div>
         ${range(0, this.units).map((num: number) => {

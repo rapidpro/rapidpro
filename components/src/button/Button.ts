@@ -6,14 +6,21 @@ export default class Button extends LitElement {
 
   static get styles() {
     return css`
+
+      :host {
+        display: inline-block;
+      }
+
       .button {
         background: blue;
         color: #fff;
         cursor: pointer;
-        display: inline-block;
+        display: block;
         border-radius: var(--curvature);
         outline: none;
         transition: all ease-in 150ms;
+        user-select: none;
+        text-align: center;
       }
 
       .button:focus {
@@ -32,7 +39,7 @@ export default class Button extends LitElement {
       }
 
       .mask {
-        padding: 8px 16px;
+        padding: 8px 14px;
         border-radius: var(--curvature);
         border: 1px solid transparent;
         transition: all ease-in 150ms;
@@ -87,6 +94,17 @@ export default class Button extends LitElement {
   @property({type: Boolean})
   isProgress: boolean;
 
+  @property({type: String})
+  href: string;
+
+  private handleClick(evt: MouseEvent) {
+    if (this.href) {
+      this.ownerDocument.location.href = this.href;
+      evt.preventDefault();
+      evt.stopPropagation();
+    }
+  }
+
   public setProgress(progress: boolean): void {
     this.isProgress = progress;
   }
@@ -107,6 +125,7 @@ export default class Button extends LitElement {
           })}"
           tabindex="0"
           @keyup=${this.handleKeyUp}
+          @click=${this.handleClick}
         >
           <div class="mask">
             ${this.isProgress ? this.inProgessName || this.name : this.name}
