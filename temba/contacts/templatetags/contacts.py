@@ -4,11 +4,11 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.campaigns.models import EventFire
 from temba.contacts.models import (
-    FRESHCHAT_SCHEME,
     EMAIL_SCHEME,
     EXTERNAL_SCHEME,
     FACEBOOK_SCHEME,
     FCM_SCHEME,
+    FRESHCHAT_SCHEME,
     LINE_SCHEME,
     TEL_SCHEME,
     TELEGRAM_SCHEME,
