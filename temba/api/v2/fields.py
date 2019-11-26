@@ -34,6 +34,7 @@ def validate_translations(value, base_language, max_length):
 
 
 def validate_urn(value, strict=True, country_code=None):
+    input_value = value
     try:
         URN.to_parts(value)
     except ValueError:
@@ -47,7 +48,7 @@ def validate_urn(value, strict=True, country_code=None):
         if strict and not URN.validate(normalized, country_code=country_code):
             raise ValueError()
     except ValueError:
-        raise serializers.ValidationError("Invalid URN: %s. Ensure phone numbers contain country codes." % value)
+        raise serializers.ValidationError("Invalid URN: %s. Ensure phone numbers contain country codes." % input_value)
     return normalized
 
 
