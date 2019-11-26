@@ -21,16 +21,18 @@ class HTTPLog(models.Model):
     REQUEST_DELIM = ">!>!>! "
     RESPONSE_DELIM = "<!<!<! "
 
-    # classifier type choices
+    # log type choices
     INTENTS_SYNCED = "intents_synced"
     CLASSIFIER_CALLED = "classifier_called"
     AIRTIME_TRANSFERRED = "airtime_transferred"
+    WHATSAPP_TEMPLATES_SYNCED = "whatsapp_templates_synced"
 
     # possible log type choices and descriptive names
     LOG_TYPE_CHOICES = (
         (INTENTS_SYNCED, _("Intents Synced")),
         (CLASSIFIER_CALLED, _("Classifier Called")),
         (AIRTIME_TRANSFERRED, _("Airtime Transferred")),
+        (WHATSAPP_TEMPLATES_SYNCED, _("Whatsapp Templates Synced")),
     )
 
     # the classifier this log is for
@@ -42,6 +44,9 @@ class HTTPLog(models.Model):
     airtime_transfer = models.ForeignKey(
         "airtime.AirtimeTransfer", related_name="http_logs", on_delete=models.PROTECT, null=True
     )
+
+    # the channel this log is for
+    channel = models.ForeignKey("channels.Channel", related_name="http_logs", on_delete=models.PROTECT, null=True)
 
     # the type of log this is
     log_type = models.CharField(max_length=32, choices=LOG_TYPE_CHOICES)
@@ -76,6 +81,9 @@ class HTTPLog(models.Model):
     def status_code(self):
         return self.response.split(" ")[1] if self.response else None
 
+    def release(self):
+        self.delete()
+
     @classmethod
     def trim(cls):
         """
@@ -87,12 +95,12 @@ class HTTPLog(models.Model):
             HTTPLog.objects.filter(id__in=chunk).delete()
 
     @classmethod
-    def from_response(cls, log_type, url, response, classifier=None):
-        # remove once we have other types
-        assert classifier is not None
-
+    def from_response(cls, log_type, url, response, classifier=None, channel=None):
         if classifier is not None:
             org = classifier.org
+
+        if channel is not None:
+            org = channel.org
 
         is_error = response.status_code != 200
         data = dump.dump_response(
@@ -114,6 +122,7 @@ class HTTPLog(models.Model):
 
         return HTTPLog(
             classifier=classifier,
+            channel=channel,
             log_type=log_type,
             url=url,
             request=request,

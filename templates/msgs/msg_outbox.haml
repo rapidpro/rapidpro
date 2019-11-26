@@ -13,12 +13,15 @@
 
           %td.value-phone.field_phone
             %nobr
-              -if broadcast.recipient_count > 0
-                {% blocktrans count counter=broadcast.recipient_count %}
-                1 contact
-                {% plural %}
-                {{counter}} contacts
-                {% endblocktrans %}
+              -with recipient_counts=broadcast.get_recipients_counts
+                -if recipient_counts.recipients > 0
+                  -blocktrans count counter=recipient_counts.recipients
+                    1 recipient
+                    - plural
+                      {{counter}} recipients
+                -else
+                  -blocktrans
+                    {{recipient_counts.groups}} groups, {{recipient_counts.contacts}} contacts, {{recipient_counts.urns}} urns
 
           %td.value-text.field_text.wrapped
             {{ broadcast.get_default_text }}
