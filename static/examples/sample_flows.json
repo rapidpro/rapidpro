@@ -5,7 +5,7 @@
     {
       "uuid": "5afd8059-89f4-4e42-a135-d857e6620130",
       "name": "Sample Flow - Order Status Checker",
-      "spec_version": "13.1.0",
+      "spec_version": "13.0.0",
       "language": "base",
       "type": "messaging",
       "revision": 1,
@@ -427,7 +427,7 @@
     {
       "uuid": "127d1e5a-bcb0-4c35-92cc-63f8dbcfcec4",
       "name": "Sample Flow - Satisfaction Survey",
-      "spec_version": "13.1.0",
+      "spec_version": "13.0.0",
       "language": "base",
       "type": "messaging",
       "revision": 1,
@@ -1399,7 +1399,7 @@
     {
       "uuid": "11788e62-1b04-4007-b9e9-42035348832d",
       "name": "Sample Flow - Simple Poll",
-      "spec_version": "13.1.0",
+      "spec_version": "13.0.0",
       "language": "base",
       "type": "messaging",
       "revision": 1,
