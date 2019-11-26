@@ -2,6 +2,7 @@ import requests
 from smartmin.views import SmartFormView, SmartReadView, SmartUpdateView
 
 from django import forms
+from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import URN
@@ -47,6 +48,14 @@ class TemplatesView(OrgPermsMixin, SmartReadView):
     slug_url_kwarg = "uuid"
     template_name = "channels/types/whatsapp/templates.html"
 
+    def get_gear_links(self):
+        links = []
+        if self.has_org_perm("channels.channel_read"):
+            links.append(
+                dict(title=_("Sync Logs"), href=reverse("channels.types.whatsapp.sync_logs", args=[self.object.uuid]))
+            )
+        return links
+
     def get_queryset(self):
         queryset = super().get_queryset()
         return queryset.filter(org=self.get_user().get_org())
@@ -69,6 +78,18 @@ class SyncLogsView(OrgPermsMixin, SmartReadView):
     permission = "channels.channel_read"
     slug_url_kwarg = "uuid"
     template_name = "channels/types/whatsapp/sync_logs.html"
+
+    def get_gear_links(self):
+        links = []
+        if self.has_org_perm("channels.channel_read"):
+            links.append(
+                dict(
+                    title=_("Message Templates"),
+                    href=reverse("channels.types.whatsapp.templates", args=[self.object.uuid]),
+                )
+            )
+
+        return links
 
     def get_queryset(self):
         queryset = super().get_queryset()

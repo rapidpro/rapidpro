@@ -263,6 +263,7 @@ class WhatsAppTypeTest(TembaTest):
             # should have our template translations
             self.assertContains(response, "Bonjour")
             self.assertContains(response, "Hello")
+            self.assertContains(response, reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
 
             ct = TemplateTranslation.objects.get(template__name="goodbye", is_active=True)
             self.assertEqual(2, ct.variable_count)
@@ -343,6 +344,7 @@ class WhatsAppTypeTest(TembaTest):
 
         # should have our log
         self.assertContains(response, "Whatsapp Templates Synced")
+        self.assertContains(response, reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
 
         sycn_log = channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).first()
         log_url = reverse("request_logs.httplog_read", args=[sycn_log.id])
