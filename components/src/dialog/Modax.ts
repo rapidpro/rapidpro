@@ -120,7 +120,6 @@ export default class Modax extends RapidElement {
   }
 
   public render(): TemplateResult {
-    console.log(this.open);
     return html`
       <rp-dialog 
         header=${this.header} 
