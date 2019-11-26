@@ -53,6 +53,7 @@ ACTIVITY_ICONS = {
     "contact_name_changed": "icon-vcard",
     "contact_urns_changed": "icon-address-book",
     "email_created": "icon-envelop",
+    "email_sent": "icon-envelop",
     "flow_entered": "icon-tree-2",
     "flow_exited:expired": "icon-clock",
     "flow_exited:interrupted": "icon-warning",

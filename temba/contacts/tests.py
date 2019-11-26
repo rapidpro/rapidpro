@@ -3814,7 +3814,7 @@ class ContactTest(TembaTest):
             .set_contact_name("Joe")
             .set_contact_name("")
             .set_result("Color", "red", "Red", "it's red")
-            .send_email("joe@nyaruka.com", "Test", "Hello there Joe")
+            .send_email(["joe@nyaruka.com"], "Test", "Hello there Joe")
             .wait()
             .save()
         )
@@ -3835,7 +3835,10 @@ class ContactTest(TembaTest):
         self.assertContains(response, "Name updated to <b>Joe</b>")
         self.assertContains(response, "Name cleared")
         self.assertContains(response, "Run result <b>Color</b> updated to <b>red</b> with category <b>Red</b>")
-        self.assertContains(response, "Email sent with subject <b>Test</b>")
+        self.assertContains(
+            response,
+            "Email sent to\n        \n          <b>joe@nyaruka.com</b>\n        \n        with subject\n        <b>Test</b>",
+        )
 
     def test_campaign_event_time(self):
 

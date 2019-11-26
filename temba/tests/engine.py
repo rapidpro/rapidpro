@@ -136,8 +136,8 @@ class MockSessionWriter:
         )
         return self
 
-    def send_email(self, addresses, subject, body):
-        self._log_event("email_created", addresses=addresses, subject=subject, body=body)
+    def send_email(self, to, subject, body):
+        self._log_event("email_sent", to=to, subject=subject, body=body)
         return self
 
     def set_contact_field(self, field_key, field_name, value):
