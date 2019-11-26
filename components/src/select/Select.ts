@@ -587,7 +587,7 @@ export default class Select extends FormElement {
     }
 
     return html`
-      <rp-field name=${this.name} label=${this.label} help_text=${this.helpText} .errors=${this.errors}>
+      <rp-field name=${this.name} .label=${this.label} .helpText=${this.helpText} .errors=${this.errors}>
         <div class="select-container ${classes}" @click=${this.handleContainerClick}>
           <div class="left">
             <div class="selected">

@@ -11,6 +11,7 @@ export default class FormField extends LitElement {
       label {
         margin-bottom: 4px;
         display: block;   
+        font-weight: 300;
       }
 
       .help-text {
