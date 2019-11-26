@@ -245,9 +245,18 @@ class APITest(TembaTest):
         field._context = {"org": self.org}
 
         self.assertEqual(field.to_internal_value("tel:+1-800-123-4567"), "tel:+18001234567")
+        self.assertEqual(field.to_internal_value(18_001_234_567), "tel:+18001234567")
+        self.assertEqual(
+            field.to_internal_value("0788 123 123"), "tel:+250788123123"
+        )  # use org country to parse the local number
+        self.assertEqual(
+            field.to_internal_value("788 123 123"), "tel:+250788123123"
+        )  # use org country to parse the local number
+        self.assertEqual(
+            field.to_internal_value("tel:0788 123 123"), "tel:+250788123123"
+        )  # use org country to parse the local number
         self.assertRaises(serializers.ValidationError, field.to_internal_value, "12345")  # un-parseable
         self.assertRaises(serializers.ValidationError, field.to_internal_value, "tel:800-123-4567")  # no country code
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, 18_001_234_567)  # non-string
 
         field = fields.TranslatableField(source="test", max_length=10)
         field._context = {"org": self.org}
