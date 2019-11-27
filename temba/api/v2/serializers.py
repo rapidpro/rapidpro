@@ -16,6 +16,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStart
+from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
 from temba.templates.models import Template, TemplateTranslation
@@ -1017,6 +1018,14 @@ class FlowStartWriteSerializer(WriteSerializer):
             groups=groups,
             extra=extra,
         )
+
+
+class GlobalReadSerializer(ReadSerializer):
+    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    class Meta:
+        model = Global
+        fields = ("key", "name", "value", "modified_on")
 
 
 class LabelReadSerializer(ReadSerializer):
