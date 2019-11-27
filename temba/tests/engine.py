@@ -124,6 +124,10 @@ class MockSessionWriter:
         self._log_event("contact_urns_changed", urns=urns)
         return self
 
+    def error(self, text):
+        self._log_event("error", text=text)
+        return self
+
     def send_msg(self, text, channel=None):
         self._log_event(
             "msg_created",
@@ -213,7 +217,7 @@ class MockSessionWriter:
         return self
 
     def fail(self, text):
-        self._log_event("failure", msg={"text": text})
+        self._log_event("failure", text=text)
         self._exit("failed")
         return self
 

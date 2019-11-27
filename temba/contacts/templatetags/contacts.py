@@ -54,9 +54,11 @@ ACTIVITY_ICONS = {
     "contact_urns_changed": "icon-address-book",
     "email_created": "icon-envelop",
     "email_sent": "icon-envelop",
+    "error": "icon-warning",
+    "failure": "icon-warning",
     "flow_entered": "icon-tree-2",
     "flow_exited:expired": "icon-clock",
-    "flow_exited:interrupted": "icon-warning",
+    "flow_exited:interrupted": "icon-cancel-circle",
     "flow_exited:completed": "icon-checkmark",
     "input_labels_added": "icon-tags",
     "msg_created": "icon-bubble-right",
@@ -189,7 +191,9 @@ def history_class(item):
     else:
         classes.append("non-msg")
 
-        if item["type"] == "webhook_called" and not obj.is_success:
+        if item["type"] == "error" or item["type"] == "failure":
+            classes.append("warning")
+        elif item["type"] == "webhook_called" and not obj.is_success:
             classes.append("warning")
         elif item["type"] == "call_started" and obj.status == IVRCall.FAILED:
             classes.append("warning")

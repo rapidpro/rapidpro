@@ -95,6 +95,8 @@ HISTORY_INCLUDE_EVENTS = {
     "contact_urns_changed",
     "email_created",  # no longer generated but exists in old sessions
     "email_sent",
+    "error",
+    "failure",
     "input_labels_added",
     "run_result_changed",
 }

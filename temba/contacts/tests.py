@@ -3815,7 +3815,8 @@ class ContactTest(TembaTest):
             .set_contact_name("")
             .set_result("Color", "red", "Red", "it's red")
             .send_email(["joe@nyaruka.com"], "Test", "Hello there Joe")
-            .wait()
+            .error("unable to send email")
+            .fail("this is a failure")
             .save()
         )
 
@@ -3839,6 +3840,8 @@ class ContactTest(TembaTest):
             response,
             "Email sent to\n        \n          <b>joe@nyaruka.com</b>\n        \n        with subject\n        <b>Test</b>",
         )
+        self.assertContains(response, "unable to send email")
+        self.assertContains(response, "this is a failure")
 
     def test_campaign_event_time(self):
 

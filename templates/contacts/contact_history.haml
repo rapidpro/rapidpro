@@ -99,6 +99,9 @@
         -for urn in event.urns
           <b>{{ urn|format_urn:user_org }}</b>{{ forloop|oxford }}
 
+      -elif event.type == 'error' or event.type == 'failure'
+        {{ event.text }}
+
       -elif event.type == 'email_created'
         -blocktrans with subject=event.subject
           Email sent with subject <b>{{ subject }}</b>
