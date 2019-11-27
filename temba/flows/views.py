@@ -24,7 +24,7 @@ from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Lower
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
@@ -51,6 +51,7 @@ from temba.utils import analytics, json, on_transaction_commit, str_to_bool
 from temba.utils.expressions import get_function_listing
 from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm, NonAtomicMixin
+from temba.utils.json import JsonResponse
 
 from .models import (
     ExportFlowResultsTask,
@@ -1721,7 +1722,6 @@ class FlowCRUDL(SmartCRUDL):
         success_message = ""
 
         def get(self, request, *args, **kwargs):
-
             flow = self.get_object()
             flow.ensure_current_version()
 
