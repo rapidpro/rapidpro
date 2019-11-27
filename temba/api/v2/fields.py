@@ -4,7 +4,7 @@ from django.db.models import Q
 
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
-from temba.contacts.models import TEL_SCHEME, URN, Contact, ContactField as ContactFieldModel, ContactGroup, ContactURN
+from temba.contacts.models import URN, Contact, ContactField as ContactFieldModel, ContactGroup, ContactURN
 from temba.flows.models import Flow
 from temba.msgs.models import Label, Msg
 
@@ -34,21 +34,13 @@ def validate_translations(value, base_language, max_length):
 
 
 def validate_urn(value, strict=True, country_code=None):
-    input_value = value
-    try:
-        URN.to_parts(value)
-    except ValueError:
-        # try assuming it is TEL_SCHEME
-        norm_number, valid = URN.normalize_number(value, country_code)
-        value = URN.from_parts(TEL_SCHEME, norm_number)
-
     try:
         normalized = URN.normalize(value, country_code=country_code)
 
         if strict and not URN.validate(normalized, country_code=country_code):
             raise ValueError()
     except ValueError:
-        raise serializers.ValidationError("Invalid URN: %s. Ensure phone numbers contain country codes." % input_value)
+        raise serializers.ValidationError("Invalid URN: %s. Ensure phone numbers contain country codes." % value)
     return normalized
 
 
