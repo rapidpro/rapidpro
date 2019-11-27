@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-27 00:08+0000\n"
+"POT-Creation-Date: 2019-11-27 01:00+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -107,6 +107,12 @@ msgstr "Los grupos a los que se envía este mensaje "
 
 msgid "Export"
 msgstr "Exportar"
+
+msgid "Edit"
+msgstr "Editar"
+
+msgid "Update Campaign"
+msgstr "Campaña de actualización"
 
 #, fuzzy
 #| msgid "Device"
@@ -3135,9 +3141,6 @@ msgstr "El número de teléfono para esta llamada"
 msgid "Twitter handle of this channel"
 msgstr "El nombre de esta etiqueta"
 
-msgid "Edit"
-msgstr "Editar"
-
 msgid "Disable Bulk Sending"
 msgstr "Deshabilitar envío masivo"
 
@@ -5940,9 +5943,6 @@ msgstr ""
 
 msgid "No events in this campaign yet."
 msgstr ""
-
-msgid "Update Campaign"
-msgstr "Campaña de actualización"
 
 #, fuzzy
 #| msgid "Restart any contacts already participating in this flow"

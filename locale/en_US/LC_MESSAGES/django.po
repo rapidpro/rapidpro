@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-27 00:08+0000\n"
+"POT-Creation-Date: 2019-11-27 01:00+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -90,6 +90,12 @@ msgid "Select a group to base the campaign on"
 msgstr ""
 
 msgid "Export"
+msgstr ""
+
+msgid "Edit"
+msgstr ""
+
+msgid "Update Campaign"
 msgstr ""
 
 msgid "Service"
@@ -1970,9 +1976,6 @@ msgid "Phone number of this device"
 msgstr ""
 
 msgid "Twitter handle of this channel"
-msgstr ""
-
-msgid "Edit"
 msgstr ""
 
 msgid "Disable Bulk Sending"
@@ -4374,9 +4377,6 @@ msgid "No group assigned to this campaign"
 msgstr ""
 
 msgid "No events in this campaign yet."
-msgstr ""
-
-msgid "Update Campaign"
 msgstr ""
 
 msgid "If the contact is already active in a flow"
