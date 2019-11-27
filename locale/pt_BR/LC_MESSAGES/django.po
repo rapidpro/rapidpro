@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-25 15:43+0000\n"
+"POT-Creation-Date: 2019-11-26 16:06+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -2649,6 +2649,11 @@ msgstr "Grupo ou id do contato inválido"
 msgid "Contacts refresh begun, it may take a few minutes to complete."
 msgstr ""
 
+#, fuzzy
+#| msgid "Synced on"
+msgid "Sync Logs"
+msgstr "Sincronizado em"
+
 msgid "Your enterprise WhatsApp number"
 msgstr ""
 
@@ -4110,14 +4115,6 @@ msgstr ""
 #, fuzzy
 msgid "Individual URNs included in this message"
 msgstr "Contatos individuais incluídos nessa mensagem"
-
-#, fuzzy
-msgid "Number of recipients"
-msgstr "Quantidade de créditos"
-
-#, fuzzy
-msgid "Number of urns which received this broadcast"
-msgstr "Estado atual desta divulgação"
 
 msgid "Channel to use for message sending"
 msgstr ""
@@ -7366,6 +7363,11 @@ msgid ""
 "\n"
 "  "
 msgstr ""
+
+#, fuzzy
+#| msgid "Has Template Error"
+msgid "Whatsapp Templates Events"
+msgstr "Possui erro no modelo"
 
 msgid "Templates"
 msgstr ""
@@ -11288,6 +11290,14 @@ msgstr "Insira o seu código de requisição"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
+#, fuzzy
+#~ msgid "Number of recipients"
+#~ msgstr "Quantidade de créditos"
+
+#, fuzzy
+#~ msgid "Number of urns which received this broadcast"
+#~ msgstr "Estado atual desta divulgação"
+
 #, fuzzy, python-brace-format
 #~ msgid "{contacts_count} recipients"
 #~ msgstr "Quantidade de créditos"
@@ -12312,9 +12322,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "The priority for this message to be sent, higher is higher priority"
 #~ msgstr "A direção dessa mensagem, seja de entrada ou de saída"
-
-#~ msgid "Has Template Error"
-#~ msgstr "Possui erro no modelo"
 
 #~ msgid "Whether data for variable substitution are missing"
 #~ msgstr "Se os dados para a substituição de variáveis ​​estão em falta"

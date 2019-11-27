@@ -2584,7 +2584,7 @@ class FlowCRUDLTest(TembaTest):
         self.assertIn("channels", response.json())
         self.assertIn("languages", response.json())
         self.assertIn("channel_countries", response.json())
-        self.assertEqual(ActionSet.objects.all().count(), 28)
+        self.assertEqual(ActionSet.objects.all().count(), 4)
 
         json_dict = response.json()["flow"]
 
@@ -2612,7 +2612,7 @@ class FlowCRUDLTest(TembaTest):
             reverse("flows.flow_json", args=[flow.uuid]), json_dict, content_type="application/json"
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(ActionSet.objects.all().count(), 25)
+        self.assertEqual(ActionSet.objects.all().count(), 1)
 
         # check that the flow only has a single actionset
         ActionSet.objects.get(flow=flow)
