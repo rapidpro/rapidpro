@@ -7,7 +7,10 @@
 -block title
   .medium-help.icon-cloud-upload{ style:'float:left;' }
   %h2.header-margin
-    -trans "Classifier Event"
+    -if object.classifier
+      -trans "Classifier Event"
+    -if object.channel
+      -trans "Channel Event"
   %h5.header-margin
     {{object.get_log_type_display}}
 
@@ -20,9 +23,14 @@
   .log-details
     .detail.classifier
       .header
-        Classifier
-        %a{href:'{% url "classifiers.classifier_read" object.classifier.uuid %}'}
-          {{object.classifier.name}}
+        -if object.classifier
+          Classifier
+          %a{href:'{% url "classifiers.classifier_read" object.classifier.uuid %}'}
+            {{object.classifier.name}}
+        -if object.channel
+          %a{href:'{% url "channels.channel_read" object.channel.uuid %}'}
+            {{object.channel.name}}
+
     %div(style="float:right")
       .detail.started
         .header

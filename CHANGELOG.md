@@ -1,3 +1,10 @@
+v5.3.11
+----------
+ * Migrate sample flows to new editor
+ * Localize URNs in API using org country
+ * Write HTTPLogs for Whatsapp template syncing
+ * Remove Broadcast recipient_count field
+
 v5.3.10
 ----------
  * Add read API endpoint for globals
