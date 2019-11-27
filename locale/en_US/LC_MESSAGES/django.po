@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-27 00:08+0000\n"
+"POT-Creation-Date: 2019-11-27 19:42+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1819,6 +1819,9 @@ msgid "Unable to configure channel: %s"
 msgstr ""
 
 msgid "Contacts refresh begun, it may take a few minutes to complete."
+msgstr ""
+
+msgid "Sync Logs"
 msgstr ""
 
 msgid "Your enterprise WhatsApp number"
@@ -5699,6 +5702,9 @@ msgid ""
 "  "
 msgstr ""
 
+msgid "Whatsapp Templates Events"
+msgstr ""
+
 msgid "Templates"
 msgstr ""
 
@@ -5863,6 +5869,12 @@ msgid ""
 "          Email sent with subject <b>%(subject)s</b>\n"
 "\n"
 "        "
+msgstr ""
+
+msgid "Email sent to"
+msgstr ""
+
+msgid "with subject"
 msgstr ""
 
 msgid "Started"

@@ -245,6 +245,9 @@ class APITest(TembaTest):
         field._context = {"org": self.org}
 
         self.assertEqual(field.to_internal_value("tel:+1-800-123-4567"), "tel:+18001234567")
+        # use org country to parse the local number
+        self.assertEqual(field.to_internal_value("tel:0788 123 123"), "tel:+250788123123")
+        self.assertEqual(field.to_internal_value("tel:(078) 812-3123"), "tel:+250788123123")
         self.assertRaises(serializers.ValidationError, field.to_internal_value, "12345")  # un-parseable
         self.assertRaises(serializers.ValidationError, field.to_internal_value, "tel:800-123-4567")  # no country code
         self.assertRaises(serializers.ValidationError, field.to_internal_value, 18_001_234_567)  # non-string
@@ -1754,7 +1757,7 @@ class APITest(TembaTest):
         self.assertEqual(jean.get_field_value(nickname), "Jado")
 
         # update by UUID and change all fields
-        with self.assertNumQueries(66):
+        with self.assertNumQueries(67):
             response = self.postJSON(
                 url,
                 "uuid=%s" % jean.uuid,
@@ -1791,7 +1794,7 @@ class APITest(TembaTest):
         self.assertEqual(jean.get_field_value(nickname), "Žan")
 
         # update by uuid and remove all fields
-        with self.assertNumQueries(28):
+        with self.assertNumQueries(29):
             response = self.postJSON(
                 url,
                 "uuid=%s" % jean.uuid,
@@ -1810,7 +1813,7 @@ class APITest(TembaTest):
         self.assertEqual(jean.get_field_value(gender), None)
 
         # update by uuid and update/remove fields
-        with self.assertNumQueries(33):
+        with self.assertNumQueries(34):
             response = self.postJSON(
                 url,
                 "uuid=%s" % jean.uuid,

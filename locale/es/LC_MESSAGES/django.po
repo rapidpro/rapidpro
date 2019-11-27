@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-27 00:08+0000\n"
+"POT-Creation-Date: 2019-11-27 19:42+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -2911,6 +2911,11 @@ msgstr "ID del grupo o contacto inválido "
 
 msgid "Contacts refresh begun, it may take a few minutes to complete."
 msgstr ""
+
+#, fuzzy
+#| msgid "Synced on"
+msgid "Sync Logs"
+msgstr "Sincronizado el"
 
 msgid "Your enterprise WhatsApp number"
 msgstr ""
@@ -7871,6 +7876,11 @@ msgid ""
 "  "
 msgstr ""
 
+#, fuzzy
+#| msgid "Has Template Error"
+msgid "Whatsapp Templates Events"
+msgstr "Tiene un error en la plantilla"
+
 msgid "Templates"
 msgstr ""
 
@@ -8108,6 +8118,16 @@ msgstr ""
 "          Instalar el %(name)s app\n"
 "\n"
 "        "
+
+#, fuzzy
+#| msgid "Sent to"
+msgid "Email sent to"
+msgstr "Enviar a"
+
+#, fuzzy
+#| msgid "Subject"
+msgid "with subject"
+msgstr "Asunto"
 
 #, fuzzy
 #| msgid "Start Flow"
@@ -13037,9 +13057,6 @@ msgstr ""
 
 #~ msgid "The priority for this message to be sent, higher is higher priority"
 #~ msgstr "La prioridad de envío de este mensaje, mayor es mayor prioridad"
-
-#~ msgid "Has Template Error"
-#~ msgstr "Tiene un error en la plantilla"
 
 #~ msgid "Whether data for variable substitution are missing"
 #~ msgstr "Si están faltando datos para el reemplazo de variables"
