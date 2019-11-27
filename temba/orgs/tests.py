@@ -2986,6 +2986,9 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual(topup.credits, 1000)
         self.assertEqual(topup.price, 0)
 
+        # and 3 sample flows
+        self.assertEqual(3, org.flows.count())
+
         # fake session set_org to make the test work
         user.set_org(org)
 
