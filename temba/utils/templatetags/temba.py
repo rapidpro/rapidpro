@@ -85,7 +85,7 @@ def annotated_field(field, label, help_text):
     attrs = field.field.widget.attrs
     attrs["label"] = label
     attrs["help_text"] = help_text
-    attrs["errors"] = json.dumps(field.errors)
+    attrs["errors"] = json.dumps([str(error) for error in field.errors])
     return field.as_widget(attrs=attrs)
 
 
