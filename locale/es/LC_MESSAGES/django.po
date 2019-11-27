@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-22 19:01+0000\n"
+"POT-Creation-Date: 2019-11-27 00:08+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4403,14 +4403,6 @@ msgstr ""
 msgid "Individual URNs included in this message"
 msgstr "Contactos individuales incluidos en este mensaje"
 
-#, fuzzy
-msgid "Number of recipients"
-msgstr "Número de créditos"
-
-#, fuzzy
-msgid "Number of urns which received this broadcast"
-msgstr "El estátus actual para esta comunicación"
-
 msgid "Channel to use for message sending"
 msgstr ""
 
@@ -5501,6 +5493,9 @@ msgid "Classifier Called"
 msgstr "Evento del transmisor"
 
 msgid "Airtime Transferred"
+msgstr ""
+
+msgid "Whatsapp Templates Synced"
 msgstr ""
 
 msgid "Never"
@@ -11990,6 +11985,14 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "Number of recipients"
+#~ msgstr "Número de créditos"
+
+#, fuzzy
+#~ msgid "Number of urns which received this broadcast"
+#~ msgstr "El estátus actual para esta comunicación"
 
 #, fuzzy, python-format
 #~ msgid ""

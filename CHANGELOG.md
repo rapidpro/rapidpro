@@ -1,3 +1,7 @@
+v5.3.10
+----------
+ * Add read API endpoint for globals
+
 v5.3.9
 ----------
  * Add trimming task for flow revisions

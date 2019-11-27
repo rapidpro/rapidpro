@@ -3,6 +3,7 @@ from unittest.mock import patch
 from django.forms import ValidationError
 from django.urls import reverse
 
+from temba.request_logs.models import HTTPLog
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import MockResponse, TembaTest
 
@@ -334,3 +335,5 @@ class WhatsAppTypeTest(TembaTest):
         channel = Channel.objects.get()
 
         self.assertEqual("example.org", channel.config[CONFIG_FB_TEMPLATE_LIST_DOMAIN])
+        self.assertEqual(1, channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).count())
+        self.assertEqual(1, channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).count())
