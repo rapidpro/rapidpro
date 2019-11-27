@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-26 16:06+0000\n"
+"POT-Creation-Date: 2019-11-27 17:17+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -7596,6 +7596,15 @@ msgid ""
 msgstr ""
 "\n"
 "Instalar o %(name)s app"
+
+#, fuzzy
+msgid "Email sent to"
+msgstr "Enviado"
+
+#, fuzzy
+#| msgid "Subject"
+msgid "with subject"
+msgstr "Assunto"
 
 #, fuzzy
 msgid "Started"

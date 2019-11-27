@@ -99,9 +99,19 @@
         -for urn in event.urns
           <b>{{ urn|format_urn:user_org }}</b>{{ forloop|oxford }}
 
+      -elif event.type == 'error' or event.type == 'failure'
+        {{ event.text }}
+
       -elif event.type == 'email_created'
         -blocktrans with subject=event.subject
           Email sent with subject <b>{{ subject }}</b>
+
+      -elif event.type == 'email_sent'
+        -trans "Email sent to"
+        -for address in event.to
+          <b>{{ address }}</b>{{ forloop|oxford }}
+        -trans "with subject"
+        <b>{{ event.subject }}</b>
 
       -elif event.type == 'flow_entered' or event.type == 'flow_exited'
         -with event.obj as run
