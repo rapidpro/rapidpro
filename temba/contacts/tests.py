@@ -3973,7 +3973,7 @@ class ContactTest(TembaTest):
         self.assertEqual(history_icon(item), '<span class="glyph icon-checkmark"></span>')
 
         run.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
-        self.assertEqual(history_icon(item), '<span class="glyph icon-warning"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-cancel-circle"></span>')
 
         run.exit_type = FlowRun.EXIT_TYPE_EXPIRED
         self.assertEqual(history_icon(item), '<span class="glyph icon-clock"></span>')
