@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-27 19:42+0000\n"
+"POT-Creation-Date: 2019-11-28 21:34+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3997,6 +3997,12 @@ msgid "Airtime Transferred"
 msgstr ""
 
 msgid "Whatsapp Templates Synced"
+msgstr ""
+
+msgid "Whatsapp Tokens Synced"
+msgstr ""
+
+msgid "Whatsapp Contacts Refreshed"
 msgstr ""
 
 msgid "Never"
