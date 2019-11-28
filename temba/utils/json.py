@@ -5,6 +5,7 @@ import psycopg2.extras
 import pytz
 import simplejson
 from django.http import HttpResponse
+from django.utils.timezone import is_aware
 
 
 def load(value):
@@ -95,7 +96,7 @@ def default_json_encoder(o):
 
 
 class JsonResponse(HttpResponse):
-    """ 
+    """
     JsonResponse encode a dictionary into json format and it handle datetime and decimal types. The problem is JsonResponse encodes decimal to strings. { "minutes" : Decimal('10.1')} becoming { "minutes" : "10.0"} which was causing problems. This modified version transform to { "minutes" : 10.0} as intended.
     """
 
