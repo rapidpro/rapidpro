@@ -88,6 +88,10 @@ export default class TextInput extends FormElement {
     }
   }
 
+  private handleChange(update: any): void { 
+    this.value = update.target.value;
+  }
+
   /** we just return the value since it should be a string */
   public serializeValue(value: any): string {
     return value;
@@ -105,12 +109,14 @@ export default class TextInput extends FormElement {
         <textarea class="textinput" 
           name=${this.name}
           placeholder=${this.placeholder}
+          @input=${this.handleChange}
           .value=${this.value}>
         </textarea>
       ` : html`
         <input class="textinput" 
           name=${this.name}
           type="text"
+          @input=${this.handleChange}
           placeholder=${this.placeholder}
           .value=${this.value}>
       `}

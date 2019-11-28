@@ -20,6 +20,10 @@ class JSONField(forms.Field):
         return value
 
 
+class InputWidget(forms.TextInput):
+    template_name = "utils/forms/input.haml"
+
+
 class SelectWidget(forms.Select):
     template_name = "utils/forms/select.haml"
 

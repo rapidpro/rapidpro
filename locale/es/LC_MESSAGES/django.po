@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-27 17:17+0000\n"
+"POT-Creation-Date: 2019-11-27 19:42+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -99,6 +99,11 @@ msgstr ""
 #| msgid "Weekly"
 msgid "Weeks"
 msgstr "Semanalmente"
+
+#, fuzzy
+#| msgid "The groups to send the message to"
+msgid "Select a group to base the campaign on"
+msgstr "Los grupos a los que se envía este mensaje "
 
 msgid "Export"
 msgstr "Exportar"
@@ -9344,10 +9349,6 @@ msgstr[1] ""
 "         "
 
 #, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "                              %(completed_percentage)s%% completion\n"
-#| "                            "
 msgid ""
 "\n"
 "                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -9355,8 +9356,9 @@ msgid ""
 "                "
 msgstr ""
 "\n"
-"                              %(completed_percentage)s%% completion\n"
-"                            "
+"                    %(sms_failed)s Error\n"
+"\n"
+"         "
 
 msgid "No Matching schedules"
 msgstr "Los horarios no corresponden"
@@ -9428,7 +9430,7 @@ msgstr[1] ""
 "\n"
 "         "
 
-#, fuzzy, python-format
+#, python-format
 msgid ""
 "\n"
 "        The message will be sent to\n"
@@ -9438,10 +9440,6 @@ msgid ""
 "        </span>\n"
 "      "
 msgstr ""
-"\n"
-"                    %(sms_failed)s Error\n"
-"\n"
-"         "
 
 msgid "Your message export is ready."
 msgstr "Su exportación de mensajes está lista."
@@ -12016,14 +12014,6 @@ msgstr ""
 #~ msgid "Number of urns which received this broadcast"
 #~ msgstr "El estátus actual para esta comunicación"
 
-#, fuzzy, python-brace-format
-#~ msgid "{contacts_count} recipients"
-#~ msgstr "Número de créditos"
-
-#, fuzzy, python-brace-format
-#~ msgid "{urns_count} recipients"
-#~ msgstr "Número de créditos"
-
 #, fuzzy, python-format
 #~ msgid ""
 #~ "\n"
@@ -12112,11 +12102,6 @@ msgstr ""
 #, fuzzy
 #~| msgid "The type of this message"
 #~ msgid "The UUID of the first step"
-#~ msgstr "El tipo de este mensaje"
-
-#, fuzzy
-#~| msgid "The type of this message"
-#~ msgid "The UUID of the second step"
 #~ msgstr "El tipo de este mensaje"
 
 #, fuzzy
@@ -12597,6 +12582,10 @@ msgstr ""
 
 #~ msgid "Call ended."
 #~ msgstr "Llamada finalizada."
+
+#, fuzzy
+#~ msgid "Recipients"
+#~ msgstr "Número de créditos"
 
 #, fuzzy
 #~| msgid "The URN of the contact delivering this message"
