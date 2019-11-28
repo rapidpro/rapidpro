@@ -135,6 +135,7 @@ def refresh_whatsapp_templates():
                 continue
 
             # fetch all our templates
+            start = timezone.now()
             try:
                 # Retrieve the template domain, fallback to the default for channels
                 # that have been setup earlier for backwards compatibility
@@ -143,7 +144,6 @@ def refresh_whatsapp_templates():
                 url = TEMPLATE_LIST_URL % (facebook_template_domain, facebook_business_id)
 
                 # we should never need to paginate because facebook limits accounts to 255 templates
-                start = timezone.now()
                 response = requests.get(
                     url, params=dict(access_token=channel.config[CONFIG_FB_ACCESS_TOKEN], limit=255)
                 )
@@ -196,4 +196,14 @@ def refresh_whatsapp_templates():
                 TemplateTranslation.trim(channel, seen)
 
             except Exception as e:  # pragma: no cover
-                logger.error(f"error fetching templates for whatsapp channel: {str(e)}")
+                HTTPLog.objects.create(
+                    channel=channel,
+                    log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
+                    url=url,
+                    request="",
+                    response=f"error fetching templates for whatsapp channel: {str(e)}",
+                    is_error=True,
+                    created_on=timezone.now(),
+                    request_time=(timezone.now() - start).total_seconds() * 1000,
+                    org=channel.org,
+                )

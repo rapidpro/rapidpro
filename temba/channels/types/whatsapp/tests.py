@@ -353,3 +353,13 @@ class WhatsAppTypeTest(TembaTest):
         response = self.client.get(log_url)
         self.assertContains(response, "200")
         self.assertContains(response, "https://example.org/v3.3/1234/message_templates")
+
+        with patch("requests.get") as mock_get:
+            mock_get.side_effect = Exception("Network is unreachable")
+            refresh_whatsapp_templates()
+
+        sync_log = channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, is_error=True).first()
+        log_url = reverse("request_logs.httplog_read", args=[sync_log.id])
+        response = self.client.get(log_url)
+        self.assertContains(response, "Network is unreachable")
+        self.assertContains(response, "error fetching templates for whatsapp channel")
