@@ -139,29 +139,33 @@ class WhatsAppTypeTest(TembaTest):
 
         with patch("requests.post") as mock_post:
             mock_post.side_effect = [MockResponse(200, '{ "error": false }')]
+            self.assertFalse(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_CONTACTS_REFRESHED, is_error=False))
             self.create_contact("Joe", urn="whatsapp:250788382382")
             self.client.post(refresh_url)
 
             self.assertEqual(mock_post.call_args_list[0][1]["json"]["contacts"], ["+250788382382"])
+            self.assertTrue(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_CONTACTS_REFRESHED, is_error=False))
 
         with patch("requests.post") as mock_post:
             mock_post.side_effect = [MockResponse(400, '{ "error": true }')]
-            try:
-                refresh_whatsapp_contacts(channel.id)
-                self.fail("Should have thrown exception")
-            except Exception:
-                pass
+            self.assertFalse(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_CONTACTS_REFRESHED, is_error=True))
+            refresh_whatsapp_contacts(channel.id)
+            self.assertTrue(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_CONTACTS_REFRESHED, is_error=True))
 
         # and fetching new tokens
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc345"}]}')
+            self.assertFalse(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED, is_error=False))
             refresh_whatsapp_tokens()
+            self.assertTrue(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED, is_error=False))
             channel.refresh_from_db()
             self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
 
         with patch("requests.post") as mock_post:
             mock_post.side_effect = [MockResponse(400, '{ "error": true }')]
+            self.assertFalse(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED, is_error=True))
             refresh_whatsapp_tokens()
+            self.assertTrue(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED, is_error=True))
             channel.refresh_from_db()
             self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
 

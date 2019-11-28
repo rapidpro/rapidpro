@@ -55,13 +55,19 @@ def refresh_whatsapp_contacts(channel_id):
 
             # go fetch our contacts
             headers = {"Authorization": "Bearer %s" % channel.config[Channel.CONFIG_AUTH_TOKEN]}
-            resp = requests.post(
-                channel.config[Channel.CONFIG_BASE_URL] + "/v1/contacts", json=payload, headers=headers
-            )
+            url = channel.config[Channel.CONFIG_BASE_URL] + "/v1/contacts"
+
+            start = timezone.now()
+            resp = requests.post(url, json=payload, headers=headers)
+            elapsed = (timezone.now() - start).total_seconds() * 1000
+
+            log = HTTPLog.from_response(HTTPLog.WHATSAPP_CONTACTS_REFRESHED, url, resp, channel=channel)
+            log.request_time = elapsed
+            log.save()
 
             # if we had an error, break out
             if resp.status_code != 200:
-                raise Exception("Received error refreshing contacts for %d", channel.id)
+                break
 
             refreshed += len(urn_batch)
 
@@ -77,13 +83,19 @@ def refresh_whatsapp_tokens():
     with r.lock("refresh_whatsapp_tokens", 1800):
         # iterate across each of our whatsapp channels and get a new token
         for channel in Channel.objects.filter(is_active=True, channel_type="WA"):
+            url = channel.config["base_url"] + "/v1/users/login"
+
+            start = timezone.now()
             resp = requests.post(
-                channel.config["base_url"] + "/v1/users/login",
-                auth=(channel.config[Channel.CONFIG_USERNAME], channel.config[Channel.CONFIG_PASSWORD]),
+                url, auth=(channel.config[Channel.CONFIG_USERNAME], channel.config[Channel.CONFIG_PASSWORD])
             )
+            elapsed = (timezone.now() - start).total_seconds() * 1000
+
+            log = HTTPLog.from_response(HTTPLog.WHATSAPP_TOKENS_SYNCED, url, resp, channel=channel)
+            log.request_time = elapsed
+            log.save()
 
             if resp.status_code != 200:
-                logger.error("Received non-200 response refreshing whatsapp token: %s", resp.content)
                 continue
 
             channel.config["auth_token"] = resp.json()["users"][0]["token"]
