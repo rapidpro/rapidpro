@@ -1327,17 +1327,20 @@ class FlowMigrationTest(TembaTest):
 
         # make sure it is localized
         poll = self.org.flows.filter(name="Sample Flow - Simple Poll").first()
-        self.assertIn("base", poll.action_sets.all().order_by("y").first().get_actions()[0].msg)
         self.assertEqual("base", poll.base_language)
 
-        # check replacement
+        # check substitutions
         order_checker = self.org.flows.filter(name="Sample Flow - Order Status Checker").first()
-        ruleset = order_checker.rule_sets.filter(y=298).first()
-        self.assertEqual("https://app.rapidpro.io/demo/status/", ruleset.config[RuleSet.CONFIG_WEBHOOK])
+        webhook_node = order_checker.as_json()["nodes"][3]
+        webhook_action = webhook_node["actions"][0]
+
+        self.assertEqual("https://app.rapidpro.io/demo/status/", webhook_action["url"])
 
         # our test user doesn't use an email address, check for Administrator for the email
-        actionset = order_checker.action_sets.filter(y=991).first()
-        self.assertEqual("Administrator", actionset.get_actions()[1].emails[0])
+        email_node = order_checker.as_json()["nodes"][9]
+        email_action = email_node["actions"][1]
+
+        self.assertEqual(["Administrator"], email_action["addresses"])
 
     def test_migrate_bad_group_names(self):
         # This test makes sure that bad contact groups (< 25, etc) are migrated forward properly.

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-26 16:06+0000\n"
+"POT-Creation-Date: 2019-11-27 19:42+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -104,6 +104,11 @@ msgstr ""
 #| msgid "Weekly"
 msgid "Weeks"
 msgstr "Hebdomadaire"
+
+#, fuzzy
+#| msgid "The groups to send the message to"
+msgid "Select a group to base the campaign on"
+msgstr "Les groupes pour envoyer le message à"
 
 msgid "Export"
 msgstr "Exporter"
@@ -7921,6 +7926,16 @@ msgstr ""
 "Installer l'app %(name)s"
 
 #, fuzzy
+#| msgid "Sent to"
+msgid "Email sent to"
+msgstr "Envoyer à"
+
+#, fuzzy
+#| msgid "Subject"
+msgid "with subject"
+msgstr "Sujet"
+
+#, fuzzy
 #| msgid "Start Flow"
 msgid "Started"
 msgstr "Lancer un Flux"
@@ -9149,14 +9164,6 @@ msgstr[1] ""
 "%(sms_sending)s Envoi en cours"
 
 #, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "                              %(participant_count)s participant\n"
-#| "                            "
-#| msgid_plural ""
-#| "\n"
-#| "                              %(participant_count)s participants\n"
-#| "                            "
 msgid ""
 "\n"
 "                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -9164,8 +9171,7 @@ msgid ""
 "                "
 msgstr ""
 "\n"
-"                              %(participant_count)s participant\n"
-"                            "
+"%(sms_sending)s Envoi en cours"
 
 msgid "No Matching schedules"
 msgstr "Pas d'horaires assortis"
@@ -9228,10 +9234,20 @@ msgid_plural ""
 "      "
 msgstr[0] ""
 "\n"
-"%(sms_sending)s Envoi en cours"
+"Le message va être envoyé\n"
+"<span class='attn'>\n"
+"%(contacts)s\n"
+"contact%(pluralizer)s\n"
+"\n"
+"</span>"
 msgstr[1] ""
 "\n"
-"%(sms_sending)s Envoi en cours"
+"Le message va être envoyé\n"
+"<span class='attn'>\n"
+"%(contacts)s\n"
+"contact%(pluralizer)s\n"
+"\n"
+"</span>"
 
 #, fuzzy, python-format
 msgid ""
@@ -9244,7 +9260,12 @@ msgid ""
 "      "
 msgstr ""
 "\n"
-"%(sms_sending)s Envoi en cours"
+"Le message va être envoyé\n"
+"<span class='attn'>\n"
+"%(contacts)s\n"
+"contact%(pluralizer)s\n"
+"\n"
+"</span>"
 
 msgid "Your message export is ready."
 msgstr ""
@@ -11785,36 +11806,6 @@ msgstr ""
 #~ msgid "Number of urns which received this broadcast"
 #~ msgstr "L'état actuel de cette émission"
 
-#, fuzzy, python-brace-format
-#~ msgid "{contacts_count} recipients"
-#~ msgstr "Nombre de Credits"
-
-#, fuzzy, python-brace-format
-#~ msgid "{urns_count} recipients"
-#~ msgstr "Nombre de Credits"
-
-#, fuzzy, python-format
-#~ msgid ""
-#~ "\n"
-#~ "    The message will be sent to\n"
-#~ "    <span class='attn'>\n"
-#~ "      %(recipients_display)s\n"
-#~ "\n"
-#~ "    </span>\n"
-#~ "    <div id='broadcast_preview'>\n"
-#~ "      %(object.get_default_text)s\n"
-#~ "\n"
-#~ "    </div>\n"
-#~ "  "
-#~ msgstr ""
-#~ "\n"
-#~ "Le message va être envoyé\n"
-#~ "<span class='attn'>\n"
-#~ "%(contacts)s\n"
-#~ "contact%(pluralizer)s\n"
-#~ "\n"
-#~ "</span>"
-
 #, fuzzy, python-format
 #~ msgid ""
 #~ "\n"
@@ -11920,11 +11911,6 @@ msgstr ""
 #, fuzzy
 #~| msgid "The type of this message"
 #~ msgid "The UUID of the first step"
-#~ msgstr "Le type de ce message"
-
-#, fuzzy
-#~| msgid "The type of this message"
-#~ msgid "The UUID of the second step"
 #~ msgstr "Le type de ce message"
 
 #, fuzzy
@@ -12375,6 +12361,10 @@ msgstr ""
 
 #~ msgid "Call ended."
 #~ msgstr "Appel terminé."
+
+#, fuzzy
+#~ msgid "Recipients"
+#~ msgstr "Nombre de Credits"
 
 #, fuzzy
 #~| msgid "The URN of the contact delivering this message"
