@@ -9,26 +9,26 @@ from django.utils import timezone
 from temba.channels.models import Channel
 from temba.msgs.models import Msg
 
-COURIER_URL = "http://localhost:8080"
-
 
 class TestChannel:
     """
     This test utility installs a EX channel which points to a local server. For message sending and flows to function
     correctly you need to be running both mailroom and courier against the same database and redis instance, e.g.
 
-    mailroom -db="postgres://temba:temba@localhost:5432/temba?sslmode=disable" -redis=redis://localhost:6379/15 -log-level=info
-    courier -db="postgres://temba:temba@localhost:5432/temba?sslmode=disable" -redis=redis://localhost:6379/15 -spool-dir="."  -log-level=info
+    mailroom -db="postgres://temba:temba@localhost:5432/temba?sslmode=disable" -redis=redis://localhost:6379/15
+    courier -db="postgres://temba:temba@localhost:5432/temba?sslmode=disable" -redis=redis://localhost:6379/15 -spool-dir="."
 
     """
 
-    def __init__(self, db_channel, server):
+    def __init__(self, db_channel, server, courier_url, callback):
         self.db_channel = db_channel
         self.server = server
         self.server.channel = self
+        self.courier_url = courier_url
+        self.callback = callback
 
     @classmethod
-    def create(cls, org, user, country="EC", address="123456", port=49999):
+    def create(cls, org, user, courier_url, callback, country="EC", scheme="tel", address="123456", port=49999):
         server = cls.Server(port)
 
         config = {
@@ -37,15 +37,14 @@ class TestChannel:
             Channel.CONFIG_CONTENT_TYPE: "application/json",
             Channel.CONFIG_SEND_BODY: '{"text": "{{text}}"}',
         }
-        return cls(
-            Channel.add_config_external_channel(org, user, country, address, "EX", config, "SR", ["tel"]), server
-        )
+
+        db_channel = Channel.add_config_external_channel(org, user, country, address, "EX", config, "SR", [scheme])
+
+        return cls(db_channel, server, courier_url, callback)
 
     def incoming(self, sender, text):
-        response = requests.post(
-            f"{COURIER_URL}/c/ex/{str(self.db_channel.uuid)}/receive",
-            data={"from": sender, "text": text, "date": timezone.now().isoformat()},
-        )
+        webhook = f"{self.courier_url}/c/ex/{str(self.db_channel.uuid)}/receive"
+        response = requests.post(webhook, data={"from": sender, "text": text, "date": timezone.now().isoformat()})
 
         if response.status_code != 200:
             raise ValueError(f"courier returned non-200 response: {response.content}")
@@ -54,8 +53,7 @@ class TestChannel:
         return Msg.objects.get(uuid=payload["data"][0]["msg_uuid"])
 
     def handle_outgoing(self, data):
-        print(f"[TestChannel] SENT: {data['text']}")
-        return "OK"
+        return self.callback(data) or "OK"
 
     def release(self):
         self.db_channel.release()
@@ -82,3 +80,6 @@ class TestChannel:
             self.send_header("Content-Length", len(response))
             self.end_headers()
             self.wfile.write(response)
+
+        def log_message(self, format, *args):
+            pass
