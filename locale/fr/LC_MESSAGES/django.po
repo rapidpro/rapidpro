@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-25 15:43+0000\n"
+"POT-Creation-Date: 2019-11-27 19:42+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -104,6 +104,11 @@ msgstr ""
 #| msgid "Weekly"
 msgid "Weeks"
 msgstr "Hebdomadaire"
+
+#, fuzzy
+#| msgid "The groups to send the message to"
+msgid "Select a group to base the campaign on"
+msgstr "Les groupes pour envoyer le message à"
 
 msgid "Export"
 msgstr "Exporter"
@@ -2757,6 +2762,11 @@ msgstr "Groupe non valide ou Contact ID"
 msgid "Contacts refresh begun, it may take a few minutes to complete."
 msgstr ""
 
+#, fuzzy
+#| msgid "Synced on"
+msgid "Sync Logs"
+msgstr "synchronisé sur"
+
 msgid "Your enterprise WhatsApp number"
 msgstr ""
 
@@ -4235,14 +4245,6 @@ msgstr ""
 #, fuzzy
 msgid "Individual URNs included in this message"
 msgstr "Contacts individuels inclus dans ce message"
-
-#, fuzzy
-msgid "Number of recipients"
-msgstr "Nombre de Credits"
-
-#, fuzzy
-msgid "Number of urns which received this broadcast"
-msgstr "L'état actuel de cette émission"
 
 msgid "Channel to use for message sending"
 msgstr ""
@@ -7668,6 +7670,11 @@ msgid ""
 "  "
 msgstr ""
 
+#, fuzzy
+#| msgid "Has Template Error"
+msgid "Whatsapp Templates Events"
+msgstr "A une erreur sur le modèle établit"
+
 msgid "Templates"
 msgstr ""
 
@@ -7917,6 +7924,16 @@ msgid ""
 msgstr ""
 "\n"
 "Installer l'app %(name)s"
+
+#, fuzzy
+#| msgid "Sent to"
+msgid "Email sent to"
+msgstr "Envoyer à"
+
+#, fuzzy
+#| msgid "Subject"
+msgid "with subject"
+msgstr "Sujet"
 
 #, fuzzy
 #| msgid "Start Flow"
@@ -9147,14 +9164,6 @@ msgstr[1] ""
 "%(sms_sending)s Envoi en cours"
 
 #, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "                              %(participant_count)s participant\n"
-#| "                            "
-#| msgid_plural ""
-#| "\n"
-#| "                              %(participant_count)s participants\n"
-#| "                            "
 msgid ""
 "\n"
 "                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -9162,8 +9171,7 @@ msgid ""
 "                "
 msgstr ""
 "\n"
-"                              %(participant_count)s participant\n"
-"                            "
+"%(sms_sending)s Envoi en cours"
 
 msgid "No Matching schedules"
 msgstr "Pas d'horaires assortis"
@@ -9226,10 +9234,20 @@ msgid_plural ""
 "      "
 msgstr[0] ""
 "\n"
-"%(sms_sending)s Envoi en cours"
+"Le message va être envoyé\n"
+"<span class='attn'>\n"
+"%(contacts)s\n"
+"contact%(pluralizer)s\n"
+"\n"
+"</span>"
 msgstr[1] ""
 "\n"
-"%(sms_sending)s Envoi en cours"
+"Le message va être envoyé\n"
+"<span class='attn'>\n"
+"%(contacts)s\n"
+"contact%(pluralizer)s\n"
+"\n"
+"</span>"
 
 #, fuzzy, python-format
 msgid ""
@@ -9242,7 +9260,12 @@ msgid ""
 "      "
 msgstr ""
 "\n"
-"%(sms_sending)s Envoi en cours"
+"Le message va être envoyé\n"
+"<span class='attn'>\n"
+"%(contacts)s\n"
+"contact%(pluralizer)s\n"
+"\n"
+"</span>"
 
 msgid "Your message export is ready."
 msgstr ""
@@ -11775,35 +11798,13 @@ msgstr "Entrez le code Claim"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
-#, fuzzy, python-brace-format
-#~ msgid "{contacts_count} recipients"
+#, fuzzy
+#~ msgid "Number of recipients"
 #~ msgstr "Nombre de Credits"
 
-#, fuzzy, python-brace-format
-#~ msgid "{urns_count} recipients"
-#~ msgstr "Nombre de Credits"
-
-#, fuzzy, python-format
-#~ msgid ""
-#~ "\n"
-#~ "    The message will be sent to\n"
-#~ "    <span class='attn'>\n"
-#~ "      %(recipients_display)s\n"
-#~ "\n"
-#~ "    </span>\n"
-#~ "    <div id='broadcast_preview'>\n"
-#~ "      %(object.get_default_text)s\n"
-#~ "\n"
-#~ "    </div>\n"
-#~ "  "
-#~ msgstr ""
-#~ "\n"
-#~ "Le message va être envoyé\n"
-#~ "<span class='attn'>\n"
-#~ "%(contacts)s\n"
-#~ "contact%(pluralizer)s\n"
-#~ "\n"
-#~ "</span>"
+#, fuzzy
+#~ msgid "Number of urns which received this broadcast"
+#~ msgstr "L'état actuel de cette émission"
 
 #, fuzzy, python-format
 #~ msgid ""
@@ -11910,11 +11911,6 @@ msgstr ""
 #, fuzzy
 #~| msgid "The type of this message"
 #~ msgid "The UUID of the first step"
-#~ msgstr "Le type de ce message"
-
-#, fuzzy
-#~| msgid "The type of this message"
-#~ msgid "The UUID of the second step"
 #~ msgstr "Le type de ce message"
 
 #, fuzzy
@@ -12365,6 +12361,10 @@ msgstr ""
 
 #~ msgid "Call ended."
 #~ msgstr "Appel terminé."
+
+#, fuzzy
+#~ msgid "Recipients"
+#~ msgstr "Nombre de Credits"
 
 #, fuzzy
 #~| msgid "The URN of the contact delivering this message"
@@ -12822,9 +12822,6 @@ msgstr ""
 #~| msgid "When this message was created"
 #~ msgid "When the message arrived"
 #~ msgstr "Lorsque ce message a été créé"
-
-#~ msgid "Has Template Error"
-#~ msgstr "A une erreur sur le modèle établit"
 
 #~ msgid "Whether data for variable substitution are missing"
 #~ msgstr "Si les données de substitution de variables sont manquantes"

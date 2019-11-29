@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-25 15:43+0000\n"
+"POT-Creation-Date: 2019-11-27 19:42+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -99,6 +99,11 @@ msgstr ""
 #| msgid "Weekly"
 msgid "Weeks"
 msgstr "Semanalmente"
+
+#, fuzzy
+#| msgid "The groups to send the message to"
+msgid "Select a group to base the campaign on"
+msgstr "Los grupos a los que se envía este mensaje "
 
 msgid "Export"
 msgstr "Exportar"
@@ -2907,6 +2912,11 @@ msgstr "ID del grupo o contacto inválido "
 msgid "Contacts refresh begun, it may take a few minutes to complete."
 msgstr ""
 
+#, fuzzy
+#| msgid "Synced on"
+msgid "Sync Logs"
+msgstr "Sincronizado el"
+
 msgid "Your enterprise WhatsApp number"
 msgstr ""
 
@@ -4397,14 +4407,6 @@ msgstr ""
 #, fuzzy
 msgid "Individual URNs included in this message"
 msgstr "Contactos individuales incluidos en este mensaje"
-
-#, fuzzy
-msgid "Number of recipients"
-msgstr "Número de créditos"
-
-#, fuzzy
-msgid "Number of urns which received this broadcast"
-msgstr "El estátus actual para esta comunicación"
 
 msgid "Channel to use for message sending"
 msgstr ""
@@ -7874,6 +7876,11 @@ msgid ""
 "  "
 msgstr ""
 
+#, fuzzy
+#| msgid "Has Template Error"
+msgid "Whatsapp Templates Events"
+msgstr "Tiene un error en la plantilla"
+
 msgid "Templates"
 msgstr ""
 
@@ -8111,6 +8118,16 @@ msgstr ""
 "          Instalar el %(name)s app\n"
 "\n"
 "        "
+
+#, fuzzy
+#| msgid "Sent to"
+msgid "Email sent to"
+msgstr "Enviar a"
+
+#, fuzzy
+#| msgid "Subject"
+msgid "with subject"
+msgstr "Asunto"
 
 #, fuzzy
 #| msgid "Start Flow"
@@ -9332,10 +9349,6 @@ msgstr[1] ""
 "         "
 
 #, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "                              %(completed_percentage)s%% completion\n"
-#| "                            "
 msgid ""
 "\n"
 "                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -9343,8 +9356,9 @@ msgid ""
 "                "
 msgstr ""
 "\n"
-"                              %(completed_percentage)s%% completion\n"
-"                            "
+"                    %(sms_failed)s Error\n"
+"\n"
+"         "
 
 msgid "No Matching schedules"
 msgstr "Los horarios no corresponden"
@@ -9416,7 +9430,7 @@ msgstr[1] ""
 "\n"
 "         "
 
-#, fuzzy, python-format
+#, python-format
 msgid ""
 "\n"
 "        The message will be sent to\n"
@@ -9426,10 +9440,6 @@ msgid ""
 "        </span>\n"
 "      "
 msgstr ""
-"\n"
-"                    %(sms_failed)s Error\n"
-"\n"
-"         "
 
 msgid "Your message export is ready."
 msgstr "Su exportación de mensajes está lista."
@@ -11996,13 +12006,13 @@ msgstr "Ingrese el código de pedido"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
-#, fuzzy, python-brace-format
-#~ msgid "{contacts_count} recipients"
+#, fuzzy
+#~ msgid "Number of recipients"
 #~ msgstr "Número de créditos"
 
-#, fuzzy, python-brace-format
-#~ msgid "{urns_count} recipients"
-#~ msgstr "Número de créditos"
+#, fuzzy
+#~ msgid "Number of urns which received this broadcast"
+#~ msgstr "El estátus actual para esta comunicación"
 
 #, fuzzy, python-format
 #~ msgid ""
@@ -12092,11 +12102,6 @@ msgstr ""
 #, fuzzy
 #~| msgid "The type of this message"
 #~ msgid "The UUID of the first step"
-#~ msgstr "El tipo de este mensaje"
-
-#, fuzzy
-#~| msgid "The type of this message"
-#~ msgid "The UUID of the second step"
 #~ msgstr "El tipo de este mensaje"
 
 #, fuzzy
@@ -12579,6 +12584,10 @@ msgstr ""
 #~ msgstr "Llamada finalizada."
 
 #, fuzzy
+#~ msgid "Recipients"
+#~ msgstr "Número de créditos"
+
+#, fuzzy
 #~| msgid "The URN of the contact delivering this message"
 #~ msgid "The contacts which received this message"
 #~ msgstr "El URN del contacto que entrega este mensaje"
@@ -13048,9 +13057,6 @@ msgstr ""
 
 #~ msgid "The priority for this message to be sent, higher is higher priority"
 #~ msgstr "La prioridad de envío de este mensaje, mayor es mayor prioridad"
-
-#~ msgid "Has Template Error"
-#~ msgstr "Tiene un error en la plantilla"
 
 #~ msgid "Whether data for variable substitution are missing"
 #~ msgstr "Si están faltando datos para el reemplazo de variables"

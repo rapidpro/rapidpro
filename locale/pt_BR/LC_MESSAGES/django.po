@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-25 15:43+0000\n"
+"POT-Creation-Date: 2019-11-27 19:42+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -104,6 +104,11 @@ msgstr ""
 #| msgid "Weekly"
 msgid "Weeks"
 msgstr "Semanalmente"
+
+#, fuzzy
+#| msgid "The groups to send the message to"
+msgid "Select a group to base the campaign on"
+msgstr "O grupo enviará a mensagem para"
 
 msgid "Export"
 msgstr "Exportar"
@@ -2649,6 +2654,11 @@ msgstr "Grupo ou id do contato inválido"
 msgid "Contacts refresh begun, it may take a few minutes to complete."
 msgstr ""
 
+#, fuzzy
+#| msgid "Synced on"
+msgid "Sync Logs"
+msgstr "Sincronizado em"
+
 msgid "Your enterprise WhatsApp number"
 msgstr ""
 
@@ -4110,14 +4120,6 @@ msgstr ""
 #, fuzzy
 msgid "Individual URNs included in this message"
 msgstr "Contatos individuais incluídos nessa mensagem"
-
-#, fuzzy
-msgid "Number of recipients"
-msgstr "Quantidade de créditos"
-
-#, fuzzy
-msgid "Number of urns which received this broadcast"
-msgstr "Estado atual desta divulgação"
 
 msgid "Channel to use for message sending"
 msgstr ""
@@ -7367,6 +7369,11 @@ msgid ""
 "  "
 msgstr ""
 
+#, fuzzy
+#| msgid "Has Template Error"
+msgid "Whatsapp Templates Events"
+msgstr "Possui erro no modelo"
+
 msgid "Templates"
 msgstr ""
 
@@ -7594,6 +7601,15 @@ msgid ""
 msgstr ""
 "\n"
 "Instalar o %(name)s app"
+
+#, fuzzy
+msgid "Email sent to"
+msgstr "Enviado"
+
+#, fuzzy
+#| msgid "Subject"
+msgid "with subject"
+msgstr "Assunto"
 
 #, fuzzy
 msgid "Started"
@@ -8767,7 +8783,7 @@ msgid ""
 "                "
 msgstr ""
 "\n"
-"%(new_contacts)s Nova Resposta %(new_contact_plr)s"
+"Contatos %(contacts_count)s importados com sucesso para"
 
 msgid "No Matching schedules"
 msgstr "Nenhum agendamento correspondente"
@@ -8799,7 +8815,7 @@ msgid ""
 "                      "
 msgstr ""
 "\n"
-"%(new_contacts)s Nova Resposta %(new_contact_plr)s"
+"Contatos %(contacts_count)s importados com sucesso para"
 
 msgid "Write the message that will get sent when the scheduled time arrives"
 msgstr "Escrever a mensagem que será enviada quando chegar o momento agendado"
@@ -8821,10 +8837,18 @@ msgid_plural ""
 "      "
 msgstr[0] ""
 "\n"
-"Distribuir para %(count_comma)s Contact"
+"A mensagem será enviada para \n"
+"<span class='attn'>\n"
+"%(contacts)s\n"
+"contatos %(pluralizer)s\n"
+"</span>"
 msgstr[1] ""
 "\n"
-"Distribuir para %(count_comma)s contatos"
+"A mensagem será enviada para \n"
+"<span class='attn'>\n"
+"%(contacts)s\n"
+"contatos %(pluralizer)s\n"
+"</span>"
 
 #, fuzzy, python-format
 msgid ""
@@ -8837,7 +8861,11 @@ msgid ""
 "      "
 msgstr ""
 "\n"
-"Distribuir para %(count_comma)s Contact"
+"A mensagem será enviada para \n"
+"<span class='attn'>\n"
+"%(contacts)s\n"
+"contatos %(pluralizer)s\n"
+"</span>"
 
 msgid "Your message export is ready."
 msgstr ""
@@ -11288,34 +11316,13 @@ msgstr "Insira o seu código de requisição"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
-#, fuzzy, python-brace-format
-#~ msgid "{contacts_count} recipients"
+#, fuzzy
+#~ msgid "Number of recipients"
 #~ msgstr "Quantidade de créditos"
 
-#, fuzzy, python-brace-format
-#~ msgid "{urns_count} recipients"
-#~ msgstr "Quantidade de créditos"
-
-#, fuzzy, python-format
-#~ msgid ""
-#~ "\n"
-#~ "    The message will be sent to\n"
-#~ "    <span class='attn'>\n"
-#~ "      %(recipients_display)s\n"
-#~ "\n"
-#~ "    </span>\n"
-#~ "    <div id='broadcast_preview'>\n"
-#~ "      %(object.get_default_text)s\n"
-#~ "\n"
-#~ "    </div>\n"
-#~ "  "
-#~ msgstr ""
-#~ "\n"
-#~ "A mensagem será enviada para \n"
-#~ "<span class='attn'>\n"
-#~ "%(contacts)s\n"
-#~ "contatos %(pluralizer)s\n"
-#~ "</span>"
+#, fuzzy
+#~ msgid "Number of urns which received this broadcast"
+#~ msgstr "Estado atual desta divulgação"
 
 #, fuzzy, python-format
 #~ msgid ""
@@ -11412,11 +11419,6 @@ msgstr ""
 #, fuzzy
 #~| msgid "The type of this message"
 #~ msgid "The UUID of the first step"
-#~ msgstr "O tipo dessa mensagem"
-
-#, fuzzy
-#~| msgid "The type of this message"
-#~ msgid "The UUID of the second step"
 #~ msgstr "O tipo dessa mensagem"
 
 #, fuzzy
@@ -11863,6 +11865,10 @@ msgstr ""
 
 #~ msgid "Call ended."
 #~ msgstr "Chamada finalizada"
+
+#, fuzzy
+#~ msgid "Recipients"
+#~ msgstr "Quantidade de créditos"
 
 #, fuzzy
 #~| msgid "The URN of the contact delivering this message"
@@ -12312,9 +12318,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "The priority for this message to be sent, higher is higher priority"
 #~ msgstr "A direção dessa mensagem, seja de entrada ou de saída"
-
-#~ msgid "Has Template Error"
-#~ msgstr "Possui erro no modelo"
 
 #~ msgid "Whether data for variable substitution are missing"
 #~ msgstr "Se os dados para a substituição de variáveis ​​estão em falta"
@@ -13591,6 +13594,23 @@ msgstr ""
 
 #~ msgid "All messages to these contacts have failed, this may indicate their number is wrong"
 #~ msgstr "Todas as mensagens para estes contatos falharam, isso pode indicar que seus números estão errados"
+
+#, fuzzy
+#~ msgid ""
+#~ "\n"
+#~ "                        Found %(results_count)s contact where name or phone contains <i>%(search)s</i>.\n"
+#~ "                        "
+#~ msgid_plural ""
+#~ "\n"
+#~ "                          Found %(results_count)s contacts where name or phone contains <i>%(search)s</i>.\n"
+#~ "\n"
+#~ "                      "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "%(new_contacts)s Nova Resposta %(new_contact_plr)s"
+#~ msgstr[1] ""
+#~ "\n"
+#~ "%(new_contacts)s Nova Resposta %(new_contact_plr)s"
 
 #~ msgid "Add Group"
 #~ msgstr "Adicionar grupo"

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-25 15:43+0000\n"
+"POT-Creation-Date: 2019-11-27 19:42+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -84,6 +84,9 @@ msgid "Days"
 msgstr ""
 
 msgid "Weeks"
+msgstr ""
+
+msgid "Select a group to base the campaign on"
 msgstr ""
 
 msgid "Export"
@@ -1818,6 +1821,9 @@ msgstr ""
 msgid "Contacts refresh begun, it may take a few minutes to complete."
 msgstr ""
 
+msgid "Sync Logs"
+msgstr ""
+
 msgid "Your enterprise WhatsApp number"
 msgstr ""
 
@@ -3035,12 +3041,6 @@ msgid "URNs"
 msgstr ""
 
 msgid "Individual URNs included in this message"
-msgstr ""
-
-msgid "Number of recipients"
-msgstr ""
-
-msgid "Number of urns which received this broadcast"
 msgstr ""
 
 msgid "Channel to use for message sending"
@@ -5702,6 +5702,9 @@ msgid ""
 "  "
 msgstr ""
 
+msgid "Whatsapp Templates Events"
+msgstr ""
+
 msgid "Templates"
 msgstr ""
 
@@ -5866,6 +5869,12 @@ msgid ""
 "          Email sent with subject <b>%(subject)s</b>\n"
 "\n"
 "        "
+msgstr ""
+
+msgid "Email sent to"
+msgstr ""
+
+msgid "with subject"
 msgstr ""
 
 msgid "Started"
