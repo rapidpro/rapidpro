@@ -3814,8 +3814,9 @@ class ContactTest(TembaTest):
             .set_contact_name("Joe")
             .set_contact_name("")
             .set_result("Color", "red", "Red", "it's red")
-            .send_email("joe@nyaruka.com", "Test", "Hello there Joe")
-            .wait()
+            .send_email(["joe@nyaruka.com"], "Test", "Hello there Joe")
+            .error("unable to send email")
+            .fail("this is a failure")
             .save()
         )
 
@@ -3835,7 +3836,12 @@ class ContactTest(TembaTest):
         self.assertContains(response, "Name updated to <b>Joe</b>")
         self.assertContains(response, "Name cleared")
         self.assertContains(response, "Run result <b>Color</b> updated to <b>red</b> with category <b>Red</b>")
-        self.assertContains(response, "Email sent with subject <b>Test</b>")
+        self.assertContains(
+            response,
+            "Email sent to\n        \n          <b>joe@nyaruka.com</b>\n        \n        with subject\n        <b>Test</b>",
+        )
+        self.assertContains(response, "unable to send email")
+        self.assertContains(response, "this is a failure")
 
     def test_campaign_event_time(self):
 
@@ -3948,10 +3954,12 @@ class ContactTest(TembaTest):
         self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-notification"></span>')
 
         msg.status = "S"
-        self.assertEqual(history_icon(item), '<span class="glyph icon-bullhorn"></span>')
+        with patch("temba.msgs.models.Broadcast.get_message_count") as mock_get_message_count:
+            mock_get_message_count.return_value = 2
+            self.assertEqual(history_icon(item), '<span class="glyph icon-bullhorn"></span>')
 
-        msg.broadcast.recipient_count = None
-        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-right"></span>')
+            mock_get_message_count.return_value = 0
+            self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-right"></span>')
 
         item = {"type": "flow_entered", "obj": run}
         self.assertEqual(history_icon(item), '<span class="glyph icon-tree-2"></span>')
@@ -3965,7 +3973,7 @@ class ContactTest(TembaTest):
         self.assertEqual(history_icon(item), '<span class="glyph icon-checkmark"></span>')
 
         run.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
-        self.assertEqual(history_icon(item), '<span class="glyph icon-warning"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-cancel-circle"></span>')
 
         run.exit_type = FlowRun.EXIT_TYPE_EXPIRED
         self.assertEqual(history_icon(item), '<span class="glyph icon-clock"></span>')
@@ -5310,7 +5318,7 @@ class ContactTest(TembaTest):
                         line=3,
                         error="Missing any valid URNs; at least one among URN:tel, "
                         "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
-                        "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
+                        "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat should be provided or a Contact UUID",
                     ),
                     dict(line=4, error="Invalid Phone number 12345"),
                 ],
@@ -5330,7 +5338,7 @@ class ContactTest(TembaTest):
                         line=3,
                         error="Missing any valid URNs; at least one among URN:tel, "
                         "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
-                        "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
+                        "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat should be provided or a Contact UUID",
                     ),
                     dict(line=4, error="Invalid URN: abcdef"),
                 ],
@@ -5423,7 +5431,7 @@ class ContactTest(TembaTest):
                             line=3,
                             error="Missing any valid URNs; at least one among URN:tel, "
                             "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
-                            "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
+                            "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat should be provided or a Contact UUID",
                         )
                     ],
                 ),
@@ -5505,7 +5513,7 @@ class ContactTest(TembaTest):
                             line=3,
                             error="Missing any valid URNs; at least one among URN:tel, "
                             "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
-                            "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
+                            "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat should be provided or a Contact UUID",
                         )
                     ],
                 ),
@@ -5658,7 +5666,7 @@ class ContactTest(TembaTest):
             "csv_file",
             'The file you provided is missing a required header. At least one of "URN:tel", "URN:facebook", '
             '"URN:twitter", "URN:twitterid", "URN:viber", "URN:line", "URN:telegram", "URN:mailto", "URN:ext", '
-            '"URN:jiochat", "URN:wechat", "URN:fcm", "URN:whatsapp" or "Contact UUID" should be included.',
+            '"URN:jiochat", "URN:wechat", "URN:fcm", "URN:whatsapp", "URN:freshchat" or "Contact UUID" should be included.',
         )
 
         csv_file = open("%s/test_imports/sample_contacts_missing_name_phone_headers.xls" % settings.MEDIA_ROOT, "rb")
@@ -5670,7 +5678,7 @@ class ContactTest(TembaTest):
             "csv_file",
             'The file you provided is missing a required header. At least one of "URN:tel", "URN:facebook", '
             '"URN:twitter", "URN:twitterid", "URN:viber", "URN:line", "URN:telegram", "URN:mailto", "URN:ext", '
-            '"URN:jiochat", "URN:wechat", "URN:fcm", "URN:whatsapp" or "Contact UUID" should be included.',
+            '"URN:jiochat", "URN:wechat", "URN:fcm", "URN:whatsapp", "URN:freshchat" or "Contact UUID" should be included.',
         )
 
         csv_file = open(
@@ -6941,7 +6949,7 @@ class ContactFieldTest(TembaTest):
             self.assertIsNotNone(response.context["task"])
 
         # no group specified, so will default to 'All Contacts'
-        with self.assertNumQueries(47):
+        with self.assertNumQueries(48):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -6994,7 +7002,7 @@ class ContactFieldTest(TembaTest):
         # change the order of the fields
         self.contactfield_2.priority = 15
         self.contactfield_2.save()
-        with self.assertNumQueries(47):
+        with self.assertNumQueries(48):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -7052,7 +7060,7 @@ class ContactFieldTest(TembaTest):
         ContactURN.create(self.org, contact, "tel:+12062233445")
 
         # but should have additional Twitter and phone columns
-        with self.assertNumQueries(47):
+        with self.assertNumQueries(48):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -7137,7 +7145,7 @@ class ContactFieldTest(TembaTest):
         assertImportExportedFile()
 
         # export a specified group of contacts (only Ben and Adam are in the group)
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(49):
             self.assertExcelSheet(
                 request_export("?g=%s" % group.uuid)[0],
                 [
@@ -7202,7 +7210,7 @@ class ContactFieldTest(TembaTest):
                 log_info_threshold.return_value = 1
 
                 with ESMockWithScroll(data=mock_es_data):
-                    with self.assertNumQueries(47):
+                    with self.assertNumQueries(48):
                         self.assertExcelSheet(
                             request_export("?s=name+has+adam+or+name+has+deng")[0],
                             [
@@ -7261,7 +7269,7 @@ class ContactFieldTest(TembaTest):
         # export a search within a specified group of contacts
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(48):
+            with self.assertNumQueries(49):
                 self.assertExcelSheet(
                     request_export("?g=%s&s=Hagg" % group.uuid)[0],
                     [
@@ -7956,7 +7964,7 @@ class ContactFieldTest(TembaTest):
 
         response_json = response.json()
 
-        self.assertEqual(len(response_json), 47)
+        self.assertEqual(len(response_json), 48)
         self.assertEqual(response_json[0]["label"], "Full name")
         self.assertEqual(response_json[0]["key"], "name")
         self.assertEqual(response_json[1]["label"], "Phone number")
@@ -7985,22 +7993,24 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response_json[12]["key"], "fcm")
         self.assertEqual(response_json[13]["label"], "WhatsApp identifier")
         self.assertEqual(response_json[13]["key"], "whatsapp")
-        self.assertEqual(response_json[14]["label"], "Groups")
-        self.assertEqual(response_json[14]["key"], "groups")
-        self.assertEqual(response_json[15]["label"], "First")
-        self.assertEqual(response_json[15]["key"], "first")
-        self.assertEqual(response_json[16]["label"], "label0")
-        self.assertEqual(response_json[16]["key"], "key0")
+        self.assertEqual(response_json[14]["label"], "Freshchat identifier")
+        self.assertEqual(response_json[14]["key"], "freshchat")
+        self.assertEqual(response_json[15]["label"], "Groups")
+        self.assertEqual(response_json[15]["key"], "groups")
+        self.assertEqual(response_json[16]["label"], "First")
+        self.assertEqual(response_json[16]["key"], "first")
+        self.assertEqual(response_json[17]["label"], "label0")
+        self.assertEqual(response_json[17]["key"], "key0")
 
         ContactField.user_fields.filter(org=self.org, key="key0").update(label="AAAA")
 
         response = self.client.get(contact_field_json_url)
         response_json = response.json()
 
-        self.assertEqual(response_json[15]["label"], "AAAA")
-        self.assertEqual(response_json[15]["key"], "key0")
-        self.assertEqual(response_json[16]["label"], "First")
-        self.assertEqual(response_json[16]["key"], "first")
+        self.assertEqual(response_json[16]["label"], "AAAA")
+        self.assertEqual(response_json[16]["key"], "key0")
+        self.assertEqual(response_json[17]["label"], "First")
+        self.assertEqual(response_json[17]["key"], "first")
 
 
 class URNTest(TembaTest):
@@ -8022,6 +8032,16 @@ class URNTest(TembaTest):
         self.assertEqual("whatsapp:12065551212", URN.from_whatsapp("12065551212"))
         self.assertTrue(URN.validate("whatsapp:12065551212"))
         self.assertFalse(URN.validate("whatsapp:+12065551212"))
+
+    def test_freshchat_urn(self):
+        self.assertEqual(
+            "freshchat:c0534f78-b6e9-4f79-8853-11cedfc1f35b/c0534f78-b6e9-4f79-8853-11cedfc1f35b",
+            URN.from_freshchat("c0534f78-b6e9-4f79-8853-11cedfc1f35b/c0534f78-b6e9-4f79-8853-11cedfc1f35b"),
+        )
+        self.assertTrue(
+            URN.validate("freshchat:c0534f78-b6e9-4f79-8853-11cedfc1f35b/c0534f78-b6e9-4f79-8853-11cedfc1f35b")
+        )
+        self.assertFalse(URN.validate("freshchat:+12065551212"))
 
     def test_from_parts(self):
 

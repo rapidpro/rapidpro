@@ -61,6 +61,7 @@ VIBER_SCHEME = "viber"
 FCM_SCHEME = "fcm"
 WHATSAPP_SCHEME = "whatsapp"
 WECHAT_SCHEME = "wechat"
+FRESHCHAT_SCHEME = "freshchat"
 
 FACEBOOK_PATH_REF_PREFIX = "ref:"
 
@@ -79,6 +80,7 @@ URN_SCHEME_CONFIG = (
     (WECHAT_SCHEME, _("WeChat identifier"), WECHAT_SCHEME),
     (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), FCM_SCHEME),
     (WHATSAPP_SCHEME, _("WhatsApp identifier"), WHATSAPP_SCHEME),
+    (FRESHCHAT_SCHEME, _("Freshchat identifier"), FRESHCHAT_SCHEME),
 )
 
 
@@ -91,7 +93,10 @@ HISTORY_INCLUDE_EVENTS = {
     "contact_groups_changed",
     "contact_name_changed",
     "contact_urns_changed",
-    "email_created",
+    "email_created",  # no longer generated but exists in old sessions
+    "email_sent",
+    "error",
+    "failure",
     "input_labels_added",
     "run_result_changed",
 }
@@ -224,6 +229,14 @@ class URN(object):
         elif scheme == VIBER_SCHEME:  # pragma: needs cover
             return regex.match(r"^[a-zA-Z0-9_=]{1,24}$", path, regex.V0)
 
+        # validate Freshchat URNS look right (this is a guess)
+        elif scheme == FRESHCHAT_SCHEME:  # pragma: needs cover
+            return regex.match(
+                r"^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}/[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$",
+                path,
+                regex.V0,
+            )
+
         # anything goes for external schemes
         return True
 
@@ -353,6 +366,10 @@ class URN(object):
     @classmethod
     def from_fcm(cls, path):
         return cls.from_parts(FCM_SCHEME, path)
+
+    @classmethod
+    def from_freshchat(cls, path):
+        return cls.from_parts(FRESHCHAT_SCHEME, path)
 
     @classmethod
     def from_jiochat(cls, path):
@@ -2296,6 +2313,7 @@ class ContactURN(models.Model):
         TELEGRAM_SCHEME: 90,
         VIBER_SCHEME: 90,
         FCM_SCHEME: 90,
+        FRESHCHAT_SCHEME: 90,
     }
 
     ANON_MASK = "*" * 8  # Returned instead of URN values for anon orgs

@@ -1,3 +1,30 @@
+v5.3.12
+----------
+ * Add error and failure events to contact history
+ * Use form components on campaign create/update
+
+v5.3.11
+----------
+ * Migrate sample flows to new editor
+ * Localize URNs in API using org country
+ * Write HTTPLogs for Whatsapp template syncing
+ * Remove Broadcast recipient_count field
+
+v5.3.10
+----------
+ * Add read API endpoint for globals
+
+v5.3.9
+----------
+ * Add trimming task for flow revisions
+ * Add models for globals support
+ * Add FreshChat channel support
+
+v5.3.8
+----------
+ * Make sure imported flows are unarchived
+ * Validate we do not have a caller on a channel before adding a new one
+
 v5.3.7
 ----------
  * Release URNs on Org release

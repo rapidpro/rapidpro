@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-08 19:42+0000\n"
+"POT-Creation-Date: 2019-11-27 19:42+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -84,6 +84,9 @@ msgid "Days"
 msgstr ""
 
 msgid "Weeks"
+msgstr ""
+
+msgid "Select a group to base the campaign on"
 msgstr ""
 
 msgid "Export"
@@ -949,6 +952,42 @@ msgstr ""
 msgid "Check if you want this channel to send notifications to contacts."
 msgstr ""
 
+msgid "Connect your approved <a href=\"https://www.freshworks.com/live-chat-software/\" target=\"_blank\">FreshChat</a> Channel"
+msgstr ""
+
+msgid ""
+"\n"
+"        To use your FreshChat channel you'll have to configure the FreshChat server to direct messages to the url below.\n"
+"        "
+msgstr ""
+
+msgid "POST FreshChat trigger to this address."
+msgstr ""
+
+msgid "FreshChat Environment Title"
+msgstr ""
+
+msgid "The name of your environment"
+msgstr ""
+
+msgid "FreshChat Webhook Public Key"
+msgstr ""
+
+msgid "Webhook Public Key used to verify signatures"
+msgstr ""
+
+msgid "FreshChat Agent ID"
+msgstr ""
+
+msgid "The UUID of the Agent you want RP to Use."
+msgstr ""
+
+msgid "FreshChat API Auth Token"
+msgstr ""
+
+msgid "The API auth token- leave out the bearer"
+msgstr ""
+
 msgid ""
 "If you are based in the Phillipines, you can integrate {{ brand.name }} with Globe Labs to send\n"
 "                       and receive messages on your shortcode."
@@ -1782,6 +1821,9 @@ msgstr ""
 msgid "Contacts refresh begun, it may take a few minutes to complete."
 msgstr ""
 
+msgid "Sync Logs"
+msgstr ""
+
 msgid "Your enterprise WhatsApp number"
 msgstr ""
 
@@ -2124,6 +2166,9 @@ msgid "Firebase Cloud Messaging identifier"
 msgstr ""
 
 msgid "WhatsApp identifier"
+msgstr ""
+
+msgid "Freshchat identifier"
 msgstr ""
 
 msgid "Label"
@@ -2996,12 +3041,6 @@ msgid "URNs"
 msgstr ""
 
 msgid "Individual URNs included in this message"
-msgstr ""
-
-msgid "Number of recipients"
-msgstr ""
-
-msgid "Number of urns which received this broadcast"
 msgstr ""
 
 msgid "Channel to use for message sending"
@@ -3955,6 +3994,9 @@ msgid "Classifier Called"
 msgstr ""
 
 msgid "Airtime Transferred"
+msgstr ""
+
+msgid "Whatsapp Templates Synced"
 msgstr ""
 
 msgid "Never"
@@ -5660,6 +5702,9 @@ msgid ""
 "  "
 msgstr ""
 
+msgid "Whatsapp Templates Events"
+msgstr ""
+
 msgid "Templates"
 msgstr ""
 
@@ -5824,6 +5869,12 @@ msgid ""
 "          Email sent with subject <b>%(subject)s</b>\n"
 "\n"
 "        "
+msgstr ""
+
+msgid "Email sent to"
+msgstr ""
+
+msgid "with subject"
 msgstr ""
 
 msgid "Started"
@@ -6744,14 +6795,22 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"                %(count_comma)s recipient\n"
-"              "
+"                  %(count_comma)s recipient\n"
+"                  "
 msgid_plural ""
 "\n"
-"                %(count_comma)s recipients\n"
-"              "
+"                    %(count_comma)s recipients\n"
+"                "
 msgstr[0] ""
 msgstr[1] ""
+
+#, python-format
+msgid ""
+"\n"
+"                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
+"\n"
+"                "
+msgstr ""
 
 msgid "No Matching schedules"
 msgstr ""
@@ -6762,14 +6821,21 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"                      %(count_comma)s recipient\n"
-"                    "
+"                        %(count_comma)s recipient\n"
+"                        "
 msgid_plural ""
 "\n"
-"                      %(count_comma)s recipients\n"
-"                    "
+"                          %(count_comma)s recipients\n"
+"                      "
 msgstr[0] ""
 msgstr[1] ""
+
+#, python-format
+msgid ""
+"\n"
+"                        %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
+"                      "
+msgstr ""
 
 msgid "Write the message that will get sent when the scheduled time arrives"
 msgstr ""
@@ -6777,29 +6843,30 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"      The message will be sent to\n"
-"      <span class='attn'>\n"
-"        %(count_comma)s recipients\n"
-"      </span>\n"
-"      "
-msgid_plural ""
-"\n"
 "        The message will be sent to\n"
 "        <span class='attn'>\n"
 "          %(count_comma)s recipients\n"
-"\n"
 "        </span>\n"
-"    "
+"        "
+msgid_plural ""
+"\n"
+"          The message will be sent to\n"
+"          <span class='attn'>\n"
+"            %(count_comma)s recipients\n"
+"          </span>\n"
+"      "
 msgstr[0] ""
 msgstr[1] ""
 
+#, python-format
 msgid ""
 "\n"
-"      <span class='attn'>\n"
-"        Nobody\n"
-"      </span>\n"
-"      will be notified about this broadcast.\n"
-"    "
+"        The message will be sent to\n"
+"        <span class='attn'>\n"
+"          %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
+"\n"
+"        </span>\n"
+"      "
 msgstr ""
 
 msgid "Your message export is ready."
@@ -6909,14 +6976,22 @@ msgstr[1] ""
 #, python-format
 msgid ""
 "\n"
-"                1 contact\n"
-"                "
+"                    1 recipient\n"
+"                    "
 msgid_plural ""
 "\n"
-"                %(counter)s contacts\n"
-"                "
+"                      %(counter)s recipients\n"
+"                  "
 msgstr[0] ""
 msgstr[1] ""
+
+#, python-format
+msgid ""
+"\n"
+"                    %(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns\n"
+"\n"
+"                  "
+msgstr ""
 
 msgid "(sending)"
 msgstr ""

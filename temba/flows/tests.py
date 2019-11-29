@@ -11,6 +11,7 @@ from openpyxl import load_workbook
 
 from django.conf import settings
 from django.contrib.auth.models import Group
+from django.db.models.functions import TruncDate
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -57,7 +58,13 @@ from .models import (
     RuleSet,
     get_flow_user,
 )
-from .tasks import squash_flowpathcounts, squash_flowruncounts, trim_flow_sessions, update_run_expirations_task
+from .tasks import (
+    squash_flowpathcounts,
+    squash_flowruncounts,
+    trim_flow_revisions,
+    trim_flow_sessions,
+    update_run_expirations_task,
+)
 from .views import FlowCRUDL
 
 
@@ -2577,7 +2584,7 @@ class FlowCRUDLTest(TembaTest):
         self.assertIn("channels", response.json())
         self.assertIn("languages", response.json())
         self.assertIn("channel_countries", response.json())
-        self.assertEqual(ActionSet.objects.all().count(), 28)
+        self.assertEqual(ActionSet.objects.all().count(), 4)
 
         json_dict = response.json()["flow"]
 
@@ -2605,7 +2612,7 @@ class FlowCRUDLTest(TembaTest):
             reverse("flows.flow_json", args=[flow.uuid]), json_dict, content_type="application/json"
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(ActionSet.objects.all().count(), 25)
+        self.assertEqual(ActionSet.objects.all().count(), 1)
 
         # check that the flow only has a single actionset
         ActionSet.objects.get(flow=flow)
@@ -5762,3 +5769,83 @@ class SystemChecksTest(TembaTest):
 
         with override_settings(MAILROOM_URL=None):
             self.assertEqual(mailroom_url(None)[0].msg, "No mailroom URL set, simulation will not be available")
+
+
+class FlowRevisionTest(TembaTest):
+    def test_trim_revisions(self):
+        start = timezone.now()
+
+        color = self.get_flow("color")
+        clinic = self.get_flow("the_clinic")
+
+        revision = 100
+        FlowRevision.objects.all().update(revision=revision)
+
+        # create a single old clinic revision
+        FlowRevision.objects.create(
+            flow=clinic,
+            definition=dict(),
+            revision=99,
+            created_on=timezone.now() - timedelta(days=7),
+            modified_on=timezone.now(),
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
+        # make a bunch of revisions for color on the same day
+        created = timezone.now().replace(hour=6) - timedelta(days=1)
+        for i in range(25):
+            revision -= 1
+            created = created - timedelta(minutes=1)
+            FlowRevision.objects.create(
+                flow=color,
+                definition=dict(),
+                revision=revision,
+                created_by=self.admin,
+                modified_by=self.admin,
+                created_on=created,
+                modified_on=created,
+            )
+
+        # then for 5 days prior, make a few more
+        for i in range(5):
+            created = created - timedelta(days=1)
+            for i in range(10):
+                revision -= 1
+                created = created - timedelta(minutes=1)
+                FlowRevision.objects.create(
+                    flow=color,
+                    definition=dict(),
+                    revision=revision,
+                    created_by=self.admin,
+                    modified_by=self.admin,
+                    created_on=created,
+                    modified_on=created,
+                )
+
+        # trim our flow revisions, should be left with original (today), 25 from yesterday, 1 per day for 5 days = 31
+        self.assertEqual(76, FlowRevision.objects.filter(flow=color).count())
+        self.assertEqual(45, FlowRevision.trim(start))
+        self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
+        self.assertEqual(
+            7,
+            FlowRevision.objects.filter(flow=color)
+            .annotate(created_date=TruncDate("created_on"))
+            .distinct("created_date")
+            .count(),
+        )
+
+        # trim our clinic flow manually, should remain unchanged
+        self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
+        self.assertEqual(0, FlowRevision.trim_for_flow(clinic.id))
+        self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
+
+        # call our task
+        trim_flow_revisions()
+        self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
+        self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
+
+        # call again (testing reading redis key)
+        trim_flow_revisions()
+        self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
+        self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())

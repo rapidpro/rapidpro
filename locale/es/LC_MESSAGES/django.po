@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-08 19:42+0000\n"
+"POT-Creation-Date: 2019-11-27 19:42+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -99,6 +99,11 @@ msgstr ""
 #| msgid "Weekly"
 msgid "Weeks"
 msgstr "Semanalmente"
+
+#, fuzzy
+#| msgid "The groups to send the message to"
+msgid "Select a group to base the campaign on"
+msgstr "Los grupos a los que se envía este mensaje "
 
 msgid "Export"
 msgstr "Exportar"
@@ -1380,6 +1385,60 @@ msgstr "Notificaciones de correo electrónico"
 
 msgid "Check if you want this channel to send notifications to contacts."
 msgstr ""
+
+msgid "Connect your approved <a href=\"https://www.freshworks.com/live-chat-software/\" target=\"_blank\">FreshChat</a> Channel"
+msgstr ""
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your Vumi connection you'll need to set the following parameters on your Vumi conversation:\n"
+#| "\n"
+#| "      "
+msgid ""
+"\n"
+"        To use your FreshChat channel you'll have to configure the FreshChat server to direct messages to the url below.\n"
+"        "
+msgstr ""
+"\n"
+"        Para terminar de configurar su conexión Vumi, tendrá que establecer los siguientes parámetros en su conversación Vumi:\n"
+"\n"
+"      "
+
+msgid "POST FreshChat trigger to this address."
+msgstr ""
+
+#, fuzzy
+#| msgid "Edit Name"
+msgid "FreshChat Environment Title"
+msgstr "Editar Nombre"
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The name of your environment"
+msgstr "El nombre de su organización"
+
+msgid "FreshChat Webhook Public Key"
+msgstr ""
+
+msgid "Webhook Public Key used to verify signatures"
+msgstr ""
+
+msgid "FreshChat Agent ID"
+msgstr ""
+
+#, fuzzy
+#| msgid "The type of this message"
+msgid "The UUID of the Agent you want RP to Use."
+msgstr "El tipo de este mensaje"
+
+msgid "FreshChat API Auth Token"
+msgstr ""
+
+#, fuzzy
+#| msgid "The power level of the battery"
+msgid "The API auth token- leave out the bearer"
+msgstr "El nivel de energía de la batería"
 
 #, fuzzy
 msgid ""
@@ -2853,6 +2912,11 @@ msgstr "ID del grupo o contacto inválido "
 msgid "Contacts refresh begun, it may take a few minutes to complete."
 msgstr ""
 
+#, fuzzy
+#| msgid "Synced on"
+msgid "Sync Logs"
+msgstr "Sincronizado el"
+
 msgid "Your enterprise WhatsApp number"
 msgstr ""
 
@@ -3332,6 +3396,11 @@ msgstr ""
 #, fuzzy
 #| msgid "External ID"
 msgid "WhatsApp identifier"
+msgstr "ID externo"
+
+#, fuzzy
+#| msgid "External ID"
+msgid "Freshchat identifier"
 msgstr "ID externo"
 
 msgid "Label"
@@ -4338,14 +4407,6 @@ msgstr ""
 #, fuzzy
 msgid "Individual URNs included in this message"
 msgstr "Contactos individuales incluidos en este mensaje"
-
-#, fuzzy
-msgid "Number of recipients"
-msgstr "Número de créditos"
-
-#, fuzzy
-msgid "Number of urns which received this broadcast"
-msgstr "El estátus actual para esta comunicación"
 
 msgid "Channel to use for message sending"
 msgstr ""
@@ -5437,6 +5498,9 @@ msgid "Classifier Called"
 msgstr "Evento del transmisor"
 
 msgid "Airtime Transferred"
+msgstr ""
+
+msgid "Whatsapp Templates Synced"
 msgstr ""
 
 msgid "Never"
@@ -7812,6 +7876,11 @@ msgid ""
 "  "
 msgstr ""
 
+#, fuzzy
+#| msgid "Has Template Error"
+msgid "Whatsapp Templates Events"
+msgstr "Tiene un error en la plantilla"
+
 msgid "Templates"
 msgstr ""
 
@@ -8049,6 +8118,16 @@ msgstr ""
 "          Instalar el %(name)s app\n"
 "\n"
 "        "
+
+#, fuzzy
+#| msgid "Sent to"
+msgid "Email sent to"
+msgstr "Enviar a"
+
+#, fuzzy
+#| msgid "Subject"
+msgid "with subject"
+msgstr "Asunto"
 
 #, fuzzy
 #| msgid "Start Flow"
@@ -9252,18 +9331,30 @@ msgstr ""
 #, fuzzy, python-format
 msgid ""
 "\n"
-"                %(count_comma)s recipient\n"
-"              "
+"                  %(count_comma)s recipient\n"
+"                  "
 msgid_plural ""
 "\n"
-"                %(count_comma)s recipients\n"
-"              "
+"                    %(count_comma)s recipients\n"
+"                "
 msgstr[0] ""
 "\n"
 "                    %(sms_failed)s Error\n"
 "\n"
 "         "
 msgstr[1] ""
+"\n"
+"                    %(sms_failed)s Error\n"
+"\n"
+"         "
+
+#, fuzzy, python-format
+msgid ""
+"\n"
+"                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
+"\n"
+"                "
+msgstr ""
 "\n"
 "                    %(sms_failed)s Error\n"
 "\n"
@@ -9279,12 +9370,12 @@ msgstr "Historial de mensajes"
 #, fuzzy, python-format
 msgid ""
 "\n"
-"                      %(count_comma)s recipient\n"
-"                    "
+"                        %(count_comma)s recipient\n"
+"                        "
 msgid_plural ""
 "\n"
-"                      %(count_comma)s recipients\n"
-"                    "
+"                          %(count_comma)s recipients\n"
+"                      "
 msgstr[0] ""
 "\n"
 "                    %(sms_failed)s Error\n"
@@ -9295,36 +9386,59 @@ msgstr[1] ""
 "                    %(sms_failed)s Error\n"
 "\n"
 "         "
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "                              %(completed_percentage)s%% completion\n"
+#| "                            "
+msgid ""
+"\n"
+"                        %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
+"                      "
+msgstr ""
+"\n"
+"                              %(completed_percentage)s%% completion\n"
+"                            "
 
 msgid "Write the message that will get sent when the scheduled time arrives"
 msgstr "Escribir el mensaje que será enviado a la hora programada"
 
-#, python-format
+#, fuzzy, python-format
 msgid ""
-"\n"
-"      The message will be sent to\n"
-"      <span class='attn'>\n"
-"        %(count_comma)s recipients\n"
-"      </span>\n"
-"      "
-msgid_plural ""
 "\n"
 "        The message will be sent to\n"
 "        <span class='attn'>\n"
 "          %(count_comma)s recipients\n"
-"\n"
 "        </span>\n"
-"    "
+"        "
+msgid_plural ""
+"\n"
+"          The message will be sent to\n"
+"          <span class='attn'>\n"
+"            %(count_comma)s recipients\n"
+"          </span>\n"
+"      "
 msgstr[0] ""
+"\n"
+"                    %(sms_failed)s Error\n"
+"\n"
+"         "
 msgstr[1] ""
+"\n"
+"                    %(sms_failed)s Error\n"
+"\n"
+"         "
 
+#, python-format
 msgid ""
 "\n"
-"      <span class='attn'>\n"
-"        Nobody\n"
-"      </span>\n"
-"      will be notified about this broadcast.\n"
-"    "
+"        The message will be sent to\n"
+"        <span class='attn'>\n"
+"          %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
+"\n"
+"        </span>\n"
+"      "
 msgstr ""
 
 msgid "Your message export is ready."
@@ -9466,12 +9580,12 @@ msgstr[1] ""
 #, fuzzy, python-format
 msgid ""
 "\n"
-"                1 contact\n"
-"                "
+"                    1 recipient\n"
+"                    "
 msgid_plural ""
 "\n"
-"                %(counter)s contacts\n"
-"                "
+"                      %(counter)s recipients\n"
+"                  "
 msgstr[0] ""
 "\n"
 "                    %(sms_failed)s Error\n"
@@ -9482,6 +9596,14 @@ msgstr[1] ""
 "                    %(sms_failed)s Error\n"
 "\n"
 "         "
+
+#, python-format
+msgid ""
+"\n"
+"                    %(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns\n"
+"\n"
+"                  "
+msgstr ""
 
 #, fuzzy
 #| msgid "Pending"
@@ -11885,6 +12007,54 @@ msgid "Found ${count} for ${query}"
 msgstr ""
 
 #, fuzzy
+#~ msgid "Number of recipients"
+#~ msgstr "Número de créditos"
+
+#, fuzzy
+#~ msgid "Number of urns which received this broadcast"
+#~ msgstr "El estátus actual para esta comunicación"
+
+#, fuzzy, python-format
+#~ msgid ""
+#~ "\n"
+#~ "                %(count_comma)s recipient\n"
+#~ "              "
+#~ msgid_plural ""
+#~ "\n"
+#~ "                %(count_comma)s recipients\n"
+#~ "              "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "                    %(sms_failed)s Error\n"
+#~ "\n"
+#~ "         "
+#~ msgstr[1] ""
+#~ "\n"
+#~ "                    %(sms_failed)s Error\n"
+#~ "\n"
+#~ "         "
+
+#, fuzzy, python-format
+#~ msgid ""
+#~ "\n"
+#~ "                1 contact\n"
+#~ "                "
+#~ msgid_plural ""
+#~ "\n"
+#~ "                %(counter)s contacts\n"
+#~ "                "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "                    %(sms_failed)s Error\n"
+#~ "\n"
+#~ "         "
+#~ msgstr[1] ""
+#~ "\n"
+#~ "                    %(sms_failed)s Error\n"
+#~ "\n"
+#~ "         "
+
+#, fuzzy
 #~| msgid "Channel Event"
 #~ msgid "Classifier synced"
 #~ msgstr "Evento del transmisor"
@@ -11932,11 +12102,6 @@ msgstr ""
 #, fuzzy
 #~| msgid "The type of this message"
 #~ msgid "The UUID of the first step"
-#~ msgstr "El tipo de este mensaje"
-
-#, fuzzy
-#~| msgid "The type of this message"
-#~ msgid "The UUID of the second step"
 #~ msgstr "El tipo de este mensaje"
 
 #, fuzzy
@@ -12892,9 +13057,6 @@ msgstr ""
 
 #~ msgid "The priority for this message to be sent, higher is higher priority"
 #~ msgstr "La prioridad de envío de este mensaje, mayor es mayor prioridad"
-
-#~ msgid "Has Template Error"
-#~ msgstr "Tiene un error en la plantilla"
 
 #~ msgid "Whether data for variable substitution are missing"
 #~ msgstr "Si están faltando datos para el reemplazo de variables"
