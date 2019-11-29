@@ -42,16 +42,11 @@ class Command(BaseCommand):  # pragma: no cover
             action="store",
             dest="org",
             default=DEFAULT_ORG,
-            help="The id or name of the organization to send messages for",
+            help="The id or name of the organization to send messages to",
         )
 
         parser.add_argument(
-            "--urn",
-            type=str,
-            action="store",
-            dest="urn",
-            default=DEFAULT_URN,
-            help="The URN of the contact to send messages for",
+            "--urn", type=str, action="store", dest="urn", default=DEFAULT_URN, help="The URN to send messages from"
         )
 
     def handle(self, *args, **options):
@@ -87,7 +82,7 @@ class Command(BaseCommand):  # pragma: no cover
             raise CommandError(f"Unable to start test channel: {str(e)}")
 
         print(
-            f"\nSending messages for {Fore.CYAN}{org.name}{Fore.RESET} as {Fore.CYAN}{scheme}:{path}{Fore.RESET}. Use Ctrl+C to quit."
+            f"\nSending messages to {Fore.CYAN}{org.name}{Fore.RESET} as {Fore.CYAN}{scheme}:{path}{Fore.RESET}. Use Ctrl+C to quit."
         )
 
         self.responses_wait = None
@@ -107,7 +102,7 @@ class Command(BaseCommand):  # pragma: no cover
                     print(f"💬 {Fore.GREEN}{response.channel.address}{Fore.RESET}> {response.text}")
 
         except KeyboardInterrupt:
-            channel.release()
+            pass
 
     def response_callback(self, data):
         self.responses_wait.set()

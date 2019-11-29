@@ -38,7 +38,9 @@ class TestChannel:
             Channel.CONFIG_SEND_BODY: '{"text": "{{text}}"}',
         }
 
-        db_channel = Channel.add_config_external_channel(org, user, country, address, "EX", config, "SR", [scheme])
+        db_channel = Channel.add_config_external_channel(
+            org, user, country, address, "EX", config, "SR", [scheme], name="Test Channel"
+        )
 
         return cls(db_channel, server, courier_url, callback)
 

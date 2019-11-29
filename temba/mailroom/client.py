@@ -51,7 +51,7 @@ class MailroomClient:
             self.headers["Authorization"] = "Token " + auth_token
 
     def version(self):
-        return self._request("", method="get").get("version")
+        return self._request("", post=False).get("version")
 
     def expression_migrate(self, expression):
 
@@ -103,13 +103,14 @@ class MailroomClient:
     def sim_resume(self, payload):
         return self._request("sim/resume", payload)
 
-    def _request(self, endpoint, payload=None, method="post"):
+    def _request(self, endpoint, payload=None, post=True):
         if logger.isEnabledFor(logging.DEBUG):  # pragma: no cover
             logger.debug("=============== %s request ===============" % endpoint)
             logger.debug(json.dumps(payload, indent=2))
             logger.debug("=============== /%s request ===============" % endpoint)
 
-        response = requests.request(method, "%s/mr/%s" % (self.base_url, endpoint), json=payload, headers=self.headers)
+        req_fn = requests.post if post else requests.get
+        response = req_fn("%s/mr/%s" % (self.base_url, endpoint), json=payload, headers=self.headers)
         resp_json = response.json()
 
         if logger.isEnabledFor(logging.DEBUG):  # pragma: no cover
