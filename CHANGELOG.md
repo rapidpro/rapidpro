@@ -1,3 +1,8 @@
+v5.3.12
+----------
+ * Add error and failure events to contact history
+ * Use form components on campaign create/update
+
 v5.3.11
 ----------
  * Migrate sample flows to new editor
