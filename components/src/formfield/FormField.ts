@@ -12,10 +12,14 @@ export default class FormField extends LitElement {
         margin-bottom: 4px;
         display: block;   
         font-weight: 300;
+        font-size: 14px;
+        line-height: inherit;
+
       }
 
       .help-text {
-        font-size: 11px;
+        font-size: 12px;
+        line-height: inherit;
         color: var(--color-text-help);
         margin: 4px 0 14px;
       }

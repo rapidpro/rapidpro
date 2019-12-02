@@ -35,7 +35,8 @@ export default class Select extends FormElement {
       }
 
       input::placeholder {
-        color: rgba(0,0,0,.15);
+        color: var(--color-text-help);
+        font-weight: 200;
       }
 
       .remove-item {
@@ -127,6 +128,7 @@ export default class Select extends FormElement {
         display: flex;
         overflow: hidden;
         font-size: 13px;
+        color: var(--color-text);
       }
 
       .multi .selected .selected-item {
@@ -196,6 +198,7 @@ export default class Select extends FormElement {
       .placeholder {
         padding: 5px 4px;
         font-size: 13px;
+        font-weight: 200;
         color: var(--color-placeholder);
       }
     `

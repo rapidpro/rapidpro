@@ -4,6 +4,7 @@ import Button from '../button/Button';
 import RapidElement from '../RapidElement';
 import { CustomEventType } from '../interfaces';
 import { styleMap } from 'lit-html/directives/style-map.js';
+import { getClasses } from '../utils';
 
 @customElement("rp-dialog")
 export default class Dialog extends RapidElement {
@@ -76,6 +77,18 @@ export default class Dialog extends RapidElement {
       rp-button {
         margin-left: 10px;
       }
+
+      rp-loading {
+        position: absolute;
+        right: 12px;
+        margin-top: -30px;
+        padding-bottom: 9px;
+        display: none;
+      }
+
+      .submitting rp-loading {
+        display: block;
+      }
   `;
   }
 
@@ -89,17 +102,20 @@ export default class Dialog extends RapidElement {
   @property()
   body: string;
 
+  @property({type: Boolean})
+  submitting: boolean;
+
   @property()
   size: string = "medium";
 
-  @property()
+  @property({type: String})
   primaryButtonName: string = "Ok";
 
   @property({type: String})
   cancelButtonName: string = "Cancel";
 
   @property()
-  inProgressName: string = "Saving";
+  submittingName: string = "Saving";
 
   @property({attribute: false})
   onButtonClicked: (button: Button) => void;
@@ -112,7 +128,7 @@ export default class Dialog extends RapidElement {
     if (changedProperties.has("open")) {
       // make sure our buttons aren't in progress on show
       if (this.open) {
-        this.shadowRoot.querySelectorAll("rp-button").forEach((button: Button)=>button.setProgress(false));
+        this.shadowRoot.querySelectorAll("rp-button").forEach((button: Button)=>button.disabled = false);
         const inputs = this.querySelectorAll("textarea,input");
         if (inputs.length > 0) {
           window.setTimeout(()=>{
@@ -121,11 +137,15 @@ export default class Dialog extends RapidElement {
         }
       }
     }
+
+    if(changedProperties.has("submitting")) {
+      
+    }
   }
 
   public handleClick(evt: MouseEvent) {
     const button = evt.currentTarget as Button;
-    if (!button.isProgress) {
+    if (!button.disabled) {
       this.fireCustomEvent(CustomEventType.ButtonClicked, {button});
     }
   }
@@ -158,12 +178,18 @@ export default class Dialog extends RapidElement {
       </div>` : null;
 
     return html`
-        <div class="mask ${this.open ? 'open' : ''}" style=${styleMap(maskStyle)}>
+        <div class="mask ${getClasses({ 
+          "open": this.open,
+          "submitting": this.submitting
+          })}" style=${styleMap(maskStyle)}>
           <div @keyup=${this.handleKeyUp} style=${styleMap(dialogStyle)} class="dialog">
             ${header}
-            <div class="body" @keypress=${this.handleKeyUp}>${this.body ? this.body : html`<slot></slot>`}</div>
+            <div class="body" @keypress=${this.handleKeyUp}>${this.body ? this.body : html`<slot></slot>`}
+              <rp-loading units=6 size=8></rp-loading>
+            </div>
+
             <div class="footer">
-              <rp-button @click=${this.handleClick} name=${this.primaryButtonName} inProgessName=${this.inProgressName} primary>}</rp-button>
+              <rp-button @click=${this.handleClick} .name=${this.primaryButtonName} primary ?disabled=${this.submitting}>}</rp-button> 
               <rp-button @click=${this.handleClick} name=${this.cancelButtonName} secondary></rp-button>
             </div>
           </div>      

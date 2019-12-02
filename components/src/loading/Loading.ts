@@ -32,7 +32,7 @@ export default class Loading extends LitElement {
   }
 
   @property({type: String})
-  color: string = "#2387ca";
+  color: string = "var(--color-primary-dark)";
 
   @property({type: Number})
   size: number = 5;
