@@ -237,6 +237,19 @@ class WhatsAppTypeTest(TembaTest):
                 "id": "9014"
               },
               {
+                "name": "invalid_component",
+                "components": [
+                  {
+                    "type": "RANDOM",
+                    "text": "Bonjour {{1}}"
+                  }
+                ],
+                "language": "fr",
+                "status": "UNKNOWN",
+                "category": "ISSUE_RESOLUTION",
+                "id": "1233"
+              },
+              {
                 "name": "invalid_status",
                 "components": [
                   {
