@@ -2383,7 +2383,7 @@ class FlowCRUDLTest(TembaTest):
         self.assertEqual(flow2.expires_after_minutes, 10080)
 
         # make sure we don't get a start flow button for Android Surveys
-        response = self.client.get(reverse("flows.flow_editor", args=[flow2.uuid]))
+        response = self.client.get(reverse("flows.flow_editor_next", args=[flow2.uuid]))
         self.assertNotContains(response, "broadcast-rulesflow btn-primary")
 
         # create a new voice flow
@@ -2399,9 +2399,7 @@ class FlowCRUDLTest(TembaTest):
 
         # test flows with triggers
         # create a new flow with one unformatted keyword
-        post_data = dict()
-        post_data["name"] = "Flow With Unformated Keyword Triggers"
-        post_data["keyword_triggers"] = "this is,it"
+        post_data = {"name": "Flow With Unformated Keyword Triggers", "keyword_triggers": "this is,it"}
         response = self.client.post(reverse("flows.flow_create"), post_data)
         self.assertFormError(
             response,
@@ -2411,9 +2409,7 @@ class FlowCRUDLTest(TembaTest):
         )
 
         # create a new flow with one existing keyword
-        post_data = dict()
-        post_data["name"] = "Flow With Existing Keyword Triggers"
-        post_data["keyword_triggers"] = "this,is,unique"
+        post_data = {"name": "Flow With Existing Keyword Triggers", "keyword_triggers": "this,is,unique"}
         response = self.client.post(reverse("flows.flow_create"), post_data)
         self.assertFormError(
             response, "form", "keyword_triggers", 'The keyword "unique" is already used for another flow'
@@ -2431,16 +2427,17 @@ class FlowCRUDLTest(TembaTest):
         trigger.delete()
 
         # create a new flow with keywords
-        post_data = dict()
-        post_data["name"] = "Flow With Good Keyword Triggers"
-        post_data["keyword_triggers"] = "this,is,it"
-        post_data["flow_type"] = Flow.TYPE_MESSAGE
-        post_data["expires_after_minutes"] = 30
+        post_data = {
+            "name": "Flow With Good Keyword Triggers",
+            "keyword_triggers": "this,is,it",
+            "flow_type": Flow.TYPE_MESSAGE,
+            "expires_after_minutes": 30,
+        }
         response = self.client.post(reverse("flows.flow_create"), post_data, follow=True)
         flow3 = Flow.objects.get(name=post_data["name"])
 
         self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[flow3.uuid]))
+        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor_next", args=[flow3.uuid]))
         self.assertEqual(response.context["object"].triggers.count(), 3)
 
         # update expiration for voice flow, and test if form has expected fields
@@ -2666,7 +2663,7 @@ class FlowCRUDLTest(TembaTest):
         msg_flow = Flow.objects.get(name=post_data["name"])
 
         self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[msg_flow.uuid]))
+        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor_next", args=[msg_flow.uuid]))
         self.assertEqual(msg_flow.flow_type, Flow.TYPE_MESSAGE)
 
         post_data = dict(name="Call flow", expires_after_minutes=5, flow_type=Flow.TYPE_VOICE)
@@ -2674,7 +2671,7 @@ class FlowCRUDLTest(TembaTest):
         call_flow = Flow.objects.get(name=post_data["name"])
 
         self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[call_flow.uuid]))
+        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor_next", args=[call_flow.uuid]))
         self.assertEqual(call_flow.flow_type, Flow.TYPE_VOICE)
 
         # test creating a flow with base language
@@ -2697,7 +2694,7 @@ class FlowCRUDLTest(TembaTest):
         language_flow = Flow.objects.get(name="Language Flow")
 
         self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[language_flow.uuid]))
+        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor_next", args=[language_flow.uuid]))
         self.assertEqual(language_flow.base_language, language.iso_code)
 
     def test_lists(self):
