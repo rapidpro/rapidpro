@@ -3,6 +3,7 @@ from unittest.mock import patch
 from django.forms import ValidationError
 from django.urls import reverse
 
+from temba.request_logs.models import HTTPLog
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import MockResponse, TembaTest
 
@@ -262,6 +263,7 @@ class WhatsAppTypeTest(TembaTest):
             # should have our template translations
             self.assertContains(response, "Bonjour")
             self.assertContains(response, "Hello")
+            self.assertContains(response, reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
 
             ct = TemplateTranslation.objects.get(template__name="goodbye", is_active=True)
             self.assertEqual(2, ct.variable_count)
@@ -334,3 +336,20 @@ class WhatsAppTypeTest(TembaTest):
         channel = Channel.objects.get()
 
         self.assertEqual("example.org", channel.config[CONFIG_FB_TEMPLATE_LIST_DOMAIN])
+        self.assertEqual(1, channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).count())
+        self.assertEqual(1, channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).count())
+
+        # hit our sync logs page
+        response = self.client.get(reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
+
+        # should have our log
+        self.assertContains(response, "Whatsapp Templates Synced")
+        self.assertContains(response, reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
+
+        sync_log = channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).first()
+        log_url = reverse("request_logs.httplog_read", args=[sync_log.id])
+        self.assertContains(response, log_url)
+
+        response = self.client.get(log_url)
+        self.assertContains(response, "200")
+        self.assertContains(response, "https://example.org/v3.3/1234/message_templates")

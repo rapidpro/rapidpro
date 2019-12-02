@@ -17,6 +17,13 @@ from . import queue_interrupt
 
 
 class MailroomClientTest(TembaTest):
+    def test_version(self):
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(200, '{"version": "5.3.4"}')
+            version = get_client().version()
+
+        self.assertEqual("5.3.4", version)
+
     @override_settings(TESTING=False)
     def test_validation_failure(self):
         with patch("requests.post") as mock_post:

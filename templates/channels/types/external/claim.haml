@@ -10,10 +10,9 @@
 -block pre-form
   .info
     %p
-      -blocktrans with brand.name as brand
-        You can connect an external aggregator or messaging service to {{ brand }} using our external API.
-
-        You can specify parameters to substitute in the URL or body by using these variables:
+      -blocktrans trimmed with brand.name as brand
+        You can connect an external aggregator or messaging service to {{ brand }} using our external API. You can
+        specify parameters to substitute in the URL or body by using these variables:
 
     %ul
       %li <code>{% templatetag openbrace %}{% templatetag openbrace %}text{% templatetag closebrace %}{% templatetag closebrace %}</code> -
@@ -30,18 +29,18 @@
         %trans the unique id for this message
 
     %p
-      -blocktrans
+      -blocktrans trimmed
         An example that would substitute variables in the URL:
 
     %pre<
       http://myservice.com/send.php?from={% templatetag openbrace %}{% templatetag openbrace %}from{% templatetag closebrace %}{% templatetag closebrace %}&text={% templatetag openbrace %}{% templatetag openbrace %}text{% templatetag closebrace %}{% templatetag closebrace %}&to={% templatetag openbrace %}{% templatetag openbrace %}to{% templatetag closebrace %}{% templatetag closebrace %}
 
     %p
-      -blocktrans
+      -blocktrans trimmed
         If using POST or PUT, you can specify the body of the request using the same variables.
 
     %p
-      -blocktrans with brand.name as brand
+      -blocktrans trimmed with brand.name as brand
         After connecting your service we will provide URLs for the endpoints to call when you want to push a message to
         {{ brand }} or notify {{ brand }} of the delivery status of a message.
 

@@ -1,7 +1,7 @@
 -load i18n
 
 %h4
-  -blocktrans
+  -blocktrans trimmed
     To finish configuring your connection you'll need to set the following callback URLs on your service or aggregator.
 
 %hr
@@ -12,12 +12,12 @@
     {{ channel.config.send_url }}
 
 %p
-  -blocktrans
+  -blocktrans trimmed
     When we need to send an outgoing message it will make a
 
   {{ channel.config.method|default:"POST" }}
 
-  -blocktrans
+  -blocktrans trimmed
     to this URL with the parameters 'text', 'to', 'from', 'channel' and 'id'
 
 %h4
@@ -46,7 +46,7 @@
       https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'receive' %}
 
   %p
-    -blocktrans
+    -blocktrans trimmed
       When a new message is received by your service, it should notify us with a POST to the following URL, passing
       the following parameters: 'from' and 'text'. Callers can optionally also send a 'date' parameter in ISO-8601
       (ex: 2012-04-23T18:25:43.511Z) format to specify the time the message was received.
@@ -62,7 +62,7 @@
     https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'sent' %}
 
 %p
-  -blocktrans
+  -blocktrans trimmed
     When your service successfully sends a message, it should notify us with a POST to the following URL, passing
     the id of the message as the parameter 'id' (reporting sent messages is optional)
 %pre.prettyprint.example<
@@ -77,7 +77,7 @@
     https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'delivered' %}
 
 %p
-  -blocktrans
+  -blocktrans trimmed
     When your service successfully delivers a message, it should notify us with a POST to the following URL, passing
     the id of the message as the parameter 'id' (reporting deliveries is optional)
 %pre.prettyprint.example<
@@ -92,7 +92,7 @@
     https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'failed' %}
 
 %p
-  -blocktrans
+  -blocktrans trimmed
     If your service fails to send an outgoing message, it should notify us with a POST to the following URL, passing
     the id of the message as the parameter 'id' (reporting failed sends is optional)
 %pre.prettyprint.example<
@@ -108,7 +108,7 @@
     https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'stopped' %}
 
 %p
-  -blocktrans
+  -blocktrans trimmed
     If this channel provides a way for contacts to opt out and stop receiving messages,
     the service should notify us with a POST to the following URL, passing the phone number as the parameter "from"
 %pre.prettyprint.example<

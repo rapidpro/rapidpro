@@ -3,21 +3,21 @@
 
 {% block body %}
     <p>
-      {% blocktrans with org_name=org.name brand=branding.name %}
+      {% blocktrans trimmed with org_name=org.name brand=branding.name %}
         We've noticed that the Android phone for {{ org_name }} is getting low on power and isn't plugged in.
         If it runs out of power then you will stop receiving messages for {{ brand }}.
       {% endblocktrans %}
     </p>
 
     <p>
-      {% blocktrans with power_level=sync.power_level %}
+      {% blocktrans trimmed with power_level=sync.power_level %}
         Please check on your phone to make sure it is plugged into a reliable power source.
         The current power level is {{ power_level }}%, you will only receive this notification when the power drops below 25%.
       {% endblocktrans %}
     </p>
 
     <p>
-      {% blocktrans with channel_name=channel.get_name %}
+      {% blocktrans trimmed with channel_name=channel.get_name %}
         You can check the current status of your {{ channel_name }} by visiting its
       {% endblocktrans %}
       <a href="{{ branding.link }}/channels/channel/read/{{ channel.uuid }}/">
