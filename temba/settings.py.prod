@@ -194,8 +194,8 @@ LOGGING = {
     "root": {"level": "WARNING", "handlers": ["console"]},
     "formatters": {"verbose": {"format": "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s"}},
     "handlers": {
-        "elasticapm": {"level": "WARNING", "class": "elasticapm.contrib.django.handlers.LoggingHandler"},
         "console": {"level": "DEBUG", "class": "logging.StreamHandler", "formatter": "verbose"},
+        "elasticapm": {"level": "WARNING", "class": "elasticapm.contrib.django.handlers.LoggingHandler"},
         "null": {"class": "logging.NullHandler"},
     },
     "loggers": {
@@ -207,9 +207,11 @@ LOGGING = {
     },
 }
 
+
 # APM SERVER
 # ------------------------------------------------------------------------------
 ELASTIC_APM = {
+    "DISABLE_SEND": env.boll("APM_DISABLE_SEND", default=True),
     "DEBUG": env.bool("APM_SERVICE_DEBUG", default=False),
     "SERVICE_NAME": env("APM_SERVICE_NAME", default=""),
     "SECRET_TOKEN": env("APM_SECRET_TOKEN", default=""),
