@@ -216,6 +216,27 @@ class WhatsAppTypeTest(TembaTest):
                 "id": "9012"
               },
               {
+                "name": "workout_activity",
+                "components": [
+                  {
+                    "type": "HEADER",
+                    "text": "Workout challenge week {{2}}, {{4}} extra points!"
+                  },
+                  {
+                    "type": "BODY",
+                    "text": "Hey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people."
+                  },
+                  {
+                    "type": "FOOTER",
+                    "text": "Remember to drink water."
+                  }
+                ],
+                "language": "en",
+                "status": "PENDING",
+                "category": "ISSUE_RESOLUTION",
+                "id": "9014"
+              },
+              {
                 "name": "invalid_status",
                 "components": [
                   {
@@ -257,9 +278,9 @@ class WhatsAppTypeTest(TembaTest):
                 params={"access_token": "token123", "limit": 255},
             )
 
-            # should have two templates
-            self.assertEqual(3, Template.objects.filter(org=self.org).count())
-            self.assertEqual(4, TemplateTranslation.objects.filter(channel=channel).count())
+            # should have 4 templates
+            self.assertEqual(4, Template.objects.filter(org=self.org).count())
+            self.assertEqual(5, TemplateTranslation.objects.filter(channel=channel).count())
 
             # hit our template page
             response = self.client.get(reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
@@ -276,6 +297,15 @@ class WhatsAppTypeTest(TembaTest):
             self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
             self.assertEqual("goodbye (eng) P: Goodbye {{1}}, see you on {{2}}. See you later {{1}}", str(ct))
 
+            ct = TemplateTranslation.objects.get(template__name="workout_activity", is_active=True)
+            self.assertEqual(4, ct.variable_count)
+            self.assertEqual(
+                "Hey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people.",
+                ct.content,
+            )
+            self.assertEqual("eng", ct.language)
+            self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
+
             # assert that a template translation was created despite it being in an unknown language
             ct = TemplateTranslation.objects.get(template__name="invalid_language", is_active=True)
             self.assertEqual("kli", ct.language)
@@ -291,7 +321,7 @@ class WhatsAppTypeTest(TembaTest):
             channel.release()
 
         # all our templates should be inactive now
-        self.assertEqual(4, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())
+        self.assertEqual(5, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())
 
     def test_claim_self_hosted_templates(self):
         Channel.objects.all().delete()

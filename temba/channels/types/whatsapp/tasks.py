@@ -178,9 +178,21 @@ def refresh_whatsapp_templates():
 
                     status = STATUS_MAPPING[template["status"]]
 
-                    # try to get the body out
-                    if template["components"][0]["type"] != "BODY":  # pragma: no cover
-                        logger.error(f"unknown component type: {template['components'][0]}")
+                    variable_count = 0
+                    content = None
+
+                    for component in template["components"]:
+                        if component["type"] not in ["BODY", "HEADER", "FOOTER"]:
+                            logger.error(f"unknown component type: {component}")
+                            continue
+
+                        if component["type"] == "BODY":
+                            content = component["text"]
+                            variable_count = max(variable_count, _calculate_variable_count(content))
+                        else:
+                            variable_count = max(variable_count, _calculate_variable_count(component["text"]))
+
+                    if content is None:
                         continue
 
                     language = LANGUAGE_MAPPING.get(template["language"])
@@ -190,14 +202,12 @@ def refresh_whatsapp_templates():
                         status = TemplateTranslation.STATUS_UNSUPPORTED_LANGUAGE
                         language = template["language"]
 
-                    content = template["components"][0]["text"]
-
                     translation = TemplateTranslation.get_or_create(
                         channel=channel,
                         name=template["name"],
                         language=language,
                         content=content,
-                        variable_count=_calculate_variable_count(content),
+                        variable_count=variable_count,
                         status=status,
                         external_id=template["id"],
                     )
