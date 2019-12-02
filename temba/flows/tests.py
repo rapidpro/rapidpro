@@ -3497,17 +3497,31 @@ class FlowCRUDLTest(TembaTest):
     def test_save_definitions(self):
         self.login(self.admin)
 
+        self.org.set_languages(self.admin, ["eng", "fra"], "eng")
+
         # old flow definition
-        flow = Flow.create(self.org, self.admin, "Normal Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor=False)
+        flow = Flow.create(
+            self.org,
+            self.admin,
+            "Old Flow",
+            flow_type=Flow.TYPE_MESSAGE,
+            use_new_editor=False,
+            base_language="eng",
+            create_revision=True,
+        )
 
         # old editor
         response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
         self.assertNotRedirect(response, reverse("flows.flow_editor_next", args=[flow.uuid]))
 
         # new flow definition
-        self.client.post(reverse("flows.flow_create"), data={"name": "Go Flow", "flow_type": Flow.TYPE_MESSAGE})
+        response = self.client.post(
+            reverse("flows.flow_create"),
+            data={"name": "New Flow", "flow_type": Flow.TYPE_MESSAGE, "base_language": "eng"},
+        )
+
         flow = Flow.objects.get(
-            org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
+            org=self.org, name="New Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
         )
 
         # now loading the editor page should redirect
