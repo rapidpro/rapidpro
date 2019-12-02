@@ -92,8 +92,6 @@ COMPRESS_OFFLINE_CONTEXT = dict(
 # MIDDLEWARE
 # ------------------------------------------------------------------------------
 MIDDLEWARE = (
-    "elasticapm.contrib.django.middleware.TracingMiddleware",
-    "elasticapm.contrib.django.middleware.Catch404Middleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -179,7 +177,7 @@ ELASTICSEARCH_URL = env("ELASTICSEARCH_URL")
 
 # APPS
 # ------------------------------------------------------------------------------
-INSTALLED_APPS += ("gunicorn", "storages", "elasticapm.contrib.django")
+INSTALLED_APPS += ("gunicorn", "storages")
 
 # SENTRY
 # ------------------------------------------------------------------------------
@@ -194,34 +192,12 @@ LOGGING = {
     "root": {"level": "WARNING", "handlers": ["console"]},
     "formatters": {"verbose": {"format": "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s"}},
     "handlers": {
-        "elasticapm": {"level": "WARNING", "class": "elasticapm.contrib.django.handlers.LoggingHandler"},
         "console": {"level": "DEBUG", "class": "logging.StreamHandler", "formatter": "verbose"},
         "null": {"class": "logging.NullHandler"},
     },
     "loggers": {
         "django.db.backends": {"level": "ERROR", "handlers": ["console"], "propagate": False},
-        "rapidpro": {"level": "WARNING", "handlers": ["elasticapm"], "propagate": False},
-        "elasticapm.errors": {"level": "ERROR", "handlers": ["console"], "propagate": False},
         "pycountry": {"level": "ERROR", "handlers": ["console"], "propagate": False},
         "django.security.DisallowedHost": {"handlers": ["null"], "propagate": False},
     },
-}
-
-# APM SERVER
-# ------------------------------------------------------------------------------
-ELASTIC_APM = {
-    "DEBUG": env.bool("APM_SERVICE_DEBUG", default=False),
-    "SERVICE_NAME": env("APM_SERVICE_NAME", default=""),
-    "SECRET_TOKEN": env("APM_SECRET_TOKEN", default=""),
-    "SERVER_URL": env("APM_SERVER_URL", default=""),
-    "ENVIRONMENT": env("APM_SERVICE_ENVIRONMENT", default="production"),
-    "DJANGO_TRANSACTION_NAME_FROM_ROUTE": True,
-    "PROCESSORS": (
-        "elasticapm.processors.sanitize_stacktrace_locals",
-        "elasticapm.processors.sanitize_http_request_cookies",
-        "elasticapm.processors.sanitize_http_headers",
-        "elasticapm.processors.sanitize_http_wsgi_env",
-        "elasticapm.processors.sanitize_http_request_querystring",
-        "elasticapm.processors.sanitize_http_request_body",
-    ),
 }
