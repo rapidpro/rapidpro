@@ -10,7 +10,7 @@
 
 - block summary
   -if global_count
-    {% blocktrans with counter=global_count|intcomma count num=global_count  %}
+    {% blocktrans trimmed with counter=global_count|intcomma count num=global_count  %}
     You have <b>{{ counter }} global</b> configured
     {% plural %}
     You have <b>{{ counter }} globals</b> configured
@@ -64,7 +64,7 @@
                         - with usage_count=obj.get_usage_count
                           - if usage_count
                             %a.dependencies(href="#" onClick='showDetailGlobalModal({{ obj.id }}, "{{ obj.name }}");')
-                              {% blocktrans count counter=usage_count %}
+                              {% blocktrans trimmed count counter=usage_count %}
                                 {{counter}} Use
                               {% plural %}
                                 {{counter}} Uses
