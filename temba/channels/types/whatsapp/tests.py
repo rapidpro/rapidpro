@@ -245,7 +245,7 @@ class WhatsAppTypeTest(TembaTest):
                   }
                 ],
                 "language": "fr",
-                "status": "UNKNOWN",
+                "status": "APPROVED",
                 "category": "ISSUE_RESOLUTION",
                 "id": "1233"
               },
