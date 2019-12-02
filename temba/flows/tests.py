@@ -468,9 +468,7 @@ class FlowTest(TembaTest):
 
     def test_save_revision(self):
         self.login(self.admin)
-        self.client.post(
-            reverse("flows.flow_create"), {"name": "Go Flow", "flow_type": Flow.TYPE_MESSAGE, "editor_version": "0"}
-        )
+        self.client.post(reverse("flows.flow_create"), {"name": "Go Flow", "flow_type": Flow.TYPE_MESSAGE})
         flow = Flow.objects.get(
             org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
         )
@@ -2834,9 +2832,7 @@ class FlowCRUDLTest(TembaTest):
 
     def test_goflow_revisions(self):
         self.login(self.admin)
-        self.client.post(
-            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, editor_version="0")
-        )
+        self.client.post(reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE))
         flow = Flow.objects.get(
             org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
         )
@@ -3505,22 +3501,14 @@ class FlowCRUDLTest(TembaTest):
         self.login(self.admin)
 
         # old flow definition
-        self.client.post(
-            reverse("flows.flow_create"),
-            data=dict(name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, editor_version="1"),
-        )
-        flow = Flow.objects.get(
-            org=self.org, name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.FINAL_LEGACY_VERSION
-        )
+        flow = Flow.create(self.org, self.admin, "Normal Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor=False)
 
         # old editor
         response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
         self.assertNotRedirect(response, reverse("flows.flow_editor_next", args=[flow.uuid]))
 
         # new flow definition
-        self.client.post(
-            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, editor_version="0")
-        )
+        self.client.post(reverse("flows.flow_create"), data={"name": "Go Flow", "flow_type": Flow.TYPE_MESSAGE})
         flow = Flow.objects.get(
             org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
         )

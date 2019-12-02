@@ -399,14 +399,6 @@ class FlowCRUDL(SmartCRUDL):
                 ),
             )
 
-            editor_version = forms.TypedChoiceField(
-                help_text=_("If you are unsure, use the new editor"),
-                choices=((0, "New Editor"), (1, "Previous Editor")),
-                initial=0,
-                required=False,
-                coerce=int,
-            )
-
             def __init__(self, user, branding, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.user = user
@@ -429,7 +421,7 @@ class FlowCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Flow
-                fields = ("name", "keyword_triggers", "flow_type", "base_language", "editor_version")
+                fields = ("name", "keyword_triggers", "flow_type", "base_language")
 
         form_class = FlowCreateForm
         success_url = "uuid@flows.flow_editor"
@@ -471,9 +463,6 @@ class FlowCRUDL(SmartCRUDL):
                 # ivr expires after 5 minutes of inactivity
                 expires_after_minutes = 5
 
-            # new editor is 0
-            use_new_editor = self.form.cleaned_data.get("editor_version", 0) == 0
-
             self.object = Flow.create(
                 org,
                 self.request.user,
@@ -482,7 +471,7 @@ class FlowCRUDL(SmartCRUDL):
                 expires_after_minutes=expires_after_minutes,
                 base_language=obj.base_language,
                 create_revision=True,
-                use_new_editor=use_new_editor,
+                use_new_editor=True,
             )
 
         def post_save(self, obj):
