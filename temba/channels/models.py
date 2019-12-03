@@ -586,14 +586,24 @@ class Channel(TembaModel):
 
     @classmethod
     def add_config_external_channel(
-        cls, org, user, country, address, channel_type, config, role=DEFAULT_ROLE, schemes=["tel"], parent=None
+        cls,
+        org,
+        user,
+        country,
+        address,
+        channel_type,
+        config,
+        role=DEFAULT_ROLE,
+        schemes=["tel"],
+        parent=None,
+        name=None,
     ):
         return Channel.create(
             org,
             user,
             country,
             channel_type,
-            name=address,
+            name=name or address,
             address=address,
             config=config,
             role=role,
