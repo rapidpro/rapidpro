@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+from requests import RequestException
+
 from django.contrib.auth.models import Group
 from django.urls import reverse
 
@@ -35,6 +37,11 @@ class BotHubTypeTest(TembaTest):
             with self.assertRaises(Exception):
                 c.get_type().get_active_intents_from_api(c, logs)
                 self.assertEqual(1, len(logs))
+
+            logs = []
+            mock_get.side_effect = RequestException("Network is unreachable", response=MockResponse(100, ""))
+            c.get_type().get_active_intents_from_api(c, logs)
+            self.assertEqual(1, len(logs))
 
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(200, INTENT_RESPONSE)

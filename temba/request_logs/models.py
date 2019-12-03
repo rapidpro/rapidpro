@@ -152,7 +152,7 @@ class HTTPLog(models.Model):
         request_lines = data.split(cls.REQUEST_DELIM)
         request = "".join(request_lines)
 
-        return HTTPLog.objects.create(
+        return HTTPLog(
             channel=channel,
             log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
             url=url,

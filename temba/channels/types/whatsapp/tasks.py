@@ -209,4 +209,5 @@ def refresh_whatsapp_templates():
                 TemplateTranslation.trim(channel, seen)
 
             except RequestException as e:  # pragma: no cover
-                HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, e, start, channel=channel)
+                log = HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, e, start, channel=channel)
+                log.save()
