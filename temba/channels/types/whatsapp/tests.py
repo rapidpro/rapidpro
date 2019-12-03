@@ -369,5 +369,5 @@ class WhatsAppTypeTest(TembaTest):
         sync_log = channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, is_error=True).first()
         log_url = reverse("request_logs.httplog_read", args=[sync_log.id])
         response = self.client.get(log_url)
-        self.assertContains(response, "100")
+        self.assertContains(response, "Connection Error")
         self.assertContains(response, "https://example.org/v3.3/1234/message_templates")
