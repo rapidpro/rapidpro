@@ -13,13 +13,13 @@
 
 - block summary
   -if archive_count
-    {% blocktrans with counter=archive_count|intcomma count num=archive_count  %}
+    {% blocktrans trimmed with counter=archive_count|intcomma count num=archive_count  %}
     You have {{ counter }} archive
     {% plural %}
     You have {{ counter }} archives
     {% endblocktrans %}
 
-    {% blocktrans with counter=record_count|intcomma count num=record_count %}
+    {% blocktrans trimmed with counter=record_count|intcomma count num=record_count %}
     containing {{ counter }} record.
     {% plural %}
     containing {{ counter }} records.
@@ -80,7 +80,7 @@
                 %span.icon.icon-box
   -else
 
-    -blocktrans
+    -blocktrans trimmed
       No archives found. Archives are created after 90 days of inactivity for messages and flow runs. Check back later to
       see a list of all archives.
 

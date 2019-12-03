@@ -98,13 +98,13 @@
               -block search-details
                 .search-details
                   -if search
-                    -blocktrans with results_count=paginator.count|intcomma count cc=paginator.count
+                    -blocktrans trimmed with results_count=paginator.count|intcomma count cc=paginator.count
                       Found {{ results_count }} message in last 90 days matching <i>{{search}}</i>.
                       -plural
                         Found {{ results_count }} messages in last 90 days matching <i>{{search}}</i>.
                   -else
                     -if start_date
-                      -blocktrans with results_count=paginator.count|intcomma count cc=paginator.count
+                      -blocktrans trimmed with results_count=paginator.count|intcomma count cc=paginator.count
                         {{ results_count }} message since {{ start_date}}.
                         -plural
                           {{ results_count }} messages since {{ start_date}}.
