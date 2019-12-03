@@ -6,9 +6,10 @@ export default class Button extends LitElement {
 
   static get styles() {
     return css`
-
       :host {
         display: inline-block;
+        font-family: var(--font-family);
+        font-weight: 200;
       }
 
       .button {
@@ -73,7 +74,6 @@ export default class Button extends LitElement {
         box-shadow: none;
       }
 
-
       .primary {
         background: var(--color-button-primary);
         color: var(--color-button-primary-text);
@@ -95,14 +95,7 @@ export default class Button extends LitElement {
       .secondary .mask:hover {
         background: transparent;
       }
-      
-      .name {
-      }
-
-      rp-loading {
-
-      }
-  `;
+    `;
   }
 
   

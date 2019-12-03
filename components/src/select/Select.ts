@@ -123,12 +123,11 @@ export default class Select extends FormElement {
         flex-wrap: wrap;
       }
 
-
       .selected .selected-item {
         display: flex;
         overflow: hidden;
         font-size: 13px;
-        color: var(--color-text);
+        color: var(--color-widget-text);
       }
 
       .multi .selected .selected-item {

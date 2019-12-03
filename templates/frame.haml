@@ -110,7 +110,7 @@
       :css
         html {
 
-          --font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+          --font-family: Helvetica, Arial, sans-serif;
           --primary-rgb: 35, 135, 202;
           --secondary-rgb: 0, 77, 129;
           --focus-rgb: 82, 168, 236;
@@ -127,14 +127,12 @@
           /* primary colors, should be dark */
           --color-selection: rgb(var(--primary-rgb));
 
-          /** --- secondary configuration, only for fine tuning --- */
-
-
           --widget-box-shadow-focused: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(var(--focus-rgb), 0.6);
           --widget-box-shadow-focused-error: inset 0 1px 1px rgba(var(--error-rgb), 0.075), 0 0 8px rgba(var(--error-rgb), 0.6);
 
           /* page text, borders, widgets */
-          --color-text: #777;
+          --color-text: #555;
+          --color-widget-text: #555;
           --color-borders: rgba(0,0,0,.07);
           --color-placeholder: #ccc;
  

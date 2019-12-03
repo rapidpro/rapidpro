@@ -8,6 +8,10 @@ import { customElement, TemplateResult, html, css, property, LitElement } from '
 export default class FormField extends LitElement {
   static get styles() {
     return css`
+      :host {
+        font-family: var(--font-family);
+      }
+
       label {
         margin-bottom: 4px;
         display: block;   

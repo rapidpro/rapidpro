@@ -23,6 +23,7 @@ export default class Dialog extends RapidElement {
       :host {
         position: absolute;
         z-index: 10000;
+        font-family: var(--font-family);
       }
 
       .mask {
@@ -62,7 +63,7 @@ export default class Dialog extends RapidElement {
       .header-text {
         font-size: 20px;
         padding: 16px;
-        font-weight: 300;
+        font-weight: 200;
         color: var(--color-text-light);
         background: var(--color-primary-dark);
       }
@@ -136,10 +137,6 @@ export default class Dialog extends RapidElement {
           }, 100);
         }
       }
-    }
-
-    if(changedProperties.has("submitting")) {
-      
     }
   }
 

@@ -39,7 +39,7 @@ export default class TextInput extends FormElement {
         flex: 1;
         margin: 0;
         background: none;
-        color: var(--color-text);
+        color: var(--color-widget-text);
         font-size: 13px;
         cursor: text;
         resize: none;
@@ -55,10 +55,8 @@ export default class TextInput extends FormElement {
 
       .textinput::placeholder {
         color: var(--color-placeholder);
-        font-family: 'Roboto', 'Helvetica Neue', sans-serif;
+        font-family: var(--font-family);
       }
-
-
     `
   }
 
