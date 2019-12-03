@@ -4,6 +4,7 @@ import time
 
 import requests
 from django_redis import get_redis_connection
+from requests import RequestException
 
 from django.utils import timezone
 
@@ -207,15 +208,5 @@ def refresh_whatsapp_templates():
                 # trim any translations we didn't see
                 TemplateTranslation.trim(channel, seen)
 
-            except Exception as e:  # pragma: no cover
-                HTTPLog.objects.create(
-                    channel=channel,
-                    log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
-                    url=url,
-                    request="",
-                    response=f"error fetching templates for whatsapp channel: {str(e)}",
-                    is_error=True,
-                    created_on=timezone.now(),
-                    request_time=(timezone.now() - start).total_seconds() * 1000,
-                    org=channel.org,
-                )
+            except RequestException as e:  # pragma: no cover
+                HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, e, start, channel=channel)

@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+from requests import RequestException
+
 from django.forms import ValidationError
 from django.urls import reverse
 
@@ -359,11 +361,13 @@ class WhatsAppTypeTest(TembaTest):
         self.assertContains(response, "https://example.org/v3.3/1234/message_templates")
 
         with patch("requests.get") as mock_get:
-            mock_get.side_effect = Exception("Network is unreachable")
+            # use fake response to simulate the exception request
+            # See https://github.com/psf/requests/blob/eedd67462819f8dbf8c1c32e77f9070606605231/requests/exceptions.py#L17
+            mock_get.side_effect = RequestException("Network is unreachable", response=MockResponse(100, ""))
             refresh_whatsapp_templates()
 
         sync_log = channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, is_error=True).first()
         log_url = reverse("request_logs.httplog_read", args=[sync_log.id])
         response = self.client.get(log_url)
-        self.assertContains(response, "Network is unreachable")
-        self.assertContains(response, "error fetching templates for whatsapp channel")
+        self.assertContains(response, "100")
+        self.assertContains(response, "https://example.org/v3.3/1234/message_templates")

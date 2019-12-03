@@ -135,3 +135,31 @@ class HTTPLog(models.Model):
             created_on=timezone.now(),
             org=org,
         )
+
+    @classmethod
+    def from_exception(cls, log_type, url, exception, start, classifier=None, channel=None):
+        if classifier is not None:
+            org = classifier.org
+
+        if channel is not None:
+            org = channel.org
+
+        data = bytearray()
+        prefixes = dump.PrefixSettings(cls.REQUEST_DELIM, cls.RESPONSE_DELIM)
+        dump._dump_request_data(exception.request, prefixes, data)
+
+        data = data.decode("utf-8")
+        request_lines = data.split(cls.REQUEST_DELIM)
+        request = "".join(request_lines)
+
+        return HTTPLog.objects.create(
+            channel=channel,
+            log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
+            url=url,
+            request=request,
+            response="",
+            is_error=True,
+            created_on=timezone.now(),
+            request_time=(timezone.now() - start).total_seconds() * 1000,
+            org=org,
+        )
