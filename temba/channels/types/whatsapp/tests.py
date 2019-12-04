@@ -315,7 +315,7 @@ class WhatsAppTypeTest(TembaTest):
             ct = TemplateTranslation.objects.get(template__name="workout_activity", is_active=True)
             self.assertEqual(4, ct.variable_count)
             self.assertEqual(
-                "Hey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people.",
+                "Workout challenge week {{2}}, {{4}} extra points!\n\nHey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people.\n\nRemember to drink water.",
                 ct.content,
             )
             self.assertEqual("eng", ct.language)

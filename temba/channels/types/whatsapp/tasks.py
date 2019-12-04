@@ -180,21 +180,20 @@ def refresh_whatsapp_templates():
                     status = STATUS_MAPPING[template["status"]]
 
                     variable_count = 0
-                    content = None
+                    content_parts = []
 
                     for component in template["components"]:
-                        if component["type"] not in ["BODY", "HEADER", "FOOTER"]:
+                        if component["type"] not in ["HEADER", "BODY", "FOOTER"]:
                             logger.error(f"unknown component type: {component}")
                             continue
 
-                        if component["type"] == "BODY":
-                            content = component["text"]
-                            variable_count = max(variable_count, _calculate_variable_count(content))
-                        else:
-                            variable_count = max(variable_count, _calculate_variable_count(component["text"]))
+                        content_parts.append(component["text"])
+                        variable_count = max(variable_count, _calculate_variable_count(component["text"]))
 
-                    if content is None:
+                    if not content_parts:
                         continue
+
+                    content = "\n\n".join(content_parts)
 
                     language = LANGUAGE_MAPPING.get(template["language"])
 
