@@ -32,7 +32,7 @@ export default class Loading extends LitElement {
   }
 
   @property({type: String})
-  color: string = "#2387ca";
+  color: string = "var(--color-primary-dark)";
 
   @property({type: Number})
   size: number = 5;
@@ -45,7 +45,7 @@ export default class Loading extends LitElement {
 
   public render(): TemplateResult {
 
-    const margin = this.size / 3;
+    const margin = this.size / 2;
 
     return html`<div>
         ${range(0, this.units).map((num: number) => {

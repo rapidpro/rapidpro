@@ -151,7 +151,13 @@ class CampaignCRUDL(SmartCRUDL):
                     )
 
                 if self.has_org_perm("campaigns.campaign_update"):
-                    links.append(dict(title="Edit", js_class="update-campaign", href="#"))
+                    links.append(
+                        dict(
+                            title=_("Edit"),
+                            href=reverse("campaigns.campaign_update", args=[self.object.pk]),
+                            modax=_("Update Campaign"),
+                        )
+                    )
 
                 if self.has_org_perm("campaigns.campaign_archive"):
                     links.append(

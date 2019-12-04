@@ -92,6 +92,12 @@ msgstr ""
 msgid "Export"
 msgstr ""
 
+msgid "Edit"
+msgstr ""
+
+msgid "Update Campaign"
+msgstr ""
+
 msgid "Service"
 msgstr ""
 
@@ -1973,9 +1979,6 @@ msgid "Phone number of this device"
 msgstr ""
 
 msgid "Twitter handle of this channel"
-msgstr ""
-
-msgid "Edit"
 msgstr ""
 
 msgid "Disable Bulk Sending"
@@ -4349,9 +4352,6 @@ msgid "No group assigned to this campaign"
 msgstr ""
 
 msgid "No events in this campaign yet."
-msgstr ""
-
-msgid "Update Campaign"
 msgstr ""
 
 msgid "If the contact is already active in a flow"

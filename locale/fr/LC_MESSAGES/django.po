@@ -113,6 +113,12 @@ msgstr "Les groupes pour envoyer le message à"
 msgid "Export"
 msgstr "Exporter"
 
+msgid "Edit"
+msgstr "Modifier"
+
+msgid "Update Campaign"
+msgstr " mise à jour de campagne"
+
 #, fuzzy
 #| msgid "Device"
 msgid "Service"
@@ -2987,9 +2993,6 @@ msgstr "Le numéro de téléphone pour cet appel"
 msgid "Twitter handle of this channel"
 msgstr "Le nom de ce label"
 
-msgid "Edit"
-msgstr "Modifier"
-
 msgid "Disable Bulk Sending"
 msgstr "Désactiver l'envoi groupé"
 
@@ -5741,9 +5744,6 @@ msgstr ""
 
 msgid "No events in this campaign yet."
 msgstr ""
-
-msgid "Update Campaign"
-msgstr " mise à jour de campagne"
 
 #, fuzzy
 #| msgid "Restart any contacts already participating in this flow"
