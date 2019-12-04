@@ -12,6 +12,10 @@
 -with gear_links=view.get_gear_links
   -if gear_links
 
+    -for link in gear_links
+      -if link.modax
+        %rp-modax{ header:'{{link.modax}}', endpoint:"{{link.href}}" }
+
     #gear-container
       -if gear_links|length == 1
         -with link=gear_links|first
@@ -44,6 +48,13 @@
                         {{link.title}}
                         .gear-flag
                           {{link.flag}}
+                    -elif link.modax
+
+                      %a{href:'javascript:showModax("{{link.href}}")', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
+                          {{link.title}}
+                          %span{class:'gear-flag'}
+                            {{link.flag}}
+
                     -else
                       %a{href:'{{link.href}}', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
                         {{link.title}}
@@ -52,6 +63,13 @@
 
 
       :javascript
+        function showModax(endpoint) {
+          const modax = document.querySelector("rp-modax[endpoint='" + endpoint + "']");
+          if(modax) {
+            modax.setAttribute("open", "true");
+          }
+        }
+
         $("#gear-container .gear-delete").on('click', function(e){
            $("#delete-form").attr('href', $(this).attr('href'));
            e.stopPropagation();

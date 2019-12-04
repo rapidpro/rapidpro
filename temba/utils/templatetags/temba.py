@@ -1,3 +1,4 @@
+import json
 from datetime import timedelta
 
 import pytz
@@ -77,6 +78,15 @@ def format_seconds(seconds):
     if seconds >= 30:
         minutes += 1
     return "%s min" % minutes
+
+
+@register.simple_tag()
+def annotated_field(field, label, help_text):
+    attrs = field.field.widget.attrs
+    attrs["label"] = label
+    attrs["help_text"] = help_text
+    attrs["errors"] = json.dumps([str(error) for error in field.errors])
+    return field.as_widget(attrs=attrs)
 
 
 @register.simple_tag(takes_context=True)
