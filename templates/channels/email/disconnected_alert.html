@@ -5,7 +5,7 @@
 
 {% block body %}
     <p>
-      {% blocktrans with org_name=org.name brand=branding.name %}
+      {% blocktrans trimmed with org_name=org.name brand=branding.name %}
         We've noticed that the Android phone for {{ org_name }} hasn't contacted the {{ brand }} servers since
       {% endblocktrans %}
 
@@ -14,14 +14,14 @@
     </p>
 
     <p>
-      {% blocktrans %}
+      {% blocktrans trimmed %}
         Please check on your phone to make sure it is connected to a WiFi network or cellular data.
         If problems persist you may want to try turning the phone off then back on.
       {% endblocktrans %}
     </p>
 
     <p>
-      {% blocktrans with channel_name=channel.get_name %}
+      {% blocktrans trimmed with channel_name=channel.get_name %}
         You can check the current status of your {{ channel.get_name }} by visiting its
       {% endblocktrans %}
       <a href="{{ branding.link }}/channels/channel/read/{{ channel.uuid }}/">

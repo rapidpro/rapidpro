@@ -40,15 +40,20 @@ class WitType(ClassifierType):
         access_token = classifier.config[self.CONFIG_ACCESS_TOKEN]
 
         start = timezone.now()
-        response = requests.get(self.INTENT_URL, headers={"Authorization": f"Bearer {access_token}"})
-        elapsed = (timezone.now() - start).total_seconds() * 1000
+        try:
+            response = requests.get(self.INTENT_URL, headers={"Authorization": f"Bearer {access_token}"})
+            elapsed = (timezone.now() - start).total_seconds() * 1000
 
-        log = HTTPLog.from_response(HTTPLog.INTENTS_SYNCED, self.INTENT_URL, response, classifier=classifier)
-        log.request_time = elapsed
-        logs.append(log)
+            log = HTTPLog.from_response(HTTPLog.INTENTS_SYNCED, self.INTENT_URL, response, classifier=classifier)
+            log.request_time = elapsed
+            logs.append(log)
 
-        response.raise_for_status()
-        response_json = response.json()
+            response.raise_for_status()
+            response_json = response.json()
+        except requests.RequestException as e:
+            log = HTTPLog.from_exception(HTTPLog.INTENTS_SYNCED, self.INTENT_URL, e, start, classifier=classifier)
+            logs.append(log)
+            return []
 
         intents = []
         for intent in response_json["values"]:

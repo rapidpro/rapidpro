@@ -5,7 +5,7 @@
 
 {% block body %}
     <p>
-      {% blocktrans with org_name=org.name brand=branding.name %}
+      {% blocktrans trimmed with org_name=org.name brand=branding.name %}
         We've noticed that the Android phone for {{ org_name }} has been connected back to
         internet and has been able to sync with the {{ brand }} servers recently at 
       {% endblocktrans %}
@@ -13,13 +13,13 @@
     </p>
 
     <p>
-      {% blocktrans %}
+      {% blocktrans trimmed %}
         This email is to announce that your android phone connection problem reported last time was resolved.
       {% endblocktrans %}
     </p>
 
     <p>
-      {% blocktrans with channel_name=channel.get_name %}
+      {% blocktrans trimmed with channel_name=channel.get_name %}
         You can check the current status of your {{ channel_name }} by visiting its
       {% endblocktrans %}
       <a href="{{ branding.link }}/channels/channel/read/{{ channel.uuid }}/">
