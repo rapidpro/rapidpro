@@ -198,12 +198,18 @@ class GlobalCRUDLTest(TembaTest):
 
         delete_url = reverse("globals.global_delete", args=[self.global2.id])
 
+        response = self.client.get(delete_url)
+        self.assertContains(response, "Are you sure you want to delete this global?")
+
         response = self.client.post(delete_url)
         self.assertEqual(302, response.status_code)
         self.assertEqual(0, Global.objects.filter(id=self.global2.id).count())
 
         # can't delete if global is being used
         delete_url = reverse("globals.global_delete", args=[self.global1.id])
+
+        response = self.client.get(delete_url)
+        self.assertContains(response, "cannot be deleted because it is in use.")
 
         with self.assertRaises(ValueError):
             self.client.post(delete_url)

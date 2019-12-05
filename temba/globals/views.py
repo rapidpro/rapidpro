@@ -105,6 +105,7 @@ class GlobalCRUDL(SmartCRUDL):
             return kwargs
 
     class Delete(OrgPermsMixin, SmartDeleteView):
+        cancel_url = "@globals.global_list"
         redirect_url = "@globals.global_list"
         success_message = ""
         http_method_names = ("get", "post")
