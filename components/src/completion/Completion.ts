@@ -158,6 +158,7 @@ export default class Completion extends RapidElement {
   public firstUpdated(changedProperties: Map<string, any>) {
     this.textInputElement = this.shadowRoot.querySelector("rp-textinput") as TextInput;
     this.anchorElement = this.shadowRoot.querySelector("#anchor");
+    this.keyedAssets = {};
 
     // TODO: fetch these once per page, not once per control
     if (this.completionsEndpoint) {
@@ -174,13 +175,13 @@ export default class Completion extends RapidElement {
 
     if (this.fieldsEndpoint) {
       getAssets(this.fieldsEndpoint).then((assets: Asset[])=>{
-        this.keyedAssets = { fields: assets.map((asset: Asset)=> asset.key ) }
+        this.keyedAssets["fields"] = assets.map((asset: Asset)=> asset.key );
       });      
     }
 
     if (this.globalsEndpoint) {
       getAssets(this.globalsEndpoint).then((assets: Asset[])=>{
-        this.keyedAssets = { globals: assets.map((asset: Asset)=> asset.key ) }
+        this.keyedAssets["globals"] = assets.map((asset: Asset)=> asset.key );
       });
     }
 
