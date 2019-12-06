@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-12-02 17:41+0000\n"
+"POT-Creation-Date: 2019-12-02 21:28+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3687,7 +3687,7 @@ msgstr "Exportación completa, puede encontrarla aquí: %s (los usuarios de prod
 
 #, fuzzy
 #| msgid "Field names can only contain letters, numbers, spaces and hypens"
-msgid "Field names can only contain letters, numbers, hypens"
+msgid "Can only contain letters, numbers and hypens."
 msgstr "Los nombres en los campos solo pueden contener letras, números, espacios y guiones"
 
 #, python-format
@@ -3756,21 +3756,17 @@ msgid "Contact unstopped"
 msgstr "Teléfono del contacto"
 
 #, fuzzy
-#| msgid "Field names can only contain letters, numbers, spaces and hypens"
-msgid "Field names can only contain letters, numbers and hypens"
-msgstr "Los nombres en los campos solo pueden contener letras, números, espacios y guiones"
+#| msgid "Alias names must be unique, try again."
+msgid "Must be unique."
+msgstr "Los apelativos deben ser únicos, inténtelo de nuevo."
 
-#, python-brace-format
-msgid "Field names must be unique. '{label}' is duplicated"
-msgstr ""
-
-#, fuzzy, python-brace-format
+#, fuzzy
 #| msgid "Field name '%s' is a reserved word"
-msgid "Field name '{label}' is a reserved word"
+msgid "Can't be a reserved word"
 msgstr "El nombre del campo '%s' es una palabra reservada"
 
-#, python-brace-format
-msgid "Cannot create a new Contact Field, maximum allowed per org: {settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG}"
+#, python-format
+msgid "Cannot create a new field as limit is %(limit)s."
 msgstr ""
 
 msgid "Manage Contact Fields"
@@ -4341,6 +4337,26 @@ msgstr ""
 
 msgid "Name already used"
 msgstr "Nombre ya utilizado"
+
+#, python-format
+msgid "Cannot create a new global as limit is %(limit)s."
+msgstr ""
+
+#, fuzzy
+#| msgid "Using a Local Number"
+msgid "Isn't a valid name"
+msgstr "Con un número local"
+
+#, fuzzy
+#| msgid "Manage Fields"
+msgid "Manage Globals"
+msgstr "Manejar campos"
+
+msgid "All"
+msgstr "Todos"
+
+msgid "Unused"
+msgstr ""
 
 #, fuzzy
 #| msgid "After 5 minutes"
@@ -8980,9 +8996,6 @@ msgstr "análisis"
 msgid "Runs"
 msgstr ""
 
-msgid "All"
-msgstr "Todos"
-
 #, fuzzy
 #| msgid "Response"
 msgid "Responded"
@@ -9006,6 +9019,37 @@ msgstr ""
 
 msgid "Ask a series of questions to collect data from your contacts."
 msgstr "Haga una serie de preguntas para obtener los datos de sus contactos."
+
+#, fuzzy, python-format
+msgid "You have <b>%(counter)s global</b> configured"
+msgid_plural "You have <b>%(counter)s globals</b> configured"
+msgstr[0] "Debe elegir un país para su organización."
+msgstr[1] "Debe elegir un país para su organización."
+
+#, fuzzy
+msgid "You do not have any globals configured."
+msgstr "Debe elegir un país para su organización."
+
+#, fuzzy
+#| msgid "Create Flow"
+msgid "Create Global"
+msgstr "Crear Flujos"
+
+msgid "Globals"
+msgstr ""
+
+msgid "No globals"
+msgstr ""
+
+#, fuzzy
+#| msgid "Update Label"
+msgid "Update Global"
+msgstr "Actualizar etiqueta"
+
+#, fuzzy
+#| msgid "Create Flow"
+msgid "Delete Global"
+msgstr "Crear Flujos"
 
 msgid ""
 "\n"
@@ -11770,6 +11814,84 @@ msgstr ""
 #, fuzzy, python-format
 #~| msgid ""
 #~| "\n"
+#~| "                              %(completed_percentage)s%% completion\n"
+#~| "                            "
+#~ msgid ""
+#~ "\n"
+#~ "                                %(counter)s Use\n"
+#~ "                              "
+#~ msgid_plural ""
+#~ "\n"
+#~ "                                %(counter)s Uses\n"
+#~ "                              "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "                              %(completed_percentage)s%% completion\n"
+#~ "                            "
+#~ msgstr[1] ""
+#~ "\n"
+#~ "                              %(completed_percentage)s%% completion\n"
+#~ "                            "
+
+#, fuzzy
+#~ msgid "Number of recipients"
+#~ msgstr "Número de créditos"
+
+#, fuzzy
+#~ msgid "Number of urns which received this broadcast"
+#~ msgstr "El estátus actual para esta comunicación"
+
+#, fuzzy, python-format
+#~ msgid ""
+#~ "\n"
+#~ "            To get started you need to add a channel to your account. A channel is a phone number or social network\n"
+#~ "            account which %(name)s can use to send and receive messages on your behalf. You can choose to use an\n"
+#~ "            Android phone and your own cell phone plan, or we can connect you with a service provider in your country\n"
+#~ "            directly.\n"
+#~ "\n"
+#~ "          "
+#~ msgstr ""
+#~ "\n"
+#~ "          Para empezar tiene que agregar un número de teléfono a su cuenta. Puede elegir usar un teléfono Android y su propio plan de telefonía celular o podemos conectarlo con un proveedor de servicios en su país directamente.\n"
+#~ "        "
+
+#, fuzzy
+#~ msgid ""
+#~ "\n"
+#~ "                Click Install\n"
+#~ "\n"
+#~ "              "
+#~ msgstr ""
+#~ "\n"
+#~ "                    %(sms_failed)s Error\n"
+#~ "\n"
+#~ "         "
+
+#, fuzzy, python-format
+#~ msgid ""
+#~ "\n"
+#~ "                Open %(brand)s\n"
+#~ "              "
+#~ msgstr ""
+#~ "\n"
+#~ "                Llamada saliente (%(duration)s seconds)\n"
+#~ "              "
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "                  %(last_sync)s\n"
+#~ "                  ago\n"
+#~ "                "
+#~ msgstr ""
+#~ "\n"
+#~ "                  %(last_sync)s\n"
+#~ "                  ago\n"
+#~ "                "
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
 #~| "        We've noticed that the Android phone for %(org_name)s has been connected back to\n"
 #~| "        internet and has been able to sync with the %(brand)s servers recently at\n"
 #~| "      "
@@ -11911,62 +12033,10 @@ msgstr ""
 #~ "        mensajes que no se han enviado en más de una hora.\n"
 #~ "      "
 
-#, python-format
-#~ msgid ""
-#~ "\n"
-#~ "                  %(last_sync)s\n"
-#~ "                  ago\n"
-#~ "                "
-#~ msgstr ""
-#~ "\n"
-#~ "                  %(last_sync)s\n"
-#~ "                  ago\n"
-#~ "                "
-
-#, fuzzy, python-format
-#~ msgid ""
-#~ "\n"
-#~ "            To get started you need to add a channel to your account. A channel is a phone number or social network\n"
-#~ "            account which %(name)s can use to send and receive messages on your behalf. You can choose to use an\n"
-#~ "            Android phone and your own cell phone plan, or we can connect you with a service provider in your country\n"
-#~ "            directly.\n"
-#~ "\n"
-#~ "          "
-#~ msgstr ""
-#~ "\n"
-#~ "          Para empezar tiene que agregar un número de teléfono a su cuenta. Puede elegir usar un teléfono Android y su propio plan de telefonía celular o podemos conectarlo con un proveedor de servicios en su país directamente.\n"
-#~ "        "
-
-#, fuzzy
-#~ msgid ""
-#~ "\n"
-#~ "                Click Install\n"
-#~ "\n"
-#~ "              "
-#~ msgstr ""
-#~ "\n"
-#~ "                    %(sms_failed)s Error\n"
-#~ "\n"
-#~ "         "
-
-#, fuzzy, python-format
-#~ msgid ""
-#~ "\n"
-#~ "                Open %(brand)s\n"
-#~ "              "
-#~ msgstr ""
-#~ "\n"
-#~ "                Llamada saliente (%(duration)s seconds)\n"
-#~ "              "
-
-#, fuzzy
-#~| msgid "<p>This field is required, please fill in the message to send out</p>"
-#~ msgid "This field is required, please fill in the message to send out"
+#~ msgid "<p>This field is required, please fill in the message to send out</p>"
 #~ msgstr "<p>Es necesario llenar este campo, por favor, complete el mensaje para enviarlo</p>"
 
-#, fuzzy
-#~| msgid "<p>Ensure this value has at most 160 characters (it has "
-#~ msgid "Ensure this value has at most 160 characters (it has "
+#~ msgid "<p>Ensure this value has at most 160 characters (it has "
 #~ msgstr "<p>Asegúrese de que este valor tenga como máximo 160 caracteres (tiene "
 
 #, fuzzy, python-format
@@ -11992,12 +12062,14 @@ msgstr ""
 #~ "                            "
 
 #, fuzzy
-#~ msgid "Number of recipients"
-#~ msgstr "Número de créditos"
+#~| msgid "Field names can only contain letters, numbers, spaces and hypens"
+#~ msgid "Field names can only contain letters, numbers, hypens"
+#~ msgstr "Los nombres en los campos solo pueden contener letras, números, espacios y guiones"
 
 #, fuzzy
-#~ msgid "Number of urns which received this broadcast"
-#~ msgstr "El estátus actual para esta comunicación"
+#~| msgid "Field names can only contain letters, numbers, spaces and hypens"
+#~ msgid "Field names can only contain letters, numbers and hypens"
+#~ msgstr "Los nombres en los campos solo pueden contener letras, números, espacios y guiones"
 
 #, fuzzy, python-format
 #~ msgid ""
@@ -12038,6 +12110,16 @@ msgstr ""
 #~ "                    %(sms_failed)s Error\n"
 #~ "\n"
 #~ "         "
+
+#, fuzzy
+#~| msgid "Field names can only contain letters, numbers, spaces and hypens"
+#~ msgid "Global names can only contain letters, numbers and hypens"
+#~ msgstr "Los nombres en los campos solo pueden contener letras, números, espacios y guiones"
+
+#, fuzzy, python-brace-format
+#~| msgid "Using a Local Number"
+#~ msgid "Global name '{name}' isn't a valid name"
+#~ msgstr "Con un número local"
 
 #, fuzzy
 #~| msgid "Channel Event"
@@ -12087,6 +12169,11 @@ msgstr ""
 #, fuzzy
 #~| msgid "The type of this message"
 #~ msgid "The UUID of the first step"
+#~ msgstr "El tipo de este mensaje"
+
+#, fuzzy
+#~| msgid "The type of this message"
+#~ msgid "The UUID of the second step"
 #~ msgstr "El tipo de este mensaje"
 
 #, fuzzy
@@ -14153,10 +14240,6 @@ msgstr ""
 
 #~ msgid "Export Label Messages"
 #~ msgstr "Exportar mensajes con etiquetas"
-
-#, fuzzy
-#~ msgid "You do not have any languages configured for your organization."
-#~ msgstr "Debe elegir un país para su organización."
 
 #~ msgid "Twilio"
 #~ msgstr "Twilio"

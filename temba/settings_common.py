@@ -352,7 +352,7 @@ PERMISSIONS = {
     "contacts.contactgroup": ("api",),
     "ivr.ivrcall": ("start",),
     "archives.archive": ("api", "run", "message"),
-    "globals.global": ("api",),
+    "globals.global": ("api", "unused", "detail"),
     "locations.adminboundary": ("alias", "api", "boundaries", "geometry"),
     "orgs.org": (
         "accounts",
@@ -1125,5 +1125,6 @@ MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
 # ElasticSearch configuration (URL RFC-1738)
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 
-# Maximum active ContactFields users can have in an Org
+# Maximum active objects are org can have
 MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
+MAX_ACTIVE_GLOBALS_PER_ORG = 255

@@ -1,0 +1,229 @@
+- extends "smartmin/list.html"
+- load smartmin sms temba compress i18n humanize
+
+- block page-title
+  - trans "Manage Globals"
+
+- block title-icon
+  .title-icon
+    %span.glyph.icon-global
+
+- block summary
+  -if global_count
+    {% blocktrans trimmed with counter=global_count|intcomma count num=global_count  %}
+    You have <b>{{ counter }} global</b> configured
+    {% plural %}
+    You have <b>{{ counter }} globals</b> configured
+    {% endblocktrans %}
+  -else
+    -trans "You do not have any globals configured."
+
+-block top-form
+  - if view.search_fields
+    - block search-form
+      %form
+        %input.input-medium.search-query(type="text" placeholder="Search" name="search" value="{{ search }}")
+
+-block content
+
+  {% block pjax %}
+  #pjax
+    .row-fluid
+      .span3.sidebox
+        %div.globals(style="margin-bottom: 10px")
+          - if view.add_button and org_perms.globals.global_create
+            %a.btn.btn-primary.btn-block(onClick='showCreateGlobalModal()')
+              -trans "Create Global"
+
+        #sidebar-nav
+          %ul.nav.nav-list
+            %li.nav-header
+              -trans "Globals"
+            - for category in global_categories
+              %li(class='{% if request.path == category.url %}active{% endif %}')
+                %a(href='{{category.url}}')
+                  {{category.label}} ({{ category.count }})
+
+      .span9
+        - block pre-table
+
+        - block table
+          .scroll-x
+            %table(class='{% get_list_class object_list %} list-table table' cellspacing='0')
+              %thead
+                %tbody
+                  - for obj in object_list
+                    %tr.global(data-gid="{{ obj.id }}")
+                      %td(style="min-width: 240px")
+                        {{ obj.name }}
+                      %td(style="font-family: monospace; font-size: 12px;")
+                        @globals.{{ obj.key }}
+                      %td
+                        {{ obj.value }}
+                      %td.dependencies
+                        - with usage_count=obj.get_usage_count
+                          - if usage_count
+                            %a.dependencies(href="#" onClick='showDetailGlobalModal({{ obj.id }}, "{{ obj.name }}");')
+                              {% blocktrans trimmed count counter=usage_count %}
+                                {{counter}} Use
+                              {% plural %}
+                                {{counter}} Uses
+                              {% endblocktrans %}
+
+                  - empty
+                    %tr.empty_list
+                      %td(colspan='99')
+                        -trans "No globals"
+
+          - block extra-rows
+
+        - block post-table
+
+  {% block paginator %}
+
+{% endblock pjax %}
+{% endblock content %}
+
+- block extra-script
+  {{ block.super }}
+  <script>
+    $(document).ready(function(){
+      $('tr[data-gid]').on('click', function(evt) {
+        evt.preventDefault();
+        var srcElem = $(evt.srcElement);
+
+        // if user clicked on the the field that shows dependencies
+        if (srcElem.hasClass('dependencies')) {
+          // pass, do nothing, onClick method will handle this
+        } else {
+          - if org_perms.globals.global_update
+            showUpdateGlobalModal($(this).data('gid'));
+        }
+      });
+
+    }); // document.ready
+
+    function showCreateGlobalModal() {
+
+      var modal = new Modax('{% trans "Create Global" %}', '{% url "globals.global_create" %}');
+      modal.setIcon('icon-global');
+      modal.ele.find('.primary').text('{% trans "Create" %}');
+
+      modal.setListeners({
+        onSuccess: function() {
+          // simply reload the whole page
+          location.reload();
+        },
+        onFormLoaded: function() {
+          useFontCheckbox(".smartmin-form input[type=checkbox]");
+        }
+      })
+      modal.show()
+    }
+
+    function showUpdateGlobalModal(gid) {
+      var updateUrl = '/global/update/' + gid + '/';
+
+      var modal = new Modax('{% trans "Update Global" %}', updateUrl);
+
+      modal.setIcon('icon-global');
+      modal.ele.find('.primary').text('{% trans "Update" %}');
+
+      - if org_perms.globals.global_delete
+        modal.setTertiaryButton('{% trans "Delete" %}', function() {
+          // hide current UpdateModal
+          modal.dismiss();
+
+          showDeleteGlobalModal(gid);
+        });
+        // make Delete dangerous
+        modal.ele.find('.tertiary').addClass('btn-danger');
+
+      modal.setListeners({
+        onSuccess: function() {
+          // simply reload the whole page
+          location.reload();
+        },
+        onFormLoaded: function() {
+          useFontCheckbox(".smartmin-form input[type=checkbox]");
+        }
+      })
+      modal.show();
+    }
+
+    function _updateModalButtonsStyle(modal) {
+      var has_related_flows = !!$(modal.ele.find('.has-related-flows')).length;
+
+      if (has_related_flows) {
+        // hide the secondary button
+        modal.hideSecondaryButton();
+        // rename the primary button
+        modal.ele.find('.primary').text('Ok').on('click', function () { modal.dismiss()} );
+
+        modal.submit = function () {};
+      } else {
+        modal.ele.find('.primary').text('{% trans "Delete" %}').addClass('btn-danger')
+      }
+    }
+
+    function showDeleteGlobalModal(gid) {
+      var deleteUrl = '/global/delete/' + gid + '/';
+
+      var modal = new Modax('{% trans "Delete Global" %}', deleteUrl);
+
+      modal.setIcon('icon-global');
+      modal.addClass("alert");
+      modal.redirectOnSuccess = true;
+
+      modal.show();
+
+      modal.setListeners({
+        onCompleted: function() {
+          _updateModalButtonsStyle(modal)
+
+          // simply reload the whole page
+          location.reload();
+        },
+        onFormLoaded: function() {
+          _updateModalButtonsStyle(modal)
+        }
+      })
+    }
+
+    function showDetailGlobalModal(gid, name) {
+      var detailUrl = '/global/detail/' + gid + '/';
+
+      var modal = new Modax(name + ' ' + '{% trans "Uses" %}', detailUrl);
+
+      modal.setIcon('icon-global');
+
+      modal.ele.find('.primary').hide();  // hide primary, because primary button onClick handler will try to submit the form
+
+      modal.ele.find('.secondary').text('{% trans "Ok" %}');
+
+      modal.setListeners({
+        onSuccess: function() {
+          // simply reload the whole page
+          location.reload();
+        },
+      })
+      modal.show();
+    }
+  </script>
+
+-block extra-style
+  :css
+    tr.global {
+      cursor: pointer;
+    }
+
+    .title-icon {
+      margin-bottom: -9px;
+    }
+
+    td.dependencies {
+      text-align: right;
+      white-space: nowrap;
+      width: 3em;
+    }
+
