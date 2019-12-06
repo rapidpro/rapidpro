@@ -100,6 +100,7 @@ export default class Completion extends RapidElement {
   static parser = new ExcellentParser('@', [
     'contact',
     'fields',
+    'globals',
     'urns',
   ]);
 
@@ -144,6 +145,9 @@ export default class Completion extends RapidElement {
   @property({type: String})
   fieldsEndpoint: string;
 
+  @property({type: String})
+  globalsEndpoint: string;
+
   @property({type: Boolean})
   textarea: boolean;
 
@@ -172,6 +176,12 @@ export default class Completion extends RapidElement {
       getAssets(this.fieldsEndpoint).then((assets: Asset[])=>{
         this.keyedAssets = { fields: assets.map((asset: Asset)=> asset.key ) }
       });      
+    }
+
+    if (this.globalsEndpoint) {
+      getAssets(this.globalsEndpoint).then((assets: Asset[])=>{
+        this.keyedAssets = { globals: assets.map((asset: Asset)=> asset.key ) }
+      });
     }
 
     // create our hidden container so it gets included in our host element's form
