@@ -256,7 +256,6 @@ class FlowCRUDL(SmartCRUDL):
         "assets",
         "upload_media_action",
         "pdf_export",
-        "pdf_export_next",
     )
 
     model = Flow
@@ -1280,62 +1279,6 @@ class FlowCRUDL(SmartCRUDL):
         def get_template_names(self):
             return "flows/flow_editor_next.haml"
 
-        def post(self, request, *args, **kwargs):
-            import os
-            import pdfkit
-
-            self.object = self.get_object()
-
-            protocol = "http" if settings.DEBUG else "https"
-
-            csrftoken = "%s" % request.COOKIES.get("csrftoken")
-            sessionid = "%s" % request.session.session_key
-
-            pdf_export_lang = request.POST.get("pdf_export_lang", None)
-
-            options = {
-                "page-size": "A4",
-                "margin-top": "0.1in",
-                "margin-right": "0.1in",
-                "margin-bottom": "0.1in",
-                "margin-left": "0.1in",
-                "encoding": "UTF-8",
-                "no-outline": None,
-                "orientation": "Landscape",
-                "dpi": "300",
-                "zoom": 0.7,
-                "viewport-size": "1920x900",
-                "javascript-delay": 2000,
-                "cookie": [("csrftoken", csrftoken), ("sessionid", sessionid)],
-                "quiet": "",
-            }
-
-            slug_flow = slugify(self.object.name)
-
-            url = "%s://%s%s" % (
-                protocol,
-                settings.HOSTNAME,
-                reverse("flows.flow_pdf_export_next", args=[self.object.uuid]),
-            )
-
-            if pdf_export_lang:
-                url += "?pdf_export_lang=%s" % pdf_export_lang
-
-            output_dir = "%s/flow_pdf" % settings.MEDIA_ROOT
-            output_path = "%s/%s.pdf" % (output_dir, slug_flow)
-
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-
-            pdfkit.from_url(url=url, output_path=output_path, options=options)
-
-            from django.http import FileResponse, Http404
-
-            try:
-                return FileResponse(open(output_path, "rb"), content_type="application/pdf")
-            except FileNotFoundError:
-                raise Http404()
-
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
 
@@ -1425,9 +1368,6 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_export"):
                 links.append(dict(title=_("Export"), href="%s?flow=%s" % (reverse("orgs.org_export"), flow.id)))
 
-            if self.has_org_perm("flows.flow_pdf_export_next"):
-                links.append(dict(title=_("Export to PDF"), href="javascript:;", js_class="pdf_export_next_submit"))
-
             if self.has_org_perm("flows.flow_delete"):
                 links.append(dict(divider=True)),
                 links.append(dict(title=_("Delete"), js_class="delete-flow", href="#"))
@@ -1447,84 +1387,6 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(divider=True))
                 links.append(dict(title=_("Previous Editor"), js_class="previous-editor", href="#"))
             return links
-
-    class PdfExportNext(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
-        slug_url_kwarg = "uuid"
-
-        def get_context_data(self, *args, **kwargs):
-            context = super(FlowCRUDL.PdfExportNext, self).get_context_data(*args, **kwargs)
-
-            context["media_url"] = "%s://%s/" % ("http" if settings.DEBUG else "https", settings.AWS_BUCKET_DOMAIN)
-
-            flow = self.object
-
-            # are there pending starts?
-            starting = False
-            start = flow.starts.all().order_by("-created_on")
-            if start.exists() and start[0].status in [
-                FlowStart.STATUS_STARTING,
-                FlowStart.STATUS_PENDING,
-            ]:  # pragma: needs cover
-                starting = True
-            context["starting"] = starting
-            context["mutable"] = False
-
-            dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
-            getattr(settings, "EDITOR_DEV_MODE", False)
-            prefix = "/dev" if dev_mode else settings.STATIC_URL
-
-            # get our list of assets to incude
-            scripts = []
-            styles = []
-
-            if dev_mode:  # pragma: no cover
-                response = requests.get("http://localhost:3000/asset-manifest.json")
-                data = response.json()
-            else:
-                with open("node_modules/@greatnonprofits-nfp/flow-editor/build/asset-manifest.json") as json_file:
-                    data = json.load(json_file)
-
-            for key, filename in data.get("files").items():
-
-                # tack on our prefix for dev mode
-                filename = prefix + filename
-
-                # ignore precache manifest
-                if key.startswith("precache-manifest") or key.startswith("service-worker"):
-                    continue
-
-                # css files
-                if key.endswith(".css") and filename.endswith(".css"):
-                    styles.append(filename)
-
-                # javascript
-                if key.endswith(".js") and filename.endswith(".js"):
-                    scripts.append(filename)
-
-            context["scripts"] = scripts
-            context["styles"] = styles
-            context["migrate"] = "migrate" in self.request.GET
-
-            if flow.is_archived:
-                context["mutable"] = False
-                context["can_start"] = False
-            else:
-                context["mutable"] = self.has_org_perm("flows.flow_update") and not self.request.user.is_superuser
-                context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
-
-            whatsapp_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=WHATSAPP_SCHEME)
-            context["has_whatsapp_channel"] = whatsapp_channel is not None
-            context["dev_mode"] = dev_mode
-
-            context["pdf_export_lang"] = self.request.GET.get("pdf_export_lang", None)
-
-            return context
-
-        def get_template_names(self):
-            return "flows/flow_pdf_export_next.haml"
-
-        def get_gear_links(self):
-            return []
 
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
         class ExportForm(forms.Form):
