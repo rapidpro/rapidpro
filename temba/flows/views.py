@@ -1087,8 +1087,6 @@ class FlowCRUDL(SmartCRUDL):
                 reverse("flows.flow_pdf_export", args=[self.object.uuid]),
             )
 
-            # print(url)
-
             if pdf_export_lang:
                 url += "?pdf_export_lang=%s" % pdf_export_lang
 
