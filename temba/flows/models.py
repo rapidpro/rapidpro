@@ -1694,22 +1694,28 @@ class Flow(TembaModel):
         channel_uuids = [g["uuid"] for g in dependencies.get("channels", [])]
         label_uuids = [g["uuid"] for g in dependencies.get("labels", [])]
         classifier_uuids = [c["uuid"] for c in dependencies.get("classifiers", [])]
+        global_keys = [g["key"] for g in dependencies.get("globals", [])]
 
-        # still need to do lazy creation of fields in the case of a flow import
-        if len(field_keys):
+        # fields won't have been included in old imports so may need to be lazily created here
+        if field_keys:
             active_org_fields = set(
                 ContactField.user_fields.active_for_org(org=self.org).values_list("key", flat=True)
             )
 
-            existing_fields = set(field_keys)
-            fields_to_create = existing_fields.difference(active_org_fields)
+            fields_to_create = set(field_keys).difference(active_org_fields)
 
             # create any field that doesn't already exist
             for field in fields_to_create:
                 if ContactField.is_valid_key(field):
-                    # reverse slug to get a reasonable label
-                    label = " ".join([word.capitalize() for word in field.split("_")])
-                    ContactField.get_or_create(self.org, self.modified_by, field, label)
+                    ContactField.get_or_create(self.org, self.modified_by, field)
+
+        # globals aren't included in exports so they're created here too if they don't exist, with blank values
+        if global_keys:
+            org_globals = set(self.org.globals.filter(is_active=True).values_list("key", flat=True))
+
+            globals_to_create = set(global_keys).difference(org_globals)
+            for g in globals_to_create:
+                Global.get_or_create(self.org, self.modified_by, g, name="", value="")
 
         fields = ContactField.user_fields.filter(org=self.org, key__in=field_keys)
         flows = self.org.flows.filter(uuid__in=flow_uuids)
@@ -1717,6 +1723,7 @@ class Flow(TembaModel):
         channels = Channel.objects.filter(org=self.org, uuid__in=channel_uuids, is_active=True)
         labels = Label.label_objects.filter(org=self.org, uuid__in=label_uuids)
         classifiers = Classifier.objects.filter(org=self.org, uuid__in=classifier_uuids)
+        globals = self.org.globals.filter(key__in=global_keys, is_active=True)
 
         self.field_dependencies.clear()
         self.field_dependencies.add(*fields)
@@ -1735,6 +1742,9 @@ class Flow(TembaModel):
 
         self.classifier_dependencies.clear()
         self.classifier_dependencies.add(*classifiers)
+
+        self.global_dependencies.clear()
+        self.global_dependencies.add(*globals)
 
     def release(self):
         """
