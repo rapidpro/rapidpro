@@ -1,3 +1,7 @@
+v5.3.22
+----------
+ * Convert add/edit campaign event to components
+
 v5.3.21
 ----------
  * Add UI for managing globals
