@@ -23,7 +23,7 @@
   <div class="controls">
 
     {% with view|field_help:field as help %}
-    {% annotated_field form_field label help %}
+    {{ form_field }}
     {% if help %}
     <p class="help-block">{{ help|safe }}</p>
     {% endif %}

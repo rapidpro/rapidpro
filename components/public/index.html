@@ -2,6 +2,10 @@
 <html>
   <head>
     <script src="https://unpkg.com/@webcomponents/webcomponentsjs@2.3.0/bundles/webcomponents-sd-ce.js"></script>
+    <script
+      src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.js"
+    >
+    </script>
   </head>
   <body>
     <link href="https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:300,400,500" rel="stylesheet">
@@ -9,7 +13,7 @@
     <style>
       
       html {
-        --font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        --font-family: Helvetica, Helvetica, Arial, sans-serif;
         
         font-family: var(--font-family);
         font-size: 13px;
@@ -120,8 +124,8 @@
 
     <div class="example">
       <div class="example-header">Modax on Button</div>
-      <rp-modax header="Create Campaign" endpoint="/campaign/create/">
-        <rp-button name="Create Campaign" primary></rp-button>
+      <rp-modax id="event-add" header="Add Event" endpoint="/campaignevent/create/?campaign=20012">
+        <rp-button name="Add Event" primary></rp-button>
       </rp-modax>
     </div>
 

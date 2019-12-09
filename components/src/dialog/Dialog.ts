@@ -26,7 +26,7 @@ export default class Dialog extends RapidElement {
         font-family: var(--font-family);
       }
 
-      .mask {
+      .dialog-mask {
         width: 100%;
         background: rgba(0, 0, 0, .5);
         opacity: 0;
@@ -37,7 +37,7 @@ export default class Dialog extends RapidElement {
         transition: all ease-in 250ms;
       }
 
-      .dialog {
+      .dialog-container {
         margin: 0px auto; 
         top: -200px;
         position: relative;
@@ -47,16 +47,16 @@ export default class Dialog extends RapidElement {
         overflow: hidden;
       }
 
-      .body {
+      .dialog-body {
         background: #fff;
       }
 
-      .mask.open {
+      .dialog-mask.dialog-open {
         opacity: 1;
         visibility: visible;
       }
 
-      .mask.open > .dialog {
+      .dialog-mask.dialog-open > .dialog-container {
         top: 100px;
       }
 
@@ -68,7 +68,7 @@ export default class Dialog extends RapidElement {
         background: var(--color-primary-dark);
       }
 
-      .footer {
+      .dialog-footer {
         background: var(--color-primary-light);
         padding: 10px;
         display: flex;
@@ -87,7 +87,7 @@ export default class Dialog extends RapidElement {
         display: none;
       }
 
-      .submitting rp-loading {
+      .dialog-submitting rp-loading {
         display: block;
       }
   `;
@@ -170,23 +170,23 @@ export default class Dialog extends RapidElement {
     const dialogStyle = { width: Dialog.widths[this.size] }
 
     let header = this.header ? html`
-      <div class="header">
+      <div class="dialog-header">
         <div class="header-text">${this.header}</div>
       </div>` : null;
 
     return html`
-        <div class="mask ${getClasses({ 
-          "open": this.open,
-          "submitting": this.submitting
+        <div class="dialog-mask ${getClasses({ 
+          "dialog-open": this.open,
+          "dialog-submitting": this.submitting
           })}" style=${styleMap(maskStyle)}>
-          <div @keyup=${this.handleKeyUp} style=${styleMap(dialogStyle)} class="dialog">
+          <div @keyup=${this.handleKeyUp} style=${styleMap(dialogStyle)} class="dialog-container">
             ${header}
-            <div class="body" @keypress=${this.handleKeyUp}>${this.body ? this.body : html`<slot></slot>`}
+            <div class="dialog-body" @keypress=${this.handleKeyUp}>${this.body ? this.body : html`<slot></slot>`}
               <rp-loading units=6 size=8></rp-loading>
             </div>
 
-            <div class="footer">
-              <rp-button @click=${this.handleClick} .name=${this.primaryButtonName} primary ?disabled=${this.submitting}>}</rp-button> 
+            <div class="dialog-footer">
+              ${this.primaryButtonName ? html`<rp-button @click=${this.handleClick} .name=${this.primaryButtonName} primary ?disabled=${this.submitting}>}</rp-button>`: null}
               <rp-button @click=${this.handleClick} name=${this.cancelButtonName} secondary></rp-button>
             </div>
           </div>      
