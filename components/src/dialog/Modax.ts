@@ -97,7 +97,11 @@ export default class Modax extends RapidElement {
       if (this.open) {
         this.fetchForm();
       } else {
-        this.body = this.getLoading();
+
+        // hide our body after our hiding animation is done
+        window.setTimeout(()=>{
+          this.body = this.getLoading();
+        }, 500);
       }
     }
 
@@ -172,7 +176,6 @@ export default class Modax extends RapidElement {
   }
 
   private handleDialogClick(evt: CustomEvent) {
-    console.log("clicked dialog!");
     const button = evt.detail.button;
     if (!button.disabled) {
       if (button.name === this.primaryName) {
