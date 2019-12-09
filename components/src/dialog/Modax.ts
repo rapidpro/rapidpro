@@ -78,7 +78,6 @@ export default class Modax extends RapidElement {
   private cancelToken: CancelTokenSource;
 
   private handleSlotClicked(): void {
-    console.log("slot clicked!");
     this.open = true;
   }
 
