@@ -30,6 +30,9 @@ export default class FormField extends LitElement {
     }`
   }
 
+  @property({type: Boolean, attribute: "widget_only"})
+  widgetOnly: boolean;
+
   @property({type: Array, attribute: false})
   errors: string[] = [];
 
@@ -47,6 +50,13 @@ export default class FormField extends LitElement {
     const errors = (this.errors || []).map((error: string) => {
       return html`<rp-alert level="error">${error}</rp-alert>`;
     });
+
+    if (this.widgetOnly) {
+      return html`
+        <slot></slot>
+        ${errors}
+      `
+    }
 
     return html`
     ${this.name ? html`<label class="control-label" for="${this.name}">${this.label}</label>` : null}

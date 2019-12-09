@@ -8,13 +8,13 @@ export default class Loading extends LitElement {
 
   static get styles() {
     return css`
-      .unit {
+      .loading-unit {
         border: 1px inset rgba(0, 0, 0, .05);
         display: inline-block;
-        animation: pulse 0.9s cubic-bezier(0.3, 0, 0.7, 1) infinite;
+        animation: loading-pulse 0.9s cubic-bezier(0.3, 0, 0.7, 1) infinite;
       }
 
-      @keyframes pulse {
+      @keyframes loading-pulse {
         0% {
           transform: scale(0.2);
           opacity: .1;
@@ -57,7 +57,7 @@ export default class Loading extends LitElement {
             animationDelay: `-${1 - num * (1 / this.units)}s`,
             background: this.color
           }
-          return html`<div class="unit" style=${styleMap(ballStyle)}></div>`
+          return html`<div class="loading-unit" style=${styleMap(ballStyle)}></div>`
         })}
       </div>`
   }

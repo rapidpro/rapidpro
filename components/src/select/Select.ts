@@ -25,7 +25,7 @@ export default class Select extends FormElement {
     return css`
       :host {
         transition: all ease-in-out 200ms;
-        display: block;
+        display: inline;
         line-height: normal;
         outline: none;
       }
@@ -198,6 +198,7 @@ export default class Select extends FormElement {
         padding: 5px 4px;
         font-size: 13px;
         font-weight: 200;
+        min-height: 14px;
         color: var(--color-placeholder);
       }
     `
@@ -532,7 +533,7 @@ export default class Select extends FormElement {
           const option = {name, value};
           this.staticOptions.push(option);
   
-          if (child.getAttribute("selected") !== null) {
+          if (child.getAttribute("selected") !== null || (!this.placeholder && this.values.length === 0)) {
             if (this.getAttribute("multi") !== null) {
               this.addValue(option);
             } else {
@@ -589,7 +590,7 @@ export default class Select extends FormElement {
     }
 
     return html`
-      <rp-field name=${this.name} .label=${this.label} .helpText=${this.helpText} .errors=${this.errors}>
+      <rp-field name=${this.name} .label=${this.label} .helpText=${this.helpText} .errors=${this.errors} .widgetOnly=${this.widgetOnly}>
         <div class="select-container ${classes}" @click=${this.handleContainerClick}>
           <div class="left">
             <div class="selected">
