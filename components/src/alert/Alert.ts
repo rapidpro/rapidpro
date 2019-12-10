@@ -18,15 +18,15 @@ export default class Alert extends LitElement {
         font-size: 12px;
       }
 
-      .info {
+      .rp-info {
         background: var(--color-info);
       }
 
-      .warning {
+      .rp-warning {
         background: var(--color-warning);
       }
 
-      .error {
+      .rp-error {
         border-left: 6px solid var(--color-error);
         color: var(--color-error);
       }
@@ -37,6 +37,6 @@ export default class Alert extends LitElement {
   level: string = 'info';
   
   public render(): TemplateResult {
-    return html`<div class="rp-alert ${this.level}"><slot></slot></div>`;
+    return html`<div class="rp-alert rp-${this.level}"><slot></slot></div>`;
   }
 }

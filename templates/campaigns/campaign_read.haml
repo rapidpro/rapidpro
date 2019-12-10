@@ -211,12 +211,3 @@
         modal.show();
       });
     {% endif %}
-
-   {% if org_perms.contacts.contact_update %}
-     $(".update-campaign").live('click', function(){
-       var modal = new Modax('{% trans "Update Campaign" %}','{% url "campaigns.campaign_update" object.pk %}');
-       modal.setIcon('icon-instant');
-       modal.setRedirectOnSuccess(true);
-       modal.show();
-     });
-   {% endif %}

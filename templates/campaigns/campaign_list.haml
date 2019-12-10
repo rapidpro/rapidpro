@@ -1,6 +1,12 @@
 -extends "smartmin/list.html"
 -load smartmin sms temba compress i18n
 
+-block extra-style
+  :css
+    rp-button {
+      display: block;
+    }
+
 -block page-title
   -trans "Campaigns"
 
@@ -21,7 +27,8 @@
           .span3.sidebox
             %div{style:"margin-bottom: 10px"}
               - if org_perms.campaigns.campaign_create
-                %a#create-campaign.btn.btn-primary.btn-block{ href:"#" } Create Campaign
+                %rp-modax{ header:"Create Campaign", endpoint:"/campaign/create/" }
+                  %rp-button{ name:"Create Campaign", primary: 'true' }
 
             #sidebar-nav
               %ul.nav.nav-list.level1
@@ -87,15 +94,6 @@
   {{ block.super }}
 
   :javascript
-    {% if org_perms.campaigns.campaign_create %}
-      $("#create-campaign").live('click', function(){
-        var modal = new Modax('Create Campaign','{% url "campaigns.campaign_create" %}');
-        modal.setIcon('icon-instant');
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      });
-    {% endif %}
-
     $('.object-row').live('mouseover', function(){
       url = '/campaign/read/' + $(this).data('object-id') + '/';
 

@@ -1,3 +1,15 @@
+v5.3.22
+----------
+ * Convert add/edit campaign event to components
+
+v5.3.21
+----------
+ * Add UI for managing globals
+
+v5.3.16
+----------
+ * Update to flow editor v1.7.7
+
 v5.3.13
 ----------
  * Update to floweditor v1.7.5

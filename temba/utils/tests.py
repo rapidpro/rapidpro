@@ -64,7 +64,7 @@ from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import JSONAsTextField, patch_queryset_count
 from .templatetags.temba import short_datetime
-from .text import clean_string, decode_base64, random_string, slugify_with, truncate
+from .text import clean_string, decode_base64, random_string, slugify_with, truncate, unsnakify
 from .timezones import TimeZoneFormField, timezone_to_country_code
 
 
@@ -175,6 +175,10 @@ class InitTest(TembaTest):
         self.assertEqual("abc", truncate("abc", 5))
         self.assertEqual("abcde", truncate("abcde", 5))
         self.assertEqual("ab...", truncate("abcdef", 5))
+
+    def test_unsnakify(self):
+        self.assertEqual("", unsnakify(""))
+        self.assertEqual("Org Name", unsnakify("org_name"))
 
     def test_random_string(self):
         rs = random_string(1000)

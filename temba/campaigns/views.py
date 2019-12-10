@@ -143,15 +143,28 @@ class CampaignCRUDL(SmartCRUDL):
 
             else:
                 if self.has_org_perm("campaigns.campaignevent_create"):
-                    links.append(dict(title="Add Event", style="btn-primary", js_class="add-event", href="#"))
-
+                    links.append(
+                        dict(
+                            id="event-add",
+                            title=_("Add Event"),
+                            href=f"{reverse('campaigns.campaignevent_create')}?campaign={self.object.pk}",
+                            modax=_("Add Event"),
+                        )
+                    )
                 if self.has_org_perm("orgs.org_export"):
                     links.append(
                         dict(title=_("Export"), href=f"{reverse('orgs.org_export')}?campaign={self.object.id}")
                     )
 
                 if self.has_org_perm("campaigns.campaign_update"):
-                    links.append(dict(title="Edit", js_class="update-campaign", href="#"))
+                    links.append(
+                        dict(
+                            id="campaign-update",
+                            title=_("Edit"),
+                            href=reverse("campaigns.campaign_update", args=[self.object.pk]),
+                            modax=_("Update Campaign"),
+                        )
+                    )
 
                 if self.has_org_perm("campaigns.campaign_archive"):
                     links.append(
@@ -287,15 +300,46 @@ class CampaignEventForm(forms.ModelForm):
     event_type = forms.ChoiceField(
         choices=((CampaignEvent.TYPE_MESSAGE, "Send a message"), (CampaignEvent.TYPE_FLOW, "Start a flow")),
         required=True,
+        widget=SelectWidget(attrs={"placeholder": _("Select the event type"), "widget_only": True}),
     )
 
-    direction = forms.ChoiceField(choices=(("B", "Before"), ("A", "After")), required=True)
+    direction = forms.ChoiceField(
+        choices=(("B", "Before"), ("A", "After")),
+        required=True,
+        widget=SelectWidget(attrs={"placeholder": _("Relative date direction"), "widget_only": True}),
+    )
 
-    unit = forms.ChoiceField(choices=CampaignEvent.UNIT_CHOICES, required=True)
+    unit = forms.ChoiceField(
+        choices=CampaignEvent.UNIT_CHOICES,
+        required=True,
+        widget=SelectWidget(attrs={"placeholder": _("Select a unit"), "widget_only": True}),
+    )
 
-    flow_to_start = forms.ModelChoiceField(queryset=Flow.objects.filter(is_active=True), required=False)
+    flow_to_start = forms.ModelChoiceField(
+        queryset=Flow.objects.filter(is_active=True),
+        required=False,
+        empty_label=None,
+        widget=SelectWidget(attrs={"placeholder": _("Select a flow to start"), "widget_only": True}),
+    )
 
-    delivery_hour = forms.ChoiceField(choices=CampaignEvent.get_hour_choices(), required=False)
+    relative_to = forms.ModelChoiceField(
+        queryset=ContactField.all_fields.none(),
+        required=False,
+        empty_label=None,
+        widget=SelectWidget(
+            attrs={
+                "placeholder": _("Select a date field to base this event on"),
+                "widget_only": True,
+                "searchable": True,
+            }
+        ),
+    )
+
+    delivery_hour = forms.ChoiceField(
+        choices=CampaignEvent.get_hour_choices(),
+        required=False,
+        widget=SelectWidget(attrs={"placeholder": _("Select hour for delivery"), "widget_only": True}),
+    )
 
     flow_start_mode = forms.ChoiceField(
         choices=(
@@ -303,13 +347,16 @@ class CampaignEventForm(forms.ModelForm):
             (CampaignEvent.MODE_SKIP, _("Skip this event")),
         ),
         required=False,
+        widget=SelectWidget(attrs={"placeholder": _("Flow starting rules"), "widget_only": True}),
     )
+
     message_start_mode = forms.ChoiceField(
         choices=(
             (CampaignEvent.MODE_INTERRUPT, _("Stop it and send the message")),
             (CampaignEvent.MODE_SKIP, _("Skip this message")),
         ),
         required=False,
+        widget=SelectWidget(attrs={"placeholder": _("Message sending rules"), "widget_only": True}),
     )
 
     def clean(self):
@@ -465,6 +512,7 @@ class CampaignEventForm(forms.ModelForm):
     class Meta:
         model = CampaignEvent
         fields = "__all__"
+        widgets = {"offset": InputWidget(attrs={"widget_only": True})}
 
 
 class CampaignEventCRUDL(SmartCRUDL):
@@ -504,7 +552,14 @@ class CampaignEventCRUDL(SmartCRUDL):
             campaign_event = self.get_object()
 
             if self.has_org_perm("campaigns.campaignevent_update") and not campaign_event.campaign.is_archived:
-                links.append(dict(title="Edit", js_class="update-event", href="#"))
+                links.append(
+                    dict(
+                        id="event-update",
+                        title=_("Edit"),
+                        href=reverse("campaigns.campaignevent_update", args=[campaign_event.pk]),
+                        modax=_("Update Event"),
+                    )
+                )
 
             if self.has_org_perm("campaigns.campaignevent_delete"):
                 links.append(
