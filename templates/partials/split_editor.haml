@@ -177,6 +177,16 @@
                placeholder:"Select the flow event to notify subscribers of", required:"", init-id:"[[ruleset.config.resthook]]",
                select-server:"/api/resthooks/?_format=select2", type:"hidden"}
 
+    .shorten_url{ng-if:'formData.rulesetConfig.type == "shorten_url"'}><
+      .split-margin
+        %p{class:"description"}
+          -blocktrans
+            Select which Trackable Link would you like to shorten
+
+        %input{ng-model:"formData.shorten_url", search:"true", init-text:"[[ruleset.config.shorten_url.text]]", name:"shorten_url",
+              placeholder:"Select your trackable link to be shortened", required:"", init-id:"[[ruleset.config.shorten_url.id]]",
+              select-server:"/link/api/", type:"hidden"}
+
     .webhook{ng-if:'formData.rulesetConfig.type == "webhook"'}><
       .split-margin          
         %p{class:"description"}

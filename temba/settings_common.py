@@ -251,6 +251,7 @@ INSTALLED_APPS = (
     "temba.values",
     "temba.airtime",
     "temba.sql",
+    "temba.links",
 )
 
 # the last installed app that uses smartmin permissions
@@ -432,6 +433,7 @@ PERMISSIONS = {
         "giftcards_api",
     ),
     "flows.flowsession": ("json",),
+    "links.link": ("archived", "read", "history", "export", "api"),
     "msgs.msg": (
         "api",
         "archive",
@@ -635,6 +637,13 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "templates.template_api",
+        "links.link.*",
+        "links.link_read",
+        "links.link_archived",
+        "links.link_update",
+        "links.link_history",
+        "links.link_api",
+        "links.link_export",
         "triggers.trigger.*",
     ),
     "Editors": (
@@ -730,6 +739,13 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "templates.template_api",
+        "links.link.*",
+        "links.link_read",
+        "links.link_archived",
+        "links.link_update",
+        "links.link_history",
+        "links.link_api",
+        "links.link_export",
         "triggers.trigger.*",
     ),
     "Viewers": (
@@ -788,6 +804,11 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "links.link_export",
+        "links.link_archived",
+        "links.link_history",
+        "links.link_list",
+        "links.link_read",
         "triggers.trigger_archived",
         "triggers.trigger_list",
     ),
@@ -1124,13 +1145,13 @@ ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 # Maximum active ContactFields users can have in an Org
 MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
 
+# Firebase Dynamic Links configuration
+FDL_API_KEY = "FirebaseDynamicLinkAPIKey"
+FDL_URL = "FirebaseDynamicLinkURL"
+
 # Parse configuration
 PARSE_SERVER_NAME = ""
 PARSE_URL = ""
 PARSE_APP_ID = ""
 PARSE_REST_KEY = ""
 PARSE_MASTER_KEY = ""
-
-# Firebase Dynamic Links configuration
-FDL_API_KEY = ""
-FDL_URL = ""
