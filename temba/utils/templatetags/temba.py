@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 import pytz
 
@@ -239,3 +239,31 @@ def short_datetime(context, dtime):
             return "%s %d" % (dtime.strftime("%b"), int(dtime.strftime("%d")))
         else:
             return "%d/%d/%s" % (int(dtime.strftime("%m")), int(dtime.strftime("%d")), dtime.strftime("%y"))
+
+
+def format_datetime(time, tz):
+    user_time_zone = pytz.timezone(tz.zone)
+
+    if time.tzinfo is None:
+        time = time.replace(tzinfo=user_time_zone)
+
+    time = time.astimezone(user_time_zone)
+    return time.strftime("%b %d, %Y %H:%M")
+
+
+@register.simple_tag(takes_context=True)
+def temba_get_value(context, obj, field):
+    view = context["view"]
+    org = context["user_org"]
+    value = view.lookup_field_value(context, obj, field)
+
+    try:
+        if value.__class__.__name__ == "dict" and value.get("__type") == "Date":
+            value = value.get("iso")
+
+        value = datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%fZ")
+        return format_datetime(value, org.timezone)
+    except Exception:
+        pass
+
+    return value or "-"
