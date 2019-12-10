@@ -1819,6 +1819,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
             'text': splitEditor.shorten_url.selected[0]['text'],
             'id': splitEditor.shorten_url.selected[0]['id']
           }
+        }
 
       else if rulesetConfig.type == 'giftcard'
         ruleset.config = {
