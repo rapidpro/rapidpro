@@ -4,6 +4,8 @@ import psycopg2.extensions
 import psycopg2.extras
 import pytz
 import simplejson
+from django.http import HttpResponse
+from django.utils.timezone import is_aware
 
 
 def load(value):
@@ -70,3 +72,37 @@ psycopg2.extensions.register_adapter(dict, TembaJsonAdapter)
 # register global json python encoders
 psycopg2.extras.register_default_jsonb(loads=loads, globally=True)
 psycopg2.extras.register_default_json(loads=loads, globally=True)
+
+
+def default_json_encoder(o):
+    if isinstance(o, datetime.datetime):
+        r = o.isoformat()
+        if o.microsecond:
+            r = r[:23] + r[26:]
+        if r.endswith("+00:00"):
+            r = r[:-6] + "Z"
+        return r
+    elif isinstance(o, datetime.date):
+        return o.isoformat()
+    elif isinstance(o, datetime.time):
+        if is_aware(o):
+            raise ValueError("JSON can't represent timezone-aware times.")
+        r = o.isoformat()
+        if o.microsecond:
+            r = r[:12]
+        return r
+    else:
+        raise TypeError(repr(o) + " is not JSON serializable")
+
+
+class JsonResponse(HttpResponse):
+    """
+    JsonResponse encode a dictionary into json format and it handle datetime and decimal types. The problem is JsonResponse encodes decimal to strings. { "minutes" : Decimal('10.1')} becoming { "minutes" : "10.0"} which was causing problems. This modified version transform to { "minutes" : 10.0} as intended.
+    """
+
+    def __init__(self, data, safe=True, **kwargs):
+        if safe and not isinstance(data, dict):
+            raise TypeError("In order to allow non-dict objects to be " "serialized set the safe parameter to False")
+        kwargs.setdefault("content_type", "application/json")
+        data = simplejson.dumps(data, default=default_json_encoder)
+        super(JsonResponse, self).__init__(content=data, **kwargs)
