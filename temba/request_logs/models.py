@@ -99,7 +99,7 @@ class HTTPLog(models.Model):
             HTTPLog.objects.filter(id__in=chunk).delete()
 
     @classmethod
-    def from_response(cls, log_type, url, response, classifier=None, channel=None):
+    def from_response(cls, log_type, url, response, classifier=None, channel=None, request_time=None, save=True):
         if classifier is not None:
             org = classifier.org
 
@@ -124,7 +124,7 @@ class HTTPLog(models.Model):
         request = "".join(request_lines)
         response = "".join(response_lines)
 
-        return HTTPLog(
+        log = HTTPLog(
             classifier=classifier,
             channel=channel,
             log_type=log_type,
@@ -133,11 +133,17 @@ class HTTPLog(models.Model):
             response=response,
             is_error=is_error,
             created_on=timezone.now(),
+            request_time=request_time,
             org=org,
         )
 
+        if save:
+            log.save()
+
+        return log
+
     @classmethod
-    def from_exception(cls, log_type, url, exception, start, classifier=None, channel=None):
+    def from_exception(cls, log_type, url, exception, start, classifier=None, channel=None, save=True):
         if classifier is not None:
             org = classifier.org
 
@@ -152,7 +158,7 @@ class HTTPLog(models.Model):
         request_lines = data.split(cls.REQUEST_DELIM)
         request = "".join(request_lines)
 
-        return HTTPLog(
+        log = HTTPLog(
             channel=channel,
             log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
             url=url,
@@ -163,3 +169,8 @@ class HTTPLog(models.Model):
             request_time=(timezone.now() - start).total_seconds() * 1000,
             org=org,
         )
+
+        if save:
+            log.save()
+
+        return log

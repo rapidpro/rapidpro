@@ -44,14 +44,22 @@ class WitType(ClassifierType):
             response = requests.get(self.INTENT_URL, headers={"Authorization": f"Bearer {access_token}"})
             elapsed = (timezone.now() - start).total_seconds() * 1000
 
-            log = HTTPLog.from_response(HTTPLog.INTENTS_SYNCED, self.INTENT_URL, response, classifier=classifier)
-            log.request_time = elapsed
+            log = HTTPLog.from_response(
+                HTTPLog.INTENTS_SYNCED,
+                self.INTENT_URL,
+                response,
+                classifier=classifier,
+                request_time=elapsed,
+                save=False,
+            )
             logs.append(log)
 
             response.raise_for_status()
             response_json = response.json()
         except requests.RequestException as e:
-            log = HTTPLog.from_exception(HTTPLog.INTENTS_SYNCED, self.INTENT_URL, e, start, classifier=classifier)
+            log = HTTPLog.from_exception(
+                HTTPLog.INTENTS_SYNCED, self.INTENT_URL, e, start, classifier=classifier, save=False
+            )
             logs.append(log)
             return []
 

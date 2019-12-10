@@ -49,15 +49,16 @@ class LuisType(ClassifierType):
             response = requests.get(url, headers={self.AUTH_HEADER: primary_key})
             elapsed = (timezone.now() - start).total_seconds() * 1000
 
-            log = HTTPLog.from_response(HTTPLog.INTENTS_SYNCED, url, response, classifier=classifier)
-            log.request_time = elapsed
+            log = HTTPLog.from_response(
+                HTTPLog.INTENTS_SYNCED, url, response, classifier=classifier, request_time=elapsed, save=False
+            )
             logs.append(log)
 
             response.raise_for_status()
             response_json = response.json()
 
         except requests.RequestException as e:
-            log = HTTPLog.from_exception(HTTPLog.INTENTS_SYNCED, url, e, start, classifier=classifier)
+            log = HTTPLog.from_exception(HTTPLog.INTENTS_SYNCED, url, e, start, classifier=classifier, save=False)
             logs.append(log)
             return []
 
