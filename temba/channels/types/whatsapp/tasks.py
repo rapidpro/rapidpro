@@ -179,7 +179,6 @@ def refresh_whatsapp_templates():
 
                     status = STATUS_MAPPING[template["status"]]
 
-                    variable_count = 0
                     content_parts = []
 
                     for component in template["components"]:
@@ -193,7 +192,7 @@ def refresh_whatsapp_templates():
                         continue
 
                     content = "\n\n".join(content_parts)
-                    variable_count = max(variable_count, _calculate_variable_count(content))
+                    variable_count = _calculate_variable_count(content)
 
                     language = LANGUAGE_MAPPING.get(template["language"])
 
