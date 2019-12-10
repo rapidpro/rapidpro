@@ -470,7 +470,6 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           { name: 'Failure', test: { type: 'airtime_status', exit_status: 'failed'}},
         ]},
 
-
         { type: 'shorten_url', name:'Shorten Trackable Link', verbose_name: 'Shorten Trackable Link', split:'shorten_url response', filter:[MESSAGE], rules:[
           { name: 'Success', test: { type: 'webhook_status', status: 'success'}},
           { name: 'Failure', test: { type: 'webhook_status', status: 'failure'}},

@@ -7,6 +7,7 @@ from .views import (
     Android,
     Blog,
     Deploy,
+    DemoPing,
     GenerateCoupon,
     IndexView,
     LeadCRUDL,
@@ -29,6 +30,7 @@ urlpatterns = [
     url(r"^public/welcome/$", WelcomeRedirect.as_view(), {}, "public.public_welcome_redirect"),
     url(r"^demo/status/$", csrf_exempt(OrderStatus.as_view()), {}, "demo.order_status"),
     url(r"^demo/coupon/$", csrf_exempt(GenerateCoupon.as_view()), {}, "demo.generate_coupon"),
+    url(r"^demo/ping/$", DemoPing.as_view(), {}, "demo.ping"),
 ]
 
 urlpatterns += LeadCRUDL().as_urlpatterns()
