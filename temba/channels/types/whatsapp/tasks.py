@@ -188,12 +188,12 @@ def refresh_whatsapp_templates():
                             continue
 
                         content_parts.append(component["text"])
-                        variable_count = max(variable_count, _calculate_variable_count(component["text"]))
 
                     if not content_parts:
                         continue
 
                     content = "\n\n".join(content_parts)
+                    variable_count = max(variable_count, _calculate_variable_count(content))
 
                     language = LANGUAGE_MAPPING.get(template["language"])
 
