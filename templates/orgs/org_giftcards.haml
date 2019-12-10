@@ -1,0 +1,83 @@
+-extends 'smartmin/form.html'
+-load compress temba smartmin i18n
+
+-block form-span
+  span8
+
+-block title-icon
+  .title-icon
+    %span{class: "glyph {{ icon_slug }}"}
+
+-block title-text
+  .title-text
+    %h1 {{ view_title }} Collections
+
+-block pre-form
+
+  -blocktrans
+    Create your database to import your {{ view_title }}s.
+
+-block fields
+  -if current_collections
+    %table#table-giftcards.table.table-condensed
+      %thead
+        %tr
+          %th Collections
+          %th.permission
+          %th.permission
+          %th.permission Remove
+
+      %tbody
+        -if current_collections
+          -for item in current_collections
+            %tr
+              %td= item.collection
+              %td.giftcard-check.permission.action
+                -if org_perms.orgs.org_parse_data_view
+                  %a{'href': '{% url "orgs.org_parse_data_view" %}?db={{ item.collection }}&type={{ remove_div_title }}', 'target': '_blank'}
+                    -trans "Preview"
+              %td.giftcard-check.permission.action
+                -if org_perms.orgs.org_parse_data_import
+                  %a{'href': '{% url "orgs.org_parse_data_import" %}?db={{ item.collection }}&type={{ remove_div_title }}'}
+                    -trans "Import Data"
+              %td.giftcard-check.permission
+                %a{'href': 'javascript:confirmRemoveCollection("remove-{{ remove_div_title }}", "{{ forloop.counter0 }}")'}
+                  .glyph.icon-remove-2
+            .hide{'class': 'remove-{{ remove_div_title }}-{{ forloop.counter0 }}'}
+              .title
+                -trans "Remove"
+                {{ view_title }}
+                -trans "Collection"
+              .body
+                -blocktrans
+                  This will remove this {{ view_title }}s collection from Parse for good and cannot be undone. This process can take some time. Are you sure you want to proceed?
+              %a.posterize{'id': 'remove-{{ remove_div_title }}-{{ forloop.counter0 }}-form', 'href': '{{ view_url }}?remove=true&index={{ forloop.counter0 }}'}
+    -else
+      %hr
+  .field.formax-vertical
+    {% render_field 'collection' %}
+
+-block extra-script
+  {{block.super}}
+  :javascript
+    function confirmRemoveCollection(name, index) {
+      removalConfirmation(name + "-" + index, "Remove");
+    }
+
+-block extra-style
+  :css
+    #table-giftcards {
+      margin: 10px 0px 10px 0px;
+    }
+    #table-giftcards th {
+      border-bottom: 1px solid #eee;
+    }
+    td.giftcard-check.checked .glyph.level-checkbox:before {
+      content: "\e05a";
+    }
+    th.permission, td.permission {
+      text-align: center;
+    }
+    td.action {
+      width: 100px;
+    }

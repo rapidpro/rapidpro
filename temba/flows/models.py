@@ -3480,6 +3480,7 @@ class RuleSet(models.Model):
     TYPE_AIRTIME = "airtime"
     TYPE_WEBHOOK = "webhook"
     TYPE_RESTHOOK = "resthook"
+    TYPE_LOOKUP = "lookup"
     TYPE_FLOW_FIELD = "flow_field"
     TYPE_FORM_FIELD = "form_field"
     TYPE_CONTACT_FIELD = "contact_field"
@@ -3517,6 +3518,7 @@ class RuleSet(models.Model):
         (TYPE_SUBFLOW, "Subflow"),
         (TYPE_WEBHOOK, "Webhook"),
         (TYPE_RESTHOOK, "Resthook"),
+        (TYPE_LOOKUP, "Lookup"),
         (TYPE_AIRTIME, "Transfer Airtime"),
         (TYPE_FORM_FIELD, "Split by message form"),
         (TYPE_CONTACT_FIELD, "Split on contact field"),
@@ -6346,7 +6348,7 @@ class TimeoutTest(Test):
 
     @classmethod
     def from_json(cls, org, json):
-        return TimeoutTest(int(json.get(TimeoutTest.MINUTES)))
+        return TimeoutTest(float(json.get(TimeoutTest.MINUTES)))
 
     def as_json(self):  # pragma: no cover
         return {"type": TimeoutTest.TYPE, TimeoutTest.MINUTES: self.minutes}

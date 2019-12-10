@@ -1,0 +1,212 @@
+-extends "smartmin/form.html"
+
+-load smartmin
+-load i18n humanize
+
+-block title
+  %h1
+    -blocktrans
+      Import a {{ collection_type_title }} table to
+      %span{style:"font-style:italic"}
+        {{ collection_title }}
+
+- block pjax
+
+  -if not user_org.is_import_flows_tier
+    -include "includes/import_disabled.html"
+  -else
+    #pjax
+      .row{style:"height:250px;"}
+        .span9
+          %p
+            -trans "If you have a CSV or XLS file with Gift Cards or a Lookup, select it below to import it into your account."
+
+          - block import-status
+            %form#import-form.smartmin-form.horizontal-form{method:"post", action:"{% url 'orgs.org_parse_data_import' %}?db={{ collection }}&type={{ collection_type }}", enctype:"multipart/form-data"}
+
+              -csrf_token
+              -if form.non_field_errors
+                %div.alert.alert-error.form-errors
+                  {{ form.non_field_errors }}
+
+              -block fields
+                #db-type.hide
+                  %input{type:"text", name:"collection_type", value:"{{ collection_type }}"}
+                #db.hide
+                  %input{type:"text", name:"collection", value:"{{ collection }}"}
+                #file-upload
+                  %input{type:"file", name:"import_file", id:"import_file", onchange:'updateParseImportFile()'}
+                #real_button
+                  %input{type:"text", id:"file-field"}
+                  %a.btn.btn-primary
+                    -trans "Choose File"
+                %div#import_file_errors
+                  {{ form.import_file.errors }}
+
+              .warning
+                .attn
+                  -trans "Warning!"
+
+                -trans "If you select a database that already exist, the data will be replaced on the current database."
+                %br
+                %b
+                  -trans "Do not proceed unless you are willing to replace your existing database."
+                %p
+                -if collection_type == 'giftcard'
+                  %p#template-giftcard
+                    -trans "Template file"
+                    %a{href:'{{STATIC_URL}}examples/sample_giftcards.csv'}
+                      -trans "Gift card template"
+                -else
+                  %p#template-lookup
+                    -trans "Template file"
+                    %a{href:'{{STATIC_URL}}examples/sample_lookup.csv'}
+                      -trans "Lookup template"
+                    %br
+                    %br
+                    -trans "The column names in the CSV or XLS file should only contain spaces, underscores, and alphanumeric characters. They must begin with a letter and be unique."
+                    %br
+                    %br
+                    -trans "In order for data to be mapped correctly, please add the prefix 'numeric_' to columns that are formatted as numbers, and 'date_' to columns formatted as dates. Accepted date format: "
+                    %b
+                      -if dayfirst
+                        -trans "dd/mm/yyyy"
+                      -else
+                        -trans "mm/dd/yyyy"
+                    %br
+                    %br
+                    -trans "Note: Remember that, if you’re using XLS file you need to set all data as text (no numeric and no datetime field)."
+
+              .form-buttons
+                %input.btn.btn-primary{type:"submit", value:'{% trans "Import" %}'}
+                %a.btn{onclick:"javascript:history.go(-1)"}
+                  -trans "Cancel"
+
+
+{% block extra-style %}
+:css
+
+  .warning {
+    margin-top:20px;
+    margin-bottom:20px;
+    width: 600px;
+    padding: 15px;
+    background: #fff6c0;
+    border: 1px solid #EFE7B4;
+  }
+
+  .warning .attn {
+    font-weight: 500;
+    margin-bottom:8px;
+    font-size:20px;
+  }
+
+  .form-buttons {
+    margin-top: 10px;
+  }
+
+  #update {
+    margin-top:-5px;
+  }
+
+  label {
+    display: inline;
+    color: #666;
+    margin-left: 2px;
+
+    line-height: 33px;
+
+  }
+
+  #example {
+    margin-top: 20px;
+    background: #f8f8f8;
+  }
+
+  #file-upload {
+    position:relative;
+  }
+
+  #import_file_errors {
+    font-size: 14px;
+  }
+
+  #real-button {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    z-index: 1;
+    height:35px;
+    width:340px;
+  }
+
+  #file-field {
+    width:255px;
+    height:25px;
+    font-size:16px;
+    border:solid 1px #000;
+    margin-bottom: 0px;
+  }
+
+  #import_file {
+    position:absolute;
+    width:385px;
+    height:35px;
+    top: 0px;
+    left: 0px;
+    text-align: right;
+    -moz-opacity:0 ;
+    filter:alpha(opacity: 0);
+    opacity: 0;
+    z-index: 2;
+  }
+
+  #import-message {
+    font-size: 22px;
+  }
+
+  #import-message .glyph {
+    font-size: 35px;
+    margin: 0px 20px;
+    color: green;
+    line-height: 22px;
+  }
+
+  #import-message a {
+    text-decoration: none;
+  }
+
+  .select2-temba-field {
+    width: 384px;
+  }
+{% endblock %}
+
+-block extra-script
+  {{block.super}}
+  :javascript
+    function updateParseImportFile() {
+      var file = $("#import_file").val();
+      while (file.indexOf("\\") >= 0){
+        file = file.substring(file.indexOf("\\")+1, file.length);
+      }
+      $("#file-field").val(file);
+    }
+
+    $(document).ready(function() {
+      $('#update').on('change', function() {
+        if ($(this).attr('checked')) {
+          $('.warning').slideDown();
+        } else {
+          $('.warning').slideUp();
+        }
+      });
+
+      $('#import_file').bind('change', function() {
+        if (this.files.length > 0 && this.files[0].size > 157286400) {
+          alert('Your file exceeds the 150MB file limit. Please submit a support request if you need to upload a file 150MB or larger.');
+          $('#import_file').val('');
+          $('#file-field').val('');
+        }
+      });
+
+    });

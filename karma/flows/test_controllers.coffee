@@ -239,7 +239,7 @@ describe 'Controllers:', ->
 
       editRules ruleset, (scope) ->
         scope.formData.hasTimeout = true
-        scope.formData.timeout = scope.formData.timeoutOptions[5]
+        scope.formData.timeout = scope.formData.timeoutOptions[9]
 
       # now we have five rules, our other, and a timeout
       ruleset = flowService.flow.rule_sets[0]
@@ -255,7 +255,7 @@ describe 'Controllers:', ->
         scope.ruleset.ruleset_type = 'wait_message'
         scope.ruleset.rules = []
         scope.formData.hasTimeout = true
-        scope.formData.timeout = scope.formData.timeoutOptions[5]
+        scope.formData.timeout = scope.formData.timeoutOptions[9]
 
       # now should have 2 rules; All responses and the timeout
       ruleset = flowService.flow.rule_sets[0]
