@@ -34,17 +34,19 @@ export default class TextInput extends FormElement {
       }
 
       .textinput {
-        padding: 8px;
+        padding: 9px;
+        padding-top: 10px;
         border: none;
         flex: 1;
         margin: 0;
         background: none;
-        color: var(--color-text);
+        color: var(--color-widget-text);
         font-size: 13px;
         cursor: text;
         resize: none;
         font-family: var(--font-family);
         font-weight: 300;
+        width: 100%;
       }
 
       .textinput:focus {
@@ -55,9 +57,8 @@ export default class TextInput extends FormElement {
 
       .textinput::placeholder {
         color: var(--color-placeholder);
-        font-family: 'Roboto', 'Helvetica Neue', sans-serif;
+        font-family: var(--font-family);
       }
-
     `
   }
 
@@ -104,24 +105,26 @@ export default class TextInput extends FormElement {
     }
 
     return html`
-    <div class="input-container" style=${styleMap(containerStyle)} @click=${()=>{ (this.shadowRoot.querySelector(".textinput") as HTMLInputElement).focus()}}>
-      ${this.textarea ? html`
-        <textarea class="textinput" 
-          name=${this.name}
-          placeholder=${this.placeholder}
-          @input=${this.handleChange}
-          .value=${this.value}>
-        </textarea>
-      ` : html`
-        <input class="textinput" 
-          name=${this.name}
-          type="text"
-          @input=${this.handleChange}
-          placeholder=${this.placeholder}
-          .value=${this.value}>
-      `}
-      <slot></slot>
-    </div>
+    <rp-field name=${this.name} .label=${this.label} .helpText=${this.helpText} .errors=${this.errors} .widgetOnly=${this.widgetOnly}>
+      <div class="input-container" style=${styleMap(containerStyle)} @click=${()=>{ (this.shadowRoot.querySelector(".textinput") as HTMLInputElement).focus()}}>
+        ${this.textarea ? html`
+          <textarea class="textinput" 
+            name=${this.name}
+            placeholder=${this.placeholder}
+            @input=${this.handleChange}
+            .value=${this.value}>
+          </textarea>
+        ` : html`
+          <input class="textinput" 
+            name=${this.name}
+            type="text"
+            @input=${this.handleChange}
+            placeholder=${this.placeholder}
+            .value=${this.value}>
+        `}
+        <slot></slot>
+      </div>
+    </rp-field>
     `;
   }
 }

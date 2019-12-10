@@ -358,7 +358,7 @@ export default class AliasEditor extends LitElement {
       </div>
 
       <rp-dialog id="alias-dialog" 
-        title="Aliases for ${editFeatureName}" 
+        header="Aliases for ${editFeatureName}" 
         primaryButtonName="Save"
         @rp-button-clicked=${this.handleDialogClick.bind(this)}>
 
