@@ -131,7 +131,7 @@ class LinkContacts(SmartModel):
 
 class ExportLinksTask(BaseExportTask):
     analytics_key = "link_export"
-    email_subject = "Your trackable link export is ready"
+    email_subject = "Your trackable link export from %s is ready"
     email_template = "links/email/links_export_download"
 
     link = models.ForeignKey(
