@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-12-02 17:41+0000\n"
+"POT-Creation-Date: 2019-12-02 21:28+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -90,6 +90,12 @@ msgid "Select a group to base the campaign on"
 msgstr ""
 
 msgid "Export"
+msgstr ""
+
+msgid "Edit"
+msgstr ""
+
+msgid "Update Campaign"
 msgstr ""
 
 msgid "Service"
@@ -1975,9 +1981,6 @@ msgstr ""
 msgid "Twitter handle of this channel"
 msgstr ""
 
-msgid "Edit"
-msgstr ""
-
 msgid "Disable Bulk Sending"
 msgstr ""
 
@@ -2427,7 +2430,7 @@ msgstr ""
 msgid "Export complete, you can find it here: %s (production users will get an email)"
 msgstr ""
 
-msgid "Field names can only contain letters, numbers, hypens"
+msgid "Can only contain letters, numbers and hypens."
 msgstr ""
 
 #, python-format
@@ -2487,19 +2490,14 @@ msgstr ""
 msgid "Contact unstopped"
 msgstr ""
 
-msgid "Field names can only contain letters, numbers and hypens"
+msgid "Must be unique."
 msgstr ""
 
-#, python-brace-format
-msgid "Field names must be unique. '{label}' is duplicated"
+msgid "Can't be a reserved word"
 msgstr ""
 
-#, python-brace-format
-msgid "Field name '{label}' is a reserved word"
-msgstr ""
-
-#, python-brace-format
-msgid "Cannot create a new Contact Field, maximum allowed per org: {settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG}"
+#, python-format
+msgid "Cannot create a new field as limit is %(limit)s."
 msgstr ""
 
 msgid "Manage Contact Fields"
@@ -2981,6 +2979,22 @@ msgid "Your message template {template.name} is not approved and cannot be sent.
 msgstr ""
 
 msgid "Name already used"
+msgstr ""
+
+#, python-format
+msgid "Cannot create a new global as limit is %(limit)s."
+msgstr ""
+
+msgid "Isn't a valid name"
+msgstr ""
+
+msgid "Manage Globals"
+msgstr ""
+
+msgid "All"
+msgstr ""
+
+msgid "Unused"
 msgstr ""
 
 msgid "After 1 minute"
@@ -4355,9 +4369,6 @@ msgid "No group assigned to this campaign"
 msgstr ""
 
 msgid "No events in this campaign yet."
-msgstr ""
-
-msgid "Update Campaign"
 msgstr ""
 
 msgid "If the contact is already active in a flow"
@@ -6399,9 +6410,6 @@ msgstr ""
 msgid "Runs"
 msgstr ""
 
-msgid "All"
-msgstr ""
-
 msgid "Responded"
 msgstr ""
 
@@ -6416,6 +6424,30 @@ msgid ""
 msgstr ""
 
 msgid "Ask a series of questions to collect data from your contacts."
+msgstr ""
+
+#, python-format
+msgid "You have <b>%(counter)s global</b> configured"
+msgid_plural "You have <b>%(counter)s globals</b> configured"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "You do not have any globals configured."
+msgstr ""
+
+msgid "Create Global"
+msgstr ""
+
+msgid "Globals"
+msgstr ""
+
+msgid "No globals"
+msgstr ""
+
+msgid "Update Global"
+msgstr ""
+
+msgid "Delete Global"
 msgstr ""
 
 msgid ""

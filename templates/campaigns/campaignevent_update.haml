@@ -11,61 +11,67 @@
   {{ block.super }}
 
   :javascript
-    $(document).ready(function() {
 
-      select2div("#id_flow_to_start", "515px", "Flow to Start");
-      select2div("#id_message_start_mode", "249px", "Start Mode");
-      select2div("#id_flow_start_mode", "249px", "Start Mode");
-      select2div("#id_relative_to", "249px", "Select a date");
-      select2div("#id_direction", "85px");
-      select2div("#id_unit", "100px");
-      select2div("#id_event_type", "515px");
-      select2div("#id_delivery_hour", "442px");
+    var modax = document.querySelector("#event-add, #event-update");
+    var body = modax.shadowRoot.querySelector(".modax-body");
+    var languageLinks = body.querySelectorAll(".show_language");
+    var deliveryHourOptions = body.querySelector("#send-at");
+    var unitSelect = body.querySelector("rp-select[name='unit']");
+    var eventTypeSelect = body.querySelector("rp-select[name='event_type']");
+    var flowSection = body.querySelector("#flow-section");
+    var messageSection = body.querySelector("#message-section");
 
-      $('.show_language').live('click', function() {
-        lang = $(this).data('iso');
-
-        // first hide all our languages
-        $('.language').hide();
-
-        $('.' + lang).show()
-      });
-
-      $('#id_unit').on('change', toggleDeliveryHour);
-
-      $("#id_event_type").on('change', function() {
-        if ($("#id_event_type").data('select2').val() == 'F') {
-          $("#flow-section").show();
-          $("#message-section").hide();
-          $(".modal-body").css('min-height', '150px');
-        } else {
-          $("#flow-section").hide();
-          $("#message-section").show();
-          $(".modal-body").css('min-height', '220px');
+    var display = 'block';
+    for (var link of languageLinks) {
+      link.addEventListener('click', function(event) {
+        for (var section of body.querySelectorAll(".language")) {
+          section.style.display = 'none';
         }
+        body.querySelector("." + event.target.dataset.iso).style.display = 'block';
       });
 
-      $(".btn-primary").on('click', function(){
-          $(".modal-body").css('min-height', '0');
-      });
+      // initial value
+      body.querySelector("." + link.dataset.iso).style.display = display;
+      display = 'none';
 
-      {% if form.event_type.value == 'F' %}
-        $("#flow-section").show();
-        $("#message-section").hide();
-        $(".modal-body").css('min-height', '150px');
-      {% endif %}
+    }
 
-      toggleDeliveryHour();
+    eventTypeSelect.addEventListener('rp-selection', function(event){
+      var type = event.detail.selected.value;
+      if (type == 'F') {
+        flowSection.style.display = 'block';
+        messageSection.style.display = 'none';
+      } else {
+        flowSection.style.display = 'none';
+        messageSection.style.display = 'block';
+      }
     });
 
-    function toggleDeliveryHour() {
-      var unit = $("#id_unit").val();
-      if (unit == 'D' || unit == 'W') {
-        $("#send-at").show();
+    // whenever our units update, update the hour visibility
+    unitSelect.addEventListener('rp-selection', function(event) {
+      var selectedUnit = event.detail.selected.value;
+      if (selectedUnit == "W" || selectedUnit == "D") {
+        deliveryHourOptions.style.display = 'flex';
       } else {
-        $("#send-at").hide();
+        deliveryHourOptions.style.display = 'none';
       }
-    }
+    });
+
+    // set our initial values according to the form
+    {% if form.event_type.value == 'F' %}
+      flowSection.style.display = 'block';
+      messageSection.style.display = 'none';
+    {% else %}
+      flowSection.style.display = 'none';
+      messageSection.style.display = 'block';
+    {% endif %}
+
+    {% if form.unit.value == 'M' or form.unit.value == 'D' %}
+      deliveryHourOptions.style.display = 'flex';
+    {% else %}
+      deliveryHourOptions.style.display = 'none';
+    {% endif %}
+
 
 
 -block modal-extra-style
@@ -73,112 +79,63 @@
 
   :css
 
-    .help-block {
-      display:none;
+    .control-group.field_event_type {
+      margin-bottom: 8px;
     }
 
-    .modal .control-group label.control-label, .modal .form-group label.control-label  {
-      display:none;
-    }
-
-    /*
-    .modal-body {
-      overflow-x: hidden;
-      overflow-y: hidden;
-    }
-    */
-   
-    .smartmin-form textarea {
-      margin-top:5px;
-      height: 180px;
-      width: 501px;
-    }
-
-    .counter {
-      padding-top:10px;
-      padding-bottom:5px;
-    }
-
-    #id_offset {
-      width:55px;
-      display:inline-block;
-      text-align:center;
-      font-size:15px;
-      line-height:15px;
-      height:24px;
-      color: #666;
-    }
-
-    .error {
-      display:inline-block;
-      width:inherit;
-    }
-
-    .control-group, .form-group {
-      display:inline-block;
-    }
-
-    .error .select2-choice {
-      border: 1px solid #b94a48;
-    }
-
-    #input {
-      height:100px;
-      width:500px;
-      margin-top: 5px;
-      margin-bottom:10px;
-    }
-
-    .counter {
-      font-size: 12px;
-      float: right;
-      margin-right: 5px;
-      margin-top: -10px;g
-    }
-
-    #flow-section {
-      display:none;
-      padding-top:5px;
+    #languages{
+      position: relative;
+      text-align: right;
     }
 
     #schedule-section {
-      padding-top: 5px;
+      display: flex;
+    }
+    
+    #message-section {
+      display: none;
     }
 
-    #event-flow-start-mode {
-      padding-top: 5px;
-    }
-
-    .schedule-label {
-      display: inline-block;
-      margin-right:5px;
-    }
-
-    #send-at {
+    #flow-section {
+      display: none;
       padding-top:5px;
-
     }
 
-    .delivered {
-      display: inline-block;
-      width:69px;
-      color: #666;
-      font-size:16px;
+    #field-offset {
+      margin-right: 8px;
+      width: 54px;
+    }
+
+    #field-unit {
+      margin-right: 8px;
+    }
+
+    #field-direction {
+      margin-right: 8px;
+    }
+
+    #field-relative {
+      flex-grow: 1;
+    }
+
+    #field-hour {
+      flex-grow: 1;
     }
 
     .start-mode-help {
       display: inline-block;
       width:262px;
-      color: #666;
-      font-size:16px;
+      margin-bottom: 6px;
     }
 
-    #languages{
-      float:right;
+    .delivered {
+      padding-top:10px;
+      margin-right: 12px;
+      vertical-align: center;
     }
 
-    .language .control-group {
-       width: 100%;
+    #send-at {
+      display: flex;
     }
 
     rp-completion {
@@ -219,13 +176,18 @@
       -render_field 'flow_start_mode'
 
   #schedule-section
-    -render_field 'offset'
-    -render_field 'unit'
-    -render_field 'direction'
-    -render_field 'relative_to'
+    #field-offset
+      -render_field 'offset'
+    #field-unit
+      -render_field 'unit'
+    #field-direction
+      -render_field 'direction'
+    #field-relative
+      -render_field 'relative_to'
 
   #send-at.hide
     .delivered
       -trans "Delivered"
-    -render_field 'delivery_hour'
+    #field-hour
+      -render_field 'delivery_hour'
 

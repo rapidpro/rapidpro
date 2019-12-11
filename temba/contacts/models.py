@@ -32,7 +32,7 @@ from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExport
 from temba.utils.languages import _get_language_name_iso6393
 from temba.utils.locks import NonBlockingLock
 from temba.utils.models import JSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel, mapEStoDB
-from temba.utils.text import truncate
+from temba.utils.text import truncate, unsnakify
 from temba.utils.urns import ParsedURN, parse_urn
 from temba.values.constants import Value
 
@@ -536,7 +536,7 @@ class ContactField(SmartModel):
         with org.lock_on(OrgLock.field, key):
             field = ContactField.user_fields.active_for_org(org=org).filter(key__iexact=key).first()
 
-            if not field and not key:
+            if not field and not key and label:
                 # try to lookup the existing field by label
                 field = ContactField.get_by_label(org, label)
 
@@ -578,9 +578,9 @@ class ContactField(SmartModel):
                     field.save()
 
             else:
-                # we need to create a new contact field, use our key with invalid chars removed
+                # generate a label if we don't have one
                 if not label:
-                    label = regex.sub(r"([^A-Za-z0-9\- ]+)", " ", key, regex.V0).title()
+                    label = unsnakify(key)
 
                 label = cls.get_unique_label(org, label)
 

@@ -16,6 +16,7 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow
+from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label
 from temba.orgs.models import Org
@@ -84,6 +85,10 @@ ORG1 = dict(
             role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE,
             uuid="0f661e8b-ea9d-4bd3-9953-d368340acf91",
         ),
+    ),
+    globals=(
+        dict(key="org_name", name="Org Name", uuid="c1a65849-243c-438e-987e-3fa5f884e3e1", value="Nyaruka"),
+        dict(key="access_token", name="Access Token", uuid="57a18892-9fc9-45f7-aa14-c7e5b3583b54", value="A213CD78"),
     ),
     groups=(
         dict(name="Doctors", uuid="c153e265-f7c9-4539-9dbc-9b358714b638", size=120),
@@ -208,6 +213,7 @@ ORG2 = dict(
         ),
     ),
     classifiers=(),
+    globals=(),
     groups=(dict(name="Doctors", uuid="492e438c-02e5-43a4-953a-57410b7fe3dd", size=120),),
     fields=(),
     contacts=(dict(name="Fred", urns=["tel:+250700000005"], uuid="26d20b72-f7d8-44dc-87f2-aae046dbff95"),),
@@ -341,6 +347,7 @@ class Command(BaseCommand):
 
         self.create_channels(spec, org, superuser)
         self.create_fields(spec, org, superuser)
+        self.create_globals(spec, org, superuser)
         self.create_labels(spec, org, superuser)
         self.create_groups(spec, org, superuser)
         self.create_flows(spec, org, superuser)
@@ -407,6 +414,16 @@ class Command(BaseCommand):
             )
             field.uuid = f["uuid"]
             field.save(update_fields=["uuid"])
+
+        self._log(self.style.SUCCESS("OK") + "\n")
+
+    def create_globals(self, spec, org, user):
+        self._log(f"Creating {len(spec['globals'])} globals... ")
+
+        for g in spec["globals"]:
+            Global.objects.create(
+                org=org, key=g["key"], name=g["name"], value=g["value"], created_by=user, modified_by=user
+            )
 
         self._log(self.style.SUCCESS("OK") + "\n")
 

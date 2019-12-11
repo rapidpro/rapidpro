@@ -2300,7 +2300,8 @@ class OrgCRUDL(SmartCRUDL):
                     "resthooks", reverse("orgs.org_resthooks"), icon="icon-cloud-lightning", dependents="resthooks"
                 )
 
-            # show archives
+            # show globals and archives
+            formax.add_section("globals", reverse("globals.global_list"), icon="icon-global", action="link")
             formax.add_section("archives", reverse("archives.archive_message"), icon="icon-box", action="link")
 
     class DtoneAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
