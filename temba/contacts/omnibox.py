@@ -197,9 +197,12 @@ def omnibox_serialize(org, groups, contacts, json_encode=False):
 def omnibox_deserialize(org, omnibox):
     group_ids = [item["id"] for item in omnibox if item["type"] == "group"]
     contact_ids = [item["id"] for item in omnibox if item["type"] == "contact"]
+    urns = [ContactURN.lookup(org, item["id"]) for item in omnibox if item["type"] == "urn"]
+
     return {
         "groups": ContactGroup.all_groups.filter(uuid__in=group_ids, org=org, is_active=True),
         "contacts": Contact.objects.filter(uuid__in=contact_ids, org=org, is_active=True),
+        "urns": urns,
     }
 
 

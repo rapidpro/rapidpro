@@ -24,6 +24,7 @@ export default class Select extends FormElement {
   static get styles() {
     return css`
       :host {
+        font-family: var(--font-family);
         transition: all ease-in-out 200ms;
         display: inline;
         line-height: normal;
@@ -35,7 +36,7 @@ export default class Select extends FormElement {
       }
 
       input::placeholder {
-        color: var(--color-text-help);
+        color: var(--color-placeholder);
         font-weight: 200;
       }
 

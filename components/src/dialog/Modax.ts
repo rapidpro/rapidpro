@@ -95,12 +95,13 @@ export default class Modax extends RapidElement {
 
     if(changes.has("open")) {
       if (this.open) {
-        this.fetchForm();
+         this.fetchForm();
       } else {
 
         // hide our body after our hiding animation is done
         window.setTimeout(()=>{
           this.body = this.getLoading();
+          this.submitting = false;
         }, 500);
       }
     }
@@ -188,7 +189,11 @@ export default class Modax extends RapidElement {
 
             const redirect = response.headers['temba-success'];
             if (redirect) {
-              this.ownerDocument.location = redirect;
+              if (redirect === "hide") {
+                this.open = false;
+              } else {
+                this.ownerDocument.location = redirect;
+              }
             } else {
               this.setBody(response.data);
               this.updatePrimaryButton();

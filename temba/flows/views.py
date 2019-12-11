@@ -1802,7 +1802,9 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Contacts & Groups"),
                 required=False,
                 help_text=_("These contacts will be added to the flow, sending the first message if appropriate."),
-                widget=OmniboxChoice(attrs={"placeholder": _("Recipients, enter contacts or groups")}),
+                widget=OmniboxChoice(
+                    attrs={"placeholder": _("Recipients, enter contacts or groups"), "widget_only": True}
+                ),
             )
 
             restart_participants = forms.BooleanField(
@@ -1820,7 +1822,9 @@ class FlowCRUDL(SmartCRUDL):
             )
 
             start_type = forms.ChoiceField(
-                widget=SelectWidget(attrs={"placeholder": _("Select contacts or groups to start in the flow")}),
+                widget=SelectWidget(
+                    attrs={"placeholder": _("Select contacts or groups to start in the flow"), "widget_only": True}
+                ),
                 choices=(
                     ("select", _("Enter contacts and groups to start below")),
                     ("query", _("Search for contacts to start")),

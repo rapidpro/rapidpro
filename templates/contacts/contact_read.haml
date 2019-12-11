@@ -29,8 +29,10 @@
         .{class:"glyph {{urn|urn_icon}}"}
         -if not user_org.is_anon
           -if urn.sendable
-            %a.contact-urn-path{href:"javascript:showComposeInitialized(\"u={{ urn.id }}\", null, refreshRecents)"}><
-              {{urn|format_urn:user_org}}
+            %rp-modax.urn-link{ header:'Send Message', endpoint:"{% url 'msgs.broadcast_send' %}?u={{urn.id}}"}
+              %a.contact-urn-path{href:'#'}><
+                // {href:"javascript:showComposeInitialized(\"u={{ urn.id }}\", null, refreshRecents)"}><
+                {{urn|format_urn:user_org}}
           -else
             %i.contact-urn-path
               -if urn.scheme == 'mailto'
@@ -219,6 +221,11 @@
 
 -block extra-less
   -compress css
+
+    :css
+      .urn-link {
+        display: inline-block;
+      }
 
     {% lessblock %}
       :plain

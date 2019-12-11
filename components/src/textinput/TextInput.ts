@@ -7,6 +7,10 @@ export default class TextInput extends FormElement {
   static get styles() {
     return css`
       
+      :host {
+        font-family: var(--font-family);
+      }
+
       .input-container {
         border-radius: var(--curvature-widget);
         cursor: text;
@@ -30,7 +34,7 @@ export default class TextInput extends FormElement {
       }
 
       textarea {
-        height: 85%;
+        height: var(--textarea-height);
       }
 
       .textinput {
@@ -44,7 +48,6 @@ export default class TextInput extends FormElement {
         font-size: 13px;
         cursor: text;
         resize: none;
-        font-family: var(--font-family);
         font-weight: 300;
         width: 100%;
       }
@@ -57,7 +60,8 @@ export default class TextInput extends FormElement {
 
       .textinput::placeholder {
         color: var(--color-placeholder);
-        font-family: var(--font-family);
+        
+        font-weight: 200;
       }
     `
   }

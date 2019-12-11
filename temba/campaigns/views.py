@@ -473,7 +473,8 @@ class CampaignEventForm(forms.ModelForm):
                     attrs={
                         "placeholder": _(
                             "Hi @contact.name! This is just a friendly reminder to apply your fertilizer."
-                        )
+                        ),
+                        "widget_only": True,
                     }
                 ),
                 required=False,
