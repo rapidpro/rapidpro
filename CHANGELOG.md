@@ -1,3 +1,8 @@
+v5.3.23
+----------
+ * Add support for whatsapp templates with headers and footers
+ * Make sure we have one posterizer form and we bind one click event handler for posterize links
+
 v5.3.22
 ----------
  * Convert add/edit campaign event to components
