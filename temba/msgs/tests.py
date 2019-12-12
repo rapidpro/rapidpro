@@ -2075,8 +2075,10 @@ class BroadcastTest(TembaTest):
         send_url = reverse("msgs.broadcast_send")
         self.login(self.admin)
 
+        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
+
         # try with no channel
-        response = self.client.post(send_url, {"text": "some text", "omnibox": f"c-{self.joe.uuid}"}, follow=True)
+        response = self.client.post(send_url, {"text": "some text", "omnibox": omnibox}, follow=True)
 
         self.assertContains(response, "You must add a phone number before sending messages", status_code=400)
 
@@ -2093,11 +2095,8 @@ class BroadcastTest(TembaTest):
 
         self.assertEqual(["omnibox", "text", "schedule", "step_node"], response.context["fields"])
 
-        self.client.post(
-            send_url,
-            {"text": "message #1", "omnibox": f"g-{self.joe_and_frank.uuid},c-{self.joe.uuid},c-{self.lucy.uuid}"},
-            follow=True,
-        )
+        omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.joe, self.lucy], True)
+        self.client.post(send_url, {"text": "message #1", "omnibox": omnibox}, follow=True)
 
         broadcast = Broadcast.objects.get()
         self.assertEqual({"base": "message #1"}, broadcast.text)
@@ -2124,11 +2123,8 @@ class BroadcastTest(TembaTest):
         response = self.client.get(send_url)
         self.assertEqual(["omnibox", "text", "schedule", "step_node"], response.context["fields"])
 
-        self.client.post(
-            send_url,
-            {"text": "message #2", "omnibox": f"g-{self.joe_and_frank.uuid},c-{self.kevin.uuid}"},
-            follow=True,
-        )
+        omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.kevin], True)
+        self.client.post(send_url, {"text": "message #2", "omnibox": omnibox}, follow=True)
 
         broadcast = Broadcast.objects.order_by("id").last()
         self.assertEqual({"base": "message #2"}, broadcast.text)
@@ -2136,15 +2132,15 @@ class BroadcastTest(TembaTest):
         self.assertEqual(1, broadcast.contacts.count())
 
         # directly on user page
-        response = self.client.post(
-            send_url, {"text": "contact send", "from_contact": True, "omnibox": f"c-{self.kevin.uuid}"}
-        )
+        omnibox = omnibox_serialize(self.org, [], [self.kevin], True)
+        response = self.client.post(send_url, {"text": "contact send", "omnibox": omnibox})
 
-        self.assertRedirect(response, reverse("contacts.contact_read", args=[self.kevin.uuid]))
         self.assertEqual(3, Broadcast.objects.all().count())
 
         # test sending to an arbitrary user
-        self.client.post(send_url, {"text": "message content", "omnibox": "n-2065551212"}, follow=True)
+        self.client.post(
+            send_url, {"text": "message content", "omnibox": '{"type": "urn", "id":"tel:2065551212"}'}, follow=True
+        )
 
         self.assertEqual(4, Broadcast.objects.all().count())
         self.assertEqual(1, Contact.objects.filter(urns__path="2065551212").count())
@@ -2154,18 +2150,15 @@ class BroadcastTest(TembaTest):
 
         self.assertContains(response, "At least one recipient is required")
 
-        # test AJAX sender
         response = self.client.post(
-            send_url + "?_format=json", {"text": "message content", "omnibox": ""}, follow=True
+            send_url, {"text": "message content", "omnibox": omnibox_serialize(self.org, [], [], True)}, follow=True
         )
 
-        self.assertContains(response, "At least one recipient is required", status_code=400)
-        self.assertEqual("application/json", response._headers.get("content-type")[1])
+        self.assertContains(response, "At least one recipient is required")
 
+        omnibox = omnibox_serialize(self.org, [], [self.kevin], True)
         response = self.client.post(
-            send_url,
-            {"text": "this is a test message", "omnibox": f"c-{self.kevin.uuid}", "_format": "json"},
-            follow=True,
+            send_url, {"text": "this is a test message", "omnibox": omnibox, "_format": "json"}, follow=True
         )
 
         self.assertContains(response, "success")
@@ -2185,8 +2178,9 @@ class BroadcastTest(TembaTest):
         ).session.runs.get()
 
         # no error if we are sending to a flow node
-        payload = {"text": "message content", "omnibox": "", "step_node": color_split["uuid"]}
-        response = self.client.post(send_url + "?_format=json", payload, follow=True)
+        omnibox = omnibox_serialize(self.org, [], [self.kevin], True)
+        payload = {"text": "message content", "omnibox": omnibox, "step_node": color_split["uuid"]}
+        response = self.client.post(send_url, payload, follow=True)
 
         self.assertContains(response, "success")
 
@@ -2194,7 +2188,7 @@ class BroadcastTest(TembaTest):
 
         self.assertRedirect(response, reverse("msgs.msg_inbox"))
 
-        response = self.client.post(send_url + "?_format=json", payload, follow=True)
+        response = self.client.post(send_url, payload, follow=True)
 
         self.assertContains(response, "success")
 
@@ -2253,12 +2247,13 @@ class BroadcastCRUDLTest(TembaTest):
         url = reverse("msgs.broadcast_send")
 
         # can't send if you're not logged in
-        response = self.client.post(url, dict(text="Test", omnibox="c-%s" % self.joe.uuid))
+        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
+        response = self.client.post(url, dict(text="Test", omnibox=omnibox))
         self.assertLoginRedirect(response)
 
         # or just a viewer user
         self.login(self.user)
-        response = self.client.post(url, dict(text="Test", omnibox="c-%s" % self.joe.uuid))
+        response = self.client.post(url, dict(text="Test", omnibox=omnibox))
         self.assertLoginRedirect(response)
 
         # but editors can
