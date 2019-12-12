@@ -12,6 +12,7 @@ from django.utils import timezone
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
 from temba.contacts.models import TEL_SCHEME, Contact, ContactField, ContactURN
+from temba.contacts.omnibox import omnibox_serialize
 from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import Flow
 from temba.msgs.models import (
@@ -2265,14 +2266,12 @@ class BroadcastCRUDLTest(TembaTest):
 
         just_joe = self.create_group("Just Joe")
         just_joe.contacts.add(self.joe)
-        post_data = dict(
-            omnibox="g-%s,c-%s,n-0780000001" % (just_joe.uuid, self.frank.uuid),
-            text="Hey Joe, where you goin' with that gun in your hand?",
-        )
-        response = self.client.post(url + "?_format=json", post_data)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["status"], "success")
+        omnibox = omnibox_serialize(self.org, [just_joe], [self.frank], True)
+        omnibox.append('{"type": "urn", "id": "tel:0780000001"}')
+
+        post_data = dict(omnibox=omnibox, text="Hey Joe, where you goin' with that gun in your hand?")
+        response = self.client.post(url, post_data)
 
         # raw number means a new contact created
         new_urn = ContactURN.objects.get(path="+250780000001")
@@ -2286,15 +2285,15 @@ class BroadcastCRUDLTest(TembaTest):
 
     def test_update(self):
         self.login(self.editor)
-        self.client.post(
-            reverse("msgs.broadcast_send"), dict(omnibox="c-%s" % self.joe.uuid, text="Lunch reminder", schedule=True)
-        )
+        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
+        self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
         broadcast = Broadcast.objects.get()
         url = reverse("msgs.broadcast_update", args=[broadcast.pk])
 
         response = self.client.get(url)
         self.assertEqual(list(response.context["form"].fields.keys()), ["message", "omnibox", "loc"])
 
+        # updates still use select2 omnibox
         response = self.client.post(url, dict(message="Dinner reminder", omnibox="c-%s" % self.frank.uuid))
         self.assertEqual(response.status_code, 302)
 
@@ -2313,10 +2312,9 @@ class BroadcastCRUDLTest(TembaTest):
         self.login(self.editor)
 
         # send some messages - one immediately, one scheduled
-        self.client.post(reverse("msgs.broadcast_send"), dict(omnibox="c-%s" % self.joe.uuid, text="See you later"))
-        self.client.post(
-            reverse("msgs.broadcast_send"), dict(omnibox="c-%s" % self.joe.uuid, text="Lunch reminder", schedule=True)
-        )
+        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
+        self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="See you later"))
+        self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
 
         scheduled = Broadcast.objects.exclude(schedule=None).first()
 
@@ -2326,7 +2324,7 @@ class BroadcastCRUDLTest(TembaTest):
     def test_schedule_read(self):
         self.login(self.editor)
 
-        omnibox = "c-%s,g-%s" % (self.joe.uuid, self.joe_and_frank.uuid)
+        omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.joe], True)
         self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
         broadcast = Broadcast.objects.get()
 
@@ -2338,7 +2336,7 @@ class BroadcastCRUDLTest(TembaTest):
     def test_missing_contacts(self):
         self.login(self.editor)
 
-        omnibox = "c-%s,g-%s" % (self.joe.uuid, self.joe_and_frank.uuid)
+        omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.joe], True)
         self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
         broadcast = Broadcast.objects.get()
 
