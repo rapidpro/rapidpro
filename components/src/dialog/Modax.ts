@@ -95,7 +95,7 @@ export default class Modax extends RapidElement {
 
     if(changes.has("open")) {
       if (this.open) {
-         this.fetchForm();
+        this.fetchForm();
       } else {
 
         // hide our body after our hiding animation is done

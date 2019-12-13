@@ -389,14 +389,6 @@ class BroadcastCRUDL(SmartCRUDL):
                 success_url = reverse("contacts.contact_read", args=[contact.uuid])
             return success_url
 
-        def form_invalid(self, form):
-            if "_format" in self.request.GET and self.request.GET["_format"] == "json":
-                return HttpResponse(
-                    json.dumps(dict(status="error", errors=form.errors)), content_type="application/json", status=400
-                )
-            else:
-                return super().form_invalid(form)
-
         def form_valid(self, form):
             self.form = form
             user = self.request.user
