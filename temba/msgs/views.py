@@ -79,13 +79,19 @@ def send_message_auto_complete_processor(request):
 
 
 class SendMessageForm(Form):
-    omnibox = OmniboxField(required=False)
 
     omnibox = JSONField(
         label=_("Recipients"),
         required=False,
         help_text=_("The contacts to send the message to"),
-        widget=OmniboxChoice(attrs={"placeholder": _("Recipients, enter contacts or groups")}),
+        widget=OmniboxChoice(
+            attrs={
+                "placeholder": _("Recipients, enter contacts or groups"),
+                "groups": True,
+                "contacts": True,
+                "urns": True,
+            }
+        ),
     )
 
     text = forms.CharField(

@@ -1803,7 +1803,12 @@ class FlowCRUDL(SmartCRUDL):
                 required=False,
                 help_text=_("These contacts will be added to the flow, sending the first message if appropriate."),
                 widget=OmniboxChoice(
-                    attrs={"placeholder": _("Recipients, enter contacts or groups"), "widget_only": True}
+                    attrs={
+                        "placeholder": _("Recipients, enter contacts or groups"),
+                        "groups": True,
+                        "contacts": True,
+                        "widget_only": True,
+                    }
                 ),
             )
 

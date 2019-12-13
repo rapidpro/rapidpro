@@ -266,6 +266,9 @@ export default class Select extends FormElement {
   renderSelectedItem: (option: any) => TemplateResult = this.renderSelectedItemDefault;
 
   @property({attribute: false})
+  createArbitraryOption: (input: string) => any = this.createArbitraryOptionDefault;
+
+  @property({attribute: false})
   getOptions: (response: AxiosResponse) => any[] = this.getOptionsDefault;
 
   @property({attribute: false})
@@ -335,11 +338,37 @@ export default class Select extends FormElement {
     this.options = [];
   }
 
+  private createArbitraryOptionDefault(input: string): any {
+    return null;
+  }
+
   private setOptions(options: any[]) {
+    if (this.input) {
+      const arbitraryOption: any = this.createArbitraryOption(this.input);
+      if (arbitraryOption) {
+        // set our arbitrary flag so we never have more than one
+        arbitraryOption.arbitrary = true;
+
+        // make sure our id is not already present
+        const exists = options.find((option: any)=>option.id === arbitraryOption.id);
+        console.log("Exists", exists, arbitraryOption, options);
+        if (!exists) {
+          if (options.length > 0) {
+            if (options[0].arbitrary) {
+              options[0] = arbitraryOption;
+            } else {
+              options.unshift(arbitraryOption);
+            }
+          } else {
+            options.unshift(arbitraryOption);
+          }
+        }
+      }
+    }
+
     // filter out any options already selected by id
     // TODO: should maybe be doing a deep equals here with option to optimize
     if (this.values.length > 0) {
-      
       if (getId(this.values[0])) {
         if (this.multi) {      
           this.options = options.filter(option=>!this.values.find(selected=>getId(selected) === getId(option)));
@@ -354,6 +383,8 @@ export default class Select extends FormElement {
         }
       }
     }
+
+
 
     this.options = options;
   }
