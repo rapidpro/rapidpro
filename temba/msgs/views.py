@@ -109,7 +109,6 @@ class SendMessageForm(Form):
     def __init__(self, user, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
-        # self.fields["omnibox"].set_user(user)
 
     def is_valid(self):
         valid = super().is_valid()
