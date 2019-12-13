@@ -45,9 +45,7 @@ class BotHubType(ClassifierType):
             response.raise_for_status()
             response_json = response.json()
         except requests.RequestException as e:
-            HTTPLog.create_from_exception(
-                HTTPLog.INTENTS_SYNCED, self.INTENT_URL, e, start, classifier=classifier, save=False
-            )
+            HTTPLog.create_from_exception(HTTPLog.INTENTS_SYNCED, self.INTENT_URL, e, start, classifier=classifier)
             return []
 
         intents = []

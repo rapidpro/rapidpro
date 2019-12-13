@@ -155,6 +155,7 @@ class HTTPLog(models.Model):
 
         return HTTPLog.objects.create(
             channel=channel,
+            classifier=classifier,
             log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
             url=url,
             request=request,

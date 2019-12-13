@@ -45,12 +45,7 @@ class WitType(ClassifierType):
             elapsed = (timezone.now() - start).total_seconds() * 1000
 
             HTTPLog.create_from_response(
-                HTTPLog.INTENTS_SYNCED,
-                self.INTENT_URL,
-                response,
-                classifier=classifier,
-                request_time=elapsed,
-                save=False,
+                HTTPLog.INTENTS_SYNCED, self.INTENT_URL, response, classifier=classifier, request_time=elapsed
             )
 
             response.raise_for_status()
