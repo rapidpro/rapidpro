@@ -241,11 +241,8 @@
     // wire our send button on load and on refresh
     wireSendButton();
     document.addEventListener('rp-refresh-complete', function() {
-      console.log("complete");
       wireSendButton();
     });
-
-    console.log(document);
 
     function wireSendButton() {
       // when we click send, include any clicked messages in our modax request
