@@ -99,7 +99,7 @@ class HTTPLog(models.Model):
             HTTPLog.objects.filter(id__in=chunk).delete()
 
     @classmethod
-    def from_response(cls, log_type, url, response, classifier=None, channel=None, request_time=None, save=True):
+    def create_from_response(cls, log_type, url, response, classifier=None, channel=None, request_time=None):
         if classifier is not None:
             org = classifier.org
 
@@ -124,7 +124,7 @@ class HTTPLog(models.Model):
         request = "".join(request_lines)
         response = "".join(response_lines)
 
-        log = HTTPLog(
+        return HTTPLog.objects.create(
             classifier=classifier,
             channel=channel,
             log_type=log_type,
@@ -137,13 +137,8 @@ class HTTPLog(models.Model):
             org=org,
         )
 
-        if save:
-            log.save()
-
-        return log
-
     @classmethod
-    def from_exception(cls, log_type, url, exception, start, classifier=None, channel=None, save=True):
+    def create_from_exception(cls, log_type, url, exception, start, classifier=None, channel=None):
         if classifier is not None:
             org = classifier.org
 
@@ -158,7 +153,7 @@ class HTTPLog(models.Model):
         request_lines = data.split(cls.REQUEST_DELIM)
         request = "".join(request_lines)
 
-        log = HTTPLog(
+        return HTTPLog.objects.create(
             channel=channel,
             log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
             url=url,
@@ -169,8 +164,3 @@ class HTTPLog(models.Model):
             request_time=(timezone.now() - start).total_seconds() * 1000,
             org=org,
         )
-
-        if save:
-            log.save()
-
-        return log

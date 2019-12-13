@@ -30,7 +30,7 @@ class BotHubType(ClassifierType):
 
     INTENT_URL = "https://nlp.bothub.it/info/"
 
-    def get_active_intents_from_api(self, classifier, logs):
+    def get_active_intents_from_api(self, classifier):
         access_token = classifier.config[self.CONFIG_ACCESS_TOKEN]
 
         start = timezone.now()
@@ -38,23 +38,16 @@ class BotHubType(ClassifierType):
             response = requests.get(self.INTENT_URL, headers={"Authorization": f"Bearer {access_token}"})
             elapsed = (timezone.now() - start).total_seconds() * 1000
 
-            log = HTTPLog.from_response(
-                HTTPLog.INTENTS_SYNCED,
-                self.INTENT_URL,
-                response,
-                classifier=classifier,
-                request_time=elapsed,
-                save=False,
+            HTTPLog.create_from_response(
+                HTTPLog.INTENTS_SYNCED, self.INTENT_URL, response, classifier=classifier, request_time=elapsed
             )
-            logs.append(log)
 
             response.raise_for_status()
             response_json = response.json()
         except requests.RequestException as e:
-            log = HTTPLog.from_exception(
+            HTTPLog.create_from_exception(
                 HTTPLog.INTENTS_SYNCED, self.INTENT_URL, e, start, classifier=classifier, save=False
             )
-            logs.append(log)
             return []
 
         intents = []

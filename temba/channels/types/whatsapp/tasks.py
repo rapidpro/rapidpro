@@ -44,7 +44,6 @@ def refresh_whatsapp_contacts(channel_id):
 
         # 1,000 contacts at a time, we ask WhatsApp to look up our contacts based on the path
         refreshed = 0
-        logs = []
 
         for urn_batch in chunk_list(wa_urns, 1000):
             # need to wait 10 seconds between each batch of 1000
@@ -63,20 +62,15 @@ def refresh_whatsapp_contacts(channel_id):
             resp = requests.post(url, json=payload, headers=headers)
             elapsed = (timezone.now() - start).total_seconds() * 1000
 
-            log = HTTPLog.from_response(
-                HTTPLog.WHATSAPP_CONTACTS_REFRESHED, url, resp, channel=channel, request_time=elapsed, save=False
+            HTTPLog.create_from_response(
+                HTTPLog.WHATSAPP_CONTACTS_REFRESHED, url, resp, channel=channel, request_time=elapsed
             )
-            logs.append(log)
 
             # if we had an error, break out
             if resp.status_code != 200:
                 break
 
             refreshed += len(urn_batch)
-
-        # insert our HTTP logs
-        for log in logs:
-            log.save()
 
         print("refreshed %d whatsapp urns for channel %d" % (refreshed, channel_id))
 
@@ -98,7 +92,9 @@ def refresh_whatsapp_tokens():
             )
             elapsed = (timezone.now() - start).total_seconds() * 1000
 
-            HTTPLog.from_response(HTTPLog.WHATSAPP_TOKENS_SYNCED, url, resp, channel=channel, request_time=elapsed)
+            HTTPLog.create_from_response(
+                HTTPLog.WHATSAPP_TOKENS_SYNCED, url, resp, channel=channel, request_time=elapsed
+            )
 
             if resp.status_code != 200:
                 continue
@@ -166,7 +162,7 @@ def refresh_whatsapp_templates():
                 )
                 elapsed = (timezone.now() - start).total_seconds() * 1000
 
-                HTTPLog.from_response(
+                HTTPLog.create_from_response(
                     HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, response, channel=channel, request_time=elapsed
                 )
 
@@ -221,4 +217,4 @@ def refresh_whatsapp_templates():
                 TemplateTranslation.trim(channel, seen)
 
             except RequestException as e:  # pragma: no cover
-                HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, e, start, channel=channel)
+                HTTPLog.create_from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, e, start, channel=channel)
