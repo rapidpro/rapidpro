@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-12-02 21:28+0000\n"
+"POT-Creation-Date: 2019-12-13 18:51+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -113,6 +113,11 @@ msgstr "O grupo enviará a mensagem para"
 msgid "Export"
 msgstr "Exportar"
 
+#, fuzzy
+#| msgid "Channel Event"
+msgid "Add Event"
+msgstr "Evento do transmissor"
+
 msgid "Edit"
 msgstr "Editar"
 
@@ -133,6 +138,29 @@ msgstr "campanhas"
 msgid "Campaign activated"
 msgstr ""
 
+msgid "Select the event type"
+msgstr ""
+
+msgid "Relative date direction"
+msgstr ""
+
+#, fuzzy
+#| msgid "Select a Country"
+msgid "Select a unit"
+msgstr "Selecione um país"
+
+#, fuzzy
+msgid "Select a flow to start"
+msgstr "Enviar todas"
+
+#, fuzzy
+#| msgid "The groups to send the message to"
+msgid "Select a date field to base this event on"
+msgstr "O grupo enviará a mensagem para"
+
+msgid "Select hour for delivery"
+msgstr ""
+
 #, fuzzy
 #| msgid "and starts the"
 msgid "Stop it and start this event"
@@ -140,6 +168,11 @@ msgstr "e inicie o"
 
 msgid "Skip this event"
 msgstr ""
+
+#, fuzzy
+#| msgid "Flow to start"
+msgid "Flow starting rules"
+msgstr "Fluxo para iniciar"
 
 #, fuzzy
 #| msgid "The groups to send the message to"
@@ -150,6 +183,10 @@ msgstr "O grupo enviará a mensagem para"
 #| msgid "Send this message"
 msgid "Skip this message"
 msgstr "Enviar essa mensagem"
+
+#, fuzzy
+msgid "Message sending rules"
+msgstr "Mensagem"
 
 #, python-format
 msgid "A message is required for '%s'"
@@ -164,6 +201,11 @@ msgstr ""
 
 msgid "Default"
 msgstr ""
+
+#, fuzzy
+#| msgid "Update Contact"
+msgid "Update Event"
+msgstr "Atualizar contato"
 
 msgid "Default Encoding"
 msgstr ""
@@ -4375,6 +4417,25 @@ msgstr "O tipo dessa mensagem"
 msgid "Contact Field: %(label)s"
 msgstr "Campo de contato: %(label)s"
 
+#, fuzzy
+msgid "Recipients"
+msgstr "Quantidade de créditos"
+
+#, fuzzy
+#| msgid "The groups to send the message to"
+msgid "The contacts to send the message to"
+msgstr "O grupo enviará a mensagem para"
+
+#, fuzzy
+#| msgid "Contact Name"
+msgid "Hi @contact.name!"
+msgstr "Nome do contato"
+
+#, fuzzy
+#| msgid "Schedule Trigger"
+msgid "Schedule for later"
+msgstr "Disparador agendamento"
+
 msgid "At least one recipient is required"
 msgstr "Pelo menos um destinatário é necessário"
 
@@ -4390,11 +4451,6 @@ msgstr "Agendar"
 
 msgid "Failed"
 msgstr "Falha"
-
-#, fuzzy
-#| msgid "Contact Name"
-msgid "Hi @contact.name!"
-msgstr "Nome do contato"
 
 msgid "Schedule Message"
 msgstr "Agendar mensagem"
@@ -7703,9 +7759,6 @@ msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
 msgid "Update Contact"
 msgstr "Atualizar contato"
 
-msgid "This contact does not have any number which you can send to. Please edit the contact first or add a new phone."
-msgstr ""
-
 msgid "These contacts have opted out and you can no longer send them messages, they have been removed from all groups."
 msgstr ""
 
@@ -8419,6 +8472,14 @@ msgstr ""
 msgid "Ask a series of questions to collect data from your contacts."
 msgstr "Fazer uma série de perguntas para coletar informações de seus contatos."
 
+#, fuzzy
+msgid "Are you sure you want to delete this global?"
+msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
+
+#, fuzzy
+msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
+msgstr "Uma vez que for removido, ele irá desaparecer para sempre. Não há maneira de desfazer esta operação."
+
 #, fuzzy, python-format
 msgid "You have <b>%(counter)s global</b> configured"
 msgid_plural "You have <b>%(counter)s globals</b> configured"
@@ -8584,6 +8645,31 @@ msgid ""
 msgstr ""
 "\n"
 "Contatos %(contacts_count)s importados com sucesso para"
+
+#, fuzzy, python-format
+msgid ""
+"\n"
+"      To get started you need to add a channel to your account. A channel is a phone number or social network\n"
+"      account which %(name)s can use to send and receive messages on your behalf. You can choose to use an\n"
+"      Android phone and your own cell phone plan, or we can connect you with a service provider in your country\n"
+"      directly.\n"
+"\n"
+"    "
+msgstr ""
+"\n"
+"Para começar, você precisa adicionar um número de telefone para a sua conta. Você pode optar por usar um celular com Android e seu próprio plano de telefone ou podemos conectá-lo diretamente com um prestador de serviços no seu país. "
+
+#, python-format
+msgid ""
+"\n"
+"      %(recipients)s recipient currently at this step in the flow\n"
+"      "
+msgid_plural ""
+"\n"
+"        %(recipients)s recipients currently at this step in the flow\n"
+"    "
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Write the message that will get sent when the scheduled time arrives"
 msgstr "Escrever a mensagem que será enviada quando chegar o momento agendado"
@@ -11876,10 +11962,6 @@ msgstr ""
 #~ msgstr "Chamada finalizada"
 
 #, fuzzy
-#~ msgid "Recipients"
-#~ msgstr "Quantidade de créditos"
-
-#, fuzzy
 #~| msgid "The URN of the contact delivering this message"
 #~ msgid "The contacts which received this message"
 #~ msgstr "A URN da mensagem entregue ao contato"
@@ -11940,11 +12022,6 @@ msgstr ""
 #~| msgid "Webhook"
 #~ msgid "Webhook Docs"
 #~ msgstr "Webhook"
-
-#, fuzzy
-#~| msgid "Channel Event"
-#~ msgid "Event"
-#~ msgstr "Evento do transmissor"
 
 #, fuzzy
 #~| msgid "Channel"
