@@ -353,10 +353,18 @@ class BroadcastCRUDL(SmartCRUDL):
                 results = omnibox_query(org, **params)
                 initial["omnibox"] = omnibox_results_to_dict(org, results, version=2)
 
+            initial["step_node"] = self.request.GET.get("step_node", None)
             return initial
+
+        def derive_fields(self):
+            if self.request.GET.get("step_node"):
+                return ("text", "step_node")
+            else:
+                return super().derive_fields()
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
+            context["recipient_count"] = int(self.request.GET.get("count", 0))
             return context
 
         def pre_process(self, *args, **kwargs):
@@ -394,14 +402,9 @@ class BroadcastCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            omnibox = omnibox_deserialize(org, self.form.cleaned_data["omnibox"])
-            has_schedule = self.form.cleaned_data["schedule"]
             step_uuid = self.form.cleaned_data.get("step_node", None)
             text = self.form.cleaned_data["text"]
-
-            groups = list(omnibox["groups"])
-            contacts = list(omnibox["contacts"])
-            urns = list(omnibox["urns"])
+            has_schedule = False
 
             if step_uuid:
                 from .tasks import send_to_flow_node
@@ -409,33 +412,37 @@ class BroadcastCRUDL(SmartCRUDL):
                 get_params = {k: v for k, v in self.request.GET.items()}
                 get_params.update({"s": step_uuid})
                 send_to_flow_node.delay(org.pk, user.pk, text, **get_params)
-                if "_format" in self.request.GET and self.request.GET["_format"] == "json":
-                    return HttpResponse(json.dumps(dict(status="success")), content_type="application/json")
-                else:
-                    return HttpResponseRedirect(self.get_success_url())
+            else:
 
-            schedule = Schedule.create_blank_schedule(org, user) if has_schedule else None
-            broadcast = Broadcast.create(
-                org,
-                user,
-                text,
-                groups=groups,
-                contacts=contacts,
-                urns=urns,
-                schedule=schedule,
-                status=QUEUED,
-                template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
-            )
+                omnibox = omnibox_deserialize(org, self.form.cleaned_data["omnibox"])
+                has_schedule = self.form.cleaned_data["schedule"]
 
-            if not has_schedule:
-                self.post_save(broadcast)
-                super().form_valid(form)
+                groups = list(omnibox["groups"])
+                contacts = list(omnibox["contacts"])
+                urns = list(omnibox["urns"])
 
-            analytics.track(
-                self.request.user.username,
-                "temba.broadcast_created",
-                dict(contacts=len(contacts), groups=len(groups), urns=len(urns)),
-            )
+                schedule = Schedule.create_blank_schedule(org, user) if has_schedule else None
+                broadcast = Broadcast.create(
+                    org,
+                    user,
+                    text,
+                    groups=groups,
+                    contacts=contacts,
+                    urns=urns,
+                    schedule=schedule,
+                    status=QUEUED,
+                    template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
+                )
+
+                if not has_schedule:
+                    self.post_save(broadcast)
+                    super().form_valid(form)
+
+                analytics.track(
+                    self.request.user.username,
+                    "temba.broadcast_created",
+                    dict(contacts=len(contacts), groups=len(groups), urns=len(urns)),
+                )
 
             if "HTTP_X_PJAX" in self.request.META:
                 success_url = "hide"

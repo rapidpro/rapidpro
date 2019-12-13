@@ -306,21 +306,6 @@
       modal.show();
     });
 
-    {% if org_perms.msgs.broadcast_send %}
-    if($(location).attr('hash') == '#message') {
-      showCompose();
-    }
-
-    $(".page-content").on('click', ".send-button", function() {
-      var smsIds = getCheckedIds();
-      if (smsIds.length > 0) {
-      showComposeInitialized("m=" + smsIds);
-      } else {
-      showCompose();
-      }
-    });
-    {% endif %}
-
     $(".page-content").on('pjax:complete', function() {
       $(".btn").tooltip();
       bindRefreshBlock();

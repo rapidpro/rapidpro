@@ -31,7 +31,6 @@
           -if urn.sendable
             %rp-modax.urn-link{ header:'Send Message', endpoint:"{% url 'msgs.broadcast_send' %}?u={{urn.id}}"}
               %a.contact-urn-path{href:'#'}><
-                // {href:"javascript:showComposeInitialized(\"u={{ urn.id }}\", null, refreshRecents)"}><
                 {{urn|format_urn:user_org}}
           -else
             %i.contact-urn-path
@@ -565,21 +564,5 @@
       }}, false);
       modal.setPrimaryButton('{% trans "Delete" %}');
       modal.show();
-    });
-    {% endif %}
-
-    {% if org_perms.msgs.broadcast_send %}
-    $(".contact-send-button").on('click', function() {
-      {% if has_sendable_urn %}
-      $(".gear-menu").removeClass("open");
-      showComposeInitialized("c={{object.uuid}}", null, refreshRecents);
-      {% else %}
-      modal = new Modal('{% trans "Error" %}', '{% trans "This contact does not have any number which you can send to. Please edit the contact first or add a new phone." %}');
-      modal.addClass('alert');
-      modal.setListeners({onPrimary: function(){ modal.dismiss(); }}, false);
-      modal.show();
-      {% endif %}
-
-      return false;
     });
     {% endif %}
