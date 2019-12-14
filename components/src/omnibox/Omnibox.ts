@@ -27,8 +27,8 @@ const iconStyle: any = {
 
 const detailStyle = {
   'margin-left': '5px',
-  'font-size': '11px',
-  'color': 'var(--color-text-dark-secondary)',
+  'font-size': '12px',
+  'color': 'var(--color-text-dark)',
   'display': 'inline-block'
 }
 

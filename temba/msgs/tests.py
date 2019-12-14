@@ -2075,11 +2075,32 @@ class BroadcastTest(TembaTest):
         send_url = reverse("msgs.broadcast_send")
         self.login(self.admin)
 
-        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
+        # initialize broadcast form based on a message
+        msg = self.create_outgoing_msg(self.joe, "A test message to joe")
+        response = self.client.get(f"{send_url}?m={msg.id}")
+        omnibox = response.context["form"]["omnibox"]
+        self.assertEqual("Joe Blow", omnibox.value()[0]["name"])
+
+        # initialize a broadcast form based on a contact
+        response = self.client.get(f"{send_url}?c={self.joe.uuid}")
+        omnibox = response.context["form"]["omnibox"]
+        self.assertEqual("Joe Blow", omnibox.value()[0]["name"])
+
+        # initialize a broadcast form based on an urn
+        response = self.client.get(f"{send_url}?u={msg.contact_urn.id}")
+        omnibox = response.context["form"]["omnibox"]
+        self.assertEqual("tel:123", omnibox.value()[0]["id"])
+
+        # initialize a broadcast form based on a step uuid
+        response = self.client.get(f"{send_url}?step_node=step")
+        fields = response.context["form"].fields
+        field_names = [_ for _ in fields]
+        self.assertIn("step_node", field_names)
+        self.assertNotIn("omnibox", field_names)
 
         # try with no channel
+        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
         response = self.client.post(send_url, {"text": "some text", "omnibox": omnibox}, follow=True)
-
         self.assertContains(response, "You must add a phone number before sending messages", status_code=400)
 
         # test when we have many channels

@@ -375,19 +375,6 @@ class BroadcastCRUDL(SmartCRUDL):
                     return HttpResponseBadRequest(_("You must add a phone number before sending messages"))
                 return response
 
-        def derive_success_message(self):
-            if "from_contact" not in self.request.POST:
-                return super().derive_success_message()
-            else:
-                return None
-
-        def get_success_url(self):
-            success_url = super().get_success_url()
-            if "from_contact" in self.request.POST:
-                contact = self.form.cleaned_data["omnibox"]["contacts"][0]
-                success_url = reverse("contacts.contact_read", args=[contact.uuid])
-            return success_url
-
         def form_valid(self, form):
             self.form = form
             user = self.request.user
