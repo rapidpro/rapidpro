@@ -168,12 +168,13 @@ export default class Modax extends RapidElement {
     const CancelToken = axios.CancelToken;
     this.cancelToken = CancelToken.source();
     this.fetching = true;
-    window.setTimeout(()=>{
+    // window.setTimeout(()=>{
       getUrl(this.endpoint, this.cancelToken.token, true).then((response: AxiosResponse) => {
         this.setBody(response.data);
         this.updatePrimaryButton();
+        this.fetching = false;
       });  
-    }, 300);
+    // }, 300);
   }
 
   private handleDialogClick(evt: CustomEvent) {
@@ -215,7 +216,7 @@ export default class Modax extends RapidElement {
     return html`
       <rp-dialog 
         header=${this.header} 
-        .open=${this.open} 
+        .open=${this.open && !this.fetching} 
         .primaryButtonName=${this.primaryName}
         .submitting=${this.submitting}
         @rp-button-clicked=${this.handleDialogClick.bind(this)}
