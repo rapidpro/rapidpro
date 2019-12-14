@@ -11,8 +11,8 @@ export default class Dialog extends RapidElement {
 
   static get widths(): { [size: string]: string } {
     return {
-      'small' : '350px',
-      'medium' : '500px',
+      'small' : '400px',
+      'medium' : '600px',
       'large' : '655px'
     }
   }

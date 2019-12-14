@@ -330,7 +330,7 @@ class BroadcastCRUDL(SmartCRUDL):
         form_class = SendMessageForm
         fields = ("omnibox", "text", "schedule", "step_node")
         success_url = "@msgs.msg_inbox"
-        submit_button_name = _("Send")
+        submit_button_name = _("Send Message")
 
         def derive_initial(self):
             initial = super().derive_initial()
