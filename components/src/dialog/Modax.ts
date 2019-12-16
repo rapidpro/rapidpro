@@ -168,13 +168,12 @@ export default class Modax extends RapidElement {
     const CancelToken = axios.CancelToken;
     this.cancelToken = CancelToken.source();
     this.fetching = true;
-    // window.setTimeout(()=>{
-      getUrl(this.endpoint, this.cancelToken.token, true).then((response: AxiosResponse) => {
+    this.body = this.getLoading();
+    getUrl(this.endpoint, this.cancelToken.token, true).then((response: AxiosResponse) => {
         this.setBody(response.data);
         this.updatePrimaryButton();
         this.fetching = false;
-      });  
-    // }, 300);
+    });  
   }
 
   private handleDialogClick(evt: CustomEvent) {
@@ -187,7 +186,6 @@ export default class Modax extends RapidElement {
 
         postUrl(this.endpoint, postData, true).then((response: AxiosResponse) => {
           window.setTimeout(()=>{
-
             const redirect = response.headers['temba-success'];
             if (redirect) {
               if (redirect === "hide") {
@@ -199,7 +197,6 @@ export default class Modax extends RapidElement {
               this.setBody(response.data);
               this.updatePrimaryButton();
             }
-            
           }, 2000);
 
         });
@@ -208,18 +205,27 @@ export default class Modax extends RapidElement {
     
     if(button.name === "Cancel") {
       this.open = false;
+      this.fetching = false;
+      this.cancelToken.cancel();
     }
-  
+  }
+
+  private handleDialogHidden() {
+    this.cancelToken.cancel();
+    this.open = false;
+    this.fetching = false;
   }
 
   public render(): TemplateResult {
     return html`
       <rp-dialog 
         header=${this.header} 
-        .open=${this.open && !this.fetching} 
+        .open=${this.open}
+        .loading=${this.fetching}
         .primaryButtonName=${this.primaryName}
         .submitting=${this.submitting}
         @rp-button-clicked=${this.handleDialogClick.bind(this)}
+        @rp-dialog-hidden=${this.handleDialogHidden.bind(this)}
       >
         <div class="modax-body">
           ${this.body}
