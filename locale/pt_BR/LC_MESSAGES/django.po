@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-12-13 18:51+0000\n"
+"POT-Creation-Date: 2019-12-16 23:22+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4461,10 +4461,6 @@ msgstr "Mensagem agendada"
 msgid "Scheduled Messages"
 msgstr "Mensagens agendadas"
 
-#, fuzzy
-msgid "Send"
-msgstr "Enviar URL"
-
 msgid "You must add a phone number before sending messages"
 msgstr "Você deve adicionar um número de telefone antes de enviar mensagens"
 
@@ -8647,29 +8643,11 @@ msgstr ""
 "Contatos %(contacts_count)s importados com sucesso para"
 
 #, fuzzy, python-format
-msgid ""
-"\n"
-"      To get started you need to add a channel to your account. A channel is a phone number or social network\n"
-"      account which %(name)s can use to send and receive messages on your behalf. You can choose to use an\n"
-"      Android phone and your own cell phone plan, or we can connect you with a service provider in your country\n"
-"      directly.\n"
-"\n"
-"    "
-msgstr ""
-"\n"
-"Para começar, você precisa adicionar um número de telefone para a sua conta. Você pode optar por usar um celular com Android e seu próprio plano de telefone ou podemos conectá-lo diretamente com um prestador de serviços no seu país. "
-
-#, python-format
-msgid ""
-"\n"
-"      %(recipients)s recipient currently at this step in the flow\n"
-"      "
-msgid_plural ""
-"\n"
-"        %(recipients)s recipients currently at this step in the flow\n"
-"    "
-msgstr[0] ""
-msgstr[1] ""
+#| msgid "When the user left this step in the flow"
+msgid "%(recipients)s recipient currently at this step in the flow"
+msgid_plural "%(recipients)s recipients currently at this step in the flow"
+msgstr[0] "Quando o usuário saiu neste passo no fluxo"
+msgstr[1] "Quando o usuário saiu neste passo no fluxo"
 
 msgid "Write the message that will get sent when the scheduled time arrives"
 msgstr "Escrever a mensagem que será enviada quando chegar o momento agendado"
@@ -11156,6 +11134,23 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "Send"
+#~ msgstr "Enviar URL"
+
+#, fuzzy, python-format
+#~ msgid ""
+#~ "\n"
+#~ "      To get started you need to add a channel to your account. A channel is a phone number or social network\n"
+#~ "      account which %(name)s can use to send and receive messages on your behalf. You can choose to use an\n"
+#~ "      Android phone and your own cell phone plan, or we can connect you with a service provider in your country\n"
+#~ "      directly.\n"
+#~ "\n"
+#~ "    "
+#~ msgstr ""
+#~ "\n"
+#~ "Para começar, você precisa adicionar um número de telefone para a sua conta. Você pode optar por usar um celular com Android e seu próprio plano de telefone ou podemos conectá-lo diretamente com um prestador de serviços no seu país. "
 
 #, fuzzy, python-format
 #~ msgid ""
