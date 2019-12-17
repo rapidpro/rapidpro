@@ -101,6 +101,7 @@ export default class AliasEditor extends LitElement {
         display: flex;
         flex-direction: column;
         padding: 15px;
+        padding-bottom: 40px;
       }
 
       .selected .name {
@@ -284,7 +285,6 @@ export default class AliasEditor extends LitElement {
   private handleDialogClick(evt: CustomEvent) {
     const button = evt.detail.button;
     if (button.name === "Save") {
-      button.setProgress(true);
       const textarea = this.shadowRoot.getElementById(this.editFeature.osm_id) as TextInput;
       const aliases = textarea.inputElement.value;
       const payload = { "osm_id":  this.editFeature.osm_id, aliases };
@@ -363,10 +363,7 @@ export default class AliasEditor extends LitElement {
         @rp-button-clicked=${this.handleDialogClick.bind(this)}>
 
         <div class="selected">
-          <rp-textinput name="aliases" id=${editFeatureId} .value=${editFeatureAliases} textarea></rp-textinput>
-          <div class="help">
-            Enter other aliases for ${editFeatureName}, one per line
-          </div>
+          <rp-textinput .helpText="Enter other aliases for ${editFeatureName}, one per line" name="aliases" id=${editFeatureId} .value=${editFeatureAliases} textarea></rp-textinput>
         </div>
       </rp-dialog>             
 
