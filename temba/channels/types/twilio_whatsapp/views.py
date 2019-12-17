@@ -31,11 +31,6 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         def clean_phone_number(self):
             phone = self.cleaned_data["phone_number"]
-
-            # short code should not be formatted
-            if len(phone) <= 6:
-                return phone
-
             phone = phonenumbers.parse(phone, self.cleaned_data["country"])
             return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
 
