@@ -65,8 +65,8 @@ class MailroomClient:
             # if the expression is invalid.. just return original
             return expression
 
-    def flow_migrate(self, definition):
-        return self._request("flow/migrate", {"flow": definition})
+    def flow_migrate(self, definition, to_version="13.0.0"):
+        return self._request("flow/migrate", {"flow": definition, "to_version": to_version})
 
     def flow_inspect(self, flow, validate_with_org=None):
         payload = {"flow": flow}
