@@ -1,3 +1,10 @@
+v5.3.24
+----------
+ * Pass version to mailroom migrate endpoint
+ * Fix saving on alias editor
+ * Support the whatsapp templates HEADER and FOOTER components
+ * Write HTTP log for errors in connection
+
 v5.3.23
 ----------
  * Add support for whatsapp templates with headers and footers
