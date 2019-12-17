@@ -12,8 +12,12 @@ RUN apk update \
   && apk add jpeg-dev zlib-dev freetype-dev lcms2-dev openjpeg-dev tiff-dev tk-dev tcl-dev \
   && apk add libffi-dev py-cffi gettext nodejs npm git
 
-RUN apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing \
-  gdal gdal-dev geos-dev py-gdal \
+RUN apk add --no-cache \
+  --repository http://dl-cdn.alpinelinux.org/alpine/edge/main \
+  --repository http://dl-cdn.alpinelinux.org/alpine/edge/releases \
+  --repository http://dl-cdn.alpinelinux.org/alpine/edge/community \
+  --repository http://dl-cdn.alpinelinux.org/alpine/edge/testing \
+  gdal gdal-dev geos-dev py3-gdal \
   && rm -rf /var/cache/apk/*
 
 RUN addgroup -S django \
@@ -31,6 +35,7 @@ COPY ./pip-freeze.txt /app
 RUN pip install --no-cache-dir -r pip-freeze.txt
 
 COPY . .
+
 RUN ln -s /app/temba/settings.py.prod /app/temba/settings.py
 
 COPY ./docker/start /start
