@@ -69,8 +69,7 @@ RUN \
   apk del build-dependencies && \
   cd / && \
   rm -rf build && \
-  rm -rf /var/cache/apk/* && \
-  rm -rf /usr/lib/python2.7
+  rm -rf /var/cache/apk/*
 
 RUN addgroup -S django \
   && adduser -S -G django django
