@@ -54,7 +54,9 @@ class MailroomClient:
         return self._request("", post=False).get("version")
 
     def expression_migrate(self, expression):
-
+        """
+        Migrates a legacy expression to latest engine version
+        """
         if not expression:
             return ""
 
@@ -65,8 +67,16 @@ class MailroomClient:
             # if the expression is invalid.. just return original
             return expression
 
-    def flow_migrate(self, definition):
-        return self._request("flow/migrate", {"flow": definition})
+    def flow_migrate(self, definition, to_version=None):
+        """
+        Migrates a flow definition to the specified spec version
+        """
+        from temba.flows.models import Flow
+
+        if not to_version:
+            to_version = Flow.GOFLOW_VERSION
+
+        return self._request("flow/migrate", {"flow": definition, "to_version": to_version})
 
     def flow_inspect(self, flow, validate_with_org=None):
         payload = {"flow": flow}
