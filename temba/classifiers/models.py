@@ -133,14 +133,7 @@ class Classifier(SmartModel):
         the DB appropriately to match them, inserting logs for all interactions.
         """
         # get the current intents from the API
-        logs = []
-
-        try:
-            intents = self.get_type().get_active_intents_from_api(self, logs)
-        finally:
-            # insert our HTTP logs
-            for log in logs:
-                log.save()
+        intents = self.get_type().get_active_intents_from_api(self)
 
         # external ids we have seen
         seen = []

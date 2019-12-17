@@ -26,6 +26,8 @@ class HTTPLog(models.Model):
     CLASSIFIER_CALLED = "classifier_called"
     AIRTIME_TRANSFERRED = "airtime_transferred"
     WHATSAPP_TEMPLATES_SYNCED = "whatsapp_templates_synced"
+    WHATSAPP_TOKENS_SYNCED = "whatsapp_tokens_synced"
+    WHATSAPP_CONTACTS_REFRESHED = "whatsapp_contacts_refreshed"
 
     # possible log type choices and descriptive names
     LOG_TYPE_CHOICES = (
@@ -33,6 +35,8 @@ class HTTPLog(models.Model):
         (CLASSIFIER_CALLED, _("Classifier Called")),
         (AIRTIME_TRANSFERRED, _("Airtime Transferred")),
         (WHATSAPP_TEMPLATES_SYNCED, _("Whatsapp Templates Synced")),
+        (WHATSAPP_TOKENS_SYNCED, _("Whatsapp Tokens Synced")),
+        (WHATSAPP_CONTACTS_REFRESHED, _("Whatsapp Contacts Refreshed")),
     )
 
     # the classifier this log is for
@@ -95,7 +99,7 @@ class HTTPLog(models.Model):
             HTTPLog.objects.filter(id__in=chunk).delete()
 
     @classmethod
-    def from_response(cls, log_type, url, response, classifier=None, channel=None):
+    def create_from_response(cls, log_type, url, response, classifier=None, channel=None, request_time=None):
         if classifier is not None:
             org = classifier.org
 
@@ -120,7 +124,7 @@ class HTTPLog(models.Model):
         request = "".join(request_lines)
         response = "".join(response_lines)
 
-        return HTTPLog(
+        return HTTPLog.objects.create(
             classifier=classifier,
             channel=channel,
             log_type=log_type,
@@ -129,5 +133,35 @@ class HTTPLog(models.Model):
             response=response,
             is_error=is_error,
             created_on=timezone.now(),
+            request_time=request_time,
+            org=org,
+        )
+
+    @classmethod
+    def create_from_exception(cls, log_type, url, exception, start, classifier=None, channel=None):
+        if classifier is not None:
+            org = classifier.org
+
+        if channel is not None:
+            org = channel.org
+
+        data = bytearray()
+        prefixes = dump.PrefixSettings(cls.REQUEST_DELIM, cls.RESPONSE_DELIM)
+        dump._dump_request_data(exception.request, prefixes, data)
+
+        data = data.decode("utf-8")
+        request_lines = data.split(cls.REQUEST_DELIM)
+        request = "".join(request_lines)
+
+        return HTTPLog.objects.create(
+            channel=channel,
+            classifier=classifier,
+            log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
+            url=url,
+            request=request,
+            response="",
+            is_error=True,
+            created_on=timezone.now(),
+            request_time=(timezone.now() - start).total_seconds() * 1000,
             org=org,
         )
