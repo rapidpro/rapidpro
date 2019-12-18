@@ -42,7 +42,7 @@ services:
     image: ilhasoft/varnish:6.2
     build:
       context: .
-      dockerfile: ./Dockerfile.varnish
+      dockerfile: ./docker/Dockerfile.varnish
       args:
         BACKEND_ADDRESS: rapidpro:8000
     ports:
