@@ -104,7 +104,7 @@ script:
   - python manage.py makemessages -d djangojs -a --ignore="env/*" --ignore="static/bower/*" --ignore="static/components/*" --ignore="node_modules/*" --no-location --no-wrap | awk '/warning/ { print "makemessages for djangojs contains warnings"; exit 1 }'
 
   # fail if there are locale changes (we only care about changes to msgids)
-  - git diff -U0 locale/ | grep -e "^[+\-]msgid" && (echo 'Make messages needs to be rerun, see travis.yml for command.' && exit 1)
+  - (! git diff -U0 locale/ | grep -e "^[+\-]msgid") || (echo 'Make messages needs to be rerun, see travis.yml for command.' && exit 1)
 
   # check for model changes not reflected in a migration
   - python manage.py makemigrations --settings=temba.settings_travis --dry-run | grep 'No changes detected' || (echo 'There are changes which require migrations.' && exit 1)
