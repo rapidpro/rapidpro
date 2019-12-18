@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-12-18 19:45+0000\n"
+"POT-Creation-Date: 2019-12-18 21:04+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4420,6 +4420,25 @@ msgstr "O tipo dessa mensagem"
 msgid "Contact Field: %(label)s"
 msgstr "Campo de contato: %(label)s"
 
+#, fuzzy
+msgid "Recipients"
+msgstr "Quantidade de créditos"
+
+#, fuzzy
+#| msgid "The groups to send the message to"
+msgid "The contacts to send the message to"
+msgstr "O grupo enviará a mensagem para"
+
+#, fuzzy
+#| msgid "Contact Name"
+msgid "Hi @contact.name!"
+msgstr "Nome do contato"
+
+#, fuzzy
+#| msgid "Schedule Trigger"
+msgid "Schedule for later"
+msgstr "Disparador agendamento"
+
 msgid "At least one recipient is required"
 msgstr "Pelo menos um destinatário é necessário"
 
@@ -4436,11 +4455,6 @@ msgstr "Agendar"
 msgid "Failed"
 msgstr "Falha"
 
-#, fuzzy
-#| msgid "Contact Name"
-msgid "Hi @contact.name!"
-msgstr "Nome do contato"
-
 msgid "Schedule Message"
 msgstr "Agendar mensagem"
 
@@ -4449,10 +4463,6 @@ msgstr "Mensagem agendada"
 
 msgid "Scheduled Messages"
 msgstr "Mensagens agendadas"
-
-#, fuzzy
-msgid "Send"
-msgstr "Enviar URL"
 
 msgid "You must add a phone number before sending messages"
 msgstr "Você deve adicionar um número de telefone antes de enviar mensagens"
@@ -7754,9 +7764,6 @@ msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
 msgid "Update Contact"
 msgstr "Atualizar contato"
 
-msgid "This contact does not have any number which you can send to. Please edit the contact first or add a new phone."
-msgstr ""
-
 msgid "These contacts have opted out and you can no longer send them messages, they have been removed from all groups."
 msgstr ""
 
@@ -8643,6 +8650,13 @@ msgid ""
 msgstr ""
 "\n"
 "Contatos %(contacts_count)s importados com sucesso para"
+
+#, fuzzy, python-format
+#| msgid "When the user left this step in the flow"
+msgid "%(recipients)s recipient currently at this step in the flow"
+msgid_plural "%(recipients)s recipients currently at this step in the flow"
+msgstr[0] "Quando o usuário saiu neste passo no fluxo"
+msgstr[1] "Quando o usuário saiu neste passo no fluxo"
 
 msgid "Write the message that will get sent when the scheduled time arrives"
 msgstr "Escrever a mensagem que será enviada quando chegar o momento agendado"
@@ -11130,6 +11144,10 @@ msgstr "Insira o seu código de requisição"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
+#, fuzzy
+#~ msgid "Send"
+#~ msgstr "Enviar URL"
+
 #, fuzzy, python-format
 #~ msgid ""
 #~ "\n"
@@ -11933,10 +11951,6 @@ msgstr ""
 
 #~ msgid "Call ended."
 #~ msgstr "Chamada finalizada"
-
-#, fuzzy
-#~ msgid "Recipients"
-#~ msgstr "Quantidade de créditos"
 
 #, fuzzy
 #~| msgid "The URN of the contact delivering this message"

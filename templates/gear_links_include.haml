@@ -27,7 +27,7 @@
       - else
         -with link=gear_links|first
           -if link.modax
-            %a.btn{href:'javascript:showModax("{{link.href}}")', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
+            %a.btn.btn-primary{href:'javascript:showModax("{{link.href}}")', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
                 {{link.title}}
                 %span{class:'gear-flag'}
                   {{link.flag}}

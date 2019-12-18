@@ -473,7 +473,8 @@ class CampaignEventForm(forms.ModelForm):
                     attrs={
                         "placeholder": _(
                             "Hi @contact.name! This is just a friendly reminder to apply your fertilizer."
-                        )
+                        ),
+                        "widget_only": True,
                     }
                 ),
                 required=False,
@@ -596,6 +597,7 @@ class CampaignEventCRUDL(SmartCRUDL):
     class Update(OrgPermsMixin, ModalMixin, SmartUpdateView):
         success_message = ""
         form_class = CampaignEventForm
+        submit_button_name = _("Update Event")
 
         default_fields = [
             "event_type",
@@ -709,6 +711,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         form_class = CampaignEventForm
         success_message = ""
         template_name = "campaigns/campaignevent_update.haml"
+        submit_button_name = _("Add Event")
 
         def pre_process(self, request, *args, **kwargs):
             campaign_id = request.GET.get("campaign", None)

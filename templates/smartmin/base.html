@@ -41,6 +41,9 @@
           }
       }
 
+      var event = new Event("rp-refresh-begin");
+      document.dispatchEvent(event);
+
       $.ajax({
           headers: headers,
           type: type,
@@ -74,6 +77,9 @@
                 }
             }
             $(container).html(data);
+
+            var event = new Event("rp-refresh-complete");
+            document.dispatchEvent(event);
 
             if (options) {
                 if ('onSuccess' in options && options['onSuccess']) {

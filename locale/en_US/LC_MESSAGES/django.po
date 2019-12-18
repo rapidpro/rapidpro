@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-12-18 19:45+0000\n"
+"POT-Creation-Date: 2019-12-18 21:04+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3286,6 +3286,18 @@ msgstr ""
 msgid "Contact Field: %(label)s"
 msgstr ""
 
+msgid "Recipients"
+msgstr ""
+
+msgid "The contacts to send the message to"
+msgstr ""
+
+msgid "Hi @contact.name!"
+msgstr ""
+
+msgid "Schedule for later"
+msgstr ""
+
 msgid "At least one recipient is required"
 msgstr ""
 
@@ -3301,9 +3313,6 @@ msgstr ""
 msgid "Failed"
 msgstr ""
 
-msgid "Hi @contact.name!"
-msgstr ""
-
 msgid "Schedule Message"
 msgstr ""
 
@@ -3311,9 +3320,6 @@ msgid "Scheduled Message"
 msgstr ""
 
 msgid "Scheduled Messages"
-msgstr ""
-
-msgid "Send"
 msgstr ""
 
 msgid "You must add a phone number before sending messages"
@@ -5891,9 +5897,6 @@ msgstr ""
 msgid "Update Contact"
 msgstr ""
 
-msgid "This contact does not have any number which you can send to. Please edit the contact first or add a new phone."
-msgstr ""
-
 msgid "These contacts have opted out and you can no longer send them messages, they have been removed from all groups."
 msgstr ""
 
@@ -6603,6 +6606,12 @@ msgid ""
 "                        %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
 "                      "
 msgstr ""
+
+#, python-format
+msgid "%(recipients)s recipient currently at this step in the flow"
+msgid_plural "%(recipients)s recipients currently at this step in the flow"
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Write the message that will get sent when the scheduled time arrives"
 msgstr ""
