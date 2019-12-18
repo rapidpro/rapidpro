@@ -1,3 +1,8 @@
+v5.3.26
+----------
+ * Allow arbitrary numbers when sending messages
+ * Componentized message sending
+
 v5.3.25
 ----------
  * Show empty message list if we have archived them all
