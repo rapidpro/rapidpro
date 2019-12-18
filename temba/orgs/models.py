@@ -421,7 +421,7 @@ class Org(SmartModel):
 
         # with all the flows and dependencies committed, we can now have mailroom do full validation
         for flow in new_flows:
-            mailroom.get_client().flow_validate(self, flow.as_json())
+            mailroom.get_client().flow_inspect(flow.as_json(), validate_with_org=self)
 
     @classmethod
     def export_definitions(cls, site_link, components, include_fields=True, include_groups=True):

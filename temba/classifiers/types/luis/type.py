@@ -34,7 +34,7 @@ class LuisType(ClassifierType):
     You can find the attributes for your app on your Luis.ai app page.
     """
 
-    def get_active_intents_from_api(self, classifier, logs):
+    def get_active_intents_from_api(self, classifier):
         """
         Gets the current intents defined by this app, in LUIS that's an attribute of the app version
         """
@@ -45,15 +45,20 @@ class LuisType(ClassifierType):
 
         start = timezone.now()
         url = endpoint_url + "/apps/" + app_id + "/versions/" + version + "/intents"
-        response = requests.get(url, headers={self.AUTH_HEADER: primary_key})
-        elapsed = (timezone.now() - start).total_seconds() * 1000
+        try:
+            response = requests.get(url, headers={self.AUTH_HEADER: primary_key})
+            elapsed = (timezone.now() - start).total_seconds() * 1000
 
-        log = HTTPLog.from_response(HTTPLog.INTENTS_SYNCED, url, response, classifier=classifier)
-        log.request_time = elapsed
-        logs.append(log)
+            HTTPLog.create_from_response(
+                HTTPLog.INTENTS_SYNCED, url, response, classifier=classifier, request_time=elapsed
+            )
 
-        response.raise_for_status()
-        response_json = response.json()
+            response.raise_for_status()
+            response_json = response.json()
+
+        except requests.RequestException as e:
+            HTTPLog.create_from_exception(HTTPLog.INTENTS_SYNCED, url, e, start, classifier=classifier)
+            return []
 
         intents = []
         for intent in response_json:

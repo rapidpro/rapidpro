@@ -1,3 +1,17 @@
+v5.3.25
+----------
+ * Show empty message list if we have archived them all
+ * Update to flow editior 1.7.8
+ * Replace flow/validate call to mailroom with flow/inspect
+ * Add facebook topic selection
+
+v5.3.24
+----------
+ * Pass version to mailroom migrate endpoint
+ * Fix saving on alias editor
+ * Support the whatsapp templates HEADER and FOOTER components
+ * Write HTTP log for errors in connection
+
 v5.3.23
 ----------
  * Add support for whatsapp templates with headers and footers
