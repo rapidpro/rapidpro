@@ -179,6 +179,29 @@ class FlowTest(TembaTest):
         self.assertContains(response, "Stop Notifications")
         self.assertContains(response, "Appointment Followup")
 
+    def test_facebook_warnings(self):
+        no_topic = self.get_flow("pick_a_number")
+        with_topic = self.get_flow("with_message_topic")
+
+        # bring up broadcast dialog
+        self.login(self.admin)
+        response = self.client.get(reverse("flows.flow_broadcast", args=[no_topic.id]))
+
+        # no warning, we don't have a facebook channel
+        self.assertNotContains(response, "does not specify a Facebook topic")
+
+        # change our channel to use a facebook scheme
+        self.channel.schemes = [FACEBOOK_SCHEME]
+        self.channel.save()
+
+        # should see a warning for no topic now
+        response = self.client.get(reverse("flows.flow_broadcast", args=[no_topic.id]))
+        self.assertContains(response, "does not specify a Facebook topic")
+
+        # warning shouldn't be present for flow with a topic
+        response = self.client.get(reverse("flows.flow_broadcast", args=[with_topic.id]))
+        self.assertNotContains(response, "does not specify a Facebook topic")
+
     def test_template_warnings(self):
         self.login(self.admin)
         flow = self.get_flow("whatsapp_template")
