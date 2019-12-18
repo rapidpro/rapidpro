@@ -1,4 +1,4 @@
-FROM python:3.6
+FROM python:3.6-buster
 
 ARG COMPRESS_ENABLED
 ARG BRANDING_ENABLED
@@ -6,12 +6,15 @@ ARG BRANDING_ENABLED
 ENV PYTHONUNBUFFERED 1
 WORKDIR /app
 
+RUN apt-get update -y && \
+    apt-get upgrade -y
+
 RUN apt-get install \
-  build-deps gcc python3-dev musl-dev \
-  postgresql-client postgresql-dev libxml2-dev libxslt-dev gettext-dev \
-  jpeg-dev zlib-dev freetype-dev lcms2-dev openjpeg-dev tiff-dev tk-dev tcl-dev \
-  libffi-dev py-cffi gettext nodejs npm git build-essential libgdal20 libgdal-dev \
-  libgeos-3.6.2 libgeos-c1v5 libgeos-dev libproj-dev binutils libproj-dev gdal-bin gdal-data python-gdal -y
+  gcc python3-dev musl-dev \
+  postgresql-client postgresql libxml2-dev libxslt-dev gettext \
+  libjpeg-dev zlib1g-dev libfreetype6-dev liblcms2-2 libopenjp2-7-dev libtiff-dev  tk-dev tcl-dev \
+  libffi-dev python-cffi gettext nodejs npm git build-essential libgdal20 libgdal-dev \
+  libgeos-dev libgeos-c1v5 libgeos-dev libproj-dev binutils libproj-dev gdal-bin gdal-data python-gdal -y
 
 RUN addgroup -S django \
   && adduser -S -G django django

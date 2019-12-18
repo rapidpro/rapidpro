@@ -1,0 +1,49 @@
+version: "3"
+
+services:
+  rapidpro:
+    image: ${DOCKER_IMAGE_NAME:-ilhasoft/rapidpro}:${DOCKER_IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile
+    environment:
+      - DEBUG=${DEBUG:-true}
+      - SECRET_KEY=${SECRET_KEY:-SECRET_KEY}
+      - EMAIL_HOST=${EMAIL_HOST:-localhost}
+      - EMAIL_HOST_USER=${EMAIL_HOST_USER:-admin@localhost.com}
+      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD:-password}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - DATABASE_URL=${DATABASE_URL:-postgis://rapidpro:rapidpro@database:5432/rapidpro}
+      - DATABASE_USE_SSL=${DATABASE_USE_SSL:-false} 
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-123456}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-123456}
+      - AWS_STORAGE_BUCKET_NAME=${AWS_STORAGE_BUCKET_NAME:-123456}
+      - MAILROOM_URL=${MAILROOM_URL:-""}
+      - MAILROOM_AUTH_TOKEN=${MAILROOM_AUTH_TOKEN:-""}
+      - ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-""}
+      - COMPRESS_ENABLED=${COMPRESS_ENABLED:-false}
+      - COMPRESS_OFFLINE=${COMPRESS_OFFLINE:-false}
+      - BRANDING_ENABLED=${BRANDING_ENABLED:-false}
+    ports:
+      - 8000:8000
+  redis:
+    image: redis
+    ports:
+      - 6379:6379
+  database:
+    image: mdillon/postgis
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-rapidpro}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-rapidpro}
+      - POSTGRES_DB=${POSTGRES_DB:-rapidpro}
+  varnish:
+    image: ilhasoft/varnish:6.2
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.varnish
+      args:
+        BACKEND_ADDRESS: rapidpro:8000
+    ports:
+      - 8080:80
