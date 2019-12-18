@@ -131,46 +131,5 @@ class TwilioWhatsappTypeTest(TembaTest):
         twilio_channel.save()
         self.assertEqual("TWA", twilio_channel.channel_type)
 
-        with self.settings(IS_PROD=True):
-            with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumber.update") as mock_numbers:
-                # our twilio channel removal should fail on bad auth
-                mock_numbers.side_effect = TwilioRestException(
-                    401, "http://twilio", msg="Authentication Failure", code=20003
-                )
-                self.client.post(reverse("channels.channel_delete", args=[twilio_channel.pk]))
-                self.assertIsNotNone(self.org.channels.all().first())
-
-                # or other arbitrary twilio errors
-                mock_numbers.side_effect = TwilioRestException(400, "http://twilio", msg="Twilio Error", code=123)
-                self.client.post(reverse("channels.channel_delete", args=[twilio_channel.pk]))
-                self.assertIsNotNone(self.org.channels.all().first())
-
-                # now lets be successful
-                mock_numbers.side_effect = None
-                self.client.post(reverse("channels.channel_delete", args=[twilio_channel.pk]))
-                self.assertIsNone(self.org.channels.filter(is_active=True).first())
-                self.assertEqual(
-                    mock_numbers.call_args_list[-1][1], dict(voice_application_sid="", sms_application_sid="")
-                )
-
-    @patch("temba.orgs.models.TwilioClient", MockTwilioClient)
-    @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
-    def test_deactivate(self):
-
-        # make our channel of the twilio ilk
-        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
-        twilio_channel = self.org.channels.all().first()
-        twilio_channel.channel_type = "TWA"
-        twilio_channel.save()
-
-        # mock an authentication failure during the release process
-        with self.settings(IS_PROD=True):
-            with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.update") as mock_numbers:
-                mock_numbers.side_effect = TwilioRestException(
-                    401, "http://twilio", msg="Authentication Failure", code=20003
-                )
-
-                # releasing shouldn't blow up on auth failures
-                twilio_channel.release()
-                twilio_channel.refresh_from_db()
-                self.assertFalse(twilio_channel.is_active)
+        self.client.post(reverse("channels.channel_delete", args=[twilio_channel.pk]))
+        self.assertIsNotNone(self.org.channels.all().first())

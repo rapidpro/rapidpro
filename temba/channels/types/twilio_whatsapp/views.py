@@ -15,13 +15,7 @@ from temba.orgs.models import Org
 from temba.utils import analytics
 
 from ...models import Channel
-from ...views import (
-    ALL_COUNTRIES,
-    TWILIO_SEARCH_COUNTRIES,
-    TWILIO_SUPPORTED_COUNTRIES,
-    BaseClaimNumberMixin,
-    ClaimViewMixin,
-)
+from ...views import ALL_COUNTRIES, TWILIO_SUPPORTED_COUNTRIES, BaseClaimNumberMixin, ClaimViewMixin
 
 
 class ClaimView(BaseClaimNumberMixin, SmartFormView):
@@ -52,13 +46,13 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             return HttpResponseRedirect(reverse("orgs.org_twilio_connect"))
 
     def get_search_countries_tuple(self):
-        return TWILIO_SEARCH_COUNTRIES
+        return []
 
     def get_supported_countries_tuple(self):
         return ALL_COUNTRIES
 
     def get_search_url(self):
-        return reverse("channels.channel_search_numbers")
+        return ""
 
     def get_claim_url(self):
         return reverse("channels.types.twilio_whatsapp.claim")
@@ -100,21 +94,9 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         # create new TwiML app
         callback_domain = org.get_brand_domain()
-        base_url = "https://" + callback_domain
-        receive_url = base_url + reverse("courier.twa", args=[channel_uuid, "receive"])
-
-        new_app = client.api.applications.create(
-            friendly_name="%s/%s" % (callback_domain.lower(), channel_uuid), sms_method="POST", sms_url=receive_url
-        )
 
         twilio_phone = next(twilio_phones, None)
-        if twilio_phone:
-            client.api.incoming_phone_numbers.get(twilio_phone.sid).update(sms_application_sid=new_app.sid)
-
-        else:  # pragma: needs cover
-            # twilio_phone = client.api.incoming_phone_numbers.create(
-            #        phone_number=phone_number, sms_application_sid=new_app.sid
-            # )
+        if not twilio_phone:
             raise Exception(_("Only existing Twilio Whatsapp number are supported"))
 
         phone = phonenumbers.format_number(
@@ -125,7 +107,6 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         org_config = org.config
         config = {
-            Channel.CONFIG_APPLICATION_SID: new_app.sid,
             Channel.CONFIG_NUMBER_SID: number_sid,
             Channel.CONFIG_ACCOUNT_SID: org_config[Org.CONFIG_TWILIO_SID],
             Channel.CONFIG_AUTH_TOKEN: org_config[Org.CONFIG_TWILIO_TOKEN],
