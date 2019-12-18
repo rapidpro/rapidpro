@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-12-02 21:28+0000\n"
+"POT-Creation-Date: 2019-12-18 19:45+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -92,6 +92,9 @@ msgstr ""
 msgid "Export"
 msgstr ""
 
+msgid "Add Event"
+msgstr ""
+
 msgid "Edit"
 msgstr ""
 
@@ -107,16 +110,40 @@ msgstr ""
 msgid "Campaign activated"
 msgstr ""
 
+msgid "Select the event type"
+msgstr ""
+
+msgid "Relative date direction"
+msgstr ""
+
+msgid "Select a unit"
+msgstr ""
+
+msgid "Select a flow to start"
+msgstr ""
+
+msgid "Select a date field to base this event on"
+msgstr ""
+
+msgid "Select hour for delivery"
+msgstr ""
+
 msgid "Stop it and start this event"
 msgstr ""
 
 msgid "Skip this event"
 msgstr ""
 
+msgid "Flow starting rules"
+msgstr ""
+
 msgid "Stop it and send the message"
 msgstr ""
 
 msgid "Skip this message"
+msgstr ""
+
+msgid "Message sending rules"
 msgstr ""
 
 #, python-format
@@ -131,6 +158,9 @@ msgid "Hi @contact.name! This is just a friendly reminder to apply your fertiliz
 msgstr ""
 
 msgid "Default"
+msgstr ""
+
+msgid "Update Event"
 msgstr ""
 
 msgid "Default Encoding"
@@ -2966,6 +2996,9 @@ msgid "Sorry, your account is currently suspended. To enable sending messages, p
 msgstr ""
 
 msgid "Add Contacts to Flow"
+msgstr ""
+
+msgid "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who have not sent an incoming message in the last 24 hours may not receive it."
 msgstr ""
 
 msgid "This flow does not use message templates. You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
@@ -6424,6 +6457,12 @@ msgid ""
 msgstr ""
 
 msgid "Ask a series of questions to collect data from your contacts."
+msgstr ""
+
+msgid "Are you sure you want to delete this global?"
+msgstr ""
+
+msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
 msgstr ""
 
 #, python-format

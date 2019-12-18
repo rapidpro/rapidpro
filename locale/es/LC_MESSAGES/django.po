@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-12-02 21:28+0000\n"
+"POT-Creation-Date: 2019-12-18 19:45+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -108,6 +108,11 @@ msgstr "Los grupos a los que se envía este mensaje "
 msgid "Export"
 msgstr "Exportar"
 
+#, fuzzy
+#| msgid "Channel Event"
+msgid "Add Event"
+msgstr "Evento del transmisor"
+
 msgid "Edit"
 msgstr "Editar"
 
@@ -127,11 +132,40 @@ msgstr "campañas"
 msgid "Campaign activated"
 msgstr ""
 
+msgid "Select the event type"
+msgstr ""
+
+msgid "Relative date direction"
+msgstr ""
+
+#, fuzzy
+#| msgid "Select a Country"
+msgid "Select a unit"
+msgstr "Elegir un país"
+
+#, fuzzy
+#| msgid "Select All"
+msgid "Select a flow to start"
+msgstr "Elegir todos"
+
+#, fuzzy
+#| msgid "The groups to send the message to"
+msgid "Select a date field to base this event on"
+msgstr "Los grupos a los que se envía este mensaje "
+
+msgid "Select hour for delivery"
+msgstr ""
+
 msgid "Stop it and start this event"
 msgstr ""
 
 msgid "Skip this event"
 msgstr ""
+
+#, fuzzy
+#| msgid "Flow to start"
+msgid "Flow starting rules"
+msgstr "Flujo para empezar"
 
 #, fuzzy
 #| msgid "The groups to send the message to"
@@ -142,6 +176,10 @@ msgstr "Los grupos a los que se envía este mensaje "
 #| msgid "Send this message"
 msgid "Skip this message"
 msgstr "Enviar este mensaje"
+
+#, fuzzy
+msgid "Message sending rules"
+msgstr "Mensaje"
 
 #, python-format
 msgid "A message is required for '%s'"
@@ -156,6 +194,11 @@ msgstr ""
 
 msgid "Default"
 msgstr ""
+
+#, fuzzy
+#| msgid "Update Contact"
+msgid "Update Event"
+msgstr "Actualizar Contacto"
 
 msgid "Default Encoding"
 msgstr ""
@@ -4324,6 +4367,9 @@ msgstr ""
 
 msgid "Add Contacts to Flow"
 msgstr "Agregar contactos al flujo"
+
+msgid "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who have not sent an incoming message in the last 24 hours may not receive it."
+msgstr ""
 
 msgid "This flow does not use message templates. You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
 msgstr ""
@@ -9026,6 +9072,16 @@ msgstr ""
 msgid "Ask a series of questions to collect data from your contacts."
 msgstr "Haga una serie de preguntas para obtener los datos de sus contactos."
 
+#, fuzzy
+#| msgid "Are you sure you want to delete this contact?"
+msgid "Are you sure you want to delete this global?"
+msgstr "¿Está seguro de que desea borrar este contacto?"
+
+#, fuzzy
+#| msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
+msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
+msgstr "Una vez borrados, no podrá recuperarlos. No puede deshacer esta operación. "
+
 #, fuzzy, python-format
 msgid "You have <b>%(counter)s global</b> configured"
 msgid_plural "You have <b>%(counter)s globals</b> configured"
@@ -12735,11 +12791,6 @@ msgstr ""
 #~| msgid "Webhook"
 #~ msgid "Webhook Docs"
 #~ msgstr "Webhook"
-
-#, fuzzy
-#~| msgid "Channel Event"
-#~ msgid "Event"
-#~ msgstr "Evento del transmisor"
 
 #, fuzzy
 #~| msgid "Channel"
