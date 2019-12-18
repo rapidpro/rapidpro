@@ -11,8 +11,8 @@ export default class Dialog extends RapidElement {
 
   static get widths(): { [size: string]: string } {
     return {
-      'small' : '350px',
-      'medium' : '500px',
+      'small' : '400px',
+      'medium' : '600px',
       'large' : '655px'
     }
   }
@@ -39,12 +39,13 @@ export default class Dialog extends RapidElement {
 
       .dialog-container {
         margin: 0px auto; 
-        top: -200px;
+        top: -300px;
         position: relative;
         transition: top ease-in-out 200ms;
         border-radius: var(--curvature); 
         box-shadow: 0px 0px 2px 4px rgba(0,0,0,.06);
         overflow: hidden;
+        opacity: 0;
       }
 
       .dialog-body {
@@ -57,7 +58,12 @@ export default class Dialog extends RapidElement {
       }
 
       .dialog-mask.dialog-open > .dialog-container {
-        top: 100px;
+        top: 20px;
+        opacity: 1;
+      }
+
+      .dialog-mask.dialog-loading > .dialog-container {
+        top: -300px;
       }
 
       .header-text {
@@ -79,7 +85,7 @@ export default class Dialog extends RapidElement {
         margin-left: 10px;
       }
 
-      rp-loading {
+      .dialog-body rp-loading {
         position: absolute;
         right: 12px;
         margin-top: -30px;
@@ -87,9 +93,21 @@ export default class Dialog extends RapidElement {
         display: none;
       }
 
-      .dialog-submitting rp-loading {
+      #page-loader {
+        text-align: center;
+        padding-top: 30px;
         display: block;
+        position: relative;
+        opacity: 0;
+        transition: opacity 1000ms ease-in 500ms;
+        visibility: hidden;
       }
+
+      .dialog-mask.dialog-loading #page-loader  {
+        opacity: 1;
+        visibility: visible;
+      }
+
   `;
   }
 
@@ -105,6 +123,9 @@ export default class Dialog extends RapidElement {
 
   @property({type: Boolean})
   submitting: boolean;
+
+  @property({type: Boolean})
+  loading: boolean;
 
   @property()
   size: string = "medium";
@@ -162,6 +183,12 @@ export default class Dialog extends RapidElement {
     }
   }
 
+  private handleClickMask(event: MouseEvent) {
+    if ((event.target as HTMLElement).id === "dialog-mask") {
+      this.fireCustomEvent(CustomEventType.DialogHidden);
+    }
+  }
+
   public render(): TemplateResult {
 
     const height = this.getDocumentHeight();
@@ -175,10 +202,13 @@ export default class Dialog extends RapidElement {
       </div>` : null;
 
     return html`
-        <div class="dialog-mask ${getClasses({ 
+        <div id="dialog-mask"  @click=${this.handleClickMask} class="dialog-mask ${getClasses({ 
           "dialog-open": this.open,
-          "dialog-submitting": this.submitting
+          "dialog-loading": this.loading
           })}" style=${styleMap(maskStyle)}>
+
+          <rp-loading id="page-loader" units=6 size=12 color="#ccc"></rp-loading>
+
           <div @keyup=${this.handleKeyUp} style=${styleMap(dialogStyle)} class="dialog-container">
             ${header}
             <div class="dialog-body" @keypress=${this.handleKeyUp}>${this.body ? this.body : html`<slot></slot>`}

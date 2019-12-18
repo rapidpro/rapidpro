@@ -9,6 +9,7 @@ import getCaretCoordinates from 'textarea-caret';
 import { directive, Part } from 'lit-html';
 import { unsafeHTML } from 'lit-html/directives/unsafe-html.js';
 import { styleMap } from 'lit-html/directives/style-map.js';
+import FormElement from '../FormElement';
 
 const marked = require('marked');
 
@@ -36,7 +37,7 @@ const markedRender = directive((contents: string) => (part: Part) => {
  * Completion is a text input that handles excellent completion options in a popup
  */
 @customElement("rp-completion")
-export default class Completion extends RapidElement {
+export default class Completion extends FormElement {
   static get styles() {
     return css`
       
@@ -371,30 +372,32 @@ export default class Completion extends RapidElement {
     }
 
     return html`
-      <div class="comp-container">
-        <div id="anchor" style=${styleMap(anchorStyles)}></div> 
-        <rp-textinput 
-          name=${this.name}
-          placeholder=${this.placeholder}
-          @keyup=${this.handleKeyUp}
-          @click=${this.handleClick}
-          @input=${this.handleInput}
-          .value=${this.value}
-          ?textarea=${this.textarea}
+      <rp-field name=${this.name} .label=${this.label} .helpText=${this.helpText} .errors=${this.errors} .widgetOnly=${this.widgetOnly}>
+        <div class="comp-container">
+          <div id="anchor" style=${styleMap(anchorStyles)}></div> 
+          <rp-textinput 
+            name=${this.name}
+            placeholder=${this.placeholder}
+            @keyup=${this.handleKeyUp}
+            @click=${this.handleClick}
+            @input=${this.handleInput}
+            .value=${this.value}
+            ?textarea=${this.textarea}
+            >
+          </rp-textinput>
+          <rp-options
+            @rp-selection=${this.handleOptionSelection}
+            @rp-canceled=${this.handleOptionCanceled}
+            .anchorTo=${this.anchorElement}
+            .options=${this.options}
+            .renderOption=${this.renderCompletionOption}
+            ?visible=${this.options.length > 0}
           >
-        </rp-textinput>
-        <rp-options
-          @rp-selection=${this.handleOptionSelection}
-          @rp-canceled=${this.handleOptionCanceled}
-          .anchorTo=${this.anchorElement}
-          .options=${this.options}
-          .renderOption=${this.renderCompletionOption}
-          ?visible=${this.options.length > 0}
-        >
-          ${this.currentFunction ? html`<div class="current-fn">${this.renderCompletionOption(this.currentFunction, true)}</div>`: null}
-          <div class="footer">Tab to complete, enter to select</div>
-        </rp-options>
-      </div>
+            ${this.currentFunction ? html`<div class="current-fn">${this.renderCompletionOption(this.currentFunction, true)}</div>`: null}
+            <div class="footer">Tab to complete, enter to select</div>
+          </rp-options>
+        </div>
+      </rp-field>
     `;
   }
 }

@@ -42,6 +42,7 @@ from temba.contacts.models import (
     ContactURN,
     ExportContactsTask,
 )
+from temba.contacts.omnibox import omnibox_serialize
 from temba.flows.models import ActionSet, ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
@@ -691,7 +692,9 @@ class OrgTest(TembaTest):
         # while we are suspended, we can't send broadcasts
         send_url = reverse("msgs.broadcast_send")
         mark = self.create_contact("Mark", number="+12065551212")
-        post_data = dict(text="send me ur bank account login im ur friend.", omnibox="c-%s" % mark.uuid)
+
+        omnibox = omnibox_serialize(self.org, [], [mark], True)
+        post_data = dict(text="send me ur bank account login im ur friend.", omnibox=omnibox)
         response = self.client.post(send_url, post_data, follow=True)
 
         self.assertEqual(

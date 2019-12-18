@@ -81,12 +81,6 @@
       });
     {% endif %}
 
-    {% if org_perms.msgs.broadcast_send %}
-    $(".page-content").on('click', ".filter-send-all-send-button", function() {
-      showComposeInitialized("l=" + {{current_label.pk}}{% if current_run %} + "&run=" + {{current_run.pk}}{% endif %});
-    });
-    {% endif %}
-
     {% if org_perms.msgs.label_update %}
     $(".page-content").on('click', ".label-update-btn", function() {
       var modal = new Modax('{% trans "Update Label" %}', '{% url "msgs.label_update" current_label.pk %}')

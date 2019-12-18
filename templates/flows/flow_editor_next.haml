@@ -159,7 +159,10 @@
     }
 
     function handleActivityClicked(nodeUUID, count) {
-      showCompose(false, null, nodeUUID, count);
+      var endpoint = '{% url "msgs.broadcast_send" %}';
+      var modal = document.querySelector("#send-message-modal");
+      modal.endpoint = endpoint + "?step_node=" + nodeUUID + "&count=" + count;
+      modal.open = true;
     }
 
     const config = {
@@ -272,6 +275,8 @@
 
   -include "msgs/msg_send_modal.html"
   -include "delete_modal_include.html"
+
+  %rp-modax#send-message-modal{ header:"Send Message" }
 
   #toolbar
     .actions.pull-right
