@@ -5397,6 +5397,12 @@ msgstr ""
 msgid "Whatsapp Templates Synced"
 msgstr ""
 
+msgid "Whatsapp Tokens Synced"
+msgstr ""
+
+msgid "Whatsapp Contacts Refreshed"
+msgstr ""
+
 msgid "Never"
 msgstr "Jamais"
 

@@ -201,7 +201,9 @@ class InboxView(OrgPermsMixin, SmartListView):
         context["org"] = org
         context["folders"] = folders
         context["labels"] = Label.get_hierarchy(org)
-        context["has_messages"] = any(counts.values())
+        context["has_messages"] = (
+            any(counts.values()) or Archive.objects.filter(org=org, archive_type=Archive.TYPE_MSG).exists()
+        )
         context["send_form"] = SendMessageForm(self.request.user)
         context["actions"] = self.actions
         context["current_label"] = label

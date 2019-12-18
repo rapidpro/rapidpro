@@ -24,20 +24,33 @@ class MailroomClientTest(TembaTest):
 
         self.assertEqual("5.3.4", version)
 
+    def test_flow_migrate(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"name": "Migrated!"}')
+            migrated = get_client().flow_migrate({"nodes": []}, to_version="13.1.0")
+
+            self.assertEqual({"name": "Migrated!"}, migrated)
+
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/flow/migrate",
+            headers={"User-Agent": "Temba"},
+            json={"flow": {"nodes": []}, "to_version": "13.1.0"},
+        )
+
     @override_settings(TESTING=False)
     def test_validation_failure(self):
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(422, '{"error":"flow don\'t look right"}')
 
             with self.assertRaises(FlowValidationException) as e:
-                get_client().flow_validate(self.org, '{"nodes:[]"}')
+                get_client().flow_inspect({"nodes": []}, validate_with_org=self.org)
 
         self.assertEqual(str(e.exception), "flow don't look right")
         self.assertEqual(
             e.exception.as_json(),
             {
-                "endpoint": "flow/validate",
-                "request": {"flow": '{"nodes:[]"}', "org_id": self.org.id},
+                "endpoint": "flow/inspect",
+                "request": {"flow": {"nodes": []}, "validate_with_org_id": self.org.id},
                 "response": {"error": "flow don't look right"},
             },
         )

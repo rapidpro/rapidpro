@@ -36,7 +36,15 @@ from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
-from temba.contacts.models import TEL_SCHEME, WHATSAPP_SCHEME, Contact, ContactField, ContactGroup, ContactURN
+from temba.contacts.models import (
+    FACEBOOK_SCHEME,
+    TEL_SCHEME,
+    WHATSAPP_SCHEME,
+    Contact,
+    ContactField,
+    ContactGroup,
+    ContactURN,
+)
 from temba.contacts.omnibox import omnibox_deserialize
 from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
@@ -1180,6 +1188,10 @@ class FlowCRUDL(SmartCRUDL):
             context["is_starting"] = flow.is_starting()
 
             feature_filters = []
+
+            facebook_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=FACEBOOK_SCHEME)
+            if facebook_channel is not None:
+                feature_filters.append("facebook")
 
             whatsapp_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=WHATSAPP_SCHEME)
             if whatsapp_channel is not None:
