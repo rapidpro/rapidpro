@@ -1,3 +1,10 @@
+v5.3.25
+----------
+ * Show empty message list if we have archived them all
+ * Update to flow editior 1.7.8
+ * Replace flow/validate call to mailroom with flow/inspect
+ * Add facebook topic selection
+
 v5.3.24
 ----------
  * Pass version to mailroom migrate endpoint
