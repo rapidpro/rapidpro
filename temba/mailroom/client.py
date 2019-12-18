@@ -96,17 +96,6 @@ class MailroomClient:
 
         return self._request("flow/clone", payload)
 
-    def flow_validate(self, org, definition):
-        payload = {"flow": definition}
-
-        # during tests do validation without org because mailroom can't see unit test data created in a transaction
-        if org and not settings.TESTING:
-            payload["org_id"] = org.id
-
-        validated = self._request("flow/validate", payload)
-        validated["_ui"] = definition.get("_ui", {})
-        return validated
-
     def sim_start(self, payload):
         return self._request("sim/start", payload)
 
