@@ -1,4 +1,4 @@
-FROM varnish:6.0
+FROM varnish:6.3
 
 ARG BACKEND_ADDRESS
 

@@ -24,6 +24,7 @@ services:
       - COMPRESS_ENABLED=${COMPRESS_ENABLED:-false}
       - COMPRESS_OFFLINE=${COMPRESS_OFFLINE:-false}
       - BRANDING_ENABLED=${BRANDING_ENABLED:-false}
+      - BRANDING_FILES=${BRANDING_FILES:-https://github.com/push-platform/push-branding}
     ports:
       - 8000:8000
   redis:
@@ -42,8 +43,9 @@ services:
     image: ilhasoft/varnish:6.2
     build:
       context: .
-      dockerfile: ./docker/Dockerfile.varnish
+      dockerfile: ./Dockerfile.varnish
       args:
-        BACKEND_ADDRESS: rapidpro:8000
+        BACKEND_ADDRESS: rapidpro
+        BACKEND_PORT: 8000
     ports:
       - 8080:80

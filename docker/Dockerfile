@@ -16,8 +16,8 @@ RUN apt-get install \
   libffi-dev python-cffi gettext nodejs npm git build-essential libgdal20 libgdal-dev \
   libgeos-dev libgeos-c1v5 libgeos-dev libproj-dev binutils libproj-dev gdal-bin gdal-data python-gdal -y
 
-RUN addgroup -S django \
-  && adduser -S -G django django
+RUN useradd -ms /bin/bash django \
+    && adduser -a django django
 
 RUN npm install --global --unsafe-perm \
   coffeescript \
@@ -42,4 +42,4 @@ RUN chown -R django /app
 USER django
 
 EXPOSE 8000
-ENTRYPOINT ["/start"]
+ENTRYPOINT ["python", "manage.py", "runserver", "0.0.0.0:8000"]

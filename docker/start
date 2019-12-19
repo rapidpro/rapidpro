@@ -1,8 +1,8 @@
 #!/bin/sh
 
-set -o errexit
-set -o pipefail
-set -o nounset
+# set -o errexit
+# set -o pipefail
+# set -o nounset
 
 if [ ! -z "${BRANDING_FILES}" ]; then
     git clone $BRANDING_FILES /app/$BRANDING_SLUG/
