@@ -42,4 +42,4 @@ RUN chown -R django /app
 USER django
 
 EXPOSE 8000
-ENTRYPOINT ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+ENTRYPOINT ["/start"]

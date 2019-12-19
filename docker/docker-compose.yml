@@ -27,12 +27,18 @@ services:
       - BRANDING_FILES=${BRANDING_FILES:-https://github.com/push-platform/push-branding}
     ports:
       - 8000:8000
+    links:
+      - redis
+      - database
+    depends_on:
+      - redis
+      - database
   redis:
     image: redis
     ports:
       - 6379:6379
   database:
-    image: mdillon/postgis
+    image: kartoza/postgis:9.6-2.4
     ports:
       - 5432:5432
     environment:
@@ -45,7 +51,10 @@ services:
       context: .
       dockerfile: ./Dockerfile.varnish
       args:
-        BACKEND_ADDRESS: rapidpro
-        BACKEND_PORT: 8000
+        BACKEND_ADDRESS: rapidpro:8000
     ports:
       - 8080:80
+    links:
+      - rapidpro
+    depends_on: 
+      - rapidpro

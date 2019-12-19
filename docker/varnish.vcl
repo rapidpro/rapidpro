@@ -2,7 +2,6 @@ vcl 4.0;
 
 backend default {
   .host = "BACKEND_ADDRESS";
-  .port = "BACKEND_PORT";
 }
 
 sub vcl_recv {
