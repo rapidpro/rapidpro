@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-12-16 23:22+0000\n"
+"POT-Creation-Date: 2019-12-18 21:04+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4367,6 +4367,9 @@ msgstr ""
 
 msgid "Add Contacts to Flow"
 msgstr "Agregar contactos al flujo"
+
+msgid "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who have not sent an incoming message in the last 24 hours may not receive it."
+msgstr ""
 
 msgid "This flow does not use message templates. You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
 msgstr ""
@@ -11887,20 +11890,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "Send"
 #~ msgstr "Enviar URL"
-
-#, fuzzy, python-format
-#~ msgid ""
-#~ "\n"
-#~ "      To get started you need to add a channel to your account. A channel is a phone number or social network\n"
-#~ "      account which %(name)s can use to send and receive messages on your behalf. You can choose to use an\n"
-#~ "      Android phone and your own cell phone plan, or we can connect you with a service provider in your country\n"
-#~ "      directly.\n"
-#~ "\n"
-#~ "    "
-#~ msgstr ""
-#~ "\n"
-#~ "          Para empezar tiene que agregar un número de teléfono a su cuenta. Puede elegir usar un teléfono Android y su propio plan de telefonía celular o podemos conectarlo con un proveedor de servicios en su país directamente.\n"
-#~ "        "
 
 #, fuzzy, python-format
 #~| msgid ""

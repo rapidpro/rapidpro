@@ -1912,12 +1912,29 @@ class FlowCRUDL(SmartCRUDL):
         submit_button_name = _("Add Contacts to Flow")
         success_url = "uuid@flows.flow_editor"
 
+        def has_facebook_topic(self, flow):
+            definition = flow.get_current_revision().get_definition_json()
+            for node in definition.get("nodes", []):
+                for action in node.get("actions", []):
+                    if action.get("type", "") == "send_msg" and action.get("topic", ""):
+                        return True
+
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
             flow = self.get_object()
             org = flow.org
 
             warnings = []
+
+            # facebook channels need to warn if no topic is set
+            facebook_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=FACEBOOK_SCHEME)
+            if facebook_channel:
+                if not self.has_facebook_topic(flow):
+                    warnings.append(
+                        _(
+                            "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who have not sent an incoming message in the last 24 hours may not receive it."
+                        )
+                    )
 
             # if we have a whatsapp channel
             whatsapp_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=WHATSAPP_SCHEME)
