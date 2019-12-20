@@ -1,3 +1,8 @@
+v5.3.27
+----------
+ * Update to floweditor 1.7.9
+ * Warn users if starting for facebook without a topic
+
 v5.3.26
 ----------
  * Allow arbitrary numbers when sending messages
