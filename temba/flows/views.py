@@ -37,6 +37,7 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.contacts.models import TEL_SCHEME, WHATSAPP_SCHEME, Contact, ContactField, ContactGroup, ContactURN
+from temba.contacts.omnibox import omnibox_deserialize
 from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
 from temba.flows.tasks import export_flow_results_task
@@ -1868,15 +1869,7 @@ class FlowCRUDL(SmartCRUDL):
                 if start_type == "select" and not starting:  # pragma: needs cover
                     raise ValidationError(_("You must specify at least one contact or one group to start a flow."))
 
-                # convert to groups and contacts
-                org = self.user.get_org()
-                group_ids = [item["id"] for item in starting if item["type"] == "group"]
-                contact_ids = [item["id"] for item in starting if item["type"] == "contact"]
-
-                return {
-                    "groups": ContactGroup.all_groups.filter(uuid__in=group_ids, org=org, is_active=True),
-                    "contacts": Contact.objects.filter(uuid__in=contact_ids, org=org, is_active=True),
-                }
+                return omnibox_deserialize(self.user.get_org(), starting)
 
             def clean(self):
 

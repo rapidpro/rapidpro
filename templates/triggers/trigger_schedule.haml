@@ -18,6 +18,10 @@
       margin-left: 0px;
     }
 
+    #trigger_flow {
+      width: 430px;
+    }
+
     #trigger_omnibox {
       width: 430px;
     }
@@ -29,7 +33,7 @@
 
 -block extra-script
   {{ block.super }}
-  %script{src:"{{ STATIC_URL }}js/schedules-ui.js?v=3"}
+  %script{src:"{{ STATIC_URL }}js/schedules-ui.js"}
 
   <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
   :javascript
@@ -37,8 +41,6 @@
     var user_tz_offset = {{ user_tz_offset }};
 
     $(document).ready(function() {
-        select2div("#id_schedule_flow", "520px", '{% trans "Flow to start" %}');
-
         var initialDate;
         {% if form.start_datetime_value.value %}
           initialDate = new Date({{form.start_datetime_value.value}} * 1000);
@@ -52,9 +54,6 @@
         }
 
         initializeDatetimePicker(minDate, initialDate, false);
-
-        // initialize our omnibox
-        prepareOmnibox();
     });
 
 
@@ -94,7 +93,7 @@
         #sun.btn{value:"U", class:'{% if "U" in form.repeat_days_of_week.value %}active{% endif %}'}
           -trans "Sun"
 
-      %input#repeat-days-value{name:'repeat_days_of_week', type:'hidden', value:'{{form.repeat_days_of_week.value}}'}
+      %input#repeat-days-value{name:'repeat_days_of_week', type:'hidden', value:'{{form.repeat_days_of_week.value|default:""}}'}
 
 -load humanize
 

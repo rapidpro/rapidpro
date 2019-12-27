@@ -58,7 +58,7 @@ class BotHubTypeTest(TembaTest):
         response = self.client.get(url)
 
         # should have url for claiming our type
-        url = reverse("classifiers.types.bh.connect")
+        url = reverse("classifiers.types.bothub.connect")
         self.assertContains(response, url)
 
         response = self.client.get(url)
@@ -89,5 +89,5 @@ class BotHubTypeTest(TembaTest):
 
             c = Classifier.objects.get()
             self.assertEqual("Bothub Test Repository", c.name)
-            self.assertEqual("bh", c.classifier_type)
+            self.assertEqual("bothub", c.classifier_type)
             self.assertEqual("123456789", c.config[BotHubType.CONFIG_ACCESS_TOKEN])

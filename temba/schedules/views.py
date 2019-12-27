@@ -26,6 +26,8 @@ class BaseScheduleForm(object):
 
     def clean_repeat_days_of_week(self):
         data = self.cleaned_data["repeat_days_of_week"]
+
+        # validate days of the week for weekly schedules
         if data:
             for c in data:
                 if c not in Schedule.DAYS_OF_WEEK_OFFSET:

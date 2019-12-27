@@ -2193,6 +2193,7 @@ class BroadcastCRUDLTest(TembaTest):
 
         self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe Blow")
         self.frank, urn_obj = Contact.get_or_create(self.org, "tel:1234", user=self.user, name="Frank Blow")
+        self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
     def test_send(self):
         url = reverse("msgs.broadcast_send")
@@ -2271,16 +2272,28 @@ class BroadcastCRUDLTest(TembaTest):
 
     def test_schedule_read(self):
         self.login(self.editor)
-        self.client.post(
-            reverse("msgs.broadcast_send"), dict(omnibox="c-%s" % self.joe.uuid, text="Lunch reminder", schedule=True)
-        )
+
+        omnibox = "c-%s,g-%s" % (self.joe.uuid, self.joe_and_frank.uuid)
+        self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
         broadcast = Broadcast.objects.get()
 
         # view with empty Send History
         response = self.client.get(reverse("msgs.broadcast_schedule_read", args=[broadcast.pk]))
         self.assertEqual(response.context["object"], broadcast)
-
         self.assertEqual(response.context["object_list"].count(), 0)
+
+    def test_missing_contacts(self):
+        self.login(self.editor)
+
+        omnibox = "c-%s,g-%s" % (self.joe.uuid, self.joe_and_frank.uuid)
+        self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
+        broadcast = Broadcast.objects.get()
+
+        response = self.client.post(
+            reverse("msgs.broadcast_update", args=[broadcast.pk]),
+            dict(omnibox="", message="Empty contacts", schedule=True),
+        )
+        self.assertFormError(response, "form", "omnibox", "This field is required.")
 
 
 class LabelTest(TembaTest):
