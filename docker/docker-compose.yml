@@ -6,6 +6,7 @@ services:
     build:
       context: ..
       dockerfile: ./docker/Dockerfile
+    command: /start
     environment:
       - DEBUG=${DEBUG:-true}
       - SECRET_KEY=${SECRET_KEY:-SECRET_KEY}
@@ -25,8 +26,9 @@ services:
       - COMPRESS_OFFLINE=${COMPRESS_OFFLINE:-false}
       - BRANDING_ENABLED=${BRANDING_ENABLED:-false}
       - BRANDING_FILES=${BRANDING_FILES:-https://github.com/push-platform/push-branding}
+      - SETTINGS_FILE=${SETTINGS_FILE:-settings.py.dev}
     ports:
-      - 8000:8000
+      - "8000:8000"
     links:
       - redis
       - database
@@ -36,7 +38,9 @@ services:
   redis:
     image: redis
     ports:
-      - 6379:6379
+      - "6379:6379"
+    restart: always
+
   database:
     image: kartoza/postgis:9.6-2.4
     ports:
@@ -45,6 +49,7 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-rapidpro}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-rapidpro}
       - POSTGRES_DB=${POSTGRES_DB:-rapidpro}
+    restart: always
   varnish:
     image: ilhasoft/varnish:6.2
     build:
@@ -53,8 +58,9 @@ services:
       args:
         BACKEND_ADDRESS: rapidpro:8000
     ports:
-      - 8080:80
+      - "8080:80"
     links:
       - rapidpro
     depends_on: 
       - rapidpro
+    restart: always
