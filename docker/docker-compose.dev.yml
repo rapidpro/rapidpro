@@ -26,6 +26,7 @@ services:
       - COMPRESS_OFFLINE=${COMPRESS_OFFLINE:-false}
       - BRANDING_ENABLED=${BRANDING_ENABLED:-false}
       - BRANDING_FILES=${BRANDING_FILES:-https://github.com/push-platform/push-branding}
+      - SETTINGS_FILE=${SETTINGS_FILE:-settings.py.dev}
     ports:
       - "8000:8000"
     links:

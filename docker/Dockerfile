@@ -3,8 +3,7 @@ FROM python:3.6-buster
 ARG COMPRESS_ENABLED
 ARG BRANDING_ENABLED
 
-ENV SETTINGS_FILE SETTINGS_FILE
-
+ENV settings $SETTINGS_FILE
 ENV PYTHONUNBUFFERED 1
 WORKDIR /app
 
@@ -33,7 +32,7 @@ COPY ./pip-freeze.txt /app
 RUN pip install --no-cache-dir -r pip-freeze.txt
 
 COPY . .
-RUN ln -s /app/temba/$ /app/temba/settings.py
+RUN ln -s /app/temba/$settings /app/temba/settings.py
 
 COPY ./docker/start /start
 RUN sed -i 's/\r$//g' /start
