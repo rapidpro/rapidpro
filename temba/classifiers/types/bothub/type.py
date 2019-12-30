@@ -15,7 +15,7 @@ class BotHubType(ClassifierType):
 
     CONFIG_ACCESS_TOKEN = "access_token"
 
-    name = "BotHub"
+    name = "Bothub"
     slug = "bothub"
     icon = "icon-bothub"
 
