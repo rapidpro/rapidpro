@@ -2333,7 +2333,9 @@ class OrgCRUDL(SmartCRUDL):
             fields = []
             if response.status_code == 200 and "fields" in response.json():
                 fields = response.json().get("fields")
-                fields = [item for item in sorted(fields.keys()) if item not in ["ACL", "createdAt", "order"]]
+                reserved_keywords = ["class", "for", "return", "global", "pass", "or", "raise", "def", "ACL",
+                                     "createdAt", "order"]
+                fields = [item for item in sorted(fields.keys()) if item not in reserved_keywords]
 
             return tuple(fields)
 
@@ -2361,7 +2363,7 @@ class OrgCRUDL(SmartCRUDL):
             if response.status_code == 200 and "results" in response.json():
                 results_resp = response.json().get("results")
                 for result in results_resp:
-                    result_obj = namedtuple("ParseResult", result.keys())(*result.values())
+                    result_obj = namedtuple("ParseResult", result.keys(), rename=True)(*result.values())
                     results.append(result_obj)
 
             return tuple(results)
