@@ -85,43 +85,61 @@
   </style>
   <![endif]-->
 
-  .contact-fields
-    .featured
-      .contact-field
-        .contact-field-label
-          -trans "Created On"
-
-        .contact-field-value
-          {% pretty_datetime contact.created_on %}
-
-      -if contact_language
+  - if all_contact_fields
+    .contact-fields
+      .featured
         .contact-field
           .contact-field-label
-            -trans "Language"
+            -trans "Created On"
 
           .contact-field-value
-            {{contact_language}}
+            {% pretty_datetime contact.created_on %}
 
-      -for field in all_contact_fields|slice:":6"
-        .contact-field{data-id:'{{field.id}}'}
-          .contact-field-label
-            {{field.label|title}}
+        -if contact_language
+          .contact-field
+            .contact-field-label
+              -trans "Language"
 
-          .contact-field-value.editable
-            {{field.value}}
+            .contact-field-value
+              {{contact_language}}
 
-    .normal.hide
-      -for field in all_contact_fields|slice:"6:"
-        .contact-field{data-id:'{{field.id}}'}
-          .contact-field-label
-            {{field.label|title}}
+        -for field in all_contact_fields|slice:":6"
+          .contact-field{data-id:'{{field.id}}'}
+            .contact-field-label
+              {{field.label|title}}
 
-          .contact-field-value.editable
-            {{field.value}}
+            .contact-field-value.editable
+              {{field.value}}
+
+      .normal.hide
+        -for field in all_contact_fields|slice:"6:"
+          .contact-field{data-id:'{{field.id}}'}
+            .contact-field-label
+              {{field.label|title}}
+
+            .contact-field-value.editable
+              {{field.value}}
 
   -if all_contact_fields|length > 6
     %a.pull-right.show-all.fields
       .icon-arrow-down
+  // Quick send message, chat style
+  -if org_perms.msgs.broadcast_send and not contact.is_blocked and not contact.is_stopped
+    #msg-box 
+      %h5
+        -trans "Compose message"
+      -if send_channel
+        %form#send
+          {% csrf_token %}
+          %input#id_text.form-control{type:"text"}
+          %button#id_send.btn.btn-primary{type:"submit"}
+            -trans "Send"
+      -else
+        -blocktrans with name=brand.name
+          To get started you need to add a channel to your account. A channel is a phone number or social network
+          account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
+          Android phone and your own cell phone plan, or we can connect you with a service provider in your country
+          directly.
 
   -if upcoming_events
     %h5
@@ -169,22 +187,7 @@
     -if upcoming_events|length > 3
       %a.pull-right.show-all.upcoming
         more
-  // Quick send message, chat style
-  #msg-box 
-    %h5
-      -trans "Compose message"
-    -if send_channel
-      %form#send
-        {% csrf_token %}
-        %input#id_text.form-control{type:"text"}
-        %button#id_send.btn.btn-primary{type:"submit"}
-          -trans "Send"
-    -else
-        -blocktrans with name=brand.name
-          To get started you need to add a channel to your account. A channel is a phone number or social network
-          account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
-          Android phone and your own cell phone plan, or we can connect you with a service provider in your country
-          directly.
+  
 
   %h5
     -trans "Message History"
@@ -388,6 +391,7 @@
             line-height:13px;
             border: 0px solid;
             text-align:right;
+            white-space: nowrap;
 
             .repeats {
               font-size:90%;
@@ -472,6 +476,7 @@
           width: inherit;
           position: -webkit-sticky; /* Safari */
           position: sticky;
+          z-index: 1000;
           top: 0;
           padding-bottom: 10px;
         }

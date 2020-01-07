@@ -1,6 +1,7 @@
 import logging
 import numbers
 import time
+import requests
 from array import array
 from collections import OrderedDict, defaultdict
 from datetime import date, datetime, timedelta
@@ -46,6 +47,7 @@ from temba.contacts.models import (
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import DELIVERED, FAILED, FLOW, INBOX, INCOMING, OUTGOING, PENDING, Broadcast, Label, Msg
 from temba.orgs.models import Language, Org
+from temba.links.models import Link
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
 from temba.utils.email import is_valid_address
@@ -1394,6 +1396,20 @@ class Flow(TembaModel):
 
             if ruleset["ruleset_type"] == RuleSet.TYPE_SUBFLOW:
                 remap_flow(ruleset["config"]["flow"])
+
+            elif ruleset["ruleset_type"] == RuleSet.TYPE_SHORTEN_URL:
+                link_data = None
+                if "links" in flow_json:
+                    for link in flow_json["links"]:
+                        if link["uuid"] == ruleset["config"][RuleSet.TYPE_SHORTEN_URL]["id"]:
+                            link_data = link
+                            break
+
+                if link_data:
+                    created_link = Link.objects.create(org=self.org, name=link_data["name"],
+                                                       destination=link_data["destination"],
+                                                       created_by=self.org.get_user(), modified_by=self.org.get_user())
+                    ruleset["config"][RuleSet.TYPE_SHORTEN_URL]["id"] = created_link.uuid
 
             for rule in ruleset.get(Flow.RULES, []):
                 remap_uuid(rule, "uuid")
@@ -3464,6 +3480,7 @@ class RuleSet(models.Model):
     TYPE_AIRTIME = "airtime"
     TYPE_WEBHOOK = "webhook"
     TYPE_RESTHOOK = "resthook"
+    TYPE_LOOKUP = "lookup"
     TYPE_FLOW_FIELD = "flow_field"
     TYPE_FORM_FIELD = "form_field"
     TYPE_CONTACT_FIELD = "contact_field"
@@ -3471,6 +3488,7 @@ class RuleSet(models.Model):
     TYPE_GROUP = "group"
     TYPE_RANDOM = "random"
     TYPE_SUBFLOW = "subflow"
+    TYPE_SHORTEN_URL = "shorten_url"
 
     CONFIG_WEBHOOK = "webhook"
     CONFIG_WEBHOOK_ACTION = "webhook_action"
@@ -3500,11 +3518,13 @@ class RuleSet(models.Model):
         (TYPE_SUBFLOW, "Subflow"),
         (TYPE_WEBHOOK, "Webhook"),
         (TYPE_RESTHOOK, "Resthook"),
+        (TYPE_LOOKUP, "Lookup"),
         (TYPE_AIRTIME, "Transfer Airtime"),
         (TYPE_FORM_FIELD, "Split by message form"),
         (TYPE_CONTACT_FIELD, "Split on contact field"),
         (TYPE_EXPRESSION, "Split by expression"),
         (TYPE_RANDOM, "Split Randomly"),
+        (TYPE_SHORTEN_URL, "Shorten Trackable Link"),
     )
 
     uuid = models.CharField(max_length=36, unique=True)
@@ -3698,6 +3718,32 @@ class RuleSet(models.Model):
                 (result, value) = rule.matches(run, msg, context, str(use_call["status_code"]))
                 if result > 0:
                     return rule, str(use_call["status_code"]), use_call["input"]
+
+        elif self.ruleset_type == RuleSet.TYPE_SHORTEN_URL:
+            url = f"https://firebasedynamiclinks.googleapis.com/v1/shortLinks?key={settings.FDL_API_KEY}"
+            headers = {'Content-Type': 'application/json'}
+
+            config = self.config[RuleSet.TYPE_SHORTEN_URL]
+            item_uuid = config.get('id')
+            item = Link.objects.filter(uuid=item_uuid, org=run.flow.org).first()
+
+            if item:
+                long_url = '%s?contact=%s' % (item.get_url(), run.contact.uuid)
+                data = json.dumps({'longDynamicLink': '%s/?link=%s' % (settings.FDL_URL, long_url),
+                                   'suffix': {'option': 'SHORT'}})
+
+                response = requests.post(url, data=data, headers=headers, timeout=10)
+
+                for rule in self.get_rules():
+                    (result, value) = rule.matches(run, msg, context, str(response.status_code))
+                    response_json = response.json()
+                    run.update_fields(response_json)
+                    if result > 0:
+                        short_url = response_json.get('shortLink')
+                        return rule, str(response.status_code), short_url
+
+            else:
+                return None, None, None
 
         else:
             # if it's a form field, construct an expression accordingly
@@ -6302,7 +6348,7 @@ class TimeoutTest(Test):
 
     @classmethod
     def from_json(cls, org, json):
-        return TimeoutTest(int(json.get(TimeoutTest.MINUTES)))
+        return TimeoutTest(float(json.get(TimeoutTest.MINUTES)))
 
     def as_json(self):  # pragma: no cover
         return {"type": TimeoutTest.TYPE, TimeoutTest.MINUTES: self.minutes}

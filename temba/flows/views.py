@@ -24,9 +24,10 @@ from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Lower
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.text import slugify
 from django.utils.encoding import force_text
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
@@ -44,7 +45,7 @@ from temba.flows.server.serialize import serialize_environment, serialize_langua
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
-from temba.orgs.models import Org
+from temba.orgs.models import Org, LOOKUPS, GIFTCARDS
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
@@ -52,6 +53,7 @@ from temba.utils import analytics, json, on_transaction_commit, str_to_bool
 from temba.utils.expressions import get_function_listing
 from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm, NonAtomicMixin
+from temba.utils.json import JsonResponse
 
 from .models import (
     ExportFlowResultsTask,
@@ -256,9 +258,56 @@ class FlowCRUDL(SmartCRUDL):
         "assets",
         "upload_media_action",
         "pdf_export",
+        "lookups_api",
+        "giftcards_api",
     )
 
     model = Flow
+
+    class LookupsApi(OrgPermsMixin, SmartListView):
+        def get(self, request, *args, **kwargs):
+            db = self.request.GET.get("db", None)
+            collections = []
+
+            if db:
+                headers = {
+                    "X-Parse-Application-Id": settings.PARSE_APP_ID,
+                    "X-Parse-Master-Key": settings.PARSE_MASTER_KEY,
+                    "Content-Type": "application/json",
+                }
+                url = f"{settings.PARSE_URL}/schemas/{db}"
+                response = requests.get(url, headers=headers)
+                response_json = response.json()
+                if response.status_code == 200 and "fields" in response_json:
+                    fields = response_json["fields"]
+                    for key in sorted(fields.keys()):
+                        default_fields = ["ACL", "createdAt", "updatedAt", "order"]
+                        if key not in default_fields:
+                            field_type = fields[key]["type"] if "type" in fields[key] else None
+                            collections.append(dict(id=key, text=key, type=field_type))
+            else:
+                org = self.request.user.get_org()
+                for collection in org.get_collections(collection_type=LOOKUPS):
+                    slug_collection = slugify(collection)
+                    collection_full_name = (
+                        f"{settings.PARSE_SERVER_NAME}_{org.slug}_{org.id}_{str(LOOKUPS).lower()}_{slug_collection}"
+                    )
+                    collection_full_name = collection_full_name.replace("-", "")
+                    collections.append(dict(id=collection_full_name, text=collection))
+            return JsonResponse(dict(results=collections))
+
+    class GiftcardsApi(OrgPermsMixin, SmartListView):
+        def get(self, request, *args, **kwargs):
+            collections = []
+            org = self.request.user.get_org()
+            for collection in org.get_collections(collection_type=GIFTCARDS):
+                slug_collection = slugify(collection)
+                collection_full_name = (
+                    f"{settings.PARSE_SERVER_NAME}_{org.slug}_{org.id}_{str(GIFTCARDS).lower()}_{slug_collection}"
+                )
+                collection_full_name = collection_full_name.replace("-", "")
+                collections.append(dict(id=collection_full_name, text=collection))
+            return JsonResponse(dict(results=collections))
 
     class AllowOnlyActiveFlowMixin(object):
         def get_queryset(self):
@@ -1179,6 +1228,9 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm("flows.flow_pdf_export"):
                 links.append(dict(title=_("Export to PDF"), href="javascript:;", js_class="pdf_export_submit"))
 
+            if self.has_org_perm("orgs.org_lookups"):
+                links.append(dict(title=_("Import Database"), href=reverse("orgs.org_lookups")))
+
             if self.has_org_perm("flows.flow_revisions"):
                 links.append(dict(divider=True)),
                 links.append(dict(title=_("Revision History"), ngClick="showRevisionHistory()", href="#"))
@@ -1365,6 +1417,9 @@ class FlowCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_export"):
                 links.append(dict(title=_("Export"), href="%s?flow=%s" % (reverse("orgs.org_export"), flow.id)))
+
+            if self.has_org_perm("orgs.org_lookups"):
+                links.append(dict(title=_("Import Database"), href=reverse("orgs.org_lookups")))
 
             if self.has_org_perm("flows.flow_delete"):
                 links.append(dict(divider=True)),
@@ -1847,7 +1902,6 @@ class FlowCRUDL(SmartCRUDL):
         success_message = ""
 
         def get(self, request, *args, **kwargs):
-
             flow = self.get_object()
             flow.ensure_current_version()
 

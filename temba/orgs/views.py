@@ -1,6 +1,8 @@
 import itertools
 import logging
-from collections import OrderedDict
+import regex
+
+from collections import OrderedDict, namedtuple
 from datetime import datetime, timedelta
 from decimal import Decimal
 from email.utils import parseaddr
@@ -28,12 +30,13 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import Group, User
+from django.core.files.base import ContentFile
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError
 from django.db.models import ExpressionWrapper, F, IntegerField, Q, Sum
 from django.forms import Form
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse, Http404
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_text
@@ -48,7 +51,8 @@ from django.views.generic import View
 from temba.api.models import APIToken
 from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
-from temba.flows.models import Flow
+from temba.flows.models import Flow, RuleSet
+from temba.links.models import Link
 from temba.formax import FormaxMixin
 from temba.utils import analytics, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address
@@ -73,6 +77,12 @@ from .models import (
     TRANSFERTO_ACCOUNT_LOGIN,
     TRANSFERTO_AIRTIME_API_TOKEN,
     WHITELISTED,
+    GIFTCARDS,
+    LOOKUPS,
+    DEFAULT_FIELDS_PAYLOAD_GIFTCARDS,
+    DEFAULT_FIELDS_PAYLOAD_LOOKUPS,
+    DEFAULT_INDEXES_FIELDS_PAYLOAD_GIFTCARDS,
+    DEFAULT_INDEXES_FIELDS_PAYLOAD_LOOKUPS,
     Invitation,
     Org,
     OrgCache,
@@ -342,6 +352,38 @@ class OrgGrantForm(forms.ModelForm):
         fields = "__all__"
 
 
+class GiftcardsForm(forms.ModelForm):
+    collection = forms.CharField(
+        required=False,
+        label=_("New Collection"),
+        max_length=30,
+        help_text="Enter a name for your collection. ex: my gifts, new lookup table",
+    )
+    remove = forms.CharField(widget=forms.HiddenInput, max_length=6, required=False)
+    index = forms.CharField(widget=forms.HiddenInput, max_length=10, required=False)
+
+    def add_collection_fields(self, collection_type):
+        collections = []
+
+        for collection in self.instance.get_collections(collection_type=collection_type):
+            collections.append(dict(collection=collection))
+
+        self.fields = OrderedDict(self.fields.items())
+        return collections
+
+    def clean_collection(self):
+        new_collection = self.data.get("collection")
+
+        if new_collection in self.instance.get_collections(collection_type=OrgCRUDL.Giftcards.collection_type):
+            raise ValidationError("This collection name has already been used")
+
+        return new_collection[:30] if new_collection else None
+
+    class Meta:
+        model = Org
+        fields = ("id", "collection", "remove", "index")
+
+
 class UserCRUDL(SmartCRUDL):
     model = User
     actions = ("list", "edit", "delete")
@@ -574,6 +616,10 @@ class OrgCRUDL(SmartCRUDL):
         "transfer_credits",
         "transfer_to_account",
         "smtp_server",
+        "giftcards",
+        "lookups",
+        "parse_data_view",
+        "parse_data_import",
     )
 
     model = Org
@@ -640,7 +686,14 @@ class OrgCRUDL(SmartCRUDL):
             flows = Flow.objects.filter(id__in=self.request.POST.getlist("flows"), org=org, is_active=True)
             campaigns = Campaign.objects.filter(id__in=self.request.POST.getlist("campaigns"), org=org, is_active=True)
 
-            components = set(itertools.chain(flows, campaigns))
+            shorten_url_rulesets = RuleSet.objects.filter(flow__id__in=[flow.id for flow in flows],
+                                                          ruleset_type=RuleSet.TYPE_SHORTEN_URL).only("config").order_by("id")
+            links = []
+            if shorten_url_rulesets:
+                links_uuid = [item.config[RuleSet.TYPE_SHORTEN_URL]["id"] for item in shorten_url_rulesets]
+                links = Link.objects.filter(uuid__in=links_uuid)
+
+            components = set(itertools.chain(flows, campaigns, links))
 
             # add triggers for the selected flows
             for flow in flows:
@@ -2112,6 +2165,439 @@ class OrgCRUDL(SmartCRUDL):
                     resthook["resthook"].release(self.request.user)
 
             return super().pre_save(obj)
+
+    class Giftcards(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+        form_class = GiftcardsForm
+        success_message = ""
+        success_url = "@orgs.org_giftcards"
+        collection_type = GIFTCARDS
+        fields_payload = DEFAULT_FIELDS_PAYLOAD_GIFTCARDS
+        indexes_payload = DEFAULT_INDEXES_FIELDS_PAYLOAD_GIFTCARDS
+        submit_button_name = _("Save")
+
+        def get_gear_links(self):
+            links = []
+
+            if self.has_org_perm("orgs.org_lookups"):
+                links.append(dict(title=_("Lookups"), href=reverse("orgs.org_lookups")))
+
+            return links
+
+        def get_form(self):
+            form = super().get_form()
+            self.current_collections = form.add_collection_fields(collection_type=self.collection_type)
+            return form
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.Giftcards, self).get_context_data(**kwargs)
+            context["current_collections"] = self.current_collections
+            context["view_title"] = "Gift Card"
+            context["remove_div_title"] = "giftcard"
+            context["view_url"] = reverse("orgs.org_giftcards")
+            context["icon_slug"] = "icon-credit-2"
+            return context
+
+        @staticmethod
+        def get_collection_full_name(org_slug, org_id, name, collection_type=str(GIFTCARDS).lower()):
+            from django.template.defaultfilters import slugify
+
+            slug_new_collection = slugify(name)
+            collection_full_name = (
+                f"{settings.PARSE_SERVER_NAME}_{org_slug}_{org_id}_{collection_type}_{slug_new_collection}"
+            )
+            collection_full_name = collection_full_name.replace("-", "")
+
+            return collection_full_name
+
+        def pre_save(self, obj):
+            new_collection = self.form.data.get("collection")
+            headers = {
+                "X-Parse-Application-Id": settings.PARSE_APP_ID,
+                "X-Parse-Master-Key": settings.PARSE_MASTER_KEY,
+                "Content-Type": "application/json",
+            }
+
+            if new_collection:
+                collection_full_name = OrgCRUDL.Giftcards.get_collection_full_name(
+                    org_slug=self.object.slug,
+                    org_id=self.object.id,
+                    name=new_collection,
+                    collection_type=str(self.collection_type).lower(),
+                )
+                url = f"{settings.PARSE_URL}/schemas/{collection_full_name}"
+                data = {
+                    "className": collection_full_name,
+                    "fields": self.fields_payload,
+                    "indexes": self.indexes_payload,
+                }
+                response = requests.post(url, data=json.dumps(data), headers=headers)
+                if response.status_code == 200:
+                    self.object.add_collection_to_org(
+                        user=self.request.user, name=new_collection, collection_type=self.collection_type
+                    )
+
+            remove = self.form.data.get("remove", "false") == "true"
+            index = self.form.data.get("index", None)
+
+            if remove and index:
+                index = int(index)
+                collections = self.object.get_collections(collection_type=self.collection_type)
+
+                try:
+                    collection = collections[index]
+                except Exception:
+                    messages.error(self.request, _("Collection not found"))
+                    collection = None
+
+                if collection:
+                    collection_full_name = OrgCRUDL.Giftcards.get_collection_full_name(
+                        org_slug=self.object.slug,
+                        org_id=self.object.id,
+                        name=collection,
+                        collection_type=str(self.collection_type).lower(),
+                    )
+                    url = f"{settings.PARSE_URL}/schemas/{collection_full_name}"
+                    purge_url = f"{settings.PARSE_URL}/purge/{collection_full_name}"
+
+                    response_purge = requests.delete(purge_url, headers=headers)
+                    if response_purge.status_code in [200, 404]:
+                        response = requests.delete(url, headers=headers)
+
+                        if response.status_code == 200:
+                            self.object.remove_collection_from_org(
+                                user=self.request.user, index=index, collection_type=self.collection_type
+                            )
+            return super().pre_save(obj)
+
+    class Lookups(Giftcards):
+        class LookupsForm(GiftcardsForm):
+            def clean_collection(self):
+                new_collection = self.data.get("collection")
+
+                if new_collection in self.instance.get_collections(collection_type=OrgCRUDL.Lookups.collection_type):
+                    raise ValidationError("This collection name has already been used")
+
+                return new_collection[:30] if new_collection else None
+
+            class Meta:
+                model = Org
+                fields = ("id", "collection", "remove", "index")
+
+        form_class = LookupsForm
+        success_message = ""
+        success_url = "@orgs.org_lookups"
+        default_template = "orgs/org_giftcards.html"
+        collection_type = LOOKUPS
+        fields_payload = DEFAULT_FIELDS_PAYLOAD_LOOKUPS
+        indexes_payload = DEFAULT_INDEXES_FIELDS_PAYLOAD_LOOKUPS
+        submit_button_name = _("Save")
+
+        def get_gear_links(self):
+            links = []
+
+            if self.has_org_perm("orgs.org_giftcards"):
+                links.append(dict(title=_("Gift Cards"), href=reverse("orgs.org_giftcards")))
+
+            return links
+
+        def get_form(self):
+            form = super(OrgCRUDL.Lookups, self).get_form()
+            self.current_collections = form.add_collection_fields(collection_type=self.collection_type)
+            return form
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.Lookups, self).get_context_data(**kwargs)
+            context["current_collections"] = self.current_collections
+            context["view_title"] = "Lookup"
+            context["remove_div_title"] = "lookup"
+            context["view_url"] = reverse("orgs.org_lookups")
+            context["icon_slug"] = "icon-filter"
+            return context
+
+    class ParseDataView(InferOrgMixin, OrgPermsMixin, SmartListView):
+        paginate_by = 0
+
+        def derive_fields(self):
+            db = self.request.GET.get("db")
+            type = self.request.GET.get("type")
+
+            collection_type = str(GIFTCARDS).lower() if type == "giftcard" else str(LOOKUPS).lower()
+
+            org = self.request.user.get_org()
+            collection = OrgCRUDL.Giftcards.get_collection_full_name(
+                org_slug=org.slug, org_id=org.id, name=db, collection_type=collection_type
+            )
+
+            parse_headers = {
+                "X-Parse-Application-Id": settings.PARSE_APP_ID,
+                "X-Parse-Master-Key": settings.PARSE_MASTER_KEY,
+                "Content-Type": "application/json",
+            }
+
+            parse_url = f"{settings.PARSE_URL}/schemas/{collection}"
+
+            response = requests.get(parse_url, headers=parse_headers)
+
+            fields = []
+            if response.status_code == 200 and "fields" in response.json():
+                fields = response.json().get("fields")
+                fields = [item for item in sorted(fields.keys()) if item not in ["ACL", "createdAt", "order"]]
+
+            return tuple(fields)
+
+        def derive_queryset(self, **kwargs):
+            db = self.request.GET.get("db")
+            type = self.request.GET.get("type")
+
+            collection_type = str(GIFTCARDS).lower() if type == "giftcard" else str(LOOKUPS).lower()
+
+            org = self.request.user.get_org()
+            collection = OrgCRUDL.Giftcards.get_collection_full_name(
+                org_slug=org.slug, org_id=org.id, name=db, collection_type=collection_type
+            )
+
+            parse_headers = {
+                "X-Parse-Application-Id": settings.PARSE_APP_ID,
+                "X-Parse-REST-API-Key": settings.PARSE_REST_KEY,
+                "Content-Type": "application/json",
+            }
+
+            parse_url = f"{settings.PARSE_URL}/classes/{collection}?order=order&limit=1000"
+            response = requests.get(parse_url, headers=parse_headers)
+
+            results = []
+            if response.status_code == 200 and "results" in response.json():
+                results_resp = response.json().get("results")
+                for result in results_resp:
+                    result_obj = namedtuple("ParseResult", result.keys())(*result.values())
+                    results.append(result_obj)
+
+            return tuple(results)
+
+        def derive_title(self):
+            return self.request.GET.get("db")
+
+        def lookup_obj_attribute(self, obj, field):
+            return getattr(obj, field, None) if hasattr(obj, field) else None
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["searches"] = []
+            return context
+
+    class ParseDataImport(InferOrgMixin, OrgPermsMixin, SmartFormView):
+        class ParseDataImportForm(Form):
+            collection_type = forms.CharField()
+            collection = forms.CharField()
+            import_file = forms.FileField(help_text=_("The import file"))
+
+            def __init__(self, *args, **kwargs):
+                self.org = kwargs["org"]
+                del kwargs["org"]
+                super().__init__(*args, **kwargs)
+
+            def clean_import_file(self):
+                # Max file size something around 150MB
+                max_file_size = 157286400
+
+                if not regex.match(r"^[A-Za-z0-9_.\-*() ]+$", self.cleaned_data["import_file"].name, regex.V0):
+                    raise forms.ValidationError(
+                        "Please make sure the file name only contains "
+                        "alphanumeric characters [0-9a-zA-Z] and "
+                        "special characters in -, _, ., (, )"
+                    )
+
+                collection_type = self.cleaned_data.get("collection_type")
+
+                if not self.cleaned_data["import_file"].name.endswith((".csv", ".xls", ".xlsx")):
+                    raise forms.ValidationError(_("The file must be a CSV or XLS."))
+
+                if self.cleaned_data["import_file"].size > max_file_size:
+                    raise forms.ValidationError(
+                        _(
+                            "Your file exceeds the 150MB file limit. Please submit a support request if you need to "
+                            "upload a file 150MB or larger."
+                        )
+                    )
+
+                try:
+                    needed_check = True if collection_type == "giftcard" else False
+                    Org.get_parse_import_file_headers(
+                        ContentFile(self.cleaned_data["import_file"].read()), needed_check=needed_check
+                    )
+                    self.cleaned_data["import_file"].seek(0)
+                except Exception as e:
+                    raise forms.ValidationError(str(e))
+
+                return self.cleaned_data["import_file"]
+
+            def clean_collection_type(self):
+                collection_type = self.cleaned_data.get("collection_type")
+                if collection_type not in ["lookup", "giftcard"]:
+                    raise forms.ValidationError(_("The collection type is not valid."))
+                return collection_type
+
+            def clean_collection(self):
+                collection = self.cleaned_data.get("collection")
+                collection_type = self.cleaned_data.get("collection_type")
+
+                if not collection:
+                    raise forms.ValidationError(_("You should inform the collection name."))
+
+                collection_full_name = OrgCRUDL.Giftcards.get_collection_full_name(
+                    org_slug=self.org.slug,
+                    org_id=self.org.id,
+                    name=collection,
+                    collection_type=f"{str(collection_type).lower()}s",
+                )
+                return collection_full_name
+
+        form_class = ParseDataImportForm
+        fields = ("import_file", "collection_type", "collection")
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            org = self.request.user.get_org()
+
+            collection = self.request.GET.get("db")
+            collection_type = self.request.GET.get("type")
+
+            search_in = GIFTCARDS if collection_type == "giftcard" else LOOKUPS
+
+            # Checking if org has the collection added
+            org_collections = org.get_collections(collection_type=search_in)
+            if collection not in org_collections:
+                raise Http404
+
+            context["collection"] = collection
+            context["collection_type"] = collection_type
+            context["collection_title"] = collection.capitalize()
+            context["collection_type_title"] = "Gift card" if collection_type == "giftcard" else "Lookup"
+            context["dayfirst"] = org.get_dayfirst()
+
+            return context
+
+        def get_success_url(self):  # pragma: needs cover
+            return reverse(f"orgs.org_{self.request.GET.get('type')}s")
+
+        def derive_success_message(self):
+            user = self.get_user()
+            return _(f"We are preparing your import. We will e-mail you at {user.email} when it is ready.")
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.user.get_org()
+            return kwargs
+
+        def form_valid(self, form):
+            from pandas import read_csv, read_excel
+            from .tasks import import_data_to_parse
+
+            org = self.request.user.get_org()
+            user = self.get_user()
+
+            try:
+                import_file = form.cleaned_data["import_file"]
+                collection_type = form.cleaned_data["collection_type"]
+                collection = form.cleaned_data["collection"]
+
+                if import_file.name.endswith(".csv"):
+                    file_type = "csv"
+                elif import_file.name.endswith((".xls", ".xlsx")):
+                    file_type = "xls"
+                else:
+                    raise Exception
+
+                parse_headers = {
+                    "X-Parse-Application-Id": settings.PARSE_APP_ID,
+                    "X-Parse-Master-Key": settings.PARSE_MASTER_KEY,
+                    "Content-Type": "application/json",
+                }
+
+                needed_create_header = False
+
+                parse_url = f"{settings.PARSE_URL}/schemas/{collection}"
+
+                config = self.org.config
+                collection_real_name = None
+
+                if collection_type == "lookup":
+                    needed_create_header = True
+
+                    response = requests.get(parse_url, headers=parse_headers)
+                    if response.status_code == 200 and "fields" in response.json():
+                        fields = response.json().get("fields")
+
+                        for key in list(fields.keys()):
+                            if key in ["objectId", "updatedAt", "createdAt", "ACL"]:
+                                del fields[key]
+                            else:
+                                del fields[key]["type"]
+                                fields[key]["__op"] = "Delete"
+
+                        remove_fields = {"className": collection, "fields": fields}
+
+                        purge_url = f"{settings.PARSE_URL}/purge/{collection}"
+                        response_purge = requests.delete(purge_url, headers=parse_headers)
+
+                        if response_purge.status_code in [200, 404]:
+                            requests.put(parse_url, data=json.dumps(remove_fields), headers=parse_headers)
+
+                    for item in config.get(LOOKUPS, []):
+                        full_name = OrgCRUDL.Giftcards.get_collection_full_name(
+                            org.slug, org.id, item, LOOKUPS.lower()
+                        )
+                        if full_name == collection:
+                            collection_real_name = item
+                            break
+
+                else:
+                    purge_url = f"{settings.PARSE_URL}/purge/{collection}"
+                    requests.delete(purge_url, headers=parse_headers)
+
+                    for item in config.get(GIFTCARDS, []):
+                        full_name = OrgCRUDL.Giftcards.get_collection_full_name(
+                            org.slug, org.id, item, GIFTCARDS.lower()
+                        )
+                        if full_name == collection:
+                            collection_real_name = item
+                            break
+
+                if file_type == "csv":
+                    spamreader = read_csv(import_file, delimiter=",", index_col=False)
+                else:
+                    spamreader = read_excel(import_file, index_col=False)
+
+                headers = spamreader.columns.tolist()
+                spamreader = spamreader.get_values().tolist()
+                spamreader.insert(0, headers)
+
+                if spamreader:
+                    import_data_to_parse.delay(
+                        org.get_branding(),
+                        user.email,
+                        list(spamreader),
+                        parse_url,
+                        parse_headers,
+                        collection,
+                        collection_type,
+                        collection_real_name,
+                        import_file.name,
+                        needed_create_header,
+                        org.timezone.zone,
+                        org.get_dayfirst(),
+                    )
+
+            except Exception as e:
+                # this is an unexpected error, report it to sentry
+                logger = logging.getLogger(__name__)
+                logger.error(f"Exception on app import: {e.args}", exc_info=True)
+                form._errors["import_file"] = form.error_class(
+                    [_("Sorry, your file is invalid. In addition, the file must be a CSV or XLS")]
+                )
+                return self.form_invalid(form)
+
+            return super().form_valid(form)  # pragma: needs cover
 
     class Token(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class TokenForm(forms.ModelForm):

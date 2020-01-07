@@ -43,6 +43,66 @@
       #split-on
         -trans "If the message response..."
 
+    .lookup{ng-if:'formData.rulesetConfig.type == "lookup"'}><
+      .split-margin
+        %p{class:"description"}
+          -blocktrans
+            Make some queries for lookup...
+
+        %select{ng-model:"formData.lookup_db", search:"true", init-text:"[[ruleset.config.lookup_db]]", name:"lookup_db",
+              data-placeholder:"Select your lookup database", required:"", ng-options:"option.text for option in lookupDbs track by option.id",
+              type:"hidden", ng-change:'updateLookupFields()', select2:""}
+
+      .split-margin{ng-show:"formData.isLookupQueriesVisible", style:"margin: 20px 0 0 0"}
+        %p{class:"description"}
+          -blocktrans
+            Lookup Parameters
+
+        .lookup-queries
+          .modal-lookup-query-rules
+            .modal-lookup-query.modal-lookup-query-field
+              .message
+                -trans "Field"
+            .modal-lookup-query.modal-lookup-query-rule
+              .message
+                -trans "Rule"
+            .modal-lookup-query.modal-lookup-query-value
+              .message
+                -trans "Value"
+          .modal-lookup-query-rules{ng-repeat:"query in formData.lookup_queries"}
+            .modal-lookup-query.modal-lookup-query-field
+              %select{ng-model:"lookup_queries_field[$index]", required:"required", name:"query-field", ng-options:"field.text for field in parseFields track by field.id", style:"height:34px", ng-init:"updateOperator(lookup_queries_field[$index], $index)", ng-change:"updateOperator(lookup_queries_field[$index], $index, true)"}
+            .modal-lookup-query.modal-lookup-query-rule
+              %select{ng-model:"lookup_queries_rule[$index]", required:"required", name:"query-rule", ng-options:"operator.verbose_name for operator in operatorLookupConfigs[$index] track by operator.type", style:"height:34px"}
+            .modal-lookup-query.modal-lookup-query-value
+              %input{type:"text", name:"query-value", required:"required", ng-model:"lookup_queries_value[$index]", auto-complete}
+            .modal-lookup-query.modal-lookup-query-remove
+              .icon.icon-close{ng-click:"removeLookupQuery($index)"}
+          %a.add-query{href:"javascript:;",ng-click:"addNewLookupQuery()"}
+            .icon.icon-plus-circle2
+        .help-text
+          -blocktrans
+            The Parse API responds with JSON, each property will be added
+            to the flow like @extra.result would be
+            added for all future steps.
+
+    .giftcard{ng-if:'formData.rulesetConfig.type == "giftcard"'}><
+      .split-margin
+        %p{class:"description"}
+          -blocktrans
+            Select which collection would you like to query the Gift Card
+        %input{ng-model:"formData.giftcard_db", search:"true", init-text:"[[ruleset.config.giftcard_db.text]]", name:"giftcard_db",
+              placeholder:"Select your collection to do the query on that", required:"", init-id:"[[ruleset.config.giftcard_db.id]]",
+              select-server:"/flow/giftcards_api/", type:"hidden"}
+        %select{ng-model:"formData.giftcard_type", required:"", name:"giftcard_type", style:"width:320px;height:34px", class:"giftcard-type", select2:""}
+          %option{ng-repeat:"type_ in giftcardTypes", ng-selected:"type_.id == formData.giftcard_type", value:"[[type_.id]]"} [[type_.text]]
+        %a{class:"icon-nav-help-inverted", data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'Help'}
+        .help-text
+          -blocktrans
+            The Parse API responds with JSON, each property will be added
+            to the flow like @extra.result would be
+            added for all future steps.
+
     .subflow{ng-if:'formData.rulesetConfig.type == "subflow"'}><
       .split-margin
         %p{class:"description"}
@@ -116,6 +176,16 @@
         %input{ng-model:"formData.resthook", search:"true", init-text:"[[ruleset.config.resthook]]", name:"resthook",
                placeholder:"Select the flow event to notify subscribers of", required:"", init-id:"[[ruleset.config.resthook]]",
                select-server:"/api/resthooks/?_format=select2", type:"hidden"}
+
+    .shorten_url{ng-if:'formData.rulesetConfig.type == "shorten_url"'}><
+      .split-margin
+        %p{class:"description"}
+          -blocktrans
+            Select which Trackable Link would you like to shorten
+
+        %input{ng-model:"formData.shorten_url", search:"true", init-text:"[[ruleset.config.shorten_url.text]]", name:"shorten_url",
+              placeholder:"Select your trackable link to be shortened", required:"", init-id:"[[ruleset.config.shorten_url.id]]",
+              select-server:"/link/api/", type:"hidden"}
 
     .webhook{ng-if:'formData.rulesetConfig.type == "webhook"'}><
       .split-margin          

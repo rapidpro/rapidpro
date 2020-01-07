@@ -251,6 +251,7 @@ INSTALLED_APPS = (
     "temba.values",
     "temba.airtime",
     "temba.sql",
+    "temba.links",
 )
 
 # the last installed app that uses smartmin permissions
@@ -358,17 +359,21 @@ PERMISSIONS = {
         "edit",
         "edit_sub_org",
         "export",
+        "giftcards",
         "grant",
         "home",
         "import",
         "join",
         "languages",
+        "lookups",
         "manage",
         "manage_accounts",
         "manage_accounts_sub_org",
         "nexmo_configuration",
         "nexmo_account",
         "nexmo_connect",
+        "parse_data_view",
+        "parse_data_import",
         "plivo_connect",
         "profile",
         "resthooks",
@@ -425,8 +430,11 @@ PERMISSIONS = {
         "upload_action_recording",
         "upload_media_action",
         "pdf_export",
+        "lookups_api",
+        "giftcards_api",
     ),
     "flows.flowsession": ("json",),
+    "links.link": ("archived", "read", "history", "export", "api"),
     "msgs.msg": (
         "api",
         "archive",
@@ -561,14 +569,18 @@ GROUP_PERMISSIONS = {
         "orgs.org_edit",
         "orgs.org_edit_sub_org",
         "orgs.org_export",
+        "orgs.org_giftcards",
         "orgs.org_home",
         "orgs.org_import",
         "orgs.org_languages",
+        "orgs.org_lookups",
         "orgs.org_manage_accounts",
         "orgs.org_manage_accounts_sub_org",
         "orgs.org_nexmo_account",
         "orgs.org_nexmo_connect",
         "orgs.org_nexmo_configuration",
+        "orgs.org_parse_data_view",
+        "orgs.org_parse_data_import",
         "orgs.org_plivo_connect",
         "orgs.org_profile",
         "orgs.org_resthooks",
@@ -626,6 +638,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "templates.template_api",
+        "links.link.*",
         "triggers.trigger.*",
     ),
     "Editors": (
@@ -671,8 +684,12 @@ GROUP_PERMISSIONS = {
         "orgs.org_api",
         "orgs.org_download",
         "orgs.org_export",
+        "orgs.org_giftcards",
         "orgs.org_home",
         "orgs.org_import",
+        "orgs.org_lookups",
+        "orgs.org_parse_data_view",
+        "orgs.org_parse_data_import",
         "orgs.org_profile",
         "orgs.org_resthooks",
         "orgs.topup_list",
@@ -717,6 +734,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "templates.template_api",
+        "links.link.*",
         "triggers.trigger.*",
     ),
     "Viewers": (
@@ -776,6 +794,11 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "links.link_export",
+        "links.link_archived",
+        "links.link_history",
+        "links.link_list",
+        "links.link_read",
         "triggers.trigger_archived",
         "triggers.trigger_list",
     ),
@@ -1111,3 +1134,14 @@ ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 
 # Maximum active ContactFields users can have in an Org
 MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
+
+# Firebase Dynamic Links configuration
+FDL_API_KEY = "FirebaseDynamicLinkAPIKey"
+FDL_URL = "FirebaseDynamicLinkURL"
+
+# Parse configuration
+PARSE_SERVER_NAME = ""
+PARSE_URL = ""
+PARSE_APP_ID = ""
+PARSE_REST_KEY = ""
+PARSE_MASTER_KEY = ""

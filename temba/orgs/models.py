@@ -101,6 +101,24 @@ CHATBASE_TYPE_USER = "user"
 CHATBASE_FEEDBACK = "CHATBASE_FEEDBACK"
 CHATBASE_VERSION = "CHATBASE_VERSION"
 
+GIFTCARDS = "GIFTCARDS"
+LOOKUPS = "LOOKUPS"
+
+DEFAULT_FIELDS_PAYLOAD_GIFTCARDS = {
+    "active": {"type": "Boolean"},
+    "egiftnumber": {"type": "String"},
+    "url": {"type": "String"},
+    "short_url": {"type": "String"},
+    "challengecode": {"type": "String"},
+    "identifier": {"type": "String"},
+}
+
+DEFAULT_FIELDS_PAYLOAD_LOOKUPS = {}
+
+DEFAULT_INDEXES_FIELDS_PAYLOAD_GIFTCARDS = {"IndexIdentifier": {"identifier": 1}}
+
+DEFAULT_INDEXES_FIELDS_PAYLOAD_LOOKUPS = {}
+
 ORG_STATUS = "STATUS"
 SUSPENDED = "suspended"
 RESTORED = "restored"
@@ -164,6 +182,7 @@ class Org(SmartModel):
     EXPORT_TRIGGERS = "triggers"
     EXPORT_FIELDS = "fields"
     EXPORT_GROUPS = "groups"
+    EXPORT_LINKS = "links"
 
     EARLIEST_IMPORT_VERSION = "3"
     CURRENT_EXPORT_VERSION = "13"
@@ -344,6 +363,116 @@ class Org(SmartModel):
     def get_brand_domain(self):
         return self.get_branding()["domain"]
 
+    def get_collections(self, collection_type=GIFTCARDS):
+        """
+        Returns the collections (gift card or lookup) set up on this Org
+        """
+        if self.config:
+            return self.config.get(collection_type, [])
+        return []
+
+    def remove_collection_from_org(self, user, index, collection_type=GIFTCARDS):
+        """
+        Remove collections (gift card or lookup) added on this Org
+        """
+        collections = self.get_collections(collection_type=collection_type)
+
+        if collections:
+            collections.pop(index)
+
+        config = self.config
+        config[collection_type] = collections
+        self.config = config
+        self.modified_by = user
+        self.save(update_fields=["config"])
+
+    def add_collection_to_org(self, user, name, collection_type=GIFTCARDS):
+        """
+        Add a collection (gift card or lookup) to this Org
+        """
+        collections = self.get_collections(collection_type=collection_type)
+        config = self.config
+
+        if collections:
+            collections.insert(0, name)
+        else:
+            collections = [name]
+
+        config[collection_type] = collections
+        self.config = config
+        self.modified_by = user
+        self.save(update_fields=["config"])
+
+    @classmethod
+    def get_parse_import_file_headers(cls, csv_file, needed_check=True):
+        csv_file.open()
+
+        # this file isn't good enough, lets write it to local disk
+        from django.conf import settings
+        from uuid import uuid4
+
+        # make sure our tmp directory is present (throws if already present)
+        try:
+            os.makedirs(os.path.join(settings.MEDIA_ROOT, "tmp"))
+        except Exception:
+            pass
+
+        # write our file out
+        tmp_file = os.path.join(settings.MEDIA_ROOT, "tmp/%s" % str(uuid4()))
+
+        out_file = open(tmp_file, "wb")
+        out_file.write(csv_file.read())
+        out_file.close()
+
+        try:
+            headers = SmartModel.get_import_file_headers(open(tmp_file))
+        finally:
+            os.remove(tmp_file)
+
+        if needed_check:
+            Org.validate_parse_import_header(headers)
+        else:
+            valid_field_regex = r"^[a-zA-Z][a-zA-Z0-9_ -]*$"
+            invalid_fields = [item for item in headers if not re.match(valid_field_regex, item)]
+            if invalid_fields:
+                raise Exception(
+                    _(
+                        "Upload error: The file you are trying to upload has a missing or invalid column "
+                        "header name. The column names should only contain spaces, underscores, and "
+                        "alphanumeric characters. They must begin with a letter and be unique."
+                    )
+                )
+
+        return [header.strip() for header in headers]
+
+    @classmethod
+    def validate_parse_import_header(cls, headers):
+        PARSE_GIFTCARDS_IMPORT_HEADERS = ["egiftnumber", "url", "challengecode"]
+
+        not_found_headers = [h for h in PARSE_GIFTCARDS_IMPORT_HEADERS if h not in headers]
+        string_possible_headers = '", "'.join([h for h in PARSE_GIFTCARDS_IMPORT_HEADERS])
+        blank_headers = [h for h in headers if h is None or h == ""]
+
+        if ("Identifier" in headers or "identifier" in headers) or ("Active" in headers or "active" in headers):
+            raise Exception(_('Please remove the "identifier" and/or "active" column from your file.'))
+
+        if blank_headers:
+            raise Exception(
+                _(
+                    "Upload error: The file you are trying to upload has a missing or invalid column "
+                    "header name. The column names should only contain spaces, underscores, and "
+                    "alphanumeric characters. They must begin with a letter and be unique."
+                )
+            )
+
+        if not_found_headers:
+            raise Exception(
+                _(
+                    f"The file you provided is missing a required header. All these fields: "
+                    f'"{string_possible_headers}" should be included.'
+                )
+            )
+
     def lock_on(self, lock, qualifier=None):
         """
         Creates the requested type of org-level lock
@@ -458,10 +587,12 @@ class Org(SmartModel):
         from temba.campaigns.models import Campaign
         from temba.flows.models import Flow
         from temba.triggers.models import Trigger
+        from temba.links.models import Link
 
         exported_flows = []
         exported_campaigns = []
         exported_triggers = []
+        exported_links = []
 
         # users can't choose which fields/groups to export - we just include all the dependencies
         fields = set()
@@ -493,12 +624,16 @@ class Org(SmartModel):
                 if include_groups:
                     groups.update(component.groups.all())
 
+            elif isinstance(component, Link):
+                exported_links.append(component.as_json())
+
         return {
             Org.EXPORT_VERSION: Org.CURRENT_EXPORT_VERSION,
             Org.EXPORT_SITE: site_link,
             Org.EXPORT_FLOWS: exported_flows,
             Org.EXPORT_CAMPAIGNS: exported_campaigns,
             Org.EXPORT_TRIGGERS: exported_triggers,
+            Org.EXPORT_LINKS: exported_links,
             Org.EXPORT_FIELDS: [f.as_export_def() for f in sorted(fields, key=lambda f: f.key)],
             Org.EXPORT_GROUPS: [g.as_export_def() for g in sorted(groups, key=lambda g: g.name)],
         }

@@ -1,0 +1,14 @@
+-extends 'smartmin/update.html'
+
+{% load smartmin temba compress%}
+
+-block pre-form
+  :css
+    .select2-container-multi .select2-choices .select2-search-field input.select2-active {
+      background: none !important;
+    }
+
+
+
+-block modal-script
+  {{block.super}}
