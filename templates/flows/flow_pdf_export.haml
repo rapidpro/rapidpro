@@ -182,6 +182,12 @@
       }, 100)
     });
 
+    {% if pdf_export_lang %}
+      window.setInterval(function(){
+        $('[data-lang="{{pdf_export_lang}}"]').click();
+      }, 500);
+    {% endif %}
+
     $(window).bind('beforeunload', function(e) {
       scope = $('html').scope();
       if (scope && scope.saving) {
@@ -271,7 +277,7 @@
 
       .languages{ng-show:'languages.length > 1 && flow.base_language && (flow.action_sets.length + flow.rule_sets.length) > 0'}
         <span ng-repeat="lang in languages">
-          <a href="javascript:void(0);" class='language' ng-class='{active:lang.iso_code == language.iso_code}' ng-click="setLanguage(lang)">[[lang.name]]</a>
+          <a href="javascript:void(0);" class='language' data-lang='[[lang.iso_code]]' ng-class='{active:lang.iso_code == language.iso_code}' ng-click="setLanguage(lang)">[[lang.name]]</a>
           <span ng-hide='$last'>|</span>
         </span>
 
@@ -608,6 +614,15 @@
 
             .title.passive.subflow-header{ng-show:'ruleset.ruleset_type=="subflow"'}
               -trans "Run Flow"
+
+            .title.passive.shorten-header{ng-show:'ruleset.ruleset_type=="shorten_url"'}
+              -trans "Shorten Trackable Link"
+
+            .title.passive.lookup-header{ng-show:'ruleset.ruleset_type=="lookup"'}
+              -trans "Lookup"
+
+            .title.passive.giftcard-header{ng-show:'ruleset.ruleset_type=="giftcard"'}
+              -trans "Gift Card"
 
             .remove-warning
               Remove Rules?

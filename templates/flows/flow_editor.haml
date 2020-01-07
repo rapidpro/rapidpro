@@ -253,7 +253,7 @@
 
       .languages{ng-show:'languages.length > 1 && flow.base_language && (flow.action_sets.length + flow.rule_sets.length) > 0'}
         <span ng-repeat="lang in languages">
-          <a href="javascript:void(0);" class='language' ng-class='{active:lang.iso_code == language.iso_code}' ng-click="setLanguage(lang)">[[lang.name]]</a>
+          <a href="javascript:void(0);" class='language' data-lang="[[lang.iso_code]]" ng-class='{active:lang.iso_code == language.iso_code}' ng-click="setLanguage(lang)">[[lang.name]]</a>
           <span ng-hide='$last'>|</span>
         </span>
 
