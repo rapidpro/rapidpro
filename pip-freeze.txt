@@ -65,6 +65,7 @@ numpy==1.17.2
 oauthlib==2.0.2           # via requests-oauthlib
 openpyxl==2.5.14
 packaging==19.0
+pdfkit==0.6.1
 pandas==0.22
 phonenumbers
 pip-tools==3.7.0

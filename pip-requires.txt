@@ -34,6 +34,7 @@ pyexcel-xls
 pyexcel-xlsx
 python-magic
 xlsxlite
+pdfkit
 
 ########################## misc ##########################
 antlr4-python3-runtime
