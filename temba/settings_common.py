@@ -127,7 +127,7 @@ TESTFILES_DIR = os.path.join(PROJECT_DIR, "../testfiles")
 STATICFILES_DIRS = (
     os.path.join(PROJECT_DIR, "../static"),
     os.path.join(PROJECT_DIR, "../media"),
-    os.path.join(PROJECT_DIR, "../node_modules/@nyaruka/flow-editor/build"),
+    os.path.join(PROJECT_DIR, "../node_modules/@greatnonprofits-nfp/flow-editor/build"),
     os.path.join(PROJECT_DIR, "../node_modules/react/umd"),
     os.path.join(PROJECT_DIR, "../node_modules/react-dom/umd"),
 )
@@ -251,6 +251,7 @@ INSTALLED_APPS = (
     "temba.values",
     "temba.airtime",
     "temba.sql",
+    "temba.links",
 )
 
 # the last installed app that uses smartmin permissions
@@ -428,10 +429,12 @@ PERMISSIONS = {
         "simulate",
         "upload_action_recording",
         "upload_media_action",
+        "pdf_export",
         "lookups_api",
         "giftcards_api",
     ),
     "flows.flowsession": ("json",),
+    "links.link": ("archived", "read", "history", "export", "api"),
     "msgs.msg": (
         "api",
         "archive",
@@ -635,6 +638,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "templates.template_api",
+        "links.link.*",
         "triggers.trigger.*",
     ),
     "Editors": (
@@ -730,6 +734,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "templates.template_api",
+        "links.link.*",
         "triggers.trigger.*",
     ),
     "Viewers": (
@@ -775,6 +780,7 @@ GROUP_PERMISSIONS = {
         "flows.flow_revisions",
         "flows.flow_run_table",
         "flows.flow_simulate",
+        "flows.flow_pdf_export",
         "msgs.broadcast_schedule_list",
         "msgs.broadcast_schedule_read",
         "msgs.msg_archived",
@@ -788,6 +794,11 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "links.link_export",
+        "links.link_archived",
+        "links.link_history",
+        "links.link_list",
+        "links.link_read",
         "triggers.trigger_archived",
         "triggers.trigger_list",
     ),
@@ -1124,13 +1135,13 @@ ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 # Maximum active ContactFields users can have in an Org
 MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
 
+# Firebase Dynamic Links configuration
+FDL_API_KEY = "FirebaseDynamicLinkAPIKey"
+FDL_URL = "FirebaseDynamicLinkURL"
+
 # Parse configuration
 PARSE_SERVER_NAME = ""
 PARSE_URL = ""
 PARSE_APP_ID = ""
 PARSE_REST_KEY = ""
 PARSE_MASTER_KEY = ""
-
-# Firebase Dynamic Links configuration
-FDL_API_KEY = ""
-FDL_URL = ""

@@ -1,0 +1,301 @@
+-extends "smartmin/read.html"
+
+-load smartmin compress temba
+-load i18n humanize
+
+-block buttons
+
+-block page-title
+  {{ link.name }}
+
+-block title
+  .medium-help.icon-easy{style:"float:left"}
+  %h2.header-margin
+    {{ link.name }}
+
+  %h5.header-margin{style:"margin-bottom: 10px"}
+    .link-destination
+      %span.link-destination
+        {{ link.destination }}
+
+-block above-bar
+  -block top-form
+    %form.search{method:'get'}
+      %input.input-medium.search-query{'type':'text', 'placeholder':'{% trans "Search" %}', 'name':"search", 'value':"{{ request.GET.search }}"}
+
+    - if org_perms.links.link_update or org_perms.links.link_export
+      #gear-container
+        %span.btn-group.gear-menu
+          %button.btn.dropdown-toggle{'data-toggle': 'dropdown', 'data-original-title': '', 'title': ''}
+            %div.glyph.icon-cog
+            %span.caret
+          %ul.dropdown-menu.label-menu{'role': 'menu', 'aria-labelledby': 'dlabel'}
+            - if org_perms.links.link_update
+              %li.dynamic-item
+                %a{'href': '#', 'data-success-url': '', 'class': 'update-link', 'data-original-title': '', 'title': ''}
+                  -trans "Edit"
+            -if org_perms.links.link_export
+              %li.dynamic-item
+                %a{'href': '{% url "links.link_export" link.pk %}', 'data-success-url': '', 'class': 'posterize'}
+                  -trans "Export"
+              
+
+-block read-buttons
+
+-block content
+
+  // Needed for table wrapping on IE 9
+  <!--[if IE]>
+  <style>
+    table.activity { table-layout: fixed; }
+  </style>
+  <![endif]-->
+
+  %h5
+    -trans "Contacts"
+  %table.activity.history{style:'padding:0;margin:0'}
+
+    %tr.poll{ ic-src:"/link/history/{{link.uuid}}/?after={{recent_start}}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}",
+              ic-trigger-on:"scrolled-into-view",
+              ic-poll:"5s",
+              ic-target:"table .recent",
+              ic-poll-repeats:"30" }
+
+    %tbody.recent
+
+    // trigger the first batch of previous messages
+    %tr{ ic-append-from:"/link/history/{{link.uuid}}/?before={{recent_start}}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}",
+         ic-trigger-on:"scrolled-into-view",
+         ic-target:"table .previous",
+         ic-indicator:"#indicator" }
+
+    %tbody.previous
+
+  #indicator{style:"display:none"}
+    .loader
+
+
+-block extra-less
+  -compress css
+
+    {% lessblock %}
+      :plain
+
+        @media (max-width: 1380px) {
+          #gear-container {
+            .gear-menu {
+              .btn {
+                padding: 8px 10px;
+              }
+            }
+          }
+        }
+
+        .icon-user {
+          color: #999;
+        }
+
+        form.search {
+          display: inline-block;
+        }
+
+        input.search-query {
+          margin: 0;
+
+          @media (max-width: 1380px) {
+            width: 160px !important;
+          }
+          @media (max-width: 1120px) {
+            width: 118px !important;
+          }
+        }
+
+        .show-all {
+          margin-top:-10px;
+          margin-right:18px;
+          color: #d1d1d1;
+
+          &.expanded {
+            .icon-arrow-down {
+              .rotate(2);
+            }
+          }
+          .icon-arrow-down {
+            margin-top:2px;
+            margin-right: 3px;
+          }
+
+          &:hover {
+            color: #c1c1c1;
+            cursor: pointer;
+          }
+        }
+
+        table.activity {
+          tr.since {
+            border-bottom: none;
+            td {
+              text-align:center;
+              border-top: 1px solid @color-bg-grey + #555;
+              padding-top:15px;
+
+              .date {
+                border:0px solid red;
+              }
+
+              .btn {
+                margin-top:15px;
+              }
+            }
+          }
+
+          tr.end-call {
+            background: #ddd;
+            color: #000;
+            td {
+              text-align:center;
+              padding: 5px;
+            }
+          }
+
+          width: 100%;
+          margin-bottom: 20px;
+          border-collapse: collapse;
+
+          &.pending {
+            color: #ccc;
+
+            tr.non-msg {
+              background: inherit;
+            }
+
+            .icon {
+              .glyph.icon-bubble-right, .glyph.icon-tree-2 {
+                color: #ddd;
+              }
+              text-align:center;
+            }
+
+            a {
+              color: #ddd;
+            }
+          }
+
+          tr {
+            border-top: 1px solid #f3f3f3;
+            border-bottom: 1px solid #f3f3f3;
+            width: 100%;
+
+            &.contact {
+              td.icon {
+                .icon-bubble-right, .icon-bubble-check, .icon-bubble-double-check, .icon-bullhorn, .icon-call-outgoing {
+                  color: @color-status-green;
+                }
+
+                .icon-bubble-user, .icon-call-incoming {
+                  color: @color-primary;
+                }
+
+                .icon-bubble-notification {
+                  color: @color-status-failed;
+                }
+              }
+            }
+
+            &.non-msg {
+              background: #fafafa;
+
+              .icon {
+                color: rgba(0, 0, 0, 0.20);
+              }
+            }
+          }
+
+          td {
+            vertical-align:middle;
+            padding: 2px 20px;
+
+            &.icon {
+              border: 0px solid;
+              width: 30px;
+              padding: 2px 0px;
+              padding-left: 10px;
+              text-align: center;
+
+              .glyph {
+                margin-top:16px;
+                font-size:14px;
+                line-height:0;
+                color: rgba(0,0,0,.20);
+                padding: 5px;
+              }
+            }
+          }
+
+          .created_on {
+            width: 180px;
+            font-size:13px;
+            line-height:13px;
+            border: 0px solid;
+            text-align:right;
+
+            .repeats {
+              font-size:90%;
+            }
+          }
+
+          .details {
+            border: 0px solid;
+            padding: 14px;
+
+            .summary {
+              font-size:11px;
+              font-weight:500;
+              line-height:10px;
+              color: @flat-grey;
+            }
+          }
+        }
+
+        .contact-urn {
+          display: inline-block;
+          margin-right: 10px;
+
+          .glyph {
+            margin-right: 3px;
+          }
+        }
+
+    {% endlessblock %}
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    var startTime = null;
+
+    $(document).ready(function() {
+      $('.time').live('mouseover', function() {
+        $(this).children('.long').show();
+        $(this).children('.short').hide();
+      }).live('mouseleave', function() {
+        $(this).children('.short').show();
+        $(this).children('.long').hide();
+      });
+    });
+
+    function refreshRecents(){
+      Intercooler.triggerRequest($('tr.poll'));
+   }
+
+  %script
+
+    {% if org_perms.contacts.contact_update %}
+    $(".update-link").live('click', function(){
+      var modal = new Modax('{% trans "Update Link" %}','{% url "links.link_update" object.pk %}');
+      modal.setIcon('icon-easy');
+      modal.setRedirectOnSuccess(true);
+      modal.show();
+    });
+
+    {% endif %}

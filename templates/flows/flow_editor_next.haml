@@ -185,7 +185,9 @@
         simulateStart: '/flow/simulate/{{object.id}}/',
         simulateResume: '/flow/simulate/{{object.id}}/',
         
-        lookups: '/flow/lookups_api',
+        lookups: '/flow/lookups_api/',
+        giftcard: '/flow/giftcards_api/',
+        link: '/link/api/',
       }
     };
 
@@ -204,6 +206,16 @@
       modal.show();
     });
     {% endif %}
+
+    $('a.pdf_export_next_submit').on('click', function() {
+      var txt;
+      var r = confirm("{% trans 'Please note that if your flow is very large, this might cause some problems in generating the PDF. Do you want to continue?' %}");
+      if (r == true) {
+        var currentLang = $('.languages').find('.active');
+        $('#pdf_export_lang').val(currentLang.data('lang'));
+        $('form.pdf_export_next').submit();
+      }
+    });
 
     // Starting the flow
     {% if org_perms.msgs.broadcast_send %}
@@ -256,6 +268,10 @@
   -include "msgs/msg_send_modal.html"
   -include "delete_modal_include.html"
 
+  %form{method:'POST', class:'pdf_export_next hide'}
+    -csrf_token
+    %input{type:'hidden', id:'pdf_export_lang', name:'pdf_export_lang'}
+
   #toolbar
     .actions.pull-right
       -include "gear_links_include.haml"
@@ -268,4 +284,3 @@
 
   #rp-flow-editor
     %img{src:"{{STATIC_URL}}/images/loader-circles.gif", style:"position: relative; left: 20px; top: 4px; margin: 0 auto"}
-

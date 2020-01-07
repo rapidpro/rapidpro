@@ -156,3 +156,18 @@ MAILROOM_URL = os.environ.get("MAILROOM_URL", "http://localhost:8090")
 MAILROOM_AUTH_TOKEN = os.environ.get("MAILROOM_AUTH_TOKEN", "")
 
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
+
+MSG_FIELD_SIZE = int(os.environ.get("MSG_FIELD_SIZE", 640))
+VALUE_FIELD_SIZE = int(os.environ.get("VALUE_FIELD_SIZE", 640))
+FLOWRUN_FIELDS_SIZE = int(os.environ.get("FLOWRUN_FIELDS_SIZE", 256))
+
+# Firebase Dynamic Links configuration
+FDL_API_KEY = os.environ.get("FDL_API_KEY", "")
+FDL_URL = os.environ.get("FDL_URL", "")
+
+# Parse configuration
+PARSE_SERVER_NAME = os.environ.get("PARSE_SERVER_NAME", "")
+PARSE_URL = os.environ.get("PARSE_URL", "")
+PARSE_APP_ID = os.environ.get("PARSE_APP_ID", "")
+PARSE_REST_KEY = os.environ.get("PARSE_REST_KEY", "")
+PARSE_MASTER_KEY = os.environ.get("PARSE_MASTER_KEY", "")

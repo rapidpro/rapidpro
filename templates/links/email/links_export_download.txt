@@ -1,0 +1,15 @@
+{% load tz %}
+{% load i18n %}
+
+{% blocktrans with brand=branding.name %}
+Hi there!
+
+Your trackable link export is ready.
+
+Download your file here:
+{% endblocktrans %}
+{{ link }}
+
+{% trans "Thanks," %}
+
+{% blocktrans with brand=branding.name %}The {{ brand }} Team {% endblocktrans %}

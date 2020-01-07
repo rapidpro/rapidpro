@@ -160,6 +160,8 @@ def import_data_to_parse(
             if not methods:
                 return
             queries, callbacks = list(zip(*[m(batch=True) for m in methods]))
+            for query in queries:
+                query["path"] = f"{query['path']}".replace("/1/", "/")
             response = requests.post(parse_batch_url, data=json.dumps(dict(requests=queries)), headers=parse_headers)
             if response.status_code == 200:
                 for item in response.json():
@@ -176,6 +178,8 @@ def import_data_to_parse(
         if not methods:
             return
         queries, callbacks = list(zip(*[m(batch=True) for m in methods]))
+        for query in queries:
+            query["path"] = f"{query['path']}".replace("/1/", "/")
         response = requests.post(parse_batch_url, data=json.dumps(dict(requests=queries)), headers=parse_headers)
         if response.status_code == 200:
             for item in response.json():

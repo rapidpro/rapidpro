@@ -12,6 +12,24 @@
   -compress css
     {% lessblock %}
       :plain
+
+        body, html {
+          margin: 0;
+          padding: 0;
+        }
+
+        #flow {
+          height: auto !important;
+        }
+
+        #flow .node.action-node .action, #flow .node.rule-node .rules .rule {
+          color: #333 !important;
+        }
+
+        .print-header, .logo, #header, #big-logo, ul#top-menu, .org-header, .languages, #show-simulator {
+          display: none;
+        }
+
         .empty {
           margin-left: 30px;
 
@@ -164,6 +182,12 @@
       }, 100)
     });
 
+    {% if pdf_export_lang %}
+      window.setInterval(function(){
+        $('[data-lang="{{pdf_export_lang}}"]').click();
+      }, 500);
+    {% endif %}
+
     $(window).bind('beforeunload', function(e) {
       scope = $('html').scope();
       if (scope && scope.saving) {
@@ -253,7 +277,7 @@
 
       .languages{ng-show:'languages.length > 1 && flow.base_language && (flow.action_sets.length + flow.rule_sets.length) > 0'}
         <span ng-repeat="lang in languages">
-          <a href="javascript:void(0);" class='language' data-lang="[[lang.iso_code]]" ng-class='{active:lang.iso_code == language.iso_code}' ng-click="setLanguage(lang)">[[lang.name]]</a>
+          <a href="javascript:void(0);" class='language' data-lang='[[lang.iso_code]]' ng-class='{active:lang.iso_code == language.iso_code}' ng-click="setLanguage(lang)">[[lang.name]]</a>
           <span ng-hide='$last'>|</span>
         </span>
 

@@ -85,43 +85,61 @@
   </style>
   <![endif]-->
 
-  .contact-fields
-    .featured
-      .contact-field
-        .contact-field-label
-          -trans "Created On"
-
-        .contact-field-value
-          {% pretty_datetime contact.created_on %}
-
-      -if contact_language
+  - if all_contact_fields
+    .contact-fields
+      .featured
         .contact-field
           .contact-field-label
-            -trans "Language"
+            -trans "Created On"
 
           .contact-field-value
-            {{contact_language}}
+            {% pretty_datetime contact.created_on %}
 
-      -for field in all_contact_fields|slice:":6"
-        .contact-field{data-id:'{{field.id}}'}
-          .contact-field-label
-            {{field.label|title}}
+        -if contact_language
+          .contact-field
+            .contact-field-label
+              -trans "Language"
 
-          .contact-field-value.editable
-            {{field.value}}
+            .contact-field-value
+              {{contact_language}}
 
-    .normal.hide
-      -for field in all_contact_fields|slice:"6:"
-        .contact-field{data-id:'{{field.id}}'}
-          .contact-field-label
-            {{field.label|title}}
+        -for field in all_contact_fields|slice:":6"
+          .contact-field{data-id:'{{field.id}}'}
+            .contact-field-label
+              {{field.label|title}}
 
-          .contact-field-value.editable
-            {{field.value}}
+            .contact-field-value.editable
+              {{field.value}}
+
+      .normal.hide
+        -for field in all_contact_fields|slice:"6:"
+          .contact-field{data-id:'{{field.id}}'}
+            .contact-field-label
+              {{field.label|title}}
+
+            .contact-field-value.editable
+              {{field.value}}
 
   -if all_contact_fields|length > 6
     %a.pull-right.show-all.fields
       .icon-arrow-down
+  // Quick send message, chat style
+  -if org_perms.msgs.broadcast_send and not contact.is_blocked and not contact.is_stopped
+    #msg-box 
+      %h5
+        -trans "Compose message"
+      -if send_channel
+        %form#send
+          {% csrf_token %}
+          %input#id_text.form-control{type:"text"}
+          %button#id_send.btn.btn-primary{type:"submit"}
+            -trans "Send"
+      -else
+        -blocktrans with name=brand.name
+          To get started you need to add a channel to your account. A channel is a phone number or social network
+          account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
+          Android phone and your own cell phone plan, or we can connect you with a service provider in your country
+          directly.
 
   -if upcoming_events
     %h5
@@ -169,6 +187,7 @@
     -if upcoming_events|length > 3
       %a.pull-right.show-all.upcoming
         more
+  
 
   %h5
     -trans "Message History"
@@ -273,6 +292,12 @@
             }
           }
 
+          tr.in {
+            background-color: rgba(86, 157, 155, 0.2);
+            font-style: italic;
+          }
+
+
           tr.end-call {
             background: #ddd;
             color: #000;
@@ -366,6 +391,7 @@
             line-height:13px;
             border: 0px solid;
             text-align:right;
+            white-space: nowrap;
 
             .repeats {
               font-size:90%;
@@ -441,6 +467,47 @@
           }
         }
 
+        .page-content{
+          position:relative;
+        }
+
+        #msg-box{
+          background-color: #fff;
+          width: inherit;
+          position: -webkit-sticky; /* Safari */
+          position: sticky;
+          z-index: 1000;
+          top: 0;
+          padding-bottom: 10px;
+        }
+
+        #send {
+          margin: 0 0 5px 0;
+          width: inherit;
+          position: relative;
+
+          input[type='text'] {
+            resize: none;
+            display: block;
+            width: 100%;
+            height: 50px;
+            padding: 0 100px 0 10px;
+            margin-right: 15px;
+            box-sizing: border-box;
+            -moz-box-sizing: border-box;
+            -webkit-box-sizing: border-box;
+          }
+
+          button {
+            position: absolute;
+            top: 0;
+            right: 0;
+            height: 50px;
+          }
+        }
+        td.created_on .time {
+            margin-right: 40px !important;
+        }
     {% endlessblock %}
 
 -block extra-script
@@ -534,20 +601,99 @@
 
 
     {% if org_perms.msgs.broadcast_send %}
-    $('#send').submit(function(){
-      var $textarea = $('#id_text');
+    // Declare dom vars
+    var $msg_input_obj = $('#id_text');
+    var $msg_submit_btn = $('#id_send');
 
-      if(!$textarea.val()) {
-        $textarea.css({'border':'1px solid #da4f49', 'color':'#da4f49'});
+    $('#send').submit(function(e){
+      e.preventDefault();
+      $msg_submit_btn.text('{% trans "Sending..." %}').addClass("disabled");
+      $('.failed').remove();
+      $('.succeeded').remove();
+
+      if(!$msg_input_obj.val()) {
+        $msg_input_obj.css({'border':'1px solid #da4f49', 'color':'#da4f49'});
         $('.failed').remove();
         $('{% trans "<p>This field is required, please fill in the message to send out</p>" %}').insertAfter("#id_send").addClass('failed');
+        $msg_submit_btn.text('{% trans "Send" %}').removeClass("disabled");
         return false;
-      } else if($textarea.val().length > 160) {
+      } else if($msg_input_obj.val().length > 160) {
         $('.failed').remove();
-        $textarea.css({'border':'1px solid #da4f49', 'color':'#da4f49'});
-        $('{%trans "<p>Ensure this value has at most 160 characters (it has " %}' + $textarea.val().length + ') </p> ').insertAfter("#id_send").addClass('failed');
+        $msg_input_obj.css({'border':'1px solid #da4f49', 'color':'#da4f49'});
+        $('{%trans "<p>Ensure this value has at most 160 characters (it has " %}' + $msg_input_obj.val().length + ') </p> ').insertAfter("#id_send").addClass('failed');
+        $msg_submit_btn.text('{% trans "Send" %}').removeClass("disabled");
         return false;
       } else {
+        var form = $('#send');
+        var post = "{% url 'msgs.broadcast_send' %}?_format=json";
+
+        if (window.simulation) {
+          post = post + "&simulation=true"
+        }
+
+        var data = {
+          step_node: null,
+          schedule: null,
+          text: form.find("#id_text").val(),
+          csrfmiddlewaretoken: form.find("[name='csrfmiddlewaretoken']").val(),
+          omnibox: "c-{{ contact.uuid }}"
+        };
+
+        $.post(post, data, function(data, textStatus, b, c) {
+          fetchPJAXContent(".", "#pjax", { forceReload:true });
+
+          $msg_input_obj.val('');
+
+          // make sure we arent showing any previous errors
+          $('.failed').remove();
+          $msg_input_obj.css({'border':'auto', 'color':'auto'});
+
+          $msg_submit_btn.text('{% trans "Send" %}').removeClass("disabled");
+          $msg_submit_btn.after("<div class=succeeded>{% trans "Sent." %}</div>");
+
+          return true;
+          window.location.href = data.redirect;
+
+        }).fail(function(data, textStatus) {
+          // uh oh, we couldnt post, check for errors to show the user
+
+          if(data.status != 200){
+            // console.log(data);
+            $msg_submit_btn.after("<div class=failed>" + data.responseText + "</div>");
+            return false;
+          }
+
+          response = $.parseJSON(data.responseText);
+
+          // make sure we arent showing any previous errors
+          $('.failed').remove();
+
+          // show the non-field errors first
+          for (msg in response.errors['__all__']) {
+            $msg_submit_btn.after("<div class=failed>" + response.errors['__all__'][msg] + "</div>");
+          }
+
+          // look through our fielded errors and show them in the form
+          for (var error in response.errors) {
+            var msgs = response.errors[error];
+            for (var msg in msgs) {
+
+              var id = "#id_" + error;
+              if (error == "text") {
+                id = "#counter";
+              }
+
+              $(id).after("<div class=failed id=" + error + "_error>" + msgs[msg] + "</div>");
+            }
+          }
+
+          // re-enable our send button, so they can try again
+          $msg_submit_btn.text('{% trans "Send" %}').removeClass("disabled");
+          return false;
+
+        });
+
+        $msg_submit_btn.text('{% trans "Send" %}').removeClass("disabled");
         return true;
       }
     });

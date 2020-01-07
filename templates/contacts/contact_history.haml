@@ -1,7 +1,7 @@
 -load contacts humanize smartmin temba i18n sms
 
 -for item in activity
-  %tr{class:"{{item|history_class}}"}
+  %tr{class:"{{item|history_class}}{% if item.obj.direction == 'I' %} in{% endif %}"}
     %td.icon
       %span.det{title:'{% if item.obj.channel %}{{item.obj.channel.get_channel_type_name}} {{item.obj.channel.get_name}}{% endif %}'}
         {{item|activity_icon}}

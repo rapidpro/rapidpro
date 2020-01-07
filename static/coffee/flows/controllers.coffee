@@ -978,6 +978,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   formData = {}
   formData.resthook = ""
+  formData.shorten_url = ""
   formData.giftcard_db = ""
 
   if options.nodeType == 'rules' or options.nodeType == 'ivr'
@@ -1060,6 +1061,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     ruleset.rules[0].category[Flow.flow.base_language] = 'All Responses'
 
   formData.timeoutOptions = [
+    {value:0.166667, text:'10 seconds'},
+    {value:0.333333, text:'20 seconds'},
+    {value:0.5, text:'30 seconds'},
+    {value:0.75, text:'45 seconds'},
     {value:1, text:'1 minute'},
     {value:2, text:'2 minutes'},
     {value:3, text:'3 minutes'},
@@ -1807,6 +1812,14 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
       else if rulesetConfig.type == 'resthook'
         ruleset.config = {'resthook': splitEditor.resthook.selected[0]['id']}
+
+      else if rulesetConfig.type == 'shorten_url'
+        ruleset.config = {
+          'shorten_url': {
+            'text': splitEditor.shorten_url.selected[0]['text'],
+            'id': splitEditor.shorten_url.selected[0]['id']
+          }
+        }
 
       else if rulesetConfig.type == 'giftcard'
         ruleset.config = {

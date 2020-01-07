@@ -756,7 +756,7 @@ table.list-table {
 #top-menu {
   //border: 1px solid purple;
   position: absolute;
-  width: 600px;
+  width: auto;
   z-index: 1025;
   height: 60px;
   top: 38px;
@@ -1201,17 +1201,40 @@ table.list-table {
       }
 
       &.icon-nav-help-inverted {
-        &:before {
-          content: "\e90e";
+        &.active:before {
+          content: "\e90f";
         }
-      }
-
-      &.icon-nav-help {
-        &:before {
+        &:hover:before {
           content: "\e90f";
         }
       }
 
+      &.icon-nav-help {
+        &.active:before {
+          content: "\e90e";
+        }
+        &:hover:before {
+          content: "\e90e";
+        }
+      }
+
+      &.icon-nav-hand-inverted {
+        &.active:before {
+          content: "\e911";
+        }
+        &:hover:before {
+          content: "\e911";
+        }
+      }
+
+      &.icon-nav-hand {
+        &.active:before {
+          content: "\e911";
+        }
+        &:hover:before {
+          content: "\e911";
+        }
+      }
     }
   }
 
@@ -1220,7 +1243,7 @@ table.list-table {
     text-align: right;
     left: 0;
     top: 110px;
-    width: 350px;
+    width: 100%;
     text-align: left;
     padding: 0;
 

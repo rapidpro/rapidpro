@@ -82,6 +82,22 @@
         %span.custom-tooltip-description
           -trans "Create triggers throughout messaging flows."
 
+  -if org_perms.links.link_list and not request.user.is_superuser
+    %li.nav-trackable-links
+      %a.icon-nav-hand{href:"{% url 'links.link_list' %}", class:"{% active request 'link' %}"}
+        .title
+          -trans "trackable links"
+      %div.custom-tooltip
+        %div.custom-tooltip-arrow
+        %span.custom-tooltip-icon
+          %div.around
+            %i.icon-nav-hand-inverted
+        %span.custom-tooltip-title
+          -trans "Trackable Links"
+        %div.custom-tooltip-separator
+        %span.custom-tooltip-description
+          -trans "Track your links and know how many clicks you get"
+
   -if org_perms.channels.channel_list or request.user.is_superuser
     -if not has_outgoing_channel and org_perms.channels.channel_claim
       %li.nav-channels

@@ -816,3 +816,9 @@
 .icon-nav-help:before {
   content: "\e90f";
 }
+.icon-nav-hand-inverted:before {
+  content: "\e911";
+}
+.icon-nav-hand:before {
+  content: "\e912";
+}
