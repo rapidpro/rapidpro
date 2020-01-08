@@ -88,5 +88,3 @@ warnings.filterwarnings(
 # Make our sitestatic URL be our static URL on development
 # -----------------------------------------------------------------------------------
 STATIC_URL = "/sitestatic/"
-
-INSTALLED_APPS = INSTALLED_APPS + ('textit.internal',)
