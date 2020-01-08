@@ -1,3 +1,7 @@
+v5.3.28
+----------
+ * remove auto-now on modified_on on FlowRun
+
 v5.3.27
 ----------
  * Update to floweditor 1.7.9
