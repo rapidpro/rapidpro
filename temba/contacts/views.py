@@ -1100,7 +1100,12 @@ class ContactCRUDL(SmartCRUDL):
 
             if self.has_org_perm("msgs.broadcast_send") and not self.object.is_blocked and not self.object.is_stopped:
                 links.append(
-                    dict(title=_("Send Message"), style="btn-primary", href="#", js_class="contact-send-button")
+                    dict(
+                        id="send-message",
+                        title=_("Send Message"),
+                        href=f"{reverse('msgs.broadcast_send')}?c={self.object.uuid}",
+                        modax=_("Send Message"),
+                    )
                 )
 
             if self.has_org_perm("contacts.contact_update"):

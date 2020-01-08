@@ -3,7 +3,7 @@ from django.forms import ValidationError, widgets
 
 from temba.utils import json
 
-from .models import URN, Contact, ContactGroup, ContactURN
+from .models import Contact, ContactGroup, ContactURN
 
 
 class OmniboxWidget(widgets.TextInput):
@@ -14,21 +14,13 @@ class OmniboxWidget(widgets.TextInput):
         group_uuids = []
         contact_uuids = []
         urn_ids = []
-        raw_numbers = []
 
-        item_lists = {"g": group_uuids, "c": contact_uuids, "u": urn_ids, "n": raw_numbers}
+        item_lists = {"g": group_uuids, "c": contact_uuids, "u": urn_ids}
 
         ids = spec.split(",") if spec else []
         for item_id in ids:
             item_type, item_id = item_id.split("-", 1)
             item_lists[item_type].append(item_id)
-
-        # turn our raw numbers into new contacts with tel URNs for orgs that aren't anonymous
-        if not org.is_anon:
-            for number in raw_numbers:
-                urn = URN.from_tel(number)
-                contact, urn_obj = Contact.get_or_create(org, urn, user=user)
-                urn_ids.append(urn_obj.pk)
 
         groups = ContactGroup.user_groups.filter(uuid__in=group_uuids, org=org)
         contacts = Contact.objects.filter(uuid__in=contact_uuids, org=org, is_active=True)

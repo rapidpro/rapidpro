@@ -45,7 +45,7 @@ install:
   - ./elasticsearch-${ES_VERSION}/bin/elasticsearch &
 
   # install mailroom
-  - MAILROOM_VERSION=5.3.5
+  - MAILROOM_VERSION=5.3.12
   - wget https://github.com/nyaruka/mailroom/releases/download/v${MAILROOM_VERSION}/mailroom_${MAILROOM_VERSION}_linux_amd64.tar.gz
   - tar -xvf mailroom_${MAILROOM_VERSION}_linux_amd64.tar.gz mailroom
 
@@ -103,10 +103,8 @@ script:
   - python manage.py makemessages -d djangojs -a --ignore="env/*" --ignore="static/bower/*" --ignore="static/components/*" --ignore="node_modules/*" --no-location --no-wrap
   - python manage.py makemessages -d djangojs -a --ignore="env/*" --ignore="static/bower/*" --ignore="static/components/*" --ignore="node_modules/*" --no-location --no-wrap | awk '/warning/ { print "makemessages for djangojs contains warnings"; exit 1 }'
 
-  # fail if there are locale changes (besides changes to the creation date header and fuzzy comments)
-  - git diff -G '(POT-Creation-Date|fuzzy)' locale/ > allowed_changes.diff
-  - git diff locale/ > all_changes.diff
-  - diff -q allowed_changes.diff all_changes.diff || (echo 'Make messages needs to be rerun, see travis.yml for command.' && exit 1)
+  # fail if there are locale changes (we only care about changes to msgids)
+  - (! git diff -U0 locale/ | grep -e "^[+\-]msgid") || (echo 'Make messages needs to be rerun, see travis.yml for command.' && exit 1)
 
   # check for model changes not reflected in a migration
   - python manage.py makemigrations --settings=temba.settings_travis --dry-run | grep 'No changes detected' || (echo 'There are changes which require migrations.' && exit 1)

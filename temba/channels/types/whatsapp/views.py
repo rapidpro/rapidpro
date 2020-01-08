@@ -91,7 +91,14 @@ class SyncLogsView(OrgPermsMixin, SmartReadView):
 
         # include all our http sync logs as well
         context["sync_logs"] = (
-            HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, channel=self.object)
+            HTTPLog.objects.filter(
+                log_type__in=[
+                    HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
+                    HTTPLog.WHATSAPP_TOKENS_SYNCED,
+                    HTTPLog.WHATSAPP_CONTACTS_REFRESHED,
+                ],
+                channel=self.object,
+            )
             .order_by("-created_on")
             .prefetch_related("channel")
         )

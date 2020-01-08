@@ -25,6 +25,11 @@ class InputWidget(forms.TextInput):
     is_annotated = True
 
 
+class CheckboxWidget(forms.CheckboxInput):
+    template_name = "utils/forms/checkbox.haml"
+    is_annotated = True
+
+
 class SelectWidget(forms.Select):
     template_name = "utils/forms/select.haml"
     is_annotated = True

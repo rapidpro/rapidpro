@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+from requests import RequestException
+
 from django.forms import ValidationError
 from django.urls import reverse
 
@@ -139,29 +141,33 @@ class WhatsAppTypeTest(TembaTest):
 
         with patch("requests.post") as mock_post:
             mock_post.side_effect = [MockResponse(200, '{ "error": false }')]
+            self.assertFalse(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_CONTACTS_REFRESHED, is_error=False))
             self.create_contact("Joe", urn="whatsapp:250788382382")
             self.client.post(refresh_url)
 
             self.assertEqual(mock_post.call_args_list[0][1]["json"]["contacts"], ["+250788382382"])
+            self.assertTrue(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_CONTACTS_REFRESHED, is_error=False))
 
         with patch("requests.post") as mock_post:
             mock_post.side_effect = [MockResponse(400, '{ "error": true }')]
-            try:
-                refresh_whatsapp_contacts(channel.id)
-                self.fail("Should have thrown exception")
-            except Exception:
-                pass
+            self.assertFalse(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_CONTACTS_REFRESHED, is_error=True))
+            refresh_whatsapp_contacts(channel.id)
+            self.assertTrue(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_CONTACTS_REFRESHED, is_error=True))
 
         # and fetching new tokens
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc345"}]}')
+            self.assertFalse(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED, is_error=False))
             refresh_whatsapp_tokens()
+            self.assertTrue(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED, is_error=False))
             channel.refresh_from_db()
             self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
 
         with patch("requests.post") as mock_post:
             mock_post.side_effect = [MockResponse(400, '{ "error": true }')]
+            self.assertFalse(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED, is_error=True))
             refresh_whatsapp_tokens()
+            self.assertTrue(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED, is_error=True))
             channel.refresh_from_db()
             self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
 
@@ -212,6 +218,40 @@ class WhatsAppTypeTest(TembaTest):
                 "id": "9012"
               },
               {
+                "name": "workout_activity",
+                "components": [
+                  {
+                    "type": "HEADER",
+                    "text": "Workout challenge week {{2}}, {{4}} extra points!"
+                  },
+                  {
+                    "type": "BODY",
+                    "text": "Hey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people."
+                  },
+                  {
+                    "type": "FOOTER",
+                    "text": "Remember to drink water."
+                  }
+                ],
+                "language": "en",
+                "status": "PENDING",
+                "category": "ISSUE_RESOLUTION",
+                "id": "9014"
+              },
+              {
+                "name": "invalid_component",
+                "components": [
+                  {
+                    "type": "RANDOM",
+                    "text": "Bonjour {{1}}"
+                  }
+                ],
+                "language": "fr",
+                "status": "APPROVED",
+                "category": "ISSUE_RESOLUTION",
+                "id": "1233"
+              },
+              {
                 "name": "invalid_status",
                 "components": [
                   {
@@ -253,9 +293,9 @@ class WhatsAppTypeTest(TembaTest):
                 params={"access_token": "token123", "limit": 255},
             )
 
-            # should have two templates
-            self.assertEqual(3, Template.objects.filter(org=self.org).count())
-            self.assertEqual(4, TemplateTranslation.objects.filter(channel=channel).count())
+            # should have 4 templates
+            self.assertEqual(4, Template.objects.filter(org=self.org).count())
+            self.assertEqual(5, TemplateTranslation.objects.filter(channel=channel).count())
 
             # hit our template page
             response = self.client.get(reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
@@ -272,6 +312,15 @@ class WhatsAppTypeTest(TembaTest):
             self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
             self.assertEqual("goodbye (eng) P: Goodbye {{1}}, see you on {{2}}. See you later {{1}}", str(ct))
 
+            ct = TemplateTranslation.objects.get(template__name="workout_activity", is_active=True)
+            self.assertEqual(4, ct.variable_count)
+            self.assertEqual(
+                "Workout challenge week {{2}}, {{4}} extra points!\n\nHey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people.\n\nRemember to drink water.",
+                ct.content,
+            )
+            self.assertEqual("eng", ct.language)
+            self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
+
             # assert that a template translation was created despite it being in an unknown language
             ct = TemplateTranslation.objects.get(template__name="invalid_language", is_active=True)
             self.assertEqual("kli", ct.language)
@@ -287,7 +336,7 @@ class WhatsAppTypeTest(TembaTest):
             channel.release()
 
         # all our templates should be inactive now
-        self.assertEqual(4, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())
+        self.assertEqual(5, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())
 
     def test_claim_self_hosted_templates(self):
         Channel.objects.all().delete()
@@ -352,4 +401,16 @@ class WhatsAppTypeTest(TembaTest):
 
         response = self.client.get(log_url)
         self.assertContains(response, "200")
+        self.assertContains(response, "https://example.org/v3.3/1234/message_templates")
+
+        with patch("requests.get") as mock_get:
+            # use fake response to simulate the exception request
+            # See https://github.com/psf/requests/blob/eedd67462819f8dbf8c1c32e77f9070606605231/requests/exceptions.py#L17
+            mock_get.side_effect = RequestException("Network is unreachable", response=MockResponse(100, ""))
+            refresh_whatsapp_templates()
+
+        sync_log = channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, is_error=True).first()
+        log_url = reverse("request_logs.httplog_read", args=[sync_log.id])
+        response = self.client.get(log_url)
+        self.assertContains(response, "Connection Error")
         self.assertContains(response, "https://example.org/v3.3/1234/message_templates")
