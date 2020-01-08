@@ -401,17 +401,6 @@
     {% endif %}
 
 
-    {% if org_perms.msgs.broadcast_send %}
-    $(".send-button").click(function(){
-      var contactsUuids = getCheckedUuids();
-      if (contactsUuids.length > 0) {
-        showComposeInitialized("c=" + contactsUuids);
-      } else {
-        showCompose();
-      }
-    });
-    {% endif %}
-
     {% if org_perms.contacts.contact_create %}
     $("#add-contact").live('click', function() { showCreateContactModal(); });
     {% endif %}

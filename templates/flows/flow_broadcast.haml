@@ -66,8 +66,8 @@
 
   -else
     -if warnings
-      %rp-alert{level: "warning"}
-        -for warning in warnings
+      -for warning in warnings
+        %rp-alert{level: "warning"}
           %div= warning
 
     .field.start-type

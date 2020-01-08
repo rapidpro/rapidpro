@@ -63,6 +63,9 @@
         return item.text;
     };
 
+    // TODO: showCompose and showComposeInitialized are only used by the legacy editor,
+    // these should be removed when that editor is removed
+
     // show the compose dialog with some contacts prepopulated
     function showComposeInitialized(queryString, url, onComplete) {
       showCompose(true, url, null, null, onComplete);

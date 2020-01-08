@@ -1,0 +1,35 @@
+-extends 'smartmin/form.html'
+
+-load smartmin temba i18n
+
+-block extra-script
+  {{ block.super }}
+
+-block modal-script
+  {{block.super}}
+
+-block modal-extra-style
+  {{ block.super }}
+
+  :css
+    rp-completion {
+      --textarea-height: 110px;
+      margin-bottom: 10px;
+    }
+
+-block fields
+  -if send_channel
+    {{block.super}}
+  -else
+    -blocktrans trimmed with name=brand.name
+      To get started you need to add a channel to your account. A channel is a phone number or social network
+      account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
+      Android phone and your own cell phone plan, or we can connect you with a service provider in your country
+      directly.
+
+-block extra-fields
+  -if recipient_count
+    -blocktrans trimmed count recipient_count as recipients
+      {{recipients}} recipient currently at this step in the flow
+      -plural
+        {{recipients}} recipients currently at this step in the flow
