@@ -1947,7 +1947,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     created_on = models.DateTimeField(default=timezone.now)
 
     # when this run was last modified
-    modified_on = models.DateTimeField(auto_now=True)
+    modified_on = models.DateTimeField(default=timezone.now)
 
     # when this run ended
     exited_on = models.DateTimeField(null=True)
@@ -2055,6 +2055,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         if self.flow.expires_after_minutes:
             self.expires_on = point_in_time + timedelta(minutes=self.flow.expires_after_minutes)
+            self.modified_on = timezone.now()
 
             # save our updated fields
             self.save(update_fields=["expires_on", "modified_on"])
