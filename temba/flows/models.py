@@ -1167,7 +1167,7 @@ class Flow(TembaModel):
         return flow
 
     def get_legacy_metadata(self):
-        exclude_keys = (Flow.METADATA_RESULTS, Flow.METADATA_WAITING_EXIT_UUIDS)
+        exclude_keys = (Flow.METADATA_RESULTS, Flow.METADATA_WAITING_EXIT_UUIDS, Flow.METADATA_PARENT_REFS)
         metadata = {k: v for k, v in self.metadata.items() if k not in exclude_keys}
 
         revision = self.get_current_revision()
@@ -1408,6 +1408,7 @@ class Flow(TembaModel):
                 self.metadata = json_dict.get(Flow.METADATA, {})
                 self.metadata[Flow.METADATA_RESULTS] = flow_info[Flow.INSPECT_RESULTS]
                 self.metadata[Flow.METADATA_WAITING_EXIT_UUIDS] = flow_info[Flow.INSPECT_WAITING_EXITS]
+                self.metadata[Flow.METADATA_PARENT_REFS] = flow_info[Flow.INSPECT_PARENT_REFS]
 
                 if user:
                     self.saved_by = user
