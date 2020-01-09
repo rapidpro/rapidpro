@@ -123,7 +123,7 @@ def import_data_to_parse(
                         except Exception:
                             field_value = None
                     else:
-                        field_value = str(field_value).strip()
+                        field_value = None if str(field_value).strip() in ["nan", "NaN"] else str(field_value).strip()
 
                     payload[fields_map[item].get("name")] = field_value
 
