@@ -158,11 +158,13 @@ class Flow(TembaModel):
     METADATA_RESULTS = "results"
     METADATA_DEPENDENCIES = "dependencies"
     METADATA_WAITING_EXIT_UUIDS = "waiting_exit_uuids"
+    METADATA_PARENT_REFS = "parent_refs"
 
     # items in the response from mailroom flow inspection
     INSPECT_RESULTS = "results"
     INSPECT_DEPENDENCIES = "dependencies"
     INSPECT_WAITING_EXITS = "waiting_exits"
+    INSPECT_PARENT_REFS = "parent_refs"
 
     # items in the flow definition JSON
     DEFINITION_UUID = "uuid"
@@ -1331,6 +1333,7 @@ class Flow(TembaModel):
                 Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
                 Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
                 Flow.METADATA_WAITING_EXIT_UUIDS: flow_info[Flow.INSPECT_WAITING_EXITS],
+                Flow.METADATA_PARENT_REFS: flow_info[Flow.INSPECT_PARENT_REFS],
             }
             self.saved_by = user
             self.saved_on = timezone.now()

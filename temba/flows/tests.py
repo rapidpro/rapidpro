@@ -2115,6 +2115,7 @@ class FlowTest(TembaTest):
                 ],
             )
             self.assertEqual(len(flow.metadata["waiting_exit_uuids"]), 11)
+            self.assertEqual(len(flow.metadata["parent_refs"]), 0)
 
     def test_group_send(self):
         # create an inactive group with the same name, to test that this doesn't blow up our import
