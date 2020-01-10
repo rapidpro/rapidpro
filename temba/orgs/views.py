@@ -2276,6 +2276,13 @@ class OrgCRUDL(SmartCRUDL):
         class LookupsForm(GiftcardsForm):
             def clean_collection(self):
                 new_collection = self.data.get("collection")
+                is_removing = self.data.get("remove", "false") == "true"
+
+                if not is_removing and not regex.match(r"^[A-Za-z0-9_\- ]+$", new_collection, regex.V0):
+                    raise ValidationError(
+                        "Please make sure the collection name only contains "
+                        "alphanumeric characters [0-9a-zA-Z], spaces, underscores and hyphens"
+                    )
 
                 if new_collection in self.instance.get_collections(collection_type=OrgCRUDL.Lookups.collection_type):
                     raise ValidationError("This collection name has already been used")
