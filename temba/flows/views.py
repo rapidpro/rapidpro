@@ -27,7 +27,6 @@ from django.db.models.functions import Lower
 from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.text import slugify
 from django.utils.encoding import force_text
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
