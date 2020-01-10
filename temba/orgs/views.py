@@ -2582,10 +2582,20 @@ class OrgCRUDL(SmartCRUDL):
                             collection_real_name = item
                             break
 
+                # Making sure that Pandas will read the data with the correct type, e.g. string, float
+                col_names = read_csv(import_file, nrows=0).columns
+                import_file.seek(0)
+                types_dict = {}
+                for col_name in col_names.tolist():
+                    if str(col_name).startswith("numeric_"):
+                        types_dict[str(col_name)] = float
+                    else:
+                        types_dict[str(col_name)] = str
+
                 if file_type == "csv":
-                    spamreader = read_csv(import_file, delimiter=",", index_col=False)
+                    spamreader = read_csv(import_file, delimiter=",", index_col=False, dtype=types_dict)
                 else:
-                    spamreader = read_excel(import_file, index_col=False)
+                    spamreader = read_excel(import_file, index_col=False, dtype=str)
 
                 headers = spamreader.columns.tolist()
                 spamreader = spamreader.get_values().tolist()
