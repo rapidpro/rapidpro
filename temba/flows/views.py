@@ -313,7 +313,7 @@ class FlowCRUDL(SmartCRUDL):
             revisions = []
             requested_version = Version(flow_version)
             release = requested_version.release
-            
+
             # if a patch version wasn't given, we want to include all patches
             # for example, 13.2 should include anything up to but not including 13.3.0
             # up to the next minor version
