@@ -1227,7 +1227,7 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm("flows.flow_pdf_export"):
                 links.append(dict(title=_("Export to PDF"), href="javascript:;", js_class="pdf_export_submit"))
 
-            if self.has_org_perm("orgs.org_lookups"):
+            if self.has_org_perm("orgs.org_lookups") and flow.flow_type == Flow.TYPE_MESSAGE:
                 links.append(dict(title=_("Import Database"), href=reverse("orgs.org_lookups")))
 
             if self.has_org_perm("flows.flow_revisions"):
@@ -1417,7 +1417,7 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_export"):
                 links.append(dict(title=_("Export"), href="%s?flow=%s" % (reverse("orgs.org_export"), flow.id)))
 
-            if self.has_org_perm("orgs.org_lookups"):
+            if self.has_org_perm("orgs.org_lookups") and flow.flow_type == Flow.TYPE_MESSAGE:
                 links.append(dict(title=_("Import Database"), href=reverse("orgs.org_lookups")))
 
             if self.has_org_perm("flows.flow_delete"):
