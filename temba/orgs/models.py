@@ -21,6 +21,7 @@ from packaging.version import Version
 from requests import Session
 from smartmin.models import SmartModel
 from timezone_field import TimeZoneField
+from pandas import read_csv, read_excel
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
@@ -404,7 +405,7 @@ class Org(SmartModel):
         self.save(update_fields=["config"])
 
     @classmethod
-    def get_parse_import_file_headers(cls, csv_file, needed_check=True):
+    def get_parse_import_file_headers(cls, csv_file, needed_check=True, extension=None):
         csv_file.open()
 
         # this file isn't good enough, lets write it to local disk
@@ -425,7 +426,11 @@ class Org(SmartModel):
         out_file.close()
 
         try:
-            headers = SmartModel.get_import_file_headers(open(tmp_file))
+            if extension == "csv":
+                spamreader = read_csv(tmp_file, delimiter=",", index_col=False)
+            else:
+                spamreader = read_excel(tmp_file, index_col=False)
+            headers = spamreader.columns.tolist()
         finally:
             os.remove(tmp_file)
 
@@ -434,12 +439,19 @@ class Org(SmartModel):
         else:
             valid_field_regex = r"^[a-zA-Z][a-zA-Z0-9_ -]*$"
             invalid_fields = [item for item in headers if not re.match(valid_field_regex, item)]
+            reserved_keywords = ["class", "for", "return", "global", "pass", "or", "raise", "def"]
+
+            if not invalid_fields:
+                invalid_fields = [item for item in headers if item in reserved_keywords]
+
             if invalid_fields:
                 raise Exception(
                     _(
                         "Upload error: The file you are trying to upload has a missing or invalid column "
                         "header name. The column names should only contain spaces, underscores, and "
-                        "alphanumeric characters. They must begin with a letter and be unique."
+                        "alphanumeric characters. They must begin with a letter and be unique. The following words are "
+                        "not allowed on the column names: words such 'class', 'for', 'return', 'global', 'pass', 'or', "
+                        "'raise', and 'def'."
                     )
                 )
 

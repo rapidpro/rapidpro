@@ -686,8 +686,11 @@ class OrgCRUDL(SmartCRUDL):
             flows = Flow.objects.filter(id__in=self.request.POST.getlist("flows"), org=org, is_active=True)
             campaigns = Campaign.objects.filter(id__in=self.request.POST.getlist("campaigns"), org=org, is_active=True)
 
-            shorten_url_rulesets = RuleSet.objects.filter(flow__id__in=[flow.id for flow in flows],
-                                                          ruleset_type=RuleSet.TYPE_SHORTEN_URL).only("config").order_by("id")
+            shorten_url_rulesets = (
+                RuleSet.objects.filter(flow__id__in=[flow.id for flow in flows], ruleset_type=RuleSet.TYPE_SHORTEN_URL)
+                .only("config")
+                .order_by("id")
+            )
             links = []
             if shorten_url_rulesets:
                 links_uuid = [item.config[RuleSet.TYPE_SHORTEN_URL]["id"] for item in shorten_url_rulesets]
@@ -2273,9 +2276,21 @@ class OrgCRUDL(SmartCRUDL):
         class LookupsForm(GiftcardsForm):
             def clean_collection(self):
                 new_collection = self.data.get("collection")
+                is_removing = self.data.get("remove", "false") == "true"
+
+                if not is_removing and new_collection.isspace():
+                    raise ValidationError(_("This field is required"))
+
+                if not is_removing and not regex.match(r"^[A-Za-z0-9_\- ]+$", new_collection, regex.V0):
+                    raise ValidationError(
+                        _(
+                            "Please make sure the collection name only contains "
+                            "alphanumeric characters [0-9a-zA-Z], spaces, underscores and hyphens"
+                        )
+                    )
 
                 if new_collection in self.instance.get_collections(collection_type=OrgCRUDL.Lookups.collection_type):
-                    raise ValidationError("This collection name has already been used")
+                    raise ValidationError(_("This collection name has already been used"))
 
                 return new_collection[:30] if new_collection else None
 
@@ -2341,7 +2356,20 @@ class OrgCRUDL(SmartCRUDL):
             fields = []
             if response.status_code == 200 and "fields" in response.json():
                 fields = response.json().get("fields")
-                fields = [item for item in sorted(fields.keys()) if item not in ["ACL", "createdAt", "order"]]
+                reserved_keywords = [
+                    "class",
+                    "for",
+                    "return",
+                    "global",
+                    "pass",
+                    "or",
+                    "raise",
+                    "def",
+                    "ACL",
+                    "createdAt",
+                    "order",
+                ]
+                fields = [item for item in sorted(fields.keys()) if item not in reserved_keywords]
 
             return tuple(fields)
 
@@ -2369,7 +2397,7 @@ class OrgCRUDL(SmartCRUDL):
             if response.status_code == 200 and "results" in response.json():
                 results_resp = response.json().get("results")
                 for result in results_resp:
-                    result_obj = namedtuple("ParseResult", result.keys())(*result.values())
+                    result_obj = namedtuple("ParseResult", result.keys(), rename=True)(*result.values())
                     results.append(result_obj)
 
             return tuple(results)
@@ -2422,8 +2450,11 @@ class OrgCRUDL(SmartCRUDL):
 
                 try:
                     needed_check = True if collection_type == "giftcard" else False
+                    extension = self.cleaned_data["import_file"].name.split(".")[-1]
                     Org.get_parse_import_file_headers(
-                        ContentFile(self.cleaned_data["import_file"].read()), needed_check=needed_check
+                        ContentFile(self.cleaned_data["import_file"].read()),
+                        needed_check=needed_check,
+                        extension=extension,
                     )
                     self.cleaned_data["import_file"].seek(0)
                 except Exception as e:
@@ -2563,10 +2594,20 @@ class OrgCRUDL(SmartCRUDL):
                             collection_real_name = item
                             break
 
+                # Making sure that Pandas will read the data with the correct type, e.g. string, float
+                col_names = read_csv(import_file, nrows=0).columns
+                import_file.seek(0)
+                types_dict = {}
+                for col_name in col_names.tolist():
+                    if str(col_name).startswith("numeric_"):
+                        types_dict[str(col_name)] = float
+                    else:
+                        types_dict[str(col_name)] = str
+
                 if file_type == "csv":
-                    spamreader = read_csv(import_file, delimiter=",", index_col=False)
+                    spamreader = read_csv(import_file, delimiter=",", index_col=False, dtype=types_dict)
                 else:
-                    spamreader = read_excel(import_file, index_col=False)
+                    spamreader = read_excel(import_file, index_col=False, dtype=str)
 
                 headers = spamreader.columns.tolist()
                 spamreader = spamreader.get_values().tolist()

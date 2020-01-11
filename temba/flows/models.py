@@ -1406,9 +1406,13 @@ class Flow(TembaModel):
                             break
 
                 if link_data:
-                    created_link = Link.objects.create(org=self.org, name=link_data["name"],
-                                                       destination=link_data["destination"],
-                                                       created_by=self.org.get_user(), modified_by=self.org.get_user())
+                    created_link = Link.objects.create(
+                        org=self.org,
+                        name=link_data["name"],
+                        destination=link_data["destination"],
+                        created_by=self.org.get_user(),
+                        modified_by=self.org.get_user(),
+                    )
                     ruleset["config"][RuleSet.TYPE_SHORTEN_URL]["id"] = created_link.uuid
 
             for rule in ruleset.get(Flow.RULES, []):
@@ -3721,16 +3725,17 @@ class RuleSet(models.Model):
 
         elif self.ruleset_type == RuleSet.TYPE_SHORTEN_URL:
             url = f"https://firebasedynamiclinks.googleapis.com/v1/shortLinks?key={settings.FDL_API_KEY}"
-            headers = {'Content-Type': 'application/json'}
+            headers = {"Content-Type": "application/json"}
 
             config = self.config[RuleSet.TYPE_SHORTEN_URL]
-            item_uuid = config.get('id')
+            item_uuid = config.get("id")
             item = Link.objects.filter(uuid=item_uuid, org=run.flow.org).first()
 
             if item:
-                long_url = '%s?contact=%s' % (item.get_url(), run.contact.uuid)
-                data = json.dumps({'longDynamicLink': '%s/?link=%s' % (settings.FDL_URL, long_url),
-                                   'suffix': {'option': 'SHORT'}})
+                long_url = "%s?contact=%s" % (item.get_url(), run.contact.uuid)
+                data = json.dumps(
+                    {"longDynamicLink": "%s/?link=%s" % (settings.FDL_URL, long_url), "suffix": {"option": "SHORT"}}
+                )
 
                 response = requests.post(url, data=data, headers=headers, timeout=10)
 
@@ -3739,7 +3744,7 @@ class RuleSet(models.Model):
                     response_json = response.json()
                     run.update_fields(response_json)
                     if result > 0:
-                        short_url = response_json.get('shortLink')
+                        short_url = response_json.get("shortLink")
                         return rule, str(response.status_code), short_url
 
             else:

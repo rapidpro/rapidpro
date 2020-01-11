@@ -31,6 +31,7 @@ RUN rm -f /rapidpro/temba/settings.pyc
 COPY docker/entrypoint.sh /
 RUN chmod +x /entrypoint.sh
 
+RUN rm /usr/bin/python && ln -s /usr/bin/python3.6 /usr/bin/python
 RUN rm -rf /tmp/* /var/tmp/*[~]$
 
 EXPOSE 8000
