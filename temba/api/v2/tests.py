@@ -3870,7 +3870,7 @@ class APITest(TembaTest):
 
         # add templates and then deactivate a channel afterwards
         inactive_channel = Channel.create(self.org, self.user, "RW", "A", name="In-Active Channel", is_active=False)
-        deleted_template = TemplateTranslation.get_or_create(
+        TemplateTranslation.get_or_create(
             inactive_channel,
             "hello",
             "afr",
