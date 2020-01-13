@@ -151,6 +151,9 @@ export default class AliasEditor extends LitElement {
   @property({type: Object})
   editFeature: FeatureProperties
 
+  @property({type: String, attribute: false})
+  editFeatureAliases: string;
+
   public constructor() {
     super();
   }
@@ -261,6 +264,7 @@ export default class AliasEditor extends LitElement {
   }
 
   public showAliasDialog(feature: FeatureProperties) {
+    this.editFeatureAliases = feature.aliases;
     this.editFeature = feature;
     const aliasDialog = this.shadowRoot.getElementById("alias-dialog");
     if (aliasDialog){
@@ -271,6 +275,8 @@ export default class AliasEditor extends LitElement {
 
   public hideAliasDialog() {
     const aliasDialog = this.shadowRoot.getElementById("alias-dialog");
+    this.editFeature = null;
+    this.editFeatureAliases = null;
     if (aliasDialog) {
       aliasDialog.removeAttribute("open");
     }
@@ -328,7 +334,7 @@ export default class AliasEditor extends LitElement {
     
     const editFeatureId = this.editFeature ? this.editFeature.osm_id : null;
     const editFeatureName = this.editFeature ? this.editFeature.name : null;
-    const editFeatureAliases = this.editFeature ? this.editFeature.aliases : null;
+
     return html`
       <div id="left-column">
         <div class="search">
@@ -363,7 +369,7 @@ export default class AliasEditor extends LitElement {
         @rp-button-clicked=${this.handleDialogClick.bind(this)}>
 
         <div class="selected">
-          <rp-textinput .helpText="Enter other aliases for ${editFeatureName}, one per line" name="aliases" id=${editFeatureId} .value=${editFeatureAliases} textarea></rp-textinput>
+          <rp-textinput .helpText="Enter other aliases for ${editFeatureName}, one per line" name="aliases" id=${editFeatureId} .value=${this.editFeatureAliases} textarea></rp-textinput>
         </div>
       </rp-dialog>             
 
