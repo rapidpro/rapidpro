@@ -50,8 +50,13 @@ class MailroomClient:
         if auth_token:
             self.headers["Authorization"] = "Token " + auth_token
 
-    def expression_migrate(self, expression):
+    def version(self):
+        return self._request("", post=False).get("version")
 
+    def expression_migrate(self, expression):
+        """
+        Migrates a legacy expression to latest engine version
+        """
         if not expression:
             return ""
 
@@ -62,8 +67,16 @@ class MailroomClient:
             # if the expression is invalid.. just return original
             return expression
 
-    def flow_migrate(self, definition):
-        return self._request("flow/migrate", {"flow": definition})
+    def flow_migrate(self, definition, to_version=None):
+        """
+        Migrates a flow definition to the specified spec version
+        """
+        from temba.flows.models import Flow
+
+        if not to_version:
+            to_version = Flow.GOFLOW_VERSION
+
+        return self._request("flow/migrate", {"flow": definition, "to_version": to_version})
 
     def flow_inspect(self, flow, validate_with_org=None):
         payload = {"flow": flow}
@@ -83,30 +96,20 @@ class MailroomClient:
 
         return self._request("flow/clone", payload)
 
-    def flow_validate(self, org, definition):
-        payload = {"flow": definition}
-
-        # during tests do validation without org because mailroom can't see unit test data created in a transaction
-        if org and not settings.TESTING:
-            payload["org_id"] = org.id
-
-        validated = self._request("flow/validate", payload)
-        validated["_ui"] = definition.get("_ui", {})
-        return validated
-
     def sim_start(self, payload):
         return self._request("sim/start", payload)
 
     def sim_resume(self, payload):
         return self._request("sim/resume", payload)
 
-    def _request(self, endpoint, payload):
+    def _request(self, endpoint, payload=None, post=True):
         if logger.isEnabledFor(logging.DEBUG):  # pragma: no cover
             logger.debug("=============== %s request ===============" % endpoint)
             logger.debug(json.dumps(payload, indent=2))
             logger.debug("=============== /%s request ===============" % endpoint)
 
-        response = requests.post("%s/mr/%s" % (self.base_url, endpoint), json=payload, headers=self.headers)
+        req_fn = requests.post if post else requests.get
+        response = req_fn("%s/mr/%s" % (self.base_url, endpoint), json=payload, headers=self.headers)
         resp_json = response.json()
 
         if logger.isEnabledFor(logging.DEBUG):  # pragma: no cover

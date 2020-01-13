@@ -5,11 +5,11 @@ from django.db import migrations
 from temba import mailroom
 
 
-def migrate_translations(translations):
+def migrate_translations(translations):  # pragma: no cover
     return {lang: mailroom.get_client().expression_migrate(s) for lang, s in translations.items()}
 
 
-def migrate_msg_events(apps, schema_editor):
+def migrate_msg_events(apps, schema_editor):  # pragma: no cover
     CampaignEvent = apps.get_model("campaigns", "CampaignEvent")
 
     for evt in CampaignEvent.objects.all():
@@ -18,7 +18,7 @@ def migrate_msg_events(apps, schema_editor):
             evt.save(update_fields=("message",))
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

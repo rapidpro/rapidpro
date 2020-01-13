@@ -13,6 +13,9 @@ def sync_classifier_intents(id=None):
     if id:
         classifiers = classifiers.filter(id=id)
 
-    # for each classifier, refresh our intents
+    # for each classifier, synchronize to update the intents etc
     for classifier in classifiers:
-        classifier.refresh_intents()
+        try:
+            classifier.sync()
+        except Exception as e:
+            logger.error("error getting intents for classifier", e)

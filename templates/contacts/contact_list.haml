@@ -130,9 +130,10 @@
                                   - trans "New Group..."
 
                       - if org_perms.msgs.broadcast_send and not reply_disabled
-                        %span.btn-group
-                          %button.send-button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Send Message" %}'}
-                            .glyph.icon-bubble-replu
+                        %span{ style: "display: inline-block; margin-left: 5px"}
+                          %rp-modax#send-message-modal{ header:'{% trans "Send Message" %}', endpoint:"{% url 'msgs.broadcast_send' %}" }
+                            %button.send-button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Send Message" %}'}
+                              .glyph.icon-bubble-replu
 
               .search-details
                 -if search_error
@@ -333,6 +334,27 @@
 
   :javascript
 
+      // wire our send button on load and on refresh
+    wireSendButton();
+    document.addEventListener('rp-refresh-complete', function() {
+      wireSendButton();
+    });
+
+    function wireSendButton() {
+      // when we click send, include any clicked messages in our modax request
+      var sendEndpoint = "{% url 'msgs.broadcast_send' %}";
+      var sendButton = document.querySelector(".send-button");
+      var sendModal = document.querySelector("#send-message-modal");
+      sendButton.addEventListener('click', function(){
+        var ids = getCheckedUuids();
+        if (ids.length > 0) {
+          sendModal.setAttribute("endpoint", sendEndpoint + '?c=' + ids);
+        } else {
+          sendModal.setAttribute("endpoint", sendEndpoint);
+        }
+      });
+    }
+
     $(document).on('click', '.search-query', function() {
       $(this).animate({ width: '600px'}, 200);
     });
@@ -400,17 +422,6 @@
     }
     {% endif %}
 
-
-    {% if org_perms.msgs.broadcast_send %}
-    $(".send-button").click(function(){
-      var contactsUuids = getCheckedUuids();
-      if (contactsUuids.length > 0) {
-        showComposeInitialized("c=" + contactsUuids);
-      } else {
-        showCompose();
-      }
-    });
-    {% endif %}
 
     {% if org_perms.contacts.contact_create %}
     $("#add-contact").live('click', function() { showCreateContactModal(); });

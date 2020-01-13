@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'temba';
-  src:  url('fonts/temba.eot?f7w571');
-  src:  url('fonts/temba.eot?f7w571#iefix') format('embedded-opentype'),
-    url('fonts/temba.ttf?f7w571') format('truetype'),
-    url('fonts/temba.woff?f7w571') format('woff'),
-    url('fonts/temba.svg?f7w571#temba') format('svg');
+  src:  url('fonts/temba.eot?dgjjow');
+  src:  url('fonts/temba.eot?dgjjow#iefix') format('embedded-opentype'),
+    url('fonts/temba.ttf?dgjjow') format('truetype'),
+    url('fonts/temba.woff?dgjjow') format('woff'),
+    url('fonts/temba.svg?dgjjow#temba') format('svg');
   font-weight: normal;
   font-style: normal;
   font-display: block;
@@ -25,6 +25,12 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-global:before {
+  content: "\ea2f";
+}
+.icon-freshchat:before {
+  content: "\e913";
+}
 .icon-bothub:before {
   content: "\e900";
 }
@@ -673,7 +679,7 @@
 .icon-channel-plivo:before {
   content: "\e0d1";
 }
-.icon-transferto:before {
+.icon-dtone:before {
   content: "\e0d2";
 }
 .icon-phone2:before {

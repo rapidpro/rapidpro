@@ -1156,7 +1156,7 @@ class ContactTest(TembaTest):
         self.assertEqual(2, len(contact.fields))
 
         # first try a regular release and make sure our urns are anonymized
-        contact.release(self.admin, immediately=False)
+        contact.release(self.admin, full=False)
         self.assertEqual(2, contact.urns.all().count())
         for urn in contact.urns.all():
             uuid.UUID(urn.path, version=4)
@@ -1872,6 +1872,12 @@ class ContactTest(TembaTest):
             )
         )
 
+        # values can contain quotes
+        self.joe.set_field(self.admin, "gender", 'M"F')
+        self.assertTrue(evaluate_query(self.org, r'gender = "M\"F"', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, r'gender != "M\"F"', contact_json=self.joe.as_search_json()))
+        self.joe.set_field(self.admin, "gender", "male")
+
         # non-existent field or attribute
         self.assertRaises(
             SearchException, evaluate_query, self.org, "credits > 10", contact_json=self.joe.as_search_json()
@@ -2123,6 +2129,10 @@ class ContactTest(TembaTest):
 
         query = parse_query("email ~ user@example.com")
         self.assertEqual(query.as_text(), 'email ~ "user@example.com"')
+
+        # escaped quotes
+        query = parse_query(r'name ~ "O\"Learly"')
+        self.assertEqual(query.as_text(), r'name ~ "O"Learly"')
 
     def test_contact_elastic_search(self):
         gender = ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type=Value.TYPE_TEXT)
@@ -3804,8 +3814,9 @@ class ContactTest(TembaTest):
             .set_contact_name("Joe")
             .set_contact_name("")
             .set_result("Color", "red", "Red", "it's red")
-            .send_email("joe@nyaruka.com", "Test", "Hello there Joe")
-            .wait()
+            .send_email(["joe@nyaruka.com"], "Test", "Hello there Joe")
+            .error("unable to send email")
+            .fail("this is a failure")
             .save()
         )
 
@@ -3825,7 +3836,12 @@ class ContactTest(TembaTest):
         self.assertContains(response, "Name updated to <b>Joe</b>")
         self.assertContains(response, "Name cleared")
         self.assertContains(response, "Run result <b>Color</b> updated to <b>red</b> with category <b>Red</b>")
-        self.assertContains(response, "Email sent with subject <b>Test</b>")
+        self.assertContains(
+            response,
+            "Email sent to\n        \n          <b>joe@nyaruka.com</b>\n        \n        with subject\n        <b>Test</b>",
+        )
+        self.assertContains(response, "unable to send email")
+        self.assertContains(response, "this is a failure")
 
     def test_campaign_event_time(self):
 
@@ -3938,10 +3954,12 @@ class ContactTest(TembaTest):
         self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-notification"></span>')
 
         msg.status = "S"
-        self.assertEqual(history_icon(item), '<span class="glyph icon-bullhorn"></span>')
+        with patch("temba.msgs.models.Broadcast.get_message_count") as mock_get_message_count:
+            mock_get_message_count.return_value = 2
+            self.assertEqual(history_icon(item), '<span class="glyph icon-bullhorn"></span>')
 
-        msg.broadcast.recipient_count = None
-        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-right"></span>')
+            mock_get_message_count.return_value = 0
+            self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-right"></span>')
 
         item = {"type": "flow_entered", "obj": run}
         self.assertEqual(history_icon(item), '<span class="glyph icon-tree-2"></span>')
@@ -3955,7 +3973,7 @@ class ContactTest(TembaTest):
         self.assertEqual(history_icon(item), '<span class="glyph icon-checkmark"></span>')
 
         run.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
-        self.assertEqual(history_icon(item), '<span class="glyph icon-warning"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-cancel-circle"></span>')
 
         run.exit_type = FlowRun.EXIT_TYPE_EXPIRED
         self.assertEqual(history_icon(item), '<span class="glyph icon-clock"></span>')
@@ -5300,7 +5318,7 @@ class ContactTest(TembaTest):
                         line=3,
                         error="Missing any valid URNs; at least one among URN:tel, "
                         "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
-                        "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
+                        "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat should be provided or a Contact UUID",
                     ),
                     dict(line=4, error="Invalid Phone number 12345"),
                 ],
@@ -5320,7 +5338,7 @@ class ContactTest(TembaTest):
                         line=3,
                         error="Missing any valid URNs; at least one among URN:tel, "
                         "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
-                        "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
+                        "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat should be provided or a Contact UUID",
                     ),
                     dict(line=4, error="Invalid URN: abcdef"),
                 ],
@@ -5413,7 +5431,7 @@ class ContactTest(TembaTest):
                             line=3,
                             error="Missing any valid URNs; at least one among URN:tel, "
                             "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
-                            "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
+                            "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat should be provided or a Contact UUID",
                         )
                     ],
                 ),
@@ -5495,7 +5513,7 @@ class ContactTest(TembaTest):
                             line=3,
                             error="Missing any valid URNs; at least one among URN:tel, "
                             "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
-                            "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
+                            "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat should be provided or a Contact UUID",
                         )
                     ],
                 ),
@@ -5648,7 +5666,7 @@ class ContactTest(TembaTest):
             "csv_file",
             'The file you provided is missing a required header. At least one of "URN:tel", "URN:facebook", '
             '"URN:twitter", "URN:twitterid", "URN:viber", "URN:line", "URN:telegram", "URN:mailto", "URN:ext", '
-            '"URN:jiochat", "URN:wechat", "URN:fcm", "URN:whatsapp" or "Contact UUID" should be included.',
+            '"URN:jiochat", "URN:wechat", "URN:fcm", "URN:whatsapp", "URN:freshchat" or "Contact UUID" should be included.',
         )
 
         csv_file = open("%s/test_imports/sample_contacts_missing_name_phone_headers.xls" % settings.MEDIA_ROOT, "rb")
@@ -5660,7 +5678,7 @@ class ContactTest(TembaTest):
             "csv_file",
             'The file you provided is missing a required header. At least one of "URN:tel", "URN:facebook", '
             '"URN:twitter", "URN:twitterid", "URN:viber", "URN:line", "URN:telegram", "URN:mailto", "URN:ext", '
-            '"URN:jiochat", "URN:wechat", "URN:fcm", "URN:whatsapp" or "Contact UUID" should be included.',
+            '"URN:jiochat", "URN:wechat", "URN:fcm", "URN:whatsapp", "URN:freshchat" or "Contact UUID" should be included.',
         )
 
         csv_file = open(
@@ -5860,7 +5878,7 @@ class ContactTest(TembaTest):
         post_data["column_country_label"] = "}{i$t0rY"  # supports only numbers, letters, hyphens
 
         response = self.client.post(customize_url, post_data, follow=True)
-        self.assertFormError(response, "form", None, "Field names can only contain letters, numbers, hypens")
+        self.assertFormError(response, "form", None, "Can only contain letters, numbers and hypens.")
 
         post_data["column_country_label"] = "Whatevaar"  # reset invalid label value with a valid one
         post_data["column_joined_label"] = "District"
@@ -6832,6 +6850,7 @@ class ContactFieldTest(TembaTest):
     def test_make_key(self):
         self.assertEqual("first_name", ContactField.make_key("First Name"))
         self.assertEqual("second_name", ContactField.make_key("Second   Name  "))
+        self.assertEqual("caf", ContactField.make_key("café"))
         self.assertEqual(
             "323_ffsn_slfs_ksflskfs_fk_anfaddgas",
             ContactField.make_key("  ^%$# %$$ $##323 ffsn slfs ksflskfs!!!! fk$%%%$$$anfaDDGAS ))))))))) "),
@@ -6931,7 +6950,7 @@ class ContactFieldTest(TembaTest):
             self.assertIsNotNone(response.context["task"])
 
         # no group specified, so will default to 'All Contacts'
-        with self.assertNumQueries(47):
+        with self.assertNumQueries(48):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -6984,7 +7003,7 @@ class ContactFieldTest(TembaTest):
         # change the order of the fields
         self.contactfield_2.priority = 15
         self.contactfield_2.save()
-        with self.assertNumQueries(47):
+        with self.assertNumQueries(48):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -7042,7 +7061,7 @@ class ContactFieldTest(TembaTest):
         ContactURN.create(self.org, contact, "tel:+12062233445")
 
         # but should have additional Twitter and phone columns
-        with self.assertNumQueries(47):
+        with self.assertNumQueries(48):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -7127,7 +7146,7 @@ class ContactFieldTest(TembaTest):
         assertImportExportedFile()
 
         # export a specified group of contacts (only Ben and Adam are in the group)
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(49):
             self.assertExcelSheet(
                 request_export("?g=%s" % group.uuid)[0],
                 [
@@ -7192,7 +7211,7 @@ class ContactFieldTest(TembaTest):
                 log_info_threshold.return_value = 1
 
                 with ESMockWithScroll(data=mock_es_data):
-                    with self.assertNumQueries(47):
+                    with self.assertNumQueries(48):
                         self.assertExcelSheet(
                             request_export("?s=name+has+adam+or+name+has+deng")[0],
                             [
@@ -7251,7 +7270,7 @@ class ContactFieldTest(TembaTest):
         # export a search within a specified group of contacts
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(48):
+            with self.assertNumQueries(49):
                 self.assertExcelSheet(
                     request_export("?g=%s&s=Hagg" % group.uuid)[0],
                     [
@@ -7563,7 +7582,7 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(create_cf_url, post_data)
 
         # field cannot be created because there is an active field 'First'
-        self.assertFormError(response, "form", None, "Field names must be unique. 'First' is duplicated")
+        self.assertFormError(response, "form", None, "Must be unique.")
 
         # then we hide the field
         ContactField.hide_field(self.org, self.admin, key="first")
@@ -7600,7 +7619,7 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(create_cf_url, post_data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Field names can only contain letters, numbers and hypens")
+        self.assertFormError(response, "form", None, "Can only contain letters, numbers and hypens.")
         self.assertFormError(response, "form", "value_type", "This field is required.")
 
         # a form with an invalid label
@@ -7609,7 +7628,7 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(create_cf_url, post_data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Field names can only contain letters, numbers and hypens")
+        self.assertFormError(response, "form", None, "Can only contain letters, numbers and hypens.")
 
         # a form trying to create a field that already exists
         post_data = {"label": "First"}
@@ -7617,7 +7636,7 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(create_cf_url, post_data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Field names must be unique. 'First' is duplicated")
+        self.assertFormError(response, "form", None, "Must be unique.")
 
         # a form creating a field that does not have a valid key
         post_data = {"label": "modified by"}
@@ -7625,7 +7644,7 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(create_cf_url, post_data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Field name 'modified by' is a reserved word")
+        self.assertFormError(response, "form", None, "Can't be a reserved word")
 
         with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=2):
             # a valid form, but ORG has reached max active fields limit
@@ -7634,9 +7653,7 @@ class ContactFieldTest(TembaTest):
             response = self.client.post(create_cf_url, post_data)
 
             self.assertEqual(response.status_code, 200)
-            self.assertFormError(
-                response, "form", None, "Cannot create a new Contact Field, maximum allowed per org: 2"
-            )
+            self.assertFormError(response, "form", None, "Cannot create a new field as limit is 2.")
 
         # value_type not supported
         post_data = {"label": "teefilter", "value_type": "J"}
@@ -7706,7 +7723,7 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(update_cf_url, post_data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Field names can only contain letters, numbers and hypens")
+        self.assertFormError(response, "form", None, "Can only contain letters, numbers and hypens.")
         self.assertFormError(response, "form", "value_type", "This field is required.")
 
         # a form with an invalid label
@@ -7715,7 +7732,7 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(update_cf_url, post_data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Field names can only contain letters, numbers and hypens")
+        self.assertFormError(response, "form", None, "Can only contain letters, numbers and hypens.")
 
         # a form trying to create a field that already exists
         post_data = {"label": "Second"}
@@ -7723,7 +7740,7 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(update_cf_url, post_data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Field names must be unique. 'Second' is duplicated")
+        self.assertFormError(response, "form", None, "Must be unique.")
 
         # a form creating a field that does not have a valid key
         post_data = {"label": "modified by"}
@@ -7731,7 +7748,7 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(update_cf_url, post_data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Field name 'modified by' is a reserved word")
+        self.assertFormError(response, "form", None, "Can't be a reserved word")
 
         # value_type not supported
         post_data = {"label": "teefilter", "value_type": "J"}
@@ -7946,7 +7963,7 @@ class ContactFieldTest(TembaTest):
 
         response_json = response.json()
 
-        self.assertEqual(len(response_json), 47)
+        self.assertEqual(len(response_json), 48)
         self.assertEqual(response_json[0]["label"], "Full name")
         self.assertEqual(response_json[0]["key"], "name")
         self.assertEqual(response_json[1]["label"], "Phone number")
@@ -7975,22 +7992,24 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response_json[12]["key"], "fcm")
         self.assertEqual(response_json[13]["label"], "WhatsApp identifier")
         self.assertEqual(response_json[13]["key"], "whatsapp")
-        self.assertEqual(response_json[14]["label"], "Groups")
-        self.assertEqual(response_json[14]["key"], "groups")
-        self.assertEqual(response_json[15]["label"], "First")
-        self.assertEqual(response_json[15]["key"], "first")
-        self.assertEqual(response_json[16]["label"], "label0")
-        self.assertEqual(response_json[16]["key"], "key0")
+        self.assertEqual(response_json[14]["label"], "Freshchat identifier")
+        self.assertEqual(response_json[14]["key"], "freshchat")
+        self.assertEqual(response_json[15]["label"], "Groups")
+        self.assertEqual(response_json[15]["key"], "groups")
+        self.assertEqual(response_json[16]["label"], "First")
+        self.assertEqual(response_json[16]["key"], "first")
+        self.assertEqual(response_json[17]["label"], "label0")
+        self.assertEqual(response_json[17]["key"], "key0")
 
         ContactField.user_fields.filter(org=self.org, key="key0").update(label="AAAA")
 
         response = self.client.get(contact_field_json_url)
         response_json = response.json()
 
-        self.assertEqual(response_json[15]["label"], "AAAA")
-        self.assertEqual(response_json[15]["key"], "key0")
-        self.assertEqual(response_json[16]["label"], "First")
-        self.assertEqual(response_json[16]["key"], "first")
+        self.assertEqual(response_json[16]["label"], "AAAA")
+        self.assertEqual(response_json[16]["key"], "key0")
+        self.assertEqual(response_json[17]["label"], "First")
+        self.assertEqual(response_json[17]["key"], "first")
 
 
 class URNTest(TembaTest):
@@ -8012,6 +8031,16 @@ class URNTest(TembaTest):
         self.assertEqual("whatsapp:12065551212", URN.from_whatsapp("12065551212"))
         self.assertTrue(URN.validate("whatsapp:12065551212"))
         self.assertFalse(URN.validate("whatsapp:+12065551212"))
+
+    def test_freshchat_urn(self):
+        self.assertEqual(
+            "freshchat:c0534f78-b6e9-4f79-8853-11cedfc1f35b/c0534f78-b6e9-4f79-8853-11cedfc1f35b",
+            URN.from_freshchat("c0534f78-b6e9-4f79-8853-11cedfc1f35b/c0534f78-b6e9-4f79-8853-11cedfc1f35b"),
+        )
+        self.assertTrue(
+            URN.validate("freshchat:c0534f78-b6e9-4f79-8853-11cedfc1f35b/c0534f78-b6e9-4f79-8853-11cedfc1f35b")
+        )
+        self.assertFalse(URN.validate("freshchat:+12065551212"))
 
     def test_from_parts(self):
 

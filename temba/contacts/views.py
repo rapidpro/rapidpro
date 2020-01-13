@@ -645,7 +645,7 @@ class ContactCRUDL(SmartCRUDL):
                         field_key = ContactField.make_key(field_label)
 
                         if not ContactField.is_valid_label(field_label):
-                            raise forms.ValidationError(_("Field names can only contain letters, numbers, hypens"))
+                            raise forms.ValidationError(_("Can only contain letters, numbers and hypens."))
 
                         if not ContactField.is_valid_key(field_key):
                             raise forms.ValidationError(
@@ -1100,7 +1100,12 @@ class ContactCRUDL(SmartCRUDL):
 
             if self.has_org_perm("msgs.broadcast_send") and not self.object.is_blocked and not self.object.is_stopped:
                 links.append(
-                    dict(title=_("Send Message"), style="btn-primary", href="#", js_class="contact-send-button")
+                    dict(
+                        id="send-message",
+                        title=_("Send Message"),
+                        href=f"{reverse('msgs.broadcast_send')}?c={self.object.uuid}",
+                        modax=_("Send Message"),
+                    )
                 )
 
             if self.has_org_perm("contacts.contact_update"):
@@ -1722,15 +1727,15 @@ class ContactFieldFormMixin:
         label = cleaned_data.get("label", "")
 
         if not ContactField.is_valid_label(label):
-            raise forms.ValidationError(_("Field names can only contain letters, numbers and hypens"))
+            raise forms.ValidationError(_("Can only contain letters, numbers and hypens."))
 
         cf_exists = ContactField.user_fields.active_for_org(org=self.org).filter(label__iexact=label.lower()).exists()
 
         if self.instance.label != label and cf_exists is True:
-            raise forms.ValidationError(_(f"Field names must be unique. '{label}' is duplicated"))
+            raise forms.ValidationError(_("Must be unique."))
 
         if not ContactField.is_valid_key(ContactField.make_key(label)):
-            raise forms.ValidationError(_(f"Field name '{label}' is a reserved word"))
+            raise forms.ValidationError(_("Can't be a reserved word"))
 
 
 class CreateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
@@ -1750,9 +1755,8 @@ class CreateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
         field_count = ContactField.user_fields.count_active_for_org(org=self.org)
         if field_count >= settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG:
             raise forms.ValidationError(
-                _(
-                    f"Cannot create a new Contact Field, maximum allowed per org: {settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG}"
-                )
+                _(f"Cannot create a new field as limit is %(limit)s."),
+                params={"limit": settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG},
             )
 
 

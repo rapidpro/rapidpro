@@ -12,12 +12,14 @@ import stripe
 import stripe.error
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
+from smartmin.tests import SmartminTestMixin
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.core.exceptions import ValidationError
 from django.http import HttpRequest, HttpResponse
+from django.test import TransactionTestCase
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -26,8 +28,10 @@ from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
-from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel
+from temba.campaigns.models import Campaign, CampaignEvent, EventFire
+from temba.channels.models import Alert, Channel, SyncEvent
+from temba.classifiers.models import Classifier
+from temba.classifiers.types.wit import WitType
 from temba.contacts.models import (
     TEL_SCHEME,
     TWITTER_SCHEME,
@@ -38,18 +42,22 @@ from temba.contacts.models import (
     ContactURN,
     ExportContactsTask,
 )
-from temba.flows.models import ActionSet, ExportFlowResultsTask, Flow, FlowLabel, FlowRun
+from temba.contacts.omnibox import omnibox_serialize
+from temba.flows.models import ActionSet, ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
+from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
 from temba.orgs.models import Debit, UserSettings
-from temba.tests import ESMockWithScroll, MockResponse, TembaTest, matchers
+from temba.request_logs.models import HTTPLog
+from temba.tests import ESMockWithScroll, MockResponse, TembaTest, TembaTestMixin, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json, languages
 from temba.utils.email import link_components
+from temba.values.constants import Value
 
 from .context_processors import GroupPermWrapper
 from .models import CreditAlert, Invitation, Language, Org, TopUp, TopUpCredits
@@ -175,11 +183,20 @@ class UserTest(TembaTest):
         self.assertFalse(self.org.is_active)
 
 
-class OrgDeleteTest(TembaTest):
+class OrgDeleteTest(TransactionTestCase, TembaTestMixin, SmartminTestMixin):
     def setUp(self):
-        super().setUp()
-
+        self.setUpOrg()
         self.setUpLocations()
+
+        # set up a sync event and alert on our channel
+        SyncEvent.create(
+            self.channel,
+            dict(pending=[], retry=[], power_source="P", power_status="full", power_level="100", network_type="W"),
+            [],
+        )
+        Alert.objects.create(
+            channel=self.channel, alert_type=Alert.TYPE_SMS, created_by=self.admin, modified_by=self.admin
+        )
 
         # create a second child org
         self.child_org = Org.objects.create(
@@ -204,6 +221,23 @@ class OrgDeleteTest(TembaTest):
             config={Channel.CONFIG_FCM_ID: "123"},
         )
 
+        # add a classifier
+        self.c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {}, sync=False)
+
+        # add a global
+        self.global1 = Global.get_or_create(self.org, self.admin, "org_name", "Org Name", "Acme Ltd")
+
+        HTTPLog.objects.create(
+            classifier=self.c1,
+            url="http://org2.bar/zap",
+            request="GET /zap",
+            response=" OK 200",
+            is_error=False,
+            log_type=HTTPLog.CLASSIFIER_CALLED,
+            request_time=10,
+            org=self.org,
+        )
+
         # our user is a member of two orgs
         self.parent_org = self.org
         self.child_org.administrators.add(self.user)
@@ -219,6 +253,9 @@ class OrgDeleteTest(TembaTest):
 
         # add some fields
         parent_field = self.create_field("age", "Parent Age", org=self.parent_org)
+        parent_datetime_field = self.create_field(
+            "planting_date", "Planting Date", value_type=Value.TYPE_DATETIME, org=self.parent_org
+        )
         child_field = self.create_field("age", "Child Age", org=self.child_org)
 
         # add some groups
@@ -243,6 +280,7 @@ class OrgDeleteTest(TembaTest):
             .complete()
             .save()
         )
+        parent_flow.channel_dependencies.add(self.channel)
 
         # and our child org too
         self.org = self.child_org
@@ -256,6 +294,20 @@ class OrgDeleteTest(TembaTest):
         parent_flow.labels.add(flow_label1)
         child_flow.labels.add(flow_label2)
 
+        # add a campaign, event and fire to our parent org
+        campaign = Campaign.create(self.parent_org, self.admin, "Reminders", parent_group)
+        event1 = CampaignEvent.create_flow_event(
+            self.parent_org,
+            self.admin,
+            campaign,
+            parent_datetime_field,
+            offset=1,
+            unit="W",
+            flow=parent_flow,
+            delivery_hour="13",
+        )
+        EventFire.objects.create(event=event1, contact=parent_contact, scheduled=timezone.now())
+
         # triggers for our flows
         parent_trigger = Trigger.create(
             self.parent_org,
@@ -266,6 +318,8 @@ class OrgDeleteTest(TembaTest):
             keyword="favorites",
         )
         parent_trigger.groups.add(self.parent_org.all_groups.all().first())
+
+        FlowStart.objects.create(flow=parent_flow)
 
         child_trigger = Trigger.create(
             self.child_org,
@@ -330,6 +384,7 @@ class OrgDeleteTest(TembaTest):
 
             # add in some webhook results
             resthook = Resthook.get_or_create(org, "registration", self.admin)
+            resthook.subscribers.create(target_url="http://foo.bar", created_by=self.admin, modified_by=self.admin)
             WebHookEvent.objects.create(org=org, resthook=resthook, data={})
             WebHookResult.objects.create(
                 org=self.org, url="http://foo.bar", request="GET http://foo.bar", status_code=200, response="zap!"
@@ -379,7 +434,6 @@ class OrgDeleteTest(TembaTest):
         self.release_org(self.parent_org, self.child_org, immediately=True)
 
     def test_release_child_immediately(self):
-
         # 300 credits were given to our child org and each used one
         self.assertEqual(698, self.parent_org.get_credits_remaining())
         self.assertEqual(299, self.child_org.get_credits_remaining())
@@ -638,7 +692,9 @@ class OrgTest(TembaTest):
         # while we are suspended, we can't send broadcasts
         send_url = reverse("msgs.broadcast_send")
         mark = self.create_contact("Mark", number="+12065551212")
-        post_data = dict(text="send me ur bank account login im ur friend.", omnibox="c-%s" % mark.uuid)
+
+        omnibox = omnibox_serialize(self.org, [], [mark], True)
+        post_data = dict(text="send me ur bank account login im ur friend.", omnibox=omnibox)
         response = self.client.post(send_url, post_data, follow=True)
 
         self.assertEqual(
@@ -1758,7 +1814,7 @@ class OrgTest(TembaTest):
     def test_dtone_account(self):
         self.login(self.admin)
 
-        # connect DTOne
+        # connect DT One
         dtone_account_url = reverse("orgs.org_dtone_account")
 
         with patch("requests.post") as mock_post:
@@ -1767,7 +1823,7 @@ class OrgTest(TembaTest):
                 dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
             )
 
-            self.assertContains(response, "Your DTOne API key and secret seem invalid.")
+            self.assertContains(response, "Your DT One API key and secret seem invalid.")
             self.assertFalse(self.org.is_connected_to_dtone())
 
             mock_post.return_value = MockResponse(
@@ -1779,7 +1835,7 @@ class OrgTest(TembaTest):
             )
 
             self.assertContains(
-                response, "Connecting to your DTOne account failed with error text: Failed Authentication"
+                response, "Connecting to your DT One account failed with error text: Failed Authentication"
             )
 
             self.assertFalse(self.org.is_connected_to_dtone())
@@ -1796,7 +1852,7 @@ class OrgTest(TembaTest):
                 dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
             )
             self.assertNoFormErrors(response)
-            # DTOne should be connected
+            # DT One should be connected
             self.org = Org.objects.get(pk=self.org.pk)
             self.assertTrue(self.org.is_connected_to_dtone())
             self.assertEqual(self.org.config["TRANSFERTO_ACCOUNT_LOGIN"], "login")
@@ -1820,7 +1876,7 @@ class OrgTest(TembaTest):
             response = self.client.post(
                 dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
             )
-            self.assertContains(response, "Your DTOne API key and secret seem invalid.")
+            self.assertContains(response, "Your DT One API key and secret seem invalid.")
             self.assertFalse(self.org.is_connected_to_dtone())
 
         # no account connected, do not show the button to Transfer logs
@@ -2932,6 +2988,9 @@ class OrgCRUDLTest(TembaTest):
         topup = TopUp.objects.get(org=org)
         self.assertEqual(topup.credits, 1000)
         self.assertEqual(topup.price, 0)
+
+        # and 3 sample flows
+        self.assertEqual(3, org.flows.count())
 
         # fake session set_org to make the test work
         user.set_org(org)
@@ -4081,8 +4140,11 @@ class BulkExportTest(TembaTest):
         confirm_appointment = Flow.objects.get(name="Confirm Appointment", is_active=True)
         self.assertEqual(60, confirm_appointment.expires_after_minutes)
 
-        # now delete a flow
+        # should be unarchived
         register = Flow.objects.filter(name="Register Patient").first()
+        self.assertFalse(register.is_archived)
+
+        # now delete a flow
         register.is_active = False
         register.save()
 

@@ -2,6 +2,10 @@
 <html>
   <head>
     <script src="https://unpkg.com/@webcomponents/webcomponentsjs@2.3.0/bundles/webcomponents-sd-ce.js"></script>
+    <script
+      src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.js"
+    >
+    </script>
   </head>
   <body>
     <link href="https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:300,400,500" rel="stylesheet">
@@ -9,10 +13,8 @@
     <style>
       
       html {
-
-        /* --font-family: 'Roboto', sans-serif; */
-        --font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-
+        --font-family: Helvetica, Helvetica, Arial, sans-serif;
+        
         font-family: var(--font-family);
         font-size: 13px;
         font-weight: 200;
@@ -42,6 +44,7 @@
         /* page text, borders, widgets */
 
         --color-text: #777;
+        --color-widget-text: #555;
         --color-borders: rgba(0,0,0,.07);
         
         --widget-box-shadow-focused: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(var(--focus-rgb), 0.6);
@@ -51,7 +54,7 @@
         --color-widget-bg: #fff;
         --color-widget-bg-focused: #fff;
         --color-widget-border: rgb(204,204,204);
-        --color-placeholder: #ccc;
+        --color-placeholder: var(--color-text-help);
 
         /* light colors, panel backgrounds, selection, etc */
         --color-primary-light: #eee;
@@ -65,6 +68,7 @@
         --color-text-light: rgba(255,255,255,.92);
         --color-text-dark: rgba(0,0,0,.5);
         --color-text-dark-secondary: rgba(0,0,0,.2);
+        --color-text-help: rgba(0,0,0,.45);
 
         /* --color-selection: #3875d7; */
         --color-selection: rgb(var(--primary-rgb));
@@ -85,6 +89,9 @@
         --color-button-secondary: var(--color-secondary-light);
         --color-button-secondary-text: var(--color-text-dark);
         
+        --color-button-disabled: rgba(0,0,0,.03);
+        
+
         --color-label-primary: var(--color-primary-dark);
         --color-label-primary-text: var(--color-text-light);        
         --color-label-secondary: rgba(0,0,0,.2);
@@ -114,6 +121,18 @@
 
     </style>
 
+    <div class="example">
+      <rp-checkbox name="schedule" label="Schedule for later delivery"></rp-checkbox>
+    </div>
+
+
+    <div class="example">
+      <rp-modax id="send-message" header="Send Message" endpoint="/broadcast/send/">
+        <rp-button name="Send Message" primary></rp-button>
+      </rp-modax>
+    </div>
+
+    <div style="display: none">
     <div class="example">
       <div class="example-header">Contact Search</div>
       <rp-contact-search 
@@ -231,6 +250,7 @@
         completionsEndpoint="/mr/docs/completion.json"
         functionsEndpoint="/mr/docs/functions.json"
         fieldsEndpoint="/api/v2/fields.json"
+        globalsEndpoint="/api/v2/globals.json"
         textarea>
       </rp-completion>
     </div>
@@ -245,7 +265,7 @@
     <!--rp-dialog 
       size="medium"
       id="start-flow"
-      title="Start Flow"
+      header="Start Flow"
     >
       <div style="position:relative">    
         <div style="padding:20px; overflow-y: scroll;">
@@ -258,6 +278,7 @@
         </div>
       </div>
     </rp-dialog -->
+    </div>
 
     <script>
       /*

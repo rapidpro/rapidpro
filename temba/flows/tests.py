@@ -11,6 +11,7 @@ from openpyxl import load_workbook
 
 from django.conf import settings
 from django.contrib.auth.models import Group
+from django.db.models.functions import TruncDate
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -21,7 +22,8 @@ from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
-from temba.contacts.models import WHATSAPP_SCHEME, Contact, ContactField, ContactGroup
+from temba.contacts.models import FACEBOOK_SCHEME, WHATSAPP_SCHEME, Contact, ContactField, ContactGroup
+from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.msgs.models import Label
 from temba.orgs.models import Language
@@ -57,7 +59,13 @@ from .models import (
     RuleSet,
     get_flow_user,
 )
-from .tasks import squash_flowpathcounts, squash_flowruncounts, trim_flow_sessions, update_run_expirations_task
+from .tasks import (
+    squash_flowpathcounts,
+    squash_flowruncounts,
+    trim_flow_revisions,
+    trim_flow_sessions,
+    update_run_expirations_task,
+)
 from .views import FlowCRUDL
 
 
@@ -170,6 +178,29 @@ class FlowTest(TembaTest):
         self.assertContains(response, "Start Notifications")
         self.assertContains(response, "Stop Notifications")
         self.assertContains(response, "Appointment Followup")
+
+    def test_facebook_warnings(self):
+        no_topic = self.get_flow("pick_a_number")
+        with_topic = self.get_flow("with_message_topic")
+
+        # bring up broadcast dialog
+        self.login(self.admin)
+        response = self.client.get(reverse("flows.flow_broadcast", args=[no_topic.id]))
+
+        # no warning, we don't have a facebook channel
+        self.assertNotContains(response, "does not specify a Facebook topic")
+
+        # change our channel to use a facebook scheme
+        self.channel.schemes = [FACEBOOK_SCHEME]
+        self.channel.save()
+
+        # should see a warning for no topic now
+        response = self.client.get(reverse("flows.flow_broadcast", args=[no_topic.id]))
+        self.assertContains(response, "does not specify a Facebook topic")
+
+        # warning shouldn't be present for flow with a topic
+        response = self.client.get(reverse("flows.flow_broadcast", args=[with_topic.id]))
+        self.assertNotContains(response, "does not specify a Facebook topic")
 
     def test_template_warnings(self):
         self.login(self.admin)
@@ -385,6 +416,14 @@ class FlowTest(TembaTest):
             ["whatsapp", "airtime", "classifier", "resthook"], json.loads(response.context["feature_filters"])
         )
 
+        # change our channel to use a facebook scheme
+        self.channel.schemes = [FACEBOOK_SCHEME]
+        self.channel.save()
+        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        self.assertEqual(
+            ["facebook", "airtime", "classifier", "resthook"], json.loads(response.context["feature_filters"])
+        )
+
     def test_flow_editor(self):
         self.login(self.admin)
         response = self.client.get(reverse("flows.flow_editor", args=[self.flow.uuid]))
@@ -461,9 +500,7 @@ class FlowTest(TembaTest):
 
     def test_save_revision(self):
         self.login(self.admin)
-        self.client.post(
-            reverse("flows.flow_create"), {"name": "Go Flow", "flow_type": Flow.TYPE_MESSAGE, "editor_version": "0"}
-        )
+        self.client.post(reverse("flows.flow_create"), {"name": "Go Flow", "flow_type": Flow.TYPE_MESSAGE})
         flow = Flow.objects.get(
             org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
         )
@@ -1938,6 +1975,12 @@ class FlowTest(TembaTest):
         for name in group_names[1:]:
             self.assertIsNotNone(flow.group_dependencies.filter(name=name).first())
 
+    def test_global_dependencies(self):
+        self.get_flow("dependencies_v13")
+
+        # global should have been created with blank value
+        Global.objects.get(name="Org Name", key="org_name", value="")
+
     def test_label_dependencies(self):
         self.get_flow("add_label")
         flow = Flow.objects.filter(name="Add Label").first()
@@ -2072,6 +2115,7 @@ class FlowTest(TembaTest):
                 ],
             )
             self.assertEqual(len(flow.metadata["waiting_exit_uuids"]), 11)
+            self.assertEqual(len(flow.metadata["parent_refs"]), 0)
 
     def test_group_send(self):
         # create an inactive group with the same name, to test that this doesn't blow up our import
@@ -2378,7 +2422,7 @@ class FlowCRUDLTest(TembaTest):
         self.assertEqual(flow2.expires_after_minutes, 10080)
 
         # make sure we don't get a start flow button for Android Surveys
-        response = self.client.get(reverse("flows.flow_editor", args=[flow2.uuid]))
+        response = self.client.get(reverse("flows.flow_editor_next", args=[flow2.uuid]))
         self.assertNotContains(response, "broadcast-rulesflow btn-primary")
 
         # create a new voice flow
@@ -2394,9 +2438,7 @@ class FlowCRUDLTest(TembaTest):
 
         # test flows with triggers
         # create a new flow with one unformatted keyword
-        post_data = dict()
-        post_data["name"] = "Flow With Unformated Keyword Triggers"
-        post_data["keyword_triggers"] = "this is,it"
+        post_data = {"name": "Flow With Unformated Keyword Triggers", "keyword_triggers": "this is,it"}
         response = self.client.post(reverse("flows.flow_create"), post_data)
         self.assertFormError(
             response,
@@ -2406,9 +2448,7 @@ class FlowCRUDLTest(TembaTest):
         )
 
         # create a new flow with one existing keyword
-        post_data = dict()
-        post_data["name"] = "Flow With Existing Keyword Triggers"
-        post_data["keyword_triggers"] = "this,is,unique"
+        post_data = {"name": "Flow With Existing Keyword Triggers", "keyword_triggers": "this,is,unique"}
         response = self.client.post(reverse("flows.flow_create"), post_data)
         self.assertFormError(
             response, "form", "keyword_triggers", 'The keyword "unique" is already used for another flow'
@@ -2426,16 +2466,17 @@ class FlowCRUDLTest(TembaTest):
         trigger.delete()
 
         # create a new flow with keywords
-        post_data = dict()
-        post_data["name"] = "Flow With Good Keyword Triggers"
-        post_data["keyword_triggers"] = "this,is,it"
-        post_data["flow_type"] = Flow.TYPE_MESSAGE
-        post_data["expires_after_minutes"] = 30
+        post_data = {
+            "name": "Flow With Good Keyword Triggers",
+            "keyword_triggers": "this,is,it",
+            "flow_type": Flow.TYPE_MESSAGE,
+            "expires_after_minutes": 30,
+        }
         response = self.client.post(reverse("flows.flow_create"), post_data, follow=True)
         flow3 = Flow.objects.get(name=post_data["name"])
 
         self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[flow3.uuid]))
+        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor_next", args=[flow3.uuid]))
         self.assertEqual(response.context["object"].triggers.count(), 3)
 
         # update expiration for voice flow, and test if form has expected fields
@@ -2577,7 +2618,7 @@ class FlowCRUDLTest(TembaTest):
         self.assertIn("channels", response.json())
         self.assertIn("languages", response.json())
         self.assertIn("channel_countries", response.json())
-        self.assertEqual(ActionSet.objects.all().count(), 28)
+        self.assertEqual(ActionSet.objects.all().count(), 4)
 
         json_dict = response.json()["flow"]
 
@@ -2605,7 +2646,7 @@ class FlowCRUDLTest(TembaTest):
             reverse("flows.flow_json", args=[flow.uuid]), json_dict, content_type="application/json"
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(ActionSet.objects.all().count(), 25)
+        self.assertEqual(ActionSet.objects.all().count(), 1)
 
         # check that the flow only has a single actionset
         ActionSet.objects.get(flow=flow)
@@ -2661,7 +2702,7 @@ class FlowCRUDLTest(TembaTest):
         msg_flow = Flow.objects.get(name=post_data["name"])
 
         self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[msg_flow.uuid]))
+        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor_next", args=[msg_flow.uuid]))
         self.assertEqual(msg_flow.flow_type, Flow.TYPE_MESSAGE)
 
         post_data = dict(name="Call flow", expires_after_minutes=5, flow_type=Flow.TYPE_VOICE)
@@ -2669,7 +2710,7 @@ class FlowCRUDLTest(TembaTest):
         call_flow = Flow.objects.get(name=post_data["name"])
 
         self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[call_flow.uuid]))
+        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor_next", args=[call_flow.uuid]))
         self.assertEqual(call_flow.flow_type, Flow.TYPE_VOICE)
 
         # test creating a flow with base language
@@ -2692,7 +2733,7 @@ class FlowCRUDLTest(TembaTest):
         language_flow = Flow.objects.get(name="Language Flow")
 
         self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[language_flow.uuid]))
+        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor_next", args=[language_flow.uuid]))
         self.assertEqual(language_flow.base_language, language.iso_code)
 
     def test_lists(self):
@@ -2827,9 +2868,7 @@ class FlowCRUDLTest(TembaTest):
 
     def test_goflow_revisions(self):
         self.login(self.admin)
-        self.client.post(
-            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, editor_version="0")
-        )
+        self.client.post(reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE))
         flow = Flow.objects.get(
             org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
         )
@@ -3497,13 +3536,17 @@ class FlowCRUDLTest(TembaTest):
     def test_save_definitions(self):
         self.login(self.admin)
 
+        self.org.set_languages(self.admin, ["eng", "fra"], "eng")
+
         # old flow definition
-        self.client.post(
-            reverse("flows.flow_create"),
-            data=dict(name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, editor_version="1"),
-        )
-        flow = Flow.objects.get(
-            org=self.org, name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.FINAL_LEGACY_VERSION
+        flow = Flow.create(
+            self.org,
+            self.admin,
+            "Old Flow",
+            flow_type=Flow.TYPE_MESSAGE,
+            use_new_editor=False,
+            base_language="eng",
+            create_revision=True,
         )
 
         # old editor
@@ -3511,11 +3554,13 @@ class FlowCRUDLTest(TembaTest):
         self.assertNotRedirect(response, reverse("flows.flow_editor_next", args=[flow.uuid]))
 
         # new flow definition
-        self.client.post(
-            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, editor_version="0")
+        response = self.client.post(
+            reverse("flows.flow_create"),
+            data={"name": "New Flow", "flow_type": Flow.TYPE_MESSAGE, "base_language": "eng"},
         )
+
         flow = Flow.objects.get(
-            org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
+            org=self.org, name="New Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
         )
 
         # now loading the editor page should redirect
@@ -5762,3 +5807,83 @@ class SystemChecksTest(TembaTest):
 
         with override_settings(MAILROOM_URL=None):
             self.assertEqual(mailroom_url(None)[0].msg, "No mailroom URL set, simulation will not be available")
+
+
+class FlowRevisionTest(TembaTest):
+    def test_trim_revisions(self):
+        start = timezone.now()
+
+        color = self.get_flow("color")
+        clinic = self.get_flow("the_clinic")
+
+        revision = 100
+        FlowRevision.objects.all().update(revision=revision)
+
+        # create a single old clinic revision
+        FlowRevision.objects.create(
+            flow=clinic,
+            definition=dict(),
+            revision=99,
+            created_on=timezone.now() - timedelta(days=7),
+            modified_on=timezone.now(),
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
+        # make a bunch of revisions for color on the same day
+        created = timezone.now().replace(hour=6) - timedelta(days=1)
+        for i in range(25):
+            revision -= 1
+            created = created - timedelta(minutes=1)
+            FlowRevision.objects.create(
+                flow=color,
+                definition=dict(),
+                revision=revision,
+                created_by=self.admin,
+                modified_by=self.admin,
+                created_on=created,
+                modified_on=created,
+            )
+
+        # then for 5 days prior, make a few more
+        for i in range(5):
+            created = created - timedelta(days=1)
+            for i in range(10):
+                revision -= 1
+                created = created - timedelta(minutes=1)
+                FlowRevision.objects.create(
+                    flow=color,
+                    definition=dict(),
+                    revision=revision,
+                    created_by=self.admin,
+                    modified_by=self.admin,
+                    created_on=created,
+                    modified_on=created,
+                )
+
+        # trim our flow revisions, should be left with original (today), 25 from yesterday, 1 per day for 5 days = 31
+        self.assertEqual(76, FlowRevision.objects.filter(flow=color).count())
+        self.assertEqual(45, FlowRevision.trim(start))
+        self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
+        self.assertEqual(
+            7,
+            FlowRevision.objects.filter(flow=color)
+            .annotate(created_date=TruncDate("created_on"))
+            .distinct("created_date")
+            .count(),
+        )
+
+        # trim our clinic flow manually, should remain unchanged
+        self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
+        self.assertEqual(0, FlowRevision.trim_for_flow(clinic.id))
+        self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
+
+        # call our task
+        trim_flow_revisions()
+        self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
+        self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
+
+        # call again (testing reading redis key)
+        trim_flow_revisions()
+        self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
+        self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())

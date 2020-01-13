@@ -16,6 +16,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStart
+from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
 from temba.templates.models import Template, TemplateTranslation
@@ -838,6 +839,7 @@ class FlowReadSerializer(ReadSerializer):
     expires = serializers.ReadOnlyField(source="expires_after_minutes")
     runs = serializers.SerializerMethodField()
     results = serializers.SerializerMethodField()
+    parent_refs = serializers.SerializerMethodField()
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
@@ -859,6 +861,9 @@ class FlowReadSerializer(ReadSerializer):
     def get_results(self, obj):
         return obj.metadata.get(Flow.METADATA_RESULTS, [])
 
+    def get_parent_refs(self, obj):
+        return obj.metadata.get(Flow.METADATA_PARENT_REFS, [])
+
     class Meta:
         model = Flow
         fields = (
@@ -870,6 +875,7 @@ class FlowReadSerializer(ReadSerializer):
             "expires",
             "runs",
             "results",
+            "parent_refs",
             "created_on",
             "modified_on",
         )
@@ -1017,6 +1023,14 @@ class FlowStartWriteSerializer(WriteSerializer):
             groups=groups,
             extra=extra,
         )
+
+
+class GlobalReadSerializer(ReadSerializer):
+    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    class Meta:
+        model = Global
+        fields = ("key", "name", "value", "modified_on")
 
 
 class LabelReadSerializer(ReadSerializer):

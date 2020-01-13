@@ -20,6 +20,7 @@ from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
 from django.db.models import Max, Q, Sum
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
@@ -28,6 +29,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
 from temba.classifiers.models import Classifier
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
+from temba.globals.models import Global
 from temba.msgs.models import Label, Msg
 from temba.orgs.models import Org
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
@@ -156,11 +158,13 @@ class Flow(TembaModel):
     METADATA_RESULTS = "results"
     METADATA_DEPENDENCIES = "dependencies"
     METADATA_WAITING_EXIT_UUIDS = "waiting_exit_uuids"
+    METADATA_PARENT_REFS = "parent_refs"
 
     # items in the response from mailroom flow inspection
     INSPECT_RESULTS = "results"
     INSPECT_DEPENDENCIES = "dependencies"
     INSPECT_WAITING_EXITS = "waiting_exits"
+    INSPECT_PARENT_REFS = "parent_refs"
 
     # items in the flow definition JSON
     DEFINITION_UUID = "uuid"
@@ -299,6 +303,8 @@ class Flow(TembaModel):
         blank=True,
         help_text=_("Any fields this flow depends on"),
     )
+
+    global_dependencies = models.ManyToManyField(Global, related_name="dependent_flows")
 
     channel_dependencies = models.ManyToManyField(Channel, related_name="dependent_flows")
 
@@ -509,6 +515,11 @@ class Flow(TembaModel):
                     flow_type=flow_type,
                     expires_after_minutes=flow_expires,
                 )
+
+            # make sure the flow is unarchived
+            if flow.is_archived:
+                flow.is_archived = False
+                flow.save(update_fields=("is_archived",))
 
             dependency_mapping[flow_uuid] = str(flow.uuid)
             created_flows.append((flow, flow_def))
@@ -1156,7 +1167,7 @@ class Flow(TembaModel):
         return flow
 
     def get_legacy_metadata(self):
-        exclude_keys = (Flow.METADATA_RESULTS, Flow.METADATA_WAITING_EXIT_UUIDS)
+        exclude_keys = (Flow.METADATA_RESULTS, Flow.METADATA_WAITING_EXIT_UUIDS, Flow.METADATA_PARENT_REFS)
         metadata = {k: v for k, v in self.metadata.items() if k not in exclude_keys}
 
         revision = self.get_current_revision()
@@ -1322,6 +1333,7 @@ class Flow(TembaModel):
                 Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
                 Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
                 Flow.METADATA_WAITING_EXIT_UUIDS: flow_info[Flow.INSPECT_WAITING_EXITS],
+                Flow.METADATA_PARENT_REFS: flow_info[Flow.INSPECT_PARENT_REFS],
             }
             self.saved_by = user
             self.saved_on = timezone.now()
@@ -1396,6 +1408,7 @@ class Flow(TembaModel):
                 self.metadata = json_dict.get(Flow.METADATA, {})
                 self.metadata[Flow.METADATA_RESULTS] = flow_info[Flow.INSPECT_RESULTS]
                 self.metadata[Flow.METADATA_WAITING_EXIT_UUIDS] = flow_info[Flow.INSPECT_WAITING_EXITS]
+                self.metadata[Flow.METADATA_PARENT_REFS] = flow_info[Flow.INSPECT_PARENT_REFS]
 
                 if user:
                     self.saved_by = user
@@ -1685,22 +1698,28 @@ class Flow(TembaModel):
         channel_uuids = [g["uuid"] for g in dependencies.get("channels", [])]
         label_uuids = [g["uuid"] for g in dependencies.get("labels", [])]
         classifier_uuids = [c["uuid"] for c in dependencies.get("classifiers", [])]
+        global_keys = [g["key"] for g in dependencies.get("globals", [])]
 
-        # still need to do lazy creation of fields in the case of a flow import
-        if len(field_keys):
+        # fields won't have been included in old imports so may need to be lazily created here
+        if field_keys:
             active_org_fields = set(
                 ContactField.user_fields.active_for_org(org=self.org).values_list("key", flat=True)
             )
 
-            existing_fields = set(field_keys)
-            fields_to_create = existing_fields.difference(active_org_fields)
+            fields_to_create = set(field_keys).difference(active_org_fields)
 
             # create any field that doesn't already exist
             for field in fields_to_create:
                 if ContactField.is_valid_key(field):
-                    # reverse slug to get a reasonable label
-                    label = " ".join([word.capitalize() for word in field.split("_")])
-                    ContactField.get_or_create(self.org, self.modified_by, field, label)
+                    ContactField.get_or_create(self.org, self.modified_by, field)
+
+        # globals aren't included in exports so they're created here too if they don't exist, with blank values
+        if global_keys:
+            org_globals = set(self.org.globals.filter(is_active=True).values_list("key", flat=True))
+
+            globals_to_create = set(global_keys).difference(org_globals)
+            for g in globals_to_create:
+                Global.get_or_create(self.org, self.modified_by, g, name="", value="")
 
         fields = ContactField.user_fields.filter(org=self.org, key__in=field_keys)
         flows = self.org.flows.filter(uuid__in=flow_uuids)
@@ -1708,6 +1727,7 @@ class Flow(TembaModel):
         channels = Channel.objects.filter(org=self.org, uuid__in=channel_uuids, is_active=True)
         labels = Label.label_objects.filter(org=self.org, uuid__in=label_uuids)
         classifiers = Classifier.objects.filter(org=self.org, uuid__in=classifier_uuids)
+        globals = self.org.globals.filter(key__in=global_keys, is_active=True)
 
         self.field_dependencies.clear()
         self.field_dependencies.add(*fields)
@@ -1726,6 +1746,9 @@ class Flow(TembaModel):
 
         self.classifier_dependencies.clear()
         self.classifier_dependencies.add(*classifiers)
+
+        self.global_dependencies.clear()
+        self.global_dependencies.add(*globals)
 
     def release(self):
         """
@@ -1746,11 +1769,16 @@ class Flow(TembaModel):
         for trigger in self.triggers.all():
             trigger.release()
 
+        # release any starts
+        for start in self.starts.all():
+            start.release()
+
         self.group_dependencies.clear()
         self.flow_dependencies.clear()
         self.field_dependencies.clear()
         self.channel_dependencies.clear()
         self.label_dependencies.clear()
+        self.classifier_dependencies.clear()
 
         # queue mailroom to interrupt sessions where contact is currently in this flow
         mailroom.queue_interrupt(self.org, flow=self)
@@ -1759,9 +1787,11 @@ class Flow(TembaModel):
         """
         Exits all flow runs
         """
-
         # grab the ids of all our runs
         run_ids = self.runs.all().values_list("id", flat=True)
+
+        # clear our association with any related sessions
+        self.sessions.all().update(current_flow=None)
 
         # batch this for 1,000 runs at a time so we don't grab locks for too long
         for id_batch in chunk_list(run_ids, 1000):
@@ -1804,7 +1834,7 @@ class FlowSession(models.Model):
     session_type = models.CharField(max_length=1, choices=Flow.FLOW_TYPES, default=Flow.TYPE_MESSAGE, null=True)
 
     # the organization this session belongs to
-    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    org = models.ForeignKey(Org, related_name="sessions", on_delete=models.PROTECT)
 
     # the contact that this session is with
     contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="sessions")
@@ -1836,7 +1866,7 @@ class FlowSession(models.Model):
     wait_started_on = models.DateTimeField(null=True)
 
     # the flow of the waiting run
-    current_flow = models.ForeignKey("flows.Flow", null=True, on_delete=models.PROTECT)
+    current_flow = models.ForeignKey("flows.Flow", related_name="sessions", null=True, on_delete=models.PROTECT)
 
     def release(self):
         self.delete()
@@ -1921,7 +1951,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     created_on = models.DateTimeField(default=timezone.now)
 
     # when this run was last modified
-    modified_on = models.DateTimeField(auto_now=True)
+    modified_on = models.DateTimeField(default=timezone.now)
 
     # when this run ended
     exited_on = models.DateTimeField(null=True)
@@ -2029,6 +2059,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         if self.flow.expires_after_minutes:
             self.expires_on = point_in_time + timedelta(minutes=self.flow.expires_after_minutes)
+            self.modified_on = timezone.now()
 
             # save our updated fields
             self.save(update_fields=["expires_on", "modified_on"])
@@ -2287,6 +2318,8 @@ class FlowRevision(SmartModel):
     JSON definitions for previous flow revisions
     """
 
+    LAST_TRIM_KEY = "temba:last_flow_revision_trim"
+
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="revisions")
 
     definition = JSONAsTextField(help_text=_("The JSON flow definition"), default=dict)
@@ -2296,6 +2329,55 @@ class FlowRevision(SmartModel):
     )
 
     revision = models.IntegerField(null=True, help_text=_("Revision number for this definition"))
+
+    @classmethod
+    def trim(cls, since):
+        """
+        For any flow that has a new revision since the passed in date, trim revisions
+        :param since: datetime of when to trim
+        :return: The number of trimmed revisions
+        """
+        count = 0
+
+        # find all flows with revisions since the passed in date
+        for fr in FlowRevision.objects.filter(created_on__gt=since).distinct("flow_id").only("flow_id"):
+            # trim that flow
+            count += FlowRevision.trim_for_flow(fr.flow_id)
+
+        return count
+
+    @classmethod
+    def trim_for_flow(cls, flow_id):
+        """
+        Trims the revisions for the passed in flow.
+
+        Our logic is:
+         * always keep last 25 revisions
+         * for any revision beyond those, collapse to first revision for that day
+
+        :param flow: the id of the flow to trim revisions for
+        :return: the number of trimmed revisions
+        """
+        # find what date cutoff we will use for "25 most recent"
+        cutoff = FlowRevision.objects.filter(flow=flow_id).order_by("-created_on")[24:25]
+
+        # fewer than 25 revisions
+        if not cutoff:
+            return 0
+
+        cutoff = cutoff[0].created_on
+
+        # find the ids of the first revision for each day starting at the cutoff
+        keepers = (
+            FlowRevision.objects.filter(flow=flow_id, created_on__lt=cutoff)
+            .annotate(created_date=TruncDate("created_on"))
+            .values("created_date")
+            .annotate(max_id=Max("id"))
+            .values_list("max_id", flat=True)
+        )
+
+        # delete the rest
+        return FlowRevision.objects.filter(flow=flow_id, created_on__lt=cutoff).exclude(id__in=keepers).delete()[0]
 
     @classmethod
     def is_legacy_definition(cls, definition):
@@ -3229,6 +3311,15 @@ class FlowStart(models.Model):
 
     def async_start(self):
         mailroom.queue_flow_start(self)
+
+    def release(self):
+        with transaction.atomic():
+            self.groups.clear()
+            self.contacts.clear()
+            self.connections.clear()
+            FlowRun.objects.filter(start=self).update(start=None)
+            FlowStartCount.objects.filter(start=self).delete()
+            self.delete()
 
     def __str__(self):  # pragma: no cover
         return f"FlowStart[id={self.id}, flow={self.flow.uuid}]"

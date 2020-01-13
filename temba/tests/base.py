@@ -34,6 +34,88 @@ def add_testing_flag_to_context(*args):
 class TembaTestMixin:
     databases = ("default", "direct")
 
+    def setUpOrg(self):
+        # make sure we start off without any service users
+        Group.objects.get(name="Service Users").user_set.clear()
+
+        self.clear_cache()
+
+        self.create_anonymous_user()
+
+        self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
+
+        # create different user types
+        self.non_org_user = self.create_user("NonOrg")
+        self.user = self.create_user("User", ("Viewers",))
+        self.editor = self.create_user("Editor")
+        self.admin = self.create_user("Administrator")
+        self.surveyor = self.create_user("Surveyor")
+        self.customer_support = self.create_user("support", ("Customer Support",))
+
+        self.org = Org.objects.create(
+            name="Temba",
+            timezone=pytz.timezone("Africa/Kigali"),
+            brand=settings.DEFAULT_BRAND,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+        self.org.initialize(topup_size=1000)
+
+        # add users to the org
+        self.user.set_org(self.org)
+        self.org.viewers.add(self.user)
+
+        self.editor.set_org(self.org)
+        self.org.editors.add(self.editor)
+
+        self.admin.set_org(self.org)
+        self.org.administrators.add(self.admin)
+
+        self.surveyor.set_org(self.org)
+        self.org.surveyors.add(self.surveyor)
+
+        self.superuser.set_org(self.org)
+
+        # a single Android channel
+        self.channel = Channel.create(
+            self.org,
+            self.user,
+            "RW",
+            "A",
+            name="Test Channel",
+            address="+250785551212",
+            device="Nexus 5X",
+            secret="12345",
+            config={Channel.CONFIG_FCM_ID: "123"},
+        )
+
+        # don't cache anon user between tests
+        from temba import utils
+
+        utils._anon_user = None
+
+        clear_flow_users()
+
+    def setUpLocations(self):
+        """
+        Installs some basic test location data for Rwanda
+        """
+        self.country = AdminBoundary.create(osm_id="171496", name="Rwanda", level=0)
+        self.state1 = AdminBoundary.create(osm_id="1708283", name="Kigali City", level=1, parent=self.country)
+        self.state2 = AdminBoundary.create(osm_id="171591", name="Eastern Province", level=1, parent=self.country)
+        self.district1 = AdminBoundary.create(osm_id="R1711131", name="Gatsibo", level=2, parent=self.state2)
+        self.district2 = AdminBoundary.create(osm_id="1711163", name="Kayônza", level=2, parent=self.state2)
+        self.district3 = AdminBoundary.create(osm_id="3963734", name="Nyarugenge", level=2, parent=self.state1)
+        self.district4 = AdminBoundary.create(osm_id="1711142", name="Rwamagana", level=2, parent=self.state2)
+        self.ward1 = AdminBoundary.create(osm_id="171113181", name="Kageyo", level=3, parent=self.district1)
+        self.ward2 = AdminBoundary.create(osm_id="171116381", name="Kabare", level=3, parent=self.district2)
+        self.ward3 = AdminBoundary.create(osm_id="VMN.49.1_1", name="Bukure", level=3, parent=self.district4)
+
+        self.country.update_path()
+
+        self.org.country = self.country
+        self.org.save(update_fields=("country",))
+
     def clear_cache(self):
         """
         Clears the redis cache. We are extra paranoid here and check that redis host is 'localhost'
@@ -414,86 +496,7 @@ class TembaTestMixin:
 
 class TembaTest(TembaTestMixin, SmartminTest):
     def setUp(self):
-        # make sure we start off without any service users
-        Group.objects.get(name="Service Users").user_set.clear()
-
-        self.clear_cache()
-
-        self.create_anonymous_user()
-
-        self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
-
-        # create different user types
-        self.non_org_user = self.create_user("NonOrg")
-        self.user = self.create_user("User", ("Viewers",))
-        self.editor = self.create_user("Editor")
-        self.admin = self.create_user("Administrator")
-        self.surveyor = self.create_user("Surveyor")
-        self.customer_support = self.create_user("support", ("Customer Support",))
-
-        self.org = Org.objects.create(
-            name="Temba",
-            timezone=pytz.timezone("Africa/Kigali"),
-            brand=settings.DEFAULT_BRAND,
-            created_by=self.user,
-            modified_by=self.user,
-        )
-        self.org.initialize(topup_size=1000)
-
-        # add users to the org
-        self.user.set_org(self.org)
-        self.org.viewers.add(self.user)
-
-        self.editor.set_org(self.org)
-        self.org.editors.add(self.editor)
-
-        self.admin.set_org(self.org)
-        self.org.administrators.add(self.admin)
-
-        self.surveyor.set_org(self.org)
-        self.org.surveyors.add(self.surveyor)
-
-        self.superuser.set_org(self.org)
-
-        # a single Android channel
-        self.channel = Channel.create(
-            self.org,
-            self.user,
-            "RW",
-            "A",
-            name="Test Channel",
-            address="+250785551212",
-            device="Nexus 5X",
-            secret="12345",
-            config={Channel.CONFIG_FCM_ID: "123"},
-        )
-
-        # don't cache anon user between tests
-        from temba import utils
-
-        utils._anon_user = None
-
-        clear_flow_users()
-
-    def setUpLocations(self):
-        """
-        Installs some basic test location data for Rwanda
-        """
-        self.country = AdminBoundary.create(osm_id="171496", name="Rwanda", level=0)
-        self.state1 = AdminBoundary.create(osm_id="1708283", name="Kigali City", level=1, parent=self.country)
-        self.state2 = AdminBoundary.create(osm_id="171591", name="Eastern Province", level=1, parent=self.country)
-        self.district1 = AdminBoundary.create(osm_id="R1711131", name="Gatsibo", level=2, parent=self.state2)
-        self.district2 = AdminBoundary.create(osm_id="1711163", name="Kayônza", level=2, parent=self.state2)
-        self.district3 = AdminBoundary.create(osm_id="3963734", name="Nyarugenge", level=2, parent=self.state1)
-        self.district4 = AdminBoundary.create(osm_id="1711142", name="Rwamagana", level=2, parent=self.state2)
-        self.ward1 = AdminBoundary.create(osm_id="171113181", name="Kageyo", level=3, parent=self.district1)
-        self.ward2 = AdminBoundary.create(osm_id="171116381", name="Kabare", level=3, parent=self.district2)
-        self.ward3 = AdminBoundary.create(osm_id="VMN.49.1_1", name="Bukure", level=3, parent=self.district4)
-
-        self.country.update_path()
-
-        self.org.country = self.country
-        self.org.save(update_fields=("country",))
+        self.setUpOrg()
 
     def setUpSecondaryOrg(self, topup_size=None):
         self.admin2 = self.create_user("Administrator2")
