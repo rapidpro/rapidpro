@@ -2473,6 +2473,7 @@ class APITest(TembaTest):
                             "node_uuids": [matchers.UUID4String()],
                         },
                     ],
+                    "parent_refs": [],
                     "created_on": format_datetime(archived.created_on),
                     "modified_on": format_datetime(archived.modified_on),
                 },
@@ -2492,6 +2493,7 @@ class APITest(TembaTest):
                             "node_uuids": [matchers.UUID4String()],
                         }
                     ],
+                    "parent_refs": [],
                     "created_on": format_datetime(color.created_on),
                     "modified_on": format_datetime(color.modified_on),
                 },
@@ -2529,6 +2531,7 @@ class APITest(TembaTest):
                             "node_uuids": [matchers.UUID4String()],
                         },
                     ],
+                    "parent_refs": [],
                     "created_on": format_datetime(survey.created_on),
                     "modified_on": format_datetime(survey.modified_on),
                 },
