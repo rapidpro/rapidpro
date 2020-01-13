@@ -9,7 +9,7 @@ from temba.classifiers.models import Classifier
 from temba.request_logs.models import HTTPLog
 from temba.tests import MockResponse, TembaTest
 
-from .type import BotHubType
+from .type import BothubType
 
 INTENT_RESPONSE = """
 {
@@ -22,14 +22,14 @@ INTENT_RESPONSE = """
 """
 
 
-class BotHubTypeTest(TembaTest):
+class BothubTypeTest(TembaTest):
     def test_sync(self):
         c = Classifier.create(
             self.org,
             self.user,
-            BotHubType.slug,
+            BothubType.slug,
             "Booker",
-            {BotHubType.CONFIG_ACCESS_TOKEN: "123456789", BotHubType.INTENT_URL: "https://nlp.bothub.it/info/"},
+            {BothubType.CONFIG_ACCESS_TOKEN: "123456789", BothubType.INTENT_URL: "https://nlp.bothub.it/info/"},
         )
 
         with patch("requests.get") as mock_get:
@@ -96,4 +96,4 @@ class BotHubTypeTest(TembaTest):
             c = Classifier.objects.get()
             self.assertEqual("Bothub Test Repository", c.name)
             self.assertEqual("bothub", c.classifier_type)
-            self.assertEqual("123456789", c.config[BotHubType.CONFIG_ACCESS_TOKEN])
+            self.assertEqual("123456789", c.config[BothubType.CONFIG_ACCESS_TOKEN])
