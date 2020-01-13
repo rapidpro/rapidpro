@@ -88,7 +88,6 @@ export default class TextInput extends FormElement {
   public updated(changes: Map<string, any>) {
     super.updated(changes);
     if (changes.has("value")) {
-      console.log("Changed to ", this.value);
       this.setValues([this.value]);
     }
   }
