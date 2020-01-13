@@ -3856,7 +3856,7 @@ class APITest(TembaTest):
         TemplateTranslation.get_or_create(
             self.channel, "hello", "eng", "Hi {{1}}", 1, TemplateTranslation.STATUS_APPROVED, "1234"
         )
-        tt = TemplateTranslation.get_or_create(
+        TemplateTranslation.get_or_create(
             self.channel, "hello", "fra", "Bonjour {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
         )
 
@@ -3870,7 +3870,7 @@ class APITest(TembaTest):
 
         # add templates and then deactivate a channel afterwards
         inactive_channel = Channel.create(self.org, self.user, "RW", "A", name="In-Active Channel", is_active=False)
-        TemplateTranslation.get_or_create(
+        tt = TemplateTranslation.get_or_create(
             inactive_channel,
             "hello",
             "afr",
