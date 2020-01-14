@@ -1848,9 +1848,11 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
      * **archived** - whether this flow is archived (boolean), filterable as `archived`
      * **labels** - the labels for this flow (array of objects)
      * **expires** - the time (in minutes) when this flow's inactive contacts will expire (integer)
+     * **runs** - the counts of completed, interrupted and expired runs (object)
+     * **results** - the results that this flow may create (array)
+     * **parent_refs** - the keys of the parent flow results referenced in this flow (array)
      * **created_on** - when this flow was created (datetime)
      * **modified_on** - when this flow was last modified (datetime), filterable as `before` and `after`.
-     * **runs** - the counts of completed, interrupted and expired runs (object)
 
     Example:
 
@@ -1883,6 +1885,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
                             "node_uuids": ["99afcda7-f928-4d4a-ae83-c90c96deb76d"]
                         }
                     ],
+                    "parent_refs": [],
                     "created_on": "2016-01-06T15:33:00.813162Z",
                     "modified_on": "2017-01-07T13:14:00.453567Z"
                 },
