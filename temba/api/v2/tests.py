@@ -3887,7 +3887,6 @@ class APITest(TembaTest):
             response = self.fetchJSON(url)
 
         resp_json = response.json()
-
         self.assertEqual(response.status_code, 200)
         self.assertEqual(resp_json["next"], None)
         self.assertEqual(

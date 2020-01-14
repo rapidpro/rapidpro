@@ -3370,7 +3370,6 @@ class TemplatesEndpoint(ListAPIMixin, BaseAPIView):
         queryset = org.templates.exclude(translations=None).prefetch_related(
             Prefetch("translations", TemplateTranslation.objects.filter(is_active=True))
         )
-
         return self.filter_before_after(queryset, "modified_on")
 
     @classmethod
