@@ -102,6 +102,17 @@ class MailroomClient:
     def sim_resume(self, payload):
         return self._request("sim/resume", payload)
 
+    def contact_search(self, org_id, group_uuid, query, sort, offset=0):
+        payload = {
+            "org_id": org_id,
+            "group_uuid": group_uuid,
+            "query": query,
+            "sort": sort,
+            "offset": offset,
+        }
+
+        return self._request("contact/search", payload)
+
     def _request(self, endpoint, payload=None, post=True):
         if logger.isEnabledFor(logging.DEBUG):  # pragma: no cover
             logger.debug("=============== %s request ===============" % endpoint)

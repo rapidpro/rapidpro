@@ -46,6 +46,7 @@ from temba.utils.fields import Select2Field
 from temba.utils.text import slugify_with
 from temba.utils.views import BaseActionForm, ContactListPaginationMixin
 from temba.values.constants import Value
+from temba.mailroom import MailroomException
 
 from .models import (
     TEL_SCHEME,
@@ -154,7 +155,7 @@ class ContactGroupForm(forms.ModelForm):
         model = ContactGroup
 
 
-class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
+class ContactListView(OrgPermsMixin, SmartListView):
     """
     Base class for contact list views with contact folders and groups listed by the side
     """
@@ -233,26 +234,20 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
 
         # contact list views don't use regular field searching but use more complex contact searching
         search_query = self.request.GET.get("search", None)
+        sort_on = self.request.GET.get("sort_on", "")
+        page = self.request.GET.get("page", "1")
 
-        sort_on = self.request.GET.get("sort_on", None)
+        offset = (int(page)-1) * 50
 
-        if sort_on is not None:
-            self.sort_field, self.sort_direction, sort_struct = self.prepare_sort_field_struct(sort_on)
-        else:
-            self.sort_field, self.sort_direction, sort_struct = (None, None, None)
+        self.sort_direction = "desc" if sort_on.startswith("-") else "asc"
+        self.sort_field = sort_on.lstrip("-")
 
-        if search_query or sort_struct:
-            from .search import contact_es_search
-            from temba.utils.es import ES
-
+        if search_query or sort_on:
+            from .search import contact_search
             try:
-                search_object, self.parsed_search = contact_es_search(org, search_query, group, sort_struct)
-                es_search = search_object.source(fields=("id",)).using(ES)
-
-                return es_search
-
-            except SearchException as e:
-                self.search_error = str(e)
+                return contact_search(org, group, search_query, sort_on, offset=offset)
+            except MailroomException as e:
+                self.search_error = e.response["error"]
 
                 # this should be an empty resultset
                 return Contact.objects.none()
@@ -273,7 +268,7 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
         ]
 
         # resolve the paginated object list so we can initialize a cache of URNs and fields
-        contacts = list(context["object_list"])
+        contacts = context["object_list"]
         Contact.bulk_cache_initialize(org, contacts)
 
         context["contacts"] = contacts

@@ -16,7 +16,9 @@ from django.utils.translation import gettext as _
 from temba.contacts.models import URN_SCHEME_CONFIG, Contact, ContactField
 from temba.utils.dates import date_to_day_range_utc, str_to_date, str_to_datetime
 from temba.utils.es import ModelESSearch
+from temba.utils.models import IDQuerySet
 from temba.values.constants import Value
+from temba import mailroom
 
 TEL_VALUE_REGEX = regex.compile(r"^[+ \d\-\(\)]+$", flags=regex.V0)
 CLEAN_SPECIAL_CHARS_REGEX = regex.compile(r"[+ \-\(\)]+", flags=regex.V0)
@@ -986,6 +988,15 @@ def evaluate_query(org, text, contact_json=dict):
     parsed = parse_query(text, optimize=True, as_anon=org.is_anon)
 
     return parsed.evaluate(org, contact_json)
+
+
+def contact_search(org, group, query, sort=None, offset=0):
+    if not group:
+        group = org.cached_all_contacts_group
+
+    client = mailroom.get_client()
+    result = client.contact_search(org.id, str(group.uuid), query, sort, offset)
+    return IDQuerySet(Contact, result["contact_ids"], result["total"], offset=offset)
 
 
 def contact_es_search(org, text, base_group=None, sort_struct=None):

@@ -50,6 +50,64 @@ class ProxyQuerySet(object):
         return self.object_list[item]
 
 
+class IDQuerySet(models.query.RawQuerySet):
+    """
+    QuerySet defined by a model, set of ids and total count
+    """
+    def __init__(self, model, ids, count, offset=0):
+        if len(ids) > 0:
+            # build a list of sequence to model id, so we can sort by the sequence in our results
+            pairs = ",".join(str((seq, model_id)) for seq, model_id in enumerate(ids, start=1))
+
+            super().__init__(
+                f"""
+                SELECT 
+                  model.* 
+                FROM 
+                  {model._meta.db_table} AS model 
+                JOIN (VALUES {pairs}) tmp_resultset (seq, model_id)
+                ON model.id = tmp_resultset.model_id
+                ORDER BY tmp_resultset.seq
+                """, model
+            )
+        else:
+            super().__init__(f"""SELECT * FROM {model._meta.db_table} WHERE id < 0""", model)
+
+        self.result_count = count
+        self.offset = offset
+
+    def __getitem__(self, k):
+        """
+        Called to slice our queryset. ID Query Sets should be created pre-sliced, that is the offset and counts should
+        match the way any kind of paginator is going to try to slice the queryset.
+        """
+        if k.start != self.offset:
+            raise Exception("attempt to slice ID queryset with differing offset")
+        return list(self)
+
+    def count(self):
+        return self.result_count
+
+
+def mapIDsToQueryset(model, ids):
+    """
+    Maps of set of ids to the specific model, returning the results in the same order
+    """
+    if not ids:
+        return model.objects.none()
+
+    # build a list of sequence to model id, so we can sort by the sequence in our results
+    pairs = ",".join(str((seq, model_id)) for seq, model_id in enumerate(ids, start=1))
+
+    return model.objects.raw(
+        f"""SELECT model.*
+            from {model._meta.db_table} AS model JOIN (VALUES {pairs}) tmp_resultset (seq, model_id)
+                ON model.id = tmp_resultset.model_id
+            ORDER BY tmp_resultset.seq
+            """
+    )
+
+
 def mapEStoDB(model, es_queryset, only_ids=False):
     """
     Map ElasticSearch results to Django Model objects
