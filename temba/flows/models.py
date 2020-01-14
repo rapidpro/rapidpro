@@ -158,11 +158,13 @@ class Flow(TembaModel):
     METADATA_RESULTS = "results"
     METADATA_DEPENDENCIES = "dependencies"
     METADATA_WAITING_EXIT_UUIDS = "waiting_exit_uuids"
+    METADATA_PARENT_REFS = "parent_refs"
 
     # items in the response from mailroom flow inspection
     INSPECT_RESULTS = "results"
     INSPECT_DEPENDENCIES = "dependencies"
     INSPECT_WAITING_EXITS = "waiting_exits"
+    INSPECT_PARENT_REFS = "parent_refs"
 
     # items in the flow definition JSON
     DEFINITION_UUID = "uuid"
@@ -1165,7 +1167,7 @@ class Flow(TembaModel):
         return flow
 
     def get_legacy_metadata(self):
-        exclude_keys = (Flow.METADATA_RESULTS, Flow.METADATA_WAITING_EXIT_UUIDS)
+        exclude_keys = (Flow.METADATA_RESULTS, Flow.METADATA_WAITING_EXIT_UUIDS, Flow.METADATA_PARENT_REFS)
         metadata = {k: v for k, v in self.metadata.items() if k not in exclude_keys}
 
         revision = self.get_current_revision()
@@ -1331,6 +1333,7 @@ class Flow(TembaModel):
                 Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
                 Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
                 Flow.METADATA_WAITING_EXIT_UUIDS: flow_info[Flow.INSPECT_WAITING_EXITS],
+                Flow.METADATA_PARENT_REFS: flow_info[Flow.INSPECT_PARENT_REFS],
             }
             self.saved_by = user
             self.saved_on = timezone.now()
@@ -1405,6 +1408,7 @@ class Flow(TembaModel):
                 self.metadata = json_dict.get(Flow.METADATA, {})
                 self.metadata[Flow.METADATA_RESULTS] = flow_info[Flow.INSPECT_RESULTS]
                 self.metadata[Flow.METADATA_WAITING_EXIT_UUIDS] = flow_info[Flow.INSPECT_WAITING_EXITS]
+                self.metadata[Flow.METADATA_PARENT_REFS] = flow_info[Flow.INSPECT_PARENT_REFS]
 
                 if user:
                     self.saved_by = user

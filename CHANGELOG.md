@@ -1,3 +1,14 @@
+v5.3.30
+----------
+ * Exclude inactive template translations from API endpoint
+
+v5.3.29
+----------
+ * Fix edge case for default alias dialog
+ * Add sending back to contact list page
+ * Save parent result refs in flow metadata
+ * Change name BotHub to Bothub
+
 v5.3.28
 ----------
  * remove auto-now on modified_on on FlowRun
