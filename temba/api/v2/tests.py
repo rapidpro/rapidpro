@@ -3859,9 +3859,20 @@ class APITest(TembaTest):
         TemplateTranslation.get_or_create(
             self.channel, "hello", "eng", "Hi {{1}}", 1, TemplateTranslation.STATUS_APPROVED, "1234"
         )
-        tt = TemplateTranslation.get_or_create(
+        TemplateTranslation.get_or_create(
             self.channel, "hello", "fra", "Bonjour {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
         )
+        tt = TemplateTranslation.get_or_create(
+            self.channel,
+            "hello",
+            "afr",
+            "This is a template translation for a deleted channel {{1}}",
+            1,
+            TemplateTranslation.STATUS_APPROVED,
+            "9012",
+        )
+        tt.is_active = False
+        tt.save()
 
         # templates on other org to test filtering
         TemplateTranslation.get_or_create(
