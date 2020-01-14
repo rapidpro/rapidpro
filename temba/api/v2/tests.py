@@ -3859,6 +3859,17 @@ class APITest(TembaTest):
         TemplateTranslation.get_or_create(
             self.channel, "hello", "fra", "Bonjour {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
         )
+        tt = TemplateTranslation.get_or_create(
+            self.channel,
+            "hello",
+            "afr",
+            "This is a template translation for a deleted channel {{1}}",
+            1,
+            TemplateTranslation.STATUS_APPROVED,
+            "9012",
+        )
+        tt.is_active = False
+        tt.save()
 
         # templates on other org to test filtering
         TemplateTranslation.get_or_create(
@@ -3868,19 +3879,7 @@ class APITest(TembaTest):
             self.org2channel, "goodbye", "fra", "Salut {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
         )
 
-        # add templates and then deactivate a channel afterwards
-        inactive_channel = Channel.create(self.org, self.user, "RW", "A", name="In-Active Channel", is_active=False)
-        tt = TemplateTranslation.get_or_create(
-            inactive_channel,
-            "hello",
-            "afr",
-            "This is a template translation for a deleted channel {{1}}",
-            1,
-            TemplateTranslation.STATUS_APPROVED,
-            "1234",
-        )
-
-        # no filtering except for in-active channels
+        # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
             response = self.fetchJSON(url)
 
