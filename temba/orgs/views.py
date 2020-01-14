@@ -2610,6 +2610,8 @@ class OrgCRUDL(SmartCRUDL):
                     spamreader = read_excel(import_file, index_col=False, dtype=str)
 
                 headers = spamreader.columns.tolist()
+                # Removing empty columns name from CSV files imported
+                headers = [item for item in headers if "Unnamed" not in item]
                 spamreader = spamreader.get_values().tolist()
                 spamreader.insert(0, headers)
 

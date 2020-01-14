@@ -431,6 +431,9 @@ class Org(SmartModel):
             else:
                 spamreader = read_excel(tmp_file, index_col=False)
             headers = spamreader.columns.tolist()
+
+            # Removing empty columns name from CSV files imported
+            headers = [item for item in headers if "Unnamed" not in item]
         finally:
             os.remove(tmp_file)
 
