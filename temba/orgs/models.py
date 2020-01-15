@@ -433,7 +433,7 @@ class Org(SmartModel):
             headers = spamreader.columns.tolist()
 
             # Removing empty columns name from CSV files imported
-            headers = [item for item in headers if "Unnamed" not in item]
+            headers = [str(item).lower() for item in headers if "Unnamed" not in item]
         finally:
             os.remove(tmp_file)
 
@@ -466,7 +466,7 @@ class Org(SmartModel):
 
         not_found_headers = [h for h in PARSE_GIFTCARDS_IMPORT_HEADERS if h not in headers]
         string_possible_headers = '", "'.join([h for h in PARSE_GIFTCARDS_IMPORT_HEADERS])
-        blank_headers = [h for h in headers if h is None or h == ""]
+        blank_headers = [h for h in headers if h is None or h == "" or "Unnamed" in h]
 
         if ("Identifier" in headers or "identifier" in headers) or ("Active" in headers or "active" in headers):
             raise Exception(_('Please remove the "identifier" and/or "active" column from your file.'))

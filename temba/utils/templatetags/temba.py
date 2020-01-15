@@ -266,4 +266,7 @@ def temba_get_value(context, obj, field):
     except Exception:
         pass
 
+    if value.__class__.__name__ == "bool":
+        value = str(value)
+
     return value or "-"
