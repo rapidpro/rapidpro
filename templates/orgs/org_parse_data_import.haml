@@ -79,7 +79,7 @@
 
               .form-buttons
                 %input.btn.btn-primary{type:"submit", value:'{% trans "Import" %}'}
-                %a.btn{onclick:"javascript:history.go(-1)"}
+                %a.btn{href:"{% if collection_type == 'giftcard' %}{% url 'orgs.org_giftcards' %}{% else %}{% url 'orgs.org_lookups' %}{% endif %}"}
                   -trans "Cancel"
 
 
