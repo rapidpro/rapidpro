@@ -13,6 +13,44 @@
     display: inline-block;
   }
 
+  .gift-tooltip {
+    position: relative;
+    display: inline-block;
+  }
+
+  .gift-tooltip .tooltiptext {
+    visibility: hidden;
+    width: 500px;
+    background-color: #555;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1;
+    bottom: 120%;
+    left: 50%;
+    margin-left: -254px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .gift-tooltip .tooltiptext::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #555 transparent transparent transparent;
+  }
+
+  .gift-tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+  }
+
 .modal-header.title
   %span{ng-model:"formData.rulesetConfig", data-icon:"show", class:"modal-title ruleset-name"}><
 .modal-body.split-editor
@@ -96,7 +134,16 @@
               select-server:"/flow/giftcards_api/", type:"hidden"}
         %select{ng-model:"formData.giftcard_type", required:"", name:"giftcard_type", style:"width:320px;height:34px", class:"giftcard-type", select2:""}
           %option{ng-repeat:"type_ in giftcardTypes", ng-selected:"type_.id == formData.giftcard_type", value:"[[type_.id]]"} [[type_.text]]
-        %a{class:"icon-nav-help-inverted", data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'Help'}
+        %a.gift-tooltip
+          .icon-nav-help-inverted
+          %span.tooltiptext
+            %p
+              -blocktrans
+                Assign Gift Card: This option will reserve a gift card for the contact, saving their phone number and returning information needed to redeem the gift card electronically.
+            %p
+              -blocktrans
+                Check Status: This option will return the number of gift cards that are unassigned in your database.
+
         .help-text
           -blocktrans
             The Parse API responds with JSON, each property will be added
