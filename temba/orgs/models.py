@@ -467,11 +467,13 @@ class Org(SmartModel):
         not_found_headers = [h for h in PARSE_GIFTCARDS_IMPORT_HEADERS if h not in headers]
         string_possible_headers = '", "'.join([h for h in PARSE_GIFTCARDS_IMPORT_HEADERS])
         blank_headers = [h for h in headers if h is None or h == "" or "Unnamed" in h]
+        valid_field_regex = r"^[a-zA-Z][a-zA-Z0-9_ -]*$"
+        invalid_fields = [h for h in headers if not re.match(valid_field_regex, h)]
 
         if ("Identifier" in headers or "identifier" in headers) or ("Active" in headers or "active" in headers):
             raise Exception(_('Please remove the "identifier" and/or "active" column from your file.'))
 
-        if blank_headers:
+        if blank_headers or invalid_fields:
             raise Exception(
                 _(
                     "Upload error: The file you are trying to upload has a missing or invalid column "
