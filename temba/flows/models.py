@@ -231,7 +231,7 @@ class Flow(TembaModel):
     ]
 
     FINAL_LEGACY_VERSION = VERSIONS[-1]
-    INITIAL_NEW_VERSION = "13.0.0"  # initial version of flow spec to use new engine
+    INITIAL_GOFLOW_VERSION = "13.0.0"  # initial version of flow spec to use new engine
     CURRENT_SPEC_VERSION = "13.0.0"  # current flow spec version
 
     DEFAULT_EXPIRES_AFTER = 60 * 12
@@ -1041,7 +1041,7 @@ class Flow(TembaModel):
         """
         Returns whether this flow still uses a legacy definition
         """
-        return Version(self.version_number) < Version(Flow.INITIAL_NEW_VERSION)
+        return Version(self.version_number) < Version(Flow.INITIAL_GOFLOW_VERSION)
 
     def as_export_ref(self):
         return {Flow.DEFINITION_UUID: str(self.uuid), Flow.DEFINITION_NAME: self.name}
@@ -1300,7 +1300,7 @@ class Flow(TembaModel):
         """
         Saves a new revision for this flow, validation will be done on the definition first
         """
-        if Version(definition.get(Flow.DEFINITION_SPEC_VERSION)) < Version(Flow.INITIAL_NEW_VERSION):
+        if Version(definition.get(Flow.DEFINITION_SPEC_VERSION)) < Version(Flow.INITIAL_GOFLOW_VERSION):
             raise FlowVersionConflictException(definition.get(Flow.DEFINITION_SPEC_VERSION))
 
         current_revision = self.get_current_revision()
@@ -2479,7 +2479,7 @@ class FlowRevision(SmartModel):
             if version == to_version:
                 break
 
-        if Version(to_version) >= Version(Flow.INITIAL_NEW_VERSION):
+        if Version(to_version) >= Version(Flow.INITIAL_GOFLOW_VERSION):
             json_flow = mailroom.get_client().flow_migrate(json_flow)
 
         return json_flow
