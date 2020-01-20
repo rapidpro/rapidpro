@@ -2419,44 +2419,21 @@ class FlowRevision(SmartModel):
                 validate_localization(rule["category"])
 
     @classmethod
-    def migrate_export(cls, org, exported_json, same_site, version, to_version=None):
-        from temba.flows.legacy import migrations
+    def migrate_export(cls, org, exported_json, same_site, version, legacy=False):
+        # use legacy migrations to get export to final legacy version
+        if version < Version(Flow.FINAL_LEGACY_VERSION):
+            from temba.flows.legacy import exports
+            exported_json = exports.migrate(org, exported_json, same_site, version)
 
-        if not to_version:
-            to_version = Flow.FINAL_LEGACY_VERSION
+        if legacy:
+            return exported_json
 
-        for version in Flow.get_versions_after(version):
-            version_slug = version.replace(".", "_")
-            migrate_fn = getattr(migrations, "migrate_export_to_version_%s" % version_slug, None)
+        # use mailroom to get export to current spec version
+        migrated_flows = []
+        for flow_def in exported_json[Org.EXPORT_FLOWS]:
+            migrated_flows.append(mailroom.get_client().flow_migrate(flow_def))
 
-            if migrate_fn:
-                exported_json = migrate_fn(exported_json, org, same_site)
-
-                # update the version of migrated flows
-                flows = []
-                for sub_flow in exported_json.get("flows", []):
-                    sub_flow[Flow.VERSION] = version
-                    flows.append(sub_flow)
-
-                exported_json["flows"] = flows
-
-            else:
-                migrate_fn = getattr(migrations, "migrate_to_version_%s" % version_slug, None)
-                if migrate_fn:
-                    flows = []
-                    for json_flow in exported_json.get("flows", []):
-                        json_flow = migrate_fn(json_flow, None)
-
-                        flows.append(json_flow)
-
-                    exported_json["flows"] = flows
-
-            # update each flow's version number
-            for json_flow in exported_json.get("flows", []):
-                json_flow[Flow.VERSION] = version
-
-            if version == to_version:
-                break
+        exported_json[Org.EXPORT_FLOWS] = migrated_flows
 
         return exported_json
 
