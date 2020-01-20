@@ -3666,6 +3666,15 @@ class BulkExportTest(TembaTest):
             response, "form", "import_file", "This file is no longer valid. Please export a new version and try again."
         )
 
+        # try a file which can be migrated forwards
+        response = self.client.post(reverse("orgs.org_import"), {
+            "import_file": open("%s/test_flows/favorites_v4.json" % settings.MEDIA_ROOT, "rb")
+        })
+        self.assertEqual(302, response.status_code)
+
+        flow = self.org.flows.filter(name="Favorites").get()
+        self.assertEqual(Flow.CURRENT_SPEC_VERSION, flow.version_number)
+
         # simulate an unexpected exception during import
         with patch("temba.triggers.models.Trigger.import_triggers") as validate:
             validate.side_effect = Exception("Unexpected Error")
