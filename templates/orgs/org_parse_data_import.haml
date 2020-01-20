@@ -57,6 +57,9 @@
                     -trans "Template file"
                     %a{href:'{{STATIC_URL}}examples/sample_giftcards.csv'}
                       -trans "Gift card template"
+                    %br
+                    %br
+                    -trans "Note: Remember that, if you’re using XLS file you need to set all data as text (no numeric and no datetime field)."
                 -else
                   %p#template-lookup
                     -trans "Template file"
