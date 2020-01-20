@@ -26,7 +26,7 @@ from django.db import transaction
 from django.db.models import Count
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import urlquote_plus
@@ -165,7 +165,17 @@ class ContactListView(OrgPermsMixin, SmartListView):
     add_button = True
     paginate_by = 50
 
-    parsed_search = None
+    parsed_query = None
+    save_dynamic_search = None
+
+    def pre_process(self, request, *args, **kwargs):
+        """
+        Don't allow pagination past 200th page
+        """
+        if int(self.request.GET.get("page", "1")) > 200:
+            return HttpResponseNotFound()
+
+        return super().pre_process(request, *args, **kwargs)
 
     def derive_group(self):
         return ContactGroup.all_groups.get(org=self.request.user.get_org(), group_type=self.system_group)
@@ -244,10 +254,17 @@ class ContactListView(OrgPermsMixin, SmartListView):
         self.sort_field = sort_on.lstrip("-")
 
         if search_query or sort_on:
-            from .search import contact_search
+            from temba import mailroom
+            from temba.utils.models import IDQuerySet
 
             try:
-                return contact_search(org, group, search_query, sort_on, offset=offset)
+                client = mailroom.get_client()
+                result = client.contact_search(org.id, str(group.uuid), search_query, sort_on, offset)
+
+                self.parsed_query = result["query"]
+                self.save_dynamic_search = "id" not in result["fields"]
+
+                return IDQuerySet(Contact, result["contact_ids"], result["total"], offset=offset)
             except MailroomException as e:
                 self.search_error = e.response["error"]
 
@@ -286,9 +303,9 @@ class ContactListView(OrgPermsMixin, SmartListView):
         context["sort_field"] = self.sort_field
 
         # replace search string with parsed search expression
-        if self.parsed_search is not None:
-            context["search"] = self.parsed_search.as_text()
-            context["save_dynamic_search"] = self.parsed_search.can_be_dynamic_group()
+        if self.parsed_query is not None:
+            context["search"] = self.parsed_query
+            context["save_dynamic_search"] = self.save_dynamic_search
 
         return context
 

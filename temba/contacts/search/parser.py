@@ -13,12 +13,12 @@ from elasticsearch_dsl import Q as es_Q
 from django.utils.encoding import force_text
 from django.utils.translation import gettext as _
 
+from temba import mailroom
 from temba.contacts.models import URN_SCHEME_CONFIG, Contact, ContactField
 from temba.utils.dates import date_to_day_range_utc, str_to_date, str_to_datetime
 from temba.utils.es import ModelESSearch
 from temba.utils.models import IDQuerySet
 from temba.values.constants import Value
-from temba import mailroom
 
 TEL_VALUE_REGEX = regex.compile(r"^[+ \d\-\(\)]+$", flags=regex.V0)
 CLEAN_SPECIAL_CHARS_REGEX = regex.compile(r"[+ \-\(\)]+", flags=regex.V0)
@@ -98,12 +98,6 @@ class ContactQuery(object):
                     raise SearchException(_(f"Unrecognized field: '{prop}'"))
 
         return prop_map
-
-    def can_be_dynamic_group(self):
-        props_not_allowed = {"id"}
-        prop_names = set(self.root.get_prop_names())
-
-        return not (prop_names.intersection(props_not_allowed))
 
     def __eq__(self, other):
         return isinstance(other, ContactQuery) and self.root == other.root

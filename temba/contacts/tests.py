@@ -32,6 +32,7 @@ from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
+from temba.mailroom import MailroomException
 from temba.msgs.models import Broadcast, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
@@ -153,9 +154,14 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
             ],
         )
 
-        with patch("temba.utils.es.ES") as mock_ES:
-            mock_ES.search.return_value = {"_hits": [{"id": self.frank.id}]}
-            mock_ES.count.return_value = {"count": 1}
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.contact_search.return_value = {
+                "contact_ids": [self.frank.id],
+                "total": 1,
+                "query": "age = 18",
+                "fields": ["age"],
+            }
 
             response = self._do_test_view("list", query_string="search=age+%3D+18")
             self.assertEqual(list(response.context["object_list"]), [self.frank])
@@ -164,8 +170,14 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
             self.assertIsNone(response.context["search_error"])
             self.assertEqual(list(response.context["contact_fields"].values_list("label", flat=True)), ["Home", "Age"])
 
-        with patch("temba.utils.es.ES") as mock_ES:
-            mock_ES.count.return_value = {"count": 10020}
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.contact_search.return_value = {
+                "contact_ids": [self.frank.id],
+                "total": 10020,
+                "query": "age = 18",
+                "fields": ["age"],
+            }
 
             # we return up to 10000 contacts when searching with ES, so last page is 200
             url = f'{reverse("contacts.contact_list")}?{"search=age+%3D+18&page=200"}'
@@ -179,9 +191,14 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
 
             self.assertEqual(response.status_code, 404)
 
-        with patch("temba.utils.es.ES") as mock_ES:
-            mock_ES.search.return_value = {"_hits": [{"id": self.joe.id}]}
-            mock_ES.count.return_value = {"count": 1}
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.contact_search.return_value = {
+                "contact_ids": [self.joe.id],
+                "total": 1,
+                "query": 'age > 18 AND home = "Kigali"',
+                "fields": ["age", "home"],
+            }
 
             response = self._do_test_view("list", query_string='search=age+>+18+and+home+%3D+"Kigali"')
             self.assertEqual(list(response.context["object_list"]), [self.joe])
@@ -189,9 +206,14 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
             self.assertEqual(response.context["save_dynamic_search"], True)
             self.assertIsNone(response.context["search_error"])
 
-        with patch("temba.utils.es.ES") as mock_ES:
-            mock_ES.search.return_value = {"_hits": [{"id": self.joe.id}]}
-            mock_ES.count.return_value = {"count": 1}
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.contact_search.return_value = {
+                "contact_ids": [self.joe.id],
+                "total": 1,
+                "query": 'name ~ "Joe"',
+                "fields": ["name"],
+            }
 
             response = self._do_test_view("list", query_string="search=Joe")
             self.assertEqual(list(response.context["object_list"]), [self.joe])
@@ -200,9 +222,14 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
             self.assertIsNone(response.context["search_error"])
 
         with AnonymousOrg(self.org):
-            with patch("temba.utils.es.ES") as mock_ES:
-                mock_ES.search.return_value = {"_hits": [{"id": self.joe.id}]}
-                mock_ES.count.return_value = {"count": 1}
+            with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+                instance = mock_mr.return_value
+                instance.contact_search.return_value = {
+                    "contact_ids": [self.joe.id],
+                    "total": 1,
+                    "query": f"id = {self.joe.id}",
+                    "fields": ["id"],
+                }
 
                 response = self._do_test_view("list", query_string=f"search={self.joe.id}")
                 self.assertEqual(list(response.context["object_list"]), [self.joe])
@@ -211,9 +238,15 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
                 self.assertEqual(response.context["save_dynamic_search"], False)
 
         # try with invalid search string
-        response = self._do_test_view("list", query_string="search=(((")
-        self.assertEqual(list(response.context["object_list"]), [])
-        self.assertEqual(response.context["search_error"], "Search query contains an error")
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.contact_search.side_effect = MailroomException(
+                "", "", {"error": "Search query contains an error"}
+            )
+
+            response = self._do_test_view("list", query_string="search=(((")
+            self.assertEqual(list(response.context["object_list"]), [])
+            self.assertEqual(response.context["search_error"], "Search query contains an error")
 
     def testRead(self):
         self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe")
