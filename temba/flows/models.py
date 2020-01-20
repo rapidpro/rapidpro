@@ -2423,6 +2423,7 @@ class FlowRevision(SmartModel):
         # use legacy migrations to get export to final legacy version
         if version < Version(Flow.FINAL_LEGACY_VERSION):
             from temba.flows.legacy import exports
+
             exported_json = exports.migrate(org, exported_json, same_site, version)
 
         if legacy:
