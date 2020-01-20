@@ -301,7 +301,7 @@ class FlowCRUDL(SmartCRUDL):
         def get(self, request, *args, **kwargs):
             flow = self.get_object()
 
-            flow_version = request.GET.get("version", Flow.GOFLOW_VERSION)
+            flow_version = request.GET.get("version", Flow.CURRENT_SPEC_VERSION)
             revision_id = self.kwargs["revision_id"]
 
             if revision_id:
@@ -316,7 +316,7 @@ class FlowCRUDL(SmartCRUDL):
                 for revision in flow.revisions.filter(spec_version__in=versions).order_by("-revision")[:25]:
 
                     # our goflow versions are already validated
-                    if revision.spec_version == Flow.GOFLOW_VERSION:
+                    if Version(revision.spec_version) >= Version(Flow.INITIAL_GOFLOW_VERSION):
                         revisions.append(revision.as_json())
                         continue
 
@@ -1028,7 +1028,7 @@ class FlowCRUDL(SmartCRUDL):
                 flow.save(update_fields=("version_number",))
 
             # require update permissions
-            if Version(flow.version_number) >= Version(Flow.GOFLOW_VERSION):
+            if Version(flow.version_number) >= Version(Flow.INITIAL_GOFLOW_VERSION):
                 return HttpResponseRedirect(reverse("flows.flow_editor_next", args=[self.get_object().uuid]))
 
             return super().get(request, *args, **kwargs)
@@ -1214,7 +1214,7 @@ class FlowCRUDL(SmartCRUDL):
             links = []
             flow = self.object
 
-            versions = Flow.get_versions_before(Flow.GOFLOW_VERSION)
+            versions = Flow.get_versions_before(Flow.INITIAL_GOFLOW_VERSION)
             has_legacy_revision = flow.revisions.filter(spec_version__in=versions).exists()
 
             if (
