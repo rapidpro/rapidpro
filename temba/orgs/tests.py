@@ -3667,9 +3667,10 @@ class BulkExportTest(TembaTest):
         )
 
         # try a file which can be migrated forwards
-        response = self.client.post(reverse("orgs.org_import"), {
-            "import_file": open("%s/test_flows/favorites_v4.json" % settings.MEDIA_ROOT, "rb")
-        })
+        response = self.client.post(
+            reverse("orgs.org_import"),
+            {"import_file": open("%s/test_flows/favorites_v4.json" % settings.MEDIA_ROOT, "rb")},
+        )
         self.assertEqual(302, response.status_code)
 
         flow = self.org.flows.filter(name="Favorites").get()
