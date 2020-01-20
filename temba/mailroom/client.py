@@ -103,13 +103,7 @@ class MailroomClient:
         return self._request("sim/resume", payload)
 
     def contact_search(self, org_id, group_uuid, query, sort, offset=0):
-        payload = {
-            "org_id": org_id,
-            "group_uuid": group_uuid,
-            "query": query,
-            "sort": sort,
-            "offset": offset,
-        }
+        payload = {"org_id": org_id, "group_uuid": group_uuid, "query": query, "sort": sort, "offset": offset}
 
         return self._request("contact/search", payload)
 

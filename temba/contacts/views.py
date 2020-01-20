@@ -38,15 +38,16 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.search import ContactQuery
 from temba.contacts.templatetags.contacts import MISSING_VALUE
+from temba.mailroom import MailroomException
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
+from temba.utils.models import patch_queryset_count
 from temba.utils.text import slugify_with
-from temba.utils.views import BaseActionForm, ContactListPaginationMixin
+from temba.utils.views import BaseActionForm
 from temba.values.constants import Value
-from temba.mailroom import MailroomException
 
 from .models import (
     TEL_SCHEME,
@@ -237,13 +238,14 @@ class ContactListView(OrgPermsMixin, SmartListView):
         sort_on = self.request.GET.get("sort_on", "")
         page = self.request.GET.get("page", "1")
 
-        offset = (int(page)-1) * 50
+        offset = (int(page) - 1) * 50
 
         self.sort_direction = "desc" if sort_on.startswith("-") else "asc"
         self.sort_field = sort_on.lstrip("-")
 
         if search_query or sort_on:
             from .search import contact_search
+
             try:
                 return contact_search(org, group, search_query, sort_on, offset=offset)
             except MailroomException as e:
@@ -253,7 +255,9 @@ class ContactListView(OrgPermsMixin, SmartListView):
                 return Contact.objects.none()
         else:
             # if user search is not defined, use DB to select contacts
-            return group.contacts.all().order_by("-id").prefetch_related("org", "all_groups")
+            qs = group.contacts.all().order_by("-id").prefetch_related("org", "all_groups")
+            patch_queryset_count(qs, group.get_member_count)
+            return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

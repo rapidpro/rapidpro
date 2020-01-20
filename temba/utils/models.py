@@ -54,6 +54,7 @@ class IDQuerySet(models.query.RawQuerySet):
     """
     QuerySet defined by a model, set of ids and total count
     """
+
     def __init__(self, model, ids, count, offset=0):
         if len(ids) > 0:
             # build a list of sequence to model id, so we can sort by the sequence in our results
@@ -61,14 +62,15 @@ class IDQuerySet(models.query.RawQuerySet):
 
             super().__init__(
                 f"""
-                SELECT 
-                  model.* 
-                FROM 
-                  {model._meta.db_table} AS model 
+                SELECT
+                  model.*
+                FROM
+                  {model._meta.db_table} AS model
                 JOIN (VALUES {pairs}) tmp_resultset (seq, model_id)
                 ON model.id = tmp_resultset.model_id
                 ORDER BY tmp_resultset.seq
-                """, model
+                """,
+                model,
             )
         else:
             super().__init__(f"""SELECT * FROM {model._meta.db_table} WHERE id < 0""", model)
