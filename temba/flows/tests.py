@@ -502,7 +502,7 @@ class FlowTest(TembaTest):
         self.login(self.admin)
         self.client.post(reverse("flows.flow_create"), {"name": "Go Flow", "flow_type": Flow.TYPE_MESSAGE})
         flow = Flow.objects.get(
-            org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
+            org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.CURRENT_SPEC_VERSION
         )
 
         # can't save older spec version over newer
@@ -513,7 +513,7 @@ class FlowTest(TembaTest):
             flow.save_revision(self.admin, definition)
 
         # can't save older revision over newer
-        definition["spec_version"] = Flow.GOFLOW_VERSION
+        definition["spec_version"] = Flow.CURRENT_SPEC_VERSION
         definition["revision"] = 0
 
         with self.assertRaises(FlowUserConflictException):
@@ -2115,6 +2115,7 @@ class FlowTest(TembaTest):
                 ],
             )
             self.assertEqual(len(flow.metadata["waiting_exit_uuids"]), 11)
+            self.assertEqual(len(flow.metadata["parent_refs"]), 0)
 
     def test_group_send(self):
         # create an inactive group with the same name, to test that this doesn't blow up our import
@@ -2869,7 +2870,7 @@ class FlowCRUDLTest(TembaTest):
         self.login(self.admin)
         self.client.post(reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE))
         flow = Flow.objects.get(
-            org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
+            org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.CURRENT_SPEC_VERSION
         )
         response = self.client.get(reverse("flows.flow_revisions", args=[flow.uuid]))
         self.assertEqual(1, len(response.json()))
@@ -3559,7 +3560,7 @@ class FlowCRUDLTest(TembaTest):
         )
 
         flow = Flow.objects.get(
-            org=self.org, name="New Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
+            org=self.org, name="New Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.CURRENT_SPEC_VERSION
         )
 
         # now loading the editor page should redirect

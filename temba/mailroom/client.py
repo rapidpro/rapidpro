@@ -74,7 +74,7 @@ class MailroomClient:
         from temba.flows.models import Flow
 
         if not to_version:
-            to_version = Flow.GOFLOW_VERSION
+            to_version = Flow.CURRENT_SPEC_VERSION
 
         return self._request("flow/migrate", {"flow": definition, "to_version": to_version})
 
