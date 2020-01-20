@@ -995,7 +995,7 @@ SEND_EMAILS = False
 CLASSIFIER_TYPES = [
     "temba.classifiers.types.wit.WitType",
     "temba.classifiers.types.luis.LuisType",
-    "temba.classifiers.types.bothub.BotHubType",
+    "temba.classifiers.types.bothub.BothubType",
 ]
 
 CHANNEL_TYPES = [

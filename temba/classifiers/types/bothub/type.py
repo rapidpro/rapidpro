@@ -8,14 +8,14 @@ from ...models import ClassifierType, Intent
 from .views import ConnectView
 
 
-class BotHubType(ClassifierType):
+class BothubType(ClassifierType):
     """
     Type for classifiers from Bothub
     """
 
     CONFIG_ACCESS_TOKEN = "access_token"
 
-    name = "BotHub"
+    name = "Bothub"
     slug = "bothub"
     icon = "icon-bothub"
 
