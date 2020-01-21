@@ -78,7 +78,7 @@ class FlowTest(TembaTest):
         self.contact3 = self.create_contact("Norbert", "+250788123456")
         self.contact4 = self.create_contact("Teeh", "+250788123457", language="por")
 
-        self.flow = self.get_flow("color")
+        self.flow = self.get_flow("color", legacy=True)
 
         self.other_group = self.create_group("Other", [])
 
@@ -154,7 +154,7 @@ class FlowTest(TembaTest):
 
         label = Label.get_or_create(self.org, self.admin, "Hello")
         self.login(self.admin)
-        self.import_file("migrate_to_11_11")
+        self.import_file("migrate_to_11_11", legacy=True)
         flow = Flow.objects.filter(name="Add Label").first()
         label_uuid_in_def = flow.revisions.first().definition["action_sets"][1]["actions"][0]["labels"][0]["uuid"]
 
@@ -1865,7 +1865,7 @@ class FlowTest(TembaTest):
 
     def test_flow_update_error(self):
 
-        flow = self.get_flow("favorites")
+        flow = self.get_flow("favorites", legacy=True)
         json_dict = flow.as_json()
         json_dict["action_sets"][0]["actions"].append(dict(type="add_label", labels=[dict(name="@badlabel")]))
         self.login(self.admin)
@@ -1898,7 +1898,7 @@ class FlowTest(TembaTest):
     def test_create_dependencies(self):
         self.login(self.admin)
 
-        flow = self.get_flow("favorites")
+        flow = self.get_flow("favorites", legacy=True)
         flow_json = flow.as_json()
 
         # create an invalid label in our first actionset
@@ -1936,7 +1936,7 @@ class FlowTest(TembaTest):
             flow.update(flow_json)
             return Flow.objects.get(id=flow.id)
 
-        flow = self.get_flow("loop_detection")
+        flow = self.get_flow("loop_detection", legacy=True)
         first_actionset = ActionSet.objects.get(flow=flow, y=0)
         group_ruleset = RuleSet.objects.get(flow=flow, label="Group Split A")
         group_one_rule = group_ruleset.get_rules()[0]
@@ -1956,7 +1956,7 @@ class FlowTest(TembaTest):
             update_destination(flow, group_one_rule.uuid, first_actionset.uuid)
 
     def test_group_dependencies(self):
-        self.get_flow("dependencies")
+        self.get_flow("dependencies", legacy=True)
         flow = Flow.objects.filter(name="Dependencies").first()
 
         group_names = ["Dog Facts", "Cat Facts", "Fish Facts", "Monkey Facts"]
@@ -1982,7 +1982,7 @@ class FlowTest(TembaTest):
         Global.objects.get(name="Org Name", key="org_name", value="")
 
     def test_label_dependencies(self):
-        self.get_flow("add_label")
+        self.get_flow("add_label", legacy=True)
         flow = Flow.objects.filter(name="Add Label").first()
 
         self.assertEqual(flow.label_dependencies.count(), 1)
@@ -1999,7 +1999,7 @@ class FlowTest(TembaTest):
         self.channel.name = "1234"
         self.channel.save()
 
-        self.get_flow("migrate_to_11_12_one_node")
+        self.get_flow("migrate_to_11_12_one_node", legacy=True)
         flow = Flow.objects.filter(name="channel").first()
 
         self.assertEqual(flow.channel_dependencies.count(), 1)
@@ -2013,7 +2013,7 @@ class FlowTest(TembaTest):
 
     def test_flow_dependencies(self):
 
-        self.get_flow("dependencies")
+        self.get_flow("dependencies", legacy=True)
         flow = Flow.objects.filter(name="Dependencies").first()
 
         # we should depend on our child flow
@@ -2030,7 +2030,7 @@ class FlowTest(TembaTest):
         self.assertIsNone(flow.flow_dependencies.filter(name="Child Flow").first())
 
     def test_update_dependencies_with_actiontype_flow(self):
-        self.get_flow("dependencies")
+        self.get_flow("dependencies", legacy=True)
 
         flow = Flow.objects.filter(name="Dependencies").first()
         dep_flow = Flow.objects.filter(name="Child Flow").first()
@@ -2060,7 +2060,7 @@ class FlowTest(TembaTest):
         self.assertEqual(flow.flow_dependencies.count(), 1)
 
     def test_group_uuid_mapping(self):
-        flow = self.get_flow("group_split")
+        self.get_flow("group_split", legacy=True)
 
         # make sure the groups in our rules exist as expected
         ruleset = RuleSet.objects.filter(label="Member").first()
@@ -2072,7 +2072,7 @@ class FlowTest(TembaTest):
                 group_count += 1
         self.assertEqual(2, group_count)
 
-        self.get_flow("dependencies")
+        self.get_flow("dependencies", legacy=True)
         flow = Flow.objects.filter(name="Dependencies").first()
         group_count = 0
         for actionset in flow.action_sets.all():
@@ -2350,7 +2350,7 @@ class FlowTest(TembaTest):
 
     def test_webhook_parsing(self):
         # test a preprocess url
-        flow = self.get_flow("preprocess")
+        flow = self.get_flow("preprocess", legacy=True)
         self.assertEqual(
             "http://preprocessor.com/endpoint.php",
             flow.rule_sets.all().order_by("y")[0].config[RuleSet.CONFIG_WEBHOOK],
@@ -2360,7 +2360,7 @@ class FlowTest(TembaTest):
 class FlowCRUDLTest(TembaTest):
     def test_views(self):
         contact = self.create_contact("Eric", "+250788382382")
-        flow = self.get_flow("color")
+        flow = self.get_flow("color", legacy=True)
 
         self.setUpSecondaryOrg()
 
@@ -2808,7 +2808,7 @@ class FlowCRUDLTest(TembaTest):
         self.assertEqual(1, response.context["folders"][1]["count"])  # only flow2
 
     def test_revision_history(self):
-        flow = self.get_flow("color")
+        flow = self.get_flow("color", legacy=True)
 
         # we should initially have one revision
         revision = flow.revisions.get()
@@ -3576,7 +3576,7 @@ class FlowCRUDLTest(TembaTest):
 
         self.assertEqual(rank_field.label, "Commander ranking")
 
-        flow = self.get_flow("favorites")
+        flow = self.get_flow("favorites", legacy=True)
         flow_json = flow.as_json()
 
         # save some data to the field
@@ -3617,7 +3617,7 @@ class FlowCRUDLTest(TembaTest):
         self.assertEqual(new_field.label, "New field label")
 
     def test_write_protection(self):
-        flow = self.get_flow("favorites")
+        flow = self.get_flow("favorites", legacy=True)
         flow_json = flow.as_json()
 
         self.login(self.admin)

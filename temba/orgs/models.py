@@ -372,7 +372,7 @@ class Org(SmartModel):
     def is_whitelisted(self):
         return self.config.get(Org.CONFIG_STATUS) == Org.STATUS_WHITELISTED
 
-    def import_app(self, export_json, user, site=None):
+    def import_app(self, export_json, user, site=None, legacy=False):
         """
         Imports previously exported JSON
         """
@@ -399,8 +399,8 @@ class Org(SmartModel):
             raise ValueError(f"Unsupported export version {export_version}")
 
         # do we need to migrate the export forward?
-        if Flow.is_before_version(export_version, Flow.FINAL_LEGACY_VERSION):
-            export_json = FlowRevision.migrate_export(self, export_json, same_site, export_version)
+        if Flow.is_before_version(export_version, Flow.CURRENT_SPEC_VERSION):
+            export_json = FlowRevision.migrate_export(self, export_json, same_site, export_version, legacy=legacy)
 
         export_fields = export_json.get(Org.EXPORT_FIELDS, [])
         export_groups = export_json.get(Org.EXPORT_GROUPS, [])
