@@ -1653,7 +1653,7 @@ class IDSliceQuerySetTest(TestCase):
             users[-1]
 
         with self.assertRaises(IndexError):
-            users[0:2]
+            users[1:2]
 
         with self.assertRaises(TypeError):
             users["foo"]
@@ -1666,7 +1666,7 @@ class IDSliceQuerySetTest(TestCase):
             users[0]
 
         with self.assertRaises(IndexError):
-            users[10:12]
+            users[11:15]
 
 
 class RedactTest(TestCase):
