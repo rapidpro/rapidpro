@@ -126,7 +126,9 @@ class Link(TembaModel):
                 link.destination = destination
                 link.save(update_fields=["name", "destination"])
             else:
-                dict_args = dict(name=name, destination=destination, org=org, uuid=uuid, created_by=user, modified_by=user)
+                dict_args = dict(
+                    name=name, destination=destination, org=org, uuid=uuid, created_by=user, modified_by=user
+                )
                 Link.objects.create(**dict_args)
 
     def __str__(self):
