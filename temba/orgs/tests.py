@@ -3505,7 +3505,7 @@ class BulkExportTest(TembaTest):
         # import a flow that triggers another flow
         contact1 = self.create_contact("Marshawn", "+14255551212")
         substitutions = dict(contact_id=contact1.id)
-        flow = self.get_flow("triggered", substitutions)
+        flow = self.get_flow("triggered", substitutions, legacy=True)
 
         # read in the old version 8 raw json
         old_json = self.get_import_json("triggered", substitutions)
@@ -3525,7 +3525,7 @@ class BulkExportTest(TembaTest):
         self.assertIn(triggeree, flow.get_dependencies())
 
     def test_trigger_flow(self):
-        self.import_file("triggered_flow")
+        self.import_file("triggered_flow", legacy=True)
 
         flow = Flow.objects.filter(name="Trigger a Flow", org=self.org).first()
         definition = flow.as_json()
@@ -3570,7 +3570,7 @@ class BulkExportTest(TembaTest):
     def test_flow_export_dynamic_group(self):
         from temba.flows.legacy import AddToGroupAction
 
-        flow = self.get_flow("favorites")
+        flow = self.get_flow("favorites", legacy=True)
 
         # get one of our flow actionsets, change it to an AddToGroupAction
         actionset = ActionSet.objects.filter(flow=flow).order_by("y").first()
@@ -3610,7 +3610,7 @@ class BulkExportTest(TembaTest):
 
     def test_missing_flows_on_import(self):
         # import a flow that starts a missing flow
-        self.import_file("start_missing_flow")
+        self.import_file("start_missing_flow", legacy=True)
 
         # the flow that kicks off our missing flow
         flow = Flow.objects.get(name="Start Missing Flow")
@@ -3628,7 +3628,7 @@ class BulkExportTest(TembaTest):
         self.assertEqual(1, len(other_actionset.get_actions()))
 
         # now make sure it does the same thing from an actionset
-        self.import_file("start_missing_flow_from_actionset")
+        self.import_file("start_missing_flow_from_actionset", legacy=True)
         self.assertIsNotNone(Flow.objects.filter(name="Start Missing Flow").first())
         self.assertIsNone(Flow.objects.filter(name="Missing Flow").first())
 
@@ -3746,7 +3746,7 @@ class BulkExportTest(TembaTest):
         self.assertNotEqual(original_fire.id, new_event.fires.all().first().id)
 
     def test_import_mixed_flow_versions(self):
-        self.import_file("mixed_versions")
+        self.import_file("mixed_versions", legacy=True)
 
         group = ContactGroup.user_groups.get(name="Survey Audience")
 
@@ -3802,7 +3802,7 @@ class BulkExportTest(TembaTest):
         self.assertEqual(set(parent.flow_dependencies.all()), {child2})
 
     def test_implicit_group_imports_legacy(self):
-        self.import_file("cataclysm_legacy")
+        self.import_file("cataclysm_legacy", legacy=True)
         flow = Flow.objects.get(name="Cataclysmic")
 
         from temba.flows.legacy.tests import get_legacy_groups
@@ -3963,7 +3963,7 @@ class BulkExportTest(TembaTest):
             )
 
         # import all our bits
-        self.import_file("the_clinic")
+        self.import_file("the_clinic", legacy=True)
 
         # check that the right number of objects successfully imported for our app
         assert_object_counts()
@@ -3989,7 +3989,7 @@ class BulkExportTest(TembaTest):
         message_flow.update_single_message_flow(self.admin, {"base": "No reminders for you!"}, base_language="base")
 
         # now reimport
-        self.import_file("the_clinic")
+        self.import_file("the_clinic", legacy=True)
 
         # our flow should get reset from the import
         confirm_appointment = Flow.objects.get(pk=confirm_appointment.pk)

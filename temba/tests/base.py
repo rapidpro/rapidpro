@@ -133,7 +133,7 @@ class TembaTestMixin:
         """
         shutil.rmtree("%s/%s" % (settings.MEDIA_ROOT, settings.STORAGE_ROOT_DIR), ignore_errors=True)
 
-    def import_file(self, filename, site="http://rapidpro.io", substitutions=None, legacy=True):
+    def import_file(self, filename, site="http://rapidpro.io", substitutions=None, legacy=False):
         data = self.get_import_json(filename, substitutions=substitutions)
         self.org.import_app(data, self.admin, site=site, legacy=legacy)
 
@@ -149,7 +149,7 @@ class TembaTestMixin:
 
         return json.loads(data)
 
-    def get_flow(self, filename, substitutions=None, legacy=True):
+    def get_flow(self, filename, substitutions=None, legacy=False):
         now = timezone.now()
 
         self.import_file(filename, substitutions=substitutions, legacy=legacy)
