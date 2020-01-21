@@ -304,7 +304,7 @@ class FlowCRUDL(SmartCRUDL):
             flow_version = request.GET.get("version", Flow.CURRENT_SPEC_VERSION)
             revision_id = self.kwargs["revision_id"]
 
-            # we we are looking for a specific revision, fetch it and migrate it forward
+            # we are looking for a specific revision, fetch it and migrate it forward
             if revision_id:
                 revision = FlowRevision.objects.get(flow=flow, pk=revision_id)
                 return JsonResponse(revision.get_definition_json(flow_version))
@@ -327,8 +327,8 @@ class FlowCRUDL(SmartCRUDL):
                 # any version up to the requested version is allowed
                 if revision_version <= requested_version or (include_patches and revision_version < up_to_version):
 
-                    # our goflow versions are already validated
-                    if Version(revision.spec_version) >= Version(Flow.INITIAL_GOFLOW_VERSION):
+                    # our goflow revisions are already validated
+                    if revision_version >= Version(Flow.INITIAL_GOFLOW_VERSION):
                         revisions.append(revision.as_json())
                         continue
 

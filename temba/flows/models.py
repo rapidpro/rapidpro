@@ -2461,7 +2461,7 @@ class FlowRevision(SmartModel):
 
         # migrate using goflow for anything newer
         if Version(to_version) >= Version(Flow.INITIAL_GOFLOW_VERSION):
-            json_flow = mailroom.get_client().flow_migrate(json_flow)
+            json_flow = mailroom.get_client().flow_migrate(json_flow, to_version)
 
         return json_flow
 
