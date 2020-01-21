@@ -231,7 +231,8 @@ class Flow(TembaModel):
     ]
 
     FINAL_LEGACY_VERSION = VERSIONS[-1]
-    GOFLOW_VERSION = "13.0.0"
+    INITIAL_GOFLOW_VERSION = "13.0.0"  # initial version of flow spec to use new engine
+    CURRENT_SPEC_VERSION = "13.0.0"  # current flow spec version
 
     DEFAULT_EXPIRES_AFTER = 60 * 12
 
@@ -334,7 +335,7 @@ class Flow(TembaModel):
             saved_by=user,
             created_by=user,
             modified_by=user,
-            version_number=Flow.GOFLOW_VERSION if use_new_editor else Flow.FINAL_LEGACY_VERSION,
+            version_number=Flow.CURRENT_SPEC_VERSION if use_new_editor else Flow.FINAL_LEGACY_VERSION,
             **kwargs,
         )
 
@@ -345,7 +346,7 @@ class Flow(TembaModel):
                     {
                         Flow.DEFINITION_NAME: flow.name,
                         Flow.DEFINITION_UUID: flow.uuid,
-                        Flow.DEFINITION_SPEC_VERSION: Flow.GOFLOW_VERSION,
+                        Flow.DEFINITION_SPEC_VERSION: Flow.CURRENT_SPEC_VERSION,
                         Flow.DEFINITION_LANGUAGE: base_language,
                         Flow.DEFINITION_TYPE: Flow.GOFLOW_TYPES[flow_type],
                         Flow.DEFINITION_NODES: [],
@@ -381,7 +382,7 @@ class Flow(TembaModel):
 
         name = Flow.get_unique_name(org, "Join %s" % group.name)
         flow = Flow.create(org, user, name, base_language=base_language)
-        flow.version_number = Flow.GOFLOW_VERSION
+        flow.version_number = "13.0.0"
         flow.save(update_fields=("version_number",))
 
         node_uuid = str(uuid4())
@@ -963,7 +964,7 @@ class Flow(TembaModel):
         assert translations and base_language in translations, "must include translation for base language"
 
         self.base_language = base_language
-        self.version_number = Flow.GOFLOW_VERSION
+        self.version_number = "13.0.0"
         self.save(update_fields=("name", "base_language", "version_number"))
 
         translations = translations.copy()  # don't modify instance being saved on event object
@@ -1040,7 +1041,7 @@ class Flow(TembaModel):
         """
         Returns whether this flow still uses a legacy definition
         """
-        return Version(self.version_number) < Version(Flow.GOFLOW_VERSION)
+        return Version(self.version_number) < Version(Flow.INITIAL_GOFLOW_VERSION)
 
     def as_export_ref(self):
         return {Flow.DEFINITION_UUID: str(self.uuid), Flow.DEFINITION_NAME: self.name}
@@ -1299,7 +1300,7 @@ class Flow(TembaModel):
         """
         Saves a new revision for this flow, validation will be done on the definition first
         """
-        if Version(definition.get(Flow.DEFINITION_SPEC_VERSION)) < Version(Flow.GOFLOW_VERSION):
+        if Version(definition.get(Flow.DEFINITION_SPEC_VERSION)) < Version(Flow.INITIAL_GOFLOW_VERSION):
             raise FlowVersionConflictException(definition.get(Flow.DEFINITION_SPEC_VERSION))
 
         current_revision = self.get_current_revision()
@@ -1337,7 +1338,7 @@ class Flow(TembaModel):
             }
             self.saved_by = user
             self.saved_on = timezone.now()
-            self.version_number = Flow.GOFLOW_VERSION
+            self.version_number = Flow.CURRENT_SPEC_VERSION
             self.save(update_fields=["metadata", "version_number", "base_language", "saved_by", "saved_on"])
 
             # create our new revision
@@ -1345,7 +1346,7 @@ class Flow(TembaModel):
                 definition=definition,
                 created_by=user,
                 modified_by=user,
-                spec_version=Flow.GOFLOW_VERSION,
+                spec_version=Flow.CURRENT_SPEC_VERSION,
                 revision=revision,
             )
 
@@ -2478,8 +2479,8 @@ class FlowRevision(SmartModel):
             if version == to_version:
                 break
 
-        if Version(to_version) >= Version(Flow.GOFLOW_VERSION):
-            json_flow = mailroom.get_client().flow_migrate(json_flow, to_version)
+        if Version(to_version) >= Version(Flow.INITIAL_GOFLOW_VERSION):
+            json_flow = mailroom.get_client().flow_migrate(json_flow)
 
         return json_flow
 
