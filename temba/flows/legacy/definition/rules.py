@@ -201,7 +201,7 @@ class SubflowTest(Test):
         return dict(type=SubflowTest.TYPE, exit_type=self.exit_type)
 
 
-class TimeoutTest(Test):
+class TimeoutTest(Test):  # pragma: no cover
     """
     { op: "timeout", minutes: 60 }
     """
@@ -216,7 +216,7 @@ class TimeoutTest(Test):
     def from_json(cls, org, json):
         return TimeoutTest(int(json.get(TimeoutTest.MINUTES)))
 
-    def as_json(self):  # pragma: no cover
+    def as_json(self):
         return {"type": TimeoutTest.TYPE, TimeoutTest.MINUTES: self.minutes}
 
 
