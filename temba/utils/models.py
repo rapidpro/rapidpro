@@ -92,8 +92,10 @@ class IDSliceQuerySet(models.query.RawQuerySet):
             return super().__getitem__(k - self.offset)
 
         elif isinstance(k, slice):
-            if k.start != self.offset or k.stop != self.offset + len(self.ids):  # pragma: no cover
-                raise IndexError("attempt to slice ID queryset with differing offset")
+            if k.start != self.offset:
+                raise IndexError(
+                    f"attempt to slice ID queryset with differing offset: [{k.start}:{k.stop}] != [{self.offset}:{self.offset+len(self.ids)}]"
+                )
 
             return list(self)
 
