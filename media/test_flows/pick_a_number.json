@@ -45,10 +45,10 @@
                 },
                 "category": "All Responses",
                 "destination": "06bb3899-5de4-4cbc-ad5f-70b9634d80c4",
-                "uuid": "34110fb2-f841-11e4-a322-1697f925ec7b"
+                "uuid": "9df37f4c-73ca-4876-8490-35f984486df6"
               }
             ],
-            "uuid": "12610fb2-f841-11e4-a322-1697f925ec7b",
+            "uuid": "c1a5c78e-560b-45b1-83b1-1dad9ce57a06",
             "label": "passive",
             "operand": "@contact.name"
           }
