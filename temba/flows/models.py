@@ -2467,18 +2467,21 @@ class FlowRevision(SmartModel):
         if not to_version:
             to_version = Flow.FINAL_LEGACY_VERSION
 
-        versions = Flow.get_versions_after(json_flow[Flow.VERSION])
-        for version in versions:
-            version_slug = version.replace(".", "_")
-            migrate_fn = getattr(migrations, "migrate_to_version_%s" % version_slug, None)
+        # migrate any legacy versions forward
+        if Flow.VERSION in json_flow:
+            versions = Flow.get_versions_after(json_flow[Flow.VERSION])
+            for version in versions:
+                version_slug = version.replace(".", "_")
+                migrate_fn = getattr(migrations, "migrate_to_version_%s" % version_slug, None)
 
-            if migrate_fn:
-                json_flow = migrate_fn(json_flow, flow)
-                json_flow[Flow.VERSION] = version
+                if migrate_fn:
+                    json_flow = migrate_fn(json_flow, flow)
+                    json_flow[Flow.VERSION] = version
 
-            if version == to_version:
-                break
+                if version == to_version:
+                    break
 
+        # migrate using goflow for anything newer
         if Version(to_version) >= Version(Flow.INITIAL_GOFLOW_VERSION):
             json_flow = mailroom.get_client().flow_migrate(json_flow)
 
@@ -2503,7 +2506,8 @@ class FlowRevision(SmartModel):
             )
 
         # make sure old revisions migrate properly
-        definition[Flow.VERSION] = self.spec_version
+        if Version(self.spec_version) <= Version(Flow.FINAL_LEGACY_VERSION):
+            definition[Flow.VERSION] = self.spec_version
 
         # migrate our definition if necessary
         if self.spec_version != to_version:
