@@ -43,8 +43,7 @@ class Link(TembaModel):
     @classmethod
     def create(cls, org, user, name, destination):
         links_arg = dict(org=org, name=name, destination=destination, created_by=user, modified_by=user)
-        link = Link.objects.create(**links_arg)
-        return link
+        return Link.objects.create(**links_arg)
 
     def as_select2(self):
         return dict(text=self.name, id=self.uuid)
@@ -107,6 +106,28 @@ class Link(TembaModel):
         activity = chain([{"type": "contact", "time": c.created_on, "obj": c} for c in contacts])
 
         return sorted(activity, key=lambda i: i["time"], reverse=True)[:MAX_HISTORY]
+
+    @classmethod
+    def import_links(cls, org, user, link_defs):
+        """
+        Import links from a list of exported links
+        """
+
+        for link_def in link_defs:
+            name = link_def.get("name")
+            destination = link_def.get("destination")
+            uuid = link_def.get("uuid")
+
+            link = Link.objects.filter(uuid=uuid, org=org).first()
+
+            # first check if we have the objects by UUID
+            if link:
+                link.name = name
+                link.destination = destination
+                link.save(update_fields=["name", "destination"])
+            else:
+                dict_args = dict(name=name, destination=destination, org=org, uuid=uuid, created_by=user, modified_by=user)
+                Link.objects.create(**dict_args)
 
     def __str__(self):
         return self.name
