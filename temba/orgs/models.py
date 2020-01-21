@@ -556,6 +556,7 @@ class Org(SmartModel):
         from temba.contacts.models import ContactField, ContactGroup
         from temba.flows.models import Flow, FlowRevision
         from temba.triggers.models import Trigger
+        from temba.links.models import Link
 
         # only required field is version
         if Org.EXPORT_VERSION not in export_json:
@@ -581,6 +582,7 @@ class Org(SmartModel):
         export_groups = export_json.get(Org.EXPORT_GROUPS, [])
         export_campaigns = export_json.get(Org.EXPORT_CAMPAIGNS, [])
         export_triggers = export_json.get(Org.EXPORT_TRIGGERS, [])
+        export_links = export_json.get(Org.EXPORT_LINKS, [])
 
         dependency_mapping = {}  # dependency UUIDs in import => new UUIDs
 
@@ -593,6 +595,7 @@ class Org(SmartModel):
             # these depend on flows so are imported last
             Campaign.import_campaigns(self, user, export_campaigns, same_site)
             Trigger.import_triggers(self, user, export_triggers, same_site)
+            Link.import_links(self, user, export_links)
 
         # with all the flows and dependencies committed, we can now have mailroom do full validation
         for flow in new_flows:
