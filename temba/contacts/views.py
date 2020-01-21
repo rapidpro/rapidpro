@@ -34,6 +34,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
+from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.search import ContactQuery
@@ -44,7 +45,7 @@ from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
-from temba.utils.models import patch_queryset_count
+from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.text import slugify_with
 from temba.utils.views import BaseActionForm
 from temba.values.constants import Value
@@ -254,9 +255,6 @@ class ContactListView(OrgPermsMixin, SmartListView):
         self.sort_field = sort_on.lstrip("-")
 
         if search_query or sort_on:
-            from temba import mailroom
-            from temba.utils.models import IDQuerySet
-
             try:
                 client = mailroom.get_client()
                 result = client.contact_search(org.id, str(group.uuid), search_query, sort_on, offset)
@@ -264,7 +262,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
                 self.parsed_query = result["query"]
                 self.save_dynamic_search = "id" not in result["fields"]
 
-                return IDQuerySet(Contact, result["contact_ids"], result["total"], offset=offset)
+                return IDSliceQuerySet(Contact, result["contact_ids"], offset, result["total"])
             except MailroomException as e:
                 self.search_error = e.response["error"]
 

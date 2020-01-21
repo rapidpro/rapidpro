@@ -50,12 +50,12 @@ class ProxyQuerySet(object):
         return self.object_list[item]
 
 
-class IDQuerySet(models.query.RawQuerySet):
+class IDSliceQuerySet(models.query.RawQuerySet):
     """
-    QuerySet defined by a model, set of ids and total count
+    QuerySet defined by a model, set of ids, offset and total count
     """
 
-    def __init__(self, model, ids, count, offset=0):
+    def __init__(self, model, ids, offset, total):
         if len(ids) > 0:
             # build a list of sequence to model id, so we can sort by the sequence in our results
             pairs = ",".join(str((seq, model_id)) for seq, model_id in enumerate(ids, start=1))
@@ -75,39 +75,33 @@ class IDQuerySet(models.query.RawQuerySet):
         else:
             super().__init__(f"""SELECT * FROM {model._meta.db_table} WHERE id < 0""", model)
 
-        self.result_count = count
+        self.ids = ids
+        self.total = total
         self.offset = offset
 
     def __getitem__(self, k):
         """
-        Called to slice our queryset. ID Query Sets should be created pre-sliced, that is the offset and counts should
+        Called to slice our queryset. ID Slice Query Sets care created pre-sliced, that is the offset and counts should
         match the way any kind of paginator is going to try to slice the queryset.
         """
-        if k.start != self.offset:
-            raise Exception("attempt to slice ID queryset with differing offset")
-        return list(self)
+        if isinstance(k, int):
+            # single item
+            if k < self.offset or k >= self.offset + len(self.ids):
+                raise IndexError("attempt to access element outside slice")
+
+            return super().__getitem__(k - self.offset)
+
+        elif isinstance(k, slice):
+            if k.start != self.offset or k.stop != self.offset + len(self.ids):  # pragma: no cover
+                raise IndexError("attempt to slice ID queryset with differing offset")
+
+            return list(self)
+
+        else:
+            raise TypeError(f"__getitem__ index must be int, not {type(k)}")
 
     def count(self):
-        return self.result_count
-
-
-def mapIDsToQueryset(model, ids):
-    """
-    Maps of set of ids to the specific model, returning the results in the same order
-    """
-    if not ids:
-        return model.objects.none()
-
-    # build a list of sequence to model id, so we can sort by the sequence in our results
-    pairs = ",".join(str((seq, model_id)) for seq, model_id in enumerate(ids, start=1))
-
-    return model.objects.raw(
-        f"""SELECT model.*
-            from {model._meta.db_table} AS model JOIN (VALUES {pairs}) tmp_resultset (seq, model_id)
-                ON model.id = tmp_resultset.model_id
-            ORDER BY tmp_resultset.seq
-            """
-    )
+        return self.total
 
 
 def mapEStoDB(model, es_queryset, only_ids=False):
