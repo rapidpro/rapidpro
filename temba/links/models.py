@@ -184,7 +184,7 @@ class ExportLinksTask(BaseExportTask):
         fields, scheme_counts = self.get_export_fields_and_schemes()
 
         contact_ids = (
-            self.link.contacts.filter(contact__is_test=False)
+            self.link.contacts.all()
             .order_by("contact__name", "contact__id")
             .values_list("id", flat=True)
         )
