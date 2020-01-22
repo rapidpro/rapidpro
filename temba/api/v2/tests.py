@@ -2238,7 +2238,7 @@ class APITest(TembaTest):
 
         self.assertEqual(len(response.json()["flows"]), 1)
         self.assertEqual(len(response.json()["flows"][0]["nodes"]), 9)
-        self.assertEqual(response.json()["flows"][0]["spec_version"], "13.0.0")
+        self.assertEqual(response.json()["flows"][0]["spec_version"], Flow.CURRENT_SPEC_VERSION)
 
     def test_definitions(self):
         url = reverse("api.v2.definitions")
