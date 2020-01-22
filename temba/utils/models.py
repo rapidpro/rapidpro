@@ -26,30 +26,6 @@ def patch_queryset_count(qs, function):
     qs.count = types.MethodType(lambda s: function(), qs)
 
 
-class ProxyQuerySet(object):
-    """
-    Helper class that mimics the behavior of a Django QuerySet
-
-    The result is cached so we can't chain it as a normal QuerySet, but because we defined special methods that are
-    expected by templates and tests we can use it as an evaluated QuerySet
-    """
-
-    def __init__(self, object_list):
-        self.object_list = object_list
-
-    def count(self):
-        return len(self)
-
-    def __iter__(self):
-        return iter(self.object_list)
-
-    def __len__(self):
-        return len(self.object_list)
-
-    def __getitem__(self, item):
-        return self.object_list[item]
-
-
 class IDSliceQuerySet(models.query.RawQuerySet):
     """
     QuerySet defined by a model, set of ids, offset and total count
@@ -127,7 +103,7 @@ def mapEStoDB(model, es_queryset, only_ids=False):
                 ORDER BY tmp_resultset.seq
                 """
             )
-        else:
+        else:  # pragma: no cover
             return model.objects.none()
 
 

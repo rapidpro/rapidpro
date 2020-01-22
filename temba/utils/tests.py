@@ -1668,6 +1668,9 @@ class IDSliceQuerySetTest(TestCase):
         with self.assertRaises(IndexError):
             users[11:15]
 
+        users = IDSliceQuerySet(User, [0], 0, 0)
+        self.assertEqual(0, len(users))
+
 
 class RedactTest(TestCase):
     def test_variations(self):
