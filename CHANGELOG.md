@@ -1,3 +1,7 @@
+v5.3.35
+----------
+ * Rebuild components
+
 v5.3.34
 ----------
  * Update to flow editor 1.7.13
