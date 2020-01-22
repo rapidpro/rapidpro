@@ -382,7 +382,7 @@ class Condition(QueryNode):
             elif field.value_type == Value.TYPE_DATETIME:
                 query_value = str_to_date(self.value, field.org.get_dayfirst())
 
-                if not query_value:
+                if not query_value:  # pragma: no cover
                     raise SearchException(_(f"Unable to parse the date '{self.value}'"))
 
                 # datetime contact values are serialized as ISO8601 timestamps in local time on ElasticSearch
@@ -448,7 +448,7 @@ class Condition(QueryNode):
                 elif self.comparator == "!=":
                     field_name = "name.keyword"
                     es_query = ~es_Q("term", **{field_name: query_value})
-                else:
+                else:  # pragma: no cover
                     raise SearchException(_(f"Unknown attribute comparator: '{self.comparator}'"))
             elif field_key == "id":
                 es_query = es_Q("ids", **{"values": [query_value]})
