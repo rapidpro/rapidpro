@@ -2829,11 +2829,11 @@ class FlowCRUDLTest(TembaTest):
 
         self.assertEqual(revisions[0].spec_version, Flow.FINAL_LEGACY_VERSION)
         self.assertEqual(revisions[0].as_json()["version"], Flow.FINAL_LEGACY_VERSION)
-        self.assertEqual(revisions[0].get_definition_json()["base_language"], "base")
+        self.assertEqual(revisions[0].get_definition_json(Flow.FINAL_LEGACY_VERSION)["base_language"], "base")
 
         # now make one revision invalid
         revision = revisions[1]
-        definition = revision.get_definition_json()
+        definition = revision.get_definition_json(Flow.FINAL_LEGACY_VERSION)
         del definition["base_language"]
         revision.definition = definition
         revision.save()
@@ -2856,7 +2856,7 @@ class FlowCRUDLTest(TembaTest):
 
         # make the last revision even more invalid (missing ruleset)
         revision = revisions[0]
-        definition = revision.get_definition_json()
+        definition = revision.get_definition_json(Flow.FINAL_LEGACY_VERSION)
         del definition["rule_sets"]
         revision.definition = definition
         revision.save()
@@ -3538,23 +3538,8 @@ class FlowCRUDLTest(TembaTest):
 
         self.org.set_languages(self.admin, ["eng", "fra"], "eng")
 
-        # old flow definition
-        flow = Flow.create(
-            self.org,
-            self.admin,
-            "Old Flow",
-            flow_type=Flow.TYPE_MESSAGE,
-            use_new_editor=False,
-            base_language="eng",
-            create_revision=True,
-        )
-
-        # old editor
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-        self.assertNotRedirect(response, reverse("flows.flow_editor_next", args=[flow.uuid]))
-
         # new flow definition
-        response = self.client.post(
+        self.client.post(
             reverse("flows.flow_create"),
             data={"name": "New Flow", "flow_type": Flow.TYPE_MESSAGE, "base_language": "eng"},
         )

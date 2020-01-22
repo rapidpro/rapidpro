@@ -46,6 +46,7 @@ from temba.contacts.models import (
     ContactURN,
 )
 from temba.contacts.omnibox import omnibox_deserialize
+from temba.flows import legacy
 from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
 from temba.flows.tasks import export_flow_results_task
@@ -307,7 +308,7 @@ class FlowCRUDL(SmartCRUDL):
             # we are looking for a specific revision, fetch it and migrate it forward
             if revision_id:
                 revision = FlowRevision.objects.get(flow=flow, pk=revision_id)
-                return JsonResponse(revision.get_definition_json(flow_version))
+                return JsonResponse(revision.get_definition_json(to_version=flow_version))
 
             # get a list of all revisions, these should be reasonably pruned already
             revisions = []
@@ -334,7 +335,8 @@ class FlowCRUDL(SmartCRUDL):
 
                     # legacy revisions should be validated first as a failsafe
                     try:
-                        FlowRevision.validate_legacy_definition(revision.get_definition_json())
+                        legacy_flow_def = revision.get_definition_json(to_version=Flow.FINAL_LEGACY_VERSION)
+                        FlowRevision.validate_legacy_definition(legacy_flow_def)
                         revisions.append(revision.as_json())
 
                     except ValueError:
@@ -490,7 +492,6 @@ class FlowCRUDL(SmartCRUDL):
                 expires_after_minutes=expires_after_minutes,
                 base_language=obj.base_language,
                 create_revision=True,
-                use_new_editor=True,
             )
 
         def post_save(self, obj):
@@ -1225,8 +1226,7 @@ class FlowCRUDL(SmartCRUDL):
             links = []
             flow = self.object
 
-            versions = Flow.get_versions_before(Flow.INITIAL_GOFLOW_VERSION)
-            has_legacy_revision = flow.revisions.filter(spec_version__in=versions).exists()
+            has_legacy_revision = flow.revisions.filter(spec_version__in=legacy.VERSIONS).exists()
 
             if (
                 flow.flow_type != Flow.TYPE_SURVEY
@@ -1924,11 +1924,12 @@ class FlowCRUDL(SmartCRUDL):
         success_url = "uuid@flows.flow_editor"
 
         def has_facebook_topic(self, flow):
-            definition = flow.get_current_revision().get_definition_json()
-            for node in definition.get("nodes", []):
-                for action in node.get("actions", []):
-                    if action.get("type", "") == "send_msg" and action.get("topic", ""):
-                        return True
+            if not flow.is_legacy():
+                definition = flow.get_current_revision().get_definition_json()
+                for node in definition.get("nodes", []):
+                    for action in node.get("actions", []):
+                        if action.get("type", "") == "send_msg" and action.get("topic", ""):
+                            return True
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)

@@ -399,7 +399,7 @@ class Org(SmartModel):
             raise ValueError(f"Unsupported export version {export_version}")
 
         # do we need to migrate the export forward?
-        if Flow.is_before_version(export_version, Flow.CURRENT_SPEC_VERSION):
+        if export_version < Version(Flow.CURRENT_SPEC_VERSION):
             export_json = FlowRevision.migrate_export(self, export_json, same_site, export_version, legacy=legacy)
 
         export_fields = export_json.get(Org.EXPORT_FIELDS, [])
