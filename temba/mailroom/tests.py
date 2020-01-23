@@ -24,18 +24,58 @@ class MailroomClientTest(TembaTest):
 
         self.assertEqual("5.3.4", version)
 
-    def test_flow_migrate(self):
+    def test_parse_query(self):
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"name": "Migrated!"}')
-            migrated = get_client().flow_migrate({"nodes": []}, to_version="13.1.0")
+            mock_post.return_value = MockResponse(200, '{"query":"name ~ \\"frank\\"","fields":["name"]}')
+            response = get_client().parse_query(1, "frank")
 
-            self.assertEqual({"name": "Migrated!"}, migrated)
+            self.assertEqual('name ~ "frank"', response["query"])
+            mock_post.assert_called_once_with(
+                "http://localhost:8090/mr/contact/parse_query",
+                headers={"User-Agent": "Temba"},
+                json={"query": "frank", "org_id": 1},
+            )
 
-        mock_post.assert_called_once_with(
-            "http://localhost:8090/mr/flow/migrate",
-            headers={"User-Agent": "Temba"},
-            json={"flow": {"nodes": []}, "to_version": "13.1.0"},
-        )
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(400, '{"error":"no such field age"}')
+
+            with self.assertRaises(MailroomException):
+                get_client().parse_query(1, "age > 10")
+
+    def test_contact_search(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(
+                200,
+                """
+                {
+                  "query":"name ~ \\"frank\\"",
+                  "contact_ids":[1,2],
+                  "fields":["name"],
+                  "total": 2,
+                  "offset": 0
+                }
+                """,
+            )
+            response = get_client().contact_search(1, "2752dbbc-723f-4007-8bc5-b3720835d3a9", "frank", "-created_on")
+
+            self.assertEqual('name ~ "frank"', response["query"])
+            mock_post.assert_called_once_with(
+                "http://localhost:8090/mr/contact/search",
+                headers={"User-Agent": "Temba"},
+                json={
+                    "query": "frank",
+                    "org_id": 1,
+                    "group_uuid": "2752dbbc-723f-4007-8bc5-b3720835d3a9",
+                    "offset": 0,
+                    "sort": "-created_on",
+                },
+            )
+
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(400, '{"error":"no such field age"}')
+
+            with self.assertRaises(MailroomException):
+                get_client().contact_search(1, "2752dbbc-723f-4007-8bc5-b3720835d3a9", "age > 10", "-created_on")
 
     @override_settings(TESTING=False)
     def test_validation_failure(self):

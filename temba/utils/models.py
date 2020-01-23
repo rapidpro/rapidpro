@@ -83,7 +83,7 @@ class IDSliceQuerySet(models.query.RawQuerySet):
         return self.total
 
 
-def mapEStoDB(model, es_queryset, only_ids=False):
+def mapEStoDB(model, es_queryset, only_ids=False):  # pragma: no cover
     """
     Map ElasticSearch results to Django Model objects
     We use object PKs from ElasticSearch result set and select those objects in the database
