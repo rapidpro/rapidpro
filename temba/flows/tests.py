@@ -169,6 +169,25 @@ class FlowTest(TembaTest):
         self.assertEqual("11.12", flow.version_number)
         self.assertEqual(2, flow.revisions.count())
 
+        # importing migrates to latest spec version
+        flow = self.get_flow("favorites_v13")
+        self.assertEqual("13.1.0", flow.version_number)
+        self.assertEqual(1, flow.revisions.count())
+
+        # rewind one spec version..
+        flow.version_number = "13.0.0"
+        flow.save(update_fields=("version_number",))
+        rev = flow.revisions.get()
+        rev.definition["spec_version"] = "13.0.0"
+        rev.spec_version = "13.0.0"
+        rev.save()
+
+        flow.ensure_current_version()
+
+        # check we migrate to current spec version
+        self.assertEqual("13.1.0", flow.version_number)
+        self.assertEqual(2, flow.revisions.count())
+
     def test_flow_import_labels(self):
         self.assertFalse(Label.label_objects.all())
 
