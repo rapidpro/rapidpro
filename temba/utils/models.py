@@ -68,12 +68,12 @@ class IDSliceQuerySet(models.query.RawQuerySet):
             return super().__getitem__(k - self.offset)
 
         elif isinstance(k, slice):
-            if k.start != self.offset:
+            if k.start != self.offset and k.start is not None and self.offset != 0:
                 raise IndexError(
                     f"attempt to slice ID queryset with differing offset: [{k.start}:{k.stop}] != [{self.offset}:{self.offset+len(self.ids)}]"
                 )
 
-            return list(self)
+            return list(self)[: k.stop - self.offset]
 
         else:
             raise TypeError(f"__getitem__ index must be int, not {type(k)}")

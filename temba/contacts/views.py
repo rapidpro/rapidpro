@@ -37,7 +37,6 @@ from django.views.decorators.csrf import csrf_exempt
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
-from temba.contacts.search import ContactQuery
 from temba.contacts.templatetags.contacts import MISSING_VALUE
 from temba.mailroom import MailroomException
 from temba.msgs.views import SendMessageForm
@@ -169,6 +168,9 @@ class ContactListView(OrgPermsMixin, SmartListView):
     parsed_query = None
     save_dynamic_search = None
 
+    sort_field = None
+    sort_direction = None
+
     def pre_process(self, request, *args, **kwargs):
         """
         Don't allow pagination past 200th page
@@ -259,7 +261,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
                 client = mailroom.get_client()
                 result = client.contact_search(org.id, str(group.uuid), search_query, sort_on, offset)
 
-                self.parsed_query = result["query"]
+                self.parsed_query = result["query"] if len(result["query"]) > 0 else None
                 self.save_dynamic_search = "id" not in result["fields"]
 
                 return IDSliceQuerySet(Contact, result["contact_ids"], offset, result["total"])
@@ -1244,9 +1246,16 @@ class ContactCRUDL(SmartCRUDL):
                 return JsonResponse({"total": 0, "sample": [], "fields": {}})
 
             try:
-                summary = Contact.query_summary(org, query, samples)
-            except SearchException as e:
-                return JsonResponse({"total": 0, "sample": [], "query": "", "error": str(e)})
+                client = mailroom.get_client()
+                response = client.contact_search(org.id, org.cached_all_contacts_group.uuid, query, "-created_on")
+                summary = {
+                    "total": response["total"],
+                    "query": response["query"],
+                    "fields": response["fields"],
+                    "sample": IDSliceQuerySet(Contact, response["contact_ids"], 0, response["total"])[0:samples],
+                }
+            except MailroomException as e:
+                return JsonResponse({"total": 0, "sample": [], "query": "", "error": e.response["error"]})
 
             # serialize our contact sample
             json_contacts = []
@@ -1268,18 +1277,11 @@ class ContactCRUDL(SmartCRUDL):
                 json_contacts.append(contact_json)
             summary["sample"] = json_contacts
 
-            # serialize our parsed query
-            fields = {}
-            parsed_query = summary["query"]
-            if parsed_query:
-                prop_map = parsed_query.get_prop_map(org)
-                for key, value in prop_map.items():
-                    prop_type, prop = value
-                    if prop_type == ContactQuery.PROP_FIELD:
-                        fields[str(prop.uuid)] = {"label": prop.label, "type": prop_type}
-
-            summary["query"] = parsed_query.as_text()
-            summary["fields"] = fields
+            # add in our field defs
+            summary["fields"] = {
+                str(f.uuid): {"label": f.label}
+                for f in ContactField.user_fields.filter(org=org, key__in=summary["fields"], is_active=True)
+            }
             return JsonResponse(summary)
 
     class List(ContactActionMixin, ContactListView):

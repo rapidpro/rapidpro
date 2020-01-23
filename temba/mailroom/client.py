@@ -107,6 +107,11 @@ class MailroomClient:
 
         return self._request("contact/search", payload)
 
+    def parse_query(self, org_id, query):
+        payload = {"org_id": org_id, "query": query}
+
+        return self._request("contact/parse_query", payload)
+
     def _request(self, endpoint, payload=None, post=True):
         if logger.isEnabledFor(logging.DEBUG):  # pragma: no cover
             logger.debug("=============== %s request ===============" % endpoint)

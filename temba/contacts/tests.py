@@ -4302,13 +4302,15 @@ class ContactTest(TembaTest):
     def test_contacts_search(self):
         search_url = reverse("contacts.contact_search")
         self.login(self.admin)
-        with patch("temba.utils.es.ES") as mock_ES:
 
-            from elasticsearch_dsl.utils import AttrList
-
-            hits = AttrList([{"id": self.frank.id}])
-            hits.total = 1
-            mock_ES.search.return_value = {"_hits": hits}
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.contact_search.return_value = {
+                "contact_ids": [self.frank.id],
+                "total": 1,
+                "query": 'name ~ "Frank"',
+                "fields": ["name"],
+            }
 
             response = self.client.get(search_url + "?search=Frank")
             self.assertEqual(200, response.status_code)
@@ -4334,11 +4336,24 @@ class ContactTest(TembaTest):
             results = response.json()
             self.assertEqual(0, results["total"])
 
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.contact_search.side_effect = MailroomException("", "", {"error": "parse exception"})
+
             # bogus query
             response = self.client.get(search_url + '?search=name="notclosed')
             results = response.json()
-            self.assertEqual('Search query contains an error at: "', results["error"])
+            self.assertEqual("parse exception", results["error"])
             self.assertEqual(0, results["total"])
+
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.contact_search.return_value = {
+                "contact_ids": [self.frank.id],
+                "total": 1,
+                "query": "age > 32",
+                "fields": ["age"],
+            }
 
             # if we query a field, it should show up in our field dict
             age = self.create_field("age", "Age", Value.TYPE_NUMBER)
@@ -7493,19 +7508,24 @@ class ContactFieldTest(TembaTest):
         url = reverse("contacts.contact_list")
         self.login(self.admin)
 
-        with patch("temba.utils.es.ES") as mock_ES:
-            mock_ES.search.return_value = {"_hits": [{"id": self.joe.id}]}
-            mock_ES.count.return_value = {"count": 1}
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.contact_search.return_value = {
+                "contact_ids": [self.joe.id],
+                "total": 1,
+                "query": "",
+                "fields": ["age"],
+            }
 
-            response = self.client.get("%s?sort_on=%s" % (url, str(self.contactfield_1.uuid)))
+            response = self.client.get("%s?sort_on=%s" % (url, str(self.contactfield_1.key)))
 
-            self.assertEqual(response.context["sort_field"], str(self.contactfield_1.uuid))
+            self.assertEqual(response.context["sort_field"], str(self.contactfield_1.key))
             self.assertEqual(response.context["sort_direction"], "asc")
             self.assertTrue("search" not in response.context)
 
-            response = self.client.get("%s?sort_on=-%s" % (url, str(self.contactfield_1.uuid)))
+            response = self.client.get("%s?sort_on=-%s" % (url, str(self.contactfield_1.key)))
 
-            self.assertEqual(response.context["sort_field"], str(self.contactfield_1.uuid))
+            self.assertEqual(response.context["sort_field"], str(self.contactfield_1.key))
             self.assertEqual(response.context["sort_direction"], "desc")
             self.assertTrue("search" not in response.context)
 
