@@ -799,16 +799,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return obj
 
     @classmethod
-    def query_summary(cls, org, query, max_results=10):
-        from .search import contact_es_search
-        from temba.utils.es import ES
-
-        search_object, parsed_query = contact_es_search(org, query)
-        results = search_object.source(include=["id"]).using(ES)[0:max_results].execute()
-        contact_sample = list(mapEStoDB(Contact, results))
-        return {"total": results.hits.total, "sample": contact_sample, "query": parsed_query}
-
-    @classmethod
     def query_elasticsearch_for_ids(cls, org, query, group=None):
         from .search import contact_es_search, SearchException
         from temba.utils.es import ES

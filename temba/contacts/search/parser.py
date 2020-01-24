@@ -360,7 +360,7 @@ class Condition(QueryNode):
                     # search for the inverse of what was specified
                     return ~es_Q("nested", path="fields", query=es_query)
 
-                else:
+                else:  # pragma: no cover
                     raise SearchException(_(f"Unknown text comparator: '{self.comparator}'"))
 
             elif field.value_type == Value.TYPE_NUMBER:
@@ -376,13 +376,13 @@ class Condition(QueryNode):
                     es_query &= es_Q("range", **{"fields.number": {"lt": query_value}})
                 elif self.comparator == "<=":
                     es_query &= es_Q("range", **{"fields.number": {"lte": query_value}})
-                else:
+                else:  # pragma: no cover
                     raise SearchException(_(f"Unknown number comparator: '{self.comparator}'"))
 
             elif field.value_type == Value.TYPE_DATETIME:
                 query_value = str_to_date(self.value, field.org.get_dayfirst())
 
-                if not query_value:
+                if not query_value:  # pragma: no cover
                     raise SearchException(_(f"Unable to parse the date '{self.value}'"))
 
                 # datetime contact values are serialized as ISO8601 timestamps in local time on ElasticSearch
@@ -400,7 +400,7 @@ class Condition(QueryNode):
                     es_query &= es_Q("range", **{"fields.datetime": {"lt": lower_bound.isoformat()}})
                 elif self.comparator == "<=":
                     es_query &= es_Q("range", **{"fields.datetime": {"lt": upper_bound.isoformat()}})
-                else:
+                else:  # pragma: no cover
                     raise SearchException(_(f"Unknown datetime comparator: '{self.comparator}'"))
 
             elif field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
@@ -448,7 +448,7 @@ class Condition(QueryNode):
                 elif self.comparator == "!=":
                     field_name = "name.keyword"
                     es_query = ~es_Q("term", **{field_name: query_value})
-                else:
+                else:  # pragma: no cover
                     raise SearchException(_(f"Unknown attribute comparator: '{self.comparator}'"))
             elif field_key == "id":
                 es_query = es_Q("ids", **{"values": [query_value]})
@@ -499,7 +499,7 @@ class Condition(QueryNode):
                     es_query &= es_Q("term", **{"urns.path.keyword": query_value})
                 elif self.comparator == "~":
                     es_query &= es_Q("match_phrase", **{"urns.path": query_value})
-                else:
+                else:  # pragma: no cover
                     raise SearchException(_(f"Unknown scheme comparator: '{self.comparator}'"))
 
                 return es_Q("nested", path="urns", query=es_query)
@@ -692,7 +692,7 @@ class IsSetCondition(Condition):
             is_set = True
         elif self.comparator.lower() in self.IS_NOT_SET_LOOKUPS:
             is_set = False
-        else:
+        else:  # pragma: no cover
             raise SearchException(_("Invalid operator for empty string comparison"))
 
         if prop_type == ContactQuery.PROP_FIELD:
@@ -999,7 +999,7 @@ def contact_es_search(org, text, base_group=None, sort_struct=None):
     if not sort_struct:
         sort_field = "-id"
     else:
-        if sort_struct["field_type"] == "field":
+        if sort_struct["field_type"] == "field":  # pragma: no cover
             sort_field = {
                 sort_struct["field_path"]: {
                     "order": sort_struct["sort_direction"],

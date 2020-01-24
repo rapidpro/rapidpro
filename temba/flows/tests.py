@@ -24,7 +24,7 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.contacts.models import FACEBOOK_SCHEME, WHATSAPP_SCHEME, Contact, ContactField, ContactGroup
 from temba.globals.models import Global
-from temba.mailroom import FlowValidationException
+from temba.mailroom import FlowValidationException, MailroomException
 from temba.msgs.models import Label
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
@@ -3050,11 +3050,40 @@ class FlowCRUDLTest(TembaTest):
 
         # create flow start with a query
         with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
+            with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+                instance = mock_mr.return_value
+                instance.parse_query.return_value = {"query": 'name ~ "frank"', "fields": ["name"]}
 
-            self.client.post(
+                self.client.post(
+                    reverse("flows.flow_broadcast", args=[flow.id]),
+                    {
+                        "contact_query": "frank",
+                        "start_type": "query",
+                        "restart_participants": "on",
+                        "include_active": "on",
+                    },
+                    follow=True,
+                )
+
+                start = FlowStart.objects.get()
+                self.assertEqual(flow, start.flow)
+                self.assertEqual(FlowStart.STATUS_PENDING, start.status)
+                self.assertTrue(start.restart_participants)
+                self.assertTrue(start.include_active)
+                self.assertEqual('name ~ "frank"', start.query)
+
+                mock_queue_flow_start.assert_called_once_with(start)
+
+        FlowStart.objects.all().delete()
+
+        # create flow start with a bogus query
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.parse_query.side_effect = MailroomException("", "", {"error": "query contains an error"})
+            response = self.client.post(
                 reverse("flows.flow_broadcast", args=[flow.id]),
                 {
-                    "contact_query": "frank",
+                    "contact_query": 'name = "frank',
                     "start_type": "query",
                     "restart_participants": "on",
                     "include_active": "on",
@@ -3062,30 +3091,7 @@ class FlowCRUDLTest(TembaTest):
                 follow=True,
             )
 
-            start = FlowStart.objects.get()
-            self.assertEqual(flow, start.flow)
-            self.assertEqual(FlowStart.STATUS_PENDING, start.status)
-            self.assertTrue(start.restart_participants)
-            self.assertTrue(start.include_active)
-            self.assertEqual("frank", start.query)
-
-            mock_queue_flow_start.assert_called_once_with(start)
-
-        FlowStart.objects.all().delete()
-
-        # create flow start with a bogus query
-        response = self.client.post(
-            reverse("flows.flow_broadcast", args=[flow.id]),
-            {
-                "contact_query": 'name = "frank',
-                "start_type": "query",
-                "restart_participants": "on",
-                "include_active": "on",
-            },
-            follow=True,
-        )
-
-        self.assertFormError(response, "form", "contact_query", "Please enter a valid contact query")
+            self.assertFormError(response, "form", "contact_query", "query contains an error")
 
         # create flow start with an empty query
         response = self.client.post(

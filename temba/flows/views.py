@@ -1869,17 +1869,16 @@ class FlowCRUDL(SmartCRUDL):
                 start_type = self.data["start_type"]
 
                 if start_type == "query":
-
                     if not contact_query.strip():
                         raise ValidationError(_("Contact query is required"))
 
-                    # try parsing our query
-                    from temba.contacts.search import parse_query, SearchException
+                    client = mailroom.get_client()
 
                     try:
-                        parse_query(text=contact_query)
-                    except SearchException:
-                        raise ValidationError(_("Please enter a valid contact query"))
+                        resp = client.parse_query(self.flow.org_id, contact_query)
+                        contact_query = resp["query"]
+                    except mailroom.MailroomException as e:
+                        raise ValidationError(e.response["error"])
 
                 return contact_query
 

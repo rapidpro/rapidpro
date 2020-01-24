@@ -26,7 +26,7 @@ from django.db import transaction
 from django.db.models import Count
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import urlquote_plus
@@ -34,17 +34,19 @@ from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
+from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
-from temba.contacts.search import ContactQuery
 from temba.contacts.templatetags.contacts import MISSING_VALUE
+from temba.mailroom import MailroomException
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
+from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.text import slugify_with
-from temba.utils.views import BaseActionForm, ContactListPaginationMixin
+from temba.utils.views import BaseActionForm
 from temba.values.constants import Value
 
 from .models import (
@@ -154,7 +156,7 @@ class ContactGroupForm(forms.ModelForm):
         model = ContactGroup
 
 
-class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
+class ContactListView(OrgPermsMixin, SmartListView):
     """
     Base class for contact list views with contact folders and groups listed by the side
     """
@@ -163,7 +165,20 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
     add_button = True
     paginate_by = 50
 
-    parsed_search = None
+    parsed_query = None
+    save_dynamic_search = None
+
+    sort_field = None
+    sort_direction = None
+
+    def pre_process(self, request, *args, **kwargs):
+        """
+        Don't allow pagination past 200th page
+        """
+        if int(self.request.GET.get("page", "1")) > 200:
+            return HttpResponseNotFound()
+
+        return super().pre_process(request, *args, **kwargs)
 
     def derive_group(self):
         return ContactGroup.all_groups.get(org=self.request.user.get_org(), group_type=self.system_group)
@@ -233,32 +248,33 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
 
         # contact list views don't use regular field searching but use more complex contact searching
         search_query = self.request.GET.get("search", None)
+        sort_on = self.request.GET.get("sort_on", "")
+        page = self.request.GET.get("page", "1")
 
-        sort_on = self.request.GET.get("sort_on", None)
+        offset = (int(page) - 1) * 50
 
-        if sort_on is not None:
-            self.sort_field, self.sort_direction, sort_struct = self.prepare_sort_field_struct(sort_on)
-        else:
-            self.sort_field, self.sort_direction, sort_struct = (None, None, None)
+        self.sort_direction = "desc" if sort_on.startswith("-") else "asc"
+        self.sort_field = sort_on.lstrip("-")
 
-        if search_query or sort_struct:
-            from .search import contact_es_search
-            from temba.utils.es import ES
-
+        if search_query or sort_on:
             try:
-                search_object, self.parsed_search = contact_es_search(org, search_query, group, sort_struct)
-                es_search = search_object.source(fields=("id",)).using(ES)
+                client = mailroom.get_client()
+                result = client.contact_search(org.id, str(group.uuid), search_query, sort_on, offset)
 
-                return es_search
+                self.parsed_query = result["query"] if len(result["query"]) > 0 else None
+                self.save_dynamic_search = "id" not in result["fields"]
 
-            except SearchException as e:
-                self.search_error = str(e)
+                return IDSliceQuerySet(Contact, result["contact_ids"], offset, result["total"])
+            except MailroomException as e:
+                self.search_error = e.response["error"]
 
                 # this should be an empty resultset
                 return Contact.objects.none()
         else:
             # if user search is not defined, use DB to select contacts
-            return group.contacts.all().order_by("-id").prefetch_related("org", "all_groups")
+            qs = group.contacts.all().order_by("-id").prefetch_related("org", "all_groups")
+            patch_queryset_count(qs, group.get_member_count)
+            return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -273,7 +289,7 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
         ]
 
         # resolve the paginated object list so we can initialize a cache of URNs and fields
-        contacts = list(context["object_list"])
+        contacts = context["object_list"]
         Contact.bulk_cache_initialize(org, contacts)
 
         context["contacts"] = contacts
@@ -287,9 +303,9 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
         context["sort_field"] = self.sort_field
 
         # replace search string with parsed search expression
-        if self.parsed_search is not None:
-            context["search"] = self.parsed_search.as_text()
-            context["save_dynamic_search"] = self.parsed_search.can_be_dynamic_group()
+        if self.parsed_query is not None:
+            context["search"] = self.parsed_query
+            context["save_dynamic_search"] = self.save_dynamic_search
 
         return context
 
@@ -1230,9 +1246,16 @@ class ContactCRUDL(SmartCRUDL):
                 return JsonResponse({"total": 0, "sample": [], "fields": {}})
 
             try:
-                summary = Contact.query_summary(org, query, samples)
-            except SearchException as e:
-                return JsonResponse({"total": 0, "sample": [], "query": "", "error": str(e)})
+                client = mailroom.get_client()
+                response = client.contact_search(org.id, org.cached_all_contacts_group.uuid, query, "-created_on")
+                summary = {
+                    "total": response["total"],
+                    "query": response["query"],
+                    "fields": response["fields"],
+                    "sample": IDSliceQuerySet(Contact, response["contact_ids"], 0, response["total"])[0:samples],
+                }
+            except MailroomException as e:
+                return JsonResponse({"total": 0, "sample": [], "query": "", "error": e.response["error"]})
 
             # serialize our contact sample
             json_contacts = []
@@ -1254,18 +1277,11 @@ class ContactCRUDL(SmartCRUDL):
                 json_contacts.append(contact_json)
             summary["sample"] = json_contacts
 
-            # serialize our parsed query
-            fields = {}
-            parsed_query = summary["query"]
-            if parsed_query:
-                prop_map = parsed_query.get_prop_map(org)
-                for key, value in prop_map.items():
-                    prop_type, prop = value
-                    if prop_type == ContactQuery.PROP_FIELD:
-                        fields[str(prop.uuid)] = {"label": prop.label, "type": prop_type}
-
-            summary["query"] = parsed_query.as_text()
-            summary["fields"] = fields
+            # add in our field defs
+            summary["fields"] = {
+                str(f.uuid): {"label": f.label}
+                for f in ContactField.user_fields.filter(org=org, key__in=summary["fields"], is_active=True)
+            }
             return JsonResponse(summary)
 
     class List(ContactActionMixin, ContactListView):
