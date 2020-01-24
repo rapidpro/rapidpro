@@ -26,31 +26,64 @@ def patch_queryset_count(qs, function):
     qs.count = types.MethodType(lambda s: function(), qs)
 
 
-class ProxyQuerySet(object):
+class IDSliceQuerySet(models.query.RawQuerySet):
     """
-    Helper class that mimics the behavior of a Django QuerySet
-
-    The result is cached so we can't chain it as a normal QuerySet, but because we defined special methods that are
-    expected by templates and tests we can use it as an evaluated QuerySet
+    QuerySet defined by a model, set of ids, offset and total count
     """
 
-    def __init__(self, object_list):
-        self.object_list = object_list
+    def __init__(self, model, ids, offset, total):
+        if len(ids) > 0:
+            # build a list of sequence to model id, so we can sort by the sequence in our results
+            pairs = ",".join(str((seq, model_id)) for seq, model_id in enumerate(ids, start=1))
+
+            super().__init__(
+                f"""
+                SELECT
+                  model.*
+                FROM
+                  {model._meta.db_table} AS model
+                JOIN (VALUES {pairs}) tmp_resultset (seq, model_id)
+                ON model.id = tmp_resultset.model_id
+                ORDER BY tmp_resultset.seq
+                """,
+                model,
+            )
+        else:
+            super().__init__(f"""SELECT * FROM {model._meta.db_table} WHERE id < 0""", model)
+
+        self.ids = ids
+        self.total = total
+        self.offset = offset
+
+    def __getitem__(self, k):
+        """
+        Called to slice our queryset. ID Slice Query Sets care created pre-sliced, that is the offset and counts should
+        match the way any kind of paginator is going to try to slice the queryset.
+        """
+        if isinstance(k, int):
+            # single item
+            if k < self.offset or k >= self.offset + len(self.ids):
+                raise IndexError("attempt to access element outside slice")
+
+            return super().__getitem__(k - self.offset)
+
+        elif isinstance(k, slice):
+            start = k.start if k.start else 0
+            if start != self.offset:
+                raise IndexError(
+                    f"attempt to slice ID queryset with differing offset: [{k.start}:{k.stop}] != [{self.offset}:{self.offset+len(self.ids)}]"
+                )
+
+            return list(self)[: k.stop - self.offset]
+
+        else:
+            raise TypeError(f"__getitem__ index must be int, not {type(k)}")
 
     def count(self):
-        return len(self)
-
-    def __iter__(self):
-        return iter(self.object_list)
-
-    def __len__(self):
-        return len(self.object_list)
-
-    def __getitem__(self, item):
-        return self.object_list[item]
+        return self.total
 
 
-def mapEStoDB(model, es_queryset, only_ids=False):
+def mapEStoDB(model, es_queryset, only_ids=False):  # pragma: no cover
     """
     Map ElasticSearch results to Django Model objects
     We use object PKs from ElasticSearch result set and select those objects in the database
@@ -71,7 +104,7 @@ def mapEStoDB(model, es_queryset, only_ids=False):
                 ORDER BY tmp_resultset.seq
                 """
             )
-        else:
+        else:  # pragma: no cover
             return model.objects.none()
 
 
