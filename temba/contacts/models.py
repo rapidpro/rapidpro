@@ -10,7 +10,6 @@ import iso8601
 import phonenumbers
 import pytz
 import regex
-from django_redis import get_redis_connection
 from smartmin.csv_imports.models import ImportTask
 from smartmin.models import SmartImportRowError, SmartModel
 
@@ -22,15 +21,15 @@ from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
+from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
+from temba.mailroom import queue_populate_dynamic_group
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, chunk_list, format_number, get_anonymous_user, json, on_transaction_commit
-from temba.utils.dates import str_to_datetime
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.languages import _get_language_name_iso6393
-from temba.utils.locks import NonBlockingLock
 from temba.utils.models import JSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel, mapEStoDB
 from temba.utils.text import truncate, unsnakify
 from temba.utils.urns import ParsedURN, parse_urn
@@ -2718,149 +2717,38 @@ class ContactGroup(TembaModel):
         """
         Updates the query for a dynamic group
         """
-        from .search import extract_fields, parse_query, SearchException
-        from .tasks import reevaluate_dynamic_group
-
         if not self.is_dynamic:
             raise ValueError("Cannot update query on a non-dynamic group")
         if self.status == ContactGroup.STATUS_EVALUATING:
             raise ValueError("Cannot update query on a group which is currently re-evaluating")
 
-        parsed_query = parse_query(text=query)
-
-        # check if query is valid, raise ValueError if it's not
         try:
-            parsed_query.as_elasticsearch(self.org)
-        except SearchException as e:
-            raise ValueError(str(e))
+            client = mailroom.get_client()
+            response = client.parse_query(self.org_id, query)
 
-        if not parsed_query.can_be_dynamic_group():
-            raise ValueError("Cannot use query '%s' as a dynamic group")
+            if "id" in response["fields"]:
+                raise ValueError(f"Cannot use query '{query}' as a dynamic group")
 
-        self.query = parsed_query.as_text()
-        self.status = ContactGroup.STATUS_INITIALIZING
-        self.save(update_fields=("query", "status"))
+            self.query = response["query"]
+            self.status = ContactGroup.STATUS_INITIALIZING
+            self.save(update_fields=("query", "status"))
 
-        # update the set of contact fields that this query depends on
-        self.query_fields.clear()
+            self.query_fields.clear()
+            self.query_fields.add(
+                *[
+                    c.id
+                    for c in ContactField.user_fields.filter(
+                        org=self.org, is_active=True, key__in=response["fields"]
+                    ).only("id")
+                ]
+            )
 
-        for field in extract_fields(self.org, self.query):
-            self.query_fields.add(field)
+        except mailroom.MailroomException as e:
+            raise ValueError(e["error"])
 
         # start background task to re-evaluate who belongs in this group
         if reevaluate:
-            on_transaction_commit(lambda: reevaluate_dynamic_group.delay(self.id))
-
-    def reevaluate(self):
-        """
-        Re-evaluates the contacts in a dynamic group
-        """
-
-        lock_key = ContactGroup.REEVALUATE_LOCK_KEY % self.id
-        lock_timeout = 3600
-
-        with NonBlockingLock(redis=get_redis_connection(), name=lock_key, timeout=lock_timeout) as lock:
-            lock.exit_if_not_locked()
-
-            if self.status == ContactGroup.STATUS_EVALUATING:
-                raise ValueError("Cannot re-evaluate a group which is currently re-evaluating")
-
-            self.status = ContactGroup.STATUS_EVALUATING
-            self.save(update_fields=("status",))
-
-            new_group_members = set(self._get_dynamic_members())
-            existing_member_ids = set(self.contacts.values_list("id", flat=True))
-
-            to_add_ids = new_group_members.difference(existing_member_ids)
-            to_remove_ids = existing_member_ids.difference(new_group_members)
-
-            from temba.campaigns.models import Campaign
-
-            has_campaigns = Campaign.objects.filter(org=self.org, group=self).exists()
-
-            # add new contacts to the group
-            for members_chunk in chunk_list(to_add_ids, 1000):
-                to_add = Contact.objects.filter(id__in=members_chunk)
-
-                self.contacts.add(*to_add)
-
-                # if our group is used in a campaign, our contacts need updating
-                if has_campaigns:
-                    for changed_contact in to_add:
-                        changed_contact.handle_update(group=self)
-
-                # update group updated_at
-                self.modified_on = datetime.datetime.now()
-                self.save(update_fields=("modified_on",))
-
-                # extend the lock
-                lock.extend(additional_time=lock_timeout)
-
-            # remove contacts from the group that are not in the search
-            for members_chunk in chunk_list(to_remove_ids, 1000):
-                to_remove = Contact.objects.filter(id__in=members_chunk)
-
-                self.contacts.remove(*to_remove)
-
-                for changed_contact in to_remove:
-                    changed_contact.handle_update(group=self)
-
-                # update group updated_at
-                self.modified_on = datetime.datetime.now()
-                self.save(update_fields=("modified_on",))
-
-                # extend the lock
-                lock.extend(additional_time=lock_timeout)
-
-            self.status = ContactGroup.STATUS_READY
-            self.save(update_fields=("status", "modified_on"))
-
-    def _get_dynamic_members(self):
-        """
-        For dynamic groups, this returns the set of contacts who belong in this group
-        """
-        if not self.is_dynamic:  # pragma: no cover
-            raise ValueError("Can only be called on dynamic groups")
-
-        from .search import evaluate_query
-        from temba.utils.es import ES, ModelESSearch
-
-        # get the modified_on of the last synced contact
-        last_synced_contact_search = (
-            ModelESSearch(model=Contact, index="contacts")
-            .params(size=1, routing=self.org.id)
-            .sort("-modified_on_mu")
-            .source(include=["modified_on"])
-            .using(ES)
-            .execute()
-        )
-
-        if len(last_synced_contact_search.hits):
-            last_modifed_on = str_to_datetime(last_synced_contact_search.hits[0].modified_on, tz=timezone.utc)
-        else:
-            # there are no contacts for this org in the ES index
-            last_modifed_on = datetime.datetime(1, 1, 1, tzinfo=pytz.utc)
-
-        # search ES
-        contact_ids = set(Contact.query_elasticsearch_for_ids(self.org, self.query))
-
-        # search the database for any new contacts that have been modified after the modified_on
-        db_contacts = Contact.objects.filter(
-            org_id=self.org.id, modified_on__gt=last_modifed_on, is_active=True, is_blocked=False, is_stopped=False
-        )
-
-        # check if contacts are members of the new group
-        for contact in db_contacts:
-            should_add = evaluate_query(self.org, self.query, contact_json=contact.as_search_json())
-
-            if should_add is True:
-                contact_ids.add(contact.id)
-
-        db_contacts_count = db_contacts.count()
-        if db_contacts_count > 1000:  # pragma: no cover
-            logger.error("Dynamic group manually evaluating more contacts than expected %s > 1000", db_contacts_count)
-
-        return contact_ids
+            on_transaction_commit(lambda: queue_populate_dynamic_group(self))
 
     @classmethod
     def get_system_group_counts(cls, org, group_types=None):

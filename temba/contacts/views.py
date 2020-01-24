@@ -171,6 +171,8 @@ class ContactListView(OrgPermsMixin, SmartListView):
     sort_field = None
     sort_direction = None
 
+    search_error = None
+
     def pre_process(self, request, *args, **kwargs):
         """
         Don't allow pagination past 200th page
@@ -192,6 +194,14 @@ class ContactListView(OrgPermsMixin, SmartListView):
             search,
             redirect,
         )
+
+    def derive_refresh(self):
+        # dynamic groups that are reevaluating should refresh every 2 seconds
+        group = self.derive_group()
+        if group.is_dynamic and group.status != ContactGroup.STATUS_READY:
+            return 2000
+
+        return None
 
     @staticmethod
     def prepare_sort_field_struct(sort_on):
@@ -310,12 +320,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         return context
 
     def get_user_groups(self, org):
-        groups = (
-            ContactGroup.get_user_groups(org, ready_only=False)
-            .exclude(status=ContactGroup.STATUS_INITIALIZING)
-            .select_related("org")
-            .order_by(Upper("name"))
-        )
+        groups = ContactGroup.get_user_groups(org, ready_only=False).select_related("org").order_by(Upper("name"))
         group_counts = ContactGroupCount.get_totals(groups)
 
         rendered = []
