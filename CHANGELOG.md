@@ -1,3 +1,7 @@
+v5.3.38
+----------
+ * Use mailroom for contact searches, contact list pages and flow starts via search
+
 v5.3.35
 ----------
  * Rebuild components
