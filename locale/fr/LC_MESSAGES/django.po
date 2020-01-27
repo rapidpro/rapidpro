@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-12-18 21:04+0000\n"
+"POT-Creation-Date: 2020-01-23 17:52+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -4187,11 +4187,6 @@ msgstr "Créer un contact"
 #| msgid "Contact First Name"
 msgid "Contact query is required"
 msgstr "Prénom du Contact"
-
-#, fuzzy
-#| msgid "Please enter at least 8 characters"
-msgid "Please enter a valid contact query"
-msgstr "S'il vous plaît entrer au moins 8 caractères"
 
 msgid "You must specify at least one contact or one group to start a flow."
 msgstr ""
@@ -11653,6 +11648,11 @@ msgstr "Entrez le code Claim"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Please enter at least 8 characters"
+#~ msgid "Please enter a valid contact query"
+#~ msgstr "S'il vous plaît entrer au moins 8 caractères"
 
 #, fuzzy
 #~ msgid "Send"

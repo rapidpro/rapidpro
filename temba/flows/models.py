@@ -231,7 +231,8 @@ class Flow(TembaModel):
     ]
 
     FINAL_LEGACY_VERSION = VERSIONS[-1]
-    GOFLOW_VERSION = "13.0.0"
+    INITIAL_GOFLOW_VERSION = "13.0.0"  # initial version of flow spec to use new engine
+    CURRENT_SPEC_VERSION = "13.0.0"  # current flow spec version
 
     DEFAULT_EXPIRES_AFTER = 60 * 12
 
@@ -334,7 +335,7 @@ class Flow(TembaModel):
             saved_by=user,
             created_by=user,
             modified_by=user,
-            version_number=Flow.GOFLOW_VERSION if use_new_editor else Flow.FINAL_LEGACY_VERSION,
+            version_number=Flow.CURRENT_SPEC_VERSION if use_new_editor else Flow.FINAL_LEGACY_VERSION,
             **kwargs,
         )
 
@@ -345,7 +346,7 @@ class Flow(TembaModel):
                     {
                         Flow.DEFINITION_NAME: flow.name,
                         Flow.DEFINITION_UUID: flow.uuid,
-                        Flow.DEFINITION_SPEC_VERSION: Flow.GOFLOW_VERSION,
+                        Flow.DEFINITION_SPEC_VERSION: Flow.CURRENT_SPEC_VERSION,
                         Flow.DEFINITION_LANGUAGE: base_language,
                         Flow.DEFINITION_TYPE: Flow.GOFLOW_TYPES[flow_type],
                         Flow.DEFINITION_NODES: [],
@@ -381,7 +382,7 @@ class Flow(TembaModel):
 
         name = Flow.get_unique_name(org, "Join %s" % group.name)
         flow = Flow.create(org, user, name, base_language=base_language)
-        flow.version_number = Flow.GOFLOW_VERSION
+        flow.version_number = "13.0.0"
         flow.save(update_fields=("version_number",))
 
         node_uuid = str(uuid4())
@@ -963,7 +964,7 @@ class Flow(TembaModel):
         assert translations and base_language in translations, "must include translation for base language"
 
         self.base_language = base_language
-        self.version_number = Flow.GOFLOW_VERSION
+        self.version_number = "13.0.0"
         self.save(update_fields=("name", "base_language", "version_number"))
 
         translations = translations.copy()  # don't modify instance being saved on event object
@@ -1040,7 +1041,7 @@ class Flow(TembaModel):
         """
         Returns whether this flow still uses a legacy definition
         """
-        return Version(self.version_number) < Version(Flow.GOFLOW_VERSION)
+        return Version(self.version_number) < Version(Flow.INITIAL_GOFLOW_VERSION)
 
     def as_export_ref(self):
         return {Flow.DEFINITION_UUID: str(self.uuid), Flow.DEFINITION_NAME: self.name}
@@ -1299,7 +1300,7 @@ class Flow(TembaModel):
         """
         Saves a new revision for this flow, validation will be done on the definition first
         """
-        if Version(definition.get(Flow.DEFINITION_SPEC_VERSION)) < Version(Flow.GOFLOW_VERSION):
+        if Version(definition.get(Flow.DEFINITION_SPEC_VERSION)) < Version(Flow.INITIAL_GOFLOW_VERSION):
             raise FlowVersionConflictException(definition.get(Flow.DEFINITION_SPEC_VERSION))
 
         current_revision = self.get_current_revision()
@@ -1337,7 +1338,7 @@ class Flow(TembaModel):
             }
             self.saved_by = user
             self.saved_on = timezone.now()
-            self.version_number = Flow.GOFLOW_VERSION
+            self.version_number = Flow.CURRENT_SPEC_VERSION
             self.save(update_fields=["metadata", "version_number", "base_language", "saved_by", "saved_on"])
 
             # create our new revision
@@ -1345,7 +1346,7 @@ class Flow(TembaModel):
                 definition=definition,
                 created_by=user,
                 modified_by=user,
-                spec_version=Flow.GOFLOW_VERSION,
+                spec_version=Flow.CURRENT_SPEC_VERSION,
                 revision=revision,
             )
 
@@ -2418,44 +2419,22 @@ class FlowRevision(SmartModel):
                 validate_localization(rule["category"])
 
     @classmethod
-    def migrate_export(cls, org, exported_json, same_site, version, to_version=None):
-        from temba.flows.legacy import migrations
+    def migrate_export(cls, org, exported_json, same_site, version, legacy=False):
+        # use legacy migrations to get export to final legacy version
+        if version < Version(Flow.FINAL_LEGACY_VERSION):
+            from temba.flows.legacy import exports
 
-        if not to_version:
-            to_version = Flow.FINAL_LEGACY_VERSION
+            exported_json = exports.migrate(org, exported_json, same_site, version)
 
-        for version in Flow.get_versions_after(version):
-            version_slug = version.replace(".", "_")
-            migrate_fn = getattr(migrations, "migrate_export_to_version_%s" % version_slug, None)
+        if legacy:
+            return exported_json
 
-            if migrate_fn:
-                exported_json = migrate_fn(exported_json, org, same_site)
+        # use mailroom to get export to current spec version
+        migrated_flows = []
+        for flow_def in exported_json[Org.EXPORT_FLOWS]:
+            migrated_flows.append(mailroom.get_client().flow_migrate(flow_def))
 
-                # update the version of migrated flows
-                flows = []
-                for sub_flow in exported_json.get("flows", []):
-                    sub_flow[Flow.VERSION] = version
-                    flows.append(sub_flow)
-
-                exported_json["flows"] = flows
-
-            else:
-                migrate_fn = getattr(migrations, "migrate_to_version_%s" % version_slug, None)
-                if migrate_fn:
-                    flows = []
-                    for json_flow in exported_json.get("flows", []):
-                        json_flow = migrate_fn(json_flow, None)
-
-                        flows.append(json_flow)
-
-                    exported_json["flows"] = flows
-
-            # update each flow's version number
-            for json_flow in exported_json.get("flows", []):
-                json_flow[Flow.VERSION] = version
-
-            if version == to_version:
-                break
+        exported_json[Org.EXPORT_FLOWS] = migrated_flows
 
         return exported_json
 
@@ -2466,20 +2445,23 @@ class FlowRevision(SmartModel):
         if not to_version:
             to_version = Flow.FINAL_LEGACY_VERSION
 
-        versions = Flow.get_versions_after(json_flow[Flow.VERSION])
-        for version in versions:
-            version_slug = version.replace(".", "_")
-            migrate_fn = getattr(migrations, "migrate_to_version_%s" % version_slug, None)
+        # migrate any legacy versions forward
+        if Flow.VERSION in json_flow:
+            versions = Flow.get_versions_after(json_flow[Flow.VERSION])
+            for version in versions:
+                version_slug = version.replace(".", "_")
+                migrate_fn = getattr(migrations, "migrate_to_version_%s" % version_slug, None)
 
-            if migrate_fn:
-                json_flow = migrate_fn(json_flow, flow)
-                json_flow[Flow.VERSION] = version
+                if migrate_fn:
+                    json_flow = migrate_fn(json_flow, flow)
+                    json_flow[Flow.VERSION] = version
 
-            if version == to_version:
-                break
+                if version == to_version:
+                    break
 
-        if Version(to_version) >= Version(Flow.GOFLOW_VERSION):
-            json_flow = mailroom.get_client().flow_migrate(json_flow)
+        # migrate using goflow for anything newer
+        if Version(to_version) >= Version(Flow.INITIAL_GOFLOW_VERSION):
+            json_flow = mailroom.get_client().flow_migrate(json_flow, to_version)
 
         return json_flow
 
@@ -2502,7 +2484,8 @@ class FlowRevision(SmartModel):
             )
 
         # make sure old revisions migrate properly
-        definition[Flow.VERSION] = self.spec_version
+        if Version(self.spec_version) <= Version(Flow.FINAL_LEGACY_VERSION):
+            definition[Flow.VERSION] = self.spec_version
 
         # migrate our definition if necessary
         if self.spec_version != to_version:

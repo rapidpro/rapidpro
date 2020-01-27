@@ -24,7 +24,7 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.contacts.models import FACEBOOK_SCHEME, WHATSAPP_SCHEME, Contact, ContactField, ContactGroup
 from temba.globals.models import Global
-from temba.mailroom import FlowValidationException
+from temba.mailroom import FlowValidationException, MailroomException
 from temba.msgs.models import Label
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
@@ -78,7 +78,7 @@ class FlowTest(TembaTest):
         self.contact3 = self.create_contact("Norbert", "+250788123456")
         self.contact4 = self.create_contact("Teeh", "+250788123457", language="por")
 
-        self.flow = self.get_flow("color")
+        self.flow = self.get_flow("color", legacy=True)
 
         self.other_group = self.create_group("Other", [])
 
@@ -154,7 +154,7 @@ class FlowTest(TembaTest):
 
         label = Label.get_or_create(self.org, self.admin, "Hello")
         self.login(self.admin)
-        self.import_file("migrate_to_11_11")
+        self.import_file("migrate_to_11_11", legacy=True)
         flow = Flow.objects.filter(name="Add Label").first()
         label_uuid_in_def = flow.revisions.first().definition["action_sets"][1]["actions"][0]["labels"][0]["uuid"]
 
@@ -502,7 +502,7 @@ class FlowTest(TembaTest):
         self.login(self.admin)
         self.client.post(reverse("flows.flow_create"), {"name": "Go Flow", "flow_type": Flow.TYPE_MESSAGE})
         flow = Flow.objects.get(
-            org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
+            org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.CURRENT_SPEC_VERSION
         )
 
         # can't save older spec version over newer
@@ -513,7 +513,7 @@ class FlowTest(TembaTest):
             flow.save_revision(self.admin, definition)
 
         # can't save older revision over newer
-        definition["spec_version"] = Flow.GOFLOW_VERSION
+        definition["spec_version"] = Flow.CURRENT_SPEC_VERSION
         definition["revision"] = 0
 
         with self.assertRaises(FlowUserConflictException):
@@ -1865,7 +1865,7 @@ class FlowTest(TembaTest):
 
     def test_flow_update_error(self):
 
-        flow = self.get_flow("favorites")
+        flow = self.get_flow("favorites", legacy=True)
         json_dict = flow.as_json()
         json_dict["action_sets"][0]["actions"].append(dict(type="add_label", labels=[dict(name="@badlabel")]))
         self.login(self.admin)
@@ -1898,7 +1898,7 @@ class FlowTest(TembaTest):
     def test_create_dependencies(self):
         self.login(self.admin)
 
-        flow = self.get_flow("favorites")
+        flow = self.get_flow("favorites", legacy=True)
         flow_json = flow.as_json()
 
         # create an invalid label in our first actionset
@@ -1936,7 +1936,7 @@ class FlowTest(TembaTest):
             flow.update(flow_json)
             return Flow.objects.get(id=flow.id)
 
-        flow = self.get_flow("loop_detection")
+        flow = self.get_flow("loop_detection", legacy=True)
         first_actionset = ActionSet.objects.get(flow=flow, y=0)
         group_ruleset = RuleSet.objects.get(flow=flow, label="Group Split A")
         group_one_rule = group_ruleset.get_rules()[0]
@@ -1956,7 +1956,7 @@ class FlowTest(TembaTest):
             update_destination(flow, group_one_rule.uuid, first_actionset.uuid)
 
     def test_group_dependencies(self):
-        self.get_flow("dependencies")
+        self.get_flow("dependencies", legacy=True)
         flow = Flow.objects.filter(name="Dependencies").first()
 
         group_names = ["Dog Facts", "Cat Facts", "Fish Facts", "Monkey Facts"]
@@ -1982,7 +1982,7 @@ class FlowTest(TembaTest):
         Global.objects.get(name="Org Name", key="org_name", value="")
 
     def test_label_dependencies(self):
-        self.get_flow("add_label")
+        self.get_flow("add_label", legacy=True)
         flow = Flow.objects.filter(name="Add Label").first()
 
         self.assertEqual(flow.label_dependencies.count(), 1)
@@ -1999,7 +1999,7 @@ class FlowTest(TembaTest):
         self.channel.name = "1234"
         self.channel.save()
 
-        self.get_flow("migrate_to_11_12_one_node")
+        self.get_flow("migrate_to_11_12_one_node", legacy=True)
         flow = Flow.objects.filter(name="channel").first()
 
         self.assertEqual(flow.channel_dependencies.count(), 1)
@@ -2013,7 +2013,7 @@ class FlowTest(TembaTest):
 
     def test_flow_dependencies(self):
 
-        self.get_flow("dependencies")
+        self.get_flow("dependencies", legacy=True)
         flow = Flow.objects.filter(name="Dependencies").first()
 
         # we should depend on our child flow
@@ -2030,7 +2030,7 @@ class FlowTest(TembaTest):
         self.assertIsNone(flow.flow_dependencies.filter(name="Child Flow").first())
 
     def test_update_dependencies_with_actiontype_flow(self):
-        self.get_flow("dependencies")
+        self.get_flow("dependencies", legacy=True)
 
         flow = Flow.objects.filter(name="Dependencies").first()
         dep_flow = Flow.objects.filter(name="Child Flow").first()
@@ -2060,7 +2060,7 @@ class FlowTest(TembaTest):
         self.assertEqual(flow.flow_dependencies.count(), 1)
 
     def test_group_uuid_mapping(self):
-        flow = self.get_flow("group_split")
+        self.get_flow("group_split", legacy=True)
 
         # make sure the groups in our rules exist as expected
         ruleset = RuleSet.objects.filter(label="Member").first()
@@ -2072,7 +2072,7 @@ class FlowTest(TembaTest):
                 group_count += 1
         self.assertEqual(2, group_count)
 
-        self.get_flow("dependencies")
+        self.get_flow("dependencies", legacy=True)
         flow = Flow.objects.filter(name="Dependencies").first()
         group_count = 0
         for actionset in flow.action_sets.all():
@@ -2350,7 +2350,7 @@ class FlowTest(TembaTest):
 
     def test_webhook_parsing(self):
         # test a preprocess url
-        flow = self.get_flow("preprocess")
+        flow = self.get_flow("preprocess", legacy=True)
         self.assertEqual(
             "http://preprocessor.com/endpoint.php",
             flow.rule_sets.all().order_by("y")[0].config[RuleSet.CONFIG_WEBHOOK],
@@ -2360,7 +2360,7 @@ class FlowTest(TembaTest):
 class FlowCRUDLTest(TembaTest):
     def test_views(self):
         contact = self.create_contact("Eric", "+250788382382")
-        flow = self.get_flow("color")
+        flow = self.get_flow("color", legacy=True)
 
         self.setUpSecondaryOrg()
 
@@ -2808,7 +2808,7 @@ class FlowCRUDLTest(TembaTest):
         self.assertEqual(1, response.context["folders"][1]["count"])  # only flow2
 
     def test_revision_history(self):
-        flow = self.get_flow("color")
+        flow = self.get_flow("color", legacy=True)
 
         # we should initially have one revision
         revision = flow.revisions.get()
@@ -2870,7 +2870,7 @@ class FlowCRUDLTest(TembaTest):
         self.login(self.admin)
         self.client.post(reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE))
         flow = Flow.objects.get(
-            org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
+            org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.CURRENT_SPEC_VERSION
         )
         response = self.client.get(reverse("flows.flow_revisions", args=[flow.uuid]))
         self.assertEqual(1, len(response.json()))
@@ -2993,11 +2993,40 @@ class FlowCRUDLTest(TembaTest):
 
         # create flow start with a query
         with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
+            with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+                instance = mock_mr.return_value
+                instance.parse_query.return_value = {"query": 'name ~ "frank"', "fields": ["name"]}
 
-            self.client.post(
+                self.client.post(
+                    reverse("flows.flow_broadcast", args=[flow.id]),
+                    {
+                        "contact_query": "frank",
+                        "start_type": "query",
+                        "restart_participants": "on",
+                        "include_active": "on",
+                    },
+                    follow=True,
+                )
+
+                start = FlowStart.objects.get()
+                self.assertEqual(flow, start.flow)
+                self.assertEqual(FlowStart.STATUS_PENDING, start.status)
+                self.assertTrue(start.restart_participants)
+                self.assertTrue(start.include_active)
+                self.assertEqual('name ~ "frank"', start.query)
+
+                mock_queue_flow_start.assert_called_once_with(start)
+
+        FlowStart.objects.all().delete()
+
+        # create flow start with a bogus query
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.parse_query.side_effect = MailroomException("", "", {"error": "query contains an error"})
+            response = self.client.post(
                 reverse("flows.flow_broadcast", args=[flow.id]),
                 {
-                    "contact_query": "frank",
+                    "contact_query": 'name = "frank',
                     "start_type": "query",
                     "restart_participants": "on",
                     "include_active": "on",
@@ -3005,30 +3034,7 @@ class FlowCRUDLTest(TembaTest):
                 follow=True,
             )
 
-            start = FlowStart.objects.get()
-            self.assertEqual(flow, start.flow)
-            self.assertEqual(FlowStart.STATUS_PENDING, start.status)
-            self.assertTrue(start.restart_participants)
-            self.assertTrue(start.include_active)
-            self.assertEqual("frank", start.query)
-
-            mock_queue_flow_start.assert_called_once_with(start)
-
-        FlowStart.objects.all().delete()
-
-        # create flow start with a bogus query
-        response = self.client.post(
-            reverse("flows.flow_broadcast", args=[flow.id]),
-            {
-                "contact_query": 'name = "frank',
-                "start_type": "query",
-                "restart_participants": "on",
-                "include_active": "on",
-            },
-            follow=True,
-        )
-
-        self.assertFormError(response, "form", "contact_query", "Please enter a valid contact query")
+            self.assertFormError(response, "form", "contact_query", "query contains an error")
 
         # create flow start with an empty query
         response = self.client.post(
@@ -3560,7 +3566,7 @@ class FlowCRUDLTest(TembaTest):
         )
 
         flow = Flow.objects.get(
-            org=self.org, name="New Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
+            org=self.org, name="New Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.CURRENT_SPEC_VERSION
         )
 
         # now loading the editor page should redirect
@@ -3576,7 +3582,7 @@ class FlowCRUDLTest(TembaTest):
 
         self.assertEqual(rank_field.label, "Commander ranking")
 
-        flow = self.get_flow("favorites")
+        flow = self.get_flow("favorites", legacy=True)
         flow_json = flow.as_json()
 
         # save some data to the field
@@ -3617,7 +3623,7 @@ class FlowCRUDLTest(TembaTest):
         self.assertEqual(new_field.label, "New field label")
 
     def test_write_protection(self):
-        flow = self.get_flow("favorites")
+        flow = self.get_flow("favorites", legacy=True)
         flow_json = flow.as_json()
 
         self.login(self.admin)
