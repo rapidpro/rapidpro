@@ -35,7 +35,7 @@ from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, ESMockWithScroll, ESMockWithScrollMultiple, TembaTest, TembaTestMixin
 from temba.tests.engine import MockSessionWriter
-from temba.tests.requests import MockRequestsPost
+from temba.tests.requests import MockPost
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.dates import datetime_to_ms
@@ -354,19 +354,12 @@ class ContactGroupTest(TembaTest):
         self.mary.set_field(self.admin, "gender", "female")
 
         # create a dynamic group using a query
-        mock_es_data = [
+        with MockPost(
             {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
-            },
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.mary.id, "modified_on": self.mary.modified_on.isoformat()},
-            },
-        ]
-        with ESMockWithScroll(data=mock_es_data):
+                "fields": ["age", "gender"],
+                "query": '(age < 18 AND gender = "male") OR (age > 18 AND gender = "female")',
+            }
+        ):
             group = ContactGroup.create_dynamic(
                 self.org, self.admin, "Group two", '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
             )
@@ -374,31 +367,23 @@ class ContactGroupTest(TembaTest):
         group.refresh_from_db()
         self.assertEqual(group.query, '(age < 18 AND gender = "male") OR (age > 18 AND gender = "female")')
         self.assertEqual(set(group.query_fields.all()), {age, gender})
-        self.assertEqual(set(group.contacts.all()), {self.joe, self.mary})
-        self.assertEqual(group.status, ContactGroup.STATUS_READY)
+        self.assertEqual(group.status, ContactGroup.STATUS_INITIALIZING)
 
         # update group query
-        mock_es_data = [
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.mary.id, "modified_on": self.mary.modified_on.isoformat()},
-            }
-        ]
-        with ESMockWithScroll(data=mock_es_data):
+        with MockPost({"fields": ["age", "name"], "query": 'age > 18 AND name ~ "Mary"'}):
             group.update_query("age > 18 and name ~ Mary")
 
         group.refresh_from_db()
         self.assertEqual(group.query, 'age > 18 AND name ~ "Mary"')
         self.assertEqual(set(group.query_fields.all()), {age, name})
-        self.assertEqual(set(group.contacts.all()), {self.mary})
-        self.assertEqual(group.status, ContactGroup.STATUS_READY)
+        self.assertEqual(group.status, ContactGroup.STATUS_INITIALIZING)
 
         # can't create a dynamic group with empty query
         self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, "Empty", "")
 
         # can't create a dynamic group with id attribute
-        self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, "Bose", "id = 123")
+        with MockPost({"fields": ["id"], "query": "id = 123"}):
+            self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, "Bose", "id = 123")
 
         # can't call update_contacts on a dynamic group
         self.assertRaises(ValueError, group.update_contacts, self.admin, [self.joe], True)
@@ -416,10 +401,6 @@ class ContactGroupTest(TembaTest):
         # can't update query again while it is in this state
         with self.assertRaises(ValueError):
             group.update_query("age = 18")
-
-        # can't call reevaluate on it while it is in this state
-        with self.assertRaises(ValueError):
-            group.reevaluate()
 
     def test_query_elasticsearch_for_ids_bad_query(self):
         with self.assertRaises(SearchException):
@@ -446,8 +427,9 @@ class ContactGroupTest(TembaTest):
         deleted.is_active = False
         deleted.save()
 
-        with ESMockWithScroll():
+        with MockPost({"fields": ["gender"], "query": 'gender = "M"'}):
             dynamic = ContactGroup.create_dynamic(self.org, self.admin, "Dynamic", "gender=M")
+            ContactGroup.user_groups.filter(id=dynamic.id).update(status=ContactGroup.STATUS_READY)
 
         self.assertEqual(set(ContactGroup.get_user_groups(self.org)), {static, dynamic})
         self.assertEqual(set(ContactGroup.get_user_groups(self.org, dynamic=False)), {static})
@@ -743,7 +725,7 @@ class ContactGroupCRUDLTest(TembaTest):
 
         self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])
 
-        with MockRequestsPost({"fields": ["tel"], "query": "tel = 1234"}):
+        with MockPost({"fields": ["tel"], "query": "tel = 1234"}):
             self.dynamic_group = self.create_group("Dynamic", query="tel is 1234")
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
@@ -780,7 +762,7 @@ class ContactGroupCRUDLTest(TembaTest):
         self.assertEqual(set(group.contacts.all()), {self.joe, self.frank})
 
         # create a dynamic group using a query
-        with MockRequestsPost({"fields": ["tel"], "query": "tel = 1234"}):
+        with MockPost({"fields": ["tel"], "query": "tel = 1234"}):
             self.client.post(url, dict(name="Frank", group_query="tel = 1234"))
 
         ContactGroup.user_groups.get(org=self.org, name="Frank", query="tel = 1234")
@@ -842,21 +824,21 @@ class ContactGroupCRUDLTest(TembaTest):
         ContactGroup.user_groups.filter(id=self.dynamic_group.pk).update(status=ContactGroup.STATUS_READY)
 
         # update both name and query, form should fail, because query is not parsable
-        with MockRequestsPost({"error": "error at !"}, status=400):
+        with MockPost({"error": "error at !"}, status=400):
             response = self.client.post(url, dict(name="Frank", query="(!))!)"))
             self.assertFormError(response, "form", "query", "error at !")
 
         # try to update a group with an invalid query
-        with MockRequestsPost({"error": "error at >"}, status=400):
+        with MockPost({"error": "error at >"}, status=400):
             response = self.client.post(url, dict(name="Frank", query="name <> some_name"))
             self.assertFormError(response, "form", "query", "error at >")
 
         # dependent on id
-        with MockRequestsPost({"fields": ["id"], "query": "id = 123"}):
+        with MockPost({"fields": ["id"], "query": "id = 123"}):
             response = self.client.post(url, dict(name="Frank", query="id = 123"))
             self.assertFormError(response, "form", "query", 'You cannot create a dynamic group based on "id".')
 
-        with MockRequestsPost({"fields": ["twitter"], "query": 'twitter = "hola"'}):
+        with MockPost({"fields": ["twitter"], "query": 'twitter = "hola"'}):
             response = self.client.post(url, dict(name="Frank", query='twitter is "hola"'))
 
         self.assertNoFormErrors(response)
@@ -869,14 +851,14 @@ class ContactGroupCRUDLTest(TembaTest):
         self.dynamic_group.save(update_fields=("status",))
 
         # and check we can't change the query while that is the case
-        with MockRequestsPost({"fields": ["twitter"], "query": 'twitter = "hello"'}):
+        with MockPost({"fields": ["twitter"], "query": 'twitter = "hello"'}):
             response = self.client.post(url, dict(name="Frank", query='twitter = "hello"'))
             self.assertFormError(
                 response, "form", "query", "You cannot update the query of a group that is evaluating."
             )
 
         # but can change the name
-        with MockRequestsPost({"fields": ["twitter"], "query": 'twitter = "hola"'}):
+        with MockPost({"fields": ["twitter"], "query": 'twitter = "hola"'}):
             response = self.client.post(url, dict(name="Frank2", query='twitter is "hola"'))
             self.assertNoFormErrors(response)
 
@@ -1244,7 +1226,7 @@ class ContactTest(TembaTest):
 
         # create a dynamic group and put joe in it
         ContactField.get_or_create(self.org, self.admin, "gender", "Gender")
-        with ESMockWithScroll():
+        with MockPost({"fields": ["gender"], "query": 'gender = "M"'}):
             dynamic_group = self.create_group("Dynamic", query="gender is M")
 
         self.joe.set_field(self.admin, "gender", "M")
@@ -3141,8 +3123,10 @@ class ContactTest(TembaTest):
         self.create_field("gender", "Gender")
         joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
         nobody = self.create_group("Nobody", [])
-        with ESMockWithScroll():
+
+        with MockPost({"fields": ["gender"], "query": 'gender = "M"'}):
             men = self.create_group("Men", query="gender=M")
+            ContactGroup.user_groups.filter(id=men.id).update(status=ContactGroup.STATUS_READY)
 
             # a group which is being re-evaluated and shouldn't appear in any omnibox results
             unready = self.create_group("Group being re-evaluated...", query="gender=M")
@@ -4110,7 +4094,7 @@ class ContactTest(TembaTest):
         self.joe.set_field(self.user, "planting_date", (now + timedelta(days=1)).isoformat())
         EventFire.update_campaign_events(self.campaign)
 
-        with ESMockWithScroll():
+        with MockPost({"fields": ["planting_date"], "query": 'planting_date != ""'}):
             planters = self.create_group("Planters", query='planting_date != ""')
 
         # should have seven fires, one for each campaign event
@@ -4733,7 +4717,7 @@ class ContactTest(TembaTest):
 
         # try to push into a dynamic group
         self.login(self.admin)
-        with ESMockWithScroll():
+        with MockPost({"fields": ["tel"], "query": "tel = 325423"}):
             group = self.create_group("Dynamo", query="tel = 325423")
 
         with self.assertRaises(ValueError):
@@ -4814,8 +4798,9 @@ class ContactTest(TembaTest):
 
         self.client.post(reverse("orgs.org_languages"), dict(primary_lang="eng", languages="fra"))
 
-        with ESMockWithScroll():
+        with MockPost({"fields": ["language"], "query": 'language = "eng"'}):
             language_group = self.create_group("English humans", query="language is eng")
+            ContactGroup.user_groups.filter(id=language_group.id).update(status=ContactGroup.STATUS_READY)
 
         self.assertEqual(language_group.contacts.count(), 0)
 
@@ -4838,8 +4823,9 @@ class ContactTest(TembaTest):
     def test_contact_name_update(self):
         self.login(self.admin)
 
-        with ESMockWithScroll():
+        with MockPost({"fields": ["name"], "query": 'name ~ "Dave"'}):
             dave_group = self.create_group("All Daves of the world", query="name has Dave")
+            ContactGroup.user_groups.filter(id=dave_group.id).update(status=ContactGroup.STATUS_READY)
 
         self.assertEqual(dave_group.contacts.count(), 0)
 
@@ -6627,29 +6613,10 @@ class ContactTest(TembaTest):
             joined_field = ContactField.get_or_create(self.org, self.admin, "joined", "Join Date", value_type="D")
 
             # create groups based on name or URN (checks that contacts are added correctly on contact create)
-            mock_es_data = [
-                {
-                    "_type": "_doc",
-                    "_index": "dummy_index",
-                    "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
-                }
-            ]
-            with ESMockWithScroll(data=mock_es_data):
+            with MockPost({"fields": ["twitter"], "query": 'twitter = "blow80"'}):
                 joes_group = self.create_group("People called Joe", query='twitter = "blow80"')
 
-            mock_es_data = [
-                {
-                    "_type": "_doc",
-                    "_index": "dummy_index",
-                    "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
-                },
-                {
-                    "_type": "_doc",
-                    "_index": "dummy_index",
-                    "_source": {"id": self.frank.id, "modified_on": self.frank.modified_on.isoformat()},
-                },
-            ]
-            with ESMockWithScroll(data=mock_es_data):
+            with MockPost({"fields": ["tel"], "query": 'tel ~ "078"'}):
                 mtn_group = self.create_group("People with number containing '078'", query='tel has "078"')
 
             self.mary = self.create_contact("Mary", "+250783333333")
@@ -6958,7 +6925,7 @@ class ContactFieldTest(TembaTest):
         contact2.update_urns(self.admin, urns)
 
         group = self.create_group("Poppin Tags", [contact, contact2])
-        with ESMockWithScroll():
+        with MockPost({"fields": ["tel"], "query": "tel = 1234"}):
             group2 = self.create_group("Dynamic", query="tel is 1234")
         group2.status = ContactGroup.STATUS_EVALUATING
         group2.save()

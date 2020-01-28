@@ -11,8 +11,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ImportTas
 from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, Org
-from temba.tests import ESMockWithScroll, TembaTest, matchers
-from temba.tests.mailroom import MockMailroomParse
+from temba.tests import ESMockWithScroll, TembaTest, matchers, MockPost
 from temba.utils import json
 from temba.values.constants import Value
 
@@ -1429,7 +1428,7 @@ class CampaignTest(TembaTest):
         # create a campaign on a dynamic group
         self.create_field("gender", "Gender")
 
-        with MockMailroomParse({"fields": ["gender"], "query": 'gender = "F"'}):
+        with MockPost({"fields": ["gender"], "query": 'gender = "F"'}):
             women = self.create_group("Women", query='gender="F"')
             ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
 
@@ -1460,7 +1459,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 1)
 
         # change dynamic group query so anna is removed
-        with MockMailroomParse({"fields": ["gender"], "query": 'gender = "FEMALE"'}):
+        with MockPost({"fields": ["gender"], "query": 'gender = "FEMALE"'}):
             women = self.create_group("Women", query='gender="FEMALE"')
             ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
 
