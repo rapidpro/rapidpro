@@ -109,7 +109,6 @@ DEFAULT_FIELDS_PAYLOAD_GIFTCARDS = {
     "active": {"type": "Boolean"},
     "egiftnumber": {"type": "String"},
     "url": {"type": "String"},
-    "short_url": {"type": "String"},
     "challengecode": {"type": "String"},
     "identifier": {"type": "String"},
 }
