@@ -3751,7 +3751,7 @@ class BulkExportTest(TembaTest):
         group = ContactGroup.user_groups.get(name="Survey Audience")
 
         child = Flow.objects.get(name="New Child")
-        self.assertEqual(child.version_number, "13.0.0")
+        self.assertEqual(child.version_number, Flow.CURRENT_SPEC_VERSION)
         self.assertEqual(set(child.flow_dependencies.all()), set())
         self.assertEqual(set(child.group_dependencies.all()), {group})
 
