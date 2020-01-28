@@ -61,7 +61,6 @@ from .models import (
     ExportContactsTask,
 )
 from .omnibox import omnibox_query, omnibox_results_to_dict
-from .search import SearchException, parse_query
 from .tasks import export_contacts_task, release_group_task
 
 logger = logging.getLogger(__name__)
@@ -128,12 +127,13 @@ class ContactGroupForm(forms.ModelForm):
 
     def clean_query(self):
         try:
-            parsed_query = parse_query(text=self.cleaned_data["query"], as_anon=self.org.is_anon)
+            client = mailroom.get_client()
+            resp = client.parse_query(self.org.id, self.cleaned_data["query"])
 
-            # try to prepare query as it would be used, might raise errors for invalid search operators
-            parsed_query.as_elasticsearch(self.org)
+            if "id" in resp["fields"]:
+                raise forms.ValidationError(_('You cannot create a dynamic group based on "id".'))
 
-            cleaned_query = parsed_query.as_text()
+            cleaned_query = resp["query"]
 
             if (
                 self.instance
@@ -142,14 +142,10 @@ class ContactGroupForm(forms.ModelForm):
             ):
                 raise forms.ValidationError(_("You cannot update the query of a group that is evaluating."))
 
-            if parsed_query.can_be_dynamic_group():
-                return cleaned_query
-            else:
-                raise forms.ValidationError(_('You cannot create a dynamic group based on "name" or "id".'))
-        except forms.ValidationError as e:
-            raise e
-        except SearchException as e:
-            raise forms.ValidationError(str(e))
+            return cleaned_query
+
+        except MailroomException as e:
+            raise forms.ValidationError(e.response["error"])
 
     class Meta:
         fields = ("name", "query")

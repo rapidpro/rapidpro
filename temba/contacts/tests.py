@@ -35,6 +35,7 @@ from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, ESMockWithScroll, ESMockWithScrollMultiple, TembaTest, TembaTestMixin
 from temba.tests.engine import MockSessionWriter
+from temba.tests.requests import MockRequestsPost
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.dates import datetime_to_ms
@@ -742,7 +743,7 @@ class ContactGroupCRUDLTest(TembaTest):
 
         self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])
 
-        with ESMockWithScroll():
+        with MockRequestsPost({"fields": ["tel"], "query": "tel = 1234"}):
             self.dynamic_group = self.create_group("Dynamic", query="tel is 1234")
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
@@ -779,18 +780,10 @@ class ContactGroupCRUDLTest(TembaTest):
         self.assertEqual(set(group.contacts.all()), {self.joe, self.frank})
 
         # create a dynamic group using a query
-        mock_es_data = [
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.frank.id, "modified_on": self.frank.modified_on.isoformat()},
-            }
-        ]
-        with ESMockWithScroll(data=mock_es_data):
+        with MockRequestsPost({"fields": ["tel"], "query": "tel = 1234"}):
             self.client.post(url, dict(name="Frank", group_query="tel = 1234"))
 
-        group = ContactGroup.user_groups.get(org=self.org, name="Frank", query="tel = 1234")
-        self.assertEqual(set(group.contacts.all()), {self.frank})
+        ContactGroup.user_groups.get(org=self.org, name="Frank", query="tel = 1234")
 
         self.setUpSecondaryOrg()
         self.release(ContactGroup.user_groups.all())
@@ -845,46 +838,47 @@ class ContactGroupCRUDLTest(TembaTest):
         # now try a dynamic group
         url = reverse("contacts.contactgroup_update", args=[self.dynamic_group.pk])
 
+        # mark our group as ready
+        ContactGroup.user_groups.filter(id=self.dynamic_group.pk).update(status=ContactGroup.STATUS_READY)
+
         # update both name and query, form should fail, because query is not parsable
-        response = self.client.post(url, dict(name="Frank", query="(!))!)"))
-        self.assertFormError(response, "form", "query", "Search query contains an error at: !")
+        with MockRequestsPost({"error": "error at !"}, status=400):
+            response = self.client.post(url, dict(name="Frank", query="(!))!)"))
+            self.assertFormError(response, "form", "query", "error at !")
 
         # try to update a group with an invalid query
-        response = self.client.post(url, dict(name="Frank", query="name <> some_name"))
-        self.assertFormError(response, "form", "query", "Search query contains an error at: >")
+        with MockRequestsPost({"error": "error at >"}, status=400):
+            response = self.client.post(url, dict(name="Frank", query="name <> some_name"))
+            self.assertFormError(response, "form", "query", "error at >")
 
-        response = self.client.post(url, dict(name="Frank", query="id = 123"))
-        self.assertFormError(response, "form", "query", 'You cannot create a dynamic group based on "name" or "id".')
+        # dependent on id
+        with MockRequestsPost({"fields": ["id"], "query": "id = 123"}):
+            response = self.client.post(url, dict(name="Frank", query="id = 123"))
+            self.assertFormError(response, "form", "query", 'You cannot create a dynamic group based on "id".')
 
-        # create a dynamic group using a query
-        mock_es_data = [
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.frank.id, "modified_on": self.frank.modified_on.isoformat()},
-            }
-        ]
-        with ESMockWithScroll(data=mock_es_data):
+        with MockRequestsPost({"fields": ["twitter"], "query": 'twitter = "hola"'}):
             response = self.client.post(url, dict(name="Frank", query='twitter is "hola"'))
 
         self.assertNoFormErrors(response)
 
         self.dynamic_group.refresh_from_db()
-        self.assertEqual(self.dynamic_group.name, "Frank")
         self.assertEqual(self.dynamic_group.query, 'twitter = "hola"')
-        self.assertEqual(set(self.dynamic_group.contacts.all()), {self.frank})
 
         # mark our dynamic group as evaluating
         self.dynamic_group.status = ContactGroup.STATUS_EVALUATING
         self.dynamic_group.save(update_fields=("status",))
 
         # and check we can't change the query while that is the case
-        response = self.client.post(url, dict(name="Frank", query='twitter = "hello"'))
-        self.assertFormError(response, "form", "query", "You cannot update the query of a group that is evaluating.")
+        with MockRequestsPost({"fields": ["twitter"], "query": 'twitter = "hello"'}):
+            response = self.client.post(url, dict(name="Frank", query='twitter = "hello"'))
+            self.assertFormError(
+                response, "form", "query", "You cannot update the query of a group that is evaluating."
+            )
 
         # but can change the name
-        response = self.client.post(url, dict(name="Frank2", query='twitter is "hola"'))
-        self.assertNoFormErrors(response)
+        with MockRequestsPost({"fields": ["twitter"], "query": 'twitter = "hola"'}):
+            response = self.client.post(url, dict(name="Frank2", query='twitter is "hola"'))
+            self.assertNoFormErrors(response)
 
         self.dynamic_group.refresh_from_db()
         self.assertEqual(self.dynamic_group.name, "Frank2")
