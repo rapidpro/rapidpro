@@ -99,7 +99,7 @@ class AddToGroupAction(Action):
         return cls(json_obj.get(cls.UUID), cls.get_groups(org, json_obj))
 
     @classmethod
-    def get_groups(cls, org, json_obj):
+    def get_groups(cls, org, json_obj):  # pragma: no cover
 
         # for backwards compatibility
         group_data = json_obj.get(AddToGroupAction.GROUP, None)
@@ -243,7 +243,7 @@ class SayAction(Action):
         return dict(type=self.TYPE, uuid=self.uuid, msg=self.msg, recording=self.recording)
 
 
-class PlayAction(Action):
+class PlayAction(Action):  # pragma: no cover
     """
     Voice action for reading some text to a user
     """

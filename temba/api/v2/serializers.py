@@ -1303,7 +1303,9 @@ class TemplateReadSerializer(ReadSerializer):
     def get_translations(self, obj):
         translations = []
         for translation in (
-            TemplateTranslation.objects.filter(template=obj).order_by("language").select_related("channel")
+            TemplateTranslation.objects.filter(template=obj, is_active=True)
+            .order_by("language")
+            .select_related("channel")
         ):
             translations.append(
                 {

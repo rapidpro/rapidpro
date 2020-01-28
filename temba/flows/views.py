@@ -301,28 +301,39 @@ class FlowCRUDL(SmartCRUDL):
         def get(self, request, *args, **kwargs):
             flow = self.get_object()
 
-            flow_version = request.GET.get("version", Flow.GOFLOW_VERSION)
+            flow_version = request.GET.get("version", Flow.CURRENT_SPEC_VERSION)
             revision_id = self.kwargs["revision_id"]
 
+            # we are looking for a specific revision, fetch it and migrate it forward
             if revision_id:
                 revision = FlowRevision.objects.get(flow=flow, pk=revision_id)
                 return JsonResponse(revision.get_definition_json(flow_version))
-            else:
 
-                versions = Flow.get_versions_before(flow_version)
-                versions.append(flow_version)
+            # get a list of all revisions, these should be reasonably pruned already
+            revisions = []
+            requested_version = Version(flow_version)
+            release = requested_version.release
 
-                revisions = []
-                for revision in flow.revisions.filter(spec_version__in=versions).order_by("-revision")[:25]:
+            # if a patch version wasn't given, we want to include all patches
+            # for example, 13.2 should include anything up to but not including 13.3.0
+            # up to the next minor version
+            include_patches = len(release) == 2
+            up_to_version = Version(".".join([str(release[0]), str((release[1]) + 1), "0"]))
 
-                    # our goflow versions are already validated
-                    if revision.spec_version == Flow.GOFLOW_VERSION:
+            for revision in flow.revisions.all().order_by("-revision"):
+
+                revision_version = Version(revision.spec_version)
+
+                # any version up to the requested version is allowed
+                if revision_version <= requested_version or (include_patches and revision_version < up_to_version):
+
+                    # our goflow revisions are already validated
+                    if revision_version >= Version(Flow.INITIAL_GOFLOW_VERSION):
                         revisions.append(revision.as_json())
                         continue
 
-                    # validate the flow definition before presenting it to the user
+                    # legacy revisions should be validated first as a failsafe
                     try:
-                        # can only validate up to our last python version
                         FlowRevision.validate_legacy_definition(revision.get_definition_json())
                         revisions.append(revision.as_json())
 
@@ -337,7 +348,7 @@ class FlowCRUDL(SmartCRUDL):
                         )
                         pass
 
-                return JsonResponse({"results": revisions}, safe=False)
+            return JsonResponse({"results": revisions}, safe=False)
 
         def post(self, request, *args, **kwargs):
             if not self.has_org_perm("flows.flow_update"):
@@ -1028,7 +1039,7 @@ class FlowCRUDL(SmartCRUDL):
                 flow.save(update_fields=("version_number",))
 
             # require update permissions
-            if Version(flow.version_number) >= Version(Flow.GOFLOW_VERSION):
+            if Version(flow.version_number) >= Version(Flow.INITIAL_GOFLOW_VERSION):
                 return HttpResponseRedirect(reverse("flows.flow_editor_next", args=[self.get_object().uuid]))
 
             return super().get(request, *args, **kwargs)
@@ -1214,7 +1225,7 @@ class FlowCRUDL(SmartCRUDL):
             links = []
             flow = self.object
 
-            versions = Flow.get_versions_before(Flow.GOFLOW_VERSION)
+            versions = Flow.get_versions_before(Flow.INITIAL_GOFLOW_VERSION)
             has_legacy_revision = flow.revisions.filter(spec_version__in=versions).exists()
 
             if (
@@ -1858,17 +1869,16 @@ class FlowCRUDL(SmartCRUDL):
                 start_type = self.data["start_type"]
 
                 if start_type == "query":
-
                     if not contact_query.strip():
                         raise ValidationError(_("Contact query is required"))
 
-                    # try parsing our query
-                    from temba.contacts.search import parse_query, SearchException
+                    client = mailroom.get_client()
 
                     try:
-                        parse_query(text=contact_query)
-                    except SearchException:
-                        raise ValidationError(_("Please enter a valid contact query"))
+                        resp = client.parse_query(self.flow.org_id, contact_query)
+                        contact_query = resp["query"]
+                    except mailroom.MailroomException as e:
+                        raise ValidationError(e.response["error"])
 
                 return contact_query
 

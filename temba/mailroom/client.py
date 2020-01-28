@@ -74,7 +74,7 @@ class MailroomClient:
         from temba.flows.models import Flow
 
         if not to_version:
-            to_version = Flow.GOFLOW_VERSION
+            to_version = Flow.CURRENT_SPEC_VERSION
 
         return self._request("flow/migrate", {"flow": definition, "to_version": to_version})
 
@@ -101,6 +101,16 @@ class MailroomClient:
 
     def sim_resume(self, payload):
         return self._request("sim/resume", payload)
+
+    def contact_search(self, org_id, group_uuid, query, sort, offset=0):
+        payload = {"org_id": org_id, "group_uuid": group_uuid, "query": query, "sort": sort, "offset": offset}
+
+        return self._request("contact/search", payload)
+
+    def parse_query(self, org_id, query):
+        payload = {"org_id": org_id, "query": query}
+
+        return self._request("contact/parse_query", payload)
 
     def _request(self, endpoint, payload=None, post=True):
         if logger.isEnabledFor(logging.DEBUG):  # pragma: no cover
