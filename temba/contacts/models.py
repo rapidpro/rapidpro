@@ -2737,7 +2737,7 @@ class ContactGroup(TembaModel):
             self.query_fields.add(
                 *[
                     c.id
-                    for c in ContactField.user_fields.filter(
+                    for c in ContactField.all_fields.filter(
                         org=self.org, is_active=True, key__in=response["fields"]
                     ).only("id")
                 ]

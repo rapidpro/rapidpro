@@ -32,8 +32,9 @@ from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import TemplateTranslation
-from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers
+from temba.tests import AnonymousOrg, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
+from temba.tests.mailroom import MockMailroomParse
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.values.constants import Value
@@ -1691,13 +1692,21 @@ class APITest(TembaTest):
         self.assertEqual(set(jaqen.user_groups.all()), set())
         self.assertIsNone(jaqen.fields)
 
-        with ESMockWithScroll():
+        with MockMailroomParse({"fields": ["nickname"], "query": 'nickname = "jado"'}):
             dyn_group = self.create_group("Dynamic Group", query="nickname is jado")
+            ContactGroup.user_groups.filter(id=dyn_group.id).update(status=ContactGroup.STATUS_READY)
 
+        with MockMailroomParse({"fields": ["language"], "query": 'language = "fra"'}):
             lang_group = self.create_group("Language Group", query="language = fra")
-            eng_lang_group = self.create_group("Language Group English", query="language = eng")
+            ContactGroup.user_groups.filter(id=lang_group.id).update(status=ContactGroup.STATUS_READY)
 
+        with MockMailroomParse({"fields": ["language"], "query": 'language = "eng"'}):
+            eng_lang_group = self.create_group("Language Group English", query="language = eng")
+            ContactGroup.user_groups.filter(id=eng_lang_group.id).update(status=ContactGroup.STATUS_READY)
+
+        with MockMailroomParse({"fields": ["name"], "query": 'name ~ "Jason"'}):
             jason_group = self.create_group("Jason Group", query="name has Jason")
+            ContactGroup.user_groups.filter(id=jason_group.id).update(status=ContactGroup.STATUS_READY)
 
         # create with all fields
         response = self.postJSON(
@@ -2093,7 +2102,7 @@ class APITest(TembaTest):
         group = self.create_group("Testers")
         self.create_field("isdeveloper", "Is developer")
 
-        with ESMockWithScroll():
+        with MockMailroomParse({"fields": ["developers"], "query": 'isdeveloper = "YES"'}):
             self.create_group("Developers", query="isdeveloper = YES")
 
         # create some "active" runs for some of the contacts
@@ -2618,14 +2627,14 @@ class APITest(TembaTest):
 
         self.create_field("isdeveloper", "Is developer")
         customers = self.create_group("Customers", [self.frank])
-        with ESMockWithScroll():
+        with MockMailroomParse({"fields": ["isdeveloper"], "query": 'isdeveloper = "YES"'}):
             developers = self.create_group("Developers", query="isdeveloper = YES")
+            ContactGroup.user_groups.filter(id=developers.id).update(status=ContactGroup.STATUS_READY)
 
+        with MockMailroomParse({"fields": ["isdeveloper"], "query": 'isdeveloper = "NO"'}):
             # a group which is being re-evaluated
             dynamic = self.create_group("Big Group", query="isdeveloper=NO")
-
-        dynamic.status = ContactGroup.STATUS_EVALUATING
-        dynamic.save(update_fields=("status",))
+            ContactGroup.user_groups.filter(id=dynamic.id).update(status=ContactGroup.STATUS_EVALUATING)
 
         # an initializing group
         ContactGroup.create_static(self.org, self.admin, "Initializing", status=ContactGroup.STATUS_INITIALIZING)
