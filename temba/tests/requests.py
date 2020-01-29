@@ -1,9 +1,11 @@
 import json
 from unittest.mock import patch
 
-from django.utils.encoding import force_text, force_bytes
-from temba.utils import dict_to_struct
 from requests.structures import CaseInsensitiveDict
+
+from django.utils.encoding import force_bytes, force_text
+
+from temba.utils import dict_to_struct
 
 
 class MockResponse(object):

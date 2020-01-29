@@ -11,7 +11,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ImportTas
 from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, Org
-from temba.tests import ESMockWithScroll, TembaTest, matchers, MockPost
+from temba.tests import ESMockWithScroll, MockPost, TembaTest, matchers
 from temba.utils import json
 from temba.values.constants import Value
 
