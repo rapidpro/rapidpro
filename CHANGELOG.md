@@ -1,3 +1,7 @@
+v5.3.40
+----------
+ * Add subflow parameters to editor
+
 v5.3.39
 ----------
  * Rework migration code so new flows are migrated too
