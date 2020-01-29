@@ -995,7 +995,7 @@ SEND_EMAILS = False
 CLASSIFIER_TYPES = [
     "temba.classifiers.types.wit.WitType",
     "temba.classifiers.types.luis.LuisType",
-    "temba.classifiers.types.bothub.BothubType",
+    "temba.classifiers.types.bothub.BotHubType",
 ]
 
 CHANNEL_TYPES = [
@@ -1046,6 +1046,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.twitter_legacy.TwitterLegacyType",
     "temba.channels.types.verboice.VerboiceType",
     "temba.channels.types.viber_public.ViberPublicType",
+    "temba.channels.types.vk.VKType",
     "temba.channels.types.wavy.WavyType",
     "temba.channels.types.wechat.WeChatType",
     "temba.channels.types.yo.YoType",
