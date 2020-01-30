@@ -1,1 +1,1 @@
-from .type import VKType
+from .type import VKType  # noqa
