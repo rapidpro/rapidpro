@@ -82,7 +82,12 @@ LANGUAGE_CODE = "en-us"
 # -----------------------------------------------------------------------------------
 # Available languages for translation
 # -----------------------------------------------------------------------------------
-LANGUAGES = (("en-us", _("English")), ("pt-br", _("Portuguese")), ("fr", _("French")), ("es", _("Spanish")))
+LANGUAGES = (
+    ("en-us", _("English")),
+    ("pt-br", _("Portuguese")),
+    ("fr", _("French")),
+    ("es", _("Spanish")),
+)
 
 DEFAULT_LANGUAGE = "en-us"
 DEFAULT_SMS_LANGUAGE = "en-us"
@@ -173,7 +178,9 @@ TEMPLATES = [
 ]
 
 if TESTING:
-    TEMPLATES[0]["OPTIONS"]["context_processors"] += ("temba.tests.add_testing_flag_to_context",)
+    TEMPLATES[0]["OPTIONS"]["context_processors"] += (
+        "temba.tests.add_testing_flag_to_context",
+    )
 
 FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
 
@@ -266,15 +273,27 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": True,
     "root": {"level": "WARNING", "handlers": ["console"]},
-    "formatters": {"verbose": {"format": "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s"}},
+    "formatters": {
+        "verbose": {
+            "format": "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s"
+        }
+    },
     "handlers": {
-        "console": {"level": "DEBUG", "class": "logging.StreamHandler", "formatter": "verbose"},
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
         "null": {"class": "logging.NullHandler"},
     },
     "loggers": {
         "pycountry": {"level": "ERROR", "handlers": ["console"], "propagate": False},
         "django.security.DisallowedHost": {"handlers": ["null"], "propagate": False},
-        "django.db.backends": {"level": "ERROR", "handlers": ["console"], "propagate": False},
+        "django.db.backends": {
+            "level": "ERROR",
+            "handlers": ["console"],
+            "propagate": False,
+        },
     },
 }
 
@@ -299,12 +318,23 @@ BRANDING = {
         "splash": "brands/rapidpro/splash.jpg",
         "logo": "brands/rapidpro/logo.png",
         "allow_signups": True,
-        "flow_types": ["M", "V", "S"],  # see Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY
+        "flow_types": [
+            "M",
+            "V",
+            "S",
+        ],  # see Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY
         "tiers": dict(import_flows=0, multi_user=0, multi_org=0),
         "bundles": [],
-        "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
-        "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
-        "credits": _("Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."),
+        "welcome_packs": [
+            dict(size=5000, name="Demo Account"),
+            dict(size=100000, name="UNICEF Account"),
+        ],
+        "description": _(
+            "Visually build nationally scalable mobile applications from anywhere in the world."
+        ),
+        "credits": _(
+            "Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."
+        ),
     }
 }
 DEFAULT_BRAND = "rapidpro.io"
@@ -348,7 +378,14 @@ PERMISSIONS = {
         "update_fields",
         "update_fields_input",
     ),
-    "contacts.contactfield": ("api", "json", "update_priority", "featured", "filter_by_type", "detail"),
+    "contacts.contactfield": (
+        "api",
+        "json",
+        "update_priority",
+        "featured",
+        "filter_by_type",
+        "detail",
+    ),
     "contacts.contactgroup": ("api",),
     "ivr.ivrcall": ("start",),
     "archives.archive": ("api", "run", "message"),
@@ -449,7 +486,14 @@ PERMISSIONS = {
         "sent",
         "update",
     ),
-    "msgs.broadcast": ("api", "detail", "schedule", "schedule_list", "schedule_read", "send"),
+    "msgs.broadcast": (
+        "api",
+        "detail",
+        "schedule",
+        "schedule_list",
+        "schedule_read",
+        "send",
+    ),
     "msgs.label": ("api", "create", "create_folder"),
     "orgs.topup": ("manage",),
     "policies.policy": ("admin", "history", "give_consent"),
@@ -471,7 +515,10 @@ PERMISSIONS = {
 
 # assigns the permissions that each group should have
 GROUP_PERMISSIONS = {
-    "Service Users": ("flows.flow_assets", "msgs.msg_create"),  # internal Temba services have limited permissions
+    "Service Users": (
+        "flows.flow_assets",
+        "msgs.msg_create",
+    ),  # internal Temba services have limited permissions
     "Alpha": (),
     "Beta": (),
     "Dashboard": ("orgs.org_dashboard",),
@@ -855,38 +902,112 @@ DATABASES = {"default": _default_database_config, "direct": _direct_database_con
 if TESTING:
     DATABASES["default"] = _direct_database_config
 
-INTERNAL_IPS = iptools.IpRangeList("127.0.0.1", "192.168.0.10", "192.168.0.0/24", "0.0.0.0")  # network block
+INTERNAL_IPS = iptools.IpRangeList(
+    "127.0.0.1", "192.168.0.10", "192.168.0.0/24", "0.0.0.0"
+)  # network block
 
 # -----------------------------------------------------------------------------------
 # Crontab Settings ..
 # -----------------------------------------------------------------------------------
 CELERYBEAT_SCHEDULE = {
-    "check-channels": {"task": "check_channels_task", "schedule": timedelta(seconds=300)},
-    "sync-old-seen-channels": {"task": "sync_old_seen_channels_task", "schedule": timedelta(seconds=600)},
-    "sync-classifier-intents": {"task": "sync_classifier_intents", "schedule": timedelta(seconds=300)},
+    "check-channels": {
+        "task": "check_channels_task",
+        "schedule": timedelta(seconds=300),
+    },
+    "sync-old-seen-channels": {
+        "task": "sync_old_seen_channels_task",
+        "schedule": timedelta(seconds=600),
+    },
+    "sync-classifier-intents": {
+        "task": "sync_classifier_intents",
+        "schedule": timedelta(seconds=300),
+    },
     "check-credits": {"task": "check_credits_task", "schedule": timedelta(seconds=900)},
-    "check-topup-expiration": {"task": "check_topup_expiration_task", "schedule": crontab(hour=2, minute=0)},
-    "check-elasticsearch-lag": {"task": "check_elasticsearch_lag", "schedule": timedelta(seconds=300)},
-    "retry-errored-messages": {"task": "retry_errored_messages", "schedule": timedelta(seconds=60)},
-    "fail-old-messages": {"task": "fail_old_messages", "schedule": crontab(hour=0, minute=0)},
-    "trim-sync-events": {"task": "trim_sync_events_task", "schedule": crontab(hour=3, minute=0)},
-    "trim-channel-log": {"task": "trim_channel_log_task", "schedule": crontab(hour=3, minute=0)},
-    "trim-http-logs": {"task": "trim_http_logs_task", "schedule": crontab(hour=3, minute=0)},
-    "trim-webhook-event": {"task": "trim_webhook_event_task", "schedule": crontab(hour=3, minute=0)},
-    "trim-event-fires": {"task": "trim_event_fires_task", "schedule": timedelta(seconds=900)},
-    "trim-flow-revisions": {"task": "trim_flow_revisions", "schedule": crontab(hour=0, minute=0)},
-    "trim-flow-sessions": {"task": "trim_flow_sessions", "schedule": crontab(hour=0, minute=0)},
-    "squash-flowruncounts": {"task": "squash_flowruncounts", "schedule": timedelta(seconds=60)},
-    "squash-flowpathcounts": {"task": "squash_flowpathcounts", "schedule": timedelta(seconds=60)},
-    "squash-channelcounts": {"task": "squash_channelcounts", "schedule": timedelta(seconds=60)},
+    "check-topup-expiration": {
+        "task": "check_topup_expiration_task",
+        "schedule": crontab(hour=2, minute=0),
+    },
+    "check-elasticsearch-lag": {
+        "task": "check_elasticsearch_lag",
+        "schedule": timedelta(seconds=300),
+    },
+    "retry-errored-messages": {
+        "task": "retry_errored_messages",
+        "schedule": timedelta(seconds=60),
+    },
+    "fail-old-messages": {
+        "task": "fail_old_messages",
+        "schedule": crontab(hour=0, minute=0),
+    },
+    "trim-sync-events": {
+        "task": "trim_sync_events_task",
+        "schedule": crontab(hour=3, minute=0),
+    },
+    "trim-channel-log": {
+        "task": "trim_channel_log_task",
+        "schedule": crontab(hour=3, minute=0),
+    },
+    "trim-http-logs": {
+        "task": "trim_http_logs_task",
+        "schedule": crontab(hour=3, minute=0),
+    },
+    "trim-webhook-event": {
+        "task": "trim_webhook_event_task",
+        "schedule": crontab(hour=3, minute=0),
+    },
+    "trim-event-fires": {
+        "task": "trim_event_fires_task",
+        "schedule": timedelta(seconds=900),
+    },
+    "trim-flow-revisions": {
+        "task": "trim_flow_revisions",
+        "schedule": crontab(hour=0, minute=0),
+    },
+    "trim-flow-sessions": {
+        "task": "trim_flow_sessions",
+        "schedule": crontab(hour=0, minute=0),
+    },
+    "squash-flowruncounts": {
+        "task": "squash_flowruncounts",
+        "schedule": timedelta(seconds=60),
+    },
+    "squash-flowpathcounts": {
+        "task": "squash_flowpathcounts",
+        "schedule": timedelta(seconds=60),
+    },
+    "squash-channelcounts": {
+        "task": "squash_channelcounts",
+        "schedule": timedelta(seconds=60),
+    },
     "squash-msgcounts": {"task": "squash_msgcounts", "schedule": timedelta(seconds=60)},
-    "squash-topupcredits": {"task": "squash_topupcredits", "schedule": timedelta(seconds=60)},
-    "squash-contactgroupcounts": {"task": "squash_contactgroupcounts", "schedule": timedelta(seconds=60)},
-    "resolve-twitter-ids-task": {"task": "resolve_twitter_ids_task", "schedule": timedelta(seconds=900)},
-    "refresh-jiochat-access-tokens": {"task": "refresh_jiochat_access_tokens", "schedule": timedelta(seconds=3600)},
-    "refresh-wechat-access-tokens": {"task": "refresh_wechat_access_tokens", "schedule": timedelta(seconds=3600)},
-    "refresh-whatsapp-tokens": {"task": "refresh_whatsapp_tokens", "schedule": timedelta(hours=24)},
-    "refresh-whatsapp-templates": {"task": "refresh_whatsapp_templates", "schedule": timedelta(seconds=900)},
+    "squash-topupcredits": {
+        "task": "squash_topupcredits",
+        "schedule": timedelta(seconds=60),
+    },
+    "squash-contactgroupcounts": {
+        "task": "squash_contactgroupcounts",
+        "schedule": timedelta(seconds=60),
+    },
+    "resolve-twitter-ids-task": {
+        "task": "resolve_twitter_ids_task",
+        "schedule": timedelta(seconds=900),
+    },
+    "refresh-jiochat-access-tokens": {
+        "task": "refresh_jiochat_access_tokens",
+        "schedule": timedelta(seconds=3600),
+    },
+    "refresh-wechat-access-tokens": {
+        "task": "refresh_wechat_access_tokens",
+        "schedule": timedelta(seconds=3600),
+    },
+    "refresh-whatsapp-tokens": {
+        "task": "refresh_whatsapp_tokens",
+        "schedule": timedelta(hours=24),
+    },
+    "refresh-whatsapp-templates": {
+        "task": "refresh_whatsapp_templates",
+        "schedule": timedelta(seconds=900),
+    },
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
@@ -948,7 +1069,10 @@ REST_FRAMEWORK = {
     },
     "PAGE_SIZE": 250,
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
-    "DEFAULT_RENDERER_CLASSES": ("temba.api.support.DocumentationRenderer", "rest_framework.renderers.JSONRenderer"),
+    "DEFAULT_RENDERER_CLASSES": (
+        "temba.api.support.DocumentationRenderer",
+        "rest_framework.renderers.JSONRenderer",
+    ),
     "EXCEPTION_HANDLER": "temba.api.support.temba_exception_handler",
     "UNICODE_JSON": False,
     "STRICT_JSON": False,
@@ -964,7 +1088,11 @@ if TESTING:
     COMPRESS_PRECOMPILERS = ()
 else:
     COMPRESS_PRECOMPILERS = (
-        ("text/less", 'lessc --include-path="%s" {infile} {outfile}' % os.path.join(PROJECT_DIR, "../static", "less")),
+        (
+            "text/less",
+            'lessc --include-path="%s" {infile} {outfile}'
+            % os.path.join(PROJECT_DIR, "../static", "less"),
+        ),
         ("text/coffeescript", "coffee --compile --stdio"),
     )
 
@@ -974,7 +1102,9 @@ COMPRESS_OFFLINE = False
 # build up our offline compression context based on available brands
 COMPRESS_OFFLINE_CONTEXT = []
 for brand in BRANDING.values():
-    context = dict(STATIC_URL=STATIC_URL, base_template="frame.html", debug=False, testing=False)
+    context = dict(
+        STATIC_URL=STATIC_URL, base_template="frame.html", debug=False, testing=False
+    )
     context["brand"] = dict(slug=brand["slug"], styles=brand["styles"])
     COMPRESS_OFFLINE_CONTEXT.append(context)
 
