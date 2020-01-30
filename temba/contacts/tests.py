@@ -8080,6 +8080,9 @@ class URNTest(TembaTest):
         self.assertEqual("asdf", URN.fb_ref_from_path(URN.path_from_fb_ref("asdf")))
         self.assertTrue(URN.validate(URN.from_facebook(URN.path_from_fb_ref("asdf"))))
 
+    def test_vk_urn(self):
+        self.assertEqual("vk:12345", URN.from_vk("12345"))
+
     def test_whatsapp_urn(self):
         self.assertEqual("whatsapp:12065551212", URN.from_whatsapp("12065551212"))
         self.assertTrue(URN.validate("whatsapp:12065551212"))
@@ -8112,6 +8115,7 @@ class URNTest(TembaTest):
         self.assertEqual(URN.from_twitter("abc_123"), "twitter:abc_123")
         self.assertEqual(URN.from_email("a_b+c@d.com"), "mailto:a_b+c@d.com")
         self.assertEqual(URN.from_facebook(12345), "facebook:12345")
+        self.assertEqual(URN.from_vk(12345), "vk:12345")
         self.assertEqual(URN.from_telegram(12345), "telegram:12345")
         self.assertEqual(URN.from_external("Aa0()+,-.:=@;$_!*'"), "ext:Aa0()+,-.:=@;$_!*'")
 
@@ -8126,6 +8130,7 @@ class URNTest(TembaTest):
         self.assertEqual(URN.to_parts("twitter:abc_123"), ("twitter", "abc_123", None, None))
         self.assertEqual(URN.to_parts("mailto:a_b+c@d.com"), ("mailto", "a_b+c@d.com", None, None))
         self.assertEqual(URN.to_parts("facebook:12345"), ("facebook", "12345", None, None))
+        self.assertEqual(URN.to_parts("vk:12345"), ("vk", "12345", None, None))
         self.assertEqual(URN.to_parts("telegram:12345"), ("telegram", "12345", None, None))
         self.assertEqual(URN.to_parts("telegram:12345#foobar"), ("telegram", "12345", None, "foobar"))
         self.assertEqual(URN.to_parts("ext:Aa0()+,-.:=@;$_!*'"), ("ext", "Aa0()+,-.:=@;$_!*'", None, None))
@@ -8201,11 +8206,13 @@ class URNTest(TembaTest):
         # viber urn
         self.assertTrue(URN.validate("viber:dKPvqVrLerGrZw15qTuVBQ=="))
 
-        # facebook and telegram URN paths must be integers
+        # facebook, telegram vk URN paths must be integers
         self.assertTrue(URN.validate("telegram:12345678901234567"))
         self.assertFalse(URN.validate("telegram:abcdef"))
         self.assertTrue(URN.validate("facebook:12345678901234567"))
         self.assertFalse(URN.validate("facebook:abcdef"))
+        self.assertTrue(URN.validate("vk:12345678901234567"))
+        self.assertFalse(URN.validate("vk:abcdef"))
 
 
 class PhoneNumberTest(TestCase):

@@ -241,7 +241,7 @@ class URN(object):
                     return False
 
         elif scheme == VK_SCHEME:
-            # we don't validate facebook refs since they come from the outside
+            # we don't validate vk refs since they come from the outside
             if regex.match(r"^[0-9]+$", path, regex.V0):
                 return True
 
@@ -383,6 +383,10 @@ class URN(object):
     @classmethod
     def from_facebook(cls, path):
         return cls.from_parts(FACEBOOK_SCHEME, path)
+    
+    @classmethod
+    def from_vk(cls, path):
+        return cls.from_parts(VK_SCHEME, path)
 
     @classmethod
     def from_line(cls, path):
