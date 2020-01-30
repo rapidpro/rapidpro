@@ -86,7 +86,6 @@ URN_SCHEME_CONFIG = (
     (TWITTER_SCHEME, _("Twitter handle"), TWITTER_SCHEME),
     (TWITTERID_SCHEME, _("Twitter ID"), TWITTERID_SCHEME),
     (VIBER_SCHEME, _("Viber identifier"), VIBER_SCHEME),
-    (VK_SCHEME, _("VK identifier"), VK_SCHEME),
     (LINE_SCHEME, _("LINE identifier"), LINE_SCHEME),
     (TELEGRAM_SCHEME, _("Telegram identifier"), TELEGRAM_SCHEME),
     (EMAIL_SCHEME, _("Email address"), EMAIL_SCHEME),
@@ -96,6 +95,7 @@ URN_SCHEME_CONFIG = (
     (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), FCM_SCHEME),
     (WHATSAPP_SCHEME, _("WhatsApp identifier"), WHATSAPP_SCHEME),
     (FRESHCHAT_SCHEME, _("Freshchat identifier"), FRESHCHAT_SCHEME),
+    (VK_SCHEME, _("VK identifier"), VK_SCHEME),
 )
 
 
