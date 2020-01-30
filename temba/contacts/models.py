@@ -383,7 +383,7 @@ class URN(object):
     @classmethod
     def from_facebook(cls, path):
         return cls.from_parts(FACEBOOK_SCHEME, path)
-    
+
     @classmethod
     def from_vk(cls, path):
         return cls.from_parts(VK_SCHEME, path)
