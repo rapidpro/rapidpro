@@ -1,3 +1,8 @@
+v5.3.41
+----------
+ * Disable simulation for archived flows
+ * Fix query explosion on Android channel alerts
+
 v5.3.40
 ----------
  * Add subflow parameters to editor
