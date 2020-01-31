@@ -1192,9 +1192,11 @@ class FlowCRUDL(SmartCRUDL):
             if flow.is_archived:
                 context["mutable"] = False
                 context["can_start"] = False
+                context["can_simulate"] = False
             else:
                 context["mutable"] = self.has_org_perm("flows.flow_update") and not self.request.user.is_superuser
                 context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
+                context["can_simulate"] = True
 
             context["dev_mode"] = dev_mode
             context["is_starting"] = flow.is_starting()
