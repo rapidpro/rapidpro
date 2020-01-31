@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-30 21:55+0000\n"
+"POT-Creation-Date: 2020-01-31 00:11+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3432,11 +3432,6 @@ msgstr ""
 msgid "Viber identifier"
 msgstr ""
 
-#, fuzzy
-#| msgid "External ID"
-msgid "VK identifier"
-msgstr "ID externo"
-
 msgid "LINE identifier"
 msgstr ""
 
@@ -3474,6 +3469,11 @@ msgstr "ID externo"
 #, fuzzy
 #| msgid "External ID"
 msgid "Freshchat identifier"
+msgstr "ID externo"
+
+#, fuzzy
+#| msgid "External ID"
+msgid "VK identifier"
 msgstr "ID externo"
 
 msgid "Label"
