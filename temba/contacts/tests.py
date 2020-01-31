@@ -10526,7 +10526,7 @@ class ContactFieldTest(TembaTest):
         response_json = response.json()
 
         self.assertEqual(response_json[16]["label"], "Groups")
-        self.assertEqual(response_json[16]["key"], "group")
+        self.assertEqual(response_json[16]["key"], "groups")
         self.assertEqual(response_json[17]["label"], "First")
         self.assertEqual(response_json[17]["key"], "first")
 
