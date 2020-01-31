@@ -7287,7 +7287,7 @@ class ContactTest(TembaTest):
                         line=3,
                         error="Missing any valid URNs; at least one among URN:tel, "
                         "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
-                        "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat should be provided or a Contact UUID",
+                        "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat, URN:vk should be provided or a Contact UUID",
                     ),
                     dict(line=4, error="Invalid Phone number 12345"),
                 ],
@@ -7718,7 +7718,7 @@ class ContactTest(TembaTest):
             "csv_file",
             'The file you provided is missing a required header. At least one of "URN:tel", "URN:facebook", '
             '"URN:twitter", "URN:twitterid", "URN:viber", "URN:line", "URN:telegram", "URN:mailto", "URN:ext", '
-            '"URN:jiochat", "URN:wechat", "URN:fcm", "URN:whatsapp", "URN:freshchat" or "Contact UUID" should be included.',
+            '"URN:jiochat", "URN:wechat", "URN:fcm", "URN:whatsapp", "URN:freshchat", "URN:vk" or "Contact UUID" should be included.',
         )
 
         csv_file = open(
@@ -10511,14 +10511,12 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response_json[13]["key"], "whatsapp")
         self.assertEqual(response_json[14]["label"], "Freshchat identifier")
         self.assertEqual(response_json[14]["key"], "freshchat")
-        self.assertEqual(response_json[15]["label"], "Groups")
-        self.assertEqual(response_json[15]["key"], "groups")
+        self.assertEqual(response_json[15]["label"], "VK identifier")
+        self.assertEqual(response_json[15]["key"], "vk")
         self.assertEqual(response_json[16]["label"], "First")
         self.assertEqual(response_json[16]["key"], "first")
         self.assertEqual(response_json[17]["label"], "label0")
         self.assertEqual(response_json[17]["key"], "key0")
-        self.assertEqual(response_json[18]["label"], "VK identifier")
-        self.assertEqual(response_json[18]["key"], "vk")
 
         ContactField.user_fields.filter(org=self.org, key="key0").update(label="AAAA")
 
