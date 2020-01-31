@@ -9303,7 +9303,7 @@ class ContactFieldTest(TembaTest):
             self.assertIsNotNone(response.context["task"])
 
         # no group specified, so will default to 'All Contacts'
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(49):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
