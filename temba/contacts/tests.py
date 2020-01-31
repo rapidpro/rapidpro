@@ -9628,7 +9628,7 @@ class ContactFieldTest(TembaTest):
             {"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}
         ]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(49):
+            with self.assertNumQueries(50):
                 self.assertExcelSheet(
                     request_export("?g=%s&s=Hagg" % group.uuid)[0],
                     [
