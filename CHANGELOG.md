@@ -1,3 +1,7 @@
+v5.3.42
+----------
+ * Fix actions on blocked contact list page
+
 v5.3.41
 ----------
  * Disable simulation for archived flows
