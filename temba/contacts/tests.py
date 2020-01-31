@@ -10527,8 +10527,8 @@ class ContactFieldTest(TembaTest):
 
         self.assertEqual(response_json[16]["label"], "Groups")
         self.assertEqual(response_json[16]["key"], "groups")
-        self.assertEqual(response_json[17]["label"], "First")
-        self.assertEqual(response_json[17]["key"], "first")
+        self.assertEqual(response_json[17]["label"], "AAAA")
+        self.assertEqual(response_json[17]["key"], "key0")
 
 
 class URNTest(TembaTest):
