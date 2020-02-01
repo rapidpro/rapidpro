@@ -204,8 +204,11 @@
 
         completion: '/mr/docs/completion.json',
         functions: '/mr/docs/functions.json',
+
+        {% if can_simulate %}
         simulateStart: '/flow/simulate/{{object.id}}/',
         simulateResume: '/flow/simulate/{{object.id}}/'
+        {% endif %}
       }
     };
 

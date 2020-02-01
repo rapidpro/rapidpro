@@ -2212,11 +2212,21 @@ class ChannelClaimTest(TembaTest):
         self.assertFalse(alert.ended_on)
         self.assertTrue(len(mail.outbox) == 2)
 
-        # run again, nothing should change
-        check_channels_task()
+        # create another open SMS alert
+        Alert.objects.create(
+            channel=self.channel,
+            alert_type=Alert.TYPE_SMS,
+            created_on=timezone.now(),
+            created_by=self.admin,
+            modified_on=timezone.now(),
+            modified_by=self.admin,
+        )
 
-        alert = Alert.objects.get(ended_on=None)
-        self.assertFalse(alert.ended_on)
+        # run again, nothing should change
+        with self.assertNumQueries(10):
+            check_channels_task()
+
+        self.assertEqual(2, Alert.objects.filter(channel=self.channel, ended_on=None).count())
         self.assertTrue(len(mail.outbox) == 2)
 
         # fix our message

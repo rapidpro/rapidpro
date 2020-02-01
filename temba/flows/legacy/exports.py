@@ -1,11 +1,12 @@
 from temba.flows.models import Flow
-from . import migrations
+
+from . import get_versions_after, migrations
 
 
 def migrate(org, exported_json, same_site, version):
     to_version = Flow.FINAL_LEGACY_VERSION
 
-    for version in Flow.get_versions_after(version):
+    for version in get_versions_after(version):
         version_slug = version.replace(".", "_")
         migrate_fn = getattr(migrations, "migrate_export_to_version_%s" % version_slug, None)
 
