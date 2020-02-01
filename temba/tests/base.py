@@ -378,7 +378,7 @@ class TembaTestMixin:
             # if definition isn't provided, generate simple single message flow
             node_uuid = str(uuid4())
             definition = {
-                "version": 10,
+                "version": "10",
                 "flow_type": "F",
                 "base_language": "eng",
                 "entry": node_uuid,
@@ -399,7 +399,7 @@ class TembaTestMixin:
         flow.version_number = definition["version"]
         flow.save()
 
-        json_flow = FlowRevision.migrate_definition(definition, flow)
+        json_flow = FlowRevision.migrate_definition(definition, flow, to_version=Flow.FINAL_LEGACY_VERSION)
         flow.update(json_flow)
 
         return flow

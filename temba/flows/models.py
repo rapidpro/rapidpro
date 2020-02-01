@@ -200,39 +200,9 @@ class Flow(TembaModel):
 
     ENTRY_TYPES = ((NODE_TYPE_RULESET, "Rules"), (NODE_TYPE_ACTIONSET, "Actions"))
 
-    VERSIONS = [
-        "1",
-        "2",
-        "3",
-        "4",
-        "5",
-        "6",
-        "7",
-        "8",
-        "9",
-        "10",
-        "10.1",
-        "10.2",
-        "10.3",
-        "10.4",
-        "11.0",
-        "11.1",
-        "11.2",
-        "11.3",
-        "11.4",
-        "11.5",
-        "11.6",
-        "11.7",
-        "11.8",
-        "11.9",
-        "11.10",
-        "11.11",
-        "11.12",
-    ]
-
-    FINAL_LEGACY_VERSION = VERSIONS[-1]
+    FINAL_LEGACY_VERSION = legacy.VERSIONS[-1]
     INITIAL_GOFLOW_VERSION = "13.0.0"  # initial version of flow spec to use new engine
-    CURRENT_SPEC_VERSION = "13.0.0"  # current flow spec version
+    CURRENT_SPEC_VERSION = "13.1.0"  # current flow spec version
 
     DEFAULT_EXPIRES_AFTER = 60 * 12
 
@@ -323,7 +293,6 @@ class Flow(TembaModel):
         expires_after_minutes=DEFAULT_EXPIRES_AFTER,
         base_language=None,
         create_revision=False,
-        use_new_editor=True,
         **kwargs,
     ):
         flow = Flow.objects.create(
@@ -335,26 +304,23 @@ class Flow(TembaModel):
             saved_by=user,
             created_by=user,
             modified_by=user,
-            version_number=Flow.CURRENT_SPEC_VERSION if use_new_editor else Flow.FINAL_LEGACY_VERSION,
+            version_number=Flow.CURRENT_SPEC_VERSION,
             **kwargs,
         )
 
         if create_revision:
-            if use_new_editor:
-                flow.save_revision(
-                    user,
-                    {
-                        Flow.DEFINITION_NAME: flow.name,
-                        Flow.DEFINITION_UUID: flow.uuid,
-                        Flow.DEFINITION_SPEC_VERSION: Flow.CURRENT_SPEC_VERSION,
-                        Flow.DEFINITION_LANGUAGE: base_language,
-                        Flow.DEFINITION_TYPE: Flow.GOFLOW_TYPES[flow_type],
-                        Flow.DEFINITION_NODES: [],
-                        Flow.DEFINITION_UI: {},
-                    },
-                )
-            else:
-                flow.update(flow.as_json())
+            flow.save_revision(
+                user,
+                {
+                    Flow.DEFINITION_NAME: flow.name,
+                    Flow.DEFINITION_UUID: flow.uuid,
+                    Flow.DEFINITION_SPEC_VERSION: Flow.CURRENT_SPEC_VERSION,
+                    Flow.DEFINITION_LANGUAGE: base_language,
+                    Flow.DEFINITION_TYPE: Flow.GOFLOW_TYPES[flow_type],
+                    Flow.DEFINITION_NODES: [],
+                    Flow.DEFINITION_UI: {},
+                },
+            )
 
         analytics.track(user.username, "nyaruka.flow_created", dict(name=name))
         return flow
@@ -431,13 +397,6 @@ class Flow(TembaModel):
 
         flow.save_revision(user, definition)
         return flow
-
-    @classmethod
-    def is_before_version(cls, to_check, version):
-        if str(to_check) not in Flow.VERSIONS:
-            return False
-
-        return Version(str(to_check)) < Version(str(version))
 
     @classmethod
     def get_triggerable_flows(cls, org):
@@ -615,18 +574,6 @@ class Flow(TembaModel):
                 pass
         return changed
 
-    @classmethod
-    def get_versions_before(cls, version_number):  # pragma: no cover
-        # older flows had numeric versions, lets make sure we are dealing with strings
-        version_number = Version(f"{version_number}")
-        return [v for v in Flow.VERSIONS if Version(v) < version_number]
-
-    @classmethod
-    def get_versions_after(cls, version_number):
-        # older flows had numeric versions, lets make sure we are dealing with strings
-        version_number = Version(f"{version_number}")
-        return [v for v in Flow.VERSIONS if Version(v) > version_number]
-
     def as_select2(self):
         return dict(id=self.uuid, text=self.name)
 
@@ -776,6 +723,8 @@ class Flow(TembaModel):
 
         # clone definition so that all flow elements get new random UUIDs
         cloned_definition = mailroom.get_client().flow_clone(dependency_mapping, definition)
+        if "revision" in cloned_definition:
+            del cloned_definition["revision"]
 
         # save a new revision but we can't validate it just yet because we're in a transaction and mailroom
         # won't see any new database objects
@@ -1255,24 +1204,30 @@ class Flow(TembaModel):
                     path.popitem()
         return None
 
-    def ensure_current_version(self, min_version=None):
+    def ensure_current_version(self):
         """
-        Makes sure the flow is at the current version. If it isn't it will
-        migrate the definition forward updating the flow accordingly.
+        Makes sure the flow is at the latest legacy or goflow spec version
         """
 
-        to_version = min_version or Flow.FINAL_LEGACY_VERSION
+        to_version = Flow.FINAL_LEGACY_VERSION if self.is_legacy() else Flow.CURRENT_SPEC_VERSION
 
-        if Flow.is_before_version(self.version_number, to_version):
-            with self.lock_on(FlowLock.definition):
-                revision = self.get_current_revision()
-                if revision:
-                    json_flow = revision.get_definition_json(to_version)
-                else:  # pragma: needs cover
-                    json_flow = self.as_json()
+        # nothing to do if flow is already at the target version
+        if Version(self.version_number) >= Version(to_version):
+            return
 
-                self.update(json_flow, user=get_flow_user(self.org))
-                self.refresh_from_db()
+        with self.lock_on(FlowLock.definition):
+            revision = self.get_current_revision()
+            if revision:
+                flow_def = revision.get_definition_json(to_version)
+            else:  # pragma: needs cover
+                flow_def = self.as_json()
+
+            if self.is_legacy():
+                self.update(flow_def, user=get_flow_user(self.org))
+            else:
+                self.save_revision(get_flow_user(self.org), flow_def, validate=False)
+
+            self.refresh_from_db()
 
     def get_definition(self):
         """
@@ -2439,15 +2394,12 @@ class FlowRevision(SmartModel):
         return exported_json
 
     @classmethod
-    def migrate_definition(cls, json_flow, flow, to_version=None):
+    def migrate_definition(cls, json_flow, flow, to_version=Flow.CURRENT_SPEC_VERSION):
         from temba.flows.legacy import migrations
-
-        if not to_version:
-            to_version = Flow.FINAL_LEGACY_VERSION
 
         # migrate any legacy versions forward
         if Flow.VERSION in json_flow:
-            versions = Flow.get_versions_after(json_flow[Flow.VERSION])
+            versions = legacy.get_versions_after(json_flow[Flow.VERSION])
             for version in versions:
                 version_slug = version.replace(".", "_")
                 migrate_fn = getattr(migrations, "migrate_to_version_%s" % version_slug, None)
@@ -2465,15 +2417,12 @@ class FlowRevision(SmartModel):
 
         return json_flow
 
-    def get_definition_json(self, to_version=None):
-        if not to_version:
-            to_version = Flow.FINAL_LEGACY_VERSION
-
+    def get_definition_json(self, to_version=Flow.CURRENT_SPEC_VERSION):
         definition = self.definition
 
         # if it's previous to version 6, wrap the definition to
         # mirror our exports for those versions
-        if Flow.is_before_version(self.spec_version, "6"):
+        if Version(self.spec_version) < Version("6"):
             definition = dict(
                 definition=self.definition,
                 flow_type=self.flow.flow_type,
