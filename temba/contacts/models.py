@@ -21,7 +21,6 @@ from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
-from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
@@ -2717,19 +2716,19 @@ class ContactGroup(TembaModel):
         """
         Updates the query for a dynamic group
         """
+        from temba.contacts.search import parse_query, SearchException
+
         if not self.is_dynamic:
             raise ValueError("Cannot update query on a non-dynamic group")
         if self.status == ContactGroup.STATUS_EVALUATING:
             raise ValueError("Cannot update query on a group which is currently re-evaluating")
 
         try:
-            client = mailroom.get_client()
-            response = client.parse_query(self.org_id, query)
-
-            if "id" in response["fields"]:
+            parsed = parse_query(self.org_id, query)
+            if "id" in parsed.fields:
                 raise ValueError(f"Cannot use query '{query}' as a dynamic group")
 
-            self.query = response["query"]
+            self.query = parsed.query
             self.status = ContactGroup.STATUS_INITIALIZING
             self.save(update_fields=("query", "status"))
 
@@ -2737,14 +2736,14 @@ class ContactGroup(TembaModel):
             self.query_fields.add(
                 *[
                     c.id
-                    for c in ContactField.all_fields.filter(
-                        org=self.org, is_active=True, key__in=response["fields"]
-                    ).only("id")
+                    for c in ContactField.all_fields.filter(org=self.org, is_active=True, key__in=parsed.fields).only(
+                        "id"
+                    )
                 ]
             )
 
-        except mailroom.MailroomException as e:
-            raise ValueError(e["error"])
+        except SearchException as e:
+            raise ValueError(str(e))
 
         # start background task to re-evaluate who belongs in this group
         if reevaluate:
@@ -2825,9 +2824,9 @@ class ContactGroup(TembaModel):
             group_query = group_def.get(ContactGroup.EXPORT_QUERY)
 
             if group_query:
-                from .search import parse_query
+                from .search import legacy_parse_query
 
-                parsed = parse_query(group_query, as_anon=org.is_anon)
+                parsed = legacy_parse_query(group_query, as_anon=org.is_anon)
                 for prop, obj in parsed.get_prop_map(org, validate=False).items():
                     # if search property didn't match a URN, attribute or existing field, we need to create the field
                     if obj is None:

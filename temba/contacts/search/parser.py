@@ -1,5 +1,6 @@
 import operator
 from collections import OrderedDict
+from dataclasses import dataclass
 from decimal import Decimal
 from functools import reduce
 
@@ -13,6 +14,7 @@ from elasticsearch_dsl import Q as es_Q
 from django.utils.encoding import force_text
 from django.utils.translation import gettext as _
 
+from temba import mailroom
 from temba.contacts.models import URN_SCHEME_CONFIG, Contact, ContactField
 from temba.utils.dates import date_to_day_range_utc, str_to_date, str_to_datetime
 from temba.utils.es import ModelESSearch
@@ -943,7 +945,26 @@ class ContactQLVisitor(ParseTreeVisitor):
         return value.replace(r"\"", '"')  # unescape embedded quotes
 
 
-def parse_query(text, optimize=True, as_anon=False):
+@dataclass
+class ParsedQuery:
+    query: str
+    fields: list
+
+
+def parse_query(org_id, query):
+    """
+    Parses the passed in query in the context of the org
+    """
+    try:
+        client = mailroom.get_client()
+        response = client.parse_query(org_id, query)
+        return ParsedQuery(response["query"], response["fields"])
+
+    except mailroom.MailroomException as e:
+        raise SearchException(e.response["error"])
+
+
+def legacy_parse_query(text, optimize=True, as_anon=False):
     """
     Parses the given contact query and optionally optimizes it
     """
@@ -983,7 +1004,7 @@ def parse_query(text, optimize=True, as_anon=False):
 
 
 def evaluate_query(org, text, contact_json=dict):
-    parsed = parse_query(text, optimize=True, as_anon=org.is_anon)
+    parsed = legacy_parse_query(text, optimize=True, as_anon=org.is_anon)
 
     return parsed.evaluate(org, contact_json)
 
@@ -1020,7 +1041,7 @@ def contact_es_search(org, text, base_group=None, sort_struct=None):
     )
 
     if text:
-        parsed = parse_query(text, as_anon=org.is_anon)
+        parsed = legacy_parse_query(text, as_anon=org.is_anon)
         es_match = parsed.as_elasticsearch(org)
     else:
         parsed = None
@@ -1041,7 +1062,7 @@ def extract_fields(org, text):
     """
     Extracts contact fields from the given text query
     """
-    parsed = parse_query(text, as_anon=org.is_anon)
+    parsed = legacy_parse_query(text, as_anon=org.is_anon)
     prop_map = parsed.get_prop_map(org)
     return [
         prop_obj

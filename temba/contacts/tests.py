@@ -60,7 +60,7 @@ from .search import (
     IsSetCondition,
     SearchException,
     SinglePropCombination,
-    parse_query,
+    legacy_parse_query,
 )
 from .tasks import check_elasticsearch_lag, squash_contactgroupcounts
 from .templatetags.contacts import contact_field, history_class, history_icon
@@ -1931,31 +1931,31 @@ class ContactTest(TembaTest):
 
     def test_contact_search_parsing(self):
         # implicit condition on name
-        self.assertEqual(parse_query("will"), ContactQuery(Condition("name", "~", "will")))
-        self.assertEqual(parse_query("1will2"), ContactQuery(Condition("name", "~", "1will2")))
+        self.assertEqual(legacy_parse_query("will"), ContactQuery(Condition("name", "~", "will")))
+        self.assertEqual(legacy_parse_query("1will2"), ContactQuery(Condition("name", "~", "1will2")))
 
-        self.assertEqual(parse_query("will").as_text(), 'name ~ "will"')
-        self.assertEqual(parse_query("1will2").as_text(), 'name ~ "1will2"')
+        self.assertEqual(legacy_parse_query("will").as_text(), 'name ~ "will"')
+        self.assertEqual(legacy_parse_query("1will2").as_text(), 'name ~ "1will2"')
 
         # implicit condition on tel if value is all tel chars
-        self.assertEqual(parse_query("1234"), ContactQuery(Condition("tel", "~", "1234")))
-        self.assertEqual(parse_query("+12-34"), ContactQuery(Condition("tel", "~", "1234")))
-        self.assertEqual(parse_query("1234", as_anon=True), ContactQuery(Condition("id", "=", "1234")))
-        self.assertEqual(parse_query("+12-34", as_anon=True), ContactQuery(Condition("name", "~", "+12-34")))
-        self.assertEqual(parse_query("bob", as_anon=True), ContactQuery(Condition("name", "~", "bob")))
+        self.assertEqual(legacy_parse_query("1234"), ContactQuery(Condition("tel", "~", "1234")))
+        self.assertEqual(legacy_parse_query("+12-34"), ContactQuery(Condition("tel", "~", "1234")))
+        self.assertEqual(legacy_parse_query("1234", as_anon=True), ContactQuery(Condition("id", "=", "1234")))
+        self.assertEqual(legacy_parse_query("+12-34", as_anon=True), ContactQuery(Condition("name", "~", "+12-34")))
+        self.assertEqual(legacy_parse_query("bob", as_anon=True), ContactQuery(Condition("name", "~", "bob")))
 
-        self.assertEqual(parse_query("1234").as_text(), "tel ~ 1234")
-        self.assertEqual(parse_query("+12-34").as_text(), "tel ~ 1234")
+        self.assertEqual(legacy_parse_query("1234").as_text(), "tel ~ 1234")
+        self.assertEqual(legacy_parse_query("+12-34").as_text(), "tel ~ 1234")
 
         # boolean combinations of implicit conditions
         self.assertEqual(
-            parse_query("will felix", optimize=False),
+            legacy_parse_query("will felix", optimize=False),
             ContactQuery(
                 BoolCombination(BoolCombination.AND, Condition("name", "~", "will"), Condition("name", "~", "felix"))
             ),
         )
         self.assertEqual(
-            parse_query("will felix"),
+            legacy_parse_query("will felix"),
             ContactQuery(
                 SinglePropCombination(
                     "name", BoolCombination.AND, Condition("name", "~", "will"), Condition("name", "~", "felix")
@@ -1963,13 +1963,13 @@ class ContactTest(TembaTest):
             ),
         )
         self.assertEqual(
-            parse_query("will and felix", optimize=False),
+            legacy_parse_query("will and felix", optimize=False),
             ContactQuery(
                 BoolCombination(BoolCombination.AND, Condition("name", "~", "will"), Condition("name", "~", "felix"))
             ),
         )
         self.assertEqual(
-            parse_query("will or felix or matt", optimize=False),
+            legacy_parse_query("will or felix or matt", optimize=False),
             ContactQuery(
                 BoolCombination(
                     BoolCombination.OR,
@@ -1982,23 +1982,23 @@ class ContactTest(TembaTest):
         )
 
         # property conditions
-        self.assertEqual(parse_query("name=will"), ContactQuery(Condition("name", "=", "will")))
-        self.assertEqual(parse_query('name ~ "felix"'), ContactQuery(Condition("name", "~", "felix")))
-        self.assertEqual(parse_query('name != "felix"'), ContactQuery(Condition("name", "!=", "felix")))
+        self.assertEqual(legacy_parse_query("name=will"), ContactQuery(Condition("name", "=", "will")))
+        self.assertEqual(legacy_parse_query('name ~ "felix"'), ContactQuery(Condition("name", "~", "felix")))
+        self.assertEqual(legacy_parse_query('name != "felix"'), ContactQuery(Condition("name", "!=", "felix")))
 
         # empty string conditions
-        self.assertEqual(parse_query('name is ""'), ContactQuery(IsSetCondition("name", "is")))
-        self.assertEqual(parse_query('name!=""'), ContactQuery(IsSetCondition("name", "!=")))
+        self.assertEqual(legacy_parse_query('name is ""'), ContactQuery(IsSetCondition("name", "is")))
+        self.assertEqual(legacy_parse_query('name!=""'), ContactQuery(IsSetCondition("name", "!=")))
 
         # boolean combinations of property conditions
         self.assertEqual(
-            parse_query('name=will or name ~ "felix"', optimize=False),
+            legacy_parse_query('name=will or name ~ "felix"', optimize=False),
             ContactQuery(
                 BoolCombination(BoolCombination.OR, Condition("name", "=", "will"), Condition("name", "~", "felix"))
             ),
         )
         self.assertEqual(
-            parse_query('name=will or name ~ "felix"'),
+            legacy_parse_query('name=will or name ~ "felix"'),
             ContactQuery(
                 SinglePropCombination(
                     "name", BoolCombination.OR, Condition("name", "=", "will"), Condition("name", "~", "felix")
@@ -2008,7 +2008,7 @@ class ContactTest(TembaTest):
 
         # mixture of simple and property conditions
         self.assertEqual(
-            parse_query('will or name ~ "felix"'),
+            legacy_parse_query('will or name ~ "felix"'),
             ContactQuery(
                 SinglePropCombination(
                     "name", BoolCombination.OR, Condition("name", "~", "will"), Condition("name", "~", "felix")
@@ -2018,7 +2018,7 @@ class ContactTest(TembaTest):
 
         # optimization will merge conditions combined with the same op
         self.assertEqual(
-            parse_query("will or felix or matt"),
+            legacy_parse_query("will or felix or matt"),
             ContactQuery(
                 SinglePropCombination(
                     "name",
@@ -2032,7 +2032,7 @@ class ContactTest(TembaTest):
 
         # but not conditions combined with different ops
         self.assertEqual(
-            parse_query("will or felix and matt"),
+            legacy_parse_query("will or felix and matt"),
             ContactQuery(
                 BoolCombination(
                     BoolCombination.OR,
@@ -2046,7 +2046,7 @@ class ContactTest(TembaTest):
 
         # optimization respects explicit precedence defined with parentheses
         self.assertEqual(
-            parse_query("(will or felix) and matt"),
+            legacy_parse_query("(will or felix) and matt"),
             ContactQuery(
                 BoolCombination(
                     BoolCombination.AND,
@@ -2059,7 +2059,7 @@ class ContactTest(TembaTest):
         )
 
         # implicit ANDing of conditions
-        query = parse_query('will felix name ~ "matt"')
+        query = legacy_parse_query('will felix name ~ "matt"')
         self.assertEqual(
             query,
             ContactQuery(
@@ -2075,7 +2075,7 @@ class ContactTest(TembaTest):
         self.assertEqual(query.as_text(), 'name ~ "will" AND name ~ "felix" AND name ~ "matt"')
 
         self.assertEqual(
-            parse_query('will felix name ~ "matt"', optimize=False),
+            legacy_parse_query('will felix name ~ "matt"', optimize=False),
             ContactQuery(
                 BoolCombination(
                     BoolCombination.AND,
@@ -2089,7 +2089,7 @@ class ContactTest(TembaTest):
 
         # boolean operator precedence is AND before OR, even when AND is implicit
         self.assertEqual(
-            parse_query("will and felix or matt amber", optimize=False),
+            legacy_parse_query("will and felix or matt amber", optimize=False),
             ContactQuery(
                 BoolCombination(
                     BoolCombination.OR,
@@ -2104,7 +2104,7 @@ class ContactTest(TembaTest):
         )
 
         # boolean combinations can themselves be combined
-        query = parse_query('(Age < 18 and Gender = "male") or (Age > 18 and Gender = "female")')
+        query = legacy_parse_query('(Age < 18 and Gender = "male") or (Age > 18 and Gender = "female")')
         self.assertEqual(
             query,
             ContactQuery(
@@ -2121,22 +2121,22 @@ class ContactTest(TembaTest):
         )
         self.assertEqual(query.as_text(), '(age < 18 AND gender = "male") OR (age > 18 AND gender = "female")')
 
-        self.assertEqual(str(parse_query('Age < 18 and Gender = "male"')), "AND(age<18, gender=male)")
-        self.assertEqual(str(parse_query("Age > 18 and Age < 30")), "AND[age](>18, <30)")
+        self.assertEqual(str(legacy_parse_query('Age < 18 and Gender = "male"')), "AND(age<18, gender=male)")
+        self.assertEqual(str(legacy_parse_query("Age > 18 and Age < 30")), "AND[age](>18, <30)")
 
         # query with UTF-8 characters (non-ascii)
-        query = parse_query('district="Kayônza"')
+        query = legacy_parse_query('district="Kayônza"')
         self.assertEqual(query.as_text(), 'district = "Kayônza"')
 
         # query that has @ sign
-        query = parse_query('email ~ "user@example.com"')
+        query = legacy_parse_query('email ~ "user@example.com"')
         self.assertEqual(query.as_text(), 'email ~ "user@example.com"')
 
-        query = parse_query("email ~ user@example.com")
+        query = legacy_parse_query("email ~ user@example.com")
         self.assertEqual(query.as_text(), 'email ~ "user@example.com"')
 
         # escaped quotes
-        query = parse_query(r'name ~ "O\"Learly"')
+        query = legacy_parse_query(r'name ~ "O\"Learly"')
         self.assertEqual(query.as_text(), r'name ~ "O"Learly"')
 
     def test_contact_elastic_search(self):
