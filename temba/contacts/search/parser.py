@@ -1,8 +1,8 @@
 import operator
 from collections import OrderedDict
-from dataclasses import dataclass
 from decimal import Decimal
 from functools import reduce
+from typing import NamedTuple
 
 import pytz
 import regex
@@ -945,8 +945,7 @@ class ContactQLVisitor(ParseTreeVisitor):
         return value.replace(r"\"", '"')  # unescape embedded quotes
 
 
-@dataclass
-class ParsedQuery:
+class ParsedQuery(NamedTuple):
     query: str
     fields: list
 
