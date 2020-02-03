@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-29 16:38+0000\n"
+"POT-Creation-Date: 2020-02-03 20:53+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3449,6 +3449,14 @@ msgstr "ID externo"
 msgid "Freshchat identifier"
 msgstr "ID externo"
 
+#, fuzzy
+#| msgid "UUID"
+msgid "ID"
+msgstr "UUID"
+
+msgid "Language"
+msgstr "Idioma"
+
 msgid "Label"
 msgstr "Etiquetar"
 
@@ -3463,9 +3471,6 @@ msgstr ""
 
 msgid "The name of this contact"
 msgstr "El nombre de este contacto"
-
-msgid "Language"
-msgstr "Idioma"
 
 msgid "The preferred language for this contact"
 msgstr "El idioma preferido para este contacto"
@@ -4960,11 +4965,6 @@ msgstr ""
 #| msgid "The FlowStart objects that started this run"
 msgid "The parent org that manages this org"
 msgstr "Los objetos de FlowStart que empezaron esta corrida"
-
-#, fuzzy
-#| msgid "UUID"
-msgid "ID"
-msgstr "UUID"
 
 #, python-format
 msgid "Invalid bundle: %s, cannot upgrade."

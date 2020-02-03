@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-29 16:38+0000\n"
+"POT-Creation-Date: 2020-02-03 20:53+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -3296,6 +3296,14 @@ msgstr "ID externe"
 msgid "Freshchat identifier"
 msgstr "ID externe"
 
+#, fuzzy
+#| msgid "UUID"
+msgid "ID"
+msgstr "UUID"
+
+msgid "Language"
+msgstr "Langue"
+
 msgid "Label"
 msgstr "Etiquette"
 
@@ -3310,9 +3318,6 @@ msgstr ""
 
 msgid "The name of this contact"
 msgstr "Le nom de ce contact"
-
-msgid "Language"
-msgstr "Langue"
 
 msgid "The preferred language for this contact"
 msgstr ""
@@ -4787,11 +4792,6 @@ msgstr ""
 
 msgid "The parent org that manages this org"
 msgstr ""
-
-#, fuzzy
-#| msgid "UUID"
-msgid "ID"
-msgstr "UUID"
 
 #, python-format
 msgid "Invalid bundle: %s, cannot upgrade."
