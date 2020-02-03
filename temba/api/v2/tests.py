@@ -26,13 +26,14 @@ from temba.classifiers.models import Classifier
 from temba.classifiers.types.luis import LuisType
 from temba.classifiers.types.wit import WitType
 from temba.contacts.models import Contact, ContactField, ContactGroup
+from temba.contacts.search.tests import MockParseQuery
 from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import TemplateTranslation
-from temba.tests import AnonymousOrg, MockPost, TembaTest, matchers
+from temba.tests import AnonymousOrg, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -1691,19 +1692,19 @@ class APITest(TembaTest):
         self.assertEqual(set(jaqen.user_groups.all()), set())
         self.assertIsNone(jaqen.fields)
 
-        with MockPost({"fields": ["nickname"], "query": 'nickname = "jado"'}):
+        with MockParseQuery('nickname = "jado"', ["nickname"]):
             dyn_group = self.create_group("Dynamic Group", query="nickname is jado")
             ContactGroup.user_groups.filter(id=dyn_group.id).update(status=ContactGroup.STATUS_READY)
 
-        with MockPost({"fields": ["language"], "query": 'language = "fra"'}):
+        with MockParseQuery('language = "fra"', ["language"]):
             lang_group = self.create_group("Language Group", query="language = fra")
             ContactGroup.user_groups.filter(id=lang_group.id).update(status=ContactGroup.STATUS_READY)
 
-        with MockPost({"fields": ["language"], "query": 'language = "eng"'}):
+        with MockParseQuery('language = "eng"', ["language"]):
             eng_lang_group = self.create_group("Language Group English", query="language = eng")
             ContactGroup.user_groups.filter(id=eng_lang_group.id).update(status=ContactGroup.STATUS_READY)
 
-        with MockPost({"fields": ["name"], "query": 'name ~ "Jason"'}):
+        with MockParseQuery('name ~ "Jason"', ["name"]):
             jason_group = self.create_group("Jason Group", query="name has Jason")
             ContactGroup.user_groups.filter(id=jason_group.id).update(status=ContactGroup.STATUS_READY)
 
@@ -2101,7 +2102,7 @@ class APITest(TembaTest):
         group = self.create_group("Testers")
         self.create_field("isdeveloper", "Is developer")
 
-        with MockPost({"fields": ["developers"], "query": 'isdeveloper = "YES"'}):
+        with MockParseQuery('isdeveloper = "YES"', ["developers"]):
             self.create_group("Developers", query="isdeveloper = YES")
 
         # create some "active" runs for some of the contacts
@@ -2626,11 +2627,11 @@ class APITest(TembaTest):
 
         self.create_field("isdeveloper", "Is developer")
         customers = self.create_group("Customers", [self.frank])
-        with MockPost({"fields": ["isdeveloper"], "query": 'isdeveloper = "YES"'}):
+        with MockParseQuery('isdeveloper = "YES"', ["isdeveloper"]):
             developers = self.create_group("Developers", query="isdeveloper = YES")
             ContactGroup.user_groups.filter(id=developers.id).update(status=ContactGroup.STATUS_READY)
 
-        with MockPost({"fields": ["isdeveloper"], "query": 'isdeveloper = "NO"'}):
+        with MockParseQuery('isdeveloper = "NO"', ["isdeveloper"]):
             # a group which is being re-evaluated
             dynamic = self.create_group("Big Group", query="isdeveloper=NO")
             ContactGroup.user_groups.filter(id=dynamic.id).update(status=ContactGroup.STATUS_EVALUATING)

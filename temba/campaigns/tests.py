@@ -8,10 +8,11 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactField, ContactGroup, ImportTask
+from temba.contacts.search.tests import MockParseQuery
 from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, Org
-from temba.tests import MockPost, TembaTest, matchers
+from temba.tests import TembaTest, matchers
 from temba.utils import json
 from temba.values.constants import Value
 
@@ -1428,7 +1429,7 @@ class CampaignTest(TembaTest):
         # create a campaign on a dynamic group
         self.create_field("gender", "Gender")
 
-        with MockPost({"fields": ["gender"], "query": 'gender = "F"'}):
+        with MockParseQuery('gender = "F"', ["gender"]):
             women = self.create_group("Women", query='gender="F"')
             ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
 
@@ -1459,7 +1460,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 1)
 
         # change dynamic group query so anna is removed
-        with MockPost({"fields": ["gender"], "query": 'gender = "FEMALE"'}):
+        with MockParseQuery('gender = "FEMALE"', ["gender"]):
             women.update_query(query='gender="FEMALE"')
             ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
             anna.handle_update(fields=["gender"])
@@ -1470,7 +1471,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 0)
 
         # but if query is reverted, her event fire should be recreated
-        with MockPost({"fields": ["gender"], "query": 'gender = "F"'}):
+        with MockParseQuery('gender = "F"', ["gender"]):
             women.update_query("gender=F")
             ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
             anna.handle_update(fields=["gender"])

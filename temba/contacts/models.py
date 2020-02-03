@@ -446,6 +446,13 @@ class ContactField(SmartModel):
     FIELD_TYPE_USER = "U"
     FIELD_TYPE_CHOICES = ((FIELD_TYPE_SYSTEM, "System"), (FIELD_TYPE_USER, "User"))
 
+    SYSTEM_FIELDS = {
+        "id": dict(label=_("ID"), value_type=Value.TYPE_NUMBER),
+        "name": dict(label=_("Name"), value_type=Value.TYPE_TEXT),
+        "created_on": dict(label=_("Created On"), value_type=Value.TYPE_DATETIME),
+        "language": dict(label=_("Language"), value_type=Value.TYPE_TEXT),
+    }
+
     EXPORT_KEY = "key"
     EXPORT_NAME = "name"
     EXPORT_TYPE = "type"
@@ -2277,6 +2284,7 @@ class ContactURN(models.Model):
     """
 
     # schemes that we actually support
+    SCHEMES = [s[0] for s in URN_SCHEME_CONFIG]
     SCHEME_CHOICES = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
     CONTEXT_KEYS_TO_SCHEME = {c[2]: c[0] for c in URN_SCHEME_CONFIG}
     CONTEXT_KEYS_TO_LABEL = {c[2]: c[1] for c in URN_SCHEME_CONFIG}
@@ -2575,7 +2583,7 @@ class ContactGroup(TembaModel):
         return groups
 
     @classmethod
-    def get_or_create(cls, org, user, name, query=None, uuid=None):
+    def get_or_create(cls, org, user, name, query=None, uuid=None, parsed_query=None):
         existing = None
 
         if uuid:
@@ -2590,7 +2598,7 @@ class ContactGroup(TembaModel):
         assert name, "can't create group without a name"
 
         if query:
-            return cls.create_dynamic(org, user, name, query)
+            return cls.create_dynamic(org, user, name, query, parsed_query=parsed_query)
         else:
             return cls.create_static(org, user, name)
 
@@ -2602,7 +2610,7 @@ class ContactGroup(TembaModel):
         return cls._create(org, user, name, status=status, task=task)
 
     @classmethod
-    def create_dynamic(cls, org, user, name, query, evaluate=True):
+    def create_dynamic(cls, org, user, name, query, evaluate=True, parsed_query=None):
         """
         Creates a dynamic group with the given query, e.g. gender=M
         """
@@ -2610,7 +2618,7 @@ class ContactGroup(TembaModel):
             raise ValueError("Query cannot be empty for a dynamic group")
 
         group = cls._create(org, user, name, ContactGroup.STATUS_INITIALIZING, query=query)
-        group.update_query(query=query, reevaluate=evaluate)
+        group.update_query(query=query, reevaluate=evaluate, parsed=parsed_query)
         return group
 
     @classmethod
@@ -2711,7 +2719,7 @@ class ContactGroup(TembaModel):
 
         return changed
 
-    def update_query(self, query, reevaluate=True):
+    def update_query(self, query, reevaluate=True, parsed=None):
         """
         Updates the query for a dynamic group
         """
@@ -2723,7 +2731,9 @@ class ContactGroup(TembaModel):
             raise ValueError("Cannot update query on a group which is currently re-evaluating")
 
         try:
-            parsed = parse_query(self.org_id, query)
+            if not parsed:
+                parsed = parse_query(self.org_id, query)
+
             if "id" in parsed.fields:
                 raise ValueError(f"Cannot use query '{query}' as a dynamic group")
 
@@ -2822,16 +2832,18 @@ class ContactGroup(TembaModel):
             group_name = group_def.get(ContactGroup.EXPORT_NAME)
             group_query = group_def.get(ContactGroup.EXPORT_QUERY)
 
+            parsed_query = None
             if group_query:
-                from .search import legacy_parse_query
+                from .search import parse_query
 
-                parsed = legacy_parse_query(group_query, as_anon=org.is_anon)
-                for prop, obj in parsed.get_prop_map(org, validate=False).items():
-                    # if search property didn't match a URN, attribute or existing field, we need to create the field
-                    if obj is None:
-                        ContactField.get_or_create(org, user, key=prop)
+                parsed_query = parse_query(org.id, group_query)
+                for key in parsed_query.fields:
+                    if key not in ContactField.SYSTEM_FIELDS.keys() and key not in ContactURN.SCHEMES:
+                        ContactField.get_or_create(org, user, key=key)
 
-            group = ContactGroup.get_or_create(org, user, group_name, group_query, uuid=group_uuid)
+            group = ContactGroup.get_or_create(
+                org, user, group_name, group_query, uuid=group_uuid, parsed_query=parsed_query
+            )
 
             dependency_mapping[group_uuid] = str(group.uuid)
 
