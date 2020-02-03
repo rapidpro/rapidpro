@@ -1200,7 +1200,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
           3. A manual change to a group membership
         """
         changed_groups = set([group]) if group else set()
-
         if fields or urns or is_new:
             # ensure dynamic groups are up to date
             changed_groups.update(self.reevaluate_dynamic_groups(for_fields=fields, urns=urns))
@@ -2205,7 +2204,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         contact_search_json = self.as_search_json()
         user = get_anonymous_user()
 
-        affected_dynamic_groups = ContactGroup.get_user_groups(self.org, dynamic=True)
+        affected_dynamic_groups = ContactGroup.get_user_groups(self.org, dynamic=True, ready_only=False)
 
         # for URNs we evaluate all dynamic groups because we don't know which ones depend on urns
         if not urns and for_fields:

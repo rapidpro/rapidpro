@@ -11,7 +11,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ImportTas
 from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, Org
-from temba.tests import ESMockWithScroll, MockPost, TembaTest, matchers
+from temba.tests import MockPost, TembaTest, matchers
 from temba.utils import json
 from temba.values.constants import Value
 
@@ -1460,8 +1460,9 @@ class CampaignTest(TembaTest):
 
         # change dynamic group query so anna is removed
         with MockPost({"fields": ["gender"], "query": 'gender = "FEMALE"'}):
-            women = self.create_group("Women", query='gender="FEMALE"')
+            women.update_query(query='gender="FEMALE"')
             ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
+            anna.handle_update(fields=["gender"])
 
         self.assertEqual(set(women.contacts.all()), set())
 
@@ -1469,15 +1470,11 @@ class CampaignTest(TembaTest):
         self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 0)
 
         # but if query is reverted, her event fire should be recreated
-        mock_es_data = [
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": anna.id, "modified_on": anna.modified_on.isoformat()},
-            }
-        ]
-        with ESMockWithScroll(data=mock_es_data):
+        with MockPost({"fields": ["gender"], "query": 'gender = "F"'}):
             women.update_query("gender=F")
+            ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
+            anna.handle_update(fields=["gender"])
+
         self.assertEqual(set(women.contacts.all()), {anna})
 
         # check that her event fire is now removed

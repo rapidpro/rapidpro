@@ -4090,12 +4090,12 @@ class ContactTest(TembaTest):
                 message=msg,
             )
 
+        with MockPost({"fields": ["planting_date"], "query": 'planting_date != ""'}):
+            planters = self.create_group("Planters", query='planting_date != ""')
+
         now = timezone.now()
         self.joe.set_field(self.user, "planting_date", (now + timedelta(days=1)).isoformat())
         EventFire.update_campaign_events(self.campaign)
-
-        with MockPost({"fields": ["planting_date"], "query": 'planting_date != ""'}):
-            planters = self.create_group("Planters", query='planting_date != ""')
 
         # should have seven fires, one for each campaign event
         self.assertEqual(7, EventFire.objects.filter(event__is_active=True).count())
