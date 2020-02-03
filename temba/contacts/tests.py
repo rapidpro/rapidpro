@@ -34,7 +34,7 @@ from temba.mailroom import MailroomException
 from temba.msgs.models import Broadcast, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, ESMockWithScroll, ESMockWithScrollMultiple, TembaTest, TembaTestMixin
+from temba.tests import AnonymousOrg, ESMockWithScroll, ESMockWithScrollMultiple, MockPost, TembaTest, TembaTestMixin
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -834,7 +834,7 @@ class ContactGroupCRUDLTest(TembaTest):
             self.assertFormError(response, "form", "query", "error at !")
 
         # try to update a group with an invalid query
-        with MockParseQuery(error="error at >"):
+        with MockPost({"error": "error at >"}, status=400):
             response = self.client.post(url, dict(name="Frank", query="name <> some_name"))
             self.assertFormError(response, "form", "query", "error at >")
 
