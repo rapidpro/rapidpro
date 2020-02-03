@@ -126,26 +126,24 @@ class ContactGroupForm(forms.ModelForm):
         return name
 
     def clean_query(self):
+        from temba.contacts.search import parse_query, SearchException
+
         try:
-            client = mailroom.get_client()
-            resp = client.parse_query(self.org.id, self.cleaned_data["query"])
-
-            if "id" in resp["fields"]:
+            parsed = parse_query(self.org.id, self.cleaned_data["query"])
+            if "id" in parsed.fields:
                 raise forms.ValidationError(_('You cannot create a dynamic group based on "id".'))
-
-            cleaned_query = resp["query"]
 
             if (
                 self.instance
                 and self.instance.status != ContactGroup.STATUS_READY
-                and cleaned_query != self.instance.query
+                and parsed.query != self.instance.query
             ):
                 raise forms.ValidationError(_("You cannot update the query of a group that is evaluating."))
 
-            return cleaned_query
+            return parsed.query
 
-        except MailroomException as e:
-            raise forms.ValidationError(e.response["error"])
+        except SearchException as e:
+            raise forms.ValidationError(str(e))
 
     class Meta:
         fields = ("name", "query")

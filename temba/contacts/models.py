@@ -2206,7 +2206,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         affected_dynamic_groups = ContactGroup.get_user_groups(self.org, dynamic=True, ready_only=False)
 
-        # for URNs we evaluate all dynamic groups because we don't know which ones depend on urns
+        # if we have fields and no urn changes, filter to just the groups that may have changed
         if not urns and for_fields:
             affected_dynamic_groups = affected_dynamic_groups.filter(query_fields__key__in=for_fields)
 
