@@ -47,7 +47,5 @@ class VKTypeTest(TembaTest):
         channel = Channel.objects.get(address="123456")
         self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], token)
         self.assertEqual(channel.config[Channel.CONFIG_COMMUNITY_NAME], "Temba")
-        self.assertEqual(
-            channel.config[Channel.CONFIG_CALLBACK_VERIFICATION_STRING], "123456"
-        )
+        self.assertEqual(channel.config[Channel.CONFIG_CALLBACK_VERIFICATION_STRING], "123456")
         self.assertEqual(channel.address, "123456")

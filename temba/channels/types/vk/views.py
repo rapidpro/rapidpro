@@ -12,15 +12,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         community_access_token = forms.CharField(
             min_length=32, required=True, help_text=_("The Community Access Token")
         )
-        community_name = forms.CharField(
-            required=True, help_text=_("The name of the Community")
-        )
-        community_id = forms.IntegerField(
-            required=True, help_text=_("The Community ID")
-        )
-        callback_verification_string = forms.CharField(
-            required=True, help_text=_("The callback verification string")
-        )
+        community_name = forms.CharField(required=True, help_text=_("The name of the Community"))
+        community_id = forms.IntegerField(required=True, help_text=_("The Community ID"))
+        callback_verification_string = forms.CharField(required=True, help_text=_("The callback verification string"))
 
     form_class = Form
 
@@ -38,13 +32,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_CALLBACK_VERIFICATION_STRING: callback_verification_string,
         }
         self.object = Channel.create(
-            org,
-            self.request.user,
-            None,
-            self.channel_type,
-            name=community_name,
-            address=community_id,
-            config=config,
+            org, self.request.user, None, self.channel_type, name=community_name, address=community_id, config=config,
         )
 
         return super().form_valid(form)
