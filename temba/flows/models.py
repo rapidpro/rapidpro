@@ -104,6 +104,19 @@ FLOW_PROP_CACHE_KEY = "org:%d:cache:flow:%d:%s"
 FLOW_PROP_CACHE_TTL = 24 * 60 * 60 * 7  # 1 week
 
 
+def ensure_old_dep_format(dependencies):
+    """
+    Temporary helper to ensure inspected dependencies from mailroom are in old format
+    """
+    if isinstance(dependencies, list):
+        deps_by_type = defaultdict(list)
+        for dep in dependencies:
+            deps_by_type[dep["type"] + "s"].append(dep)
+            del dep["type"]
+        return dict(deps_by_type)
+    return dependencies
+
+
 class FlowLock(Enum):
     """
     Locks that are flow specific
@@ -678,7 +691,7 @@ class Flow(TembaModel):
             return
 
         flow_info = mailroom.get_client().flow_inspect(definition)
-        dependencies = flow_info["dependencies"]
+        dependencies = ensure_old_dep_format(flow_info[Flow.INSPECT_DEPENDENCIES])
 
         # ensure any channel dependencies exist
         for ref in dependencies.get("channels", []):
@@ -1279,15 +1292,15 @@ class Flow(TembaModel):
         # inspect the flow (with optional validation)
         flow_info = mailroom.get_client().flow_inspect(definition, validate_with_org=self.org if validate else None)
 
-        with transaction.atomic():
-            dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
+        dependencies = ensure_old_dep_format(flow_info[Flow.INSPECT_DEPENDENCIES])
 
+        with transaction.atomic():
             # update our flow fields
             self.base_language = definition.get(Flow.DEFINITION_LANGUAGE, None)
 
             self.metadata = {
                 Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
-                Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
+                Flow.METADATA_DEPENDENCIES: dependencies,
                 Flow.METADATA_WAITING_EXIT_UUIDS: flow_info[Flow.INSPECT_WAITING_EXITS],
                 Flow.METADATA_PARENT_REFS: flow_info[Flow.INSPECT_PARENT_REFS],
             }
@@ -1351,7 +1364,7 @@ class Flow(TembaModel):
                     actionset[Flow.ACTIONS] = actions
 
             flow_info = mailroom.get_client().flow_inspect(flow=json_dict)
-            dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
+            dependencies = ensure_old_dep_format(flow_info[Flow.INSPECT_DEPENDENCIES])
 
             with transaction.atomic():
                 # TODO remove this when we no longer need rulesets or actionsets
