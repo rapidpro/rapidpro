@@ -57,6 +57,7 @@ from .models import (
     FlowUserConflictException,
     FlowVersionConflictException,
     RuleSet,
+    ensure_old_dep_format,
     get_flow_user,
 )
 from .tasks import (
@@ -2421,6 +2422,26 @@ class FlowTest(TembaTest):
         self.assertEqual(
             "http://preprocessor.com/endpoint.php",
             flow.rule_sets.all().order_by("y")[0].config[RuleSet.CONFIG_WEBHOOK],
+        )
+
+    def test_ensure_old_dep_format(self):
+        old = {
+            "flows": [
+                {"uuid": "afe66d09-c85e-4e0c-a0b6-a2b8ee9720a2", "name": "Registration"},
+                {"uuid": "670859fe-e914-4c5d-b9f0-b5020a7d5d28", "name": "Collect Name"},
+            ],
+            "groups": [{"uuid": "b12e6117-87a1-4c27-b2bd-d39cf2fa1aa1", "name": "Customers"}],
+        }
+        self.assertEqual(old, old)  # noop
+        self.assertEqual(
+            old,
+            ensure_old_dep_format(
+                [
+                    {"uuid": "afe66d09-c85e-4e0c-a0b6-a2b8ee9720a2", "name": "Registration", "type": "flow"},
+                    {"uuid": "b12e6117-87a1-4c27-b2bd-d39cf2fa1aa1", "name": "Customers", "type": "group"},
+                    {"uuid": "670859fe-e914-4c5d-b9f0-b5020a7d5d28", "name": "Collect Name", "type": "flow"},
+                ]
+            ),
         )
 
 
