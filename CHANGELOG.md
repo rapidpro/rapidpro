@@ -1,3 +1,7 @@
+v5.3.43
+----------
+ * Update to latest mailroom
+
 v5.3.42
 ----------
  * Fix actions on blocked contact list page
