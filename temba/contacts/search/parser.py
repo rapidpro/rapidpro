@@ -957,6 +957,23 @@ def parse_query(org_id, query):
         raise SearchException(e.response["error"])
 
 
+class SearchResults(NamedTuple):
+    total: int
+    query: str
+    fields: list
+    contact_ids: list
+
+
+def search_contacts(org_id, group_uuid, query, sort=None, offset=None):
+    try:
+        client = mailroom.get_client()
+        response = client.contact_search(org_id, group_uuid, query, sort, offset=offset)
+        return SearchResults(response["total"], response["query"], response["fields"], response["contact_ids"])
+
+    except mailroom.MailroomException as e:
+        raise SearchException(e.response["error"])
+
+
 def legacy_parse_query(text, optimize=True, as_anon=False):
     """
     Parses the given contact query and optionally optimizes it

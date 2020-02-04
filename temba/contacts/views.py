@@ -34,11 +34,9 @@ from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.templatetags.contacts import MISSING_VALUE
-from temba.mailroom import MailroomException
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, languages, on_transaction_commit
@@ -246,6 +244,8 @@ class ContactListView(OrgPermsMixin, SmartListView):
             )
 
     def get_queryset(self, **kwargs):
+        from temba.contacts.search import search_contacts, SearchException
+
         org = self.request.user.get_org()
         group = self.derive_group()
         self.search_error = None
@@ -262,15 +262,13 @@ class ContactListView(OrgPermsMixin, SmartListView):
 
         if search_query or sort_on:
             try:
-                client = mailroom.get_client()
-                result = client.contact_search(org.id, str(group.uuid), search_query, sort_on, offset)
+                results = search_contacts(org.id, str(group.uuid), search_query, sort_on, offset)
+                self.parsed_query = results.query if len(results.query) > 0 else None
+                self.save_dynamic_search = "id" not in results.fields
 
-                self.parsed_query = result["query"] if len(result["query"]) > 0 else None
-                self.save_dynamic_search = "id" not in result["fields"]
-
-                return IDSliceQuerySet(Contact, result["contact_ids"], offset, result["total"])
-            except MailroomException as e:
-                self.search_error = e.response["error"]
+                return IDSliceQuerySet(Contact, results.contact_ids, offset, results.total)
+            except SearchException as e:
+                self.search_error = str(e)
 
                 # this should be an empty resultset
                 return Contact.objects.none()
@@ -1237,6 +1235,8 @@ class ContactCRUDL(SmartCRUDL):
         template_name = "contacts/contact_list.haml"
 
         def get(self, request, *args, **kwargs):
+            from temba.contacts.search import search_contacts, SearchException
+
             org = self.request.user.get_org()
             query = self.request.GET.get("search", None)
             samples = int(self.request.GET.get("samples", 10))
@@ -1245,16 +1245,15 @@ class ContactCRUDL(SmartCRUDL):
                 return JsonResponse({"total": 0, "sample": [], "fields": {}})
 
             try:
-                client = mailroom.get_client()
-                response = client.contact_search(org.id, org.cached_all_contacts_group.uuid, query, "-created_on")
+                results = search_contacts(org.id, org.cached_all_contacts_group.uuid, query, "-created_on")
                 summary = {
-                    "total": response["total"],
-                    "query": response["query"],
-                    "fields": response["fields"],
-                    "sample": IDSliceQuerySet(Contact, response["contact_ids"], 0, response["total"])[0:samples],
+                    "total": results.total,
+                    "query": results.query,
+                    "fields": results.fields,
+                    "sample": IDSliceQuerySet(Contact, results.contact_ids, 0, results.total)[0:samples],
                 }
-            except MailroomException as e:
-                return JsonResponse({"total": 0, "sample": [], "query": "", "error": e.response["error"]})
+            except SearchException as e:
+                return JsonResponse({"total": 0, "sample": [], "query": "", "error": str(e)})
 
             # serialize our contact sample
             json_contacts = []
