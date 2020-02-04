@@ -8402,15 +8402,11 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         url = reverse("contacts.contactgroup_create")
         self.client.post(url, dict(name="Adults", group_query="age > 30"))
 
-        time.sleep(6)
+        time.sleep(5)
 
         # check that it was created with the right counts
         adults = ContactGroup.user_groups.get(org=self.org, name="Adults")
         self.assertEqual(69, adults.get_member_count())
-
-        # update the query
-        url = reverse("contacts.contactgroup_update", args=[adults.id])
-        response = self.client.post(url, dict(name="Adults", query="age > 18"))
 
         # create a campaign and event on this group
         campaign = Campaign.create(self.org, self.admin, "Cake Day", adults)
@@ -8424,7 +8420,11 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         # should have 69 events
         EventFire.objects.filter(event=event, fired=None).count()
 
-        time.sleep(6)
+        # update the query
+        url = reverse("contacts.contactgroup_update", args=[adults.id])
+        response = self.client.post(url, dict(name="Adults", query="age > 18"))
+
+        time.sleep(5)
 
         # should have updated count
         self.assertEqual(81, adults.get_member_count())

@@ -44,7 +44,15 @@ from temba.contacts.models import (
 )
 from temba.contacts.omnibox import omnibox_serialize
 from temba.contacts.search import ParsedQuery
-from temba.flows.models import ActionSet, ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
+from temba.flows.models import (
+    ActionSet,
+    ExportFlowResultsTask,
+    Flow,
+    FlowLabel,
+    FlowRun,
+    FlowStart,
+    ensure_old_dep_format,
+)
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
@@ -3812,7 +3820,7 @@ class BulkExportTest(TembaTest):
 
     def validate_flow_dependencies(self, definition):
         flow_info = mailroom.get_client().flow_inspect(definition)
-        deps = flow_info["dependencies"]
+        deps = ensure_old_dep_format(flow_info["dependencies"])
 
         for ref in deps.get("fields", []):
             self.assertTrue(
