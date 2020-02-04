@@ -8242,10 +8242,6 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         # give ES some time to publish the results
         time.sleep(5)
 
-        import pdb
-
-        pdb.set_trace()
-
         self.assertEqual(q("trey"), 15)
         self.assertEqual(q("MIKE"), 15)
         self.assertEqual(q("  paige  "), 15)
@@ -8268,10 +8264,6 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         self.assertEqual(q('twitter = ""'), 60)
         self.assertEqual(q('twitter != ""'), 30)
         self.assertEqual(q("TWITTER has tweep"), 30)
-
-        import pdb
-
-        pdb.set_trace()
 
         # contact field as property
         self.assertEqual(q("age > 30"), 69)
