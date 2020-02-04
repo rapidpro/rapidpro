@@ -3823,20 +3823,20 @@ class BulkExportTest(TembaTest):
         flow_info = mailroom.get_client().flow_inspect(definition)
         deps = flow_info["dependencies"]
 
-        for ref in deps.get("fields", []):
+        for dep in [d for d in deps if d["type"] == "field"]:
             self.assertTrue(
-                ContactField.user_fields.filter(key=ref["key"]).exists(),
-                msg=f"missing field[key={ref['key']}, name={ref['name']}]",
+                ContactField.user_fields.filter(key=dep["key"]).exists(),
+                msg=f"missing field[key={dep['key']}, name={dep['name']}]",
             )
-        for ref in deps.get("flows", []):
+        for dep in [d for d in deps if d["type"] == "flow"]:
             self.assertTrue(
-                Flow.objects.filter(uuid=ref["uuid"]).exists(),
-                msg=f"missing flow[uuid={ref['uuid']}, name={ref['name']}]",
+                Flow.objects.filter(uuid=dep["uuid"]).exists(),
+                msg=f"missing flow[uuid={dep['uuid']}, name={dep['name']}]",
             )
-        for ref in deps.get("groups", []):
+        for dep in [d for d in deps if d["type"] == "group"]:
             self.assertTrue(
-                ContactGroup.user_groups.filter(uuid=ref["uuid"]).exists(),
-                msg=f"missing group[uuid={ref['uuid']}, name={ref['name']}]",
+                ContactGroup.user_groups.filter(uuid=dep["uuid"]).exists(),
+                msg=f"missing group[uuid={dep['uuid']}, name={dep['name']}]",
             )
 
     def test_implicit_field_and_group_imports(self):
