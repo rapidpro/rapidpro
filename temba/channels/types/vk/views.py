@@ -32,7 +32,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_CALLBACK_VERIFICATION_STRING: callback_verification_string,
         }
         self.object = Channel.create(
-            org, self.request.user, None, self.channel_type, name=community_name, address=community_id, config=config,
+            org, self.request.user, None, self.channel_type, name=community_name, address=community_id, config=config
         )
 
         return super().form_valid(form)
