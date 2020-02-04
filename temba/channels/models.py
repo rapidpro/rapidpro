@@ -257,8 +257,10 @@ class Channel(TembaModel):
     CONFIG_SEND_METHOD = "method"
     CONFIG_SEND_BODY = "body"
     CONFIG_MT_RESPONSE_CHECK = "mt_response_check"
-    CONFIG_DEFAULT_SEND_BODY = "id={{id}}&text={{text}}&to={{to}}&to_no_plus={{to_no_plus}}&from={{from}}" \
-                               "&from_no_plus={{from_no_plus}}&channel={{channel}}{{quick_replies}}"
+    CONFIG_DEFAULT_SEND_BODY = (
+        "id={{id}}&text={{text}}&to={{to}}&to_no_plus={{to_no_plus}}&from={{from}}&from_no_plus={{from_no_plus}}"
+        "&channel={{channel}}{{quick_replies}}"
+    )
     CONFIG_USERNAME = "username"
     CONFIG_PASSWORD = "password"
     CONFIG_KEY = "key"

@@ -30,7 +30,6 @@ class ExternalType(ChannelType):
 
         config = channel.config
         send_method = config.get(Channel.CONFIG_SEND_METHOD)
-        content_type = config.get(Channel.CONFIG_CONTENT_TYPE)
         send_url = config[Channel.CONFIG_SEND_URL]
         send_body = config.get(Channel.CONFIG_SEND_BODY, Channel.CONFIG_DEFAULT_SEND_BODY)
 
@@ -58,16 +57,10 @@ class ExternalType(ChannelType):
         else:
             quick_replies_payload["quick_replies"] = "&quick_reply=One&quick_reply=Two&quick_reply=Three"
 
-        content_type_dont_encode = "don't encode"
-
         context["example_url"] = Channel.replace_variables(
-            context["example_url"],
-            quick_replies_payload,
-            content_type_dont_encode
+            context["example_url"], quick_replies_payload, "don't encode"
         )
         context["example_body"] = Channel.replace_variables(
-            context["example_body"],
-            quick_replies_payload,
-            content_type_dont_encode
+            context["example_body"], quick_replies_payload, "don't encode"
         )
         return context
