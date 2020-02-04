@@ -5,7 +5,6 @@ from django.conf.urls import include, url
 from django.conf.urls.static import static
 from django.contrib.auth.models import AnonymousUser, User
 from django.views.i18n import JavaScriptCatalog
-from two_factor.urls import urlpatterns as tf_urls
 
 from celery.signals import worker_process_init
 
@@ -42,7 +41,6 @@ urlpatterns = [
     url(r"^imports/", include("smartmin.csv_imports.urls")),
     url(r"^assets/", include("temba.assets.urls")),
     url(r"^jsi18n/$", JavaScriptCatalog.as_view(), js_info_dict, name="django.views.i18n.javascript_catalog"),
-    url(r"^", include(tf_urls)),
 ]
 
 if settings.DEBUG:
