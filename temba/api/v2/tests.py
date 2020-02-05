@@ -568,7 +568,6 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         BoundaryAlias.create(self.org, self.admin, self.state1, "Kigali")
-        BoundaryAlias.create(self.org, self.admin, self.state1, "Kigari")
         BoundaryAlias.create(self.org, self.admin, self.state2, "East Prov")
         BoundaryAlias.create(self.org2, self.admin2, self.state1, "Other Org")  # shouldn't be returned
 
