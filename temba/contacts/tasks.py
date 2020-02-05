@@ -40,14 +40,6 @@ def squash_contactgroupcounts():
     ContactGroupCount.squash()
 
 
-@task(track_started=True, name="reevaluate_dynamic_group")
-def reevaluate_dynamic_group(group_id):
-    """
-    (Re)evaluate a dynamic group
-    """
-    ContactGroup.user_groups.get(id=group_id).reevaluate()
-
-
 @task(track_started=True, name="full_release_contact")
 def full_release_contact(contact_id):
     contact = Contact.objects.filter(id=contact_id).first()
