@@ -9,8 +9,9 @@ class MockParseQuery:
     """
 
     def __init__(self, query=None, fields=None, error=None):
-        if query is None and fields is None and error is None or error is not None and (query or fields):
-            raise Exception("must specify either query and fields or error")
+        assert (query is not None and fields is not None and error is None) or (
+            error is not None and query is None and fields is None
+        )
 
         self.query = query
         self.fields = fields

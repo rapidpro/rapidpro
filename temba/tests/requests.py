@@ -56,7 +56,7 @@ class MockPost:
       with MockPost({"fields": ["name"], "query": "name = \"george\""}):
          ...
 
-      with MockPost({"error": "invalid query", status=400):
+      with MockPost({"error": "invalid query"}, status=400):
          ...
     """
 

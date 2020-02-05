@@ -431,26 +431,23 @@ class ContactField(SmartModel):
     MAX_KEY_LEN = 36
     MAX_LABEL_LEN = 36
 
-    # fields that cannot be updated by user
-    IMMUTABLE_FIELDS = ("id", "created_on")
-
-    DATETIME_KEY = "datetime"
-    TEXT_KEY = "text"
-    NUMBER_KEY = "number"
-    COUNTRY_KEY = "country"
-    STATE_KEY = "state"
-    DISTRICT_KEY = "district"
-    WARD_KEY = "ward"
-
     FIELD_TYPE_SYSTEM = "S"
     FIELD_TYPE_USER = "U"
     FIELD_TYPE_CHOICES = ((FIELD_TYPE_SYSTEM, "System"), (FIELD_TYPE_USER, "User"))
 
+    KEY_ID = "id"
+    KEY_NAME = "name"
+    KEY_CREATED_ON = "created_on"
+    KEY_LANGUAGE = "language"
+
+    # fields that cannot be updated by user
+    IMMUTABLE_FIELDS = (KEY_ID, KEY_CREATED_ON)
+
     SYSTEM_FIELDS = {
-        "id": dict(label=_("ID"), value_type=Value.TYPE_NUMBER),
-        "name": dict(label=_("Name"), value_type=Value.TYPE_TEXT),
-        "created_on": dict(label=_("Created On"), value_type=Value.TYPE_DATETIME),
-        "language": dict(label=_("Language"), value_type=Value.TYPE_TEXT),
+        KEY_ID: dict(label=_("ID"), value_type=Value.TYPE_NUMBER),
+        KEY_NAME: dict(label=_("Name"), value_type=Value.TYPE_TEXT),
+        KEY_CREATED_ON: dict(label=_("Created On"), value_type=Value.TYPE_DATETIME),
+        KEY_LANGUAGE: dict(label=_("Language"), value_type=Value.TYPE_TEXT),
     }
 
     EXPORT_KEY = "key"
@@ -939,11 +936,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         elif field.field_type == ContactField.FIELD_TYPE_SYSTEM:
             if field.key == "created_on":
-                return {ContactField.DATETIME_KEY: self.created_on}
+                return {Value.KEY_DATETIME: self.created_on}
             elif field.key == "language":
-                return {ContactField.TEXT_KEY: self.language}
+                return {Value.KEY_TEXT: self.language}
             elif field.key == "name":
-                return {ContactField.TEXT_KEY: self.name}
+                return {Value.KEY_TEXT: self.name}
             else:
                 raise ValueError(f"System contact field '{field.key}' is not supported")
 
@@ -959,18 +956,18 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             return
 
         if field.value_type == Value.TYPE_TEXT:
-            return json_value.get(ContactField.TEXT_KEY)
+            return json_value.get(Value.KEY_TEXT)
         elif field.value_type == Value.TYPE_DATETIME:
-            return json_value.get(ContactField.DATETIME_KEY)
+            return json_value.get(Value.KEY_DATETIME)
         elif field.value_type == Value.TYPE_NUMBER:
-            dec_value = json_value.get(ContactField.NUMBER_KEY, json_value.get("decimal"))
+            dec_value = json_value.get(Value.KEY_NUMBER, json_value.get("decimal"))
             return format_number(Decimal(dec_value)) if dec_value is not None else None
         elif field.value_type == Value.TYPE_STATE:
-            return json_value.get(ContactField.STATE_KEY)
+            return json_value.get(Value.KEY_STATE)
         elif field.value_type == Value.TYPE_DISTRICT:
-            return json_value.get(ContactField.DISTRICT_KEY)
+            return json_value.get(Value.KEY_DISTRICT)
         elif field.value_type == Value.TYPE_WARD:
-            return json_value.get(ContactField.WARD_KEY)
+            return json_value.get(Value.KEY_WARD)
 
         raise ValueError("unknown contact field value type: %s", field.value_type)
 
@@ -1058,27 +1055,25 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 loc_value = None
 
         # all fields have a text value
-        field_dict = {ContactField.TEXT_KEY: str_value}
+        field_dict = {Value.KEY_TEXT: str_value}
 
         # set all the other fields that have a non-zero value
         if dt_value is not None:
-            field_dict[ContactField.DATETIME_KEY] = timezone.localtime(dt_value, self.org.timezone).isoformat()
+            field_dict[Value.KEY_DATETIME] = timezone.localtime(dt_value, self.org.timezone).isoformat()
 
         if num_value is not None:
-            field_dict[ContactField.NUMBER_KEY] = format_number(num_value)
+            field_dict[Value.KEY_NUMBER] = format_number(num_value)
 
         if loc_value:
             if loc_value.level == AdminBoundary.LEVEL_STATE:
-                field_dict[ContactField.STATE_KEY] = loc_value.path
+                field_dict[Value.KEY_STATE] = loc_value.path
             elif loc_value.level == AdminBoundary.LEVEL_DISTRICT:
-                field_dict[ContactField.DISTRICT_KEY] = loc_value.path
-                field_dict[ContactField.STATE_KEY] = AdminBoundary.strip_last_path(loc_value.path)
+                field_dict[Value.KEY_DISTRICT] = loc_value.path
+                field_dict[Value.KEY_STATE] = AdminBoundary.strip_last_path(loc_value.path)
             elif loc_value.level == AdminBoundary.LEVEL_WARD:
-                field_dict[ContactField.WARD_KEY] = loc_value.path
-                field_dict[ContactField.DISTRICT_KEY] = AdminBoundary.strip_last_path(loc_value.path)
-                field_dict[ContactField.STATE_KEY] = AdminBoundary.strip_last_path(
-                    field_dict[ContactField.DISTRICT_KEY]
-                )
+                field_dict[Value.KEY_WARD] = loc_value.path
+                field_dict[Value.KEY_DISTRICT] = AdminBoundary.strip_last_path(loc_value.path)
+                field_dict[Value.KEY_STATE] = AdminBoundary.strip_last_path(field_dict[Value.KEY_DISTRICT])
 
         return field_dict
 
@@ -1351,10 +1346,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                         updated_attrs = []
                         if name:
                             contact.name = name
-                            updated_attrs.append(Contact.NAME)
+                            updated_attrs.append(ContactField.KEY_NAME)
                         if language:  # pragma: needs cover
                             contact.language = language
-                            updated_attrs.append(Contact.LANGUAGE)
+                            updated_attrs.append(ContactField.KEY_LANGUAGE)
 
                         if updated_attrs:
                             contact.save(update_fields=updated_attrs + ["modified_on"], handle_update=False)
@@ -1396,10 +1391,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 updated_attrs = []
                 if name:
                     contact.name = name
-                    updated_attrs.append(Contact.NAME)
+                    updated_attrs.append(ContactField.KEY_NAME)
                 if language:
                     contact.language = language
-                    updated_attrs.append(Contact.LANGUAGE)
+                    updated_attrs.append(ContactField.KEY_LANGUAGE)
 
                 if updated_attrs:
                     contact.save(update_fields=updated_attrs + ["modified_on"], handle_update=False)
@@ -1520,11 +1515,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             )
 
         # title case our name
-        name = field_dict.get(Contact.NAME, None)
+        name = field_dict.get(ContactField.KEY_NAME, None)
         if name:
             name = " ".join([_.capitalize() for _ in name.split()])
 
-        language = field_dict.get(Contact.LANGUAGE)
+        language = field_dict.get(ContactField.KEY_LANGUAGE)
         if language is not None and len(language) != 3:
             language = None
         if language is not None and _get_language_name_iso6393(language) is None:
@@ -2742,14 +2737,14 @@ class ContactGroup(TembaModel):
             self.save(update_fields=("query", "status"))
 
             self.query_fields.clear()
-            self.query_fields.add(
-                *[
-                    c.id
-                    for c in ContactField.all_fields.filter(org=self.org, is_active=True, key__in=parsed.fields).only(
-                        "id"
-                    )
-                ]
-            )
+
+            # build our list of the fields we are dependent on
+            field_ids = []
+            for c in ContactField.all_fields.filter(org=self.org, is_active=True, key__in=parsed.fields).only("id"):
+                field_ids.append(c.id)
+
+            # and add them as dependencies
+            self.query_fields.add(*field_ids)
 
         except SearchException as e:
             raise ValueError(str(e))
@@ -2937,14 +2932,14 @@ class ExportContactsTask(BaseExportTask):
     def get_export_fields_and_schemes(self):
         fields = [
             dict(label="Contact UUID", key=Contact.UUID, id=0, field=None, urn_scheme=None),
-            dict(label="Name", key=Contact.NAME, id=0, field=None, urn_scheme=None),
-            dict(label="Language", key=Contact.LANGUAGE, id=0, field=None, urn_scheme=None),
-            dict(label="Created On", key=Contact.CREATED_ON, id=0, field=None, urn_scheme=None),
+            dict(label="Name", key=ContactField.KEY_NAME, id=0, field=None, urn_scheme=None),
+            dict(label="Language", key=ContactField.KEY_LANGUAGE, id=0, field=None, urn_scheme=None),
+            dict(label="Created On", key=ContactField.KEY_CREATED_ON, id=0, field=None, urn_scheme=None),
         ]
 
         # anon orgs also get an ID column that is just the PK
         if self.org.is_anon:
-            fields = [dict(label="ID", key=Contact.ID, id=0, field=None, urn_scheme=None)] + fields
+            fields = [dict(label="ID", key=ContactField.KEY_ID, id=0, field=None, urn_scheme=None)] + fields
 
         scheme_counts = dict()
         if not self.org.is_anon:
@@ -3032,15 +3027,15 @@ class ExportContactsTask(BaseExportTask):
                 for col in range(len(fields)):
                     field = fields[col]
 
-                    if field["key"] == Contact.NAME:
+                    if field["key"] == ContactField.KEY_NAME:
                         field_value = contact.name
                     elif field["key"] == Contact.UUID:
                         field_value = contact.uuid
-                    elif field["key"] == Contact.LANGUAGE:
+                    elif field["key"] == ContactField.KEY_LANGUAGE:
                         field_value = contact.language
-                    elif field["key"] == Contact.CREATED_ON:
+                    elif field["key"] == ContactField.KEY_CREATED_ON:
                         field_value = contact.created_on
-                    elif field["key"] == Contact.ID:
+                    elif field["key"] == ContactField.KEY_ID:
                         field_value = str(contact.id)
                     elif field["urn_scheme"] is not None:
                         contact_urns = contact.get_urns()
