@@ -57,6 +57,7 @@ from .models import (
     FlowUserConflictException,
     FlowVersionConflictException,
     RuleSet,
+    ensure_old_dep_format,
     get_flow_user,
 )
 from .tasks import (
@@ -395,11 +396,17 @@ class FlowTest(TembaTest):
         self.assertContains(response, msg.name)
         self.assertNotContains(response, survey.name)
 
-    def test_flow_editor_next(self):
+    def test_editor(self):
         flow = self.get_flow("color", legacy=True)
 
         self.login(self.admin)
+
         response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
+
+        self.assertTrue(response.context["mutable"])
+        self.assertTrue(response.context["can_start"])
+        self.assertTrue(response.context["can_simulate"])
+        self.assertContains(response, reverse("flows.flow_simulate", args=[flow.id]))
         self.assertContains(response, "id='rp-flow-editor'")
 
         # customer service gets a service button
@@ -415,19 +422,23 @@ class FlowTest(TembaTest):
 
         # convert our flow back to an old version
         response = self.client.get(f"{reverse('flows.flow_editor', args=[flow.uuid])}?legacy=true")
-        gear_links = response.context["view"].get_gear_links()
         flow.refresh_from_db()
         self.assertEqual(flow.version_number, Flow.FINAL_LEGACY_VERSION)
 
-        # viewing flows that are archived can't be started
+        # flows that are archived can't be edited, started or simulated
         self.login(self.admin)
+
         flow.is_archived = True
-        flow.save()
+        flow.save(update_fields=("is_archived",))
 
         response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
-        self.assertFalse(response.context["mutable"])
 
-    def test_feature_filters(self):
+        self.assertFalse(response.context["mutable"])
+        self.assertFalse(response.context["can_start"])
+        self.assertFalse(response.context["can_simulate"])
+        self.assertNotContains(response, reverse("flows.flow_simulate", args=[flow.id]))
+
+    def test_editor_feature_filters(self):
         flow = self.get_flow("color", legacy=True)
 
         self.login(self.admin)
@@ -467,7 +478,7 @@ class FlowTest(TembaTest):
             ["facebook", "airtime", "classifier", "resthook"], json.loads(response.context["feature_filters"])
         )
 
-    def test_flow_editor(self):
+    def test_legacy_editor(self):
         flow = self.get_flow("color", legacy=True)
 
         self.login(self.admin)
@@ -517,7 +528,7 @@ class FlowTest(TembaTest):
             ],
         )
 
-    def test_flow_editor_for_archived_flow(self):
+    def test_legacy_flow_editor_for_archived_flow(self):
         flow = self.get_flow("color", legacy=True)
         flow.archive()
 
@@ -535,7 +546,7 @@ class FlowTest(TembaTest):
             ["Results", "Copy", "Export", None, "Revision History", "Delete", None, "New Editor"],
         )
 
-    def test_flow_editor_for_inactive_flow(self):
+    def test_legacy_flow_editor_for_inactive_flow(self):
         flow = self.get_flow("color", legacy=True)
         flow.release()
 
@@ -2411,6 +2422,26 @@ class FlowTest(TembaTest):
         self.assertEqual(
             "http://preprocessor.com/endpoint.php",
             flow.rule_sets.all().order_by("y")[0].config[RuleSet.CONFIG_WEBHOOK],
+        )
+
+    def test_ensure_old_dep_format(self):
+        old = {
+            "flows": [
+                {"uuid": "afe66d09-c85e-4e0c-a0b6-a2b8ee9720a2", "name": "Registration"},
+                {"uuid": "670859fe-e914-4c5d-b9f0-b5020a7d5d28", "name": "Collect Name"},
+            ],
+            "groups": [{"uuid": "b12e6117-87a1-4c27-b2bd-d39cf2fa1aa1", "name": "Customers"}],
+        }
+        self.assertEqual(old, old)  # noop
+        self.assertEqual(
+            old,
+            ensure_old_dep_format(
+                [
+                    {"uuid": "afe66d09-c85e-4e0c-a0b6-a2b8ee9720a2", "name": "Registration", "type": "flow"},
+                    {"uuid": "b12e6117-87a1-4c27-b2bd-d39cf2fa1aa1", "name": "Customers", "type": "group"},
+                    {"uuid": "670859fe-e914-4c5d-b9f0-b5020a7d5d28", "name": "Collect Name", "type": "flow"},
+                ]
+            ),
         )
 
 

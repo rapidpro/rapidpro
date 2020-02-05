@@ -1,3 +1,16 @@
+v5.3.43
+----------
+ * Update to latest mailroom
+
+v5.3.42
+----------
+ * Fix actions on blocked contact list page
+
+v5.3.41
+----------
+ * Disable simulation for archived flows
+ * Fix query explosion on Android channel alerts
+
 v5.3.40
 ----------
  * Add subflow parameters to editor

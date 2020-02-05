@@ -344,14 +344,16 @@
       var sendEndpoint = "{% url 'msgs.broadcast_send' %}";
       var sendButton = document.querySelector(".send-button");
       var sendModal = document.querySelector("#send-message-modal");
-      sendButton.addEventListener('click', function(){
-        var ids = getCheckedUuids();
-        if (ids.length > 0) {
-          sendModal.setAttribute("endpoint", sendEndpoint + '?c=' + ids);
-        } else {
-          sendModal.setAttribute("endpoint", sendEndpoint);
-        }
-      });
+      if (sendButton) {
+        sendButton.addEventListener('click', function(){
+          var ids = getCheckedUuids();
+          if (ids.length > 0) {
+            sendModal.setAttribute("endpoint", sendEndpoint + '?c=' + ids);
+          } else {
+            sendModal.setAttribute("endpoint", sendEndpoint);
+          }
+        });
+      }
     }
 
     $(document).on('click', '.search-query', function() {
