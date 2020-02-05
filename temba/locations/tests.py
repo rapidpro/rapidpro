@@ -74,13 +74,39 @@ class LocationTest(TembaTest):
         response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]))
         response_json = response.json()
 
-        self.assertEqual(1, len(response_json))
-
-        # should just be kigali, without any aliases
-        children = response_json[0]["children"]
-        self.assertEqual("Eastern Province", children[0]["name"])
-        self.assertEqual("Kigali City", children[1]["name"])
-        self.assertEqual("", children[1]["aliases"])
+        self.assertEqual(
+            [
+                {
+                    "osm_id": "171496",
+                    "name": "Rwanda",
+                    "level": 0,
+                    "aliases": "",
+                    "path": "Rwanda",
+                    "children": [
+                        {
+                            "osm_id": "171591",
+                            "name": "Eastern Province",
+                            "level": 1,
+                            "aliases": "",
+                            "path": "Rwanda > Eastern Province",
+                            "parent_osm_id": "171496",
+                            "has_children": True,
+                        },
+                        {
+                            "osm_id": "1708283",
+                            "name": "Kigali City",
+                            "level": 1,
+                            "aliases": "Kigari",
+                            "path": "Rwanda > Kigali City",
+                            "parent_osm_id": "171496",
+                            "has_children": True,
+                        },
+                    ],
+                    "has_children": True,
+                }
+            ],
+            response_json,
+        )
 
         # update our alias for kigali
         with self.assertNumQueries(17):
