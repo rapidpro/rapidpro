@@ -104,19 +104,6 @@ FLOW_PROP_CACHE_KEY = "org:%d:cache:flow:%d:%s"
 FLOW_PROP_CACHE_TTL = 24 * 60 * 60 * 7  # 1 week
 
 
-def ensure_old_dep_format(dependencies):  # pragma: no cover
-    """
-    Temporary helper to ensure inspected dependencies from mailroom are in old format
-    """
-    if isinstance(dependencies, list):
-        deps_by_type = defaultdict(list)
-        for dep in dependencies:
-            deps_by_type[dep["type"] + "s"].append(dep)
-            del dep["type"]
-        return dict(deps_by_type)
-    return dependencies
-
-
 class FlowLock(Enum):
     """
     Locks that are flow specific
@@ -691,10 +678,13 @@ class Flow(TembaModel):
             return
 
         flow_info = mailroom.get_client().flow_inspect(definition)
-        dependencies = ensure_old_dep_format(flow_info[Flow.INSPECT_DEPENDENCIES])
+        dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
+
+        def deps_of_type(type_name):
+            return [d for d in dependencies if d["type"] == type_name]
 
         # ensure any channel dependencies exist
-        for ref in dependencies.get("channels", []):
+        for ref in deps_of_type("channel"):
             channel = self.org.channels.filter(is_active=True, uuid=ref["uuid"]).first()
             if not channel and ref["name"]:
                 name = ref["name"].split(":")[-1].strip()
@@ -703,11 +693,11 @@ class Flow(TembaModel):
             dependency_mapping[ref["uuid"]] = str(channel.uuid) if channel else ref["uuid"]
 
         # ensure any field dependencies exist
-        for ref in dependencies.get("fields", []):
+        for ref in deps_of_type("field"):
             ContactField.get_or_create(self.org, user, ref["key"], ref["name"])
 
         # lookup additional flow dependencies by name (i.e. for flows not in the export itself)
-        for ref in dependencies.get("flows", []):
+        for ref in deps_of_type("flow"):
             if ref["uuid"] not in dependency_mapping:
                 flow = self.org.flows.filter(uuid=ref["uuid"], is_active=True).first()
                 if not flow and ref["name"]:
@@ -716,18 +706,18 @@ class Flow(TembaModel):
                 dependency_mapping[ref["uuid"]] = str(flow.uuid) if flow else ref["uuid"]
 
         # lookup/create additional group dependencies (i.e. for flows not in the export itself)
-        for ref in dependencies.get("groups", []):
+        for ref in deps_of_type("group"):
             if ref["uuid"] not in dependency_mapping:
                 group = ContactGroup.get_or_create(self.org, user, ref.get("name"), uuid=ref["uuid"])
                 dependency_mapping[ref["uuid"]] = str(group.uuid)
 
         # ensure any label dependencies exist
-        for ref in dependencies.get("labels", []):
+        for ref in deps_of_type("label"):
             label = Label.get_or_create(self.org, user, ref["name"])
             dependency_mapping[ref["uuid"]] = str(label.uuid)
 
         # ensure any template dependencies exist
-        for ref in dependencies.get("templates", []):
+        for ref in deps_of_type("template"):
             template = self.org.templates.filter(uuid=ref["uuid"]).first()
             if not template and ref["name"]:
                 template = self.org.templates.filter(name=ref["name"]).first()
@@ -990,7 +980,7 @@ class Flow(TembaModel):
 
     def get_dependencies(self):
         """
-        Geta all of this flows dependencies as a single set
+        Get all of this flow's dependencies as a single set
         """
         dependencies = set()
         dependencies.update(self.flow_dependencies.all())
@@ -998,6 +988,16 @@ class Flow(TembaModel):
         dependencies.update(self.group_dependencies.all())
         dependencies.update(self.classifier_dependencies.all())
         return dependencies
+
+    def get_dependencies_metadata(self, type_name):
+        """
+        Get the dependencies of the given type from the flow metadata
+        """
+        deps = self.metadata.get(Flow.METADATA_DEPENDENCIES, [])
+        if isinstance(deps, list):
+            return [d for d in deps if d["type"] == type_name]
+        else:  # pragma: no cover
+            return deps.get(type_name + "s", [])
 
     def is_legacy(self):
         """
@@ -1291,8 +1291,7 @@ class Flow(TembaModel):
 
         # inspect the flow (with optional validation)
         flow_info = mailroom.get_client().flow_inspect(definition, validate_with_org=self.org if validate else None)
-
-        dependencies = ensure_old_dep_format(flow_info[Flow.INSPECT_DEPENDENCIES])
+        dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
 
         with transaction.atomic():
             # update our flow fields
@@ -1300,7 +1299,7 @@ class Flow(TembaModel):
 
             self.metadata = {
                 Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
-                Flow.METADATA_DEPENDENCIES: dependencies,
+                Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
                 Flow.METADATA_WAITING_EXIT_UUIDS: flow_info[Flow.INSPECT_WAITING_EXITS],
                 Flow.METADATA_PARENT_REFS: flow_info[Flow.INSPECT_PARENT_REFS],
             }
@@ -1364,7 +1363,7 @@ class Flow(TembaModel):
                     actionset[Flow.ACTIONS] = actions
 
             flow_info = mailroom.get_client().flow_inspect(flow=json_dict)
-            dependencies = ensure_old_dep_format(flow_info[Flow.INSPECT_DEPENDENCIES])
+            dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
 
             with transaction.atomic():
                 # TODO remove this when we no longer need rulesets or actionsets
@@ -1661,13 +1660,16 @@ class Flow(TembaModel):
             self.entry_type = Flow.NODE_TYPE_RULESET
 
     def update_dependencies(self, dependencies):
-        field_keys = [f["key"] for f in dependencies.get("fields", [])]
-        flow_uuids = [f["uuid"] for f in dependencies.get("flows", [])]
-        group_uuids = [g["uuid"] for g in dependencies.get("groups", [])]
-        channel_uuids = [g["uuid"] for g in dependencies.get("channels", [])]
-        label_uuids = [g["uuid"] for g in dependencies.get("labels", [])]
-        classifier_uuids = [c["uuid"] for c in dependencies.get("classifiers", [])]
-        global_keys = [g["key"] for g in dependencies.get("globals", [])]
+        def deps_of_type(type_name):
+            return [d for d in dependencies if d["type"] == type_name]
+
+        field_keys = [f["key"] for f in deps_of_type("field")]
+        flow_uuids = [f["uuid"] for f in deps_of_type("flow")]
+        group_uuids = [g["uuid"] for g in deps_of_type("group")]
+        channel_uuids = [g["uuid"] for g in deps_of_type("channel")]
+        label_uuids = [g["uuid"] for g in deps_of_type("label")]
+        classifier_uuids = [c["uuid"] for c in deps_of_type("classifier")]
+        global_keys = [g["key"] for g in deps_of_type("global")]
 
         # fields won't have been included in old imports so may need to be lazily created here
         if field_keys:
