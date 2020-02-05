@@ -45,7 +45,6 @@ from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import random_string
-from temba.values.constants import Value
 
 logger = logging.getLogger(__name__)
 
@@ -1143,42 +1142,16 @@ class Org(SmartModel):
     def create_system_contact_fields(self):
         from temba.contacts.models import ContactField
 
-        ContactField.system_fields.create(
-            org_id=self.id,
-            label=_("ID"),
-            key="id",
-            value_type=Value.TYPE_NUMBER,
-            show_in_table=False,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
-        ContactField.system_fields.create(
-            org_id=self.id,
-            label=_("Created On"),
-            key="created_on",
-            value_type=Value.TYPE_DATETIME,
-            show_in_table=False,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
-        ContactField.system_fields.create(
-            org_id=self.id,
-            label=_("Contact Name"),
-            key="name",
-            value_type=Value.TYPE_TEXT,
-            show_in_table=False,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
-        ContactField.system_fields.create(
-            org_id=self.id,
-            label=_("Language"),
-            key="language",
-            value_type=Value.TYPE_TEXT,
-            show_in_table=False,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
+        for key, field in ContactField.SYSTEM_FIELDS.items():
+            ContactField.system_fields.create(
+                org_id=self.id,
+                key=key,
+                label=field["label"],
+                value_type=field["value_type"],
+                show_in_table=False,
+                created_by=self.created_by,
+                modified_by=self.modified_by,
+            )
 
     def create_sample_flows(self, api_url):
         # get our sample dir

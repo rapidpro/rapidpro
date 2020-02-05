@@ -104,7 +104,7 @@ FLOW_PROP_CACHE_KEY = "org:%d:cache:flow:%d:%s"
 FLOW_PROP_CACHE_TTL = 24 * 60 * 60 * 7  # 1 week
 
 
-def ensure_old_dep_format(dependencies):
+def ensure_old_dep_format(dependencies):  # pragma: no cover
     """
     Temporary helper to ensure inspected dependencies from mailroom are in old format
     """

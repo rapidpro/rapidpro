@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-23 17:52+0000\n"
+"POT-Creation-Date: 2020-02-03 20:53+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2204,6 +2204,12 @@ msgstr ""
 msgid "Freshchat identifier"
 msgstr ""
 
+msgid "ID"
+msgstr ""
+
+msgid "Language"
+msgstr ""
+
 msgid "Label"
 msgstr ""
 
@@ -2217,9 +2223,6 @@ msgid "Featured field"
 msgstr ""
 
 msgid "The name of this contact"
-msgstr ""
-
-msgid "Language"
 msgstr ""
 
 msgid "The preferred language for this contact"
@@ -2384,10 +2387,10 @@ msgstr ""
 msgid "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you can create new ones."
 msgstr ""
 
-msgid "You cannot update the query of a group that is evaluating."
+msgid "You cannot create a dynamic group based on \"id\"."
 msgstr ""
 
-msgid "You cannot create a dynamic group based on \"name\" or \"id\"."
+msgid "You cannot update the query of a group that is evaluating."
 msgstr ""
 
 msgid "All Contacts"
@@ -3510,9 +3513,6 @@ msgid "A password that allows users to register as surveyors"
 msgstr ""
 
 msgid "The parent org that manages this org"
-msgstr ""
-
-msgid "ID"
 msgstr ""
 
 #, python-format

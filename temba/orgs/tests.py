@@ -43,7 +43,16 @@ from temba.contacts.models import (
     ExportContactsTask,
 )
 from temba.contacts.omnibox import omnibox_serialize
-from temba.flows.models import ActionSet, ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
+from temba.contacts.search import ParsedQuery
+from temba.flows.models import (
+    ActionSet,
+    ExportFlowResultsTask,
+    Flow,
+    FlowLabel,
+    FlowRun,
+    FlowStart,
+    ensure_old_dep_format,
+)
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
@@ -2675,16 +2684,6 @@ class AnonOrgTest(TembaTest):
         self.assertContains(response, masked)
         self.assertContains(response, ContactURN.ANON_MASK_HTML)
 
-        # can't search for it
-        with patch("temba.utils.es.ES") as mock_ES:
-            mock_ES.search.return_value = {"_hits": []}
-            mock_ES.count.return_value = {"count": 0}
-            response = self.client.get(reverse("contacts.contact_list") + "?search=788")
-
-            # can't look for 788 as that is in the search box..
-            self.assertNotContains(response, "123123")
-            self.assertContains(response, "No matching contacts.")
-
         # create an outgoing message, check number doesn't appear in outbox
         msg1 = self.create_outgoing_msg(contact, "hello", status="Q")
 
@@ -3821,7 +3820,7 @@ class BulkExportTest(TembaTest):
 
     def validate_flow_dependencies(self, definition):
         flow_info = mailroom.get_client().flow_inspect(definition)
-        deps = flow_info["dependencies"]
+        deps = ensure_old_dep_format(flow_info["dependencies"])
 
         for ref in deps.get("fields", []):
             self.assertTrue(
@@ -3843,8 +3842,8 @@ class BulkExportTest(TembaTest):
         """
         Tests importing flow definitions without fields and groups included in the export
         """
-
         data = self.get_import_json("cataclysm")
+
         del data["fields"]
         del data["groups"]
 
@@ -3865,11 +3864,15 @@ class BulkExportTest(TembaTest):
         """
         Tests importing flow definitions with groups included in the export but not fields
         """
-
         data = self.get_import_json("cataclysm")
         del data["fields"]
 
-        with ESMockWithScroll():
+        with patch("temba.contacts.search.parse_query") as mock:
+            mock.side_effect = [
+                ParsedQuery("facts_per_day = 1", ["facts_per_day"]),
+                ParsedQuery('likes_cats = "true"', ["likes_cats"]),
+            ]
+
             self.org.import_app(data, self.admin, site="http://rapidpro.io")
 
         flow = Flow.objects.get(name="Cataclysmic")
@@ -3901,8 +3904,11 @@ class BulkExportTest(TembaTest):
         """
         Tests importing flow definitions with groups and fields included in the export
         """
-
-        with ESMockWithScroll():
+        with patch("temba.contacts.search.parse_query") as mock:
+            mock.side_effect = [
+                ParsedQuery("facts_per_day = 1", ["facts_per_day"]),
+                ParsedQuery('likes_cats = "true"', ["likes_cats"]),
+            ]
             self.import_file("cataclysm")
 
         flow = Flow.objects.get(name="Cataclysmic")
