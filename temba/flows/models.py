@@ -996,7 +996,7 @@ class Flow(TembaModel):
         deps = self.metadata.get(Flow.METADATA_DEPENDENCIES, [])
         if isinstance(deps, list):
             return [d for d in deps if d["type"] == type_name]
-        else:
+        else:  # pragma: no cover
             return deps.get(type_name + "s", [])
 
     def is_legacy(self):
