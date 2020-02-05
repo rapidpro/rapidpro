@@ -1,3 +1,7 @@
+v5.3.44
+----------
+ * Dynamic group creation / reevaluation through Mailroom
+
 v5.3.43
 ----------
  * Update to latest mailroom
