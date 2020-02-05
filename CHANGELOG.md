@@ -1,3 +1,9 @@
+v5.3.45
+----------
+ * Fix deletion of orgs and locations so that aliases are properly deleted
+ * Remove syntax highlighting in API explorer as it can't handle big responses
+ * Use new dependencies format from mailroom
+
 v5.3.44
 ----------
  * Dynamic group creation / reevaluation through Mailroom
