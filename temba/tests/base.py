@@ -5,7 +5,6 @@ from uuid import uuid4
 import pytz
 import redis
 import regex
-from requests.structures import CaseInsensitiveDict
 from smartmin.tests import SmartminTest
 
 from django.conf import settings
@@ -14,16 +13,15 @@ from django.core import mail
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.utils import timezone
-from django.utils.encoding import force_bytes, force_text
 
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
-from temba.locations.models import AdminBoundary
+from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Broadcast, Label, Msg
 from temba.orgs.models import Org
-from temba.utils import dict_to_struct, json
+from temba.utils import json
 from temba.values.constants import Value
 
 
@@ -110,6 +108,8 @@ class TembaTestMixin:
         self.ward1 = AdminBoundary.create(osm_id="171113181", name="Kageyo", level=3, parent=self.district1)
         self.ward2 = AdminBoundary.create(osm_id="171116381", name="Kabare", level=3, parent=self.district2)
         self.ward3 = AdminBoundary.create(osm_id="VMN.49.1_1", name="Bukure", level=3, parent=self.district4)
+
+        BoundaryAlias.create(self.org, self.admin, self.state1, "Kigari")
 
         self.country.update_path()
 
@@ -554,41 +554,6 @@ class TembaTest(TembaTestMixin, SmartminTest):
         self.assertTrue(message, field in body)
         self.assertTrue(message, isinstance(body[field], (list, tuple)))
         self.assertIn(message, body[field])
-
-
-class MockResponse(object):
-    def __init__(self, status_code, text, method="GET", url="http://foo.com/", headers=None):
-        if headers is None:
-            headers = {}
-
-        self.text = force_text(text)
-        self.content = force_bytes(text)
-        self.body = force_text(text)
-        self.status_code = status_code
-        self.headers = CaseInsensitiveDict(data=headers)
-        self.url = url
-        self.ok = True
-        self.cookies = dict()
-        self.streaming = False
-        self.charset = "utf-8"
-        self.connection = dict()
-        self.raw = dict_to_struct("MockRaw", dict(version="1.1", status=status_code, headers=headers))
-        self.reason = ""
-
-        # mock up a request object on our response as well
-        self.request = dict_to_struct(
-            "MockRequest", dict(method=method, url=url, body="request body", headers=headers)
-        )
-
-    def add_header(self, key, value):
-        self.headers[key] = value
-
-    def json(self):
-        return json.loads(self.text)
-
-    def raise_for_status(self):
-        if self.status_code != 200:
-            raise Exception("Got HTTP error: %d" % self.status_code)
 
 
 class AnonymousOrg(object):

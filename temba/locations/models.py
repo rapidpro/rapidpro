@@ -127,6 +127,7 @@ class AdminBoundary(MPTTModel, models.Model):
         for child_boundary in AdminBoundary.objects.filter(parent=self):  # pragma: no cover
             child_boundary.release()
 
+        self.aliases.all().delete()
         self.delete()
 
     @classmethod

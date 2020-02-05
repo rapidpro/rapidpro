@@ -2,6 +2,7 @@ import operator
 from collections import OrderedDict
 from decimal import Decimal
 from functools import reduce
+from typing import NamedTuple
 
 import pytz
 import regex
@@ -13,6 +14,7 @@ from elasticsearch_dsl import Q as es_Q
 from django.utils.encoding import force_text
 from django.utils.translation import gettext as _
 
+from temba import mailroom
 from temba.contacts.models import URN_SCHEME_CONFIG, Contact, ContactField
 from temba.utils.dates import date_to_day_range_utc, str_to_date, str_to_datetime
 from temba.utils.es import ModelESSearch
@@ -96,12 +98,6 @@ class ContactQuery(object):
                     raise SearchException(_(f"Unrecognized field: '{prop}'"))
 
         return prop_map
-
-    def can_be_dynamic_group(self):
-        props_not_allowed = {"id"}
-        prop_names = set(self.root.get_prop_names())
-
-        return not (prop_names.intersection(props_not_allowed))
 
     def __eq__(self, other):
         return isinstance(other, ContactQuery) and self.root == other.root
@@ -943,7 +939,42 @@ class ContactQLVisitor(ParseTreeVisitor):
         return value.replace(r"\"", '"')  # unescape embedded quotes
 
 
-def parse_query(text, optimize=True, as_anon=False):
+class ParsedQuery(NamedTuple):
+    query: str
+    fields: list
+
+
+def parse_query(org_id, query):
+    """
+    Parses the passed in query in the context of the org
+    """
+    try:
+        client = mailroom.get_client()
+        response = client.parse_query(org_id, query)
+        return ParsedQuery(response["query"], response["fields"])
+
+    except mailroom.MailroomException as e:
+        raise SearchException(e.response["error"])
+
+
+class SearchResults(NamedTuple):
+    total: int
+    query: str
+    fields: list
+    contact_ids: list
+
+
+def search_contacts(org_id, group_uuid, query, sort=None, offset=None):
+    try:
+        client = mailroom.get_client()
+        response = client.contact_search(org_id, group_uuid, query, sort, offset=offset)
+        return SearchResults(response["total"], response["query"], response["fields"], response["contact_ids"])
+
+    except mailroom.MailroomException as e:
+        raise SearchException(e.response["error"])
+
+
+def legacy_parse_query(text, optimize=True, as_anon=False):
     """
     Parses the given contact query and optionally optimizes it
     """
@@ -983,7 +1014,7 @@ def parse_query(text, optimize=True, as_anon=False):
 
 
 def evaluate_query(org, text, contact_json=dict):
-    parsed = parse_query(text, optimize=True, as_anon=org.is_anon)
+    parsed = legacy_parse_query(text, optimize=True, as_anon=org.is_anon)
 
     return parsed.evaluate(org, contact_json)
 
@@ -1020,7 +1051,7 @@ def contact_es_search(org, text, base_group=None, sort_struct=None):
     )
 
     if text:
-        parsed = parse_query(text, as_anon=org.is_anon)
+        parsed = legacy_parse_query(text, as_anon=org.is_anon)
         es_match = parsed.as_elasticsearch(org)
     else:
         parsed = None
@@ -1035,19 +1066,6 @@ def contact_es_search(org, text, base_group=None, sort_struct=None):
         ),
         parsed,
     )
-
-
-def extract_fields(org, text):
-    """
-    Extracts contact fields from the given text query
-    """
-    parsed = parse_query(text, as_anon=org.is_anon)
-    prop_map = parsed.get_prop_map(org)
-    return [
-        prop_obj
-        for (prop_type, prop_obj) in prop_map.values()
-        if prop_type in (ContactQuery.PROP_FIELD, ContactQuery.PROP_ATTRIBUTE)
-    ]
 
 
 def is_phonenumber(text):

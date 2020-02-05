@@ -34,11 +34,9 @@ from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.templatetags.contacts import MISSING_VALUE
-from temba.mailroom import MailroomException
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, languages, on_transaction_commit
@@ -61,7 +59,6 @@ from .models import (
     ExportContactsTask,
 )
 from .omnibox import omnibox_query, omnibox_results_to_dict
-from .search import SearchException, parse_query
 from .tasks import export_contacts_task, release_group_task
 
 logger = logging.getLogger(__name__)
@@ -127,27 +124,22 @@ class ContactGroupForm(forms.ModelForm):
         return name
 
     def clean_query(self):
+        from temba.contacts.search import parse_query, SearchException
+
         try:
-            parsed_query = parse_query(text=self.cleaned_data["query"], as_anon=self.org.is_anon)
-
-            # try to prepare query as it would be used, might raise errors for invalid search operators
-            parsed_query.as_elasticsearch(self.org)
-
-            cleaned_query = parsed_query.as_text()
+            parsed = parse_query(self.org.id, self.cleaned_data["query"])
+            if "id" in parsed.fields:
+                raise forms.ValidationError(_('You cannot create a dynamic group based on "id".'))
 
             if (
                 self.instance
                 and self.instance.status != ContactGroup.STATUS_READY
-                and cleaned_query != self.instance.query
+                and parsed.query != self.instance.query
             ):
                 raise forms.ValidationError(_("You cannot update the query of a group that is evaluating."))
 
-            if parsed_query.can_be_dynamic_group():
-                return cleaned_query
-            else:
-                raise forms.ValidationError(_('You cannot create a dynamic group based on "name" or "id".'))
-        except forms.ValidationError as e:
-            raise e
+            return parsed.query
+
         except SearchException as e:
             raise forms.ValidationError(str(e))
 
@@ -171,6 +163,8 @@ class ContactListView(OrgPermsMixin, SmartListView):
     sort_field = None
     sort_direction = None
 
+    search_error = None
+
     def pre_process(self, request, *args, **kwargs):
         """
         Don't allow pagination past 200th page
@@ -192,6 +186,14 @@ class ContactListView(OrgPermsMixin, SmartListView):
             search,
             redirect,
         )
+
+    def derive_refresh(self):
+        # dynamic groups that are reevaluating should refresh every 2 seconds
+        group = self.derive_group()
+        if group.is_dynamic and group.status != ContactGroup.STATUS_READY:
+            return 2000
+
+        return None
 
     @staticmethod
     def prepare_sort_field_struct(sort_on):
@@ -242,6 +244,8 @@ class ContactListView(OrgPermsMixin, SmartListView):
             )
 
     def get_queryset(self, **kwargs):
+        from temba.contacts.search import search_contacts, SearchException
+
         org = self.request.user.get_org()
         group = self.derive_group()
         self.search_error = None
@@ -258,15 +262,13 @@ class ContactListView(OrgPermsMixin, SmartListView):
 
         if search_query or sort_on:
             try:
-                client = mailroom.get_client()
-                result = client.contact_search(org.id, str(group.uuid), search_query, sort_on, offset)
+                results = search_contacts(org.id, str(group.uuid), search_query, sort_on, offset)
+                self.parsed_query = results.query if len(results.query) > 0 else None
+                self.save_dynamic_search = "id" not in results.fields
 
-                self.parsed_query = result["query"] if len(result["query"]) > 0 else None
-                self.save_dynamic_search = "id" not in result["fields"]
-
-                return IDSliceQuerySet(Contact, result["contact_ids"], offset, result["total"])
-            except MailroomException as e:
-                self.search_error = e.response["error"]
+                return IDSliceQuerySet(Contact, results.contact_ids, offset, results.total)
+            except SearchException as e:
+                self.search_error = str(e)
 
                 # this should be an empty resultset
                 return Contact.objects.none()
@@ -310,12 +312,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         return context
 
     def get_user_groups(self, org):
-        groups = (
-            ContactGroup.get_user_groups(org, ready_only=False)
-            .exclude(status=ContactGroup.STATUS_INITIALIZING)
-            .select_related("org")
-            .order_by(Upper("name"))
-        )
+        groups = ContactGroup.get_user_groups(org, ready_only=False).select_related("org").order_by(Upper("name"))
         group_counts = ContactGroupCount.get_totals(groups)
 
         rendered = []
@@ -1238,6 +1235,8 @@ class ContactCRUDL(SmartCRUDL):
         template_name = "contacts/contact_list.haml"
 
         def get(self, request, *args, **kwargs):
+            from temba.contacts.search import search_contacts, SearchException
+
             org = self.request.user.get_org()
             query = self.request.GET.get("search", None)
             samples = int(self.request.GET.get("samples", 10))
@@ -1246,16 +1245,15 @@ class ContactCRUDL(SmartCRUDL):
                 return JsonResponse({"total": 0, "sample": [], "fields": {}})
 
             try:
-                client = mailroom.get_client()
-                response = client.contact_search(org.id, org.cached_all_contacts_group.uuid, query, "-created_on")
+                results = search_contacts(org.id, org.cached_all_contacts_group.uuid, query, "-created_on")
                 summary = {
-                    "total": response["total"],
-                    "query": response["query"],
-                    "fields": response["fields"],
-                    "sample": IDSliceQuerySet(Contact, response["contact_ids"], 0, response["total"])[0:samples],
+                    "total": results.total,
+                    "query": results.query,
+                    "fields": results.fields,
+                    "sample": IDSliceQuerySet(Contact, results.contact_ids, 0, results.total)[0:samples],
                 }
-            except MailroomException as e:
-                return JsonResponse({"total": 0, "sample": [], "query": "", "error": e.response["error"]})
+            except SearchException as e:
+                return JsonResponse({"total": 0, "sample": [], "query": "", "error": str(e)})
 
             # serialize our contact sample
             json_contacts = []

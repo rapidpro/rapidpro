@@ -32,6 +32,7 @@ class BatchTask(Enum):
     START_FLOW = "start_flow"
     SEND_BROADCAST = "send_broadcast"
     INTERRUPT_SESSIONS = "interrupt_sessions"
+    POPULATE_DYNAMIC_GROUP = "populate_dynamic_group"
 
 
 def queue_msg_handling(msg):
@@ -93,6 +94,15 @@ def queue_broadcast(broadcast):
     }
 
     _queue_batch_task(broadcast.org_id, BatchTask.SEND_BROADCAST, task, HIGH_PRIORITY)
+
+
+def queue_populate_dynamic_group(group):
+    """
+    Queues a task to populate the contacts for a dynamic group
+    """
+    task = {"group_id": group.id, "query": group.query, "org_id": group.org_id}
+
+    _queue_batch_task(group.org_id, BatchTask.POPULATE_DYNAMIC_GROUP, task, HIGH_PRIORITY)
 
 
 def queue_flow_start(start):
