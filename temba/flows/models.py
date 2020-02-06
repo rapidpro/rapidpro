@@ -1641,24 +1641,19 @@ class Flow(TembaModel):
             self.entry_type = Flow.NODE_TYPE_RULESET
 
     def update_dependencies(self, dependencies):
-        def deps_of_type(type_name):
-            return [d for d in dependencies if d["type"] == type_name]
-
-        field_keys = [f["key"] for f in deps_of_type("field")]
-        flow_uuids = [f["uuid"] for f in deps_of_type("flow")]
-        group_uuids = [g["uuid"] for g in deps_of_type("group")]
-        channel_uuids = [g["uuid"] for g in deps_of_type("channel")]
-        label_uuids = [g["uuid"] for g in deps_of_type("label")]
-        classifier_uuids = [c["uuid"] for c in deps_of_type("classifier")]
-        global_keys = [g["key"] for g in deps_of_type("global")]
+        # build a lookup of types to identifier lists
+        identifiers = defaultdict(list)
+        for dep in dependencies:
+            identifier = dep.get("uuid", dep.get("key"))
+            identifiers[dep["type"]].append(identifier)
 
         # fields won't have been included in old imports so may need to be lazily created here
-        if field_keys:
+        if identifiers["field"]:
             active_org_fields = set(
                 ContactField.user_fields.active_for_org(org=self.org).values_list("key", flat=True)
             )
 
-            fields_to_create = set(field_keys).difference(active_org_fields)
+            fields_to_create = set(identifiers["field"]).difference(active_org_fields)
 
             # create any field that doesn't already exist
             for field in fields_to_create:
@@ -1666,41 +1661,30 @@ class Flow(TembaModel):
                     ContactField.get_or_create(self.org, self.modified_by, field)
 
         # globals aren't included in exports so they're created here too if they don't exist, with blank values
-        if global_keys:
+        if identifiers["global"]:
             org_globals = set(self.org.globals.filter(is_active=True).values_list("key", flat=True))
 
-            globals_to_create = set(global_keys).difference(org_globals)
+            globals_to_create = set(identifiers["global"]).difference(org_globals)
             for g in globals_to_create:
                 Global.get_or_create(self.org, self.modified_by, g, name="", value="")
 
-        fields = ContactField.user_fields.filter(org=self.org, key__in=field_keys)
-        flows = self.org.flows.filter(uuid__in=flow_uuids)
-        groups = ContactGroup.user_groups.filter(org=self.org, uuid__in=group_uuids)
-        channels = Channel.objects.filter(org=self.org, uuid__in=channel_uuids, is_active=True)
-        labels = Label.label_objects.filter(org=self.org, uuid__in=label_uuids)
-        classifiers = Classifier.objects.filter(org=self.org, uuid__in=classifier_uuids)
-        globals = self.org.globals.filter(key__in=global_keys, is_active=True)
+        # find all the dependencies in the database
+        dep_objs = {
+            "channel": Channel.objects.filter(org=self.org, is_active=True, uuid__in=identifiers["channel"]),
+            "classifier": self.org.classifiers.filter(uuid__in=identifiers["classifier"]),
+            "field": ContactField.user_fields.filter(org=self.org, key__in=identifiers["field"]),
+            "flow": self.org.flows.filter(is_active=True, uuid__in=identifiers["flow"]),
+            "global": self.org.globals.filter(is_active=True, key__in=identifiers["global"]),
+            "group": ContactGroup.user_groups.filter(org=self.org, uuid__in=identifiers["group"]),
+            "label": Label.label_objects.filter(org=self.org, uuid__in=identifiers["label"]),
+            "template": self.org.templates.filter(uuid__in=identifiers["template"]),
+        }
 
-        self.field_dependencies.clear()
-        self.field_dependencies.add(*fields)
-
-        self.flow_dependencies.clear()
-        self.flow_dependencies.add(*flows)
-
-        self.group_dependencies.clear()
-        self.group_dependencies.add(*groups)
-
-        self.channel_dependencies.clear()
-        self.channel_dependencies.add(*channels)
-
-        self.label_dependencies.clear()
-        self.label_dependencies.add(*labels)
-
-        self.classifier_dependencies.clear()
-        self.classifier_dependencies.add(*classifiers)
-
-        self.global_dependencies.clear()
-        self.global_dependencies.add(*globals)
+        # reset the m2m for each type
+        for type_name, objects in dep_objs.items():
+            m2m = getattr(self, f"{type_name}_dependencies")
+            m2m.clear()
+            m2m.add(*objects)
 
     def release(self):
         """
