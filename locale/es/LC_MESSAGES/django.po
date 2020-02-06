@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-31 00:11+0000\n"
+"POT-Creation-Date: 2020-02-06 05:00+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3476,6 +3476,14 @@ msgstr "ID externo"
 msgid "VK identifier"
 msgstr "ID externo"
 
+#, fuzzy
+#| msgid "UUID"
+msgid "ID"
+msgstr "UUID"
+
+msgid "Language"
+msgstr "Idioma"
+
 msgid "Label"
 msgstr "Etiquetar"
 
@@ -3490,9 +3498,6 @@ msgstr ""
 
 msgid "The name of this contact"
 msgstr "El nombre de este contacto"
-
-msgid "Language"
-msgstr "Idioma"
 
 msgid "The preferred language for this contact"
 msgstr "El idioma preferido para este contacto"
@@ -3667,10 +3672,10 @@ msgstr ""
 msgid "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you can create new ones."
 msgstr ""
 
-msgid "You cannot update the query of a group that is evaluating."
+msgid "You cannot create a dynamic group based on \"id\"."
 msgstr ""
 
-msgid "You cannot create a dynamic group based on \"name\" or \"id\"."
+msgid "You cannot update the query of a group that is evaluating."
 msgstr ""
 
 msgid "All Contacts"
@@ -4987,11 +4992,6 @@ msgstr ""
 #| msgid "The FlowStart objects that started this run"
 msgid "The parent org that manages this org"
 msgstr "Los objetos de FlowStart que empezaron esta corrida"
-
-#, fuzzy
-#| msgid "UUID"
-msgid "ID"
-msgstr "UUID"
 
 #, python-format
 msgid "Invalid bundle: %s, cannot upgrade."
