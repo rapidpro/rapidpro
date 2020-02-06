@@ -1,4 +1,5 @@
 import base64
+import time
 from collections import OrderedDict
 from datetime import datetime
 from decimal import Decimal
@@ -13,6 +14,7 @@ from rest_framework.test import APIClient
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
+from django.core.cache import cache
 from django.db import connection
 from django.test import override_settings
 from django.urls import reverse
@@ -297,79 +299,101 @@ class APITest(TembaTest):
         self.assertEqual(OrderedDict([("a", "x" * 640)]), normalize_extra({"a": "x" * 641}))
 
     def test_authentication(self):
-        def api_request(endpoint, token):
+        def request(endpoint, **headers):
             return self.client.get(
-                f"{endpoint}.json",
-                content_type="application/json",
-                HTTP_X_FORWARDED_HTTPS="https",
-                HTTP_AUTHORIZATION=f"Token {token}",
+                f"{endpoint}.json", content_type="application/json", HTTP_X_FORWARDED_HTTPS="https", **headers
             )
 
-        def api_request_basic_auth(endpoint, username, token):
+        def request_by_token(endpoint, token):
+            return request(endpoint, HTTP_AUTHORIZATION=f"Token {token}")
+
+        def request_by_basic_auth(endpoint, username, token):
             credentials_base64 = base64.encodebytes(f"{username}:{token}".encode()).decode()
-            return self.client.get(
-                f"{endpoint}.json",
-                content_type="application/json",
-                HTTP_X_FORWARDED_HTTPS="https",
-                HTTP_AUTHORIZATION=f"Basic {credentials_base64}",
-            )
+            return request(endpoint, HTTP_AUTHORIZATION=f"Basic {credentials_base64}")
+
+        def request_by_session(endpoint, user):
+            self.login(user)
+            resp = request(endpoint)
+            self.client.logout()
+            return resp
 
         contacts_url = reverse("api.v2.contacts")
         campaigns_url = reverse("api.v2.campaigns")
-
-        # can't fetch endpoint with invalid token
-        response = api_request(contacts_url, "1234567890")
-        self.assertResponseError(response, None, "Invalid token", status_code=403)
-
-        # can't fetch endpoint with invalid token
-        response = api_request_basic_auth(contacts_url, self.admin.username, "1234567890")
-        self.assertResponseError(response, None, "Invalid token or email", status_code=403)
+        fields_url = reverse("api.v2.fields")
 
         token1 = APIToken.get_or_create(self.org, self.admin, Group.objects.get(name="Administrators"))
         token2 = APIToken.get_or_create(self.org, self.admin, Group.objects.get(name="Surveyors"))
 
+        # can request fields endpoint using all 3 methods
+        response = request_by_token(fields_url, token1.key)
+        self.assertEqual(200, response.status_code)
+        response = request_by_basic_auth(fields_url, self.admin.username, token1.key)
+        self.assertEqual(200, response.status_code)
+        response = request_by_session(fields_url, self.admin)
+        self.assertEqual(200, response.status_code)
+
+        # can't fetch endpoint with invalid token
+        response = request_by_token(contacts_url, "1234567890")
+        self.assertResponseError(response, None, "Invalid token", status_code=403)
+
+        # can't fetch endpoint with invalid token
+        response = request_by_basic_auth(contacts_url, self.admin.username, "1234567890")
+        self.assertResponseError(response, None, "Invalid token or email", status_code=403)
+
         # can't fetch endpoint with invalid username
-        response = api_request_basic_auth(contacts_url, "some@name.com", token1.key)
+        response = request_by_basic_auth(contacts_url, "some@name.com", token1.key)
         self.assertResponseError(response, None, "Invalid token or email", status_code=403)
 
         # can fetch campaigns endpoint with valid admin token
-        response = api_request(campaigns_url, token1.key)
-        self.assertEqual(response.status_code, 200)
-
-        response = api_request_basic_auth(campaigns_url, self.admin.username, token1.key)
+        response = request_by_token(campaigns_url, token1.key)
         self.assertEqual(response.status_code, 200)
 
         # but not with surveyor token
-        response = api_request(campaigns_url, token2.key)
+        response = request_by_token(campaigns_url, token2.key)
         self.assertResponseError(response, None, "You do not have permission to perform this action.", status_code=403)
 
-        response = api_request_basic_auth(campaigns_url, self.admin.username, token2.key)
+        response = request_by_basic_auth(campaigns_url, self.admin.username, token2.key)
         self.assertResponseError(response, None, "You do not have permission to perform this action.", status_code=403)
 
         # but it can be used to access the contacts endpoint
-        response = api_request(contacts_url, token2.key)
+        response = request_by_token(contacts_url, token2.key)
         self.assertEqual(response.status_code, 200)
 
-        response = api_request_basic_auth(contacts_url, self.admin.username, token2.key)
+        response = request_by_basic_auth(contacts_url, self.admin.username, token2.key)
+        self.assertEqual(response.status_code, 200)
+
+        # simulate the admin user exceeding the rate limit for the v2 scope
+        cache.set(f"throttle_v2_{self.org.id}-{self.admin.id}", [time.time() for r in range(10000)])
+
+        # next request they make using a token will be rejected
+        response = request_by_token(fields_url, token1.key)
+        self.assertEqual(response.status_code, 429)
+
+        # same with basic auth
+        response = request_by_basic_auth(fields_url, self.admin.username, token1.key)
+        self.assertEqual(response.status_code, 429)
+
+        # but they can still make a request if they have a session
+        response = request_by_session(fields_url, self.admin)
         self.assertEqual(response.status_code, 200)
 
         # if user loses access to the token's role, don't allow the request
         self.org.administrators.remove(self.admin)
         self.org.surveyors.add(self.admin)
 
-        self.assertEqual(api_request(campaigns_url, token1.key).status_code, 403)
-        self.assertEqual(api_request_basic_auth(campaigns_url, self.admin.username, token1.key).status_code, 403)
-        self.assertEqual(api_request(contacts_url, token2.key).status_code, 200)  # other token unaffected
-        self.assertEqual(api_request_basic_auth(contacts_url, self.admin.username, token2.key).status_code, 200)
+        self.assertEqual(request_by_token(campaigns_url, token1.key).status_code, 403)
+        self.assertEqual(request_by_basic_auth(campaigns_url, self.admin.username, token1.key).status_code, 403)
+        self.assertEqual(request_by_token(contacts_url, token2.key).status_code, 200)  # other token unaffected
+        self.assertEqual(request_by_basic_auth(contacts_url, self.admin.username, token2.key).status_code, 200)
 
         # and if user is inactive, disallow the request
         self.admin.is_active = False
         self.admin.save()
 
-        response = api_request(contacts_url, token2.key)
+        response = request_by_token(contacts_url, token2.key)
         self.assertResponseError(response, None, "Invalid token", status_code=403)
 
-        response = api_request_basic_auth(contacts_url, self.admin.username, token2.key)
+        response = request_by_basic_auth(contacts_url, self.admin.username, token2.key)
         self.assertResponseError(response, None, "Invalid token or email", status_code=403)
 
     @override_settings(SECURE_PROXY_SSL_HEADER=("HTTP_X_FORWARDED_HTTPS", "https"))
