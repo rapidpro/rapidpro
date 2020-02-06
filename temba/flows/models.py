@@ -32,6 +32,7 @@ from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.globals.models import Global
 from temba.msgs.models import Label, Msg
 from temba.orgs.models import Org
+from temba.templates.models import Template
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
@@ -251,37 +252,21 @@ class Flow(TembaModel):
         default=FINAL_LEGACY_VERSION, max_length=8, help_text=_("The flow version this definition is in")
     )
 
-    flow_dependencies = models.ManyToManyField(
-        "Flow",
-        related_name="dependent_flows",
-        verbose_name=("Flow Dependencies"),
-        blank=True,
-        help_text=_("Any flows this flow uses"),
-    )
+    channel_dependencies = models.ManyToManyField(Channel, related_name="dependent_flows")
 
-    group_dependencies = models.ManyToManyField(
-        ContactGroup,
-        related_name="dependent_flows",
-        verbose_name=_("Group Dependencies"),
-        blank=True,
-        help_text=_("Any groups this flow uses"),
-    )
+    classifier_dependencies = models.ManyToManyField(Classifier, related_name="dependent_flows")
 
-    field_dependencies = models.ManyToManyField(
-        ContactField,
-        related_name="dependent_flows",
-        verbose_name="",
-        blank=True,
-        help_text=_("Any fields this flow depends on"),
-    )
+    field_dependencies = models.ManyToManyField(ContactField, related_name="dependent_flows")
+
+    flow_dependencies = models.ManyToManyField("Flow", related_name="dependent_flows")
 
     global_dependencies = models.ManyToManyField(Global, related_name="dependent_flows")
 
-    channel_dependencies = models.ManyToManyField(Channel, related_name="dependent_flows")
+    group_dependencies = models.ManyToManyField(ContactGroup, related_name="dependent_flows")
 
     label_dependencies = models.ManyToManyField(Label, related_name="dependent_flows")
 
-    classifier_dependencies = models.ManyToManyField(Classifier, related_name="dependent_flows")
+    template_dependencies = models.ManyToManyField(Template, related_name="dependent_flows")
 
     @classmethod
     def create(
@@ -978,15 +963,14 @@ class Flow(TembaModel):
 
         on_transaction_commit(lambda: flow_start.async_start())
 
-    def get_dependencies(self):
+    def get_export_dependencies(self):
         """
-        Get all of this flow's dependencies as a single set
+        Get the dependencies of this flow that should be exported with it
         """
         dependencies = set()
         dependencies.update(self.flow_dependencies.all())
         dependencies.update(self.field_dependencies.all())
         dependencies.update(self.group_dependencies.all())
-        dependencies.update(self.classifier_dependencies.all())
         return dependencies
 
     def get_dependencies_metadata(self, type_name):
@@ -994,10 +978,7 @@ class Flow(TembaModel):
         Get the dependencies of the given type from the flow metadata
         """
         deps = self.metadata.get(Flow.METADATA_DEPENDENCIES, [])
-        if isinstance(deps, list):
-            return [d for d in deps if d["type"] == type_name]
-        else:  # pragma: no cover
-            return deps.get(type_name + "s", [])
+        return [d for d in deps if d["type"] == type_name]
 
     def is_legacy(self):
         """

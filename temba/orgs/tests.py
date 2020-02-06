@@ -3513,7 +3513,7 @@ class BulkExportTest(TembaTest):
 
         # now make sure a call to get dependencies succeeds and shows our flow
         triggeree = Flow.objects.filter(name="Triggeree").first()
-        self.assertIn(triggeree, flow.get_dependencies())
+        self.assertIn(triggeree, flow.flow_dependencies.all())
 
     def test_trigger_flow(self):
         self.import_file("triggered_flow", legacy=True)
@@ -3547,7 +3547,7 @@ class BulkExportTest(TembaTest):
 
         parent = Flow.objects.filter(name="Parent Flow").first()
         child = Flow.objects.filter(name="Child Flow").first()
-        self.assertIn(child, parent.get_dependencies())
+        self.assertIn(child, parent.flow_dependencies.all())
 
         self.login(self.admin)
         response = self.client.get(reverse("orgs.org_export"))
