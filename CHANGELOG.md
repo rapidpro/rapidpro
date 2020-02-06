@@ -1,3 +1,9 @@
+v5.3.46
+----------
+ * Do not subject requests to the API with sessions to rate limiting
+ * Migration to convert flow dependencies metadata to new format
+ * Update description on the flow results export to be clear
+
 v5.3.45
 ----------
  * Fix deletion of orgs and locations so that aliases are properly deleted
