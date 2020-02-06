@@ -1709,7 +1709,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return val
 
     @classmethod
-    def import_excel(cls, filename, user, import_params, log=None, import_results=None):
+    def import_excel(cls, filename, user, import_params, task, log=None, import_results=None):
 
         import pyexcel
 
@@ -1735,10 +1735,17 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         records = []
         num_errors = 0
         error_messages = []
+        row_processed = 0
 
         sheet_data_records = sheet_data[line_number:]
 
         for row in sheet_data_records:
+            row_processed += 1
+
+            if row_processed % 100 == 0:  # pragma: no cover
+                task.modified_on = timezone.now()
+                task.save(update_fields=["modified_on"])
+
             # trim all our values
             row_data = []
             for cell in row:
@@ -1832,7 +1839,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         import_results = dict()
 
         try:
-            contacts = cls.import_excel(open(tmp_file), user, import_params, log, import_results)
+            contacts = cls.import_excel(open(tmp_file), user, import_params, task, log, import_results)
         finally:
             os.remove(tmp_file)
             os.remove(csv_tmp_file)

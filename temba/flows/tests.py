@@ -4483,7 +4483,7 @@ class ExportFlowResultsTest(TembaTest):
         self.contact.set_field(self.admin, "age", "36")
 
         tz = self.org.timezone
-        sheet_runs, = workbook.worksheets
+        (sheet_runs,) = workbook.worksheets
 
         # check runs sheet...
         self.assertEqual(4, len(list(sheet_runs.rows)))  # header + 3 runs

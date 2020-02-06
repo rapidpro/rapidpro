@@ -3,6 +3,7 @@ from datetime import timedelta
 
 import iso8601
 import pytz
+from smartmin.csv_imports.models import ImportTask
 
 from django.conf import settings
 from django.utils import timezone
@@ -22,6 +23,18 @@ def export_contacts_task(task_id):
     Export contacts to a file and e-mail a link to the user
     """
     ExportContactsTask.objects.get(id=task_id).perform()
+
+
+@task(name="resume_failed_tasks")
+def resume_failed_tasks():
+    now = timezone.now()
+    window = now - timedelta(hours=1)
+
+    import_tasks = ImportTask.objects.filter(modified_on__lte=window).exclude(
+        task_status__in=[ImportTask.SUCCESS, ImportTask.FAILURE]
+    )
+    for import_task in import_tasks:
+        import_task.start()
 
 
 @nonoverlapping_task(track_started=True, name="release_group_task")
