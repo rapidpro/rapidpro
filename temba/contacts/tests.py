@@ -27,7 +27,13 @@ from temba.api.models import WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import DELETED_SCHEME
-from temba.contacts.search import SearchException, contact_es_search, evaluate_query, is_phonenumber, search_contacts
+from temba.contacts.search import (
+    SearchException,
+    evaluate_query,
+    is_phonenumber,
+    legacy_search_contacts,
+    search_contacts,
+)
 from temba.contacts.search.tests import MockParseQuery
 from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowRun
@@ -2153,7 +2159,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'gender = "unknown"')
+        actual_search, _ = legacy_search_contacts(self.org, 'gender = "unknown"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # text term does not match
@@ -2175,7 +2181,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'gender != "unknown"')
+        actual_search, _ = legacy_search_contacts(self.org, 'gender != "unknown"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # decimal range matches
@@ -2192,7 +2198,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, "age = 35")
+        actual_search, _ = legacy_search_contacts(self.org, "age = 35")
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2211,7 +2217,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, "age > 35")
+        actual_search, _ = legacy_search_contacts(self.org, "age > 35")
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2230,7 +2236,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, "age >= 35")
+        actual_search, _ = legacy_search_contacts(self.org, "age >= 35")
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2249,7 +2255,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, "age < 35")
+        actual_search, _ = legacy_search_contacts(self.org, "age < 35")
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2268,7 +2274,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, "age <= 35")
+        actual_search, _ = legacy_search_contacts(self.org, "age <= 35")
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # datetime range matches
@@ -2295,7 +2301,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'joined = "01-03-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'joined = "01-03-2018"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2314,7 +2320,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'joined > "01-03-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'joined > "01-03-2018"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2333,7 +2339,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'joined >= "01-03-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'joined >= "01-03-2018"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2352,7 +2358,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'joined < "01-03-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'joined < "01-03-2018"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2371,7 +2377,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'joined <= "01-03-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'joined <= "01-03-2018"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # ward matches
@@ -2391,7 +2397,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'ward = "Bukure"')
+        actual_search, _ = legacy_search_contacts(self.org, 'ward = "Bukure"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # ward does not match
@@ -2414,10 +2420,10 @@ class ContactTest(TembaTest):
             }
         ]
 
-        actual_search, _ = contact_es_search(self.org, 'ward != "Bukure"')
+        actual_search, _ = legacy_search_contacts(self.org, 'ward != "Bukure"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
-        self.assertRaises(SearchException, contact_es_search, self.org, 'ward ~ "Bukure"')
+        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'ward ~ "Bukure"')
 
         # district matches
         expected_search = copy.deepcopy(base_search)
@@ -2436,7 +2442,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'district = "Rwamagana"')
+        actual_search, _ = legacy_search_contacts(self.org, 'district = "Rwamagana"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # district does not match
@@ -2458,10 +2464,10 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'district != "Rwamagana"')
+        actual_search, _ = legacy_search_contacts(self.org, 'district != "Rwamagana"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
-        self.assertRaises(SearchException, contact_es_search, self.org, 'district ~ "Rwamagana"')
+        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'district ~ "Rwamagana"')
 
         # state matches
         expected_search = copy.deepcopy(base_search)
@@ -2480,7 +2486,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'state = "Eastern Province"')
+        actual_search, _ = legacy_search_contacts(self.org, 'state = "Eastern Province"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # state does not match
@@ -2502,10 +2508,10 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'state != "Eastern Province"')
+        actual_search, _ = legacy_search_contacts(self.org, 'state != "Eastern Province"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
-        self.assertRaises(SearchException, contact_es_search, self.org, 'state ~ "Eastern Province"')
+        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'state ~ "Eastern Province"')
 
         expected_search = copy.deepcopy(base_search)
         expected_search["query"]["bool"]["must"] = [
@@ -2536,7 +2542,7 @@ class ContactTest(TembaTest):
                 }
             },
         ]
-        actual_search, _ = contact_es_search(self.org, 'gender = "unknown" AND age > 32')
+        actual_search, _ = legacy_search_contacts(self.org, 'gender = "unknown" AND age > 32')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = {
@@ -2582,37 +2588,37 @@ class ContactTest(TembaTest):
             "sort": [{"id": {"order": "desc"}}],
         }
 
-        actual_search, _ = contact_es_search(self.org, 'gender = "unknown" OR joined < "01-03-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'gender = "unknown" OR joined < "01-03-2018"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
         expected_search["query"]["bool"]["must"] = [{"term": {"name.keyword": "joe blow"}}]
 
-        actual_search, _ = contact_es_search(self.org, 'name = "joe Blow"')
+        actual_search, _ = legacy_search_contacts(self.org, 'name = "joe Blow"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
         del expected_search["query"]["bool"]["must"]
         expected_search["query"]["bool"]["must_not"] = [{"term": {"name.keyword": "joe blow"}}]
 
-        actual_search, _ = contact_es_search(self.org, 'name != "joe Blow"')
+        actual_search, _ = legacy_search_contacts(self.org, 'name != "joe Blow"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # test `language` contact attribute
         expected_search = copy.deepcopy(base_search)
         expected_search["query"]["bool"]["must"] = [{"term": {"language": "eng"}}]
-        actual_search, _ = contact_es_search(self.org, 'language = "eng"')
+        actual_search, _ = legacy_search_contacts(self.org, 'language = "eng"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
         del expected_search["query"]["bool"]["must"]
         expected_search["query"]["bool"]["must_not"] = [{"term": {"language": "eng"}}]
 
-        actual_search, _ = contact_es_search(self.org, 'language != "eng"')
+        actual_search, _ = legacy_search_contacts(self.org, 'language != "eng"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # operator not supported
-        self.assertRaises(SearchException, contact_es_search, self.org, 'language ~ "eng"')
+        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'language ~ "eng"')
 
         expected_search = {
             "query": {
@@ -2629,7 +2635,7 @@ class ContactTest(TembaTest):
             },
             "sort": [{"id": {"order": "desc"}}],
         }
-        actual_search, _ = contact_es_search(self.org, 'language != ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'language != ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = {
@@ -2650,40 +2656,40 @@ class ContactTest(TembaTest):
             },
             "sort": [{"id": {"order": "desc"}}],
         }
-        actual_search, _ = contact_es_search(self.org, 'language = ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'language = ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # created_on
-        self.assertRaises(SearchException, contact_es_search, self.org, 'created_on != ""')
-        self.assertRaises(SearchException, contact_es_search, self.org, 'created_on = ""')
-        self.assertRaises(SearchException, contact_es_search, self.org, 'created_on ~ "05-07-2018"')
-        self.assertRaises(SearchException, contact_es_search, self.org, 'created_on ~ "this-is-not-a-date"')
+        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'created_on != ""')
+        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'created_on = ""')
+        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'created_on ~ "05-07-2018"')
+        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'created_on ~ "this-is-not-a-date"')
 
         expected_search = copy.deepcopy(base_search)
         expected_search["query"]["bool"]["must"] = [
             {"range": {"created_on": {"gte": "2018-07-04T22:00:00+00:00", "lt": "2018-07-05T22:00:00+00:00"}}}
         ]
-        actual_search, _ = contact_es_search(self.org, 'created_on = "05-07-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'created_on = "05-07-2018"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
         expected_search["query"]["bool"]["must"] = [{"range": {"created_on": {"gte": "2018-07-05T22:00:00+00:00"}}}]
-        actual_search, _ = contact_es_search(self.org, 'created_on > "05-07-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'created_on > "05-07-2018"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
         expected_search["query"]["bool"]["must"] = [{"range": {"created_on": {"gte": "2018-07-04T22:00:00+00:00"}}}]
-        actual_search, _ = contact_es_search(self.org, 'created_on >= "05-07-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'created_on >= "05-07-2018"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
         expected_search["query"]["bool"]["must"] = [{"range": {"created_on": {"lt": "2018-07-04T22:00:00+00:00"}}}]
-        actual_search, _ = contact_es_search(self.org, 'created_on < "05-07-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'created_on < "05-07-2018"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
         expected_search["query"]["bool"]["must"] = [{"range": {"created_on": {"lt": "2018-07-05T22:00:00+00:00"}}}]
-        actual_search, _ = contact_es_search(self.org, 'created_on <= "05-07-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'created_on <= "05-07-2018"')
 
         self.assertEqual(actual_search.to_dict(), expected_search)
 
@@ -2703,7 +2709,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'tel = "+250788382011"')
+        actual_search, _ = legacy_search_contacts(self.org, 'tel = "+250788382011"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2719,7 +2725,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'twitter ~ "Blow"')
+        actual_search, _ = legacy_search_contacts(self.org, 'twitter ~ "Blow"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2733,7 +2739,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'telegram != ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'telegram != ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # is set not set
@@ -2754,7 +2760,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'gender = ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'gender = ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2773,7 +2779,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'gender != ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'gender != ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2790,7 +2796,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'age = ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'age = ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2806,7 +2812,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'age != ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'age != ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2826,7 +2832,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'joined = ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'joined = ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2845,7 +2851,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'joined != ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'joined != ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2862,7 +2868,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'ward = ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'ward = ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2878,7 +2884,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'ward != ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'ward != ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2898,7 +2904,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'district = ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'district = ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2917,7 +2923,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'district != ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'district != ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2937,7 +2943,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'state = ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'state = ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2956,7 +2962,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        acutal_search, _ = contact_es_search(self.org, 'state != ""')
+        acutal_search, _ = legacy_search_contacts(self.org, 'state != ""')
         self.assertEqual(acutal_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2970,7 +2976,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'tel != ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'tel != ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2985,7 +2991,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'twitter = ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'twitter = ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = {
@@ -3006,7 +3012,7 @@ class ContactTest(TembaTest):
             },
             "sort": [{"id": {"order": "desc"}}],
         }
-        actual_search, _ = contact_es_search(self.org, 'name = ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'name = ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = {
@@ -3024,31 +3030,31 @@ class ContactTest(TembaTest):
             },
             "sort": [{"id": {"order": "desc"}}],
         }
-        actual_search, _ = contact_es_search(self.org, 'name != ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'name != ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         with AnonymousOrg(self.org):
             expected_search = copy.deepcopy(base_search)
             expected_search["query"]["bool"]["must"] = [{"ids": {"values": ["123"]}}]
-            actual_search, _ = contact_es_search(self.org, "123")
+            actual_search, _ = legacy_search_contacts(self.org, "123")
             self.assertEqual(actual_search.to_dict(), expected_search)
 
             expected_search = copy.deepcopy(base_search)
             expected_search["query"]["bool"]["must"] = [{"ids": {"values": [-1]}}]
-            actual_search, _ = contact_es_search(self.org, 'twitter ~ "Blow"')
+            actual_search, _ = legacy_search_contacts(self.org, 'twitter ~ "Blow"')
             self.assertEqual(actual_search.to_dict(), expected_search)
 
             expected_search = copy.deepcopy(base_search)
             expected_search["query"]["bool"]["must"] = [{"ids": {"values": [-1]}}]
-            actual_search, _ = contact_es_search(self.org, 'twitter != ""')
+            actual_search, _ = legacy_search_contacts(self.org, 'twitter != ""')
             self.assertEqual(actual_search.to_dict(), expected_search)
 
             expected_search = copy.deepcopy(base_search)
             expected_search["query"]["bool"]["must"] = [{"ids": {"values": [-1]}}]
-            actual_search, _ = contact_es_search(self.org, 'twitter = ""')
+            actual_search, _ = legacy_search_contacts(self.org, 'twitter = ""')
             self.assertEqual(actual_search.to_dict(), expected_search)
 
-            self.assertRaises(SearchException, contact_es_search, self.org, 'id = ""')
+            self.assertRaises(SearchException, legacy_search_contacts, self.org, 'id = ""')
 
     def test_contact_create_with_dynamicgroup_reevaluation(self):
 
