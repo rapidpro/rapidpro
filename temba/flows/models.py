@@ -1670,12 +1670,12 @@ class Flow(TembaModel):
 
         # find all the dependencies in the database
         dep_objs = {
-            "channel": Channel.objects.filter(org=self.org, is_active=True, uuid__in=identifiers["channel"]),
-            "classifier": self.org.classifiers.filter(uuid__in=identifiers["classifier"]),
-            "field": ContactField.user_fields.filter(org=self.org, key__in=identifiers["field"]),
+            "channel": self.org.channels.filter(is_active=True, uuid__in=identifiers["channel"]),
+            "classifier": self.org.classifiers.filter(is_active=True, uuid__in=identifiers["classifier"]),
+            "field": ContactField.user_fields.filter(org=self.org, is_active=True, key__in=identifiers["field"]),
             "flow": self.org.flows.filter(is_active=True, uuid__in=identifiers["flow"]),
             "global": self.org.globals.filter(is_active=True, key__in=identifiers["global"]),
-            "group": ContactGroup.user_groups.filter(org=self.org, uuid__in=identifiers["group"]),
+            "group": ContactGroup.user_groups.filter(org=self.org, is_active=True, uuid__in=identifiers["group"]),
             "label": Label.label_objects.filter(org=self.org, uuid__in=identifiers["label"]),
             "template": self.org.templates.filter(uuid__in=identifiers["template"]),
         }
