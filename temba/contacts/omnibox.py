@@ -5,6 +5,7 @@ from functools import reduce
 from django.db.models import Q
 from django.db.models.functions import Upper
 
+from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactGroupCount, ContactURN
 from temba.contacts.search import SearchException, search_contacts
 from temba.msgs.models import Label
@@ -103,10 +104,13 @@ def omnibox_mixed_search(org, query, types):
     if SEARCH_URNS in search_types:
         if not org.is_anon and query and len(query) >= 3:
             try:
-                search_results = search_contacts(
-                    org.id, org.cached_all_contacts_group.uuid, f"urn ~ {json.dumps(query)}", "name"
+                # build an ORed query of all sendable schemes
+                sendable_schemes = org.get_schemes(Channel.ROLE_SEND)
+                scheme_query = " OR ".join(f"{s} ~ {json.dumps(query)}" for s in sendable_schemes)
+                search_results = search_contacts(org.id, org.cached_all_contacts_group.uuid, scheme_query, "name")
+                urns = ContactURN.objects.filter(
+                    contact_id__in=search_results.contact_ids, scheme__in=sendable_schemes
                 )
-                urns = ContactURN.objects.filter(contact_id__in=search_results.contact_ids)
                 results += list(urns.prefetch_related("contact").order_by(Upper("path"))[:per_type_limit])
             except SearchException:
                 pass

@@ -3256,7 +3256,6 @@ class ContactTest(TembaTest):
                     dict(id="u-%d" % voldemort_tel.pk, text="250768383383", extra=None, scheme="tel"),
                     dict(id="u-%d" % joe_tel.pk, text="250781111111", extra="Joe Blow", scheme="tel"),
                     dict(id="u-%d" % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme="tel"),
-                    dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
                 ],
             )
 
@@ -3270,6 +3269,9 @@ class ContactTest(TembaTest):
                 omnibox_request("search=222"),
                 [dict(id="u-%d" % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme="tel")],
             )
+
+        # create twitter channel
+        Channel.create(self.org, self.user, None, "TT")
 
         # add add an external channel so numbers get normalized
         Channel.create(self.org, self.user, "RW", "EX", schemes=[TEL_SCHEME])
