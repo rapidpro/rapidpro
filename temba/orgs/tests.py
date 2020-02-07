@@ -3811,7 +3811,7 @@ class BulkExportTest(TembaTest):
             )
 
     def validate_flow_dependencies(self, definition):
-        flow_info = mailroom.get_client().flow_inspect(definition)
+        flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
         deps = flow_info["dependencies"]
 
         for dep in [d for d in deps if d["type"] == "field"]:

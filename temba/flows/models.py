@@ -662,7 +662,7 @@ class Flow(TembaModel):
             self.import_legacy_definition(definition, dependency_mapping)
             return
 
-        flow_info = mailroom.get_client().flow_inspect(definition)
+        flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
         dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
 
         def deps_of_type(type_name):
@@ -710,7 +710,7 @@ class Flow(TembaModel):
             dependency_mapping[ref["uuid"]] = str(template.uuid) if template else ref["uuid"]
 
         # clone definition so that all flow elements get new random UUIDs
-        cloned_definition = mailroom.get_client().flow_clone(dependency_mapping, definition)
+        cloned_definition = mailroom.get_client().flow_clone(definition, dependency_mapping)
         if "revision" in cloned_definition:
             del cloned_definition["revision"]
 
@@ -1271,7 +1271,7 @@ class Flow(TembaModel):
         definition[Flow.DEFINITION_EXPIRE_AFTER_MINUTES] = self.expires_after_minutes
 
         # inspect the flow (with optional validation)
-        flow_info = mailroom.get_client().flow_inspect(definition, validate_with_org=self.org if validate else None)
+        flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
         dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
 
         with transaction.atomic():
@@ -1343,7 +1343,7 @@ class Flow(TembaModel):
                     ]
                     actionset[Flow.ACTIONS] = actions
 
-            flow_info = mailroom.get_client().flow_inspect(flow=json_dict)
+            flow_info = mailroom.get_client().flow_inspect(self.org.id, json_dict)
             dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
 
             with transaction.atomic():
