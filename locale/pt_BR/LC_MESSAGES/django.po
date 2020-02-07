@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-03 20:53+0000\n"
+"POT-Creation-Date: 2020-02-07 01:01+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3613,21 +3613,6 @@ msgstr "O nome para esse fluxo"
 #, fuzzy
 msgid "The flow version this definition is in"
 msgstr "Fuso horário em que sua Organização está"
-
-#, fuzzy
-msgid "Any flows this flow uses"
-msgstr "Quaisquer rótulos nesta mensagem"
-
-msgid "Group Dependencies"
-msgstr ""
-
-#, fuzzy
-msgid "Any groups this flow uses"
-msgstr "Quaisquer rótulos nesta mensagem"
-
-#, fuzzy
-msgid "Any fields this flow depends on"
-msgstr "Quaisquer rótulos nesta mensagem"
 
 #, fuzzy
 #| msgid "Deleted"
@@ -11138,6 +11123,18 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "Any flows this flow uses"
+#~ msgstr "Quaisquer rótulos nesta mensagem"
+
+#, fuzzy
+#~ msgid "Any groups this flow uses"
+#~ msgstr "Quaisquer rótulos nesta mensagem"
+
+#, fuzzy
+#~ msgid "Any fields this flow depends on"
+#~ msgstr "Quaisquer rótulos nesta mensagem"
 
 #, fuzzy
 #~| msgid "Please enter at least 8 characters"

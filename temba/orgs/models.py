@@ -420,7 +420,7 @@ class Org(SmartModel):
 
         # with all the flows and dependencies committed, we can now have mailroom do full validation
         for flow in new_flows:
-            mailroom.get_client().flow_inspect(flow.as_json(), validate_with_org=self)
+            mailroom.get_client().flow_inspect(self.id, flow.as_json())
 
     @classmethod
     def export_definitions(cls, site_link, components, include_fields=True, include_groups=True):
@@ -1752,7 +1752,7 @@ class Org(SmartModel):
         # build dependency graph for all flows and campaigns
         dependencies = defaultdict(set)
         for flow in all_flows:
-            dependencies[flow] = flow.get_dependencies()
+            dependencies[flow] = flow.get_export_dependencies()
         for campaign in all_campaigns:
             dependencies[campaign] = set([e.flow for e in campaign.flow_events])
 
@@ -2049,6 +2049,7 @@ class Org(SmartModel):
         self.credit_alerts.all().delete()
         self.broadcast_set.all().delete()
         self.schedules.all().delete()
+        self.boundaryalias_set.all().delete()
 
         # needs to come after deletion of msgs and broadcasts as those insert new counts
         self.system_labels.all().delete()

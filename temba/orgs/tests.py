@@ -44,15 +44,7 @@ from temba.contacts.models import (
 )
 from temba.contacts.omnibox import omnibox_serialize
 from temba.contacts.search import ParsedQuery
-from temba.flows.models import (
-    ActionSet,
-    ExportFlowResultsTask,
-    Flow,
-    FlowLabel,
-    FlowRun,
-    FlowStart,
-    ensure_old_dep_format,
-)
+from temba.flows.models import ActionSet, ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
@@ -3521,7 +3513,7 @@ class BulkExportTest(TembaTest):
 
         # now make sure a call to get dependencies succeeds and shows our flow
         triggeree = Flow.objects.filter(name="Triggeree").first()
-        self.assertIn(triggeree, flow.get_dependencies())
+        self.assertIn(triggeree, flow.flow_dependencies.all())
 
     def test_trigger_flow(self):
         self.import_file("triggered_flow", legacy=True)
@@ -3555,7 +3547,7 @@ class BulkExportTest(TembaTest):
 
         parent = Flow.objects.filter(name="Parent Flow").first()
         child = Flow.objects.filter(name="Child Flow").first()
-        self.assertIn(child, parent.get_dependencies())
+        self.assertIn(child, parent.flow_dependencies.all())
 
         self.login(self.admin)
         response = self.client.get(reverse("orgs.org_export"))
@@ -3819,23 +3811,23 @@ class BulkExportTest(TembaTest):
             )
 
     def validate_flow_dependencies(self, definition):
-        flow_info = mailroom.get_client().flow_inspect(definition)
-        deps = ensure_old_dep_format(flow_info["dependencies"])
+        flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
+        deps = flow_info["dependencies"]
 
-        for ref in deps.get("fields", []):
+        for dep in [d for d in deps if d["type"] == "field"]:
             self.assertTrue(
-                ContactField.user_fields.filter(key=ref["key"]).exists(),
-                msg=f"missing field[key={ref['key']}, name={ref['name']}]",
+                ContactField.user_fields.filter(key=dep["key"]).exists(),
+                msg=f"missing field[key={dep['key']}, name={dep['name']}]",
             )
-        for ref in deps.get("flows", []):
+        for dep in [d for d in deps if d["type"] == "flow"]:
             self.assertTrue(
-                Flow.objects.filter(uuid=ref["uuid"]).exists(),
-                msg=f"missing flow[uuid={ref['uuid']}, name={ref['name']}]",
+                Flow.objects.filter(uuid=dep["uuid"]).exists(),
+                msg=f"missing flow[uuid={dep['uuid']}, name={dep['name']}]",
             )
-        for ref in deps.get("groups", []):
+        for dep in [d for d in deps if d["type"] == "group"]:
             self.assertTrue(
-                ContactGroup.user_groups.filter(uuid=ref["uuid"]).exists(),
-                msg=f"missing group[uuid={ref['uuid']}, name={ref['name']}]",
+                ContactGroup.user_groups.filter(uuid=dep["uuid"]).exists(),
+                msg=f"missing group[uuid={dep['uuid']}, name={dep['name']}]",
             )
 
     def test_implicit_field_and_group_imports(self):

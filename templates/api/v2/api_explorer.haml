@@ -72,18 +72,16 @@
             %label.col-sm-2.control-label
               -trans "Query String"
             .col-sm-10
-              .request-query
-                %textarea{ id:"request-query-{{ endpoint.slug }}", rows:"1" }<
-                  {{ endpoint.example.query }}
+              %textarea.request-query{ id:"request-query-{{ endpoint.slug }}", rows:"1" }<
+                {{ endpoint.example.query }}
 
         -if endpoint.fields
           .form-group
             %label.col-sm-2.control-label
               -trans "Post Body"
             .col-sm-10
-              .request-body
-                %textarea{ id:"request-body-{{ endpoint.slug }}", rows:"5" }<
-                  {{ endpoint.example.body }}
+              %textarea.request-body{ id:"request-body-{{ endpoint.slug }}", rows:"5" }<
+                {{ endpoint.example.body }}
 
       .request-buttons
         .pull-left
@@ -101,60 +99,17 @@
 
 -block extra-script
   {{ block.super }}
-  <script src="{{ STATIC_URL }}bower/codemirror/lib/codemirror.js"></script>
-  <script src="{{ STATIC_URL }}rest_framework/js/prettify-min.js"></script>
   :javascript
-    var codeMirrors = {};
     $(function() {
-        // setup syntax highlighting on all request form textareas
-        var textareas = $(".request-form textarea");
-        for (var i = 0; i < textareas.length; i++) {
-          var textarea = textareas[i]
-          var editor = CodeMirror.fromTextArea(textarea, { mode: "application/json", "lineNumbers": false });
-
-          // configure change event for query editors to update endpoint URL
-          if (textarea.id.startsWith('request-query-')) {
-            editor.on('change', function(instance) {
-              onQueryChange(instance);
-            });
-          }
-
-          codeMirrors[textareas[i].id] = editor
-        }
-
         $(".endpoint-title").click(function(){
           $(this).next(".endpoint").toggle();
-          var slug = $(this).attr("data-slug");
-          var method = $(this).attr("data-method");
-          var queryEditor = codeMirrors["request-query-" + slug];
-          var bodyEditor = codeMirrors["request-body-" + slug];
-
-          if (queryEditor) {
-            refreshEditor(queryEditor);
-          }
-          if (bodyEditor) {
-            refreshEditor(bodyEditor);
-          }
         });
+
+        $('.request-query').on("input", function(){
+          var query = ensureQueryPrefix($(this).val());
+          $(this).parents('.request-form').find('.query-display').text(query);
+        })
     });
-
-    /**
-     * Called when a query string editor's value has been changed
-     */
-    function onQueryChange(editor) {
-      query = ensureQueryPrefix(editor.getValue());
-
-      $(editor.getTextArea()).parents('.request-form').find('.query-display').text(query)
-    }
-
-    function refreshEditor(editor) {
-      editor.refresh();
-
-      var totalLines = editor.lineCount();
-      var totalChars = editor.getTextArea().value.length;
-      editor.autoFormatRange({line:0, ch:0}, {line:totalLines, ch:totalChars});
-      editor.setCursor(0);
-    }
 
     function ensureQueryPrefix(query) {
       if (query && !query.startsWith('?')) {
@@ -164,12 +119,12 @@
       }
     }
 
-    function onRequest(slug, method, url){
-      var queryEditor = codeMirrors["request-query-" + slug];
-      var bodyEditor = codeMirrors["request-body-" + slug];
+    function onRequest(slug, method, url) {
+      var queryEditor = $("#request-query-" + slug);
+      var bodyEditor = $("#request-body-" + slug);
 
-      var query = queryEditor ? ensureQueryPrefix(queryEditor.getValue()) : '';
-      var body = bodyEditor ? bodyEditor.getValue() : null;
+      var query = queryEditor ? ensureQueryPrefix(queryEditor.val()) : '';
+      var body = bodyEditor ? bodyEditor.val() : null;
 
       $("#result-" + slug).text("Requesting...");
 
@@ -183,16 +138,12 @@
         },
         dataType: "text",
         success: function(data, textStatus, xhr){
-          var data = "HTTP/1.0 " + xhr.status + " " + textStatus.toUpperCase() + "\n" + data;
-          $("#result-" + slug).show();
-          $("#result-" + slug).text(data);
-          prettyPrint();
+          var trace = "HTTP/1.0 " + xhr.status + " " + textStatus.toUpperCase() + "\n" + data;
+          $("#result-" + slug).show().text(trace);
         },
         error: function(request, status, error){
-          var data = "HTTP/1.0 " + request.status + " " + error + "\n" + request.responseText;
-          $("#result-" + slug).show();
-          $("#result-" + slug).text(data);
-          prettyPrint();
+          var trace = "HTTP/1.0 " + request.status + " " + error + "\n" + request.responseText;
+          $("#result-" + slug).show().text(trace);
         }
       });
     }
@@ -200,8 +151,6 @@
 
 -block extra-style
   {{ block.super }}
-  <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}bower/codemirror/lib/codemirror.css"/>
-  <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}rest_framework/css/prettify.css"/>
   :css
     .request-form {
       background-color: #f7f7f9;
@@ -209,22 +158,23 @@
       padding: 7px;
     }
 
+    .request-form .form-group {
+      margin: 3px 0;
+    }
+
     .request-header {
       font-family: monospace;
       padding-bottom: 10px;
     }
 
-    .request-form .CodeMirror {
-      background-color: white;
-      border: 1px solid #e1e1e8;
+    .request-query {
+      font-family: monospace;
+      width: 700px;
     }
 
-    .request-query .CodeMirror {
-      height: 30px;
-      margin-bottom: 7px;
-    }
-
-    .request-body .CodeMirror {
+    .request-body {
+      font-family: monospace;
+      width: 700px;
       height: 110px;
     }
 
@@ -329,9 +279,3 @@
       bottom: 5px;
       font-weight: bold;
     }
-
-    .str, .atv {
-       color: teal;
-    }
-
-
