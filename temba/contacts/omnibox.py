@@ -69,11 +69,11 @@ def term_search(queryset, fields, terms):
     return queryset.filter(reduce(operator.and_, term_queries))
 
 
-def omnibox_mixed_search(org, search, types):
+def omnibox_mixed_search(org, query, types):
     """
     Performs a mixed group, contact and URN search, returning the first N matches of each type.
     """
-    search_terms = search.split(" ") if search else None
+    query_terms = query.split(" ") if query else None
     search_types = types or (SEARCH_ALL_GROUPS, SEARCH_CONTACTS, SEARCH_URNS)
     per_type_limit = 25
     results = []
@@ -85,14 +85,14 @@ def omnibox_mixed_search(org, search, types):
         if SEARCH_ALL_GROUPS not in search_types:
             groups = groups.filter(query=None)
 
-        if search:
-            groups = term_search(groups, ("name__icontains",), search_terms)
+        if query:
+            groups = term_search(groups, ("name__icontains",), query_terms)
 
         results += list(groups.order_by(Upper("name"))[:per_type_limit])
 
     if SEARCH_CONTACTS in search_types:
         try:
-            search_results = search_contacts(org.id, org.cached_all_contacts_group.uuid, search, "name")
+            search_results = search_contacts(org.id, org.cached_all_contacts_group.uuid, query, "name")
             contacts = IDSliceQuerySet(Contact, search_results.contact_ids, 0, len(search_results.contact_ids))
             results += list(contacts[:per_type_limit])
             Contact.bulk_cache_initialize(org, contacts=results)
@@ -101,10 +101,10 @@ def omnibox_mixed_search(org, search, types):
             pass
 
     if SEARCH_URNS in search_types:
-        if not org.is_anon and len(search) >= 3:
+        if not org.is_anon and query and len(query) >= 3:
             try:
                 search_results = search_contacts(
-                    org.id, org.cached_all_contacts_group.uuid, f"urn ~ {json.dumps(search)}", "name"
+                    org.id, org.cached_all_contacts_group.uuid, f"urn ~ {json.dumps(query)}", "name"
                 )
                 urns = ContactURN.objects.filter(contact_id__in=search_results.contact_ids)
                 results += list(urns.prefetch_related("contact").order_by(Upper("path"))[:per_type_limit])
