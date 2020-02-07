@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-03 20:53+0000\n"
+"POT-Creation-Date: 2020-02-07 01:01+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2591,18 +2591,6 @@ msgid "The primary language for editing this flow"
 msgstr ""
 
 msgid "The flow version this definition is in"
-msgstr ""
-
-msgid "Any flows this flow uses"
-msgstr ""
-
-msgid "Group Dependencies"
-msgstr ""
-
-msgid "Any groups this flow uses"
-msgstr ""
-
-msgid "Any fields this flow depends on"
 msgstr ""
 
 msgid "Completed"
