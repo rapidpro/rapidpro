@@ -32,6 +32,7 @@ from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.globals.models import Global
 from temba.msgs.models import Label, Msg
 from temba.orgs.models import Org
+from temba.templates.models import Template
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
@@ -251,37 +252,21 @@ class Flow(TembaModel):
         default=FINAL_LEGACY_VERSION, max_length=8, help_text=_("The flow version this definition is in")
     )
 
-    flow_dependencies = models.ManyToManyField(
-        "Flow",
-        related_name="dependent_flows",
-        verbose_name=("Flow Dependencies"),
-        blank=True,
-        help_text=_("Any flows this flow uses"),
-    )
+    channel_dependencies = models.ManyToManyField(Channel, related_name="dependent_flows")
 
-    group_dependencies = models.ManyToManyField(
-        ContactGroup,
-        related_name="dependent_flows",
-        verbose_name=_("Group Dependencies"),
-        blank=True,
-        help_text=_("Any groups this flow uses"),
-    )
+    classifier_dependencies = models.ManyToManyField(Classifier, related_name="dependent_flows")
 
-    field_dependencies = models.ManyToManyField(
-        ContactField,
-        related_name="dependent_flows",
-        verbose_name="",
-        blank=True,
-        help_text=_("Any fields this flow depends on"),
-    )
+    field_dependencies = models.ManyToManyField(ContactField, related_name="dependent_flows")
+
+    flow_dependencies = models.ManyToManyField("Flow", related_name="dependent_flows")
 
     global_dependencies = models.ManyToManyField(Global, related_name="dependent_flows")
 
-    channel_dependencies = models.ManyToManyField(Channel, related_name="dependent_flows")
+    group_dependencies = models.ManyToManyField(ContactGroup, related_name="dependent_flows")
 
     label_dependencies = models.ManyToManyField(Label, related_name="dependent_flows")
 
-    classifier_dependencies = models.ManyToManyField(Classifier, related_name="dependent_flows")
+    template_dependencies = models.ManyToManyField(Template, related_name="dependent_flows")
 
     @classmethod
     def create(
@@ -677,7 +662,7 @@ class Flow(TembaModel):
             self.import_legacy_definition(definition, dependency_mapping)
             return
 
-        flow_info = mailroom.get_client().flow_inspect(definition)
+        flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
         dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
 
         def deps_of_type(type_name):
@@ -725,7 +710,7 @@ class Flow(TembaModel):
             dependency_mapping[ref["uuid"]] = str(template.uuid) if template else ref["uuid"]
 
         # clone definition so that all flow elements get new random UUIDs
-        cloned_definition = mailroom.get_client().flow_clone(dependency_mapping, definition)
+        cloned_definition = mailroom.get_client().flow_clone(definition, dependency_mapping)
         if "revision" in cloned_definition:
             del cloned_definition["revision"]
 
@@ -978,15 +963,14 @@ class Flow(TembaModel):
 
         on_transaction_commit(lambda: flow_start.async_start())
 
-    def get_dependencies(self):
+    def get_export_dependencies(self):
         """
-        Get all of this flow's dependencies as a single set
+        Get the dependencies of this flow that should be exported with it
         """
         dependencies = set()
         dependencies.update(self.flow_dependencies.all())
         dependencies.update(self.field_dependencies.all())
         dependencies.update(self.group_dependencies.all())
-        dependencies.update(self.classifier_dependencies.all())
         return dependencies
 
     def get_dependencies_metadata(self, type_name):
@@ -994,10 +978,7 @@ class Flow(TembaModel):
         Get the dependencies of the given type from the flow metadata
         """
         deps = self.metadata.get(Flow.METADATA_DEPENDENCIES, [])
-        if isinstance(deps, list):
-            return [d for d in deps if d["type"] == type_name]
-        else:  # pragma: no cover
-            return deps.get(type_name + "s", [])
+        return [d for d in deps if d["type"] == type_name]
 
     def is_legacy(self):
         """
@@ -1290,7 +1271,7 @@ class Flow(TembaModel):
         definition[Flow.DEFINITION_EXPIRE_AFTER_MINUTES] = self.expires_after_minutes
 
         # inspect the flow (with optional validation)
-        flow_info = mailroom.get_client().flow_inspect(definition, validate_with_org=self.org if validate else None)
+        flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
         dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
 
         with transaction.atomic():
@@ -1362,7 +1343,7 @@ class Flow(TembaModel):
                     ]
                     actionset[Flow.ACTIONS] = actions
 
-            flow_info = mailroom.get_client().flow_inspect(flow=json_dict)
+            flow_info = mailroom.get_client().flow_inspect(self.org.id, json_dict)
             dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
 
             with transaction.atomic():
@@ -1660,24 +1641,19 @@ class Flow(TembaModel):
             self.entry_type = Flow.NODE_TYPE_RULESET
 
     def update_dependencies(self, dependencies):
-        def deps_of_type(type_name):
-            return [d for d in dependencies if d["type"] == type_name]
-
-        field_keys = [f["key"] for f in deps_of_type("field")]
-        flow_uuids = [f["uuid"] for f in deps_of_type("flow")]
-        group_uuids = [g["uuid"] for g in deps_of_type("group")]
-        channel_uuids = [g["uuid"] for g in deps_of_type("channel")]
-        label_uuids = [g["uuid"] for g in deps_of_type("label")]
-        classifier_uuids = [c["uuid"] for c in deps_of_type("classifier")]
-        global_keys = [g["key"] for g in deps_of_type("global")]
+        # build a lookup of types to identifier lists
+        identifiers = defaultdict(list)
+        for dep in dependencies:
+            identifier = dep.get("uuid", dep.get("key"))
+            identifiers[dep["type"]].append(identifier)
 
         # fields won't have been included in old imports so may need to be lazily created here
-        if field_keys:
+        if identifiers["field"]:
             active_org_fields = set(
                 ContactField.user_fields.active_for_org(org=self.org).values_list("key", flat=True)
             )
 
-            fields_to_create = set(field_keys).difference(active_org_fields)
+            fields_to_create = set(identifiers["field"]).difference(active_org_fields)
 
             # create any field that doesn't already exist
             for field in fields_to_create:
@@ -1685,41 +1661,30 @@ class Flow(TembaModel):
                     ContactField.get_or_create(self.org, self.modified_by, field)
 
         # globals aren't included in exports so they're created here too if they don't exist, with blank values
-        if global_keys:
+        if identifiers["global"]:
             org_globals = set(self.org.globals.filter(is_active=True).values_list("key", flat=True))
 
-            globals_to_create = set(global_keys).difference(org_globals)
+            globals_to_create = set(identifiers["global"]).difference(org_globals)
             for g in globals_to_create:
                 Global.get_or_create(self.org, self.modified_by, g, name="", value="")
 
-        fields = ContactField.user_fields.filter(org=self.org, key__in=field_keys)
-        flows = self.org.flows.filter(uuid__in=flow_uuids)
-        groups = ContactGroup.user_groups.filter(org=self.org, uuid__in=group_uuids)
-        channels = Channel.objects.filter(org=self.org, uuid__in=channel_uuids, is_active=True)
-        labels = Label.label_objects.filter(org=self.org, uuid__in=label_uuids)
-        classifiers = Classifier.objects.filter(org=self.org, uuid__in=classifier_uuids)
-        globals = self.org.globals.filter(key__in=global_keys, is_active=True)
+        # find all the dependencies in the database
+        dep_objs = {
+            "channel": self.org.channels.filter(is_active=True, uuid__in=identifiers["channel"]),
+            "classifier": self.org.classifiers.filter(is_active=True, uuid__in=identifiers["classifier"]),
+            "field": ContactField.user_fields.filter(org=self.org, is_active=True, key__in=identifiers["field"]),
+            "flow": self.org.flows.filter(is_active=True, uuid__in=identifiers["flow"]),
+            "global": self.org.globals.filter(is_active=True, key__in=identifiers["global"]),
+            "group": ContactGroup.user_groups.filter(org=self.org, is_active=True, uuid__in=identifiers["group"]),
+            "label": Label.label_objects.filter(org=self.org, uuid__in=identifiers["label"]),
+            "template": self.org.templates.filter(uuid__in=identifiers["template"]),
+        }
 
-        self.field_dependencies.clear()
-        self.field_dependencies.add(*fields)
-
-        self.flow_dependencies.clear()
-        self.flow_dependencies.add(*flows)
-
-        self.group_dependencies.clear()
-        self.group_dependencies.add(*groups)
-
-        self.channel_dependencies.clear()
-        self.channel_dependencies.add(*channels)
-
-        self.label_dependencies.clear()
-        self.label_dependencies.add(*labels)
-
-        self.classifier_dependencies.clear()
-        self.classifier_dependencies.add(*classifiers)
-
-        self.global_dependencies.clear()
-        self.global_dependencies.add(*globals)
+        # reset the m2m for each type
+        for type_name, objects in dep_objs.items():
+            m2m = getattr(self, f"{type_name}_dependencies")
+            m2m.clear()
+            m2m.add(*objects)
 
     def release(self):
         """

@@ -28,7 +28,7 @@ from temba.mailroom import FlowValidationException, MailroomException
 from temba.msgs.models import Label
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, MigrationTest, MockResponse, TembaTest, matchers
+from temba.tests import AnonymousOrg, MockResponse, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
@@ -5956,56 +5956,3 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
-
-
-class ConvertFlowMetadataTest(MigrationTest):
-    app = "flows"
-    migrate_from = "0222_auto_20200108_2214"
-    migrate_to = "0223_convert_flow_metadata"
-
-    def setUpBeforeMigration(self, apps):
-        # a flow with dependencies metadata in old format
-        self.flow1 = self.create_flow()
-        self.flow1.metadata["dependencies"] = {
-            "groups": [
-                {"uuid": "69353b12-e6e9-44e9-85da-958be6fe151b", "name": "Customers"},
-                {"uuid": "6e5f8431-c590-40c2-a284-cbca917d5460", "name": "Reporters"},
-            ],
-            "labels": [{"uuid": "21da3551-1556-4a5f-b30e-73d59a4ac6ba", "name": "Spam"}],
-        }
-        self.flow1.save(update_fields=("metadata",))
-
-        # a flow with dependencies metadata already in new format
-        self.flow2 = self.create_flow()
-        self.flow2.metadata["dependencies"] = [
-            {"uuid": "69353b12-e6e9-44e9-85da-958be6fe151b", "name": "Customers", "type": "group"},
-            {"uuid": "6e5f8431-c590-40c2-a284-cbca917d5460", "name": "Reporters", "type": "group"},
-            {"uuid": "21da3551-1556-4a5f-b30e-73d59a4ac6ba", "name": "Spam", "type": "label"},
-        ]
-        self.flow2.save(update_fields=("metadata",))
-
-        # a flow with no dependencies metadata
-        self.flow3 = self.create_flow()
-
-    def test_migration(self):
-        self.flow1.refresh_from_db()
-        self.flow2.refresh_from_db()
-        self.flow3.refresh_from_db()
-
-        self.assertEqual(
-            [
-                {"uuid": "69353b12-e6e9-44e9-85da-958be6fe151b", "name": "Customers", "type": "group"},
-                {"uuid": "6e5f8431-c590-40c2-a284-cbca917d5460", "name": "Reporters", "type": "group"},
-                {"uuid": "21da3551-1556-4a5f-b30e-73d59a4ac6ba", "name": "Spam", "type": "label"},
-            ],
-            self.flow1.metadata["dependencies"],
-        )
-        self.assertEqual(
-            [
-                {"uuid": "69353b12-e6e9-44e9-85da-958be6fe151b", "name": "Customers", "type": "group"},
-                {"uuid": "6e5f8431-c590-40c2-a284-cbca917d5460", "name": "Reporters", "type": "group"},
-                {"uuid": "21da3551-1556-4a5f-b30e-73d59a4ac6ba", "name": "Spam", "type": "label"},
-            ],
-            self.flow2.metadata["dependencies"],
-        )
-        self.assertEqual([], self.flow3.metadata["dependencies"])
