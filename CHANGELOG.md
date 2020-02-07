@@ -1,3 +1,7 @@
+v5.3.47
+----------
+ * Add template_dependencies m2m
+
 v5.3.46
 ----------
  * Do not subject requests to the API with sessions to rate limiting
