@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-03 20:53+0000\n"
+"POT-Creation-Date: 2020-02-07 01:01+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3886,24 +3886,6 @@ msgstr "El idioma principal para editar este flujo"
 #, fuzzy
 msgid "The flow version this definition is in"
 msgstr "La zona horaria en la que se encuentra su organización"
-
-#, fuzzy
-#| msgid "Any labels on this flow"
-msgid "Any flows this flow uses"
-msgstr "Cualquier etiqueta en este flujo"
-
-msgid "Group Dependencies"
-msgstr ""
-
-#, fuzzy
-#| msgid "Any labels on this flow"
-msgid "Any groups this flow uses"
-msgstr "Cualquier etiqueta en este flujo"
-
-#, fuzzy
-#| msgid "Any labels on this flow"
-msgid "Any fields this flow depends on"
-msgstr "Cualquier etiqueta en este flujo"
 
 #, fuzzy
 #| msgid "Deleted"
@@ -11881,6 +11863,21 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Any labels on this flow"
+#~ msgid "Any flows this flow uses"
+#~ msgstr "Cualquier etiqueta en este flujo"
+
+#, fuzzy
+#~| msgid "Any labels on this flow"
+#~ msgid "Any groups this flow uses"
+#~ msgstr "Cualquier etiqueta en este flujo"
+
+#, fuzzy
+#~| msgid "Any labels on this flow"
+#~ msgid "Any fields this flow depends on"
+#~ msgstr "Cualquier etiqueta en este flujo"
 
 #, fuzzy
 #~| msgid "Please enter at least 8 characters"

@@ -18,7 +18,7 @@ from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
-from temba.locations.models import AdminBoundary
+from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Broadcast, Label, Msg
 from temba.orgs.models import Org
 from temba.utils import json
@@ -108,6 +108,8 @@ class TembaTestMixin:
         self.ward1 = AdminBoundary.create(osm_id="171113181", name="Kageyo", level=3, parent=self.district1)
         self.ward2 = AdminBoundary.create(osm_id="171116381", name="Kabare", level=3, parent=self.district2)
         self.ward3 = AdminBoundary.create(osm_id="VMN.49.1_1", name="Bukure", level=3, parent=self.district4)
+
+        BoundaryAlias.create(self.org, self.admin, self.state1, "Kigari")
 
         self.country.update_path()
 

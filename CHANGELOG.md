@@ -1,3 +1,19 @@
+v5.3.47
+----------
+ * Add template_dependencies m2m
+
+v5.3.46
+----------
+ * Do not subject requests to the API with sessions to rate limiting
+ * Migration to convert flow dependencies metadata to new format
+ * Update description on the flow results export to be clear
+
+v5.3.45
+----------
+ * Fix deletion of orgs and locations so that aliases are properly deleted
+ * Remove syntax highlighting in API explorer as it can't handle big responses
+ * Use new dependencies format from mailroom
+
 v5.3.44
 ----------
  * Dynamic group creation / reevaluation through Mailroom
