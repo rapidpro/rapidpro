@@ -1,3 +1,7 @@
+v5.3.48
+----------
+ * Use mailroom searching for omnibox results
+
 v5.3.47
 ----------
  * Add template_dependencies m2m
