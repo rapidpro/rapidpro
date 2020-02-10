@@ -247,6 +247,7 @@ class ExplorerView(SmartTemplateView):
             FlowStartsEndpoint.get_read_explorer(),
             FlowStartsEndpoint.get_write_explorer(),
             GlobalsEndpoint.get_read_explorer(),
+            GlobalsEndpoint.get_write_explorer(),
             GroupsEndpoint.get_read_explorer(),
             GroupsEndpoint.get_write_explorer(),
             GroupsEndpoint.get_delete_explorer(),
@@ -1954,7 +1955,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
 
 class GlobalsEndpoint(ListAPIMixin, BaseAPIView):
     """
-    This endpoint allows you to list the active globals on your account.
+    This endpoint allows you to list, create, and update active globals on your account.
 
     ## Listing Globals
 
@@ -1984,6 +1985,52 @@ class GlobalsEndpoint(ListAPIMixin, BaseAPIView):
                 ...
             ]
         }
+    
+    ## Adding a Global
+
+    A **POST** can be used to create a new Global. Don't specify a UUID as this will be generated for you.
+
+     * **key** - the key of the global
+     * **name** - the name of the global
+     * **value** - the value of the global
+
+    Example:
+
+        POST /api/v2/global.json
+        {
+            "key": "org_name",
+            "name": "Org Name",
+            "value": "Acme Ltd"
+        }
+
+    You will receive a global object as a response if successful:
+
+        {
+        "key": "org_name",
+        "name": "Org Name",
+        "value": "Acme Ltd",
+        "modified_on": "2013-02-27T09:06:15.456"
+        }
+
+    ## Updating a Global
+
+    A **POST** can also be used to update an existing contact group if you specify its UUID in the URL.
+
+    Example:
+
+        POST /api/v2/globals.json?key=org_name
+        {
+            "value": "Acme Ltd"
+        }
+
+    You will receive the updated group object as a response if successful:
+
+        {
+        "key": "org_name",
+        "name": "Org Name",
+        "value": "Acme Ltd",
+        "modified_on": "2013-02-27T09:06:15.456"
+        }
     """
 
     permission = "globals.global_api"
@@ -2012,9 +2059,19 @@ class GlobalsEndpoint(ListAPIMixin, BaseAPIView):
                     "required": False,
                     "help": "Only return globals modified after this date, ex: 2015-01-28T18:00:00.000",
                 },
+                {"key": "key", "required": False, "help": "A global key filter by"},
             ],
         }
-
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            "method": "POST",
+            "title": "Update Globals ",
+            "url": reverse("api.v2.globals"),
+            "slug": "globals-write",
+            "params": [{"name": "key", "required": False, "help": "Key of an existing global to update"}],
+            "fields": [{"name": "value", "required": True, "help": "the new value of the global"}],
+        }
 
 class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
