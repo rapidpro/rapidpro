@@ -35,8 +35,8 @@ export const getFunctions = (
         return functions;
     }
     return functions.filter((option: CompletionOption) => {
-        if (option.signature && query) {
-            return option.signature.indexOf(query.toLowerCase()) === 0;
+        if (option.signature) {
+            return option.signature.indexOf((query || '').toLowerCase()) === 0;
         }
         return false;
     });
