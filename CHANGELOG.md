@@ -1,3 +1,87 @@
+v5.3.48
+----------
+ * Use mailroom searching for omnibox results
+
+v5.3.47
+----------
+ * Add template_dependencies m2m
+
+v5.3.46
+----------
+ * Do not subject requests to the API with sessions to rate limiting
+ * Migration to convert flow dependencies metadata to new format
+ * Update description on the flow results export to be clear
+
+v5.3.45
+----------
+ * Fix deletion of orgs and locations so that aliases are properly deleted
+ * Remove syntax highlighting in API explorer as it can't handle big responses
+ * Use new dependencies format from mailroom
+
+v5.3.44
+----------
+ * Dynamic group creation / reevaluation through Mailroom
+
+v5.3.43
+----------
+ * Update to latest mailroom
+
+v5.3.42
+----------
+ * Fix actions on blocked contact list page
+
+v5.3.41
+----------
+ * Disable simulation for archived flows
+ * Fix query explosion on Android channel alerts
+
+v5.3.40
+----------
+ * Add subflow parameters to editor
+
+v5.3.39
+----------
+ * Rework migration code so new flows are migrated too
+
+v5.3.38
+----------
+ * Use mailroom for contact searches, contact list pages and flow starts via search
+
+v5.3.35
+----------
+ * Rebuild components
+
+v5.3.34
+----------
+ * Update to flow editor 1.7.13
+ * Don't include 'version' in current definitions
+ * Migrate imports of flows to new spec by default
+
+v5.3.30
+----------
+ * Exclude inactive template translations from API endpoint
+
+v5.3.29
+----------
+ * Fix edge case for default alias dialog
+ * Add sending back to contact list page
+ * Save parent result refs in flow metadata
+ * Change name BotHub to Bothub
+
+v5.3.28
+----------
+ * remove auto-now on modified_on on FlowRun
+
+v5.3.27
+----------
+ * Update to floweditor 1.7.9
+ * Warn users if starting for facebook without a topic
+
+v5.3.26
+----------
+ * Allow arbitrary numbers when sending messages
+ * Componentized message sending
+
 v5.3.25
 ----------
  * Show empty message list if we have archived them all

@@ -839,6 +839,7 @@ class FlowReadSerializer(ReadSerializer):
     expires = serializers.ReadOnlyField(source="expires_after_minutes")
     runs = serializers.SerializerMethodField()
     results = serializers.SerializerMethodField()
+    parent_refs = serializers.SerializerMethodField()
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
@@ -860,6 +861,9 @@ class FlowReadSerializer(ReadSerializer):
     def get_results(self, obj):
         return obj.metadata.get(Flow.METADATA_RESULTS, [])
 
+    def get_parent_refs(self, obj):
+        return obj.metadata.get(Flow.METADATA_PARENT_REFS, [])
+
     class Meta:
         model = Flow
         fields = (
@@ -871,6 +875,7 @@ class FlowReadSerializer(ReadSerializer):
             "expires",
             "runs",
             "results",
+            "parent_refs",
             "created_on",
             "modified_on",
         )
@@ -1298,7 +1303,9 @@ class TemplateReadSerializer(ReadSerializer):
     def get_translations(self, obj):
         translations = []
         for translation in (
-            TemplateTranslation.objects.filter(template=obj).order_by("language").select_related("channel")
+            TemplateTranslation.objects.filter(template=obj, is_active=True)
+            .order_by("language")
+            .select_related("channel")
         ):
             translations.append(
                 {

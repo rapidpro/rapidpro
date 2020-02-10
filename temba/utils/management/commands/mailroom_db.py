@@ -68,6 +68,7 @@ ORG1 = dict(
             scheme="tel",
             role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE + Channel.ROLE_CALL + Channel.ROLE_ANSWER,
             uuid="74729f45-7f29-4868-9dc4-90e491e3c7d8",
+            country="US",
         ),
         dict(
             name="Nexmo",
@@ -76,6 +77,7 @@ ORG1 = dict(
             scheme="tel",
             role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE,
             uuid="19012bfd-3ce3-4cae-9bb9-76cf92c73d49",
+            country="",
         ),
         dict(
             name="Twitter",
@@ -84,6 +86,7 @@ ORG1 = dict(
             scheme="twitter",
             role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE,
             uuid="0f661e8b-ea9d-4bd3-9953-d368340acf91",
+            country=None,
         ),
     ),
     globals=(
@@ -210,6 +213,7 @@ ORG2 = dict(
             scheme="tel",
             role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE,
             uuid="a89bc872-3763-4b95-91d9-31d4e56c6651",
+            country="US",
         ),
     ),
     classifiers=(),
@@ -371,6 +375,7 @@ class Command(BaseCommand):
                 schemes=[c["scheme"]],
                 uuid=c["uuid"],
                 role=c["role"],
+                country=c["country"],
                 created_by=user,
                 modified_by=user,
             )
@@ -453,7 +458,7 @@ class Command(BaseCommand):
 
         for f in spec["flows"]:
             with open("media/test_flows/mailroom/" + f["file"], "r") as flow_file:
-                org.import_app(json.load(flow_file), user)
+                org.import_app(json.load(flow_file), user, legacy=True)
 
                 # set the uuid on this flow
                 Flow.objects.filter(org=org, name=f["name"]).update(uuid=f["uuid"])

@@ -45,7 +45,6 @@ from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import random_string
-from temba.values.constants import Value
 
 logger = logging.getLogger(__name__)
 
@@ -372,7 +371,7 @@ class Org(SmartModel):
     def is_whitelisted(self):
         return self.config.get(Org.CONFIG_STATUS) == Org.STATUS_WHITELISTED
 
-    def import_app(self, export_json, user, site=None):
+    def import_app(self, export_json, user, site=None, legacy=False):
         """
         Imports previously exported JSON
         """
@@ -399,8 +398,8 @@ class Org(SmartModel):
             raise ValueError(f"Unsupported export version {export_version}")
 
         # do we need to migrate the export forward?
-        if Flow.is_before_version(export_version, Flow.FINAL_LEGACY_VERSION):
-            export_json = FlowRevision.migrate_export(self, export_json, same_site, export_version)
+        if export_version < Version(Flow.CURRENT_SPEC_VERSION):
+            export_json = FlowRevision.migrate_export(self, export_json, same_site, export_version, legacy=legacy)
 
         export_fields = export_json.get(Org.EXPORT_FIELDS, [])
         export_groups = export_json.get(Org.EXPORT_GROUPS, [])
@@ -421,7 +420,7 @@ class Org(SmartModel):
 
         # with all the flows and dependencies committed, we can now have mailroom do full validation
         for flow in new_flows:
-            mailroom.get_client().flow_inspect(flow.as_json(), validate_with_org=self)
+            mailroom.get_client().flow_inspect(self.id, flow.as_json())
 
     @classmethod
     def export_definitions(cls, site_link, components, include_fields=True, include_groups=True):
@@ -1143,42 +1142,16 @@ class Org(SmartModel):
     def create_system_contact_fields(self):
         from temba.contacts.models import ContactField
 
-        ContactField.system_fields.create(
-            org_id=self.id,
-            label=_("ID"),
-            key="id",
-            value_type=Value.TYPE_NUMBER,
-            show_in_table=False,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
-        ContactField.system_fields.create(
-            org_id=self.id,
-            label=_("Created On"),
-            key="created_on",
-            value_type=Value.TYPE_DATETIME,
-            show_in_table=False,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
-        ContactField.system_fields.create(
-            org_id=self.id,
-            label=_("Contact Name"),
-            key="name",
-            value_type=Value.TYPE_TEXT,
-            show_in_table=False,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
-        ContactField.system_fields.create(
-            org_id=self.id,
-            label=_("Language"),
-            key="language",
-            value_type=Value.TYPE_TEXT,
-            show_in_table=False,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
+        for key, field in ContactField.SYSTEM_FIELDS.items():
+            ContactField.system_fields.create(
+                org_id=self.id,
+                key=key,
+                label=field["label"],
+                value_type=field["value_type"],
+                show_in_table=False,
+                created_by=self.created_by,
+                modified_by=self.modified_by,
+            )
 
     def create_sample_flows(self, api_url):
         # get our sample dir
@@ -1779,7 +1752,7 @@ class Org(SmartModel):
         # build dependency graph for all flows and campaigns
         dependencies = defaultdict(set)
         for flow in all_flows:
-            dependencies[flow] = flow.get_dependencies()
+            dependencies[flow] = flow.get_export_dependencies()
         for campaign in all_campaigns:
             dependencies[campaign] = set([e.flow for e in campaign.flow_events])
 
@@ -2076,6 +2049,7 @@ class Org(SmartModel):
         self.credit_alerts.all().delete()
         self.broadcast_set.all().delete()
         self.schedules.all().delete()
+        self.boundaryalias_set.all().delete()
 
         # needs to come after deletion of msgs and broadcasts as those insert new counts
         self.system_labels.all().delete()

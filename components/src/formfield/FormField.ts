@@ -27,6 +27,10 @@ export default class FormField extends LitElement {
         color: var(--color-text-help);
         margin: 4px 0 14px;
       }
+
+      rp-alert {
+        margin-top: 10px;
+      }
     }`
   }
 
@@ -50,6 +54,7 @@ export default class FormField extends LitElement {
     const errors = (this.errors || []).map((error: string) => {
       return html`<rp-alert level="error">${error}</rp-alert>`;
     });
+
 
     if (this.widgetOnly) {
       return html`

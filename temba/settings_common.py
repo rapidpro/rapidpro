@@ -933,7 +933,7 @@ CACHES = {
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework.authentication.SessionAuthentication",
+        "temba.api.support.APISessionAuthentication",
         "temba.api.support.APITokenAuthentication",
         "temba.api.support.APIBasicAuthentication",
     ),
@@ -995,7 +995,7 @@ SEND_EMAILS = False
 CLASSIFIER_TYPES = [
     "temba.classifiers.types.wit.WitType",
     "temba.classifiers.types.luis.LuisType",
-    "temba.classifiers.types.bothub.BotHubType",
+    "temba.classifiers.types.bothub.BothubType",
 ]
 
 CHANNEL_TYPES = [

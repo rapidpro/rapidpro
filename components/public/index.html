@@ -121,28 +121,16 @@
 
     </style>
 
-
     <div class="example">
-      <div class="example-header">Modax on Button</div>
-      <rp-modax id="event-add" header="Add Event" endpoint="/campaignevent/create/?campaign=20012">
-        <rp-button name="Add Event" primary></rp-button>
-      </rp-modax>
+      <rp-checkbox name="schedule" label="Schedule for later delivery"></rp-checkbox>
     </div>
 
-    <div class="example">
-      <div class="example-header">Modax on Button</div>
-      <rp-modax header="Update Campaign" endpoint="/campaign/update/20006/">
-        <rp-button name="Update Campaign" primary></rp-button>
-      </rp-modax>
-    </div>
 
     <div class="example">
-      <div class="example-header">Modax in Menu</div>
-      <rp-modax header="Update Campaign" endpoint="/campaign/update/20006/">
-        Update Campaign
+      <rp-modax id="send-message" header="Send Message" endpoint="/broadcast/send/">
+        <rp-button name="Send Message" primary></rp-button>
       </rp-modax>
     </div>
-
 
     <div style="display: none">
     <div class="example">

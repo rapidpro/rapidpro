@@ -1693,7 +1693,7 @@ class Alert(SmartModel):
         six_hours_ago = timezone.now() - timedelta(hours=6)
 
         # end any sms alerts that are open and no longer seem valid
-        for alert in Alert.objects.filter(alert_type=cls.TYPE_SMS, ended_on=None):
+        for alert in Alert.objects.filter(alert_type=cls.TYPE_SMS, ended_on=None).distinct("channel_id"):
             # are there still queued messages?
 
             if (
@@ -1703,8 +1703,9 @@ class Alert(SmartModel):
                 .exclude(created_on__lte=day_ago)
                 .exists()
             ):
-                alert.ended_on = timezone.now()
-                alert.save()
+                Alert.objects.filter(alert_type=cls.TYPE_SMS, ended_on=None, channel_id=alert.channel_id).update(
+                    ended_on=timezone.now()
+                )
 
         # now look for channels that have many unsent messages
         queued_messages = (

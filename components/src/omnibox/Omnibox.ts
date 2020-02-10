@@ -27,8 +27,8 @@ const iconStyle: any = {
 
 const detailStyle = {
   'margin-left': '5px',
-  'font-size': '11px',
-  'color': 'var(--color-text-dark-secondary)',
+  'font-size': '12px',
+  'color': 'var(--color-text-dark)',
   'display': 'inline-block'
 }
 
@@ -136,6 +136,16 @@ export default class Omnibox extends RapidElement {
     return endpoint + types;
   }
 
+  /** If we support urns, let them enter an arbitrary number */
+  private createArbitraryOption(input: string): any {
+    if (this.urns) {
+      const num = parseFloat(input)
+      if (!isNaN(num) && isFinite(num)) {
+        return { id: "tel:" + input, name: input, type: "urn"}
+      }
+    }
+  }
+
   public render(): TemplateResult {
     return html`
       <rp-select 
@@ -146,6 +156,7 @@ export default class Omnibox extends RapidElement {
         .values=${this.value}
         .renderOption=${this.renderOption.bind(this)}
         .renderSelectedItem=${this.renderSelection.bind(this)}
+        .createArbitraryOption=${this.createArbitraryOption.bind(this)}
         .inputRoot=${this}
         searchable
         searchOnFocus

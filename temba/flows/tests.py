@@ -24,7 +24,7 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.contacts.models import FACEBOOK_SCHEME, WHATSAPP_SCHEME, Contact, ContactField, ContactGroup
 from temba.globals.models import Global
-from temba.mailroom import FlowValidationException
+from temba.mailroom import FlowValidationException, MailroomException
 from temba.msgs.models import Label
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
@@ -78,8 +78,6 @@ class FlowTest(TembaTest):
         self.contact3 = self.create_contact("Norbert", "+250788123456")
         self.contact4 = self.create_contact("Teeh", "+250788123457", language="por")
 
-        self.flow = self.get_flow("color")
-
         self.other_group = self.create_group("Other", [])
 
     def test_get_flow_user(self):
@@ -101,23 +99,25 @@ class FlowTest(TembaTest):
 
     @patch("temba.mailroom.queue_interrupt")
     def test_archive(self, mock_queue_interrupt):
-        self.flow.archive()
+        flow = self.get_flow("color", legacy=True)
+        flow.archive()
 
-        mock_queue_interrupt.assert_called_once_with(self.org, flow=self.flow)
+        mock_queue_interrupt.assert_called_once_with(self.org, flow=flow)
 
-        self.flow.refresh_from_db()
-        self.assertEqual(self.flow.is_archived, True)
-        self.assertEqual(self.flow.is_active, True)
+        flow.refresh_from_db()
+        self.assertEqual(flow.is_archived, True)
+        self.assertEqual(flow.is_active, True)
 
     @patch("temba.mailroom.queue_interrupt")
     def test_release(self, mock_queue_interrupt):
-        self.flow.release()
+        flow = self.get_flow("color", legacy=True)
+        flow.release()
 
-        mock_queue_interrupt.assert_called_once_with(self.org, flow=self.flow)
+        mock_queue_interrupt.assert_called_once_with(self.org, flow=flow)
 
-        self.flow.refresh_from_db()
-        self.assertEqual(self.flow.is_archived, False)
-        self.assertEqual(self.flow.is_active, False)
+        flow.refresh_from_db()
+        self.assertEqual(flow.is_archived, False)
+        self.assertEqual(flow.is_active, False)
 
     def test_get_definition(self):
         favorites = self.get_flow("favorites_v13")
@@ -149,12 +149,51 @@ class FlowTest(TembaTest):
         favorites.revisions.all().delete()
         self.assertRaises(AssertionError, favorites.get_definition)
 
+    def test_ensure_current_version(self):
+        # importing migrates to latest legacy version
+        flow = self.get_flow("color", legacy=True)
+        self.assertEqual("11.12", flow.version_number)
+        self.assertEqual(1, flow.revisions.count())
+
+        # rewind one legacy version..
+        flow.version_number = "11.11"
+        flow.save(update_fields=("version_number",))
+        rev = flow.revisions.get()
+        rev.definition["version"] = "11.11"
+        rev.spec_version = "11.11"
+        rev.save()
+
+        flow.ensure_current_version()
+
+        # check we migrate to final legacy version but not beyond
+        self.assertEqual("11.12", flow.version_number)
+        self.assertEqual(2, flow.revisions.count())
+
+        # importing migrates to latest spec version
+        flow = self.get_flow("favorites_v13")
+        self.assertEqual("13.1.0", flow.version_number)
+        self.assertEqual(1, flow.revisions.count())
+
+        # rewind one spec version..
+        flow.version_number = "13.0.0"
+        flow.save(update_fields=("version_number",))
+        rev = flow.revisions.get()
+        rev.definition["spec_version"] = "13.0.0"
+        rev.spec_version = "13.0.0"
+        rev.save()
+
+        flow.ensure_current_version()
+
+        # check we migrate to current spec version
+        self.assertEqual("13.1.0", flow.version_number)
+        self.assertEqual(2, flow.revisions.count())
+
     def test_flow_import_labels(self):
         self.assertFalse(Label.label_objects.all())
 
         label = Label.get_or_create(self.org, self.admin, "Hello")
         self.login(self.admin)
-        self.import_file("migrate_to_11_11")
+        self.import_file("migrate_to_11_11", legacy=True)
         flow = Flow.objects.filter(name="Add Label").first()
         label_uuid_in_def = flow.revisions.first().definition["action_sets"][1]["actions"][0]["labels"][0]["uuid"]
 
@@ -178,6 +217,29 @@ class FlowTest(TembaTest):
         self.assertContains(response, "Start Notifications")
         self.assertContains(response, "Stop Notifications")
         self.assertContains(response, "Appointment Followup")
+
+    def test_facebook_warnings(self):
+        no_topic = self.get_flow("pick_a_number")
+        with_topic = self.get_flow("with_message_topic")
+
+        # bring up broadcast dialog
+        self.login(self.admin)
+        response = self.client.get(reverse("flows.flow_broadcast", args=[no_topic.id]))
+
+        # no warning, we don't have a facebook channel
+        self.assertNotContains(response, "does not specify a Facebook topic")
+
+        # change our channel to use a facebook scheme
+        self.channel.schemes = [FACEBOOK_SCHEME]
+        self.channel.save()
+
+        # should see a warning for no topic now
+        response = self.client.get(reverse("flows.flow_broadcast", args=[no_topic.id]))
+        self.assertContains(response, "does not specify a Facebook topic")
+
+        # warning shouldn't be present for flow with a topic
+        response = self.client.get(reverse("flows.flow_broadcast", args=[with_topic.id]))
+        self.assertNotContains(response, "does not specify a Facebook topic")
 
     def test_template_warnings(self):
         self.login(self.admin)
@@ -333,9 +395,17 @@ class FlowTest(TembaTest):
         self.assertContains(response, msg.name)
         self.assertNotContains(response, survey.name)
 
-    def test_flow_editor_next(self):
+    def test_editor(self):
+        flow = self.get_flow("color", legacy=True)
+
         self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+
+        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
+
+        self.assertTrue(response.context["mutable"])
+        self.assertTrue(response.context["can_start"])
+        self.assertTrue(response.context["can_simulate"])
+        self.assertContains(response, reverse("flows.flow_simulate", args=[flow.id]))
         self.assertContains(response, "id='rp-flow-editor'")
 
         # customer service gets a service button
@@ -345,50 +415,56 @@ class FlowTest(TembaTest):
         csrep.save()
 
         self.login(csrep)
-        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
         gear_links = response.context["view"].get_gear_links()
         self.assertEqual(gear_links[-1]["title"], "Previous Editor")
 
         # convert our flow back to an old version
-        response = self.client.get(f"{reverse('flows.flow_editor', args=[self.flow.uuid])}?legacy=true")
-        gear_links = response.context["view"].get_gear_links()
-        self.flow.refresh_from_db()
-        self.assertEqual(self.flow.version_number, Flow.FINAL_LEGACY_VERSION)
+        response = self.client.get(f"{reverse('flows.flow_editor', args=[flow.uuid])}?legacy=true")
+        flow.refresh_from_db()
+        self.assertEqual(flow.version_number, Flow.FINAL_LEGACY_VERSION)
 
-        # viewing flows that are archived can't be started
+        # flows that are archived can't be edited, started or simulated
         self.login(self.admin)
-        self.flow.is_archived = True
-        self.flow.save()
 
-        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        flow.is_archived = True
+        flow.save(update_fields=("is_archived",))
+
+        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
+
         self.assertFalse(response.context["mutable"])
+        self.assertFalse(response.context["can_start"])
+        self.assertFalse(response.context["can_simulate"])
+        self.assertNotContains(response, reverse("flows.flow_simulate", args=[flow.id]))
 
-    def test_feature_filters(self):
+    def test_editor_feature_filters(self):
+        flow = self.get_flow("color", legacy=True)
+
         self.login(self.admin)
 
         # empty feature set
-        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
         self.assertEqual([], json.loads(response.context["feature_filters"]))
 
         # with zapier
-        Resthook.objects.create(org=self.flow.org, created_by=self.admin, modified_by=self.admin)
-        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        Resthook.objects.create(org=flow.org, created_by=self.admin, modified_by=self.admin)
+        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
         self.assertEqual(["resthook"], json.loads(response.context["feature_filters"]))
 
         # add in a classifier
-        Classifier.objects.create(org=self.flow.org, config="", created_by=self.admin, modified_by=self.admin)
-        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        Classifier.objects.create(org=flow.org, config="", created_by=self.admin, modified_by=self.admin)
+        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
         self.assertEqual(["classifier", "resthook"], json.loads(response.context["feature_filters"]))
 
         # add in an airtime connection
-        self.flow.org.connect_dtone("login", "token", self.admin)
-        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        flow.org.connect_dtone("login", "token", self.admin)
+        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
         self.assertEqual(["airtime", "classifier", "resthook"], json.loads(response.context["feature_filters"]))
 
         # change our channel to use a whatsapp scheme
         self.channel.schemes = [WHATSAPP_SCHEME]
         self.channel.save()
-        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
         self.assertEqual(
             ["whatsapp", "airtime", "classifier", "resthook"], json.loads(response.context["feature_filters"])
         )
@@ -396,21 +472,23 @@ class FlowTest(TembaTest):
         # change our channel to use a facebook scheme
         self.channel.schemes = [FACEBOOK_SCHEME]
         self.channel.save()
-        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
         self.assertEqual(
             ["facebook", "airtime", "classifier", "resthook"], json.loads(response.context["feature_filters"])
         )
 
-    def test_flow_editor(self):
+    def test_legacy_editor(self):
+        flow = self.get_flow("color", legacy=True)
+
         self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_editor", args=[self.flow.uuid]))
+        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
         self.assertTrue(response.context["mutable"])
         self.assertFalse(response.context["has_airtime_service"])
         self.assertFalse(response.context["is_starting"])
 
         # superusers can't edit flows
         self.login(self.superuser)
-        response = self.client.get(reverse("flows.flow_editor", args=[self.flow.uuid]))
+        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
         self.assertFalse(response.context["mutable"])
 
         # create a customer service user
@@ -422,12 +500,11 @@ class FlowTest(TembaTest):
         self.org.administrators.add(self.csrep)
 
         self.login(self.csrep)
-        response = self.client.get(reverse("flows.flow_editor", args=[self.flow.uuid]))
+        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
         gear_links = response.context["view"].get_gear_links()
         self.assertEqual(gear_links[-1]["title"], "Service")
         self.assertEqual(
-            gear_links[-1]["href"],
-            f"/org/service/?organization={self.flow.org_id}&redirect_url=/flow/editor/{self.flow.uuid}/",
+            gear_links[-1]["href"], f"/org/service/?organization={flow.org_id}&redirect_url=/flow/editor/{flow.uuid}/"
         )
         self.assertTrue(gear_links[-2]["divider"])
 
@@ -450,11 +527,12 @@ class FlowTest(TembaTest):
             ],
         )
 
-    def test_flow_editor_for_archived_flow(self):
-        self.flow.archive()
+    def test_legacy_flow_editor_for_archived_flow(self):
+        flow = self.get_flow("color", legacy=True)
+        flow.archive()
 
         self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_editor", args=[self.flow.uuid]))
+        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
 
         gear_links = response.context["view"].get_gear_links()
 
@@ -467,11 +545,12 @@ class FlowTest(TembaTest):
             ["Results", "Copy", "Export", None, "Revision History", "Delete", None, "New Editor"],
         )
 
-    def test_flow_editor_for_inactive_flow(self):
-        self.flow.release()
+    def test_legacy_flow_editor_for_inactive_flow(self):
+        flow = self.get_flow("color", legacy=True)
+        flow.release()
 
         self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_editor", args=[self.flow.uuid]))
+        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
 
         self.assertEqual(404, response.status_code)
 
@@ -479,7 +558,7 @@ class FlowTest(TembaTest):
         self.login(self.admin)
         self.client.post(reverse("flows.flow_create"), {"name": "Go Flow", "flow_type": Flow.TYPE_MESSAGE})
         flow = Flow.objects.get(
-            org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
+            org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.CURRENT_SPEC_VERSION
         )
 
         # can't save older spec version over newer
@@ -490,24 +569,26 @@ class FlowTest(TembaTest):
             flow.save_revision(self.admin, definition)
 
         # can't save older revision over newer
-        definition["spec_version"] = Flow.GOFLOW_VERSION
+        definition["spec_version"] = Flow.CURRENT_SPEC_VERSION
         definition["revision"] = 0
 
         with self.assertRaises(FlowUserConflictException):
             flow.save_revision(self.admin, definition)
 
     def test_copy(self):
+        flow = self.get_flow("color", legacy=True)
+
         # pick a really long name so we have to concatenate
-        self.flow.name = "Color Flow is a long name to use for something like this"
-        self.flow.expires_after_minutes = 60
-        self.flow.save()
+        flow.name = "Color Flow is a long name to use for something like this"
+        flow.expires_after_minutes = 60
+        flow.save()
 
         # make sure our metadata got saved
-        metadata = self.flow.metadata
+        metadata = flow.metadata
         self.assertEqual("Ryan Lewis", metadata["author"])
 
         # now create a copy
-        copy = Flow.copy(self.flow, self.admin)
+        copy = Flow.copy(flow, self.admin)
 
         metadata = copy.metadata
         self.assertEqual("Ryan Lewis", metadata["author"])
@@ -516,7 +597,7 @@ class FlowTest(TembaTest):
         self.assertEqual(60, copy.expires_after_minutes)
 
         # should have a different id
-        self.assertNotEqual(self.flow.pk, copy.pk)
+        self.assertNotEqual(flow.pk, copy.pk)
 
         # Name should start with "Copy of"
         self.assertEqual("Copy of Color Flow is a long name to use for something like thi", copy.name)
@@ -536,8 +617,8 @@ class FlowTest(TembaTest):
         )
 
         # should have the same number of actionsets and rulesets
-        self.assertEqual(copy.action_sets.all().count(), self.flow.action_sets.all().count())
-        self.assertEqual(copy.rule_sets.all().count(), self.flow.rule_sets.all().count())
+        self.assertEqual(copy.action_sets.all().count(), flow.action_sets.all().count())
+        self.assertEqual(copy.rule_sets.all().count(), flow.rule_sets.all().count())
 
     def test_copy_group_split_no_name(self):
         flow = self.get_flow("group_split_no_name")
@@ -566,6 +647,8 @@ class FlowTest(TembaTest):
         )
 
     def test_parsing(self):
+        flow = self.get_flow("color", legacy=True)
+
         # our flow should have the appropriate RuleSet and ActionSet objects
         self.assertEqual(4, ActionSet.objects.all().count())
 
@@ -576,7 +659,7 @@ class FlowTest(TembaTest):
         self.assertEqual(
             actions[0].msg, dict(base="What is your favorite color?", fra="Quelle est votre couleur préférée?")
         )
-        self.assertEqual(entry.uuid, self.flow.entry_uuid)
+        self.assertEqual(entry.uuid, flow.entry_uuid)
 
         orange = ActionSet.objects.get(x=2, y=2)
         actions = orange.get_actions()
@@ -612,19 +695,19 @@ class FlowTest(TembaTest):
         self.assertEqual("Blue", rules[1].category["base"])
 
         # back out as json
-        json_dict = self.flow.as_json()
+        json_dict = flow.as_json()
 
         self.assertEqual(json_dict["version"], Flow.FINAL_LEGACY_VERSION)
-        self.assertEqual(json_dict["flow_type"], self.flow.flow_type)
+        self.assertEqual(json_dict["flow_type"], flow.flow_type)
         self.assertEqual(
             json_dict["metadata"],
             {
-                "name": self.flow.name,
+                "name": flow.name,
                 "author": "Ryan Lewis",
-                "saved_on": json.encode_datetime(self.flow.saved_on, micros=True),
+                "saved_on": json.encode_datetime(flow.saved_on, micros=True),
                 "revision": 1,
-                "expires": self.flow.expires_after_minutes,
-                "uuid": self.flow.uuid,
+                "expires": flow.expires_after_minutes,
+                "uuid": flow.uuid,
             },
         )
 
@@ -633,7 +716,7 @@ class FlowTest(TembaTest):
         del json_dict["rule_sets"][0]["rules"][2]
 
         # update
-        self.flow.update(json_dict)
+        flow.update(json_dict)
 
         self.assertEqual(3, ActionSet.objects.all().count())
 
@@ -644,7 +727,7 @@ class FlowTest(TembaTest):
         self.assertEqual(
             actions[0].msg, dict(base="What is your favorite color?", fra="Quelle est votre couleur préférée?")
         )
-        self.assertEqual(entry.uuid, self.flow.entry_uuid)
+        self.assertEqual(entry.uuid, flow.entry_uuid)
 
         orange = ActionSet.objects.get(x=2, y=2)
         actions = orange.get_actions()
@@ -676,7 +759,7 @@ class FlowTest(TembaTest):
         # updating with a label name that is too long should truncate it
         json_dict["rule_sets"][0]["label"] = "W" * 75
         json_dict["rule_sets"][0]["operand"] = "W" * 135
-        self.flow.update(json_dict)
+        flow.update(json_dict)
 
         # now check they are truncated to the max lengths
         ruleset = RuleSet.objects.get()
@@ -684,6 +767,8 @@ class FlowTest(TembaTest):
         self.assertEqual(128, len(ruleset.operand))
 
     def test_expanding(self):
+        flow = self.get_flow("color", legacy=True)
+
         # add actions for adding to a group and messaging a contact, we'll test how these expand
         action_set = ActionSet.objects.get(x=4, y=4)
 
@@ -696,7 +781,7 @@ class FlowTest(TembaTest):
         action_set.save()
 
         # check expanding our groups
-        json_dict = self.flow.as_json(expand_contacts=True)
+        json_dict = flow.as_json(expand_contacts=True)
         json_as_string = json.dumps(json_dict)
 
         # our json should contain the names of our contact and groups
@@ -706,7 +791,7 @@ class FlowTest(TembaTest):
         # now delete our group
         self.other_group.delete()
 
-        flow_json = self.flow.as_json(expand_contacts=True)
+        flow_json = flow.as_json(expand_contacts=True)
         add_group = flow_json["action_sets"][3]["actions"][0]
         send = flow_json["action_sets"][3]["actions"][1]
 
@@ -1398,22 +1483,24 @@ class FlowTest(TembaTest):
         FlowCategoryCount.objects.get(category_name="Blue", result_name="Color", result_key="color", count=-1)
 
     def test_flow_start_counts(self):
+        flow = self.get_flow("color", legacy=True)
+
         # create start for 10 contacts
-        start = FlowStart.objects.create(flow=self.flow, created_by=self.admin, modified_by=self.admin)
+        start = FlowStart.objects.create(flow=flow, created_by=self.admin, modified_by=self.admin)
         for i in range(10):
             contact = self.create_contact("Bob", twitter=f"bobby{i}")
             start.contacts.add(contact)
 
         # create runs for first 5
         for contact in start.contacts.order_by("id")[:5]:
-            FlowRun.objects.create(org=self.org, flow=self.flow, contact=contact, start=start)
+            FlowRun.objects.create(org=self.org, flow=flow, contact=contact, start=start)
 
         # check our count
         self.assertEqual(FlowStartCount.get_count(start), 5)
 
         # create runs for last 5
         for contact in start.contacts.order_by("id")[5:]:
-            FlowRun.objects.create(org=self.org, flow=self.flow, contact=contact, start=start)
+            FlowRun.objects.create(org=self.org, flow=flow, contact=contact, start=start)
 
         # check our count
         self.assertEqual(FlowStartCount.get_count(start), 10)
@@ -1654,18 +1741,19 @@ class FlowTest(TembaTest):
         self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_INBOUND_CALL))
 
     def test_copy_view(self):
+        flow = self.get_flow("color", legacy=True)
 
         self.login(self.admin)
 
         # test a successful copy
-        response = self.client.post(reverse("flows.flow_copy", args=[self.flow.id]))
-        flow_copy = Flow.objects.get(org=self.org, name="Copy of %s" % self.flow.name)
+        response = self.client.post(reverse("flows.flow_copy", args=[flow.id]))
+        flow_copy = Flow.objects.get(org=self.org, name="Copy of %s" % flow.name)
         self.assertRedirect(response, reverse("flows.flow_editor", args=[flow_copy.uuid]))
         flow_copy.release()
 
         # make our first action one that can't be copied (a send with a group)
         group = ContactGroup.user_groups.filter(name="Other").first()
-        actionset = self.flow.action_sets.first()
+        actionset = flow.action_sets.first()
         actions = actionset.actions
 
         actions[0]["type"] = legacy.SendAction.TYPE
@@ -1675,8 +1763,8 @@ class FlowTest(TembaTest):
         actionset.save(update_fields=["actions"])
 
         # we should allow copy of flows with group sends
-        response = self.client.post(reverse("flows.flow_copy", args=[self.flow.id]))
-        self.assertIsNotNone(Flow.objects.filter(org=self.org, name="Copy of %s" % self.flow.name).first())
+        response = self.client.post(reverse("flows.flow_copy", args=[flow.id]))
+        self.assertIsNotNone(Flow.objects.filter(org=self.org, name="Copy of %s" % flow.name).first())
 
     def test_flow_update_of_inactive_flow(self):
         flow = self.get_flow("favorites")
@@ -1734,6 +1822,8 @@ class FlowTest(TembaTest):
         )
 
     def test_views_viewers(self):
+        flow = self.get_flow("color", legacy=True)
+
         # create a viewer
         self.viewer = self.create_user("Viewer")
         self.org.viewers.add(self.viewer)
@@ -1777,7 +1867,7 @@ class FlowTest(TembaTest):
         # can not label
         post_data = dict()
         post_data["action"] = "label"
-        post_data["objects"] = self.flow.pk
+        post_data["objects"] = flow.pk
         post_data["label"] = flow_label.pk
         post_data["add"] = True
 
@@ -1788,30 +1878,30 @@ class FlowTest(TembaTest):
         # can not archive
         post_data = dict()
         post_data["action"] = "archive"
-        post_data["objects"] = self.flow.pk
+        post_data["objects"] = flow.pk
         response = self.client.post(flow_list_url, post_data, follow=True)
         self.assertEqual(1, response.context["object_list"].count())
-        self.assertEqual(response.context["object_list"][0].pk, self.flow.pk)
+        self.assertEqual(response.context["object_list"][0].pk, flow.pk)
         self.assertFalse(response.context["object_list"][0].is_archived)
 
         # inactive list shouldn't have any flows
         response = self.client.get(flow_archived_url)
         self.assertEqual(0, len(response.context["object_list"]))
 
-        response = self.client.get(reverse("flows.flow_editor", args=[self.flow.uuid]))
+        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
         self.assertEqual(200, response.status_code)
         self.assertFalse(response.context["mutable"])
 
         # we can fetch the json for the flow
-        response = self.client.get(reverse("flows.flow_json", args=[self.flow.uuid]))
+        response = self.client.get(reverse("flows.flow_json", args=[flow.uuid]))
         self.assertEqual(200, response.status_code)
 
         # but posting to it should redirect to a get
-        response = self.client.post(reverse("flows.flow_json", args=[self.flow.uuid]), post_data=response.content)
+        response = self.client.post(reverse("flows.flow_json", args=[flow.uuid]), post_data=response.content)
         self.assertEqual(302, response.status_code)
 
-        self.flow.is_archived = True
-        self.flow.save()
+        flow.is_archived = True
+        flow.save()
 
         response = self.client.get(flow_list_url)
         self.assertEqual(0, len(response.context["object_list"]))
@@ -1819,10 +1909,10 @@ class FlowTest(TembaTest):
         # can not restore
         post_data = dict()
         post_data["action"] = "archive"
-        post_data["objects"] = self.flow.pk
+        post_data["objects"] = flow.pk
         response = self.client.post(flow_archived_url, post_data, follow=True)
         self.assertEqual(1, response.context["object_list"].count())
-        self.assertEqual(response.context["object_list"][0].pk, self.flow.pk)
+        self.assertEqual(response.context["object_list"][0].pk, flow.pk)
         self.assertTrue(response.context["object_list"][0].is_archived)
 
         response = self.client.get(flow_archived_url)
@@ -1842,7 +1932,7 @@ class FlowTest(TembaTest):
 
     def test_flow_update_error(self):
 
-        flow = self.get_flow("favorites")
+        flow = self.get_flow("favorites", legacy=True)
         json_dict = flow.as_json()
         json_dict["action_sets"][0]["actions"].append(dict(type="add_label", labels=[dict(name="@badlabel")]))
         self.login(self.admin)
@@ -1875,7 +1965,7 @@ class FlowTest(TembaTest):
     def test_create_dependencies(self):
         self.login(self.admin)
 
-        flow = self.get_flow("favorites")
+        flow = self.get_flow("favorites", legacy=True)
         flow_json = flow.as_json()
 
         # create an invalid label in our first actionset
@@ -1913,7 +2003,7 @@ class FlowTest(TembaTest):
             flow.update(flow_json)
             return Flow.objects.get(id=flow.id)
 
-        flow = self.get_flow("loop_detection")
+        flow = self.get_flow("loop_detection", legacy=True)
         first_actionset = ActionSet.objects.get(flow=flow, y=0)
         group_ruleset = RuleSet.objects.get(flow=flow, label="Group Split A")
         group_one_rule = group_ruleset.get_rules()[0]
@@ -1933,7 +2023,7 @@ class FlowTest(TembaTest):
             update_destination(flow, group_one_rule.uuid, first_actionset.uuid)
 
     def test_group_dependencies(self):
-        self.get_flow("dependencies")
+        self.get_flow("dependencies", legacy=True)
         flow = Flow.objects.filter(name="Dependencies").first()
 
         group_names = ["Dog Facts", "Cat Facts", "Fish Facts", "Monkey Facts"]
@@ -1959,7 +2049,7 @@ class FlowTest(TembaTest):
         Global.objects.get(name="Org Name", key="org_name", value="")
 
     def test_label_dependencies(self):
-        self.get_flow("add_label")
+        self.get_flow("add_label", legacy=True)
         flow = Flow.objects.filter(name="Add Label").first()
 
         self.assertEqual(flow.label_dependencies.count(), 1)
@@ -1976,7 +2066,7 @@ class FlowTest(TembaTest):
         self.channel.name = "1234"
         self.channel.save()
 
-        self.get_flow("migrate_to_11_12_one_node")
+        self.get_flow("migrate_to_11_12_one_node", legacy=True)
         flow = Flow.objects.filter(name="channel").first()
 
         self.assertEqual(flow.channel_dependencies.count(), 1)
@@ -1990,7 +2080,7 @@ class FlowTest(TembaTest):
 
     def test_flow_dependencies(self):
 
-        self.get_flow("dependencies")
+        self.get_flow("dependencies", legacy=True)
         flow = Flow.objects.filter(name="Dependencies").first()
 
         # we should depend on our child flow
@@ -2007,7 +2097,7 @@ class FlowTest(TembaTest):
         self.assertIsNone(flow.flow_dependencies.filter(name="Child Flow").first())
 
     def test_update_dependencies_with_actiontype_flow(self):
-        self.get_flow("dependencies")
+        self.get_flow("dependencies", legacy=True)
 
         flow = Flow.objects.filter(name="Dependencies").first()
         dep_flow = Flow.objects.filter(name="Child Flow").first()
@@ -2037,7 +2127,7 @@ class FlowTest(TembaTest):
         self.assertEqual(flow.flow_dependencies.count(), 1)
 
     def test_group_uuid_mapping(self):
-        flow = self.get_flow("group_split")
+        self.get_flow("group_split", legacy=True)
 
         # make sure the groups in our rules exist as expected
         ruleset = RuleSet.objects.filter(label="Member").first()
@@ -2049,7 +2139,7 @@ class FlowTest(TembaTest):
                 group_count += 1
         self.assertEqual(2, group_count)
 
-        self.get_flow("dependencies")
+        self.get_flow("dependencies", legacy=True)
         flow = Flow.objects.filter(name="Dependencies").first()
         group_count = 0
         for actionset in flow.action_sets.all():
@@ -2092,6 +2182,7 @@ class FlowTest(TembaTest):
                 ],
             )
             self.assertEqual(len(flow.metadata["waiting_exit_uuids"]), 11)
+            self.assertEqual(len(flow.metadata["parent_refs"]), 0)
 
     def test_group_send(self):
         # create an inactive group with the same name, to test that this doesn't blow up our import
@@ -2326,7 +2417,7 @@ class FlowTest(TembaTest):
 
     def test_webhook_parsing(self):
         # test a preprocess url
-        flow = self.get_flow("preprocess")
+        flow = self.get_flow("preprocess", legacy=True)
         self.assertEqual(
             "http://preprocessor.com/endpoint.php",
             flow.rule_sets.all().order_by("y")[0].config[RuleSet.CONFIG_WEBHOOK],
@@ -2336,7 +2427,7 @@ class FlowTest(TembaTest):
 class FlowCRUDLTest(TembaTest):
     def test_views(self):
         contact = self.create_contact("Eric", "+250788382382")
-        flow = self.get_flow("color")
+        flow = self.get_flow("color", legacy=True)
 
         self.setUpSecondaryOrg()
 
@@ -2784,7 +2875,7 @@ class FlowCRUDLTest(TembaTest):
         self.assertEqual(1, response.context["folders"][1]["count"])  # only flow2
 
     def test_revision_history(self):
-        flow = self.get_flow("color")
+        flow = self.get_flow("color", legacy=True)
 
         # we should initially have one revision
         revision = flow.revisions.get()
@@ -2805,11 +2896,11 @@ class FlowCRUDLTest(TembaTest):
 
         self.assertEqual(revisions[0].spec_version, Flow.FINAL_LEGACY_VERSION)
         self.assertEqual(revisions[0].as_json()["version"], Flow.FINAL_LEGACY_VERSION)
-        self.assertEqual(revisions[0].get_definition_json()["base_language"], "base")
+        self.assertEqual(revisions[0].get_definition_json(Flow.FINAL_LEGACY_VERSION)["base_language"], "base")
 
         # now make one revision invalid
         revision = revisions[1]
-        definition = revision.get_definition_json()
+        definition = revision.get_definition_json(Flow.FINAL_LEGACY_VERSION)
         del definition["base_language"]
         revision.definition = definition
         revision.save()
@@ -2832,7 +2923,7 @@ class FlowCRUDLTest(TembaTest):
 
         # make the last revision even more invalid (missing ruleset)
         revision = revisions[0]
-        definition = revision.get_definition_json()
+        definition = revision.get_definition_json(Flow.FINAL_LEGACY_VERSION)
         del definition["rule_sets"]
         revision.definition = definition
         revision.save()
@@ -2846,7 +2937,7 @@ class FlowCRUDLTest(TembaTest):
         self.login(self.admin)
         self.client.post(reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE))
         flow = Flow.objects.get(
-            org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
+            org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.CURRENT_SPEC_VERSION
         )
         response = self.client.get(reverse("flows.flow_revisions", args=[flow.uuid]))
         self.assertEqual(1, len(response.json()))
@@ -2969,11 +3060,40 @@ class FlowCRUDLTest(TembaTest):
 
         # create flow start with a query
         with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
+            with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+                instance = mock_mr.return_value
+                instance.parse_query.return_value = {"query": 'name ~ "frank"', "fields": ["name"]}
 
-            self.client.post(
+                self.client.post(
+                    reverse("flows.flow_broadcast", args=[flow.id]),
+                    {
+                        "contact_query": "frank",
+                        "start_type": "query",
+                        "restart_participants": "on",
+                        "include_active": "on",
+                    },
+                    follow=True,
+                )
+
+                start = FlowStart.objects.get()
+                self.assertEqual(flow, start.flow)
+                self.assertEqual(FlowStart.STATUS_PENDING, start.status)
+                self.assertTrue(start.restart_participants)
+                self.assertTrue(start.include_active)
+                self.assertEqual('name ~ "frank"', start.query)
+
+                mock_queue_flow_start.assert_called_once_with(start)
+
+        FlowStart.objects.all().delete()
+
+        # create flow start with a bogus query
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.parse_query.side_effect = MailroomException("", "", {"error": "query contains an error"})
+            response = self.client.post(
                 reverse("flows.flow_broadcast", args=[flow.id]),
                 {
-                    "contact_query": "frank",
+                    "contact_query": 'name = "frank',
                     "start_type": "query",
                     "restart_participants": "on",
                     "include_active": "on",
@@ -2981,30 +3101,7 @@ class FlowCRUDLTest(TembaTest):
                 follow=True,
             )
 
-            start = FlowStart.objects.get()
-            self.assertEqual(flow, start.flow)
-            self.assertEqual(FlowStart.STATUS_PENDING, start.status)
-            self.assertTrue(start.restart_participants)
-            self.assertTrue(start.include_active)
-            self.assertEqual("frank", start.query)
-
-            mock_queue_flow_start.assert_called_once_with(start)
-
-        FlowStart.objects.all().delete()
-
-        # create flow start with a bogus query
-        response = self.client.post(
-            reverse("flows.flow_broadcast", args=[flow.id]),
-            {
-                "contact_query": 'name = "frank',
-                "start_type": "query",
-                "restart_participants": "on",
-                "include_active": "on",
-            },
-            follow=True,
-        )
-
-        self.assertFormError(response, "form", "contact_query", "Please enter a valid contact query")
+            self.assertFormError(response, "form", "contact_query", "query contains an error")
 
         # create flow start with an empty query
         response = self.client.post(
@@ -3516,27 +3613,23 @@ class FlowCRUDLTest(TembaTest):
 
         # old flow definition
         flow = Flow.create(
-            self.org,
-            self.admin,
-            "Old Flow",
-            flow_type=Flow.TYPE_MESSAGE,
-            use_new_editor=False,
-            base_language="eng",
-            create_revision=True,
+            self.org, self.admin, "Old Flow", flow_type=Flow.TYPE_MESSAGE, base_language="eng", create_revision=False
         )
+        flow.version_number = Flow.FINAL_LEGACY_VERSION
+        flow.update(flow.as_json())
 
         # old editor
         response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
         self.assertNotRedirect(response, reverse("flows.flow_editor_next", args=[flow.uuid]))
 
         # new flow definition
-        response = self.client.post(
+        self.client.post(
             reverse("flows.flow_create"),
             data={"name": "New Flow", "flow_type": Flow.TYPE_MESSAGE, "base_language": "eng"},
         )
 
         flow = Flow.objects.get(
-            org=self.org, name="New Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
+            org=self.org, name="New Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.CURRENT_SPEC_VERSION
         )
 
         # now loading the editor page should redirect
@@ -3552,7 +3645,7 @@ class FlowCRUDLTest(TembaTest):
 
         self.assertEqual(rank_field.label, "Commander ranking")
 
-        flow = self.get_flow("favorites")
+        flow = self.get_flow("favorites", legacy=True)
         flow_json = flow.as_json()
 
         # save some data to the field
@@ -3593,7 +3686,7 @@ class FlowCRUDLTest(TembaTest):
         self.assertEqual(new_field.label, "New field label")
 
     def test_write_protection(self):
-        flow = self.get_flow("favorites")
+        flow = self.get_flow("favorites", legacy=True)
         flow_json = flow.as_json()
 
         self.login(self.admin)

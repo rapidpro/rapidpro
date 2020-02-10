@@ -1,4 +1,5 @@
 import base64
+import time
 from collections import OrderedDict
 from datetime import datetime
 from decimal import Decimal
@@ -13,6 +14,7 @@ from rest_framework.test import APIClient
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
+from django.core.cache import cache
 from django.db import connection
 from django.test import override_settings
 from django.urls import reverse
@@ -26,13 +28,14 @@ from temba.classifiers.models import Classifier
 from temba.classifiers.types.luis import LuisType
 from temba.classifiers.types.wit import WitType
 from temba.contacts.models import Contact, ContactField, ContactGroup
+from temba.contacts.search.tests import MockParseQuery
 from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import TemplateTranslation
-from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers
+from temba.tests import AnonymousOrg, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -296,79 +299,101 @@ class APITest(TembaTest):
         self.assertEqual(OrderedDict([("a", "x" * 640)]), normalize_extra({"a": "x" * 641}))
 
     def test_authentication(self):
-        def api_request(endpoint, token):
+        def request(endpoint, **headers):
             return self.client.get(
-                f"{endpoint}.json",
-                content_type="application/json",
-                HTTP_X_FORWARDED_HTTPS="https",
-                HTTP_AUTHORIZATION=f"Token {token}",
+                f"{endpoint}.json", content_type="application/json", HTTP_X_FORWARDED_HTTPS="https", **headers
             )
 
-        def api_request_basic_auth(endpoint, username, token):
+        def request_by_token(endpoint, token):
+            return request(endpoint, HTTP_AUTHORIZATION=f"Token {token}")
+
+        def request_by_basic_auth(endpoint, username, token):
             credentials_base64 = base64.encodebytes(f"{username}:{token}".encode()).decode()
-            return self.client.get(
-                f"{endpoint}.json",
-                content_type="application/json",
-                HTTP_X_FORWARDED_HTTPS="https",
-                HTTP_AUTHORIZATION=f"Basic {credentials_base64}",
-            )
+            return request(endpoint, HTTP_AUTHORIZATION=f"Basic {credentials_base64}")
+
+        def request_by_session(endpoint, user):
+            self.login(user)
+            resp = request(endpoint)
+            self.client.logout()
+            return resp
 
         contacts_url = reverse("api.v2.contacts")
         campaigns_url = reverse("api.v2.campaigns")
-
-        # can't fetch endpoint with invalid token
-        response = api_request(contacts_url, "1234567890")
-        self.assertResponseError(response, None, "Invalid token", status_code=403)
-
-        # can't fetch endpoint with invalid token
-        response = api_request_basic_auth(contacts_url, self.admin.username, "1234567890")
-        self.assertResponseError(response, None, "Invalid token or email", status_code=403)
+        fields_url = reverse("api.v2.fields")
 
         token1 = APIToken.get_or_create(self.org, self.admin, Group.objects.get(name="Administrators"))
         token2 = APIToken.get_or_create(self.org, self.admin, Group.objects.get(name="Surveyors"))
 
+        # can request fields endpoint using all 3 methods
+        response = request_by_token(fields_url, token1.key)
+        self.assertEqual(200, response.status_code)
+        response = request_by_basic_auth(fields_url, self.admin.username, token1.key)
+        self.assertEqual(200, response.status_code)
+        response = request_by_session(fields_url, self.admin)
+        self.assertEqual(200, response.status_code)
+
+        # can't fetch endpoint with invalid token
+        response = request_by_token(contacts_url, "1234567890")
+        self.assertResponseError(response, None, "Invalid token", status_code=403)
+
+        # can't fetch endpoint with invalid token
+        response = request_by_basic_auth(contacts_url, self.admin.username, "1234567890")
+        self.assertResponseError(response, None, "Invalid token or email", status_code=403)
+
         # can't fetch endpoint with invalid username
-        response = api_request_basic_auth(contacts_url, "some@name.com", token1.key)
+        response = request_by_basic_auth(contacts_url, "some@name.com", token1.key)
         self.assertResponseError(response, None, "Invalid token or email", status_code=403)
 
         # can fetch campaigns endpoint with valid admin token
-        response = api_request(campaigns_url, token1.key)
-        self.assertEqual(response.status_code, 200)
-
-        response = api_request_basic_auth(campaigns_url, self.admin.username, token1.key)
+        response = request_by_token(campaigns_url, token1.key)
         self.assertEqual(response.status_code, 200)
 
         # but not with surveyor token
-        response = api_request(campaigns_url, token2.key)
+        response = request_by_token(campaigns_url, token2.key)
         self.assertResponseError(response, None, "You do not have permission to perform this action.", status_code=403)
 
-        response = api_request_basic_auth(campaigns_url, self.admin.username, token2.key)
+        response = request_by_basic_auth(campaigns_url, self.admin.username, token2.key)
         self.assertResponseError(response, None, "You do not have permission to perform this action.", status_code=403)
 
         # but it can be used to access the contacts endpoint
-        response = api_request(contacts_url, token2.key)
+        response = request_by_token(contacts_url, token2.key)
         self.assertEqual(response.status_code, 200)
 
-        response = api_request_basic_auth(contacts_url, self.admin.username, token2.key)
+        response = request_by_basic_auth(contacts_url, self.admin.username, token2.key)
+        self.assertEqual(response.status_code, 200)
+
+        # simulate the admin user exceeding the rate limit for the v2 scope
+        cache.set(f"throttle_v2_{self.org.id}-{self.admin.id}", [time.time() for r in range(10000)])
+
+        # next request they make using a token will be rejected
+        response = request_by_token(fields_url, token1.key)
+        self.assertEqual(response.status_code, 429)
+
+        # same with basic auth
+        response = request_by_basic_auth(fields_url, self.admin.username, token1.key)
+        self.assertEqual(response.status_code, 429)
+
+        # but they can still make a request if they have a session
+        response = request_by_session(fields_url, self.admin)
         self.assertEqual(response.status_code, 200)
 
         # if user loses access to the token's role, don't allow the request
         self.org.administrators.remove(self.admin)
         self.org.surveyors.add(self.admin)
 
-        self.assertEqual(api_request(campaigns_url, token1.key).status_code, 403)
-        self.assertEqual(api_request_basic_auth(campaigns_url, self.admin.username, token1.key).status_code, 403)
-        self.assertEqual(api_request(contacts_url, token2.key).status_code, 200)  # other token unaffected
-        self.assertEqual(api_request_basic_auth(contacts_url, self.admin.username, token2.key).status_code, 200)
+        self.assertEqual(request_by_token(campaigns_url, token1.key).status_code, 403)
+        self.assertEqual(request_by_basic_auth(campaigns_url, self.admin.username, token1.key).status_code, 403)
+        self.assertEqual(request_by_token(contacts_url, token2.key).status_code, 200)  # other token unaffected
+        self.assertEqual(request_by_basic_auth(contacts_url, self.admin.username, token2.key).status_code, 200)
 
         # and if user is inactive, disallow the request
         self.admin.is_active = False
         self.admin.save()
 
-        response = api_request(contacts_url, token2.key)
+        response = request_by_token(contacts_url, token2.key)
         self.assertResponseError(response, None, "Invalid token", status_code=403)
 
-        response = api_request_basic_auth(contacts_url, self.admin.username, token2.key)
+        response = request_by_basic_auth(contacts_url, self.admin.username, token2.key)
         self.assertResponseError(response, None, "Invalid token or email", status_code=403)
 
     @override_settings(SECURE_PROXY_SSL_HEADER=("HTTP_X_FORWARDED_HTTPS", "https"))
@@ -567,7 +592,6 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         BoundaryAlias.create(self.org, self.admin, self.state1, "Kigali")
-        BoundaryAlias.create(self.org, self.admin, self.state1, "Kigari")
         BoundaryAlias.create(self.org, self.admin, self.state2, "East Prov")
         BoundaryAlias.create(self.org2, self.admin2, self.state1, "Other Org")  # shouldn't be returned
 
@@ -1691,13 +1715,21 @@ class APITest(TembaTest):
         self.assertEqual(set(jaqen.user_groups.all()), set())
         self.assertIsNone(jaqen.fields)
 
-        with ESMockWithScroll():
+        with MockParseQuery('nickname = "jado"', ["nickname"]):
             dyn_group = self.create_group("Dynamic Group", query="nickname is jado")
+            ContactGroup.user_groups.filter(id=dyn_group.id).update(status=ContactGroup.STATUS_READY)
 
+        with MockParseQuery('language = "fra"', ["language"]):
             lang_group = self.create_group("Language Group", query="language = fra")
-            eng_lang_group = self.create_group("Language Group English", query="language = eng")
+            ContactGroup.user_groups.filter(id=lang_group.id).update(status=ContactGroup.STATUS_READY)
 
+        with MockParseQuery('language = "eng"', ["language"]):
+            eng_lang_group = self.create_group("Language Group English", query="language = eng")
+            ContactGroup.user_groups.filter(id=eng_lang_group.id).update(status=ContactGroup.STATUS_READY)
+
+        with MockParseQuery('name ~ "Jason"', ["name"]):
             jason_group = self.create_group("Jason Group", query="name has Jason")
+            ContactGroup.user_groups.filter(id=jason_group.id).update(status=ContactGroup.STATUS_READY)
 
         # create with all fields
         response = self.postJSON(
@@ -2093,7 +2125,7 @@ class APITest(TembaTest):
         group = self.create_group("Testers")
         self.create_field("isdeveloper", "Is developer")
 
-        with ESMockWithScroll():
+        with MockParseQuery('isdeveloper = "YES"', ["developers"]):
             self.create_group("Developers", query="isdeveloper = YES")
 
         # create some "active" runs for some of the contacts
@@ -2238,14 +2270,14 @@ class APITest(TembaTest):
 
         self.assertEqual(len(response.json()["flows"]), 1)
         self.assertEqual(len(response.json()["flows"][0]["nodes"]), 9)
-        self.assertEqual(response.json()["flows"][0]["spec_version"], "13.0.0")
+        self.assertEqual(response.json()["flows"][0]["spec_version"], Flow.CURRENT_SPEC_VERSION)
 
     def test_definitions(self):
         url = reverse("api.v2.definitions")
 
         self.assertEndpointAccess(url)
 
-        self.import_file("subflow")
+        self.import_file("subflow", legacy=True)
         flow = Flow.objects.filter(name="Parent Flow").first()
 
         # all flow dependencies and we should get the child flow
@@ -2257,7 +2289,7 @@ class APITest(TembaTest):
         self.assertEqual({f["metadata"]["name"] for f in response.json()["flows"]}, {"Parent Flow"})
 
         # import the clinic app which has campaigns
-        self.import_file("the_clinic")
+        self.import_file("the_clinic", legacy=True)
 
         # our catchall flow, all alone
         flow = Flow.objects.filter(name="Catch All").first()
@@ -2413,9 +2445,9 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        survey = self.get_flow("media_survey")
-        color = self.get_flow("color")
-        archived = self.get_flow("favorites")
+        survey = self.get_flow("media_survey", legacy=True)
+        color = self.get_flow("color", legacy=True)
+        archived = self.get_flow("favorites", legacy=True)
         archived.archive()
 
         # add a campaign message flow that should be filtered out
@@ -2473,6 +2505,7 @@ class APITest(TembaTest):
                             "node_uuids": [matchers.UUID4String()],
                         },
                     ],
+                    "parent_refs": [],
                     "created_on": format_datetime(archived.created_on),
                     "modified_on": format_datetime(archived.modified_on),
                 },
@@ -2492,6 +2525,7 @@ class APITest(TembaTest):
                             "node_uuids": [matchers.UUID4String()],
                         }
                     ],
+                    "parent_refs": [],
                     "created_on": format_datetime(color.created_on),
                     "modified_on": format_datetime(color.modified_on),
                 },
@@ -2529,6 +2563,7 @@ class APITest(TembaTest):
                             "node_uuids": [matchers.UUID4String()],
                         },
                     ],
+                    "parent_refs": [],
                     "created_on": format_datetime(survey.created_on),
                     "modified_on": format_datetime(survey.modified_on),
                 },
@@ -2615,14 +2650,14 @@ class APITest(TembaTest):
 
         self.create_field("isdeveloper", "Is developer")
         customers = self.create_group("Customers", [self.frank])
-        with ESMockWithScroll():
+        with MockParseQuery('isdeveloper = "YES"', ["isdeveloper"]):
             developers = self.create_group("Developers", query="isdeveloper = YES")
+            ContactGroup.user_groups.filter(id=developers.id).update(status=ContactGroup.STATUS_READY)
 
+        with MockParseQuery('isdeveloper = "NO"', ["isdeveloper"]):
             # a group which is being re-evaluated
             dynamic = self.create_group("Big Group", query="isdeveloper=NO")
-
-        dynamic.status = ContactGroup.STATUS_EVALUATING
-        dynamic.save(update_fields=("status",))
+            ContactGroup.user_groups.filter(id=dynamic.id).update(status=ContactGroup.STATUS_EVALUATING)
 
         # an initializing group
         ContactGroup.create_static(self.org, self.admin, "Initializing", status=ContactGroup.STATUS_INITIALIZING)
@@ -3856,9 +3891,20 @@ class APITest(TembaTest):
         TemplateTranslation.get_or_create(
             self.channel, "hello", "eng", "Hi {{1}}", 1, TemplateTranslation.STATUS_APPROVED, "1234"
         )
-        tt = TemplateTranslation.get_or_create(
+        TemplateTranslation.get_or_create(
             self.channel, "hello", "fra", "Bonjour {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
         )
+        tt = TemplateTranslation.get_or_create(
+            self.channel,
+            "hello",
+            "afr",
+            "This is a template translation for a deleted channel {{1}}",
+            1,
+            TemplateTranslation.STATUS_APPROVED,
+            "9012",
+        )
+        tt.is_active = False
+        tt.save()
 
         # templates on other org to test filtering
         TemplateTranslation.get_or_create(

@@ -6,9 +6,9 @@ import pytz
 from django.urls import reverse
 from django.utils import timezone
 
+from temba.contacts.omnibox import omnibox_serialize
 from temba.msgs.models import Broadcast
 from temba.tests import TembaTest
-from temba.utils import json
 
 from .models import Schedule
 
@@ -209,23 +209,23 @@ class ScheduleTest(TembaTest):
         joe = self.create_contact("Joe Blow", "123")
 
         # test missing recipients
-        post_data = dict(text="message content", omnibox="", sender=self.channel.pk, _format="json", schedule=True)
+        omnibox = omnibox_serialize(self.org, [], [], True)
+        post_data = dict(text="message content", omnibox=omnibox, sender=self.channel.pk, schedule=True)
         response = self.client.post(reverse("msgs.broadcast_send"), post_data, follow=True)
         self.assertContains(response, "At least one recipient is required")
 
         # missing message
-        post_data = dict(text="", omnibox="c-%s" % joe.uuid, sender=self.channel.pk, _format="json", schedule=True)
+        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
+        post_data = dict(text="", omnibox=omnibox, sender=self.channel.pk, schedule=True)
         response = self.client.post(reverse("msgs.broadcast_send"), post_data, follow=True)
         self.assertContains(response, "This field is required")
 
         # finally create our message
-        post_data = dict(
-            text="A scheduled message to Joe", omnibox="c-%s" % joe.uuid, sender=self.channel.pk, schedule=True
-        )
-        response = json.loads(
-            self.client.post(reverse("msgs.broadcast_send") + "?_format=json", post_data, follow=True).content
-        )
-        self.assertIn("/broadcast/schedule_read", response["redirect"])
+        post_data = dict(text="A scheduled message to Joe", omnibox=omnibox, sender=self.channel.pk, schedule=True)
+
+        headers = {"HTTP_X_PJAX": "True"}
+        response = self.client.post(reverse("msgs.broadcast_send"), post_data, **headers)
+        self.assertIn("/broadcast/schedule_read", response["Temba-Success"])
 
         # should have a schedule with no next fire
         bcast = Broadcast.objects.get()
@@ -235,7 +235,7 @@ class ScheduleTest(TembaTest):
         self.assertEqual(Schedule.REPEAT_NEVER, schedule.repeat_period)
 
         # fetch our formax page
-        response = self.client.get(response["redirect"])
+        response = self.client.get(response["Temba-Success"])
         self.assertContains(response, "id-schedule")
         broadcast = response.context["object"]
 
@@ -273,9 +273,9 @@ class ScheduleTest(TembaTest):
 
     def test_update(self):
         self.login(self.admin)
-        post_data = dict(
-            text="A scheduled message to Joe", omnibox="c-%s" % self.joe.uuid, sender=self.channel.pk, schedule=True
-        )
+        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
+
+        post_data = dict(text="A scheduled message to Joe", omnibox=omnibox, sender=self.channel.pk, schedule=True)
         response = self.client.post(reverse("msgs.broadcast_send"), post_data, follow=True)
 
         bcast = Broadcast.objects.get()
@@ -392,10 +392,10 @@ class ScheduleTest(TembaTest):
         self.org.save()
         tz = self.org.timezone
 
+        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
+
         self.login(self.admin)
-        post_data = dict(
-            text="A scheduled message to Joe", omnibox="c-%s" % self.joe.uuid, sender=self.channel.pk, schedule=True
-        )
+        post_data = dict(text="A scheduled message to Joe", omnibox=omnibox, sender=self.channel.pk, schedule=True)
         self.client.post(reverse("msgs.broadcast_send"), post_data, follow=True)
 
         bcast = Broadcast.objects.get()

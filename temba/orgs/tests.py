@@ -42,6 +42,8 @@ from temba.contacts.models import (
     ContactURN,
     ExportContactsTask,
 )
+from temba.contacts.omnibox import omnibox_serialize
+from temba.contacts.search import ParsedQuery
 from temba.flows.models import ActionSet, ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
@@ -691,7 +693,9 @@ class OrgTest(TembaTest):
         # while we are suspended, we can't send broadcasts
         send_url = reverse("msgs.broadcast_send")
         mark = self.create_contact("Mark", number="+12065551212")
-        post_data = dict(text="send me ur bank account login im ur friend.", omnibox="c-%s" % mark.uuid)
+
+        omnibox = omnibox_serialize(self.org, [], [mark], True)
+        post_data = dict(text="send me ur bank account login im ur friend.", omnibox=omnibox)
         response = self.client.post(send_url, post_data, follow=True)
 
         self.assertEqual(
@@ -2672,16 +2676,6 @@ class AnonOrgTest(TembaTest):
         self.assertContains(response, masked)
         self.assertContains(response, ContactURN.ANON_MASK_HTML)
 
-        # can't search for it
-        with patch("temba.utils.es.ES") as mock_ES:
-            mock_ES.search.return_value = {"_hits": []}
-            mock_ES.count.return_value = {"count": 0}
-            response = self.client.get(reverse("contacts.contact_list") + "?search=788")
-
-            # can't look for 788 as that is in the search box..
-            self.assertNotContains(response, "123123")
-            self.assertContains(response, "No matching contacts.")
-
         # create an outgoing message, check number doesn't appear in outbox
         msg1 = self.create_outgoing_msg(contact, "hello", status="Q")
 
@@ -3502,7 +3496,7 @@ class BulkExportTest(TembaTest):
         # import a flow that triggers another flow
         contact1 = self.create_contact("Marshawn", "+14255551212")
         substitutions = dict(contact_id=contact1.id)
-        flow = self.get_flow("triggered", substitutions)
+        flow = self.get_flow("triggered", substitutions, legacy=True)
 
         # read in the old version 8 raw json
         old_json = self.get_import_json("triggered", substitutions)
@@ -3519,10 +3513,10 @@ class BulkExportTest(TembaTest):
 
         # now make sure a call to get dependencies succeeds and shows our flow
         triggeree = Flow.objects.filter(name="Triggeree").first()
-        self.assertIn(triggeree, flow.get_dependencies())
+        self.assertIn(triggeree, flow.flow_dependencies.all())
 
     def test_trigger_flow(self):
-        self.import_file("triggered_flow")
+        self.import_file("triggered_flow", legacy=True)
 
         flow = Flow.objects.filter(name="Trigger a Flow", org=self.org).first()
         definition = flow.as_json()
@@ -3553,7 +3547,7 @@ class BulkExportTest(TembaTest):
 
         parent = Flow.objects.filter(name="Parent Flow").first()
         child = Flow.objects.filter(name="Child Flow").first()
-        self.assertIn(child, parent.get_dependencies())
+        self.assertIn(child, parent.flow_dependencies.all())
 
         self.login(self.admin)
         response = self.client.get(reverse("orgs.org_export"))
@@ -3567,7 +3561,7 @@ class BulkExportTest(TembaTest):
     def test_flow_export_dynamic_group(self):
         from temba.flows.legacy import AddToGroupAction
 
-        flow = self.get_flow("favorites")
+        flow = self.get_flow("favorites", legacy=True)
 
         # get one of our flow actionsets, change it to an AddToGroupAction
         actionset = ActionSet.objects.filter(flow=flow).order_by("y").first()
@@ -3607,7 +3601,7 @@ class BulkExportTest(TembaTest):
 
     def test_missing_flows_on_import(self):
         # import a flow that starts a missing flow
-        self.import_file("start_missing_flow")
+        self.import_file("start_missing_flow", legacy=True)
 
         # the flow that kicks off our missing flow
         flow = Flow.objects.get(name="Start Missing Flow")
@@ -3625,7 +3619,7 @@ class BulkExportTest(TembaTest):
         self.assertEqual(1, len(other_actionset.get_actions()))
 
         # now make sure it does the same thing from an actionset
-        self.import_file("start_missing_flow_from_actionset")
+        self.import_file("start_missing_flow_from_actionset", legacy=True)
         self.assertIsNotNone(Flow.objects.filter(name="Start Missing Flow").first())
         self.assertIsNone(Flow.objects.filter(name="Missing Flow").first())
 
@@ -3662,6 +3656,16 @@ class BulkExportTest(TembaTest):
         self.assertFormError(
             response, "form", "import_file", "This file is no longer valid. Please export a new version and try again."
         )
+
+        # try a file which can be migrated forwards
+        response = self.client.post(
+            reverse("orgs.org_import"),
+            {"import_file": open("%s/test_flows/favorites_v4.json" % settings.MEDIA_ROOT, "rb")},
+        )
+        self.assertEqual(302, response.status_code)
+
+        flow = self.org.flows.filter(name="Favorites").get()
+        self.assertEqual(Flow.CURRENT_SPEC_VERSION, flow.version_number)
 
         # simulate an unexpected exception during import
         with patch("temba.triggers.models.Trigger.import_triggers") as validate:
@@ -3733,12 +3737,12 @@ class BulkExportTest(TembaTest):
         self.assertNotEqual(original_fire.id, new_event.fires.all().first().id)
 
     def test_import_mixed_flow_versions(self):
-        self.import_file("mixed_versions")
+        self.import_file("mixed_versions", legacy=True)
 
         group = ContactGroup.user_groups.get(name="Survey Audience")
 
         child = Flow.objects.get(name="New Child")
-        self.assertEqual(child.version_number, "13.0.0")
+        self.assertEqual(child.version_number, Flow.CURRENT_SPEC_VERSION)
         self.assertEqual(set(child.flow_dependencies.all()), set())
         self.assertEqual(set(child.group_dependencies.all()), {group})
 
@@ -3789,7 +3793,7 @@ class BulkExportTest(TembaTest):
         self.assertEqual(set(parent.flow_dependencies.all()), {child2})
 
     def test_implicit_group_imports_legacy(self):
-        self.import_file("cataclysm_legacy")
+        self.import_file("cataclysm_legacy", legacy=True)
         flow = Flow.objects.get(name="Cataclysmic")
 
         from temba.flows.legacy.tests import get_legacy_groups
@@ -3807,31 +3811,31 @@ class BulkExportTest(TembaTest):
             )
 
     def validate_flow_dependencies(self, definition):
-        flow_info = mailroom.get_client().flow_inspect(definition)
+        flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
         deps = flow_info["dependencies"]
 
-        for ref in deps.get("fields", []):
+        for dep in [d for d in deps if d["type"] == "field"]:
             self.assertTrue(
-                ContactField.user_fields.filter(key=ref["key"]).exists(),
-                msg=f"missing field[key={ref['key']}, name={ref['name']}]",
+                ContactField.user_fields.filter(key=dep["key"]).exists(),
+                msg=f"missing field[key={dep['key']}, name={dep['name']}]",
             )
-        for ref in deps.get("flows", []):
+        for dep in [d for d in deps if d["type"] == "flow"]:
             self.assertTrue(
-                Flow.objects.filter(uuid=ref["uuid"]).exists(),
-                msg=f"missing flow[uuid={ref['uuid']}, name={ref['name']}]",
+                Flow.objects.filter(uuid=dep["uuid"]).exists(),
+                msg=f"missing flow[uuid={dep['uuid']}, name={dep['name']}]",
             )
-        for ref in deps.get("groups", []):
+        for dep in [d for d in deps if d["type"] == "group"]:
             self.assertTrue(
-                ContactGroup.user_groups.filter(uuid=ref["uuid"]).exists(),
-                msg=f"missing group[uuid={ref['uuid']}, name={ref['name']}]",
+                ContactGroup.user_groups.filter(uuid=dep["uuid"]).exists(),
+                msg=f"missing group[uuid={dep['uuid']}, name={dep['name']}]",
             )
 
     def test_implicit_field_and_group_imports(self):
         """
         Tests importing flow definitions without fields and groups included in the export
         """
-
         data = self.get_import_json("cataclysm")
+
         del data["fields"]
         del data["groups"]
 
@@ -3852,11 +3856,15 @@ class BulkExportTest(TembaTest):
         """
         Tests importing flow definitions with groups included in the export but not fields
         """
-
         data = self.get_import_json("cataclysm")
         del data["fields"]
 
-        with ESMockWithScroll():
+        with patch("temba.contacts.search.parse_query") as mock:
+            mock.side_effect = [
+                ParsedQuery("facts_per_day = 1", ["facts_per_day"]),
+                ParsedQuery('likes_cats = "true"', ["likes_cats"]),
+            ]
+
             self.org.import_app(data, self.admin, site="http://rapidpro.io")
 
         flow = Flow.objects.get(name="Cataclysmic")
@@ -3888,8 +3896,11 @@ class BulkExportTest(TembaTest):
         """
         Tests importing flow definitions with groups and fields included in the export
         """
-
-        with ESMockWithScroll():
+        with patch("temba.contacts.search.parse_query") as mock:
+            mock.side_effect = [
+                ParsedQuery("facts_per_day = 1", ["facts_per_day"]),
+                ParsedQuery('likes_cats = "true"', ["likes_cats"]),
+            ]
             self.import_file("cataclysm")
 
         flow = Flow.objects.get(name="Cataclysmic")
@@ -3950,7 +3961,7 @@ class BulkExportTest(TembaTest):
             )
 
         # import all our bits
-        self.import_file("the_clinic")
+        self.import_file("the_clinic", legacy=True)
 
         # check that the right number of objects successfully imported for our app
         assert_object_counts()
@@ -3976,7 +3987,7 @@ class BulkExportTest(TembaTest):
         message_flow.update_single_message_flow(self.admin, {"base": "No reminders for you!"}, base_language="base")
 
         # now reimport
-        self.import_file("the_clinic")
+        self.import_file("the_clinic", legacy=True)
 
         # our flow should get reset from the import
         confirm_appointment = Flow.objects.get(pk=confirm_appointment.pk)

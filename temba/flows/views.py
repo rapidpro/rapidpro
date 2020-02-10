@@ -46,6 +46,7 @@ from temba.contacts.models import (
     ContactURN,
 )
 from temba.contacts.omnibox import omnibox_deserialize
+from temba.flows import legacy
 from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
 from temba.flows.tasks import export_flow_results_task
@@ -301,29 +302,41 @@ class FlowCRUDL(SmartCRUDL):
         def get(self, request, *args, **kwargs):
             flow = self.get_object()
 
-            flow_version = request.GET.get("version", Flow.GOFLOW_VERSION)
+            flow_version = request.GET.get("version", Flow.CURRENT_SPEC_VERSION)
             revision_id = self.kwargs["revision_id"]
 
+            # we are looking for a specific revision, fetch it and migrate it forward
             if revision_id:
                 revision = FlowRevision.objects.get(flow=flow, pk=revision_id)
-                return JsonResponse(revision.get_definition_json(flow_version))
-            else:
+                return JsonResponse(revision.get_definition_json(to_version=flow_version))
 
-                versions = Flow.get_versions_before(flow_version)
-                versions.append(flow_version)
+            # get a list of all revisions, these should be reasonably pruned already
+            revisions = []
+            requested_version = Version(flow_version)
+            release = requested_version.release
 
-                revisions = []
-                for revision in flow.revisions.filter(spec_version__in=versions).order_by("-revision")[:25]:
+            # if a patch version wasn't given, we want to include all patches
+            # for example, 13.2 should include anything up to but not including 13.3.0
+            # up to the next minor version
+            include_patches = len(release) == 2
+            up_to_version = Version(".".join([str(release[0]), str((release[1]) + 1), "0"]))
 
-                    # our goflow versions are already validated
-                    if revision.spec_version == Flow.GOFLOW_VERSION:
+            for revision in flow.revisions.all().order_by("-revision"):
+
+                revision_version = Version(revision.spec_version)
+
+                # any version up to the requested version is allowed
+                if revision_version <= requested_version or (include_patches and revision_version < up_to_version):
+
+                    # our goflow revisions are already validated
+                    if revision_version >= Version(Flow.INITIAL_GOFLOW_VERSION):
                         revisions.append(revision.as_json())
                         continue
 
-                    # validate the flow definition before presenting it to the user
+                    # legacy revisions should be validated first as a failsafe
                     try:
-                        # can only validate up to our last python version
-                        FlowRevision.validate_legacy_definition(revision.get_definition_json())
+                        legacy_flow_def = revision.get_definition_json(to_version=Flow.FINAL_LEGACY_VERSION)
+                        FlowRevision.validate_legacy_definition(legacy_flow_def)
                         revisions.append(revision.as_json())
 
                     except ValueError:
@@ -337,7 +350,7 @@ class FlowCRUDL(SmartCRUDL):
                         )
                         pass
 
-                return JsonResponse({"results": revisions}, safe=False)
+            return JsonResponse({"results": revisions}, safe=False)
 
         def post(self, request, *args, **kwargs):
             if not self.has_org_perm("flows.flow_update"):
@@ -479,7 +492,6 @@ class FlowCRUDL(SmartCRUDL):
                 expires_after_minutes=expires_after_minutes,
                 base_language=obj.base_language,
                 create_revision=True,
-                use_new_editor=True,
             )
 
         def post_save(self, obj):
@@ -1028,7 +1040,7 @@ class FlowCRUDL(SmartCRUDL):
                 flow.save(update_fields=("version_number",))
 
             # require update permissions
-            if Version(flow.version_number) >= Version(Flow.GOFLOW_VERSION):
+            if Version(flow.version_number) >= Version(Flow.INITIAL_GOFLOW_VERSION):
                 return HttpResponseRedirect(reverse("flows.flow_editor_next", args=[self.get_object().uuid]))
 
             return super().get(request, *args, **kwargs)
@@ -1180,9 +1192,11 @@ class FlowCRUDL(SmartCRUDL):
             if flow.is_archived:
                 context["mutable"] = False
                 context["can_start"] = False
+                context["can_simulate"] = False
             else:
                 context["mutable"] = self.has_org_perm("flows.flow_update") and not self.request.user.is_superuser
                 context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
+                context["can_simulate"] = True
 
             context["dev_mode"] = dev_mode
             context["is_starting"] = flow.is_starting()
@@ -1214,8 +1228,7 @@ class FlowCRUDL(SmartCRUDL):
             links = []
             flow = self.object
 
-            versions = Flow.get_versions_before(Flow.GOFLOW_VERSION)
-            has_legacy_revision = flow.revisions.filter(spec_version__in=versions).exists()
+            has_legacy_revision = flow.revisions.filter(spec_version__in=legacy.VERSIONS).exists()
 
             if (
                 flow.flow_type != Flow.TYPE_SURVEY
@@ -1814,7 +1827,14 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Contacts & Groups"),
                 required=False,
                 help_text=_("These contacts will be added to the flow, sending the first message if appropriate."),
-                widget=OmniboxChoice(attrs={"placeholder": _("Recipients, enter contacts or groups")}),
+                widget=OmniboxChoice(
+                    attrs={
+                        "placeholder": _("Recipients, enter contacts or groups"),
+                        "groups": True,
+                        "contacts": True,
+                        "widget_only": True,
+                    }
+                ),
             )
 
             restart_participants = forms.BooleanField(
@@ -1832,7 +1852,9 @@ class FlowCRUDL(SmartCRUDL):
             )
 
             start_type = forms.ChoiceField(
-                widget=SelectWidget(attrs={"placeholder": _("Select contacts or groups to start in the flow")}),
+                widget=SelectWidget(
+                    attrs={"placeholder": _("Select contacts or groups to start in the flow"), "widget_only": True}
+                ),
                 choices=(
                     ("select", _("Enter contacts and groups to start below")),
                     ("query", _("Search for contacts to start")),
@@ -1849,17 +1871,16 @@ class FlowCRUDL(SmartCRUDL):
                 start_type = self.data["start_type"]
 
                 if start_type == "query":
-
                     if not contact_query.strip():
                         raise ValidationError(_("Contact query is required"))
 
-                    # try parsing our query
-                    from temba.contacts.search import parse_query, SearchException
+                    client = mailroom.get_client()
 
                     try:
-                        parse_query(text=contact_query)
-                    except SearchException:
-                        raise ValidationError(_("Please enter a valid contact query"))
+                        resp = client.parse_query(self.flow.org_id, contact_query)
+                        contact_query = resp["query"]
+                    except mailroom.MailroomException as e:
+                        raise ValidationError(e.response["error"])
 
                 return contact_query
 
@@ -1903,6 +1924,14 @@ class FlowCRUDL(SmartCRUDL):
         submit_button_name = _("Add Contacts to Flow")
         success_url = "uuid@flows.flow_editor"
 
+        def has_facebook_topic(self, flow):
+            if not flow.is_legacy():
+                definition = flow.get_current_revision().get_definition_json()
+                for node in definition.get("nodes", []):
+                    for action in node.get("actions", []):
+                        if action.get("type", "") == "send_msg" and action.get("topic", ""):
+                            return True
+
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
             flow = self.get_object()
@@ -1910,11 +1939,21 @@ class FlowCRUDL(SmartCRUDL):
 
             warnings = []
 
+            # facebook channels need to warn if no topic is set
+            facebook_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=FACEBOOK_SCHEME)
+            if facebook_channel:
+                if not self.has_facebook_topic(flow):
+                    warnings.append(
+                        _(
+                            "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who have not sent an incoming message in the last 24 hours may not receive it."
+                        )
+                    )
+
             # if we have a whatsapp channel
             whatsapp_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=WHATSAPP_SCHEME)
             if whatsapp_channel:
                 # check to see we are using templates
-                templates = flow.metadata.get(Flow.METADATA_DEPENDENCIES, {}).get("templates", [])
+                templates = flow.get_dependencies_metadata("template")
                 if not templates:
                     warnings.append(
                         _(

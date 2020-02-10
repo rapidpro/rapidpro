@@ -74,25 +74,21 @@ class MailroomClient:
         from temba.flows.models import Flow
 
         if not to_version:
-            to_version = Flow.GOFLOW_VERSION
+            to_version = Flow.CURRENT_SPEC_VERSION
 
         return self._request("flow/migrate", {"flow": definition, "to_version": to_version})
 
-    def flow_inspect(self, flow, validate_with_org=None):
+    def flow_inspect(self, org_id, flow):
         payload = {"flow": flow}
 
         # can't do validation during tests because mailroom can't see unit test data created in a transaction
-        if validate_with_org and not settings.TESTING:  # pragma: no cover
-            payload["validate_with_org_id"] = validate_with_org.id
+        if not settings.TESTING:  # pragma: no cover
+            payload["validate_with_org_id"] = org_id
 
         return self._request("flow/inspect", payload)
 
-    def flow_clone(self, dependency_mapping, flow, validate_with_org=None):
-        payload = {"dependency_mapping": dependency_mapping, "flow": flow}
-
-        # can't do validation during tests because mailroom can't see unit test data created in a transaction
-        if validate_with_org and not settings.TESTING:  # pragma: no cover
-            payload["validate_with_org_id"] = validate_with_org.id
+    def flow_clone(self, flow, dependency_mapping):
+        payload = {"flow": flow, "dependency_mapping": dependency_mapping}
 
         return self._request("flow/clone", payload)
 
@@ -101,6 +97,16 @@ class MailroomClient:
 
     def sim_resume(self, payload):
         return self._request("sim/resume", payload)
+
+    def contact_search(self, org_id, group_uuid, query, sort, offset=0):
+        payload = {"org_id": org_id, "group_uuid": group_uuid, "query": query, "sort": sort, "offset": offset}
+
+        return self._request("contact/search", payload)
+
+    def parse_query(self, org_id, query):
+        payload = {"org_id": org_id, "query": query}
+
+        return self._request("contact/parse_query", payload)
 
     def _request(self, endpoint, payload=None, post=True):
         if logger.isEnabledFor(logging.DEBUG):  # pragma: no cover

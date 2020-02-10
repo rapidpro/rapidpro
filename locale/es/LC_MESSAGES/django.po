@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-12-02 21:28+0000\n"
+"POT-Creation-Date: 2020-02-07 01:01+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -108,6 +108,11 @@ msgstr "Los grupos a los que se envía este mensaje "
 msgid "Export"
 msgstr "Exportar"
 
+#, fuzzy
+#| msgid "Channel Event"
+msgid "Add Event"
+msgstr "Evento del transmisor"
+
 msgid "Edit"
 msgstr "Editar"
 
@@ -127,11 +132,40 @@ msgstr "campañas"
 msgid "Campaign activated"
 msgstr ""
 
+msgid "Select the event type"
+msgstr ""
+
+msgid "Relative date direction"
+msgstr ""
+
+#, fuzzy
+#| msgid "Select a Country"
+msgid "Select a unit"
+msgstr "Elegir un país"
+
+#, fuzzy
+#| msgid "Select All"
+msgid "Select a flow to start"
+msgstr "Elegir todos"
+
+#, fuzzy
+#| msgid "The groups to send the message to"
+msgid "Select a date field to base this event on"
+msgstr "Los grupos a los que se envía este mensaje "
+
+msgid "Select hour for delivery"
+msgstr ""
+
 msgid "Stop it and start this event"
 msgstr ""
 
 msgid "Skip this event"
 msgstr ""
+
+#, fuzzy
+#| msgid "Flow to start"
+msgid "Flow starting rules"
+msgstr "Flujo para empezar"
 
 #, fuzzy
 #| msgid "The groups to send the message to"
@@ -142,6 +176,10 @@ msgstr "Los grupos a los que se envía este mensaje "
 #| msgid "Send this message"
 msgid "Skip this message"
 msgstr "Enviar este mensaje"
+
+#, fuzzy
+msgid "Message sending rules"
+msgstr "Mensaje"
 
 #, python-format
 msgid "A message is required for '%s'"
@@ -156,6 +194,11 @@ msgstr ""
 
 msgid "Default"
 msgstr ""
+
+#, fuzzy
+#| msgid "Update Contact"
+msgid "Update Event"
+msgstr "Actualizar Contacto"
 
 msgid "Default Encoding"
 msgstr ""
@@ -3406,6 +3449,14 @@ msgstr "ID externo"
 msgid "Freshchat identifier"
 msgstr "ID externo"
 
+#, fuzzy
+#| msgid "UUID"
+msgid "ID"
+msgstr "UUID"
+
+msgid "Language"
+msgstr "Idioma"
+
 msgid "Label"
 msgstr "Etiquetar"
 
@@ -3420,9 +3471,6 @@ msgstr ""
 
 msgid "The name of this contact"
 msgstr "El nombre de este contacto"
-
-msgid "Language"
-msgstr "Idioma"
 
 msgid "The preferred language for this contact"
 msgstr "El idioma preferido para este contacto"
@@ -3597,10 +3645,10 @@ msgstr ""
 msgid "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you can create new ones."
 msgstr ""
 
-msgid "You cannot update the query of a group that is evaluating."
+msgid "You cannot create a dynamic group based on \"id\"."
 msgstr ""
 
-msgid "You cannot create a dynamic group based on \"name\" or \"id\"."
+msgid "You cannot update the query of a group that is evaluating."
 msgstr ""
 
 msgid "All Contacts"
@@ -3838,24 +3886,6 @@ msgstr "El idioma principal para editar este flujo"
 #, fuzzy
 msgid "The flow version this definition is in"
 msgstr "La zona horaria en la que se encuentra su organización"
-
-#, fuzzy
-#| msgid "Any labels on this flow"
-msgid "Any flows this flow uses"
-msgstr "Cualquier etiqueta en este flujo"
-
-msgid "Group Dependencies"
-msgstr ""
-
-#, fuzzy
-#| msgid "Any labels on this flow"
-msgid "Any groups this flow uses"
-msgstr "Cualquier etiqueta en este flujo"
-
-#, fuzzy
-#| msgid "Any labels on this flow"
-msgid "Any fields this flow depends on"
-msgstr "Cualquier etiqueta en este flujo"
 
 #, fuzzy
 #| msgid "Deleted"
@@ -4308,11 +4338,6 @@ msgstr "Crear Contacto"
 msgid "Contact query is required"
 msgstr "Nombre del contacto"
 
-#, fuzzy
-#| msgid "Please enter at least 8 characters"
-msgid "Please enter a valid contact query"
-msgstr "Por favor, ingrese 8 caracteres como mínimo"
-
 msgid "You must specify at least one contact or one group to start a flow."
 msgstr ""
 
@@ -4324,6 +4349,9 @@ msgstr ""
 
 msgid "Add Contacts to Flow"
 msgstr "Agregar contactos al flujo"
+
+msgid "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who have not sent an incoming message in the last 24 hours may not receive it."
+msgstr ""
 
 msgid "This flow does not use message templates. You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
 msgstr ""
@@ -4659,6 +4687,25 @@ msgstr "La fecha para el mensaje más reciente para exportar"
 msgid "Contact Field: %(label)s"
 msgstr "Campo de contacto: %(label)s"
 
+#, fuzzy
+msgid "Recipients"
+msgstr "Número de créditos"
+
+#, fuzzy
+#| msgid "The groups to send the message to"
+msgid "The contacts to send the message to"
+msgstr "Los grupos a los que se envía este mensaje "
+
+#, fuzzy
+#| msgid "Contact Name"
+msgid "Hi @contact.name!"
+msgstr "Nombre del contacto"
+
+#, fuzzy
+#| msgid "Schedule Trigger"
+msgid "Schedule for later"
+msgstr "Activador de programa"
+
 msgid "At least one recipient is required"
 msgstr "Se requiere un destinatario como mínimo"
 
@@ -4674,11 +4721,6 @@ msgstr "Programaciones"
 msgid "Failed"
 msgstr "Error"
 
-#, fuzzy
-#| msgid "Contact Name"
-msgid "Hi @contact.name!"
-msgstr "Nombre del contacto"
-
 msgid "Schedule Message"
 msgstr "Programar mensaje"
 
@@ -4687,10 +4729,6 @@ msgstr "Mensaje programado"
 
 msgid "Scheduled Messages"
 msgstr "Mensajes programados"
-
-#, fuzzy
-msgid "Send"
-msgstr "Enviar URL"
 
 msgid "You must add a phone number before sending messages"
 msgstr "Debe agregar un número antes de enviar mensajes"
@@ -4909,11 +4947,6 @@ msgstr ""
 #| msgid "The FlowStart objects that started this run"
 msgid "The parent org that manages this org"
 msgstr "Los objetos de FlowStart que empezaron esta corrida"
-
-#, fuzzy
-#| msgid "UUID"
-msgid "ID"
-msgstr "UUID"
 
 #, python-format
 msgid "Invalid bundle: %s, cannot upgrade."
@@ -8293,9 +8326,6 @@ msgstr "¿Está seguro de que desea borrar este contacto?"
 msgid "Update Contact"
 msgstr "Actualizar Contacto"
 
-msgid "This contact does not have any number which you can send to. Please edit the contact first or add a new phone."
-msgstr ""
-
 msgid "These contacts have opted out and you can no longer send them messages, they have been removed from all groups."
 msgstr ""
 
@@ -9026,6 +9056,16 @@ msgstr ""
 msgid "Ask a series of questions to collect data from your contacts."
 msgstr "Haga una serie de preguntas para obtener los datos de sus contactos."
 
+#, fuzzy
+#| msgid "Are you sure you want to delete this contact?"
+msgid "Are you sure you want to delete this global?"
+msgstr "¿Está seguro de que desea borrar este contacto?"
+
+#, fuzzy
+#| msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
+msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
+msgstr "Una vez borrados, no podrá recuperarlos. No puede deshacer esta operación. "
+
 #, fuzzy, python-format
 msgid "You have <b>%(counter)s global</b> configured"
 msgid_plural "You have <b>%(counter)s globals</b> configured"
@@ -9224,6 +9264,13 @@ msgstr ""
 "\n"
 "                              %(completed_percentage)s%% completion\n"
 "                            "
+
+#, fuzzy, python-format
+#| msgid "When the user left this step in the flow"
+msgid "%(recipients)s recipient currently at this step in the flow"
+msgid_plural "%(recipients)s recipients currently at this step in the flow"
+msgstr[0] "Cuando el usuario salió de este paso en el flujo"
+msgstr[1] "Cuando el usuario salió de este paso en el flujo"
 
 msgid "Write the message that will get sent when the scheduled time arrives"
 msgstr "Escribir el mensaje que será enviado a la hora programada"
@@ -11817,6 +11864,30 @@ msgstr "Ingrese el código de pedido"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
+#, fuzzy
+#~| msgid "Any labels on this flow"
+#~ msgid "Any flows this flow uses"
+#~ msgstr "Cualquier etiqueta en este flujo"
+
+#, fuzzy
+#~| msgid "Any labels on this flow"
+#~ msgid "Any groups this flow uses"
+#~ msgstr "Cualquier etiqueta en este flujo"
+
+#, fuzzy
+#~| msgid "Any labels on this flow"
+#~ msgid "Any fields this flow depends on"
+#~ msgstr "Cualquier etiqueta en este flujo"
+
+#, fuzzy
+#~| msgid "Please enter at least 8 characters"
+#~ msgid "Please enter a valid contact query"
+#~ msgstr "Por favor, ingrese 8 caracteres como mínimo"
+
+#, fuzzy
+#~ msgid "Send"
+#~ msgstr "Enviar URL"
+
 #, fuzzy, python-format
 #~| msgid ""
 #~| "\n"
@@ -12662,10 +12733,6 @@ msgstr ""
 #~ msgstr "Llamada finalizada."
 
 #, fuzzy
-#~ msgid "Recipients"
-#~ msgstr "Número de créditos"
-
-#, fuzzy
 #~| msgid "The URN of the contact delivering this message"
 #~ msgid "The contacts which received this message"
 #~ msgstr "El URN del contacto que entrega este mensaje"
@@ -12735,11 +12802,6 @@ msgstr ""
 #~| msgid "Webhook"
 #~ msgid "Webhook Docs"
 #~ msgstr "Webhook"
-
-#, fuzzy
-#~| msgid "Channel Event"
-#~ msgid "Event"
-#~ msgstr "Evento del transmisor"
 
 #, fuzzy
 #~| msgid "Channel"
