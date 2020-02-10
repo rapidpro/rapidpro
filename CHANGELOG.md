@@ -1,3 +1,9 @@
+v5.3.49
+----------
+ * Use realistic phone numbers in mailroom test db
+ * Remove contact filtering from flow results page
+ * Add migration to populate Flow.template_dependencies
+
 v5.3.48
 ----------
  * Use mailroom searching for omnibox results
