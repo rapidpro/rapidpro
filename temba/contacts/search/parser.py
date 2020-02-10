@@ -2,6 +2,7 @@ import operator
 from collections import OrderedDict
 from decimal import Decimal
 from functools import reduce
+from typing import NamedTuple
 
 import pytz
 import regex
@@ -13,6 +14,7 @@ from elasticsearch_dsl import Q as es_Q
 from django.utils.encoding import force_text
 from django.utils.translation import gettext as _
 
+from temba import mailroom
 from temba.contacts.models import URN_SCHEME_CONFIG, Contact, ContactField
 from temba.utils.dates import date_to_day_range_utc, str_to_date, str_to_datetime
 from temba.utils.es import ModelESSearch
@@ -96,12 +98,6 @@ class ContactQuery(object):
                     raise SearchException(_(f"Unrecognized field: '{prop}'"))
 
         return prop_map
-
-    def can_be_dynamic_group(self):
-        props_not_allowed = {"id"}
-        prop_names = set(self.root.get_prop_names())
-
-        return not (prop_names.intersection(props_not_allowed))
 
     def __eq__(self, other):
         return isinstance(other, ContactQuery) and self.root == other.root
@@ -360,7 +356,7 @@ class Condition(QueryNode):
                     # search for the inverse of what was specified
                     return ~es_Q("nested", path="fields", query=es_query)
 
-                else:
+                else:  # pragma: no cover
                     raise SearchException(_(f"Unknown text comparator: '{self.comparator}'"))
 
             elif field.value_type == Value.TYPE_NUMBER:
@@ -376,13 +372,13 @@ class Condition(QueryNode):
                     es_query &= es_Q("range", **{"fields.number": {"lt": query_value}})
                 elif self.comparator == "<=":
                     es_query &= es_Q("range", **{"fields.number": {"lte": query_value}})
-                else:
+                else:  # pragma: no cover
                     raise SearchException(_(f"Unknown number comparator: '{self.comparator}'"))
 
             elif field.value_type == Value.TYPE_DATETIME:
                 query_value = str_to_date(self.value, field.org.get_dayfirst())
 
-                if not query_value:
+                if not query_value:  # pragma: no cover
                     raise SearchException(_(f"Unable to parse the date '{self.value}'"))
 
                 # datetime contact values are serialized as ISO8601 timestamps in local time on ElasticSearch
@@ -400,7 +396,7 @@ class Condition(QueryNode):
                     es_query &= es_Q("range", **{"fields.datetime": {"lt": lower_bound.isoformat()}})
                 elif self.comparator == "<=":
                     es_query &= es_Q("range", **{"fields.datetime": {"lt": upper_bound.isoformat()}})
-                else:
+                else:  # pragma: no cover
                     raise SearchException(_(f"Unknown datetime comparator: '{self.comparator}'"))
 
             elif field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
@@ -448,7 +444,7 @@ class Condition(QueryNode):
                 elif self.comparator == "!=":
                     field_name = "name.keyword"
                     es_query = ~es_Q("term", **{field_name: query_value})
-                else:
+                else:  # pragma: no cover
                     raise SearchException(_(f"Unknown attribute comparator: '{self.comparator}'"))
             elif field_key == "id":
                 es_query = es_Q("ids", **{"values": [query_value]})
@@ -499,7 +495,7 @@ class Condition(QueryNode):
                     es_query &= es_Q("term", **{"urns.path.keyword": query_value})
                 elif self.comparator == "~":
                     es_query &= es_Q("match_phrase", **{"urns.path": query_value})
-                else:
+                else:  # pragma: no cover
                     raise SearchException(_(f"Unknown scheme comparator: '{self.comparator}'"))
 
                 return es_Q("nested", path="urns", query=es_query)
@@ -692,7 +688,7 @@ class IsSetCondition(Condition):
             is_set = True
         elif self.comparator.lower() in self.IS_NOT_SET_LOOKUPS:
             is_set = False
-        else:
+        else:  # pragma: no cover
             raise SearchException(_("Invalid operator for empty string comparison"))
 
         if prop_type == ContactQuery.PROP_FIELD:
@@ -940,10 +936,45 @@ class ContactQLVisitor(ParseTreeVisitor):
         literal : STRING
         """
         value = ctx.getText()[1:-1]
-        return value.replace('""', '"')  # unescape embedded quotes
+        return value.replace(r"\"", '"')  # unescape embedded quotes
 
 
-def parse_query(text, optimize=True, as_anon=False):
+class ParsedQuery(NamedTuple):
+    query: str
+    fields: list
+
+
+def parse_query(org_id, query):
+    """
+    Parses the passed in query in the context of the org
+    """
+    try:
+        client = mailroom.get_client()
+        response = client.parse_query(org_id, query)
+        return ParsedQuery(response["query"], response["fields"])
+
+    except mailroom.MailroomException as e:
+        raise SearchException(e.response["error"])
+
+
+class SearchResults(NamedTuple):
+    total: int
+    query: str
+    fields: list
+    contact_ids: list
+
+
+def search_contacts(org_id, group_uuid, query, sort=None, offset=None):
+    try:
+        client = mailroom.get_client()
+        response = client.contact_search(org_id, str(group_uuid), query, sort, offset=offset)
+        return SearchResults(response["total"], response["query"], response["fields"], response["contact_ids"])
+
+    except mailroom.MailroomException as e:
+        raise SearchException(e.response["error"])
+
+
+def legacy_parse_query(text, optimize=True, as_anon=False):  # pragma: no cover
     """
     Parses the given contact query and optionally optimizes it
     """
@@ -983,12 +1014,12 @@ def parse_query(text, optimize=True, as_anon=False):
 
 
 def evaluate_query(org, text, contact_json=dict):
-    parsed = parse_query(text, optimize=True, as_anon=org.is_anon)
+    parsed = legacy_parse_query(text, optimize=True, as_anon=org.is_anon)
 
     return parsed.evaluate(org, contact_json)
 
 
-def contact_es_search(org, text, base_group=None, sort_struct=None):
+def legacy_search_contacts(org, text, base_group=None, sort_struct=None):  # pragma: no cover
     """
     Returns ES query
     """
@@ -999,7 +1030,7 @@ def contact_es_search(org, text, base_group=None, sort_struct=None):
     if not sort_struct:
         sort_field = "-id"
     else:
-        if sort_struct["field_type"] == "field":
+        if sort_struct["field_type"] == "field":  # pragma: no cover
             sort_field = {
                 sort_struct["field_path"]: {
                     "order": sort_struct["sort_direction"],
@@ -1020,7 +1051,7 @@ def contact_es_search(org, text, base_group=None, sort_struct=None):
     )
 
     if text:
-        parsed = parse_query(text, as_anon=org.is_anon)
+        parsed = legacy_parse_query(text, as_anon=org.is_anon)
         es_match = parsed.as_elasticsearch(org)
     else:
         parsed = None
@@ -1035,19 +1066,6 @@ def contact_es_search(org, text, base_group=None, sort_struct=None):
         ),
         parsed,
     )
-
-
-def extract_fields(org, text):
-    """
-    Extracts contact fields from the given text query
-    """
-    parsed = parse_query(text, as_anon=org.is_anon)
-    prop_map = parsed.get_prop_map(org)
-    return [
-        prop_obj
-        for (prop_type, prop_obj) in prop_map.values()
-        if prop_type in (ContactQuery.PROP_FIELD, ContactQuery.PROP_ATTRIBUTE)
-    ]
 
 
 def is_phonenumber(text):

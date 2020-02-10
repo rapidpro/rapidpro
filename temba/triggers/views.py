@@ -11,8 +11,8 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.channels.models import Channel
-from temba.contacts.fields import OmniboxField
 from temba.contacts.models import ContactGroup, ContactURN
+from temba.contacts.omnibox import omnibox_deserialize, omnibox_serialize
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.msgs.views import ModalMixin
@@ -20,7 +20,7 @@ from temba.orgs.views import OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.schedules.views import BaseScheduleForm
 from temba.utils import analytics, json
-from temba.utils.fields import CompletionTextarea
+from temba.utils.fields import CompletionTextarea, JSONField, OmniboxChoice, SelectWidget
 from temba.utils.views import BaseActionForm
 
 from .models import Trigger
@@ -218,23 +218,36 @@ class RegisterTriggerForm(BaseTriggerForm):
 
 
 class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
-    repeat_period = forms.ChoiceField(choices=Schedule.REPEAT_CHOICES, label="Repeat")
+    repeat_period = forms.ChoiceField(choices=Schedule.REPEAT_CHOICES, label="Repeat", required=False)
     repeat_days_of_week = forms.CharField(required=False)
     start = forms.ChoiceField(choices=(("stop", "Stop Schedule"), ("later", "Schedule for later")))
     start_datetime_value = forms.IntegerField(required=False)
-    flow = forms.ModelChoiceField(Flow.objects.filter(pk__lt=0), label=_("Flow"), required=True)
-    omnibox = OmniboxField(
-        label=_("Contacts"), required=True, help_text=_("The groups and contacts the flow will be broadcast to")
+    flow = forms.ModelChoiceField(
+        Flow.objects.filter(pk__lt=0),
+        label=_("Flow"),
+        required=True,
+        widget=SelectWidget(attrs={"placeholder": _("Select a flow")}),
+        empty_label=None,
+    )
+
+    omnibox = JSONField(
+        label=_("Contacts"),
+        required=True,
+        help_text=_("The groups and contacts the flow will be broadcast to"),
+        widget=OmniboxChoice(
+            attrs={"placeholder": _("Recipients, enter contacts or groups"), "groups": True, "contacts": True}
+        ),
     )
 
     def __init__(self, user, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
-        self.fields["omnibox"].set_user(user)
-
         flows = Flow.get_triggerable_flows(user.get_org())
 
         self.fields["flow"].queryset = flows
+
+    def clean_omnibox(self):
+        return omnibox_deserialize(self.user.get_org(), self.cleaned_data["omnibox"])
 
     class Meta:
         model = Trigger
@@ -440,14 +453,12 @@ class TriggerCRUDL(SmartCRUDL):
                 return super().form_invalid(form)
 
         def derive_initial(self):
-            obj = self.object
-            trigger_type = obj.trigger_type
+            trigger = self.object
+            trigger_type = trigger.trigger_type
             if trigger_type == Trigger.TYPE_SCHEDULE:
-                repeat_period = obj.schedule.repeat_period
-                selected = ["g-%s" % _.uuid for _ in self.object.groups.all()]
-                selected += ["c-%s" % _.uuid for _ in self.object.contacts.all()]
-                selected = ",".join(selected)
-                return dict(repeat_period=repeat_period, omnibox=selected)
+                repeat_period = trigger.schedule.repeat_period
+                omnibox = omnibox_serialize(trigger.org, trigger.groups.all(), trigger.contacts.all())
+                return dict(repeat_period=repeat_period, omnibox=omnibox)
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()

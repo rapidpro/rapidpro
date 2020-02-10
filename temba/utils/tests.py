@@ -62,9 +62,9 @@ from .export import TableExporter
 from .gsm7 import calculate_num_segments, is_gsm7, replace_non_gsm7_accents
 from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
-from .models import JSONAsTextField, patch_queryset_count
+from .models import IDSliceQuerySet, JSONAsTextField, patch_queryset_count
 from .templatetags.temba import short_datetime
-from .text import clean_string, decode_base64, random_string, slugify_with, truncate
+from .text import clean_string, decode_base64, random_string, slugify_with, truncate, unsnakify
 from .timezones import TimeZoneFormField, timezone_to_country_code
 
 
@@ -175,6 +175,10 @@ class InitTest(TembaTest):
         self.assertEqual("abc", truncate("abc", 5))
         self.assertEqual("abcde", truncate("abcde", 5))
         self.assertEqual("ab...", truncate("abcdef", 5))
+
+    def test_unsnakify(self):
+        self.assertEqual("", unsnakify(""))
+        self.assertEqual("Org Name", unsnakify("org_name"))
 
     def test_random_string(self):
         rs = random_string(1000)
@@ -1634,6 +1638,38 @@ class AnalyticsTest(TestCase):
             industry="Mining",
             monthly_spend="a lot",
         )
+
+
+class IDSliceQuerySetTest(TestCase):
+    def test_query_set(self):
+        users = IDSliceQuerySet(User, [1], 0, 1)
+        self.assertEqual(1, users[0].id)
+        self.assertEqual(1, users[0:1][0].id)
+
+        with self.assertRaises(IndexError):
+            users[2]
+
+        with self.assertRaises(IndexError):
+            users[-1]
+
+        with self.assertRaises(IndexError):
+            users[1:2]
+
+        with self.assertRaises(TypeError):
+            users["foo"]
+
+        users = IDSliceQuerySet(User, [1], 10, 100)
+        self.assertEqual(1, users[10].id)
+        self.assertEqual(1, users[10:11][0].id)
+
+        with self.assertRaises(IndexError):
+            users[0]
+
+        with self.assertRaises(IndexError):
+            users[11:15]
+
+        users = IDSliceQuerySet(User, [], 0, 0)
+        self.assertEqual(0, len(users))
 
 
 class RedactTest(TestCase):

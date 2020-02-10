@@ -1,34 +1,51 @@
 grammar ContactQL;
 
-// rebuild with % antlr4 -Dlanguage=Python3 ContactQL.g4 -o ../temba/contacts/search/gen -visitor -no-listener
+// rebuild with % antlr -Dlanguage=Python3 ContactQL.g4 -o ../temba/contacts/search/gen -visitor -no-listener
 
 import LexUnicode;
 
-fragment HAS : [Hh][Aa][Ss];
-fragment IS  : [Ii][Ss];
+fragment HAS: [Hh][Aa][Ss];
+fragment IS: [Ii][Ss];
 
-LPAREN     : '(';
-RPAREN     : ')';
-AND        : [Aa][Nn][Dd];
-OR         : [Oo][Rr];
-COMPARATOR : ('=' | '!=' | '~' | '>=' | '<=' | '>' | '<' | HAS | IS);
-TEXT       : (UnicodeLetter | UnicodeDigit | '_' | '.' | '-' | '+' | '/' | '@')+;
-STRING     : '"' (~["] | '""')* '"';
+LPAREN: '(';
+RPAREN: ')';
+AND: [Aa][Nn][Dd];
+OR: [Oo][Rr];
+COMPARATOR: (
+		'='
+		| '!='
+		| '~'
+		| '>='
+		| '<='
+		| '>'
+		| '<'
+		| HAS
+		| IS
+	);
+TEXT: (
+		UnicodeLetter
+		| UnicodeDigit
+		| '_'
+		| '.'
+		| '-'
+		| '+'
+		| '/'
+		| '@'
+	)+;
+STRING: '"' (~["] | '\\"')* '"';
 
-WS         : [ \t\n\r]+ -> skip;        // ignore whitespace
+WS: [ \t\n\r]+ -> skip; // ignore whitespace
 
-ERROR      : . ;
+ERROR: .;
 
-parse      : expression EOF;
+parse: expression EOF;
 
-expression : expression AND expression  # combinationAnd
-           | expression expression      # combinationImpicitAnd
-           | expression OR expression   # combinationOr
-           | LPAREN expression RPAREN   # expressionGrouping
-           | TEXT COMPARATOR literal    # condition
-           | TEXT                       # implicitCondition
-           ;
+expression:
+	expression AND expression	# combinationAnd
+	| expression expression		# combinationImpicitAnd
+	| expression OR expression	# combinationOr
+	| LPAREN expression RPAREN	# expressionGrouping
+	| TEXT COMPARATOR literal	# condition
+	| TEXT						# implicitCondition;
 
-literal : TEXT                          # textLiteral
-        | STRING                        # stringLiteral
-        ;
+literal: TEXT # textLiteral | STRING # stringLiteral;

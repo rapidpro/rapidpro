@@ -32,12 +32,12 @@ class ConnectView(BaseConnectView):
     form_class = Form
 
     def form_valid(self, form):
-        from .type import BotHubType
+        from .type import BothubType
 
-        config = {BotHubType.CONFIG_ACCESS_TOKEN: form.cleaned_data["access_token"]}
+        config = {BothubType.CONFIG_ACCESS_TOKEN: form.cleaned_data["access_token"]}
 
         self.object = Classifier.create(
-            self.org, self.request.user, BotHubType.slug, form.cleaned_data["name"], config
+            self.org, self.request.user, BothubType.slug, form.cleaned_data["name"], config
         )
 
         return super().form_valid(form)

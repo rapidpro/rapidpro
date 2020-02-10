@@ -159,6 +159,10 @@ class ChannelTest(TembaTest):
         # now we should be IVR capable
         self.assertTrue(self.org.supports_ivr())
 
+        # we cannot add multiple callers
+        response = self.client.post(reverse("channels.channel_create_caller"), post_data)
+        self.assertFormError(response, "form", "channel", "A caller has already been added for that number")
+
         # should now have the option to disable
         self.login(self.admin)
         response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
@@ -167,9 +171,7 @@ class ChannelTest(TembaTest):
         # try adding a caller for an invalid channel
         response = self.client.post("%s?channel=20000" % reverse("channels.channel_create_caller"))
         self.assertEqual(200, response.status_code)
-        self.assertEqual(
-            "Sorry, a caller cannot be added for that number", response.context["form"].errors["channel"][0]
-        )
+        self.assertFormError(response, "form", "channel", "A caller cannot be added for that number")
 
         # disable our twilio connection
         self.org.remove_twilio_account(self.admin)
@@ -2210,11 +2212,21 @@ class ChannelClaimTest(TembaTest):
         self.assertFalse(alert.ended_on)
         self.assertTrue(len(mail.outbox) == 2)
 
-        # run again, nothing should change
-        check_channels_task()
+        # create another open SMS alert
+        Alert.objects.create(
+            channel=self.channel,
+            alert_type=Alert.TYPE_SMS,
+            created_on=timezone.now(),
+            created_by=self.admin,
+            modified_on=timezone.now(),
+            modified_by=self.admin,
+        )
 
-        alert = Alert.objects.get(ended_on=None)
-        self.assertFalse(alert.ended_on)
+        # run again, nothing should change
+        with self.assertNumQueries(10):
+            check_channels_task()
+
+        self.assertEqual(2, Alert.objects.filter(channel=self.channel, ended_on=None).count())
         self.assertTrue(len(mail.outbox) == 2)
 
         # fix our message

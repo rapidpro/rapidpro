@@ -7,13 +7,13 @@ To learn more, please visit the project site at http://rapidpro.github.io/rapidp
 
 The set of versions that make up the latest stable release are:
 
- * [RapidPro v5.0.8](https://github.com/rapidpro/rapidpro/releases/tag/v5.0.0)
- * [Mailroom v2.0.9](https://github.com/nyaruka/mailroom/releases/tag/v2.0.0)
- * [Courier v2.0.2](https://github.com/nyaruka/courier/releases/tag/v2.0.0)
- * [Archiver v2.0.1](https://github.com/nyaruka/rp-archiver/releases/tag/v2.0.1)
- * [Indexer v2.0.0](https://github.com/nyaruka/rp-indexer/releases/tag/v2.0.0)
+ * [RapidPro v5.2.6](https://github.com/rapidpro/rapidpro/releases/tag/v5.2.6)
+ * [Mailroom v5.2.4](https://github.com/nyaruka/mailroom/releases/tag/v5.2.4)
+ * [Courier v5.2.0](https://github.com/nyaruka/courier/releases/tag/v5.2.0)
+ * [Archiver v5.2.0](https://github.com/nyaruka/rp-archiver/releases/tag/v5.2.0)
+ * [Indexer v5.2.0](https://github.com/nyaruka/rp-indexer/releases/tag/v5.2.0)
  * [Android Channel v2.0.0](https://github.com/rapidpro/android-channel/releases/tag/v2.0.0)
- * [Android Surveyor v13.1.0](https://github.com/rapidpro/surveyor/releases/tag/v13.1.0)
+ * [Android Surveyor v13.2.0](https://github.com/rapidpro/surveyor/releases/tag/v13.2.0)
 
 ### Versioning in RapidPro
 
@@ -36,9 +36,7 @@ chances with an unstable release.
 
 ### Versioning of other Components
 
-RapidPro depends on other components such as Mailroom and Courier. These are versioned
-differently than RapidPro and do not follow a set schedule. Each stable release of RapidPro
-details which version of these dependencies you need to run with it.
+RapidPro depends on other components such as Mailroom and Courier. These are versioned to follow the minor releases of RapidPro but may have patch releases made independently of patches to RapidPro. Other optional components such as the Android applications have their own versioning and release schedules. Each stable release of RapidPro details which version of these dependencies you need to run with it.
 
 ## Updating FlowEditor version
 

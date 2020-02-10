@@ -1,13 +1,15 @@
+import json
 import operator
 from functools import reduce
 
 from django.db.models import Q
 from django.db.models.functions import Upper
 
+from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactGroupCount, ContactURN
-from temba.contacts.search import SearchException, contact_es_search
+from temba.contacts.search import SearchException, search_contacts
 from temba.msgs.models import Label
-from temba.utils.models import mapEStoDB
+from temba.utils.models import IDSliceQuerySet
 
 SEARCH_ALL_GROUPS = "g"
 SEARCH_STATIC_GROUPS = "s"
@@ -68,11 +70,11 @@ def term_search(queryset, fields, terms):
     return queryset.filter(reduce(operator.and_, term_queries))
 
 
-def omnibox_mixed_search(org, search, types):
+def omnibox_mixed_search(org, query, types):
     """
     Performs a mixed group, contact and URN search, returning the first N matches of each type.
     """
-    search_terms = search.split(" ") if search else None
+    query_terms = query.split(" ") if query else None
     search_types = types or (SEARCH_ALL_GROUPS, SEARCH_CONTACTS, SEARCH_URNS)
     per_type_limit = 25
     results = []
@@ -84,101 +86,66 @@ def omnibox_mixed_search(org, search, types):
         if SEARCH_ALL_GROUPS not in search_types:
             groups = groups.filter(query=None)
 
-        if search:
-            groups = term_search(groups, ("name__icontains",), search_terms)
+        if query:
+            groups = term_search(groups, ("name__icontains",), query_terms)
 
         results += list(groups.order_by(Upper("name"))[:per_type_limit])
 
     if SEARCH_CONTACTS in search_types:
-        sort_struct = {"field_type": "attribute", "sort_direction": "asc", "field_name": "name.keyword"}
-
         try:
-            search_id = int(search)
-        except (ValueError, TypeError):
-            search_id = None
-
-        if org.is_anon and search_id is not None:
-            search_text = f"id = {search_id}"
-        elif search:
-            search_text = " AND ".join(f"name ~ {search_term}" for search_term in search_terms)
-
-        else:
-            search_text = None
-
-        from temba.utils.es import ES
-
-        try:
-            search_object, _ = contact_es_search(org, search_text, sort_struct=sort_struct)
-
-            es_search = search_object.source(fields=("id",)).using(ES)[:per_type_limit].execute()
-            contact_ids = list(mapEStoDB(Contact, es_search, only_ids=True))
-            es_results = Contact.objects.filter(id__in=contact_ids).order_by(Upper("name"))
-
-            results += list(es_results[:per_type_limit])
-
+            search_results = search_contacts(org.id, org.cached_all_contacts_group.uuid, query, "name")
+            contacts = IDSliceQuerySet(Contact, search_results.contact_ids, 0, len(search_results.contact_ids))
+            results += list(contacts[:per_type_limit])
             Contact.bulk_cache_initialize(org, contacts=results)
 
         except SearchException:
-            # ignore SearchException
             pass
 
     if SEARCH_URNS in search_types:
-        # only include URNs that are send-able
-        from temba.channels.models import Channel
+        if not org.is_anon and query and len(query) >= 3:
+            try:
+                # build an ORed query of all sendable schemes
+                sendable_schemes = org.get_schemes(Channel.ROLE_SEND)
+                scheme_query = " OR ".join(f"{s} ~ {json.dumps(query)}" for s in sendable_schemes)
+                search_results = search_contacts(org.id, org.cached_all_contacts_group.uuid, scheme_query, "name")
+                urns = ContactURN.objects.filter(
+                    contact_id__in=search_results.contact_ids, scheme__in=sendable_schemes
+                )
+                results += list(urns.prefetch_related("contact").order_by(Upper("path"))[:per_type_limit])
+            except SearchException:
+                pass
 
-        allowed_schemes = org.get_schemes(Channel.ROLE_SEND)
+    return results
 
-        from temba.utils.es import ES, ModelESSearch
 
-        if search:
-            # we use trigrams on Elasticsearch, minimum required length for a term is 3
-            filtered_search_terms = (
-                search_term for search_term in search_terms if search_term != ""  # and len(search_term) >= 3
-            )
+def omnibox_serialize(org, groups, contacts, json_encode=False):
+    """
+    Shortcut for proper way to serialize a queryset of groups and contacts for omnibox component
+    """
+    serialized = omnibox_results_to_dict(org, list(groups) + list(contacts), 2)
 
-            must_condition = [{"match_phrase": {"urns.path": search_term}} for search_term in filtered_search_terms]
-        else:
-            must_condition = []
+    if json_encode:
+        return [json.dumps(_) for _ in serialized]
 
-        es_query = {
-            "query": {
-                "bool": {
-                    "filter": [
-                        {"term": {"org_id": org.id}},
-                        {"term": {"groups": str(org.cached_all_contacts_group.uuid)}},
-                    ],
-                    "must": [
-                        {
-                            "nested": {
-                                "path": "urns",
-                                "query": {
-                                    "bool": {
-                                        "must": must_condition,
-                                        "should": [{"term": {"urns.scheme": scheme}} for scheme in allowed_schemes],
-                                    }
-                                },
-                            }
-                        }
-                    ],
-                }
-            },
-            "sort": [{"name.keyword": {"order": "asc"}}],
-        }
+    return serialized
 
-        if not org.is_anon:
-            search_object = ModelESSearch(model=Contact, index="contacts").from_dict(es_query).params(routing=org.id)
 
-            es_search = search_object.source(fields=("id",)).using(ES)[:per_type_limit].execute()
-            es_results = mapEStoDB(Contact, es_search, only_ids=True)
+def omnibox_deserialize(org, omnibox, user=None):
+    group_ids = [item["id"] for item in omnibox if item["type"] == "group"]
+    contact_ids = [item["id"] for item in omnibox if item["type"] == "contact"]
+    urn_specs = [item["id"] for item in omnibox if item["type"] == "urn"]
 
-            # get ContactURNs for filtered Contacts
-            urns = ContactURN.objects.filter(contact_id__in=list(es_results))
+    urns = []
+    if not org.is_anon:
+        for urn_spec in urn_specs:
+            contact, urn = Contact.get_or_create(org, urn_spec, user)
+            urns.append(urn)
 
-            # we got max `per_type_limit` contacts, but each contact can have multiple URNs and we need to limit the
-            # results to the per type limit
-            results += list(urns.prefetch_related("contact").order_by(Upper("path"))[:per_type_limit])
-
-    return results  # sorted(results, key=lambda o: o.name if hasattr(o, 'name') else o.path)
+    return {
+        "groups": ContactGroup.all_groups.filter(uuid__in=group_ids, org=org, is_active=True),
+        "contacts": Contact.objects.filter(uuid__in=contact_ids, org=org, is_active=True),
+        "urns": urns,
+    }
 
 
 def omnibox_results_to_dict(org, results, version="1"):

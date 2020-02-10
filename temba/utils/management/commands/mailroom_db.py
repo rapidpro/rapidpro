@@ -16,6 +16,7 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow
+from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label
 from temba.orgs.models import Org
@@ -51,6 +52,13 @@ ORG1 = dict(
             config=dict(app_id="67890", access_token="sesame"),
             intents=(dict(name="register", external_id="register"),),
         ),
+        dict(
+            uuid="859b436d-3005-4e43-9ad5-3de5f26ede4c",
+            classifier_type="bothub",
+            name="BotHub",
+            config=dict(access_token="access_token"),
+            intents=(dict(name="intent", external_id="intent"),),
+        ),
     ),
     channels=(
         dict(
@@ -60,6 +68,7 @@ ORG1 = dict(
             scheme="tel",
             role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE + Channel.ROLE_CALL + Channel.ROLE_ANSWER,
             uuid="74729f45-7f29-4868-9dc4-90e491e3c7d8",
+            country="US",
         ),
         dict(
             name="Nexmo",
@@ -68,6 +77,7 @@ ORG1 = dict(
             scheme="tel",
             role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE,
             uuid="19012bfd-3ce3-4cae-9bb9-76cf92c73d49",
+            country="",
         ),
         dict(
             name="Twitter",
@@ -76,7 +86,12 @@ ORG1 = dict(
             scheme="twitter",
             role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE,
             uuid="0f661e8b-ea9d-4bd3-9953-d368340acf91",
+            country=None,
         ),
+    ),
+    globals=(
+        dict(key="org_name", name="Org Name", uuid="c1a65849-243c-438e-987e-3fa5f884e3e1", value="Nyaruka"),
+        dict(key="access_token", name="Access Token", uuid="57a18892-9fc9-45f7-aa14-c7e5b3583b54", value="A213CD78"),
     ),
     groups=(
         dict(name="Doctors", uuid="c153e265-f7c9-4539-9dbc-9b358714b638", size=120),
@@ -198,9 +213,11 @@ ORG2 = dict(
             scheme="tel",
             role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE,
             uuid="a89bc872-3763-4b95-91d9-31d4e56c6651",
+            country="US",
         ),
     ),
     classifiers=(),
+    globals=(),
     groups=(dict(name="Doctors", uuid="492e438c-02e5-43a4-953a-57410b7fe3dd", size=120),),
     fields=(),
     contacts=(dict(name="Fred", urns=["tel:+250700000005"], uuid="26d20b72-f7d8-44dc-87f2-aae046dbff95"),),
@@ -334,6 +351,7 @@ class Command(BaseCommand):
 
         self.create_channels(spec, org, superuser)
         self.create_fields(spec, org, superuser)
+        self.create_globals(spec, org, superuser)
         self.create_labels(spec, org, superuser)
         self.create_groups(spec, org, superuser)
         self.create_flows(spec, org, superuser)
@@ -357,6 +375,7 @@ class Command(BaseCommand):
                 schemes=[c["scheme"]],
                 uuid=c["uuid"],
                 role=c["role"],
+                country=c["country"],
                 created_by=user,
                 modified_by=user,
             )
@@ -403,6 +422,16 @@ class Command(BaseCommand):
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
+    def create_globals(self, spec, org, user):
+        self._log(f"Creating {len(spec['globals'])} globals... ")
+
+        for g in spec["globals"]:
+            Global.objects.create(
+                org=org, key=g["key"], name=g["name"], value=g["value"], created_by=user, modified_by=user
+            )
+
+        self._log(self.style.SUCCESS("OK") + "\n")
+
     def create_groups(self, spec, org, user):
         self._log(f"Creating {len(spec['groups'])} groups... ")
 
@@ -429,7 +458,7 @@ class Command(BaseCommand):
 
         for f in spec["flows"]:
             with open("media/test_flows/mailroom/" + f["file"], "r") as flow_file:
-                org.import_app(json.load(flow_file), user)
+                org.import_app(json.load(flow_file), user, legacy=True)
 
                 # set the uuid on this flow
                 Flow.objects.filter(org=org, name=f["name"]).update(uuid=f["uuid"])

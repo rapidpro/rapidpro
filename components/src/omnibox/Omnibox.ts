@@ -27,8 +27,8 @@ const iconStyle: any = {
 
 const detailStyle = {
   'margin-left': '5px',
-  'font-size': '85%',
-  'color': 'var(--color-text-dark-secondary)',
+  'font-size': '12px',
+  'color': 'var(--color-text-dark)',
   'display': 'inline-block'
 }
 
@@ -63,9 +63,6 @@ export default class Omnibox extends RapidElement {
 
   @property({type: Boolean})
   urns: boolean = false;
-
-  @property({type: String})
-  queryParameter: string = "search";
 
   @property({type: Array})
   value: OmniOption[] = [];
@@ -123,7 +120,7 @@ export default class Omnibox extends RapidElement {
 
   private getEndpoint() {
     const endpoint = this.endpoint;
-    let types="types=";
+    let types="&types=";
     if (this.groups) {
       types += "g";
     }
@@ -139,16 +136,27 @@ export default class Omnibox extends RapidElement {
     return endpoint + types;
   }
 
+  /** If we support urns, let them enter an arbitrary number */
+  private createArbitraryOption(input: string): any {
+    if (this.urns) {
+      const num = parseFloat(input)
+      if (!isNaN(num) && isFinite(num)) {
+        return { id: "tel:" + input, name: input, type: "urn"}
+      }
+    }
+  }
+
   public render(): TemplateResult {
     return html`
       <rp-select 
         name=${this.name}
         endpoint=${this.getEndpoint()}
-        queryParam=${this.queryParameter}
         placeholder=${this.placeholder}
+        queryParam="search"
         .values=${this.value}
         .renderOption=${this.renderOption.bind(this)}
         .renderSelectedItem=${this.renderSelection.bind(this)}
+        .createArbitraryOption=${this.createArbitraryOption.bind(this)}
         .inputRoot=${this}
         searchable
         searchOnFocus

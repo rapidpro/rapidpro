@@ -1,0 +1,38 @@
+-extends "channels/channel_read.html"
+
+-load smartmin temba compress humanize channels
+-load i18n tz
+
+-block fields
+
+-block title
+  .medium-help.float-left.icon-template
+
+  %h2.font_normalize.header-margin.title
+    {{ object.name }}
+    -trans "Whatsapp Templates Events"
+
+-block content
+  %table.list-table.table.table-condensed
+    %thead
+      %tr
+        %th{ style:'width:150px' }
+        %th
+        %th{ style:'width:160px;text-align:right;'}
+        %th{ style:'width:160px;text-align:right;'}
+
+    -for obj in sync_logs
+      %tr{ class:"{% if obj.is_error %}warning{% endif %}" }
+        %td
+          {{ obj.channel.name }}
+
+        %td.clickable
+          %a{ href:'{% url "request_logs.httplog_read" obj.id %}' }= obj.get_log_type_display
+
+        %td{ style:'text-align: right', nowrap:'true' }
+          Request time:
+          %span
+            {{ obj.request_time|default:"0"|intcomma }}ms
+
+        %td{ style:'text-align: right', nowrap:'true' }
+          {{obj.created_on}}

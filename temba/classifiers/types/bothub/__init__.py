@@ -1,1 +1,1 @@
-from .type import BotHubType  # noqa
+from .type import BothubType  # noqa

@@ -8,11 +8,6 @@
 
 {% block extra-script %}
 
-{# placeholder form for posterizer href's.. href's with a posterize class will be converted to POSTs #}
-<form id="posterizer" method="post">
-  {% csrf_token %}
-</form>
-
 <script type="text/javascript" src="{{ STATIC_URL }}js/libs/jquery.url.js"></script>
 
 <script>
@@ -27,21 +22,6 @@
     document.location = $(this).children("a").attr("href");
   });
 
-  $("a.posterize").click(function(event){
-    event.preventDefault();
-    event.stopPropagation();
-
-    var href = $(this).attr("href");
-    var url = $.url(href);
-
-    $("#posterizer").attr("action", url.attr("path"));
-
-    for (var key in url.param()){
-      $("#posterizer").append("<input type='hidden' name='" + key + "' value='" + url.param(key) + "'></input>");
-    }
-
-    $("#posterizer").submit();
-  });
 
   function fetchPJAXContent(url, container, options) {
 
@@ -60,6 +40,9 @@
               headers[key] = options['headers'][key];
           }
       }
+
+      var event = new Event("rp-refresh-begin");
+      document.dispatchEvent(event);
 
       $.ajax({
           headers: headers,
@@ -94,6 +77,9 @@
                 }
             }
             $(container).html(data);
+
+            var event = new Event("rp-refresh-complete");
+            document.dispatchEvent(event);
 
             if (options) {
                 if ('onSuccess' in options && options['onSuccess']) {

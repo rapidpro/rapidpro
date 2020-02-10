@@ -65,8 +65,7 @@ class ClassifierType(metaclass=ABCMeta):
         """
         return url(r"^connect", self.connect_view.as_view(classifier_type=self), name="connect")
 
-    @classmethod
-    def get_active_intents_from_api(cls, classifier):
+    def get_active_intents_from_api(self, classifier, logs):
         """
         Should return current set of available intents for the passed in classifier by checking the provider API
         """
@@ -92,7 +91,27 @@ class Classifier(SmartModel):
     config = JSONField()
 
     # the org this classifier is part of
-    org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT)
+    org = models.ForeignKey("orgs.Org", related_name="classifiers", on_delete=models.PROTECT)
+
+    @classmethod
+    def create(cls, org, user, classifier_type, name, config, sync=True):
+        classifier = Classifier.objects.create(
+            uuid=uuid4(),
+            name=name,
+            classifier_type=classifier_type,
+            config=config,
+            org=org,
+            created_by=user,
+            modified_by=user,
+            created_on=timezone.now(),
+            modified_on=timezone.now(),
+        )
+
+        # trigger a sync of this classifier's intents
+        if sync:
+            classifier.async_sync()
+
+        return classifier
 
     def get_type(self):
         """
@@ -108,27 +127,13 @@ class Classifier(SmartModel):
         """
         return self.intents.filter(is_active=True).order_by("name")
 
-    def refresh_intents(self):
+    def sync(self):
         """
         Refresh intents fetches the current intents from the classifier API and updates
         the DB appropriately to match them, inserting logs for all interactions.
         """
         # get the current intents from the API
-        logs = []
-        intents = None
-
-        try:
-            intents = self.get_type().get_active_intents_from_api(self, logs)
-        except Exception as e:
-            logger.error("error getting intents for classifier", e)
-
-        # insert our logs
-        for log in logs:
-            log.save()
-
-        # if we were returned None as intents, then we had an error, log but don't actually update our intents
-        if intents is None:
-            return
+        intents = self.get_type().get_active_intents_from_api(self)
 
         # external ids we have seen
         seen = []
@@ -148,7 +153,7 @@ class Classifier(SmartModel):
                     existing.save(update_fields=["is_active"])
 
             elif not existing:
-                existing = Intent.objects.create(
+                Intent.objects.create(
                     is_active=True,
                     classifier=self,
                     name=intent.name,
@@ -159,10 +164,21 @@ class Classifier(SmartModel):
         # deactivate any intent we haven't seen
         self.intents.filter(is_active=True).exclude(external_id__in=seen).update(is_active=False)
 
+    def async_sync(self):
+        """
+        Triggers a sync of this classifiers intents
+        """
+        from .tasks import sync_classifier_intents
+
+        on_transaction_commit(lambda: sync_classifier_intents.delay(self.id))
+
     def release(self):
         dependent_flows_count = self.dependent_flows.count()
         if dependent_flows_count > 0:
             raise ValueError(f"Cannot delete Classifier: {self.name}, used by {dependent_flows_count} flows")
+
+        # delete our intents
+        self.intents.all().delete()
 
         self.is_active = False
         self.save(update_fields=["is_active"])
@@ -176,28 +192,6 @@ class Classifier(SmartModel):
         from .types import TYPES
 
         return TYPES.values()
-
-    @classmethod
-    def create(cls, org, user, classifier_type, name, config, sync=True):
-        classifier = Classifier.objects.create(
-            uuid=uuid4(),
-            name=name,
-            classifier_type=classifier_type,
-            config=config,
-            org=org,
-            created_by=user,
-            modified_by=user,
-            created_on=timezone.now(),
-            modified_on=timezone.now(),
-        )
-
-        # trigger a sync of this classifier's intents
-        if sync:
-            from .tasks import sync_classifier_intents
-
-            on_transaction_commit(lambda: sync_classifier_intents.delay(classifier.id))
-
-        return classifier
 
 
 class Intent(models.Model):

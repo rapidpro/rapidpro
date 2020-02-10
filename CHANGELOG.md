@@ -1,3 +1,215 @@
+v5.3.48
+----------
+ * Use mailroom searching for omnibox results
+
+v5.3.47
+----------
+ * Add template_dependencies m2m
+
+v5.3.46
+----------
+ * Do not subject requests to the API with sessions to rate limiting
+ * Migration to convert flow dependencies metadata to new format
+ * Update description on the flow results export to be clear
+
+v5.3.45
+----------
+ * Fix deletion of orgs and locations so that aliases are properly deleted
+ * Remove syntax highlighting in API explorer as it can't handle big responses
+ * Use new dependencies format from mailroom
+
+v5.3.44
+----------
+ * Dynamic group creation / reevaluation through Mailroom
+
+v5.3.43
+----------
+ * Update to latest mailroom
+
+v5.3.42
+----------
+ * Fix actions on blocked contact list page
+
+v5.3.41
+----------
+ * Disable simulation for archived flows
+ * Fix query explosion on Android channel alerts
+
+v5.3.40
+----------
+ * Add subflow parameters to editor
+
+v5.3.39
+----------
+ * Rework migration code so new flows are migrated too
+
+v5.3.38
+----------
+ * Use mailroom for contact searches, contact list pages and flow starts via search
+
+v5.3.35
+----------
+ * Rebuild components
+
+v5.3.34
+----------
+ * Update to flow editor 1.7.13
+ * Don't include 'version' in current definitions
+ * Migrate imports of flows to new spec by default
+
+v5.3.30
+----------
+ * Exclude inactive template translations from API endpoint
+
+v5.3.29
+----------
+ * Fix edge case for default alias dialog
+ * Add sending back to contact list page
+ * Save parent result refs in flow metadata
+ * Change name BotHub to Bothub
+
+v5.3.28
+----------
+ * remove auto-now on modified_on on FlowRun
+
+v5.3.27
+----------
+ * Update to floweditor 1.7.9
+ * Warn users if starting for facebook without a topic
+
+v5.3.26
+----------
+ * Allow arbitrary numbers when sending messages
+ * Componentized message sending
+
+v5.3.25
+----------
+ * Show empty message list if we have archived them all
+ * Update to flow editior 1.7.8
+ * Replace flow/validate call to mailroom with flow/inspect
+ * Add facebook topic selection
+
+v5.3.24
+----------
+ * Pass version to mailroom migrate endpoint
+ * Fix saving on alias editor
+ * Support the whatsapp templates HEADER and FOOTER components
+ * Write HTTP log for errors in connection
+
+v5.3.23
+----------
+ * Add support for whatsapp templates with headers and footers
+ * Make sure we have one posterizer form and we bind one click event handler for posterize links
+
+v5.3.22
+----------
+ * Convert add/edit campaign event to components
+
+v5.3.21
+----------
+ * Add UI for managing globals
+
+v5.3.16
+----------
+ * Update to flow editor v1.7.7
+
+v5.3.13
+----------
+ * Update to floweditor v1.7.5
+ * Re-add msg_console management command with new support for mailroom
+ * Cleanup somes usages of trans/blocktrans
+
+v5.3.12
+----------
+ * Add error and failure events to contact history
+ * Use form components on campaign create/update
+
+v5.3.11
+----------
+ * Migrate sample flows to new editor
+ * Localize URNs in API using org country
+ * Write HTTPLogs for Whatsapp template syncing
+ * Remove Broadcast recipient_count field
+
+v5.3.10
+----------
+ * Add read API endpoint for globals
+
+v5.3.9
+----------
+ * Add trimming task for flow revisions
+ * Add models for globals support
+ * Add FreshChat channel support
+
+v5.3.8
+----------
+ * Make sure imported flows are unarchived
+ * Validate we do not have a caller on a channel before adding a new one
+
+v5.3.7
+----------
+ * Release URNs on Org release
+
+v5.3.6
+----------
+ * Release Channel sync events and alarms
+
+v5.3.5
+----------
+ * release Campaigns when releasing Orgs
+
+v5.3.4
+----------
+ * Release flow starts when releasing flows
+
+v5.3.3
+----------
+ * Add releasing to Classifiers and HTTPLogs
+
+v5.3.2
+----------
+ * Allow manual syncing of classifiers
+
+v5.3.1
+----------
+ * Update documentation for FB webhook events to subscribe to
+
+v5.3.0
+----------
+ * Fix DT One branding and add new icon
+ * Fix validation problem on update schedule trigger form
+ * Use brand when granting orgs, not host
+ * Update contactsql parser to support same quotes escaping as goflow
+
+v5.2.6
+----------
+ * Change slug for Bothub classifier to 'bothub'
+
+v5.2.5
+----------
+ * Fix various Schedule trigger UI validation errors
+ * Fix intermittently failing excel export tests
+ * Add noop reverse in migration
+
+v5.2.1
+----------
+ * Fix order of Schedule migrations (thanks @matmsa27)
+
+v5.2.0
+----------
+ * Show date for broadcast schedules
+ * Honor initial datetime on trigger schedule ui
+
+v5.1.64
+----------
+ * Update to flow editor version 1.7.3
+ * Fix weekly buttons resetting on trigger schedule form validation
+ * Validate schedule details on schedule trigger form
+ * Show query editors in contact search
+ * Add migration to fix schedules with None/NaN repeat_days_of_week values
+ * Move IE9 shim into the main template header
+ * Update README with final 5.0 versions
+
 v5.1.63
 ----------
  * Update to flow editor v1.7.2

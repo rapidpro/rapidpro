@@ -24,12 +24,20 @@ export default class Select extends FormElement {
   static get styles() {
     return css`
       :host {
+        font-family: var(--font-family);
         transition: all ease-in-out 200ms;
-        display: block;
+        display: inline;
+        line-height: normal;
+        outline: none;
+      }
+
+      :host:focus {
+        outline: none;
       }
 
       input::placeholder {
-        color: rgba(0,0,0,.15);
+        color: var(--color-placeholder);
+        font-weight: 200;
       }
 
       .remove-item {
@@ -116,10 +124,11 @@ export default class Select extends FormElement {
         flex-wrap: wrap;
       }
 
-
       .selected .selected-item {
         display: flex;
         overflow: hidden;
+        font-size: 13px;
+        color: var(--color-widget-text);
       }
 
       .multi .selected .selected-item {
@@ -135,13 +144,14 @@ export default class Select extends FormElement {
       }
 
       .selected-item .name {
-        padding: 5px 4px;
+        padding: 6px 4px;
         font-size: 13px;
+        line-height: 14px;
       }
 
       .multi .selected-item .name {
         padding: 3px 4px;  
-        font-size: 90%;
+        font-size: 11px;
         margin: 0;
         flex: 1;
         align-self: center;
@@ -188,6 +198,8 @@ export default class Select extends FormElement {
       .placeholder {
         padding: 5px 4px;
         font-size: 13px;
+        font-weight: 200;
+        min-height: 14px;
         color: var(--color-placeholder);
       }
     `
@@ -208,7 +220,7 @@ export default class Select extends FormElement {
   @property()
   endpoint: string;
 
-  @property()
+  @property({type: String})
   queryParam: string = 'q';
 
   @property({type: String})
@@ -254,6 +266,9 @@ export default class Select extends FormElement {
   renderSelectedItem: (option: any) => TemplateResult = this.renderSelectedItemDefault;
 
   @property({attribute: false})
+  createArbitraryOption: (input: string) => any = this.createArbitraryOptionDefault;
+
+  @property({attribute: false})
   getOptions: (response: AxiosResponse) => any[] = this.getOptionsDefault;
 
   @property({attribute: false})
@@ -268,36 +283,6 @@ export default class Select extends FormElement {
   private lruCache = flru(20);
   private staticOptions: StaticOption[] = [];
   
-  public constructor() {
-    super();
-
-    if (this.searchable) {
-      this.quietMillis = 200;
-    }
-
-    for (const child of this.children) {
-      if (child.tagName === "RP-OPTION") {
-        const name = child.getAttribute("name");
-        const value = child.getAttribute("value");
-
-        const option = {name, value};
-        this.staticOptions.push(option);
-
-        if (child.getAttribute("selected") !== null) {
-          if (this.getAttribute("multi") !== null) {
-            this.addValue(option);
-          } else {
-            this.setValue(option);
-          }
-        }
-      }
-    }
-
-    if (!this.hasAttribute('tabindex')) {
-      this.setAttribute('tabindex', "0");
-    }
-  }
-
   public updated(changedProperties: Map<string, any>) {
     super.updated(changedProperties);
 
@@ -353,11 +338,37 @@ export default class Select extends FormElement {
     this.options = [];
   }
 
+  private createArbitraryOptionDefault(input: string): any {
+    return null;
+  }
+
   private setOptions(options: any[]) {
+    if (this.input) {
+      const arbitraryOption: any = this.createArbitraryOption(this.input);
+      if (arbitraryOption) {
+        // set our arbitrary flag so we never have more than one
+        arbitraryOption.arbitrary = true;
+
+        // make sure our id is not already present
+        const exists = options.find((option: any)=>option.id === arbitraryOption.id);
+        console.log("Exists", exists, arbitraryOption, options);
+        if (!exists) {
+          if (options.length > 0) {
+            if (options[0].arbitrary) {
+              options[0] = arbitraryOption;
+            } else {
+              options.unshift(arbitraryOption);
+            }
+          } else {
+            options.unshift(arbitraryOption);
+          }
+        }
+      }
+    }
+
     // filter out any options already selected by id
     // TODO: should maybe be doing a deep equals here with option to optimize
     if (this.values.length > 0) {
-      
       if (getId(this.values[0])) {
         if (this.multi) {      
           this.options = options.filter(option=>!this.values.find(selected=>getId(selected) === getId(option)));
@@ -372,6 +383,8 @@ export default class Select extends FormElement {
         }
       }
     }
+
+
 
     this.options = options;
   }
@@ -439,9 +452,11 @@ export default class Select extends FormElement {
   }
 
   private handleFocus(): void {
-    this.focused = true;
-    if (this.searchOnFocus) {
-      this.requestUpdate("input");
+    if (!this.focused) {
+      this.focused = true;
+      if (this.searchOnFocus) {
+        this.requestUpdate("input");
+      }
     }
   }
 
@@ -458,7 +473,6 @@ export default class Select extends FormElement {
   }
 
   private handleKeyDown(evt: KeyboardEvent) {
-
     // see if we should open our options on a key event
     if(evt.key === 'Enter' || evt.key === 'ArrowDown' || (evt.key === 'n' && evt.ctrlKey)) {
       if (this.options.length === 0) {
@@ -502,19 +516,20 @@ export default class Select extends FormElement {
   }
 
   private handleContainerClick(event: MouseEvent) {
-    const input = this.shadowRoot.querySelector('input');
-    if(input) {
-      input.focus();
-      input.click();
-      return;
-    }
+    if ((event.target as any).tagName !== "INPUT") {
+      const input = this.shadowRoot.querySelector('input');
+      if(input) {
+        input.click();
+        return;
+      }
 
-    if (this.options.length > 0) {
-      this.options = [];
-      event.preventDefault();
-      event.stopPropagation();
-    } else {
-      this.requestUpdate("input");
+      if (this.options.length > 0) {
+        this.options = [];
+        event.preventDefault();
+        event.stopPropagation();
+      } else {
+        this.requestUpdate("input");
+      }
     }
   }
   
@@ -527,9 +542,41 @@ export default class Select extends FormElement {
     ];
   }
 
+  
   public firstUpdated(changedProperties: any) {
     super.firstUpdated(changedProperties);
+
     this.anchorElement = this.shadowRoot.querySelector(".select-container");
+
+    if (this.searchable) {
+      this.quietMillis = 200;
+    }
+
+    if (!this.hasAttribute('tabindex')) {
+      this.setAttribute('tabindex', "0");
+    }
+
+    // wait until children are created before adding our static options
+    window.setTimeout(()=>{
+      for (const child of this.children) {
+        if (child.tagName === "RP-OPTION") {
+          const name = child.getAttribute("name");
+          const value = child.getAttribute("value");  
+          const option = {name, value};
+          this.staticOptions.push(option);
+  
+          if (child.getAttribute("selected") !== null || (!this.placeholder && this.values.length === 0)) {
+            if (this.getAttribute("multi") !== null) {
+              this.addValue(option);
+            } else {
+              this.setValue(option);
+            }
+          }
+        }
+      }
+  
+    }, 0)
+
   }
 
   private handleArrowClick(event: MouseEvent): void {
@@ -572,41 +619,42 @@ export default class Select extends FormElement {
     // if we are single select and have a selection, no input
     if (!this.multi && this.values.length > 0) {
       hasInput = false;
-      
     }
 
     return html`
-      <div class="select-container ${classes}" @click=${this.handleContainerClick}>
-        <div class="left">
-          <div class="selected">
-            ${this.values.map((selected: any, index: number)=>html`
-              <div  class="selected-item ${index===this.selectedIndex ? 'focused' : ''}">
-                ${this.multi ? html`<div class="remove-item" @click=${(evt: MouseEvent)=>{ 
-                  evt.preventDefault(); 
-                  evt.stopPropagation(); 
-                  this.removeSelection(selected)
-                }}><rp-icon name="x" size="8"></rp-icon></div>` : null }
-                ${this.renderSelectedItem(selected)}
-              </div>`)
-            }
-            ${hasInput ? html`<input 
-              style=${styleMap({'display': 'inline-block'})}
-              @keyup=${this.handleKeyUp}
-              @keydown=${this.handleKeyDown}
-              @click=${this.handleClick}
-              type="text" 
-              placeholder=${placeholder} 
-              .value=${this.input} />`: placeholderDiv}
+      <rp-field name=${this.name} .label=${this.label} .helpText=${this.helpText} .errors=${this.errors} .widgetOnly=${this.widgetOnly}>
+        <div class="select-container ${classes}" @click=${this.handleContainerClick}>
+          <div class="left">
+            <div class="selected">
+              ${this.values.map((selected: any, index: number)=>html`
+                <div  class="selected-item ${index===this.selectedIndex ? 'focused' : ''}">
+                  ${this.multi ? html`<div class="remove-item" @click=${(evt: MouseEvent)=>{ 
+                    evt.preventDefault(); 
+                    evt.stopPropagation(); 
+                    this.removeSelection(selected)
+                  }}><rp-icon name="x" size="8"></rp-icon></div>` : null }
+                  ${this.renderSelectedItem(selected)}
+                </div>`)
+              }
+              ${hasInput ? html`<input 
+                style=${styleMap({'display': 'inline-block'})}
+                @keyup=${this.handleKeyUp}
+                @keydown=${this.handleKeyDown}
+                @click=${this.handleClick}
+                type="text" 
+                placeholder=${placeholder} 
+                .value=${this.input} />`: placeholderDiv}
+            </div>
+          </div>
+          
+          <div class="right" @click=${this.handleArrowClick}>
+            <rp-icon 
+              size="12"
+              name="arrow-down-bold" 
+              class="arrow ${this.options.length > 0 ? 'open' : ''}"></rp-icon>
           </div>
         </div>
-        
-        <div class="right" @click=${this.handleArrowClick}>
-          <rp-icon 
-            size="12"
-            name="arrow-down-bold" 
-            class="arrow ${this.options.length > 0 ? 'open' : ''}"></rp-icon>
-        </div>
-      </div>
+      </rp-field>
 
       <rp-options
         @rp-selection=${this.handleOptionSelection}
