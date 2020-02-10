@@ -22,7 +22,7 @@ from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
-from temba.contacts.models import FACEBOOK_SCHEME, WHATSAPP_SCHEME, Contact, ContactField, ContactGroup
+from temba.contacts.models import FACEBOOK_SCHEME, WHATSAPP_SCHEME, ContactField, ContactGroup
 from temba.globals.models import Global
 from temba.mailroom import FlowValidationException, MailroomException
 from temba.msgs.models import Label
@@ -3358,13 +3358,6 @@ class FlowCRUDLTest(TembaTest):
             counts = response.json()["counts"]
             self.assertEqual("Color", counts[0]["name"])
             self.assertEqual(2, counts[0]["total"])
-
-            # test a search on our runs
-            with patch.object(Contact, "query_elasticsearch_for_ids", return_value=[pete.id]):
-                response = self.client.get("%s?q=pete" % reverse("flows.flow_run_table", args=[flow.id]))
-                self.assertEqual(len(response.context["runs"]), 1)
-                self.assertContains(response, "Pete")
-                self.assertNotContains(response, "Jimmy")
 
             # fetch our intercooler rows for the run table
             response = self.client.get(reverse("flows.flow_run_table", args=[flow.id]))
