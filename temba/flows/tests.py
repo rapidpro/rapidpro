@@ -22,7 +22,7 @@ from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
-from temba.contacts.models import FACEBOOK_SCHEME, WHATSAPP_SCHEME, Contact, ContactField, ContactGroup
+from temba.contacts.models import FACEBOOK_SCHEME, WHATSAPP_SCHEME, ContactField, ContactGroup
 from temba.globals.models import Global
 from temba.mailroom import FlowValidationException, MailroomException
 from temba.msgs.models import Label
@@ -3359,13 +3359,6 @@ class FlowCRUDLTest(TembaTest):
             self.assertEqual("Color", counts[0]["name"])
             self.assertEqual(2, counts[0]["total"])
 
-            # test a search on our runs
-            with patch.object(Contact, "query_elasticsearch_for_ids", return_value=[pete.id]):
-                response = self.client.get("%s?q=pete" % reverse("flows.flow_run_table", args=[flow.id]))
-                self.assertEqual(len(response.context["runs"]), 1)
-                self.assertContains(response, "Pete")
-                self.assertNotContains(response, "Jimmy")
-
             # fetch our intercooler rows for the run table
             response = self.client.get(reverse("flows.flow_run_table", args=[flow.id]))
             self.assertEqual(len(response.context["runs"]), 1)
@@ -5958,54 +5951,44 @@ class FlowRevisionTest(TembaTest):
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
 
 
-class ConvertFlowMetadataTest(MigrationTest):
+class PopulateTemplateDepsTest(MigrationTest):
     app = "flows"
-    migrate_from = "0222_auto_20200108_2214"
-    migrate_to = "0223_convert_flow_metadata"
+    migrate_from = "0224_flow_dependencies"
+    migrate_to = "0225_populate_template_deps"
 
     def setUpBeforeMigration(self, apps):
-        # a flow with dependencies metadata in old format
+        self.template1 = Template.objects.create(uuid="8e35f470-edf3-4420-abc5-8fcd662d07ba", org=self.org, name="T1")
+        self.template2 = Template.objects.create(uuid="9678a80c-cf97-4072-9006-36e2f342913c", org=self.org, name="T2")
+        self.template3 = Template.objects.create(uuid="5841d652-f3df-485c-a0fa-4047bee83b28", org=self.org, name="T3")
+
+        # a flow with no template dependencies
         self.flow1 = self.create_flow()
-        self.flow1.metadata["dependencies"] = {
-            "groups": [
-                {"uuid": "69353b12-e6e9-44e9-85da-958be6fe151b", "name": "Customers"},
-                {"uuid": "6e5f8431-c590-40c2-a284-cbca917d5460", "name": "Reporters"},
-            ],
-            "labels": [{"uuid": "21da3551-1556-4a5f-b30e-73d59a4ac6ba", "name": "Spam"}],
-        }
+        self.flow1.metadata["dependencies"] = [
+            {"uuid": "21da3551-1556-4a5f-b30e-73d59a4ac6ba", "name": "Spam", "type": "label"}
+        ]
         self.flow1.save(update_fields=("metadata",))
 
-        # a flow with dependencies metadata already in new format
+        # a flow with template dependencies
         self.flow2 = self.create_flow()
         self.flow2.metadata["dependencies"] = [
-            {"uuid": "69353b12-e6e9-44e9-85da-958be6fe151b", "name": "Customers", "type": "group"},
-            {"uuid": "6e5f8431-c590-40c2-a284-cbca917d5460", "name": "Reporters", "type": "group"},
-            {"uuid": "21da3551-1556-4a5f-b30e-73d59a4ac6ba", "name": "Spam", "type": "label"},
+            {"uuid": "8e35f470-edf3-4420-abc5-8fcd662d07ba", "name": "T1", "type": "template"},
+            {"uuid": "5841d652-f3df-485c-a0fa-4047bee83b28", "name": "T3", "type": "template"},
         ]
         self.flow2.save(update_fields=("metadata",))
 
-        # a flow with no dependencies metadata
+        # a flow with template dependencies already in the database
         self.flow3 = self.create_flow()
+        self.flow3.metadata["dependencies"] = [
+            {"uuid": "9678a80c-cf97-4072-9006-36e2f342913c", "name": "T2", "type": "template"}
+        ]
+        self.flow3.save(update_fields=("metadata",))
+        self.flow3.template_dependencies.add(self.template2)
 
     def test_migration(self):
         self.flow1.refresh_from_db()
         self.flow2.refresh_from_db()
         self.flow3.refresh_from_db()
 
-        self.assertEqual(
-            [
-                {"uuid": "69353b12-e6e9-44e9-85da-958be6fe151b", "name": "Customers", "type": "group"},
-                {"uuid": "6e5f8431-c590-40c2-a284-cbca917d5460", "name": "Reporters", "type": "group"},
-                {"uuid": "21da3551-1556-4a5f-b30e-73d59a4ac6ba", "name": "Spam", "type": "label"},
-            ],
-            self.flow1.metadata["dependencies"],
-        )
-        self.assertEqual(
-            [
-                {"uuid": "69353b12-e6e9-44e9-85da-958be6fe151b", "name": "Customers", "type": "group"},
-                {"uuid": "6e5f8431-c590-40c2-a284-cbca917d5460", "name": "Reporters", "type": "group"},
-                {"uuid": "21da3551-1556-4a5f-b30e-73d59a4ac6ba", "name": "Spam", "type": "label"},
-            ],
-            self.flow2.metadata["dependencies"],
-        )
-        self.assertEqual([], self.flow3.metadata["dependencies"])
+        self.assertEqual(set(), set(self.flow1.template_dependencies.all()))
+        self.assertEqual({self.template1, self.template3}, set(self.flow2.template_dependencies.all()))
+        self.assertEqual({self.template2}, set(self.flow3.template_dependencies.all()))

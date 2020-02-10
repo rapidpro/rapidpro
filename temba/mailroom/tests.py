@@ -96,7 +96,7 @@ class MailroomClientTest(TembaTest):
             mock_post.return_value = MockResponse(422, '{"error":"flow don\'t look right"}')
 
             with self.assertRaises(FlowValidationException) as e:
-                get_client().flow_inspect({"nodes": []}, validate_with_org=self.org)
+                get_client().flow_inspect(self.org.id, {"nodes": []})
 
         self.assertEqual(str(e.exception), "flow don't look right")
         self.assertEqual(
