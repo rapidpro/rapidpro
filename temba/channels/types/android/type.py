@@ -2,6 +2,7 @@ from temba.contacts.models import TEL_SCHEME
 
 from ...models import ChannelType
 from ...views import UpdateAndroidForm
+from .views import ClaimView
 
 
 class AndroidType(ChannelType):
@@ -10,10 +11,11 @@ class AndroidType(ChannelType):
     """
 
     code = "A"
-    slug = "android"
 
     name = "Android"
     icon = "icon-channel-android"
+
+    claim_view = ClaimView
 
     schemes = [TEL_SCHEME]
     max_length = -1
