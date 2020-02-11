@@ -78,21 +78,17 @@ class MailroomClient:
 
         return self._request("flow/migrate", {"flow": definition, "to_version": to_version})
 
-    def flow_inspect(self, flow, validate_with_org=None):
+    def flow_inspect(self, org_id, flow):
         payload = {"flow": flow}
 
         # can't do validation during tests because mailroom can't see unit test data created in a transaction
-        if validate_with_org and not settings.TESTING:  # pragma: no cover
-            payload["validate_with_org_id"] = validate_with_org.id
+        if not settings.TESTING:  # pragma: no cover
+            payload["validate_with_org_id"] = org_id
 
         return self._request("flow/inspect", payload)
 
-    def flow_clone(self, dependency_mapping, flow, validate_with_org=None):
-        payload = {"dependency_mapping": dependency_mapping, "flow": flow}
-
-        # can't do validation during tests because mailroom can't see unit test data created in a transaction
-        if validate_with_org and not settings.TESTING:  # pragma: no cover
-            payload["validate_with_org_id"] = validate_with_org.id
+    def flow_clone(self, flow, dependency_mapping):
+        payload = {"flow": flow, "dependency_mapping": dependency_mapping}
 
         return self._request("flow/clone", payload)
 

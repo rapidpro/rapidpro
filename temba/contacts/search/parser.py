@@ -967,14 +967,14 @@ class SearchResults(NamedTuple):
 def search_contacts(org_id, group_uuid, query, sort=None, offset=None):
     try:
         client = mailroom.get_client()
-        response = client.contact_search(org_id, group_uuid, query, sort, offset=offset)
+        response = client.contact_search(org_id, str(group_uuid), query, sort, offset=offset)
         return SearchResults(response["total"], response["query"], response["fields"], response["contact_ids"])
 
     except mailroom.MailroomException as e:
         raise SearchException(e.response["error"])
 
 
-def legacy_parse_query(text, optimize=True, as_anon=False):
+def legacy_parse_query(text, optimize=True, as_anon=False):  # pragma: no cover
     """
     Parses the given contact query and optionally optimizes it
     """
@@ -1019,7 +1019,7 @@ def evaluate_query(org, text, contact_json=dict):
     return parsed.evaluate(org, contact_json)
 
 
-def contact_es_search(org, text, base_group=None, sort_struct=None):
+def legacy_search_contacts(org, text, base_group=None, sort_struct=None):  # pragma: no cover
     """
     Returns ES query
     """

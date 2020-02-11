@@ -826,11 +826,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def query_elasticsearch_for_ids(cls, org, query, group=None):
-        from .search import contact_es_search, SearchException
+        from .search import legacy_search_contacts, SearchException
         from temba.utils.es import ES
 
         try:
-            search_object, _ = contact_es_search(org, query, group)
+            search_object, _ = legacy_search_contacts(org, query, group)
             es_search = search_object.source(include=["id"]).using(ES).scan()
             return mapEStoDB(Contact, es_search, only_ids=True)
         except SearchException:

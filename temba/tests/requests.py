@@ -14,13 +14,17 @@ class MockResponse(object):
     in unit tests and mocks.
     """
 
-    def __init__(self, status_code, text, method="GET", url="http://foo.com/", headers=None):
+    def __init__(self, status_code, body, method="GET", url="http://foo.com/", headers=None):
         if headers is None:
             headers = {}
 
-        self.text = force_text(text)
-        self.content = force_bytes(text)
-        self.body = force_text(text)
+        # convert dictionaries to json if the body is passed that way
+        if isinstance(body, dict):
+            body = json.dumps(body)
+
+        self.body = force_text(body)
+        self.text = self.body
+        self.content = force_bytes(self.body)
         self.status_code = status_code
         self.headers = CaseInsensitiveDict(data=headers)
         self.url = url
