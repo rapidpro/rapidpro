@@ -403,7 +403,8 @@ class ContactGroupTest(TembaTest):
 
     def test_query_elasticsearch_for_ids_bad_query(self):
         with self.assertRaises(SearchException):
-            Contact.query_elasticsearch_for_ids(self.org, "bad_field <> error")
+            with MockParseQuery(error="bad field <> error"):
+                Contact.query_elasticsearch_for_ids(self.org, "bad_field <> error")
 
     def test_get_or_create(self):
         group = ContactGroup.get_or_create(self.org, self.user, " first ")
