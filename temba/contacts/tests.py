@@ -409,10 +409,6 @@ class ContactGroupTest(TembaTest):
         with self.assertRaises(ValueError):
             group.update_query("age = 18")
 
-    def test_query_summary(self):
-        with self.assertRaises(SearchException):
-            Contact.query_summary(self.org, "bad_field <> error")
-
     def test_query_elasticsearch_for_ids_bad_query(self):
         with self.assertRaises(SearchException):
             Contact.query_elasticsearch_for_ids(self.org, "bad_field <> error")
