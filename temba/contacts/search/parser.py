@@ -9,7 +9,6 @@ import regex
 from antlr4 import CommonTokenStream, InputStream, ParseTreeVisitor
 from antlr4.error.Errors import NoViableAltException, ParseCancellationException
 from antlr4.error.ErrorStrategy import BailErrorStrategy
-from elasticsearch_dsl import Q as es_Q
 
 from django.utils.encoding import force_text
 from django.utils.translation import gettext as _
@@ -115,9 +114,6 @@ class QueryNode(object):
         return self
 
     def as_text(self):  # pragma: no cover
-        pass
-
-    def as_elasticsearch(self, org, prop_map):  # pragma: no cover
         pass
 
     def evaluate(self, org, contact_json, prop_map):  # pragma: no cover
@@ -328,171 +324,6 @@ class Condition(QueryNode):
                     raise SearchException(_(f"Unknown name comparator: '{self.comparator}'"))
             else:
                 raise SearchException(_(f"No support for attribute field: '{field}'"))
-        else:  # pragma: no cover
-            raise SearchException(_(f"Unrecognized contact field type '{prop_type}'"))
-
-    def as_elasticsearch(self, org, prop_map):
-        prop_type, field = prop_map[self.prop]
-
-        if prop_type == ContactQuery.PROP_FIELD:
-            field_uuid = str(field.uuid)
-            es_query = es_Q("term", **{"fields.field": field_uuid})
-
-            if field.value_type == Value.TYPE_TEXT:
-                query_value = self.value.lower()
-
-                if self.comparator == "=":
-                    es_query &= es_Q("term", **{"fields.text": query_value})
-                elif self.comparator == "!=":
-                    es_query &= es_Q("term", **{"fields.text": query_value})
-                    es_query &= es_Q("exists", **{"field": "fields.text"})
-
-                    # search for the inverse of what was specified
-                    return ~es_Q("nested", path="fields", query=es_query)
-
-                else:  # pragma: no cover
-                    raise SearchException(_(f"Unknown text comparator: '{self.comparator}'"))
-
-            elif field.value_type == Value.TYPE_NUMBER:
-                query_value = str(self._parse_number(self.value))
-
-                if self.comparator == "=":
-                    es_query &= es_Q("match", **{"fields.number": query_value})
-                elif self.comparator == ">":
-                    es_query &= es_Q("range", **{"fields.number": {"gt": query_value}})
-                elif self.comparator == ">=":
-                    es_query &= es_Q("range", **{"fields.number": {"gte": query_value}})
-                elif self.comparator == "<":
-                    es_query &= es_Q("range", **{"fields.number": {"lt": query_value}})
-                elif self.comparator == "<=":
-                    es_query &= es_Q("range", **{"fields.number": {"lte": query_value}})
-                else:  # pragma: no cover
-                    raise SearchException(_(f"Unknown number comparator: '{self.comparator}'"))
-
-            elif field.value_type == Value.TYPE_DATETIME:
-                query_value = str_to_date(self.value, field.org.get_dayfirst())
-
-                if not query_value:  # pragma: no cover
-                    raise SearchException(_(f"Unable to parse the date '{self.value}'"))
-
-                # datetime contact values are serialized as ISO8601 timestamps in local time on ElasticSearch
-                lower_bound, upper_bound = date_to_day_range_utc(query_value, org)
-
-                if self.comparator == "=":
-                    es_query &= es_Q(
-                        "range", **{"fields.datetime": {"gte": lower_bound.isoformat(), "lt": upper_bound.isoformat()}}
-                    )
-                elif self.comparator == ">":
-                    es_query &= es_Q("range", **{"fields.datetime": {"gte": upper_bound.isoformat()}})
-                elif self.comparator == ">=":
-                    es_query &= es_Q("range", **{"fields.datetime": {"gte": lower_bound.isoformat()}})
-                elif self.comparator == "<":
-                    es_query &= es_Q("range", **{"fields.datetime": {"lt": lower_bound.isoformat()}})
-                elif self.comparator == "<=":
-                    es_query &= es_Q("range", **{"fields.datetime": {"lt": upper_bound.isoformat()}})
-                else:  # pragma: no cover
-                    raise SearchException(_(f"Unknown datetime comparator: '{self.comparator}'"))
-
-            elif field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
-                query_value = self.value.lower()
-
-                if field.value_type == Value.TYPE_WARD:
-                    field_name = "fields.ward"
-                elif field.value_type == Value.TYPE_DISTRICT:
-                    field_name = "fields.district"
-                elif field.value_type == Value.TYPE_STATE:
-                    field_name = "fields.state"
-                else:  # pragma: no cover
-                    raise SearchException(_(f"Unknown location type: '{field.value_type}'"))
-
-                if self.comparator == "=":
-                    field_name += "_keyword"
-                    es_query &= es_Q("term", **{field_name: query_value})
-                elif self.comparator == "!=":
-                    field_name += "_keyword"
-                    es_query &= es_Q("term", **{field_name: query_value})
-                    es_query &= es_Q("exists", **{"field": field_name})
-
-                    return ~es_Q("nested", path="fields", query=es_query)
-
-                else:
-                    raise SearchException(_(f"Unsupported comparator '{self.comparator}' for location field"))
-
-            else:  # pragma: no cover
-                raise SearchException(_(f"Unrecognized contact field type '{field.value_type}'"))
-
-            return es_Q("nested", path="fields", query=es_query)
-
-        elif prop_type == ContactQuery.PROP_ATTRIBUTE:
-            query_value = self.value.lower()
-
-            field_key = field.key
-
-            if field_key == "name":
-                if self.comparator == "=":
-                    field_name = "name.keyword"
-                    es_query = es_Q("term", **{field_name: query_value})
-                elif self.comparator == "~":
-                    field_name = "name"
-                    es_query = es_Q("match", **{field_name: query_value})
-                elif self.comparator == "!=":
-                    field_name = "name.keyword"
-                    es_query = ~es_Q("term", **{field_name: query_value})
-                else:  # pragma: no cover
-                    raise SearchException(_(f"Unknown attribute comparator: '{self.comparator}'"))
-            elif field_key == "id":
-                es_query = es_Q("ids", **{"values": [query_value]})
-            elif field_key == "language":
-                if self.comparator == "=":
-                    field_name = "language"
-                    es_query = es_Q("term", **{field_name: query_value})
-                elif self.comparator == "!=":
-                    field_name = "language"
-                    es_query = ~es_Q("term", **{field_name: query_value})
-                else:
-                    raise SearchException(_(f"Unknown attribute comparator: '{self.comparator}'"))
-            elif field_key == "created_on":
-                query_value = str_to_date(self.value, field.org.get_dayfirst())
-
-                if not query_value:
-                    raise SearchException(_(f"Unable to parse the date '{self.value}'"))
-
-                # contact created_on is serialized as ISO8601 timestamp in utc time on ElasticSearch
-                lower_bound, upper_bound = date_to_day_range_utc(query_value, org)
-
-                if self.comparator == "=":
-                    es_query = es_Q(
-                        "range", **{"created_on": {"gte": lower_bound.isoformat(), "lt": upper_bound.isoformat()}}
-                    )
-                elif self.comparator == ">":
-                    es_query = es_Q("range", **{"created_on": {"gte": upper_bound.isoformat()}})
-                elif self.comparator == ">=":
-                    es_query = es_Q("range", **{"created_on": {"gte": lower_bound.isoformat()}})
-                elif self.comparator == "<":
-                    es_query = es_Q("range", **{"created_on": {"lt": lower_bound.isoformat()}})
-                elif self.comparator == "<=":
-                    es_query = es_Q("range", **{"created_on": {"lt": upper_bound.isoformat()}})
-                else:
-                    raise SearchException(_(f"Unknown created_on comparator: '{self.comparator}'"))
-            else:  # pragma: no cover
-                raise SearchException(_(f"Unknown attribute field '{field}'"))
-            return es_query
-
-        elif prop_type == ContactQuery.PROP_SCHEME:
-            query_value = self.value.lower()
-            es_query = es_Q("term", **{"urns.scheme": field.lower()})
-
-            if org.is_anon:
-                return es_Q("ids", **{"values": [-1]})
-            else:
-                if self.comparator == "=":
-                    es_query &= es_Q("term", **{"urns.path.keyword": query_value})
-                elif self.comparator == "~":
-                    es_query &= es_Q("match_phrase", **{"urns.path": query_value})
-                else:  # pragma: no cover
-                    raise SearchException(_(f"Unknown scheme comparator: '{self.comparator}'"))
-
-                return es_Q("nested", path="urns", query=es_query)
         else:  # pragma: no cover
             raise SearchException(_(f"Unrecognized contact field type '{prop_type}'"))
 
