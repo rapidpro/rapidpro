@@ -26,10 +26,10 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
 from temba.mailroom import queue_populate_dynamic_group
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, chunk_list, format_number, get_anonymous_user, json, on_transaction_commit
+from temba.utils import analytics, chunk_list, es, format_number, get_anonymous_user, json, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.languages import _get_language_name_iso6393
-from temba.utils.models import JSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel, mapEStoDB
+from temba.utils.models import JSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
 from temba.utils.text import truncate, unsnakify
 from temba.utils.urns import ParsedURN, parse_urn
 from temba.values.constants import Value
@@ -806,14 +806,24 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def query_elasticsearch_for_ids(cls, org, query, group=None):
-        from .search import legacy_search_contacts, SearchException
-        from temba.utils.es import ES
+        from temba.contacts import search
 
         try:
-            search_object, _ = legacy_search_contacts(org, query, group)
-            es_search = search_object.source(include=["id"]).using(ES).scan()
-            return mapEStoDB(Contact, es_search, only_ids=True)
-        except SearchException:
+            group_uuid = group.uuid if group else ""
+            parsed = search.parse_query(org.id, query, group_uuid=group_uuid)
+            results = (
+                es.ModelESSearch(model=Contact, index="contacts")
+                .source(include=["id"])
+                .params(routing=org.id)
+                .using(es.ES)
+                .query(parsed.elastic_query)
+            )
+            matches = []
+            for r in results.scan():
+                matches.append(int(r.id))
+
+            return matches
+        except search.SearchException:
             logger.error("Error evaluating query", exc_info=True)
             raise  # reraise the exception
 
@@ -2999,8 +3009,7 @@ class ExportContactsTask(BaseExportTask):
         include_group_memberships = bool(self.group_memberships.exists())
 
         if self.search:
-            # cache contact ids
-            contact_ids = list(Contact.query_elasticsearch_for_ids(self.org, self.search, group))
+            contact_ids = Contact.query_elasticsearch_for_ids(self.org, self.search, group)
         else:
             contact_ids = group.contacts.order_by("name", "id").values_list("id", flat=True)
 
