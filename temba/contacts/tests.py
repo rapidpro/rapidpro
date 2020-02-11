@@ -1,4 +1,3 @@
-import copy
 import subprocess
 import time
 import uuid
@@ -27,14 +26,7 @@ from temba.api.models import WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import DELETED_SCHEME
-from temba.contacts.search import (
-    SearchException,
-    SearchResults,
-    evaluate_query,
-    is_phonenumber,
-    legacy_search_contacts,
-    search_contacts,
-)
+from temba.contacts.search import SearchException, SearchResults, evaluate_query, is_phonenumber, search_contacts
 from temba.contacts.search.tests import MockParseQuery
 from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowRun
@@ -2115,947 +2107,6 @@ class ContactTest(TembaTest):
         # escaped quotes
         query = legacy_parse_query(r'name ~ "O\"Learly"')
         self.assertEqual(query.as_text(), r'name ~ "O"Learly"')
-
-    def test_contact_elastic_search(self):
-        gender = ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type=Value.TYPE_TEXT)
-        age = ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type=Value.TYPE_NUMBER)
-        joined = ContactField.get_or_create(
-            self.org, self.admin, "joined", "Joined On", value_type=Value.TYPE_DATETIME
-        )
-        ward = ContactField.get_or_create(self.org, self.admin, "ward", "Ward", value_type=Value.TYPE_WARD)
-        district = ContactField.get_or_create(
-            self.org, self.admin, "district", "District", value_type=Value.TYPE_DISTRICT
-        )
-        state = ContactField.get_or_create(self.org, self.admin, "state", "State", value_type=Value.TYPE_STATE)
-
-        base_search = {
-            "query": {
-                "bool": {
-                    "filter": [
-                        # {'term': {'is_blocked': False}},
-                        # {'term': {'is_stopped': False}},
-                        {"term": {"org_id": self.org.id}},
-                        {"term": {"groups": str(self.org.cached_all_contacts_group.uuid)}},
-                    ],
-                    "must": [],
-                }
-            },
-            "sort": [{"id": {"order": "desc"}}],
-        }
-
-        # text term matches
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(gender.uuid)}},
-                                {"term": {"fields.text": "unknown"}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'gender = "unknown"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        # text term does not match
-        expected_search = copy.deepcopy(base_search)
-        del expected_search["query"]["bool"]["must"]
-        expected_search["query"]["bool"]["must_not"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(gender.uuid)}},
-                                {"term": {"fields.text": "unknown"}},
-                                {"exists": {"field": "fields.text"}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'gender != "unknown"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        # decimal range matches
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [{"term": {"fields.field": str(age.uuid)}}, {"match": {"fields.number": "35"}}]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, "age = 35")
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(age.uuid)}},
-                                {"range": {"fields.number": {"gt": "35"}}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, "age > 35")
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(age.uuid)}},
-                                {"range": {"fields.number": {"gte": "35"}}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, "age >= 35")
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(age.uuid)}},
-                                {"range": {"fields.number": {"lt": "35"}}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, "age < 35")
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(age.uuid)}},
-                                {"range": {"fields.number": {"lte": "35"}}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, "age <= 35")
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        # datetime range matches
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(joined.uuid)}},
-                                {
-                                    "range": {
-                                        "fields.datetime": {
-                                            "gte": "2018-02-28T22:00:00+00:00",
-                                            "lt": "2018-03-01T22:00:00+00:00",
-                                        }
-                                    }
-                                },
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'joined = "01-03-2018"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(joined.uuid)}},
-                                {"range": {"fields.datetime": {"gte": "2018-03-01T22:00:00+00:00"}}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'joined > "01-03-2018"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(joined.uuid)}},
-                                {"range": {"fields.datetime": {"gte": "2018-02-28T22:00:00+00:00"}}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'joined >= "01-03-2018"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(joined.uuid)}},
-                                {"range": {"fields.datetime": {"lt": "2018-02-28T22:00:00+00:00"}}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'joined < "01-03-2018"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(joined.uuid)}},
-                                {"range": {"fields.datetime": {"lt": "2018-03-01T22:00:00+00:00"}}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'joined <= "01-03-2018"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        # ward matches
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(ward.uuid)}},
-                                {"term": {"fields.ward_keyword": "bukure"}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'ward = "Bukure"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        # ward does not match
-        expected_search = copy.deepcopy(base_search)
-        del expected_search["query"]["bool"]["must"]
-        expected_search["query"]["bool"]["must_not"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(ward.uuid)}},
-                                {"term": {"fields.ward_keyword": "bukure"}},
-                                {"exists": {"field": "fields.ward_keyword"}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-
-        actual_search, _ = legacy_search_contacts(self.org, 'ward != "Bukure"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'ward ~ "Bukure"')
-
-        # district matches
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(district.uuid)}},
-                                {"term": {"fields.district_keyword": "rwamagana"}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'district = "Rwamagana"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        # district does not match
-        expected_search = copy.deepcopy(base_search)
-        del expected_search["query"]["bool"]["must"]
-        expected_search["query"]["bool"]["must_not"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(district.uuid)}},
-                                {"term": {"fields.district_keyword": "rwamagana"}},
-                                {"exists": {"field": "fields.district_keyword"}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'district != "Rwamagana"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'district ~ "Rwamagana"')
-
-        # state matches
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(state.uuid)}},
-                                {"term": {"fields.state_keyword": "eastern province"}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'state = "Eastern Province"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        # state does not match
-        expected_search = copy.deepcopy(base_search)
-        del expected_search["query"]["bool"]["must"]
-        expected_search["query"]["bool"]["must_not"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(state.uuid)}},
-                                {"term": {"fields.state_keyword": "eastern province"}},
-                                {"exists": {"field": "fields.state_keyword"}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'state != "Eastern Province"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'state ~ "Eastern Province"')
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(gender.uuid)}},
-                                {"term": {"fields.text": "unknown"}},
-                            ]
-                        }
-                    },
-                }
-            },
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(age.uuid)}},
-                                {"range": {"fields.number": {"gt": "32"}}},
-                            ]
-                        }
-                    },
-                }
-            },
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'gender = "unknown" AND age > 32')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = {
-            "query": {
-                "bool": {
-                    "should": [
-                        {
-                            "nested": {
-                                "path": "fields",
-                                "query": {
-                                    "bool": {
-                                        "must": [
-                                            {"term": {"fields.field": str(gender.uuid)}},
-                                            {"term": {"fields.text": "unknown"}},
-                                        ]
-                                    }
-                                },
-                            }
-                        },
-                        {
-                            "nested": {
-                                "path": "fields",
-                                "query": {
-                                    "bool": {
-                                        "must": [
-                                            {"term": {"fields.field": str(joined.uuid)}},
-                                            {"range": {"fields.datetime": {"lt": "2018-02-28T22:00:00+00:00"}}},
-                                        ]
-                                    }
-                                },
-                            }
-                        },
-                    ],
-                    "filter": [
-                        # {'term': {'is_blocked': False}},
-                        # {'term': {'is_stopped': False}},
-                        {"term": {"org_id": self.org.id}},
-                        {"term": {"groups": str(self.org.cached_all_contacts_group.uuid)}},
-                    ],
-                    "minimum_should_match": 1,
-                }
-            },
-            "sort": [{"id": {"order": "desc"}}],
-        }
-
-        actual_search, _ = legacy_search_contacts(self.org, 'gender = "unknown" OR joined < "01-03-2018"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [{"term": {"name.keyword": "joe blow"}}]
-
-        actual_search, _ = legacy_search_contacts(self.org, 'name = "joe Blow"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        del expected_search["query"]["bool"]["must"]
-        expected_search["query"]["bool"]["must_not"] = [{"term": {"name.keyword": "joe blow"}}]
-
-        actual_search, _ = legacy_search_contacts(self.org, 'name != "joe Blow"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        # test `language` contact attribute
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [{"term": {"language": "eng"}}]
-        actual_search, _ = legacy_search_contacts(self.org, 'language = "eng"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        del expected_search["query"]["bool"]["must"]
-        expected_search["query"]["bool"]["must_not"] = [{"term": {"language": "eng"}}]
-
-        actual_search, _ = legacy_search_contacts(self.org, 'language != "eng"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        # operator not supported
-        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'language ~ "eng"')
-
-        expected_search = {
-            "query": {
-                "bool": {
-                    "must_not": [{"term": {"language": ""}}],
-                    "must": [{"exists": {"field": "language"}}],
-                    "filter": [
-                        # {'term': {'is_blocked': False}},
-                        # {'term': {'is_stopped': False}},
-                        {"term": {"org_id": self.org.id}},
-                        {"term": {"groups": str(self.org.cached_all_contacts_group.uuid)}},
-                    ],
-                }
-            },
-            "sort": [{"id": {"order": "desc"}}],
-        }
-        actual_search, _ = legacy_search_contacts(self.org, 'language != ""')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = {
-            "query": {
-                "bool": {
-                    "should": [
-                        {"bool": {"must_not": [{"exists": {"field": "language"}}]}},
-                        {"term": {"language": ""}},
-                    ],
-                    "filter": [
-                        # {'term': {'is_blocked': False}},
-                        # {'term': {'is_stopped': False}},
-                        {"term": {"org_id": self.org.id}},
-                        {"term": {"groups": str(self.org.cached_all_contacts_group.uuid)}},
-                    ],
-                    "minimum_should_match": 1,
-                }
-            },
-            "sort": [{"id": {"order": "desc"}}],
-        }
-        actual_search, _ = legacy_search_contacts(self.org, 'language = ""')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        # created_on
-        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'created_on != ""')
-        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'created_on = ""')
-        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'created_on ~ "05-07-2018"')
-        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'created_on ~ "this-is-not-a-date"')
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {"range": {"created_on": {"gte": "2018-07-04T22:00:00+00:00", "lt": "2018-07-05T22:00:00+00:00"}}}
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'created_on = "05-07-2018"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [{"range": {"created_on": {"gte": "2018-07-05T22:00:00+00:00"}}}]
-        actual_search, _ = legacy_search_contacts(self.org, 'created_on > "05-07-2018"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [{"range": {"created_on": {"gte": "2018-07-04T22:00:00+00:00"}}}]
-        actual_search, _ = legacy_search_contacts(self.org, 'created_on >= "05-07-2018"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [{"range": {"created_on": {"lt": "2018-07-04T22:00:00+00:00"}}}]
-        actual_search, _ = legacy_search_contacts(self.org, 'created_on < "05-07-2018"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [{"range": {"created_on": {"lt": "2018-07-05T22:00:00+00:00"}}}]
-        actual_search, _ = legacy_search_contacts(self.org, 'created_on <= "05-07-2018"')
-
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "urns",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"urns.scheme": "tel"}},
-                                {"term": {"urns.path.keyword": "+250788382011"}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'tel = "+250788382011"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "urns",
-                    "query": {
-                        "bool": {
-                            "must": [{"term": {"urns.scheme": "twitter"}}, {"match_phrase": {"urns.path": "blow"}}]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'twitter ~ "Blow"')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "urns",
-                    "query": {
-                        "bool": {"must": [{"exists": {"field": "urns.path"}}, {"term": {"urns.scheme": "telegram"}}]}
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'telegram != ""')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        # is set not set
-        expected_search = copy.deepcopy(base_search)
-        del expected_search["query"]["bool"]["must"]
-        expected_search["query"]["bool"]["must_not"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(gender.uuid)}},
-                                {"exists": {"field": "fields.text"}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'gender = ""')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(gender.uuid)}},
-                                {"exists": {"field": "fields.text"}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'gender != ""')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        del expected_search["query"]["bool"]["must"]
-        expected_search["query"]["bool"]["must_not"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [{"term": {"fields.field": str(age.uuid)}}, {"exists": {"field": "fields.number"}}]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'age = ""')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [{"term": {"fields.field": str(age.uuid)}}, {"exists": {"field": "fields.number"}}]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'age != ""')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        del expected_search["query"]["bool"]["must"]
-        expected_search["query"]["bool"]["must_not"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(joined.uuid)}},
-                                {"exists": {"field": "fields.datetime"}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'joined = ""')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(joined.uuid)}},
-                                {"exists": {"field": "fields.datetime"}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'joined != ""')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        del expected_search["query"]["bool"]["must"]
-        expected_search["query"]["bool"]["must_not"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [{"term": {"fields.field": str(ward.uuid)}}, {"exists": {"field": "fields.ward"}}]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'ward = ""')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [{"term": {"fields.field": str(ward.uuid)}}, {"exists": {"field": "fields.ward"}}]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'ward != ""')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        del expected_search["query"]["bool"]["must"]
-        expected_search["query"]["bool"]["must_not"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(district.uuid)}},
-                                {"exists": {"field": "fields.district"}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'district = ""')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(district.uuid)}},
-                                {"exists": {"field": "fields.district"}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'district != ""')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        del expected_search["query"]["bool"]["must"]
-        expected_search["query"]["bool"]["must_not"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(state.uuid)}},
-                                {"exists": {"field": "fields.state"}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'state = ""')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "fields",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"fields.field": str(state.uuid)}},
-                                {"exists": {"field": "fields.state"}},
-                            ]
-                        }
-                    },
-                }
-            }
-        ]
-        acutal_search, _ = legacy_search_contacts(self.org, 'state != ""')
-        self.assertEqual(acutal_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
-            {
-                "nested": {
-                    "path": "urns",
-                    "query": {
-                        "bool": {"must": [{"exists": {"field": "urns.path"}}, {"term": {"urns.scheme": "tel"}}]}
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'tel != ""')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = copy.deepcopy(base_search)
-        del expected_search["query"]["bool"]["must"]
-        expected_search["query"]["bool"]["must_not"] = [
-            {
-                "nested": {
-                    "path": "urns",
-                    "query": {
-                        "bool": {"must": [{"exists": {"field": "urns.path"}}, {"term": {"urns.scheme": "twitter"}}]}
-                    },
-                }
-            }
-        ]
-        actual_search, _ = legacy_search_contacts(self.org, 'twitter = ""')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = {
-            "query": {
-                "bool": {
-                    "should": [
-                        {"bool": {"must_not": [{"exists": {"field": "name"}}]}},
-                        {"term": {"name.keyword": ""}},
-                    ],
-                    "filter": [
-                        # {'term': {'is_blocked': False}},
-                        # {'term': {'is_stopped': False}},
-                        {"term": {"org_id": self.org.id}},
-                        {"term": {"groups": str(self.org.cached_all_contacts_group.uuid)}},
-                    ],
-                    "minimum_should_match": 1,
-                }
-            },
-            "sort": [{"id": {"order": "desc"}}],
-        }
-        actual_search, _ = legacy_search_contacts(self.org, 'name = ""')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        expected_search = {
-            "query": {
-                "bool": {
-                    "must_not": [{"term": {"name.keyword": ""}}],
-                    "must": [{"exists": {"field": "name"}}],
-                    "filter": [
-                        # {'term': {'is_blocked': False}},
-                        # {'term': {'is_stopped': False}},
-                        {"term": {"org_id": self.org.id}},
-                        {"term": {"groups": str(self.org.cached_all_contacts_group.uuid)}},
-                    ],
-                }
-            },
-            "sort": [{"id": {"order": "desc"}}],
-        }
-        actual_search, _ = legacy_search_contacts(self.org, 'name != ""')
-        self.assertEqual(actual_search.to_dict(), expected_search)
-
-        with AnonymousOrg(self.org):
-            expected_search = copy.deepcopy(base_search)
-            expected_search["query"]["bool"]["must"] = [{"ids": {"values": ["123"]}}]
-            actual_search, _ = legacy_search_contacts(self.org, "123")
-            self.assertEqual(actual_search.to_dict(), expected_search)
-
-            expected_search = copy.deepcopy(base_search)
-            expected_search["query"]["bool"]["must"] = [{"ids": {"values": [-1]}}]
-            actual_search, _ = legacy_search_contacts(self.org, 'twitter ~ "Blow"')
-            self.assertEqual(actual_search.to_dict(), expected_search)
-
-            expected_search = copy.deepcopy(base_search)
-            expected_search["query"]["bool"]["must"] = [{"ids": {"values": [-1]}}]
-            actual_search, _ = legacy_search_contacts(self.org, 'twitter != ""')
-            self.assertEqual(actual_search.to_dict(), expected_search)
-
-            expected_search = copy.deepcopy(base_search)
-            expected_search["query"]["bool"]["must"] = [{"ids": {"values": [-1]}}]
-            actual_search, _ = legacy_search_contacts(self.org, 'twitter = ""')
-            self.assertEqual(actual_search.to_dict(), expected_search)
-
-            self.assertRaises(SearchException, legacy_search_contacts, self.org, 'id = ""')
 
     def test_contact_create_with_dynamicgroup_reevaluation(self):
 
@@ -7040,135 +6091,138 @@ class ContactFieldTest(TembaTest):
                 log_info_threshold.return_value = 1
 
                 with ESMockWithScroll(data=mock_es_data):
-                    with self.assertNumQueries(48):
-                        self.assertExcelSheet(
-                            request_export("?s=name+has+adam+or+name+has+deng")[0],
-                            [
+                    with MockParseQuery(query='name ~ "adam" OR name ~ "deng"', fields=["name"]):
+                        with self.assertNumQueries(47):
+                            self.assertExcelSheet(
+                                request_export("?s=name+has+adam+or+name+has+deng")[0],
                                 [
-                                    "Contact UUID",
-                                    "Name",
-                                    "Language",
-                                    "Created On",
-                                    "URN:Mailto",
-                                    "URN:Tel",
-                                    "URN:Tel",
-                                    "URN:Telegram",
-                                    "URN:Twitter",
-                                    "Field:Third",
-                                    "Field:Second",
-                                    "Field:First",
+                                    [
+                                        "Contact UUID",
+                                        "Name",
+                                        "Language",
+                                        "Created On",
+                                        "URN:Mailto",
+                                        "URN:Tel",
+                                        "URN:Tel",
+                                        "URN:Telegram",
+                                        "URN:Twitter",
+                                        "Field:Third",
+                                        "Field:Second",
+                                        "Field:First",
+                                    ],
+                                    [
+                                        contact2.uuid,
+                                        "Adam Sumner",
+                                        "eng",
+                                        contact2.created_on,
+                                        "adam@sumner.com",
+                                        "+12067799191",
+                                        "",
+                                        "1234",
+                                        "adam",
+                                        "",
+                                        "",
+                                        "",
+                                    ],
+                                    [
+                                        contact3.uuid,
+                                        "Luol Deng",
+                                        "",
+                                        contact3.created_on,
+                                        "",
+                                        "+12078776655",
+                                        "",
+                                        "",
+                                        "deng",
+                                        "",
+                                        "",
+                                        "",
+                                    ],
                                 ],
-                                [
-                                    contact2.uuid,
-                                    "Adam Sumner",
-                                    "eng",
-                                    contact2.created_on,
-                                    "adam@sumner.com",
-                                    "+12067799191",
-                                    "",
-                                    "1234",
-                                    "adam",
-                                    "",
-                                    "",
-                                    "",
-                                ],
-                                [
-                                    contact3.uuid,
-                                    "Luol Deng",
-                                    "",
-                                    contact3.created_on,
-                                    "",
-                                    "+12078776655",
-                                    "",
-                                    "",
-                                    "deng",
-                                    "",
-                                    "",
-                                    "",
-                                ],
-                            ],
-                            tz=self.org.timezone,
-                        )
+                                tz=self.org.timezone,
+                            )
 
-                    self.assertEqual(len(captured_logger.output), 2)
-                    self.assertTrue("contacts - 50% (1/2)" in captured_logger.output[0])
-                    self.assertTrue("contacts - 100% (2/2)" in captured_logger.output[1])
+                        self.assertEqual(len(captured_logger.output), 2)
+                        self.assertTrue("contacts - 50% (1/2)" in captured_logger.output[0])
+                        self.assertTrue("contacts - 100% (2/2)" in captured_logger.output[1])
 
-                    assertImportExportedFile("?s=name+has+adam+or+name+has+deng")
+                        assertImportExportedFile("?s=name+has+adam+or+name+has+deng")
 
         # export a search within a specified group of contacts
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(49):
+            with MockParseQuery(query='name ~ "Hagg"', fields=["name"]):
+                with self.assertNumQueries(48):
+                    self.assertExcelSheet(
+                        request_export("?g=%s&s=Hagg" % group.uuid)[0],
+                        [
+                            [
+                                "Contact UUID",
+                                "Name",
+                                "Language",
+                                "Created On",
+                                "URN:Mailto",
+                                "URN:Tel",
+                                "URN:Tel",
+                                "URN:Telegram",
+                                "URN:Twitter",
+                                "Field:Third",
+                                "Field:Second",
+                                "Field:First",
+                            ],
+                            [
+                                contact.uuid,
+                                "Ben Haggerty",
+                                "",
+                                contact.created_on,
+                                "",
+                                "+12067799294",
+                                "+12062233445",
+                                "",
+                                "",
+                                "20-12-2015 08:30",
+                                "",
+                                "One",
+                            ],
+                        ],
+                        tz=self.org.timezone,
+                    )
+
+                assertImportExportedFile("?g=%s&s=Hagg" % group.uuid)
+
+        # now try with an anonymous org
+        with AnonymousOrg(self.org):
+            with MockParseQuery(query='name ~ "Hagg"', fields=["name"]):
                 self.assertExcelSheet(
-                    request_export("?g=%s&s=Hagg" % group.uuid)[0],
+                    request_export()[0],
                     [
                         [
+                            "ID",
                             "Contact UUID",
                             "Name",
                             "Language",
                             "Created On",
-                            "URN:Mailto",
-                            "URN:Tel",
-                            "URN:Tel",
-                            "URN:Telegram",
-                            "URN:Twitter",
                             "Field:Third",
                             "Field:Second",
                             "Field:First",
                         ],
+                        [str(contact2.id), contact2.uuid, "Adam Sumner", "eng", contact2.created_on, "", "", ""],
                         [
+                            str(contact.id),
                             contact.uuid,
                             "Ben Haggerty",
                             "",
                             contact.created_on,
-                            "",
-                            "+12067799294",
-                            "+12062233445",
-                            "",
-                            "",
                             "20-12-2015 08:30",
                             "",
                             "One",
                         ],
+                        [str(contact3.id), contact3.uuid, "Luol Deng", "", contact3.created_on, "", "", ""],
+                        [str(contact4.id), contact4.uuid, "Stephen", "", contact4.created_on, "", "", ""],
                     ],
                     tz=self.org.timezone,
                 )
-
-            assertImportExportedFile("?g=%s&s=Hagg" % group.uuid)
-
-        # now try with an anonymous org
-        with AnonymousOrg(self.org):
-            self.assertExcelSheet(
-                request_export()[0],
-                [
-                    [
-                        "ID",
-                        "Contact UUID",
-                        "Name",
-                        "Language",
-                        "Created On",
-                        "Field:Third",
-                        "Field:Second",
-                        "Field:First",
-                    ],
-                    [str(contact2.id), contact2.uuid, "Adam Sumner", "eng", contact2.created_on, "", "", ""],
-                    [
-                        str(contact.id),
-                        contact.uuid,
-                        "Ben Haggerty",
-                        "",
-                        contact.created_on,
-                        "20-12-2015 08:30",
-                        "",
-                        "One",
-                    ],
-                    [str(contact3.id), contact3.uuid, "Luol Deng", "", contact3.created_on, "", "", ""],
-                    [str(contact4.id), contact4.uuid, "Stephen", "", contact4.created_on, "", "", ""],
-                ],
-                tz=self.org.timezone,
-            )
-            assertImportExportedFile()
+                assertImportExportedFile()
 
     def test_prepare_sort_field_struct(self):
         ward = ContactField.get_or_create(self.org, self.admin, "ward", "Home Ward", value_type=Value.TYPE_WARD)

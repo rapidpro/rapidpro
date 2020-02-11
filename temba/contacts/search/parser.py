@@ -15,9 +15,8 @@ from django.utils.encoding import force_text
 from django.utils.translation import gettext as _
 
 from temba import mailroom
-from temba.contacts.models import URN_SCHEME_CONFIG, Contact, ContactField
+from temba.contacts.models import URN_SCHEME_CONFIG, ContactField
 from temba.utils.dates import date_to_day_range_utc, str_to_date, str_to_datetime
-from temba.utils.es import ModelESSearch
 from temba.values.constants import Value
 
 TEL_VALUE_REGEX = regex.compile(r"^[+ \d\-\(\)]+$", flags=regex.V0)
@@ -60,11 +59,6 @@ class ContactQuery(object):
         prop_map = self.get_prop_map(org)
 
         return self.root.evaluate(org, contact_json, prop_map)
-
-    def as_elasticsearch(self, org):
-        prop_map = self.get_prop_map(org)
-
-        return self.root.as_elasticsearch(org, prop_map)
 
     def get_prop_map(self, org, validate=True):
         """
@@ -681,77 +675,6 @@ class IsSetCondition(Condition):
         else:  # pragma: no cover
             raise SearchException(_(f"Unrecognized contact field type '{prop_type}'"))
 
-    def as_elasticsearch(self, org, prop_map):
-        prop_type, field = prop_map[self.prop]
-
-        if self.comparator.lower() in self.IS_SET_LOOKUPS:
-            is_set = True
-        elif self.comparator.lower() in self.IS_NOT_SET_LOOKUPS:
-            is_set = False
-        else:  # pragma: no cover
-            raise SearchException(_("Invalid operator for empty string comparison"))
-
-        if prop_type == ContactQuery.PROP_FIELD:
-            field_uuid = str(field.uuid)
-            es_query = es_Q("term", **{"fields.field": field_uuid})
-
-            if field.value_type == Value.TYPE_TEXT:
-                field_name = "fields.text"
-            elif field.value_type == Value.TYPE_NUMBER:
-                field_name = "fields.number"
-            elif field.value_type == Value.TYPE_DATETIME:
-                field_name = "fields.datetime"
-            elif field.value_type == Value.TYPE_STATE:
-                field_name = "fields.state"
-            elif field.value_type == Value.TYPE_DISTRICT:
-                field_name = "fields.district"
-            elif field.value_type == Value.TYPE_WARD:
-                field_name = "fields.ward"
-            else:  # pragma: no cover
-                raise SearchException(_(f"Unrecognized contact field type '{field.value_type}'"))
-
-            es_query &= es_Q("exists", **{"field": field_name})
-
-            if is_set:
-                return es_Q("nested", path="fields", query=es_query)
-            else:
-                return ~es_Q("nested", path="fields", query=es_query)
-        elif prop_type == ContactQuery.PROP_SCHEME:
-            if org.is_anon:
-                return es_Q("ids", **{"values": [-1]})
-
-            es_query = es_Q("exists", **{"field": "urns.path"}) & es_Q("term", **{"urns.scheme": field.lower()})
-
-            if is_set:
-                return es_Q("nested", path="urns", query=es_query)
-            else:
-                return ~es_Q("nested", path="urns", query=es_query)
-        elif prop_type == ContactQuery.PROP_ATTRIBUTE:
-            field_key = field.key
-
-            if field_key == "name":
-                if is_set:
-                    es_query = es_Q("exists", **{"field": "name"}) & ~es_Q("term", **{"name.keyword": ""})
-                else:
-                    es_query = ~(es_Q("exists", **{"field": "name"}) & ~es_Q("term", **{"name.keyword": ""}))
-                return es_query
-            elif field_key == "language":
-                if is_set:
-                    es_query = es_Q("exists", **{"field": "language"}) & ~es_Q("term", **{"language": ""})
-                else:
-                    es_query = ~(es_Q("exists", **{"field": "language"}) & ~es_Q("term", **{"language": ""}))
-                return es_query
-            elif field_key == "id":
-                raise SearchException(_("All contacts have an 'id', it's not possible to check if 'id' is set"))
-            elif field_key == "created_on":
-                raise SearchException(
-                    _("All contacts have a 'created_on', it's not possible to check if 'created_on' is set")
-                )
-            else:  # pragma: no cover
-                raise SearchException(_(f"Unknown attribute field '{field}'"))
-        else:  # pragma: no cover
-            raise SearchException(_(f"Unrecognized contact field type '{prop_type}'"))
-
 
 class BoolCombination(QueryNode):
     """
@@ -818,9 +741,6 @@ class BoolCombination(QueryNode):
 
     def evaluate(self, org, contact_json, prop_map):
         return reduce(self.op, [child.evaluate(org, contact_json, prop_map) for child in self.children])
-
-    def as_elasticsearch(self, org, prop_map):
-        return reduce(self.op, [child.as_elasticsearch(org, prop_map) for child in self.children])
 
     def as_text(self):
         op = " OR " if self.op == self.OR else " AND "
@@ -942,16 +862,17 @@ class ContactQLVisitor(ParseTreeVisitor):
 class ParsedQuery(NamedTuple):
     query: str
     fields: list
+    elastic_query: dict
 
 
-def parse_query(org_id, query):
+def parse_query(org_id, query, group_uuid=""):
     """
     Parses the passed in query in the context of the org
     """
     try:
         client = mailroom.get_client()
-        response = client.parse_query(org_id, query)
-        return ParsedQuery(response["query"], response["fields"])
+        response = client.parse_query(org_id, query, group_uuid=str(group_uuid))
+        return ParsedQuery(response["query"], response["fields"], response["elastic_query"])
 
     except mailroom.MailroomException as e:
         raise SearchException(e.response["error"])
@@ -1017,55 +938,6 @@ def evaluate_query(org, text, contact_json=dict):
     parsed = legacy_parse_query(text, optimize=True, as_anon=org.is_anon)
 
     return parsed.evaluate(org, contact_json)
-
-
-def legacy_search_contacts(org, text, base_group=None, sort_struct=None):  # pragma: no cover
-    """
-    Returns ES query
-    """
-
-    if not base_group:
-        base_group = org.cached_all_contacts_group
-
-    if not sort_struct:
-        sort_field = "-id"
-    else:
-        if sort_struct["field_type"] == "field":  # pragma: no cover
-            sort_field = {
-                sort_struct["field_path"]: {
-                    "order": sort_struct["sort_direction"],
-                    "nested": {"path": "fields", "filter": {"term": {"fields.field": sort_struct["field_uuid"]}}},
-                }
-            }
-        else:
-            sort_field = {sort_struct["field_name"]: {"order": sort_struct["sort_direction"]}}
-
-    es_filter = es_Q(
-        "bool",
-        filter=[
-            # es_Q('term', is_blocked=False),
-            # es_Q('term', is_stopped=False),
-            es_Q("term", org_id=org.id),
-            es_Q("term", groups=str(base_group.uuid)),
-        ],
-    )
-
-    if text:
-        parsed = legacy_parse_query(text, as_anon=org.is_anon)
-        es_match = parsed.as_elasticsearch(org)
-    else:
-        parsed = None
-        es_match = es_Q()
-
-    return (
-        (
-            ModelESSearch(model=Contact, index="contacts")
-            .params(routing=org.id)
-            .query(es_match & es_filter)
-            .sort(sort_field)
-        ),
-        parsed,
-    )
 
 
 def is_phonenumber(text):
