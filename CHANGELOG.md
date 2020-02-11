@@ -1,3 +1,28 @@
+v5.3.50
+----------
+ * Migration to set allow_international=true in configs of existing tel channels
+ * Remove no longer used flow definition caching stuff
+
+v5.3.49
+----------
+ * Use realistic phone numbers in mailroom test db
+ * Remove contact filtering from flow results page
+ * Add migration to populate Flow.template_dependencies
+
+v5.3.48
+----------
+ * Use mailroom searching for omnibox results
+
+v5.3.47
+----------
+ * Add template_dependencies m2m
+
+v5.3.46
+----------
+ * Do not subject requests to the API with sessions to rate limiting
+ * Migration to convert flow dependencies metadata to new format
+ * Update description on the flow results export to be clear
+
 v5.3.45
 ----------
  * Fix deletion of orgs and locations so that aliases are properly deleted

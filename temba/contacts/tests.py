@@ -27,7 +27,14 @@ from temba.api.models import WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import DELETED_SCHEME
-from temba.contacts.search import SearchException, contact_es_search, evaluate_query, is_phonenumber, search_contacts
+from temba.contacts.search import (
+    SearchException,
+    SearchResults,
+    evaluate_query,
+    is_phonenumber,
+    legacy_search_contacts,
+    search_contacts,
+)
 from temba.contacts.search.tests import MockParseQuery
 from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowRun
@@ -37,7 +44,7 @@ from temba.mailroom import MailroomException
 from temba.msgs.models import Broadcast, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, ESMockWithScroll, ESMockWithScrollMultiple, MockPost, TembaTest, TembaTestMixin
+from temba.tests import AnonymousOrg, ESMockWithScroll, MockPost, TembaTest, TembaTestMixin
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -2157,7 +2164,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'gender = "unknown"')
+        actual_search, _ = legacy_search_contacts(self.org, 'gender = "unknown"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # text term does not match
@@ -2179,7 +2186,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'gender != "unknown"')
+        actual_search, _ = legacy_search_contacts(self.org, 'gender != "unknown"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # decimal range matches
@@ -2196,7 +2203,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, "age = 35")
+        actual_search, _ = legacy_search_contacts(self.org, "age = 35")
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2215,7 +2222,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, "age > 35")
+        actual_search, _ = legacy_search_contacts(self.org, "age > 35")
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2234,7 +2241,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, "age >= 35")
+        actual_search, _ = legacy_search_contacts(self.org, "age >= 35")
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2253,7 +2260,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, "age < 35")
+        actual_search, _ = legacy_search_contacts(self.org, "age < 35")
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2272,7 +2279,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, "age <= 35")
+        actual_search, _ = legacy_search_contacts(self.org, "age <= 35")
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # datetime range matches
@@ -2299,7 +2306,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'joined = "01-03-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'joined = "01-03-2018"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2318,7 +2325,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'joined > "01-03-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'joined > "01-03-2018"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2337,7 +2344,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'joined >= "01-03-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'joined >= "01-03-2018"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2356,7 +2363,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'joined < "01-03-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'joined < "01-03-2018"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2375,7 +2382,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'joined <= "01-03-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'joined <= "01-03-2018"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # ward matches
@@ -2395,7 +2402,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'ward = "Bukure"')
+        actual_search, _ = legacy_search_contacts(self.org, 'ward = "Bukure"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # ward does not match
@@ -2418,10 +2425,10 @@ class ContactTest(TembaTest):
             }
         ]
 
-        actual_search, _ = contact_es_search(self.org, 'ward != "Bukure"')
+        actual_search, _ = legacy_search_contacts(self.org, 'ward != "Bukure"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
-        self.assertRaises(SearchException, contact_es_search, self.org, 'ward ~ "Bukure"')
+        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'ward ~ "Bukure"')
 
         # district matches
         expected_search = copy.deepcopy(base_search)
@@ -2440,7 +2447,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'district = "Rwamagana"')
+        actual_search, _ = legacy_search_contacts(self.org, 'district = "Rwamagana"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # district does not match
@@ -2462,10 +2469,10 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'district != "Rwamagana"')
+        actual_search, _ = legacy_search_contacts(self.org, 'district != "Rwamagana"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
-        self.assertRaises(SearchException, contact_es_search, self.org, 'district ~ "Rwamagana"')
+        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'district ~ "Rwamagana"')
 
         # state matches
         expected_search = copy.deepcopy(base_search)
@@ -2484,7 +2491,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'state = "Eastern Province"')
+        actual_search, _ = legacy_search_contacts(self.org, 'state = "Eastern Province"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # state does not match
@@ -2506,10 +2513,10 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'state != "Eastern Province"')
+        actual_search, _ = legacy_search_contacts(self.org, 'state != "Eastern Province"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
-        self.assertRaises(SearchException, contact_es_search, self.org, 'state ~ "Eastern Province"')
+        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'state ~ "Eastern Province"')
 
         expected_search = copy.deepcopy(base_search)
         expected_search["query"]["bool"]["must"] = [
@@ -2540,7 +2547,7 @@ class ContactTest(TembaTest):
                 }
             },
         ]
-        actual_search, _ = contact_es_search(self.org, 'gender = "unknown" AND age > 32')
+        actual_search, _ = legacy_search_contacts(self.org, 'gender = "unknown" AND age > 32')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = {
@@ -2586,37 +2593,37 @@ class ContactTest(TembaTest):
             "sort": [{"id": {"order": "desc"}}],
         }
 
-        actual_search, _ = contact_es_search(self.org, 'gender = "unknown" OR joined < "01-03-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'gender = "unknown" OR joined < "01-03-2018"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
         expected_search["query"]["bool"]["must"] = [{"term": {"name.keyword": "joe blow"}}]
 
-        actual_search, _ = contact_es_search(self.org, 'name = "joe Blow"')
+        actual_search, _ = legacy_search_contacts(self.org, 'name = "joe Blow"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
         del expected_search["query"]["bool"]["must"]
         expected_search["query"]["bool"]["must_not"] = [{"term": {"name.keyword": "joe blow"}}]
 
-        actual_search, _ = contact_es_search(self.org, 'name != "joe Blow"')
+        actual_search, _ = legacy_search_contacts(self.org, 'name != "joe Blow"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # test `language` contact attribute
         expected_search = copy.deepcopy(base_search)
         expected_search["query"]["bool"]["must"] = [{"term": {"language": "eng"}}]
-        actual_search, _ = contact_es_search(self.org, 'language = "eng"')
+        actual_search, _ = legacy_search_contacts(self.org, 'language = "eng"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
         del expected_search["query"]["bool"]["must"]
         expected_search["query"]["bool"]["must_not"] = [{"term": {"language": "eng"}}]
 
-        actual_search, _ = contact_es_search(self.org, 'language != "eng"')
+        actual_search, _ = legacy_search_contacts(self.org, 'language != "eng"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # operator not supported
-        self.assertRaises(SearchException, contact_es_search, self.org, 'language ~ "eng"')
+        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'language ~ "eng"')
 
         expected_search = {
             "query": {
@@ -2633,7 +2640,7 @@ class ContactTest(TembaTest):
             },
             "sort": [{"id": {"order": "desc"}}],
         }
-        actual_search, _ = contact_es_search(self.org, 'language != ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'language != ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = {
@@ -2654,40 +2661,40 @@ class ContactTest(TembaTest):
             },
             "sort": [{"id": {"order": "desc"}}],
         }
-        actual_search, _ = contact_es_search(self.org, 'language = ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'language = ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # created_on
-        self.assertRaises(SearchException, contact_es_search, self.org, 'created_on != ""')
-        self.assertRaises(SearchException, contact_es_search, self.org, 'created_on = ""')
-        self.assertRaises(SearchException, contact_es_search, self.org, 'created_on ~ "05-07-2018"')
-        self.assertRaises(SearchException, contact_es_search, self.org, 'created_on ~ "this-is-not-a-date"')
+        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'created_on != ""')
+        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'created_on = ""')
+        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'created_on ~ "05-07-2018"')
+        self.assertRaises(SearchException, legacy_search_contacts, self.org, 'created_on ~ "this-is-not-a-date"')
 
         expected_search = copy.deepcopy(base_search)
         expected_search["query"]["bool"]["must"] = [
             {"range": {"created_on": {"gte": "2018-07-04T22:00:00+00:00", "lt": "2018-07-05T22:00:00+00:00"}}}
         ]
-        actual_search, _ = contact_es_search(self.org, 'created_on = "05-07-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'created_on = "05-07-2018"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
         expected_search["query"]["bool"]["must"] = [{"range": {"created_on": {"gte": "2018-07-05T22:00:00+00:00"}}}]
-        actual_search, _ = contact_es_search(self.org, 'created_on > "05-07-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'created_on > "05-07-2018"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
         expected_search["query"]["bool"]["must"] = [{"range": {"created_on": {"gte": "2018-07-04T22:00:00+00:00"}}}]
-        actual_search, _ = contact_es_search(self.org, 'created_on >= "05-07-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'created_on >= "05-07-2018"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
         expected_search["query"]["bool"]["must"] = [{"range": {"created_on": {"lt": "2018-07-04T22:00:00+00:00"}}}]
-        actual_search, _ = contact_es_search(self.org, 'created_on < "05-07-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'created_on < "05-07-2018"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
         expected_search["query"]["bool"]["must"] = [{"range": {"created_on": {"lt": "2018-07-05T22:00:00+00:00"}}}]
-        actual_search, _ = contact_es_search(self.org, 'created_on <= "05-07-2018"')
+        actual_search, _ = legacy_search_contacts(self.org, 'created_on <= "05-07-2018"')
 
         self.assertEqual(actual_search.to_dict(), expected_search)
 
@@ -2707,7 +2714,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'tel = "+250788382011"')
+        actual_search, _ = legacy_search_contacts(self.org, 'tel = "+250788382011"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2723,7 +2730,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'twitter ~ "Blow"')
+        actual_search, _ = legacy_search_contacts(self.org, 'twitter ~ "Blow"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2737,7 +2744,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'telegram != ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'telegram != ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # is set not set
@@ -2758,7 +2765,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'gender = ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'gender = ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2777,7 +2784,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'gender != ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'gender != ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2794,7 +2801,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'age = ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'age = ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2810,7 +2817,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'age != ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'age != ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2830,7 +2837,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'joined = ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'joined = ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2849,7 +2856,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'joined != ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'joined != ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2866,7 +2873,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'ward = ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'ward = ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2882,7 +2889,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'ward != ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'ward != ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2902,7 +2909,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'district = ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'district = ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2921,7 +2928,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'district != ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'district != ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2941,7 +2948,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'state = ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'state = ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2960,7 +2967,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        acutal_search, _ = contact_es_search(self.org, 'state != ""')
+        acutal_search, _ = legacy_search_contacts(self.org, 'state != ""')
         self.assertEqual(acutal_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2974,7 +2981,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'tel != ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'tel != ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = copy.deepcopy(base_search)
@@ -2989,7 +2996,7 @@ class ContactTest(TembaTest):
                 }
             }
         ]
-        actual_search, _ = contact_es_search(self.org, 'twitter = ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'twitter = ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = {
@@ -3010,7 +3017,7 @@ class ContactTest(TembaTest):
             },
             "sort": [{"id": {"order": "desc"}}],
         }
-        actual_search, _ = contact_es_search(self.org, 'name = ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'name = ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         expected_search = {
@@ -3028,31 +3035,31 @@ class ContactTest(TembaTest):
             },
             "sort": [{"id": {"order": "desc"}}],
         }
-        actual_search, _ = contact_es_search(self.org, 'name != ""')
+        actual_search, _ = legacy_search_contacts(self.org, 'name != ""')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         with AnonymousOrg(self.org):
             expected_search = copy.deepcopy(base_search)
             expected_search["query"]["bool"]["must"] = [{"ids": {"values": ["123"]}}]
-            actual_search, _ = contact_es_search(self.org, "123")
+            actual_search, _ = legacy_search_contacts(self.org, "123")
             self.assertEqual(actual_search.to_dict(), expected_search)
 
             expected_search = copy.deepcopy(base_search)
             expected_search["query"]["bool"]["must"] = [{"ids": {"values": [-1]}}]
-            actual_search, _ = contact_es_search(self.org, 'twitter ~ "Blow"')
+            actual_search, _ = legacy_search_contacts(self.org, 'twitter ~ "Blow"')
             self.assertEqual(actual_search.to_dict(), expected_search)
 
             expected_search = copy.deepcopy(base_search)
             expected_search["query"]["bool"]["must"] = [{"ids": {"values": [-1]}}]
-            actual_search, _ = contact_es_search(self.org, 'twitter != ""')
+            actual_search, _ = legacy_search_contacts(self.org, 'twitter != ""')
             self.assertEqual(actual_search.to_dict(), expected_search)
 
             expected_search = copy.deepcopy(base_search)
             expected_search["query"]["bool"]["must"] = [{"ids": {"values": [-1]}}]
-            actual_search, _ = contact_es_search(self.org, 'twitter = ""')
+            actual_search, _ = legacy_search_contacts(self.org, 'twitter = ""')
             self.assertEqual(actual_search.to_dict(), expected_search)
 
-            self.assertRaises(SearchException, contact_es_search, self.org, 'id = ""')
+            self.assertRaises(SearchException, legacy_search_contacts, self.org, 'id = ""')
 
     def test_contact_create_with_dynamicgroup_reevaluation(self):
 
@@ -3137,55 +3144,23 @@ class ContactTest(TembaTest):
             return response.json()["results"]
 
         # search with search string that will raise a SearchException, which we ignore
-        with ESMockWithScrollMultiple(data=[[], []]):
-
+        with patch("temba.contacts.omnibox.search_contacts") as sc:
+            sc.side_effect = SearchException("Invalid query")
             actual_result = omnibox_request("search=-123`213")
             expected_result = []
 
             self.assertEqual(actual_result, expected_result)
 
-        mock_es_data_contact = [
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.billy.id, "modified_on": self.billy.modified_on.isoformat()},
-            },
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.frank.id, "modified_on": self.frank.modified_on.isoformat()},
-            },
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
-            },
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.voldemort.id, "modified_on": self.voldemort.modified_on.isoformat()},
-            },
-        ]
-        mock_es_data_urn = [
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.frank.id, "modified_on": self.frank.modified_on.isoformat()},
-            },
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
-            },
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.voldemort.id, "modified_on": self.voldemort.modified_on.isoformat()},
-            },
-        ]
-
-        # omnibox v2 format
-        with ESMockWithScrollMultiple(data=[mock_es_data_contact, mock_es_data_urn]):
+        with patch("temba.contacts.omnibox.search_contacts") as sc:
+            sc.side_effect = [
+                SearchResults(
+                    query="",
+                    total=4,
+                    fields=[""],
+                    contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
+                ),
+                SearchResults(query="", total=3, fields=[""], contact_ids=[]),
+            ]
             actual_result = omnibox_request(query="", version="2")
             expected_result = [
                 # all 3 groups A-Z
@@ -3197,15 +3172,22 @@ class ContactTest(TembaTest):
                 {"id": self.frank.uuid, "name": "Frank Smith", "type": "contact", "urn": "250782222222"},
                 {"id": self.joe.uuid, "name": "Joe Blow", "type": "contact", "urn": "blow80"},
                 {"id": self.voldemort.uuid, "name": "250768383383", "type": "contact", "urn": "250768383383"},
-                # 3 sendable URNs with contact names
-                {"id": "tel:250768383383", "name": "250768383383", "type": "urn", "contact": None, "scheme": "tel"},
-                {
-                    "id": "tel:250781111111",
-                    "name": "250781111111",
-                    "type": "urn",
-                    "contact": "Joe Blow",
-                    "scheme": "tel",
-                },
+            ]
+
+            self.assertEqual(expected_result, actual_result)
+
+        with patch("temba.contacts.omnibox.search_contacts") as sc:
+            sc.side_effect = [
+                SearchResults(query="", total=2, fields=[""], contact_ids=[self.billy.id, self.frank.id]),
+                SearchResults(query="", total=2, fields=[""], contact_ids=[self.voldemort.id, self.frank.id]),
+            ]
+            actual_result = omnibox_request(query="search=250", version="2")
+            expected_result = [
+                # 2 contacts
+                {"id": self.billy.uuid, "name": "Billy Nophone", "type": "contact", "urn": ""},
+                {"id": self.frank.uuid, "name": "Frank Smith", "type": "contact", "urn": "250782222222"},
+                # 2 sendable URNs with contact names
+                {"id": "tel:250768383383", "name": "250768383383", "contact": None, "scheme": "tel", "type": "urn"},
                 {
                     "id": "tel:250782222222",
                     "name": "250782222222",
@@ -3213,29 +3195,24 @@ class ContactTest(TembaTest):
                     "contact": "Frank Smith",
                     "scheme": "tel",
                 },
-                {"id": "twitter:blow80", "name": "blow80", "type": "urn", "contact": "Joe Blow", "scheme": "twitter"},
             ]
-
             self.assertEqual(expected_result, actual_result)
 
-        with ESMockWithScrollMultiple(data=[mock_es_data_contact, mock_es_data_urn]):
-            with self.assertNumQueries(20):
-                actual_result = omnibox_request("")
+        with patch("temba.contacts.omnibox.search_contacts") as sc:
+            sc.side_effect = [
+                SearchResults(query="", total=2, fields=[""], contact_ids=[self.billy.id, self.frank.id]),
+                SearchResults(query="", total=0, fields=[""], contact_ids=[]),
+            ]
+            with self.assertNumQueries(17):
+                actual_result = omnibox_request(query="")
                 expected_result = [
                     # all 3 groups A-Z
                     dict(id="g-%s" % joe_and_frank.uuid, text="Joe and Frank", extra=2),
                     dict(id="g-%s" % men.uuid, text="Men", extra=0),
                     dict(id="g-%s" % nobody.uuid, text="Nobody", extra=0),
-                    # all 4 contacts A-Z
+                    # 2 contacts A-Z
                     dict(id="c-%s" % self.billy.uuid, text="Billy Nophone", extra=""),
                     dict(id="c-%s" % self.frank.uuid, text="Frank Smith", extra="250782222222"),
-                    dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80"),
-                    dict(id="c-%s" % self.voldemort.uuid, text="250768383383", extra="250768383383"),
-                    # 3 sendable URNs with names as extra
-                    dict(id="u-%d" % voldemort_tel.pk, text="250768383383", extra=None, scheme="tel"),
-                    dict(id="u-%d" % joe_tel.pk, text="250781111111", extra="Joe Blow", scheme="tel"),
-                    dict(id="u-%d" % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme="tel"),
-                    dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
                 ]
 
             self.assertEqual(expected_result, actual_result)
@@ -3261,32 +3238,20 @@ class ContactTest(TembaTest):
             ],
         )
 
-        # c,u = contacts and URNs
-        mock_es_data = [
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.billy.id, "modified_on": self.billy.modified_on.isoformat()},
-            },
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.frank.id, "modified_on": self.frank.modified_on.isoformat()},
-            },
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
-            },
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.voldemort.id, "modified_on": self.voldemort.modified_on.isoformat()},
-            },
-        ]
-        with ESMockWithScroll(data=mock_es_data):
+        with patch("temba.contacts.omnibox.search_contacts") as sc:
+            sc.side_effect = [
+                SearchResults(
+                    query="",
+                    total=4,
+                    fields=[""],
+                    contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
+                ),
+                SearchResults(
+                    query="", total=3, fields=[""], contact_ids=[self.voldemort.id, self.joe.id, self.frank.id]
+                ),
+            ]
             self.assertEqual(
-                omnibox_request("types=c,u"),
+                omnibox_request("search=250&types=c,u"),
                 [
                     dict(id="c-%s" % self.billy.uuid, text="Billy Nophone", extra=""),
                     dict(id="c-%s" % self.frank.uuid, text="Frank Smith", extra="250782222222"),
@@ -3295,27 +3260,19 @@ class ContactTest(TembaTest):
                     dict(id="u-%d" % voldemort_tel.pk, text="250768383383", extra=None, scheme="tel"),
                     dict(id="u-%d" % joe_tel.pk, text="250781111111", extra="Joe Blow", scheme="tel"),
                     dict(id="u-%d" % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme="tel"),
-                    dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
                 ],
             )
 
         # search for Frank by phone
-        mock_es_data = [
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.frank.id, "modified_on": self.frank.modified_on.isoformat()},
-            }
-        ]
-        with ESMockWithScrollMultiple(data=[[], mock_es_data]):
+        with patch("temba.contacts.omnibox.search_contacts") as sc:
+            sc.side_effect = [
+                SearchResults(query="name ~ 222", total=0, fields=[""], contact_ids=[]),
+                SearchResults(query="urn ~ 222", total=1, fields=[""], contact_ids=[self.frank.id]),
+            ]
             self.assertEqual(
                 omnibox_request("search=222"),
                 [dict(id="u-%d" % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme="tel")],
             )
-
-        # search for Joe by twitter - won't return anything because there is no twitter channel
-        with ESMockWithScrollMultiple(data=[[], []]):
-            self.assertEqual(omnibox_request("search=blow80"), [])
 
         # create twitter channel
         Channel.create(self.org, self.user, None, "TT")
@@ -3323,39 +3280,12 @@ class ContactTest(TembaTest):
         # add add an external channel so numbers get normalized
         Channel.create(self.org, self.user, "RW", "EX", schemes=[TEL_SCHEME])
 
-        # search for again for Joe by twitter
-        mock_es_data = [
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
-            }
-        ]
-        with ESMockWithScrollMultiple(data=[[], mock_es_data]):
-            self.assertEqual(
-                omnibox_request("search=blow80"),
-                [
-                    dict(id="u-%d" % joe_tel.pk, text="0781 111 111", extra="Joe Blow", scheme="tel"),
-                    dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
-                ],
-            )
-
-        # search for Joe again - match on last name and twitter handle
-        mock_es_data_contact = [
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
-            }
-        ]
-        mock_es_data_urn = [
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
-            }
-        ]
-        with ESMockWithScrollMultiple(data=[mock_es_data_contact, mock_es_data_urn]):
+        # search for Joe - match on last name and twitter handle
+        with patch("temba.contacts.omnibox.search_contacts") as sc:
+            sc.side_effect = [
+                SearchResults(query="name ~ blow", total=1, fields=[""], contact_ids=[self.joe.id]),
+                SearchResults(query="urn ~ blow", total=1, fields=[""], contact_ids=[self.joe.id]),
+            ]
             self.assertEqual(
                 omnibox_request("search=BLOW"),
                 [
@@ -3364,34 +3294,6 @@ class ContactTest(TembaTest):
                     dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
                 ],
             )
-
-        # make sure our matches are ANDed
-        mock_es_data = [
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
-            }
-        ]
-        with ESMockWithScrollMultiple(data=[mock_es_data, []]):
-            self.assertEqual(
-                omnibox_request("search=Joe+o&types=c"),
-                [dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80")],
-            )
-
-        self.assertEqual(
-            omnibox_request("search=Joe+o&types=g"),
-            [dict(id="g-%s" % joe_and_frank.uuid, text="Joe and Frank", extra=2)],
-        )
-
-        # lookup by contact ids
-        self.assertEqual(
-            omnibox_request("c=%s,%s" % (self.joe.uuid, self.frank.uuid)),
-            [
-                dict(id="c-%s" % self.frank.uuid, text="Frank Smith", extra="0782 222 222"),
-                dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80"),
-            ],
-        )
 
         # lookup by group id
         self.assertEqual(
@@ -3425,30 +3327,8 @@ class ContactTest(TembaTest):
         )
 
         with AnonymousOrg(self.org):
-            mock_es_data = [
-                {
-                    "_type": "_doc",
-                    "_index": "dummy_index",
-                    "_source": {"id": self.billy.id, "modified_on": self.billy.modified_on.isoformat()},
-                },
-                {
-                    "_type": "_doc",
-                    "_index": "dummy_index",
-                    "_source": {"id": self.frank.id, "modified_on": self.frank.modified_on.isoformat()},
-                },
-                {
-                    "_type": "_doc",
-                    "_index": "dummy_index",
-                    "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
-                },
-                {
-                    "_type": "_doc",
-                    "_index": "dummy_index",
-                    "_source": {"id": self.voldemort.id, "modified_on": self.voldemort.modified_on.isoformat()},
-                },
-            ]
-
-            with ESMockWithScrollMultiple(data=[mock_es_data, []]):
+            with patch("temba.contacts.omnibox.search_contacts") as sc:
+                sc.side_effect = [SearchResults(query="", total=1, fields=[""], contact_ids=[self.billy.id])]
                 self.assertEqual(
                     omnibox_request(""),
                     [
@@ -3456,16 +3336,15 @@ class ContactTest(TembaTest):
                         dict(id="g-%s" % joe_and_frank.uuid, text="Joe and Frank", extra=2),
                         dict(id="g-%s" % men.uuid, text="Men", extra=0),
                         dict(id="g-%s" % nobody.uuid, text="Nobody", extra=0),
-                        # all 4 contacts A-Z
+                        # 1 contact
                         dict(id="c-%s" % self.billy.uuid, text="Billy Nophone"),
-                        dict(id="c-%s" % self.frank.uuid, text="Frank Smith"),
-                        dict(id="c-%s" % self.joe.uuid, text="Joe Blow"),
-                        dict(id="c-%s" % self.voldemort.uuid, text=self.voldemort.anon_identifier),
+                        # no urns
                     ],
                 )
 
             # same search but with v2 format
-            with ESMockWithScrollMultiple(data=[mock_es_data, []]):
+            with patch("temba.contacts.omnibox.search_contacts") as sc:
+                sc.side_effect = [SearchResults(query="", total=1, fields=[""], contact_ids=[self.billy.id])]
                 self.assertEqual(
                     omnibox_request("", version="2"),
                     [
@@ -3473,31 +3352,10 @@ class ContactTest(TembaTest):
                         {"id": joe_and_frank.uuid, "name": "Joe and Frank", "type": "group", "count": 2},
                         {"id": men.uuid, "name": "Men", "type": "group", "count": 0},
                         {"id": nobody.uuid, "name": "Nobody", "type": "group", "count": 0},
-                        # all 4 contacts A-Z
+                        # 1 contact
                         {"id": self.billy.uuid, "name": "Billy Nophone", "type": "contact"},
-                        {"id": self.frank.uuid, "name": "Frank Smith", "type": "contact"},
-                        {"id": self.joe.uuid, "name": "Joe Blow", "type": "contact"},
-                        {"id": self.voldemort.uuid, "name": self.voldemort.anon_identifier, "type": "contact"},
                     ],
                 )
-
-            # can search by frank id
-            mock_es_data = [
-                {
-                    "_type": "_doc",
-                    "_index": "dummy_index",
-                    "_source": {"id": self.frank.id, "modified_on": self.frank.modified_on.isoformat()},
-                }
-            ]
-            with ESMockWithScrollMultiple(data=[mock_es_data, []]):
-                self.assertEqual(
-                    omnibox_request("search=%d" % self.frank.pk),
-                    [dict(id="c-%s" % self.frank.uuid, text="Frank Smith")],
-                )
-
-            # but not by frank number
-            with ESMockWithScrollMultiple(data=[[], []]):
-                self.assertEqual(omnibox_request("search=222"), [])
 
         # exclude blocked and stopped contacts
         self.joe.block(self.admin)
