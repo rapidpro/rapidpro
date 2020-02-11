@@ -8,13 +8,14 @@ class MockParseQuery:
     Mocks temba.contacts.search.parse_query with the passed in query and fields
     """
 
-    def __init__(self, query=None, fields=None, error=None):
+    def __init__(self, query=None, fields=None, elastic_query={"term": {"is_active": True}}, error=None):
         assert (query is not None and fields is not None and error is None) or (
             error is not None and query is None and fields is None
         )
 
         self.query = query
         self.fields = fields
+        self.elastic_query = elastic_query
         self.error = error
 
     def __enter__(self):
@@ -23,7 +24,7 @@ class MockParseQuery:
         if self.error:
             mock.side_effect = SearchException(self.error)
         else:
-            mock.return_value = ParsedQuery(query=self.query, fields=self.fields)
+            mock.return_value = ParsedQuery(query=self.query, fields=self.fields, elastic_query=self.elastic_query)
 
         return mock
 
