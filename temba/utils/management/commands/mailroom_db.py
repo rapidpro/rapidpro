@@ -68,7 +68,6 @@ ORG1 = dict(
             scheme="tel",
             role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE + Channel.ROLE_CALL + Channel.ROLE_ANSWER,
             uuid="74729f45-7f29-4868-9dc4-90e491e3c7d8",
-            country="US",
         ),
         dict(
             name="Nexmo",
@@ -77,7 +76,6 @@ ORG1 = dict(
             scheme="tel",
             role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE,
             uuid="19012bfd-3ce3-4cae-9bb9-76cf92c73d49",
-            country="",
         ),
         dict(
             name="Twitter",
@@ -86,7 +84,6 @@ ORG1 = dict(
             scheme="twitter",
             role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE,
             uuid="0f661e8b-ea9d-4bd3-9953-d368340acf91",
-            country=None,
         ),
     ),
     globals=(
@@ -115,24 +112,24 @@ ORG1 = dict(
     contacts=(
         dict(
             name="Cathy",
-            urns=["tel:+250700000001"],
+            urns=["tel:+16055741111"],
             uuid="6393abc0-283d-4c9b-a1b3-641a035c34bf",
             groups=["Doctors"],
             fields=dict(gender="F", state="Nigeria > Sokoto", ward="Nigeria > Sokoto > Yabo > Kilgori"),
         ),
         dict(
             name="Bob",
-            urns=["tel:+250700000002"],
+            urns=["tel:+16055742222"],
             uuid="b699a406-7e44-49be-9f01-1a82893e8a10",
             fields=dict(joined="2019-01-24T04:32:22Z"),
         ),
         dict(
             name="George",
-            urns=["tel:+250700000003"],
+            urns=["tel:+16055743333"],
             uuid="8d024bcd-f473-4719-a00a-bd0bb1190135",
             fields=dict(age="30"),
         ),
-        dict(name="Alexandia", urns=["tel:+250700000004"], uuid="9709c157-4606-4d41-9df3-9e9c9b4ae2d4"),
+        dict(name="Alexandia", urns=["tel:+1605574444"], uuid="9709c157-4606-4d41-9df3-9e9c9b4ae2d4"),
     ),
     labels=(
         dict(name="Reporting", uuid="ebc4dedc-91c4-4ed4-9dd6-daa05ea82698"),
@@ -213,7 +210,6 @@ ORG2 = dict(
             scheme="tel",
             role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE,
             uuid="a89bc872-3763-4b95-91d9-31d4e56c6651",
-            country="US",
         ),
     ),
     classifiers=(),
@@ -375,7 +371,6 @@ class Command(BaseCommand):
                 schemes=[c["scheme"]],
                 uuid=c["uuid"],
                 role=c["role"],
-                country=c["country"],
                 created_by=user,
                 modified_by=user,
             )
