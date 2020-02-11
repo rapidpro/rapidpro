@@ -466,7 +466,7 @@ class ChannelTest(TembaTest):
             self.org,
             self.user,
             None,
-            Channel.TYPE_ANDROID,
+            "A",
             None,
             "+250781112222",
             config={Channel.CONFIG_FCM_ID: "asdf"},
@@ -605,7 +605,7 @@ class ChannelTest(TembaTest):
         self.assertNotIn("address", response.context["form"].fields)
 
         # bring it back to android
-        channel.channel_type = Channel.TYPE_ANDROID
+        channel.channel_type = "A"
         channel.save()
 
         # visit the channel's update page as administrator

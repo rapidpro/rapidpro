@@ -1314,9 +1314,6 @@ class UpdateTwitterForm(UpdateChannelForm):
         helps = {"address": _("Twitter handle of this channel")}
 
 
-TYPE_UPDATE_FORM_CLASSES = {Channel.TYPE_ANDROID: UpdateAndroidForm}
-
-
 class ChannelCRUDL(SmartCRUDL):
     model = Channel
     actions = (
@@ -1361,7 +1358,7 @@ class ChannelCRUDL(SmartCRUDL):
                     links.append(
                         dict(title=_("Disable Bulk Sending"), style="btn-primary", href="#", js_class="remove-sender")
                     )
-                elif self.get_object().channel_type == Channel.TYPE_ANDROID:
+                elif self.get_object().is_android():
                     links.append(
                         dict(
                             title=_("Enable Bulk Sending"),
