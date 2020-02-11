@@ -221,18 +221,9 @@ class URN(object):
                 except ValueError:
                     return False
 
+        # validate vk URNS look right (this is a guess)
         elif scheme == VK_SCHEME:
-            # we don't validate vk refs since they come from the outside
-            if regex.match(r"^[0-9]+$", path, regex.V0):
-                return True
-
-            # otherwise, this should be an int
-            else:
-                try:
-                    int(path)
-                    return True
-                except ValueError:
-                    return False
+            return regex.match(r"^[a-zA-Z0-9_=]{1,24}$", path, regex.V0)
 
         # telegram and whatsapp use integer ids
         elif scheme in [TELEGRAM_SCHEME, WHATSAPP_SCHEME]:
@@ -821,13 +812,17 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def query_summary(cls, org, query, max_results=10):
-        from .search import contact_es_search
+        from .search import contact_es_search, SearchException
         from temba.utils.es import ES
 
-        search_object, parsed_query = contact_es_search(org, query)
-        results = search_object.source(include=["id"]).using(ES)[0:max_results].execute()
-        contact_sample = list(mapEStoDB(Contact, results))
-        return {"total": results.hits.total, "sample": contact_sample, "query": parsed_query}
+        try:
+            search_object, parsed_query = contact_es_search(org, query)
+            results = search_object.source(include=["id"]).using(ES)[0:max_results].execute()
+            contact_sample = list(mapEStoDB(Contact, results))
+            return {"total": results.hits.total, "sample": contact_sample, "query": parsed_query}
+        except SearchException:
+            logger.error("Error evaluating query", exc_info=True)
+            raise  # reraise the exception
 
     @classmethod
     def query_elasticsearch_for_ids(cls, org, query, group=None):
