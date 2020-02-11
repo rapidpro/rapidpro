@@ -1,3 +1,8 @@
+v5.3.50
+----------
+ * Migration to set allow_international=true in configs of existing tel channels
+ * Remove no longer used flow definition caching stuff
+
 v5.3.49
 ----------
  * Use realistic phone numbers in mailroom test db
