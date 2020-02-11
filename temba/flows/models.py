@@ -99,28 +99,7 @@ class FlowVersionConflictException(FlowException):
 
 
 FLOW_LOCK_TTL = 60  # 1 minute
-FLOW_LOCK_KEY = "org:%d:lock:flow:%d:%s"
-
-FLOW_PROP_CACHE_KEY = "org:%d:cache:flow:%d:%s"
-FLOW_PROP_CACHE_TTL = 24 * 60 * 60 * 7  # 1 week
-
-
-class FlowLock(Enum):
-    """
-    Locks that are flow specific
-    """
-
-    participation = 1
-    definition = 3
-
-
-class FlowPropsCache(Enum):
-    """
-    Properties of a flow that we cache
-    """
-
-    terminal_nodes = 1
-    category_nodes = 2
+FLOW_LOCK_KEY = "org:%d:lock:flow:%d:definition"
 
 
 class Flow(TembaModel):
@@ -603,27 +582,13 @@ class Flow(TembaModel):
 
         return dict(counts=result_list)
 
-    def clear_props_cache(self):
-        r = get_redis_connection()
-        keys = [self.get_props_cache_key(c) for c in FlowPropsCache.__members__.values()]
-        r.delete(*keys)
-
-    def get_props_cache_key(self, kind):
-        return FLOW_PROP_CACHE_KEY % (self.org_id, self.pk, kind.name)
-
-    def lock_on(self, lock, qualifier=None, lock_ttl=None):
+    def lock(self):
         """
-        Creates the requested type of flow-level lock
+        Locks on this flow to let us make changes to the definition in a thread safe way
         """
         r = get_redis_connection()
-        lock_key = FLOW_LOCK_KEY % (self.org_id, self.pk, lock.name)
-        if qualifier:  # pragma: needs cover
-            lock_key += ":%s" % qualifier
-
-        if not lock_ttl:
-            lock_ttl = FLOW_LOCK_TTL
-
-        return r.lock(lock_key, lock_ttl)
+        lock_key = FLOW_LOCK_KEY % (self.org_id, self.id)
+        return r.lock(lock_key, FLOW_LOCK_TTL)
 
     def get_node_counts(self):
         """
@@ -1209,7 +1174,7 @@ class Flow(TembaModel):
         if Version(self.version_number) >= Version(to_version):
             return
 
-        with self.lock_on(FlowLock.definition):
+        with self.lock():
             revision = self.get_current_revision()
             if revision:
                 flow_def = revision.get_definition_json(to_version)
@@ -1368,9 +1333,6 @@ class Flow(TembaModel):
 
                 self.version_number = Flow.FINAL_LEGACY_VERSION
                 self.save()
-
-                # clear property cache
-                self.clear_props_cache()
 
                 # in case rulesets/actionsets were prefetched, clear those cached values
                 # TODO https://code.djangoproject.com/ticket/29625
@@ -1734,9 +1696,6 @@ class Flow(TembaModel):
             runs = FlowRun.objects.filter(id__in=id_batch)
             for run in runs:
                 run.release()
-
-        # clear all our cached stats
-        self.clear_props_cache()
 
     def __str__(self):
         return self.name
