@@ -103,8 +103,8 @@ class MailroomClient:
 
         return self._request("contact/search", payload)
 
-    def parse_query(self, org_id, query):
-        payload = {"org_id": org_id, "query": query}
+    def parse_query(self, org_id, query, group_uuid=""):
+        payload = {"org_id": org_id, "query": query, "group_uuid": group_uuid}
 
         return self._request("contact/parse_query", payload)
 

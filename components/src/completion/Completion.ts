@@ -348,7 +348,7 @@ export default class Completion extends FormElement {
 
       return html`
         <div style="${selected ? 'font-weight: 400' : ''}">
-          <div style="display:inline-block;">ƒ</div>
+          <div style="display:inline-block;margin-right: 5px">ƒ</div>
           <div style="display:inline-block">${name}</div>
           ${selected ? html`
             <div style="display:inline-block; font-weight: 300; font-size: 85%">${args}</div>

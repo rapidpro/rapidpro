@@ -36,7 +36,7 @@ export const getFunctions = (
     }
     return functions.filter((option: CompletionOption) => {
         if (option.signature) {
-            return option.signature.indexOf(query) === 0;
+            return option.signature.indexOf((query || '').toLowerCase()) === 0;
         }
         return false;
     });

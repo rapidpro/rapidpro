@@ -85,7 +85,7 @@
                       %a{ href:"{% url 'msgs.msg_filter' node.obj.uuid %}", class:'{% if current_label.id == node.obj.id %}active{% endif %}' }
                         {{ node.obj.name }} ({{ node.count | intcomma }})
 
-          %div{style:"margin-top: 10px"}
+          %div{style:"margin-top: 10px; margin-bottom:10px;"}
             - if org_perms.msgs.label_create
               %a.btn.btn-block.add-label
                 - trans "Create Label"
