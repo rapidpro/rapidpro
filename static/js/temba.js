@@ -113,12 +113,10 @@ document.addEventListener('rp-refresh-begin', function() {
         }
     }
 
-    document
-        .querySelector('#pjax')
-        .setAttribute(
-            'data-no-pjax',
-            dropDownOpen || checkedIds || openedModals
-        );
+    var pjaxElement = document.querySelector('#pjax')
+    if (pjaxElement) {
+        pjaxElement.setAttribute('data-no-pjax', dropDownOpen || checkedIds || openedModals);
+    }
 });
 
 function getStartTime() {
