@@ -6093,7 +6093,7 @@ class ContactFieldTest(TembaTest):
 
                 with ESMockWithScroll(data=mock_es_data):
                     with MockParseQuery(query='name ~ "adam" OR name ~ "deng"', fields=["name"]):
-                        with self.assertNumQueries(47):
+                        with self.assertNumQueries(48):
                             self.assertExcelSheet(
                                 request_export("?s=name+has+adam+or+name+has+deng")[0],
                                 [
