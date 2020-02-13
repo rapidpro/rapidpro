@@ -1,3 +1,7 @@
+v5.3.52
+----------
+ * Convert Android to dynamic channel type
+
 v5.3.51
 ----------
  * Update to floweditor 1.7.15
