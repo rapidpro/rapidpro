@@ -30,11 +30,13 @@ def check_channels_task():
 
 @nonoverlapping_task(track_started=True, name="sync_old_seen_channels_task", lock_key="sync_old_seen_channels")
 def sync_old_seen_channels_task():
+    from temba.channels.types.android import AndroidType
+
     now = timezone.now()
     window_end = now - timedelta(minutes=15)
     window_start = now - timedelta(days=7)
     old_seen_channels = Channel.objects.filter(
-        is_active=True, channel_type=Channel.TYPE_ANDROID, last_seen__lte=window_end, last_seen__gt=window_start
+        is_active=True, channel_type=AndroidType.code, last_seen__lte=window_end, last_seen__gt=window_start
     )
     for channel in old_seen_channels:
         channel.trigger_sync()
