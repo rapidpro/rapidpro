@@ -11,51 +11,51 @@
         Sorry, {{group_name}} cannot be deleted quite yet.
       %p
 
-    -if triggers
-      -blocktrans count counter=triggers|length
-        This group is used by an active trigger. In order to delete it,
-        first remove the
-        -plural
-          This group is used by {{counter}} triggers. In order to delete it,
+      -if triggers
+        -blocktrans count counter=triggers|length
+          This group is used by an active trigger. In order to delete it,
           first remove the
+          -plural
+            This group is used by {{counter}} triggers. In order to delete it,
+            first remove the
 
-      -for trigger in triggers
-        <a href="{%url 'triggers.trigger_list'%}">{{trigger}}</a>{{forloop|oxford}}
+        -for trigger in triggers
+          <a href="{%url 'triggers.trigger_list'%}">{{trigger}}</a>{{forloop|oxford}}
 
-      -blocktrans count counter=triggers|length
-        trigger.
-      -plural
-        triggers.
-      
-    -if flows
-      -blocktrans count counter=flows|length
-        There is an active flow using this group. It cannot be deleted until it is removed from the
-        
+        -blocktrans count counter=triggers|length
+          trigger.
         -plural
-          There are {{counter}} flows using this group. It cannot be deleted until it is removed from the
+          triggers.
 
-      -for flow in flows
-        <a href="{%url 'flows.flow_editor' flow.uuid%}">{{flow.name}}</a>{{forloop|oxford}}
-      
-      -blocktrans count counter=flows|length
-        flow.
-      -plural
-        flows.
+      -if flows
+        -blocktrans count counter=flows|length
+          There is an active flow using this group. It cannot be deleted until it is removed from the
 
-    -if campaigns
-      -blocktrans count counter=campaigns|length
-        There is an active campaign using this group. It cannot be deleted until it is removed from the
+          -plural
+            There are {{counter}} flows using this group. It cannot be deleted until it is removed from the
 
+        -for flow in flows
+          <a href="{%url 'flows.flow_editor' flow.uuid%}">{{flow.name}}</a>{{forloop|oxford}}
+
+        -blocktrans count counter=flows|length
+          flow.
         -plural
-          There are {{counter}} campaigns using this group. It cannot be deleted until it is removed from the
+          flows.
 
-      -for campaign in campaigns
-        <a href="{% url 'campaigns.campaign_read' campaign.id %}">{{campaign.name}}</a>{{forloop|oxford}}
+      -if campaigns
+        -blocktrans count counter=campaigns|length
+          There is an active campaign using this group. It cannot be deleted until it is removed from the
 
-      -blocktrans count counter=campaigns|length
-        campaign.
-      -plural
-        campaigns.
+          -plural
+            There are {{counter}} campaigns using this group. It cannot be deleted until it is removed from the
+
+        -for campaign in campaigns
+          <a href="{% url 'campaigns.campaign_read' campaign.id %}">{{campaign.name}}</a>{{forloop|oxford}}
+
+        -blocktrans count counter=campaigns|length
+          campaign.
+        -plural
+          campaigns.
 
       :javascript
         $(".modal-footer .btn.primary").hide();
