@@ -39,7 +39,7 @@
         <a class="btn btn-tiny" href="{% url 'channels.channel_configuration' channel.uuid %}">{%trans "Settings"%}</a>
 
 
-      -if channel.has_channel_log
+      -if not channel.is_android
         -with channel.get_sender as sender and channel.get_caller as caller
           -if sender
             <a class="btn btn-tiny" href="{% url 'channels.channellog_list' sender.uuid %}">{%trans "Channel Log"%}</a>

@@ -46,7 +46,7 @@ class MailroomClientTest(TembaTest):
             mock_post.assert_called_once_with(
                 "http://localhost:8090/mr/contact/parse_query",
                 headers={"User-Agent": "Temba"},
-                json={"query": "frank", "org_id": 1},
+                json={"query": "frank", "org_id": 1, "group_uuid": ""},
             )
 
         with patch("requests.post") as mock_post:
