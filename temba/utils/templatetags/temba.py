@@ -9,10 +9,11 @@ from django.template import TemplateSyntaxError
 from django.template.defaultfilters import register
 from django.urls import reverse
 from django.utils import timezone
-from temba.utils.dates import datetime_to_str
 from django.utils.html import escapejs
 from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext, ugettext_lazy as _, ungettext_lazy
+
+from temba.utils.dates import datetime_to_str
 
 from ...campaigns.models import Campaign
 from ...flows.models import Flow
