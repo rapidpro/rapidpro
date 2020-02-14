@@ -93,7 +93,7 @@
           -trans "Created On"
 
         .contact-field-value
-          {% pretty_datetime contact.created_on %}
+          {% format_datetime contact.created_on %}
 
       -if contact_language
         .contact-field
@@ -159,7 +159,7 @@
                 -trans "Start"
                 %a.href{ href: "{% url 'flows.flow_editor' evt.flow_uuid %}" }= evt.flow_name
           %td.created_on
-            {% pretty_datetime evt.scheduled %}
+            {% format_datetime evt.scheduled %}
 
             .repeats
               -if evt.repeat_period == 'D'

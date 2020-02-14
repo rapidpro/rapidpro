@@ -249,3 +249,19 @@ def short_datetime(context, dtime):
             return "%s %d" % (dtime.strftime("%b"), int(dtime.strftime("%d")))
         else:
             return "%d/%d/%s" % (int(dtime.strftime("%m")), int(dtime.strftime("%d")), dtime.strftime("%y"))
+
+
+@register.simple_tag(takes_context=True)
+def format_datetime(context, dtime):
+    if dtime.tzinfo is None:
+        dtime = dtime.replace(tzinfo=pytz.utc)
+
+    org_format = "D"
+    tz = pytz.UTC
+    org = context["user_org"]
+    if org:
+        org_format = org.date_format
+        tz = org.timezone
+
+    dtime = dtime.astimezone(tz)
+    return org.format_datetime(dtime)
