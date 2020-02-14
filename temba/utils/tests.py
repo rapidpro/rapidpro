@@ -506,6 +506,13 @@ class TemplateTagTest(TembaTest):
             self.org.date_format = "D"
             self.org.save()
 
+            # date without timezone and no user org in context
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
+            self.assertEqual("20-07-2012 17:05", format_datetime(dict(), test_date))
+
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            self.assertEqual("20-07-2012 17:05", format_datetime(dict(), test_date))
+
             context = dict(user_org=self.org)
 
             # date without timezone

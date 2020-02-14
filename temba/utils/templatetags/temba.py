@@ -9,6 +9,7 @@ from django.template import TemplateSyntaxError
 from django.template.defaultfilters import register
 from django.urls import reverse
 from django.utils import timezone
+from temba.utils.dates import datetime_to_str
 from django.utils.html import escapejs
 from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext, ugettext_lazy as _, ungettext_lazy
@@ -257,9 +258,10 @@ def format_datetime(context, dtime):
         dtime = dtime.replace(tzinfo=pytz.utc)
 
     tz = pytz.UTC
-    org = context["user_org"]
+    org = context.get("user_org")
     if org:
         tz = org.timezone
-
     dtime = dtime.astimezone(tz)
-    return org.format_datetime(dtime)
+    if org:
+        return org.format_datetime(dtime)
+    return datetime_to_str(dtime, "%d-%m-%Y %H:%M", tz)
