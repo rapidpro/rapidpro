@@ -256,11 +256,9 @@ def format_datetime(context, dtime):
     if dtime.tzinfo is None:
         dtime = dtime.replace(tzinfo=pytz.utc)
 
-    org_format = "D"
     tz = pytz.UTC
     org = context["user_org"]
     if org:
-        org_format = org.date_format
         tz = org.timezone
 
     dtime = dtime.astimezone(tz)
