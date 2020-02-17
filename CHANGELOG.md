@@ -1,3 +1,7 @@
+v5.3.53
+----------
+ * Fix creation of Android channels
+
 v5.3.52
 ----------
  * Convert Android to dynamic channel type
