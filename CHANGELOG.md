@@ -1,3 +1,7 @@
+v5.3.54
+----------
+ * Hide loader on start flow dialog when there are no channels
+
 v5.3.53
 ----------
  * Fix creation of Android channels
