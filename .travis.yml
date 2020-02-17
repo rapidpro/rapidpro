@@ -10,8 +10,11 @@ services:
   - redis-server
 
 env:
-  - PGDB=11 PGIS=2.5
-  - PGDB=10 PGIS=2.4
+  global:
+    - DJANGO_SETTINGS_MODULE=temba.settings_travis
+  jobs:
+    - PGDB=11 PGIS=2.5
+    - PGDB=10 PGIS=2.4
 
 cache:
   directories:
@@ -85,29 +88,8 @@ script:
   # any non-zero error code should be treated as an immediate failure
   - set -e
 
-  # test that everything is well formatted
-  - black --line-length=119 --target-version=py36 temba --check --quiet || (echo 'The source code could use a bit more black.' && exit 1)
-
-  # test PEP8 compliance on both Python 2 and 3
-  - flake8
-
-  # compile messages
-  - cd temba && python ../manage.py compilemessages && cd ..
-
-  # fail if there are changes
-  - git diff --numstat
-  - git diff --numstat | awk '$3 ~ /locale.*mo$/ { print "compilemessages needs to be rerun, see .travis.yml for command"; exit 1 }'  
-  
-  # generate our locale messages
-  - python manage.py makemessages -a -e haml,html,txt,py --ignore="env/*" --no-location --no-wrap | awk '/warning/ { print "makemessages contains warnings"; exit 1 }'
-  - python manage.py makemessages -d djangojs -a --ignore="env/*" --ignore="static/bower/*" --ignore="static/components/*" --ignore="node_modules/*" --no-location --no-wrap
-  - python manage.py makemessages -d djangojs -a --ignore="env/*" --ignore="static/bower/*" --ignore="static/components/*" --ignore="node_modules/*" --no-location --no-wrap | awk '/warning/ { print "makemessages for djangojs contains warnings"; exit 1 }'
-
-  # fail if there are locale changes (we only care about changes to msgids)
-  - (! git diff -U0 locale/ | grep -e "^[+\-]msgid") || (echo 'Make messages needs to be rerun, see travis.yml for command.' && exit 1)
-
-  # check for model changes not reflected in a migration
-  - python manage.py makemigrations --settings=temba.settings_travis --dry-run | grep 'No changes detected' || (echo 'There are changes which require migrations.' && exit 1)
+  # test that everything is well formatted, no missing migrations etc
+  - ./code_check.py
 
   # run our Javascript tests
   - node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS
@@ -117,14 +99,14 @@ script:
   - (! python manage.py compress --extension=".haml" --settings=temba.settings_compress | grep 'Error') || exit 1
 
   # install database schema
-  - python manage.py migrate --settings=temba.settings_travis
+  - python manage.py migrate
 
   # fire up mailroom
   - ./mailroom -db=postgres://temba:temba@localhost:5432/temba -redis=redis://localhost:6379/10 -log-level=info &
   - jobs
 
   # run our Python unit tests on same database
-  - coverage run manage.py test --settings=temba.settings_travis --keepdb --noinput --verbosity=2
+  - coverage run manage.py test --keepdb --noinput --verbosity=2
 
   - set +e
 

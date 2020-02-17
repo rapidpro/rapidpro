@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-11 21:03+0000\n"
+"POT-Creation-Date: 2020-02-13 14:51+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -719,6 +719,26 @@ msgstr "Sua chave da api deve ter 64 caracteres"
 
 msgid "No org for this user, cannot claim"
 msgstr "Nenhuma organização para este usuário, não pode requisitar"
+
+msgid "The claim code from your Android phone"
+msgstr "O código de requisição do seu telefone Android"
+
+msgid "The phone number of the phone"
+msgstr "O número do telefone"
+
+msgid "Invalid claim code, please check and try again."
+msgstr "Código de requisição inválido, por favor, verifique-o e tente novamente."
+
+msgid "Invalid phone number, try again."
+msgstr "Número de telefone inválido, tente novamente."
+
+msgid "Another channel has this number. Please remove that channel first."
+msgstr ""
+
+#, fuzzy
+#| msgid "Connect your Android phone"
+msgid "Connect Android Channel"
+msgstr "Conecte seu telefone Android"
 
 msgid ""
 "\n"
@@ -2912,21 +2932,6 @@ msgstr "Esse numero ja esta conectado a outra conta - %s (%s)"
 msgid "An error occurred connecting your Twilio number, try removing your Twilio account, reconnecting it and trying again."
 msgstr ""
 
-msgid "The claim code from your Android phone"
-msgstr "O código de requisição do seu telefone Android"
-
-msgid "The phone number of the phone"
-msgstr "O número do telefone"
-
-msgid "Invalid claim code, please check and try again."
-msgstr "Código de requisição inválido, por favor, verifique-o e tente novamente."
-
-msgid "Invalid phone number, try again."
-msgstr "Número de telefone inválido, tente novamente."
-
-msgid "Another channel has this number. Please remove that channel first."
-msgstr ""
-
 #, fuzzy
 msgid "The number or address of this channel"
 msgstr "O nome deste rótulo"
@@ -3019,11 +3024,6 @@ msgstr "Desculpe, um originador de chamada não pode ser adicionado para esse n�
 #| msgid "Sorry, a caller cannot be added for that number"
 msgid "A caller has already been added for that number"
 msgstr "Desculpe, um originador de chamada não pode ser adicionado para esse número"
-
-#, fuzzy
-#| msgid "Connect your Android phone"
-msgid "Connect Android Channel"
-msgstr "Conecte seu telefone Android"
 
 #, fuzzy
 msgid "Channels"
@@ -5830,89 +5830,6 @@ msgstr "Transmissor"
 msgid "API Channels"
 msgstr "Transmissor"
 
-msgid "Add Phone"
-msgstr "Adicionar telefone"
-
-msgid "Connect your Android phone"
-msgstr "Conecte seu telefone Android"
-
-#, fuzzy, python-format
-msgid "%(brand)s uses your Android phone to send and receive messages on your behalf."
-msgstr "Textit usa o seu telefone Android para enviar e receber mensagens."
-
-#, python-format
-msgid "Due to restrictions Android has on applications that send SMS messages, we cannot distribute the %(brand)s application through the Play Store. You will need to download the application manually and install it using the steps below."
-msgstr ""
-
-#, fuzzy
-#| msgid "Created On"
-msgid "was released on"
-msgstr "Criado em"
-
-#, fuzzy
-msgid "Download App"
-msgstr "Resultados ao vivo"
-
-msgid "On your Android device, open your browser and download the app by entering the URL:"
-msgstr ""
-
-#, fuzzy, python-format
-msgid "Launch the %(brand)s installer"
-msgstr ""
-"\n"
-"%(sms_sent)s Enviadas"
-
-#, fuzzy
-msgid "Open the notifications shade by dragging from the top and select the downloaded file."
-msgstr ""
-"\n"
-"Na página do aplicativo Textit, toque no botão \"Instalar\"."
-
-#, fuzzy
-#| msgid "Settings"
-msgid "Tap Settings"
-msgstr "Configurações"
-
-#, fuzzy
-msgid "You will be taken to a screen with \"allow from this source\" toggle"
-msgstr ""
-"\n"
-"%(sms_sent)s Enviadas"
-
-msgid "Toggle allow from this source"
-msgstr ""
-
-#, fuzzy
-msgid "Make sure \"allow from this source\" toggle is in the On position."
-msgstr ""
-"\n"
-"%(label)s coluna como"
-
-msgid "Go Back"
-msgstr ""
-
-#, fuzzy
-#| msgid "Install"
-msgid "Click Install"
-msgstr "Instalar"
-
-#, python-format
-msgid "Open %(brand)s"
-msgstr ""
-
-#, fuzzy, python-format
-msgid "Once %(brand)s has been installed, open the app drawer and tap on the %(brand)s icon to start the app."
-msgstr "Uma vez que o Textit foi instalado, vá até a sua lista de aplicativos e toque no ícone Textit para iniciar o aplicativo."
-
-msgid "Enter Claim Code"
-msgstr "Insira o seu código de requisição"
-
-#, fuzzy, python-format
-msgid "When you first open %(brand)s, the app will register your device with Google and our servers.  Once that is complete, it will display a claim code.  Enter that claim code in the form to the left and click \"Add Phone\" to connect your device."
-msgstr ""
-"\n"
-"Quando você abrir o Textit pela primeira vez, o aplicativo irá registrar o seu dispositivo com o Google e com nossos servidores. Assim que completar, ele irá exibir um código de requisição. Digite este código no formulário à esquerda e clique \"Adicionar Telefone\", para conectar seu dispositivo. "
-
 msgid "Claim phone number"
 msgstr "Número de telefone de requisição"
 
@@ -6501,6 +6418,89 @@ msgid ""
 msgstr ""
 "\n"
 "Por favor, verifique seu telefone para se certificar de que tem crédito suficiente para enviar mensagens de texto. Se os problemas persistirem, você pode tentar reiniciar o telefone. Atualmente o seu telefone Android tem <strong>%(unsent_count)s </strong> mensagens não enviadas nas últimas horas."
+
+msgid "Add Phone"
+msgstr "Adicionar telefone"
+
+msgid "Connect your Android phone"
+msgstr "Conecte seu telefone Android"
+
+#, fuzzy, python-format
+msgid "%(brand)s uses your Android phone to send and receive messages on your behalf."
+msgstr "Textit usa o seu telefone Android para enviar e receber mensagens."
+
+#, python-format
+msgid "Due to restrictions Android has on applications that send SMS messages, we cannot distribute the %(brand)s application through the Play Store. You will need to download the application manually and install it using the steps below."
+msgstr ""
+
+#, fuzzy
+#| msgid "Created On"
+msgid "was released on"
+msgstr "Criado em"
+
+#, fuzzy
+msgid "Download App"
+msgstr "Resultados ao vivo"
+
+msgid "On your Android device, open your browser and download the app by entering the URL:"
+msgstr ""
+
+#, fuzzy, python-format
+msgid "Launch the %(brand)s installer"
+msgstr ""
+"\n"
+"%(sms_sent)s Enviadas"
+
+#, fuzzy
+msgid "Open the notifications shade by dragging from the top and select the downloaded file."
+msgstr ""
+"\n"
+"Na página do aplicativo Textit, toque no botão \"Instalar\"."
+
+#, fuzzy
+#| msgid "Settings"
+msgid "Tap Settings"
+msgstr "Configurações"
+
+#, fuzzy
+msgid "You will be taken to a screen with \"allow from this source\" toggle"
+msgstr ""
+"\n"
+"%(sms_sent)s Enviadas"
+
+msgid "Toggle allow from this source"
+msgstr ""
+
+#, fuzzy
+msgid "Make sure \"allow from this source\" toggle is in the On position."
+msgstr ""
+"\n"
+"%(label)s coluna como"
+
+msgid "Go Back"
+msgstr ""
+
+#, fuzzy
+#| msgid "Install"
+msgid "Click Install"
+msgstr "Instalar"
+
+#, python-format
+msgid "Open %(brand)s"
+msgstr ""
+
+#, fuzzy, python-format
+msgid "Once %(brand)s has been installed, open the app drawer and tap on the %(brand)s icon to start the app."
+msgstr "Uma vez que o Textit foi instalado, vá até a sua lista de aplicativos e toque no ícone Textit para iniciar o aplicativo."
+
+msgid "Enter Claim Code"
+msgstr "Insira o seu código de requisição"
+
+#, fuzzy, python-format
+msgid "When you first open %(brand)s, the app will register your device with Google and our servers.  Once that is complete, it will display a claim code.  Enter that claim code in the form to the left and click \"Add Phone\" to connect your device."
+msgstr ""
+"\n"
+"Quando você abrir o Textit pela primeira vez, o aplicativo irá registrar o seu dispositivo com o Google e com nossos servidores. Assim que completar, ele irá exibir um código de requisição. Digite este código no formulário à esquerda e clique \"Adicionar Telefone\", para conectar seu dispositivo. "
 
 #, fuzzy
 #| msgid ""
@@ -7951,28 +7951,28 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"        This group is used by an active trigger. In order to delete it,\n"
-"        first remove the\n"
-"        "
+"          This group is used by an active trigger. In order to delete it,\n"
+"          first remove the\n"
+"          "
 msgid_plural ""
 "\n"
-"          This group is used by %(counter)s triggers. In order to delete it,\n"
-"          first remove the\n"
+"            This group is used by %(counter)s triggers. In order to delete it,\n"
+"            first remove the\n"
 "\n"
-"      "
+"        "
 msgstr[0] ""
 msgstr[1] ""
 
 #, fuzzy
 msgid ""
 "\n"
-"        trigger.\n"
-"      "
+"          trigger.\n"
+"        "
 msgid_plural ""
 "\n"
-"        triggers.\n"
+"          triggers.\n"
 "\n"
-"      "
+"        "
 msgstr[0] ""
 "\n"
 "%(sms_sent)s Enviadas"
@@ -7983,14 +7983,14 @@ msgstr[1] ""
 #, python-format
 msgid ""
 "\n"
-"        There is an active flow using this group. It cannot be deleted until it is removed from the\n"
+"          There is an active flow using this group. It cannot be deleted until it is removed from the\n"
 "\n"
-"        "
+"          "
 msgid_plural ""
 "\n"
-"          There are %(counter)s flows using this group. It cannot be deleted until it is removed from the\n"
+"            There are %(counter)s flows using this group. It cannot be deleted until it is removed from the\n"
 "\n"
-"      "
+"        "
 msgstr[0] ""
 msgstr[1] ""
 
@@ -8000,13 +8000,13 @@ msgstr[1] ""
 #| "                  "
 msgid ""
 "\n"
-"        flow.\n"
-"      "
+"          flow.\n"
+"        "
 msgid_plural ""
 "\n"
-"        flows.\n"
+"          flows.\n"
 "\n"
-"      "
+"        "
 msgstr[0] ""
 "\n"
 "%"
@@ -8017,27 +8017,27 @@ msgstr[1] ""
 #, python-format
 msgid ""
 "\n"
-"        There is an active campaign using this group. It cannot be deleted until it is removed from the\n"
+"          There is an active campaign using this group. It cannot be deleted until it is removed from the\n"
 "\n"
-"        "
+"          "
 msgid_plural ""
 "\n"
-"          There are %(counter)s campaigns using this group. It cannot be deleted until it is removed from the\n"
+"            There are %(counter)s campaigns using this group. It cannot be deleted until it is removed from the\n"
 "\n"
-"      "
+"        "
 msgstr[0] ""
 msgstr[1] ""
 
 #, fuzzy
 msgid ""
 "\n"
-"        campaign.\n"
-"      "
+"          campaign.\n"
+"        "
 msgid_plural ""
 "\n"
-"        campaigns.\n"
+"          campaigns.\n"
 "\n"
-"      "
+"        "
 msgstr[0] ""
 "\n"
 "%(sms_sent)s Enviadas"

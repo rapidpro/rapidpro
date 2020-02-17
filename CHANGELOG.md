@@ -1,3 +1,16 @@
+v5.3.52
+----------
+ * Convert Android to dynamic channel type
+
+v5.3.51
+----------
+ * Update to floweditor 1.7.15
+ * Add python script to do all CI required formatting and locale rebuilding
+ * Use mailroom for query parsing for contact exports
+ * Fix text positioning on list pages
+ * Fix delete contact group modal buttons when blocked by dependencies
+ * Completion with upper case functions
+
 v5.3.50
 ----------
  * Migration to set allow_international=true in configs of existing tel channels

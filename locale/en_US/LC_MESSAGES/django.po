@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-11 21:03+0000\n"
+"POT-Creation-Date: 2020-02-13 14:51+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -571,6 +571,24 @@ msgid "Your api key, should be 64 characters"
 msgstr ""
 
 msgid "No org for this user, cannot claim"
+msgstr ""
+
+msgid "The claim code from your Android phone"
+msgstr ""
+
+msgid "The phone number of the phone"
+msgstr ""
+
+msgid "Invalid claim code, please check and try again."
+msgstr ""
+
+msgid "Invalid phone number, try again."
+msgstr ""
+
+msgid "Another channel has this number. Please remove that channel first."
+msgstr ""
+
+msgid "Connect Android Channel"
 msgstr ""
 
 msgid ""
@@ -2005,21 +2023,6 @@ msgstr ""
 msgid "An error occurred connecting your Twilio number, try removing your Twilio account, reconnecting it and trying again."
 msgstr ""
 
-msgid "The claim code from your Android phone"
-msgstr ""
-
-msgid "The phone number of the phone"
-msgstr ""
-
-msgid "Invalid claim code, please check and try again."
-msgstr ""
-
-msgid "Invalid phone number, try again."
-msgstr ""
-
-msgid "Another channel has this number. Please remove that channel first."
-msgstr ""
-
 msgid "The number or address of this channel"
 msgstr ""
 
@@ -2091,9 +2094,6 @@ msgid "A caller cannot be added for that number"
 msgstr ""
 
 msgid "A caller has already been added for that number"
-msgstr ""
-
-msgid "Connect Android Channel"
 msgstr ""
 
 msgid "Channels"
@@ -4450,69 +4450,6 @@ msgstr ""
 msgid "API Channels"
 msgstr ""
 
-msgid "Add Phone"
-msgstr ""
-
-msgid "Connect your Android phone"
-msgstr ""
-
-#, python-format
-msgid "%(brand)s uses your Android phone to send and receive messages on your behalf."
-msgstr ""
-
-#, python-format
-msgid "Due to restrictions Android has on applications that send SMS messages, we cannot distribute the %(brand)s application through the Play Store. You will need to download the application manually and install it using the steps below."
-msgstr ""
-
-msgid "was released on"
-msgstr ""
-
-msgid "Download App"
-msgstr ""
-
-msgid "On your Android device, open your browser and download the app by entering the URL:"
-msgstr ""
-
-#, python-format
-msgid "Launch the %(brand)s installer"
-msgstr ""
-
-msgid "Open the notifications shade by dragging from the top and select the downloaded file."
-msgstr ""
-
-msgid "Tap Settings"
-msgstr ""
-
-msgid "You will be taken to a screen with \"allow from this source\" toggle"
-msgstr ""
-
-msgid "Toggle allow from this source"
-msgstr ""
-
-msgid "Make sure \"allow from this source\" toggle is in the On position."
-msgstr ""
-
-msgid "Go Back"
-msgstr ""
-
-msgid "Click Install"
-msgstr ""
-
-#, python-format
-msgid "Open %(brand)s"
-msgstr ""
-
-#, python-format
-msgid "Once %(brand)s has been installed, open the app drawer and tap on the %(brand)s icon to start the app."
-msgstr ""
-
-msgid "Enter Claim Code"
-msgstr ""
-
-#, python-format
-msgid "When you first open %(brand)s, the app will register your device with Google and our servers.  Once that is complete, it will display a claim code.  Enter that claim code in the form to the left and click \"Add Phone\" to connect your device."
-msgstr ""
-
 msgid "Claim phone number"
 msgstr ""
 
@@ -4912,6 +4849,69 @@ msgstr ""
 msgid ""
 "\n"
 "Please check on your %(channel_type)s to make sure it has sufficient credit and can send text messages. Currently your %(channel_type)s has %(unsent_count)s messages which haven't sent in over an hour.\n"
+msgstr ""
+
+msgid "Add Phone"
+msgstr ""
+
+msgid "Connect your Android phone"
+msgstr ""
+
+#, python-format
+msgid "%(brand)s uses your Android phone to send and receive messages on your behalf."
+msgstr ""
+
+#, python-format
+msgid "Due to restrictions Android has on applications that send SMS messages, we cannot distribute the %(brand)s application through the Play Store. You will need to download the application manually and install it using the steps below."
+msgstr ""
+
+msgid "was released on"
+msgstr ""
+
+msgid "Download App"
+msgstr ""
+
+msgid "On your Android device, open your browser and download the app by entering the URL:"
+msgstr ""
+
+#, python-format
+msgid "Launch the %(brand)s installer"
+msgstr ""
+
+msgid "Open the notifications shade by dragging from the top and select the downloaded file."
+msgstr ""
+
+msgid "Tap Settings"
+msgstr ""
+
+msgid "You will be taken to a screen with \"allow from this source\" toggle"
+msgstr ""
+
+msgid "Toggle allow from this source"
+msgstr ""
+
+msgid "Make sure \"allow from this source\" toggle is in the On position."
+msgstr ""
+
+msgid "Go Back"
+msgstr ""
+
+msgid "Click Install"
+msgstr ""
+
+#, python-format
+msgid "Open %(brand)s"
+msgstr ""
+
+#, python-format
+msgid "Once %(brand)s has been installed, open the app drawer and tap on the %(brand)s icon to start the app."
+msgstr ""
+
+msgid "Enter Claim Code"
+msgstr ""
+
+#, python-format
+msgid "When you first open %(brand)s, the app will register your device with Google and our servers.  Once that is complete, it will display a claim code.  Enter that claim code in the form to the left and click \"Add Phone\" to connect your device."
 msgstr ""
 
 msgid "To connect a <a href=\"http://clickatell.com\">Clickatell</a> number, first create an HTTP integration for a two way number, then enter the number and API key below."
@@ -6008,79 +6008,79 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"        This group is used by an active trigger. In order to delete it,\n"
-"        first remove the\n"
-"        "
-msgid_plural ""
-"\n"
-"          This group is used by %(counter)s triggers. In order to delete it,\n"
+"          This group is used by an active trigger. In order to delete it,\n"
 "          first remove the\n"
+"          "
+msgid_plural ""
 "\n"
-"      "
+"            This group is used by %(counter)s triggers. In order to delete it,\n"
+"            first remove the\n"
+"\n"
+"        "
 msgstr[0] ""
 msgstr[1] ""
 
 msgid ""
 "\n"
-"        trigger.\n"
-"      "
+"          trigger.\n"
+"        "
 msgid_plural ""
 "\n"
-"        triggers.\n"
+"          triggers.\n"
 "\n"
-"      "
+"        "
 msgstr[0] ""
 msgstr[1] ""
 
 #, python-format
 msgid ""
 "\n"
-"        There is an active flow using this group. It cannot be deleted until it is removed from the\n"
+"          There is an active flow using this group. It cannot be deleted until it is removed from the\n"
 "\n"
-"        "
+"          "
 msgid_plural ""
 "\n"
-"          There are %(counter)s flows using this group. It cannot be deleted until it is removed from the\n"
+"            There are %(counter)s flows using this group. It cannot be deleted until it is removed from the\n"
 "\n"
-"      "
+"        "
 msgstr[0] ""
 msgstr[1] ""
 
 msgid ""
 "\n"
-"        flow.\n"
-"      "
+"          flow.\n"
+"        "
 msgid_plural ""
 "\n"
-"        flows.\n"
+"          flows.\n"
 "\n"
-"      "
+"        "
 msgstr[0] ""
 msgstr[1] ""
 
 #, python-format
 msgid ""
 "\n"
-"        There is an active campaign using this group. It cannot be deleted until it is removed from the\n"
+"          There is an active campaign using this group. It cannot be deleted until it is removed from the\n"
 "\n"
-"        "
+"          "
 msgid_plural ""
 "\n"
-"          There are %(counter)s campaigns using this group. It cannot be deleted until it is removed from the\n"
+"            There are %(counter)s campaigns using this group. It cannot be deleted until it is removed from the\n"
 "\n"
-"      "
+"        "
 msgstr[0] ""
 msgstr[1] ""
 
 msgid ""
 "\n"
-"        campaign.\n"
-"      "
+"          campaign.\n"
+"        "
 msgid_plural ""
 "\n"
-"        campaigns.\n"
+"          campaigns.\n"
 "\n"
-"      "
+"        "
 msgstr[0] ""
 msgstr[1] ""
 
