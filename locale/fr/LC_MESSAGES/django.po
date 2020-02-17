@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-13 14:51+0000\n"
+"POT-Creation-Date: 2020-02-17 22:35+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -738,6 +738,10 @@ msgstr ""
 #| msgid "Connect your Android phone"
 msgid "Connect Android Channel"
 msgstr "connecter un téléphone Android"
+
+#, fuzzy
+msgid "Phone number of this device"
+msgstr "Le numéro de téléphone pour cet appel"
 
 msgid ""
 "\n"
@@ -2675,6 +2679,10 @@ msgid "The provided Twitter credentials do not appear to be valid."
 msgstr ""
 
 #, fuzzy
+msgid "Twitter handle of this channel"
+msgstr "Le nom de ce label"
+
+#, fuzzy
 msgid "Use a <a href=\"http://verboice.instedd.org\">Verboice</a> connection to leverage in-country SIP connections for building voice (IVR) flows."
 msgstr ""
 "\n"
@@ -2706,9 +2714,6 @@ msgstr "Channel l'alarmes"
 msgid "The Verboice channel that will be handling your calls"
 msgstr ""
 
-msgid "The message send to user who have not yet subscribed to the channel, changes may take up to 30 seconds to take effect"
-msgstr ""
-
 msgid ""
 "\n"
 "        Connect a <a href=\"http://viber.com/en/\">Viber</a> public channel to send and receive messages to\n"
@@ -2724,6 +2729,9 @@ msgid ""
 msgstr ""
 
 msgid "The authentication token provided by Viber"
+msgstr ""
+
+msgid "The message send to user who have not yet subscribed to the channel, changes may take up to 30 seconds to take effect"
 msgstr ""
 
 msgid ""
@@ -3033,13 +3041,11 @@ msgstr ""
 msgid "The number or address of this channel"
 msgstr "Le nom de ce label"
 
-#, fuzzy
-msgid "Phone number of this device"
-msgstr "Le numéro de téléphone pour cet appel"
+msgid "Allow International Sending"
+msgstr ""
 
-#, fuzzy
-msgid "Twitter handle of this channel"
-msgstr "Le nom de ce label"
+msgid "If supported by this channel type, this allows messages to be sent to phone numbers in different countries to the channel itself."
+msgstr ""
 
 msgid "Disable Bulk Sending"
 msgstr "Désactiver l'envoi groupé"

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-13 14:51+0000\n"
+"POT-Creation-Date: 2020-02-17 22:35+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -589,6 +589,9 @@ msgid "Another channel has this number. Please remove that channel first."
 msgstr ""
 
 msgid "Connect Android Channel"
+msgstr ""
+
+msgid "Phone number of this device"
 msgstr ""
 
 msgid ""
@@ -1768,6 +1771,9 @@ msgstr ""
 msgid "The provided Twitter credentials do not appear to be valid."
 msgstr ""
 
+msgid "Twitter handle of this channel"
+msgstr ""
+
 msgid "Use a <a href=\"http://verboice.instedd.org\">Verboice</a> connection to leverage in-country SIP connections for building voice (IVR) flows."
 msgstr ""
 
@@ -1792,9 +1798,6 @@ msgstr ""
 msgid "The Verboice channel that will be handling your calls"
 msgstr ""
 
-msgid "The message send to user who have not yet subscribed to the channel, changes may take up to 30 seconds to take effect"
-msgstr ""
-
 msgid ""
 "\n"
 "        Connect a <a href=\"http://viber.com/en/\">Viber</a> public channel to send and receive messages to\n"
@@ -1810,6 +1813,9 @@ msgid ""
 msgstr ""
 
 msgid "The authentication token provided by Viber"
+msgstr ""
+
+msgid "The message send to user who have not yet subscribed to the channel, changes may take up to 30 seconds to take effect"
 msgstr ""
 
 msgid ""
@@ -2008,10 +2014,10 @@ msgstr ""
 msgid "The number or address of this channel"
 msgstr ""
 
-msgid "Phone number of this device"
+msgid "Allow International Sending"
 msgstr ""
 
-msgid "Twitter handle of this channel"
+msgid "If supported by this channel type, this allows messages to be sent to phone numbers in different countries to the channel itself."
 msgstr ""
 
 msgid "Disable Bulk Sending"

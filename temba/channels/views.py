@@ -1235,6 +1235,7 @@ class UpdateChannelForm(forms.ModelForm):
         del kwargs["object"]
 
         super().__init__(*args, **kwargs)
+
         self.add_config_fields()
 
     def add_config_fields(self):
@@ -1249,23 +1250,23 @@ class UpdateChannelForm(forms.ModelForm):
         helps = {"address": _("The number or address of this channel")}
 
 
-class UpdateNexmoForm(UpdateChannelForm):
-    class Meta(UpdateChannelForm.Meta):
-        readonly = ("country",)
+class UpdateTelChannelForm(UpdateChannelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
+        self.fields[Channel.CONFIG_ALLOW_INTERNATIONAL] = forms.BooleanField(
+            label=_("Allow International Sending"),
+            required=False,
+            help_text=_(
+                "If supported by this channel type, this allows messages to be sent to phone numbers in "
+                "different countries to the channel itself."
+            ),
+            initial=self.instance.config.get(Channel.CONFIG_ALLOW_INTERNATIONAL, False),
+        )
 
-class UpdateAndroidForm(UpdateChannelForm):
     class Meta(UpdateChannelForm.Meta):
-        readonly = []
+        config_fields = [Channel.CONFIG_ALLOW_INTERNATIONAL]
         helps = {"address": _("Phone number of this device")}
-
-
-class UpdateTwitterForm(UpdateChannelForm):
-    class Meta(UpdateChannelForm.Meta):
-        fields = "name", "address", "alert_email"
-        readonly = ("address",)
-        labels = {"address": _("Handle")}
-        helps = {"address": _("Twitter handle of this channel")}
 
 
 class ChannelCRUDL(SmartCRUDL):

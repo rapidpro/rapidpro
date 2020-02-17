@@ -6,7 +6,9 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
 
 from ...models import Channel
-from ...views import ClaimViewMixin
+from ...views import ClaimViewMixin, UpdateChannelForm
+
+CONFIG_WELCOME_MESSAGE = "welcome_message"
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
@@ -38,3 +40,23 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
 
         return super().form_valid(form)
+
+
+class UpdateForm(UpdateChannelForm):
+    def add_config_fields(self):
+        self.fields[CONFIG_WELCOME_MESSAGE] = forms.CharField(
+            max_length=640,
+            label=_("Welcome Message"),
+            required=False,
+            widget=forms.Textarea,
+            initial=self.instance.config.get(CONFIG_WELCOME_MESSAGE, ""),
+            help_text=_(
+                "The message send to user who have not yet subscribed to the channel, changes may take up to 30 "
+                "seconds to take effect"
+            ),
+        )
+
+    class Meta(UpdateChannelForm.Meta):
+        fields = "name", "address", "alert_email"
+        config_fields = ["welcome_message"]
+        readonly = ("address",)
