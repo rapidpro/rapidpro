@@ -27,17 +27,22 @@
         %trans the phone number or URN this message is addressed to, with leading +'s removed
       %li <code>{% templatetag openbrace %}{% templatetag openbrace %}id{% templatetag closebrace %}{% templatetag closebrace %}</code> -
         %trans the unique id for this message
+      %li <code>{% templatetag openbrace %}{% templatetag openbrace %}quick_replies{% templatetag closebrace %}{% templatetag closebrace %}</code> -
+        %trans the quick replies for this message, formatted according to send method and content type.
 
     %p
       -blocktrans trimmed
         An example that would substitute variables in the URL:
 
     %pre<
-      http://myservice.com/send.php?from={% templatetag openbrace %}{% templatetag openbrace %}from{% templatetag closebrace %}{% templatetag closebrace %}&text={% templatetag openbrace %}{% templatetag openbrace %}text{% templatetag closebrace %}{% templatetag closebrace %}&to={% templatetag openbrace %}{% templatetag openbrace %}to{% templatetag closebrace %}{% templatetag closebrace %}
+      http://myservice.com/send.php?from={% templatetag openbrace %}{% templatetag openbrace %}from{% templatetag closebrace %}{% templatetag closebrace %}&text={% templatetag openbrace %}{% templatetag openbrace %}text{% templatetag closebrace %}{% templatetag closebrace %}&to={% templatetag openbrace %}{% templatetag openbrace %}to{% templatetag closebrace %}{% templatetag closebrace %}{% templatetag openbrace %}{% templatetag openbrace %}quick_replies{% templatetag closebrace %}{% templatetag closebrace %}{% templatetag closebrace %}
 
     %p
       -blocktrans trimmed
         If using POST or PUT, you can specify the body of the request using the same variables.
+
+    %p
+      %trans The <code>{% templatetag openbrace %}{% templatetag openbrace %}quick_replies{% templatetag closebrace %}{% templatetag closebrace %}</code> variable with method GET or content type URL Encoded will be replaced by <code>&quick_reply=(reply)</code> for each quick reply.
 
     %p
       -blocktrans trimmed with brand.name as brand
