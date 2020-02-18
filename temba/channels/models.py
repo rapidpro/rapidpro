@@ -687,13 +687,11 @@ class Channel(TembaModel):
         anon = get_anonymous_user()
         config = {Channel.CONFIG_FCM_ID: fcm_id}
 
-        from .types.android.type import AndroidType
-
         return Channel.create(
             None,
             anon,
             country,
-            AndroidType,
+            cls.get_type_from_code("A"),
             None,
             None,
             config=config,
