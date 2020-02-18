@@ -1255,12 +1255,8 @@ class UpdateTelChannelForm(UpdateChannelForm):
         super().__init__(*args, **kwargs)
 
         self.fields[Channel.CONFIG_ALLOW_INTERNATIONAL] = forms.BooleanField(
-            label=_("Allow International Sending"),
             required=False,
-            help_text=_(
-                "If supported by this channel type, this allows messages to be sent to phone numbers in "
-                "different countries to the channel itself."
-            ),
+            help_text=_("Allow international sending"),
             initial=self.instance.config.get(Channel.CONFIG_ALLOW_INTERNATIONAL, False),
         )
 
