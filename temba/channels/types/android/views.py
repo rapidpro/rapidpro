@@ -11,7 +11,7 @@ from temba.orgs.models import Org
 from temba.utils import analytics
 
 from ...models import Channel
-from ...views import ClaimViewMixin
+from ...views import ClaimViewMixin, UpdateTelChannelForm
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
@@ -118,3 +118,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             org = Org.objects.get(pk=org_id)
 
         return org
+
+
+class UpdateForm(UpdateTelChannelForm):
+    class Meta(UpdateTelChannelForm.Meta):
+        readonly = []
+        helps = {"address": _("Phone number of this device")}

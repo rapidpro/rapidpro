@@ -284,6 +284,7 @@ class Channel(TembaModel):
     CONFIG_NUMBER_SID = "number_sid"
     CONFIG_MESSAGING_SERVICE_SID = "messaging_service_sid"
     CONFIG_MAX_CONCURRENT_EVENTS = "max_concurrent_events"
+    CONFIG_ALLOW_INTERNATIONAL = "allow_international"
 
     CONFIG_NEXMO_API_KEY = "nexmo_api_key"
     CONFIG_NEXMO_API_SECRET = "nexmo_api_secret"
