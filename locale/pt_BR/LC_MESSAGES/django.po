@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-18 14:38+0000\n"
+"POT-Creation-Date: 2020-02-18 19:17+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -2919,12 +2919,16 @@ msgstr "Esse numero ja esta conectado a outra conta - %s (%s)"
 msgid "An error occurred connecting your Twilio number, try removing your Twilio account, reconnecting it and trying again."
 msgstr ""
 
+msgid "Allow international sending"
+msgstr ""
+
 #, fuzzy
 msgid "The number or address of this channel"
 msgstr "O nome deste rótulo"
 
-msgid "Allow international sending"
-msgstr ""
+#, fuzzy
+msgid "Phone number of this channel"
+msgstr "O número de telefone para esta chamada"
 
 msgid "Disable Bulk Sending"
 msgstr "Desativar envio em massa"

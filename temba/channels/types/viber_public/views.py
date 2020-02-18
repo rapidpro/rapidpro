@@ -43,20 +43,24 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
 
 class UpdateForm(UpdateChannelForm):
-    def add_config_fields(self):
-        self.fields[CONFIG_WELCOME_MESSAGE] = forms.CharField(
-            max_length=640,
-            label=_("Welcome Message"),
-            required=False,
-            widget=forms.Textarea,
-            initial=self.instance.config.get(CONFIG_WELCOME_MESSAGE, ""),
-            help_text=_(
-                "The message send to user who have not yet subscribed to the channel, changes may take up to 30 "
-                "seconds to take effect"
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.add_config_field(
+            CONFIG_WELCOME_MESSAGE,
+            forms.CharField(
+                max_length=640,
+                label=_("Welcome Message"),
+                required=False,
+                widget=forms.Textarea,
+                help_text=_(
+                    "The message send to user who have not yet subscribed to the channel, changes may take up to 30 "
+                    "seconds to take effect"
+                ),
             ),
+            "",
         )
 
     class Meta(UpdateChannelForm.Meta):
         fields = "name", "address", "alert_email"
-        config_fields = ["welcome_message"]
         readonly = ("address",)

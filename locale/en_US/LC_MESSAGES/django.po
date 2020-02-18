@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-18 14:38+0000\n"
+"POT-Creation-Date: 2020-02-18 19:17+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2011,10 +2011,13 @@ msgstr ""
 msgid "An error occurred connecting your Twilio number, try removing your Twilio account, reconnecting it and trying again."
 msgstr ""
 
+msgid "Allow international sending"
+msgstr ""
+
 msgid "The number or address of this channel"
 msgstr ""
 
-msgid "Allow international sending"
+msgid "Phone number of this channel"
 msgstr ""
 
 msgid "Disable Bulk Sending"
