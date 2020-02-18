@@ -188,39 +188,6 @@ def to_json(value):
 
 
 @register.simple_tag(takes_context=True)
-def pretty_datetime(context, dtime):
-
-    if dtime.tzinfo is None:
-        dtime = dtime.replace(tzinfo=pytz.utc)
-    org_format = "D"
-    tz = pytz.UTC
-    org = context["user_org"]
-    if org:
-        org_format = org.date_format
-        tz = org.timezone
-
-    dtime = dtime.astimezone(tz)
-
-    if org_format == "D":
-        return "%d %s %s %s:%s" % (
-            int(dtime.strftime("%d")),
-            dtime.strftime("%B"),
-            dtime.strftime("%Y"),
-            dtime.strftime("%H"),
-            dtime.strftime("%M"),
-        )
-    else:
-        return "%s %d, %s %d:%s %s" % (
-            dtime.strftime("%B"),
-            int(dtime.strftime("%d")),
-            dtime.strftime("%Y"),
-            int(dtime.strftime("%I")),
-            dtime.strftime("%M"),
-            dtime.strftime("%p").lower(),
-        )
-
-
-@register.simple_tag(takes_context=True)
 def short_datetime(context, dtime):
     if dtime.tzinfo is None:
         dtime = dtime.replace(tzinfo=pytz.utc)

@@ -10,7 +10,7 @@
   %h2.header-margin
     Webhook Event
   %h5.header-margin
-    {% pretty_datetime object.created_on %}
+    {% format_datetime object.created_on %}
 
 -block above-bar
   %a.btn.btn-primary{ href: '{% url "api.webhookresult_list" %}' } Back
@@ -35,7 +35,7 @@
   .log<
     .summary{id: "{{log.id}}"}
       .time.pull-right
-        {% pretty_datetime object.created_on %}
+        {% format_datetime object.created_on %}
 
       %span.status-code
         {{ object.status_code }}

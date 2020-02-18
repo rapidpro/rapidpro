@@ -159,7 +159,7 @@
                 -trans "Start"
                 %a.href{ href: "{% url 'flows.flow_editor' evt.flow_uuid %}" }= evt.flow_name
           %td.created_on
-            {% format_datetime evt.scheduled %}
+            {{ evt.scheduled|naturaltime }}
 
             .repeats
               -if evt.repeat_period == 'D'

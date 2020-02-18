@@ -48,7 +48,7 @@
 
           -if relayer_app
             .release-header
-              {% trans "Version" %} {{relayer_app.version}} {% trans "was released on" %} {% pretty_datetime relayer_app.created_on %}
+              {% trans "Version" %} {{relayer_app.version}} {% trans "was released on" %} {% format_datetime relayer_app.created_on %}
 
             -if relayer_app.description
               .release-description
