@@ -42,9 +42,9 @@
         If using POST or PUT, you can specify the body of the request using the same variables.
 
     %p
-      -blocktrans trimmed
-        The <code><span class="variable-sub">quick_replies</span></code> variable with method GET or content type URL Encoded will be
-        replaced by <code>&quick_reply=(reply)</code> for each quick reply.
+      -blocktrans trimmed with "<code><span class='variable-sub'>quick_replies</span></code>" as quick_replies_var and "<code>&quick_reply=(reply)</code>" as quick_replies_output
+        The {{ quick_replies_var }} variable with method GET or content type URL Encoded will be
+        replaced by {{ quick_replies_output }} for each quick reply.
 
     %p
       -blocktrans trimmed with brand.name as brand

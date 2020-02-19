@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-19 19:25+0000\n"
+"POT-Creation-Date: 2020-02-19 21:04+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4941,7 +4941,8 @@ msgstr ""
 msgid "If using POST or PUT, you can specify the body of the request using the same variables."
 msgstr ""
 
-msgid "The <code><span class=\"variable-sub\">quick_replies</span></code> variable with method GET or content type URL Encoded will be replaced by <code>&quick_reply=(reply)</code> for each quick reply."
+#, python-format
+msgid "The %(quick_replies_var)s variable with method GET or content type URL Encoded will be replaced by %(quick_replies_output)s for each quick reply."
 msgstr ""
 
 #, python-format
