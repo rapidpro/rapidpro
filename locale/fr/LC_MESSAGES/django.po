@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-13 14:51+0000\n"
+"POT-Creation-Date: 2020-02-19 13:29+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -7535,54 +7535,22 @@ msgid ""
 "      "
 msgstr ""
 
-msgid ""
-"\n"
-"        To connect your VK community to RapidPro, you will need to\n"
-"        create a community token with messaging permissions.\n"
-"\n"
-"      "
+msgid "To connect your VK community to RapidPro, you will need to create a community token with messaging permissions."
 msgstr ""
 
-msgid ""
-"\n"
-"        To obtain the name of your community, access it and enter the exact name below.\n"
-"\n"
-"      "
+msgid "To obtain the name of your community, access it and enter the exact name below."
 msgstr ""
 
-msgid ""
-"\n"
-"        To get your community id, go to Manage > API Usage > Callback API > Server Settings.\n"
-"        Copy the whole number you have right after the group_id present in the example json\n"
-"        present in the part regarding the verification of the request.\n"
-"\n"
-"      "
+msgid "To get your community id, go to Manage > API Usage > Callback API > Server Settings. Copy the whole number you have right after the group_id present in the example json present in the part regarding the verification of the request."
 msgstr ""
 
-msgid ""
-"\n"
-"        To obtain the verification string, go to the Manage > API Usage > Callback API > Server Settings section.\n"
-"        You will find the verification string in an excerpt similar to: String to be returned: <code>4412dd18</code>, copy the string and inform below.\n"
-"\n"
-"      "
+msgid "To obtain the verification string, go to the Manage > API Usage > Callback API > Server Settings section. You will find the verification string in an excerpt similar to: String to be returned: <code>4412dd18</code>, copy the string and inform below."
 msgstr ""
 
-msgid ""
-"\n"
-"          The API Version of the configured server must be <code>5.103</code>. To configure this, go to Manage > API Usage > Callback API > Server Settings.\n"
-"\n"
-"\n"
-"        "
+msgid "The API Version of the configured server must be <code>5.103</code>. To configure this, go to Manage > API Usage > Callback API > Server Settings."
 msgstr ""
 
-msgid ""
-"\n"
-"    To complete the configuration of your VK connection, you will need to enter the Webhook URL\n"
-"    in the URL field in the Manage > API Usage > Callback API > Server Settings section. And the Verify Token\n"
-"    in the Secret Key field present in the API Usage > Callback API > Server Settings section.\n"
-"    After this part, go to Manage > API Usage > Callback API > Event Types and check the option: <code>Message received</code>\n"
-"\n"
-"  "
+msgid "To complete the configuration of your VK connection, you will need to enter the Webhook URL in the URL field in the Manage > API Usage > Callback API > Server Settings section. And the Verify Token in the Secret Key field present in the API Usage > Callback API > Server Settings section. After this part, go to Manage > API Usage > Callback API > Event Types and check the option: <code>Message received</code>"
 msgstr ""
 
 msgid ""
@@ -8454,6 +8422,7 @@ msgstr[1] ""
 "\n"
 "            message non-envoyé\n"
 "              "
+
 #, python-format
 msgid ""
 "\n"
@@ -11936,7 +11905,7 @@ msgstr ""
 #~ msgid "Send"
 #~ msgstr "Envoyer l'URL"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                              %(participant_count)s participant\n"
@@ -11970,7 +11939,7 @@ msgstr ""
 #~ msgid "Number of urns which received this broadcast"
 #~ msgstr "L'état actuel de cette émission"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "            To get started you need to add a channel to your account. A channel is a phone number or social network\n"
@@ -12002,7 +11971,7 @@ msgstr ""
 #~ "            message non-envoyé\n"
 #~ "              "
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                Open %(brand)s\n"
@@ -12012,7 +11981,6 @@ msgstr ""
 #~ "            message non-envoyé\n"
 #~ "              "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                  %(last_sync)s\n"
@@ -12057,7 +12025,6 @@ msgstr ""
 #~ "            messages non-envoyés\n"
 #~ "          "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          %(last_sync)s\n"
@@ -12070,7 +12037,7 @@ msgstr ""
 #~ "de temps.\n"
 #~ "</span>"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        We've noticed that the Android phone for %(org_name)s has been connected back to\n"
@@ -12094,7 +12061,6 @@ msgstr ""
 #~ "\n"
 #~ "Cet email vous annonce que le problème de connexion téléphonique Android précédemment signalé, a été résolu."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        You can check the current status of your %(channel_name)s by visiting its\n"
@@ -12103,7 +12069,6 @@ msgstr ""
 #~ "\n"
 #~ "Vous pouvez verifier le statut de votre %(channel_name)s en visitant sa"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        You can check the current status of your %(channel.get_name)s by visiting its\n"
@@ -12112,7 +12077,6 @@ msgstr ""
 #~ "\n"
 #~ "Vous pouvez verifier le statut de votre %(channel.get_name)s en visitant sa"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        We've noticed that the Android phone for %(org_name)s is having trouble sending text messages.  This might be\n"
@@ -12123,7 +12087,6 @@ msgstr ""
 #~ "Nous avons remarqué que le téléphone Android de %(org_name)s recontre des difficultés pour l'envoi de messages textes. Ceci peut être\n"
 #~ "un problème temporaire lié à votre réseau cellulaire, ou une indication que votre téléphone n'a plus de crédit."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        Please check on your phone to make sure it has sufficient credit and can send text messages.  If problems persist\n"
@@ -12136,7 +12099,7 @@ msgstr ""
 #~ "prière de l'éteindre avant de la rallumer. Votre téléphone Android a présentement <strong>%(unsent_count)s</strong>\n"
 #~ "messages qui n'ont pas été envoyé depuis plus d'une heure."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        We've noticed that the Android phone for %(org_name)s is having trouble sending text messages.  This might be\n"
@@ -12152,7 +12115,7 @@ msgstr ""
 #~ "Nous avons remarqué que le téléphone Android de %(org_name)s recontre des difficultés pour l'envoi de messages textes. Ceci peut être\n"
 #~ "un problème temporaire lié à votre réseau cellulaire, ou une indication que votre téléphone n'a plus de crédit."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        Please check on your phone to make sure it has sufficient credit and can send text messages.  If problems persist\n"
@@ -12170,7 +12133,7 @@ msgstr ""
 #~ "prière de l'éteindre avant de la rallumer. Votre téléphone Android a présentement <strong>%(unsent_count)s</strong>\n"
 #~ "messages qui n'ont pas été envoyé depuis plus d'une heure."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        We've noticed that the Android phone for %(org_name)s is having trouble sending text messages.  This might be\n"
@@ -12186,7 +12149,7 @@ msgstr ""
 #~ "Nous avons remarqué que le téléphone Android de %(org_name)s recontre des difficultés pour l'envoi de messages textes. Ceci peut être\n"
 #~ "un problème temporaire lié à votre réseau cellulaire, ou une indication que votre téléphone n'a plus de crédit."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        Please check on your phone to make sure it has sufficient credit and can send text messages.  If problems persist\n"
@@ -12210,7 +12173,7 @@ msgstr ""
 #~ msgid "<p>Ensure this value has at most 160 characters (it has "
 #~ msgstr "<p> Assurez vous que cette valeur a au plus 160 caractères (il a"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                              %(participant_count)s participant\n"
@@ -12236,7 +12199,7 @@ msgstr ""
 #~ "                              %(participant_count)s participants\n"
 #~ "                            "
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                %(count_comma)s recipient\n"
@@ -12267,7 +12230,7 @@ msgstr ""
 #~ "</span>\n"
 #~ "ne sera notifié de cette diffusion."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                unsent message\n"
@@ -12293,7 +12256,7 @@ msgstr ""
 #~ "                 messages non-envoyés\n"
 #~ "              "
 
-#, fuzzy, python-brace-format
+#, fuzzy
 #~| msgid "Using a Local Number"
 #~ msgid "Global name '{name}' isn't a valid name"
 #~ msgstr "Utilisation d'un numéro local"
