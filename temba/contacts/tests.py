@@ -7244,6 +7244,9 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         self.assertEqual(q("%d" % contact.pk), 0)
 
         with AnonymousOrg(self.org):
+            # give mailroom time to clear its org cache
+            time.sleep(5)
+
             # still allow name and field searches
             self.assertEqual(q("trey"), 15)
             self.assertEqual(q("name is mike"), 15)
@@ -7258,6 +7261,9 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
             # anon orgs can search by id, with or without zero padding
             self.assertEqual(q("%d" % contact.pk), 1)
             self.assertEqual(q("%010d" % contact.pk), 1)
+
+        # give mailroom time to clear its org cache
+        time.sleep(5)
 
         # invalid queries
         self.assertRaises(SearchException, q, "((")
