@@ -42,11 +42,7 @@
         If using POST or PUT, you can specify the body of the request using the same variables.
 
     %p
-      %trans The variable
-      <code>{% templatetag openbrace %}{% templatetag openbrace %}quick_replies{% templatetag closebrace %}{% templatetag closebrace %}</code>
-      %trans with method POST or content type URL Encoded will be replaced by
-      <code>&quick_reply=(reply)</code>
-      %trans for each quick reply.
+      %trans The <code>{% templatetag openbrace %}{% templatetag openbrace %}quick_replies{% templatetag closebrace %}{% templatetag closebrace %}</code> variable with method POST or content type URL Encoded will be replaced by <code>&quick_reply=(reply)</code> for each quick reply.
 
     %p
       -blocktrans trimmed with brand.name as brand
