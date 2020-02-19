@@ -57,14 +57,10 @@ class ExternalType(ChannelType):
         else:
             quick_replies_payload["quick_replies"] = "&quick_reply=One&quick_reply=Two&quick_reply=Three"
 
-        content_type_dont_encode = "don't encode"
-
         context["example_url"] = Channel.replace_variables(
-            context["example_url"], quick_replies_payload, content_type_dont_encode
+            context["example_url"], quick_replies_payload, "don't encode"
         )
         context["example_body"] = Channel.replace_variables(
-            context["example_body"],
-            quick_replies_payload,
-            content_type_dont_encode
+            context["example_body"], quick_replies_payload, "don't encode"
         )
         return context
