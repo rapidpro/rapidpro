@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-18 19:17+0000\n"
+"POT-Creation-Date: 2020-02-19 19:25+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4914,10 +4914,34 @@ msgstr ""
 msgid "You can connect an external aggregator or messaging service to %(brand)s using our external API. You can specify parameters to substitute in the URL or body by using these variables:"
 msgstr ""
 
+msgid "the message of the text being sent"
+msgstr ""
+
+msgid "the phone number or address you have configured for this service"
+msgstr ""
+
+msgid "the phone number or address you have configured for this service, with leading +'s removed"
+msgstr ""
+
+msgid "the phone number or URN this message is addressed to"
+msgstr ""
+
+msgid "the phone number or URN this message is addressed to, with leading +'s removed"
+msgstr ""
+
+msgid "the unique ID of this message"
+msgstr ""
+
+msgid "the quick replies for this message, formatted according to send method and content type"
+msgstr ""
+
 msgid "An example that would substitute variables in the URL:"
 msgstr ""
 
 msgid "If using POST or PUT, you can specify the body of the request using the same variables."
+msgstr ""
+
+msgid "The <code><span class=\"variable-sub\">quick_replies</span></code> variable with method GET or content type URL Encoded will be replaced by <code>&quick_reply=(reply)</code> for each quick reply."
 msgstr ""
 
 #, python-format
