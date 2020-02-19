@@ -1235,37 +1235,33 @@ class UpdateChannelForm(forms.ModelForm):
         del kwargs["object"]
 
         super().__init__(*args, **kwargs)
-        self.add_config_fields()
 
-    def add_config_fields(self):
-        pass
+        self.config_fields = []
+
+        if TEL_SCHEME in self.object.schemes:
+            self.add_config_field(
+                Channel.CONFIG_ALLOW_INTERNATIONAL,
+                forms.BooleanField(required=False, help_text=_("Allow international sending")),
+                False,
+            )
+
+    def add_config_field(self, config_key, field, default):
+        field.initial = self.instance.config.get(config_key, default)
+
+        self.fields[config_key] = field
+        self.config_fields.append(config_key)
 
     class Meta:
         model = Channel
         fields = "name", "address", "country", "alert_email"
-        config_fields = []
         readonly = ("address", "country")
         labels = {"address": _("Address")}
         helps = {"address": _("The number or address of this channel")}
 
 
-class UpdateNexmoForm(UpdateChannelForm):
+class UpdateTelChannelForm(UpdateChannelForm):
     class Meta(UpdateChannelForm.Meta):
-        readonly = ("country",)
-
-
-class UpdateAndroidForm(UpdateChannelForm):
-    class Meta(UpdateChannelForm.Meta):
-        readonly = []
-        helps = {"address": _("Phone number of this device")}
-
-
-class UpdateTwitterForm(UpdateChannelForm):
-    class Meta(UpdateChannelForm.Meta):
-        fields = "name", "address", "alert_email"
-        readonly = ("address",)
-        labels = {"address": _("Handle")}
-        helps = {"address": _("Twitter handle of this channel")}
+        helps = {"address": _("Phone number of this channel")}
 
 
 class ChannelCRUDL(SmartCRUDL):
@@ -1654,9 +1650,8 @@ class ChannelCRUDL(SmartCRUDL):
             return kwargs
 
         def pre_save(self, obj):
-            if obj.config:
-                for field in self.form.Meta.config_fields:  # pragma: needs cover
-                    obj.config[field] = self.form.cleaned_data[field]
+            for field in self.form.config_fields:
+                obj.config[field] = self.form.cleaned_data[field]
             return obj
 
         def post_save(self, obj):

@@ -1,3 +1,8 @@
+v5.3.55
+----------
+ * Allow editing of allow_international on channel update forms
+ * Use consistent format for datetimes like created_on on contact list page
+
 v5.3.54
 ----------
  * Hide loader on start flow dialog when there are no channels
