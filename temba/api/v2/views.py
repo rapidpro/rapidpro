@@ -65,6 +65,7 @@ from .serializers import (
     FlowStartReadSerializer,
     FlowStartWriteSerializer,
     GlobalReadSerializer,
+    GlobalWriteSerializer,
     LabelReadSerializer,
     LabelWriteSerializer,
     MsgBulkActionSerializer,
@@ -1953,7 +1954,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class GlobalsEndpoint(ListAPIMixin, BaseAPIView):
+class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list, create, and update active globals on your account.
 
@@ -2036,10 +2037,24 @@ class GlobalsEndpoint(ListAPIMixin, BaseAPIView):
     permission = "globals.global_api"
     model = Global
     serializer_class = GlobalReadSerializer
+    write_serializer_class = GlobalWriteSerializer
     pagination_class = ModifiedOnCursorPagination
+    lookup_params = {"key": "key"}
 
     def filter_queryset(self, queryset):
-        return self.filter_before_after(queryset, "modified_on")
+        params = self.request.query_params
+        # filter by key (optional)
+        key = params.get("key")
+        if key:
+            queryset = queryset.filter(key=key)
+
+        # filter by modified (optional)
+        modified_on = params.get("modified_on")
+        if modified_on:
+            return self.filter_before_after(queryset, "modified_on")
+
+        return queryset.filter(is_active=True)
+
 
     @classmethod
     def get_read_explorer(cls):
@@ -2070,7 +2085,7 @@ class GlobalsEndpoint(ListAPIMixin, BaseAPIView):
             "url": reverse("api.v2.globals"),
             "slug": "globals-write",
             "params": [{"name": "key", "required": False, "help": "Key of an existing global to update"}],
-            "fields": [{"name": "value", "required": True, "help": "the new value of the global"}],
+            "fields": [{"name": "name", "required": False, "help": "the Name value of the global"}, {"name": "value", "required": True, "help": "the new value of the global"}],
         }
 
 class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):

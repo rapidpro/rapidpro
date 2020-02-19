@@ -1032,6 +1032,40 @@ class GlobalReadSerializer(ReadSerializer):
         model = Global
         fields = ("key", "name", "value", "modified_on")
 
+class GlobalWriteSerializer(WriteSerializer):
+    value = serializers.CharField(required=True)
+    name = serializers.CharField(
+        required=False,
+        max_length=Global.MAX_NAME_LEN,
+        validators=[UniqueForOrgValidator(queryset=Global.objects.filter(is_active=True), ignore_case=True)],
+    )
+
+    def validate_name(self, value):
+        if not Global.is_valid_name(value):
+            raise serializers.ValidationError("Name contains illegal characters.")
+        return value
+
+    def validate(self, data):
+        key = self.context["lookup_values"]["key"]
+        value = data["value"]
+        # make sure this combination doesn't already exist
+        if Global.objects.filter(
+            key=key, value=value, is_active=True
+        ):  # pragma: needs cover
+            raise serializers.ValidationError("This Global is already set to this value")
+
+        return data
+
+    def save(self):
+        value = self.validated_data["value"]
+        name = self.validated_data["name"]
+        print(self.validated_data, "dsdssd")
+        if self.instance:
+            self.instance.value = value
+            self.instance.save(update_fields=("value",))
+            return self.instance
+        else:
+            return Global.get_or_create(self.context["org"], self.context["user"], "", name, value)
 
 class LabelReadSerializer(ReadSerializer):
     count = serializers.SerializerMethodField()
