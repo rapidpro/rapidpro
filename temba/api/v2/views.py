@@ -2005,10 +2005,10 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     You will receive a global object as a response if successful:
 
         {
-        "key": "org_name",
-        "name": "Org Name",
-        "value": "Acme Ltd",
-        "modified_on": "2013-02-27T09:06:15.456"
+            "key": "org_name",
+            "name": "Org Name",
+            "value": "Acme Ltd",
+            "modified_on": "2013-02-27T09:06:15.456"
         }
 
     ## Updating a Global
@@ -2025,10 +2025,10 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     You will receive the updated group object as a response if successful:
 
         {
-        "key": "org_name",
-        "name": "Org Name",
-        "value": "Acme Ltd",
-        "modified_on": "2013-02-27T09:06:15.456"
+            "key": "org_name",
+            "name": "Org Name",
+            "value": "Acme Ltd",
+            "modified_on": "2013-02-27T09:06:15.456"
         }
     """
 

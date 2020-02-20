@@ -1046,17 +1046,6 @@ class GlobalWriteSerializer(WriteSerializer):
             raise serializers.ValidationError("Name contains illegal characters.")
         return value
 
-    def validate(self, data):
-        key = self.context["lookup_values"]["key"]
-        value = data["value"]
-        # make sure this combination doesn't already exist
-        if Global.objects.filter(
-            key=key, value=value, is_active=True
-        ):  # pragma: needs cover
-            raise serializers.ValidationError("This Global is already set to this value")
-
-        return data
-
     def save(self):
         value = self.validated_data["value"]
         if self.instance:
@@ -1065,7 +1054,8 @@ class GlobalWriteSerializer(WriteSerializer):
             return self.instance
         else:
             name = self.validated_data["name"]
-            return Global.get_or_create(self.context["org"], self.context["user"], "", name, value)
+            key = Global.make_key(name)
+            return Global.get_or_create(self.context["org"], self.context["user"], key, name, value)
 
 class LabelReadSerializer(ReadSerializer):
     count = serializers.SerializerMethodField()
