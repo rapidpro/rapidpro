@@ -1065,7 +1065,10 @@ class GlobalWriteSerializer(WriteSerializer):
         else:
             name = self.validated_data["name"]
             key = Global.make_key(name)
+            if not Global.is_valid_key(key):
+                raise serializers.ValidationError("Key is invalid")
             return Global.get_or_create(self.context["org"], self.context["user"], key, name, value)
+
 
 class LabelReadSerializer(ReadSerializer):
     count = serializers.SerializerMethodField()

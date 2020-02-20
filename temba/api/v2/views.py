@@ -1986,7 +1986,7 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                 ...
             ]
         }
-    
+
     ## Adding a Global
 
     A **POST** can be used to create a new Global. Don't specify a key as this will be generated for you.
@@ -2013,7 +2013,7 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     ## Updating a Global
 
-    A **POST** can also be used to update an existing contact group if you specify its UUID in the URL.
+    A **POST** can also be used to update an existing global if you specify its key in the URL.
 
     Example:
 
@@ -2022,7 +2022,7 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             "value": "Acme Ltd"
         }
 
-    You will receive the updated group object as a response if successful:
+    You will receive the updated global object as a response if successful:
 
         {
             "key": "org_name",
@@ -2054,7 +2054,6 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
         return queryset.filter(is_active=True)
 
-
     @classmethod
     def get_read_explorer(cls):
         return {
@@ -2076,6 +2075,7 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                 {"name": "key", "required": False, "help": "A global key filter by"},
             ],
         }
+
     @classmethod
     def get_write_explorer(cls):
         return {
@@ -2084,8 +2084,12 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             "url": reverse("api.v2.globals"),
             "slug": "globals-write",
             "params": [{"name": "key", "required": False, "help": "Key of an existing global to update"}],
-            "fields": [{"name": "name", "required": False, "help": "the Name value of the global"}, {"name": "value", "required": True, "help": "the new value of the global"}],
+            "fields": [
+                {"name": "name", "required": False, "help": "the Name value of the global"},
+                {"name": "value", "required": True, "help": "the new value of the global"},
+            ],
         }
+
 
 class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
