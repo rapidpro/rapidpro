@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-19 13:29+0000\n"
+"POT-Creation-Date: 2020-02-18 19:17+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -743,6 +743,10 @@ msgstr ""
 #| msgid "Connect your Android phone"
 msgid "Connect Android Channel"
 msgstr "Conectar su teléfono Android"
+
+#, fuzzy
+msgid "Phone number of this device"
+msgstr "El número de teléfono para esta llamada"
 
 msgid ""
 "\n"
@@ -2832,6 +2836,10 @@ msgstr "Editar Nombre"
 msgid "The provided Twitter credentials do not appear to be valid."
 msgstr ""
 
+#, fuzzy
+msgid "Twitter handle of this channel"
+msgstr "El nombre de esta etiqueta"
+
 msgid "Use a <a href=\"http://verboice.instedd.org\">Verboice</a> connection to leverage in-country SIP connections for building voice (IVR) flows."
 msgstr ""
 
@@ -2863,9 +2871,6 @@ msgstr "Alarmas del transmisor"
 msgid "The Verboice channel that will be handling your calls"
 msgstr ""
 
-msgid "The message send to user who have not yet subscribed to the channel, changes may take up to 30 seconds to take effect"
-msgstr ""
-
 msgid ""
 "\n"
 "        Connect a <a href=\"http://viber.com/en/\">Viber</a> public channel to send and receive messages to\n"
@@ -2881,6 +2886,9 @@ msgid ""
 msgstr ""
 
 msgid "The authentication token provided by Viber"
+msgstr ""
+
+msgid "The message send to user who have not yet subscribed to the channel, changes may take up to 30 seconds to take effect"
 msgstr ""
 
 msgid ""
@@ -3204,17 +3212,16 @@ msgstr "Ese número ya está conectado con otra cuenta - %s (%s)"
 msgid "An error occurred connecting your Twilio number, try removing your Twilio account, reconnecting it and trying again."
 msgstr ""
 
+msgid "Allow international sending"
+msgstr ""
+
 #, fuzzy
 msgid "The number or address of this channel"
 msgstr "El nombre de esta etiqueta"
 
 #, fuzzy
-msgid "Phone number of this device"
+msgid "Phone number of this channel"
 msgstr "El número de teléfono para esta llamada"
-
-#, fuzzy
-msgid "Twitter handle of this channel"
-msgstr "El nombre de esta etiqueta"
 
 msgid "Disable Bulk Sending"
 msgstr "Deshabilitar envío masivo"
