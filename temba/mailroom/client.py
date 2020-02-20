@@ -81,9 +81,9 @@ class MailroomClient:
     def flow_inspect(self, org_id, flow):
         payload = {"flow": flow}
 
-        # can't do validation during tests because mailroom can't see unit test data created in a transaction
-        if not settings.TESTING:  # pragma: no cover
-            payload["validate_with_org_id"] = org_id
+        # can't do dependency checking during tests because mailroom can't see unit test data created in a transaction
+        if not settings.TESTING:
+            payload["org_id"] = org_id
 
         return self._request("flow/inspect", payload)
 
@@ -103,8 +103,8 @@ class MailroomClient:
 
         return self._request("contact/search", payload)
 
-    def parse_query(self, org_id, query):
-        payload = {"org_id": org_id, "query": query}
+    def parse_query(self, org_id, query, group_uuid=""):
+        payload = {"org_id": org_id, "query": query, "group_uuid": group_uuid}
 
         return self._request("contact/parse_query", payload)
 
