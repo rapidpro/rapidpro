@@ -14,13 +14,15 @@ class VKType(ChannelType):
     code = "VK"
     category = ChannelType.Category.SOCIAL_MEDIA
 
+    CONFIG_COMMUNITY_NAME = "community_name"
+
     courier_url = r"^vk/(?P<uuid>[a-z0-9\-]+)/receive"
 
     name = "VK"
     icon = "icon-vk"
 
     claim_blurb = _(
-        """Add a VK bot to send and receive messages on behalf of a VK community
+        """Add a <a href="https://vk.com/">VK</a> bot to send and receive messages on behalf of a VK community
         for free. You will need to create an access token for your community first.
         """
     )
