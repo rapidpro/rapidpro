@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-19 19:00+0000\n"
+"POT-Creation-Date: 2020-02-20 15:50+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -6508,10 +6508,42 @@ msgstr ""
 "Você pode conectar a um facilitador externo ou serviço de mensagens para o Textit usando nossa API externa. Quando o Textit precisa enviar uma \n"
 "mensagem ele vai fazer um POST na URL que você especificar abaixo e Enviar com os parâmetros 'para' e 'texto'. "
 
+#, fuzzy
+msgid "the message of the text being sent"
+msgstr "A mensagem SMS atual que foi enviada"
+
+#, fuzzy
+#| msgid "The phone number or short code you are connecting"
+msgid "the phone number or address you have configured for this service"
+msgstr "O número de telefone ou número curto com o qual você está se conectando"
+
+msgid "the phone number or address you have configured for this service, with leading +'s removed"
+msgstr ""
+
+#, fuzzy
+#| msgid "The phone number for this call"
+msgid "the phone number or URN this message is addressed to"
+msgstr "O número de telefone para esta chamada"
+
+msgid "the phone number or URN this message is addressed to, with leading +'s removed"
+msgstr ""
+
+#, fuzzy
+#| msgid "The type of this message"
+msgid "the unique ID of this message"
+msgstr "O tipo dessa mensagem"
+
+msgid "the quick replies for this message, formatted according to send method and content type"
+msgstr ""
+
 msgid "An example that would substitute variables in the URL:"
 msgstr ""
 
 msgid "If using POST or PUT, you can specify the body of the request using the same variables."
+msgstr ""
+
+#, python-format
+msgid "The %(quick_replies_var)s variable with method GET or content type URL Encoded will be replaced by %(quick_replies_output)s for each quick reply."
 msgstr ""
 
 #, fuzzy, python-format

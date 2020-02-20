@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-19 18:47+0000\n"
+"POT-Creation-Date: 2020-02-20 15:50+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -6978,6 +6978,34 @@ msgstr ""
 "      "
 
 #, fuzzy
+msgid "the message of the text being sent"
+msgstr "El mensaje de texto real que se envió"
+
+#, fuzzy
+#| msgid "The phone number or short code you are connecting"
+msgid "the phone number or address you have configured for this service"
+msgstr "El número de teléfono o código abreviado al que se está conectando"
+
+msgid "the phone number or address you have configured for this service, with leading +'s removed"
+msgstr ""
+
+#, fuzzy
+#| msgid "The phone number for this call"
+msgid "the phone number or URN this message is addressed to"
+msgstr "El número de teléfono para esta llamada"
+
+msgid "the phone number or URN this message is addressed to, with leading +'s removed"
+msgstr ""
+
+#, fuzzy
+#| msgid "The type of this message"
+msgid "the unique ID of this message"
+msgstr "El tipo de este mensaje"
+
+msgid "the quick replies for this message, formatted according to send method and content type"
+msgstr ""
+
+#, fuzzy
 #| msgid ""
 #| "\n"
 #| "        An example that would substitute variables in the URL:\n"
@@ -6991,6 +7019,10 @@ msgstr ""
 "      "
 
 msgid "If using POST or PUT, you can specify the body of the request using the same variables."
+msgstr ""
+
+#, python-format
+msgid "The %(quick_replies_var)s variable with method GET or content type URL Encoded will be replaced by %(quick_replies_output)s for each quick reply."
 msgstr ""
 
 #, fuzzy, python-format
