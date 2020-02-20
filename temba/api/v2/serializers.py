@@ -1032,6 +1032,7 @@ class GlobalReadSerializer(ReadSerializer):
         model = Global
         fields = ("key", "name", "value", "modified_on")
 
+
 class GlobalWriteSerializer(WriteSerializer):
     value = serializers.CharField(required=True)
     name = serializers.CharField(
@@ -1058,13 +1059,12 @@ class GlobalWriteSerializer(WriteSerializer):
 
     def save(self):
         value = self.validated_data["value"]
-        name = self.validated_data["name"]
-        print(self.validated_data, "dsdssd")
         if self.instance:
             self.instance.value = value
-            self.instance.save(update_fields=("value",))
+            self.instance.save(update_fields=("value", "modified_on"))
             return self.instance
         else:
+            name = self.validated_data["name"]
             return Global.get_or_create(self.context["org"], self.context["user"], "", name, value)
 
 class LabelReadSerializer(ReadSerializer):

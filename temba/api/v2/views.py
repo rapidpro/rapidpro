@@ -2049,8 +2049,9 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             queryset = queryset.filter(key=key)
 
         # filter by modified (optional)
-        modified_on = params.get("modified_on")
-        if modified_on:
+        before = params.get("before")
+        after = params.get("after")
+        if before or after:
             return self.filter_before_after(queryset, "modified_on")
 
         return queryset.filter(is_active=True)
