@@ -81,7 +81,7 @@
     -spaceless
       -if object.get_broadcast
         -trans "The next message will be sent on"
-        <span class='attn next-fire'>{% pretty_datetime object.next_fire %}</span>.
+        <span class='attn next-fire'>{{ object.next_fire|naturaltime }}</span>.
 
     -if not object.repeat_period == 'O'
       -if object.repeat_period == 'W'

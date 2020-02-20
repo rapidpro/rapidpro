@@ -7,7 +7,7 @@ from temba.tests import MockResponse, TembaTest
 from temba.utils import json
 
 from ...models import Channel
-from .type import CONFIG_WELCOME_MESSAGE
+from .views import CONFIG_WELCOME_MESSAGE
 
 
 class ViberPublicTypeTest(TembaTest):
