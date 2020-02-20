@@ -171,8 +171,16 @@
       %a.pull-right.show-all.upcoming
         more
 
-  %h5
-    -trans "Message History"
+  %h5{style:"margin-top: 40px;"}
+    -trans "History"
+
+    .flow-event-display-selector.pull-right
+      %a.is-active(href="#")
+        -trans "Full"
+      |
+      %a.summary-events-only(href="#")
+        -trans "Summary"
+
   %table.activity.history{style:'padding:0;margin:0'}
     // poll for our most recent messages
 
@@ -248,6 +256,18 @@
             cursor: pointer;
           }
         }
+
+        .flow-event-display-selector {
+          a {
+              display: inline-block;
+              &.is-active {
+                cursor: none;
+                color: #999999;
+                cursor: text;
+                text-decoration: none;
+              }
+            }
+          }
 
         table.activity {
 
@@ -332,6 +352,10 @@
               }
             }
 
+            &.detail-event {
+              display: table-row;
+            }
+
             &.non-msg {
               background: #fafafa;
 
@@ -345,6 +369,14 @@
 
               .icon {
                 color: rgba(0, 0, 0, 0.20);
+              }
+            }
+          }
+
+          &.summary-events-only {
+            tbody {
+              tr.detail-event {
+                display: none;
               }
             }
           }
@@ -465,6 +497,29 @@
     var startTime = null;
 
     $(document).ready(function() {
+      $(".flow-event-display-selector a").each(function() {
+        var onlySummary = getCookie('rp-summaryEventsDisplay') === 'summary';
+        if(onlySummary && $(this).hasClass('summary-events-only')) {
+          $(this).parent('.flow-event-display-selector').children('a').removeClass('is-active');
+          $(this).addClass('is-active');
+          $('table.activity.history').addClass('summary-events-only');
+        }
+      })
+
+
+
+      $(".flow-event-display-selector a").on('click', function() {
+        $(this).parent('.flow-event-display-selector').children('a').removeClass('is-active');
+        $(this).addClass('is-active');
+        if($(this).hasClass('summary-events-only')) {
+          $('table.activity.history').addClass('summary-events-only');
+          document.cookie = "rp-summaryEventsDisplay=summary;path=/;expires=-1";
+        } else {
+          $('table.activity.history').removeClass('summary-events-only');
+          document.cookie = "rp-summaryEventsDisplay=all;path=/;expires=-1";
+        }
+        return false;
+      });
 
       $('.show-all.upcoming').live('click', function() {
         $(this).hide();
