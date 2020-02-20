@@ -1989,9 +1989,8 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     
     ## Adding a Global
 
-    A **POST** can be used to create a new Global. Don't specify a UUID as this will be generated for you.
+    A **POST** can be used to create a new Global. Don't specify a key as this will be generated for you.
 
-     * **key** - the key of the global
      * **name** - the name of the global
      * **value** - the value of the global
 
@@ -1999,7 +1998,6 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
         POST /api/v2/global.json
         {
-            "key": "org_name",
             "name": "Org Name",
             "value": "Acme Ltd"
         }
@@ -2075,14 +2073,14 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                     "required": False,
                     "help": "Only return globals modified after this date, ex: 2015-01-28T18:00:00.000",
                 },
-                {"key": "key", "required": False, "help": "A global key filter by"},
+                {"name": "key", "required": False, "help": "A global key filter by"},
             ],
         }
     @classmethod
     def get_write_explorer(cls):
         return {
             "method": "POST",
-            "title": "Update Globals ",
+            "title": "Add or Update Globals ",
             "url": reverse("api.v2.globals"),
             "slug": "globals-write",
             "params": [{"name": "key", "required": False, "help": "Key of an existing global to update"}],
