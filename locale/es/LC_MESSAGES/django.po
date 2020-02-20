@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-19 21:04+0000\n"
+"POT-Creation-Date: 2020-02-20 15:50+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -8335,8 +8335,12 @@ msgstr ""
 msgid "repeats weekly"
 msgstr ""
 
-msgid "Message History"
+#, fuzzy
+msgid "History"
 msgstr "Historial de mensajes"
+
+msgid "Full"
+msgstr ""
 
 msgid "Delete Contact"
 msgstr "Borrar contacto"
@@ -11914,6 +11918,9 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Message History"
+#~ msgstr "Historial de mensajes"
 
 #, fuzzy
 #~| msgid "Any labels on this flow"
