@@ -1,3 +1,10 @@
+v5.3.57
+----------
+ * Update flow editor 1.7.16
+ * Fix translations on external channel claim page
+ * Add tabs to toggle between full flow event history and summary of messages
+ * Increase the max height on the flow results export modal dialog
+
 v5.3.56
 ----------
  * Add params to flow starts API
