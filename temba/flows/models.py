@@ -1615,19 +1615,6 @@ class Flow(TembaModel):
             identifier = dep.get("uuid", dep.get("key"))
             identifiers[dep["type"]].append(identifier)
 
-        # fields won't have been included in old imports so may need to be lazily created here
-        if identifiers["field"]:
-            active_org_fields = set(
-                ContactField.user_fields.active_for_org(org=self.org).values_list("key", flat=True)
-            )
-
-            fields_to_create = set(identifiers["field"]).difference(active_org_fields)
-
-            # create any field that doesn't already exist
-            for field in fields_to_create:
-                if ContactField.is_valid_key(field):
-                    ContactField.get_or_create(self.org, self.modified_by, field)
-
         # globals aren't included in exports so they're created here too if they don't exist, with blank values
         if identifiers["global"]:
             org_globals = set(self.org.globals.filter(is_active=True).values_list("key", flat=True))
