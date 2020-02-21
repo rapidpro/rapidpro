@@ -300,7 +300,15 @@ class FlowCRUDL(SmartCRUDL):
             # we are looking for a specific revision, fetch it and migrate it forward
             if revision_id:
                 revision = FlowRevision.objects.get(flow=flow, pk=revision_id)
-                return JsonResponse(revision.get_definition_json(to_version=flow_version))
+                definition = revision.get_definition_json(to_version=flow_version)
+
+                # TODO: this is only needed to support the legacy editor
+                if Version(flow_version) < Version(Flow.INITIAL_GOFLOW_VERSION):
+                    return JsonResponse(definition)
+
+                # get our metadata
+                flow_info = mailroom.get_client().flow_inspect(flow.org_id, definition)
+                return JsonResponse(dict(definition=definition, metadata=Flow.get_metadata(flow_info)))
 
             # get a list of all revisions, these should be reasonably pruned already
             revisions = []
@@ -360,6 +368,7 @@ class FlowCRUDL(SmartCRUDL):
                         "status": "success",
                         "saved_on": json.encode_datetime(flow.saved_on, micros=True),
                         "revision": revision.as_json(),
+                        "metadata": flow.metadata,
                     }
                 )
 

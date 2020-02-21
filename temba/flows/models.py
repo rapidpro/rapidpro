@@ -139,12 +139,14 @@ class Flow(TembaModel):
     METADATA_DEPENDENCIES = "dependencies"
     METADATA_WAITING_EXIT_UUIDS = "waiting_exit_uuids"
     METADATA_PARENT_REFS = "parent_refs"
+    METADATA_ISSUES = "issues"
 
     # items in the response from mailroom flow inspection
     INSPECT_RESULTS = "results"
     INSPECT_DEPENDENCIES = "dependencies"
     INSPECT_WAITING_EXITS = "waiting_exits"
     INSPECT_PARENT_REFS = "parent_refs"
+    INSPECT_ISSUES = "issues"
 
     # items in the flow definition JSON
     DEFINITION_UUID = "uuid"
@@ -1094,6 +1096,16 @@ class Flow(TembaModel):
         return metadata
 
     @classmethod
+    def get_metadata(cls, flow_info):
+        return {
+            Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
+            Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
+            Flow.METADATA_WAITING_EXIT_UUIDS: flow_info[Flow.INSPECT_WAITING_EXITS],
+            Flow.METADATA_PARENT_REFS: flow_info[Flow.INSPECT_PARENT_REFS],
+            Flow.METADATA_ISSUES: flow_info[Flow.INSPECT_ISSUES],
+        }
+
+    @classmethod
     def detect_invalid_cycles(cls, json_dict):
         """
         Checks for invalid cycles in our flow
@@ -1242,13 +1254,7 @@ class Flow(TembaModel):
         with transaction.atomic():
             # update our flow fields
             self.base_language = definition.get(Flow.DEFINITION_LANGUAGE, None)
-
-            self.metadata = {
-                Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
-                Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
-                Flow.METADATA_WAITING_EXIT_UUIDS: flow_info[Flow.INSPECT_WAITING_EXITS],
-                Flow.METADATA_PARENT_REFS: flow_info[Flow.INSPECT_PARENT_REFS],
-            }
+            self.metadata = Flow.get_metadata(flow_info)
             self.saved_by = user
             self.saved_on = timezone.now()
             self.version_number = Flow.CURRENT_SPEC_VERSION
