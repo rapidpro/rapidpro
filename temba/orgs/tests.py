@@ -3861,8 +3861,8 @@ class BulkExportTest(TembaTest):
 
         with patch("temba.contacts.search.parse_query") as mock:
             mock.side_effect = [
-                ParsedQuery("facts_per_day = 1", ["facts_per_day"], {}),
-                ParsedQuery('likes_cats = "true"', ["likes_cats"], {}),
+                ParsedQuery("facts_per_day = 1", ["facts_per_day"], {}, allow_as_group=True),
+                ParsedQuery('likes_cats = "true"', ["likes_cats"], {}, allow_as_group=True),
             ]
 
             self.org.import_app(data, self.admin, site="http://rapidpro.io")
@@ -3898,8 +3898,8 @@ class BulkExportTest(TembaTest):
         """
         with patch("temba.contacts.search.parse_query") as mock:
             mock.side_effect = [
-                ParsedQuery("facts_per_day = 1", ["facts_per_day"], {}),
-                ParsedQuery('likes_cats = "true"', ["likes_cats"], {}),
+                ParsedQuery("facts_per_day = 1", ["facts_per_day"], {}, allow_as_group=True),
+                ParsedQuery('likes_cats = "true"', ["likes_cats"], {}, allow_as_group=True),
             ]
             self.import_file("cataclysm")
 

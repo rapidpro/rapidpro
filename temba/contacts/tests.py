@@ -836,7 +836,9 @@ class ContactGroupCRUDLTest(TembaTest):
         # dependent on id
         with MockParseQuery("id = 123", ["id"], allow_as_group=False):
             response = self.client.post(url, dict(name="Frank", query="id = 123"))
-            self.assertFormError(response, "form", "query", 'You cannot create a dynamic group based on "id".')
+            self.assertFormError(
+                response, "form", "query", 'You cannot create a dynamic group based on "id" or "group".'
+            )
 
         with MockParseQuery('twitter = "hola"', ["twitter"]):
             response = self.client.post(url, dict(name="Frank", query='twitter is "hola"'))
