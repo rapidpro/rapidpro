@@ -210,6 +210,12 @@ class ContactField(TembaModelField):
         return self.get_queryset().filter(Q(uuid=value) | Q(id__in=contact_ids_with_urn)).first()
 
 
+class ContactWithURNField(ContactField):
+    def to_representation(self, obj):
+        urn = obj.urns.first()
+        return {"uuid": obj.uuid, "urn": urn.identity if urn else None, "name": obj.name}
+
+
 class ContactFieldField(TembaModelField):
     model = ContactFieldModel
     lookup_fields = ("key",)

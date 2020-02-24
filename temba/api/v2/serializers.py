@@ -889,7 +889,7 @@ class FlowRunReadSerializer(ReadSerializer):
     }
 
     flow = fields.FlowField()
-    contact = fields.ContactField()
+    contact = fields.ContactWithURNField()
     start = serializers.SerializerMethodField()
     path = serializers.SerializerMethodField()
     values = serializers.SerializerMethodField()
