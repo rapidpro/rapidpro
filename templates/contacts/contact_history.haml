@@ -163,7 +163,7 @@
         %span.short
           {% short_datetime event.created_on %}
         %span.long.hide
-          {% pretty_datetime event.created_on %}
+          {% format_datetime event.created_on %}
 
       .log-icon
         -if event.type == 'msg_created' or event.type == 'msg_received' or event.type == 'call_started'

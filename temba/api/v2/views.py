@@ -3155,7 +3155,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **groups** - the list of groups that were started in the flow (objects)
      * **restart_particpants** - whether the contacts were restarted in this flow (boolean)
      * **status** - the status of this flow start
-     * **extra** - the dictionary of extra parameters passed to the flow start (object)
+     * **params** - the dictionary of extra parameters passed to the flow start (object)
      * **created_on** - the datetime when this flow start was created (datetime)
      * **modified_on** - the datetime when this flow start was modified (datetime)
 
@@ -3180,7 +3180,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                     ],
                     "restart_participants": true,
                     "status": "complete",
-                    "extra": {
+                    "params": {
                         "first_name": "Ryan",
                         "last_name": "Lewis"
                     },
@@ -3202,7 +3202,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **contacts** - the UUIDs of the contacts you want to start in this flow (array of up to 100 strings, optional)
      * **urns** - the URNs you want to start in this flow (array of up to 100 strings, optional)
      * **restart_participants** - whether to restart participants already in this flow (optional, defaults to true)
-     * **extra** - a dictionary of extra parameters to pass to the flow start (accessible via @trigger in your flow)
+     * **params** - a dictionary of extra parameters to pass to the flow start (accessible via @trigger.params in your flow)
 
     Example:
 
@@ -3212,7 +3212,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             "groups": ["f5901b62-ba76-4003-9c62-72fdacc15515"],
             "contacts": ["f5901b62-ba76-4003-9c62-fjjajdsi15553"],
             "urns": ["twitter:sirmixalot", "tel:+12065551212"],
-            "extra": {"first_name": "Ryan", "last_name": "Lewis"}
+            "params": {"first_name": "Ryan", "last_name": "Lewis"}
         }
 
     Response is the created flow start:
@@ -3228,7 +3228,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             ],
             "restart_participants": true,
             "status": "complete",
-            "extra": {
+            "params": {
                 "first_name": "Ryan",
                 "last_name": "Lewis"
             },

@@ -3781,6 +3781,35 @@ class APITest(TembaTest):
         mock_async_start.assert_called_once()
         mock_async_start.reset_mock()
 
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "urns": ["tel:+12067791212"],
+                "contacts": [self.joe.uuid],
+                "groups": [hans_group.uuid],
+                "flow": flow.uuid,
+                "restart_participants": False,
+                "extra": {"first_name": "Ryan", "last_name": "Lewis"},
+                "params": {"first_name": "Bob", "last_name": "Marley"},
+            },
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+        # assert our new start
+        start3 = flow.starts.get(pk=response.json()["id"])
+        self.assertEqual(start3.flow, flow)
+        self.assertTrue(start3.contacts.filter(urns__path="+12067791212"))
+        self.assertTrue(start3.contacts.filter(id=self.joe.id))
+        self.assertTrue(start3.groups.filter(id=hans_group.id))
+        self.assertFalse(start3.restart_participants)
+        self.assertTrue(start3.extra, {"first_name": "Bob", "last_name": "Marley"})
+
+        # check we tried to start the new flow start
+        mock_async_start.assert_called_once()
+        mock_async_start.reset_mock()
+
         # try to start a flow with no contact/group/URN
         response = self.postJSON(url, None, {"flow": flow.uuid, "restart_participants": True})
         self.assertResponseError(response, "non_field_errors", "Must specify at least one group, contact or URN")
@@ -3816,6 +3845,37 @@ class APITest(TembaTest):
         )
 
         self.assertResponseError(response, "extra", "Must be a valid JSON object")
+
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "urns": ["tel:+12067791212"],
+                "contacts": [self.joe.uuid],
+                "groups": [hans_group.uuid],
+                "flow": flow.uuid,
+                "restart_participants": False,
+                "params": "YES",
+            },
+        )
+
+        self.assertResponseError(response, "params", "Must be a valid JSON object")
+
+        # a list is valid JSON, but extra has to be a dict
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "urns": ["tel:+12067791212"],
+                "contacts": [self.joe.uuid],
+                "groups": [hans_group.uuid],
+                "flow": flow.uuid,
+                "restart_participants": False,
+                "params": [1],
+            },
+        )
+
+        self.assertResponseError(response, "params", "Must be a valid JSON object")
 
         # invalid URN
         response = self.postJSON(
@@ -3854,20 +3914,21 @@ class APITest(TembaTest):
         response = self.fetchJSON(url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["next"], None)
-        self.assertResultsById(response, [start2, start1])
+        self.assertResultsById(response, [start3, start2, start1])
         self.assertEqual(
             response.json()["results"][0],
             {
-                "id": start2.id,
-                "uuid": str(start2.uuid),
+                "id": start3.id,
+                "uuid": str(start3.uuid),
                 "flow": {"uuid": flow.uuid, "name": "Favorites"},
                 "contacts": [{"uuid": self.joe.uuid, "name": "Joe Blow"}, {"uuid": anon_contact.uuid, "name": None}],
                 "groups": [{"uuid": hans_group.uuid, "name": "hans"}],
                 "restart_participants": False,
                 "status": "pending",
-                "extra": {"first_name": "Ryan", "last_name": "Lewis"},
-                "created_on": format_datetime(start2.created_on),
-                "modified_on": format_datetime(start2.modified_on),
+                "extra": {"first_name": "Bob", "last_name": "Marley"},
+                "params": {"first_name": "Bob", "last_name": "Marley"},
+                "created_on": format_datetime(start3.created_on),
+                "modified_on": format_datetime(start3.modified_on),
             },
         )
 

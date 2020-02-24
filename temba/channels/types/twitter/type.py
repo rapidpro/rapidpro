@@ -7,9 +7,8 @@ from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import TWITTER_SCHEME, TWITTERID_SCHEME
 
 from ...models import ChannelType
-from ...views import UpdateTwitterForm
 from .client import TwitterClient
-from .views import ClaimView
+from .views import ClaimView, UpdateForm
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +32,7 @@ class TwitterType(ChannelType):
         Twitter Activity API.</a> You will have to apply for Twitter API access and create a Twitter application."""
     )
     claim_view = ClaimView
-
-    update_form = UpdateTwitterForm
+    update_form = UpdateForm
 
     schemes = [TWITTER_SCHEME, TWITTERID_SCHEME]
     show_config_page = False

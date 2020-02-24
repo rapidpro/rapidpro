@@ -2798,10 +2798,10 @@ class ContactTest(TembaTest):
         result = WebHookResult.objects.get()
 
         item = {"type": "webhook_called", "obj": result}
-        self.assertEqual(history_class(item), "non-msg")
+        self.assertEqual(history_class(item), "non-msg detail-event")
 
         result.status_code = 404
-        self.assertEqual(history_class(item), "non-msg warning")
+        self.assertEqual(history_class(item), "non-msg warning detail-event")
 
         call = self.create_incoming_call(self.reminder_flow, contact)
 
@@ -2904,7 +2904,7 @@ class ContactTest(TembaTest):
         )
         item = {"type": "airtime_transferred", "obj": transfer}
         self.assertEqual(history_icon(item), '<span class="glyph icon-cash"></span>')
-        self.assertEqual(history_class(item), "non-msg")
+        self.assertEqual(history_class(item), "non-msg detail-event")
 
     def test_get_scheduled_messages(self):
         self.just_joe = self.create_group("Just Joe", [self.joe])
@@ -7244,6 +7244,9 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         self.assertEqual(q("%d" % contact.pk), 0)
 
         with AnonymousOrg(self.org):
+            # give mailroom time to clear its org cache
+            time.sleep(5)
+
             # still allow name and field searches
             self.assertEqual(q("trey"), 15)
             self.assertEqual(q("name is mike"), 15)
@@ -7258,6 +7261,9 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
             # anon orgs can search by id, with or without zero padding
             self.assertEqual(q("%d" % contact.pk), 1)
             self.assertEqual(q("%010d" % contact.pk), 1)
+
+        # give mailroom time to clear its org cache
+        time.sleep(5)
 
         # invalid queries
         self.assertRaises(SearchException, q, "((")

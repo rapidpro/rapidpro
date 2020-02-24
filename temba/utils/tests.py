@@ -470,22 +470,29 @@ class TemplateTagTest(TembaTest):
         self.assertEqual("icon-tree", icon(flow))
         self.assertEqual("", icon(None))
 
-    def test_pretty_datetime(self):
+    def test_format_datetime(self):
         import pytz
-        from temba.utils.templatetags.temba import pretty_datetime
+        from temba.utils.templatetags.temba import format_datetime
 
         with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
             self.org.date_format = "D"
             self.org.save()
 
+            # date without timezone and no user org in context
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
+            self.assertEqual("20-07-2012 17:05", format_datetime(dict(), test_date))
+
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            self.assertEqual("20-07-2012 17:05", format_datetime(dict(), test_date))
+
             context = dict(user_org=self.org)
 
             # date without timezone
             test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
-            self.assertEqual("20 July 2012 19:05", pretty_datetime(context, test_date))
+            self.assertEqual("20-07-2012 19:05", format_datetime(context, test_date))
 
             test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
-            self.assertEqual("20 July 2012 19:05", pretty_datetime(context, test_date))
+            self.assertEqual("20-07-2012 19:05", format_datetime(context, test_date))
 
             # the org has month first configured
             self.org.date_format = "M"
@@ -493,10 +500,10 @@ class TemplateTagTest(TembaTest):
 
             # date without timezone
             test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
-            self.assertEqual("July 20, 2012 7:05 pm", pretty_datetime(context, test_date))
+            self.assertEqual("07-20-2012 19:05", format_datetime(context, test_date))
 
             test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
-            self.assertEqual("July 20, 2012 7:05 pm", pretty_datetime(context, test_date))
+            self.assertEqual("07-20-2012 19:05", format_datetime(context, test_date))
 
     def test_short_datetime(self):
         with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
