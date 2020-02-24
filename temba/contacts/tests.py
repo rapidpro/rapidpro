@@ -381,7 +381,7 @@ class ContactGroupTest(TembaTest):
         self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, "Empty", "")
 
         # can't create a dynamic group with id attribute
-        with MockParseQuery("id = 123", ["id"]):
+        with MockParseQuery("id = 123", ["id"], allow_as_group=False):
             self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, "Bose", "id = 123")
 
         # can't call update_contacts on a dynamic group
@@ -834,7 +834,7 @@ class ContactGroupCRUDLTest(TembaTest):
             self.assertFormError(response, "form", "query", "error at >")
 
         # dependent on id
-        with MockParseQuery("id = 123", ["id"]):
+        with MockParseQuery("id = 123", ["id"], allow_as_group=False):
             response = self.client.post(url, dict(name="Frank", query="id = 123"))
             self.assertFormError(response, "form", "query", 'You cannot create a dynamic group based on "id".')
 

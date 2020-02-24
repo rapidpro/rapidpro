@@ -128,8 +128,8 @@ class ContactGroupForm(forms.ModelForm):
 
         try:
             parsed = parse_query(self.org.id, self.cleaned_data["query"])
-            if "id" in parsed.fields:
-                raise forms.ValidationError(_('You cannot create a dynamic group based on "id".'))
+            if not parsed.allow_as_group:
+                raise forms.ValidationError(_('You cannot create a dynamic group based on "id" or "group".'))
 
             if (
                 self.instance
