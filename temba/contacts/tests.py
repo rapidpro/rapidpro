@@ -6154,7 +6154,7 @@ class ContactFieldTest(TembaTest):
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
             with MockParseQuery(query='name ~ "Hagg"', fields=["name"]):
-                with self.assertNumQueries(50):
+                with self.assertNumQueries(48):
                     self.assertExcelSheet(
                         request_export("?g=%s&s=Hagg" % group.uuid)[0],
                         [
