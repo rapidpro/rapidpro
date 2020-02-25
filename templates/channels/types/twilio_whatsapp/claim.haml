@@ -10,7 +10,7 @@
 - block account-trial-warning
   - if account_trial
     .account-trial-warning
-      - blocktrans
+      - blocktrans trimmed
         You have connected a Twilio Trial Account which has some restrictions.
       %br
       %a{href:"https://www.twilio.com/help/faq/twilio-basics/how-does-twilios-free-trial-work"}
@@ -26,7 +26,7 @@
 
   -if not account_numbers
     .account-trial-warning
-      - blocktrans
+      - blocktrans trimmed
         You do not have any number on your Twilio Account. Please make sure you have a number and that it has access to Twilio Whatsapp.
 
       %br
