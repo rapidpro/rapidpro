@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-11 21:03+0000\n"
+"POT-Creation-Date: 2020-02-20 15:50+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -723,6 +723,30 @@ msgstr "Su clave API deberá tener 64 caracteres"
 
 msgid "No org for this user, cannot claim"
 msgstr "No hay organización para este usuario, no puede pedir"
+
+msgid "The claim code from your Android phone"
+msgstr "El código de solicitud de su teléfono Android"
+
+msgid "The phone number of the phone"
+msgstr "El número de teléfono del teléfono"
+
+msgid "Invalid claim code, please check and try again."
+msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
+
+msgid "Invalid phone number, try again."
+msgstr "Número de teléfono inválido, inténtelo nuevamente."
+
+msgid "Another channel has this number. Please remove that channel first."
+msgstr ""
+
+#, fuzzy
+#| msgid "Connect your Android phone"
+msgid "Connect Android Channel"
+msgstr "Conectar su teléfono Android"
+
+#, fuzzy
+msgid "Phone number of this device"
+msgstr "El número de teléfono para esta llamada"
 
 msgid ""
 "\n"
@@ -2812,6 +2836,10 @@ msgstr "Editar Nombre"
 msgid "The provided Twitter credentials do not appear to be valid."
 msgstr ""
 
+#, fuzzy
+msgid "Twitter handle of this channel"
+msgstr "El nombre de esta etiqueta"
+
 msgid "Use a <a href=\"http://verboice.instedd.org\">Verboice</a> connection to leverage in-country SIP connections for building voice (IVR) flows."
 msgstr ""
 
@@ -2843,9 +2871,6 @@ msgstr "Alarmas del transmisor"
 msgid "The Verboice channel that will be handling your calls"
 msgstr ""
 
-msgid "The message send to user who have not yet subscribed to the channel, changes may take up to 30 seconds to take effect"
-msgstr ""
-
 msgid ""
 "\n"
 "        Connect a <a href=\"http://viber.com/en/\">Viber</a> public channel to send and receive messages to\n"
@@ -2861,6 +2886,9 @@ msgid ""
 msgstr ""
 
 msgid "The authentication token provided by Viber"
+msgstr ""
+
+msgid "The message send to user who have not yet subscribed to the channel, changes may take up to 30 seconds to take effect"
 msgstr ""
 
 msgid ""
@@ -3162,19 +3190,7 @@ msgstr "Ese número ya está conectado con otra cuenta - %s (%s)"
 msgid "An error occurred connecting your Twilio number, try removing your Twilio account, reconnecting it and trying again."
 msgstr ""
 
-msgid "The claim code from your Android phone"
-msgstr "El código de solicitud de su teléfono Android"
-
-msgid "The phone number of the phone"
-msgstr "El número de teléfono del teléfono"
-
-msgid "Invalid claim code, please check and try again."
-msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
-
-msgid "Invalid phone number, try again."
-msgstr "Número de teléfono inválido, inténtelo nuevamente."
-
-msgid "Another channel has this number. Please remove that channel first."
+msgid "Allow international sending"
 msgstr ""
 
 #, fuzzy
@@ -3182,12 +3198,8 @@ msgid "The number or address of this channel"
 msgstr "El nombre de esta etiqueta"
 
 #, fuzzy
-msgid "Phone number of this device"
+msgid "Phone number of this channel"
 msgstr "El número de teléfono para esta llamada"
-
-#, fuzzy
-msgid "Twitter handle of this channel"
-msgstr "El nombre de esta etiqueta"
 
 msgid "Disable Bulk Sending"
 msgstr "Deshabilitar envío masivo"
@@ -3270,11 +3282,6 @@ msgstr "Lo sentimos, no se puede agregar un interlocutor para ese número"
 #| msgid "Sorry, a caller cannot be added for that number"
 msgid "A caller has already been added for that number"
 msgstr "Lo sentimos, no se puede agregar un interlocutor para ese número"
-
-#, fuzzy
-#| msgid "Connect your Android phone"
-msgid "Connect Android Channel"
-msgstr "Conectar su teléfono Android"
 
 #, fuzzy
 msgid "Channels"
@@ -6108,103 +6115,6 @@ msgstr ""
 msgid "API Channels"
 msgstr "Transmisor"
 
-msgid "Add Phone"
-msgstr "Agregar teléfono"
-
-msgid "Connect your Android phone"
-msgstr "Conectar su teléfono Android"
-
-#, fuzzy, python-format
-msgid "%(brand)s uses your Android phone to send and receive messages on your behalf."
-msgstr "TextIt usa su teléfono Android para enviar y recibir mensajes."
-
-#, python-format
-msgid "Due to restrictions Android has on applications that send SMS messages, we cannot distribute the %(brand)s application through the Play Store. You will need to download the application manually and install it using the steps below."
-msgstr ""
-
-#, fuzzy
-#| msgid "Created On"
-msgid "was released on"
-msgstr "Creado el"
-
-#, fuzzy
-#| msgid "Download Results"
-msgid "Download App"
-msgstr "Descargar Resultados"
-
-msgid "On your Android device, open your browser and download the app by entering the URL:"
-msgstr ""
-
-#, fuzzy, python-format
-msgid "Launch the %(brand)s installer"
-msgstr ""
-"\n"
-"                    %(sms_failed)s Error\n"
-"\n"
-"         "
-
-#, fuzzy
-msgid "Open the notifications shade by dragging from the top and select the downloaded file."
-msgstr ""
-"\n"
-"                En la página de la aplicación TextIt presione el botón \"Install\".\n"
-"\n"
-"         "
-
-#, fuzzy
-#| msgid "Settings"
-msgid "Tap Settings"
-msgstr "Configuraciones"
-
-#, fuzzy
-msgid "You will be taken to a screen with \"allow from this source\" toggle"
-msgstr ""
-"\n"
-"                    %(sms_failed)s Error\n"
-"\n"
-"         "
-
-msgid "Toggle allow from this source"
-msgstr ""
-
-#, fuzzy
-msgid "Make sure \"allow from this source\" toggle is in the On position."
-msgstr ""
-"\n"
-"                    %(sms_failed)s Error\n"
-"\n"
-"         "
-
-msgid "Go Back"
-msgstr ""
-
-#, fuzzy
-#| msgid "Install"
-msgid "Click Install"
-msgstr "Instalar"
-
-#, fuzzy, python-format
-#| msgid "The %(brand)s Team"
-msgid "Open %(brand)s"
-msgstr "El Equipo de %(brand)s"
-
-#, fuzzy, python-format
-msgid "Once %(brand)s has been installed, open the app drawer and tap on the %(brand)s icon to start the app."
-msgstr "Una vez que TextIt ha sido instalado, abra la ventana de aplicaciones y presione el ícono de TextIt para iniciar la aplicación. "
-
-msgid "Enter Claim Code"
-msgstr "Ingrese el código de pedido"
-
-#, fuzzy, python-format
-msgid "When you first open %(brand)s, the app will register your device with Google and our servers.  Once that is complete, it will display a claim code.  Enter that claim code in the form to the left and click \"Add Phone\" to connect your device."
-msgstr ""
-"\n"
-"                Cuando abra TextIt por primera vez, la aplicación registrará su dispositivo con Google y nuestros servidores. Una vez que esté\n"
-"                completo, mostrará un código de pedido. Ingrese el código de pedido en el formulario a la izquierda y haga clic\n"
-"                \"Add Phone\" para conectar su dispositivo.\n"
-"\n"
-"              "
-
 msgid "Claim phone number"
 msgstr "Pedir número de teléfono"
 
@@ -6921,6 +6831,103 @@ msgstr ""
 "        mensajes que no se han enviado en más de una hora.\n"
 "      "
 
+msgid "Add Phone"
+msgstr "Agregar teléfono"
+
+msgid "Connect your Android phone"
+msgstr "Conectar su teléfono Android"
+
+#, fuzzy, python-format
+msgid "%(brand)s uses your Android phone to send and receive messages on your behalf."
+msgstr "TextIt usa su teléfono Android para enviar y recibir mensajes."
+
+#, python-format
+msgid "Due to restrictions Android has on applications that send SMS messages, we cannot distribute the %(brand)s application through the Play Store. You will need to download the application manually and install it using the steps below."
+msgstr ""
+
+#, fuzzy
+#| msgid "Created On"
+msgid "was released on"
+msgstr "Creado el"
+
+#, fuzzy
+#| msgid "Download Results"
+msgid "Download App"
+msgstr "Descargar Resultados"
+
+msgid "On your Android device, open your browser and download the app by entering the URL:"
+msgstr ""
+
+#, fuzzy, python-format
+msgid "Launch the %(brand)s installer"
+msgstr ""
+"\n"
+"                    %(sms_failed)s Error\n"
+"\n"
+"         "
+
+#, fuzzy
+msgid "Open the notifications shade by dragging from the top and select the downloaded file."
+msgstr ""
+"\n"
+"                En la página de la aplicación TextIt presione el botón \"Install\".\n"
+"\n"
+"         "
+
+#, fuzzy
+#| msgid "Settings"
+msgid "Tap Settings"
+msgstr "Configuraciones"
+
+#, fuzzy
+msgid "You will be taken to a screen with \"allow from this source\" toggle"
+msgstr ""
+"\n"
+"                    %(sms_failed)s Error\n"
+"\n"
+"         "
+
+msgid "Toggle allow from this source"
+msgstr ""
+
+#, fuzzy
+msgid "Make sure \"allow from this source\" toggle is in the On position."
+msgstr ""
+"\n"
+"                    %(sms_failed)s Error\n"
+"\n"
+"         "
+
+msgid "Go Back"
+msgstr ""
+
+#, fuzzy
+#| msgid "Install"
+msgid "Click Install"
+msgstr "Instalar"
+
+#, fuzzy, python-format
+#| msgid "The %(brand)s Team"
+msgid "Open %(brand)s"
+msgstr "El Equipo de %(brand)s"
+
+#, fuzzy, python-format
+msgid "Once %(brand)s has been installed, open the app drawer and tap on the %(brand)s icon to start the app."
+msgstr "Una vez que TextIt ha sido instalado, abra la ventana de aplicaciones y presione el ícono de TextIt para iniciar la aplicación. "
+
+msgid "Enter Claim Code"
+msgstr "Ingrese el código de pedido"
+
+#, fuzzy, python-format
+msgid "When you first open %(brand)s, the app will register your device with Google and our servers.  Once that is complete, it will display a claim code.  Enter that claim code in the form to the left and click \"Add Phone\" to connect your device."
+msgstr ""
+"\n"
+"                Cuando abra TextIt por primera vez, la aplicación registrará su dispositivo con Google y nuestros servidores. Una vez que esté\n"
+"                completo, mostrará un código de pedido. Ingrese el código de pedido en el formulario a la izquierda y haga clic\n"
+"                \"Add Phone\" para conectar su dispositivo.\n"
+"\n"
+"              "
+
 #, fuzzy
 #| msgid ""
 #| "\n"
@@ -6971,6 +6978,34 @@ msgstr ""
 "      "
 
 #, fuzzy
+msgid "the message of the text being sent"
+msgstr "El mensaje de texto real que se envió"
+
+#, fuzzy
+#| msgid "The phone number or short code you are connecting"
+msgid "the phone number or address you have configured for this service"
+msgstr "El número de teléfono o código abreviado al que se está conectando"
+
+msgid "the phone number or address you have configured for this service, with leading +'s removed"
+msgstr ""
+
+#, fuzzy
+#| msgid "The phone number for this call"
+msgid "the phone number or URN this message is addressed to"
+msgstr "El número de teléfono para esta llamada"
+
+msgid "the phone number or URN this message is addressed to, with leading +'s removed"
+msgstr ""
+
+#, fuzzy
+#| msgid "The type of this message"
+msgid "the unique ID of this message"
+msgstr "El tipo de este mensaje"
+
+msgid "the quick replies for this message, formatted according to send method and content type"
+msgstr ""
+
+#, fuzzy
 #| msgid ""
 #| "\n"
 #| "        An example that would substitute variables in the URL:\n"
@@ -6984,6 +7019,10 @@ msgstr ""
 "      "
 
 msgid "If using POST or PUT, you can specify the body of the request using the same variables."
+msgstr ""
+
+#, python-format
+msgid "The %(quick_replies_var)s variable with method GET or content type URL Encoded will be replaced by %(quick_replies_output)s for each quick reply."
 msgstr ""
 
 #, fuzzy, python-format
@@ -8296,8 +8335,12 @@ msgstr ""
 msgid "repeats weekly"
 msgstr ""
 
-msgid "Message History"
+#, fuzzy
+msgid "History"
 msgstr "Historial de mensajes"
+
+msgid "Full"
+msgstr ""
 
 msgid "Delete Contact"
 msgstr "Borrar contacto"
@@ -8411,81 +8454,111 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"        This group is used by an active trigger. In order to delete it,\n"
-"        first remove the\n"
-"        "
-msgid_plural ""
-"\n"
-"          This group is used by %(counter)s triggers. In order to delete it,\n"
+"          This group is used by an active trigger. In order to delete it,\n"
 "          first remove the\n"
+"          "
+msgid_plural ""
 "\n"
-"      "
+"            This group is used by %(counter)s triggers. In order to delete it,\n"
+"            first remove the\n"
+"\n"
+"        "
 msgstr[0] ""
 msgstr[1] ""
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "          Install the %(name)s app\n"
+#| "\n"
+#| "        "
 msgid ""
 "\n"
-"        trigger.\n"
-"      "
+"          trigger.\n"
+"        "
 msgid_plural ""
 "\n"
-"        triggers.\n"
+"          triggers.\n"
 "\n"
-"      "
+"        "
 msgstr[0] ""
+"\n"
+"          Instalar el %(name)s app\n"
+"\n"
+"        "
 msgstr[1] ""
+"\n"
+"          Instalar el %(name)s app\n"
+"\n"
+"        "
 
 #, python-format
 msgid ""
 "\n"
-"        There is an active flow using this group. It cannot be deleted until it is removed from the\n"
+"          There is an active flow using this group. It cannot be deleted until it is removed from the\n"
 "\n"
-"        "
+"          "
 msgid_plural ""
 "\n"
-"          There are %(counter)s flows using this group. It cannot be deleted until it is removed from the\n"
+"            There are %(counter)s flows using this group. It cannot be deleted until it is removed from the\n"
 "\n"
-"      "
+"        "
 msgstr[0] ""
 msgstr[1] ""
 
+#, fuzzy
 msgid ""
 "\n"
-"        flow.\n"
-"      "
+"          flow.\n"
+"        "
 msgid_plural ""
 "\n"
-"        flows.\n"
+"          flows.\n"
 "\n"
-"      "
+"        "
 msgstr[0] ""
+"\n"
+"                Llamada saliente (%(duration)s seconds)\n"
+"              "
 msgstr[1] ""
+"\n"
+"                Llamada saliente (%(duration)s seconds)\n"
+"              "
 
 #, python-format
 msgid ""
 "\n"
-"        There is an active campaign using this group. It cannot be deleted until it is removed from the\n"
+"          There is an active campaign using this group. It cannot be deleted until it is removed from the\n"
 "\n"
-"        "
+"          "
 msgid_plural ""
 "\n"
-"          There are %(counter)s campaigns using this group. It cannot be deleted until it is removed from the\n"
+"            There are %(counter)s campaigns using this group. It cannot be deleted until it is removed from the\n"
 "\n"
-"      "
+"        "
 msgstr[0] ""
 msgstr[1] ""
 
+#, fuzzy
 msgid ""
 "\n"
-"        campaign.\n"
-"      "
+"          campaign.\n"
+"        "
 msgid_plural ""
 "\n"
-"        campaigns.\n"
+"          campaigns.\n"
 "\n"
-"      "
+"        "
 msgstr[0] ""
+"\n"
+"          Instalar el %(name)s app\n"
+"\n"
+"        "
 msgstr[1] ""
+"\n"
+"          Instalar el %(name)s app\n"
+"\n"
+"        "
 
 #, python-format
 msgid ""
@@ -11846,6 +11919,9 @@ msgstr "Ingrese el código de pedido"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
+#~ msgid "Message History"
+#~ msgstr "Historial de mensajes"
+
 #, fuzzy
 #~| msgid "Any labels on this flow"
 #~ msgid "Any flows this flow uses"
@@ -12763,17 +12839,6 @@ msgstr ""
 #~ "    %(name)s - Pricing\n"
 #~ "\n"
 #~ "  "
-
-#, fuzzy
-#~ msgid ""
-#~ "\n"
-#~ "            %(brand)s API\n"
-#~ "          "
-#~ msgstr ""
-#~ "\n"
-#~ "          Instalar el %(name)s app\n"
-#~ "\n"
-#~ "        "
 
 #, fuzzy
 #~| msgid "Webhook URL"

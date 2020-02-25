@@ -478,10 +478,9 @@ class Org(SmartModel):
         If an org's telephone send channel is an Android device, let them add a bulk sender
         """
         from temba.contacts.models import TEL_SCHEME
-        from temba.channels.models import Channel
 
         send_channel = self.get_send_channel(TEL_SCHEME)
-        return send_channel and send_channel.channel_type == Channel.TYPE_ANDROID
+        return send_channel and send_channel.is_android()
 
     def can_add_caller(self):  # pragma: needs cover
         return not self.supports_ivr() and self.is_connected_to_twilio()
@@ -675,15 +674,17 @@ class Org(SmartModel):
         Triggers either our Android channels to sync, or for all our pending messages to be queued
         to send.
         """
-        from temba.msgs.models import Msg
+
         from temba.channels.models import Channel
+        from temba.channels.types.android import AndroidType
+        from temba.msgs.models import Msg
 
         # if we have msgs, then send just those
         if msgs is not None:
             ids = [m.id for m in msgs]
 
             # trigger syncs for our android channels
-            for channel in self.channels.filter(is_active=True, channel_type=Channel.TYPE_ANDROID, msgs__id__in=ids):
+            for channel in self.channels.filter(is_active=True, channel_type=AndroidType.code, msgs__id__in=ids):
                 channel.trigger_sync()
 
             # and send those messages
@@ -691,9 +692,7 @@ class Org(SmartModel):
 
         # otherwise, sync all pending messages and channels
         else:
-            for channel in self.channels.filter(
-                is_active=True, channel_type=Channel.TYPE_ANDROID
-            ):  # pragma: needs cover
+            for channel in self.channels.filter(is_active=True, channel_type=AndroidType.code):  # pragma: needs cover
                 channel.trigger_sync()
 
             # otherwise, send any pending messages on our channels

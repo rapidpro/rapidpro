@@ -638,6 +638,9 @@ class Msg(models.Model):
         queued.
         :return:
         """
+
+        from temba.channels.types.android import AndroidType
+
         courier_batches = []
 
         # we send in chunks of 1,000 to help with contention
@@ -652,7 +655,7 @@ class Msg(models.Model):
                 # update them to queued
                 send_messages = (
                     Msg.objects.filter(id__in=msg_ids)
-                    .exclude(channel__channel_type=Channel.TYPE_ANDROID)
+                    .exclude(channel__channel_type=AndroidType.code)
                     .exclude(msg_type=IVR)
                     .exclude(topup=None)
                 )
@@ -670,7 +673,7 @@ class Msg(models.Model):
                         continue
 
                     if (
-                        (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID)
+                        (msg.msg_type != IVR and msg.channel and not msg.channel.is_android())
                         and msg.topup
                         and msg.uuid
                     ):

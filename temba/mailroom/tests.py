@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from temba.channels.models import ChannelEvent
 from temba.flows.models import FlowStart
-from temba.mailroom.client import FlowValidationException, MailroomException, get_client
+from temba.mailroom.client import MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
 from temba.tests import MockResponse, TembaTest, matchers
 from temba.utils import json
@@ -91,22 +91,17 @@ class MailroomClientTest(TembaTest):
                 get_client().contact_search(1, "2752dbbc-723f-4007-8bc5-b3720835d3a9", "age > 10", "-created_on")
 
     @override_settings(TESTING=False)
-    def test_validation_failure(self):
+    def test_inspect_with_org(self):
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(422, '{"error":"flow don\'t look right"}')
+            mock_post.return_value = MockResponse(200, '{"dependencies":[]}')
 
-            with self.assertRaises(FlowValidationException) as e:
-                get_client().flow_inspect(self.org.id, {"nodes": []})
+            get_client().flow_inspect(self.org.id, {"nodes": []})
 
-        self.assertEqual(str(e.exception), "flow don't look right")
-        self.assertEqual(
-            e.exception.as_json(),
-            {
-                "endpoint": "flow/inspect",
-                "request": {"flow": {"nodes": []}, "validate_with_org_id": self.org.id},
-                "response": {"error": "flow don't look right"},
-            },
-        )
+            mock_post.assert_called_once_with(
+                "http://localhost:8090/mr/flow/inspect",
+                headers={"User-Agent": "Temba"},
+                json={"org_id": self.org.id, "flow": {"nodes": []}},
+            )
 
     def test_request_failure(self):
         flow = self.get_flow("color")

@@ -1,3 +1,42 @@
+v5.3.57
+----------
+ * Update flow editor 1.7.16
+ * Fix translations on external channel claim page
+ * Add tabs to toggle between full flow event history and summary of messages
+ * Increase the max height on the flow results export modal dialog
+
+v5.3.56
+----------
+ * Add params to flow starts API
+ * Change name of org_id param in calls to flow/inspect
+ * Add quick replies variable to external channel claim page
+
+v5.3.55
+----------
+ * Allow editing of allow_international on channel update forms
+ * Use consistent format for datetimes like created_on on contact list page
+
+v5.3.54
+----------
+ * Hide loader on start flow dialog when there are no channels
+
+v5.3.53
+----------
+ * Fix creation of Android channels
+
+v5.3.52
+----------
+ * Convert Android to dynamic channel type
+
+v5.3.51
+----------
+ * Update to floweditor 1.7.15
+ * Add python script to do all CI required formatting and locale rebuilding
+ * Use mailroom for query parsing for contact exports
+ * Fix text positioning on list pages
+ * Fix delete contact group modal buttons when blocked by dependencies
+ * Completion with upper case functions
+
 v5.3.50
 ----------
  * Migration to set allow_international=true in configs of existing tel channels
