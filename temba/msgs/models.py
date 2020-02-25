@@ -1611,6 +1611,9 @@ class ExportMessagesTask(BaseExportTask):
                 )
                 temp_msgs_exported = total_msgs_exported
 
+                self.modified_on = timezone.now()
+                self.save(update_fields=["modified_on"])
+
         temp = NamedTemporaryFile(delete=True, suffix=".xlsx", mode="wb+")
         book.finalize(to_file=temp)
         temp.flush()

@@ -56,7 +56,7 @@ from .models import (
     ExportContactsTask,
 )
 from .search import BoolCombination, Condition, ContactQuery, IsSetCondition, SinglePropCombination, legacy_parse_query
-from .tasks import check_elasticsearch_lag, resume_failed_tasks, squash_contactgroupcounts
+from .tasks import check_elasticsearch_lag, squash_contactgroupcounts
 from .templatetags.contacts import contact_field, history_class, history_icon
 
 
@@ -4999,55 +4999,6 @@ class ContactTest(TembaTest):
         ).first()
         contact1_planting_date = contact1.get_field_value(planting_date).replace(second=0, microsecond=0)
         self.assertEqual(event_fire.scheduled, contact1_planting_date + timedelta(days=7))
-
-    @override_settings(CELERY_ALWAYS_EAGER=False)
-    def test_contact_import_resume_failed_task(self):
-
-        with patch("smartmin.csv_imports.models.ImportTask.start") as mock_import_task:
-            mock_import_task.return_value = None
-
-            filename = "sample_contacts.xls"
-            import_params = dict(
-                org_id=self.org.id, timezone=str(self.org.timezone), extra_fields=[], original_filename=filename
-            )
-
-            ImportTask.objects.create(
-                created_by=self.admin,
-                modified_by=self.admin,
-                csv_file="test_imports/" + filename,
-                model_class="Contact",
-                import_params=json.dumps(import_params),
-                import_log="",
-                task_id="A",
-                task_status=ImportTask.FAILURE,
-            )
-
-            ImportTask.objects.create(
-                created_by=self.admin,
-                modified_by=self.admin,
-                csv_file="test_imports/" + filename,
-                model_class="Contact",
-                import_params=json.dumps(import_params),
-                import_log="",
-                task_id="A",
-                task_status=ImportTask.SUCCESS,
-            )
-
-            ImportTask.objects.create(
-                created_by=self.admin,
-                modified_by=self.admin,
-                csv_file="test_imports/" + filename,
-                model_class="Contact",
-                import_params=json.dumps(import_params),
-                import_log="",
-                task_id="B",
-            )
-
-            two_hours_ago = timezone.now() - timedelta(hours=2)
-            ImportTask.objects.all().update(modified_on=two_hours_ago)
-
-            resume_failed_tasks()
-            mock_import_task.assert_called_once()
 
     def test_contact_import_with_languages(self):
         self.create_contact(name="Eric", number="+250788382382")

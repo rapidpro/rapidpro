@@ -2880,6 +2880,9 @@ class ExportFlowResultsTask(BaseExportTask):
 
                 temp_runs_exported = total_runs_exported
 
+                self.modified_on = timezone.now()
+                self.save(update_fields=["modified_on"])
+
         temp = NamedTemporaryFile(delete=True)
         book.finalize(to_file=temp)
         temp.flush()
@@ -2896,6 +2899,9 @@ class ExportFlowResultsTask(BaseExportTask):
         for flow in flows:
             if earliest_created_on is None or flow.created_on < earliest_created_on:
                 earliest_created_on = flow.created_on
+
+        if not earliest_created_on:
+            earliest_created_on = timezone.now()
 
         earliest_day = earliest_created_on.date()
         earliest_month = date(earliest_day.year, earliest_day.month, 1)

@@ -3103,6 +3103,9 @@ class ExportContactsTask(BaseExportTask):
                         )
                     )
 
+                    self.modified_on = timezone.now()
+                    self.save(update_fields=["modified_on"])
+
         return exporter.save_file()
 
 
