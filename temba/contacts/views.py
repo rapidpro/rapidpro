@@ -128,8 +128,8 @@ class ContactGroupForm(forms.ModelForm):
 
         try:
             parsed = parse_query(self.org.id, self.cleaned_data["query"])
-            if "id" in parsed.fields:
-                raise forms.ValidationError(_('You cannot create a dynamic group based on "id".'))
+            if not parsed.allow_as_group:
+                raise forms.ValidationError(_('You cannot create a dynamic group based on "id" or "group".'))
 
             if (
                 self.instance
@@ -264,7 +264,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
             try:
                 results = search_contacts(org.id, str(group.uuid), search_query, sort_on, offset)
                 self.parsed_query = results.query if len(results.query) > 0 else None
-                self.save_dynamic_search = "id" not in results.fields
+                self.save_dynamic_search = results.allow_as_group
 
                 return IDSliceQuerySet(Contact, results.contact_ids, offset, results.total)
             except SearchException as e:

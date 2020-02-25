@@ -2739,7 +2739,7 @@ class ContactGroup(TembaModel):
             if not parsed:
                 parsed = parse_query(self.org_id, query)
 
-            if "id" in parsed.fields:
+            if not parsed.allow_as_group:
                 raise ValueError(f"Cannot use query '{query}' as a dynamic group")
 
             self.query = parsed.query

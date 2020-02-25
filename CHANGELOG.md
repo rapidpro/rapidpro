@@ -1,3 +1,20 @@
+v5.3.60
+----------
+ * Update to latest mailroom
+ * Add urns to runs API endpoint
+
+v5.3.59
+----------
+ * Update to latest mailroom which returns allow_as_group from query parsing
+ * Don't create missing contact fields on flow save
+
+v5.3.57
+----------
+ * Update flow editor 1.7.16
+ * Fix translations on external channel claim page
+ * Add tabs to toggle between full flow event history and summary of messages
+ * Increase the max height on the flow results export modal dialog
+
 v5.3.56
 ----------
  * Add params to flow starts API
