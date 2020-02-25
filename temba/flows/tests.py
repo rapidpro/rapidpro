@@ -4177,7 +4177,7 @@ class ExportFlowResultsTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 1
 
-                with self.assertNumQueries(42):
+                with self.assertNumQueries(43):
                     workbook = self._export(flow, group_memberships=[devs])
 
                 self.assertEqual(len(captured_logger.output), 3)
@@ -4483,7 +4483,7 @@ class ExportFlowResultsTest(TembaTest):
         self.contact.set_field(self.admin, "age", "36")
 
         tz = self.org.timezone
-        sheet_runs, = workbook.worksheets
+        (sheet_runs,) = workbook.worksheets
 
         # check runs sheet...
         self.assertEqual(4, len(list(sheet_runs.rows)))  # header + 3 runs
