@@ -195,6 +195,17 @@ class ContactField(TembaModelField):
     model = Contact
     lookup_fields = ("uuid", "urns__urn")
 
+    def __init__(self, **kwargs):
+        self.with_urn = kwargs.pop("with_urn", False)
+        super().__init__(**kwargs)
+
+    def to_representation(self, obj):
+        if self.with_urn and not self.context["org"].is_anon:
+            urn = obj.urns.first()
+            return {"uuid": obj.uuid, "urn": urn.identity if urn else None, "name": obj.name}
+
+        return {"uuid": obj.uuid, "name": obj.name}
+
     def get_queryset(self):
         return self.model.objects.filter(org=self.context["org"], is_active=True)
 
@@ -208,12 +219,6 @@ class ContactField(TembaModelField):
         contact_ids_with_urn = list(ContactURN.objects.filter(identity=as_urn).values_list("contact_id", flat=True))
 
         return self.get_queryset().filter(Q(uuid=value) | Q(id__in=contact_ids_with_urn)).first()
-
-
-class ContactWithURNField(ContactField):
-    def to_representation(self, obj):
-        urn = obj.urns.first()
-        return {"uuid": obj.uuid, "urn": urn.identity if urn else None, "name": obj.name}
 
 
 class ContactFieldField(TembaModelField):

@@ -3354,6 +3354,37 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "id=%d" % frank_run2.pk)
         self.assertResultsById(response, [frank_run2])
 
+        # anon orgs should not have a URN field
+        with AnonymousOrg(self.org):
+            response = self.fetchJSON(url, "id=%d" % frank_run2.pk)
+            self.assertResultsById(response, [frank_run2])
+            self.assertEqual(
+                {
+                    "id": frank_run2.pk,
+                    "uuid": str(frank_run2.uuid),
+                    "flow": {"uuid": flow1.uuid, "name": "Colors"},
+                    "contact": {"uuid": self.frank.uuid, "name": self.frank.name},
+                    "start": None,
+                    "responded": False,
+                    "path": [
+                        {
+                            "node": color_prompt["uuid"],
+                            "time": format_datetime(iso8601.parse_date(frank_run2.path[0]["arrived_on"])),
+                        },
+                        {
+                            "node": color_split["uuid"],
+                            "time": format_datetime(iso8601.parse_date(frank_run2.path[1]["arrived_on"])),
+                        },
+                    ],
+                    "values": {},
+                    "created_on": format_datetime(frank_run2.created_on),
+                    "modified_on": format_datetime(frank_run2.modified_on),
+                    "exited_on": None,
+                    "exit_type": None,
+                },
+                response.json()["results"][0],
+            )
+
         # filter by uuid
         response = self.fetchJSON(url, "uuid=%s" % frank_run2.uuid)
         self.assertResultsById(response, [frank_run2])
