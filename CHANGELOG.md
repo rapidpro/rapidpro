@@ -1,3 +1,7 @@
+v5.3.62
+----------
+ * Temporarily disable resume imports task
+
 v5.3.61
 ----------
  * Fix text of save as group dialog
