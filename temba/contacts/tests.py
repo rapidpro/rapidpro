@@ -162,6 +162,7 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
                 "total": 1,
                 "query": "age = 18",
                 "fields": ["age"],
+                "allow_as_group": True,
             }
 
             response = self._do_test_view("list", query_string="search=age+%3D+18")
@@ -178,6 +179,7 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
                 "total": 10020,
                 "query": "age = 18",
                 "fields": ["age"],
+                "allow_as_group": True,
             }
 
             # we return up to 10000 contacts when searching with ES, so last page is 200
@@ -199,6 +201,7 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
                 "total": 1,
                 "query": 'age > 18 AND home = "Kigali"',
                 "fields": ["age", "home"],
+                "allow_as_group": True,
             }
 
             response = self._do_test_view("list", query_string='search=age+>+18+and+home+%3D+"Kigali"')
@@ -214,6 +217,7 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
                 "total": 1,
                 "query": 'name ~ "Joe"',
                 "fields": ["name"],
+                "allow_as_group": True,
             }
 
             response = self._do_test_view("list", query_string="search=Joe")
@@ -230,6 +234,7 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
                     "total": 1,
                     "query": f"id = {self.joe.id}",
                     "fields": ["id"],
+                    "allow_as_group": False,
                 }
 
                 response = self._do_test_view("list", query_string=f"search={self.joe.id}")
@@ -2207,9 +2212,10 @@ class ContactTest(TembaTest):
                     query="",
                     total=4,
                     fields=[""],
+                    allow_as_group=False,
                     contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
                 ),
-                SearchResults(query="", total=3, fields=[""], contact_ids=[]),
+                SearchResults(query="", total=3, fields=[""], allow_as_group=False, contact_ids=[]),
             ]
             actual_result = omnibox_request(query="", version="2")
             expected_result = [
@@ -2228,8 +2234,16 @@ class ContactTest(TembaTest):
 
         with patch("temba.contacts.omnibox.search_contacts") as sc:
             sc.side_effect = [
-                SearchResults(query="", total=2, fields=[""], contact_ids=[self.billy.id, self.frank.id]),
-                SearchResults(query="", total=2, fields=[""], contact_ids=[self.voldemort.id, self.frank.id]),
+                SearchResults(
+                    query="", total=2, fields=[""], allow_as_group=False, contact_ids=[self.billy.id, self.frank.id]
+                ),
+                SearchResults(
+                    query="",
+                    total=2,
+                    fields=[""],
+                    allow_as_group=False,
+                    contact_ids=[self.voldemort.id, self.frank.id],
+                ),
             ]
             actual_result = omnibox_request(query="search=250", version="2")
             expected_result = [
@@ -2250,8 +2264,10 @@ class ContactTest(TembaTest):
 
         with patch("temba.contacts.omnibox.search_contacts") as sc:
             sc.side_effect = [
-                SearchResults(query="", total=2, fields=[""], contact_ids=[self.billy.id, self.frank.id]),
-                SearchResults(query="", total=0, fields=[""], contact_ids=[]),
+                SearchResults(
+                    query="", total=2, fields=[""], allow_as_group=False, contact_ids=[self.billy.id, self.frank.id]
+                ),
+                SearchResults(query="", total=0, fields=[""], allow_as_group=False, contact_ids=[]),
             ]
             with self.assertNumQueries(17):
                 actual_result = omnibox_request(query="")
@@ -2294,10 +2310,15 @@ class ContactTest(TembaTest):
                     query="",
                     total=4,
                     fields=[""],
+                    allow_as_group=False,
                     contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
                 ),
                 SearchResults(
-                    query="", total=3, fields=[""], contact_ids=[self.voldemort.id, self.joe.id, self.frank.id]
+                    query="",
+                    total=3,
+                    fields=[""],
+                    allow_as_group=False,
+                    contact_ids=[self.voldemort.id, self.joe.id, self.frank.id],
                 ),
             ]
             self.assertEqual(
@@ -2316,8 +2337,10 @@ class ContactTest(TembaTest):
         # search for Frank by phone
         with patch("temba.contacts.omnibox.search_contacts") as sc:
             sc.side_effect = [
-                SearchResults(query="name ~ 222", total=0, fields=[""], contact_ids=[]),
-                SearchResults(query="urn ~ 222", total=1, fields=[""], contact_ids=[self.frank.id]),
+                SearchResults(query="name ~ 222", total=0, fields=[""], allow_as_group=True, contact_ids=[]),
+                SearchResults(
+                    query="urn ~ 222", total=1, fields=[""], allow_as_group=True, contact_ids=[self.frank.id]
+                ),
             ]
             self.assertEqual(
                 omnibox_request("search=222"),
@@ -2333,8 +2356,12 @@ class ContactTest(TembaTest):
         # search for Joe - match on last name and twitter handle
         with patch("temba.contacts.omnibox.search_contacts") as sc:
             sc.side_effect = [
-                SearchResults(query="name ~ blow", total=1, fields=[""], contact_ids=[self.joe.id]),
-                SearchResults(query="urn ~ blow", total=1, fields=[""], contact_ids=[self.joe.id]),
+                SearchResults(
+                    query="name ~ blow", total=1, fields=[""], allow_as_group=True, contact_ids=[self.joe.id]
+                ),
+                SearchResults(
+                    query="urn ~ blow", total=1, fields=[""], allow_as_group=True, contact_ids=[self.joe.id]
+                ),
             ]
             self.assertEqual(
                 omnibox_request("search=BLOW"),
@@ -2378,7 +2405,9 @@ class ContactTest(TembaTest):
 
         with AnonymousOrg(self.org):
             with patch("temba.contacts.omnibox.search_contacts") as sc:
-                sc.side_effect = [SearchResults(query="", total=1, fields=[""], contact_ids=[self.billy.id])]
+                sc.side_effect = [
+                    SearchResults(query="", total=1, fields=[""], allow_as_group=False, contact_ids=[self.billy.id])
+                ]
                 self.assertEqual(
                     omnibox_request(""),
                     [
@@ -2394,7 +2423,9 @@ class ContactTest(TembaTest):
 
             # same search but with v2 format
             with patch("temba.contacts.omnibox.search_contacts") as sc:
-                sc.side_effect = [SearchResults(query="", total=1, fields=[""], contact_ids=[self.billy.id])]
+                sc.side_effect = [
+                    SearchResults(query="", total=1, fields=[""], allow_as_group=False, contact_ids=[self.billy.id])
+                ]
                 self.assertEqual(
                     omnibox_request("", version="2"),
                     [
