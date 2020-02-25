@@ -3013,7 +3013,11 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
             {
                 "id": 12345678,
                 "flow": {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Favorite Color"},
-                "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
+                "contact": {
+                    "uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d",
+                    "urn": "tel:+12065551212",
+                    "name": "Bob McFlow"
+                },
                 "responded": true,
                 "path": [
                     {"node": "27a86a1b-6cc4-4ae3-b73d-89650966a82f", "time": "2015-11-11T13:05:50.457742Z"},
@@ -3095,6 +3099,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         queryset = queryset.prefetch_related(
             Prefetch("flow", queryset=Flow.objects.only("uuid", "name", "base_language")),
             Prefetch("contact", queryset=Contact.objects.only("uuid", "name", "language")),
+            Prefetch("contact__urns", ContactURN.objects.order_by("-priority", "id")),
             Prefetch("start", queryset=FlowStart.objects.only("uuid")),
         )
 
