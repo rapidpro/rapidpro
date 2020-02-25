@@ -264,7 +264,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
             try:
                 results = search_contacts(org.id, str(group.uuid), search_query, sort_on, offset)
                 self.parsed_query = results.query if len(results.query) > 0 else None
-                self.save_dynamic_search = "id" not in results.fields
+                self.save_dynamic_search = results.allow_as_group
 
                 return IDSliceQuerySet(Contact, results.contact_ids, offset, results.total)
             except SearchException as e:

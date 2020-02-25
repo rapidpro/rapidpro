@@ -716,6 +716,7 @@ class SearchResults(NamedTuple):
     total: int
     query: str
     fields: list
+    allow_as_group: bool
     contact_ids: list
 
 
@@ -723,7 +724,13 @@ def search_contacts(org_id, group_uuid, query, sort=None, offset=None):
     try:
         client = mailroom.get_client()
         response = client.contact_search(org_id, str(group_uuid), query, sort, offset=offset)
-        return SearchResults(response["total"], response["query"], response["fields"], response["contact_ids"])
+        return SearchResults(
+            response["total"],
+            response["query"],
+            response["fields"],
+            response.get("allow_as_group", False),
+            response["contact_ids"],
+        )
 
     except mailroom.MailroomException as e:
         raise SearchException(e.response["error"])
