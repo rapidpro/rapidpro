@@ -1,3 +1,8 @@
+v5.3.60
+----------
+ * Update to latest mailroom
+ * Add urns to runs API endpoint
+
 v5.3.59
 ----------
  * Update to latest mailroom which returns allow_as_group from query parsing
