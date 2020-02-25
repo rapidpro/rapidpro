@@ -2900,9 +2900,6 @@ class ExportFlowResultsTask(BaseExportTask):
             if earliest_created_on is None or flow.created_on < earliest_created_on:
                 earliest_created_on = flow.created_on
 
-        if not earliest_created_on:
-            earliest_created_on = timezone.now()
-
         earliest_day = earliest_created_on.date()
         earliest_month = date(earliest_day.year, earliest_day.month, 1)
 
