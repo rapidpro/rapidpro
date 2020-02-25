@@ -1,3 +1,8 @@
+v5.3.61
+----------
+ * Fix text of save as group dialog
+ * Add support to restart export tasks that might have been stopped by deploy
+
 v5.3.60
 ----------
  * Update to latest mailroom
