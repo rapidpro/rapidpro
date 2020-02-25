@@ -694,6 +694,7 @@ class ParsedQuery(NamedTuple):
     query: str
     fields: list
     elastic_query: dict
+    allow_as_group: bool
 
 
 def parse_query(org_id, query, group_uuid=""):
@@ -703,7 +704,9 @@ def parse_query(org_id, query, group_uuid=""):
     try:
         client = mailroom.get_client()
         response = client.parse_query(org_id, query, group_uuid=str(group_uuid))
-        return ParsedQuery(response["query"], response["fields"], response["elastic_query"])
+        return ParsedQuery(
+            response["query"], response["fields"], response["elastic_query"], response.get("allow_as_group", False)
+        )
 
     except mailroom.MailroomException as e:
         raise SearchException(e.response["error"])
