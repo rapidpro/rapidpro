@@ -1,3 +1,8 @@
+v5.3.59
+----------
+ * Update to latest mailroom which returns allow_as_group from query parsing
+ * Don't create missing contact fields on flow save
+
 v5.3.57
 ----------
  * Update flow editor 1.7.16
