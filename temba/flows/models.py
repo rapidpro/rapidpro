@@ -1939,7 +1939,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             for recent in FlowPathRecentRun.objects.filter(run=self):
                 recent.release()
 
-            if delete_reason == FlowRun.DELETE_FOR_USER and self.session.status == FlowSession.STATUS_WAITING:
+            if (
+                delete_reason == FlowRun.DELETE_FOR_USER
+                and self.session is not None
+                and self.session.status == FlowSession.STATUS_WAITING
+            ):
                 mailroom.queue_interrupt(self.org, session=self.session)
 
             self.delete()
