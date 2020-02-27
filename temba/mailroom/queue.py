@@ -133,7 +133,9 @@ def queue_interrupt(org, *, contacts=None, channel=None, flow=None, session=None
     Queues an interrupt task for handling by mailroom
     """
 
-    assert contacts or channel or flow or session, "must specify either a set of contacts or a channel or a flow or a session"
+    assert (
+        contacts or channel or flow or session
+    ), "must specify either a set of contacts or a channel or a flow or a session"
 
     task = {}
     if contacts:
