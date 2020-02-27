@@ -5529,6 +5529,7 @@ class ContactTest(TembaTest):
 
         # run all tests as 2/Jan/2014 03:04 AFT
         tz = pytz.timezone("Asia/Kabul")
+
         with patch.object(timezone, "now", return_value=tz.localize(datetime(2014, 1, 2, 3, 4, 5, 6))):
             ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type="N")
             ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type="T")
@@ -6126,7 +6127,7 @@ class ContactFieldTest(TembaTest):
 
                 with ESMockWithScroll(data=mock_es_data):
                     with MockParseQuery(query='name ~ "adam" OR name ~ "deng"', fields=["name"]):
-                        with self.assertNumQueries(47):
+                        with self.assertNumQueries(49):
                             self.assertExcelSheet(
                                 request_export("?s=name+has+adam+or+name+has+deng")[0],
                                 [

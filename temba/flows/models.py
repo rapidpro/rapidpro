@@ -2873,6 +2873,9 @@ class ExportFlowResultsTask(BaseExportTask):
 
                 temp_runs_exported = total_runs_exported
 
+                self.modified_on = timezone.now()
+                self.save(update_fields=["modified_on"])
+
         temp = NamedTemporaryFile(delete=True)
         book.finalize(to_file=temp)
         temp.flush()

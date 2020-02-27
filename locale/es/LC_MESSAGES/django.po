@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-25 20:08+0000\n"
+"POT-Creation-Date: 2020-02-25 19:28+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -8360,7 +8360,7 @@ msgstr "Guardar Búsqueda como Grupo"
 msgid "Unable to create a dynamic group"
 msgstr ""
 
-msgid "You cannot create a dynamic group based on <strong>name</strong> or <strong>id</strong>."
+msgid "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>."
 msgstr ""
 
 #, fuzzy

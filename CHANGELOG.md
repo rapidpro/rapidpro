@@ -1,3 +1,17 @@
+v5.3.63
+----------
+ * Add pre_deploy command to check imports/exports
+ * Fix link to android APK downloads on claim page
+
+v5.3.62
+----------
+ * Temporarily disable resume imports task
+
+v5.3.61
+----------
+ * Fix text of save as group dialog
+ * Add support to restart export tasks that might have been stopped by deploy
+
 v5.3.60
 ----------
  * Update to latest mailroom
