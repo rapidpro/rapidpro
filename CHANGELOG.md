@@ -1,3 +1,7 @@
+v5.3.64
+----------
+ * Add support for Twilio Whatsapp channel type
+
 v5.3.63
 ----------
  * Add pre_deploy command to check imports/exports
