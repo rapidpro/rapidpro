@@ -3,6 +3,7 @@ import datetime
 import os
 from collections import OrderedDict
 from decimal import Decimal
+from io import StringIO
 from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
@@ -1162,6 +1163,25 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
         # check generate can't be run again on a now non-empty database
         with self.assertRaises(CommandError):
             call_command("test_db", num_orgs=3, num_contacts=30, seed=1234)
+
+
+class PreDeployTest(TembaTest):
+    def test_command(self):
+        buffer = StringIO()
+        call_command("pre_deploy", stdout=buffer)
+
+        self.assertEqual("", buffer.getvalue())
+
+        ExportContactsTask.create(self.org, self.admin)
+        ExportContactsTask.create(self.org, self.admin)
+
+        buffer = StringIO()
+        call_command("pre_deploy", stdout=buffer)
+
+        self.assertEqual(
+            "WARNING: there are 2 unfinished tasks of type contact-export. Last one started 0\xa0minutes ago.\n",
+            buffer.getvalue(),
+        )
 
 
 class JsonModelTestDefaultNull(models.Model):
