@@ -1,3 +1,12 @@
+v5.3.64
+----------
+ * Add support for Twilio Whatsapp channel type
+
+v5.3.63
+----------
+ * Add pre_deploy command to check imports/exports
+ * Fix link to android APK downloads on claim page
+
 v5.3.62
 ----------
  * Temporarily disable resume imports task
