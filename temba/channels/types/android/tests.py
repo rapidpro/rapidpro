@@ -77,6 +77,11 @@ class AndroidTypeTest(TembaTest):
             ),
         )
 
+        # view claim page
+        self.login(self.admin)
+        response = self.client.get(reverse("channels.types.android.claim"))
+        self.assertContains(response, "https://app.rapidpro.io/android/")
+
         # try to claim as non-admin
         self.login(self.user)
         response = self.client.post(
