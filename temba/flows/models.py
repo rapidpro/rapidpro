@@ -1939,6 +1939,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             for recent in FlowPathRecentRun.objects.filter(run=self):
                 recent.release()
 
+            if self.is_active or delete_reason == FlowRun.DELETE_FOR_USER:
+                mailroom.queue_interrupt(self.org, contacts=[self.contact])
+
             self.delete()
 
     def update_expiration(self, point_in_time):

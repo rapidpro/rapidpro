@@ -3955,10 +3955,12 @@ class FlowRunTest(TembaTest):
             None, {"red_count": 0, "primus_count": 0, "start_count": 0, "run_count": {"C": 0, "E": 0, "I": 0, "A": 0}}
         )
 
-    def test_user_deletion(self):
+    @patch("temba.mailroom.queue_interrupt")
+    def test_user_deletion(self, mock_queue_interrupt):
         self._check_deletion(
             "U", {"red_count": 0, "primus_count": 0, "start_count": 0, "run_count": {"C": 0, "E": 0, "I": 0, "A": 0}}
         )
+        mock_queue_interrupt.assert_called_once()
 
     def test_archiving(self):
         self._check_deletion(
