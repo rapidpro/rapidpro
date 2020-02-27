@@ -3892,7 +3892,7 @@ class FlowRunTest(TembaTest):
         self.assertIsNone(run_json["exited_on"])
         self.assertIsNone(run_json["submitted_by"])
 
-    def _check_deletion(self, delete_reason, expected):
+    def _check_deletion(self, delete_reason, expected, session_completed=True):
         """
         Runs our favorites flow, then releases the run with the passed in delete_reason, asserting our final state
         """
@@ -3908,29 +3908,51 @@ class FlowRunTest(TembaTest):
         end_prompt = flow_nodes[8]
 
         start = FlowStart.create(flow, self.admin, contacts=[self.contact])
-        (
-            MockSessionWriter(self.contact, flow, start)
-            .visit(color_prompt)
-            .send_msg("What is your favorite color?", self.channel)
-            .visit(color_split)
-            .wait()
-            .resume(msg=self.create_incoming_msg(self.contact, "blue"))
-            .set_result("Color", "blue", "Blue", "blue")
-            .visit(beer_prompt, exit_index=2)
-            .send_msg("Good choice, I like Blue too! What is your favorite beer?")
-            .visit(beer_split)
-            .wait()
-            .resume(msg=self.create_incoming_msg(self.contact, "primus"))
-            .set_result("Beer", "primus", "Primus", "primus")
-            .visit(name_prompt, exit_index=2)
-            .send_msg("Mmmmm... delicious Turbo King. Lastly, what is your name?")
-            .visit(name_split)
-            .wait()
-            .resume(msg=self.create_incoming_msg(self.contact, "Ryan Lewis"))
-            .visit(end_prompt)
-            .complete()
-            .save()
-        )
+        if session_completed:
+            (
+                MockSessionWriter(self.contact, flow, start)
+                .visit(color_prompt)
+                .send_msg("What is your favorite color?", self.channel)
+                .visit(color_split)
+                .wait()
+                .resume(msg=self.create_incoming_msg(self.contact, "blue"))
+                .set_result("Color", "blue", "Blue", "blue")
+                .visit(beer_prompt, exit_index=2)
+                .send_msg("Good choice, I like Blue too! What is your favorite beer?")
+                .visit(beer_split)
+                .wait()
+                .resume(msg=self.create_incoming_msg(self.contact, "primus"))
+                .set_result("Beer", "primus", "Primus", "primus")
+                .visit(name_prompt, exit_index=2)
+                .send_msg("Mmmmm... delicious Turbo King. Lastly, what is your name?")
+                .visit(name_split)
+                .wait()
+                .resume(msg=self.create_incoming_msg(self.contact, "Ryan Lewis"))
+                .visit(end_prompt)
+                .complete()
+                .save()
+            )
+        else:
+            (
+                MockSessionWriter(self.contact, flow, start)
+                .visit(color_prompt)
+                .send_msg("What is your favorite color?", self.channel)
+                .visit(color_split)
+                .wait()
+                .resume(msg=self.create_incoming_msg(self.contact, "blue"))
+                .set_result("Color", "blue", "Blue", "blue")
+                .visit(beer_prompt, exit_index=2)
+                .send_msg("Good choice, I like Blue too! What is your favorite beer?")
+                .visit(beer_split)
+                .wait()
+                .resume(msg=self.create_incoming_msg(self.contact, "primus"))
+                .set_result("Beer", "primus", "Primus", "primus")
+                .visit(name_prompt, exit_index=2)
+                .send_msg("Mmmmm... delicious Turbo King. Lastly, what is your name?")
+                .visit(name_split)
+                .wait()
+                .save()
+            )
 
         run = FlowRun.objects.get(contact=self.contact)
         run.release(delete_reason)
@@ -3950,22 +3972,35 @@ class FlowRunTest(TembaTest):
 
         self.assertFalse(FlowRun.objects.filter(id=run.id).exists())
 
-    def test_deletion(self):
+    @patch("temba.mailroom.queue_interrupt")
+    def test_deletion(self, mock_queue_interrupt):
         self._check_deletion(
             None, {"red_count": 0, "primus_count": 0, "start_count": 0, "run_count": {"C": 0, "E": 0, "I": 0, "A": 0}}
         )
+        self.assertFalse(mock_queue_interrupt.called)
 
     @patch("temba.mailroom.queue_interrupt")
-    def test_user_deletion(self, mock_queue_interrupt):
+    def test_user_deletion_with_complete_session(self, mock_queue_interrupt):
         self._check_deletion(
             "U", {"red_count": 0, "primus_count": 0, "start_count": 0, "run_count": {"C": 0, "E": 0, "I": 0, "A": 0}}
         )
+        self.assertFalse(mock_queue_interrupt.called)
+
+    @patch("temba.mailroom.queue_interrupt")
+    def test_user_deletion_without_complete_session(self, mock_queue_interrupt):
+        self._check_deletion(
+            "U",
+            {"red_count": 0, "primus_count": 0, "start_count": 0, "run_count": {"C": 0, "E": 0, "I": 0, "A": 0}},
+            False,
+        )
         mock_queue_interrupt.assert_called_once()
 
-    def test_archiving(self):
+    @patch("temba.mailroom.queue_interrupt")
+    def test_archiving(self, mock_queue_interrupt):
         self._check_deletion(
             "A", {"red_count": 1, "primus_count": 1, "start_count": 1, "run_count": {"C": 1, "E": 0, "I": 0, "A": 0}}
         )
+        self.assertFalse(mock_queue_interrupt.called)
 
 
 class FlowSessionTest(TembaTest):
