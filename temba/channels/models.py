@@ -1573,6 +1573,7 @@ class SyncEvent(SmartModel):
     @classmethod
     def trim(cls):
         from temba.channels.types.android import AndroidType
+
         week_ago = timezone.now() - timedelta(days=7)
 
         channels = Channel.objects.filter(is_active=True, channel_type=AndroidType.code)
