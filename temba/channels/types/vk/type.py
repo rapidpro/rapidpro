@@ -6,6 +6,10 @@ from ...models import ChannelType
 from .views import ClaimView
 
 
+CONFIG_COMMUNITY_NAME = "community_name"
+CONFIG_CALLBACK_VERIFICATION_STRING = "callback_verification_string"
+
+
 class VKType(ChannelType):
     """
     A VK channel
