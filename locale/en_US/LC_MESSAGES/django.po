@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-25 19:28+0000\n"
+"POT-Creation-Date: 2020-02-28 14:46+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1835,6 +1835,24 @@ msgid "The message send to user who have not yet subscribed to the channel, chan
 msgstr ""
 
 msgid ""
+"Add a <a href=\"https://vk.com/\">VK</a> bot to send and receive messages on behalf of a VK community\n"
+"        for free. You will need to create an access token for your community first.\n"
+"        "
+msgstr ""
+
+msgid "The Community Access Token"
+msgstr ""
+
+msgid "The name of the Community"
+msgstr ""
+
+msgid "The Community ID"
+msgstr ""
+
+msgid "The callback verification string"
+msgstr ""
+
+msgid ""
 "\n"
 "        If you have an <a href=\"https://wavy.global/en/\">Movile/Wavy</a> number,\n"
 "        you can quickly connect it using their APIs.\n"
@@ -2224,6 +2242,9 @@ msgid "WhatsApp identifier"
 msgstr ""
 
 msgid "Freshchat identifier"
+msgstr ""
+
+msgid "VK identifier"
 msgstr ""
 
 msgid "ID"
@@ -5469,6 +5490,24 @@ msgid ""
 "\n"
 "\n"
 "      "
+msgstr ""
+
+msgid "To connect your VK community to RapidPro, you will need to create a community token with messaging permissions."
+msgstr ""
+
+msgid "To obtain the name of your community, access it and enter the exact name below."
+msgstr ""
+
+msgid "To get your community id, go to Manage > API Usage > Callback API > Server Settings. Copy the whole number you have right after the group_id present in the example json present in the part regarding the verification of the request."
+msgstr ""
+
+msgid "To obtain the verification string, go to the Manage > API Usage > Callback API > Server Settings section. You will find the verification string in an excerpt similar to: String to be returned: <code>4412dd18</code>, copy the string and inform below."
+msgstr ""
+
+msgid "The API Version of the configured server must be <code>5.103</code>. To configure this, go to Manage > API Usage > Callback API > Server Settings."
+msgstr ""
+
+msgid "To complete the configuration of your VK connection, you will need to enter the Webhook URL in the URL field in the Manage > API Usage > Callback API > Server Settings section. And the Verify Token in the Secret Key field present in the API Usage > Callback API > Server Settings section. After this part, go to Manage > API Usage > Callback API > Event Types and check the option: <code>Message received</code>"
 msgstr ""
 
 msgid ""
