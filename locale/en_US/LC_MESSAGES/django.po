@@ -8,6 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2020-02-28 14:46+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1698,6 +1699,22 @@ msgstr ""
 msgid "The Twilio Messaging Service SID"
 msgstr ""
 
+msgid "If you have a Twilio for Whatsapp number, you can connect it to communicate with your Whatsapp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio Whatsapp</a>"
+msgstr ""
+
+msgid ""
+"\n"
+"        To finish configuring your Twilio Whatsapp connection you'll need to add the following URL in your Twilio Inbound Settings.\n"
+"        Check the Twilio WhatsApp documentation for more information.\n"
+"        "
+msgstr ""
+
+msgid "This endpoint should be called by Twilio when new messages are received by your Twilio Whatsapp number."
+msgstr ""
+
+msgid "Only existing Twilio Whatsapp number are supported"
+msgstr ""
+
 msgid ""
 "\n"
 "        Connect to a service that speaks TwiML. You can use this to connect to TwiML compatible services outside of Twilio.\n"
@@ -1818,7 +1835,7 @@ msgid "The message send to user who have not yet subscribed to the channel, chan
 msgstr ""
 
 msgid ""
-"Add a VK bot to send and receive messages on behalf of a VK community\n"
+"Add a <a href=\"https://vk.com/\">VK</a> bot to send and receive messages on behalf of a VK community\n"
 "        for free. You will need to create an access token for your community first.\n"
 "        "
 msgstr ""
@@ -2395,7 +2412,7 @@ msgstr ""
 msgid "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you can create new ones."
 msgstr ""
 
-msgid "You cannot create a dynamic group based on \"id\"."
+msgid "You cannot create a dynamic group based on \"id\" or \"group\"."
 msgstr ""
 
 msgid "You cannot update the query of a group that is evaluating."
@@ -4934,10 +4951,35 @@ msgstr ""
 msgid "You can connect an external aggregator or messaging service to %(brand)s using our external API. You can specify parameters to substitute in the URL or body by using these variables:"
 msgstr ""
 
+msgid "the message of the text being sent"
+msgstr ""
+
+msgid "the phone number or address you have configured for this service"
+msgstr ""
+
+msgid "the phone number or address you have configured for this service, with leading +'s removed"
+msgstr ""
+
+msgid "the phone number or URN this message is addressed to"
+msgstr ""
+
+msgid "the phone number or URN this message is addressed to, with leading +'s removed"
+msgstr ""
+
+msgid "the unique ID of this message"
+msgstr ""
+
+msgid "the quick replies for this message, formatted according to send method and content type"
+msgstr ""
+
 msgid "An example that would substitute variables in the URL:"
 msgstr ""
 
 msgid "If using POST or PUT, you can specify the body of the request using the same variables."
+msgstr ""
+
+#, python-format
+msgid "The %(quick_replies_var)s variable with method GET or content type URL Encoded will be replaced by %(quick_replies_output)s for each quick reply."
 msgstr ""
 
 #, python-format
@@ -5370,6 +5412,18 @@ msgid ""
 "        when they want to push a message to %(brand)s.\n"
 "\n"
 "      "
+msgstr ""
+
+msgid "You have connected a Twilio Trial Account which has some restrictions."
+msgstr ""
+
+msgid "Once you claim a number you will immediately be able to send and receive Whatsapp messages. Users who send messages to your Whatsapp number will be charged according to their plan."
+msgstr ""
+
+msgid "You do not have any number on your Twilio Account. Please make sure you have a number and that it has access to Twilio Whatsapp."
+msgstr ""
+
+msgid "To request access to Twilio Whatsapp"
 msgstr ""
 
 msgid ""
@@ -5869,7 +5923,7 @@ msgstr ""
 msgid "Unable to create a dynamic group"
 msgstr ""
 
-msgid "You cannot create a dynamic group based on <strong>name</strong> or <strong>id</strong>."
+msgid "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>."
 msgstr ""
 
 msgid "Export Contacts"
@@ -5896,7 +5950,10 @@ msgstr ""
 msgid "repeats weekly"
 msgstr ""
 
-msgid "Message History"
+msgid "History"
+msgstr ""
+
+msgid "Full"
 msgstr ""
 
 msgid "Delete Contact"

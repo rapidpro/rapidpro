@@ -1,3 +1,44 @@
+v5.3.64
+----------
+ * Add support for Twilio Whatsapp channel type
+
+v5.3.63
+----------
+ * Add pre_deploy command to check imports/exports
+ * Fix link to android APK downloads on claim page
+
+v5.3.62
+----------
+ * Temporarily disable resume imports task
+
+v5.3.61
+----------
+ * Fix text of save as group dialog
+ * Add support to restart export tasks that might have been stopped by deploy
+
+v5.3.60
+----------
+ * Update to latest mailroom
+ * Add urns to runs API endpoint
+
+v5.3.59
+----------
+ * Update to latest mailroom which returns allow_as_group from query parsing
+ * Don't create missing contact fields on flow save
+
+v5.3.57
+----------
+ * Update flow editor 1.7.16
+ * Fix translations on external channel claim page
+ * Add tabs to toggle between full flow event history and summary of messages
+ * Increase the max height on the flow results export modal dialog
+
+v5.3.56
+----------
+ * Add params to flow starts API
+ * Change name of org_id param in calls to flow/inspect
+ * Add quick replies variable to external channel claim page
+
 v5.3.55
 ----------
  * Allow editing of allow_international on channel update forms

@@ -3276,7 +3276,7 @@ class APITest(TembaTest):
         frank_run2.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url)
 
         self.assertEqual(200, response.status_code)
@@ -3289,7 +3289,7 @@ class APITest(TembaTest):
                 "id": frank_run2.pk,
                 "uuid": str(frank_run2.uuid),
                 "flow": {"uuid": flow1.uuid, "name": "Colors"},
-                "contact": {"uuid": self.frank.uuid, "name": self.frank.name},
+                "contact": {"uuid": self.frank.uuid, "urn": "twitter:franky", "name": self.frank.name},
                 "start": None,
                 "responded": False,
                 "path": [
@@ -3315,7 +3315,7 @@ class APITest(TembaTest):
                 "id": joe_run1.pk,
                 "uuid": str(joe_run1.uuid),
                 "flow": {"uuid": flow1.uuid, "name": "Colors"},
-                "contact": {"uuid": self.joe.uuid, "name": self.joe.name},
+                "contact": {"uuid": self.joe.uuid, "urn": "tel:+250788123123", "name": self.joe.name},
                 "start": {"uuid": str(joe_run1.start.uuid)},
                 "responded": True,
                 "path": [
@@ -3353,6 +3353,37 @@ class APITest(TembaTest):
         # filter by id
         response = self.fetchJSON(url, "id=%d" % frank_run2.pk)
         self.assertResultsById(response, [frank_run2])
+
+        # anon orgs should not have a URN field
+        with AnonymousOrg(self.org):
+            response = self.fetchJSON(url, "id=%d" % frank_run2.pk)
+            self.assertResultsById(response, [frank_run2])
+            self.assertEqual(
+                {
+                    "id": frank_run2.pk,
+                    "uuid": str(frank_run2.uuid),
+                    "flow": {"uuid": flow1.uuid, "name": "Colors"},
+                    "contact": {"uuid": self.frank.uuid, "name": self.frank.name},
+                    "start": None,
+                    "responded": False,
+                    "path": [
+                        {
+                            "node": color_prompt["uuid"],
+                            "time": format_datetime(iso8601.parse_date(frank_run2.path[0]["arrived_on"])),
+                        },
+                        {
+                            "node": color_split["uuid"],
+                            "time": format_datetime(iso8601.parse_date(frank_run2.path[1]["arrived_on"])),
+                        },
+                    ],
+                    "values": {},
+                    "created_on": format_datetime(frank_run2.created_on),
+                    "modified_on": format_datetime(frank_run2.modified_on),
+                    "exited_on": None,
+                    "exit_type": None,
+                },
+                response.json()["results"][0],
+            )
 
         # filter by uuid
         response = self.fetchJSON(url, "uuid=%s" % frank_run2.uuid)
@@ -3781,6 +3812,35 @@ class APITest(TembaTest):
         mock_async_start.assert_called_once()
         mock_async_start.reset_mock()
 
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "urns": ["tel:+12067791212"],
+                "contacts": [self.joe.uuid],
+                "groups": [hans_group.uuid],
+                "flow": flow.uuid,
+                "restart_participants": False,
+                "extra": {"first_name": "Ryan", "last_name": "Lewis"},
+                "params": {"first_name": "Bob", "last_name": "Marley"},
+            },
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+        # assert our new start
+        start3 = flow.starts.get(pk=response.json()["id"])
+        self.assertEqual(start3.flow, flow)
+        self.assertTrue(start3.contacts.filter(urns__path="+12067791212"))
+        self.assertTrue(start3.contacts.filter(id=self.joe.id))
+        self.assertTrue(start3.groups.filter(id=hans_group.id))
+        self.assertFalse(start3.restart_participants)
+        self.assertTrue(start3.extra, {"first_name": "Bob", "last_name": "Marley"})
+
+        # check we tried to start the new flow start
+        mock_async_start.assert_called_once()
+        mock_async_start.reset_mock()
+
         # try to start a flow with no contact/group/URN
         response = self.postJSON(url, None, {"flow": flow.uuid, "restart_participants": True})
         self.assertResponseError(response, "non_field_errors", "Must specify at least one group, contact or URN")
@@ -3816,6 +3876,37 @@ class APITest(TembaTest):
         )
 
         self.assertResponseError(response, "extra", "Must be a valid JSON object")
+
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "urns": ["tel:+12067791212"],
+                "contacts": [self.joe.uuid],
+                "groups": [hans_group.uuid],
+                "flow": flow.uuid,
+                "restart_participants": False,
+                "params": "YES",
+            },
+        )
+
+        self.assertResponseError(response, "params", "Must be a valid JSON object")
+
+        # a list is valid JSON, but extra has to be a dict
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "urns": ["tel:+12067791212"],
+                "contacts": [self.joe.uuid],
+                "groups": [hans_group.uuid],
+                "flow": flow.uuid,
+                "restart_participants": False,
+                "params": [1],
+            },
+        )
+
+        self.assertResponseError(response, "params", "Must be a valid JSON object")
 
         # invalid URN
         response = self.postJSON(
@@ -3854,20 +3945,21 @@ class APITest(TembaTest):
         response = self.fetchJSON(url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["next"], None)
-        self.assertResultsById(response, [start2, start1])
+        self.assertResultsById(response, [start3, start2, start1])
         self.assertEqual(
             response.json()["results"][0],
             {
-                "id": start2.id,
-                "uuid": str(start2.uuid),
+                "id": start3.id,
+                "uuid": str(start3.uuid),
                 "flow": {"uuid": flow.uuid, "name": "Favorites"},
                 "contacts": [{"uuid": self.joe.uuid, "name": "Joe Blow"}, {"uuid": anon_contact.uuid, "name": None}],
                 "groups": [{"uuid": hans_group.uuid, "name": "hans"}],
                 "restart_participants": False,
                 "status": "pending",
-                "extra": {"first_name": "Ryan", "last_name": "Lewis"},
-                "created_on": format_datetime(start2.created_on),
-                "modified_on": format_datetime(start2.modified_on),
+                "extra": {"first_name": "Bob", "last_name": "Marley"},
+                "params": {"first_name": "Bob", "last_name": "Marley"},
+                "created_on": format_datetime(start3.created_on),
+                "modified_on": format_datetime(start3.modified_on),
             },
         )
 

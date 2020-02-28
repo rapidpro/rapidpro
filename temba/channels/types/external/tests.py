@@ -97,6 +97,12 @@ class ExternalTypeTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEqual(response.status_code, 200)
 
+        channel.config[Channel.CONFIG_CONTENT_TYPE] = Channel.CONTENT_TYPE_XML
+        channel.save()
+
+        response = self.client.get(config_url)
+        self.assertEqual(response.status_code, 200)
+
     def test_claim_bulk_sender(self):
         url = reverse("channels.types.external.claim") + "?role=S&channel=%s" % self.channel.pk
 

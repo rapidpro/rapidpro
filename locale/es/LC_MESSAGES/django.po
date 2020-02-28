@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-18 19:17+0000\n"
+"POT-Creation-Date: 2020-02-28 14:46+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -2735,6 +2735,44 @@ msgstr ""
 msgid "The Twilio Messaging Service SID"
 msgstr ""
 
+msgid "If you have a Twilio for Whatsapp number, you can connect it to communicate with your Whatsapp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio Whatsapp</a>"
+msgstr ""
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your Africa's Talking connection you'll need to set the following callback URLs on the\n"
+#| "        Africa's Talking website under your account.\n"
+#| "\n"
+#| "      "
+msgid ""
+"\n"
+"        To finish configuring your Twilio Whatsapp connection you'll need to add the following URL in your Twilio Inbound Settings.\n"
+"        Check the Twilio WhatsApp documentation for more information.\n"
+"        "
+msgstr ""
+"\n"
+"        Para terminar de configurar su conexión a Africa's Talking tendrá que configurar los siguientes URLs de devolución de llamadas en el\n"
+"        sitio web de Africa's Talking en su cuenta.\n"
+"\n"
+"      "
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        This endpoint will be called by Vumi when new messages are received to your number.\n"
+#| "\n"
+#| "      "
+msgid "This endpoint should be called by Twilio when new messages are received by your Twilio Whatsapp number."
+msgstr ""
+"\n"
+"        Vumi llamará a este endpoint cuando su número reciba mensajes nuevos.\n"
+"\n"
+"      "
+
+msgid "Only existing Twilio Whatsapp number are supported"
+msgstr ""
+
 msgid ""
 "\n"
 "        Connect to a service that speaks TwiML. You can use this to connect to TwiML compatible services outside of Twilio.\n"
@@ -2892,7 +2930,7 @@ msgid "The message send to user who have not yet subscribed to the channel, chan
 msgstr ""
 
 msgid ""
-"Add a VK bot to send and receive messages on behalf of a VK community\n"
+"Add a <a href=\"https://vk.com/\">VK</a> bot to send and receive messages on behalf of a VK community\n"
 "        for free. You will need to create an access token for your community first.\n"
 "        "
 msgstr ""
@@ -3661,7 +3699,7 @@ msgstr ""
 msgid "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you can create new ones."
 msgstr ""
 
-msgid "You cannot create a dynamic group based on \"id\"."
+msgid "You cannot create a dynamic group based on \"id\" or \"group\"."
 msgstr ""
 
 msgid "You cannot update the query of a group that is evaluating."
@@ -7018,6 +7056,34 @@ msgstr ""
 "      "
 
 #, fuzzy
+msgid "the message of the text being sent"
+msgstr "El mensaje de texto real que se envió"
+
+#, fuzzy
+#| msgid "The phone number or short code you are connecting"
+msgid "the phone number or address you have configured for this service"
+msgstr "El número de teléfono o código abreviado al que se está conectando"
+
+msgid "the phone number or address you have configured for this service, with leading +'s removed"
+msgstr ""
+
+#, fuzzy
+#| msgid "The phone number for this call"
+msgid "the phone number or URN this message is addressed to"
+msgstr "El número de teléfono para esta llamada"
+
+msgid "the phone number or URN this message is addressed to, with leading +'s removed"
+msgstr ""
+
+#, fuzzy
+#| msgid "The type of this message"
+msgid "the unique ID of this message"
+msgstr "El tipo de este mensaje"
+
+msgid "the quick replies for this message, formatted according to send method and content type"
+msgstr ""
+
+#, fuzzy
 #| msgid ""
 #| "\n"
 #| "        An example that would substitute variables in the URL:\n"
@@ -7031,6 +7097,10 @@ msgstr ""
 "      "
 
 msgid "If using POST or PUT, you can specify the body of the request using the same variables."
+msgstr ""
+
+#, python-format
+msgid "The %(quick_replies_var)s variable with method GET or content type URL Encoded will be replaced by %(quick_replies_output)s for each quick reply."
 msgstr ""
 
 #, fuzzy, python-format
@@ -7678,6 +7748,30 @@ msgstr ""
 "        enviar un mensaje a TextIt.\n"
 "\n"
 "      "
+
+msgid "You have connected a Twilio Trial Account which has some restrictions."
+msgstr ""
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        Once you claim a number you will immediately be able to send and receive messages. Users who send messages\n"
+#| "        to your number will be charged according to their plan.\n"
+#| "\n"
+#| "      "
+msgid "Once you claim a number you will immediately be able to send and receive Whatsapp messages. Users who send messages to your Whatsapp number will be charged according to their plan."
+msgstr ""
+"\n"
+"        Cuando pide un número podrá enviar y recibir mensajes inmediatamente. A los usuarios que envíen mensajes\n"
+"        a su número se les cobrará de acuerdo con su plan.\n"
+"\n"
+"      "
+
+msgid "You do not have any number on your Twilio Account. Please make sure you have a number and that it has access to Twilio Whatsapp."
+msgstr ""
+
+msgid "To request access to Twilio Whatsapp"
+msgstr ""
 
 #, fuzzy
 #| msgid ""
@@ -8413,7 +8507,7 @@ msgstr "Guardar Búsqueda como Grupo"
 msgid "Unable to create a dynamic group"
 msgstr ""
 
-msgid "You cannot create a dynamic group based on <strong>name</strong> or <strong>id</strong>."
+msgid "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>."
 msgstr ""
 
 #, fuzzy
@@ -8450,8 +8544,12 @@ msgstr ""
 msgid "repeats weekly"
 msgstr ""
 
-msgid "Message History"
+#, fuzzy
+msgid "History"
 msgstr "Historial de mensajes"
+
+msgid "Full"
+msgstr ""
 
 msgid "Delete Contact"
 msgstr "Borrar contacto"
@@ -12173,6 +12271,9 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Message History"
+#~ msgstr "Historial de mensajes"
 
 #, fuzzy
 #~| msgid "Any labels on this flow"

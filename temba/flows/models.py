@@ -139,12 +139,14 @@ class Flow(TembaModel):
     METADATA_DEPENDENCIES = "dependencies"
     METADATA_WAITING_EXIT_UUIDS = "waiting_exit_uuids"
     METADATA_PARENT_REFS = "parent_refs"
+    METADATA_ISSUES = "issues"
 
     # items in the response from mailroom flow inspection
     INSPECT_RESULTS = "results"
     INSPECT_DEPENDENCIES = "dependencies"
     INSPECT_WAITING_EXITS = "waiting_exits"
     INSPECT_PARENT_REFS = "parent_refs"
+    INSPECT_ISSUES = "issues"
 
     # items in the flow definition JSON
     DEFINITION_UUID = "uuid"
@@ -1094,6 +1096,16 @@ class Flow(TembaModel):
         return metadata
 
     @classmethod
+    def get_metadata(cls, flow_info):
+        return {
+            Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
+            Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
+            Flow.METADATA_WAITING_EXIT_UUIDS: flow_info[Flow.INSPECT_WAITING_EXITS],
+            Flow.METADATA_PARENT_REFS: flow_info[Flow.INSPECT_PARENT_REFS],
+            Flow.METADATA_ISSUES: flow_info[Flow.INSPECT_ISSUES],
+        }
+
+    @classmethod
     def detect_invalid_cycles(cls, json_dict):
         """
         Checks for invalid cycles in our flow
@@ -1242,13 +1254,7 @@ class Flow(TembaModel):
         with transaction.atomic():
             # update our flow fields
             self.base_language = definition.get(Flow.DEFINITION_LANGUAGE, None)
-
-            self.metadata = {
-                Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
-                Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
-                Flow.METADATA_WAITING_EXIT_UUIDS: flow_info[Flow.INSPECT_WAITING_EXITS],
-                Flow.METADATA_PARENT_REFS: flow_info[Flow.INSPECT_PARENT_REFS],
-            }
+            self.metadata = Flow.get_metadata(flow_info)
             self.saved_by = user
             self.saved_on = timezone.now()
             self.version_number = Flow.CURRENT_SPEC_VERSION
@@ -1608,19 +1614,6 @@ class Flow(TembaModel):
         for dep in dependencies:
             identifier = dep.get("uuid", dep.get("key"))
             identifiers[dep["type"]].append(identifier)
-
-        # fields won't have been included in old imports so may need to be lazily created here
-        if identifiers["field"]:
-            active_org_fields = set(
-                ContactField.user_fields.active_for_org(org=self.org).values_list("key", flat=True)
-            )
-
-            fields_to_create = set(identifiers["field"]).difference(active_org_fields)
-
-            # create any field that doesn't already exist
-            for field in fields_to_create:
-                if ContactField.is_valid_key(field):
-                    ContactField.get_or_create(self.org, self.modified_by, field)
 
         # globals aren't included in exports so they're created here too if they don't exist, with blank values
         if identifiers["global"]:
@@ -2879,6 +2872,9 @@ class ExportFlowResultsTask(BaseExportTask):
                 )
 
                 temp_runs_exported = total_runs_exported
+
+                self.modified_on = timezone.now()
+                self.save(update_fields=["modified_on"])
 
         temp = NamedTemporaryFile(delete=True)
         book.finalize(to_file=temp)

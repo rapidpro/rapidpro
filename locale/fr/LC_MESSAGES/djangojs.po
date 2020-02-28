@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-19 13:33+0000\n"
+"POT-Creation-Date: 2020-02-28 14:46+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <ekieyapojesus@gmail.com>, 2019\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -21,6 +21,159 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid " "
+msgstr ""
+
+msgid "."
+msgstr ""
+
+msgid "*"
+msgstr ""
+
+msgid "import"
+msgstr ""
+
+msgid "{}"
+msgstr ""
+
+msgid ", "
+msgstr ""
+
+msgid "this"
+msgstr ""
+
+msgid "super"
+msgstr ""
+
+msgid "null"
+msgstr ""
+
+msgid ",\n"
+msgstr ""
+
+msgid " = "
+msgstr ""
+
+msgid "\n"
+msgstr ""
+
+msgid "debugger;"
+msgstr ""
+
+msgid ":"
+msgstr ""
+
+msgid "empty"
+msgstr ""
+
+msgid "any"
+msgstr ""
+
+msgid "mixed"
+msgstr ""
+
+msgid "boolean"
+msgstr ""
+
+msgid "interface "
+msgstr ""
+
+msgid " & "
+msgstr ""
+
+msgid "number"
+msgstr ""
+
+msgid "string"
+msgstr ""
+
+msgid "typeof "
+msgstr ""
+
+msgid " | "
+msgstr ""
+
+msgid "void"
+msgstr ""
+
+msgid "big_int"
+msgstr ""
+
+msgid "num"
+msgstr ""
+
+msgid "template_head"
+msgstr ""
+
+msgid "comment2"
+msgstr ""
+
+msgid "regexp"
+msgstr ""
+
+msgid "operator"
+msgstr ""
+
+msgid "eof"
+msgstr ""
+
+msgid "expand"
+msgstr ""
+
+msgid "punc"
+msgstr ""
+
+msgid "arrow"
+msgstr ""
+
+msgid "name"
+msgstr ""
+
+msgid "atom"
+msgstr ""
+
+msgid "keyword"
+msgstr ""
+
+msgid "("
+msgstr ""
+
+msgid ")"
+msgstr ""
+
+msgid ";"
+msgstr ""
+
+msgid ","
+msgstr ""
+
+msgid "]"
+msgstr ""
+
+msgid "}"
+msgstr ""
+
+msgid "{"
+msgstr ""
+
+msgid "["
+msgstr ""
+
+msgid "Label {name} defined twice"
+msgstr ""
+
+msgid "Undefined label {name} [{line},{col}]"
+msgstr ""
+
+msgid "Can't handle constant of type: {type}"
+msgstr ""
+
+msgid "Cannot evaluate a statement [{file}:{line},{col}]"
+msgstr ""
+
+msgid "hidden"
+msgstr ""
 
 msgid "Enter one or more contact groups"
 msgstr "Saisissez un ou plusieurs groupes de contact"

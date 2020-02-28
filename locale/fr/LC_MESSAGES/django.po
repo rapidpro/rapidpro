@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-18 19:17+0000\n"
+"POT-Creation-Date: 2020-02-28 14:46+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -2579,6 +2579,40 @@ msgstr ""
 msgid "The Twilio Messaging Service SID"
 msgstr ""
 
+msgid "If you have a Twilio for Whatsapp number, you can connect it to communicate with your Whatsapp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio Whatsapp</a>"
+msgstr ""
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your Infobip connection you'll need to set the following callback URLs on the\n"
+#| "        Infobip website under your account.\n"
+#| "\n"
+#| "      "
+msgid ""
+"\n"
+"        To finish configuring your Twilio Whatsapp connection you'll need to add the following URL in your Twilio Inbound Settings.\n"
+"        Check the Twilio WhatsApp documentation for more information.\n"
+"        "
+msgstr ""
+"\n"
+"Pour finir de configurer votre connexion Infobip vous devrez établir les rappels URLs suivants sur le \n"
+"site Infobip sous votre compte."
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        This endpoint will be called by Vumi when new messages are received to your number.\n"
+#| "\n"
+#| "      "
+msgid "This endpoint should be called by Twilio when new messages are received by your Twilio Whatsapp number."
+msgstr ""
+"\n"
+"Vumi appellera ce paramètre quand de nouveaux messages seront reçus par votre numéro."
+
+msgid "Only existing Twilio Whatsapp number are supported"
+msgstr ""
+
 msgid ""
 "\n"
 "        Connect to a service that speaks TwiML. You can use this to connect to TwiML compatible services outside of Twilio.\n"
@@ -2735,7 +2769,7 @@ msgid "The message send to user who have not yet subscribed to the channel, chan
 msgstr ""
 
 msgid ""
-"Add a VK bot to send and receive messages on behalf of a VK community\n"
+"Add a <a href=\"https://vk.com/\">VK</a> bot to send and receive messages on behalf of a VK community\n"
 "        for free. You will need to create an access token for your community first.\n"
 "        "
 msgstr ""
@@ -3508,7 +3542,7 @@ msgstr ""
 msgid "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you can create new ones."
 msgstr ""
 
-msgid "You cannot create a dynamic group based on \"id\"."
+msgid "You cannot create a dynamic group based on \"id\" or \"group\"."
 msgstr ""
 
 msgid "You cannot update the query of a group that is evaluating."
@@ -6792,6 +6826,34 @@ msgstr ""
 "Vous pouvez spécifier les paramètres à substituer dans l'URL en utilisant les variables suivantes:"
 
 #, fuzzy
+msgid "the message of the text being sent"
+msgstr "Le message SMS réelle qui a été envoyé"
+
+#, fuzzy
+#| msgid "The phone number or short code you are connecting"
+msgid "the phone number or address you have configured for this service"
+msgstr "Le pays ce numéro de téléphone est utilisé dans"
+
+msgid "the phone number or address you have configured for this service, with leading +'s removed"
+msgstr ""
+
+#, fuzzy
+#| msgid "The phone number for this call"
+msgid "the phone number or URN this message is addressed to"
+msgstr "Le numéro de téléphone pour cet appel"
+
+msgid "the phone number or URN this message is addressed to, with leading +'s removed"
+msgstr ""
+
+#, fuzzy
+#| msgid "The type of this message"
+msgid "the unique ID of this message"
+msgstr "Le type de ce message"
+
+msgid "the quick replies for this message, formatted according to send method and content type"
+msgstr ""
+
+#, fuzzy
 #| msgid ""
 #| "\n"
 #| "        An example that would substitute variables in the URL:\n"
@@ -6803,6 +6865,10 @@ msgstr ""
 "Un exemple qui substituerait des variables dans l'URL:"
 
 msgid "If using POST or PUT, you can specify the body of the request using the same variables."
+msgstr ""
+
+#, python-format
+msgid "The %(quick_replies_var)s variable with method GET or content type URL Encoded will be replaced by %(quick_replies_output)s for each quick reply."
 msgstr ""
 
 #, fuzzy, python-format
@@ -7458,6 +7524,28 @@ msgstr ""
 "\n"
 "Après avoir connecté votre service nous fournirons des URLs pour que les paramètres d'InfoBip puisse appeler quand ils veulent\n"
 "transmettre un message à TextIt."
+
+msgid "You have connected a Twilio Trial Account which has some restrictions."
+msgstr ""
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        Once you claim a number you will immediately be able to send and receive messages. Users who send messages\n"
+#| "        to your number will be charged according to their plan.\n"
+#| "\n"
+#| "      "
+msgid "Once you claim a number you will immediately be able to send and receive Whatsapp messages. Users who send messages to your Whatsapp number will be charged according to their plan."
+msgstr ""
+"\n"
+"Vous serez immédiatement à même d'envoyer et de recevoir des messages dès que vous réclamer un numéro de téléphone.  Les utilisateurs qui envoient des messages\n"
+"à votre numéro seront facturés en fonction de leur plan."
+
+msgid "You do not have any number on your Twilio Account. Please make sure you have a number and that it has access to Twilio Whatsapp."
+msgstr ""
+
+msgid "To request access to Twilio Whatsapp"
+msgstr ""
 
 #, fuzzy
 #| msgid ""
@@ -8202,7 +8290,7 @@ msgstr "Sélectionner un groupe"
 msgid "Unable to create a dynamic group"
 msgstr ""
 
-msgid "You cannot create a dynamic group based on <strong>name</strong> or <strong>id</strong>."
+msgid "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>."
 msgstr ""
 
 #, fuzzy
@@ -8239,11 +8327,13 @@ msgstr ""
 msgid "repeats weekly"
 msgstr ""
 
-msgid "Message History"
+#, fuzzy
+msgid "History"
 msgstr "Historique des messages"
 
-#, fuzzy
-#| msgid "Manage Contact Fields"
+msgid "Full"
+msgstr ""
+
 msgid "Delete Contact"
 msgstr "Gérer les champs de contact"
 
@@ -11887,6 +11977,9 @@ msgstr "Entrez le code Claim"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Message History"
+#~ msgstr "Historique des messages"
 
 #, fuzzy
 #~| msgid "Any labels on this flow"
