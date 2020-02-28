@@ -2,11 +2,8 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import VK_SCHEME
 
-from .views import ClaimView
 from ...models import ChannelType
-
-CONFIG_COMMUNITY_NAME = "community_name"
-CONFIG_CALLBACK_VERIFICATION_STRING = "callback_verification_string"
+from .views import ClaimView
 
 
 class VKType(ChannelType):
@@ -25,7 +22,7 @@ class VKType(ChannelType):
     icon = "icon-vk"
 
     claim_blurb = _(
-        """Add a <a href="https://vk.com">VK</a> bot to send and receive messages on behalf of a VK community
+        """Add a <a href="https://vk.com/">VK</a> bot to send and receive messages on behalf of a VK community
         for free. You will need to create an access token for your community first.
         """
     )
