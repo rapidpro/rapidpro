@@ -3,6 +3,7 @@ from django.urls import reverse
 from temba.tests import TembaTest
 
 from ...models import Channel
+from .type import CONFIG_CALLBACK_VERIFICATION_STRING, CONFIG_COMMUNITY_NAME
 
 
 class VKTypeTest(TembaTest):
@@ -46,6 +47,6 @@ class VKTypeTest(TembaTest):
 
         channel = Channel.objects.get(address="123456")
         self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], token)
-        self.assertEqual(channel.config[Channel.CONFIG_COMMUNITY_NAME], "Temba")
-        self.assertEqual(channel.config[Channel.CONFIG_CALLBACK_VERIFICATION_STRING], "123456")
+        self.assertEqual(channel.config[CONFIG_COMMUNITY_NAME], "Temba")
+        self.assertEqual(channel.config[CONFIG_CALLBACK_VERIFICATION_STRING], "123456")
         self.assertEqual(channel.address, "123456")
