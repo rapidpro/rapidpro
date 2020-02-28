@@ -1572,9 +1572,16 @@ class SyncEvent(SmartModel):
 
     @classmethod
     def trim(cls):
+        from temba.channels.types.android import AndroidType
         week_ago = timezone.now() - timedelta(days=7)
-        for event in cls.objects.filter(created_on__lte=week_ago):
-            event.release()
+
+        channels = Channel.objects.filter(is_active=True, channel_type=AndroidType.code)
+        for channel in channels:
+            last_sync_event = SyncEvent.objects.filter(channel=channel).order_by("-created_on").first()
+            if last_sync_event:
+                sync_events = SyncEvent.objects.filter(created_on__lte=week_ago).exclude(pk=last_sync_event.pk)
+                for event in sync_events:
+                    event.release()
 
 
 @receiver(pre_save, sender=SyncEvent)

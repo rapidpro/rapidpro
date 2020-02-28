@@ -1401,7 +1401,7 @@ class ChannelTest(TembaTest):
         trim_sync_events_task()
 
         # should be cleared out
-        self.assertFalse(SyncEvent.objects.exists())
+        self.assertEqual(1, SyncEvent.objects.all().count())
         self.assertFalse(Alert.objects.exists())
 
         # the case the status is in unknown state
