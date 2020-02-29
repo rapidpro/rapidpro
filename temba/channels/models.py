@@ -18,7 +18,7 @@ from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
-from django.db.models import Max, Q, Sum
+from django.db.models import Count, Max, Q, Sum
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template import Context, Engine, TemplateDoesNotExist
@@ -1572,17 +1572,20 @@ class SyncEvent(SmartModel):
 
     @classmethod
     def trim(cls):
-        from temba.channels.types.android import AndroidType
-
         week_ago = timezone.now() - timedelta(days=7)
 
-        channels = Channel.objects.filter(is_active=True, channel_type=AndroidType.code)
-        for channel in channels:
-            last_sync_event = SyncEvent.objects.filter(channel=channel).order_by("-created_on").first()
-            if last_sync_event:
-                sync_events = SyncEvent.objects.filter(created_on__lte=week_ago).exclude(pk=last_sync_event.pk)
-                for event in sync_events:
-                    event.release()
+        channels_with_sync_events = (
+            SyncEvent.objects.filter(created_on__lte=week_ago)
+            .values("channel")
+            .annotate(Count("id"))
+            .filter(id__count__gt=1)
+        )
+        for channel_sync_events in channels_with_sync_events:
+            sync_events = SyncEvent.objects.filter(
+                created_on__lte=week_ago, channel_id=channel_sync_events["channel"]
+            ).order_by("-created_on")[1:]
+            for event in sync_events:
+                event.release()
 
 
 @receiver(pre_save, sender=SyncEvent)
