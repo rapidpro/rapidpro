@@ -2655,7 +2655,7 @@ class APITest(TembaTest):
                     "name": "Org Name",
                     "value": "Acme Ltd",
                     "modified_on": format_datetime(global1.modified_on),
-                },
+                }
             ],
         )
 
@@ -2695,7 +2695,7 @@ class APITest(TembaTest):
                     "name": "Org Name",
                     "value": "Acme Ltd",
                     "modified_on": format_datetime(global1.modified_on),
-                },
+                }
             ],
         )
 
