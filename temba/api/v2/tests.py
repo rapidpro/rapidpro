@@ -2641,6 +2641,64 @@ class APITest(TembaTest):
                 },
             ],
         )
+
+        # Filter by key
+        response = self.fetchJSON(url, "key=org_name")
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertEqual(
+            resp_json["results"],
+            [
+                {
+                    "key": "org_name",
+                    "name": "Org Name",
+                    "value": "Acme Ltd",
+                    "modified_on": format_datetime(global1.modified_on),
+                },
+            ],
+        )
+
+        # filter by after
+        response = self.fetchJSON(url, "after=%s" % format_datetime(global1.modified_on))
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertEqual(
+            resp_json["results"],
+            [
+                {
+                    "key": "access_token",
+                    "name": "Access Token",
+                    "value": "23464373",
+                    "modified_on": format_datetime(global2.modified_on),
+                },
+                {
+                    "key": "org_name",
+                    "name": "Org Name",
+                    "value": "Acme Ltd",
+                    "modified_on": format_datetime(global1.modified_on),
+                },
+            ],
+        )
+
+        # filter by before
+        response = self.fetchJSON(url, "before=%s" % format_datetime(global1.modified_on))
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertEqual(
+            resp_json["results"],
+            [
+                {
+                    "key": "org_name",
+                    "name": "Org Name",
+                    "value": "Acme Ltd",
+                    "modified_on": format_datetime(global1.modified_on),
+                },
+            ],
+        )
+
         # lets change a global
         response = self.postJSON(url, "key=org_name", {"value": "Acme LLC"})
         self.assertEqual(response.status_code, 200)
