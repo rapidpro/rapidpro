@@ -2651,6 +2651,10 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"name": "!!!#$%^"})
         self.assertResponseError(response, "name", "Name contains illegal characters.")
 
+        # try to create a global with name that creates an invalid key
+        response = self.postJSON(url, None, {"name": "2cool key", "value": "23464373"})
+        self.assertResponseError(response, "name", "Name creates Key that is invalid")
+
         # try to create a global with name that's too long
         response = self.postJSON(url, None, {"name": "x" * 37})
         self.assertResponseError(response, "name", "Ensure this field has no more than 36 characters.")

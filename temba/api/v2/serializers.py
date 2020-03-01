@@ -1054,6 +1054,9 @@ class GlobalWriteSerializer(WriteSerializer):
     def validate_name(self, value):
         if not Global.is_valid_name(value):
             raise serializers.ValidationError("Name contains illegal characters.")
+        key = Global.make_key(value)
+        if not Global.is_valid_key(key):
+            raise serializers.ValidationError("Name creates Key that is invalid")
         return value
 
     def save(self):
@@ -1065,8 +1068,6 @@ class GlobalWriteSerializer(WriteSerializer):
         else:
             name = self.validated_data["name"]
             key = Global.make_key(name)
-            if not Global.is_valid_key(key):
-                raise serializers.ValidationError("Key is invalid")
             return Global.get_or_create(self.context["org"], self.context["user"], key, name, value)
 
 
