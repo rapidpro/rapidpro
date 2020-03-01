@@ -694,6 +694,7 @@ class ParsedQuery(NamedTuple):
     query: str
     fields: list
     elastic_query: dict
+    allow_as_group: bool
 
 
 def parse_query(org_id, query, group_uuid=""):
@@ -703,7 +704,9 @@ def parse_query(org_id, query, group_uuid=""):
     try:
         client = mailroom.get_client()
         response = client.parse_query(org_id, query, group_uuid=str(group_uuid))
-        return ParsedQuery(response["query"], response["fields"], response["elastic_query"])
+        return ParsedQuery(
+            response["query"], response["fields"], response["elastic_query"], response.get("allow_as_group", False)
+        )
 
     except mailroom.MailroomException as e:
         raise SearchException(e.response["error"])
@@ -713,6 +716,7 @@ class SearchResults(NamedTuple):
     total: int
     query: str
     fields: list
+    allow_as_group: bool
     contact_ids: list
 
 
@@ -720,7 +724,13 @@ def search_contacts(org_id, group_uuid, query, sort=None, offset=None):
     try:
         client = mailroom.get_client()
         response = client.contact_search(org_id, str(group_uuid), query, sort, offset=offset)
-        return SearchResults(response["total"], response["query"], response["fields"], response["contact_ids"])
+        return SearchResults(
+            response["total"],
+            response["query"],
+            response["fields"],
+            response.get("allow_as_group", False),
+            response["contact_ids"],
+        )
 
     except mailroom.MailroomException as e:
         raise SearchException(e.response["error"])

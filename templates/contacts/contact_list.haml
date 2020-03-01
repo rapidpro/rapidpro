@@ -490,7 +490,7 @@
       modal.setRedirectOnSuccess(true);
       modal.show();
     {% else %}
-      var modal = new Modal('{% trans "Unable to create a dynamic group" %}','{% trans "You cannot create a dynamic group based on <strong>name</strong> or <strong>id</strong>." %}')
+      var modal = new Modal('{% trans "Unable to create a dynamic group" %}','{% trans "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>." %}')
       modal.setListeners({});
       modal.show();
     {% endif %}

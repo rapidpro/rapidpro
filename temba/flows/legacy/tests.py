@@ -230,7 +230,7 @@ class FlowMigrationTest(TembaTest):
         revision = flow.revisions.order_by("id").last()
         response = self.client.get("%s%s/" % (reverse("flows.flow_revisions", args=[flow.uuid]), str(revision.id)))
 
-        self.assertEqual(response.json()["spec_version"], "13.1.0")
+        self.assertEqual(response.json()["definition"]["spec_version"], "13.1.0")
 
     def test_migrate_malformed_single_message_flow(self):
 

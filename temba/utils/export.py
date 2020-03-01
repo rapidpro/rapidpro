@@ -122,19 +122,21 @@ class BaseExportTask(TembaModel):
         self.save(update_fields=("status", "modified_on"))
 
     @classmethod
+    def get_unfinished(cls):
+        """
+        Returns all unfinished exports
+        """
+        return cls.objects.filter(status__in=(cls.STATUS_PENDING, cls.STATUS_PROCESSING))
+
+    @classmethod
     def get_recent_unfinished(cls, org):
         """
         Checks for unfinished exports created in the last 24 hours for this org, and returns the most recent
         """
-        return (
-            cls.objects.filter(
-                org=org,
-                created_on__gt=timezone.now() - timedelta(hours=24),
-                status__in=(cls.STATUS_PENDING, cls.STATUS_PROCESSING),
-            )
-            .order_by("-created_on")
-            .first()
-        )
+
+        day_ago = timezone.now() - timedelta(hours=24)
+
+        return cls.get_unfinished().filter(org=org, created_on__gt=day_ago).order_by("created_on").last()
 
     def append_row(self, sheet, values):
         sheet.append_row(*[self.prepare_value(v) for v in values])
