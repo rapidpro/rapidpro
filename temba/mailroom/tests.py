@@ -7,10 +7,11 @@ from django.test import override_settings
 from django.utils import timezone
 
 from temba.channels.models import ChannelEvent
-from temba.flows.models import FlowStart
+from temba.flows.models import FlowRun, FlowStart
 from temba.mailroom.client import MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
 from temba.tests import MockResponse, TembaTest, matchers
+from temba.tests.engine import MockSessionWriter
 from temba.utils import json
 
 from . import queue_interrupt
@@ -321,6 +322,38 @@ class MailroomQueueTest(TembaTest):
                 "type": "interrupt_sessions",
                 "org_id": self.org.id,
                 "task": {"flow_ids": [flow.id]},
+                "queued_on": matchers.ISODate(),
+            },
+        )
+
+    def test_queue_interrupt_by_session(self):
+        jim = self.create_contact("Jim", "+12065551212")
+
+        flow = self.get_flow("favorites")
+        flow_nodes = flow.as_json()["nodes"]
+        color_prompt = flow_nodes[0]
+        color_split = flow_nodes[2]
+
+        (
+            MockSessionWriter(jim, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .save()
+        )
+
+        run = FlowRun.objects.get(contact=jim)
+        session = run.session
+        run.release("U")
+
+        self.assert_org_queued(self.org, "batch")
+        self.assert_queued_batch_task(
+            self.org,
+            {
+                "type": "interrupt_sessions",
+                "org_id": self.org.id,
+                "task": {"session_ids": [session.id]},
                 "queued_on": matchers.ISODate(),
             },
         )
