@@ -1,3 +1,7 @@
+v5.4.1
+----------
+ * Update sample flows to use @webhook instead of @legacy_extra
+
 v5.4.0
 ----------
  * Add API endpoint to update Globals
