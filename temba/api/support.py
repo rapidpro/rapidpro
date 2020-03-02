@@ -1,7 +1,7 @@
 import logging
 
 from rest_framework import exceptions, status
-from rest_framework.authentication import BasicAuthentication, TokenAuthentication
+from rest_framework.authentication import BasicAuthentication, SessionAuthentication, TokenAuthentication
 from rest_framework.exceptions import APIException
 from rest_framework.renderers import BrowsableAPIRenderer
 from rest_framework.throttling import ScopedRateThrottle
@@ -35,6 +35,7 @@ class APITokenAuthentication(TokenAuthentication):
         if token.user.is_active:
             # set the org on this user
             token.user.set_org(token.org)
+            token.user.using_token = True
 
             return token.user, token
 
@@ -62,16 +63,36 @@ class APIBasicAuthentication(BasicAuthentication):
         if token.user.is_active:
             # set the org on this user
             token.user.set_org(token.org)
+            token.user.using_token = True
 
             return token.user, token
 
         raise exceptions.AuthenticationFailed("Invalid token or email")
 
 
+class APISessionAuthentication(SessionAuthentication):
+    """
+    Session authentication as used by the editor, explorer
+    """
+
+    def authenticate(self, request):
+        result = super().authenticate(request)
+        if result:
+            result[0].using_token = False
+        return result
+
+
 class OrgUserRateThrottle(ScopedRateThrottle):
     """
     Throttle class which rate limits a user in an org
     """
+
+    def allow_request(self, request, view):
+        # any request not using a token (e.g. editor, explorer) isn't subject to throttling
+        if request.user.is_authenticated and not request.user.using_token:
+            return True
+
+        return super().allow_request(request, view)
 
     def get_cache_key(self, request, view):
         ident = None

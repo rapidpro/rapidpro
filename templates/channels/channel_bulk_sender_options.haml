@@ -8,7 +8,7 @@
         -trans "Add Bulk Sender"
       .instructions
         %p
-          -blocktrans
+          -blocktrans trimmed
             Bulk senders typically can send a higher volume of messages and in some cases are even cheaper than
             local messaging rates. If you have an account with a bulk sender, you can use your local Android phone
             number to receive messages, and use a bulk sender for your outgoing messages.
@@ -20,15 +20,15 @@
       .span3
         %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-nexmo{href:"#"}
           .claim-glyph.icon-channel-nexmo
-          %p.claim-text Connect Nexmo
+          %p.claim-text
+            -trans "Connect Nexmo"
 
       .span9
         .claim-description
           %div
-            -blocktrans
-              A great way to connect
-              if you are outside the United States or UK. Connect
-              a Nexmo Account to send messages to over 200 countries worldwide.
+            -blocktrans trimmed
+              A great way to connect if you are outside the United States or UK. Connect a Nexmo Account to send
+              messages to over 200 countries worldwide.
 
 
   .row.claim-row{class:'{% if not user_org.is_connected_to_nexmo %}hide{%endif%}'}
@@ -41,11 +41,9 @@
     .span9
       .claim-description
         %div
-          -blocktrans
+          -blocktrans trimmed
             Instead of using your Android phone to send messages, you can use your
-            %a.nexmo-account{href:"#"}
-              Nexmo Account
-            to send messages to over 200 countries.
+            <a class='nexmo-account' href='#'>Nexmo Account</a> to send messages to over 200 countries.
 
   .row.claim-row
     .span3
@@ -56,7 +54,7 @@
     .span9
       .claim-description
         %div
-          -blocktrans
+          -blocktrans trimmed
             If you have an external provider you want to use to send messages, you can connect it
             using our External API.
 

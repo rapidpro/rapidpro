@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'temba';
-  src:  url('fonts/temba.eot?f7w571');
-  src:  url('fonts/temba.eot?f7w571#iefix') format('embedded-opentype'),
-    url('fonts/temba.ttf?f7w571') format('truetype'),
-    url('fonts/temba.woff?f7w571') format('woff'),
-    url('fonts/temba.svg?f7w571#temba') format('svg');
+  src:  url('fonts/temba.eot?huiwut');
+  src:  url('fonts/temba.eot?huiwut#iefix') format('embedded-opentype'),
+    url('fonts/temba.ttf?huiwut') format('truetype'),
+    url('fonts/temba.woff?huiwut') format('woff'),
+    url('fonts/temba.svg?huiwut#temba') format('svg');
   font-weight: normal;
   font-style: normal;
   font-display: block;
@@ -25,8 +25,14 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-global:before {
+  content: "\ea2f";
+}
+.icon-freshchat:before {
+  content: "\e913";
+}
 .icon-bothub:before {
-  content: "\e900";
+  content: "\e901";
 }
 .icon-chip:before {
   content: "\e911";
@@ -38,7 +44,7 @@
   content: "\e910";
 }
 .icon-thinq:before {
-  content: "\e901";
+  content: "\e902";
 }
 .icon-whatsapp:before {
   content: "\ea93";
@@ -673,7 +679,7 @@
 .icon-channel-plivo:before {
   content: "\e0d1";
 }
-.icon-transferto:before {
+.icon-dtone:before {
   content: "\e0d2";
 }
 .icon-phone2:before {
@@ -764,31 +770,31 @@
   content: "\e80b";
 }
 .icon-telegram:before {
-  content: "\e902";
-}
-.icon-file_download:before {
   content: "\e903";
 }
-.icon-chatbase:before {
+.icon-file_download:before {
   content: "\e904";
 }
-.icon-quick-reply:before {
+.icon-chatbase:before {
   content: "\e905";
 }
-.icon-facebook-official:before {
+.icon-quick-reply:before {
   content: "\e906";
 }
-.icon-jiochat:before {
+.icon-facebook-official:before {
   content: "\e907";
 }
-.icon-line:before {
+.icon-jiochat:before {
   content: "\e908";
 }
-.icon-viber:before {
+.icon-line:before {
   content: "\e909";
 }
-.icon-cloud-lightning:before {
+.icon-viber:before {
   content: "\e90a";
+}
+.icon-cloud-lightning:before {
+  content: "\e90b";
 }
 .icon-junebug:before {
   content: "\e90c";
@@ -818,11 +824,14 @@
   content: "\e90d";
 }
 .icon-template:before {
-  content: "\e90b";
+  content: "\e912";
 }
 .icon-arrow-up51:before {
   content: "\edc7";
 }
 .icon-mtarget:before {
-  content: "\e912";
+  content: "\e914";
+}
+.icon-vk:before {
+  content: "\e900";
 }

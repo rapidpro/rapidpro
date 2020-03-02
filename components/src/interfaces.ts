@@ -7,7 +7,7 @@ export interface Contact {
     urns: URN[];
     primary_urn_formatted: string;
     name: string;
-    fields: {[uuid: string]: { text: string }};
+    fields: { [uuid: string]: { text: string } };
     created_on: Date;
 }
 
@@ -27,5 +27,6 @@ export enum CustomEventType {
     Canceled = 'rp-canceled',
     CursorChanged = 'rp-cursor-changed',
     Selection = 'rp-selection',
-    ButtonClicked = 'rp-button-clicked'
+    ButtonClicked = 'rp-button-clicked',
+    DialogHidden = 'rp-dialog-hidden'
 }

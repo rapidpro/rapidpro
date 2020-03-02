@@ -32,24 +32,27 @@ class WitType(ClassifierType):
 
     INTENT_URL = "https://api.wit.ai/entities/intent"
 
-    @classmethod
-    def get_active_intents_from_api(cls, classifier, logs):
+    def get_active_intents_from_api(self, classifier):
         """
         Gets the current intents defined by this app. In Wit intents are treated as a special case of an entity. We
         fetch the possible values for that entity.
         """
-        access_token = classifier.config[cls.CONFIG_ACCESS_TOKEN]
+        access_token = classifier.config[self.CONFIG_ACCESS_TOKEN]
 
         start = timezone.now()
-        response = requests.get(cls.INTENT_URL, headers={"Authorization": f"Bearer {access_token}"})
-        elapsed = (timezone.now() - start).total_seconds() * 1000
+        try:
+            response = requests.get(self.INTENT_URL, headers={"Authorization": f"Bearer {access_token}"})
+            elapsed = (timezone.now() - start).total_seconds() * 1000
 
-        log = HTTPLog.from_response(HTTPLog.INTENTS_SYNCED, cls.INTENT_URL, response, classifier=classifier)
-        log.request_time = elapsed
-        logs.append(log)
+            HTTPLog.create_from_response(
+                HTTPLog.INTENTS_SYNCED, self.INTENT_URL, response, classifier=classifier, request_time=elapsed
+            )
 
-        response.raise_for_status()
-        response_json = response.json()
+            response.raise_for_status()
+            response_json = response.json()
+        except requests.RequestException as e:
+            HTTPLog.create_from_exception(HTTPLog.INTENTS_SYNCED, self.INTENT_URL, e, start, classifier=classifier)
+            return []
 
         intents = []
         for intent in response_json["values"]:

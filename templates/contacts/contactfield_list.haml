@@ -6,7 +6,7 @@
   {{ title }}
 
 -block top-form
-  - if view.search_fields and object_list
+  - if view.search_fields
     - block search-form
       %form
         %input.input-medium.search-query{type:'text', placeholder:'Search', name:"search", value:"{{ search }}"}
@@ -74,7 +74,7 @@
                       %td{class:'field-dependencies'}
                         -if obj.flow_count or obj.campaign_count or obj.contactgroup_count
                           %a{href:"#", class:'field-dependencies', onClick:"showDetailContactFieldModal({{ obj.id }}, \"{{ obj.label }}\");"}
-                            {% blocktrans count counter=obj.flow_count|add:obj.campaign_count|add:obj.contactgroup_count %}
+                            {% blocktrans trimmed count counter=obj.flow_count|add:obj.campaign_count|add:obj.contactgroup_count %}
                               {{counter}} Use
                             {% plural %}
                               {{counter}} Uses

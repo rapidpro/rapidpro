@@ -54,7 +54,7 @@
                       {{group.label}}
                       %i.spin.icon-loop
 
-          %div{style:"margin-top: 10px"}
+          %div{style:"margin-top: 10px; margin-bottom:10px;"}
             - if org_perms.contacts.contact_create
               %a#add-contact.btn.btn-block
                 -trans "Create Contact"
@@ -130,9 +130,10 @@
                                   - trans "New Group..."
 
                       - if org_perms.msgs.broadcast_send and not reply_disabled
-                        %span.btn-group
-                          %button.send-button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Send Message" %}'}
-                            .glyph.icon-bubble-replu
+                        %span{ style: "display: inline-block; margin-left: 5px"}
+                          %rp-modax#send-message-modal{ header:'{% trans "Send Message" %}', endpoint:"{% url 'msgs.broadcast_send' %}" }
+                            %button.send-button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Send Message" %}'}
+                              .glyph.icon-bubble-replu
 
               .search-details
                 -if search_error
@@ -155,19 +156,19 @@
                     -for field in contact_fields
                       -if field.show_in_table
                         %th
-                          -if sort_field == field.uuid|stringformat:'s'
+                          -if sort_field == field.key
                             -if sort_direction == 'desc'
-                              %a{href:"?sort_on={{ field.uuid }}{% if search %}&search={{ search|escape }}{% endif %}"}
+                              %a{href:"?sort_on={{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}"}
                                 %div
                                   {{ field.label }}
                                   %span.sort.icon.icon-arrow-down-2.sort-asc.visible
                             -else
-                              %a{href:"?sort_on=-{{ field.uuid }}{% if search %}&search={{ search|escape }}{% endif %}"}
+                              %a{href:"?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}"}
                                 %div
                                   {{ field.label }}
-                                  %span.sort.icon.icon-arrow-up5.sort-desc.visible
+                                  %span.sort.icon.icon-arrow-up51.sort-desc.visible
                           -else
-                            %a{href:"?sort_on=-{{ field.uuid }}{% if search %}&search={{ search|escape }}{% endif %}"}
+                            %a{href:"?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}"}
                               %div
                                 {{ field.label }}
                                 %span.sort.icon.icon-arrow-down-2.sort-desc
@@ -184,7 +185,7 @@
                             %a{href:"?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}"}
                               %div
                                 -trans "Created On"
-                                %span.sort.icon.icon-arrow-up5.sort-desc.visible
+                                %span.sort.icon.icon-arrow-up51.sort-desc.visible
                         -else
                           %a{href:"?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}"}
                             %div
@@ -213,7 +214,7 @@
 
                         %td.value-received.field_received
                           %nobr
-                            {% short_datetime object.created_on %}
+                            {% format_datetime object.created_on %}
 
                         // This is needed for action buttons
                         %td.hide
@@ -236,9 +237,8 @@
 
 
               - block paginator
-                - if object_list.count
-                  .paginator
-                    - include "smartmin/sidebar_pagination.haml"
+                .paginator
+                  - include "smartmin/sidebar_pagination.haml"
 
                 -# are we using ES, and are we on the last page of the pagination and
                 - if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages and paginator.count > 10000
@@ -333,6 +333,29 @@
 
   :javascript
 
+      // wire our send button on load and on refresh
+    wireSendButton();
+    document.addEventListener('rp-refresh-complete', function() {
+      wireSendButton();
+    });
+
+    function wireSendButton() {
+      // when we click send, include any clicked messages in our modax request
+      var sendEndpoint = "{% url 'msgs.broadcast_send' %}";
+      var sendButton = document.querySelector(".send-button");
+      var sendModal = document.querySelector("#send-message-modal");
+      if (sendButton) {
+        sendButton.addEventListener('click', function(){
+          var ids = getCheckedUuids();
+          if (ids.length > 0) {
+            sendModal.setAttribute("endpoint", sendEndpoint + '?c=' + ids);
+          } else {
+            sendModal.setAttribute("endpoint", sendEndpoint);
+          }
+        });
+      }
+    }
+
     $(document).on('click', '.search-query', function() {
       $(this).animate({ width: '600px'}, 200);
     });
@@ -401,17 +424,6 @@
     {% endif %}
 
 
-    {% if org_perms.msgs.broadcast_send %}
-    $(".send-button").click(function(){
-      var contactsUuids = getCheckedUuids();
-      if (contactsUuids.length > 0) {
-        showComposeInitialized("c=" + contactsUuids);
-      } else {
-        showCompose();
-      }
-    });
-    {% endif %}
-
     {% if org_perms.contacts.contact_create %}
     $("#add-contact").live('click', function() { showCreateContactModal(); });
     {% endif %}
@@ -478,7 +490,7 @@
       modal.setRedirectOnSuccess(true);
       modal.show();
     {% else %}
-      var modal = new Modal('{% trans "Unable to create a dynamic group" %}','{% trans "You cannot create a dynamic group based on <strong>name</strong> or <strong>id</strong>." %}')
+      var modal = new Modal('{% trans "Unable to create a dynamic group" %}','{% trans "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>." %}')
       modal.setListeners({});
       modal.show();
     {% endif %}

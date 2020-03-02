@@ -1,8 +1,11 @@
 from unittest.mock import patch
 
+from requests import RequestException
+
 from django.urls import reverse
 
 from temba.classifiers.models import Classifier
+from temba.request_logs.models import HTTPLog
 from temba.tests import MockResponse, TembaTest
 
 from .type import WitType
@@ -45,16 +48,19 @@ class WitTypeTest(TembaTest):
 
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(400, '{ "error": "true" }')
-            logs = []
+            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 2)
             with self.assertRaises(Exception):
-                WitType.get_active_intents_from_api(c, logs)
-                self.assertEqual(1, len(logs))
+                c.get_type().get_active_intents_from_api(c)
+                self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 3)
+
+            mock_get.side_effect = RequestException("Network is unreachable", response=MockResponse(100, ""))
+            c.get_type().get_active_intents_from_api(c)
+            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 4)
 
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(200, INTENT_RESPONSE)
-            logs = []
-            intents = WitType.get_active_intents_from_api(c, logs)
-            self.assertEqual(1, len(logs))
+            intents = c.get_type().get_active_intents_from_api(c)
+            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 5)
             self.assertEqual(2, len(intents))
             car = intents[0]
             self.assertEqual("book_car", car.name)

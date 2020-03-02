@@ -3,7 +3,7 @@
 
 {% block body %}
     <p>
-      {% blocktrans with org_name=org.name %}
+      {% blocktrans trimmed with org_name=org.name %}
         We've noticed that the Android phone for {{ org_name }} is now charging the battery.
       {% endblocktrans %}
     </p>
@@ -13,7 +13,7 @@
     </p>
 
     <p>
-      {% blocktrans with channel_name=channel.get_name %}
+      {% blocktrans trimmed with channel_name=channel.get_name %}
         You can check the current status of your {{ channel_name }} by visiting its
       {% endblocktrans %}
       <a href="{{ branding.link }}/channels/channel/read/{{ channel.uuid }}/">

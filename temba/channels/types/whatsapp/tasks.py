@@ -4,11 +4,15 @@ import time
 
 import requests
 from django_redis import get_redis_connection
+from requests import RequestException
+
+from django.utils import timezone
 
 from celery.task import task
 
 from temba.channels.models import Channel
 from temba.contacts.models import WHATSAPP_SCHEME, ContactURN
+from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
 from temba.utils import chunk_list
 
@@ -52,13 +56,19 @@ def refresh_whatsapp_contacts(channel_id):
 
             # go fetch our contacts
             headers = {"Authorization": "Bearer %s" % channel.config[Channel.CONFIG_AUTH_TOKEN]}
-            resp = requests.post(
-                channel.config[Channel.CONFIG_BASE_URL] + "/v1/contacts", json=payload, headers=headers
+            url = channel.config[Channel.CONFIG_BASE_URL] + "/v1/contacts"
+
+            start = timezone.now()
+            resp = requests.post(url, json=payload, headers=headers)
+            elapsed = (timezone.now() - start).total_seconds() * 1000
+
+            HTTPLog.create_from_response(
+                HTTPLog.WHATSAPP_CONTACTS_REFRESHED, url, resp, channel=channel, request_time=elapsed
             )
 
             # if we had an error, break out
             if resp.status_code != 200:
-                raise Exception("Received error refreshing contacts for %d", channel.id)
+                break
 
             refreshed += len(urn_batch)
 
@@ -74,13 +84,19 @@ def refresh_whatsapp_tokens():
     with r.lock("refresh_whatsapp_tokens", 1800):
         # iterate across each of our whatsapp channels and get a new token
         for channel in Channel.objects.filter(is_active=True, channel_type="WA"):
+            url = channel.config["base_url"] + "/v1/users/login"
+
+            start = timezone.now()
             resp = requests.post(
-                channel.config["base_url"] + "/v1/users/login",
-                auth=(channel.config[Channel.CONFIG_USERNAME], channel.config[Channel.CONFIG_PASSWORD]),
+                url, auth=(channel.config[Channel.CONFIG_USERNAME], channel.config[Channel.CONFIG_PASSWORD])
+            )
+            elapsed = (timezone.now() - start).total_seconds() * 1000
+
+            HTTPLog.create_from_response(
+                HTTPLog.WHATSAPP_TOKENS_SYNCED, url, resp, channel=channel, request_time=elapsed
             )
 
             if resp.status_code != 200:
-                logger.error("Received non-200 response refreshing whatsapp token: %s", resp.content)
                 continue
 
             channel.config["auth_token"] = resp.json()["users"][0]["token"]
@@ -132,19 +148,26 @@ def refresh_whatsapp_templates():
                 continue
 
             # fetch all our templates
+            start = timezone.now()
             try:
                 # Retrieve the template domain, fallback to the default for channels
                 # that have been setup earlier for backwards compatibility
                 facebook_template_domain = channel.config.get(CONFIG_FB_TEMPLATE_LIST_DOMAIN, "graph.facebook.com")
                 facebook_business_id = channel.config.get(CONFIG_FB_BUSINESS_ID)
+                url = TEMPLATE_LIST_URL % (facebook_template_domain, facebook_business_id)
+
                 # we should never need to paginate because facebook limits accounts to 255 templates
                 response = requests.get(
-                    TEMPLATE_LIST_URL % (facebook_template_domain, facebook_business_id),
-                    params=dict(access_token=channel.config[CONFIG_FB_ACCESS_TOKEN], limit=255),
+                    url, params=dict(access_token=channel.config[CONFIG_FB_ACCESS_TOKEN], limit=255)
+                )
+                elapsed = (timezone.now() - start).total_seconds() * 1000
+
+                HTTPLog.create_from_response(
+                    HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, response, channel=channel, request_time=elapsed
                 )
 
                 if response.status_code != 200:  # pragma: no cover
-                    raise Exception(f"received non 200 status: {response.status_code} {response.content}")
+                    continue
 
                 # run through all our templates making sure they are present in our DB
                 seen = []
@@ -156,10 +179,20 @@ def refresh_whatsapp_templates():
 
                     status = STATUS_MAPPING[template["status"]]
 
-                    # try to get the body out
-                    if template["components"][0]["type"] != "BODY":  # pragma: no cover
-                        logger.error(f"unknown component type: {template['components'][0]}")
+                    content_parts = []
+
+                    for component in template["components"]:
+                        if component["type"] not in ["HEADER", "BODY", "FOOTER"]:
+                            logger.error(f"unknown component type: {component}")
+                            continue
+
+                        content_parts.append(component["text"])
+
+                    if not content_parts:
                         continue
+
+                    content = "\n\n".join(content_parts)
+                    variable_count = _calculate_variable_count(content)
 
                     language = LANGUAGE_MAPPING.get(template["language"])
 
@@ -168,14 +201,12 @@ def refresh_whatsapp_templates():
                         status = TemplateTranslation.STATUS_UNSUPPORTED_LANGUAGE
                         language = template["language"]
 
-                    content = template["components"][0]["text"]
-
                     translation = TemplateTranslation.get_or_create(
                         channel=channel,
                         name=template["name"],
                         language=language,
                         content=content,
-                        variable_count=_calculate_variable_count(content),
+                        variable_count=variable_count,
                         status=status,
                         external_id=template["id"],
                     )
@@ -185,5 +216,5 @@ def refresh_whatsapp_templates():
                 # trim any translations we didn't see
                 TemplateTranslation.trim(channel, seen)
 
-            except Exception as e:  # pragma: no cover
-                logger.error(f"error fetching templates for whatsapp channel: {str(e)}")
+            except RequestException as e:  # pragma: no cover
+                HTTPLog.create_from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, e, start, channel=channel)

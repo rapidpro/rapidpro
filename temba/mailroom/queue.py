@@ -32,6 +32,7 @@ class BatchTask(Enum):
     START_FLOW = "start_flow"
     SEND_BROADCAST = "send_broadcast"
     INTERRUPT_SESSIONS = "interrupt_sessions"
+    POPULATE_DYNAMIC_GROUP = "populate_dynamic_group"
 
 
 def queue_msg_handling(msg):
@@ -95,6 +96,15 @@ def queue_broadcast(broadcast):
     _queue_batch_task(broadcast.org_id, BatchTask.SEND_BROADCAST, task, HIGH_PRIORITY)
 
 
+def queue_populate_dynamic_group(group):
+    """
+    Queues a task to populate the contacts for a dynamic group
+    """
+    task = {"group_id": group.id, "query": group.query, "org_id": group.org_id}
+
+    _queue_batch_task(group.org_id, BatchTask.POPULATE_DYNAMIC_GROUP, task, HIGH_PRIORITY)
+
+
 def queue_flow_start(start):
     """
     Queues the passed in flow start for starting by mailroom
@@ -118,12 +128,14 @@ def queue_flow_start(start):
     _queue_batch_task(org_id, BatchTask.START_FLOW, task, HIGH_PRIORITY)
 
 
-def queue_interrupt(org, *, contacts=None, channel=None, flow=None):
+def queue_interrupt(org, *, contacts=None, channel=None, flow=None, session=None):
     """
     Queues an interrupt task for handling by mailroom
     """
 
-    assert contacts or channel or flow, "must specify either a set of contacts or a channel or a flow"
+    assert (
+        contacts or channel or flow or session
+    ), "must specify either a set of contacts or a channel or a flow or a session"
 
     task = {}
     if contacts:
@@ -132,6 +144,8 @@ def queue_interrupt(org, *, contacts=None, channel=None, flow=None):
         task["channel_ids"] = [channel.id]
     if flow:
         task["flow_ids"] = [flow.id]
+    if session:
+        task["session_ids"] = [session.id]
 
     _queue_batch_task(org.id, BatchTask.INTERRUPT_SESSIONS, task, HIGH_PRIORITY)
 

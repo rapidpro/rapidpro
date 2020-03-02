@@ -8,14 +8,14 @@ from ...models import ClassifierType, Intent
 from .views import ConnectView
 
 
-class BotHubType(ClassifierType):
+class BothubType(ClassifierType):
     """
     Type for classifiers from Bothub
     """
 
     CONFIG_ACCESS_TOKEN = "access_token"
 
-    name = "BotHub"
+    name = "Bothub"
     slug = "bothub"
     icon = "icon-bothub"
 
@@ -30,20 +30,23 @@ class BotHubType(ClassifierType):
 
     INTENT_URL = "https://nlp.bothub.it/info/"
 
-    @classmethod
-    def get_active_intents_from_api(cls, classifier, logs):
-        access_token = classifier.config[cls.CONFIG_ACCESS_TOKEN]
+    def get_active_intents_from_api(self, classifier):
+        access_token = classifier.config[self.CONFIG_ACCESS_TOKEN]
 
         start = timezone.now()
-        response = requests.get(cls.INTENT_URL, headers={"Authorization": f"Bearer {access_token}"})
-        elapsed = (timezone.now() - start).total_seconds() * 1000
+        try:
+            response = requests.get(self.INTENT_URL, headers={"Authorization": f"Bearer {access_token}"})
+            elapsed = (timezone.now() - start).total_seconds() * 1000
 
-        log = HTTPLog.from_response(HTTPLog.INTENTS_SYNCED, cls.INTENT_URL, response, classifier=classifier)
-        log.request_time = elapsed
-        logs.append(log)
+            HTTPLog.create_from_response(
+                HTTPLog.INTENTS_SYNCED, self.INTENT_URL, response, classifier=classifier, request_time=elapsed
+            )
 
-        response.raise_for_status()
-        response_json = response.json()
+            response.raise_for_status()
+            response_json = response.json()
+        except requests.RequestException as e:
+            HTTPLog.create_from_exception(HTTPLog.INTENTS_SYNCED, self.INTENT_URL, e, start, classifier=classifier)
+            return []
 
         intents = []
         for intent in response_json["intents"]:

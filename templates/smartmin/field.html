@@ -1,4 +1,4 @@
-{% load smartmin %}
+{% load smartmin temba %}
 
 {% with form|field:field as form_field %}
 {% getblock "before_field_" field %}
@@ -7,10 +7,23 @@
 {{ form_field }}
 {% else %}
 {% if form_field %}
+
+{% get_label field as label %}
 <div class="control-group {% get_class field %} {% if form_field.errors %}error{% endif %}">
-  <label class="control-label" for="{{ field.name }}">{% get_label field %}</label>
-  <div class="controls">{{ form_field }}
+
+  {% if form_field.field.widget.is_annotated %}
+  <div class="controls">
     {% with view|field_help:field as help %}
+    {% annotated_field form_field label help %}
+    {% endwith %}
+  </div>
+
+  {% else %}
+  <label class="control-label" for="{{ field.name }}">{{label}}</label>
+  <div class="controls">
+
+    {% with view|field_help:field as help %}
+    {{ form_field }}
     {% if help %}
     <p class="help-block">{{ help|safe }}</p>
     {% endif %}
@@ -20,6 +33,8 @@
     <span class="help-block field-errors">{{ form_field.errors }}</span>
     {% endif %}
   </div>
+  {% endif %}
+
 </div>
 {% else %}
 <div class="control-group {% get_class field %}">

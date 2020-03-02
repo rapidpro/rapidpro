@@ -39,7 +39,7 @@
         <a class="btn btn-tiny" href="{% url 'channels.channel_configuration' channel.uuid %}">{%trans "Settings"%}</a>
 
 
-      -if channel.has_channel_log
+      -if not channel.is_android
         -with channel.get_sender as sender and channel.get_caller as caller
           -if sender
             <a class="btn btn-tiny" href="{% url 'channels.channellog_list' sender.uuid %}">{%trans "Channel Log"%}</a>
@@ -56,18 +56,16 @@
             %span.errored
               -trans "Last synced"
               -if last_sync
-                -blocktrans with last_sync.created_on|timesince as last_sync
-                  = last_sync
-                  ago
+                -blocktrans trimmed with last_sync.created_on|timesince as last_sync
+                  {{ last_sync }} ago
               -else
                 -trans "Never"
           -else
             -if object.channel_type == 'A'
               -trans "Last synced"
               -if last_sync
-                -blocktrans with last_sync.created_on|timesince as last_sync
-                  = last_sync
-                  ago
+                -blocktrans trimmed with last_sync.created_on|timesince as last_sync
+                  {{ last_sync }} ago
               -else
                 -trans "Never"
             -else
@@ -77,7 +75,7 @@
           -if unsent_msgs_count
             %a.errored{href:"{% url 'msgs.msg_failed' %}"}
               = unsent_msgs_count
-              {% blocktrans count unsent_msgs_count=unsent_msgs_count %}
+              {% blocktrans trimmed count unsent_msgs_count=unsent_msgs_count %}
                 unsent message
               {% plural %}
                 unsent messages
@@ -120,7 +118,7 @@
       -if unsent_msgs_count
         <span class='errored'>
           = unsent_msgs_count
-          {% blocktrans count unsent_msgs_count=unsent_msgs_count %}
+          {% blocktrans trimmed count unsent_msgs_count=unsent_msgs_count %}
             unsent messages
           {% plural %}
             unsent message
@@ -134,10 +132,9 @@
           <span>
 
         -trans "Last synced"
-        -blocktrans with last_sync.created_on|timesince as last_sync
-          = last_sync
-          ago.
-          </span>
+        -blocktrans trimmed with last_sync.created_on|timesince as last_sync
+          {{ last_sync }} ago
+        </span>
       -else
         -trans "Device has not synced yet"
 
@@ -366,7 +363,7 @@
           {% if object.dependent_flows.count == 0 %}
             -trans "Once it is removed, it will be gone forever. There is no way to undo this operation."
           {% else %}
-            {% blocktrans count num_flows=object.dependent_flows.count %}
+            {% blocktrans trimmed count num_flows=object.dependent_flows.count %}
             Used by {{num_flows}} flow:
             {% plural %}
             Used by {{num_flows}} flows:

@@ -1,4 +1,4 @@
-<rp-select planceholder="{{widget.placeholder}}" name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %}>
+<rp-select placeholder="{{widget.placeholder}}" name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %}>
 
 {% for group_name, group_choices, group_index in widget.optgroups %}
   {% if group_name %}<optgroup label="{{ group_name }}">{% endif %}
@@ -8,3 +8,4 @@
 
   {% if group_name %}</optgroup>{% endif %}{% endfor %}
 </rp-select>
+
