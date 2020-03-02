@@ -65,6 +65,7 @@ from .serializers import (
     FlowStartReadSerializer,
     FlowStartWriteSerializer,
     GlobalReadSerializer,
+    GlobalWriteSerializer,
     LabelReadSerializer,
     LabelWriteSerializer,
     MsgBulkActionSerializer,
@@ -247,6 +248,7 @@ class ExplorerView(SmartTemplateView):
             FlowStartsEndpoint.get_read_explorer(),
             FlowStartsEndpoint.get_write_explorer(),
             GlobalsEndpoint.get_read_explorer(),
+            GlobalsEndpoint.get_write_explorer(),
             GroupsEndpoint.get_read_explorer(),
             GroupsEndpoint.get_write_explorer(),
             GroupsEndpoint.get_delete_explorer(),
@@ -1952,9 +1954,9 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class GlobalsEndpoint(ListAPIMixin, BaseAPIView):
+class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     """
-    This endpoint allows you to list the active globals on your account.
+    This endpoint allows you to list, create, and update active globals on your account.
 
     ## Listing Globals
 
@@ -1984,15 +1986,73 @@ class GlobalsEndpoint(ListAPIMixin, BaseAPIView):
                 ...
             ]
         }
+
+    ## Adding a Global
+
+    A **POST** can be used to create a new Global. Don't specify a key as this will be generated for you.
+
+     * **name** - the name of the global
+     * **value** - the value of the global
+
+    Example:
+
+        POST /api/v2/global.json
+        {
+            "name": "Org Name",
+            "value": "Acme Ltd"
+        }
+
+    You will receive a global object as a response if successful:
+
+        {
+            "key": "org_name",
+            "name": "Org Name",
+            "value": "Acme Ltd",
+            "modified_on": "2013-02-27T09:06:15.456"
+        }
+
+    ## Updating a Global
+
+    A **POST** can also be used to update an existing global if you specify its key in the URL.
+
+    Example:
+
+        POST /api/v2/globals.json?key=org_name
+        {
+            "value": "Acme Ltd"
+        }
+
+    You will receive the updated global object as a response if successful:
+
+        {
+            "key": "org_name",
+            "name": "Org Name",
+            "value": "Acme Ltd",
+            "modified_on": "2013-02-27T09:06:15.456"
+        }
     """
 
     permission = "globals.global_api"
     model = Global
     serializer_class = GlobalReadSerializer
+    write_serializer_class = GlobalWriteSerializer
     pagination_class = ModifiedOnCursorPagination
+    lookup_params = {"key": "key"}
 
     def filter_queryset(self, queryset):
-        return self.filter_before_after(queryset, "modified_on")
+        params = self.request.query_params
+        # filter by key (optional)
+        key = params.get("key")
+        if key:
+            queryset = queryset.filter(key=key)
+
+        # filter by modified (optional)
+        before = params.get("before")
+        after = params.get("after")
+        if before or after:
+            return self.filter_before_after(queryset, "modified_on")
+
+        return queryset.filter(is_active=True)
 
     @classmethod
     def get_read_explorer(cls):
@@ -2012,6 +2072,21 @@ class GlobalsEndpoint(ListAPIMixin, BaseAPIView):
                     "required": False,
                     "help": "Only return globals modified after this date, ex: 2015-01-28T18:00:00.000",
                 },
+                {"name": "key", "required": False, "help": "A global key filter by"},
+            ],
+        }
+
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            "method": "POST",
+            "title": "Add or Update Globals ",
+            "url": reverse("api.v2.globals"),
+            "slug": "globals-write",
+            "params": [{"name": "key", "required": False, "help": "Key of an existing global to update"}],
+            "fields": [
+                {"name": "name", "required": False, "help": "the Name value of the global"},
+                {"name": "value", "required": True, "help": "the new value of the global"},
             ],
         }
 
