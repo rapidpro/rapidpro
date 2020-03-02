@@ -1,3 +1,8 @@
+v5.4.0
+----------
+ * Add API endpoint to update Globals
+ * Keep latest sync event for Android channels when trimming
+
 v5.3.64
 ----------
  * Add support for Twilio Whatsapp channel type
