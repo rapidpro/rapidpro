@@ -1,3 +1,7 @@
+v5.4.2
+----------
+ * remove use of webhook where not appropriate
+
 v5.4.1
 ----------
  * Update sample flows to use @webhook instead of @legacy_extra
