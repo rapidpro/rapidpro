@@ -65,7 +65,7 @@ class TemplatesView(OrgPermsMixin, SmartReadView):
 
 class SyncLogsView(OrgPermsMixin, SmartReadView):
     """
-    Displays a simple table of the Whatsapp Templates Synced requests for this channel
+    Displays a simple table of the WhatsApp Templates Synced requests for this channel
     """
 
     model = Channel
