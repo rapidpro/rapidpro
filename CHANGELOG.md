@@ -1,3 +1,7 @@
+v5.4.6
+----------
+ * Merge pull request #2718 from nyaruka/fe187
+
 v5.4.4
 ----------
  * fix various filtering issues
