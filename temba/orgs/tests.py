@@ -1381,7 +1381,7 @@ class OrgTest(TembaTest):
     def test_topup_admin(self):
         self.login(self.admin)
 
-        topup = TopUp.objects.get()
+        topup = self.org.topups.get()
 
         # admins shouldn't be able to see the create / manage / update pages
         manage_url = reverse("orgs.topup_manage") + "?org=%d" % self.org.id
@@ -1398,17 +1398,21 @@ class OrgTest(TembaTest):
 
         # should list our one topup
         response = self.client.get(manage_url)
-        self.assertEqual(1, len(response.context["object_list"]))
+        self.assertEqual([topup], list(response.context["object_list"]))
 
         # create a new one
-        post_data = dict(price="1000", credits="500", comment="")
-        response = self.client.post(create_url, post_data)
-        self.assertEqual(2, TopUp.objects.filter(org=self.org).count())
+        response = self.client.post(create_url, {"price": "1000", "credits": "500", "comment": ""})
+        self.assertEqual(302, response.status_code)
+
+        self.assertEqual(2, self.org.topups.count())
         self.assertEqual(1500, self.org.get_credits_remaining())
 
         # update one of our topups
-        post_data = dict(is_active=True, price="0", credits="5000", comment="", expires_on="2025-04-03 13:47:46")
-        response = self.client.post(update_url, post_data)
+        response = self.client.post(
+            update_url,
+            {"is_active": True, "price": "0", "credits": "5000", "comment": "", "expires_on": "2025-04-03 13:47:46"},
+        )
+        self.assertEqual(302, response.status_code)
 
         self.assertEqual(5500, self.org.get_credits_remaining())
 
@@ -1435,7 +1439,7 @@ class OrgTest(TembaTest):
     def test_topup_expiration(self):
 
         contact = self.create_contact("Usain Bolt", "+250788123123")
-        welcome_topup = TopUp.objects.get()
+        welcome_topup = self.org.topups.get()
 
         # send some messages with a valid topup
         self.create_incoming_msgs(contact, 10)
@@ -1478,7 +1482,7 @@ class OrgTest(TembaTest):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_user=100_000, multi_org=1_000_000)
 
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
-        welcome_topup = TopUp.objects.get()
+        welcome_topup = self.org.topups.get()
 
         self.create_incoming_msgs(contact, 10)
 

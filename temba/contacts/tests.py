@@ -70,6 +70,8 @@ class ContactCRUDLTest(TembaTest):
         ContactField.get_or_create(self.org, self.user, "age", "Age", value_type="N")
         ContactField.get_or_create(self.org, self.user, "home", "Home", value_type="S", priority=10)
 
+        # sample flows don't actually get created by org initialization during tests because there are no users at that
+        # point so create them explicitly here, so that we also get the sample groups
         self.org.create_sample_flows("https://api.rapidpro.io")
 
     def test_list(self):
@@ -701,6 +703,8 @@ class ContactGroupCRUDLTest(TembaTest):
         with MockParseQuery("tel = 1234", ["tel"]):
             self.dynamic_group = self.create_group("Dynamic", query="tel is 1234")
 
+        self.other_org_group = self.create_group("Customers", contacts=[], org=self.org2)
+
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_create(self):
         url = reverse("contacts.contactgroup_create")
@@ -764,8 +768,28 @@ class ContactGroupCRUDLTest(TembaTest):
             "You must delete existing ones before you can create new ones.",
         )
 
+    def test_create_disallow_duplicates(self):
+        self.login(self.admin)
+
+        self.client.post(reverse("contacts.contactgroup_create"), dict(name="First Group"))
+
+        # assert it was created
+        ContactGroup.user_groups.get(name="First Group")
+
+        # try to create another group with the same name, but a dynamic query, should fail
+        response = self.client.post(
+            reverse("contacts.contactgroup_create"), dict(name="First Group", group_query="firsts")
+        )
+        self.assertFormError(response, "form", "name", "Name is used by another group")
+
+        # try to create another group with same name, not dynamic, same thing
+        response = self.client.post(
+            reverse("contacts.contactgroup_create"), dict(name="First Group", group_query="firsts")
+        )
+        self.assertFormError(response, "form", "name", "Name is used by another group")
+
     def test_update(self):
-        url = reverse("contacts.contactgroup_update", args=[self.joe_and_frank.pk])
+        url = reverse("contacts.contactgroup_update", args=[self.joe_and_frank.id])
 
         # can't create group as viewer
         self.login(self.user)
@@ -839,6 +863,16 @@ class ContactGroupCRUDLTest(TembaTest):
         self.dynamic_group.refresh_from_db()
         self.assertEqual(self.dynamic_group.name, "Frank2")
 
+        # try to update group in other org
+        response = self.client.post(
+            reverse("contacts.contactgroup_update", args=[self.other_org_group.id]), {"name": "new name"}
+        )
+        self.assertLoginRedirect(response)
+
+        # check group is unchanged
+        self.other_org_group.refresh_from_db()
+        self.assertEqual("Customers", self.other_org_group.name)
+
     def test_delete(self):
         url = reverse("contacts.contactgroup_delete", args=[self.joe_and_frank.pk])
 
@@ -856,6 +890,14 @@ class ContactGroupCRUDLTest(TembaTest):
         self.joe_and_frank.refresh_from_db()
         self.assertFalse(self.joe_and_frank.is_active)
         self.assertFalse(self.joe_and_frank.contacts.all())
+
+        # can't delete group from other org
+        response = self.client.post(reverse("contacts.contactgroup_delete", args=[self.other_org_group.id]))
+        self.assertLoginRedirect(response)
+
+        # check group is unchanged
+        self.other_org_group.refresh_from_db()
+        self.assertTrue(self.other_org_group.is_active)
 
 
 class ContactTest(TembaTest):
@@ -877,6 +919,9 @@ class ContactTest(TembaTest):
         # create an deleted contact
         self.jim = self.create_contact(name="Jim")
         self.jim.release(self.user)
+
+        # create contact in other org
+        self.other_org_contact = self.create_contact(name="Fred", number="+250768111222", org=self.org2)
 
     def create_campaign(self):
         # create a campaign with a future event and add joe
@@ -2695,6 +2740,10 @@ class ContactTest(TembaTest):
         # and we should have a marker for older items
         self.assertTrue(response.context["has_older"])
 
+        # can't view history of contact in other org
+        response = self.client.get(reverse("contacts.contact_history", args=[self.other_org_contact.uuid]))
+        self.assertLoginRedirect(response)
+
     def test_history_session_events(self):
         flow = self.get_flow("color_v13")
         nodes = flow.as_json()["nodes"]
@@ -2942,7 +2991,7 @@ class ContactTest(TembaTest):
         broadcast.schedule.save(update_fields=["next_fire"])
         self.assertFalse(self.joe.get_scheduled_messages())
 
-    def test_contact_update_urns_field(self):
+    def test_update_urns_field(self):
         update_url = reverse("contacts.contact_update", args=[self.joe.pk])
 
         # we have a field to add new urns
@@ -3093,13 +3142,10 @@ class ContactTest(TembaTest):
 
         # try removing from dynamic group (shouldnt happen, UI doesnt allow this)
         with self.assertRaises(AssertionError):
-            response = self.client.post(
-                read_url + "?action=remove_from_group", {"contact": self.joe.id, "group": planters.id}
-            )
+            self.client.post(read_url + "?action=remove_from_group", {"contact": self.joe.id, "group": planters.id})
 
         # can't view contact in another org
-        hans = self.create_contact("Hans", twitter="hans", org=self.org2)
-        response = self.client.get(reverse("contacts.contact_read", args=[hans.uuid]))
+        response = self.client.get(reverse("contacts.contact_read", args=[self.other_org_contact.uuid]))
         self.assertLoginRedirect(response)
 
         # invalid UUID should return 404
@@ -3109,7 +3155,9 @@ class ContactTest(TembaTest):
         # super users can view history of any contact
         response = self.fetch_protected(reverse("contacts.contact_read", args=[self.joe.uuid]), self.superuser)
         self.assertEqual(response.status_code, 200)
-        response = self.fetch_protected(reverse("contacts.contact_read", args=[hans.uuid]), self.superuser)
+        response = self.fetch_protected(
+            reverse("contacts.contact_read", args=[self.other_org_contact.uuid]), self.superuser
+        )
         self.assertEqual(response.status_code, 200)
 
     def test_read_with_customer_support(self):
@@ -3143,26 +3191,6 @@ class ContactTest(TembaTest):
 
         # with a proper code, we should see the language
         self.assertContains(response, "French")
-
-    def test_creating_duplicates(self):
-        self.login(self.admin)
-
-        self.client.post(reverse("contacts.contactgroup_create"), dict(name="First Group"))
-
-        # assert it was created
-        ContactGroup.user_groups.get(name="First Group")
-
-        # try to create another group with the same name, but a dynamic query, should fail
-        response = self.client.post(
-            reverse("contacts.contactgroup_create"), dict(name="First Group", group_query="firsts")
-        )
-        self.assertFormError(response, "form", "name", "Name is used by another group")
-
-        # try to create another group with same name, not dynamic, same thing
-        response = self.client.post(
-            reverse("contacts.contactgroup_create"), dict(name="First Group", group_query="firsts")
-        )
-        self.assertFormError(response, "form", "name", "Name is used by another group")
 
     def test_contacts_search(self):
         search_url = reverse("contacts.contact_search")
@@ -5647,6 +5675,8 @@ class ContactFieldTest(TembaTest):
         self.contactfield_2 = ContactField.get_or_create(self.org, self.admin, "second", "Second")
         self.contactfield_3 = ContactField.get_or_create(self.org, self.admin, "third", "Third", priority=20)
 
+        self.other_org_field = ContactField.get_or_create(self.org2, self.admin, "other", "Other", priority=10)
+
     def test_get_or_create(self):
         join_date = ContactField.get_or_create(self.org, self.admin, "join_date")
         self.assertEqual(join_date.key, "join_date")
@@ -6408,7 +6438,7 @@ class ContactFieldTest(TembaTest):
         with self.assertRaises(ValueError):
             ContactField.hide_field(self.org, self.admin, key="favorite_cat")
 
-    def test_view_list(self):
+    def test_list(self):
         manage_fields_url = reverse("contacts.contactfield_list")
 
         self.login(self.non_org_user)
@@ -6432,15 +6462,15 @@ class ContactFieldTest(TembaTest):
 
     def test_view_create_valid(self):
         # we have three fields
-        self.assertEqual(ContactField.user_fields.count(), 3)
+        self.assertEqual(ContactField.user_fields.filter(org=self.org).count(), 3)
         # there are not featured fields
-        self.assertEqual(ContactField.user_fields.filter(show_in_table=True).count(), 0)
+        self.assertEqual(ContactField.user_fields.filter(org=self.org, show_in_table=True).count(), 0)
 
         self.login(self.admin)
 
-        create_cf_url = reverse("contacts.contactfield_create")
+        create_url = reverse("contacts.contactfield_create")
 
-        response = self.client.get(create_cf_url)
+        response = self.client.get(create_url)
         self.assertEqual(response.status_code, 200)
 
         # we got a form with expected form fields
@@ -6451,28 +6481,28 @@ class ContactFieldTest(TembaTest):
         # a valid form
         post_data = {"label": "this is a label", "value_type": "T", "show_in_table": True}
 
-        response = self.client.post(create_cf_url, post_data)
+        response = self.client.post(create_url, post_data)
 
         self.assertEqual(response.status_code, 200)
         self.assertNoFormErrors(response, post_data)
 
         # after creating a field there should be 4
-        self.assertEqual(ContactField.user_fields.count(), 4)
+        self.assertEqual(ContactField.user_fields.filter(org=self.org).count(), 4)
         # newly created field is featured
-        self.assertEqual(ContactField.user_fields.filter(show_in_table=True).count(), 1)
+        self.assertEqual(ContactField.user_fields.filter(org=self.org, show_in_table=True).count(), 1)
 
     def test_view_create_field_with_same_name_as_deleted_field(self):
-        create_cf_url = reverse("contacts.contactfield_create")
+        create_url = reverse("contacts.contactfield_create")
         self.login(self.admin)
 
         # we have three fields
-        self.assertEqual(ContactField.user_fields.count(), 3)
+        self.assertEqual(ContactField.user_fields.filter(org=self.org).count(), 3)
 
         old_first = ContactField.get_or_create(self.org, self.admin, "first")
         # a valid form
         post_data = {"label": old_first.label, "value_type": old_first.value_type}
 
-        response = self.client.post(create_cf_url, post_data)
+        response = self.client.post(create_url, post_data)
 
         # field cannot be created because there is an active field 'First'
         self.assertFormError(response, "form", None, "Must be unique.")
@@ -6481,13 +6511,13 @@ class ContactFieldTest(TembaTest):
         ContactField.hide_field(self.org, self.admin, key="first")
 
         # and try to create a new field
-        response = self.client.post(create_cf_url, post_data)
+        response = self.client.post(create_url, post_data)
         self.assertNoFormErrors(response, post_data)
 
         # after creating a field there should be 4
-        self.assertEqual(ContactField.user_fields.count(), 4)
+        self.assertEqual(ContactField.user_fields.filter(org=self.org).count(), 4)
         # there are two fields with "First" label, but only one is active
-        self.assertEqual(ContactField.user_fields.filter(label="First").count(), 2)
+        self.assertEqual(ContactField.user_fields.filter(org=self.org, label="First").count(), 2)
 
         new_first = ContactField.get_or_create(self.org, self.admin, "first")
 
@@ -6558,14 +6588,14 @@ class ContactFieldTest(TembaTest):
             response, "form", "value_type", "Select a valid choice. J is not one of the available choices."
         )
 
-    def test_view_update_valid(self):
+    def test_update(self):
         cf_to_update = ContactField.user_fields.get(key="first")
 
         self.login(self.admin)
 
-        update_cf_url = reverse("contacts.contactfield_update", args=(cf_to_update.id,))
+        update_url = reverse("contacts.contactfield_update", args=(cf_to_update.id,))
 
-        response = self.client.get(update_cf_url)
+        response = self.client.get(update_url)
         self.assertEqual(response.status_code, 200)
 
         initial_data = {"label": "First", "value_type": "T", "show_in_table": False}
@@ -6579,12 +6609,23 @@ class ContactFieldTest(TembaTest):
         initial_data["show_in_table"] = True
         initial_data["label"] = "First 1"
 
-        response = self.client.post(update_cf_url, initial_data)
+        response = self.client.post(update_url, initial_data)
         self.assertEqual(response.status_code, 200)
         self.assertNoFormErrors(response, initial_data)
 
         cf_to_update.refresh_from_db()
         self.assertEqual(cf_to_update.label, "First 1")
+
+        # can't update field in other org
+        response = self.client.post(
+            reverse("contacts.contactfield_update", args=[self.other_org_field.id]),
+            {"label": "Changed", "value_type": "T", "show_in_table": False},
+        )
+        self.assertLoginRedirect(response)
+
+        # check field isn't changed
+        self.other_org_field.refresh_from_db()
+        self.assertEqual("Other", self.other_org_field.label)
 
     def test_view_update_invalid(self):
         self.login(self.admin)
@@ -6771,8 +6812,9 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(len(response.context_data["dep_groups"]), 0)
 
     def test_view_updatepriority_valid(self):
-        cf_priority = [cf.priority for cf in ContactField.user_fields.filter(is_active=True).order_by("id")]
-        self.assertListEqual(cf_priority, [10, 0, 20])
+        org_fields = ContactField.user_fields.filter(org=self.org, is_active=True)
+
+        self.assertListEqual([10, 0, 20], [cf.priority for cf in org_fields.order_by("id")])
 
         self.login(self.admin)
         updatepriority_cf_url = reverse("contacts.contactfield_update_priority")
@@ -6784,24 +6826,21 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "OK")
 
-        cf_priority = [cf.priority for cf in ContactField.user_fields.filter(is_active=True).order_by("id")]
-        self.assertListEqual(cf_priority, [10, 0, 20])
+        self.assertListEqual([10, 0, 20], [cf.priority for cf in org_fields.order_by("id")])
 
         # actually update the priorities
-        post_data = json.dumps(
-            {cf.id: index for index, cf in enumerate(ContactField.user_fields.filter(is_active=True).order_by("id"))}
-        )
+        post_data = json.dumps({cf.id: index for index, cf in enumerate(org_fields.order_by("id"))})
 
         response = self.client.post(updatepriority_cf_url, post_data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "OK")
 
-        cf_priority = [cf.priority for cf in ContactField.user_fields.filter(is_active=True).order_by("id")]
-        self.assertListEqual(cf_priority, [0, 1, 2])
+        self.assertListEqual([0, 1, 2], [cf.priority for cf in org_fields.order_by("id")])
 
     def test_view_updatepriority_invalid(self):
-        cf_priority = [cf.priority for cf in ContactField.user_fields.filter(is_active=True).order_by("id")]
-        self.assertListEqual(cf_priority, [10, 0, 20])
+        org_fields = ContactField.user_fields.filter(org=self.org, is_active=True)
+
+        self.assertListEqual([10, 0, 20], [cf.priority for cf in org_fields.order_by("id")])
 
         self.login(self.admin)
         updatepriority_cf_url = reverse("contacts.contactfield_update_priority")
@@ -6817,17 +6856,14 @@ class ContactFieldTest(TembaTest):
         )
 
     def test_contactfield_priority(self):
+        fields = ContactField.user_fields.filter(org=self.org).order_by("-priority", "id")
 
-        self.assertEqual(
-            list(ContactField.user_fields.order_by("-priority", "pk").values_list("label", flat=True)),
-            ["Third", "First", "Second"],
-        )
-        # change contactfield priority
+        self.assertEqual(["Third", "First", "Second"], list(fields.values_list("label", flat=True)))
+
+        # change field priority
         ContactField.get_or_create(org=self.org, user=self.user, key="first", priority=25)
-        self.assertEqual(
-            list(ContactField.user_fields.order_by("-priority", "pk").values_list("label", flat=True)),
-            ["First", "Third", "Second"],
-        )
+
+        self.assertEqual(["First", "Third", "Second"], list(fields.values_list("label", flat=True)))
 
     def test_json(self):
         contact_field_json_url = reverse("contacts.contactfield_json")

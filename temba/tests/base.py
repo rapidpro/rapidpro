@@ -4,7 +4,6 @@ from uuid import uuid4
 
 import pytz
 import redis
-import regex
 from smartmin.tests import SmartminTest
 
 from django.conf import settings
@@ -494,18 +493,12 @@ class TembaTestMixin:
         for r, row in enumerate(rows):
             self.assertExcelRow(sheet, r, row, tz)
 
-    def explain(self, query):
-        cursor = connection.cursor()
-        cursor.execute("explain %s" % query)
-        plan = cursor.fetchall()
-        indexes = []
-        for match in regex.finditer(r"Index Scan using (.*?) on (.*?) \(cost", str(plan), regex.DOTALL):
-            index = match.group(1).strip()
-            table = match.group(2).strip()
-            indexes.append((table, index))
-
-        indexes = sorted(indexes, key=lambda i: i[0])
-        return indexes
+    def assertResponseError(self, response, field, message, status_code=400):
+        self.assertEqual(status_code, response.status_code)
+        body = response.json()
+        self.assertIn(field, body)
+        self.assertTrue(message, isinstance(body[field], (list, tuple)))
+        self.assertIn(message, body[field])
 
 
 class TembaTest(TembaTestMixin, SmartminTest):
@@ -538,13 +531,6 @@ class TembaTest(TembaTestMixin, SmartminTest):
 
     def releaseRuns(self, delete=False):
         self.release(FlowRun.objects.all(), delete=delete)
-
-    def assertResponseError(self, response, field, message, status_code=400):
-        self.assertEqual(status_code, response.status_code)
-        body = response.json()
-        self.assertTrue(message, field in body)
-        self.assertTrue(message, isinstance(body[field], (list, tuple)))
-        self.assertIn(message, body[field])
 
 
 class AnonymousOrg(object):
