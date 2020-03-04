@@ -9,7 +9,7 @@ import pytz
 from openpyxl import load_workbook
 from smartmin.csv_imports.models import ImportTask
 from smartmin.models import SmartImportRowError
-from smartmin.tests import SmartminTestMixin, _CRUDLTest
+from smartmin.tests import SmartminTestMixin
 
 from django.conf import settings
 from django.core.files.base import ContentFile
@@ -60,54 +60,20 @@ from .tasks import check_elasticsearch_lag, squash_contactgroupcounts
 from .templatetags.contacts import contact_field, history_class, history_icon
 
 
-class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
+class ContactCRUDLTest(TembaTest):
     def setUp(self):
-        from temba.contacts.views import ContactCRUDL
-
         super().setUp()
 
         self.country = AdminBoundary.create(osm_id="171496", name="Rwanda", level=0)
         AdminBoundary.create(osm_id="1708283", name="Kigali", level=1, parent=self.country)
 
-        self.crudl = ContactCRUDL
-        self.user = self.create_user("tito")
-        self.org = Org.objects.create(
-            name="Nyaruka Ltd.",
-            timezone=pytz.timezone("Africa/Kigali"),
-            country=self.country,
-            created_by=self.user,
-            modified_by=self.user,
-        )
-        self.org.administrators.add(self.user)
-        self.user.set_org(self.org)
-        self.org.initialize()
-
         ContactField.get_or_create(self.org, self.user, "age", "Age", value_type="N")
         ContactField.get_or_create(self.org, self.user, "home", "Home", value_type="S", priority=10)
 
-    def getCreatePostData(self):
-        return dict(name="Joe Brady", urn__tel__0="+250785551212")
+    def test_list(self):
+        self.login(self.user)
+        list_url = reverse("contacts.contact_list")
 
-    def getUpdatePostData(self):
-        return dict(name="Joe Brady", urn__tel__0="+250785551212")
-
-    def getTestObject(self):
-        if self.object:
-            return self.object
-
-        if self.getCRUDL().permissions:
-            self.login(self.getUser())
-
-        # create our object
-        create_page = reverse(self.getCRUDL().url_name_for_action("create"))
-        post_data = self.getCreatePostData()
-        self.client.post(create_page, data=post_data)
-
-        # find our created object
-        self.object = Contact.objects.get(org=self.org, urns__path=post_data["urn__tel__0"], name=post_data["name"])
-        return self.object
-
-    def testList(self):
         self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe")
         self.joe.set_field(self.user, "age", "20")
         self.joe.set_field(self.user, "home", "Kigali")
@@ -118,12 +84,12 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
             self.org, self.user, "Group being created", status=ContactGroup.STATUS_INITIALIZING
         )
 
-        response = self._do_test_view("list")
+        response = self.client.get(list_url)
         self.assertEqual(set(response.context["object_list"]), {self.frank, self.joe})
         self.assertIsNone(response.context["search_error"])
 
-        survey_audience = ContactGroup.user_groups.get(name="Survey Audience")
-        unsatisfied = ContactGroup.user_groups.get(name="Unsatisfied Customers")
+        survey_audience = ContactGroup.user_groups.get(org=self.org, name="Survey Audience")
+        unsatisfied = ContactGroup.user_groups.get(org=self.org, name="Unsatisfied Customers")
 
         self.assertEqual(
             response.context["groups"],
@@ -165,7 +131,7 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
                 "allow_as_group": True,
             }
 
-            response = self._do_test_view("list", query_string="search=age+%3D+18")
+            response = self.client.get(list_url + "?search=age+%3D+18")
             self.assertEqual(list(response.context["object_list"]), [self.frank])
             self.assertEqual(response.context["search"], "age = 18")
             self.assertEqual(response.context["save_dynamic_search"], True)
@@ -204,7 +170,7 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
                 "allow_as_group": True,
             }
 
-            response = self._do_test_view("list", query_string='search=age+>+18+and+home+%3D+"Kigali"')
+            response = self.client.get(list_url + '?search=age+>+18+and+home+%3D+"Kigali"')
             self.assertEqual(list(response.context["object_list"]), [self.joe])
             self.assertEqual(response.context["search"], 'age > 18 AND home = "Kigali"')
             self.assertEqual(response.context["save_dynamic_search"], True)
@@ -220,7 +186,7 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
                 "allow_as_group": True,
             }
 
-            response = self._do_test_view("list", query_string="search=Joe")
+            response = self.client.get(list_url + "?search=Joe")
             self.assertEqual(list(response.context["object_list"]), [self.joe])
             self.assertEqual(response.context["search"], 'name ~ "Joe"')
             self.assertEqual(response.context["save_dynamic_search"], True)
@@ -237,7 +203,7 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
                     "allow_as_group": False,
                 }
 
-                response = self._do_test_view("list", query_string=f"search={self.joe.id}")
+                response = self.client.get(list_url + f"?search={self.joe.id}")
                 self.assertEqual(list(response.context["object_list"]), [self.joe])
                 self.assertIsNone(response.context["search_error"])
                 self.assertEqual(response.context["search"], f"id = {self.joe.id}")
@@ -250,23 +216,33 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
                 "", "", {"error": "Search query contains an error"}
             )
 
-            response = self._do_test_view("list", query_string="search=(((")
+            response = self.client.get(list_url + "?search=(((")
             self.assertEqual(list(response.context["object_list"]), [])
             self.assertEqual(response.context["search_error"], "Search query contains an error")
 
-    def testRead(self):
+    def test_read(self):
         self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe")
 
         read_url = reverse("contacts.contact_read", args=[self.joe.uuid])
+        block_url = reverse("contacts.contact_block", args=[self.joe.id])
+
         response = self.client.get(read_url)
         self.assertRedirect(response, "/users/login/")
 
+        # login as viewer
         self.login(self.user)
+
         response = self.client.get(read_url)
         self.assertContains(response, "Joe")
 
-        # make sure the block link is present
-        block_url = reverse("contacts.contact_block", args=[self.joe.id])
+        # make sure the block link is not present
+        self.assertNotContains(response, block_url)
+
+        # login as admin
+        self.login(self.admin)
+
+        # make sure the block link is present now
+        response = self.client.get(read_url)
         self.assertContains(response, block_url)
 
         # and that it works
@@ -319,16 +295,6 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
         # invalid uuid should return 404
         response = self.client.get(reverse("contacts.contact_read", args=["invalid-uuid"]))
         self.assertEqual(response.status_code, 404)
-
-    def testDelete(self):
-        object = self.getTestObject()
-        self._do_test_view("delete", object, post_data=dict())
-
-        # we should be deactivated
-        self.assertFalse(self.getCRUDL().model.objects.get(pk=object.pk).is_active)
-
-        # since we are eager, our other bits should be gone
-        self.assertEqual(0, ContactURN.objects.all().count())
 
 
 class ContactGroupTest(TembaTest):

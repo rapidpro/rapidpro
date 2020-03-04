@@ -57,7 +57,6 @@ class TembaTestMixin:
             created_by=self.user,
             modified_by=self.user,
         )
-        self.org.initialize(topup_size=1000)
 
         # add users to the org
         self.user.set_org(self.org)
@@ -81,10 +80,12 @@ class TembaTestMixin:
             created_by=self.admin2,
             modified_by=self.admin2,
         )
-        self.org2.initialize(topup_size=1000)
 
         self.org2.administrators.add(self.admin2)
         self.admin2.set_org(self.org)
+
+        self.org.initialize(topup_size=1000)  # has to after we create users
+        self.org2.initialize(topup_size=1000)
 
         self.superuser.set_org(self.org)
 
