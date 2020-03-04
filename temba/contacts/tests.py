@@ -70,6 +70,8 @@ class ContactCRUDLTest(TembaTest):
         ContactField.get_or_create(self.org, self.user, "age", "Age", value_type="N")
         ContactField.get_or_create(self.org, self.user, "home", "Home", value_type="S", priority=10)
 
+        self.org.create_sample_flows("https://api.rapidpro.io")
+
     def test_list(self):
         self.login(self.user)
         list_url = reverse("contacts.contact_list")

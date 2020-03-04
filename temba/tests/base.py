@@ -57,6 +57,7 @@ class TembaTestMixin:
             created_by=self.user,
             modified_by=self.user,
         )
+        self.org.initialize(topup_size=1000)
 
         # add users to the org
         self.user.set_org(self.org)
@@ -80,12 +81,10 @@ class TembaTestMixin:
             created_by=self.admin2,
             modified_by=self.admin2,
         )
+        self.org2.initialize(topup_size=1000)
 
         self.org2.administrators.add(self.admin2)
         self.admin2.set_org(self.org)
-
-        self.org.initialize(topup_size=1000)  # has to after we create users
-        self.org2.initialize(topup_size=1000)
 
         self.superuser.set_org(self.org)
 
@@ -534,17 +533,8 @@ class TembaTest(TembaTestMixin, SmartminTest):
                 channel.counts.all().delete()
                 channel.delete()
 
-    def releaseIVRCalls(self, delete=False):
-        self.release(IVRCall.objects.all(), delete=delete)
-
-    def releaseMessages(self):
-        self.release(Msg.objects.all())
-
     def releaseContacts(self, delete=False):
         self.release(Contact.objects.all(), delete=delete, user=self.admin)
-
-    def releaseContactFields(self, delete=False):
-        self.release(ContactField.all_fields.all(), delete=delete, user=self.admin)
 
     def releaseRuns(self, delete=False):
         self.release(FlowRun.objects.all(), delete=delete)

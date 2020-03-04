@@ -71,8 +71,8 @@ class ArchiveTest(TembaTest):
         self.assertEqual(date(2018, 2, 1), self.org.get_delete_date(archive_type=Archive.TYPE_FLOWRUN))
 
 
-class ArchiveViewTest(TembaTest):
-    def create_archive(self, idx, start_date=None, period="D"):
+class ArchiveCRUDLTest(TembaTest):
+    def create_archive(self, org, idx, start_date=None, period="D"):
 
         if not start_date:
             start_date = date(2018, idx, 1)
@@ -88,7 +88,7 @@ class ArchiveViewTest(TembaTest):
             start_date=start_date,
             period=period,
             build_time=idx * 123,
-            org=self.org,
+            org=org,
         )
 
     def test_empty_list(self):
@@ -102,10 +102,10 @@ class ArchiveViewTest(TembaTest):
         self.assertEqual("Message Archive", response.context["title"])
 
     def test_archive_type_filter(self):
-        archives = [self.create_archive(idx) for idx in range(1, 10)]
+        archives = [self.create_archive(self.org, idx) for idx in range(1, 10)]
 
         # create a daily archive
-        self.create_archive(1, start_date=date(2018, 2, 1), period="D")
+        self.create_archive(self.org, 1, start_date=date(2018, 2, 1), period="D")
 
         # create a daily archive that has been rolled up and will not appear in the results
         Archive.objects.create(
@@ -120,6 +120,9 @@ class ArchiveViewTest(TembaTest):
             rollup_id=archives[-1].id,
         )
 
+        # create archive for other org
+        self.create_archive(self.org2, 1)
+
         self.login(self.admin)
 
         # make sure we have the right number of each
@@ -131,10 +134,10 @@ class ArchiveViewTest(TembaTest):
         self.assertEqual(4, response.context["object_list"].count())
         self.assertContains(response, "jsonl.gz")
 
-    def test_download(self):
+    def test_read(self):
         self.login(self.admin)
 
-        archive = self.create_archive(1)
+        archive = self.create_archive(self.org, 1)
         response = self.client.get(reverse("archives.archive_read", args=[archive.id]))
         url = response.get("Location")
 
@@ -147,7 +150,7 @@ class ArchiveViewTest(TembaTest):
             url,
         )
 
-    def test_home_archives(self):
+    def test_formax(self):
         self.login(self.admin)
         url = reverse("orgs.org_home")
 
@@ -155,7 +158,7 @@ class ArchiveViewTest(TembaTest):
         self.assertContains(response, "archives yet")
         self.assertContains(response, reverse("archives.archive_message"))
 
-        self.create_archive(1)
+        self.create_archive(self.org, 1)
 
         response = self.client.get(url)
         self.assertContains(response, "123,456,789 records")
