@@ -392,7 +392,7 @@ class WhatsAppTypeTest(TembaTest):
         response = self.client.get(reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
 
         # should have our log
-        self.assertContains(response, "WhatsApp Templates Synced")
+        self.assertContains(response, "Whatsapp Templates Synced")
         self.assertContains(response, reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
 
         sync_log = channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).first()
