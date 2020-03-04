@@ -218,7 +218,6 @@ class FlowTest(TembaTest):
         self.assertContains(response, "Appointment Followup")
 
         # check we can't see farmers
-        self.setUpSecondaryOrg()
         farmers = ContactGroup.create_static(self.org2, self.admin, "Farmers")
         campaign2 = Campaign.create(self.org2, self.admin, Campaign.get_unique_name(self.org, "Reminders"), farmers)
 
@@ -5654,7 +5653,6 @@ class FlowLabelTest(TembaTest):
         self.assertFalse(response.context["object_list"])
 
         # try to view our cat label in our other org
-        self.setUpSecondaryOrg()
         cat = FlowLabel.create(self.org2, "cat")
         response = self.client.get(reverse("flows.flow_filter", args=[cat.pk]))
         self.assertLoginRedirect(response)
