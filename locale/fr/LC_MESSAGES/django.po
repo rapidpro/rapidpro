@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-04 17:58+0000\n"
+"POT-Creation-Date: 2020-03-04 21:02+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -5424,13 +5424,15 @@ msgstr "Evénement du relayeur"
 msgid "Airtime Transferred"
 msgstr ""
 
-msgid "Whatsapp Templates Synced"
+#, fuzzy
+#| msgid "Has Template Error"
+msgid "WhatsApp Templates Synced"
+msgstr "A une erreur sur le modèle établit"
+
+msgid "WhatsApp Tokens Synced"
 msgstr ""
 
-msgid "Whatsapp Tokens Synced"
-msgstr ""
-
-msgid "Whatsapp Contacts Refreshed"
+msgid "WhatsApp Contacts Refreshed"
 msgstr ""
 
 msgid "Never"

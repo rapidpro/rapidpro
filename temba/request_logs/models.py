@@ -34,9 +34,9 @@ class HTTPLog(models.Model):
         (INTENTS_SYNCED, _("Intents Synced")),
         (CLASSIFIER_CALLED, _("Classifier Called")),
         (AIRTIME_TRANSFERRED, _("Airtime Transferred")),
-        (WHATSAPP_TEMPLATES_SYNCED, _("Whatsapp Templates Synced")),
-        (WHATSAPP_TOKENS_SYNCED, _("Whatsapp Tokens Synced")),
-        (WHATSAPP_CONTACTS_REFRESHED, _("Whatsapp Contacts Refreshed")),
+        (WHATSAPP_TEMPLATES_SYNCED, _("WhatsApp Templates Synced")),
+        (WHATSAPP_TOKENS_SYNCED, _("WhatsApp Tokens Synced")),
+        (WHATSAPP_CONTACTS_REFRESHED, _("WhatsApp Contacts Refreshed")),
     )
 
     # the classifier this log is for
