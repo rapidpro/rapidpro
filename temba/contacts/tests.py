@@ -3369,6 +3369,12 @@ class ContactTest(TembaTest):
         self.assertEqual(self.just_joe.contacts.all()[0].pk, self.joe.pk)
         self.assertEqual(len(self.joe_and_frank.contacts.all()), 2)
 
+        # test on a secondary org
+        self.setUpSecondaryOrg()
+        other = self.create_group("Other Org", org=self.org2)
+        response = self.client.get(reverse("contacts.contact_filter", args=[other.uuid]))
+        self.assertLoginRedirect(response)
+
         # test filtering by group
         joe_and_frank_filter_url = reverse("contacts.contact_filter", args=[self.joe_and_frank.uuid])
 

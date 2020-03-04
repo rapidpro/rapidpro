@@ -274,7 +274,11 @@ class ContactListView(OrgPermsMixin, SmartListView):
                 return Contact.objects.none()
         else:
             # if user search is not defined, use DB to select contacts
-            qs = group.contacts.all().order_by("-id").prefetch_related("org", "all_groups")
+            qs = (
+                group.contacts.filter(org=self.request.user.get_org())
+                .order_by("-id")
+                .prefetch_related("org", "all_groups")
+            )
             patch_queryset_count(qs, group.get_member_count)
             return qs
 
@@ -1340,7 +1344,7 @@ class ContactCRUDL(SmartCRUDL):
             context["reply_disabled"] = True
             return context
 
-    class Filter(ContactActionMixin, ContactListView):
+    class Filter(ContactActionMixin, ContactListView, OrgObjPermsMixin):
         template_name = "contacts/contact_filter.haml"
 
         def get_gear_links(self):
@@ -1384,8 +1388,11 @@ class ContactCRUDL(SmartCRUDL):
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/(?P<group>[^/]+)/$" % (path, action)
 
+        def get_object_org(self):
+            return ContactGroup.user_groups.get(uuid=self.kwargs["group"]).org
+
         def derive_group(self):
-            return ContactGroup.user_groups.get(uuid=self.kwargs["group"])
+            return ContactGroup.user_groups.get(uuid=self.kwargs["group"], org=self.request.user.get_org())
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactForm
