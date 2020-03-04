@@ -1336,8 +1336,6 @@ class OrgTest(TembaTest):
 
         choose_url = reverse("orgs.org_choose")
 
-        # have a second org
-        self.setUpSecondaryOrg()
         self.login(self.admin)
 
         response = self.client.get(reverse("orgs.org_home"))

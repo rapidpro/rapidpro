@@ -524,7 +524,6 @@ class ChannelTest(TembaTest):
 
         # test that editors have the channel of the the org the are using
         other_user = self.create_user("Other")
-        self.setUpSecondaryOrg()
         self.org2.administrators.add(other_user)
         self.org.editors.add(other_user)
         self.assertFalse(self.org2.channels.all())
@@ -1978,7 +1977,6 @@ class ChannelCountTest(TembaTest):
 class ChannelLogTest(TembaTest):
     def test_channellog_views(self):
         contact = self.create_contact("Fred Jones", "+12067799191")
-        self.setUpSecondaryOrg(100_000)
 
         # create unrelated incoming message
         self.create_incoming_msg(contact, "incoming msg")

@@ -772,7 +772,6 @@ class ContactGroupCRUDLTest(TembaTest):
 
         ContactGroup.user_groups.get(org=self.org, name="Frank", query="tel = 1234")
 
-        self.setUpSecondaryOrg()
         self.release(ContactGroup.user_groups.all())
 
         for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
@@ -2645,7 +2644,6 @@ class ContactTest(TembaTest):
             self.assertContains(response, "file.mp4")
 
             # can't view history of contact in another org
-            self.setUpSecondaryOrg()
             hans = self.create_contact("Hans", twitter="hans", org=self.org2)
             response = self.client.get(reverse("contacts.contact_history", args=[hans.uuid]))
             self.assertLoginRedirect(response)
@@ -3132,7 +3130,6 @@ class ContactTest(TembaTest):
             )
 
         # can't view contact in another org
-        self.setUpSecondaryOrg()
         hans = self.create_contact("Hans", twitter="hans", org=self.org2)
         response = self.client.get(reverse("contacts.contact_read", args=[hans.uuid]))
         self.assertLoginRedirect(response)
@@ -6862,9 +6859,6 @@ class ContactFieldTest(TembaTest):
     def test_json(self):
         contact_field_json_url = reverse("contacts.contactfield_json")
 
-        self.org2 = Org.objects.create(
-            name="kLab", timezone="Africa/Kigali", created_by=self.admin, modified_by=self.admin
-        )
         for i in range(30):
             key = "key%d" % i
             label = "label%d" % i

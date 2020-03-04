@@ -72,6 +72,20 @@ class TembaTestMixin:
         self.surveyor.set_org(self.org)
         self.org.surveyors.add(self.surveyor)
 
+        # setup a second org with a single admin
+        self.admin2 = self.create_user("Administrator2")
+        self.org2 = Org.objects.create(
+            name="Trileet Inc.",
+            timezone=pytz.timezone("Africa/Kigali"),
+            brand="rapidpro.io",
+            created_by=self.admin2,
+            modified_by=self.admin2,
+        )
+        self.org2.initialize(topup_size=1000)
+
+        self.org2.administrators.add(self.admin2)
+        self.admin2.set_org(self.org)
+
         self.superuser.set_org(self.org)
 
         # a single Android channel
@@ -497,20 +511,6 @@ class TembaTestMixin:
 class TembaTest(TembaTestMixin, SmartminTest):
     def setUp(self):
         self.setUpOrg()
-
-    def setUpSecondaryOrg(self, topup_size=None):
-        self.admin2 = self.create_user("Administrator2")
-        self.org2 = Org.objects.create(
-            name="Trileet Inc.",
-            timezone=pytz.timezone("Africa/Kigali"),
-            brand="rapidpro.io",
-            created_by=self.admin2,
-            modified_by=self.admin2,
-        )
-        self.org2.administrators.add(self.admin2)
-        self.admin2.set_org(self.org)
-
-        self.org2.initialize(topup_size=topup_size)
 
     def tearDown(self):
         clear_flow_users()

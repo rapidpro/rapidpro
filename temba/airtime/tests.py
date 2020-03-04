@@ -11,8 +11,6 @@ class AirtimeCRUDLTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.setUpSecondaryOrg()
-
         contact = self.create_contact("Ben Haggerty", "+250700000003")
 
         self.transfer1 = AirtimeTransfer.objects.create(
