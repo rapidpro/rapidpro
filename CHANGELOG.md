@@ -1,3 +1,7 @@
+v5.4.4
+----------
+ * fix various filtering issues
+
 v5.4.3
 ----------
  * Update sample flow test
