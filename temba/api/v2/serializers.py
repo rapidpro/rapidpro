@@ -1043,6 +1043,34 @@ class GlobalReadSerializer(ReadSerializer):
         fields = ("key", "name", "value", "modified_on")
 
 
+class GlobalWriteSerializer(WriteSerializer):
+    value = serializers.CharField(required=True)
+    name = serializers.CharField(
+        required=False,
+        max_length=Global.MAX_NAME_LEN,
+        validators=[UniqueForOrgValidator(queryset=Global.objects.filter(is_active=True), ignore_case=True)],
+    )
+
+    def validate_name(self, value):
+        if not Global.is_valid_name(value):
+            raise serializers.ValidationError("Name contains illegal characters.")
+        key = Global.make_key(value)
+        if not Global.is_valid_key(key):
+            raise serializers.ValidationError("Name creates Key that is invalid")
+        return value
+
+    def save(self):
+        value = self.validated_data["value"]
+        if self.instance:
+            self.instance.value = value
+            self.instance.save(update_fields=("value", "modified_on"))
+            return self.instance
+        else:
+            name = self.validated_data["name"]
+            key = Global.make_key(name)
+            return Global.get_or_create(self.context["org"], self.context["user"], key, name, value)
+
+
 class LabelReadSerializer(ReadSerializer):
     count = serializers.SerializerMethodField()
 

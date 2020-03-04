@@ -1324,7 +1324,7 @@ class FlowMigrationTest(TembaTest):
         self.assertEqual("https://app.rapidpro.io/demo/status/", webhook_action["url"])
 
         # our test user doesn't use an email address, check for Administrator for the email
-        email_node = order_checker.as_json()["nodes"][9]
+        email_node = order_checker.as_json()["nodes"][10]
         email_action = email_node["actions"][1]
 
         self.assertEqual(["Administrator"], email_action["addresses"])

@@ -217,6 +217,14 @@ class FlowTest(TembaTest):
         self.assertContains(response, "Stop Notifications")
         self.assertContains(response, "Appointment Followup")
 
+        # check we can't see farmers
+        self.setUpSecondaryOrg()
+        farmers = ContactGroup.create_static(self.org2, self.admin, "Farmers")
+        campaign2 = Campaign.create(self.org2, self.admin, Campaign.get_unique_name(self.org, "Reminders"), farmers)
+
+        response = self.client.get(reverse("flows.flow_campaign", args=[campaign2.id]))
+        self.assertLoginRedirect(response)
+
     def test_facebook_warnings(self):
         no_topic = self.get_flow("pick_a_number")
         with_topic = self.get_flow("with_message_topic")
@@ -5632,7 +5640,7 @@ class FlowLabelTest(TembaTest):
         favorites = self.get_flow("favorites")
         label.toggle_label([favorites], True)
         response = self.client.get(reverse("flows.flow_filter", args=[label.pk]))
-        self.assertTrue(response.context["object_list"])
+        self.assertEqual([favorites], list(response.context["object_list"]))
         # our child label
         self.assertContains(response, "child")
 
@@ -5644,6 +5652,12 @@ class FlowLabelTest(TembaTest):
 
         response = self.client.get(reverse("flows.flow_filter", args=[label.pk]))
         self.assertFalse(response.context["object_list"])
+
+        # try to view our cat label in our other org
+        self.setUpSecondaryOrg()
+        cat = FlowLabel.create(self.org2, "cat")
+        response = self.client.get(reverse("flows.flow_filter", args=[cat.pk]))
+        self.assertLoginRedirect(response)
 
     def test_toggle_label(self):
         label = FlowLabel.create(self.org, "toggle me")

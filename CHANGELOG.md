@@ -1,3 +1,20 @@
+v5.4.3
+----------
+ * Update sample flow test
+
+v5.4.2
+----------
+ * remove use of webhook where not appropriate
+
+v5.4.1
+----------
+ * Update sample flows to use @webhook instead of @legacy_extra
+
+v5.4.0
+----------
+ * Add API endpoint to update Globals
+ * Keep latest sync event for Android channels when trimming
+
 v5.3.64
 ----------
  * Add support for Twilio Whatsapp channel type

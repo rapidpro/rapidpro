@@ -2641,6 +2641,96 @@ class APITest(TembaTest):
             ],
         )
 
+        # Filter by key
+        response = self.fetchJSON(url, "key=org_name")
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertEqual(
+            resp_json["results"],
+            [
+                {
+                    "key": "org_name",
+                    "name": "Org Name",
+                    "value": "Acme Ltd",
+                    "modified_on": format_datetime(global1.modified_on),
+                }
+            ],
+        )
+
+        # filter by after
+        response = self.fetchJSON(url, "after=%s" % format_datetime(global1.modified_on))
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertEqual(
+            resp_json["results"],
+            [
+                {
+                    "key": "access_token",
+                    "name": "Access Token",
+                    "value": "23464373",
+                    "modified_on": format_datetime(global2.modified_on),
+                },
+                {
+                    "key": "org_name",
+                    "name": "Org Name",
+                    "value": "Acme Ltd",
+                    "modified_on": format_datetime(global1.modified_on),
+                },
+            ],
+        )
+
+        # filter by before
+        response = self.fetchJSON(url, "before=%s" % format_datetime(global1.modified_on))
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertEqual(
+            resp_json["results"],
+            [
+                {
+                    "key": "org_name",
+                    "name": "Org Name",
+                    "value": "Acme Ltd",
+                    "modified_on": format_datetime(global1.modified_on),
+                }
+            ],
+        )
+
+        # lets change a global
+        response = self.postJSON(url, "key=org_name", {"value": "Acme LLC"})
+        self.assertEqual(response.status_code, 200)
+        global1.refresh_from_db()
+        self.assertEqual(global1.value, "Acme LLC")
+
+        # try to create a global with invalid name
+        response = self.postJSON(url, None, {"name": "!!!#$%^"})
+        self.assertResponseError(response, "name", "Name contains illegal characters.")
+
+        # try to create a global with name that creates an invalid key
+        response = self.postJSON(url, None, {"name": "2cool key", "value": "23464373"})
+        self.assertResponseError(response, "name", "Name creates Key that is invalid")
+
+        # try to create a global with name that's too long
+        response = self.postJSON(url, None, {"name": "x" * 37})
+        self.assertResponseError(response, "name", "Ensure this field has no more than 36 characters.")
+
+        # lets create a global via the API
+        response = self.postJSON(url, None, {"name": "New Global", "value": "23464373"})
+        self.assertEqual(response.status_code, 201)
+        print(response)
+        global3 = Global.objects.get(key="new_global")
+        self.assertEqual(
+            response.json(),
+            {
+                "key": "new_global",
+                "name": "New Global",
+                "value": "23464373",
+                "modified_on": format_datetime(global3.modified_on),
+            },
+        )
+
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_groups(self):
         url = reverse("api.v2.groups")
