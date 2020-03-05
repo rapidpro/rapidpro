@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-28 14:46+0000\n"
+"POT-Creation-Date: 2020-03-04 21:02+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -2735,7 +2735,7 @@ msgstr ""
 msgid "The Twilio Messaging Service SID"
 msgstr ""
 
-msgid "If you have a Twilio for Whatsapp number, you can connect it to communicate with your Whatsapp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio Whatsapp</a>"
+msgid "If you have a Twilio for WhatsApp number, you can connect it to communicate with your WhatsApp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio WhatsApp</a>"
 msgstr ""
 
 #, fuzzy
@@ -2747,7 +2747,7 @@ msgstr ""
 #| "      "
 msgid ""
 "\n"
-"        To finish configuring your Twilio Whatsapp connection you'll need to add the following URL in your Twilio Inbound Settings.\n"
+"        To finish configuring your Twilio WhatsApp connection you'll need to add the following URL in your Twilio Inbound Settings.\n"
 "        Check the Twilio WhatsApp documentation for more information.\n"
 "        "
 msgstr ""
@@ -2763,14 +2763,14 @@ msgstr ""
 #| "        This endpoint will be called by Vumi when new messages are received to your number.\n"
 #| "\n"
 #| "      "
-msgid "This endpoint should be called by Twilio when new messages are received by your Twilio Whatsapp number."
+msgid "This endpoint should be called by Twilio when new messages are received by your Twilio WhatsApp number."
 msgstr ""
 "\n"
 "        Vumi llamará a este endpoint cuando su número reciba mensajes nuevos.\n"
 "\n"
 "      "
 
-msgid "Only existing Twilio Whatsapp number are supported"
+msgid "Only existing Twilio WhatsApp number are supported"
 msgstr ""
 
 msgid ""
@@ -5603,13 +5603,15 @@ msgstr "Evento del transmisor"
 msgid "Airtime Transferred"
 msgstr ""
 
-msgid "Whatsapp Templates Synced"
+#, fuzzy
+#| msgid "Has Template Error"
+msgid "WhatsApp Templates Synced"
+msgstr "Tiene un error en la plantilla"
+
+msgid "WhatsApp Tokens Synced"
 msgstr ""
 
-msgid "Whatsapp Tokens Synced"
-msgstr ""
-
-msgid "Whatsapp Contacts Refreshed"
+msgid "WhatsApp Contacts Refreshed"
 msgstr ""
 
 msgid "Never"
@@ -7759,7 +7761,7 @@ msgstr ""
 #| "        to your number will be charged according to their plan.\n"
 #| "\n"
 #| "      "
-msgid "Once you claim a number you will immediately be able to send and receive Whatsapp messages. Users who send messages to your Whatsapp number will be charged according to their plan."
+msgid "Once you claim a number you will immediately be able to send and receive WhatsApp messages."
 msgstr ""
 "\n"
 "        Cuando pide un número podrá enviar y recibir mensajes inmediatamente. A los usuarios que envíen mensajes\n"
@@ -7767,10 +7769,10 @@ msgstr ""
 "\n"
 "      "
 
-msgid "You do not have any number on your Twilio Account. Please make sure you have a number and that it has access to Twilio Whatsapp."
+msgid "You do not have any number on your Twilio Account. Please make sure you have a number and that it has access to Twilio WhatsApp."
 msgstr ""
 
-msgid "To request access to Twilio Whatsapp"
+msgid "To request access to Twilio WhatsApp"
 msgstr ""
 
 #, fuzzy
@@ -7896,7 +7898,7 @@ msgstr ""
 
 #, fuzzy
 #| msgid "Has Template Error"
-msgid "Whatsapp Templates Events"
+msgid "WhatsApp Templates Events"
 msgstr "Tiene un error en la plantilla"
 
 #, fuzzy
@@ -12271,6 +12273,21 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "        Once you claim a number you will immediately be able to send and receive messages. Users who send messages\n"
+#~| "        to your number will be charged according to their plan.\n"
+#~| "\n"
+#~| "      "
+#~ msgid "Once you claim a number you will immediately be able to send and receive Whatsapp messages. Users who send messages to your Whatsapp number will be charged according to their plan."
+#~ msgstr ""
+#~ "\n"
+#~ "        Cuando pide un número podrá enviar y recibir mensajes inmediatamente. A los usuarios que envíen mensajes\n"
+#~ "        a su número se les cobrará de acuerdo con su plan.\n"
+#~ "\n"
+#~ "      "
 
 #~ msgid "Message History"
 #~ msgstr "Historial de mensajes"
