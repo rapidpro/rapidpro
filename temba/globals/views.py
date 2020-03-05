@@ -94,7 +94,7 @@ class GlobalCRUDL(SmartCRUDL):
             response["Temba-Success"] = self.get_success_url()
             return response
 
-    class Update(ModalMixin, OrgPermsMixin, SmartUpdateView):
+    class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateGlobalForm
         success_message = ""
         submit_button_name = _("Update")
