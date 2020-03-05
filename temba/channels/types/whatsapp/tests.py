@@ -414,3 +414,8 @@ class WhatsAppTypeTest(TembaTest):
         response = self.client.get(log_url)
         self.assertContains(response, "Connection Error")
         self.assertContains(response, "https://example.org/v3.3/1234/message_templates")
+
+        # sync logs not accessible by user from other org
+        self.login(self.admin2)
+        response = self.client.get(reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
+        self.assertEqual(404, response.status_code)

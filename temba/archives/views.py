@@ -5,7 +5,7 @@ from smartmin.views import SmartCRUDL, SmartListView, SmartReadView
 from django.db.models import Sum
 from django.http import HttpResponseRedirect
 
-from temba.orgs.views import OrgPermsMixin
+from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
 
 from .models import Archive
 
@@ -67,6 +67,6 @@ class ArchiveCRUDL(SmartCRUDL):
         def get_archive_type(self):
             return Archive.TYPE_MSG
 
-    class Read(OrgPermsMixin, SmartReadView):
+    class Read(OrgObjPermsMixin, SmartReadView):
         def render_to_response(self, context, **response_kwargs):
             return HttpResponseRedirect(self.get_object().get_download_link())
