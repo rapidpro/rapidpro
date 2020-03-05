@@ -38,8 +38,6 @@ logger = logging.getLogger(__name__)
 
 # phone number for every org's test contact
 OLD_TEST_CONTACT_TEL = "12065551212"
-START_TEST_CONTACT_PATH = 12_065_550_100
-END_TEST_CONTACT_PATH = 12_065_550_199
 
 # how many sequential contacts on import triggers suspension
 SEQUENTIAL_CONTACTS_THRESHOLD = 250
@@ -56,6 +54,7 @@ TWILIO_SCHEME = "twilio"
 TWITTER_SCHEME = "twitter"
 TWITTERID_SCHEME = "twitterid"
 VIBER_SCHEME = "viber"
+VK_SCHEME = "vk"
 FCM_SCHEME = "fcm"
 WHATSAPP_SCHEME = "whatsapp"
 WECHAT_SCHEME = "wechat"
@@ -79,6 +78,7 @@ URN_SCHEME_CONFIG = (
     (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), FCM_SCHEME),
     (WHATSAPP_SCHEME, _("WhatsApp identifier"), WHATSAPP_SCHEME),
     (FRESHCHAT_SCHEME, _("Freshchat identifier"), FRESHCHAT_SCHEME),
+    (VK_SCHEME, _("VK identifier"), VK_SCHEME),
 )
 
 
@@ -295,7 +295,7 @@ class URN(object):
         # now does it look plausible?
         try:
             if phonenumbers.is_possible_number(normalized):
-                return phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164), True
+                return (phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164), True)
         except Exception:
             pass
 
@@ -340,6 +340,10 @@ class URN(object):
     @classmethod
     def from_facebook(cls, path):
         return cls.from_parts(FACEBOOK_SCHEME, path)
+
+    @classmethod
+    def from_vk(cls, path):
+        return cls.from_parts(VK_SCHEME, path)
 
     @classmethod
     def from_line(cls, path):
@@ -1709,7 +1713,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return val
 
     @classmethod
-    def import_excel(cls, filename, user, import_params, log=None, import_results=None):
+    def import_excel(cls, filename, user, import_params, task, log=None, import_results=None):
 
         import pyexcel
 
@@ -1735,10 +1739,17 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         records = []
         num_errors = 0
         error_messages = []
+        row_processed = 0
 
         sheet_data_records = sheet_data[line_number:]
 
         for row in sheet_data_records:
+            row_processed += 1
+
+            if row_processed % 100 == 0:  # pragma: no cover
+                task.modified_on = timezone.now()
+                task.save(update_fields=["modified_on"])
+
             # trim all our values
             row_data = []
             for cell in row:
@@ -1832,7 +1843,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         import_results = dict()
 
         try:
-            contacts = cls.import_excel(open(tmp_file), user, import_params, log, import_results)
+            contacts = cls.import_excel(open(tmp_file), user, import_params, task, log, import_results)
         finally:
             os.remove(tmp_file)
             os.remove(csv_tmp_file)
@@ -2739,7 +2750,7 @@ class ContactGroup(TembaModel):
             if not parsed:
                 parsed = parse_query(self.org_id, query)
 
-            if "id" in parsed.fields:
+            if not parsed.allow_as_group:
                 raise ValueError(f"Cannot use query '{query}' as a dynamic group")
 
             self.query = parsed.query
@@ -3095,6 +3106,9 @@ class ExportContactsTask(BaseExportTask):
                             predicted,
                         )
                     )
+
+                    self.modified_on = timezone.now()
+                    self.save(update_fields=["modified_on"])
 
         return exporter.save_file()
 

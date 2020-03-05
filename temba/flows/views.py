@@ -300,7 +300,15 @@ class FlowCRUDL(SmartCRUDL):
             # we are looking for a specific revision, fetch it and migrate it forward
             if revision_id:
                 revision = FlowRevision.objects.get(flow=flow, pk=revision_id)
-                return JsonResponse(revision.get_definition_json(to_version=flow_version))
+                definition = revision.get_definition_json(to_version=flow_version)
+
+                # TODO: this is only needed to support the legacy editor
+                if Version(flow_version) < Version(Flow.INITIAL_GOFLOW_VERSION):
+                    return JsonResponse(definition)
+
+                # get our metadata
+                flow_info = mailroom.get_client().flow_inspect(flow.org_id, definition)
+                return JsonResponse(dict(definition=definition, metadata=Flow.get_metadata(flow_info)))
 
             # get a list of all revisions, these should be reasonably pruned already
             revisions = []
@@ -360,6 +368,7 @@ class FlowCRUDL(SmartCRUDL):
                         "status": "success",
                         "saved_on": json.encode_datetime(flow.saved_on, micros=True),
                         "revision": revision.as_json(),
+                        "metadata": flow.metadata,
                     }
                 )
 
@@ -866,7 +875,7 @@ class FlowCRUDL(SmartCRUDL):
 
             return queryset
 
-    class Campaign(BaseList):
+    class Campaign(BaseList, OrgObjPermsMixin):
         actions = ["label"]
         campaign = None
 
@@ -877,12 +886,17 @@ class FlowCRUDL(SmartCRUDL):
         def derive_title(self, *args, **kwargs):
             return self.get_campaign().name
 
+        def get_object_org(self):
+            from temba.campaigns.models import Campaign
+
+            return Campaign.objects.get(pk=self.kwargs["campaign_id"]).org
+
         def get_campaign(self):
             if not self.campaign:
                 from temba.campaigns.models import Campaign
 
                 campaign_id = self.kwargs["campaign_id"]
-                self.campaign = Campaign.objects.filter(id=campaign_id).first()
+                self.campaign = Campaign.objects.filter(id=campaign_id, org=self.request.user.get_org()).first()
             return self.campaign
 
         def get_queryset(self, **kwargs):
@@ -892,7 +906,7 @@ class FlowCRUDL(SmartCRUDL):
                 campaign=self.get_campaign(), flow__is_archived=False, flow__is_system=False
             ).values("flow__id")
 
-            flows = Flow.objects.filter(id__in=flow_ids).order_by("-modified_on")
+            flows = Flow.objects.filter(id__in=flow_ids, org=self.request.user.get_org()).order_by("-modified_on")
             return flows
 
         def get_context_data(self, *args, **kwargs):
@@ -900,7 +914,7 @@ class FlowCRUDL(SmartCRUDL):
             context["current_campaign"] = self.get_campaign()
             return context
 
-    class Filter(BaseList):
+    class Filter(BaseList, OrgObjPermsMixin):
         add_button = True
         actions = ["unlabel", "label"]
 
@@ -927,8 +941,11 @@ class FlowCRUDL(SmartCRUDL):
         def derive_title(self, *args, **kwargs):
             return self.derive_label().name
 
+        def get_object_org(self):
+            return FlowLabel.objects.get(pk=self.kwargs["label_id"]).org
+
         def derive_label(self):
-            return FlowLabel.objects.get(pk=self.kwargs["label_id"])
+            return FlowLabel.objects.get(pk=self.kwargs["label_id"], org=self.request.user.get_org())
 
         def get_label_filter(self):
             label = FlowLabel.objects.get(pk=self.kwargs["label_id"])

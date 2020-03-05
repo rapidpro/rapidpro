@@ -576,108 +576,90 @@ class ChannelTest(TembaTest):
         response = self.client.get(update_url)
         self.assertEqual(302, response.status_code)
 
-        self.login(self.user)
-        # visit the channel's update page as a manager within the channel's organization
-        self.org.administrators.add(self.user)
-        response = self.fetch_protected(update_url, self.user)
+        # visit the channel's update page as an admin
+        self.login(self.admin)
+
+        response = self.fetch_protected(update_url, self.admin)
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], update_url)
 
-        channel = Channel.objects.get(pk=self.tel_channel.id)
-        self.assertEqual(channel.name, "Test Channel")
-        self.assertEqual(channel.address, "+250785551212")
+        self.client.post(update_url, {"name": "Test Channel Update1", "address": "+250785551313"})
 
-        postdata = dict()
-        postdata["name"] = "Test Channel Update1"
-        postdata["address"] = "+250785551313"
-
-        self.login(self.user)
-        response = self.client.post(update_url, postdata, follow=True)
-        channel = Channel.objects.get(pk=self.tel_channel.id)
-        self.assertEqual(channel.name, "Test Channel Update1")
-        self.assertEqual(channel.address, "+250785551313")
+        self.tel_channel.refresh_from_db()
+        self.assertEqual("Test Channel Update1", self.tel_channel.name)
+        self.assertEqual("+250785551313", self.tel_channel.address)
+        self.assertFalse(self.tel_channel.config.get("allow_international"))
 
         # if we change the channel to a twilio type, shouldn't be able to edit our address
-        channel.channel_type = "T"
-        channel.save()
+        self.tel_channel.channel_type = "T"
+        self.tel_channel.save(update_fields=("channel_type",))
 
         response = self.client.get(update_url)
         self.assertNotIn("address", response.context["form"].fields)
 
         # bring it back to android
-        channel.channel_type = "A"
-        channel.save()
+        self.tel_channel.channel_type = "A"
+        self.tel_channel.save(update_fields=("channel_type",))
 
-        # visit the channel's update page as administrator
-        self.org.administrators.add(self.user)
-        self.user.set_org(self.org)
-        response = self.fetch_protected(update_url, self.user)
+        # visit the update page again as an administrator
+        response = self.fetch_protected(update_url, self.admin)
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], update_url)
-        channel = Channel.objects.get(pk=self.tel_channel.id)
-        self.assertEqual(channel.name, "Test Channel Update1")
-        self.assertEqual(channel.address, "+250785551313")
 
-        postdata = dict()
-        postdata["name"] = "Test Channel Update2"
-        postdata["address"] = "+250785551414"
+        self.fetch_protected(
+            update_url,
+            self.admin,
+            {"name": "Test Channel Update2", "address": "+250785551414", "allow_international": True},
+        )
 
-        response = self.fetch_protected(update_url, self.user, postdata)
-        channel = Channel.objects.get(pk=self.tel_channel.id)
-        self.assertEqual(channel.name, "Test Channel Update2")
-        self.assertEqual(channel.address, "+250785551414")
+        self.tel_channel.refresh_from_db()
+        self.assertEqual("Test Channel Update2", self.tel_channel.name)
+        self.assertEqual("+250785551414", self.tel_channel.address)
+        self.assertTrue(self.tel_channel.config.get("allow_international"))
 
         # visit the channel's update page as superuser
         self.superuser.set_org(self.org)
         response = self.fetch_protected(update_url, self.superuser)
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], update_url)
-        channel = Channel.objects.get(pk=self.tel_channel.id)
-        self.assertEqual(channel.name, "Test Channel Update2")
-        self.assertEqual(channel.address, "+250785551414")
 
-        postdata = dict()
-        postdata["name"] = "Test Channel Update3"
-        postdata["address"] = "+250785551515"
+        self.fetch_protected(update_url, self.superuser, {"name": "Test Channel Update3", "address": "+250785551515"})
 
-        response = self.fetch_protected(update_url, self.superuser, postdata)
-        channel = Channel.objects.get(pk=self.tel_channel.id)
-        self.assertEqual(channel.name, "Test Channel Update3")
-        self.assertEqual(channel.address, "+250785551515")
+        self.tel_channel.refresh_from_db()
+        self.assertEqual("Test Channel Update3", self.tel_channel.name)
+        self.assertEqual("+250785551515", self.tel_channel.address)
 
         # make sure channel works with alphanumeric numbers
-        channel.address = "EATRIGHT"
-        self.assertEqual("EATRIGHT", channel.get_address_display())
-        self.assertEqual("EATRIGHT", channel.get_address_display(e164=True))
+        self.tel_channel.address = "EATRIGHT"
+        self.assertEqual("EATRIGHT", self.tel_channel.get_address_display())
+        self.assertEqual("EATRIGHT", self.tel_channel.get_address_display(e164=True))
 
         # change channel type to Twitter
-        channel.channel_type = "TWT"
-        channel.schemes = [TWITTER_SCHEME]
-        channel.address = "billy_bob"
-        channel.scheme = "twitter"
-        channel.config = {"handle_id": 12345, "oauth_token": "abcdef", "oauth_token_secret": "23456"}
-        channel.save()
+        self.tel_channel.channel_type = "TWT"
+        self.tel_channel.schemes = [TWITTER_SCHEME]
+        self.tel_channel.address = "billy_bob"
+        self.tel_channel.scheme = "twitter"
+        self.tel_channel.config = {"handle_id": 12345, "oauth_token": "abcdef", "oauth_token_secret": "23456"}
+        self.tel_channel.save()
 
-        self.assertEqual("@billy_bob", channel.get_address_display())
-        self.assertEqual("@billy_bob", channel.get_address_display(e164=True))
+        self.assertEqual("@billy_bob", self.tel_channel.get_address_display())
+        self.assertEqual("@billy_bob", self.tel_channel.get_address_display(e164=True))
 
-        response = self.fetch_protected(update_url, self.user)
+        response = self.fetch_protected(update_url, self.admin)
         self.assertEqual(200, response.status_code)
         self.assertIn("name", response.context["fields"])
         self.assertIn("alert_email", response.context["fields"])
         self.assertIn("address", response.context["fields"])
         self.assertNotIn("country", response.context["fields"])
 
-        postdata = dict()
-        postdata["name"] = "Twitter2"
-        postdata["alert_email"] = "bob@example.com"
-        postdata["address"] = "billy_bob"
+        postdata = {"name": "Twitter2", "alert_email": "bob@example.com", "address": "billy_bob"}
 
-        self.fetch_protected(update_url, self.user, postdata)
-        channel = Channel.objects.get(pk=self.tel_channel.id)
-        self.assertEqual(channel.name, "Twitter2")
-        self.assertEqual(channel.alert_email, "bob@example.com")
-        self.assertEqual(channel.address, "billy_bob")
+        self.fetch_protected(update_url, self.admin, postdata)
+
+        self.tel_channel.refresh_from_db()
+        self.assertEqual("Twitter2", self.tel_channel.name)
+        self.assertEqual("bob@example.com", self.tel_channel.alert_email)
+        self.assertEqual("billy_bob", self.tel_channel.address)
 
     def test_read(self):
         post_data = dict(
@@ -1419,7 +1401,7 @@ class ChannelTest(TembaTest):
         trim_sync_events_task()
 
         # should be cleared out
-        self.assertFalse(SyncEvent.objects.exists())
+        self.assertEqual(1, SyncEvent.objects.all().count())
         self.assertFalse(Alert.objects.exists())
 
         # the case the status is in unknown state

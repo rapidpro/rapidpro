@@ -7,16 +7,18 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.models import Channel
-from temba.channels.views import (
+from temba.orgs.models import Org
+from temba.utils import analytics
+from temba.utils.models import generate_uuid
+
+from ...models import Channel
+from ...views import (
     NEXMO_SUPPORTED_COUNTRIES,
     NEXMO_SUPPORTED_COUNTRY_CODES,
     BaseClaimNumberMixin,
     ClaimViewMixin,
+    UpdateTelChannelForm,
 )
-from temba.orgs.models import Org
-from temba.utils import analytics
-from temba.utils.models import generate_uuid
 
 
 class ClaimView(BaseClaimNumberMixin, SmartFormView):
@@ -186,3 +188,8 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         analytics.track(user.username, "temba.channel_claim_nexmo", dict(number=phone_number))
 
         return channel
+
+
+class UpdateForm(UpdateTelChannelForm):
+    class Meta(UpdateTelChannelForm.Meta):
+        readonly = ("country",)

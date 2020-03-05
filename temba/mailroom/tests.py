@@ -7,10 +7,11 @@ from django.test import override_settings
 from django.utils import timezone
 
 from temba.channels.models import ChannelEvent
-from temba.flows.models import FlowStart
-from temba.mailroom.client import FlowValidationException, MailroomException, get_client
+from temba.flows.models import FlowRun, FlowStart
+from temba.mailroom.client import MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
 from temba.tests import MockResponse, TembaTest, matchers
+from temba.tests.engine import MockSessionWriter
 from temba.utils import json
 
 from . import queue_interrupt
@@ -91,22 +92,17 @@ class MailroomClientTest(TembaTest):
                 get_client().contact_search(1, "2752dbbc-723f-4007-8bc5-b3720835d3a9", "age > 10", "-created_on")
 
     @override_settings(TESTING=False)
-    def test_validation_failure(self):
+    def test_inspect_with_org(self):
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(422, '{"error":"flow don\'t look right"}')
+            mock_post.return_value = MockResponse(200, '{"dependencies":[]}')
 
-            with self.assertRaises(FlowValidationException) as e:
-                get_client().flow_inspect(self.org.id, {"nodes": []})
+            get_client().flow_inspect(self.org.id, {"nodes": []})
 
-        self.assertEqual(str(e.exception), "flow don't look right")
-        self.assertEqual(
-            e.exception.as_json(),
-            {
-                "endpoint": "flow/inspect",
-                "request": {"flow": {"nodes": []}, "validate_with_org_id": self.org.id},
-                "response": {"error": "flow don't look right"},
-            },
-        )
+            mock_post.assert_called_once_with(
+                "http://localhost:8090/mr/flow/inspect",
+                headers={"User-Agent": "Temba"},
+                json={"org_id": self.org.id, "flow": {"nodes": []}},
+            )
 
     def test_request_failure(self):
         flow = self.get_flow("color")
@@ -326,6 +322,38 @@ class MailroomQueueTest(TembaTest):
                 "type": "interrupt_sessions",
                 "org_id": self.org.id,
                 "task": {"flow_ids": [flow.id]},
+                "queued_on": matchers.ISODate(),
+            },
+        )
+
+    def test_queue_interrupt_by_session(self):
+        jim = self.create_contact("Jim", "+12065551212")
+
+        flow = self.get_flow("favorites")
+        flow_nodes = flow.as_json()["nodes"]
+        color_prompt = flow_nodes[0]
+        color_split = flow_nodes[2]
+
+        (
+            MockSessionWriter(jim, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .save()
+        )
+
+        run = FlowRun.objects.get(contact=jim)
+        session = run.session
+        run.release("U")
+
+        self.assert_org_queued(self.org, "batch")
+        self.assert_queued_batch_task(
+            self.org,
+            {
+                "type": "interrupt_sessions",
+                "org_id": self.org.id,
+                "task": {"session_ids": [session.id]},
                 "queued_on": matchers.ISODate(),
             },
         )

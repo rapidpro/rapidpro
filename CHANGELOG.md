@@ -1,3 +1,82 @@
+v5.4.6
+----------
+ * Merge pull request #2718 from nyaruka/fe187
+
+v5.4.4
+----------
+ * fix various filtering issues
+
+v5.4.3
+----------
+ * Update sample flow test
+
+v5.4.2
+----------
+ * remove use of webhook where not appropriate
+
+v5.4.1
+----------
+ * Update sample flows to use @webhook instead of @legacy_extra
+
+v5.4.0
+----------
+ * Add API endpoint to update Globals
+ * Keep latest sync event for Android channels when trimming
+
+v5.3.64
+----------
+ * Add support for Twilio Whatsapp channel type
+
+v5.3.63
+----------
+ * Add pre_deploy command to check imports/exports
+ * Fix link to android APK downloads on claim page
+
+v5.3.62
+----------
+ * Temporarily disable resume imports task
+
+v5.3.61
+----------
+ * Fix text of save as group dialog
+ * Add support to restart export tasks that might have been stopped by deploy
+
+v5.3.60
+----------
+ * Update to latest mailroom
+ * Add urns to runs API endpoint
+
+v5.3.59
+----------
+ * Update to latest mailroom which returns allow_as_group from query parsing
+ * Don't create missing contact fields on flow save
+
+v5.3.57
+----------
+ * Update flow editor 1.7.16
+ * Fix translations on external channel claim page
+ * Add tabs to toggle between full flow event history and summary of messages
+ * Increase the max height on the flow results export modal dialog
+
+v5.3.56
+----------
+ * Add params to flow starts API
+ * Change name of org_id param in calls to flow/inspect
+ * Add quick replies variable to external channel claim page
+
+v5.3.55
+----------
+ * Allow editing of allow_international on channel update forms
+ * Use consistent format for datetimes like created_on on contact list page
+
+v5.3.54
+----------
+ * Hide loader on start flow dialog when there are no channels
+
+v5.3.53
+----------
+ * Fix creation of Android channels
+
 v5.3.52
 ----------
  * Convert Android to dynamic channel type

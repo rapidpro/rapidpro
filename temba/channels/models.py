@@ -18,7 +18,7 @@ from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
-from django.db.models import Max, Q, Sum
+from django.db.models import Count, Max, Q, Sum
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template import Context, Engine, TemplateDoesNotExist
@@ -255,7 +255,10 @@ class Channel(TembaModel):
     CONFIG_SEND_METHOD = "method"
     CONFIG_SEND_BODY = "body"
     CONFIG_MT_RESPONSE_CHECK = "mt_response_check"
-    CONFIG_DEFAULT_SEND_BODY = "id={{id}}&text={{text}}&to={{to}}&to_no_plus={{to_no_plus}}&from={{from}}&from_no_plus={{from_no_plus}}&channel={{channel}}"
+    CONFIG_DEFAULT_SEND_BODY = (
+        "id={{id}}&text={{text}}&to={{to}}&to_no_plus={{to_no_plus}}&from={{from}}&from_no_plus={{from_no_plus}}"
+        "&channel={{channel}}"
+    )
     CONFIG_USERNAME = "username"
     CONFIG_PASSWORD = "password"
     CONFIG_KEY = "key"
@@ -284,6 +287,7 @@ class Channel(TembaModel):
     CONFIG_NUMBER_SID = "number_sid"
     CONFIG_MESSAGING_SERVICE_SID = "messaging_service_sid"
     CONFIG_MAX_CONCURRENT_EVENTS = "max_concurrent_events"
+    CONFIG_ALLOW_INTERNATIONAL = "allow_international"
 
     CONFIG_NEXMO_API_KEY = "nexmo_api_key"
     CONFIG_NEXMO_API_SECRET = "nexmo_api_secret"
@@ -685,13 +689,11 @@ class Channel(TembaModel):
         anon = get_anonymous_user()
         config = {Channel.CONFIG_FCM_ID: fcm_id}
 
-        from .types.android.type import AndroidType
-
         return Channel.create(
             None,
             anon,
             country,
-            AndroidType,
+            cls.get_type_from_code("A"),
             None,
             None,
             config=config,
@@ -1571,8 +1573,19 @@ class SyncEvent(SmartModel):
     @classmethod
     def trim(cls):
         week_ago = timezone.now() - timedelta(days=7)
-        for event in cls.objects.filter(created_on__lte=week_ago):
-            event.release()
+
+        channels_with_sync_events = (
+            SyncEvent.objects.filter(created_on__lte=week_ago)
+            .values("channel")
+            .annotate(Count("id"))
+            .filter(id__count__gt=1)
+        )
+        for channel_sync_events in channels_with_sync_events:
+            sync_events = SyncEvent.objects.filter(
+                created_on__lte=week_ago, channel_id=channel_sync_events["channel"]
+            ).order_by("-created_on")[1:]
+            for event in sync_events:
+                event.release()
 
 
 @receiver(pre_save, sender=SyncEvent)

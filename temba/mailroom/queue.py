@@ -128,12 +128,14 @@ def queue_flow_start(start):
     _queue_batch_task(org_id, BatchTask.START_FLOW, task, HIGH_PRIORITY)
 
 
-def queue_interrupt(org, *, contacts=None, channel=None, flow=None):
+def queue_interrupt(org, *, contacts=None, channel=None, flow=None, session=None):
     """
     Queues an interrupt task for handling by mailroom
     """
 
-    assert contacts or channel or flow, "must specify either a set of contacts or a channel or a flow"
+    assert (
+        contacts or channel or flow or session
+    ), "must specify either a set of contacts or a channel or a flow or a session"
 
     task = {}
     if contacts:
@@ -142,6 +144,8 @@ def queue_interrupt(org, *, contacts=None, channel=None, flow=None):
         task["channel_ids"] = [channel.id]
     if flow:
         task["flow_ids"] = [flow.id]
+    if session:
+        task["session_ids"] = [session.id]
 
     _queue_batch_task(org.id, BatchTask.INTERRUPT_SESSIONS, task, HIGH_PRIORITY)
 

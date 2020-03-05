@@ -162,6 +162,7 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
                 "total": 1,
                 "query": "age = 18",
                 "fields": ["age"],
+                "allow_as_group": True,
             }
 
             response = self._do_test_view("list", query_string="search=age+%3D+18")
@@ -178,6 +179,7 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
                 "total": 10020,
                 "query": "age = 18",
                 "fields": ["age"],
+                "allow_as_group": True,
             }
 
             # we return up to 10000 contacts when searching with ES, so last page is 200
@@ -199,6 +201,7 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
                 "total": 1,
                 "query": 'age > 18 AND home = "Kigali"',
                 "fields": ["age", "home"],
+                "allow_as_group": True,
             }
 
             response = self._do_test_view("list", query_string='search=age+>+18+and+home+%3D+"Kigali"')
@@ -214,6 +217,7 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
                 "total": 1,
                 "query": 'name ~ "Joe"',
                 "fields": ["name"],
+                "allow_as_group": True,
             }
 
             response = self._do_test_view("list", query_string="search=Joe")
@@ -230,6 +234,7 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
                     "total": 1,
                     "query": f"id = {self.joe.id}",
                     "fields": ["id"],
+                    "allow_as_group": False,
                 }
 
                 response = self._do_test_view("list", query_string=f"search={self.joe.id}")
@@ -381,7 +386,7 @@ class ContactGroupTest(TembaTest):
         self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, "Empty", "")
 
         # can't create a dynamic group with id attribute
-        with MockParseQuery("id = 123", ["id"]):
+        with MockParseQuery("id = 123", ["id"], allow_as_group=False):
             self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, "Bose", "id = 123")
 
         # can't call update_contacts on a dynamic group
@@ -834,9 +839,11 @@ class ContactGroupCRUDLTest(TembaTest):
             self.assertFormError(response, "form", "query", "error at >")
 
         # dependent on id
-        with MockParseQuery("id = 123", ["id"]):
+        with MockParseQuery("id = 123", ["id"], allow_as_group=False):
             response = self.client.post(url, dict(name="Frank", query="id = 123"))
-            self.assertFormError(response, "form", "query", 'You cannot create a dynamic group based on "id".')
+            self.assertFormError(
+                response, "form", "query", 'You cannot create a dynamic group based on "id" or "group".'
+            )
 
         with MockParseQuery('twitter = "hola"', ["twitter"]):
             response = self.client.post(url, dict(name="Frank", query='twitter is "hola"'))
@@ -2205,9 +2212,10 @@ class ContactTest(TembaTest):
                     query="",
                     total=4,
                     fields=[""],
+                    allow_as_group=False,
                     contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
                 ),
-                SearchResults(query="", total=3, fields=[""], contact_ids=[]),
+                SearchResults(query="", total=3, fields=[""], allow_as_group=False, contact_ids=[]),
             ]
             actual_result = omnibox_request(query="", version="2")
             expected_result = [
@@ -2226,8 +2234,16 @@ class ContactTest(TembaTest):
 
         with patch("temba.contacts.omnibox.search_contacts") as sc:
             sc.side_effect = [
-                SearchResults(query="", total=2, fields=[""], contact_ids=[self.billy.id, self.frank.id]),
-                SearchResults(query="", total=2, fields=[""], contact_ids=[self.voldemort.id, self.frank.id]),
+                SearchResults(
+                    query="", total=2, fields=[""], allow_as_group=False, contact_ids=[self.billy.id, self.frank.id]
+                ),
+                SearchResults(
+                    query="",
+                    total=2,
+                    fields=[""],
+                    allow_as_group=False,
+                    contact_ids=[self.voldemort.id, self.frank.id],
+                ),
             ]
             actual_result = omnibox_request(query="search=250", version="2")
             expected_result = [
@@ -2248,8 +2264,10 @@ class ContactTest(TembaTest):
 
         with patch("temba.contacts.omnibox.search_contacts") as sc:
             sc.side_effect = [
-                SearchResults(query="", total=2, fields=[""], contact_ids=[self.billy.id, self.frank.id]),
-                SearchResults(query="", total=0, fields=[""], contact_ids=[]),
+                SearchResults(
+                    query="", total=2, fields=[""], allow_as_group=False, contact_ids=[self.billy.id, self.frank.id]
+                ),
+                SearchResults(query="", total=0, fields=[""], allow_as_group=False, contact_ids=[]),
             ]
             with self.assertNumQueries(17):
                 actual_result = omnibox_request(query="")
@@ -2292,10 +2310,15 @@ class ContactTest(TembaTest):
                     query="",
                     total=4,
                     fields=[""],
+                    allow_as_group=False,
                     contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
                 ),
                 SearchResults(
-                    query="", total=3, fields=[""], contact_ids=[self.voldemort.id, self.joe.id, self.frank.id]
+                    query="",
+                    total=3,
+                    fields=[""],
+                    allow_as_group=False,
+                    contact_ids=[self.voldemort.id, self.joe.id, self.frank.id],
                 ),
             ]
             self.assertEqual(
@@ -2314,8 +2337,10 @@ class ContactTest(TembaTest):
         # search for Frank by phone
         with patch("temba.contacts.omnibox.search_contacts") as sc:
             sc.side_effect = [
-                SearchResults(query="name ~ 222", total=0, fields=[""], contact_ids=[]),
-                SearchResults(query="urn ~ 222", total=1, fields=[""], contact_ids=[self.frank.id]),
+                SearchResults(query="name ~ 222", total=0, fields=[""], allow_as_group=True, contact_ids=[]),
+                SearchResults(
+                    query="urn ~ 222", total=1, fields=[""], allow_as_group=True, contact_ids=[self.frank.id]
+                ),
             ]
             self.assertEqual(
                 omnibox_request("search=222"),
@@ -2331,8 +2356,12 @@ class ContactTest(TembaTest):
         # search for Joe - match on last name and twitter handle
         with patch("temba.contacts.omnibox.search_contacts") as sc:
             sc.side_effect = [
-                SearchResults(query="name ~ blow", total=1, fields=[""], contact_ids=[self.joe.id]),
-                SearchResults(query="urn ~ blow", total=1, fields=[""], contact_ids=[self.joe.id]),
+                SearchResults(
+                    query="name ~ blow", total=1, fields=[""], allow_as_group=True, contact_ids=[self.joe.id]
+                ),
+                SearchResults(
+                    query="urn ~ blow", total=1, fields=[""], allow_as_group=True, contact_ids=[self.joe.id]
+                ),
             ]
             self.assertEqual(
                 omnibox_request("search=BLOW"),
@@ -2376,7 +2405,9 @@ class ContactTest(TembaTest):
 
         with AnonymousOrg(self.org):
             with patch("temba.contacts.omnibox.search_contacts") as sc:
-                sc.side_effect = [SearchResults(query="", total=1, fields=[""], contact_ids=[self.billy.id])]
+                sc.side_effect = [
+                    SearchResults(query="", total=1, fields=[""], allow_as_group=False, contact_ids=[self.billy.id])
+                ]
                 self.assertEqual(
                     omnibox_request(""),
                     [
@@ -2392,7 +2423,9 @@ class ContactTest(TembaTest):
 
             # same search but with v2 format
             with patch("temba.contacts.omnibox.search_contacts") as sc:
-                sc.side_effect = [SearchResults(query="", total=1, fields=[""], contact_ids=[self.billy.id])]
+                sc.side_effect = [
+                    SearchResults(query="", total=1, fields=[""], allow_as_group=False, contact_ids=[self.billy.id])
+                ]
                 self.assertEqual(
                     omnibox_request("", version="2"),
                     [
@@ -2798,10 +2831,10 @@ class ContactTest(TembaTest):
         result = WebHookResult.objects.get()
 
         item = {"type": "webhook_called", "obj": result}
-        self.assertEqual(history_class(item), "non-msg")
+        self.assertEqual(history_class(item), "non-msg detail-event")
 
         result.status_code = 404
-        self.assertEqual(history_class(item), "non-msg warning")
+        self.assertEqual(history_class(item), "non-msg warning detail-event")
 
         call = self.create_incoming_call(self.reminder_flow, contact)
 
@@ -2904,7 +2937,7 @@ class ContactTest(TembaTest):
         )
         item = {"type": "airtime_transferred", "obj": transfer}
         self.assertEqual(history_icon(item), '<span class="glyph icon-cash"></span>')
-        self.assertEqual(history_class(item), "non-msg")
+        self.assertEqual(history_class(item), "non-msg detail-event")
 
     def test_get_scheduled_messages(self):
         self.just_joe = self.create_group("Just Joe", [self.joe])
@@ -3335,6 +3368,12 @@ class ContactTest(TembaTest):
         self.assertEqual(len(self.just_joe.contacts.all()), 1)
         self.assertEqual(self.just_joe.contacts.all()[0].pk, self.joe.pk)
         self.assertEqual(len(self.joe_and_frank.contacts.all()), 2)
+
+        # test on a secondary org
+        self.setUpSecondaryOrg()
+        other = self.create_group("Other Org", org=self.org2)
+        response = self.client.get(reverse("contacts.contact_filter", args=[other.uuid]))
+        self.assertLoginRedirect(response)
 
         # test filtering by group
         joe_and_frank_filter_url = reverse("contacts.contact_filter", args=[self.joe_and_frank.uuid])
@@ -4235,7 +4274,7 @@ class ContactTest(TembaTest):
                         line=3,
                         error="Missing any valid URNs; at least one among URN:tel, "
                         "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
-                        "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat should be provided or a Contact UUID",
+                        "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat, URN:vk should be provided or a Contact UUID",
                     ),
                     dict(line=4, error="Invalid Phone number 12345"),
                 ],
@@ -4255,7 +4294,7 @@ class ContactTest(TembaTest):
                         line=3,
                         error="Missing any valid URNs; at least one among URN:tel, "
                         "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
-                        "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat should be provided or a Contact UUID",
+                        "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat, URN:vk should be provided or a Contact UUID",
                     ),
                     dict(line=4, error="Invalid URN: abcdef"),
                 ],
@@ -4348,7 +4387,7 @@ class ContactTest(TembaTest):
                             line=3,
                             error="Missing any valid URNs; at least one among URN:tel, "
                             "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
-                            "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat should be provided or a Contact UUID",
+                            "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat, URN:vk should be provided or a Contact UUID",
                         )
                     ],
                 ),
@@ -4430,7 +4469,7 @@ class ContactTest(TembaTest):
                             line=3,
                             error="Missing any valid URNs; at least one among URN:tel, "
                             "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
-                            "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat should be provided or a Contact UUID",
+                            "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat, URN:vk should be provided or a Contact UUID",
                         )
                     ],
                 ),
@@ -4583,7 +4622,7 @@ class ContactTest(TembaTest):
             "csv_file",
             'The file you provided is missing a required header. At least one of "URN:tel", "URN:facebook", '
             '"URN:twitter", "URN:twitterid", "URN:viber", "URN:line", "URN:telegram", "URN:mailto", "URN:ext", '
-            '"URN:jiochat", "URN:wechat", "URN:fcm", "URN:whatsapp", "URN:freshchat" or "Contact UUID" should be included.',
+            '"URN:jiochat", "URN:wechat", "URN:fcm", "URN:whatsapp", "URN:freshchat", "URN:vk" or "Contact UUID" should be included.',
         )
 
         csv_file = open("%s/test_imports/sample_contacts_missing_name_phone_headers.xls" % settings.MEDIA_ROOT, "rb")
@@ -4595,7 +4634,7 @@ class ContactTest(TembaTest):
             "csv_file",
             'The file you provided is missing a required header. At least one of "URN:tel", "URN:facebook", '
             '"URN:twitter", "URN:twitterid", "URN:viber", "URN:line", "URN:telegram", "URN:mailto", "URN:ext", '
-            '"URN:jiochat", "URN:wechat", "URN:fcm", "URN:whatsapp", "URN:freshchat" or "Contact UUID" should be included.',
+            '"URN:jiochat", "URN:wechat", "URN:fcm", "URN:whatsapp", "URN:freshchat", "URN:vk" or "Contact UUID" should be included.',
         )
 
         csv_file = open(
@@ -5496,6 +5535,7 @@ class ContactTest(TembaTest):
 
         # run all tests as 2/Jan/2014 03:04 AFT
         tz = pytz.timezone("Asia/Kabul")
+
         with patch.object(timezone, "now", return_value=tz.localize(datetime(2014, 1, 2, 3, 4, 5, 6))):
             ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type="N")
             ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type="T")
@@ -5831,7 +5871,7 @@ class ContactFieldTest(TembaTest):
             self.assertIsNotNone(response.context["task"])
 
         # no group specified, so will default to 'All Contacts'
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(49):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -5884,7 +5924,7 @@ class ContactFieldTest(TembaTest):
         # change the order of the fields
         self.contactfield_2.priority = 15
         self.contactfield_2.save()
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(49):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -5942,7 +5982,7 @@ class ContactFieldTest(TembaTest):
         ContactURN.create(self.org, contact, "tel:+12062233445")
 
         # but should have additional Twitter and phone columns
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(49):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -6027,7 +6067,7 @@ class ContactFieldTest(TembaTest):
         assertImportExportedFile()
 
         # export a specified group of contacts (only Ben and Adam are in the group)
-        with self.assertNumQueries(49):
+        with self.assertNumQueries(50):
             self.assertExcelSheet(
                 request_export("?g=%s" % group.uuid)[0],
                 [
@@ -6093,7 +6133,7 @@ class ContactFieldTest(TembaTest):
 
                 with ESMockWithScroll(data=mock_es_data):
                     with MockParseQuery(query='name ~ "adam" OR name ~ "deng"', fields=["name"]):
-                        with self.assertNumQueries(47):
+                        with self.assertNumQueries(50):
                             self.assertExcelSheet(
                                 request_export("?s=name+has+adam+or+name+has+deng")[0],
                                 [
@@ -6153,7 +6193,7 @@ class ContactFieldTest(TembaTest):
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
             with MockParseQuery(query='name ~ "Hagg"', fields=["name"]):
-                with self.assertNumQueries(48):
+                with self.assertNumQueries(49):
                     self.assertExcelSheet(
                         request_export("?g=%s&s=Hagg" % group.uuid)[0],
                         [
@@ -6852,7 +6892,7 @@ class ContactFieldTest(TembaTest):
 
         response_json = response.json()
 
-        self.assertEqual(len(response_json), 48)
+        self.assertEqual(len(response_json), 49)
         self.assertEqual(response_json[0]["label"], "Full name")
         self.assertEqual(response_json[0]["key"], "name")
         self.assertEqual(response_json[1]["label"], "Phone number")
@@ -6883,22 +6923,24 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response_json[13]["key"], "whatsapp")
         self.assertEqual(response_json[14]["label"], "Freshchat identifier")
         self.assertEqual(response_json[14]["key"], "freshchat")
-        self.assertEqual(response_json[15]["label"], "Groups")
-        self.assertEqual(response_json[15]["key"], "groups")
-        self.assertEqual(response_json[16]["label"], "First")
-        self.assertEqual(response_json[16]["key"], "first")
-        self.assertEqual(response_json[17]["label"], "label0")
-        self.assertEqual(response_json[17]["key"], "key0")
+        self.assertEqual(response_json[15]["label"], "VK identifier")
+        self.assertEqual(response_json[15]["key"], "vk")
+        self.assertEqual(response_json[16]["label"], "Groups")
+        self.assertEqual(response_json[16]["key"], "groups")
+        self.assertEqual(response_json[17]["label"], "First")
+        self.assertEqual(response_json[17]["key"], "first")
+        self.assertEqual(response_json[18]["label"], "label0")
+        self.assertEqual(response_json[18]["key"], "key0")
 
         ContactField.user_fields.filter(org=self.org, key="key0").update(label="AAAA")
 
         response = self.client.get(contact_field_json_url)
         response_json = response.json()
 
-        self.assertEqual(response_json[16]["label"], "AAAA")
-        self.assertEqual(response_json[16]["key"], "key0")
-        self.assertEqual(response_json[17]["label"], "First")
-        self.assertEqual(response_json[17]["key"], "first")
+        self.assertEqual(response_json[16]["label"], "Groups")
+        self.assertEqual(response_json[16]["key"], "groups")
+        self.assertEqual(response_json[17]["label"], "AAAA")
+        self.assertEqual(response_json[17]["key"], "key0")
 
 
 class URNTest(TembaTest):
@@ -6915,6 +6957,9 @@ class URNTest(TembaTest):
         self.assertEqual("facebook:ref:asdf", URN.from_facebook(URN.path_from_fb_ref("asdf")))
         self.assertEqual("asdf", URN.fb_ref_from_path(URN.path_from_fb_ref("asdf")))
         self.assertTrue(URN.validate(URN.from_facebook(URN.path_from_fb_ref("asdf"))))
+
+    def test_vk_urn(self):
+        self.assertEqual("vk:12345", URN.from_vk("12345"))
 
     def test_whatsapp_urn(self):
         self.assertEqual("whatsapp:12065551212", URN.from_whatsapp("12065551212"))
@@ -6948,6 +6993,7 @@ class URNTest(TembaTest):
         self.assertEqual(URN.from_twitter("abc_123"), "twitter:abc_123")
         self.assertEqual(URN.from_email("a_b+c@d.com"), "mailto:a_b+c@d.com")
         self.assertEqual(URN.from_facebook(12345), "facebook:12345")
+        self.assertEqual(URN.from_vk(12345), "vk:12345")
         self.assertEqual(URN.from_telegram(12345), "telegram:12345")
         self.assertEqual(URN.from_external("Aa0()+,-.:=@;$_!*'"), "ext:Aa0()+,-.:=@;$_!*'")
 
@@ -6962,6 +7008,7 @@ class URNTest(TembaTest):
         self.assertEqual(URN.to_parts("twitter:abc_123"), ("twitter", "abc_123", None, None))
         self.assertEqual(URN.to_parts("mailto:a_b+c@d.com"), ("mailto", "a_b+c@d.com", None, None))
         self.assertEqual(URN.to_parts("facebook:12345"), ("facebook", "12345", None, None))
+        self.assertEqual(URN.to_parts("vk:12345"), ("vk", "12345", None, None))
         self.assertEqual(URN.to_parts("telegram:12345"), ("telegram", "12345", None, None))
         self.assertEqual(URN.to_parts("telegram:12345#foobar"), ("telegram", "12345", None, "foobar"))
         self.assertEqual(URN.to_parts("ext:Aa0()+,-.:=@;$_!*'"), ("ext", "Aa0()+,-.:=@;$_!*'", None, None))
@@ -7037,11 +7084,12 @@ class URNTest(TembaTest):
         # viber urn
         self.assertTrue(URN.validate("viber:dKPvqVrLerGrZw15qTuVBQ=="))
 
-        # facebook and telegram URN paths must be integers
+        # facebook, telegram vk URN paths must be integers
         self.assertTrue(URN.validate("telegram:12345678901234567"))
         self.assertFalse(URN.validate("telegram:abcdef"))
         self.assertTrue(URN.validate("facebook:12345678901234567"))
         self.assertFalse(URN.validate("facebook:abcdef"))
+        self.assertTrue(URN.validate("vk:12345678901234567"))
 
 
 class PhoneNumberTest(TestCase):
@@ -7244,6 +7292,9 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         self.assertEqual(q("%d" % contact.pk), 0)
 
         with AnonymousOrg(self.org):
+            # give mailroom time to clear its org cache
+            time.sleep(5)
+
             # still allow name and field searches
             self.assertEqual(q("trey"), 15)
             self.assertEqual(q("name is mike"), 15)
@@ -7258,6 +7309,9 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
             # anon orgs can search by id, with or without zero padding
             self.assertEqual(q("%d" % contact.pk), 1)
             self.assertEqual(q("%010d" % contact.pk), 1)
+
+        # give mailroom time to clear its org cache
+        time.sleep(5)
 
         # invalid queries
         self.assertRaises(SearchException, q, "((")

@@ -2642,6 +2642,96 @@ class APITest(TembaTest):
             ],
         )
 
+        # Filter by key
+        response = self.fetchJSON(url, "key=org_name")
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertEqual(
+            resp_json["results"],
+            [
+                {
+                    "key": "org_name",
+                    "name": "Org Name",
+                    "value": "Acme Ltd",
+                    "modified_on": format_datetime(global1.modified_on),
+                }
+            ],
+        )
+
+        # filter by after
+        response = self.fetchJSON(url, "after=%s" % format_datetime(global1.modified_on))
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertEqual(
+            resp_json["results"],
+            [
+                {
+                    "key": "access_token",
+                    "name": "Access Token",
+                    "value": "23464373",
+                    "modified_on": format_datetime(global2.modified_on),
+                },
+                {
+                    "key": "org_name",
+                    "name": "Org Name",
+                    "value": "Acme Ltd",
+                    "modified_on": format_datetime(global1.modified_on),
+                },
+            ],
+        )
+
+        # filter by before
+        response = self.fetchJSON(url, "before=%s" % format_datetime(global1.modified_on))
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertEqual(
+            resp_json["results"],
+            [
+                {
+                    "key": "org_name",
+                    "name": "Org Name",
+                    "value": "Acme Ltd",
+                    "modified_on": format_datetime(global1.modified_on),
+                }
+            ],
+        )
+
+        # lets change a global
+        response = self.postJSON(url, "key=org_name", {"value": "Acme LLC"})
+        self.assertEqual(response.status_code, 200)
+        global1.refresh_from_db()
+        self.assertEqual(global1.value, "Acme LLC")
+
+        # try to create a global with invalid name
+        response = self.postJSON(url, None, {"name": "!!!#$%^"})
+        self.assertResponseError(response, "name", "Name contains illegal characters.")
+
+        # try to create a global with name that creates an invalid key
+        response = self.postJSON(url, None, {"name": "2cool key", "value": "23464373"})
+        self.assertResponseError(response, "name", "Name creates Key that is invalid")
+
+        # try to create a global with name that's too long
+        response = self.postJSON(url, None, {"name": "x" * 37})
+        self.assertResponseError(response, "name", "Ensure this field has no more than 36 characters.")
+
+        # lets create a global via the API
+        response = self.postJSON(url, None, {"name": "New Global", "value": "23464373"})
+        self.assertEqual(response.status_code, 201)
+        print(response)
+        global3 = Global.objects.get(key="new_global")
+        self.assertEqual(
+            response.json(),
+            {
+                "key": "new_global",
+                "name": "New Global",
+                "value": "23464373",
+                "modified_on": format_datetime(global3.modified_on),
+            },
+        )
+
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_groups(self):
         url = reverse("api.v2.groups")
@@ -3276,7 +3366,7 @@ class APITest(TembaTest):
         frank_run2.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url)
 
         self.assertEqual(200, response.status_code)
@@ -3289,7 +3379,7 @@ class APITest(TembaTest):
                 "id": frank_run2.pk,
                 "uuid": str(frank_run2.uuid),
                 "flow": {"uuid": flow1.uuid, "name": "Colors"},
-                "contact": {"uuid": self.frank.uuid, "name": self.frank.name},
+                "contact": {"uuid": self.frank.uuid, "urn": "twitter:franky", "name": self.frank.name},
                 "start": None,
                 "responded": False,
                 "path": [
@@ -3315,7 +3405,7 @@ class APITest(TembaTest):
                 "id": joe_run1.pk,
                 "uuid": str(joe_run1.uuid),
                 "flow": {"uuid": flow1.uuid, "name": "Colors"},
-                "contact": {"uuid": self.joe.uuid, "name": self.joe.name},
+                "contact": {"uuid": self.joe.uuid, "urn": "tel:+250788123123", "name": self.joe.name},
                 "start": {"uuid": str(joe_run1.start.uuid)},
                 "responded": True,
                 "path": [
@@ -3353,6 +3443,37 @@ class APITest(TembaTest):
         # filter by id
         response = self.fetchJSON(url, "id=%d" % frank_run2.pk)
         self.assertResultsById(response, [frank_run2])
+
+        # anon orgs should not have a URN field
+        with AnonymousOrg(self.org):
+            response = self.fetchJSON(url, "id=%d" % frank_run2.pk)
+            self.assertResultsById(response, [frank_run2])
+            self.assertEqual(
+                {
+                    "id": frank_run2.pk,
+                    "uuid": str(frank_run2.uuid),
+                    "flow": {"uuid": flow1.uuid, "name": "Colors"},
+                    "contact": {"uuid": self.frank.uuid, "name": self.frank.name},
+                    "start": None,
+                    "responded": False,
+                    "path": [
+                        {
+                            "node": color_prompt["uuid"],
+                            "time": format_datetime(iso8601.parse_date(frank_run2.path[0]["arrived_on"])),
+                        },
+                        {
+                            "node": color_split["uuid"],
+                            "time": format_datetime(iso8601.parse_date(frank_run2.path[1]["arrived_on"])),
+                        },
+                    ],
+                    "values": {},
+                    "created_on": format_datetime(frank_run2.created_on),
+                    "modified_on": format_datetime(frank_run2.modified_on),
+                    "exited_on": None,
+                    "exit_type": None,
+                },
+                response.json()["results"][0],
+            )
 
         # filter by uuid
         response = self.fetchJSON(url, "uuid=%s" % frank_run2.uuid)
@@ -3781,6 +3902,35 @@ class APITest(TembaTest):
         mock_async_start.assert_called_once()
         mock_async_start.reset_mock()
 
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "urns": ["tel:+12067791212"],
+                "contacts": [self.joe.uuid],
+                "groups": [hans_group.uuid],
+                "flow": flow.uuid,
+                "restart_participants": False,
+                "extra": {"first_name": "Ryan", "last_name": "Lewis"},
+                "params": {"first_name": "Bob", "last_name": "Marley"},
+            },
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+        # assert our new start
+        start3 = flow.starts.get(pk=response.json()["id"])
+        self.assertEqual(start3.flow, flow)
+        self.assertTrue(start3.contacts.filter(urns__path="+12067791212"))
+        self.assertTrue(start3.contacts.filter(id=self.joe.id))
+        self.assertTrue(start3.groups.filter(id=hans_group.id))
+        self.assertFalse(start3.restart_participants)
+        self.assertTrue(start3.extra, {"first_name": "Bob", "last_name": "Marley"})
+
+        # check we tried to start the new flow start
+        mock_async_start.assert_called_once()
+        mock_async_start.reset_mock()
+
         # try to start a flow with no contact/group/URN
         response = self.postJSON(url, None, {"flow": flow.uuid, "restart_participants": True})
         self.assertResponseError(response, "non_field_errors", "Must specify at least one group, contact or URN")
@@ -3816,6 +3966,37 @@ class APITest(TembaTest):
         )
 
         self.assertResponseError(response, "extra", "Must be a valid JSON object")
+
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "urns": ["tel:+12067791212"],
+                "contacts": [self.joe.uuid],
+                "groups": [hans_group.uuid],
+                "flow": flow.uuid,
+                "restart_participants": False,
+                "params": "YES",
+            },
+        )
+
+        self.assertResponseError(response, "params", "Must be a valid JSON object")
+
+        # a list is valid JSON, but extra has to be a dict
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "urns": ["tel:+12067791212"],
+                "contacts": [self.joe.uuid],
+                "groups": [hans_group.uuid],
+                "flow": flow.uuid,
+                "restart_participants": False,
+                "params": [1],
+            },
+        )
+
+        self.assertResponseError(response, "params", "Must be a valid JSON object")
 
         # invalid URN
         response = self.postJSON(
@@ -3854,20 +4035,21 @@ class APITest(TembaTest):
         response = self.fetchJSON(url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["next"], None)
-        self.assertResultsById(response, [start2, start1])
+        self.assertResultsById(response, [start3, start2, start1])
         self.assertEqual(
             response.json()["results"][0],
             {
-                "id": start2.id,
-                "uuid": str(start2.uuid),
+                "id": start3.id,
+                "uuid": str(start3.uuid),
                 "flow": {"uuid": flow.uuid, "name": "Favorites"},
                 "contacts": [{"uuid": self.joe.uuid, "name": "Joe Blow"}, {"uuid": anon_contact.uuid, "name": None}],
                 "groups": [{"uuid": hans_group.uuid, "name": "hans"}],
                 "restart_participants": False,
                 "status": "pending",
-                "extra": {"first_name": "Ryan", "last_name": "Lewis"},
-                "created_on": format_datetime(start2.created_on),
-                "modified_on": format_datetime(start2.modified_on),
+                "extra": {"first_name": "Bob", "last_name": "Marley"},
+                "params": {"first_name": "Bob", "last_name": "Marley"},
+                "created_on": format_datetime(start3.created_on),
+                "modified_on": format_datetime(start3.modified_on),
             },
         )
 

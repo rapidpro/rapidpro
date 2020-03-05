@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-13 14:51+0000\n"
+"POT-Creation-Date: 2020-02-28 14:46+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -589,6 +589,9 @@ msgid "Another channel has this number. Please remove that channel first."
 msgstr ""
 
 msgid "Connect Android Channel"
+msgstr ""
+
+msgid "Phone number of this device"
 msgstr ""
 
 msgid ""
@@ -1696,6 +1699,22 @@ msgstr ""
 msgid "The Twilio Messaging Service SID"
 msgstr ""
 
+msgid "If you have a Twilio for Whatsapp number, you can connect it to communicate with your Whatsapp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio Whatsapp</a>"
+msgstr ""
+
+msgid ""
+"\n"
+"        To finish configuring your Twilio Whatsapp connection you'll need to add the following URL in your Twilio Inbound Settings.\n"
+"        Check the Twilio WhatsApp documentation for more information.\n"
+"        "
+msgstr ""
+
+msgid "This endpoint should be called by Twilio when new messages are received by your Twilio Whatsapp number."
+msgstr ""
+
+msgid "Only existing Twilio Whatsapp number are supported"
+msgstr ""
+
 msgid ""
 "\n"
 "        Connect to a service that speaks TwiML. You can use this to connect to TwiML compatible services outside of Twilio.\n"
@@ -1768,6 +1787,9 @@ msgstr ""
 msgid "The provided Twitter credentials do not appear to be valid."
 msgstr ""
 
+msgid "Twitter handle of this channel"
+msgstr ""
+
 msgid "Use a <a href=\"http://verboice.instedd.org\">Verboice</a> connection to leverage in-country SIP connections for building voice (IVR) flows."
 msgstr ""
 
@@ -1792,9 +1814,6 @@ msgstr ""
 msgid "The Verboice channel that will be handling your calls"
 msgstr ""
 
-msgid "The message send to user who have not yet subscribed to the channel, changes may take up to 30 seconds to take effect"
-msgstr ""
-
 msgid ""
 "\n"
 "        Connect a <a href=\"http://viber.com/en/\">Viber</a> public channel to send and receive messages to\n"
@@ -1810,6 +1829,27 @@ msgid ""
 msgstr ""
 
 msgid "The authentication token provided by Viber"
+msgstr ""
+
+msgid "The message send to user who have not yet subscribed to the channel, changes may take up to 30 seconds to take effect"
+msgstr ""
+
+msgid ""
+"Add a <a href=\"https://vk.com/\">VK</a> bot to send and receive messages on behalf of a VK community\n"
+"        for free. You will need to create an access token for your community first.\n"
+"        "
+msgstr ""
+
+msgid "The Community Access Token"
+msgstr ""
+
+msgid "The name of the Community"
+msgstr ""
+
+msgid "The Community ID"
+msgstr ""
+
+msgid "The callback verification string"
 msgstr ""
 
 msgid ""
@@ -2005,13 +2045,13 @@ msgstr ""
 msgid "An error occurred connecting your Twilio number, try removing your Twilio account, reconnecting it and trying again."
 msgstr ""
 
+msgid "Allow international sending"
+msgstr ""
+
 msgid "The number or address of this channel"
 msgstr ""
 
-msgid "Phone number of this device"
-msgstr ""
-
-msgid "Twitter handle of this channel"
+msgid "Phone number of this channel"
 msgstr ""
 
 msgid "Disable Bulk Sending"
@@ -2204,6 +2244,9 @@ msgstr ""
 msgid "Freshchat identifier"
 msgstr ""
 
+msgid "VK identifier"
+msgstr ""
+
 msgid "ID"
 msgstr ""
 
@@ -2369,7 +2412,7 @@ msgstr ""
 msgid "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you can create new ones."
 msgstr ""
 
-msgid "You cannot create a dynamic group based on \"id\"."
+msgid "You cannot create a dynamic group based on \"id\" or \"group\"."
 msgstr ""
 
 msgid "You cannot update the query of a group that is evaluating."
@@ -4908,10 +4951,35 @@ msgstr ""
 msgid "You can connect an external aggregator or messaging service to %(brand)s using our external API. You can specify parameters to substitute in the URL or body by using these variables:"
 msgstr ""
 
+msgid "the message of the text being sent"
+msgstr ""
+
+msgid "the phone number or address you have configured for this service"
+msgstr ""
+
+msgid "the phone number or address you have configured for this service, with leading +'s removed"
+msgstr ""
+
+msgid "the phone number or URN this message is addressed to"
+msgstr ""
+
+msgid "the phone number or URN this message is addressed to, with leading +'s removed"
+msgstr ""
+
+msgid "the unique ID of this message"
+msgstr ""
+
+msgid "the quick replies for this message, formatted according to send method and content type"
+msgstr ""
+
 msgid "An example that would substitute variables in the URL:"
 msgstr ""
 
 msgid "If using POST or PUT, you can specify the body of the request using the same variables."
+msgstr ""
+
+#, python-format
+msgid "The %(quick_replies_var)s variable with method GET or content type URL Encoded will be replaced by %(quick_replies_output)s for each quick reply."
 msgstr ""
 
 #, python-format
@@ -5346,6 +5414,18 @@ msgid ""
 "      "
 msgstr ""
 
+msgid "You have connected a Twilio Trial Account which has some restrictions."
+msgstr ""
+
+msgid "Once you claim a number you will immediately be able to send and receive Whatsapp messages. Users who send messages to your Whatsapp number will be charged according to their plan."
+msgstr ""
+
+msgid "You do not have any number on your Twilio Account. Please make sure you have a number and that it has access to Twilio Whatsapp."
+msgstr ""
+
+msgid "To request access to Twilio Whatsapp"
+msgstr ""
+
 msgid ""
 "\n"
 "        You can add a TwiML REST API as a channel using your TwiML instance.\n"
@@ -5410,6 +5490,24 @@ msgid ""
 "\n"
 "\n"
 "      "
+msgstr ""
+
+msgid "To connect your VK community to RapidPro, you will need to create a community token with messaging permissions."
+msgstr ""
+
+msgid "To obtain the name of your community, access it and enter the exact name below."
+msgstr ""
+
+msgid "To get your community id, go to Manage > API Usage > Callback API > Server Settings. Copy the whole number you have right after the group_id present in the example json present in the part regarding the verification of the request."
+msgstr ""
+
+msgid "To obtain the verification string, go to the Manage > API Usage > Callback API > Server Settings section. You will find the verification string in an excerpt similar to: String to be returned: <code>4412dd18</code>, copy the string and inform below."
+msgstr ""
+
+msgid "The API Version of the configured server must be <code>5.103</code>. To configure this, go to Manage > API Usage > Callback API > Server Settings."
+msgstr ""
+
+msgid "To complete the configuration of your VK connection, you will need to enter the Webhook URL in the URL field in the Manage > API Usage > Callback API > Server Settings section. And the Verify Token in the Secret Key field present in the API Usage > Callback API > Server Settings section. After this part, go to Manage > API Usage > Callback API > Event Types and check the option: <code>Message received</code>"
 msgstr ""
 
 msgid ""
@@ -5825,7 +5923,7 @@ msgstr ""
 msgid "Unable to create a dynamic group"
 msgstr ""
 
-msgid "You cannot create a dynamic group based on <strong>name</strong> or <strong>id</strong>."
+msgid "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>."
 msgstr ""
 
 msgid "Export Contacts"
@@ -5852,7 +5950,10 @@ msgstr ""
 msgid "repeats weekly"
 msgstr ""
 
-msgid "Message History"
+msgid "History"
+msgstr ""
+
+msgid "Full"
 msgstr ""
 
 msgid "Delete Contact"

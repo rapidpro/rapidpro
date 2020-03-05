@@ -77,6 +77,11 @@ class AndroidTypeTest(TembaTest):
             ),
         )
 
+        # view claim page
+        self.login(self.admin)
+        response = self.client.get(reverse("channels.types.android.claim"))
+        self.assertContains(response, "https://app.rapidpro.io/android/")
+
         # try to claim as non-admin
         self.login(self.user)
         response = self.client.post(
@@ -336,3 +341,13 @@ class AndroidTypeTest(TembaTest):
 
         # should be added with RW as the country
         self.assertTrue(Channel.objects.get(address="+250788382382", country="RW", org=self.org))
+
+    def test_update(self):
+        update_url = reverse("channels.channel_update", args=[self.channel.id])
+
+        self.login(self.admin)
+        response = self.client.get(update_url)
+        self.assertEqual(
+            ["name", "address", "country", "alert_email", "allow_international", "loc"],
+            list(response.context["form"].fields.keys()),
+        )

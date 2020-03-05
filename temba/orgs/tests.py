@@ -12,6 +12,7 @@ import stripe
 import stripe.error
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
+from smartmin.csv_imports.models import ImportTask
 from smartmin.tests import SmartminTestMixin
 
 from django.conf import settings
@@ -62,7 +63,7 @@ from temba.values.constants import Value
 
 from .context_processors import GroupPermWrapper
 from .models import CreditAlert, Invitation, Language, Org, TopUp, TopUpCredits
-from .tasks import squash_topupcredits
+from .tasks import resume_failed_tasks, squash_topupcredits
 
 
 class OrgContextProcessorTest(TembaTest):
@@ -2647,6 +2648,91 @@ class OrgTest(TembaTest):
         )
         self.assertAlmostEqual(self.org.account_value(), 1.23)
 
+    @patch("temba.msgs.tasks.export_messages_task.delay")
+    @patch("temba.flows.tasks.export_flow_results_task.delay")
+    @patch("temba.contacts.tasks.export_contacts_task.delay")
+    @patch("smartmin.csv_imports.models.ImportTask.start")
+    def test_resume_failed_task(
+        self, mock_import_task, mock_export_contacts_task, mock_export_flow_results_task, mock_export_messages_task
+    ):
+        mock_import_task.return_value = None
+        mock_export_contacts_task.return_value = None
+        mock_export_flow_results_task.return_value = None
+        mock_export_messages_task.return_value = None
+
+        filename = "sample_contacts.xls"
+        import_params = dict(
+            org_id=self.org.id, timezone=str(self.org.timezone), extra_fields=[], original_filename=filename
+        )
+
+        ImportTask.objects.create(
+            created_by=self.admin,
+            modified_by=self.admin,
+            csv_file="test_imports/" + filename,
+            model_class="Contact",
+            import_params=json.dumps(import_params),
+            import_log="",
+            task_id="A",
+            task_status=ImportTask.FAILURE,
+        )
+
+        ImportTask.objects.create(
+            created_by=self.admin,
+            modified_by=self.admin,
+            csv_file="test_imports/" + filename,
+            model_class="Contact",
+            import_params=json.dumps(import_params),
+            import_log="",
+            task_id="A",
+            task_status=ImportTask.SUCCESS,
+        )
+
+        ImportTask.objects.create(
+            created_by=self.admin,
+            modified_by=self.admin,
+            csv_file="test_imports/" + filename,
+            model_class="Contact",
+            import_params=json.dumps(import_params),
+            import_log="",
+            task_id="B",
+        )
+
+        ExportMessagesTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportMessagesTask.STATUS_FAILED
+        )
+        ExportMessagesTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportMessagesTask.STATUS_COMPLETE
+        )
+        ExportMessagesTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
+
+        ExportFlowResultsTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportFlowResultsTask.STATUS_FAILED
+        )
+        ExportFlowResultsTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportFlowResultsTask.STATUS_COMPLETE
+        )
+        ExportFlowResultsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
+
+        ExportContactsTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportContactsTask.STATUS_FAILED
+        )
+        ExportContactsTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportContactsTask.STATUS_COMPLETE
+        )
+        ExportContactsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
+
+        two_hours_ago = timezone.now() - timedelta(hours=2)
+        ImportTask.objects.all().update(modified_on=two_hours_ago)
+        ExportMessagesTask.objects.all().update(modified_on=two_hours_ago)
+        ExportFlowResultsTask.objects.all().update(modified_on=two_hours_ago)
+        ExportContactsTask.objects.all().update(modified_on=two_hours_ago)
+
+        resume_failed_tasks()
+        mock_import_task.assert_called_once()
+        mock_export_contacts_task.assert_called_once()
+        mock_export_flow_results_task.assert_called_once()
+        mock_export_messages_task.assert_called_once()
+
 
 class AnonOrgTest(TembaTest):
     """
@@ -3861,8 +3947,8 @@ class BulkExportTest(TembaTest):
 
         with patch("temba.contacts.search.parse_query") as mock:
             mock.side_effect = [
-                ParsedQuery("facts_per_day = 1", ["facts_per_day"], {}),
-                ParsedQuery('likes_cats = "true"', ["likes_cats"], {}),
+                ParsedQuery("facts_per_day = 1", ["facts_per_day"], {}, allow_as_group=True),
+                ParsedQuery('likes_cats = "true"', ["likes_cats"], {}, allow_as_group=True),
             ]
 
             self.org.import_app(data, self.admin, site="http://rapidpro.io")
@@ -3898,8 +3984,8 @@ class BulkExportTest(TembaTest):
         """
         with patch("temba.contacts.search.parse_query") as mock:
             mock.side_effect = [
-                ParsedQuery("facts_per_day = 1", ["facts_per_day"], {}),
-                ParsedQuery('likes_cats = "true"', ["likes_cats"], {}),
+                ParsedQuery("facts_per_day = 1", ["facts_per_day"], {}, allow_as_group=True),
+                ParsedQuery('likes_cats = "true"', ["likes_cats"], {}, allow_as_group=True),
             ]
             self.import_file("cataclysm")
 

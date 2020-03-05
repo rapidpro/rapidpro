@@ -221,6 +221,16 @@ class NexmoTypeTest(TembaTest):
 
                 mock_delete_application.assert_called_once_with(application_id="myappid")
 
+    def test_update(self):
+        update_url = reverse("channels.channel_update", args=[self.channel.id])
+
+        self.login(self.admin)
+        response = self.client.get(update_url)
+        self.assertEqual(
+            ["name", "address", "country", "alert_email", "allow_international", "loc"],
+            list(response.context["form"].fields.keys()),
+        )
+
 
 class ClientTest(TembaTest):
     def setUp(self):
