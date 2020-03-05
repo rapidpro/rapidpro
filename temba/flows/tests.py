@@ -1451,7 +1451,8 @@ class FlowTest(TembaTest):
         str(FlowCategoryCount.objects.all().first())
 
         # and if we delete our runs, things zero out
-        self.releaseRuns()
+        for run in FlowRun.objects.all():
+            run.release()
 
         counts = favorites.get_category_counts()
         assertCount(counts, "beer", "Turbo King", 0)

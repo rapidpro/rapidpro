@@ -1019,7 +1019,8 @@ class ChannelTest(TembaTest):
         # Nexmo delegate should have been released as well
         nexmo.refresh_from_db()
         self.assertFalse(nexmo.is_active)
-        self.releaseChannels(delete=True)
+
+        Channel.objects.all().delete()
 
         # check we queued session interrupt tasks for each channel
         mock_queue_interrupt.assert_has_calls(calls=[call(self.org, channel=nexmo), call(self.org, channel=android)])

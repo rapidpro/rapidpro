@@ -13,14 +13,12 @@ import stripe.error
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
 from smartmin.csv_imports.models import ImportTask
-from smartmin.tests import SmartminTestMixin
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.core.exceptions import ValidationError
 from django.http import HttpRequest, HttpResponse
-from django.test import TransactionTestCase
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -52,7 +50,7 @@ from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
 from temba.orgs.models import Debit, UserSettings
 from temba.request_logs.models import HTTPLog
-from temba.tests import ESMockWithScroll, MockResponse, TembaTest, TembaTestMixin, matchers
+from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
@@ -185,9 +183,9 @@ class UserTest(TembaTest):
         self.assertFalse(self.org.is_active)
 
 
-class OrgDeleteTest(TransactionTestCase, TembaTestMixin, SmartminTestMixin):
+class OrgDeleteTest(TembaNonAtomicTest):
     def setUp(self):
-        self.setUpOrg()
+        self.setUpOrgs()
         self.setUpLocations()
 
         # set up a sync event and alert on our channel
@@ -499,7 +497,8 @@ class OrgTest(TembaTest):
         self.assertEqual(tigo, self.org.get_channel_for_role(Channel.ROLE_SEND, "tel", tigo_urn))
 
     def test_get_send_channel_for_tel_short_code(self):
-        self.releaseChannels()
+        self.channel.release()
+
         short_code = Channel.create(self.org, self.admin, "RW", "KN", "MTN", "5050")
         Channel.create(self.org, self.admin, "RW", "WA", name="WhatsApp", address="+250788383000", tps=15)
 
