@@ -495,6 +495,7 @@ GROUP_PERMISSIONS = {
         "campaigns.campaign_read",
         "channels.channel_configuration",
         "channels.channel_read",
+        "channels.channellog_read",
         "contacts.contact_break_anon",
         "contacts.contact_read",
         "flows.flow_editor",

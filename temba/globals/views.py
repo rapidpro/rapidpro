@@ -104,7 +104,7 @@ class GlobalCRUDL(SmartCRUDL):
             kwargs["org"] = self.derive_org()
             return kwargs
 
-    class Delete(OrgPermsMixin, SmartDeleteView):
+    class Delete(OrgObjPermsMixin, SmartDeleteView):
         cancel_url = "@globals.global_list"
         redirect_url = "@globals.global_list"
         success_message = ""

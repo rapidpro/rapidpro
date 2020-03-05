@@ -225,12 +225,13 @@ class ContactCRUDLTest(TembaTest):
 
     def test_read(self):
         self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe")
+        other_org_contact = self.create_contact("Hans", number="+593979123456", org=self.org2)
 
         read_url = reverse("contacts.contact_read", args=[self.joe.uuid])
         block_url = reverse("contacts.contact_block", args=[self.joe.id])
 
         response = self.client.get(read_url)
-        self.assertRedirect(response, "/users/login/")
+        self.assertLoginRedirect(response)
 
         # login as viewer
         self.login(self.user)
@@ -260,28 +261,42 @@ class ContactCRUDLTest(TembaTest):
         self.client.post(unblock_url, dict(id=self.joe.id))
         self.assertTrue(Contact.objects.get(pk=self.joe.id, is_blocked=False))
 
-        response = self.client.get(read_url)
+        # can't block contacts from other orgs
+        response = self.client.post(reverse("contacts.contact_block", args=[other_org_contact.id]))
+        self.assertLoginRedirect(response)
+
+        # contact should be unchanged
+        other_org_contact.refresh_from_db()
+        self.assertFalse(other_org_contact.is_blocked)
+
+        # or unblock...
+        other_org_contact.block(self.admin2)
+
+        response = self.client.post(reverse("contacts.contact_unblock", args=[other_org_contact.id]))
+        self.assertLoginRedirect(response)
+
+        # contact should be unchanged
+        other_org_contact.refresh_from_db()
+        self.assertTrue(other_org_contact.is_blocked)
+
         unstop_url = reverse("contacts.contact_unstop", args=[self.joe.id])
-        self.assertFalse(unstop_url in response)
-
-        # stop the contact
-        self.joe.stop(self.user)
-        self.assertFalse(Contact.objects.filter(pk=self.joe.id, is_stopped=False))
-        response = self.client.get(read_url)
-        self.assertContains(response, unstop_url)
-
-        self.client.post(unstop_url, dict(id=self.joe.id))
-        self.assertTrue(Contact.objects.filter(pk=self.joe.id, is_stopped=False))
-
-        # ok, what about deleting?
-        response = self.client.get(read_url)
         delete_url = reverse("contacts.contact_delete", args=[self.joe.id])
+
+        response = self.client.get(read_url)
+
+        self.assertNotContains(response, unstop_url)
         self.assertContains(response, delete_url)
 
-        self.client.post(delete_url, dict(id=self.joe.id))
-        self.assertIsNotNone(Contact.objects.get(pk=self.joe.id, is_active=False))
+        # unstop option available for stopped contacts
+        self.joe.stop(self.user)
+        response = self.client.get(read_url)
 
-        # can no longer access
+        self.assertContains(response, unstop_url)
+        self.assertContains(response, delete_url)
+
+        # can't access a deleted contact
+        self.joe.release(self.admin)
+
         response = self.client.get(read_url)
         self.assertEqual(response.status_code, 404)
 
@@ -298,6 +313,74 @@ class ContactCRUDLTest(TembaTest):
         # invalid uuid should return 404
         response = self.client.get(reverse("contacts.contact_read", args=["invalid-uuid"]))
         self.assertEqual(response.status_code, 404)
+
+    def test_unstop(self):
+        contact = self.create_contact("Joe", number="+593979000111")
+        contact.stop(self.admin)
+        other_org_contact = self.create_contact("Hans", number="+593979123456", org=self.org2)
+        other_org_contact.stop(self.admin2)
+
+        unstop_url = reverse("contacts.contact_unstop", args=[contact.id])
+
+        # can't unstop if not logged in
+        response = self.client.post(unstop_url, {"id": contact.id})
+        self.assertLoginRedirect(response)
+
+        self.login(self.user)
+
+        # can't unstop if just regular user
+        response = self.client.post(unstop_url, {"id": contact.id})
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.post(unstop_url, {"id": contact.id})
+        self.assertEqual(302, response.status_code)
+
+        contact.refresh_from_db()
+        self.assertFalse(contact.is_stopped)
+
+        # can't unstop contact in other org
+        unstop_url = reverse("contacts.contact_unstop", args=[other_org_contact.id])
+        response = self.client.post(unstop_url, {"id": other_org_contact.id})
+        self.assertLoginRedirect(response)
+
+        # contact should be unchanged
+        other_org_contact.refresh_from_db()
+        self.assertTrue(other_org_contact.is_stopped)
+
+    def test_delete(self):
+        contact = self.create_contact("Joe", number="+593979000111")
+        other_org_contact = self.create_contact("Hans", number="+593979123456", org=self.org2)
+
+        delete_url = reverse("contacts.contact_delete", args=[contact.id])
+
+        # can't delete if not logged in
+        response = self.client.post(delete_url, {"id": contact.id})
+        self.assertLoginRedirect(response)
+
+        self.login(self.user)
+
+        # can't delete if just regular user
+        response = self.client.post(delete_url, {"id": contact.id})
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.post(delete_url, {"id": contact.id})
+        self.assertEqual(302, response.status_code)
+
+        contact.refresh_from_db()
+        self.assertFalse(contact.is_active)
+
+        # can't delete contact in other org
+        delete_url = reverse("contacts.contact_delete", args=[other_org_contact.id])
+        response = self.client.post(delete_url, {"id": other_org_contact.id})
+        self.assertLoginRedirect(response)
+
+        # contact should be unchanged
+        other_org_contact.refresh_from_db()
+        self.assertTrue(other_org_contact.is_active)
 
 
 class ContactGroupTest(TembaTest):
@@ -6693,28 +6776,36 @@ class ContactFieldTest(TembaTest):
             response, "form", "value_type", "Select a valid choice. J is not one of the available choices."
         )
 
-    def test_view_delete_valid(self):
+    def test_view_delete(self):
         cf_to_delete = ContactField.user_fields.get(key="first")
         self.assertTrue(cf_to_delete.is_active)
 
         self.login(self.admin)
 
-        delete_cf_url = reverse("contacts.contactfield_delete", args=(cf_to_delete.id,))
+        delete_url = reverse("contacts.contactfield_delete", args=(cf_to_delete.id,))
 
-        response = self.client.get(delete_cf_url)
+        response = self.client.get(delete_url)
         self.assertEqual(response.status_code, 200)
 
         # we got a form with expected form fields
         self.assertFalse(response.context_data["has_uses"])
 
         # delete the field
-        response = self.client.post(delete_cf_url)
+        response = self.client.post(delete_url)
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context_data["has_uses"])
 
         cf_to_delete.refresh_from_db()
 
         self.assertFalse(cf_to_delete.is_active)
+
+        # can't delete field from other org
+        response = self.client.post(reverse("contacts.contactfield_delete", args=[self.other_org_field.id]))
+        self.assertLoginRedirect(response)
+
+        # field should be unchanged
+        self.other_org_field.refresh_from_db()
+        self.assertTrue(self.other_org_field.is_active)
 
     def test_view_featured(self):
         featured1 = ContactField.user_fields.get(key="first")

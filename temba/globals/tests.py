@@ -235,7 +235,8 @@ class GlobalCRUDLTest(TembaTest):
         self.assertEqual(1, Global.objects.filter(id=self.global1.id).count())
 
         # can't delete global from other org
-        self.client.get(reverse("globals.global_delete", args=[self.other_org_global.id]))
+        response = self.client.post(reverse("globals.global_delete", args=[self.other_org_global.id]))
+        self.assertLoginRedirect(response)
 
         # global should be unchanged
         self.other_org_global.refresh_from_db()

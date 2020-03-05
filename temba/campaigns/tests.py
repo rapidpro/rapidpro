@@ -1704,6 +1704,72 @@ class CampaignTest(TembaTest):
         self.assertEqual(campaign_event.delivery_hour, -1)
 
 
+class CampaignCRUDLTest(TembaTest):
+    def setUp(self):
+        super().setUp()
+
+        self.campaign1 = self.create_campaign(self.org)
+        self.other_org_campaign = self.create_campaign(self.org2)
+
+    def create_campaign(self, org):
+        user = org.get_user()
+        group = self.create_group("Reporters", contacts=[], org=org)
+        registered = self.create_field("registered", "Registered", value_type="D", org=org)
+        flow = self.create_flow(org=org)
+        campaign = Campaign.create(org, user, "Welcomes", group)
+        CampaignEvent.create_flow_event(
+            org, user, campaign, registered, offset=1, unit="W", flow=flow, delivery_hour="13"
+        )
+        return campaign
+
+    def test_read(self):
+        read_url = reverse("campaigns.campaign_read", args=[self.campaign1.id])
+
+        # can't view campaign if not logged in
+        response = self.client.get(read_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.get(read_url)
+        self.assertContains(response, "Welcomes")
+        self.assertContains(response, "Registered")
+
+        # can't view campaign from other org
+        response = self.client.get(reverse("campaigns.campaign_read", args=[self.other_org_campaign.id]))
+        self.assertLoginRedirect(response)
+
+    def test_archive_and_activate(self):
+        archive_url = reverse("campaigns.campaign_archive", args=[self.campaign1.id])
+
+        # can't archive campaign if not logged in
+        response = self.client.post(archive_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.post(archive_url)
+        self.assertEqual(302, response.status_code)
+
+        self.campaign1.refresh_from_db()
+        self.assertTrue(self.campaign1.is_archived)
+
+        # activate that archve
+        response = self.client.post(reverse("campaigns.campaign_activate", args=[self.campaign1.id]))
+        self.assertEqual(302, response.status_code)
+
+        self.campaign1.refresh_from_db()
+        self.assertFalse(self.campaign1.is_archived)
+
+        # can't archive campaign from other org
+        response = self.client.post(reverse("campaigns.campaign_archive", args=[self.other_org_campaign.id]))
+        self.assertEqual(404, response.status_code)
+
+        # check object is unchanged
+        self.other_org_campaign.refresh_from_db()
+        self.assertFalse(self.other_org_campaign.is_archived)
+
+
 class CampaignEventCRUDLTest(TembaTest):
     def setUp(self):
         super().setUp()

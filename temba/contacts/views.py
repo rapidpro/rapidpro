@@ -1574,7 +1574,7 @@ class ContactCRUDL(SmartCRUDL):
                     context["value"] = self.get_object().get_field_display(contact_field)
             return context
 
-    class Block(OrgPermsMixin, SmartUpdateView):
+    class Block(OrgObjPermsMixin, SmartUpdateView):
         """
         Block this contact
         """
@@ -1587,7 +1587,7 @@ class ContactCRUDL(SmartCRUDL):
             obj.block(self.request.user)
             return obj
 
-    class Unblock(OrgPermsMixin, SmartUpdateView):
+    class Unblock(OrgObjPermsMixin, SmartUpdateView):
         """
         Unblock this contact
         """
@@ -1600,7 +1600,7 @@ class ContactCRUDL(SmartCRUDL):
             obj.unblock(self.request.user)
             return obj
 
-    class Unstop(OrgPermsMixin, SmartUpdateView):
+    class Unstop(OrgObjPermsMixin, SmartUpdateView):
         """
         Unstops this contact
         """
@@ -1613,7 +1613,7 @@ class ContactCRUDL(SmartCRUDL):
             obj.unstop(self.request.user)
             return obj
 
-    class Delete(OrgPermsMixin, SmartUpdateView):
+    class Delete(OrgObjPermsMixin, SmartUpdateView):
         """
         Delete this contact (can't be undone)
         """
@@ -1919,7 +1919,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             response["Temba-Success"] = self.get_success_url()
             return response
 
-    class Delete(OrgPermsMixin, SmartUpdateView):
+    class Delete(OrgObjPermsMixin, SmartUpdateView):
         queryset = ContactField.user_fields
         success_url = "@contacts.contactfield_list"
         success_message = ""

@@ -273,15 +273,21 @@ class ScheduleTest(TembaTest):
 
     def test_update(self):
         self.login(self.admin)
-        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
 
-        post_data = dict(text="A scheduled message to Joe", omnibox=omnibox, sender=self.channel.pk, schedule=True)
-        response = self.client.post(reverse("msgs.broadcast_send"), post_data, follow=True)
+        # create a schedule broadcast
+        self.client.post(
+            reverse("msgs.broadcast_send"),
+            {
+                "text": "A scheduled message to Joe",
+                "omnibox": omnibox_serialize(self.org, [], [self.joe], True),
+                "sender": self.channel.id,
+                "schedule": True,
+            },
+        )
 
-        bcast = Broadcast.objects.get()
-        sched = bcast.schedule
+        schedule = Broadcast.objects.get().schedule
 
-        update_url = reverse("schedules.schedule_update", args=[sched.pk])
+        update_url = reverse("schedules.schedule_update", args=[schedule.id])
 
         # viewer can't access
         self.login(self.user)
@@ -304,9 +310,22 @@ class ScheduleTest(TembaTest):
         tommorrow = now + timedelta(days=1)
         tommorrow_stamp = time.mktime(tommorrow.timetuple())
 
-        self.client.post(update_url, {"start": "never", "repeat_period": "O"})
+        # user in other org can't make changes
+        self.login(self.admin2)
+        response = self.client.post(update_url, {"start": "never", "repeat_period": "D"})
+        self.assertLoginRedirect(response)
 
-        schedule = Schedule.objects.get(pk=sched.pk)
+        # check schedule is unchanged
+        schedule.refresh_from_db()
+        self.assertEqual("O", schedule.repeat_period)
+
+        self.login(self.admin)
+
+        # update to never start
+        response = self.client.post(update_url, {"start": "never", "repeat_period": "O"})
+        self.assertEqual(302, response.status_code)
+
+        schedule.refresh_from_db()
         self.assertIsNone(schedule.next_fire)
 
         self.client.post(update_url, {"start": "stop", "repeat_period": "O"})
@@ -314,24 +333,27 @@ class ScheduleTest(TembaTest):
         schedule.refresh_from_db()
         self.assertIsNone(schedule.next_fire)
 
-        post_data = {"start": "now", "repeat_period": "O", "start_datetime_value": "%d" % now_stamp}
-
-        response = self.client.post(update_url, post_data)
+        response = self.client.post(
+            update_url, {"start": "now", "repeat_period": "O", "start_datetime_value": "%d" % now_stamp}
+        )
+        self.assertEqual(302, response.status_code)
 
         schedule.refresh_from_db()
         self.assertEqual(schedule.repeat_period, "O")
         self.assertFalse(schedule.next_fire)
 
-        post_data = {"repeat_period": "D", "start": "later", "start_datetime_value": "%d" % tommorrow_stamp}
-
-        response = self.client.post(update_url, post_data)
+        response = self.client.post(
+            update_url, {"repeat_period": "D", "start": "later", "start_datetime_value": "%d" % tommorrow_stamp}
+        )
+        self.assertEqual(302, response.status_code)
 
         schedule.refresh_from_db()
         self.assertEqual(schedule.repeat_period, "D")
 
-        post_data = {"repeat_period": "D", "start": "later", "start_datetime_value": "%d" % tommorrow_stamp}
-
-        response = self.client.post(update_url, post_data)
+        response = self.client.post(
+            update_url, {"repeat_period": "D", "start": "later", "start_datetime_value": "%d" % tommorrow_stamp}
+        )
+        self.assertEqual(302, response.status_code)
 
         schedule.refresh_from_db()
         self.assertEqual(schedule.repeat_period, "D")

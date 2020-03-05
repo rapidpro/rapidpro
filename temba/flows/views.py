@@ -747,7 +747,7 @@ class FlowCRUDL(SmartCRUDL):
 
             return obj
 
-    class UploadActionRecording(OrgPermsMixin, SmartUpdateView):
+    class UploadActionRecording(OrgObjPermsMixin, SmartUpdateView):
         def post(self, request, *args, **kwargs):  # pragma: needs cover
             path = self.save_recording_upload(
                 self.request.FILES["file"], self.request.POST.get("actionset"), self.request.POST.get("action")
@@ -760,7 +760,7 @@ class FlowCRUDL(SmartCRUDL):
                 "recordings/%d/%d/steps/%s.wav" % (flow.org.pk, flow.id, action_uuid), file
             )
 
-    class UploadMediaAction(OrgPermsMixin, SmartUpdateView):
+    class UploadMediaAction(OrgObjPermsMixin, SmartUpdateView):
         slug_url_kwarg = "uuid"
 
         def post(self, request, *args, **kwargs):

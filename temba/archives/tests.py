@@ -135,9 +135,14 @@ class ArchiveCRUDLTest(TembaTest):
         self.assertContains(response, "jsonl.gz")
 
     def test_read(self):
+        archive = self.create_archive(self.org, 1)
+
+        # can't read archive if not logged in
+        response = self.client.get(reverse("archives.archive_read", args=[archive.id]))
+        self.assertLoginRedirect(response)
+
         self.login(self.admin)
 
-        archive = self.create_archive(self.org, 1)
         response = self.client.get(reverse("archives.archive_read", args=[archive.id]))
         url = response.get("Location")
 
@@ -149,6 +154,12 @@ class ArchiveCRUDLTest(TembaTest):
             f"response-content-encoding=none",
             url,
         )
+
+        other_org_archive = self.create_archive(self.org2, 1)
+
+        # can't read archive from other org
+        response = self.client.get(reverse("archives.archive_read", args=[other_org_archive.id]))
+        self.assertLoginRedirect(response)
 
     def test_formax(self):
         self.login(self.admin)
