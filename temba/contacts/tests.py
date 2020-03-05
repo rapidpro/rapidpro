@@ -6827,9 +6827,18 @@ class ContactFieldTest(TembaTest):
 
         self.assertListEqual([10, 0, 20], [cf.priority for cf in org_fields.order_by("id")])
 
-        # actually update the priorities
+        # build valid post data
         post_data = json.dumps({cf.id: index for index, cf in enumerate(org_fields.order_by("id"))})
 
+        # try to update as admin2
+        self.login(self.admin2)
+        response = self.client.post(updatepriority_cf_url, post_data, content_type="application/json")
+
+        # nothing changed
+        self.assertListEqual([10, 0, 20], [cf.priority for cf in org_fields.order_by("id")])
+
+        # then as real admin
+        self.login(self.admin)
         response = self.client.post(updatepriority_cf_url, post_data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "OK")

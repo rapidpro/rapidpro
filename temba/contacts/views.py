@@ -1967,7 +1967,9 @@ class ContactFieldCRUDL(SmartCRUDL):
 
                 with transaction.atomic():
                     for cfid, priority in post_data.items():
-                        ContactField.user_fields.filter(id=cfid).update(priority=priority)
+                        ContactField.user_fields.filter(id=cfid, org=self.request.user.get_org()).update(
+                            priority=priority
+                        )
 
                 return HttpResponse('{"status":"OK"}', status=200, content_type="application/json")
 
