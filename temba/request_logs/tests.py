@@ -69,6 +69,10 @@ class HTTPLogTest(TembaTest):
         self.assertContains(response, "http://org1.bar/zap")
         self.assertNotContains(response, "http://org2.bar/zap")
 
+        self.login(self.admin2)
+        response = self.client.get(log_url)
+        self.assertLoginRedirect(response)
+
         # move l1 to be from a week ago
         l1.created_on = timezone.now() - timedelta(days=7)
         l1.save(update_fields=["created_on"])
