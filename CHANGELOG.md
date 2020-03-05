@@ -1,3 +1,10 @@
+v5.4.7
+----------
+ * Fix org filtering on updates to globals
+ * Fix campaign event update view not filtering by event org
+ * Fix error in API contact references when passed a JSON number
+ * Replace Whatsapp by WhatsApp
+
 v5.4.6
 ----------
  * Merge pull request #2718 from nyaruka/fe187
