@@ -217,6 +217,8 @@ class APITest(TembaTest):
         field._context = {"org": self.org}
 
         self.assertEqual(field.to_internal_value(self.joe.uuid), self.joe)
+        self.assertEqual(field.to_internal_value(self.joe.get_urn().urn), self.joe)
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, [0])
         self.assertRaises(serializers.ValidationError, field.to_internal_value, [self.joe.uuid, self.frank.uuid])
 
         field = fields.ContactField(source="test", many=True)
