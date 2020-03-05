@@ -94,7 +94,6 @@ class FlowTest(TembaTest):
         flow3 = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "Sheep Poll"), base_language="base")
         self.assertEqual(flow3.name, "Sheep Poll 3")
 
-        self.setUpSecondaryOrg()
         self.assertEqual(Flow.get_unique_name(self.org2, "Sheep Poll"), "Sheep Poll")  # different org
 
     @patch("temba.mailroom.queue_interrupt")
@@ -219,7 +218,6 @@ class FlowTest(TembaTest):
         self.assertContains(response, "Appointment Followup")
 
         # check we can't see farmers
-        self.setUpSecondaryOrg()
         farmers = ContactGroup.create_static(self.org2, self.admin, "Farmers")
         campaign2 = Campaign.create(self.org2, self.admin, Campaign.get_unique_name(self.org, "Reminders"), farmers)
 
@@ -1453,7 +1451,8 @@ class FlowTest(TembaTest):
         str(FlowCategoryCount.objects.all().first())
 
         # and if we delete our runs, things zero out
-        self.releaseRuns()
+        for run in FlowRun.objects.all():
+            run.release()
 
         counts = favorites.get_category_counts()
         assertCount(counts, "beer", "Turbo King", 0)
@@ -1836,8 +1835,6 @@ class FlowTest(TembaTest):
         self.viewer = self.create_user("Viewer")
         self.org.viewers.add(self.viewer)
         self.viewer.set_org(self.org)
-
-        self.setUpSecondaryOrg()
 
         # create a flow for another org and a flow label
         flow2 = Flow.create(self.org2, self.admin2, "Flow2")
@@ -2436,8 +2433,6 @@ class FlowCRUDLTest(TembaTest):
     def test_views(self):
         contact = self.create_contact("Eric", "+250788382382")
         flow = self.get_flow("color", legacy=True)
-
-        self.setUpSecondaryOrg()
 
         # create a flow for another org
         other_flow = Flow.create(self.org2, self.admin2, "Flow2", base_language="base")
@@ -5659,7 +5654,6 @@ class FlowLabelTest(TembaTest):
         self.assertFalse(response.context["object_list"])
 
         # try to view our cat label in our other org
-        self.setUpSecondaryOrg()
         cat = FlowLabel.create(self.org2, "cat")
         response = self.client.get(reverse("flows.flow_filter", args=[cat.pk]))
         self.assertLoginRedirect(response)

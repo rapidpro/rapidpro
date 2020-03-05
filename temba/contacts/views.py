@@ -1888,7 +1888,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             response["Temba-Success"] = self.get_success_url()
             return response
 
-    class Update(ModalMixin, OrgPermsMixin, SmartUpdateView):
+    class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         queryset = ContactField.user_fields
         form_class = UpdateContactFieldForm
         success_message = ""

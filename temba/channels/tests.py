@@ -524,7 +524,6 @@ class ChannelTest(TembaTest):
 
         # test that editors have the channel of the the org the are using
         other_user = self.create_user("Other")
-        self.setUpSecondaryOrg()
         self.org2.administrators.add(other_user)
         self.org.editors.add(other_user)
         self.assertFalse(self.org2.channels.all())
@@ -1020,7 +1019,8 @@ class ChannelTest(TembaTest):
         # Nexmo delegate should have been released as well
         nexmo.refresh_from_db()
         self.assertFalse(nexmo.is_active)
-        self.releaseChannels(delete=True)
+
+        Channel.objects.all().delete()
 
         # check we queued session interrupt tasks for each channel
         mock_queue_interrupt.assert_has_calls(calls=[call(self.org, channel=nexmo), call(self.org, channel=android)])
@@ -1978,7 +1978,6 @@ class ChannelCountTest(TembaTest):
 class ChannelLogTest(TembaTest):
     def test_channellog_views(self):
         contact = self.create_contact("Fred Jones", "+12067799191")
-        self.setUpSecondaryOrg(100_000)
 
         # create unrelated incoming message
         self.create_incoming_msg(contact, "incoming msg")

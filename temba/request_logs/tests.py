@@ -14,7 +14,6 @@ from .tasks import trim_http_logs_task
 class HTTPLogTest(TembaTest):
     def setUp(self):
         super().setUp()
-        self.setUpSecondaryOrg()
 
         # create some classifiers
         self.c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {}, sync=False)

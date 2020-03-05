@@ -11,8 +11,6 @@ class AirtimeCRUDLTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.setUpSecondaryOrg()
-
         contact = self.create_contact("Ben Haggerty", "+250700000003")
 
         self.transfer1 = AirtimeTransfer.objects.create(
@@ -98,6 +96,10 @@ class AirtimeCRUDLTest(TembaTest):
             self.assertEqual(200, response.status_code)
             self.assertEqual(self.transfer1, response.context["object"])
             self.assertFalse(response.context["show_logs"])
+
+        # can't view transfer from other org
+        response = self.client.get(reverse("airtime.airtimetransfer_read", args=[self.transfer3.id]))
+        self.assertEqual(404, response.status_code)
 
 
 class DTOneClientTest(TembaTest):

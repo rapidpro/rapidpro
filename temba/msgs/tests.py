@@ -2688,7 +2688,6 @@ class LabelCRUDLTest(TembaTest):
         Label.get_or_create(self.org, self.user, "Junk", folder=folder)
         Label.get_or_create(self.org, self.user, "Important")
 
-        self.setUpSecondaryOrg()
         Label.get_or_create(self.org2, self.admin2, "Other Org")
 
         # viewers can't edit flows so don't have access to this JSON endpoint as that's only place it's used
