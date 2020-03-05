@@ -2021,10 +2021,8 @@ class ChannelCountTest(TembaTest):
 
 
 class ChannelLogTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-
-        self.other_org_channel = Channel.create(
+    def test_views(self):
+        other_org_channel = Channel.create(
             self.org2,
             self.admin2,
             "RW",
@@ -2037,7 +2035,6 @@ class ChannelLogTest(TembaTest):
             config={"send_url": "http://send.com"},
         )
 
-    def test_views(self):
         contact = self.create_contact("Fred Jones", "+12067799191")
 
         # create unrelated incoming message
@@ -2071,7 +2068,7 @@ class ChannelLogTest(TembaTest):
         other_org_contact = self.create_contact("Hans", number="+593979123456")
         other_org_msg = self.create_outgoing_msg(other_org_contact, "hi", status="D")
         other_org_log = ChannelLog.objects.create(
-            channel=self.other_org_channel, msg=other_org_msg, description="Successfully Sent", is_error=False
+            channel=other_org_channel, msg=other_org_msg, description="Successfully Sent", is_error=False
         )
         other_org_log.response = ""
         other_org_log.request = "POST https://foo.bar/send?msg=failed+message"

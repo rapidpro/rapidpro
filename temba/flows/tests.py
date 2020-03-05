@@ -3173,6 +3173,7 @@ class FlowCRUDLTest(TembaTest):
     @patch("temba.flows.views.uuid4")
     def test_upload_media_action(self, mock_uuid):
         flow = self.get_flow("color_v13")
+        other_org_flow = self.create_flow(org=self.org2)
 
         upload_media_action_url = reverse("flows.flow_upload_media_action", args=[flow.uuid])
 
@@ -3189,23 +3190,29 @@ class FlowCRUDLTest(TembaTest):
 
         self.login(self.admin)
 
-        mock_uuid.side_effect = ["11111-111-11", "22222-222-22", "33333-333-33"]
+        mock_uuid.side_effect = ["11111-111-11", "22222-222-22", "33333-333-33", "44444-444-44"]
 
         assert_media_upload(
-            "%s/test_media/steve.marten.jpg" % settings.MEDIA_ROOT,
+            f"{settings.MEDIA_ROOT}/test_media/steve.marten.jpg",
             "image/jpeg",
             "%s/attachments/%d/%d/steps/%s%s" % (settings.STORAGE_URL, self.org.id, flow.id, "11111-111-11", ".jpg"),
         )
         assert_media_upload(
-            "%s/test_media/snow.mp4" % settings.MEDIA_ROOT,
+            f"{settings.MEDIA_ROOT}/test_media/snow.mp4",
             "video/mp4",
             "%s/attachments/%d/%d/steps/%s%s" % (settings.STORAGE_URL, self.org.id, flow.id, "22222-222-22", ".mp4"),
         )
         assert_media_upload(
-            "%s/test_media/snow.m4a" % settings.MEDIA_ROOT,
+            f"{settings.MEDIA_ROOT}/test_media/snow.m4a",
             "audio/mp4",
             "%s/attachments/%d/%d/steps/%s%s" % (settings.STORAGE_URL, self.org.id, flow.id, "33333-333-33", ".m4a"),
         )
+
+        # can't upload for flow in other org
+        with open(f"{settings.MEDIA_ROOT}/test_media/steve.marten.jpg", "rb") as data:
+            upload_url = reverse("flows.flow_upload_media_action", args=[other_org_flow.uuid])
+            response = self.client.post(upload_url, {"file": data, "action": "", "HTTP_X_FORWARDED_HTTPS": "https"})
+            self.assertLoginRedirect(response)
 
     def test_recent_messages(self):
         contact = self.create_contact("Bob", number="+593979099111")
