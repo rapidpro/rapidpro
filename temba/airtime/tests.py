@@ -4,7 +4,7 @@ from django.urls import reverse
 
 from temba.airtime.dtone import DTOneClient
 from temba.airtime.models import AirtimeTransfer
-from temba.tests import AnonymousOrg, MigrationTest, MockResponse, TembaTest
+from temba.tests import AnonymousOrg, MigrationTest, MockResponse, TembaTest, checks
 
 
 class AirtimeCRUDLTest(TembaTest):
@@ -34,7 +34,7 @@ class AirtimeCRUDLTest(TembaTest):
         )
 
         # and a transfer for a different org
-        self.transfer3 = AirtimeTransfer.objects.create(
+        self.other_org_transfer = AirtimeTransfer.objects.create(
             org=self.org2,
             status=AirtimeTransfer.STATUS_SUCCESS,
             contact=self.create_contact("Frank", "+12065552021", org=self.org2),
@@ -47,34 +47,54 @@ class AirtimeCRUDLTest(TembaTest):
     def test_list(self):
         list_url = reverse("airtime.airtimetransfer_list")
 
-        response = self.assert_url_fetch(list_url, viewers=False, editors=True, any_org=True)
-
-        self.assertEqual([self.transfer2, self.transfer1], list(response.context["object_list"]))
-        self.assertContains(response, "Ben Haggerty")
-        self.assertContains(response, "+250 700 000 003")
+        self.assertViewAccess(
+            list_url,
+            viewers=False,
+            editors=True,
+            any_org=True,
+            org_checks=[
+                checks.ObjectList(self.transfer2, self.transfer1),
+                checks.Contains("Ben Haggerty", "+250 700 000 003"),
+            ],
+            org2_checks=[checks.ObjectList(self.other_org_transfer)],
+        )
 
         with AnonymousOrg(self.org):
-            response = self.client.get(list_url)
-            self.assertEqual(200, response.status_code)
-            self.assertEqual([self.transfer2, self.transfer1], list(response.context["object_list"]))
-            self.assertContains(response, "Ben Haggerty")
-            self.assertNotContains(response, "+250 700 000 003")
+            self.assertViewFetch(
+                list_url,
+                self.admin,
+                checks=[
+                    checks.ObjectList(self.transfer2, self.transfer1),
+                    checks.Contains("Ben Haggerty"),
+                    checks.NotContains("+250 700 000 003"),
+                ],
+            )
 
     def test_read(self):
         read_url = reverse("airtime.airtimetransfer_read", args=[self.transfer1.id])
 
-        response = self.assert_url_fetch(read_url, viewers=False, editors=True, any_org=False)
-
-        self.assertEqual(self.transfer1, response.context["object"])
-        self.assertTrue(response.context["show_logs"])
-        self.assertContains(response, "Ben Haggerty")
-        self.assertContains(response, "+250 700 000 003")
+        self.assertViewAccess(
+            read_url,
+            viewers=False,
+            editors=True,
+            any_org=False,
+            org_checks=[
+                checks.Object(self.transfer1),
+                checks.Contains("Ben Haggerty", "+250 700 000 003"),
+                checks.Context("show_logs", True),
+            ],
+        )
 
         with AnonymousOrg(self.org):
-            response = self.client.get(read_url)
-            self.assertEqual(200, response.status_code)
-            self.assertEqual(self.transfer1, response.context["object"])
-            self.assertFalse(response.context["show_logs"])
+            self.assertViewFetch(
+                read_url,
+                self.admin,
+                checks=[
+                    checks.Object(self.transfer1),
+                    checks.NotContains("+250 700 000 003"),
+                    checks.Context("show_logs", False),
+                ],
+            )
 
 
 class DTOneClientTest(TembaTest):

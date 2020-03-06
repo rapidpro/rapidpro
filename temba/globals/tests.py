@@ -1,7 +1,7 @@
 from django.test.utils import override_settings
 from django.urls import reverse
 
-from temba.tests import TembaTest
+from temba.tests import TembaTest, checks
 
 from .models import Global
 
@@ -90,30 +90,33 @@ class GlobalCRUDLTest(TembaTest):
     def test_list_views(self):
         list_url = reverse("globals.global_list")
 
-        response = self.assert_url_fetch(list_url, viewers=False, editors=False, any_org=True)
-
-        self.assertEqual(list(response.context["object_list"]), [self.global2, self.global1])
-        self.assertContains(response, "Acme Ltd")
-        self.assertContains(response, "23464373")
-        self.assertContains(response, "1 Use")
+        self.assertViewAccess(
+            list_url,
+            viewers=False,
+            editors=False,
+            any_org=True,
+            org_checks=[
+                checks.ObjectList(self.global2, self.global1),
+                checks.Contains("Acme Ltd", "23464373", "1 Use"),
+            ],
+        )
 
         response = self.client.get(list_url + "?search=access")
         self.assertEqual(list(response.context["object_list"]), [self.global2])
 
         unused_url = reverse("globals.global_unused")
 
-        response = self.assert_url_fetch(unused_url, viewers=False, editors=False, any_org=True)
-
-        self.assertEqual(list(response.context["object_list"]), [self.global2])
+        self.assertViewAccess(
+            unused_url, viewers=False, editors=False, any_org=True, org_checks=[checks.ObjectList(self.global2)]
+        )
 
     @override_settings(MAX_ACTIVE_GLOBALS_PER_ORG=4)
     def test_create(self):
         create_url = reverse("globals.global_create")
 
-        response = self.assert_url_fetch(create_url, viewers=False, editors=False, any_org=True)
-
-        # we got a form with expected form fields
-        self.assertEqual(["name", "value", "loc"], list(response.context["form"].fields.keys()))
+        self.assertViewAccess(
+            create_url, viewers=False, editors=False, any_org=True, org_checks=[checks.FormFields("name", "value")]
+        )
 
         # try to submit with invalid name and missing value
         response = self.client.post(create_url, {"name": "/?:"})
@@ -147,10 +150,9 @@ class GlobalCRUDLTest(TembaTest):
     def test_update(self):
         update_url = reverse("globals.global_update", args=[self.global1.id])
 
-        response = self.assert_url_fetch(update_url, viewers=False, editors=False, any_org=False)
-
-        # we got a form with expected form fields
-        self.assertEqual(["value", "loc"], list(response.context["form"].fields.keys()))
+        self.assertViewAccess(
+            update_url, viewers=False, editors=False, any_org=False, org_checks=[checks.FormFields("value")]
+        )
 
         # try to submit with missing value
         response = self.client.post(update_url, {})
@@ -163,12 +165,8 @@ class GlobalCRUDLTest(TembaTest):
         self.assertEqual("Org Name", self.global1.name)
         self.assertEqual("Acme Holdings", self.global1.value)
 
-        # can't view update form for global in other org
-        update_url = reverse("globals.global_update", args=[self.other_org_global.id])
-        response = self.client.get(update_url)
-        self.assertLoginRedirect(response)
-
         # can't update global in other org
+        update_url = reverse("globals.global_update", args=[self.other_org_global.id])
         response = self.client.post(update_url, {"value": "436734573"})
         self.assertLoginRedirect(response)
 
@@ -179,7 +177,7 @@ class GlobalCRUDLTest(TembaTest):
     def test_detail(self):
         detail_url = reverse("globals.global_detail", args=[self.global1.id])
 
-        response = self.assert_url_fetch(detail_url, viewers=False, editors=False, any_org=False)
+        response = self.assertViewAccess(detail_url, viewers=False, editors=False, any_org=False)
 
         self.assertEqual([self.flow], list(response.context["dep_flows"]))
 

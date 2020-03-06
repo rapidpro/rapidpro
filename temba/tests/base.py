@@ -24,6 +24,8 @@ from temba.orgs.models import Org
 from temba.utils import json
 from temba.values.constants import Value
 
+from .checks import BaseCheck, LoginRedirectOr404, StatusCode
+
 
 def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
@@ -514,42 +516,46 @@ class TembaTestMixin:
         self.assertTrue(message, isinstance(body[field], (list, tuple)))
         self.assertIn(message, body[field])
 
-    def assert_url_fetch(self, url, *, viewers, editors, any_org, status_code=200, response_check=None):
+    def assertViewFetch(self, url, user, checks=(), user_desc=None):
         """
-        Fetches the given url as different users to assert who should have access
+        Fetches the given URL as a specific user and runs a set of checks
         """
+
+        msg_prefix = f"accessing {url} as {user_desc if user_desc else user.first_name}"
 
         self.client.logout()
-
-        # check that page can't be accessed anonymously
-        response = self.client.get(url)
-        self.assertLoginRedirect(response, msg=f"expected login redirect accessing {url} without logging in")
-
-        def try_as_user(org, user, allowed, user_desc):
+        if user:
             self.login(user)
-            response = self.client.get(url)
 
-            if allowed:
-                self.assertEqual(
-                    status_code, response.status_code, msg=f"unexpected status accessing {url} as {user_desc}"
-                )
-                if response_check:
-                    response_check(response, org)
+        response = self.client.get(url)
+
+        for check in checks:
+            if isinstance(check, BaseCheck):
+                check.check(self, response, msg_prefix)
             else:
-                # failure means a 404 or 302 to login page
-                if response.status_code == 302:
-                    self.assertLoginRedirect(response, msg=f"expected login redirect accessing {url} as {user_desc}")
-                else:
-                    self.assertEqual(
-                        404, response.status_code, msg=f"expected login redirect or 404 accessing {url} as {user_desc}"
-                    )
+                check(response)
 
-            return response
+        return response
 
-        try_as_user(self.org, self.user, allowed=viewers, user_desc="viewer")
-        try_as_user(self.org, self.editor, allowed=editors, user_desc="editor")
-        try_as_user(self.org2, self.admin2, allowed=any_org, user_desc="user from other org")
-        return try_as_user(self.org, self.admin, allowed=True, user_desc="administrator")
+    def assertViewAccess(self, url, *, viewers, editors, any_org, status=200, org_checks=(), org2_checks=()):
+        """
+        Fetches the given url as different users to assert who should have access, and runs checks on the response.
+        """
+
+        def check_as_user(user, allowed, user_desc):
+            if allowed:
+                checks = [StatusCode(status)]
+                checks.extend(org_checks if user != self.admin2 else org2_checks)
+            else:
+                checks = [LoginRedirectOr404()]
+
+            return self.assertViewFetch(url, user, checks, user_desc=user_desc)
+
+        check_as_user(None, allowed=False, user_desc="anonymous")
+        check_as_user(self.user, allowed=viewers, user_desc="viewer")
+        check_as_user(self.editor, allowed=editors, user_desc="editor")
+        check_as_user(self.admin2, allowed=any_org, user_desc="user from other org")
+        return check_as_user(self.admin, allowed=True, user_desc="administrator")
 
 
 class TembaTest(TembaTestMixin, SmartminTest):
