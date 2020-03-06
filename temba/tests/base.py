@@ -514,6 +514,43 @@ class TembaTestMixin:
         self.assertTrue(message, isinstance(body[field], (list, tuple)))
         self.assertIn(message, body[field])
 
+    def assert_url_fetch(self, url, *, viewers, editors, any_org, status_code=200, response_check=None):
+        """
+        Fetches the given url as different users to assert who should have access
+        """
+
+        self.client.logout()
+
+        # check that page can't be accessed anonymously
+        response = self.client.get(url)
+        self.assertLoginRedirect(response, msg=f"expected login redirect accessing {url} without logging in")
+
+        def try_as_user(org, user, allowed, user_desc):
+            self.login(user)
+            response = self.client.get(url)
+
+            if allowed:
+                self.assertEqual(
+                    status_code, response.status_code, msg=f"unexpected status accessing {url} as {user_desc}"
+                )
+                if response_check:
+                    response_check(response, org)
+            else:
+                # failure means a 404 or 302 to login page
+                if response.status_code == 302:
+                    self.assertLoginRedirect(response, msg=f"expected login redirect accessing {url} as {user_desc}")
+                else:
+                    self.assertEqual(
+                        404, response.status_code, msg=f"expected login redirect or 404 accessing {url} as {user_desc}"
+                    )
+
+            return response
+
+        try_as_user(self.org, self.user, allowed=viewers, user_desc="viewer")
+        try_as_user(self.org, self.editor, allowed=editors, user_desc="editor")
+        try_as_user(self.org2, self.admin2, allowed=any_org, user_desc="user from other org")
+        return try_as_user(self.org, self.admin, allowed=True, user_desc="administrator")
+
 
 class TembaTest(TembaTestMixin, SmartminTest):
     """

@@ -89,14 +89,9 @@ class GlobalCRUDLTest(TembaTest):
 
     def test_list_views(self):
         list_url = reverse("globals.global_list")
-        self.login(self.user)
 
-        response = self.client.get(list_url)
-        self.assertLoginRedirect(response)
+        response = self.assert_url_fetch(list_url, viewers=False, editors=False, any_org=True)
 
-        self.login(self.admin)
-
-        response = self.client.get(list_url)
         self.assertEqual(list(response.context["object_list"]), [self.global2, self.global1])
         self.assertContains(response, "Acme Ltd")
         self.assertContains(response, "23464373")
@@ -107,21 +102,15 @@ class GlobalCRUDLTest(TembaTest):
 
         unused_url = reverse("globals.global_unused")
 
-        response = self.client.get(unused_url)
+        response = self.assert_url_fetch(unused_url, viewers=False, editors=False, any_org=True)
+
         self.assertEqual(list(response.context["object_list"]), [self.global2])
 
     @override_settings(MAX_ACTIVE_GLOBALS_PER_ORG=4)
     def test_create(self):
         create_url = reverse("globals.global_create")
-        self.login(self.user)
 
-        response = self.client.get(create_url)
-        self.assertLoginRedirect(response)
-
-        self.login(self.admin)
-
-        response = self.client.get(create_url)
-        self.assertEqual(200, response.status_code)
+        response = self.assert_url_fetch(create_url, viewers=False, editors=False, any_org=True)
 
         # we got a form with expected form fields
         self.assertEqual(["name", "value", "loc"], list(response.context["form"].fields.keys()))
@@ -157,15 +146,8 @@ class GlobalCRUDLTest(TembaTest):
 
     def test_update(self):
         update_url = reverse("globals.global_update", args=[self.global1.id])
-        self.login(self.user)
 
-        response = self.client.get(update_url)
-        self.assertLoginRedirect(response)
-
-        self.login(self.admin)
-
-        response = self.client.get(update_url)
-        self.assertEqual(200, response.status_code)
+        response = self.assert_url_fetch(update_url, viewers=False, editors=False, any_org=False)
 
         # we got a form with expected form fields
         self.assertEqual(["value", "loc"], list(response.context["form"].fields.keys()))
@@ -196,20 +178,10 @@ class GlobalCRUDLTest(TembaTest):
 
     def test_detail(self):
         detail_url = reverse("globals.global_detail", args=[self.global1.id])
-        self.login(self.user)
 
-        response = self.client.get(detail_url)
-        self.assertLoginRedirect(response)
+        response = self.assert_url_fetch(detail_url, viewers=False, editors=False, any_org=False)
 
-        self.login(self.admin)
-
-        response = self.client.get(detail_url)
-        self.assertEqual(200, response.status_code)
         self.assertEqual([self.flow], list(response.context["dep_flows"]))
-
-        # can't view detail on global from other org
-        response = self.client.get(reverse("globals.global_detail", args=[self.other_org_global.id]))
-        self.assertLoginRedirect(response)
 
     def test_delete(self):
         self.login(self.admin)

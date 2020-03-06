@@ -47,18 +47,8 @@ class AirtimeCRUDLTest(TembaTest):
     def test_list(self):
         list_url = reverse("airtime.airtimetransfer_list")
 
-        self.login(self.user)
-        response = self.client.get(list_url)
-        self.assertRedirect(response, "/users/login/")
+        response = self.assert_url_fetch(list_url, viewers=False, editors=True, any_org=True)
 
-        self.login(self.editor)
-        response = self.client.get(list_url)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual([self.transfer2, self.transfer1], list(response.context["object_list"]))
-
-        self.login(self.admin)
-        response = self.client.get(list_url)
-        self.assertEqual(200, response.status_code)
         self.assertEqual([self.transfer2, self.transfer1], list(response.context["object_list"]))
         self.assertContains(response, "Ben Haggerty")
         self.assertContains(response, "+250 700 000 003")
@@ -73,19 +63,8 @@ class AirtimeCRUDLTest(TembaTest):
     def test_read(self):
         read_url = reverse("airtime.airtimetransfer_read", args=[self.transfer1.id])
 
-        self.login(self.user)
-        response = self.client.get(read_url)
-        self.assertRedirect(response, "/users/login/")
+        response = self.assert_url_fetch(read_url, viewers=False, editors=True, any_org=False)
 
-        self.login(self.editor)
-        response = self.client.get(read_url)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(self.transfer1, response.context["object"])
-        self.assertTrue(response.context["show_logs"])
-
-        self.login(self.admin)
-        response = self.client.get(read_url)
-        self.assertEqual(200, response.status_code)
         self.assertEqual(self.transfer1, response.context["object"])
         self.assertTrue(response.context["show_logs"])
         self.assertContains(response, "Ben Haggerty")
@@ -96,10 +75,6 @@ class AirtimeCRUDLTest(TembaTest):
             self.assertEqual(200, response.status_code)
             self.assertEqual(self.transfer1, response.context["object"])
             self.assertFalse(response.context["show_logs"])
-
-        # can't view transfer from other org
-        response = self.client.get(reverse("airtime.airtimetransfer_read", args=[self.transfer3.id]))
-        self.assertEqual(404, response.status_code)
 
 
 class DTOneClientTest(TembaTest):

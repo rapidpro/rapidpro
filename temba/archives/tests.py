@@ -92,14 +92,19 @@ class ArchiveCRUDLTest(TembaTest):
         )
 
     def test_empty_list(self):
-        self.login(self.admin)
-        response = self.client.get(reverse("archives.archive_run"))
-        self.assertEqual(0, response.context["object_list"].count())
-        self.assertEqual("Run Archive", response.context["title"])
+        def check_runs_response(response, org):
+            self.assertEqual(0, response.context["object_list"].count())
+            self.assertEqual("Run Archive", response.context["title"])
 
-        response = self.client.get(reverse("archives.archive_message"))
-        self.assertEqual(0, response.context["object_list"].count())
-        self.assertEqual("Message Archive", response.context["title"])
+        runs_url = reverse("archives.archive_run")
+        self.assert_url_fetch(runs_url, viewers=False, editors=True, any_org=True, response_check=check_runs_response)
+
+        def check_msgs_response(response, org):
+            self.assertEqual(0, response.context["object_list"].count())
+            self.assertEqual("Message Archive", response.context["title"])
+
+        msgs_url = reverse("archives.archive_message")
+        self.assert_url_fetch(msgs_url, viewers=False, editors=True, any_org=True, response_check=check_msgs_response)
 
     def test_archive_type_filter(self):
         archives = [self.create_archive(self.org, idx) for idx in range(1, 10)]
@@ -123,43 +128,49 @@ class ArchiveCRUDLTest(TembaTest):
         # create archive for other org
         self.create_archive(self.org2, 1)
 
-        self.login(self.admin)
+        def check_runs_response(response, org):
+            if org == self.org:
+                self.assertEqual(6, response.context["object_list"].count())
+                self.assertContains(response, "jsonl.gz")
+            else:
+                self.assertEqual(1, response.context["object_list"].count())
 
-        # make sure we have the right number of each
-        response = self.client.get(reverse("archives.archive_run"))
-        self.assertEqual(6, response.context["object_list"].count())
-        self.assertContains(response, "jsonl.gz")
+        runs_url = reverse("archives.archive_run")
+        self.assert_url_fetch(runs_url, viewers=False, editors=True, any_org=True, response_check=check_runs_response)
 
-        response = self.client.get(reverse("archives.archive_message"))
-        self.assertEqual(4, response.context["object_list"].count())
-        self.assertContains(response, "jsonl.gz")
+        def check_msgs_response(response, org):
+            if org == self.org:
+                self.assertEqual(4, response.context["object_list"].count())
+                self.assertContains(response, "jsonl.gz")
+            else:
+                self.assertEqual(0, response.context["object_list"].count())
+
+        msgs_url = reverse("archives.archive_message")
+        self.assert_url_fetch(msgs_url, viewers=False, editors=True, any_org=True, response_check=check_msgs_response)
 
     def test_read(self):
         archive = self.create_archive(self.org, 1)
 
-        # can't read archive if not logged in
-        response = self.client.get(reverse("archives.archive_read", args=[archive.id]))
-        self.assertLoginRedirect(response)
+        def check_response(response, org):
+            redirect_url = response.get("Location")
 
-        self.login(self.admin)
+            self.assertEqual(302, response.status_code)
+            self.assertIn(
+                f"https://s3-bucket.s3.amazonaws.com/my/{archive.hash}.jsonl.gz?"
+                f"response-content-disposition=attachment%3B&"
+                f"response-content-type=application%2Foctet&"
+                f"response-content-encoding=none",
+                redirect_url,
+            )
 
-        response = self.client.get(reverse("archives.archive_read", args=[archive.id]))
-        url = response.get("Location")
-
-        self.assertEqual(302, response.status_code)
-        self.assertIn(
-            f"https://s3-bucket.s3.amazonaws.com/my/{archive.hash}.jsonl.gz?"
-            f"response-content-disposition=attachment%3B&"
-            f"response-content-type=application%2Foctet&"
-            f"response-content-encoding=none",
-            url,
+        self.assert_url_fetch(
+            reverse("archives.archive_read", args=[archive.id]),
+            viewers=False,
+            editors=True,
+            any_org=False,
+            status_code=302,
+            response_check=check_response,
         )
-
-        other_org_archive = self.create_archive(self.org2, 1)
-
-        # can't read archive from other org
-        response = self.client.get(reverse("archives.archive_read", args=[other_org_archive.id]))
-        self.assertLoginRedirect(response)
 
     def test_formax(self):
         self.login(self.admin)
