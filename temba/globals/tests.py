@@ -82,6 +82,7 @@ class GlobalCRUDLTest(TembaTest):
 
         self.global1 = Global.get_or_create(self.org, self.admin, "org_name", "Org Name", "Acme Ltd")
         self.global2 = Global.get_or_create(self.org, self.admin, "access_token", "Access Token", "23464373")
+        self.other_org_global = Global.get_or_create(self.org2, self.admin, "access_token", "Access Token", "653732")
 
         self.flow = self.get_flow("color")
         self.flow.global_dependencies.add(self.global1)
@@ -180,6 +181,19 @@ class GlobalCRUDLTest(TembaTest):
         self.assertEqual("Org Name", self.global1.name)
         self.assertEqual("Acme Holdings", self.global1.value)
 
+        # can't view update form for global in other org
+        update_url = reverse("globals.global_update", args=[self.other_org_global.id])
+        response = self.client.get(update_url)
+        self.assertLoginRedirect(response)
+
+        # can't update global in other org
+        response = self.client.post(update_url, {"value": "436734573"})
+        self.assertLoginRedirect(response)
+
+        # global should be unchanged
+        self.other_org_global.refresh_from_db()
+        self.assertEqual("653732", self.other_org_global.value)
+
     def test_detail(self):
         detail_url = reverse("globals.global_detail", args=[self.global1.id])
         self.login(self.user)
@@ -192,6 +206,10 @@ class GlobalCRUDLTest(TembaTest):
         response = self.client.get(detail_url)
         self.assertEqual(200, response.status_code)
         self.assertEqual([self.flow], list(response.context["dep_flows"]))
+
+        # can't view detail on global from other org
+        response = self.client.get(reverse("globals.global_detail", args=[self.other_org_global.id]))
+        self.assertLoginRedirect(response)
 
     def test_delete(self):
         self.login(self.admin)
@@ -215,3 +233,11 @@ class GlobalCRUDLTest(TembaTest):
             self.client.post(delete_url)
 
         self.assertEqual(1, Global.objects.filter(id=self.global1.id).count())
+
+        # can't delete global from other org
+        response = self.client.post(reverse("globals.global_delete", args=[self.other_org_global.id]))
+        self.assertLoginRedirect(response)
+
+        # global should be unchanged
+        self.other_org_global.refresh_from_db()
+        self.assertTrue(self.other_org_global.is_active)

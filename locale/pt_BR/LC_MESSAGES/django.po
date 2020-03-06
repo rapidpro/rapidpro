@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-28 14:46+0000\n"
+"POT-Creation-Date: 2020-03-04 21:02+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -2486,7 +2486,7 @@ msgstr ""
 msgid "The Twilio Messaging Service SID"
 msgstr ""
 
-msgid "If you have a Twilio for Whatsapp number, you can connect it to communicate with your Whatsapp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio Whatsapp</a>"
+msgid "If you have a Twilio for WhatsApp number, you can connect it to communicate with your WhatsApp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio WhatsApp</a>"
 msgstr ""
 
 #, fuzzy
@@ -2498,7 +2498,7 @@ msgstr ""
 #| "      "
 msgid ""
 "\n"
-"        To finish configuring your Twilio Whatsapp connection you'll need to add the following URL in your Twilio Inbound Settings.\n"
+"        To finish configuring your Twilio WhatsApp connection you'll need to add the following URL in your Twilio Inbound Settings.\n"
 "        Check the Twilio WhatsApp documentation for more information.\n"
 "        "
 msgstr ""
@@ -2506,12 +2506,12 @@ msgstr ""
 "Para finalizar a configuração da sua conexão Infobip, você precisará definir as URLs de retorno de chamada a seguir, utilizando a sua conta no site do Infobip."
 
 #, fuzzy
-msgid "This endpoint should be called by Twilio when new messages are received by your Twilio Whatsapp number."
+msgid "This endpoint should be called by Twilio when new messages are received by your Twilio WhatsApp number."
 msgstr ""
 "\n"
 "Esse terminal deve ser chamado pelo Hub9 quando o seu número receber novas mensagens. Você pode definir a URL de recebimento na sua conta do Hub9 contatando o seu agente de vendas"
 
-msgid "Only existing Twilio Whatsapp number are supported"
+msgid "Only existing Twilio WhatsApp number are supported"
 msgstr ""
 
 msgid ""
@@ -5306,13 +5306,15 @@ msgstr "Evento do transmissor"
 msgid "Airtime Transferred"
 msgstr ""
 
-msgid "Whatsapp Templates Synced"
+#, fuzzy
+#| msgid "Has Template Error"
+msgid "WhatsApp Templates Synced"
+msgstr "Possui erro no modelo"
+
+msgid "WhatsApp Tokens Synced"
 msgstr ""
 
-msgid "Whatsapp Tokens Synced"
-msgstr ""
-
-msgid "Whatsapp Contacts Refreshed"
+msgid "WhatsApp Contacts Refreshed"
 msgstr ""
 
 msgid "Never"
@@ -7192,15 +7194,15 @@ msgstr ""
 #| "        to your number will be charged according to their plan.\n"
 #| "\n"
 #| "      "
-msgid "Once you claim a number you will immediately be able to send and receive Whatsapp messages. Users who send messages to your Whatsapp number will be charged according to their plan."
+msgid "Once you claim a number you will immediately be able to send and receive WhatsApp messages."
 msgstr ""
 "\n"
 "Assim que você solicitar um número, você imediatamente será capaz de enviar e receber mensagens. Os usuários que enviarem mensagens ao seu número serão cobrados de acordo com os planos deles. "
 
-msgid "You do not have any number on your Twilio Account. Please make sure you have a number and that it has access to Twilio Whatsapp."
+msgid "You do not have any number on your Twilio Account. Please make sure you have a number and that it has access to Twilio WhatsApp."
 msgstr ""
 
-msgid "To request access to Twilio Whatsapp"
+msgid "To request access to Twilio WhatsApp"
 msgstr ""
 
 #, fuzzy
@@ -7321,7 +7323,7 @@ msgstr ""
 
 #, fuzzy
 #| msgid "Has Template Error"
-msgid "Whatsapp Templates Events"
+msgid "WhatsApp Templates Events"
 msgstr "Possui erro no modelo"
 
 #, fuzzy
@@ -11356,6 +11358,18 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "        Once you claim a number you will immediately be able to send and receive messages. Users who send messages\n"
+#~| "        to your number will be charged according to their plan.\n"
+#~| "\n"
+#~| "      "
+#~ msgid "Once you claim a number you will immediately be able to send and receive Whatsapp messages. Users who send messages to your Whatsapp number will be charged according to their plan."
+#~ msgstr ""
+#~ "\n"
+#~ "Assim que você solicitar um número, você imediatamente será capaz de enviar e receber mensagens. Os usuários que enviarem mensagens ao seu número serão cobrados de acordo com os planos deles. "
 
 #~ msgid "Message History"
 #~ msgstr "Histórico de mensagens"

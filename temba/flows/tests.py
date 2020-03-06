@@ -94,7 +94,6 @@ class FlowTest(TembaTest):
         flow3 = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "Sheep Poll"), base_language="base")
         self.assertEqual(flow3.name, "Sheep Poll 3")
 
-        self.setUpSecondaryOrg()
         self.assertEqual(Flow.get_unique_name(self.org2, "Sheep Poll"), "Sheep Poll")  # different org
 
     @patch("temba.mailroom.queue_interrupt")
@@ -219,7 +218,6 @@ class FlowTest(TembaTest):
         self.assertContains(response, "Appointment Followup")
 
         # check we can't see farmers
-        self.setUpSecondaryOrg()
         farmers = ContactGroup.create_static(self.org2, self.admin, "Farmers")
         campaign2 = Campaign.create(self.org2, self.admin, Campaign.get_unique_name(self.org, "Reminders"), farmers)
 
@@ -1453,7 +1451,8 @@ class FlowTest(TembaTest):
         str(FlowCategoryCount.objects.all().first())
 
         # and if we delete our runs, things zero out
-        self.releaseRuns()
+        for run in FlowRun.objects.all():
+            run.release()
 
         counts = favorites.get_category_counts()
         assertCount(counts, "beer", "Turbo King", 0)
@@ -1836,8 +1835,6 @@ class FlowTest(TembaTest):
         self.viewer = self.create_user("Viewer")
         self.org.viewers.add(self.viewer)
         self.viewer.set_org(self.org)
-
-        self.setUpSecondaryOrg()
 
         # create a flow for another org and a flow label
         flow2 = Flow.create(self.org2, self.admin2, "Flow2")
@@ -2436,8 +2433,6 @@ class FlowCRUDLTest(TembaTest):
     def test_views(self):
         contact = self.create_contact("Eric", "+250788382382")
         flow = self.get_flow("color", legacy=True)
-
-        self.setUpSecondaryOrg()
 
         # create a flow for another org
         other_flow = Flow.create(self.org2, self.admin2, "Flow2", base_language="base")
@@ -3178,6 +3173,7 @@ class FlowCRUDLTest(TembaTest):
     @patch("temba.flows.views.uuid4")
     def test_upload_media_action(self, mock_uuid):
         flow = self.get_flow("color_v13")
+        other_org_flow = self.create_flow(org=self.org2)
 
         upload_media_action_url = reverse("flows.flow_upload_media_action", args=[flow.uuid])
 
@@ -3194,23 +3190,29 @@ class FlowCRUDLTest(TembaTest):
 
         self.login(self.admin)
 
-        mock_uuid.side_effect = ["11111-111-11", "22222-222-22", "33333-333-33"]
+        mock_uuid.side_effect = ["11111-111-11", "22222-222-22", "33333-333-33", "44444-444-44"]
 
         assert_media_upload(
-            "%s/test_media/steve.marten.jpg" % settings.MEDIA_ROOT,
+            f"{settings.MEDIA_ROOT}/test_media/steve.marten.jpg",
             "image/jpeg",
             "%s/attachments/%d/%d/steps/%s%s" % (settings.STORAGE_URL, self.org.id, flow.id, "11111-111-11", ".jpg"),
         )
         assert_media_upload(
-            "%s/test_media/snow.mp4" % settings.MEDIA_ROOT,
+            f"{settings.MEDIA_ROOT}/test_media/snow.mp4",
             "video/mp4",
             "%s/attachments/%d/%d/steps/%s%s" % (settings.STORAGE_URL, self.org.id, flow.id, "22222-222-22", ".mp4"),
         )
         assert_media_upload(
-            "%s/test_media/snow.m4a" % settings.MEDIA_ROOT,
+            f"{settings.MEDIA_ROOT}/test_media/snow.m4a",
             "audio/mp4",
             "%s/attachments/%d/%d/steps/%s%s" % (settings.STORAGE_URL, self.org.id, flow.id, "33333-333-33", ".m4a"),
         )
+
+        # can't upload for flow in other org
+        with open(f"{settings.MEDIA_ROOT}/test_media/steve.marten.jpg", "rb") as data:
+            upload_url = reverse("flows.flow_upload_media_action", args=[other_org_flow.uuid])
+            response = self.client.post(upload_url, {"file": data, "action": "", "HTTP_X_FORWARDED_HTTPS": "https"})
+            self.assertLoginRedirect(response)
 
     def test_recent_messages(self):
         contact = self.create_contact("Bob", number="+593979099111")
@@ -5659,7 +5661,6 @@ class FlowLabelTest(TembaTest):
         self.assertFalse(response.context["object_list"])
 
         # try to view our cat label in our other org
-        self.setUpSecondaryOrg()
         cat = FlowLabel.create(self.org2, "cat")
         response = self.client.get(reverse("flows.flow_filter", args=[cat.pk]))
         self.assertLoginRedirect(response)

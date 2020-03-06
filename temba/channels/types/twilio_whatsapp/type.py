@@ -16,11 +16,11 @@ class TwilioWhatsappType(ChannelType):
 
     courier_url = r"^twa/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
 
-    name = "Twilio Whatsapp"
+    name = "Twilio WhatsApp"
     icon = "icon-whatsapp"
 
     claim_blurb = _(
-        """If you have a Twilio for Whatsapp number, you can connect it to communicate with your Whatsapp contacts. <a href="https://www.twilio.com/whatsapp/">Learn more about Twilio Whatsapp</a>"""
+        """If you have a Twilio for WhatsApp number, you can connect it to communicate with your WhatsApp contacts. <a href="https://www.twilio.com/whatsapp/">Learn more about Twilio WhatsApp</a>"""
     )
 
     claim_view = ClaimView
@@ -30,7 +30,7 @@ class TwilioWhatsappType(ChannelType):
 
     configuration_blurb = _(
         """
-        To finish configuring your Twilio Whatsapp connection you'll need to add the following URL in your Twilio Inbound Settings.
+        To finish configuring your Twilio WhatsApp connection you'll need to add the following URL in your Twilio Inbound Settings.
         Check the Twilio WhatsApp documentation for more information.
         """
     )
@@ -40,7 +40,7 @@ class TwilioWhatsappType(ChannelType):
             label=_("Request URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.twa' channel.uuid 'receive' %}",
             description=_(
-                "This endpoint should be called by Twilio when new messages are received by your Twilio Whatsapp number."
+                "This endpoint should be called by Twilio when new messages are received by your Twilio WhatsApp number."
             ),
         ),
     )
