@@ -1709,6 +1709,10 @@ class MsgTest(TembaTest):
                 self.org.timezone,
             )
 
+        response = self.client.post(reverse("msgs.msg_export") + "?l=I&redirect=http://foo.me", {"export_all": 1})
+        self.assertEqual(302, response.status_code)
+        self.assertEqual("/msg/inbox/", response.url)
+
 
 class MsgCRUDLTest(TembaTest):
     def setUp(self):

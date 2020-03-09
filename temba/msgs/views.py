@@ -18,7 +18,7 @@ from django.forms import Form
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.http import urlquote_plus
+from django.utils.http import is_safe_url, urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
@@ -561,7 +561,11 @@ class MsgCRUDL(SmartCRUDL):
                 return None, Label.all_objects.get(org=self.request.user.get_org(), uuid=label_id)
 
         def get_success_url(self):
-            return self.request.GET.get("redirect") or reverse("msgs.msg_inbox")
+            redirect = self.request.GET.get("redirect")
+            if redirect and not is_safe_url(redirect, self.request.get_host()):
+                redirect = None
+
+            return redirect or reverse("msgs.msg_inbox")
 
         def form_invalid(self, form):  # pragma: needs cover
             if "_format" in self.request.GET and self.request.GET["_format"] == "json":
