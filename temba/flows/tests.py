@@ -2938,7 +2938,7 @@ class FlowCRUDLTest(TembaTest):
 
     def test_goflow_revisions(self):
         self.login(self.admin)
-        self.client.post(reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE))
+        self.client.post(reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPEMESSAGE))
         flow = Flow.objects.get(
             org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.CURRENT_SPEC_VERSION
         )
@@ -4349,9 +4349,11 @@ class ExportFlowResultsTest(TembaTest):
 
         # check messages sheet...
         self.assertEqual(14, len(list(sheet_msgs.rows)))  # header + 13 messages
-        self.assertEqual(7, len(list(sheet_msgs.columns)))
+        self.assertEqual(8, len(list(sheet_msgs.columns)))
 
-        self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"])
+        self.assertExcelRow(
+            sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Attachments", "Channel"]
+        )
 
         contact1_out1 = contact1_run1.get_messages().get(text="What is your favorite color?")
         contact1_out2 = contact1_run1.get_messages().get(text="That is a funny color. Try again.")
@@ -4374,6 +4376,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact3_out1.created_on,
                 "OUT",
                 "What is your favorite color?",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4388,6 +4391,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_out1.created_on,
                 "OUT",
                 "What is your favorite color?",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4402,6 +4406,7 @@ class ExportFlowResultsTest(TembaTest):
                 msg_event_time(contact1_run1, "light beige"),
                 "IN",
                 "light beige",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4416,6 +4421,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_out2.created_on,
                 "OUT",
                 "That is a funny color. Try again.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4430,6 +4436,7 @@ class ExportFlowResultsTest(TembaTest):
                 msg_event_time(contact1_run1, "orange"),
                 "IN",
                 "orange",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4444,6 +4451,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_out3.created_on,
                 "OUT",
                 "I love orange too! You said: orange which is category: Orange You are: 0788 382 382 SMS: orange Flow: color: orange",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4776,9 +4784,11 @@ class ExportFlowResultsTest(TembaTest):
 
         # check messages sheet...
         self.assertEqual(len(list(sheet_msgs.rows)), 11)  # header + 10 messages
-        self.assertEqual(len(list(sheet_msgs.columns)), 7)
+        self.assertEqual(len(list(sheet_msgs.columns)), 8)
 
-        self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"])
+        self.assertExcelRow(
+            sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Attachments", "Channel"]
+        )
 
         c1_run1_msg1 = contact1_run1.get_messages().get(text="This is the first message.")
         c1_run1_msg2 = contact1_run1.get_messages().get(text="This is the second message.")
@@ -4805,6 +4815,7 @@ class ExportFlowResultsTest(TembaTest):
                 c1_run1_msg1.created_on,
                 "OUT",
                 "This is the first message.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4820,6 +4831,7 @@ class ExportFlowResultsTest(TembaTest):
                 c1_run1_msg2.created_on,
                 "OUT",
                 "This is the second message.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4835,6 +4847,7 @@ class ExportFlowResultsTest(TembaTest):
                 c2_run1_msg1.created_on,
                 "OUT",
                 "This is the first message.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4850,6 +4863,7 @@ class ExportFlowResultsTest(TembaTest):
                 c2_run1_msg2.created_on,
                 "OUT",
                 "This is the second message.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4865,6 +4879,7 @@ class ExportFlowResultsTest(TembaTest):
                 c3_run1_msg1.created_on,
                 "OUT",
                 "This is the first message.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4880,6 +4895,7 @@ class ExportFlowResultsTest(TembaTest):
                 c3_run1_msg2.created_on,
                 "OUT",
                 "This is the second message.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4895,6 +4911,7 @@ class ExportFlowResultsTest(TembaTest):
                 c1_run2_msg1.created_on,
                 "OUT",
                 "This is the first message.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4910,6 +4927,7 @@ class ExportFlowResultsTest(TembaTest):
                 c1_run2_msg2.created_on,
                 "OUT",
                 "This is the second message.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4925,6 +4943,7 @@ class ExportFlowResultsTest(TembaTest):
                 c2_run2_msg1.created_on,
                 "OUT",
                 "This is the first message.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4940,6 +4959,7 @@ class ExportFlowResultsTest(TembaTest):
                 c2_run2_msg2.created_on,
                 "OUT",
                 "This is the second message.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -5209,9 +5229,11 @@ class ExportFlowResultsTest(TembaTest):
 
         # check messages sheet...
         self.assertEqual(len(list(sheet_msgs.rows)), 14)  # header + 13 messages
-        self.assertEqual(len(list(sheet_msgs.columns)), 7)
+        self.assertEqual(len(list(sheet_msgs.columns)), 8)
 
-        self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"])
+        self.assertExcelRow(
+            sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Attachments", "Channel"]
+        )
 
         contact1_out1 = contact1_run1.get_messages().get(text="What is your favorite color?")
         contact1_out2 = contact1_run1.get_messages().get(text="I don't know that color. Try again.")
@@ -5230,6 +5252,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact3_out1.created_on,
                 "OUT",
                 "What is your favorite color?",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -5244,6 +5267,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_out1.created_on,
                 "OUT",
                 "What is your favorite color?",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -5258,6 +5282,7 @@ class ExportFlowResultsTest(TembaTest):
                 matchers.Datetime(),
                 "IN",
                 "light beige",
+                "",
                 "Test Channel",
             ],
         )
@@ -5271,6 +5296,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_out2.created_on,
                 "OUT",
                 "I don't know that color. Try again.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -5290,6 +5316,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_out3.created_on,
                 "OUT",
                 "Good choice, I like Red too! What is your favorite beer?",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -5569,6 +5596,7 @@ class ExportFlowResultsTest(TembaTest):
                 out1.created_on,
                 "OUT",
                 "What is your favorite color?",
+                "",
                 "Test Channel",
             ],
             tz,
