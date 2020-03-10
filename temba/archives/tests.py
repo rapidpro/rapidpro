@@ -5,7 +5,7 @@ from uuid import uuid4
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.tests import TembaTest, checks
+from temba.tests import CRUDLTestMixin, TembaTest
 from temba.tests.s3 import MockS3Client
 
 from .models import Archive
@@ -71,7 +71,7 @@ class ArchiveTest(TembaTest):
         self.assertEqual(date(2018, 2, 1), self.org.get_delete_date(archive_type=Archive.TYPE_FLOWRUN))
 
 
-class ArchiveCRUDLTest(TembaTest):
+class ArchiveCRUDLTest(TembaTest, CRUDLTestMixin):
     def create_archive(self, org, idx, start_date=None, period="D"):
 
         if not start_date:
@@ -92,21 +92,17 @@ class ArchiveCRUDLTest(TembaTest):
         )
 
     def test_empty_list(self):
-        self.assertViewAccess(
-            reverse("archives.archive_run"),
-            viewers=False,
-            editors=True,
-            any_org=True,
-            org_checks=[checks.ObjectCount(0), checks.Contains("Run Archive")],
+        response = self.assertListFetch(
+            reverse("archives.archive_run"), allow_viewers=False, allow_editors=True, context_objects=[]
         )
 
-        self.assertViewAccess(
-            reverse("archives.archive_message"),
-            viewers=False,
-            editors=True,
-            any_org=True,
-            org_checks=[checks.ObjectCount(0), checks.Contains("Message Archive")],
+        self.assertContains(response, "Run Archive")
+
+        response = self.assertListFetch(
+            reverse("archives.archive_message"), allow_viewers=False, allow_editors=True, context_objects=[]
         )
+
+        self.assertContains(response, "Message Archive")
 
     def test_archive_type_filter(self):
         archives = [self.create_archive(self.org, idx) for idx in range(1, 10)]
@@ -130,21 +126,15 @@ class ArchiveCRUDLTest(TembaTest):
         # create archive for other org
         self.create_archive(self.org2, 1)
 
-        self.assertViewAccess(
-            reverse("archives.archive_run"),
-            viewers=False,
-            editors=True,
-            any_org=True,
-            org_checks=[checks.ObjectCount(6), checks.Contains("jsonl.gz")],
+        response = self.assertListFetch(
+            reverse("archives.archive_run"), allow_viewers=False, allow_editors=True, context_object_count=6
         )
+        self.assertContains(response, "jsonl.gz")
 
-        self.assertViewAccess(
-            reverse("archives.archive_message"),
-            viewers=False,
-            editors=True,
-            any_org=True,
-            org_checks=[checks.ObjectCount(4), checks.Contains("jsonl.gz")],
+        response = self.assertListFetch(
+            reverse("archives.archive_message"), allow_viewers=False, allow_editors=True, context_object_count=4
         )
+        self.assertContains(response, "jsonl.gz")
 
     def test_read(self):
         archive = self.create_archive(self.org, 1)
@@ -154,14 +144,11 @@ class ArchiveCRUDLTest(TembaTest):
             f"attachment%3B&response-content-type=application%2Foctet&response-content-encoding=none"
         )
 
-        self.assertViewAccess(
-            reverse("archives.archive_read", args=[archive.id]),
-            viewers=False,
-            editors=True,
-            any_org=False,
-            status=302,
-            org_checks=[checks.Redirect(download_url, partial=True)],
+        response = self.assertReadFetch(
+            reverse("archives.archive_read", args=[archive.id]), allow_viewers=False, allow_editors=True, status=302
         )
+
+        self.assertIn(download_url, response.get("Location"))
 
     def test_formax(self):
         self.login(self.admin)

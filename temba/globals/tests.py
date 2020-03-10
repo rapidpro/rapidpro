@@ -1,7 +1,7 @@
 from django.test.utils import override_settings
 from django.urls import reverse
 
-from temba.tests import TembaTest, checks
+from temba.tests import CRUDLTestMixin, TembaTest
 
 from .models import Global
 
@@ -76,7 +76,7 @@ class GlobalTest(TembaTest):
         self.assertFalse(Global.is_valid_name("âge"))  # a-z only
 
 
-class GlobalCRUDLTest(TembaTest):
+class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
@@ -90,83 +90,86 @@ class GlobalCRUDLTest(TembaTest):
     def test_list_views(self):
         list_url = reverse("globals.global_list")
 
-        self.assertViewAccess(
-            list_url,
-            viewers=False,
-            editors=False,
-            any_org=True,
-            org_checks=[
-                checks.ObjectList(self.global2, self.global1),
-                checks.Contains("Acme Ltd", "23464373", "1 Use"),
-            ],
+        response = self.assertListFetch(
+            list_url, allow_viewers=False, allow_editors=False, context_objects=[self.global2, self.global1]
         )
+        self.assertContains(response, "Acme Ltd")
+        self.assertContains(response, "23464373")
+        self.assertContains(response, "1 Use")
 
         response = self.client.get(list_url + "?search=access")
         self.assertEqual(list(response.context["object_list"]), [self.global2])
 
         unused_url = reverse("globals.global_unused")
 
-        self.assertViewAccess(
-            unused_url, viewers=False, editors=False, any_org=True, org_checks=[checks.ObjectList(self.global2)]
-        )
+        self.assertListFetch(unused_url, allow_viewers=False, allow_editors=False, context_objects=[self.global2])
 
     @override_settings(MAX_ACTIVE_GLOBALS_PER_ORG=4)
     def test_create(self):
         create_url = reverse("globals.global_create")
 
-        self.assertViewAccess(
-            create_url, viewers=False, editors=False, any_org=True, org_checks=[checks.FormFields("name", "value")]
-        )
+        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=False, form_fields=["name", "value"])
 
         # try to submit with invalid name and missing value
-        response = self.client.post(create_url, {"name": "/?:"})
-        self.assertEqual(200, response.status_code)
-        self.assertFormError(response, "form", "name", "Can only contain letters, numbers and hypens.")
-        self.assertFormError(response, "form", "value", "This field is required.")
+        self.assertCreateSubmit(
+            create_url,
+            {"name": "/?:"},
+            form_errors={"name": "Can only contain letters, numbers and hypens.", "value": "This field is required."},
+        )
 
         # try to submit with name that would become invalid key
-        response = self.client.post(create_url, {"name": "-"})
-        self.assertEqual(200, response.status_code)
-        self.assertFormError(response, "form", "name", "Isn't a valid name")
+        self.assertCreateSubmit(create_url, {"name": "-"}, form_errors={"name": "Isn't a valid name"})
 
         # submit with valid values
-        self.client.post(create_url, {"name": "Secret", "value": "[xyz]"})
-        self.assertTrue(Global.objects.filter(org=self.org, name="Secret", value="[xyz]").exists())
+        self.assertCreateSubmit(
+            create_url,
+            {"name": "Secret", "value": "[xyz]"},
+            success_status=200,
+            new_obj_query=Global.objects.filter(org=self.org, name="Secret", value="[xyz]"),
+        )
 
         # try to submit with same name
-        response = self.client.post(create_url, {"name": "Secret", "value": "[abc]"})
-        self.assertEqual(200, response.status_code)
-        self.assertFormError(response, "form", "name", "Must be unique.")
+        self.assertCreateSubmit(
+            create_url, {"name": "Secret", "value": "[abc]"}, form_errors={"name": "Must be unique."}
+        )
 
         # works if name is unique
-        self.client.post(create_url, {"name": "Secret2", "value": "[abc]"})
-        self.assertTrue(Global.objects.filter(org=self.org, name="Secret2", value="[abc]").exists())
+        self.assertCreateSubmit(
+            create_url,
+            {"name": "Secret2", "value": "[abc]"},
+            success_status=200,
+            new_obj_query=Global.objects.filter(org=self.org, name="Secret2", value="[abc]"),
+        )
 
         # try to create another now that we've reached the limit
-        response = self.client.post(create_url, {"name": "Secret3", "value": "[xyz]"})
-        self.assertEqual(200, response.status_code)
-        self.assertFormError(response, "form", "__all__", "Cannot create a new global as limit is 4.")
+        self.assertCreateSubmit(
+            create_url,
+            {"name": "Secret3", "value": "[abc]"},
+            form_errors={"__all__": "Cannot create a new global as limit is 4."},
+        )
 
     def test_update(self):
         update_url = reverse("globals.global_update", args=[self.global1.id])
 
-        self.assertViewAccess(
-            update_url, viewers=False, editors=False, any_org=False, org_checks=[checks.FormFields("value")]
-        )
+        self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=False, form_fields=["value"])
 
         # try to submit with missing value
-        response = self.client.post(update_url, {})
-        self.assertEqual(200, response.status_code)
-        self.assertFormError(response, "form", "value", "This field is required.")
+        self.assertUpdateSubmit(
+            update_url, {}, form_errors={"value": "This field is required."}, object_unchanged=self.global1
+        )
 
-        self.client.post(update_url, {"value": "Acme Holdings"})
+        self.assertUpdateSubmit(update_url, {"value": "Acme Holdings"})
 
         self.global1.refresh_from_db()
         self.assertEqual("Org Name", self.global1.name)
         self.assertEqual("Acme Holdings", self.global1.value)
 
-        # can't update global in other org
+        # can't view update form for global in other org
         update_url = reverse("globals.global_update", args=[self.other_org_global.id])
+        response = self.client.get(update_url)
+        self.assertLoginRedirect(response)
+
+        # can't update global in other org
         response = self.client.post(update_url, {"value": "436734573"})
         self.assertLoginRedirect(response)
 
@@ -177,37 +180,27 @@ class GlobalCRUDLTest(TembaTest):
     def test_detail(self):
         detail_url = reverse("globals.global_detail", args=[self.global1.id])
 
-        response = self.assertViewAccess(detail_url, viewers=False, editors=False, any_org=False)
+        response = self.assertReadFetch(
+            detail_url, allow_viewers=False, allow_editors=False, context_object=self.global1
+        )
 
         self.assertEqual([self.flow], list(response.context["dep_flows"]))
 
     def test_delete(self):
-        self.login(self.admin)
-
         delete_url = reverse("globals.global_delete", args=[self.global2.id])
 
-        response = self.client.get(delete_url)
+        response = self.assertDeleteFetch(delete_url)
         self.assertContains(response, "Are you sure you want to delete this global?")
 
-        response = self.client.post(delete_url)
-        self.assertEqual(302, response.status_code)
-        self.assertEqual(0, Global.objects.filter(id=self.global2.id).count())
+        self.assertDeleteSubmit(delete_url, object_deleted=self.global2)
 
         # can't delete if global is being used
         delete_url = reverse("globals.global_delete", args=[self.global1.id])
 
-        response = self.client.get(delete_url)
+        response = self.assertDeleteFetch(delete_url)
         self.assertContains(response, "cannot be deleted because it is in use.")
 
         with self.assertRaises(ValueError):
             self.client.post(delete_url)
 
         self.assertEqual(1, Global.objects.filter(id=self.global1.id).count())
-
-        # can't delete global from other org
-        response = self.client.post(reverse("globals.global_delete", args=[self.other_org_global.id]))
-        self.assertLoginRedirect(response)
-
-        # global should be unchanged
-        self.other_org_global.refresh_from_db()
-        self.assertTrue(self.other_org_global.is_active)

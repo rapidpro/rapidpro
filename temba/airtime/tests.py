@@ -4,10 +4,10 @@ from django.urls import reverse
 
 from temba.airtime.dtone import DTOneClient
 from temba.airtime.models import AirtimeTransfer
-from temba.tests import AnonymousOrg, MigrationTest, MockResponse, TembaTest, checks
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest
 
 
-class AirtimeCRUDLTest(TembaTest):
+class AirtimeCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
@@ -47,54 +47,34 @@ class AirtimeCRUDLTest(TembaTest):
     def test_list(self):
         list_url = reverse("airtime.airtimetransfer_list")
 
-        self.assertViewAccess(
-            list_url,
-            viewers=False,
-            editors=True,
-            any_org=True,
-            org_checks=[
-                checks.ObjectList(self.transfer2, self.transfer1),
-                checks.Contains("Ben Haggerty", "+250 700 000 003"),
-            ],
-            org2_checks=[checks.ObjectList(self.other_org_transfer)],
+        response = self.assertListFetch(
+            list_url, allow_viewers=False, allow_editors=True, context_objects=[self.transfer2, self.transfer1]
         )
+        self.assertContains(response, "Ben Haggerty")
+        self.assertContains(response, "+250 700 000 003")
 
         with AnonymousOrg(self.org):
-            self.assertViewFetch(
-                list_url,
-                self.admin,
-                checks=[
-                    checks.ObjectList(self.transfer2, self.transfer1),
-                    checks.Contains("Ben Haggerty"),
-                    checks.NotContains("+250 700 000 003"),
-                ],
-            )
+            response = self.requestView(list_url, self.admin)
+
+            self.assertContains(response, "Ben Haggerty")
+            self.assertNotContains(response, "+250 700 000 003")
 
     def test_read(self):
         read_url = reverse("airtime.airtimetransfer_read", args=[self.transfer1.id])
 
-        self.assertViewAccess(
-            read_url,
-            viewers=False,
-            editors=True,
-            any_org=False,
-            org_checks=[
-                checks.Object(self.transfer1),
-                checks.Contains("Ben Haggerty", "+250 700 000 003"),
-                checks.Context("show_logs", True),
-            ],
+        response = self.assertReadFetch(
+            read_url, allow_viewers=False, allow_editors=True, context_object=self.transfer1
         )
+        self.assertContains(response, "Ben Haggerty")
+        self.assertContains(response, "+250 700 000 003")
+        self.assertTrue(response.context["show_logs"])
 
         with AnonymousOrg(self.org):
-            self.assertViewFetch(
-                read_url,
-                self.admin,
-                checks=[
-                    checks.Object(self.transfer1),
-                    checks.NotContains("+250 700 000 003"),
-                    checks.Context("show_logs", False),
-                ],
-            )
+            response = self.requestView(read_url, self.admin)
+
+            self.assertContains(response, "Ben Haggerty")
+            self.assertNotContains(response, "+250 700 000 003")
+            self.assertFalse(response.context["show_logs"])
 
 
 class DTOneClientTest(TembaTest):

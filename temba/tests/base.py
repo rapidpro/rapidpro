@@ -24,8 +24,6 @@ from temba.orgs.models import Org
 from temba.utils import json
 from temba.values.constants import Value
 
-from .checks import BaseCheck, LoginRedirectOr404, StatusCode
-
 
 def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
@@ -515,47 +513,6 @@ class TembaTestMixin:
         self.assertIn(field, body)
         self.assertTrue(message, isinstance(body[field], (list, tuple)))
         self.assertIn(message, body[field])
-
-    def assertViewFetch(self, url, user, checks=(), user_desc=None):
-        """
-        Fetches the given URL as a specific user and runs a set of checks
-        """
-
-        msg_prefix = f"accessing {url} as {user_desc if user_desc else user.first_name}"
-
-        self.client.logout()
-        if user:
-            self.login(user)
-
-        response = self.client.get(url)
-
-        for check in checks:
-            if isinstance(check, BaseCheck):
-                check.check(self, response, msg_prefix)
-            else:
-                check(response)
-
-        return response
-
-    def assertViewAccess(self, url, *, viewers, editors, any_org, status=200, org_checks=(), org2_checks=()):
-        """
-        Fetches the given url as different users to assert who should have access, and runs checks on the response.
-        """
-
-        def check_as_user(user, allowed, user_desc):
-            if allowed:
-                checks = [StatusCode(status)]
-                checks.extend(org_checks if user != self.admin2 else org2_checks)
-            else:
-                checks = [LoginRedirectOr404()]
-
-            return self.assertViewFetch(url, user, checks, user_desc=user_desc)
-
-        check_as_user(None, allowed=False, user_desc="anonymous")
-        check_as_user(self.user, allowed=viewers, user_desc="viewer")
-        check_as_user(self.editor, allowed=editors, user_desc="editor")
-        check_as_user(self.admin2, allowed=any_org, user_desc="user from other org")
-        return check_as_user(self.admin, allowed=True, user_desc="administrator")
 
 
 class TembaTest(TembaTestMixin, SmartminTest):
