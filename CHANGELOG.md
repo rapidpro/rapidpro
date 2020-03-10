@@ -1,3 +1,9 @@
+v5.4.9
+----------
+ * Fix submitting API explorer requests where there is no editor for query part
+ * Lockdown redirects on exports
+ * Add more detailed fresh chat instructions
+
 v5.4.8
 ----------
  * Find and fix more cases of not filtering by org
