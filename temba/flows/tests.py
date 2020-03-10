@@ -4617,7 +4617,7 @@ class ExportFlowResultsTest(TembaTest):
 
         # check messages sheet...
         self.assertEqual(14, len(list(sheet_msgs.rows)))  # header + 13 messages
-        self.assertEqual(7, len(list(sheet_msgs.columns)))
+        self.assertEqual(8, len(list(sheet_msgs.columns)))
 
     def test_anon_org(self):
         with AnonymousOrg(self.org):
@@ -5304,7 +5304,7 @@ class ExportFlowResultsTest(TembaTest):
         self.assertExcelRow(
             sheet_msgs,
             5,
-            [contact1_in2.contact.uuid, "+250788382382", "Eric", matchers.Datetime(), "IN", "red", "Test Channel"],
+            [contact1_in2.contact.uuid, "+250788382382", "Eric", matchers.Datetime(), "IN", "red", "", "Test Channel"],
         )
         self.assertExcelRow(
             sheet_msgs,
