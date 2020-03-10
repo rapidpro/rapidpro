@@ -8,6 +8,7 @@ from temba.contacts.models import (
     EXTERNAL_SCHEME,
     FACEBOOK_SCHEME,
     FCM_SCHEME,
+    FRESHCHAT_SCHEME,
     LINE_SCHEME,
     TEL_SCHEME,
     TELEGRAM_SCHEME,
@@ -35,6 +36,7 @@ URN_SCHEME_ICONS = {
     LINE_SCHEME: "icon-line",
     EXTERNAL_SCHEME: "icon-channel-external",
     FCM_SCHEME: "icon-fcm",
+    FRESHCHAT_SCHEME: "icon-freshchat",
     WHATSAPP_SCHEME: "icon-whatsapp",
 }
 
@@ -51,9 +53,12 @@ ACTIVITY_ICONS = {
     "contact_name_changed": "icon-vcard",
     "contact_urns_changed": "icon-address-book",
     "email_created": "icon-envelop",
+    "email_sent": "icon-envelop",
+    "error": "icon-warning",
+    "failure": "icon-warning",
     "flow_entered": "icon-tree-2",
     "flow_exited:expired": "icon-clock",
-    "flow_exited:interrupted": "icon-warning",
+    "flow_exited:interrupted": "icon-cancel-circle",
     "flow_exited:completed": "icon-checkmark",
     "input_labels_added": "icon-tags",
     "msg_created": "icon-bubble-right",
@@ -138,7 +143,7 @@ def history_icon(item):
     variant = None
 
     if event_type == "msg_created":
-        if obj.broadcast and obj.broadcast.recipient_count and obj.broadcast.recipient_count > 1:
+        if obj.broadcast and obj.broadcast.get_message_count() and obj.broadcast.get_message_count() > 1:
             variant = "failed" if obj.status in ("E", "F") else "broadcast"
         elif obj.msg_type == "V":
             variant = "voice"
@@ -186,12 +191,24 @@ def history_class(item):
     else:
         classes.append("non-msg")
 
-        if item["type"] == "webhook_called" and not obj.is_success:
+        if item["type"] == "error" or item["type"] == "failure":
+            classes.append("warning")
+        elif item["type"] == "webhook_called" and not obj.is_success:
             classes.append("warning")
         elif item["type"] == "call_started" and obj.status == IVRCall.FAILED:
             classes.append("warning")
         elif item["type"] == "campaign_fired" and obj.fired_result == EventFire.RESULT_SKIPPED:
             classes.append("skipped")
+
+    if item["type"] not in (
+        "call_started",
+        "campaign_fired",
+        "flow_entered",
+        "flow_exited",
+        "msg_created",
+        "msg_received",
+    ):
+        classes.append("detail-event")
 
     return " ".join(classes)
 

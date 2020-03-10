@@ -6,71 +6,110 @@ export default class Button extends LitElement {
 
   static get styles() {
     return css`
-      .button {
+      :host {
+        display: inline-block;
+        font-family: var(--font-family);
+        font-weight: 200;
+      }
+
+      .button-container {
         background: blue;
         color: #fff;
         cursor: pointer;
-        display: inline-block;
+        display: block;
         border-radius: var(--curvature);
         outline: none;
-        transition: all ease-in 150ms;
+        transition: background ease-in 100ms;
+        user-select: none;
+        text-align: center;
       }
 
-      .button:focus {
+      .button-secondary:hover .button-mask{
+        border: 1px solid var(--color-button-secondary);
+      }
+
+      .button-mask:hover {
+        background: rgba(0,0,0,.1);
+      }
+
+      .button-container:focus {
         outline: none;
         margin: 0;
       }
 
-      .button:focus .mask{
+      .button-container:focus .button-mask {
         background: rgb(0,0,0,.1);
         box-shadow: 0 0 0px 1px var(--color-focus);
       }
 
-      .button.secondary:focus .mask{
+      .button-container.button-secondary:focus .button-mask {
         background: transparent;
         box-shadow: 0 0 0px 1px var(--color-focus);
       }
 
-      .mask {
-        padding: 8px 16px;
+      .button-mask {
+        padding: 8px 14px;
         border-radius: var(--curvature);
         border: 1px solid transparent;
-        transition: all ease-in 150ms;
+        transition: all ease-in 100ms;
       }
 
-      .primary {
-        background: var(--color-button-primary);
-        color: var(--color-button-primary-text);
+      .button-container.button-disabled {
+        background: var(--color-button-disabled);
+        color: rgba(255, 255, 255, .45);
       }
 
-      .secondary {
+      .button-container.button-disabled .button-mask {
+        box-shadow: 0 0 0px 1px var(--color-button-disabled);
+      }
+
+      .button-container.button-disabled:hover .button-mask {
+        box-shadow: 0 0 0px 1px var(--color-button-disabled);
+      }
+
+
+      .button-container.button-active .button-mask {
+        box-shadow: inset 0 0 4px 2px rgb(0,0,0, .1);
+      }
+
+      .button-secondary.button-active {
         background: transparent;
         color: var(--color-text);
       }
 
-      .secondary:hover .mask{
-        border: 1px solid var(--color-button-secondary);
+      .button-secondary.active .button-mask{
+        /* box-shadow: inset 0 0 4px 2px rgb(0,0,0, .1); */
+        border: none;
       }
 
-      .button.progress{
-        background: #ddd;
+      .button-container.button-secondary.button-active:focus .button-mask {
+        background: transparent;
+        box-shadow: none;
       }
 
-      .button.progress:focus .mask {
-        box-shadow: 0 0 0px 1px var(--color-button-secondary);
+      .button-primary {
+        background: var(--color-button-primary);
+        color: var(--color-button-primary-text);
+      }
+
+      .button-secondary {
+        background: transparent;
+        color: var(--color-text);
+      }
+
+
+      
+      .button-mask.disabled {
         background: rgba(0,0,0,.1);
       }
 
-      .mask:hover {
-        background: rgba(0,0,0,.1);
-      }
-
-      .secondary .mask:hover {
+      .button-secondary .button-mask:hover {
         background: transparent;
       }
-
-  `;
+    `;
   }
+
+  
 
   @property({type: Boolean})
   primary: boolean;
@@ -81,35 +120,58 @@ export default class Button extends LitElement {
   @property()
   name: string;
 
-  @property()
-  inProgessName: string;
+  @property({type: Boolean})
+  disabled: boolean;
 
   @property({type: Boolean})
-  isProgress: boolean;
+  active: boolean;
 
-  public setProgress(progress: boolean): void {
-    this.isProgress = progress;
+  @property({type: String})
+  href: string;
+
+  private handleClick(evt: MouseEvent) {
+    if (this.href) {
+      this.ownerDocument.location.href = this.href;
+      evt.preventDefault();
+      evt.stopPropagation();
+    }
   }
 
   private handleKeyUp(event: KeyboardEvent): void {
+    this.active = false;
     if (event.key === "Enter") {
       this.click();
     }
   }
 
+  private handleMouseDown(event: MouseEvent): void {
+    if (!this.disabled) {
+      this.active = true;
+    }
+  }
+
+  private handleMouseUp(event: MouseEvent): void {
+    this.active = false;
+  }
+
   public render(): TemplateResult {
       return html`
-        <div class="button 
+        <div class="button-container 
           ${getClasses({ 
-          "progress": this.isProgress,
-          "primary": this.primary,
-          "secondary": this.secondary
+          "button-primary": this.primary,
+          "button-secondary": this.secondary,
+          "button-disabled": this.disabled,
+          "button-active": this.active,
           })}"
           tabindex="0"
+          @mousedown=${this.handleMouseDown}
+          @mouseup=${this.handleMouseUp}
+          @mouseleave=${this.handleMouseUp}
           @keyup=${this.handleKeyUp}
+          @click=${this.handleClick}
         >
-          <div class="mask">
-            ${this.isProgress ? this.inProgessName || this.name : this.name}
+          <div class="button-mask">
+            <div class="button-name">${this.name}</div>
           </div>
         </div>
       `;

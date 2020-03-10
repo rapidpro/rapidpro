@@ -12,12 +12,15 @@ import stripe
 import stripe.error
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
+from smartmin.csv_imports.models import ImportTask
+from smartmin.tests import SmartminTestMixin
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.core.exceptions import ValidationError
 from django.http import HttpRequest, HttpResponse
+from django.test import TransactionTestCase
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -26,8 +29,10 @@ from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
-from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel
+from temba.campaigns.models import Campaign, CampaignEvent, EventFire
+from temba.channels.models import Alert, Channel, SyncEvent
+from temba.classifiers.models import Classifier
+from temba.classifiers.types.wit import WitType
 from temba.contacts.models import (
     TEL_SCHEME,
     TWITTER_SCHEME,
@@ -38,22 +43,27 @@ from temba.contacts.models import (
     ContactURN,
     ExportContactsTask,
 )
-from temba.flows.models import ActionSet, ExportFlowResultsTask, Flow, FlowLabel, FlowRun
+from temba.contacts.omnibox import omnibox_serialize
+from temba.contacts.search import ParsedQuery
+from temba.flows.models import ActionSet, ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
+from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
 from temba.orgs.models import Debit, UserSettings
-from temba.tests import ESMockWithScroll, MockResponse, TembaTest, matchers
+from temba.request_logs.models import HTTPLog
+from temba.tests import ESMockWithScroll, MockResponse, TembaTest, TembaTestMixin, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json, languages
 from temba.utils.email import link_components
+from temba.values.constants import Value
 
 from .context_processors import GroupPermWrapper
 from .models import CreditAlert, Invitation, Language, Org, TopUp, TopUpCredits
-from .tasks import squash_topupcredits
+from .tasks import resume_failed_tasks, squash_topupcredits
 
 
 class OrgContextProcessorTest(TembaTest):
@@ -175,11 +185,20 @@ class UserTest(TembaTest):
         self.assertFalse(self.org.is_active)
 
 
-class OrgDeleteTest(TembaTest):
+class OrgDeleteTest(TransactionTestCase, TembaTestMixin, SmartminTestMixin):
     def setUp(self):
-        super().setUp()
-
+        self.setUpOrg()
         self.setUpLocations()
+
+        # set up a sync event and alert on our channel
+        SyncEvent.create(
+            self.channel,
+            dict(pending=[], retry=[], power_source="P", power_status="full", power_level="100", network_type="W"),
+            [],
+        )
+        Alert.objects.create(
+            channel=self.channel, alert_type=Alert.TYPE_SMS, created_by=self.admin, modified_by=self.admin
+        )
 
         # create a second child org
         self.child_org = Org.objects.create(
@@ -204,6 +223,23 @@ class OrgDeleteTest(TembaTest):
             config={Channel.CONFIG_FCM_ID: "123"},
         )
 
+        # add a classifier
+        self.c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {}, sync=False)
+
+        # add a global
+        self.global1 = Global.get_or_create(self.org, self.admin, "org_name", "Org Name", "Acme Ltd")
+
+        HTTPLog.objects.create(
+            classifier=self.c1,
+            url="http://org2.bar/zap",
+            request="GET /zap",
+            response=" OK 200",
+            is_error=False,
+            log_type=HTTPLog.CLASSIFIER_CALLED,
+            request_time=10,
+            org=self.org,
+        )
+
         # our user is a member of two orgs
         self.parent_org = self.org
         self.child_org.administrators.add(self.user)
@@ -219,6 +255,9 @@ class OrgDeleteTest(TembaTest):
 
         # add some fields
         parent_field = self.create_field("age", "Parent Age", org=self.parent_org)
+        parent_datetime_field = self.create_field(
+            "planting_date", "Planting Date", value_type=Value.TYPE_DATETIME, org=self.parent_org
+        )
         child_field = self.create_field("age", "Child Age", org=self.child_org)
 
         # add some groups
@@ -243,6 +282,7 @@ class OrgDeleteTest(TembaTest):
             .complete()
             .save()
         )
+        parent_flow.channel_dependencies.add(self.channel)
 
         # and our child org too
         self.org = self.child_org
@@ -256,6 +296,20 @@ class OrgDeleteTest(TembaTest):
         parent_flow.labels.add(flow_label1)
         child_flow.labels.add(flow_label2)
 
+        # add a campaign, event and fire to our parent org
+        campaign = Campaign.create(self.parent_org, self.admin, "Reminders", parent_group)
+        event1 = CampaignEvent.create_flow_event(
+            self.parent_org,
+            self.admin,
+            campaign,
+            parent_datetime_field,
+            offset=1,
+            unit="W",
+            flow=parent_flow,
+            delivery_hour="13",
+        )
+        EventFire.objects.create(event=event1, contact=parent_contact, scheduled=timezone.now())
+
         # triggers for our flows
         parent_trigger = Trigger.create(
             self.parent_org,
@@ -266,6 +320,8 @@ class OrgDeleteTest(TembaTest):
             keyword="favorites",
         )
         parent_trigger.groups.add(self.parent_org.all_groups.all().first())
+
+        FlowStart.objects.create(flow=parent_flow)
 
         child_trigger = Trigger.create(
             self.child_org,
@@ -330,6 +386,7 @@ class OrgDeleteTest(TembaTest):
 
             # add in some webhook results
             resthook = Resthook.get_or_create(org, "registration", self.admin)
+            resthook.subscribers.create(target_url="http://foo.bar", created_by=self.admin, modified_by=self.admin)
             WebHookEvent.objects.create(org=org, resthook=resthook, data={})
             WebHookResult.objects.create(
                 org=self.org, url="http://foo.bar", request="GET http://foo.bar", status_code=200, response="zap!"
@@ -379,7 +436,6 @@ class OrgDeleteTest(TembaTest):
         self.release_org(self.parent_org, self.child_org, immediately=True)
 
     def test_release_child_immediately(self):
-
         # 300 credits were given to our child org and each used one
         self.assertEqual(698, self.parent_org.get_credits_remaining())
         self.assertEqual(299, self.child_org.get_credits_remaining())
@@ -638,7 +694,9 @@ class OrgTest(TembaTest):
         # while we are suspended, we can't send broadcasts
         send_url = reverse("msgs.broadcast_send")
         mark = self.create_contact("Mark", number="+12065551212")
-        post_data = dict(text="send me ur bank account login im ur friend.", omnibox="c-%s" % mark.uuid)
+
+        omnibox = omnibox_serialize(self.org, [], [mark], True)
+        post_data = dict(text="send me ur bank account login im ur friend.", omnibox=omnibox)
         response = self.client.post(send_url, post_data, follow=True)
 
         self.assertEqual(
@@ -1758,7 +1816,7 @@ class OrgTest(TembaTest):
     def test_dtone_account(self):
         self.login(self.admin)
 
-        # connect DTOne
+        # connect DT One
         dtone_account_url = reverse("orgs.org_dtone_account")
 
         with patch("requests.post") as mock_post:
@@ -1767,7 +1825,7 @@ class OrgTest(TembaTest):
                 dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
             )
 
-            self.assertContains(response, "Your DTOne API key and secret seem invalid.")
+            self.assertContains(response, "Your DT One API key and secret seem invalid.")
             self.assertFalse(self.org.is_connected_to_dtone())
 
             mock_post.return_value = MockResponse(
@@ -1779,7 +1837,7 @@ class OrgTest(TembaTest):
             )
 
             self.assertContains(
-                response, "Connecting to your DTOne account failed with error text: Failed Authentication"
+                response, "Connecting to your DT One account failed with error text: Failed Authentication"
             )
 
             self.assertFalse(self.org.is_connected_to_dtone())
@@ -1796,7 +1854,7 @@ class OrgTest(TembaTest):
                 dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
             )
             self.assertNoFormErrors(response)
-            # DTOne should be connected
+            # DT One should be connected
             self.org = Org.objects.get(pk=self.org.pk)
             self.assertTrue(self.org.is_connected_to_dtone())
             self.assertEqual(self.org.config["TRANSFERTO_ACCOUNT_LOGIN"], "login")
@@ -1820,7 +1878,7 @@ class OrgTest(TembaTest):
             response = self.client.post(
                 dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
             )
-            self.assertContains(response, "Your DTOne API key and secret seem invalid.")
+            self.assertContains(response, "Your DT One API key and secret seem invalid.")
             self.assertFalse(self.org.is_connected_to_dtone())
 
         # no account connected, do not show the button to Transfer logs
@@ -2590,6 +2648,91 @@ class OrgTest(TembaTest):
         )
         self.assertAlmostEqual(self.org.account_value(), 1.23)
 
+    @patch("temba.msgs.tasks.export_messages_task.delay")
+    @patch("temba.flows.tasks.export_flow_results_task.delay")
+    @patch("temba.contacts.tasks.export_contacts_task.delay")
+    @patch("smartmin.csv_imports.models.ImportTask.start")
+    def test_resume_failed_task(
+        self, mock_import_task, mock_export_contacts_task, mock_export_flow_results_task, mock_export_messages_task
+    ):
+        mock_import_task.return_value = None
+        mock_export_contacts_task.return_value = None
+        mock_export_flow_results_task.return_value = None
+        mock_export_messages_task.return_value = None
+
+        filename = "sample_contacts.xls"
+        import_params = dict(
+            org_id=self.org.id, timezone=str(self.org.timezone), extra_fields=[], original_filename=filename
+        )
+
+        ImportTask.objects.create(
+            created_by=self.admin,
+            modified_by=self.admin,
+            csv_file="test_imports/" + filename,
+            model_class="Contact",
+            import_params=json.dumps(import_params),
+            import_log="",
+            task_id="A",
+            task_status=ImportTask.FAILURE,
+        )
+
+        ImportTask.objects.create(
+            created_by=self.admin,
+            modified_by=self.admin,
+            csv_file="test_imports/" + filename,
+            model_class="Contact",
+            import_params=json.dumps(import_params),
+            import_log="",
+            task_id="A",
+            task_status=ImportTask.SUCCESS,
+        )
+
+        ImportTask.objects.create(
+            created_by=self.admin,
+            modified_by=self.admin,
+            csv_file="test_imports/" + filename,
+            model_class="Contact",
+            import_params=json.dumps(import_params),
+            import_log="",
+            task_id="B",
+        )
+
+        ExportMessagesTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportMessagesTask.STATUS_FAILED
+        )
+        ExportMessagesTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportMessagesTask.STATUS_COMPLETE
+        )
+        ExportMessagesTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
+
+        ExportFlowResultsTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportFlowResultsTask.STATUS_FAILED
+        )
+        ExportFlowResultsTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportFlowResultsTask.STATUS_COMPLETE
+        )
+        ExportFlowResultsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
+
+        ExportContactsTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportContactsTask.STATUS_FAILED
+        )
+        ExportContactsTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportContactsTask.STATUS_COMPLETE
+        )
+        ExportContactsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
+
+        two_hours_ago = timezone.now() - timedelta(hours=2)
+        ImportTask.objects.all().update(modified_on=two_hours_ago)
+        ExportMessagesTask.objects.all().update(modified_on=two_hours_ago)
+        ExportFlowResultsTask.objects.all().update(modified_on=two_hours_ago)
+        ExportContactsTask.objects.all().update(modified_on=two_hours_ago)
+
+        resume_failed_tasks()
+        mock_import_task.assert_called_once()
+        mock_export_contacts_task.assert_called_once()
+        mock_export_flow_results_task.assert_called_once()
+        mock_export_messages_task.assert_called_once()
+
 
 class AnonOrgTest(TembaTest):
     """
@@ -2618,16 +2761,6 @@ class AnonOrgTest(TembaTest):
         # but the id is
         self.assertContains(response, masked)
         self.assertContains(response, ContactURN.ANON_MASK_HTML)
-
-        # can't search for it
-        with patch("temba.utils.es.ES") as mock_ES:
-            mock_ES.search.return_value = {"_hits": []}
-            mock_ES.count.return_value = {"count": 0}
-            response = self.client.get(reverse("contacts.contact_list") + "?search=788")
-
-            # can't look for 788 as that is in the search box..
-            self.assertNotContains(response, "123123")
-            self.assertContains(response, "No matching contacts.")
 
         # create an outgoing message, check number doesn't appear in outbox
         msg1 = self.create_outgoing_msg(contact, "hello", status="Q")
@@ -2932,6 +3065,9 @@ class OrgCRUDLTest(TembaTest):
         topup = TopUp.objects.get(org=org)
         self.assertEqual(topup.credits, 1000)
         self.assertEqual(topup.price, 0)
+
+        # and 3 sample flows
+        self.assertEqual(3, org.flows.count())
 
         # fake session set_org to make the test work
         user.set_org(org)
@@ -3446,7 +3582,7 @@ class BulkExportTest(TembaTest):
         # import a flow that triggers another flow
         contact1 = self.create_contact("Marshawn", "+14255551212")
         substitutions = dict(contact_id=contact1.id)
-        flow = self.get_flow("triggered", substitutions)
+        flow = self.get_flow("triggered", substitutions, legacy=True)
 
         # read in the old version 8 raw json
         old_json = self.get_import_json("triggered", substitutions)
@@ -3463,10 +3599,10 @@ class BulkExportTest(TembaTest):
 
         # now make sure a call to get dependencies succeeds and shows our flow
         triggeree = Flow.objects.filter(name="Triggeree").first()
-        self.assertIn(triggeree, flow.get_dependencies())
+        self.assertIn(triggeree, flow.flow_dependencies.all())
 
     def test_trigger_flow(self):
-        self.import_file("triggered_flow")
+        self.import_file("triggered_flow", legacy=True)
 
         flow = Flow.objects.filter(name="Trigger a Flow", org=self.org).first()
         definition = flow.as_json()
@@ -3497,7 +3633,7 @@ class BulkExportTest(TembaTest):
 
         parent = Flow.objects.filter(name="Parent Flow").first()
         child = Flow.objects.filter(name="Child Flow").first()
-        self.assertIn(child, parent.get_dependencies())
+        self.assertIn(child, parent.flow_dependencies.all())
 
         self.login(self.admin)
         response = self.client.get(reverse("orgs.org_export"))
@@ -3511,7 +3647,7 @@ class BulkExportTest(TembaTest):
     def test_flow_export_dynamic_group(self):
         from temba.flows.legacy import AddToGroupAction
 
-        flow = self.get_flow("favorites")
+        flow = self.get_flow("favorites", legacy=True)
 
         # get one of our flow actionsets, change it to an AddToGroupAction
         actionset = ActionSet.objects.filter(flow=flow).order_by("y").first()
@@ -3551,7 +3687,7 @@ class BulkExportTest(TembaTest):
 
     def test_missing_flows_on_import(self):
         # import a flow that starts a missing flow
-        self.import_file("start_missing_flow")
+        self.import_file("start_missing_flow", legacy=True)
 
         # the flow that kicks off our missing flow
         flow = Flow.objects.get(name="Start Missing Flow")
@@ -3569,7 +3705,7 @@ class BulkExportTest(TembaTest):
         self.assertEqual(1, len(other_actionset.get_actions()))
 
         # now make sure it does the same thing from an actionset
-        self.import_file("start_missing_flow_from_actionset")
+        self.import_file("start_missing_flow_from_actionset", legacy=True)
         self.assertIsNotNone(Flow.objects.filter(name="Start Missing Flow").first())
         self.assertIsNone(Flow.objects.filter(name="Missing Flow").first())
 
@@ -3606,6 +3742,16 @@ class BulkExportTest(TembaTest):
         self.assertFormError(
             response, "form", "import_file", "This file is no longer valid. Please export a new version and try again."
         )
+
+        # try a file which can be migrated forwards
+        response = self.client.post(
+            reverse("orgs.org_import"),
+            {"import_file": open("%s/test_flows/favorites_v4.json" % settings.MEDIA_ROOT, "rb")},
+        )
+        self.assertEqual(302, response.status_code)
+
+        flow = self.org.flows.filter(name="Favorites").get()
+        self.assertEqual(Flow.CURRENT_SPEC_VERSION, flow.version_number)
 
         # simulate an unexpected exception during import
         with patch("temba.triggers.models.Trigger.import_triggers") as validate:
@@ -3677,12 +3823,12 @@ class BulkExportTest(TembaTest):
         self.assertNotEqual(original_fire.id, new_event.fires.all().first().id)
 
     def test_import_mixed_flow_versions(self):
-        self.import_file("mixed_versions")
+        self.import_file("mixed_versions", legacy=True)
 
         group = ContactGroup.user_groups.get(name="Survey Audience")
 
         child = Flow.objects.get(name="New Child")
-        self.assertEqual(child.version_number, "13.0.0")
+        self.assertEqual(child.version_number, Flow.CURRENT_SPEC_VERSION)
         self.assertEqual(set(child.flow_dependencies.all()), set())
         self.assertEqual(set(child.group_dependencies.all()), {group})
 
@@ -3733,7 +3879,7 @@ class BulkExportTest(TembaTest):
         self.assertEqual(set(parent.flow_dependencies.all()), {child2})
 
     def test_implicit_group_imports_legacy(self):
-        self.import_file("cataclysm_legacy")
+        self.import_file("cataclysm_legacy", legacy=True)
         flow = Flow.objects.get(name="Cataclysmic")
 
         from temba.flows.legacy.tests import get_legacy_groups
@@ -3751,31 +3897,31 @@ class BulkExportTest(TembaTest):
             )
 
     def validate_flow_dependencies(self, definition):
-        flow_info = mailroom.get_client().flow_inspect(definition)
+        flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
         deps = flow_info["dependencies"]
 
-        for ref in deps.get("fields", []):
+        for dep in [d for d in deps if d["type"] == "field"]:
             self.assertTrue(
-                ContactField.user_fields.filter(key=ref["key"]).exists(),
-                msg=f"missing field[key={ref['key']}, name={ref['name']}]",
+                ContactField.user_fields.filter(key=dep["key"]).exists(),
+                msg=f"missing field[key={dep['key']}, name={dep['name']}]",
             )
-        for ref in deps.get("flows", []):
+        for dep in [d for d in deps if d["type"] == "flow"]:
             self.assertTrue(
-                Flow.objects.filter(uuid=ref["uuid"]).exists(),
-                msg=f"missing flow[uuid={ref['uuid']}, name={ref['name']}]",
+                Flow.objects.filter(uuid=dep["uuid"]).exists(),
+                msg=f"missing flow[uuid={dep['uuid']}, name={dep['name']}]",
             )
-        for ref in deps.get("groups", []):
+        for dep in [d for d in deps if d["type"] == "group"]:
             self.assertTrue(
-                ContactGroup.user_groups.filter(uuid=ref["uuid"]).exists(),
-                msg=f"missing group[uuid={ref['uuid']}, name={ref['name']}]",
+                ContactGroup.user_groups.filter(uuid=dep["uuid"]).exists(),
+                msg=f"missing group[uuid={dep['uuid']}, name={dep['name']}]",
             )
 
     def test_implicit_field_and_group_imports(self):
         """
         Tests importing flow definitions without fields and groups included in the export
         """
-
         data = self.get_import_json("cataclysm")
+
         del data["fields"]
         del data["groups"]
 
@@ -3796,11 +3942,15 @@ class BulkExportTest(TembaTest):
         """
         Tests importing flow definitions with groups included in the export but not fields
         """
-
         data = self.get_import_json("cataclysm")
         del data["fields"]
 
-        with ESMockWithScroll():
+        with patch("temba.contacts.search.parse_query") as mock:
+            mock.side_effect = [
+                ParsedQuery("facts_per_day = 1", ["facts_per_day"], {}, allow_as_group=True),
+                ParsedQuery('likes_cats = "true"', ["likes_cats"], {}, allow_as_group=True),
+            ]
+
             self.org.import_app(data, self.admin, site="http://rapidpro.io")
 
         flow = Flow.objects.get(name="Cataclysmic")
@@ -3832,8 +3982,11 @@ class BulkExportTest(TembaTest):
         """
         Tests importing flow definitions with groups and fields included in the export
         """
-
-        with ESMockWithScroll():
+        with patch("temba.contacts.search.parse_query") as mock:
+            mock.side_effect = [
+                ParsedQuery("facts_per_day = 1", ["facts_per_day"], {}, allow_as_group=True),
+                ParsedQuery('likes_cats = "true"', ["likes_cats"], {}, allow_as_group=True),
+            ]
             self.import_file("cataclysm")
 
         flow = Flow.objects.get(name="Cataclysmic")
@@ -3894,7 +4047,7 @@ class BulkExportTest(TembaTest):
             )
 
         # import all our bits
-        self.import_file("the_clinic")
+        self.import_file("the_clinic", legacy=True)
 
         # check that the right number of objects successfully imported for our app
         assert_object_counts()
@@ -3920,7 +4073,7 @@ class BulkExportTest(TembaTest):
         message_flow.update_single_message_flow(self.admin, {"base": "No reminders for you!"}, base_language="base")
 
         # now reimport
-        self.import_file("the_clinic")
+        self.import_file("the_clinic", legacy=True)
 
         # our flow should get reset from the import
         confirm_appointment = Flow.objects.get(pk=confirm_appointment.pk)
@@ -4081,8 +4234,11 @@ class BulkExportTest(TembaTest):
         confirm_appointment = Flow.objects.get(name="Confirm Appointment", is_active=True)
         self.assertEqual(60, confirm_appointment.expires_after_minutes)
 
-        # now delete a flow
+        # should be unarchived
         register = Flow.objects.filter(name="Register Patient").first()
+        self.assertFalse(register.is_archived)
+
+        # now delete a flow
         register.is_active = False
         register.save()
 

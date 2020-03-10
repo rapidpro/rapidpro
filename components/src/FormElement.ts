@@ -8,6 +8,18 @@ import { property } from 'lit-element';
 export default class FormElement extends RapidElement {
   private hiddenInputs: HTMLInputElement[] = [];
 
+  @property({type: String, attribute: "help_text"})
+  helpText: string;
+
+  @property({type: Boolean, attribute: "widget_only"})
+  widgetOnly: boolean;
+
+  @property({type: String})
+  label: string;
+  
+  @property({type: Array})
+  errors: string[];
+  
   @property({type: Array})
   values: any[] = [];
 

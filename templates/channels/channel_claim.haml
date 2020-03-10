@@ -8,7 +8,7 @@
         -trans "Add a Channel"
       .instructions
         %p
-          -blocktrans with name=brand.name
+          -blocktrans trimmed with name=brand.name
             To get started you need to add a channel to your account. A channel is a phone number or social network
             account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
             Android phone and your own cell phone plan, or we can connect you with a service provider in your country
@@ -36,13 +36,13 @@
     -else
       .claim-row.android-channel.recommended
         .recommendation
-          -blocktrans
+          -blocktrans trimmed
             We recommend using an Android phone with a local sim card for your country. This phone
             will send and receive messages for you. You will only need one phone per country depending on
             message volume. Don't worry! The people you are texting with can still use basic phones.
         .row
           .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_android' %}"}
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.types.android.claim' %}"}
               .btn-container
                 .claim-glyph.icon-channel-android
                 %p.claim-text
@@ -51,7 +51,7 @@
           .span8
             .claim-description
               %div
-                -blocktrans
+                -blocktrans trimmed
                   Works in any country and uses the cell phone plan
                   you already have. You just need an Android phone
                   to get started.
@@ -63,7 +63,7 @@
       .claim-row.android-channel
         .row
           .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_android' %}"}
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.types.android.claim' %}"}
               .btn-container
                 .claim-glyph.icon-channel-android
                 %p.claim-text
@@ -72,7 +72,7 @@
           .span8
             .claim-description
               %div
-                -blocktrans
+                -blocktrans trimmed
                   Works in any country and uses the cell phone plan
                   you already have. You just need an Android phone
                   to get started.

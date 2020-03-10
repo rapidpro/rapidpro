@@ -37,4 +37,4 @@ class HTTPLogCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             queryset = super().derive_queryset(**kwargs)
-            return queryset.filter(classifier__org=self.derive_org())
+            return queryset.filter(org=self.derive_org())

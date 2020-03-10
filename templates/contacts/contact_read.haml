@@ -29,8 +29,9 @@
         .{class:"glyph {{urn|urn_icon}}"}
         -if not user_org.is_anon
           -if urn.sendable
-            %a.contact-urn-path{href:"javascript:showComposeInitialized(\"u={{ urn.id }}\", null, refreshRecents)"}><
-              {{urn|format_urn:user_org}}
+            %rp-modax.urn-link{ header:'Send Message', endpoint:"{% url 'msgs.broadcast_send' %}?u={{urn.id}}"}
+              %a.contact-urn-path{href:'#'}><
+                {{urn|format_urn:user_org}}
           -else
             %i.contact-urn-path
               -if urn.scheme == 'mailto'
@@ -92,7 +93,7 @@
           -trans "Created On"
 
         .contact-field-value
-          {% pretty_datetime contact.created_on %}
+          {% format_datetime contact.created_on %}
 
       -if contact_language
         .contact-field
@@ -158,7 +159,7 @@
                 -trans "Start"
                 %a.href{ href: "{% url 'flows.flow_editor' evt.flow_uuid %}" }= evt.flow_name
           %td.created_on
-            {% pretty_datetime evt.scheduled %}
+            {{ evt.scheduled|naturaltime }}
 
             .repeats
               -if evt.repeat_period == 'D'
@@ -170,8 +171,16 @@
       %a.pull-right.show-all.upcoming
         more
 
-  %h5
-    -trans "Message History"
+  %h5{style:"margin-top: 40px;"}
+    -trans "History"
+
+    .flow-event-display-selector.pull-right
+      %a.is-active(href="#")
+        -trans "Full"
+      |
+      %a.summary-events-only(href="#")
+        -trans "Summary"
+
   %table.activity.history{style:'padding:0;margin:0'}
     // poll for our most recent messages
 
@@ -220,6 +229,11 @@
 -block extra-less
   -compress css
 
+    :css
+      .urn-link {
+        display: inline-block;
+      }
+
     {% lessblock %}
       :plain
         .show-all {
@@ -242,6 +256,18 @@
             cursor: pointer;
           }
         }
+
+        .flow-event-display-selector {
+          a {
+              display: inline-block;
+              &.is-active {
+                cursor: none;
+                color: #999999;
+                cursor: text;
+                text-decoration: none;
+              }
+            }
+          }
 
         table.activity {
 
@@ -326,6 +352,10 @@
               }
             }
 
+            &.detail-event {
+              display: table-row;
+            }
+
             &.non-msg {
               background: #fafafa;
 
@@ -339,6 +369,14 @@
 
               .icon {
                 color: rgba(0, 0, 0, 0.20);
+              }
+            }
+          }
+
+          &.summary-events-only {
+            tbody {
+              tr.detail-event {
+                display: none;
               }
             }
           }
@@ -459,6 +497,29 @@
     var startTime = null;
 
     $(document).ready(function() {
+      $(".flow-event-display-selector a").each(function() {
+        var onlySummary = getCookie('rp-summaryEventsDisplay') === 'summary';
+        if(onlySummary && $(this).hasClass('summary-events-only')) {
+          $(this).parent('.flow-event-display-selector').children('a').removeClass('is-active');
+          $(this).addClass('is-active');
+          $('table.activity.history').addClass('summary-events-only');
+        }
+      })
+
+
+
+      $(".flow-event-display-selector a").on('click', function() {
+        $(this).parent('.flow-event-display-selector').children('a').removeClass('is-active');
+        $(this).addClass('is-active');
+        if($(this).hasClass('summary-events-only')) {
+          $('table.activity.history').addClass('summary-events-only');
+          document.cookie = "rp-summaryEventsDisplay=summary;path=/;expires=-1";
+        } else {
+          $('table.activity.history').removeClass('summary-events-only');
+          document.cookie = "rp-summaryEventsDisplay=all;path=/;expires=-1";
+        }
+        return false;
+      });
 
       $('.show-all.upcoming').live('click', function() {
         $(this).hide();
@@ -539,28 +600,6 @@
 
     {% endif %}
 
-
-
-    {% if org_perms.msgs.broadcast_send %}
-    $('#send').submit(function(){
-      var $textarea = $('#id_text');
-
-      if(!$textarea.val()) {
-        $textarea.css({'border':'1px solid #da4f49', 'color':'#da4f49'});
-        $('.failed').remove();
-        $('{% trans "<p>This field is required, please fill in the message to send out</p>" %}').insertAfter("#id_send").addClass('failed');
-        return false;
-      } else if($textarea.val().length > 160) {
-        $('.failed').remove();
-        $textarea.css({'border':'1px solid #da4f49', 'color':'#da4f49'});
-        $('{%trans "<p>Ensure this value has at most 160 characters (it has " %}' + $textarea.val().length + ') </p> ').insertAfter("#id_send").addClass('failed');
-        return false;
-      } else {
-        return true;
-      }
-    });
-    {% endif %}
-
     {% if org_perms.contacts.contact_update %}
     function removeContactFromGroup(groupId, contactId){
       var elementId = '#group_' + groupId + '_' + contactId;
@@ -580,21 +619,5 @@
       }}, false);
       modal.setPrimaryButton('{% trans "Delete" %}');
       modal.show();
-    });
-    {% endif %}
-
-    {% if org_perms.msgs.broadcast_send %}
-    $(".contact-send-button").on('click', function() {
-      {% if has_sendable_urn %}
-      $(".gear-menu").removeClass("open");
-      showComposeInitialized("c={{object.uuid}}", null, refreshRecents);
-      {% else %}
-      modal = new Modal('{% trans "Error" %}', '{% trans "This contact does not have any number which you can send to. Please edit the contact first or add a new phone." %}');
-      modal.addClass('alert');
-      modal.setListeners({onPrimary: function(){ modal.dismiss(); }}, false);
-      modal.show();
-      {% endif %}
-
-      return false;
     });
     {% endif %}

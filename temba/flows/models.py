@@ -20,6 +20,7 @@ from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
 from django.db.models import Max, Q, Sum
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
@@ -28,8 +29,10 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
 from temba.classifiers.models import Classifier
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
+from temba.globals.models import Global
 from temba.msgs.models import Label, Msg
 from temba.orgs.models import Org
+from temba.templates.models import Template
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
@@ -96,28 +99,7 @@ class FlowVersionConflictException(FlowException):
 
 
 FLOW_LOCK_TTL = 60  # 1 minute
-FLOW_LOCK_KEY = "org:%d:lock:flow:%d:%s"
-
-FLOW_PROP_CACHE_KEY = "org:%d:cache:flow:%d:%s"
-FLOW_PROP_CACHE_TTL = 24 * 60 * 60 * 7  # 1 week
-
-
-class FlowLock(Enum):
-    """
-    Locks that are flow specific
-    """
-
-    participation = 1
-    definition = 3
-
-
-class FlowPropsCache(Enum):
-    """
-    Properties of a flow that we cache
-    """
-
-    terminal_nodes = 1
-    category_nodes = 2
+FLOW_LOCK_KEY = "org:%d:lock:flow:%d:definition"
 
 
 class Flow(TembaModel):
@@ -156,11 +138,15 @@ class Flow(TembaModel):
     METADATA_RESULTS = "results"
     METADATA_DEPENDENCIES = "dependencies"
     METADATA_WAITING_EXIT_UUIDS = "waiting_exit_uuids"
+    METADATA_PARENT_REFS = "parent_refs"
+    METADATA_ISSUES = "issues"
 
     # items in the response from mailroom flow inspection
     INSPECT_RESULTS = "results"
     INSPECT_DEPENDENCIES = "dependencies"
     INSPECT_WAITING_EXITS = "waiting_exits"
+    INSPECT_PARENT_REFS = "parent_refs"
+    INSPECT_ISSUES = "issues"
 
     # items in the flow definition JSON
     DEFINITION_UUID = "uuid"
@@ -196,38 +182,9 @@ class Flow(TembaModel):
 
     ENTRY_TYPES = ((NODE_TYPE_RULESET, "Rules"), (NODE_TYPE_ACTIONSET, "Actions"))
 
-    VERSIONS = [
-        "1",
-        "2",
-        "3",
-        "4",
-        "5",
-        "6",
-        "7",
-        "8",
-        "9",
-        "10",
-        "10.1",
-        "10.2",
-        "10.3",
-        "10.4",
-        "11.0",
-        "11.1",
-        "11.2",
-        "11.3",
-        "11.4",
-        "11.5",
-        "11.6",
-        "11.7",
-        "11.8",
-        "11.9",
-        "11.10",
-        "11.11",
-        "11.12",
-    ]
-
-    FINAL_LEGACY_VERSION = VERSIONS[-1]
-    GOFLOW_VERSION = "13.0.0"
+    FINAL_LEGACY_VERSION = legacy.VERSIONS[-1]
+    INITIAL_GOFLOW_VERSION = "13.0.0"  # initial version of flow spec to use new engine
+    CURRENT_SPEC_VERSION = "13.1.0"  # current flow spec version
 
     DEFAULT_EXPIRES_AFTER = 60 * 12
 
@@ -276,35 +233,21 @@ class Flow(TembaModel):
         default=FINAL_LEGACY_VERSION, max_length=8, help_text=_("The flow version this definition is in")
     )
 
-    flow_dependencies = models.ManyToManyField(
-        "Flow",
-        related_name="dependent_flows",
-        verbose_name=("Flow Dependencies"),
-        blank=True,
-        help_text=_("Any flows this flow uses"),
-    )
-
-    group_dependencies = models.ManyToManyField(
-        ContactGroup,
-        related_name="dependent_flows",
-        verbose_name=_("Group Dependencies"),
-        blank=True,
-        help_text=_("Any groups this flow uses"),
-    )
-
-    field_dependencies = models.ManyToManyField(
-        ContactField,
-        related_name="dependent_flows",
-        verbose_name="",
-        blank=True,
-        help_text=_("Any fields this flow depends on"),
-    )
-
     channel_dependencies = models.ManyToManyField(Channel, related_name="dependent_flows")
+
+    classifier_dependencies = models.ManyToManyField(Classifier, related_name="dependent_flows")
+
+    field_dependencies = models.ManyToManyField(ContactField, related_name="dependent_flows")
+
+    flow_dependencies = models.ManyToManyField("Flow", related_name="dependent_flows")
+
+    global_dependencies = models.ManyToManyField(Global, related_name="dependent_flows")
+
+    group_dependencies = models.ManyToManyField(ContactGroup, related_name="dependent_flows")
 
     label_dependencies = models.ManyToManyField(Label, related_name="dependent_flows")
 
-    classifier_dependencies = models.ManyToManyField(Classifier, related_name="dependent_flows")
+    template_dependencies = models.ManyToManyField(Template, related_name="dependent_flows")
 
     @classmethod
     def create(
@@ -316,7 +259,6 @@ class Flow(TembaModel):
         expires_after_minutes=DEFAULT_EXPIRES_AFTER,
         base_language=None,
         create_revision=False,
-        use_new_editor=True,
         **kwargs,
     ):
         flow = Flow.objects.create(
@@ -328,26 +270,23 @@ class Flow(TembaModel):
             saved_by=user,
             created_by=user,
             modified_by=user,
-            version_number=Flow.GOFLOW_VERSION if use_new_editor else Flow.FINAL_LEGACY_VERSION,
+            version_number=Flow.CURRENT_SPEC_VERSION,
             **kwargs,
         )
 
         if create_revision:
-            if use_new_editor:
-                flow.save_revision(
-                    user,
-                    {
-                        Flow.DEFINITION_NAME: flow.name,
-                        Flow.DEFINITION_UUID: flow.uuid,
-                        Flow.DEFINITION_SPEC_VERSION: Flow.GOFLOW_VERSION,
-                        Flow.DEFINITION_LANGUAGE: base_language,
-                        Flow.DEFINITION_TYPE: Flow.GOFLOW_TYPES[flow_type],
-                        Flow.DEFINITION_NODES: [],
-                        Flow.DEFINITION_UI: {},
-                    },
-                )
-            else:
-                flow.update(flow.as_json())
+            flow.save_revision(
+                user,
+                {
+                    Flow.DEFINITION_NAME: flow.name,
+                    Flow.DEFINITION_UUID: flow.uuid,
+                    Flow.DEFINITION_SPEC_VERSION: Flow.CURRENT_SPEC_VERSION,
+                    Flow.DEFINITION_LANGUAGE: base_language,
+                    Flow.DEFINITION_TYPE: Flow.GOFLOW_TYPES[flow_type],
+                    Flow.DEFINITION_NODES: [],
+                    Flow.DEFINITION_UI: {},
+                },
+            )
 
         analytics.track(user.username, "nyaruka.flow_created", dict(name=name))
         return flow
@@ -375,7 +314,7 @@ class Flow(TembaModel):
 
         name = Flow.get_unique_name(org, "Join %s" % group.name)
         flow = Flow.create(org, user, name, base_language=base_language)
-        flow.version_number = Flow.GOFLOW_VERSION
+        flow.version_number = "13.0.0"
         flow.save(update_fields=("version_number",))
 
         node_uuid = str(uuid4())
@@ -424,13 +363,6 @@ class Flow(TembaModel):
 
         flow.save_revision(user, definition)
         return flow
-
-    @classmethod
-    def is_before_version(cls, to_check, version):
-        if str(to_check) not in Flow.VERSIONS:
-            return False
-
-        return Version(str(to_check)) < Version(str(version))
 
     @classmethod
     def get_triggerable_flows(cls, org):
@@ -509,6 +441,11 @@ class Flow(TembaModel):
                     flow_type=flow_type,
                     expires_after_minutes=flow_expires,
                 )
+
+            # make sure the flow is unarchived
+            if flow.is_archived:
+                flow.is_archived = False
+                flow.save(update_fields=("is_archived",))
 
             dependency_mapping[flow_uuid] = str(flow.uuid)
             created_flows.append((flow, flow_def))
@@ -603,18 +540,6 @@ class Flow(TembaModel):
                 pass
         return changed
 
-    @classmethod
-    def get_versions_before(cls, version_number):  # pragma: no cover
-        # older flows had numeric versions, lets make sure we are dealing with strings
-        version_number = Version(f"{version_number}")
-        return [v for v in Flow.VERSIONS if Version(v) < version_number]
-
-    @classmethod
-    def get_versions_after(cls, version_number):
-        # older flows had numeric versions, lets make sure we are dealing with strings
-        version_number = Version(f"{version_number}")
-        return [v for v in Flow.VERSIONS if Version(v) > version_number]
-
     def as_select2(self):
         return dict(id=self.uuid, text=self.name)
 
@@ -659,27 +584,13 @@ class Flow(TembaModel):
 
         return dict(counts=result_list)
 
-    def clear_props_cache(self):
-        r = get_redis_connection()
-        keys = [self.get_props_cache_key(c) for c in FlowPropsCache.__members__.values()]
-        r.delete(*keys)
-
-    def get_props_cache_key(self, kind):
-        return FLOW_PROP_CACHE_KEY % (self.org_id, self.pk, kind.name)
-
-    def lock_on(self, lock, qualifier=None, lock_ttl=None):
+    def lock(self):
         """
-        Creates the requested type of flow-level lock
+        Locks on this flow to let us make changes to the definition in a thread safe way
         """
         r = get_redis_connection()
-        lock_key = FLOW_LOCK_KEY % (self.org_id, self.pk, lock.name)
-        if qualifier:  # pragma: needs cover
-            lock_key += ":%s" % qualifier
-
-        if not lock_ttl:
-            lock_ttl = FLOW_LOCK_TTL
-
-        return r.lock(lock_key, lock_ttl)
+        lock_key = FLOW_LOCK_KEY % (self.org_id, self.id)
+        return r.lock(lock_key, FLOW_LOCK_TTL)
 
     def get_node_counts(self):
         """
@@ -718,11 +629,14 @@ class Flow(TembaModel):
             self.import_legacy_definition(definition, dependency_mapping)
             return
 
-        flow_info = mailroom.get_client().flow_inspect(definition)
-        dependencies = flow_info["dependencies"]
+        flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
+        dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
+
+        def deps_of_type(type_name):
+            return [d for d in dependencies if d["type"] == type_name]
 
         # ensure any channel dependencies exist
-        for ref in dependencies.get("channels", []):
+        for ref in deps_of_type("channel"):
             channel = self.org.channels.filter(is_active=True, uuid=ref["uuid"]).first()
             if not channel and ref["name"]:
                 name = ref["name"].split(":")[-1].strip()
@@ -731,11 +645,11 @@ class Flow(TembaModel):
             dependency_mapping[ref["uuid"]] = str(channel.uuid) if channel else ref["uuid"]
 
         # ensure any field dependencies exist
-        for ref in dependencies.get("fields", []):
+        for ref in deps_of_type("field"):
             ContactField.get_or_create(self.org, user, ref["key"], ref["name"])
 
         # lookup additional flow dependencies by name (i.e. for flows not in the export itself)
-        for ref in dependencies.get("flows", []):
+        for ref in deps_of_type("flow"):
             if ref["uuid"] not in dependency_mapping:
                 flow = self.org.flows.filter(uuid=ref["uuid"], is_active=True).first()
                 if not flow and ref["name"]:
@@ -744,18 +658,18 @@ class Flow(TembaModel):
                 dependency_mapping[ref["uuid"]] = str(flow.uuid) if flow else ref["uuid"]
 
         # lookup/create additional group dependencies (i.e. for flows not in the export itself)
-        for ref in dependencies.get("groups", []):
+        for ref in deps_of_type("group"):
             if ref["uuid"] not in dependency_mapping:
                 group = ContactGroup.get_or_create(self.org, user, ref.get("name"), uuid=ref["uuid"])
                 dependency_mapping[ref["uuid"]] = str(group.uuid)
 
         # ensure any label dependencies exist
-        for ref in dependencies.get("labels", []):
+        for ref in deps_of_type("label"):
             label = Label.get_or_create(self.org, user, ref["name"])
             dependency_mapping[ref["uuid"]] = str(label.uuid)
 
         # ensure any template dependencies exist
-        for ref in dependencies.get("templates", []):
+        for ref in deps_of_type("template"):
             template = self.org.templates.filter(uuid=ref["uuid"]).first()
             if not template and ref["name"]:
                 template = self.org.templates.filter(name=ref["name"]).first()
@@ -763,7 +677,9 @@ class Flow(TembaModel):
             dependency_mapping[ref["uuid"]] = str(template.uuid) if template else ref["uuid"]
 
         # clone definition so that all flow elements get new random UUIDs
-        cloned_definition = mailroom.get_client().flow_clone(dependency_mapping, definition)
+        cloned_definition = mailroom.get_client().flow_clone(definition, dependency_mapping)
+        if "revision" in cloned_definition:
+            del cloned_definition["revision"]
 
         # save a new revision but we can't validate it just yet because we're in a transaction and mailroom
         # won't see any new database objects
@@ -952,7 +868,7 @@ class Flow(TembaModel):
         assert translations and base_language in translations, "must include translation for base language"
 
         self.base_language = base_language
-        self.version_number = Flow.GOFLOW_VERSION
+        self.version_number = "13.0.0"
         self.save(update_fields=("name", "base_language", "version_number"))
 
         translations = translations.copy()  # don't modify instance being saved on event object
@@ -1014,22 +930,28 @@ class Flow(TembaModel):
 
         on_transaction_commit(lambda: flow_start.async_start())
 
-    def get_dependencies(self):
+    def get_export_dependencies(self):
         """
-        Geta all of this flows dependencies as a single set
+        Get the dependencies of this flow that should be exported with it
         """
         dependencies = set()
         dependencies.update(self.flow_dependencies.all())
         dependencies.update(self.field_dependencies.all())
         dependencies.update(self.group_dependencies.all())
-        dependencies.update(self.classifier_dependencies.all())
         return dependencies
+
+    def get_dependencies_metadata(self, type_name):
+        """
+        Get the dependencies of the given type from the flow metadata
+        """
+        deps = self.metadata.get(Flow.METADATA_DEPENDENCIES, [])
+        return [d for d in deps if d["type"] == type_name]
 
     def is_legacy(self):
         """
         Returns whether this flow still uses a legacy definition
         """
-        return Version(self.version_number) < Version(Flow.GOFLOW_VERSION)
+        return Version(self.version_number) < Version(Flow.INITIAL_GOFLOW_VERSION)
 
     def as_export_ref(self):
         return {Flow.DEFINITION_UUID: str(self.uuid), Flow.DEFINITION_NAME: self.name}
@@ -1156,7 +1078,7 @@ class Flow(TembaModel):
         return flow
 
     def get_legacy_metadata(self):
-        exclude_keys = (Flow.METADATA_RESULTS, Flow.METADATA_WAITING_EXIT_UUIDS)
+        exclude_keys = (Flow.METADATA_RESULTS, Flow.METADATA_WAITING_EXIT_UUIDS, Flow.METADATA_PARENT_REFS)
         metadata = {k: v for k, v in self.metadata.items() if k not in exclude_keys}
 
         revision = self.get_current_revision()
@@ -1172,6 +1094,16 @@ class Flow(TembaModel):
         metadata[Flow.METADATA_EXPIRES] = self.expires_after_minutes
 
         return metadata
+
+    @classmethod
+    def get_metadata(cls, flow_info):
+        return {
+            Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
+            Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
+            Flow.METADATA_WAITING_EXIT_UUIDS: flow_info[Flow.INSPECT_WAITING_EXITS],
+            Flow.METADATA_PARENT_REFS: flow_info[Flow.INSPECT_PARENT_REFS],
+            Flow.METADATA_ISSUES: flow_info[Flow.INSPECT_ISSUES],
+        }
 
     @classmethod
     def detect_invalid_cycles(cls, json_dict):
@@ -1243,24 +1175,30 @@ class Flow(TembaModel):
                     path.popitem()
         return None
 
-    def ensure_current_version(self, min_version=None):
+    def ensure_current_version(self):
         """
-        Makes sure the flow is at the current version. If it isn't it will
-        migrate the definition forward updating the flow accordingly.
+        Makes sure the flow is at the latest legacy or goflow spec version
         """
 
-        to_version = min_version or Flow.FINAL_LEGACY_VERSION
+        to_version = Flow.FINAL_LEGACY_VERSION if self.is_legacy() else Flow.CURRENT_SPEC_VERSION
 
-        if Flow.is_before_version(self.version_number, to_version):
-            with self.lock_on(FlowLock.definition):
-                revision = self.get_current_revision()
-                if revision:
-                    json_flow = revision.get_definition_json(to_version)
-                else:  # pragma: needs cover
-                    json_flow = self.as_json()
+        # nothing to do if flow is already at the target version
+        if Version(self.version_number) >= Version(to_version):
+            return
 
-                self.update(json_flow, user=get_flow_user(self.org))
-                self.refresh_from_db()
+        with self.lock():
+            revision = self.get_current_revision()
+            if revision:
+                flow_def = revision.get_definition_json(to_version)
+            else:  # pragma: needs cover
+                flow_def = self.as_json()
+
+            if self.is_legacy():
+                self.update(flow_def, user=get_flow_user(self.org))
+            else:
+                self.save_revision(get_flow_user(self.org), flow_def, validate=False)
+
+            self.refresh_from_db()
 
     def get_definition(self):
         """
@@ -1288,7 +1226,7 @@ class Flow(TembaModel):
         """
         Saves a new revision for this flow, validation will be done on the definition first
         """
-        if Version(definition.get(Flow.DEFINITION_SPEC_VERSION)) < Version(Flow.GOFLOW_VERSION):
+        if Version(definition.get(Flow.DEFINITION_SPEC_VERSION)) < Version(Flow.INITIAL_GOFLOW_VERSION):
             raise FlowVersionConflictException(definition.get(Flow.DEFINITION_SPEC_VERSION))
 
         current_revision = self.get_current_revision()
@@ -1310,22 +1248,16 @@ class Flow(TembaModel):
         definition[Flow.DEFINITION_EXPIRE_AFTER_MINUTES] = self.expires_after_minutes
 
         # inspect the flow (with optional validation)
-        flow_info = mailroom.get_client().flow_inspect(definition, validate_with_org=self.org if validate else None)
+        flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
+        dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
 
         with transaction.atomic():
-            dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
-
             # update our flow fields
             self.base_language = definition.get(Flow.DEFINITION_LANGUAGE, None)
-
-            self.metadata = {
-                Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
-                Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
-                Flow.METADATA_WAITING_EXIT_UUIDS: flow_info[Flow.INSPECT_WAITING_EXITS],
-            }
+            self.metadata = Flow.get_metadata(flow_info)
             self.saved_by = user
             self.saved_on = timezone.now()
-            self.version_number = Flow.GOFLOW_VERSION
+            self.version_number = Flow.CURRENT_SPEC_VERSION
             self.save(update_fields=["metadata", "version_number", "base_language", "saved_by", "saved_on"])
 
             # create our new revision
@@ -1333,7 +1265,7 @@ class Flow(TembaModel):
                 definition=definition,
                 created_by=user,
                 modified_by=user,
-                spec_version=Flow.GOFLOW_VERSION,
+                spec_version=Flow.CURRENT_SPEC_VERSION,
                 revision=revision,
             )
 
@@ -1382,7 +1314,7 @@ class Flow(TembaModel):
                     ]
                     actionset[Flow.ACTIONS] = actions
 
-            flow_info = mailroom.get_client().flow_inspect(flow=json_dict)
+            flow_info = mailroom.get_client().flow_inspect(self.org.id, json_dict)
             dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
 
             with transaction.atomic():
@@ -1396,6 +1328,7 @@ class Flow(TembaModel):
                 self.metadata = json_dict.get(Flow.METADATA, {})
                 self.metadata[Flow.METADATA_RESULTS] = flow_info[Flow.INSPECT_RESULTS]
                 self.metadata[Flow.METADATA_WAITING_EXIT_UUIDS] = flow_info[Flow.INSPECT_WAITING_EXITS]
+                self.metadata[Flow.METADATA_PARENT_REFS] = flow_info[Flow.INSPECT_PARENT_REFS]
 
                 if user:
                     self.saved_by = user
@@ -1406,9 +1339,6 @@ class Flow(TembaModel):
 
                 self.version_number = Flow.FINAL_LEGACY_VERSION
                 self.save()
-
-                # clear property cache
-                self.clear_props_cache()
 
                 # in case rulesets/actionsets were prefetched, clear those cached values
                 # TODO https://code.djangoproject.com/ticket/29625
@@ -1679,53 +1609,37 @@ class Flow(TembaModel):
             self.entry_type = Flow.NODE_TYPE_RULESET
 
     def update_dependencies(self, dependencies):
-        field_keys = [f["key"] for f in dependencies.get("fields", [])]
-        flow_uuids = [f["uuid"] for f in dependencies.get("flows", [])]
-        group_uuids = [g["uuid"] for g in dependencies.get("groups", [])]
-        channel_uuids = [g["uuid"] for g in dependencies.get("channels", [])]
-        label_uuids = [g["uuid"] for g in dependencies.get("labels", [])]
-        classifier_uuids = [c["uuid"] for c in dependencies.get("classifiers", [])]
+        # build a lookup of types to identifier lists
+        identifiers = defaultdict(list)
+        for dep in dependencies:
+            identifier = dep.get("uuid", dep.get("key"))
+            identifiers[dep["type"]].append(identifier)
 
-        # still need to do lazy creation of fields in the case of a flow import
-        if len(field_keys):
-            active_org_fields = set(
-                ContactField.user_fields.active_for_org(org=self.org).values_list("key", flat=True)
-            )
+        # globals aren't included in exports so they're created here too if they don't exist, with blank values
+        if identifiers["global"]:
+            org_globals = set(self.org.globals.filter(is_active=True).values_list("key", flat=True))
 
-            existing_fields = set(field_keys)
-            fields_to_create = existing_fields.difference(active_org_fields)
+            globals_to_create = set(identifiers["global"]).difference(org_globals)
+            for g in globals_to_create:
+                Global.get_or_create(self.org, self.modified_by, g, name="", value="")
 
-            # create any field that doesn't already exist
-            for field in fields_to_create:
-                if ContactField.is_valid_key(field):
-                    # reverse slug to get a reasonable label
-                    label = " ".join([word.capitalize() for word in field.split("_")])
-                    ContactField.get_or_create(self.org, self.modified_by, field, label)
+        # find all the dependencies in the database
+        dep_objs = {
+            "channel": self.org.channels.filter(is_active=True, uuid__in=identifiers["channel"]),
+            "classifier": self.org.classifiers.filter(is_active=True, uuid__in=identifiers["classifier"]),
+            "field": ContactField.user_fields.filter(org=self.org, is_active=True, key__in=identifiers["field"]),
+            "flow": self.org.flows.filter(is_active=True, uuid__in=identifiers["flow"]),
+            "global": self.org.globals.filter(is_active=True, key__in=identifiers["global"]),
+            "group": ContactGroup.user_groups.filter(org=self.org, is_active=True, uuid__in=identifiers["group"]),
+            "label": Label.label_objects.filter(org=self.org, uuid__in=identifiers["label"]),
+            "template": self.org.templates.filter(uuid__in=identifiers["template"]),
+        }
 
-        fields = ContactField.user_fields.filter(org=self.org, key__in=field_keys)
-        flows = self.org.flows.filter(uuid__in=flow_uuids)
-        groups = ContactGroup.user_groups.filter(org=self.org, uuid__in=group_uuids)
-        channels = Channel.objects.filter(org=self.org, uuid__in=channel_uuids, is_active=True)
-        labels = Label.label_objects.filter(org=self.org, uuid__in=label_uuids)
-        classifiers = Classifier.objects.filter(org=self.org, uuid__in=classifier_uuids)
-
-        self.field_dependencies.clear()
-        self.field_dependencies.add(*fields)
-
-        self.flow_dependencies.clear()
-        self.flow_dependencies.add(*flows)
-
-        self.group_dependencies.clear()
-        self.group_dependencies.add(*groups)
-
-        self.channel_dependencies.clear()
-        self.channel_dependencies.add(*channels)
-
-        self.label_dependencies.clear()
-        self.label_dependencies.add(*labels)
-
-        self.classifier_dependencies.clear()
-        self.classifier_dependencies.add(*classifiers)
+        # reset the m2m for each type
+        for type_name, objects in dep_objs.items():
+            m2m = getattr(self, f"{type_name}_dependencies")
+            m2m.clear()
+            m2m.add(*objects)
 
     def release(self):
         """
@@ -1746,11 +1660,16 @@ class Flow(TembaModel):
         for trigger in self.triggers.all():
             trigger.release()
 
+        # release any starts
+        for start in self.starts.all():
+            start.release()
+
         self.group_dependencies.clear()
         self.flow_dependencies.clear()
         self.field_dependencies.clear()
         self.channel_dependencies.clear()
         self.label_dependencies.clear()
+        self.classifier_dependencies.clear()
 
         # queue mailroom to interrupt sessions where contact is currently in this flow
         mailroom.queue_interrupt(self.org, flow=self)
@@ -1759,18 +1678,17 @@ class Flow(TembaModel):
         """
         Exits all flow runs
         """
-
         # grab the ids of all our runs
         run_ids = self.runs.all().values_list("id", flat=True)
+
+        # clear our association with any related sessions
+        self.sessions.all().update(current_flow=None)
 
         # batch this for 1,000 runs at a time so we don't grab locks for too long
         for id_batch in chunk_list(run_ids, 1000):
             runs = FlowRun.objects.filter(id__in=id_batch)
             for run in runs:
                 run.release()
-
-        # clear all our cached stats
-        self.clear_props_cache()
 
     def __str__(self):
         return self.name
@@ -1804,7 +1722,7 @@ class FlowSession(models.Model):
     session_type = models.CharField(max_length=1, choices=Flow.FLOW_TYPES, default=Flow.TYPE_MESSAGE, null=True)
 
     # the organization this session belongs to
-    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    org = models.ForeignKey(Org, related_name="sessions", on_delete=models.PROTECT)
 
     # the contact that this session is with
     contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="sessions")
@@ -1836,7 +1754,7 @@ class FlowSession(models.Model):
     wait_started_on = models.DateTimeField(null=True)
 
     # the flow of the waiting run
-    current_flow = models.ForeignKey("flows.Flow", null=True, on_delete=models.PROTECT)
+    current_flow = models.ForeignKey("flows.Flow", related_name="sessions", null=True, on_delete=models.PROTECT)
 
     def release(self):
         self.delete()
@@ -1921,7 +1839,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     created_on = models.DateTimeField(default=timezone.now)
 
     # when this run was last modified
-    modified_on = models.DateTimeField(auto_now=True)
+    modified_on = models.DateTimeField(default=timezone.now)
 
     # when this run ended
     exited_on = models.DateTimeField(null=True)
@@ -2021,6 +1939,13 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             for recent in FlowPathRecentRun.objects.filter(run=self):
                 recent.release()
 
+            if (
+                delete_reason == FlowRun.DELETE_FOR_USER
+                and self.session is not None
+                and self.session.status == FlowSession.STATUS_WAITING
+            ):
+                mailroom.queue_interrupt(self.org, session=self.session)
+
             self.delete()
 
     def update_expiration(self, point_in_time):
@@ -2029,6 +1954,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         if self.flow.expires_after_minutes:
             self.expires_on = point_in_time + timedelta(minutes=self.flow.expires_after_minutes)
+            self.modified_on = timezone.now()
 
             # save our updated fields
             self.save(update_fields=["expires_on", "modified_on"])
@@ -2287,6 +2213,8 @@ class FlowRevision(SmartModel):
     JSON definitions for previous flow revisions
     """
 
+    LAST_TRIM_KEY = "temba:last_flow_revision_trim"
+
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="revisions")
 
     definition = JSONAsTextField(help_text=_("The JSON flow definition"), default=dict)
@@ -2296,6 +2224,55 @@ class FlowRevision(SmartModel):
     )
 
     revision = models.IntegerField(null=True, help_text=_("Revision number for this definition"))
+
+    @classmethod
+    def trim(cls, since):
+        """
+        For any flow that has a new revision since the passed in date, trim revisions
+        :param since: datetime of when to trim
+        :return: The number of trimmed revisions
+        """
+        count = 0
+
+        # find all flows with revisions since the passed in date
+        for fr in FlowRevision.objects.filter(created_on__gt=since).distinct("flow_id").only("flow_id"):
+            # trim that flow
+            count += FlowRevision.trim_for_flow(fr.flow_id)
+
+        return count
+
+    @classmethod
+    def trim_for_flow(cls, flow_id):
+        """
+        Trims the revisions for the passed in flow.
+
+        Our logic is:
+         * always keep last 25 revisions
+         * for any revision beyond those, collapse to first revision for that day
+
+        :param flow: the id of the flow to trim revisions for
+        :return: the number of trimmed revisions
+        """
+        # find what date cutoff we will use for "25 most recent"
+        cutoff = FlowRevision.objects.filter(flow=flow_id).order_by("-created_on")[24:25]
+
+        # fewer than 25 revisions
+        if not cutoff:
+            return 0
+
+        cutoff = cutoff[0].created_on
+
+        # find the ids of the first revision for each day starting at the cutoff
+        keepers = (
+            FlowRevision.objects.filter(flow=flow_id, created_on__lt=cutoff)
+            .annotate(created_date=TruncDate("created_on"))
+            .values("created_date")
+            .annotate(max_id=Max("id"))
+            .values_list("max_id", flat=True)
+        )
+
+        # delete the rest
+        return FlowRevision.objects.filter(flow=flow_id, created_on__lt=cutoff).exclude(id__in=keepers).delete()[0]
 
     @classmethod
     def is_legacy_definition(cls, definition):
@@ -2336,80 +2313,55 @@ class FlowRevision(SmartModel):
                 validate_localization(rule["category"])
 
     @classmethod
-    def migrate_export(cls, org, exported_json, same_site, version, to_version=None):
-        from temba.flows.legacy import migrations
+    def migrate_export(cls, org, exported_json, same_site, version, legacy=False):
+        # use legacy migrations to get export to final legacy version
+        if version < Version(Flow.FINAL_LEGACY_VERSION):
+            from temba.flows.legacy import exports
 
-        if not to_version:
-            to_version = Flow.FINAL_LEGACY_VERSION
+            exported_json = exports.migrate(org, exported_json, same_site, version)
 
-        for version in Flow.get_versions_after(version):
-            version_slug = version.replace(".", "_")
-            migrate_fn = getattr(migrations, "migrate_export_to_version_%s" % version_slug, None)
+        if legacy:
+            return exported_json
 
-            if migrate_fn:
-                exported_json = migrate_fn(exported_json, org, same_site)
+        # use mailroom to get export to current spec version
+        migrated_flows = []
+        for flow_def in exported_json[Org.EXPORT_FLOWS]:
+            migrated_flows.append(mailroom.get_client().flow_migrate(flow_def))
 
-                # update the version of migrated flows
-                flows = []
-                for sub_flow in exported_json.get("flows", []):
-                    sub_flow[Flow.VERSION] = version
-                    flows.append(sub_flow)
-
-                exported_json["flows"] = flows
-
-            else:
-                migrate_fn = getattr(migrations, "migrate_to_version_%s" % version_slug, None)
-                if migrate_fn:
-                    flows = []
-                    for json_flow in exported_json.get("flows", []):
-                        json_flow = migrate_fn(json_flow, None)
-
-                        flows.append(json_flow)
-
-                    exported_json["flows"] = flows
-
-            # update each flow's version number
-            for json_flow in exported_json.get("flows", []):
-                json_flow[Flow.VERSION] = version
-
-            if version == to_version:
-                break
+        exported_json[Org.EXPORT_FLOWS] = migrated_flows
 
         return exported_json
 
     @classmethod
-    def migrate_definition(cls, json_flow, flow, to_version=None):
+    def migrate_definition(cls, json_flow, flow, to_version=Flow.CURRENT_SPEC_VERSION):
         from temba.flows.legacy import migrations
 
-        if not to_version:
-            to_version = Flow.FINAL_LEGACY_VERSION
+        # migrate any legacy versions forward
+        if Flow.VERSION in json_flow:
+            versions = legacy.get_versions_after(json_flow[Flow.VERSION])
+            for version in versions:
+                version_slug = version.replace(".", "_")
+                migrate_fn = getattr(migrations, "migrate_to_version_%s" % version_slug, None)
 
-        versions = Flow.get_versions_after(json_flow[Flow.VERSION])
-        for version in versions:
-            version_slug = version.replace(".", "_")
-            migrate_fn = getattr(migrations, "migrate_to_version_%s" % version_slug, None)
+                if migrate_fn:
+                    json_flow = migrate_fn(json_flow, flow)
+                    json_flow[Flow.VERSION] = version
 
-            if migrate_fn:
-                json_flow = migrate_fn(json_flow, flow)
-                json_flow[Flow.VERSION] = version
+                if version == to_version:
+                    break
 
-            if version == to_version:
-                break
-
-        if Version(to_version) >= Version(Flow.GOFLOW_VERSION):
-            json_flow = mailroom.get_client().flow_migrate(json_flow)
+        # migrate using goflow for anything newer
+        if Version(to_version) >= Version(Flow.INITIAL_GOFLOW_VERSION):
+            json_flow = mailroom.get_client().flow_migrate(json_flow, to_version)
 
         return json_flow
 
-    def get_definition_json(self, to_version=None):
-        if not to_version:
-            to_version = Flow.FINAL_LEGACY_VERSION
-
+    def get_definition_json(self, to_version=Flow.CURRENT_SPEC_VERSION):
         definition = self.definition
 
         # if it's previous to version 6, wrap the definition to
         # mirror our exports for those versions
-        if Flow.is_before_version(self.spec_version, "6"):
+        if Version(self.spec_version) < Version("6"):
             definition = dict(
                 definition=self.definition,
                 flow_type=self.flow.flow_type,
@@ -2420,7 +2372,8 @@ class FlowRevision(SmartModel):
             )
 
         # make sure old revisions migrate properly
-        definition[Flow.VERSION] = self.spec_version
+        if Version(self.spec_version) <= Version(Flow.FINAL_LEGACY_VERSION):
+            definition[Flow.VERSION] = self.spec_version
 
         # migrate our definition if necessary
         if self.spec_version != to_version:
@@ -2927,6 +2880,9 @@ class ExportFlowResultsTask(BaseExportTask):
 
                 temp_runs_exported = total_runs_exported
 
+                self.modified_on = timezone.now()
+                self.save(update_fields=["modified_on"])
+
         temp = NamedTemporaryFile(delete=True)
         book.finalize(to_file=temp)
         temp.flush()
@@ -3229,6 +3185,15 @@ class FlowStart(models.Model):
 
     def async_start(self):
         mailroom.queue_flow_start(self)
+
+    def release(self):
+        with transaction.atomic():
+            self.groups.clear()
+            self.contacts.clear()
+            self.connections.clear()
+            FlowRun.objects.filter(start=self).update(start=None)
+            FlowStartCount.objects.filter(start=self).delete()
+            self.delete()
 
     def __str__(self):  # pragma: no cover
         return f"FlowStart[id={self.id}, flow={self.flow.uuid}]"

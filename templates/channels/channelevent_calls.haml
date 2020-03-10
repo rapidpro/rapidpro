@@ -11,7 +11,7 @@
 -block search-details
   .search-details
     -if search
-      -blocktrans with results_count=paginator.count|intcomma count cc=paginator.count
+      -blocktrans trimmed with results_count=paginator.count|intcomma count cc=paginator.count
         Found {{ results_count }} call in last 90 days for <i>{{search}}</i>.
         -plural
           Found {{ results_count }} calls in last 90 days for <i>{{search}}</i>.
@@ -25,10 +25,10 @@
             {{ object.contact|short_name:user_org }}
           %td.value-text.field_event_type
             - if object.event_type == 'mt_call'
-              -blocktrans with duration=object.extra.duration
+              -blocktrans trimmed with duration=object.extra.duration
                 Outgoing Call ({{duration}} seconds)
             - elif object.event_type == 'mo_call'
-              -blocktrans with duration=object.extra.duration
+              -blocktrans trimmed with duration=object.extra.duration
                 Incoming Call ({{duration}} seconds)
             - elif object.event_type == 'mo_miss'
               -trans "Missed Incoming Call"

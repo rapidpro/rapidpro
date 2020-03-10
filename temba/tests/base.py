@@ -5,7 +5,6 @@ from uuid import uuid4
 import pytz
 import redis
 import regex
-from requests.structures import CaseInsensitiveDict
 from smartmin.tests import SmartminTest
 
 from django.conf import settings
@@ -14,16 +13,15 @@ from django.core import mail
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.utils import timezone
-from django.utils.encoding import force_bytes, force_text
 
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
-from temba.locations.models import AdminBoundary
+from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Broadcast, Label, Msg
 from temba.orgs.models import Org
-from temba.utils import dict_to_struct, json
+from temba.utils import json
 from temba.values.constants import Value
 
 
@@ -33,6 +31,90 @@ def add_testing_flag_to_context(*args):
 
 class TembaTestMixin:
     databases = ("default", "direct")
+
+    def setUpOrg(self):
+        # make sure we start off without any service users
+        Group.objects.get(name="Service Users").user_set.clear()
+
+        self.clear_cache()
+
+        self.create_anonymous_user()
+
+        self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
+
+        # create different user types
+        self.non_org_user = self.create_user("NonOrg")
+        self.user = self.create_user("User", ("Viewers",))
+        self.editor = self.create_user("Editor")
+        self.admin = self.create_user("Administrator")
+        self.surveyor = self.create_user("Surveyor")
+        self.customer_support = self.create_user("support", ("Customer Support",))
+
+        self.org = Org.objects.create(
+            name="Temba",
+            timezone=pytz.timezone("Africa/Kigali"),
+            brand=settings.DEFAULT_BRAND,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+        self.org.initialize(topup_size=1000)
+
+        # add users to the org
+        self.user.set_org(self.org)
+        self.org.viewers.add(self.user)
+
+        self.editor.set_org(self.org)
+        self.org.editors.add(self.editor)
+
+        self.admin.set_org(self.org)
+        self.org.administrators.add(self.admin)
+
+        self.surveyor.set_org(self.org)
+        self.org.surveyors.add(self.surveyor)
+
+        self.superuser.set_org(self.org)
+
+        # a single Android channel
+        self.channel = Channel.create(
+            self.org,
+            self.user,
+            "RW",
+            "A",
+            name="Test Channel",
+            address="+250785551212",
+            device="Nexus 5X",
+            secret="12345",
+            config={Channel.CONFIG_FCM_ID: "123"},
+        )
+
+        # don't cache anon user between tests
+        from temba import utils
+
+        utils._anon_user = None
+
+        clear_flow_users()
+
+    def setUpLocations(self):
+        """
+        Installs some basic test location data for Rwanda
+        """
+        self.country = AdminBoundary.create(osm_id="171496", name="Rwanda", level=0)
+        self.state1 = AdminBoundary.create(osm_id="1708283", name="Kigali City", level=1, parent=self.country)
+        self.state2 = AdminBoundary.create(osm_id="171591", name="Eastern Province", level=1, parent=self.country)
+        self.district1 = AdminBoundary.create(osm_id="R1711131", name="Gatsibo", level=2, parent=self.state2)
+        self.district2 = AdminBoundary.create(osm_id="1711163", name="Kayônza", level=2, parent=self.state2)
+        self.district3 = AdminBoundary.create(osm_id="3963734", name="Nyarugenge", level=2, parent=self.state1)
+        self.district4 = AdminBoundary.create(osm_id="1711142", name="Rwamagana", level=2, parent=self.state2)
+        self.ward1 = AdminBoundary.create(osm_id="171113181", name="Kageyo", level=3, parent=self.district1)
+        self.ward2 = AdminBoundary.create(osm_id="171116381", name="Kabare", level=3, parent=self.district2)
+        self.ward3 = AdminBoundary.create(osm_id="VMN.49.1_1", name="Bukure", level=3, parent=self.district4)
+
+        BoundaryAlias.create(self.org, self.admin, self.state1, "Kigari")
+
+        self.country.update_path()
+
+        self.org.country = self.country
+        self.org.save(update_fields=("country",))
 
     def clear_cache(self):
         """
@@ -51,9 +133,9 @@ class TembaTestMixin:
         """
         shutil.rmtree("%s/%s" % (settings.MEDIA_ROOT, settings.STORAGE_ROOT_DIR), ignore_errors=True)
 
-    def import_file(self, filename, site="http://rapidpro.io", substitutions=None):
+    def import_file(self, filename, site="http://rapidpro.io", substitutions=None, legacy=False):
         data = self.get_import_json(filename, substitutions=substitutions)
-        self.org.import_app(data, self.admin, site=site)
+        self.org.import_app(data, self.admin, site=site, legacy=legacy)
 
     def get_import_json(self, filename, substitutions=None):
         handle = open("%s/test_flows/%s.json" % (settings.MEDIA_ROOT, filename), "r+")
@@ -67,10 +149,10 @@ class TembaTestMixin:
 
         return json.loads(data)
 
-    def get_flow(self, filename, substitutions=None):
+    def get_flow(self, filename, substitutions=None, legacy=False):
         now = timezone.now()
 
-        self.import_file(filename, substitutions=substitutions)
+        self.import_file(filename, substitutions=substitutions, legacy=legacy)
 
         imported_flows = Flow.objects.filter(org=self.org, saved_on__gt=now)
         flow = imported_flows.order_by("id").last()
@@ -298,7 +380,7 @@ class TembaTestMixin:
             # if definition isn't provided, generate simple single message flow
             node_uuid = str(uuid4())
             definition = {
-                "version": 10,
+                "version": "10",
                 "flow_type": "F",
                 "base_language": "eng",
                 "entry": node_uuid,
@@ -319,7 +401,7 @@ class TembaTestMixin:
         flow.version_number = definition["version"]
         flow.save()
 
-        json_flow = FlowRevision.migrate_definition(definition, flow)
+        json_flow = FlowRevision.migrate_definition(definition, flow, to_version=Flow.FINAL_LEGACY_VERSION)
         flow.update(json_flow)
 
         return flow
@@ -414,86 +496,7 @@ class TembaTestMixin:
 
 class TembaTest(TembaTestMixin, SmartminTest):
     def setUp(self):
-        # make sure we start off without any service users
-        Group.objects.get(name="Service Users").user_set.clear()
-
-        self.clear_cache()
-
-        self.create_anonymous_user()
-
-        self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
-
-        # create different user types
-        self.non_org_user = self.create_user("NonOrg")
-        self.user = self.create_user("User", ("Viewers",))
-        self.editor = self.create_user("Editor")
-        self.admin = self.create_user("Administrator")
-        self.surveyor = self.create_user("Surveyor")
-        self.customer_support = self.create_user("support", ("Customer Support",))
-
-        self.org = Org.objects.create(
-            name="Temba",
-            timezone=pytz.timezone("Africa/Kigali"),
-            brand=settings.DEFAULT_BRAND,
-            created_by=self.user,
-            modified_by=self.user,
-        )
-        self.org.initialize(topup_size=1000)
-
-        # add users to the org
-        self.user.set_org(self.org)
-        self.org.viewers.add(self.user)
-
-        self.editor.set_org(self.org)
-        self.org.editors.add(self.editor)
-
-        self.admin.set_org(self.org)
-        self.org.administrators.add(self.admin)
-
-        self.surveyor.set_org(self.org)
-        self.org.surveyors.add(self.surveyor)
-
-        self.superuser.set_org(self.org)
-
-        # a single Android channel
-        self.channel = Channel.create(
-            self.org,
-            self.user,
-            "RW",
-            "A",
-            name="Test Channel",
-            address="+250785551212",
-            device="Nexus 5X",
-            secret="12345",
-            config={Channel.CONFIG_FCM_ID: "123"},
-        )
-
-        # don't cache anon user between tests
-        from temba import utils
-
-        utils._anon_user = None
-
-        clear_flow_users()
-
-    def setUpLocations(self):
-        """
-        Installs some basic test location data for Rwanda
-        """
-        self.country = AdminBoundary.create(osm_id="171496", name="Rwanda", level=0)
-        self.state1 = AdminBoundary.create(osm_id="1708283", name="Kigali City", level=1, parent=self.country)
-        self.state2 = AdminBoundary.create(osm_id="171591", name="Eastern Province", level=1, parent=self.country)
-        self.district1 = AdminBoundary.create(osm_id="R1711131", name="Gatsibo", level=2, parent=self.state2)
-        self.district2 = AdminBoundary.create(osm_id="1711163", name="Kayônza", level=2, parent=self.state2)
-        self.district3 = AdminBoundary.create(osm_id="3963734", name="Nyarugenge", level=2, parent=self.state1)
-        self.district4 = AdminBoundary.create(osm_id="1711142", name="Rwamagana", level=2, parent=self.state2)
-        self.ward1 = AdminBoundary.create(osm_id="171113181", name="Kageyo", level=3, parent=self.district1)
-        self.ward2 = AdminBoundary.create(osm_id="171116381", name="Kabare", level=3, parent=self.district2)
-        self.ward3 = AdminBoundary.create(osm_id="VMN.49.1_1", name="Bukure", level=3, parent=self.district4)
-
-        self.country.update_path()
-
-        self.org.country = self.country
-        self.org.save(update_fields=("country",))
+        self.setUpOrg()
 
     def setUpSecondaryOrg(self, topup_size=None):
         self.admin2 = self.create_user("Administrator2")
@@ -551,41 +554,6 @@ class TembaTest(TembaTestMixin, SmartminTest):
         self.assertTrue(message, field in body)
         self.assertTrue(message, isinstance(body[field], (list, tuple)))
         self.assertIn(message, body[field])
-
-
-class MockResponse(object):
-    def __init__(self, status_code, text, method="GET", url="http://foo.com/", headers=None):
-        if headers is None:
-            headers = {}
-
-        self.text = force_text(text)
-        self.content = force_bytes(text)
-        self.body = force_text(text)
-        self.status_code = status_code
-        self.headers = CaseInsensitiveDict(data=headers)
-        self.url = url
-        self.ok = True
-        self.cookies = dict()
-        self.streaming = False
-        self.charset = "utf-8"
-        self.connection = dict()
-        self.raw = dict_to_struct("MockRaw", dict(version="1.1", status=status_code, headers=headers))
-        self.reason = ""
-
-        # mock up a request object on our response as well
-        self.request = dict_to_struct(
-            "MockRequest", dict(method=method, url=url, body="request body", headers=headers)
-        )
-
-    def add_header(self, key, value):
-        self.headers[key] = value
-
-    def json(self):
-        return json.loads(self.text)
-
-    def raise_for_status(self):
-        if self.status_code != 200:
-            raise Exception("Got HTTP error: %d" % self.status_code)
 
 
 class AnonymousOrg(object):

@@ -1,10 +1,10 @@
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel, ChannelType
-from temba.channels.types.nexmo.views import ClaimView
-from temba.channels.views import UpdateNexmoForm
 from temba.contacts.models import TEL_SCHEME
 from temba.utils.timezones import timezone_to_country_code
+
+from .views import ClaimView, UpdateForm
 
 
 class NexmoType(ChannelType):
@@ -38,8 +38,7 @@ class NexmoType(ChannelType):
         """Easily add a two way number you have configured with <a href="https://www.nexmo.com/">Nexmo</a> using their APIs."""
     )
     claim_view = ClaimView
-
-    update_form = UpdateNexmoForm
+    update_form = UpdateForm
 
     schemes = [TEL_SCHEME]
     max_length = 1600

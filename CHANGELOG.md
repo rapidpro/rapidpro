@@ -1,3 +1,281 @@
+v5.4.3
+----------
+ * Update sample flow test
+
+v5.4.2
+----------
+ * remove use of webhook where not appropriate
+
+v5.4.1
+----------
+ * Update sample flows to use @webhook instead of @legacy_extra
+
+v5.4.0
+----------
+ * Add API endpoint to update Globals
+ * Keep latest sync event for Android channels when trimming
+
+v5.3.64
+----------
+ * Add support for Twilio Whatsapp channel type
+
+v5.3.63
+----------
+ * Add pre_deploy command to check imports/exports
+ * Fix link to android APK downloads on claim page
+
+v5.3.62
+----------
+ * Temporarily disable resume imports task
+
+v5.3.61
+----------
+ * Fix text of save as group dialog
+ * Add support to restart export tasks that might have been stopped by deploy
+
+v5.3.60
+----------
+ * Update to latest mailroom
+ * Add urns to runs API endpoint
+
+v5.3.59
+----------
+ * Update to latest mailroom which returns allow_as_group from query parsing
+ * Don't create missing contact fields on flow save
+
+v5.3.57
+----------
+ * Update flow editor 1.7.16
+ * Fix translations on external channel claim page
+ * Add tabs to toggle between full flow event history and summary of messages
+ * Increase the max height on the flow results export modal dialog
+
+v5.3.56
+----------
+ * Add params to flow starts API
+ * Change name of org_id param in calls to flow/inspect
+ * Add quick replies variable to external channel claim page
+
+v5.3.55
+----------
+ * Allow editing of allow_international on channel update forms
+ * Use consistent format for datetimes like created_on on contact list page
+
+v5.3.54
+----------
+ * Hide loader on start flow dialog when there are no channels
+
+v5.3.53
+----------
+ * Fix creation of Android channels
+
+v5.3.52
+----------
+ * Convert Android to dynamic channel type
+
+v5.3.51
+----------
+ * Update to floweditor 1.7.15
+ * Add python script to do all CI required formatting and locale rebuilding
+ * Use mailroom for query parsing for contact exports
+ * Fix text positioning on list pages
+ * Fix delete contact group modal buttons when blocked by dependencies
+ * Completion with upper case functions
+
+v5.3.50
+----------
+ * Migration to set allow_international=true in configs of existing tel channels
+ * Remove no longer used flow definition caching stuff
+
+v5.3.49
+----------
+ * Use realistic phone numbers in mailroom test db
+ * Remove contact filtering from flow results page
+ * Add migration to populate Flow.template_dependencies
+
+v5.3.48
+----------
+ * Use mailroom searching for omnibox results
+
+v5.3.47
+----------
+ * Add template_dependencies m2m
+
+v5.3.46
+----------
+ * Do not subject requests to the API with sessions to rate limiting
+ * Migration to convert flow dependencies metadata to new format
+ * Update description on the flow results export to be clear
+
+v5.3.45
+----------
+ * Fix deletion of orgs and locations so that aliases are properly deleted
+ * Remove syntax highlighting in API explorer as it can't handle big responses
+ * Use new dependencies format from mailroom
+
+v5.3.44
+----------
+ * Dynamic group creation / reevaluation through Mailroom
+
+v5.3.43
+----------
+ * Update to latest mailroom
+
+v5.3.42
+----------
+ * Fix actions on blocked contact list page
+
+v5.3.41
+----------
+ * Disable simulation for archived flows
+ * Fix query explosion on Android channel alerts
+
+v5.3.40
+----------
+ * Add subflow parameters to editor
+
+v5.3.39
+----------
+ * Rework migration code so new flows are migrated too
+
+v5.3.38
+----------
+ * Use mailroom for contact searches, contact list pages and flow starts via search
+
+v5.3.35
+----------
+ * Rebuild components
+
+v5.3.34
+----------
+ * Update to flow editor 1.7.13
+ * Don't include 'version' in current definitions
+ * Migrate imports of flows to new spec by default
+
+v5.3.30
+----------
+ * Exclude inactive template translations from API endpoint
+
+v5.3.29
+----------
+ * Fix edge case for default alias dialog
+ * Add sending back to contact list page
+ * Save parent result refs in flow metadata
+ * Change name BotHub to Bothub
+
+v5.3.28
+----------
+ * remove auto-now on modified_on on FlowRun
+
+v5.3.27
+----------
+ * Update to floweditor 1.7.9
+ * Warn users if starting for facebook without a topic
+
+v5.3.26
+----------
+ * Allow arbitrary numbers when sending messages
+ * Componentized message sending
+
+v5.3.25
+----------
+ * Show empty message list if we have archived them all
+ * Update to flow editior 1.7.8
+ * Replace flow/validate call to mailroom with flow/inspect
+ * Add facebook topic selection
+
+v5.3.24
+----------
+ * Pass version to mailroom migrate endpoint
+ * Fix saving on alias editor
+ * Support the whatsapp templates HEADER and FOOTER components
+ * Write HTTP log for errors in connection
+
+v5.3.23
+----------
+ * Add support for whatsapp templates with headers and footers
+ * Make sure we have one posterizer form and we bind one click event handler for posterize links
+
+v5.3.22
+----------
+ * Convert add/edit campaign event to components
+
+v5.3.21
+----------
+ * Add UI for managing globals
+
+v5.3.16
+----------
+ * Update to flow editor v1.7.7
+
+v5.3.13
+----------
+ * Update to floweditor v1.7.5
+ * Re-add msg_console management command with new support for mailroom
+ * Cleanup somes usages of trans/blocktrans
+
+v5.3.12
+----------
+ * Add error and failure events to contact history
+ * Use form components on campaign create/update
+
+v5.3.11
+----------
+ * Migrate sample flows to new editor
+ * Localize URNs in API using org country
+ * Write HTTPLogs for Whatsapp template syncing
+ * Remove Broadcast recipient_count field
+
+v5.3.10
+----------
+ * Add read API endpoint for globals
+
+v5.3.9
+----------
+ * Add trimming task for flow revisions
+ * Add models for globals support
+ * Add FreshChat channel support
+
+v5.3.8
+----------
+ * Make sure imported flows are unarchived
+ * Validate we do not have a caller on a channel before adding a new one
+
+v5.3.7
+----------
+ * Release URNs on Org release
+
+v5.3.6
+----------
+ * Release Channel sync events and alarms
+
+v5.3.5
+----------
+ * release Campaigns when releasing Orgs
+
+v5.3.4
+----------
+ * Release flow starts when releasing flows
+
+v5.3.3
+----------
+ * Add releasing to Classifiers and HTTPLogs
+
+v5.3.2
+----------
+ * Allow manual syncing of classifiers
+
+v5.3.1
+----------
+ * Update documentation for FB webhook events to subscribe to
+
+v5.3.0
+----------
+ * Fix DT One branding and add new icon
+ * Fix validation problem on update schedule trigger form
+ * Use brand when granting orgs, not host
+ * Update contactsql parser to support same quotes escaping as goflow
+
 v5.2.6
 ----------
  * Change slug for Bothub classifier to 'bothub'

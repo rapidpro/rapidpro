@@ -10,7 +10,7 @@ from temba.classifiers.views import BaseConnectView
 class ConnectView(BaseConnectView):
     class Form(forms.Form):
         name = forms.CharField(help_text=_("Your app's name"))
-        app_id = forms.IntegerField(help_text=_("Your app's ID"))
+        app_id = forms.IntegerField(label=_("App ID"), help_text=_("Your app's ID"))
         access_token = forms.CharField(help_text=_("Your app's server access token"))
 
         def clean(self):

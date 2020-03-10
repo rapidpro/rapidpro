@@ -22,7 +22,7 @@ class Campaign(TembaModel):
     EXPORT_GROUP = "group"
     EXPORT_EVENTS = "events"
 
-    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    org = models.ForeignKey(Org, related_name="campaigns", on_delete=models.PROTECT)
 
     name = models.CharField(max_length=MAX_NAME_LEN, help_text=_("The name of this campaign"))
 
@@ -248,6 +248,15 @@ class Campaign(TembaModel):
                 evt.flow.ensure_current_version()
 
         return sorted(events, key=lambda e: e.relative_to.pk * 100_000 + e.minute_offset())
+
+    def _full_release(self):
+        """
+        Deletes this campaign completely
+        """
+        for event in self.events.all():
+            event._full_release()
+
+        self.delete()
 
     def __str__(self):
         return f'Campaign[uuid={self.uuid}, name="{self.name}"]'
@@ -526,7 +535,6 @@ class CampaignEvent(TembaModel):
         """
         Marks the event inactive and releases flows for single message flows
         """
-
         # we need to be inactive so our fires are noops
         self.is_active = False
         self.save(update_fields=("is_active",))
@@ -538,6 +546,18 @@ class CampaignEvent(TembaModel):
         if self.event_type == CampaignEvent.TYPE_MESSAGE:
             self.flow.starts.all().update(is_active=False)
             self.flow.release()
+
+    def _full_release(self):
+        """
+        Deletes this event completely along with associated fires
+        """
+        self.release()
+
+        # delete any associated fires
+        self.fires.all().delete()
+
+        # and ourselves
+        self.delete()
 
     def calculate_scheduled_fire(self, contact):
         return self.calculate_scheduled_fire_for_value(contact.get_field_value(self.relative_to), timezone.now())

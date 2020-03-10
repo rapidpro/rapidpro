@@ -8,10 +8,11 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactField, ContactGroup, ImportTask
+from temba.contacts.search.tests import MockParseQuery
 from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, Org
-from temba.tests import ESMockWithScroll, MigrationTest, TembaTest, matchers
+from temba.tests import TembaTest, matchers
 from temba.utils import json
 from temba.values.constants import Value
 
@@ -1428,8 +1429,9 @@ class CampaignTest(TembaTest):
         # create a campaign on a dynamic group
         self.create_field("gender", "Gender")
 
-        with ESMockWithScroll():
+        with MockParseQuery('gender = "F"', ["gender"]):
             women = self.create_group("Women", query='gender="F"')
+            ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
 
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders for Women", women)
         event = CampaignEvent.create_message_event(
@@ -1458,8 +1460,10 @@ class CampaignTest(TembaTest):
         self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 1)
 
         # change dynamic group query so anna is removed
-        with ESMockWithScroll():
-            women.update_query("gender=FEMALE")
+        with MockParseQuery('gender = "FEMALE"', ["gender"]):
+            women.update_query(query='gender="FEMALE"')
+            ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
+            anna.handle_update(fields=["gender"])
 
         self.assertEqual(set(women.contacts.all()), set())
 
@@ -1467,15 +1471,11 @@ class CampaignTest(TembaTest):
         self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 0)
 
         # but if query is reverted, her event fire should be recreated
-        mock_es_data = [
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": anna.id, "modified_on": anna.modified_on.isoformat()},
-            }
-        ]
-        with ESMockWithScroll(data=mock_es_data):
+        with MockParseQuery('gender = "F"', ["gender"]):
             women.update_query("gender=F")
+            ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
+            anna.handle_update(fields=["gender"])
+
         self.assertEqual(set(women.contacts.all()), {anna})
 
         # check that her event fire is now removed
@@ -1703,29 +1703,3 @@ class CampaignTest(TembaTest):
         self.assertEqual(campaign_event.event_type, "M")
         self.assertEqual(campaign_event.message, {"base": "oy, pancake man, come back"})
         self.assertEqual(campaign_event.delivery_hour, -1)
-
-
-class MigrateMsgEventsMigrationTest(MigrationTest):
-    app = "campaigns"
-    migrate_from = "0031_cleanup"
-    migrate_to = "0032_migrate_msg_events"
-
-    def setUpBeforeMigration(self, apps):
-        farmers = self.create_group("Farmers", [])
-        created_on = self.org.contactfields.get(key="created_on")
-        campaign = Campaign.create(self.org, self.admin, "Reminders", farmers)
-
-        self.event1 = CampaignEvent.create_message_event(
-            self.org,
-            self.admin,
-            campaign,
-            offset=3,
-            unit="D",
-            message={"eng": "Hi @contact.age", "spa": "Hola @contact.age"},
-            base_language="eng",
-            relative_to=created_on,
-        )
-
-    def test_migrated(self):
-        self.event1.refresh_from_db()
-        self.assertEqual({"eng": "Hi @fields.age", "spa": "Hola @fields.age"}, self.event1.message)

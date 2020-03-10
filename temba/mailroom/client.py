@@ -50,8 +50,13 @@ class MailroomClient:
         if auth_token:
             self.headers["Authorization"] = "Token " + auth_token
 
-    def expression_migrate(self, expression):
+    def version(self):
+        return self._request("", post=False).get("version")
 
+    def expression_migrate(self, expression):
+        """
+        Migrates a legacy expression to latest engine version
+        """
         if not expression:
             return ""
 
@@ -62,37 +67,30 @@ class MailroomClient:
             # if the expression is invalid.. just return original
             return expression
 
-    def flow_migrate(self, definition):
-        return self._request("flow/migrate", {"flow": definition})
+    def flow_migrate(self, definition, to_version=None):
+        """
+        Migrates a flow definition to the specified spec version
+        """
+        from temba.flows.models import Flow
 
-    def flow_inspect(self, flow, validate_with_org=None):
+        if not to_version:
+            to_version = Flow.CURRENT_SPEC_VERSION
+
+        return self._request("flow/migrate", {"flow": definition, "to_version": to_version})
+
+    def flow_inspect(self, org_id, flow):
         payload = {"flow": flow}
 
-        # can't do validation during tests because mailroom can't see unit test data created in a transaction
-        if validate_with_org and not settings.TESTING:  # pragma: no cover
-            payload["validate_with_org_id"] = validate_with_org.id
+        # can't do dependency checking during tests because mailroom can't see unit test data created in a transaction
+        if not settings.TESTING:
+            payload["org_id"] = org_id
 
         return self._request("flow/inspect", payload)
 
-    def flow_clone(self, dependency_mapping, flow, validate_with_org=None):
-        payload = {"dependency_mapping": dependency_mapping, "flow": flow}
-
-        # can't do validation during tests because mailroom can't see unit test data created in a transaction
-        if validate_with_org and not settings.TESTING:  # pragma: no cover
-            payload["validate_with_org_id"] = validate_with_org.id
+    def flow_clone(self, flow, dependency_mapping):
+        payload = {"flow": flow, "dependency_mapping": dependency_mapping}
 
         return self._request("flow/clone", payload)
-
-    def flow_validate(self, org, definition):
-        payload = {"flow": definition}
-
-        # during tests do validation without org because mailroom can't see unit test data created in a transaction
-        if org and not settings.TESTING:
-            payload["org_id"] = org.id
-
-        validated = self._request("flow/validate", payload)
-        validated["_ui"] = definition.get("_ui", {})
-        return validated
 
     def sim_start(self, payload):
         return self._request("sim/start", payload)
@@ -100,13 +98,24 @@ class MailroomClient:
     def sim_resume(self, payload):
         return self._request("sim/resume", payload)
 
-    def _request(self, endpoint, payload):
+    def contact_search(self, org_id, group_uuid, query, sort, offset=0):
+        payload = {"org_id": org_id, "group_uuid": group_uuid, "query": query, "sort": sort, "offset": offset}
+
+        return self._request("contact/search", payload)
+
+    def parse_query(self, org_id, query, group_uuid=""):
+        payload = {"org_id": org_id, "query": query, "group_uuid": group_uuid}
+
+        return self._request("contact/parse_query", payload)
+
+    def _request(self, endpoint, payload=None, post=True):
         if logger.isEnabledFor(logging.DEBUG):  # pragma: no cover
             logger.debug("=============== %s request ===============" % endpoint)
             logger.debug(json.dumps(payload, indent=2))
             logger.debug("=============== /%s request ===============" % endpoint)
 
-        response = requests.post("%s/mr/%s" % (self.base_url, endpoint), json=payload, headers=self.headers)
+        req_fn = requests.post if post else requests.get
+        response = req_fn("%s/mr/%s" % (self.base_url, endpoint), json=payload, headers=self.headers)
         resp_json = response.json()
 
         if logger.isEnabledFor(logging.DEBUG):  # pragma: no cover
