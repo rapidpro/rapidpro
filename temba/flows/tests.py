@@ -2938,7 +2938,7 @@ class FlowCRUDLTest(TembaTest):
 
     def test_goflow_revisions(self):
         self.login(self.admin)
-        self.client.post(reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPEMESSAGE))
+        self.client.post(reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE))
         flow = Flow.objects.get(
             org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.CURRENT_SPEC_VERSION
         )
