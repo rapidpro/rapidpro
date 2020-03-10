@@ -29,7 +29,7 @@ from django.forms import Form
 from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.http import urlquote_plus
+from django.utils.http import is_safe_url, urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -576,6 +576,8 @@ class ContactCRUDL(SmartCRUDL):
             group_uuid = self.request.GET.get("g")
             search = self.request.GET.get("s")
             redirect = self.request.GET.get("redirect")
+            if redirect and not is_safe_url(redirect, self.request.get_host()):
+                redirect = None
 
             return group_uuid, search, redirect
 
