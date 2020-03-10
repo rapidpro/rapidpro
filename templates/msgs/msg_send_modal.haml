@@ -18,6 +18,7 @@
           completionsEndpoint:"/mr/docs/completion.json", 
           functionsEndpoint:"/mr/docs/functions.json", 
           fieldsEndpoint:"/api/v2/fields.json"
+          globalsEndpoint:"/api/v2/globals.json"
           textarea:"true",
           tabindex:1
         }
@@ -61,6 +62,9 @@
     function formatSelection(item) {
         return item.text;
     };
+
+    // TODO: showCompose and showComposeInitialized are only used by the legacy editor,
+    // these should be removed when that editor is removed
 
     // show the compose dialog with some contacts prepopulated
     function showComposeInitialized(queryString, url, onComplete) {

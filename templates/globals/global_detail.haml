@@ -1,0 +1,25 @@
+{% extends "smartmin/base.html" %}
+
+{% load smartmin %}
+{% load i18n %}
+
+-block page-top
+
+-block content
+  -block pjax
+
+    .row
+      .span5
+        %h4
+          {% trans "Flows" %}:
+
+        -if dep_flows
+          %ul
+            - for flow in dep_flows
+              %li
+                %a(href="{% url 'flows.flow_editor' flow.uuid %}")
+                  {{ flow.name }}
+        -else
+          %ul
+            %li
+              -trans "No related flows."

@@ -9,7 +9,7 @@
     ]
   },
   "dependencies": {
-    "@nyaruka/flow-editor": "1.7.3",
+    "@nyaruka/flow-editor": "1.8.5",
     "coffeescript": "1.12.7",
     "less": "2.7.1",
     "react": "16.3.2",
@@ -24,7 +24,7 @@
     "jasmine-core": "2.5.0",
     "karma": "4.1.0",
     "karma-coffee-preprocessor": "1.0.1",
-    "karma-coverage": "1.1.2",
+    "karma-coverage": "2.0.1",
     "karma-coveralls": "2.1.0",
     "karma-jasmine": "0.3.5",
     "karma-ng-html2js-preprocessor": "0.1.1",

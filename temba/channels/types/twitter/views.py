@@ -9,7 +9,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba.utils.views import NonAtomicMixin
 
 from ...models import Channel
-from ...views import ClaimViewMixin
+from ...views import ClaimViewMixin, UpdateChannelForm
 from .client import TwitterClient
 
 
@@ -79,3 +79,11 @@ class ClaimView(NonAtomicMixin, ClaimViewMixin, SmartFormView):
             return self.form_invalid(form)
 
         return super().form_valid(form)
+
+
+class UpdateForm(UpdateChannelForm):
+    class Meta(UpdateChannelForm.Meta):
+        fields = "name", "address", "alert_email"
+        readonly = ("address",)
+        labels = {"address": _("Handle")}
+        helps = {"address": _("Twitter handle of this channel")}

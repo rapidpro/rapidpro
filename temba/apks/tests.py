@@ -23,7 +23,7 @@ class ApkTest(TembaTest):
 
     def test_claim_android(self):
         self.login(self.admin)
-        response = self.client.get(reverse("channels.channel_claim_android"))
+        response = self.client.get(reverse("channels.types.android.claim"))
         self.assertContains(response, "<li>has new things</li>")
 
     def test_list(self):

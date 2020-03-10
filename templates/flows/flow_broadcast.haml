@@ -66,8 +66,8 @@
 
   -else
     -if warnings
-      %rp-alert{level: "warning"}
-        -for warning in warnings
+      -for warning in warnings
+        %rp-alert{level: "warning"}
           %div= warning
 
     .field.start-type
@@ -139,16 +139,19 @@
     var queryField = document.querySelector('.query');
     var recipientsField = document.querySelector('.omnibox');
 
-    document.querySelector("rp-select[name='start_type']").addEventListener("rp-selection", function(evt) {
-      var selected = evt.detail.selected;
-      if (selected.value === "query") {
-        removeClass(queryField, "hidden");
-        addClass(recipientsField, "hidden");
-      } else {
-        addClass(queryField, "hidden");
-        removeClass(recipientsField, "hidden");
-      }
-    });
+    var startTypeSelect = document.querySelector("rp-select[name='start_type']");
+    if (startTypeSelect) {
+      startTypeSelect.addEventListener("rp-selection", function(evt) {
+        var selected = evt.detail.selected;
+        if (selected.value === "query") {
+          removeClass(queryField, "hidden");
+          addClass(recipientsField, "hidden");
+        } else {
+          addClass(queryField, "hidden");
+          removeClass(recipientsField, "hidden");
+        }
+      });
+    }
 
     $(document).ready(function () {
       useFontCheckbox("#id_restart_participants");

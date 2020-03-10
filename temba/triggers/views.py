@@ -234,7 +234,9 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
         label=_("Contacts"),
         required=True,
         help_text=_("The groups and contacts the flow will be broadcast to"),
-        widget=OmniboxChoice(attrs={"placeholder": _("Recipients, enter contacts or groups")}),
+        widget=OmniboxChoice(
+            attrs={"placeholder": _("Recipients, enter contacts or groups"), "groups": True, "contacts": True}
+        ),
     )
 
     def __init__(self, user, *args, **kwargs):

@@ -25,9 +25,9 @@ from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN, Contact, Cont
 from temba.ivr.models import IVRCall
 from temba.msgs.models import IVR, PENDING, QUEUED, Broadcast, Msg
 from temba.orgs.models import Org
-from temba.tests import AnonymousOrg, MockResponse, TembaTest
+from temba.tests import AnonymousOrg, MigrationTest, MockResponse, TembaTest
 from temba.triggers.models import Trigger
-from temba.utils import dict_to_struct, get_anonymous_user, json
+from temba.utils import dict_to_struct, json
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 
 from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
@@ -159,6 +159,10 @@ class ChannelTest(TembaTest):
         # now we should be IVR capable
         self.assertTrue(self.org.supports_ivr())
 
+        # we cannot add multiple callers
+        response = self.client.post(reverse("channels.channel_create_caller"), post_data)
+        self.assertFormError(response, "form", "channel", "A caller has already been added for that number")
+
         # should now have the option to disable
         self.login(self.admin)
         response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
@@ -167,9 +171,7 @@ class ChannelTest(TembaTest):
         # try adding a caller for an invalid channel
         response = self.client.post("%s?channel=20000" % reverse("channels.channel_create_caller"))
         self.assertEqual(200, response.status_code)
-        self.assertEqual(
-            "Sorry, a caller cannot be added for that number", response.context["form"].errors["channel"][0]
-        )
+        self.assertFormError(response, "form", "channel", "A caller cannot be added for that number")
 
         # disable our twilio connection
         self.org.remove_twilio_account(self.admin)
@@ -464,7 +466,7 @@ class ChannelTest(TembaTest):
             self.org,
             self.user,
             None,
-            Channel.TYPE_ANDROID,
+            "A",
             None,
             "+250781112222",
             config={Channel.CONFIG_FCM_ID: "asdf"},
@@ -574,108 +576,90 @@ class ChannelTest(TembaTest):
         response = self.client.get(update_url)
         self.assertEqual(302, response.status_code)
 
-        self.login(self.user)
-        # visit the channel's update page as a manager within the channel's organization
-        self.org.administrators.add(self.user)
-        response = self.fetch_protected(update_url, self.user)
+        # visit the channel's update page as an admin
+        self.login(self.admin)
+
+        response = self.fetch_protected(update_url, self.admin)
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], update_url)
 
-        channel = Channel.objects.get(pk=self.tel_channel.id)
-        self.assertEqual(channel.name, "Test Channel")
-        self.assertEqual(channel.address, "+250785551212")
+        self.client.post(update_url, {"name": "Test Channel Update1", "address": "+250785551313"})
 
-        postdata = dict()
-        postdata["name"] = "Test Channel Update1"
-        postdata["address"] = "+250785551313"
-
-        self.login(self.user)
-        response = self.client.post(update_url, postdata, follow=True)
-        channel = Channel.objects.get(pk=self.tel_channel.id)
-        self.assertEqual(channel.name, "Test Channel Update1")
-        self.assertEqual(channel.address, "+250785551313")
+        self.tel_channel.refresh_from_db()
+        self.assertEqual("Test Channel Update1", self.tel_channel.name)
+        self.assertEqual("+250785551313", self.tel_channel.address)
+        self.assertFalse(self.tel_channel.config.get("allow_international"))
 
         # if we change the channel to a twilio type, shouldn't be able to edit our address
-        channel.channel_type = "T"
-        channel.save()
+        self.tel_channel.channel_type = "T"
+        self.tel_channel.save(update_fields=("channel_type",))
 
         response = self.client.get(update_url)
         self.assertNotIn("address", response.context["form"].fields)
 
         # bring it back to android
-        channel.channel_type = Channel.TYPE_ANDROID
-        channel.save()
+        self.tel_channel.channel_type = "A"
+        self.tel_channel.save(update_fields=("channel_type",))
 
-        # visit the channel's update page as administrator
-        self.org.administrators.add(self.user)
-        self.user.set_org(self.org)
-        response = self.fetch_protected(update_url, self.user)
+        # visit the update page again as an administrator
+        response = self.fetch_protected(update_url, self.admin)
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], update_url)
-        channel = Channel.objects.get(pk=self.tel_channel.id)
-        self.assertEqual(channel.name, "Test Channel Update1")
-        self.assertEqual(channel.address, "+250785551313")
 
-        postdata = dict()
-        postdata["name"] = "Test Channel Update2"
-        postdata["address"] = "+250785551414"
+        self.fetch_protected(
+            update_url,
+            self.admin,
+            {"name": "Test Channel Update2", "address": "+250785551414", "allow_international": True},
+        )
 
-        response = self.fetch_protected(update_url, self.user, postdata)
-        channel = Channel.objects.get(pk=self.tel_channel.id)
-        self.assertEqual(channel.name, "Test Channel Update2")
-        self.assertEqual(channel.address, "+250785551414")
+        self.tel_channel.refresh_from_db()
+        self.assertEqual("Test Channel Update2", self.tel_channel.name)
+        self.assertEqual("+250785551414", self.tel_channel.address)
+        self.assertTrue(self.tel_channel.config.get("allow_international"))
 
         # visit the channel's update page as superuser
         self.superuser.set_org(self.org)
         response = self.fetch_protected(update_url, self.superuser)
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], update_url)
-        channel = Channel.objects.get(pk=self.tel_channel.id)
-        self.assertEqual(channel.name, "Test Channel Update2")
-        self.assertEqual(channel.address, "+250785551414")
 
-        postdata = dict()
-        postdata["name"] = "Test Channel Update3"
-        postdata["address"] = "+250785551515"
+        self.fetch_protected(update_url, self.superuser, {"name": "Test Channel Update3", "address": "+250785551515"})
 
-        response = self.fetch_protected(update_url, self.superuser, postdata)
-        channel = Channel.objects.get(pk=self.tel_channel.id)
-        self.assertEqual(channel.name, "Test Channel Update3")
-        self.assertEqual(channel.address, "+250785551515")
+        self.tel_channel.refresh_from_db()
+        self.assertEqual("Test Channel Update3", self.tel_channel.name)
+        self.assertEqual("+250785551515", self.tel_channel.address)
 
         # make sure channel works with alphanumeric numbers
-        channel.address = "EATRIGHT"
-        self.assertEqual("EATRIGHT", channel.get_address_display())
-        self.assertEqual("EATRIGHT", channel.get_address_display(e164=True))
+        self.tel_channel.address = "EATRIGHT"
+        self.assertEqual("EATRIGHT", self.tel_channel.get_address_display())
+        self.assertEqual("EATRIGHT", self.tel_channel.get_address_display(e164=True))
 
         # change channel type to Twitter
-        channel.channel_type = "TWT"
-        channel.schemes = [TWITTER_SCHEME]
-        channel.address = "billy_bob"
-        channel.scheme = "twitter"
-        channel.config = {"handle_id": 12345, "oauth_token": "abcdef", "oauth_token_secret": "23456"}
-        channel.save()
+        self.tel_channel.channel_type = "TWT"
+        self.tel_channel.schemes = [TWITTER_SCHEME]
+        self.tel_channel.address = "billy_bob"
+        self.tel_channel.scheme = "twitter"
+        self.tel_channel.config = {"handle_id": 12345, "oauth_token": "abcdef", "oauth_token_secret": "23456"}
+        self.tel_channel.save()
 
-        self.assertEqual("@billy_bob", channel.get_address_display())
-        self.assertEqual("@billy_bob", channel.get_address_display(e164=True))
+        self.assertEqual("@billy_bob", self.tel_channel.get_address_display())
+        self.assertEqual("@billy_bob", self.tel_channel.get_address_display(e164=True))
 
-        response = self.fetch_protected(update_url, self.user)
+        response = self.fetch_protected(update_url, self.admin)
         self.assertEqual(200, response.status_code)
         self.assertIn("name", response.context["fields"])
         self.assertIn("alert_email", response.context["fields"])
         self.assertIn("address", response.context["fields"])
         self.assertNotIn("country", response.context["fields"])
 
-        postdata = dict()
-        postdata["name"] = "Twitter2"
-        postdata["alert_email"] = "bob@example.com"
-        postdata["address"] = "billy_bob"
+        postdata = {"name": "Twitter2", "alert_email": "bob@example.com", "address": "billy_bob"}
 
-        self.fetch_protected(update_url, self.user, postdata)
-        channel = Channel.objects.get(pk=self.tel_channel.id)
-        self.assertEqual(channel.name, "Twitter2")
-        self.assertEqual(channel.alert_email, "bob@example.com")
-        self.assertEqual(channel.address, "billy_bob")
+        self.fetch_protected(update_url, self.admin, postdata)
+
+        self.tel_channel.refresh_from_db()
+        self.assertEqual("Twitter2", self.tel_channel.name)
+        self.assertEqual("bob@example.com", self.tel_channel.alert_email)
+        self.assertEqual("billy_bob", self.tel_channel.address)
 
     def test_read(self):
         post_data = dict(
@@ -917,333 +901,6 @@ class ChannelTest(TembaTest):
         with self.assertRaises(ValueError):
             self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
 
-    def test_register_and_claim_android(self):
-        # remove our explicit country so it needs to be derived from channels
-        self.org.country = None
-        self.org.save()
-
-        Channel.objects.all().delete()
-
-        reg_data = dict(cmds=[dict(cmd="fcm", fcm_id="FCM111", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])
-
-        # must be a post
-        response = self.client.get(reverse("register"), content_type="application/json")
-        self.assertEqual(500, response.status_code)
-
-        # try a legit register
-        response = self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
-        self.assertEqual(200, response.status_code)
-
-        android1 = Channel.objects.get()
-        self.assertIsNone(android1.org)
-        self.assertIsNone(android1.address)
-        self.assertIsNone(android1.alert_email)
-        self.assertEqual(android1.country, "RW")
-        self.assertEqual(android1.device, "Nexus")
-        self.assertEqual(android1.config["FCM_ID"], "FCM111")
-        self.assertEqual(android1.uuid, "uuid")
-        self.assertTrue(android1.secret)
-        self.assertTrue(android1.claim_code)
-        self.assertEqual(android1.created_by, get_anonymous_user())
-
-        # check channel JSON in response
-        response_json = response.json()
-        self.assertEqual(
-            response_json,
-            dict(
-                cmds=[
-                    dict(
-                        cmd="reg",
-                        relayer_claim_code=android1.claim_code,
-                        relayer_secret=android1.secret,
-                        relayer_id=android1.id,
-                    )
-                ]
-            ),
-        )
-
-        # try registering again with same details
-        response = self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
-        self.assertEqual(response.status_code, 200)
-
-        android1 = Channel.objects.get()
-        response_json = response.json()
-
-        self.assertEqual(
-            response_json,
-            dict(
-                cmds=[
-                    dict(
-                        cmd="reg",
-                        relayer_claim_code=android1.claim_code,
-                        relayer_secret=android1.secret,
-                        relayer_id=android1.id,
-                    )
-                ]
-            ),
-        )
-
-        # try to claim as non-admin
-        self.login(self.user)
-        response = self.client.post(
-            reverse("channels.channel_claim_android"), dict(claim_code=android1.claim_code, phone_number="0788123123")
-        )
-        self.assertLoginRedirect(response)
-
-        # try to claim with an invalid phone number
-        self.login(self.admin)
-        response = self.client.post(
-            reverse("channels.channel_claim_android"), dict(claim_code=android1.claim_code, phone_number="078123")
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", "phone_number", "Invalid phone number, try again.")
-
-        # claim our channel
-        response = self.client.post(
-            reverse("channels.channel_claim_android"), dict(claim_code=android1.claim_code, phone_number="0788123123")
-        )
-
-        # redirect to welcome page
-        self.assertIn("success", response.get("Location", None))
-        self.assertRedirect(response, reverse("public.public_welcome"))
-
-        # channel is updated with org details and claim code is now blank
-        android1.refresh_from_db()
-        secret = android1.secret
-        self.assertEqual(android1.org, self.org)
-        self.assertEqual(android1.address, "+250788123123")  # normalized
-        self.assertEqual(android1.alert_email, self.admin.email)  # the logged-in user
-        self.assertEqual(android1.config["FCM_ID"], "FCM111")
-        self.assertEqual(android1.uuid, "uuid")
-        self.assertFalse(android1.claim_code)
-
-        # try having a device register again
-        response = self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
-        self.assertEqual(response.status_code, 200)
-
-        # should return same channel but with a new claim code and secret
-        android1.refresh_from_db()
-        self.assertEqual(android1.org, self.org)
-        self.assertEqual(android1.address, "+250788123123")
-        self.assertEqual(android1.alert_email, self.admin.email)
-        self.assertEqual(android1.config["FCM_ID"], "FCM111")
-        self.assertEqual(android1.uuid, "uuid")
-        self.assertEqual(android1.is_active, True)
-        self.assertTrue(android1.claim_code)
-        self.assertNotEqual(android1.secret, secret)
-
-        # should be able to claim again
-        response = self.client.post(
-            reverse("channels.channel_claim_android"), dict(claim_code=android1.claim_code, phone_number="0788123123")
-        )
-        self.assertRedirect(response, reverse("public.public_welcome"))
-
-        # try having a device register yet again with new FCM ID
-        reg_data["cmds"][0]["fcm_id"] = "FCM222"
-        response = self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
-        self.assertEqual(response.status_code, 200)
-
-        # should return same channel but with FCM updated
-        android1.refresh_from_db()
-        self.assertEqual(android1.org, self.org)
-        self.assertEqual(android1.address, "+250788123123")
-        self.assertEqual(android1.alert_email, self.admin.email)
-        self.assertEqual(android1.config["FCM_ID"], "FCM222")
-        self.assertEqual(android1.uuid, "uuid")
-        self.assertEqual(android1.is_active, True)
-
-        # we can claim again with new phone number
-        response = self.client.post(
-            reverse("channels.channel_claim_android"),
-            dict(claim_code=android1.claim_code, phone_number="+250788123124"),
-        )
-        self.assertRedirect(response, reverse("public.public_welcome"))
-
-        android1.refresh_from_db()
-        self.assertEqual(android1.org, self.org)
-        self.assertEqual(android1.address, "+250788123124")
-        self.assertEqual(android1.alert_email, self.admin.email)
-        self.assertEqual(android1.config["FCM_ID"], "FCM222")
-        self.assertEqual(android1.uuid, "uuid")
-        self.assertEqual(android1.is_active, True)
-
-        # release and then register with same details and claim again
-        old_uuid = android1.uuid
-        android1.release()
-
-        response = self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
-        claim_code = response.json()["cmds"][0]["relayer_claim_code"]
-        self.assertEqual(response.status_code, 200)
-        response = self.client.post(
-            reverse("channels.channel_claim_android"), dict(claim_code=claim_code, phone_number="+250788123124")
-        )
-        self.assertRedirect(response, reverse("public.public_welcome"))
-
-        android1.refresh_from_db()
-
-        self.assertNotEqual(android1.uuid, old_uuid)  # inactive channel now has new UUID
-
-        # and we have a new Android channel with our UUID
-        android2 = Channel.objects.get(is_active=True)
-        self.assertNotEqual(android2, android1)
-        self.assertEqual(android2.uuid, "uuid")
-
-        # try to claim a bogus channel
-        response = self.client.post(reverse("channels.channel_claim_android"), dict(claim_code="Your Mom"))
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", "claim_code", "Invalid claim code, please check and try again.")
-
-        # check our primary tel channel is the same as our outgoing
-        default_sender = self.org.get_send_channel(TEL_SCHEME)
-        self.assertEqual(default_sender, android2)
-        self.assertEqual(default_sender, self.org.get_receive_channel(TEL_SCHEME))
-        self.assertFalse(default_sender.is_delegate_sender())
-
-        response = self.client.get(reverse("channels.channel_bulk_sender_options"))
-        self.assertEqual(response.status_code, 200)
-
-        response = self.client.post(
-            reverse("channels.channel_create_bulk_sender") + "?connection=NX", dict(connection="NX")
-        )
-        self.assertFormError(response, "form", "channel", "Can't add sender for that number")
-
-        # try to claim a bulk Nexmo sender (without adding Nexmo account to org)
-        claim_nexmo_url = reverse("channels.channel_create_bulk_sender") + "?connection=NX&channel=%d" % android2.pk
-        response = self.client.post(claim_nexmo_url, dict(connection="NX", channel=android2.pk))
-        self.assertFormError(response, "form", "connection", "A connection to a Nexmo account is required")
-
-        # send channel is still our Android device
-        self.assertEqual(self.org.get_send_channel(TEL_SCHEME), android2)
-        self.assertFalse(self.org.is_connected_to_nexmo())
-
-        # now connect to nexmo
-        self.org.connect_nexmo("123", "456", self.admin)
-        self.assertTrue(self.org.is_connected_to_nexmo())
-
-        # now adding Nexmo bulk sender should work
-        response = self.client.post(claim_nexmo_url, dict(connection="NX", channel=android2.pk))
-        self.assertRedirect(response, reverse("orgs.org_home"))
-
-        # new Nexmo channel created for delegated sending
-        nexmo = self.org.get_send_channel(TEL_SCHEME)
-        self.assertEqual(nexmo.channel_type, "NX")
-        self.assertEqual(nexmo.parent, android2)
-        self.assertTrue(nexmo.is_delegate_sender())
-        self.assertEqual(nexmo.tps, 1)
-        channel_config = nexmo.config
-        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_KEY], "123")
-        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_SECRET], "456")
-
-        # reading our nexmo channel should now offer a disconnect option
-        nexmo = self.org.channels.filter(channel_type="NX").first()
-        response = self.client.get(reverse("channels.channel_read", args=[nexmo.uuid]))
-        self.assertContains(response, "Disable Bulk Sending")
-
-        # receiving still job of our Android device
-        self.assertEqual(self.org.get_receive_channel(TEL_SCHEME), android2)
-
-        # re-register device with country as US
-        reg_data = dict(
-            cmds=[dict(cmd="fcm", fcm_id="FCM222", uuid="uuid"), dict(cmd="status", cc="US", dev="Nexus 5X")]
-        )
-        response = self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
-        self.assertEqual(response.status_code, 200)
-
-        # channel country and device updated
-        android2.refresh_from_db()
-        self.assertEqual(android2.country, "US")
-        self.assertEqual(android2.device, "Nexus 5X")
-        self.assertEqual(android2.org, self.org)
-        self.assertEqual(android2.config["FCM_ID"], "FCM222")
-        self.assertEqual(android2.uuid, "uuid")
-        self.assertTrue(android2.is_active)
-
-        # set back to RW...
-        android2.country = "RW"
-        android2.save()
-
-        # our country is RW
-        self.assertEqual(self.org.get_country_code(), "RW")
-
-        # remove nexmo
-        nexmo.release()
-
-        self.assertEqual(self.org.get_country_code(), "RW")
-
-        # register another device with country as US
-        reg_data = dict(
-            cmds=[dict(cmd="fcm", fcm_id="FCM444", uuid="uuid4"), dict(cmd="status", cc="US", dev="Nexus 6P")]
-        )
-        response = self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
-
-        claim_code = response.json()["cmds"][0]["relayer_claim_code"]
-
-        # try to claim it...
-        self.client.post(
-            reverse("channels.channel_claim_android"), dict(claim_code=claim_code, phone_number="12065551212")
-        )
-
-        # should work, can have two channels in different countries
-        channel = Channel.objects.get(country="US")
-        self.assertEqual(channel.address, "+12065551212")
-
-        self.assertEqual(Channel.objects.filter(org=self.org, is_active=True).count(), 2)
-
-        # normalize a URN with a fully qualified number
-        number, valid = URN.normalize_number("+12061112222", None)
-        self.assertTrue(valid)
-
-        # not international format
-        number, valid = URN.normalize_number("0788383383", None)
-        self.assertFalse(valid)
-
-        # get our send channel without a URN, should just default to last
-        default_channel = self.org.get_send_channel(TEL_SCHEME)
-        self.assertEqual(default_channel, channel)
-
-        # get our send channel for a Rwandan URN
-        rwanda_channel = self.org.get_send_channel(TEL_SCHEME, ContactURN.create(self.org, None, "tel:+250788383383"))
-        self.assertEqual(rwanda_channel, android2)
-
-        # and a US one
-        us_channel = self.org.get_send_channel(TEL_SCHEME, ContactURN.create(self.org, None, "tel:+12065555353"))
-        self.assertEqual(us_channel, channel)
-
-        # a different country altogether should just give us the default
-        us_channel = self.org.get_send_channel(TEL_SCHEME, ContactURN.create(self.org, None, "tel:+593997290044"))
-        self.assertEqual(us_channel, channel)
-
-        self.org = Org.objects.get(id=self.org.id)
-        self.assertIsNone(self.org.get_country_code())
-
-        # yet another registration in rwanda
-        reg_data = dict(
-            cmds=[dict(cmd="fcm", fcm_id="FCM555", uuid="uuid5"), dict(cmd="status", cc="RW", dev="Nexus 5")]
-        )
-        response = self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
-        claim_code = response.json()["cmds"][0]["relayer_claim_code"]
-
-        # try to claim it with number taken by other Android channel
-        response = self.client.post(
-            reverse("channels.channel_claim_android"), dict(claim_code=claim_code, phone_number="+250788123124")
-        )
-        self.assertFormError(
-            response, "form", "phone_number", "Another channel has this number. Please remove that channel first."
-        )
-
-        # create channel in another org
-        self.setUpSecondaryOrg()
-        Channel.create(self.org2, self.admin2, "RW", "A", "", "+250788382382")
-
-        # can claim it with this number, and because it's a fully qualified RW number, doesn't matter that channel is US
-        response = self.client.post(
-            reverse("channels.channel_claim_android"), dict(claim_code=claim_code, phone_number="+250788382382")
-        )
-        self.assertRedirect(response, reverse("public.public_welcome"))
-
-        # should be added with RW as the country
-        self.assertTrue(Channel.objects.get(address="+250788382382", country="RW", org=self.org))
-
     def test_search_nexmo(self):
         self.login(self.admin)
         self.org.channels.update(is_active=False)
@@ -1317,7 +974,7 @@ class ChannelTest(TembaTest):
 
         android = Channel.objects.get()
         self.client.post(
-            reverse("channels.channel_claim_android"), dict(claim_code=android.claim_code, phone_number="0788123123")
+            reverse("channels.types.android.claim"), dict(claim_code=android.claim_code, phone_number="0788123123")
         )
 
         from temba.flows.models import Flow
@@ -1343,7 +1000,7 @@ class ChannelTest(TembaTest):
         self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
         android = Channel.objects.get()
         self.client.post(
-            reverse("channels.channel_claim_android"), dict(claim_code=android.claim_code, phone_number="0788123123")
+            reverse("channels.types.android.claim"), dict(claim_code=android.claim_code, phone_number="0788123123")
         )
         android.refresh_from_db()
 
@@ -1373,7 +1030,7 @@ class ChannelTest(TembaTest):
         self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
         android = Channel.objects.get()
         self.client.post(
-            reverse("channels.channel_claim_android"), dict(claim_code=android.claim_code, phone_number="0788123123")
+            reverse("channels.types.android.claim"), dict(claim_code=android.claim_code, phone_number="0788123123")
         )
         android.refresh_from_db()
         # simulate no FCM ID
@@ -1744,7 +1401,7 @@ class ChannelTest(TembaTest):
         trim_sync_events_task()
 
         # should be cleared out
-        self.assertFalse(SyncEvent.objects.exists())
+        self.assertEqual(1, SyncEvent.objects.all().count())
         self.assertFalse(Alert.objects.exists())
 
         # the case the status is in unknown state
@@ -2210,11 +1867,21 @@ class ChannelClaimTest(TembaTest):
         self.assertFalse(alert.ended_on)
         self.assertTrue(len(mail.outbox) == 2)
 
-        # run again, nothing should change
-        check_channels_task()
+        # create another open SMS alert
+        Alert.objects.create(
+            channel=self.channel,
+            alert_type=Alert.TYPE_SMS,
+            created_on=timezone.now(),
+            created_by=self.admin,
+            modified_on=timezone.now(),
+            modified_by=self.admin,
+        )
 
-        alert = Alert.objects.get(ended_on=None)
-        self.assertFalse(alert.ended_on)
+        # run again, nothing should change
+        with self.assertNumQueries(10):
+            check_channels_task()
+
+        self.assertEqual(2, Alert.objects.filter(channel=self.channel, ended_on=None).count())
         self.assertTrue(len(mail.outbox) == 2)
 
         # fix our message
@@ -3112,3 +2779,20 @@ class CourierTest(TembaTest):
         response = self.client.get(reverse("courier.t", args=[self.channel.uuid, "receive"]))
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.content, b"this URL should be mapped to a Courier instance")
+
+
+class PopulateAllowInternationalTest(MigrationTest):
+    app = "channels"
+    migrate_from = "0121_auto_20191112_1938"
+    migrate_to = "0122_populate_allow_international"
+
+    def setUpBeforeMigration(self, apps):
+        # create a non-tel channel
+        self.channel2 = Channel.create(self.org, self.user, None, "FB", name="Test FB Channel")
+
+    def test_migration(self):
+        self.channel.refresh_from_db()
+        self.channel2.refresh_from_db()
+
+        self.assertEqual({"FCM_ID": "123", "allow_international": True}, self.channel.config)
+        self.assertEqual({}, self.channel2.config)

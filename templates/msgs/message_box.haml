@@ -2,6 +2,12 @@
 -load smartmin sms temba compress contacts
 -load i18n humanize
 
+-block extra-style
+  :css
+    rp-button {
+      display: block;
+    }
+
 -block page-top
   {% render as page_top %}
     {{block.super}}
@@ -43,8 +49,8 @@
         .span3.sidebox
           %div{style:"margin-bottom: 10px"}
             - if org_perms.msgs.broadcast_send
-              %a.btn.btn-primary.btn-block.send-button
-                -trans "Send Message"
+              %rp-modax#send-message-modal{ header:'{% trans "Send Message" %}', endpoint:"{% url 'msgs.broadcast_send' %}" }
+                %rp-button#send-message-button{ name:'{% trans "Send Message"%}', primary: 'true'}
 
           #sidebar-nav
             %ul.nav.nav-list.level1
@@ -79,7 +85,7 @@
                       %a{ href:"{% url 'msgs.msg_filter' node.obj.uuid %}", class:'{% if current_label.id == node.obj.id %}active{% endif %}' }
                         {{ node.obj.name }} ({{ node.count | intcomma }})
 
-          %div{style:"margin-top: 10px"}
+          %div{style:"margin-top: 10px; margin-bottom:10px;"}
             - if org_perms.msgs.label_create
               %a.btn.btn-block.add-label
                 - trans "Create Label"
@@ -98,13 +104,13 @@
               -block search-details
                 .search-details
                   -if search
-                    -blocktrans with results_count=paginator.count|intcomma count cc=paginator.count
+                    -blocktrans trimmed with results_count=paginator.count|intcomma count cc=paginator.count
                       Found {{ results_count }} message in last 90 days matching <i>{{search}}</i>.
                       -plural
                         Found {{ results_count }} messages in last 90 days matching <i>{{search}}</i>.
                   -else
                     -if start_date
-                      -blocktrans with results_count=paginator.count|intcomma count cc=paginator.count
+                      -blocktrans trimmed with results_count=paginator.count|intcomma count cc=paginator.count
                         {{ results_count }} message since {{ start_date}}.
                         -plural
                           {{ results_count }} messages since {{ start_date}}.
@@ -231,6 +237,28 @@
   :javascript
     {% if org_perms.msgs.msg_update %}
 
+  
+    // wire our send button on load and on refresh
+    wireSendButton();
+    document.addEventListener('rp-refresh-complete', function() {
+      wireSendButton();
+    });
+
+    function wireSendButton() {
+      // when we click send, include any clicked messages in our modax request
+      var sendEndpoint = "{% url 'msgs.broadcast_send' %}";
+      var sendButton = document.querySelector("#send-message-button");
+      var sendModal = document.querySelector("#send-message-modal");
+      sendButton.addEventListener('click', function(){
+        var msgIds = getCheckedIds();
+        if (msgIds.length > 0) {
+          sendModal.setAttribute("endpoint", sendEndpoint + '?m=' + msgIds);
+        } else {
+          sendModal.setAttribute("endpoint", sendEndpoint);
+        }
+      });
+    }
+
     function postLabelChanges(smsIds, labelId, addLabel, number, onError) {
          fetchPJAXContent("", "#pjax", { postData: { objects: smsIds, label: labelId, add: addLabel, action: 'label', pjax: 'true', number:number },
          forceReload: true, onSuccess: function(data, textStatus) {
@@ -274,21 +302,6 @@
       });
       modal.show();
     });
-
-    {% if org_perms.msgs.broadcast_send %}
-    if($(location).attr('hash') == '#message') {
-      showCompose();
-    }
-
-    $(".page-content").on('click', ".send-button", function() {
-      var smsIds = getCheckedIds();
-      if (smsIds.length > 0) {
-      showComposeInitialized("m=" + smsIds);
-      } else {
-      showCompose();
-      }
-    });
-    {% endif %}
 
     $(".page-content").on('pjax:complete', function() {
       $(".btn").tooltip();

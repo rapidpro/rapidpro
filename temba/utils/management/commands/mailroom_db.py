@@ -16,6 +16,7 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow
+from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label
 from temba.orgs.models import Org
@@ -85,6 +86,10 @@ ORG1 = dict(
             uuid="0f661e8b-ea9d-4bd3-9953-d368340acf91",
         ),
     ),
+    globals=(
+        dict(key="org_name", name="Org Name", uuid="c1a65849-243c-438e-987e-3fa5f884e3e1", value="Nyaruka"),
+        dict(key="access_token", name="Access Token", uuid="57a18892-9fc9-45f7-aa14-c7e5b3583b54", value="A213CD78"),
+    ),
     groups=(
         dict(name="Doctors", uuid="c153e265-f7c9-4539-9dbc-9b358714b638", size=120),
         dict(name="Testers", uuid="5e9d8fab-5e7e-4f51-b533-261af5dea70d", size=10),
@@ -107,24 +112,24 @@ ORG1 = dict(
     contacts=(
         dict(
             name="Cathy",
-            urns=["tel:+250700000001"],
+            urns=["tel:+16055741111"],
             uuid="6393abc0-283d-4c9b-a1b3-641a035c34bf",
             groups=["Doctors"],
             fields=dict(gender="F", state="Nigeria > Sokoto", ward="Nigeria > Sokoto > Yabo > Kilgori"),
         ),
         dict(
             name="Bob",
-            urns=["tel:+250700000002"],
+            urns=["tel:+16055742222"],
             uuid="b699a406-7e44-49be-9f01-1a82893e8a10",
             fields=dict(joined="2019-01-24T04:32:22Z"),
         ),
         dict(
             name="George",
-            urns=["tel:+250700000003"],
+            urns=["tel:+16055743333"],
             uuid="8d024bcd-f473-4719-a00a-bd0bb1190135",
             fields=dict(age="30"),
         ),
-        dict(name="Alexandia", urns=["tel:+250700000004"], uuid="9709c157-4606-4d41-9df3-9e9c9b4ae2d4"),
+        dict(name="Alexandia", urns=["tel:+1605574444"], uuid="9709c157-4606-4d41-9df3-9e9c9b4ae2d4"),
     ),
     labels=(
         dict(name="Reporting", uuid="ebc4dedc-91c4-4ed4-9dd6-daa05ea82698"),
@@ -208,6 +213,7 @@ ORG2 = dict(
         ),
     ),
     classifiers=(),
+    globals=(),
     groups=(dict(name="Doctors", uuid="492e438c-02e5-43a4-953a-57410b7fe3dd", size=120),),
     fields=(),
     contacts=(dict(name="Fred", urns=["tel:+250700000005"], uuid="26d20b72-f7d8-44dc-87f2-aae046dbff95"),),
@@ -341,6 +347,7 @@ class Command(BaseCommand):
 
         self.create_channels(spec, org, superuser)
         self.create_fields(spec, org, superuser)
+        self.create_globals(spec, org, superuser)
         self.create_labels(spec, org, superuser)
         self.create_groups(spec, org, superuser)
         self.create_flows(spec, org, superuser)
@@ -410,6 +417,16 @@ class Command(BaseCommand):
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
+    def create_globals(self, spec, org, user):
+        self._log(f"Creating {len(spec['globals'])} globals... ")
+
+        for g in spec["globals"]:
+            Global.objects.create(
+                org=org, key=g["key"], name=g["name"], value=g["value"], created_by=user, modified_by=user
+            )
+
+        self._log(self.style.SUCCESS("OK") + "\n")
+
     def create_groups(self, spec, org, user):
         self._log(f"Creating {len(spec['groups'])} groups... ")
 
@@ -436,7 +453,7 @@ class Command(BaseCommand):
 
         for f in spec["flows"]:
             with open("media/test_flows/mailroom/" + f["file"], "r") as flow_file:
-                org.import_app(json.load(flow_file), user)
+                org.import_app(json.load(flow_file), user, legacy=True)
 
                 # set the uuid on this flow
                 Flow.objects.filter(org=org, name=f["name"]).update(uuid=f["uuid"])

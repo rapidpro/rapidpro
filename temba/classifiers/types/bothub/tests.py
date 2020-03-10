@@ -1,12 +1,15 @@
 from unittest.mock import patch
 
+from requests import RequestException
+
 from django.contrib.auth.models import Group
 from django.urls import reverse
 
 from temba.classifiers.models import Classifier
+from temba.request_logs.models import HTTPLog
 from temba.tests import MockResponse, TembaTest
 
-from .type import BotHubType
+from .type import BothubType
 
 INTENT_RESPONSE = """
 {
@@ -19,28 +22,31 @@ INTENT_RESPONSE = """
 """
 
 
-class BotHubTypeTest(TembaTest):
+class BothubTypeTest(TembaTest):
     def test_sync(self):
         c = Classifier.create(
             self.org,
             self.user,
-            BotHubType.slug,
+            BothubType.slug,
             "Booker",
-            {BotHubType.CONFIG_ACCESS_TOKEN: "123456789", BotHubType.INTENT_URL: "https://nlp.bothub.it/info/"},
+            {BothubType.CONFIG_ACCESS_TOKEN: "123456789", BothubType.INTENT_URL: "https://nlp.bothub.it/info/"},
         )
 
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(400, '{ "error": "true" }')
-            logs = []
+            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 2)
             with self.assertRaises(Exception):
-                BotHubType.get_active_intents_from_api(c, logs)
-                self.assertEqual(1, len(logs))
+                c.get_type().get_active_intents_from_api(c)
+                self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 3)
+
+            mock_get.side_effect = RequestException("Network is unreachable", response=MockResponse(100, ""))
+            c.get_type().get_active_intents_from_api(c)
+            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 4)
 
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(200, INTENT_RESPONSE)
-            logs = []
-            intents = BotHubType.get_active_intents_from_api(c, logs)
-            self.assertEqual(1, len(logs))
+            intents = c.get_type().get_active_intents_from_api(c)
+            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 5)
             self.assertEqual(3, len(intents))
             intent = intents[0]
             self.assertEqual("intent", intent.name)
@@ -90,4 +96,4 @@ class BotHubTypeTest(TembaTest):
             c = Classifier.objects.get()
             self.assertEqual("Bothub Test Repository", c.name)
             self.assertEqual("bothub", c.classifier_type)
-            self.assertEqual("123456789", c.config[BotHubType.CONFIG_ACCESS_TOKEN])
+            self.assertEqual("123456789", c.config[BothubType.CONFIG_ACCESS_TOKEN])

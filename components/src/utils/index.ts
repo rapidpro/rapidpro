@@ -78,10 +78,16 @@ export const getAssets = async (url: string): Promise<Asset[]> => {
 
 export const getUrl = (
     url: string,
-    cancelToken: CancelToken = null
+    cancelToken: CancelToken = null,
+    pjax: boolean = false
 ): Promise<AxiosResponse> => {
     const csrf = getCookie('csrftoken');
-    const headers = csrf ? { 'X-CSRFToken': csrf } : {};
+    const headers: any = csrf ? { 'X-CSRFToken': csrf } : {};
+
+    if (pjax) {
+        headers['X-PJAX'] = 'true';
+    }
+
     const config: AxiosRequestConfig = { headers };
     if (cancelToken) {
         config.cancelToken = cancelToken;
@@ -89,9 +95,18 @@ export const getUrl = (
     return axios.get(url, config);
 };
 
-export const postUrl = (url: string, payload: any): Promise<AxiosResponse> => {
+export const postUrl = (
+    url: string,
+    payload: any,
+    pjax: boolean = false
+): Promise<AxiosResponse> => {
     const csrf = getCookie('csrftoken');
-    const headers = csrf ? { 'X-CSRFToken': csrf } : {};
+    const headers: any = csrf ? { 'X-CSRFToken': csrf } : {};
+
+    if (pjax) {
+        headers['X-PJAX'] = 'true';
+    }
+
     return axios.post(url, payload, { headers });
 };
 
@@ -162,4 +177,57 @@ export const fillTemplate = (
     return html`
         ${templateDiv}
     `;
+};
+
+/*!
+ * Serialize all form data into a query string
+ * (c) 2018 Chris Ferdinandi, MIT License, https://gomakethings.com
+ * @param  {Node}   form The form to serialize
+ * @return {String}      The serialized form data
+ */
+export const serialize = function(form: any) {
+    // Setup our serialized data
+    const serialized = [];
+
+    // Loop through each field in the form
+    for (let i = 0; i < form.elements.length; i++) {
+        const field = form.elements[i];
+
+        // Don't serialize fields without a name, submits, buttons, file and reset inputs, and disabled fields
+        if (
+            !field.name ||
+            field.disabled ||
+            field.type === 'file' ||
+            field.type === 'reset' ||
+            field.type === 'submit' ||
+            field.type === 'button'
+        )
+            continue;
+
+        // If a multi-select, get all selections
+        if (field.type === 'select-multiple') {
+            for (var n = 0; n < field.options.length; n++) {
+                if (!field.options[n].selected) continue;
+                serialized.push(
+                    encodeURIComponent(field.name) +
+                        '=' +
+                        encodeURIComponent(field.options[n].value)
+                );
+            }
+        }
+
+        // Convert field data to a query string
+        else if (
+            (field.type !== 'checkbox' && field.type !== 'radio') ||
+            field.checked
+        ) {
+            serialized.push(
+                encodeURIComponent(field.name) +
+                    '=' +
+                    encodeURIComponent(field.value)
+            );
+        }
+    }
+
+    return serialized.join('&');
 };

@@ -1,17 +1,18 @@
 import { customElement, property } from 'lit-element/lib/decorators';
-import { LitElement, TemplateResult, html, css } from 'lit-element';
+import { TemplateResult, html, css } from 'lit-element';
 import Button from '../button/Button';
 import RapidElement from '../RapidElement';
 import { CustomEventType } from '../interfaces';
 import { styleMap } from 'lit-html/directives/style-map.js';
+import { getClasses } from '../utils';
 
 @customElement("rp-dialog")
 export default class Dialog extends RapidElement {
 
   static get widths(): { [size: string]: string } {
     return {
-      'small' : '350px',
-      'medium' : '500px',
+      'small' : '400px',
+      'medium' : '600px',
       'large' : '655px'
     }
   }
@@ -22,9 +23,10 @@ export default class Dialog extends RapidElement {
       :host {
         position: absolute;
         z-index: 10000;
+        font-family: var(--font-family);
       }
 
-      .mask {
+      .dialog-mask {
         width: 100%;
         background: rgba(0, 0, 0, .5);
         opacity: 0;
@@ -35,38 +37,44 @@ export default class Dialog extends RapidElement {
         transition: all ease-in 250ms;
       }
 
-      .dialog {
+      .dialog-container {
         margin: 0px auto; 
-        top: -200px;
+        top: -300px;
         position: relative;
         transition: top ease-in-out 200ms;
         border-radius: var(--curvature); 
         box-shadow: 0px 0px 2px 4px rgba(0,0,0,.06);
         overflow: hidden;
+        opacity: 0;
       }
 
-      .body {
+      .dialog-body {
         background: #fff;
       }
 
-      .mask.open {
+      .dialog-mask.dialog-open {
         opacity: 1;
         visibility: visible;
       }
 
-      .mask.open > .dialog {
-        top: 100px;
+      .dialog-mask.dialog-open > .dialog-container {
+        top: 20px;
+        opacity: 1;
       }
 
-      .title {
+      .dialog-mask.dialog-loading > .dialog-container {
+        top: -300px;
+      }
+
+      .header-text {
         font-size: 20px;
         padding: 16px;
-        font-weight: 300;
+        font-weight: 200;
         color: var(--color-text-light);
         background: var(--color-primary-dark);
       }
 
-      .footer {
+      .dialog-footer {
         background: var(--color-primary-light);
         padding: 10px;
         display: flex;
@@ -76,6 +84,30 @@ export default class Dialog extends RapidElement {
       rp-button {
         margin-left: 10px;
       }
+
+      .dialog-body rp-loading {
+        position: absolute;
+        right: 12px;
+        margin-top: -30px;
+        padding-bottom: 9px;
+        display: none;
+      }
+
+      #page-loader {
+        text-align: center;
+        padding-top: 30px;
+        display: block;
+        position: relative;
+        opacity: 0;
+        transition: opacity 1000ms ease-in 500ms;
+        visibility: hidden;
+      }
+
+      .dialog-mask.dialog-loading #page-loader  {
+        opacity: 1;
+        visibility: visible;
+      }
+
   `;
   }
 
@@ -84,22 +116,28 @@ export default class Dialog extends RapidElement {
   open: boolean;
 
   @property()
-  title: string;
+  header: string;
 
   @property()
   body: string;
 
+  @property({type: Boolean})
+  submitting: boolean;
+
+  @property({type: Boolean})
+  loading: boolean;
+
   @property()
   size: string = "medium";
 
-  @property()
+  @property({type: String})
   primaryButtonName: string = "Ok";
 
   @property({type: String})
   cancelButtonName: string = "Cancel";
 
   @property()
-  inProgressName: string = "Saving";
+  submittingName: string = "Saving";
 
   @property({attribute: false})
   onButtonClicked: (button: Button) => void;
@@ -112,7 +150,7 @@ export default class Dialog extends RapidElement {
     if (changedProperties.has("open")) {
       // make sure our buttons aren't in progress on show
       if (this.open) {
-        this.shadowRoot.querySelectorAll("rp-button").forEach((button: Button)=>button.setProgress(false));
+        this.shadowRoot.querySelectorAll("rp-button").forEach((button: Button)=>button.disabled = false);
         const inputs = this.querySelectorAll("textarea,input");
         if (inputs.length > 0) {
           window.setTimeout(()=>{
@@ -125,7 +163,7 @@ export default class Dialog extends RapidElement {
 
   public handleClick(evt: MouseEvent) {
     const button = evt.currentTarget as Button;
-    if (!button.isProgress) {
+    if (!button.disabled) {
       this.fireCustomEvent(CustomEventType.ButtonClicked, {button});
     }
   }
@@ -145,6 +183,12 @@ export default class Dialog extends RapidElement {
     }
   }
 
+  private handleClickMask(event: MouseEvent) {
+    if ((event.target as HTMLElement).id === "dialog-mask") {
+      this.fireCustomEvent(CustomEventType.DialogHidden);
+    }
+  }
+
   public render(): TemplateResult {
 
     const height = this.getDocumentHeight();
@@ -152,15 +196,27 @@ export default class Dialog extends RapidElement {
     const maskStyle = { height: `${height + 100}px`}
     const dialogStyle = { width: Dialog.widths[this.size] }
 
+    let header = this.header ? html`
+      <div class="dialog-header">
+        <div class="header-text">${this.header}</div>
+      </div>` : null;
+
     return html`
-        <div class="mask ${this.open ? 'open' : ''}" style=${styleMap(maskStyle)}>
-          <div @keyup=${this.handleKeyUp} style=${styleMap(dialogStyle)} class="dialog">
-            <div class="header">
-              <div class="title">${this.title}</div>
+        <div id="dialog-mask"  @click=${this.handleClickMask} class="dialog-mask ${getClasses({ 
+          "dialog-open": this.open,
+          "dialog-loading": this.loading
+          })}" style=${styleMap(maskStyle)}>
+
+          <rp-loading id="page-loader" units=6 size=12 color="#ccc"></rp-loading>
+
+          <div @keyup=${this.handleKeyUp} style=${styleMap(dialogStyle)} class="dialog-container">
+            ${header}
+            <div class="dialog-body" @keypress=${this.handleKeyUp}>${this.body ? this.body : html`<slot></slot>`}
+              <rp-loading units=6 size=8></rp-loading>
             </div>
-            <div class="body" @keypress=${this.handleKeyUp}>${this.body ? this.body : html`<slot></slot>`}</div>
-            <div class="footer">
-              <rp-button @click=${this.handleClick} name=${this.primaryButtonName} inProgessName=${this.inProgressName} primary>}</rp-button>
+
+            <div class="dialog-footer">
+              ${this.primaryButtonName ? html`<rp-button @click=${this.handleClick} .name=${this.primaryButtonName} primary ?disabled=${this.submitting}>}</rp-button>`: null}
               <rp-button @click=${this.handleClick} name=${this.cancelButtonName} secondary></rp-button>
             </div>
           </div>      

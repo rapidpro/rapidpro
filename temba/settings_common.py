@@ -239,6 +239,7 @@ INSTALLED_APPS = (
     "temba.request_logs",
     "temba.classifiers",
     "temba.dashboard",
+    "temba.globals",
     "temba.public",
     "temba.policies",
     "temba.schedules",
@@ -327,7 +328,7 @@ PERMISSIONS = {
     "api.resthooksubscriber": ("api",),
     "campaigns.campaign": ("api", "archived", "archive", "activate"),
     "campaigns.campaignevent": ("api",),
-    "classifiers.classifier": ("connect", "api"),
+    "classifiers.classifier": ("connect", "api", "sync"),
     "classifiers.intent": ("api",),
     "contacts.contact": (
         "api",
@@ -351,6 +352,7 @@ PERMISSIONS = {
     "contacts.contactgroup": ("api",),
     "ivr.ivrcall": ("start",),
     "archives.archive": ("api", "run", "message"),
+    "globals.global": ("api", "unused", "detail"),
     "locations.adminboundary": ("alias", "api", "boundaries", "geometry"),
     "orgs.org": (
         "accounts",
@@ -533,6 +535,7 @@ GROUP_PERMISSIONS = {
         "classifiers.classifier_read",
         "classifiers.classifier_delete",
         "classifiers.classifier_list",
+        "classifiers.classifier_sync",
         "classifiers.intent_api",
         "contacts.contact_api",
         "contacts.contact_block",
@@ -557,6 +560,7 @@ GROUP_PERMISSIONS = {
         "contacts.contactfield.*",
         "contacts.contactgroup.*",
         "csv_imports.importtask.*",
+        "globals.global.*",
         "ivr.ivrcall.*",
         "locations.adminboundary_alias",
         "locations.adminboundary_api",
@@ -682,6 +686,7 @@ GROUP_PERMISSIONS = {
         "contacts.contactgroup.*",
         "csv_imports.importtask.*",
         "ivr.ivrcall.*",
+        "globals.global_api",
         "locations.adminboundary_alias",
         "locations.adminboundary_api",
         "locations.adminboundary_boundaries",
@@ -756,6 +761,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_stopped",
         "contacts.contactfield_api",
         "contacts.contactgroup_api",
+        "globals.global_api",
         "locations.adminboundary_boundaries",
         "locations.adminboundary_geometry",
         "locations.adminboundary_alias",
@@ -868,6 +874,7 @@ CELERYBEAT_SCHEDULE = {
     "trim-http-logs": {"task": "trim_http_logs_task", "schedule": crontab(hour=3, minute=0)},
     "trim-webhook-event": {"task": "trim_webhook_event_task", "schedule": crontab(hour=3, minute=0)},
     "trim-event-fires": {"task": "trim_event_fires_task", "schedule": timedelta(seconds=900)},
+    "trim-flow-revisions": {"task": "trim_flow_revisions", "schedule": crontab(hour=0, minute=0)},
     "trim-flow-sessions": {"task": "trim_flow_sessions", "schedule": crontab(hour=0, minute=0)},
     "squash-flowruncounts": {"task": "squash_flowruncounts", "schedule": timedelta(seconds=60)},
     "squash-flowpathcounts": {"task": "squash_flowpathcounts", "schedule": timedelta(seconds=60)},
@@ -880,6 +887,7 @@ CELERYBEAT_SCHEDULE = {
     "refresh-wechat-access-tokens": {"task": "refresh_wechat_access_tokens", "schedule": timedelta(seconds=3600)},
     "refresh-whatsapp-tokens": {"task": "refresh_whatsapp_tokens", "schedule": timedelta(hours=24)},
     "refresh-whatsapp-templates": {"task": "refresh_whatsapp_templates", "schedule": timedelta(seconds=900)},
+    # "resume_failed_tasks": {"task": "resume_failed_tasks", "schedule": timedelta(seconds=1800)},
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
@@ -926,7 +934,7 @@ CACHES = {
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework.authentication.SessionAuthentication",
+        "temba.api.support.APISessionAuthentication",
         "temba.api.support.APITokenAuthentication",
         "temba.api.support.APIBasicAuthentication",
     ),
@@ -988,13 +996,14 @@ SEND_EMAILS = False
 CLASSIFIER_TYPES = [
     "temba.classifiers.types.wit.WitType",
     "temba.classifiers.types.luis.LuisType",
-    "temba.classifiers.types.bothub.BotHubType",
+    "temba.classifiers.types.bothub.BothubType",
 ]
 
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
     "temba.channels.types.whatsapp.WhatsAppType",
     "temba.channels.types.twilio.TwilioType",
+    "temba.channels.types.twilio_whatsapp.TwilioWhatsappType",
     "temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType",
     "temba.channels.types.signalwire.SignalWireType",
     "temba.channels.types.nexmo.NexmoType",
@@ -1009,6 +1018,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.external.ExternalType",
     "temba.channels.types.facebook.FacebookType",
     "temba.channels.types.firebase.FirebaseCloudMessagingType",
+    "temba.channels.types.freshchat.FreshChatType",
     "temba.channels.types.globe.GlobeType",
     "temba.channels.types.highconnection.HighConnectionType",
     "temba.channels.types.hormuud.HormuudType",
@@ -1038,12 +1048,14 @@ CHANNEL_TYPES = [
     "temba.channels.types.twitter_legacy.TwitterLegacyType",
     "temba.channels.types.verboice.VerboiceType",
     "temba.channels.types.viber_public.ViberPublicType",
+    "temba.channels.types.vk.VKType",
     "temba.channels.types.wavy.WavyType",
     "temba.channels.types.wechat.WeChatType",
     "temba.channels.types.yo.YoType",
     "temba.channels.types.zenvia.ZenviaType",
     "temba.channels.types.i2sms.I2SMSType",
     "temba.channels.types.clicksend.ClickSendType",
+    "temba.channels.types.android.AndroidType",
 ]
 
 # -----------------------------------------------------------------------------------
@@ -1117,5 +1129,6 @@ MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
 # ElasticSearch configuration (URL RFC-1738)
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 
-# Maximum active ContactFields users can have in an Org
+# Maximum active objects are org can have
 MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
+MAX_ACTIVE_GLOBALS_PER_ORG = 255

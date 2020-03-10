@@ -10,6 +10,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 import pytz
 import requests
+from packaging.version import Version
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -578,7 +579,7 @@ class OrgCRUDL(SmartCRUDL):
                 except (DjangoUnicodeDecodeError, ValueError):
                     raise ValidationError(_("This file is not a valid flow definition file."))
 
-                if Flow.is_before_version(json_data.get("version", 0), Org.EARLIEST_IMPORT_VERSION):
+                if Version(str(json_data.get("version", 0))) < Version(Org.EARLIEST_IMPORT_VERSION):
                     raise ValidationError(
                         _("This file is no longer valid. Please export a new version and try again.")
                     )
@@ -1954,7 +1955,7 @@ class OrgCRUDL(SmartCRUDL):
 
             slug = Org.get_unique_slug(self.form.cleaned_data["name"])
             obj.slug = slug
-            obj.brand = self.request.branding.get("host", settings.DEFAULT_BRAND)
+            obj.brand = self.request.branding.get("brand", settings.DEFAULT_BRAND)
 
             if obj.timezone.zone in pytz.country_timezones("US"):
                 obj.date_format = Org.DATE_FORMAT_MONTH_FIRST
@@ -2264,17 +2265,13 @@ class OrgCRUDL(SmartCRUDL):
                     formax.add_section(
                         "dtone",
                         reverse("orgs.org_dtone_account"),
-                        icon="icon-transferto",
+                        icon="icon-dtone",
                         action="redirect",
                         button=_("Connect"),
                     )
                 else:  # pragma: needs cover
                     formax.add_section(
-                        "dtone",
-                        reverse("orgs.org_dtone_account"),
-                        icon="icon-transferto",
-                        action="redirect",
-                        nobutton=True,
+                        "dtone", reverse("orgs.org_dtone_account"), icon="icon-dtone", action="redirect", nobutton=True
                     )
 
             if self.has_org_perm("orgs.org_chatbase"):
@@ -2304,7 +2301,8 @@ class OrgCRUDL(SmartCRUDL):
                     "resthooks", reverse("orgs.org_resthooks"), icon="icon-cloud-lightning", dependents="resthooks"
                 )
 
-            # show archives
+            # show globals and archives
+            formax.add_section("globals", reverse("globals.global_list"), icon="icon-global", action="link")
             formax.add_section("archives", reverse("archives.archive_message"), icon="icon-box", action="link")
 
     class DtoneAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
@@ -2334,12 +2332,12 @@ class OrgCRUDL(SmartCRUDL):
 
                     except Exception:
                         raise ValidationError(
-                            _("Your DTOne API key and secret seem invalid. Please check them again and retry.")
+                            _("Your DT One API key and secret seem invalid. Please check them again and retry.")
                         )
 
                     if error_code != 0 and info_txt != "pong":
                         raise ValidationError(
-                            _("Connecting to your DTOne account failed with error text: %s") % error_txt
+                            _("Connecting to your DT One account failed with error text: %s") % error_txt
                         )
 
                 return self.cleaned_data

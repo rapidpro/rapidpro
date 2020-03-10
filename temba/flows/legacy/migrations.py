@@ -1452,7 +1452,7 @@ def replace_templates(json_flow, replace_func):
             if action["type"] in ["reply", "send", "say", "email"]:
                 msg = action["msg"]
                 if isinstance(msg, str):
-                    action["msg"] = replace_func(msg)
+                    action["msg"] = replace_func(msg)  # pragma: no cover
                 else:
                     for lang, text in msg.items():
                         msg[lang] = replace_func(text)

@@ -22,7 +22,7 @@
 
 -block content
   %div(style="float:right;line-height:40px")
-    -trans "Intents are synced every 5 minutes"
+    -trans "Intents are synced automatically every 5 minutes"
   %h3
     -trans "Active Intents"
 
@@ -70,7 +70,7 @@
           {% if object.dependent_flows.count == 0 %}
             -trans "Once it is removed, it will be gone forever. There is no way to undo this operation."
           {% else %}
-            {% blocktrans count num_flows=object.dependent_flows.count %}
+            {% blocktrans trimmed count num_flows=object.dependent_flows.count %}
             Used by {{num_flows}} flow:
             {% plural %}
             Used by {{num_flows}} flows:

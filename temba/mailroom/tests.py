@@ -7,33 +7,102 @@ from django.test import override_settings
 from django.utils import timezone
 
 from temba.channels.models import ChannelEvent
-from temba.flows.models import FlowStart
-from temba.mailroom.client import FlowValidationException, MailroomException, get_client
+from temba.flows.models import FlowRun, FlowStart
+from temba.mailroom.client import MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
 from temba.tests import MockResponse, TembaTest, matchers
+from temba.tests.engine import MockSessionWriter
 from temba.utils import json
 
 from . import queue_interrupt
 
 
 class MailroomClientTest(TembaTest):
-    @override_settings(TESTING=False)
-    def test_validation_failure(self):
+    def test_version(self):
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(200, '{"version": "5.3.4"}')
+            version = get_client().version()
+
+        self.assertEqual("5.3.4", version)
+
+    def test_flow_migrate(self):
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(422, '{"error":"flow don\'t look right"}')
+            mock_post.return_value = MockResponse(200, '{"name": "Migrated!"}')
+            migrated = get_client().flow_migrate({"nodes": []}, to_version="13.1.0")
 
-            with self.assertRaises(FlowValidationException) as e:
-                get_client().flow_validate(self.org, '{"nodes:[]"}')
+            self.assertEqual({"name": "Migrated!"}, migrated)
 
-        self.assertEqual(str(e.exception), "flow don't look right")
-        self.assertEqual(
-            e.exception.as_json(),
-            {
-                "endpoint": "flow/validate",
-                "request": {"flow": '{"nodes:[]"}', "org_id": self.org.id},
-                "response": {"error": "flow don't look right"},
-            },
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/flow/migrate",
+            headers={"User-Agent": "Temba"},
+            json={"flow": {"nodes": []}, "to_version": "13.1.0"},
         )
+
+    def test_parse_query(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"query":"name ~ \\"frank\\"","fields":["name"]}')
+            response = get_client().parse_query(1, "frank")
+
+            self.assertEqual('name ~ "frank"', response["query"])
+            mock_post.assert_called_once_with(
+                "http://localhost:8090/mr/contact/parse_query",
+                headers={"User-Agent": "Temba"},
+                json={"query": "frank", "org_id": 1, "group_uuid": ""},
+            )
+
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(400, '{"error":"no such field age"}')
+
+            with self.assertRaises(MailroomException):
+                get_client().parse_query(1, "age > 10")
+
+    def test_contact_search(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(
+                200,
+                """
+                {
+                  "query":"name ~ \\"frank\\"",
+                  "contact_ids":[1,2],
+                  "fields":["name"],
+                  "total": 2,
+                  "offset": 0
+                }
+                """,
+            )
+            response = get_client().contact_search(1, "2752dbbc-723f-4007-8bc5-b3720835d3a9", "frank", "-created_on")
+
+            self.assertEqual('name ~ "frank"', response["query"])
+            mock_post.assert_called_once_with(
+                "http://localhost:8090/mr/contact/search",
+                headers={"User-Agent": "Temba"},
+                json={
+                    "query": "frank",
+                    "org_id": 1,
+                    "group_uuid": "2752dbbc-723f-4007-8bc5-b3720835d3a9",
+                    "offset": 0,
+                    "sort": "-created_on",
+                },
+            )
+
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(400, '{"error":"no such field age"}')
+
+            with self.assertRaises(MailroomException):
+                get_client().contact_search(1, "2752dbbc-723f-4007-8bc5-b3720835d3a9", "age > 10", "-created_on")
+
+    @override_settings(TESTING=False)
+    def test_inspect_with_org(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"dependencies":[]}')
+
+            get_client().flow_inspect(self.org.id, {"nodes": []})
+
+            mock_post.assert_called_once_with(
+                "http://localhost:8090/mr/flow/inspect",
+                headers={"User-Agent": "Temba"},
+                json={"org_id": self.org.id, "flow": {"nodes": []}},
+            )
 
     def test_request_failure(self):
         flow = self.get_flow("color")
@@ -253,6 +322,38 @@ class MailroomQueueTest(TembaTest):
                 "type": "interrupt_sessions",
                 "org_id": self.org.id,
                 "task": {"flow_ids": [flow.id]},
+                "queued_on": matchers.ISODate(),
+            },
+        )
+
+    def test_queue_interrupt_by_session(self):
+        jim = self.create_contact("Jim", "+12065551212")
+
+        flow = self.get_flow("favorites")
+        flow_nodes = flow.as_json()["nodes"]
+        color_prompt = flow_nodes[0]
+        color_split = flow_nodes[2]
+
+        (
+            MockSessionWriter(jim, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .save()
+        )
+
+        run = FlowRun.objects.get(contact=jim)
+        session = run.session
+        run.release("U")
+
+        self.assert_org_queued(self.org, "batch")
+        self.assert_queued_batch_task(
+            self.org,
+            {
+                "type": "interrupt_sessions",
+                "org_id": self.org.id,
+                "task": {"session_ids": [session.id]},
                 "queued_on": matchers.ISODate(),
             },
         )

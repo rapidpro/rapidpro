@@ -45,7 +45,6 @@ from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import random_string
-from temba.values.constants import Value
 
 logger = logging.getLogger(__name__)
 
@@ -372,7 +371,7 @@ class Org(SmartModel):
     def is_whitelisted(self):
         return self.config.get(Org.CONFIG_STATUS) == Org.STATUS_WHITELISTED
 
-    def import_app(self, export_json, user, site=None):
+    def import_app(self, export_json, user, site=None, legacy=False):
         """
         Imports previously exported JSON
         """
@@ -399,8 +398,8 @@ class Org(SmartModel):
             raise ValueError(f"Unsupported export version {export_version}")
 
         # do we need to migrate the export forward?
-        if Flow.is_before_version(export_version, Flow.FINAL_LEGACY_VERSION):
-            export_json = FlowRevision.migrate_export(self, export_json, same_site, export_version)
+        if export_version < Version(Flow.CURRENT_SPEC_VERSION):
+            export_json = FlowRevision.migrate_export(self, export_json, same_site, export_version, legacy=legacy)
 
         export_fields = export_json.get(Org.EXPORT_FIELDS, [])
         export_groups = export_json.get(Org.EXPORT_GROUPS, [])
@@ -421,7 +420,7 @@ class Org(SmartModel):
 
         # with all the flows and dependencies committed, we can now have mailroom do full validation
         for flow in new_flows:
-            mailroom.get_client().flow_validate(self, flow.as_json())
+            mailroom.get_client().flow_inspect(self.id, flow.as_json())
 
     @classmethod
     def export_definitions(cls, site_link, components, include_fields=True, include_groups=True):
@@ -479,10 +478,9 @@ class Org(SmartModel):
         If an org's telephone send channel is an Android device, let them add a bulk sender
         """
         from temba.contacts.models import TEL_SCHEME
-        from temba.channels.models import Channel
 
         send_channel = self.get_send_channel(TEL_SCHEME)
-        return send_channel and send_channel.channel_type == Channel.TYPE_ANDROID
+        return send_channel and send_channel.is_android()
 
     def can_add_caller(self):  # pragma: needs cover
         return not self.supports_ivr() and self.is_connected_to_twilio()
@@ -676,15 +674,17 @@ class Org(SmartModel):
         Triggers either our Android channels to sync, or for all our pending messages to be queued
         to send.
         """
-        from temba.msgs.models import Msg
+
         from temba.channels.models import Channel
+        from temba.channels.types.android import AndroidType
+        from temba.msgs.models import Msg
 
         # if we have msgs, then send just those
         if msgs is not None:
             ids = [m.id for m in msgs]
 
             # trigger syncs for our android channels
-            for channel in self.channels.filter(is_active=True, channel_type=Channel.TYPE_ANDROID, msgs__id__in=ids):
+            for channel in self.channels.filter(is_active=True, channel_type=AndroidType.code, msgs__id__in=ids):
                 channel.trigger_sync()
 
             # and send those messages
@@ -692,9 +692,7 @@ class Org(SmartModel):
 
         # otherwise, sync all pending messages and channels
         else:
-            for channel in self.channels.filter(
-                is_active=True, channel_type=Channel.TYPE_ANDROID
-            ):  # pragma: needs cover
+            for channel in self.channels.filter(is_active=True, channel_type=AndroidType.code):  # pragma: needs cover
                 channel.trigger_sync()
 
             # otherwise, send any pending messages on our channels
@@ -1143,42 +1141,16 @@ class Org(SmartModel):
     def create_system_contact_fields(self):
         from temba.contacts.models import ContactField
 
-        ContactField.system_fields.create(
-            org_id=self.id,
-            label=_("ID"),
-            key="id",
-            value_type=Value.TYPE_NUMBER,
-            show_in_table=False,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
-        ContactField.system_fields.create(
-            org_id=self.id,
-            label=_("Created On"),
-            key="created_on",
-            value_type=Value.TYPE_DATETIME,
-            show_in_table=False,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
-        ContactField.system_fields.create(
-            org_id=self.id,
-            label=_("Contact Name"),
-            key="name",
-            value_type=Value.TYPE_TEXT,
-            show_in_table=False,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
-        ContactField.system_fields.create(
-            org_id=self.id,
-            label=_("Language"),
-            key="language",
-            value_type=Value.TYPE_TEXT,
-            show_in_table=False,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
+        for key, field in ContactField.SYSTEM_FIELDS.items():
+            ContactField.system_fields.create(
+                org_id=self.id,
+                key=key,
+                label=field["label"],
+                value_type=field["value_type"],
+                show_in_table=False,
+                created_by=self.created_by,
+                modified_by=self.modified_by,
+            )
 
     def create_sample_flows(self, api_url):
         # get our sample dir
@@ -1767,7 +1739,7 @@ class Org(SmartModel):
 
         if include_campaigns:
             all_campaigns = (
-                self.campaign_set.filter(is_active=True).select_related("group").prefetch_related(*campaign_prefetches)
+                self.campaigns.filter(is_active=True).select_related("group").prefetch_related(*campaign_prefetches)
             )
         else:
             all_campaigns = Campaign.objects.none()
@@ -1779,7 +1751,7 @@ class Org(SmartModel):
         # build dependency graph for all flows and campaigns
         dependencies = defaultdict(set)
         for flow in all_flows:
-            dependencies[flow] = flow.get_dependencies()
+            dependencies[flow] = flow.get_export_dependencies()
         for campaign in all_campaigns:
             dependencies[campaign] = set([e.flow for e in campaign.flow_events])
 
@@ -1787,7 +1759,7 @@ class Org(SmartModel):
         # in flow-group-flow relationships - only relationships that go through a campaign
         campaigns_by_group = defaultdict(list)
         if include_campaigns:
-            for campaign in self.campaign_set.filter(is_active=True).select_related("group"):
+            for campaign in self.campaigns.filter(is_active=True).select_related("group"):
                 campaigns_by_group[campaign.group].append(campaign)
 
         for c, deps in dependencies.items():
@@ -1923,7 +1895,11 @@ class Org(SmartModel):
         self.is_active = False
         self.save(update_fields=("is_active", "modified_on"))
 
-        # immediately release our channels
+        # clear all our channel dependencies on our flows
+        for flow in self.flows.all():
+            flow.channel_dependencies.clear()
+
+        # and immediately release our channels
         from temba.channels.models import Channel
 
         for channel in Channel.objects.filter(org=self, is_active=True):
@@ -1976,10 +1952,13 @@ class Org(SmartModel):
         # delete our flow labels
         self.flow_labels.all().delete()
 
+        # delete all our campaigns and associated events
+        for c in self.campaigns.all():
+            c._full_release()
+
         # delete everything associated with our flows
         for flow in self.flows.all():
-
-            # we want to manually release runs so we dont fire a task to do it
+            # we want to manually release runs so we don't fire a task to do it
             flow.release()
             flow.release_runs()
 
@@ -1996,10 +1975,16 @@ class Org(SmartModel):
 
             flow.delete()
 
+        # delete all sessions
+        self.sessions.all().delete()
+
         # delete our contacts
         for contact in self.contacts.all():
-            contact.release(contact.modified_by)
+            contact.release(contact.modified_by, full=True, immediately=True)
             contact.delete()
+
+        # delete all our URNs
+        self.urns.all().delete()
 
         # delete our fields
         for contactfield in self.contactfields(manager="all_fields").all():
@@ -2020,6 +2005,17 @@ class Org(SmartModel):
 
             channel.delete()
 
+        for log in self.http_logs.all():
+            log.release()
+
+        for g in self.globals.all():
+            g.release()
+
+        # delete our classifiers
+        for classifier in self.classifiers.all():
+            classifier.release()
+            classifier.delete()
+
         # release all archives objects and files for this org
         Archive.release_org_archives(self)
 
@@ -2038,7 +2034,24 @@ class Org(SmartModel):
 
         for resthook in self.resthooks.all():
             resthook.release(self.modified_by)
+            for sub in resthook.subscribers.all():
+                sub.delete()
             resthook.delete()
+
+        # delete org languages
+        Org.objects.filter(id=self.id).update(primary_language=None)
+        self.languages.all().delete()
+
+        # delete other related objects
+        self.api_tokens.all().delete()
+        self.invitations.all().delete()
+        self.credit_alerts.all().delete()
+        self.broadcast_set.all().delete()
+        self.schedules.all().delete()
+        self.boundaryalias_set.all().delete()
+
+        # needs to come after deletion of msgs and broadcasts as those insert new counts
+        self.system_labels.all().delete()
 
         # now what we've all been waiting for
         self.delete()

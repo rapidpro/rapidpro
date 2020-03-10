@@ -99,9 +99,19 @@
         -for urn in event.urns
           <b>{{ urn|format_urn:user_org }}</b>{{ forloop|oxford }}
 
+      -elif event.type == 'error' or event.type == 'failure'
+        {{ event.text }}
+
       -elif event.type == 'email_created'
         -blocktrans with subject=event.subject
           Email sent with subject <b>{{ subject }}</b>
+
+      -elif event.type == 'email_sent'
+        -trans "Email sent to"
+        -for address in event.to
+          <b>{{ address }}</b>{{ forloop|oxford }}
+        -trans "with subject"
+        <b>{{ event.subject }}</b>
 
       -elif event.type == 'flow_entered' or event.type == 'flow_exited'
         -with event.obj as run
@@ -123,10 +133,10 @@
       -elif event.type == 'msg_created' or event.type == 'msg_received'
         -with event.obj as msg
           .activity-message
-            -if msg.direction == 'O' and msg.broadcast.recipient_count > 1
+            -if msg.direction == 'O' and msg.broadcast.get_message_count > 1
               .sent-to
                 .summary
-                  Broadcast to {{msg.broadcast.recipient_count|intcomma}} recipients
+                  Broadcast to {{msg.broadcast.get_message_count|intcomma}} recipients
 
             .activity-body
               -if msg.text
@@ -153,7 +163,7 @@
         %span.short
           {% short_datetime event.created_on %}
         %span.long.hide
-          {% pretty_datetime event.created_on %}
+          {% format_datetime event.created_on %}
 
       .log-icon
         -if event.type == 'msg_created' or event.type == 'msg_received' or event.type == 'call_started'

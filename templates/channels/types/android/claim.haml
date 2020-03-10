@@ -10,7 +10,7 @@
         #big-phone
           %img{ src:"{{ STATIC_URL }}/images/claim_phone.png" }
 
-        %form.claim-form{method:"post", action:"{% url 'channels.channel_claim_android' %}"}
+        %form.claim-form{method:"post", action:"{% url 'channels.types.android.claim' %}"}
           -csrf_token
           .claim-field
             .claim-label
@@ -32,23 +32,21 @@
           .glyph.icon-android
         %span.title-text
           -trans "Connect your Android phone"
-      {% url "public.public_android" as android_public_url %}
-
 
       #little-help
         %p
-          -blocktrans with brand.name as brand
+          -blocktrans trimmed with brand.name as brand
             {{ brand }} uses your Android phone to send and receive messages on your behalf.
 
         %p
-          -blocktrans with brand.name as brand
+          -blocktrans trimmed with brand.name as brand
             Due to restrictions Android has on applications that send SMS messages, we cannot distribute
             the {{ brand }} application through the Play Store. You will need to download the application manually
             and install it using the steps below.
 
           -if relayer_app
             .release-header
-              {% trans "Version" %} {{relayer_app.version}} {% trans "was released on" %} {% pretty_datetime relayer_app.created_on %}
+              {% trans "Version" %} {{relayer_app.version}} {% trans "was released on" %} {% format_datetime relayer_app.created_on %}
 
             -if relayer_app.description
               .release-description
@@ -61,20 +59,19 @@
               -trans "Download App"
 
             %p
-              {% blocktrans with brand=brand.name link=brand.link %}
+              -blocktrans trimmed
                 On your Android device, open your browser and download the app by entering the URL:
-                %code
-                  {{ link }}{{ android_public_url }}
-              {% endblocktrans %}
+              %code
+                {{ brand.link }}{% url "public.public_android" %}
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim1.png' }
           .step-text
             %h3
-              -blocktrans with brand.name as brand
+              -blocktrans trimmed with brand.name as brand
                 Launch the {{ brand }} installer
             %p
-              -blocktrans
+              -blocktrans trimmed
                 Open the notifications shade by dragging from the top and select the downloaded file.
 
 
@@ -84,7 +81,7 @@
             %h3
               -trans "Tap Settings"
             %p
-              -blocktrans
+              -blocktrans trimmed
                 You will be taken to a screen with "allow from this source" toggle
 
         %p.step
@@ -93,7 +90,7 @@
             %h3
               -trans "Toggle allow from this source"
             %p
-              -blocktrans
+              -blocktrans trimmed
                 Make sure "allow from this source" toggle is in the On position.
 
         %p.step
@@ -102,17 +99,16 @@
             %h3
               -trans "Go Back"
             %p
-              -blocktrans
-                Click Install
+              -trans "Click Install"
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim5.png' }
           .step-text
             %h3
-              -blocktrans with brand.name as brand
+              -blocktrans trimmed with brand.name as brand
                 Open {{ brand }}
             %p
-              -blocktrans with brand.name as brand
+              -blocktrans trimmed with brand.name as brand
                 Once {{ brand }} has been installed, open the app drawer and tap on the {{ brand }} icon to start the app.
 
         %p.step
@@ -121,7 +117,7 @@
             %h3
               -trans "Enter Claim Code"
             %p
-              -blocktrans with brand.name as brand
+              -blocktrans trimmed with brand.name as brand
                 When you first open {{ brand }}, the app will register your device with Google and our servers.  Once that is
                 complete, it will display a claim code.  Enter that claim code in the form to the left and click
                 "Add Phone" to connect your device.

@@ -33,11 +33,11 @@ def validate_translations(value, base_language, max_length):
             raise serializers.ValidationError("Ensure translations have no more than %d characters." % max_length)
 
 
-def validate_urn(value, strict=True):
+def validate_urn(value, strict=True, country_code=None):
     try:
-        normalized = URN.normalize(value)
+        normalized = URN.normalize(value, country_code=country_code)
 
-        if strict and not URN.validate(normalized):
+        if strict and not URN.validate(normalized, country_code=country_code):
             raise ValueError()
     except ValueError:
         raise serializers.ValidationError("Invalid URN: %s. Ensure phone numbers contain country codes." % value)
@@ -108,7 +108,8 @@ class URNField(serializers.CharField):
             return str(obj)
 
     def to_internal_value(self, data):
-        return validate_urn(str(data))
+        country_code = self.context["org"].get_country_code()
+        return validate_urn(str(data), country_code=country_code)
 
 
 class URNListField(LimitedListField):
@@ -193,6 +194,17 @@ class ChannelField(TembaModelField):
 class ContactField(TembaModelField):
     model = Contact
     lookup_fields = ("uuid", "urns__urn")
+
+    def __init__(self, **kwargs):
+        self.with_urn = kwargs.pop("with_urn", False)
+        super().__init__(**kwargs)
+
+    def to_representation(self, obj):
+        if self.with_urn and not self.context["org"].is_anon:
+            urn = obj.urns.first()
+            return {"uuid": obj.uuid, "urn": urn.identity if urn else None, "name": obj.name}
+
+        return {"uuid": obj.uuid, "name": obj.name}
 
     def get_queryset(self):
         return self.model.objects.filter(org=self.context["org"], is_active=True)
