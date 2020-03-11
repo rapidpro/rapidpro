@@ -1,6 +1,5 @@
 import logging
 
-import zope.interface
 from prometheus_client import Counter, Gauge
 
 from django.conf import settings
@@ -15,8 +14,7 @@ RELAYER_SYNC = Gauge("temba_relayer_sync_seconds_duration", "Duration of relayer
 CONTACTS = Counter("temba_contacts_total", "Number of contacts", ["hostname", "action"])
 
 
-@zope.interface.implementer(IMetricBackend)
-class PrometheusBackend:
+class PrometheusBackend(IMetricBackend):
     """
     A metrics backend for Prometheus
     """

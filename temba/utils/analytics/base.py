@@ -1,7 +1,7 @@
-import zope.interface
+import abc
 
 
-class IMetricBackend(zope.interface.Interface):
+class IMetricBackend(metaclass=abc.ABCMeta):
     """
     A metric backend
     """

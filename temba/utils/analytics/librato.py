@@ -1,4 +1,3 @@
-import zope.interface
 from librato_bg import Client as LibratoClient
 
 from django.conf import settings
@@ -6,8 +5,7 @@ from django.conf import settings
 from temba.utils.analytics.base import IMetricBackend
 
 
-@zope.interface.implementer(IMetricBackend)
-class LibratoBackend:
+class LibratoBackend(IMetricBackend):
     """
     A metrics backend for the librato service
     """
