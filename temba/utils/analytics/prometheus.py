@@ -1,15 +1,19 @@
+import logging
+
 import zope.interface
 from prometheus_client import Counter, Gauge
+
 from django.conf import settings
-import logging
+
+from temba.utils.analytics.base import IMetricBackend
 
 logger = logging.getLogger(__name__)
 
-from temba.utils.analytics.base import IMetricBackend
 
 MESSAGE_COUNTS = Gauge("message_counts", "Current count of messages", ["hostname", "direction", "state"])
 RELAYER_SYNC = Gauge("relayer_sync_seconds_duration", "Duration of relayer sync view", ["hostname"])
 CONTACTS = Counter("contacts_total", "Number of contacts", ["hostname", "action"])
+
 
 @zope.interface.implementer(IMetricBackend)
 class PrometheusBackend:
@@ -27,9 +31,13 @@ class PrometheusBackend:
             value = 1
 
         if event.startswith("temba.current_outgoing"):
-            MESSAGE_COUNTS.labels(hostname=self._get_hostname(), direction="outbound", state=event.split("_")[-1]).set(value)
+            MESSAGE_COUNTS.labels(hostname=self._get_hostname(), direction="outbound", state=event.split("_")[-1]).set(
+                value
+            )
         elif event.startswith("temba.current_incoming"):
-            MESSAGE_COUNTS.labels(hostname=self._get_hostname(), direction="inbound", state=events.split("_")[1]).set(value)
+            MESSAGE_COUNTS.labels(hostname=self._get_hostname(), direction="inbound", state=event.split("_")[1]).set(
+                value
+            )
         elif event == "temba.relayer_sync":
             RELAYER_SYNC.labels(hostname=self._get_hostname()).set(value)
         else:
