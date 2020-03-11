@@ -128,7 +128,7 @@ class MockSessionWriter:
         self._log_event("error", text=text)
         return self
 
-    def send_msg(self, text, channel=None):
+    def send_msg(self, text, channel=None, attachments=[]):
         self._log_event(
             "msg_created",
             msg={
@@ -136,6 +136,7 @@ class MockSessionWriter:
                 "urn": self.contact.get_urn().urn,
                 "text": text,
                 "channel": self._channel_ref(channel),
+                "attachments": attachments,
             },
         )
         return self
@@ -294,6 +295,7 @@ class MockSessionWriter:
 
     def _handle_msg_created(self, event):
         channel_ref = event["msg"].get("channel")
+        attachments = event["msg"].get("attachments", [])
 
         Msg.objects.create(
             uuid=event["msg"]["uuid"],
@@ -303,6 +305,7 @@ class MockSessionWriter:
             channel=Channel.objects.get(uuid=channel_ref["uuid"]) if channel_ref else None,
             direction="O",
             text=event["msg"]["text"],
+            attachments=attachments,
             created_on=event["created_on"],
             msg_type="F",
             status="S",

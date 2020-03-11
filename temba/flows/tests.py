@@ -4677,6 +4677,56 @@ class ExportFlowResultsTest(TembaTest):
                 self.org.timezone,
             )
 
+    def test_msg_with_attachments(self):
+        flow = self.get_flow("color_v13")
+        flow_nodes = flow.as_json()["nodes"]
+        color_prompt = flow_nodes[0]
+        color_split = flow_nodes[4]
+
+        contact1_run1 = (
+            MockSessionWriter(self.contact, flow)
+            .visit(color_prompt)
+            .send_msg(
+                "What is your favorite color?", self.channel, attachments=["audio:http://rapidpro.io/audio/sound.mp3"]
+            )
+            .visit(color_split)
+            .wait()
+            .save()
+        ).session.runs.get()
+
+        contact1_out1 = contact1_run1.get_messages().get(text="What is your favorite color?")
+
+        workbook = self._export(flow)
+        self.assertEqual(2, len(workbook.worksheets))
+
+        sheet_runs, sheet_msgs = workbook.worksheets
+
+        tz = self.org.timezone
+
+        # check runs sheet...
+        self.assertEqual(2, len(list(sheet_runs.rows)))
+        self.assertEqual(9, len(list(sheet_runs.columns)))
+
+        # check messages sheet...
+        self.assertEqual(2, len(list(sheet_msgs.rows)))
+        self.assertEqual(8, len(list(sheet_msgs.columns)))
+
+        self.assertExcelRow(
+            sheet_msgs,
+            1,
+            [
+                contact1_out1.contact.uuid,
+                "+250788382382",
+                "Eric",
+                contact1_out1.created_on,
+                "OUT",
+                "What is your favorite color?",
+                "http://rapidpro.io/audio/sound.mp3",
+                "Test Channel",
+            ],
+            tz,
+        )
+
     def test_broadcast_only_flow(self):
         flow = self.get_flow("send_only_v13")
         send_node = flow.as_json()["nodes"][0]
