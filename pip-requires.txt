@@ -57,6 +57,7 @@ python-intercom
 pysocks
 pip-tools
 packaging
+zope.interface
 
 ########################## testing ##########################
 black

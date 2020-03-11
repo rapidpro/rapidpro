@@ -5,17 +5,17 @@ from random import randint
 import analytics as segment_analytics
 from intercom.client import Client as IntercomClient
 from intercom.errors import ResourceNotFound
-from librato_bg import Client as LibratoClient
 
 from django.conf import settings
 from django.utils import timezone
 
 from temba.utils import json
 
+from .librato import LibratoBackend
+
 logger = logging.getLogger(__name__)
 
-# our librato_bg client
-_librato = None
+_metric_backends = []
 
 # our intercom client
 _intercom = None
@@ -44,14 +44,14 @@ def init_analytics():  # pragma: no cover
         _intercom = IntercomClient(personal_access_token=intercom_key)
 
     # configure Librato if configured
+    global _metric_backends
     librato_user = getattr(settings, "LIBRATO_USER", None)
     librato_token = getattr(settings, "LIBRATO_TOKEN", None)
     if librato_user and librato_token:
-        global _librato
-        _librato = LibratoClient(librato_user, librato_token)
+        _metric_backends.append(LibratoBackend(librato_user, librato_token))
 
 
-def get_intercom_user(email):
+def _get_intercom_user(email):
     try:
         return _intercom.users.find(email=email)
     except ResourceNotFound:
@@ -60,47 +60,20 @@ def get_intercom_user(email):
 
 def gauge(event, value=None):  # pragma: no cover
     """
-    Triggers a gauge event in Librato
+    Triggers a gauge event in all metric backends
     """
-    if value is None:
-        value = 1
-
-    # settings.HOSTNAME is actually service name (like textit.in), and settings.MACHINE_NAME is the name of the machine
-    # (virtual/physical) that is part of the service
-    reporting_hostname = "%s.%s" % (settings.MACHINE_HOSTNAME, settings.HOSTNAME)
-
-    if _librato:
-        _librato.gauge(event, value, reporting_hostname)
+    global _metric_backends
+    for backend in _metric_backends:
+        backend.gauge(event, value)
 
 
-def identify_org(org, attributes=None):
+def increment(event, value=None):  # pragma: no cover
     """
-    Creates and identifies an org on our analytics backends where appropriate
+    Increments a counter in all metric backends
     """
-    if not settings.IS_PROD:
-        return
-
-    if not attributes:
-        attributes = {}
-
-    if _intercom:
-
-        intercom_attributes = {}
-        for key in ("monthly_spend", "industry", "website"):
-            value = attributes.pop(key, None)
-            if value:
-                intercom_attributes[key] = value
-
-        attributes["brand"] = org.brand
-        attributes["org_id"] = org.id
-
-        _intercom.companies.create(
-            company_id=org.id,
-            name=org.name,
-            created_at=json.encode_datetime(org.created_on),
-            custom_attributes=attributes,
-            **intercom_attributes,
-        )
+    global _metric_backends
+    for backend in _metric_backends:
+        backend.increment(event, value)
 
 
 def identify(user, brand, org):
@@ -157,7 +130,7 @@ def set_orgs(email, all_orgs):
         return
 
     if _intercom:
-        intercom_user = get_intercom_user(email)
+        intercom_user = _get_intercom_user(email)
 
         # if the user is archived this is a noop
         if intercom_user:
@@ -183,7 +156,7 @@ def change_consent(email, consent):
         try:
             change_date = json.encode_datetime(timezone.now())
 
-            user = get_intercom_user(email)
+            user = _get_intercom_user(email)
 
             if consent:
                 if not user or not user.custom_attributes.get("consent", False):

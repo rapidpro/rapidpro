@@ -1400,7 +1400,7 @@ class AnalyticsTest(TestCase):
         )
 
         self.intercom_mock = MagicMock()
-        temba.utils.analytics._intercom = self.intercom_mock
+        temba.utils.analytics.analytics._intercom = self.intercom_mock
         temba.utils.analytics.init_analytics()
 
     @override_settings(IS_PROD=False)
@@ -1415,7 +1415,7 @@ class AnalyticsTest(TestCase):
     def test_identify_intercom_exception(self):
         self.intercom_mock.users.create.side_effect = Exception("Kimi says bwoah...")
 
-        with patch("temba.utils.analytics.logger") as mocked_logging:
+        with patch("temba.utils.analytics.analytics.logger") as mocked_logging:
             temba.utils.analytics.identify(self.admin, "test", self.org)
 
         mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
@@ -1469,7 +1469,7 @@ class AnalyticsTest(TestCase):
     def test_track_intercom_exception(self):
         self.intercom_mock.events.create.side_effect = Exception("It's raining today")
 
-        with patch("temba.utils.analytics.logger") as mocked_logging:
+        with patch("temba.utils.analytics.analytics.logger") as mocked_logging:
             temba.utils.analytics.track(self.admin.email, "test event", properties={"plan": "free"})
 
         mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
@@ -1529,7 +1529,7 @@ class AnalyticsTest(TestCase):
     def test_consent_exception(self):
         self.intercom_mock.users.find.side_effect = Exception("Kimi says bwoah...")
 
-        with patch("temba.utils.analytics.logger") as mocked_logging:
+        with patch("temba.utils.analytics.analytics.logger") as mocked_logging:
             temba.utils.analytics.change_consent(self.admin.email, consent=False)
 
         mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
@@ -1544,14 +1544,14 @@ class AnalyticsTest(TestCase):
         self.intercom_mock.users.delete.assert_not_called()
 
     def test_get_intercom_user(self):
-        temba.utils.analytics.get_intercom_user(email="an email")
+        temba.utils.analytics.analytics._get_intercom_user(email="an email")
 
         self.intercom_mock.users.find.assert_called_with(email="an email")
 
     def test_get_intercom_user_resourcenotfound(self):
         self.intercom_mock.users.find.side_effect = intercom.errors.ResourceNotFound
 
-        result = temba.utils.analytics.get_intercom_user(email="an email")
+        result = temba.utils.analytics.analytics._get_intercom_user(email="an email")
 
         self.assertIsNone(result)
 
@@ -1617,54 +1617,6 @@ class AnalyticsTest(TestCase):
         )
 
         self.intercom_mock.users.save.assert_called_with(mock.ANY)
-
-    @override_settings(IS_PROD=False)
-    def test_identify_org_not_prod_env(self):
-        result = temba.utils.analytics.identify_org(org=self.org, attributes=None)
-
-        self.assertIsNone(result)
-
-        self.intercom_mock.companies.create.assert_not_called()
-
-    @override_settings(IS_PROD=True)
-    def test_identify_org_empty_attributes(self):
-        result = temba.utils.analytics.identify_org(org=self.org, attributes=None)
-
-        self.assertIsNone(result)
-
-        self.intercom_mock.companies.create.assert_called_with(
-            company_id=self.org.id,
-            created_at=mock.ANY,
-            custom_attributes={"brand": self.org.brand, "org_id": self.org.id},
-            name=self.org.name,
-        )
-
-    @override_settings(IS_PROD=True)
-    def test_identify_org_with_attributes(self):
-        attributes = dict(
-            website="https://example.com",
-            industry="Mining",
-            monthly_spend="a lot",
-            this_is_not_an_intercom_attribute="or is it?",
-        )
-
-        result = temba.utils.analytics.identify_org(org=self.org, attributes=attributes)
-
-        self.assertIsNone(result)
-
-        self.intercom_mock.companies.create.assert_called_with(
-            company_id=self.org.id,
-            created_at=mock.ANY,
-            custom_attributes={
-                "brand": self.org.brand,
-                "org_id": self.org.id,
-                "this_is_not_an_intercom_attribute": "or is it?",
-            },
-            name=self.org.name,
-            website="https://example.com",
-            industry="Mining",
-            monthly_spend="a lot",
-        )
 
 
 class IDSliceQuerySetTest(TestCase):

@@ -1287,7 +1287,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             updated_urns = [urn]
 
             # record contact creation in analytics
-            analytics.gauge("temba.contact_created")
+            analytics.increment("temba.contact_created")
 
             # handle group and campaign updates
             if init_new:
@@ -1438,7 +1438,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         # record contact creation in analytics
         if getattr(contact, "is_new", False):
-            analytics.gauge("temba.contact_created")
+            analytics.increment("temba.contact_created")
 
         # handle group and campaign updates
         contact.handle_update(fields=updated_attrs, urns=updated_urns, is_new=contact.is_new)
