@@ -29,6 +29,7 @@ django-compressor==2.2
 django-countries==5.3.3
 django-hamlpy==1.2
 django-mptt==0.8.7
+django-prometheus==2.0.0
 django-redis==4.10.0
 django-storages==1.7.1
 django-timezone-field==3.0
@@ -66,6 +67,7 @@ packaging==19.0
 pathspec==0.7.0           # via black
 phonenumbers
 pip-tools==4.0.0
+prometheus-client==0.7.1  # via django-prometheus
 psycopg2-binary==2.7.7
 pycodestyle==2.5.0        # via flake8
 pycountry==18.12.8

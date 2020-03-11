@@ -12,6 +12,7 @@ from django.utils import timezone
 from temba.utils import json
 
 from .librato import LibratoBackend
+from .prometheus import PrometheusBackend
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +44,12 @@ def init_analytics():  # pragma: no cover
         global _intercom
         _intercom = IntercomClient(personal_access_token=intercom_key)
 
-    # configure Librato if configured
     global _metric_backends
+
+    # configure Prometheus
+    _metric_backends.append(PrometheusBackend())
+
+    # configure Librato if configured
     librato_user = getattr(settings, "LIBRATO_USER", None)
     librato_token = getattr(settings, "LIBRATO_TOKEN", None)
     if librato_user and librato_token:
