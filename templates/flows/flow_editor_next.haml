@@ -128,7 +128,7 @@
       top: -15px !important;
     }
 
-    rp-loading {
+    temba-loading {
       margin-left: 30px;
       padding-top: 5px;
       display: block;
@@ -285,7 +285,7 @@
   -include "msgs/msg_send_modal.html"
   -include "delete_modal_include.html"
 
-  %rp-modax#send-message-modal{ header:"Send Message" }
+  %temba-modax#send-message-modal{ header:"Send Message" }
 
   #toolbar
     .actions.pull-right
@@ -303,5 +303,5 @@
             This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
 
   #rp-flow-editor
-    <rp-loading units="10" size="8"></rp-loading>
+    <temba-loading units="10" size="8"></temba-loading>
 

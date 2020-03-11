@@ -113,9 +113,12 @@ document.addEventListener('rp-refresh-begin', function() {
         }
     }
 
-    var pjaxElement = document.querySelector('#pjax')
+    var pjaxElement = document.querySelector('#pjax');
     if (pjaxElement) {
-        pjaxElement.setAttribute('data-no-pjax', dropDownOpen || checkedIds || openedModals);
+        pjaxElement.setAttribute(
+            'data-no-pjax',
+            dropDownOpen || checkedIds || openedModals
+        );
     }
 });
 

@@ -1,5 +1,5 @@
 -load i18n
-<rp-contact-search 
+<temba-contact-search 
   name="{{widget.name}}"
   endpoint="/contact/search/?samples=3&search=" 
   placeholder="{% trans 'Enter a query'%}"
@@ -8,4 +8,4 @@
   matches-text="{% trans 'Found ${count} for ${query}'%}"
   {% include "django/forms/widgets/attrs.html" %}
 >
-</rp-contact-search>
+</temba-contact-search>

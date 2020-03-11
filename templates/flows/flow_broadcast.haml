@@ -35,11 +35,11 @@
         margin-bottom: 10px;
       }
 
-      rp-contact-search {
+      temba-contact-search {
         font-size: 90%;
       }
 
-      rp-alert {
+      temba-alert {
         margin-bottom: 10px;
       }
 
@@ -67,7 +67,7 @@
   -else
     -if warnings
       -for warning in warnings
-        %rp-alert{level: "warning"}
+        %temba-alert{level: "warning"}
           %div= warning
 
     .field.start-type
@@ -139,9 +139,9 @@
     var queryField = document.querySelector('.query');
     var recipientsField = document.querySelector('.omnibox');
 
-    var startTypeSelect = document.querySelector("rp-select[name='start_type']");
+    var startTypeSelect = document.querySelector("temba-select[name='start_type']");
     if (startTypeSelect) {
-      startTypeSelect.addEventListener("rp-selection", function(evt) {
+      startTypeSelect.addEventListener("temba-selection", function(evt) {
         var selected = evt.detail.selected;
         if (selected.value === "query") {
           removeClass(queryField, "hidden");

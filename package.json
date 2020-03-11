@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@nyaruka/flow-editor": "1.8.7",
+    "@nyaruka/temba-components": "0.0.19",
     "coffeescript": "1.12.7",
+    "fa-icons": "0.2.0",
     "less": "2.7.1",
     "react": "16.3.2",
     "react-dom": "16.3.3"
