@@ -90,6 +90,13 @@ script:
 
   # test that everything is well formatted, no missing migrations etc
   - ./code_check.py
+  - black --line-length=119 --target-version=py36 temba --check --quiet || (echo 'The source code could use a bit more black.' && exit 1)
+
+  # test PEP8 compliance on both Python 2 and 3
+  - flake8
+
+  # check for model changes not reflected in a migration
+  - python manage.py makemigrations --settings=temba.settings_travis --dry-run | grep 'No changes detected' || (echo 'There are changes which require migrations.' && exit 1)
 
   # run our Javascript tests
   - node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS

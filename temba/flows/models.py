@@ -1,17 +1,22 @@
 import logging
+import numbers
 import time
+import requests
 from array import array
 from collections import OrderedDict, defaultdict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from decimal import Decimal
 from enum import Enum
 from urllib.request import urlopen
 from uuid import uuid4
 
 import iso8601
+import phonenumbers
 import regex
 from django_redis import get_redis_connection
 from packaging.version import Version
 from smartmin.models import SmartModel
+from temba_expressions.utils import tokenize
 from xlsxlite.writer import XLSXBook
 
 from django.conf import settings
@@ -19,14 +24,29 @@ from django.contrib.auth.models import Group, User
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
-from django.db.models import Max, Q, Sum
-from django.db.models.functions import TruncDate
+from django.db.models import Max, Q, QuerySet, Sum
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
+from celery import current_app
+
 from temba import mailroom
+from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
+from temba.contacts.models import (
+    TEL_SCHEME,
+    URN,
+    Contact,
+    ContactField,
+    ContactGroup,
+    ContactURN,
+)
+from temba.locations.models import AdminBoundary
+from temba.msgs.models import DELIVERED, FAILED, FLOW, INBOX, INCOMING, OUTGOING, PENDING, Broadcast, Label, Msg
+from temba.orgs.models import Language, Org
+from temba.links.models import Link
 from temba.classifiers.models import Classifier
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.globals.models import Global
@@ -35,6 +55,7 @@ from temba.orgs.models import Org
 from temba.templates.models import Template
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
+from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.models import (
     JSONAsTextField,
@@ -50,6 +71,9 @@ from temba.values.constants import Value
 from . import legacy
 
 logger = logging.getLogger(__name__)
+
+FLOW_DEFAULT_EXPIRES_AFTER = 60 * 12
+START_FLOW_BATCH_SIZE = 500
 
 
 class Events(Enum):
@@ -99,7 +123,32 @@ class FlowVersionConflictException(FlowException):
 
 
 FLOW_LOCK_TTL = 60  # 1 minute
-FLOW_LOCK_KEY = "org:%d:lock:flow:%d:definition"
+FLOW_LOCK_KEY = "org:%d:lock:flow:%d:%s"
+
+FLOW_PROP_CACHE_KEY = "org:%d:cache:flow:%d:%s"
+FLOW_PROP_CACHE_TTL = 24 * 60 * 60 * 7  # 1 week
+
+UNREAD_FLOW_RESPONSES = "unread_flow_responses"
+
+FLOW_BATCH = "flow_batch"
+
+
+class FlowLock(Enum):
+    """
+    Locks that are flow specific
+    """
+
+    participation = 1
+    definition = 3
+
+
+class FlowPropsCache(Enum):
+    """
+    Properties of a flow that we cache
+    """
+
+    terminal_nodes = 1
+    category_nodes = 2
 
 
 class Flow(TembaModel):
@@ -113,6 +162,8 @@ class Flow(TembaModel):
     DESTINATION = "destination"
     EXIT_UUID = "exit_uuid"
     LABEL = "label"
+    WEBHOOK_URL = "webhook"
+    WEBHOOK_ACTION = "webhook_action"
     FINISHED_KEY = "finished_key"
     RULESET_TYPE = "ruleset_type"
     OPERAND = "operand"
@@ -182,7 +233,38 @@ class Flow(TembaModel):
 
     ENTRY_TYPES = ((NODE_TYPE_RULESET, "Rules"), (NODE_TYPE_ACTIONSET, "Actions"))
 
-    FINAL_LEGACY_VERSION = legacy.VERSIONS[-1]
+    VERSIONS = [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "10.1",
+        "10.2",
+        "10.3",
+        "10.4",
+        "11.0",
+        "11.1",
+        "11.2",
+        "11.3",
+        "11.4",
+        "11.5",
+        "11.6",
+        "11.7",
+        "11.8",
+        "11.9",
+        "11.10",
+        "11.11",
+        "11.12",
+    ]
+
+    FINAL_LEGACY_VERSION = VERSIONS[-1]
+    GOFLOW_VERSION = "13.0.0"
     INITIAL_GOFLOW_VERSION = "13.0.0"  # initial version of flow spec to use new engine
     CURRENT_SPEC_VERSION = "13.1.0"  # current flow spec version
 
@@ -365,6 +447,13 @@ class Flow(TembaModel):
         return flow
 
     @classmethod
+    def is_before_version(cls, to_check, version):
+        if str(to_check) not in Flow.VERSIONS:
+            return False
+
+        return Version(str(to_check)) < Version(str(version))
+
+    @classmethod
     def get_triggerable_flows(cls, org):
         return Flow.objects.filter(
             org=org,
@@ -488,6 +577,142 @@ class Flow(TembaModel):
         return copy
 
     @classmethod
+    def get_node(cls, flow, uuid, destination_type):
+
+        if not uuid or not destination_type:
+            return None
+
+        if destination_type == Flow.NODE_TYPE_RULESET:
+            node = RuleSet.get(flow, uuid)
+        else:
+            node = ActionSet.get(flow, uuid)
+
+        if node:
+            node.flow = flow
+        return node
+
+    @classmethod
+    def handle_call(cls, call, text=None, saved_media_url=None, hangup=False, resume=False):
+        run = (
+            FlowRun.objects.filter(connection=call, is_active=True)
+            .select_related("org")
+            .order_by("-created_on")
+            .first()
+        )
+
+        # what we will send back
+        voice_response = call.channel.generate_ivr_response()
+
+        if run is None:  # pragma: no cover
+            voice_response.hangup()
+            return voice_response
+
+        flow = run.flow
+
+        # make sure we have the latest version
+        flow.ensure_current_version()
+
+        run.voice_response = voice_response
+
+        # create a message to hold our inbound message
+        from temba.msgs.models import IVR
+
+        if text or saved_media_url:
+
+            # we don't have text for media, so lets use the media value there too
+            if saved_media_url and ":" in saved_media_url:
+                text = saved_media_url.partition(":")[2]
+
+            msg = Msg.create_incoming(
+                call.channel,
+                str(call.contact_urn),
+                text,
+                status=PENDING,
+                msg_type=IVR,
+                attachments=[saved_media_url] if saved_media_url else None,
+                connection=run.connection,
+            )
+        else:
+            msg = Msg(org=call.org, contact=call.contact, text="", id=0)
+
+        # find out where we last left off
+        last_step = run.path[-1] if run.path else None
+
+        # if we are just starting the flow, create our first step
+        if not last_step:
+            # lookup our entry node
+            destination = ActionSet.objects.filter(flow=run.flow, uuid=flow.entry_uuid).first()
+            if not destination:
+                destination = RuleSet.objects.filter(flow=run.flow, uuid=flow.entry_uuid).first()
+
+            # and add our first step for our run
+            if destination:
+                flow.add_step(run, destination, [])
+        else:
+            destination = Flow.get_node(run.flow, last_step[FlowRun.PATH_NODE_UUID], Flow.NODE_TYPE_RULESET)
+
+        if not destination:  # pragma: no cover
+            voice_response.hangup()
+            run.set_completed(exit_uuid=None)
+            return voice_response
+
+        # go and actually handle wherever we are in the flow
+        (handled, msgs) = Flow.handle_destination(
+            destination, run, msg, user_input=text is not None, resume_parent_run=resume
+        )
+
+        # if we stopped needing user input (likely), then wrap our response accordingly
+        voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
+
+        # if we handled it, mark it so
+        if handled and msg.id:
+            from temba.msgs import legacy
+
+            legacy.mark_handled(msg)
+
+        # if we didn't handle it, this is a good time to hangup
+        if not handled or hangup:
+            voice_response.hangup()
+            run.set_completed(exit_uuid=None)
+
+        return voice_response
+
+    @classmethod
+    def wrap_voice_response_with_input(cls, call, run, voice_response):
+        """ Finds where we are in the flow and wraps our voice_response with whatever comes next """
+        last_step = run.path[-1]
+        destination = Flow.get_node(run.flow, last_step[FlowRun.PATH_NODE_UUID], Flow.NODE_TYPE_RULESET)
+
+        if isinstance(destination, RuleSet):
+            response = call.channel.generate_ivr_response()
+            callback = "https://%s%s" % (run.org.get_brand_domain(), reverse("ivr.ivrcall_handle", args=[call.pk]))
+            gather = destination.get_voice_input(response, action=callback)
+
+            # recordings have to be tacked on last
+            if destination.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
+                voice_response.record(action=callback)
+
+            elif destination.ruleset_type == RuleSet.TYPE_SUBFLOW:
+                voice_response.redirect(url=callback)
+
+            elif gather and hasattr(gather, "document"):  # voicexml case
+                gather.join(voice_response)
+
+                voice_response = response
+
+            elif gather:  # TwiML case
+                # nest all of our previous verbs in our gather
+                for verb in voice_response.verbs:
+                    gather.append(verb)
+
+                voice_response = response
+
+                # append a redirect at the end in case the user sends #
+                voice_response.redirect(url=callback + "?empty=1")
+
+        return voice_response
+
+    @classmethod
     def get_unique_name(cls, org, base_name, ignore=None):
         """
         Generates a unique flow name based on the given base name
@@ -507,6 +732,252 @@ class Flow(TembaModel):
             count += 1
 
         return name
+
+    @classmethod
+    def find_and_handle(
+        cls,
+        msg,
+        started_flows=None,
+        voice_response=None,
+        triggered_start=False,
+        resume_parent_run=False,
+        user_input=True,
+        trigger_send=True,
+        continue_parent=True,
+    ):
+
+        if started_flows is None:
+            started_flows = []
+
+        for run in FlowRun.get_active_for_contact(msg.contact):
+            flow = run.flow
+            flow.ensure_current_version()
+
+            # it's possible Flow.start is in the process of creating a run for this contact, in which case
+            # record this message has handled so it doesn't start any new flows
+            if not run.path:
+                if run.created_on > timezone.now() - timedelta(minutes=10):
+                    return True, []
+                else:
+                    return False, []
+
+            last_step = run.path[-1]
+            destination = Flow.get_node(flow, last_step[FlowRun.PATH_NODE_UUID], Flow.NODE_TYPE_RULESET)
+
+            # this node doesn't exist anymore, mark it as left so they leave the flow
+            if not destination:  # pragma: no cover
+                run.set_completed(exit_uuid=None)
+                return True, []
+
+            (handled, msgs) = Flow.handle_destination(
+                destination,
+                run,
+                msg,
+                started_flows,
+                user_input=user_input,
+                triggered_start=triggered_start,
+                resume_parent_run=resume_parent_run,
+                trigger_send=trigger_send,
+                continue_parent=continue_parent,
+            )
+
+            if handled:
+                analytics.gauge("temba.run_resumes")
+                return True, msgs
+
+        return False, []
+
+    @classmethod
+    def handle_destination(
+        cls,
+        destination,
+        run,
+        msg,
+        started_flows=None,
+        user_input=False,
+        triggered_start=False,
+        trigger_send=True,
+        resume_parent_run=False,
+        continue_parent=True,
+    ):
+
+        if started_flows is None:
+            started_flows = []
+
+        def add_to_path(path, uuid):
+            if uuid in path:
+                path.append(uuid)
+                raise FlowException("Flow cycle detected at runtime: %s" % path)
+            path.append(uuid)
+
+        start_time = time.time()
+        path = []
+        msgs = []
+
+        # lookup our next destination
+        handled = False
+
+        while destination:
+            result = {"handled": False}
+
+            if destination.get_step_type() == Flow.NODE_TYPE_RULESET:
+                should_pause = False
+
+                # check if we need to stop
+                if destination.is_pause():
+                    should_pause = True
+
+                if user_input or not should_pause:
+                    result = Flow.handle_ruleset(destination, run, msg, started_flows, resume_parent_run)
+                    add_to_path(path, destination.uuid)
+
+                    # add any messages generated by this ruleset
+                    msgs += result.get("msgs", [])
+
+                # if we used this input, then mark our user input as used
+                if should_pause:
+                    user_input = False
+
+                    # once we handle user input, reset our path
+                    path = []
+
+            elif destination.get_step_type() == Flow.NODE_TYPE_ACTIONSET:
+                result = Flow.handle_actionset(destination, run, msg, started_flows)
+                add_to_path(path, destination.uuid)
+
+                # add any generated messages to be sent at once
+                msgs += result.get("msgs", [])
+
+            # if this is a triggered start, we only consider user input on the first step, so clear it now
+            if triggered_start:
+                user_input = False
+
+            # lookup our next destination
+            destination = result.get("destination", None)
+
+            # if any one of our destinations handled us, consider it handled
+            if result.get("handled", False):
+                handled = True
+
+            resume_parent_run = False
+
+        # if we have a parent to continue, do so
+        if getattr(run, "continue_parent", False) and continue_parent:
+            msgs += FlowRun.continue_parent_flow_run(run, trigger_send=False, continue_parent=True)
+
+        if handled:
+            analytics.gauge("temba.flow_execution", time.time() - start_time)
+
+        # send any messages generated
+        if msgs and trigger_send:
+            msgs.sort(key=lambda message: message.created_on)
+            Msg.objects.filter(id__in=[m.id for m in msgs]).exclude(status=DELIVERED).update(status=PENDING)
+            run.flow.org.trigger_send(msgs)
+
+        return handled, msgs
+
+    @classmethod
+    def handle_actionset(cls, actionset, run, msg, started_flows):
+
+        # not found, escape out, but we still handled this message, user is now out of the flow
+        if not actionset:  # pragma: no cover
+            run.set_completed(exit_uuid=None)
+            return dict(handled=True, destination=None, destination_type=None)
+
+        # actually execute all the actions in our actionset
+        msgs = actionset.execute_actions(run, msg, started_flows)
+        run.add_messages([m for m in msgs if not getattr(m, "from_other_run", False)])
+
+        # and onto the destination
+        destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
+        if destination:
+            run.flow.add_step(run, destination, exit_uuid=actionset.exit_uuid)
+        else:
+            run.set_completed(exit_uuid=actionset.exit_uuid)
+
+        return dict(handled=True, destination=destination, msgs=msgs)
+
+    @classmethod
+    def handle_ruleset(cls, ruleset, run, msg_in, started_flows, resume_parent_run=False):
+        msgs_out = []
+        result_input = str(msg_in)
+
+        if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
+            if not resume_parent_run:
+                flow_uuid = ruleset.config.get("flow").get("uuid")
+                flow = Flow.objects.filter(org=run.org, uuid=flow_uuid).first()
+                flow.org = run.org
+                message_context = run.flow.build_expressions_context(run.contact, msg_in, run=run)
+
+                # our extra will be the current flow variables
+                extra = message_context.get("extra", {})
+                extra["flow"] = message_context.get("flow", {})
+
+                if msg_in.id:
+                    run.add_messages([msg_in])
+                    run.update_expiration(timezone.now())
+
+                if flow:
+                    child_runs = flow.start(
+                        [],
+                        [run.contact],
+                        started_flows=started_flows,
+                        restart_participants=True,
+                        extra=extra,
+                        parent_run=run,
+                        interrupt=False,
+                    )
+
+                    child_run = child_runs[0] if child_runs else None
+
+                    if child_run:
+                        msgs_out += child_run.start_msgs
+                        continue_parent = getattr(child_run, "continue_parent", False)
+                    else:  # pragma: no cover
+                        continue_parent = False
+
+                    # it's possible that one of our children interrupted us with a start flow action
+                    run.refresh_from_db(fields=("is_active",))
+                    if continue_parent and run.is_active:
+                        started_flows.remove(flow.id)
+
+                        run.child_context = child_run.build_expressions_context(contact_context=str(run.contact.uuid))
+                        run.save(update_fields=("child_context",))
+                    else:
+                        return dict(handled=True, destination=None, destination_type=None, msgs=msgs_out)
+
+            else:
+                child_run = FlowRun.objects.filter(parent=run, contact=run.contact).order_by("created_on").last()
+                run.child_context = child_run.build_expressions_context(contact_context=str(run.contact.uuid))
+                run.save(update_fields=("child_context",))
+
+        # find a matching rule
+        result_rule, result_value, result_input = ruleset.find_matching_rule(run, msg_in)
+
+        flow = ruleset.flow
+
+        # add the message to our step
+        if msg_in.id:
+            run.add_messages([msg_in])
+            run.update_expiration(timezone.now())
+
+        if ruleset.ruleset_type in RuleSet.TYPE_MEDIA and msg_in.attachments:
+            # store the media path as the value
+            result_value = msg_in.attachments[0].split(":", 1)[1]
+
+        ruleset.save_run_value(run, result_rule, result_value, result_input, org=flow.org)
+
+        # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
+        if not result_rule.destination:
+            run.set_completed(exit_uuid=result_rule.uuid)
+            return dict(handled=True, destination=None, destination_type=None, msgs=msgs_out)
+
+        # Create the step for our destination
+        destination = Flow.get_node(flow, result_rule.destination, result_rule.destination_type)
+        if destination:
+            flow.add_step(run, destination, exit_uuid=result_rule.uuid)
+
+        return dict(handled=True, destination=destination, msgs=msgs_out)
 
     @classmethod
     def apply_action_label(cls, user, flows, label, add):  # pragma: needs cover
@@ -540,8 +1011,49 @@ class Flow(TembaModel):
                 pass
         return changed
 
+    @classmethod
+    def get_versions_before(cls, version_number):  # pragma: no cover
+        # older flows had numeric versions, lets make sure we are dealing with strings
+        version_number = Version(f"{version_number}")
+        return [v for v in Flow.VERSIONS if Version(v) < version_number]
+
+    @classmethod
+    def get_versions_after(cls, version_number):
+        # older flows had numeric versions, lets make sure we are dealing with strings
+        version_number = Version(f"{version_number}")
+        return [v for v in Flow.VERSIONS if Version(v) > version_number]
+
     def as_select2(self):
         return dict(id=self.uuid, text=self.name)
+
+    def release(self):
+        """
+        Releases this flow, marking it inactive. We interrupt all flow runs in a background process.
+        We keep FlowRevisions and FlowStarts however.
+        """
+        from .tasks import interrupt_flow_runs_task
+
+        self.is_active = False
+        self.save()
+
+        # release any campaign events that depend on this flow
+        from temba.campaigns.models import CampaignEvent
+
+        for event in CampaignEvent.objects.filter(flow=self, is_active=True):
+            event.release()
+
+        # release any triggers that depend on this flow
+        for trigger in self.triggers.all():
+            trigger.release()
+
+        self.group_dependencies.clear()
+        self.flow_dependencies.clear()
+        self.field_dependencies.clear()
+        self.channel_dependencies.clear()
+        self.label_dependencies.clear()
+
+        # interrupt our runs in the background
+        on_transaction_commit(lambda: interrupt_flow_runs_task.delay(self.id))
 
     def get_category_counts(self):
         keys = [r["key"] for r in self.metadata["results"]]
@@ -836,6 +1348,24 @@ class Flow(TembaModel):
 
             if ruleset["ruleset_type"] == RuleSet.TYPE_SUBFLOW:
                 remap_flow(ruleset["config"]["flow"])
+
+            elif ruleset["ruleset_type"] == RuleSet.TYPE_SHORTEN_URL:
+                link_data = None
+                if "links" in flow_json:
+                    for link in flow_json["links"]:
+                        if link["uuid"] == ruleset["config"][RuleSet.TYPE_SHORTEN_URL]["id"]:
+                            link_data = link
+                            break
+
+                if link_data:
+                    created_link = Link.objects.create(
+                        org=self.org,
+                        name=link_data["name"],
+                        destination=link_data["destination"],
+                        created_by=self.org.get_user(),
+                        modified_by=self.org.get_user(),
+                    )
+                    ruleset["config"][RuleSet.TYPE_SHORTEN_URL]["id"] = created_link.uuid
 
             for rule in ruleset.get(Flow.RULES, []):
                 remap_uuid(rule, "uuid")
@@ -2017,6 +2547,7 @@ class RuleSet(models.Model):
     TYPE_AIRTIME = "airtime"
     TYPE_WEBHOOK = "webhook"
     TYPE_RESTHOOK = "resthook"
+    TYPE_LOOKUP = "lookup"
     TYPE_FLOW_FIELD = "flow_field"
     TYPE_FORM_FIELD = "form_field"
     TYPE_CONTACT_FIELD = "contact_field"
@@ -2024,6 +2555,7 @@ class RuleSet(models.Model):
     TYPE_GROUP = "group"
     TYPE_RANDOM = "random"
     TYPE_SUBFLOW = "subflow"
+    TYPE_SHORTEN_URL = "shorten_url"
 
     CONFIG_WEBHOOK = "webhook"
     CONFIG_WEBHOOK_ACTION = "webhook_action"
@@ -2053,11 +2585,13 @@ class RuleSet(models.Model):
         (TYPE_SUBFLOW, "Subflow"),
         (TYPE_WEBHOOK, "Webhook"),
         (TYPE_RESTHOOK, "Resthook"),
+        (TYPE_LOOKUP, "Lookup"),
         (TYPE_AIRTIME, "Transfer Airtime"),
         (TYPE_FORM_FIELD, "Split by message form"),
         (TYPE_CONTACT_FIELD, "Split on contact field"),
         (TYPE_EXPRESSION, "Split by expression"),
         (TYPE_RANDOM, "Split Randomly"),
+        (TYPE_SHORTEN_URL, "Shorten Trackable Link"),
     )
 
     uuid = models.CharField(max_length=36, unique=True)
@@ -2149,6 +2683,193 @@ class RuleSet(models.Model):
             value_type = rule_type
 
         return value_type if value_type else Value.TYPE_TEXT
+
+    def get_voice_input(self, voice_response, action=None):
+
+        # recordings aren't wrapped input they get tacked on at the end
+        if self.ruleset_type in [RuleSet.TYPE_WAIT_RECORDING, RuleSet.TYPE_SUBFLOW]:
+            return voice_response
+        elif self.ruleset_type == RuleSet.TYPE_WAIT_DIGITS:
+            return voice_response.gather(finish_on_key=self.finished_key, timeout=120, action=action)
+        else:
+            # otherwise we assume it's single digit entry
+            return voice_response.gather(num_digits=1, timeout=120, action=action)
+
+    def is_pause(self):
+        return self.ruleset_type in RuleSet.TYPE_WAIT
+
+    def find_matching_rule(self, run, msg):
+        orig_text = None
+        if msg:
+            orig_text = msg.text
+
+        msg.contact = run.contact
+        context = run.flow.build_expressions_context(run.contact, msg, run=run)
+
+        if self.ruleset_type in [RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK]:
+            urls = []
+            header = {}
+            action = "POST"
+            resthook = None
+
+            # figure out which URLs will be called
+            if self.ruleset_type == RuleSet.TYPE_WEBHOOK:
+                resthook = None
+                urls = [self.config[RuleSet.CONFIG_WEBHOOK]]
+                action = self.config[RuleSet.CONFIG_WEBHOOK_ACTION]
+
+                if RuleSet.CONFIG_WEBHOOK_HEADERS in self.config:
+                    headers = self.config[RuleSet.CONFIG_WEBHOOK_HEADERS]
+                    for item in headers:
+                        header[item.get("name")] = item.get("value")
+
+            elif self.ruleset_type == RuleSet.TYPE_RESTHOOK:
+                from temba.api.models import Resthook
+
+                # look up the rest hook
+                resthook_slug = self.config[RuleSet.CONFIG_RESTHOOK]
+                resthook = Resthook.get_or_create(run.org, resthook_slug, run.flow.created_by)
+                urls = resthook.get_subscriber_urls()
+
+                # no urls? use None, as our empty case
+                if not urls:
+                    urls = [None]
+
+            # track our last successful and failed webhook calls
+            last_success, last_failure = None, None
+
+            for url in urls:
+                (evaled_url, errors) = Msg.evaluate_template(url, context, org=run.flow.org, url_encode=True)
+                result = legacy.call_webhook(run, evaled_url, self, msg, action, resthook=resthook, headers=header)
+
+                # our subscriber is no longer interested, remove this URL as a subscriber
+                if resthook and url and result.status_code == 410:
+                    resthook.remove_subscriber(url, run.flow.created_by)
+                    result.status_code = 200
+
+                if url is None:
+                    continue
+
+                as_json = {
+                    "input": f"{action} {evaled_url}",
+                    "status_code": result.status_code,
+                    "body": result.response,
+                }
+
+                if 200 <= result.status_code < 300 or result.status_code == 410:
+                    last_success = as_json
+                else:
+                    last_failure = as_json
+
+            # if we have a failed call, use that, if not the last call, if no calls then mock a successful one
+            use_call = last_failure or last_success
+            if not use_call:
+                use_call = {"input": "", "status_code": 200, "body": _("No subscribers to this event")}
+
+            # find our matching rule, we pass in the status from our calls
+            for rule in self.get_rules():
+                (result, value) = rule.matches(run, msg, context, str(use_call["status_code"]))
+                if result > 0:
+                    return rule, str(use_call["status_code"]), use_call["input"]
+
+        elif self.ruleset_type == RuleSet.TYPE_SHORTEN_URL:
+            url = f"https://firebasedynamiclinks.googleapis.com/v1/shortLinks?key={settings.FDL_API_KEY}"
+            headers = {"Content-Type": "application/json"}
+
+            config = self.config[RuleSet.TYPE_SHORTEN_URL]
+            item_uuid = config.get("id")
+            item = Link.objects.filter(uuid=item_uuid, org=run.flow.org).first()
+
+            if item:
+                long_url = "%s?contact=%s" % (item.get_url(), run.contact.uuid)
+                data = json.dumps(
+                    {"longDynamicLink": "%s/?link=%s" % (settings.FDL_URL, long_url), "suffix": {"option": "SHORT"}}
+                )
+
+                response = requests.post(url, data=data, headers=headers, timeout=10)
+
+                for rule in self.get_rules():
+                    (result, value) = rule.matches(run, msg, context, str(response.status_code))
+                    response_json = response.json()
+                    run.update_fields(response_json)
+                    if result > 0:
+                        short_url = response_json.get("shortLink")
+                        return rule, str(response.status_code), short_url
+
+            else:
+                return None, None, None
+
+        else:
+            # if it's a form field, construct an expression accordingly
+            if self.ruleset_type == RuleSet.TYPE_FORM_FIELD:
+                delim = self.config.get("field_delimiter", " ")
+                self.operand = '@(FIELD(%s, %d, "%s"))' % (
+                    self.operand[1:],
+                    self.config.get("field_index", 0) + 1,
+                    delim,
+                )
+
+            # if we have a custom operand, figure that out
+            operand = None
+            if self.operand:
+                (operand, errors) = Msg.evaluate_template(self.operand, context, org=run.flow.org)
+            elif msg:
+                operand = str(msg)
+
+            if self.ruleset_type == RuleSet.TYPE_AIRTIME:
+
+                airtime = AirtimeTransfer.trigger_airtime_event(self.flow.org, self, run.contact, msg)
+
+                # rebuild our context again, the webhook may have populated something
+                context = run.flow.build_expressions_context(run.contact, msg)
+
+                # airtime test evaluate against the status of the airtime
+                operand = airtime.status
+
+            elif self.ruleset_type == RuleSet.TYPE_SUBFLOW:
+                # lookup the subflow run
+                subflow_run = FlowRun.objects.filter(parent=run).order_by("-created_on").first()
+                if subflow_run:
+                    if subflow_run.exit_type == FlowRun.EXIT_TYPE_COMPLETED:
+                        operand = "completed"
+                    elif subflow_run.exit_type == FlowRun.EXIT_TYPE_EXPIRED:
+                        operand = "expired"
+
+            elif self.ruleset_type == RuleSet.TYPE_GROUP:
+                # this won't actually be used by the rules, but will end up in the results
+                operand = run.contact.get_display(for_expressions=True) or ""
+
+            try:
+                rules = self.get_rules()
+                for rule in rules:
+                    (result, value) = rule.matches(run, msg, context, operand)
+                    if result:
+                        # treat category as the base category
+                        return rule, value, operand
+            finally:
+                if msg:
+                    msg.text = orig_text
+
+        return None, None, None  # pragma: no cover
+
+    def save_run_value(self, run, rule, raw_value, raw_input, org=None):
+        org = org or self.flow.org
+        contact_language = run.contact.language if run.contact.language in org.get_language_codes() else None
+
+        run.save_run_result(
+            name=self.label,
+            node_uuid=self.uuid,
+            category=rule.get_category_name(run.flow.base_language),
+            category_localized=rule.get_category_name(run.flow.base_language, contact_language),
+            raw_value=raw_value,
+            raw_input=raw_input,
+        )
+
+    def get_step_type(self):
+        return Flow.NODE_TYPE_RULESET
+
+    def get_rules_dict(self):
+        return self.rules
 
     def get_rules(self):
         return legacy.Rule.from_json_array(self.flow.org, self.rules)
@@ -3345,3 +4066,2098 @@ def get_flow_user(org):
             __flow_users[username] = flow_user
 
     return flow_user
+
+
+class Action(object):
+    """
+    Base class for actions that can be added to an action set and executed during a flow run
+    """
+
+    TYPE = "type"
+    UUID = "uuid"
+
+    __action_mapping = None
+
+    def __init__(self, uuid):
+        self.uuid = uuid if uuid else str(uuid4())
+
+    @classmethod
+    def from_json(cls, org, json_obj):
+        if not cls.__action_mapping:
+            cls.__action_mapping = {
+                ReplyAction.TYPE: ReplyAction,
+                SendAction.TYPE: SendAction,
+                AddToGroupAction.TYPE: AddToGroupAction,
+                DeleteFromGroupAction.TYPE: DeleteFromGroupAction,
+                AddLabelAction.TYPE: AddLabelAction,
+                EmailAction.TYPE: EmailAction,
+                SaveToContactAction.TYPE: SaveToContactAction,
+                SetLanguageAction.TYPE: SetLanguageAction,
+                SetChannelAction.TYPE: SetChannelAction,
+                StartFlowAction.TYPE: StartFlowAction,
+                SayAction.TYPE: SayAction,
+                PlayAction.TYPE: PlayAction,
+                TriggerFlowAction.TYPE: TriggerFlowAction,
+            }
+
+        action_type = json_obj.get(cls.TYPE)
+        if not action_type:  # pragma: no cover
+            raise FlowException("Action definition missing 'type' attribute: %s" % json_obj)
+
+        if action_type not in cls.__action_mapping:  # pragma: no cover
+            raise FlowException("Unknown action type '%s' in definition: '%s'" % (action_type, json_obj))
+
+        return cls.__action_mapping[action_type].from_json(org, json_obj)
+
+    @classmethod
+    def from_json_array(cls, org, json_arr):
+        actions = []
+        for inner in json_arr:
+            action = Action.from_json(org, inner)
+            if action:
+                actions.append(action)
+        return actions
+
+
+class EmailAction(Action):
+    """
+    Sends an email to someone
+    """
+
+    TYPE = "email"
+    EMAILS = "emails"
+    SUBJECT = "subject"
+    MESSAGE = "msg"
+
+    def __init__(self, uuid, emails, subject, message):
+        super().__init__(uuid)
+
+        if not emails:
+            raise FlowException("Email actions require at least one recipient")
+
+        self.emails = emails
+        self.subject = subject
+        self.message = message
+
+    @classmethod
+    def from_json(cls, org, json_obj):
+        emails = json_obj.get(EmailAction.EMAILS)
+        message = json_obj.get(EmailAction.MESSAGE)
+        subject = json_obj.get(EmailAction.SUBJECT)
+        return cls(json_obj.get(cls.UUID), emails, subject, message)
+
+    def as_json(self):
+        return dict(type=self.TYPE, uuid=self.uuid, emails=self.emails, subject=self.subject, msg=self.message)
+
+    def execute(self, run, context, actionset_uuid, msg):
+        from .tasks import send_email_action_task
+
+        # build our message from our flow variables
+        (message, errors) = Msg.evaluate_template(self.message, context, org=run.flow.org)
+        (subject, errors) = Msg.evaluate_template(self.subject, context, org=run.flow.org)
+
+        # make sure the subject is single line; replace '\t\n\r\f\v' to ' '
+        subject = regex.sub(r"\s+", " ", subject, regex.V0)
+
+        valid_addresses = []
+        invalid_addresses = []
+        for email in self.emails:
+            if email.startswith("@"):
+                # a valid email will contain @ so this is very likely to generate evaluation errors
+                (address, errors) = Msg.evaluate_template(email, context, org=run.flow.org)
+            else:
+                address = email
+
+            address = address.strip()
+
+            if is_valid_address(address):
+                valid_addresses.append(address)
+            else:
+                invalid_addresses.append(address)
+
+        if valid_addresses:
+            on_transaction_commit(
+                lambda: send_email_action_task.delay(run.flow.org.id, valid_addresses, subject, message)
+            )
+        return []
+
+
+class AddToGroupAction(Action):
+    """
+    Adds the user to a group
+    """
+
+    TYPE = "add_group"
+    GROUP = "group"
+    GROUPS = "groups"
+
+    def __init__(self, uuid, groups):
+        super().__init__(uuid)
+
+        self.groups = groups
+
+    @classmethod
+    def from_json(cls, org, json_obj):
+        return cls(json_obj.get(cls.UUID), cls.get_groups(org, json_obj))
+
+    @classmethod
+    def get_groups(cls, org, json_obj):
+
+        # for backwards compatibility
+        group_data = json_obj.get(AddToGroupAction.GROUP, None)
+        if not group_data:
+            group_data = json_obj.get(AddToGroupAction.GROUPS)
+        else:
+            group_data = [group_data]
+
+        groups = []
+
+        for g in group_data:
+            if isinstance(g, dict):
+                group_uuid = g.get("uuid", None)
+                group_name = g.get("name")
+
+                group = ContactGroup.get_or_create(org, org.created_by, group_name, uuid=group_uuid)
+                groups.append(group)
+            else:
+                if g and g[0] == "@":
+                    groups.append(g)
+                else:  # pragma: needs cover
+                    group = ContactGroup.get_user_group(org, g)
+                    if group:
+                        groups.append(group)
+                    else:
+                        groups.append(ContactGroup.create_static(org, org.get_user(), g))
+        return groups
+
+    def as_json(self):
+        groups = []
+        for g in self.groups:
+            if isinstance(g, ContactGroup):
+                groups.append(dict(uuid=g.uuid, name=g.name))
+            else:
+                groups.append(g)
+
+        return dict(type=self.get_type(), uuid=self.uuid, groups=groups)
+
+    def get_type(self):
+        return AddToGroupAction.TYPE
+
+    def execute(self, run, context, actionset_uuid, msg):
+        contact = run.contact
+        add = AddToGroupAction.TYPE == self.get_type()
+        user = get_flow_user(run.org)
+
+        if contact:
+            for group in self.groups:
+                if not isinstance(group, ContactGroup):
+                    (value, errors) = Msg.evaluate_template(group, context, org=run.flow.org)
+                    group = None
+
+                    if not errors:
+                        group = ContactGroup.get_user_group(contact.org, value)
+
+                if group:
+                    # TODO should become a failure (because it should be impossible) and not just a simulator error
+                    if group.is_dynamic:
+                        # report to sentry
+                        logger.error(
+                            "Attempt to add/remove contacts on dynamic group '%s' [%d] "
+                            "in flow '%s' [%d] for org '%s' [%d]"
+                            % (group.name, group.pk, run.flow.name, run.flow.pk, run.org.name, run.org.pk)
+                        )
+                        continue  # pragma: can't cover
+
+                    group.org = run.org
+                    group.update_contacts(user, [contact], add)
+
+        return []
+
+
+class DeleteFromGroupAction(AddToGroupAction):
+    """
+    Removes the user from a group
+    """
+
+    TYPE = "del_group"
+
+    def get_type(self):
+        return DeleteFromGroupAction.TYPE
+
+    def as_json(self):
+        groups = []
+        for g in self.groups:
+            if isinstance(g, ContactGroup):
+                groups.append(dict(uuid=g.uuid, name=g.name))
+            else:
+                groups.append(g)
+
+        return dict(type=self.get_type(), uuid=self.uuid, groups=groups)
+
+    @classmethod
+    def from_json(cls, org, json_obj):
+        return cls(json_obj.get(cls.UUID), cls.get_groups(org, json_obj))
+
+    def execute(self, run, context, actionset, msg):
+        if len(self.groups) == 0:
+            contact = run.contact
+            user = get_flow_user(run.org)
+            if contact:
+                # remove from all active and inactive user-defined, static groups
+                for group in ContactGroup.user_groups.filter(
+                    org=contact.org, group_type=ContactGroup.TYPE_USER_DEFINED, query__isnull=True
+                ):
+                    group.update_contacts(user, [contact], False)
+            return []
+        return AddToGroupAction.execute(self, run, context, actionset, msg)
+
+
+class AddLabelAction(Action):
+    """
+    Add a label to the incoming message
+    """
+
+    TYPE = "add_label"
+    LABELS = "labels"
+
+    def __init__(self, uuid, labels):
+        super().__init__(uuid)
+
+        self.labels = labels
+
+    @classmethod
+    def from_json(cls, org, json_obj):
+        labels_data = json_obj.get(cls.LABELS)
+
+        labels = []
+        for label_data in labels_data:
+            if isinstance(label_data, dict):
+                label_uuid = label_data.get("uuid", None)
+                label_name = label_data.get("name")
+
+                if label_uuid and Label.label_objects.filter(org=org, uuid=label_uuid).first():
+                    label = Label.label_objects.filter(org=org, uuid=label_uuid).first()
+                    if label:
+                        labels.append(label)
+                else:  # pragma: needs cover
+                    labels.append(Label.get_or_create(org, org.get_user(), label_name))
+
+            elif isinstance(label_data, str):
+                if label_data and label_data[0] == "@":
+                    # label name is a variable substitution
+                    labels.append(label_data)
+                else:  # pragma: needs cover
+                    labels.append(Label.get_or_create(org, org.get_user(), label_data))
+            else:  # pragma: needs cover
+                raise ValueError("Label data must be a dict or string")
+
+        return cls(json_obj.get(cls.UUID), labels)
+
+    def as_json(self):
+        labels = []
+        for action_label in self.labels:
+            if isinstance(action_label, Label):
+                labels.append(dict(uuid=action_label.uuid, name=action_label.name))
+            else:
+                labels.append(action_label)
+
+        return dict(type=self.get_type(), uuid=self.uuid, labels=labels)
+
+    def get_type(self):
+        return AddLabelAction.TYPE
+
+    def execute(self, run, context, actionset_uuid, msg):
+        for label in self.labels:
+            if not isinstance(label, Label):
+                contact = run.contact
+                (value, errors) = Msg.evaluate_template(label, context, org=run.flow.org)
+
+                if not errors:
+                    label = Label.label_objects.filter(org=contact.org, name__iexact=value.strip()).first()
+                else:  # pragma: needs cover
+                    label = None
+
+            if label and msg and msg.pk:
+                label.toggle_label([msg], True)
+
+        return []
+
+
+class SayAction(Action):
+    """
+    Voice action for reading some text to a user
+    """
+
+    TYPE = "say"
+    MESSAGE = "msg"
+    RECORDING = "recording"
+
+    def __init__(self, uuid, msg, recording):
+        super().__init__(uuid)
+
+        self.msg = msg
+        self.recording = recording
+
+    @classmethod
+    def from_json(cls, org, json_obj):
+        return cls(json_obj.get(cls.UUID), json_obj.get(cls.MESSAGE), json_obj.get(cls.RECORDING))
+
+    def as_json(self):
+        return dict(type=self.TYPE, uuid=self.uuid, msg=self.msg, recording=self.recording)
+
+    def execute(self, run, context, actionset_uuid, event):
+
+        media_url = None
+        if self.recording:
+
+            # localize our recording
+            recording = run.flow.get_localized_text(self.recording, run.contact)
+
+            # if we have a localized recording, create the url
+            if recording:  # pragma: needs cover
+                media_url = f"{settings.STORAGE_URL}/{recording}"
+
+        # localize the text for our message, need this either way for logging
+        message = run.flow.get_localized_text(self.msg, run.contact)
+        (message, errors) = Msg.evaluate_template(message, context)
+
+        msg = run.create_outgoing_ivr(message, media_url, run.connection)
+
+        if msg:
+            return [msg]
+        else:  # pragma: needs cover
+            # no message, possibly failed loop detection
+            run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
+            return []
+
+
+class PlayAction(Action):
+    """
+    Voice action for reading some text to a user
+    """
+
+    TYPE = "play"
+    URL = "url"
+
+    def __init__(self, uuid, url):
+        super().__init__(uuid)
+
+        self.url = url
+
+    @classmethod
+    def from_json(cls, org, json_obj):
+        return cls(json_obj.get(cls.UUID), json_obj.get(cls.URL))
+
+    def as_json(self):
+        return dict(type=self.TYPE, uuid=self.uuid, url=self.url)
+
+    def execute(self, run, context, actionset_uuid, event):
+        (recording_url, errors) = Msg.evaluate_template(self.url, context)
+        msg = run.create_outgoing_ivr(_("Played contact recording"), recording_url, run.connection)
+
+        if msg:
+            return [msg]
+        else:  # pragma: needs cover
+            # no message, possibly failed loop detection
+            run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
+            return []
+
+
+class ReplyAction(Action):
+    """
+    Simple action for sending back a message
+    """
+
+    TYPE = "reply"
+    MESSAGE = "msg"
+    MSG_TYPE = None
+    MEDIA = "media"
+    SEND_ALL = "send_all"
+    QUICK_REPLIES = "quick_replies"
+
+    def __init__(self, uuid, msg=None, media=None, quick_replies=None, send_all=False):
+        super().__init__(uuid)
+
+        self.msg = msg
+        self.media = media if media else {}
+        self.send_all = send_all
+        self.quick_replies = quick_replies if quick_replies else []
+
+    @classmethod
+    def from_json(cls, org, json_obj):
+        # assert we have some kind of message in this reply
+        msg = json_obj.get(cls.MESSAGE)
+        if isinstance(msg, dict):
+            if not msg:
+                raise FlowException("Invalid reply action, empty message dict")
+
+            if not any([v for v in msg.values()]):
+                raise FlowException("Invalid reply action, missing at least one message")
+        elif not msg:
+            raise FlowException("Invalid reply action, no message")
+
+        return cls(
+            json_obj.get(cls.UUID),
+            msg=json_obj.get(cls.MESSAGE),
+            media=json_obj.get(cls.MEDIA, None),
+            quick_replies=json_obj.get(cls.QUICK_REPLIES),
+            send_all=json_obj.get(cls.SEND_ALL, False),
+        )
+
+    def as_json(self):
+        return dict(
+            type=self.TYPE,
+            uuid=self.uuid,
+            msg=self.msg,
+            media=self.media,
+            quick_replies=self.quick_replies,
+            send_all=self.send_all,
+        )
+
+    @staticmethod
+    def get_translated_quick_replies(metadata, run):
+        """
+        Gets the appropriate metadata translation for the given contact
+        """
+        language_metadata = []
+        for item in metadata:
+            text = run.flow.get_localized_text(text_translations=item, contact=run.contact)
+            language_metadata.append(text)
+
+        return language_metadata
+
+    def execute(self, run, context, actionset_uuid, msg):
+        replies = []
+
+        if self.msg or self.media:
+            user = get_flow_user(run.org)
+
+            text = ""
+            if self.msg:
+                text = run.flow.get_localized_text(self.msg, run.contact)
+
+            quick_replies = []
+            if self.quick_replies:
+                quick_replies = ReplyAction.get_translated_quick_replies(self.quick_replies, run)
+
+            attachments = None
+            if self.media:
+                # localize our media attachment
+                media_type, media_url = run.flow.get_localized_text(self.media, run.contact).split(":", 1)
+
+                # if we have a localized media, create the url
+                if media_url and len(media_type.split("/")) > 1:
+                    abs_url = f"{settings.STORAGE_URL}/{media_url}"
+                    attachments = [f"{media_type}:{abs_url}"]
+                else:
+                    attachments = [f"{media_type}:{media_url}"]
+
+            if msg and msg.id:
+                replies = msg.reply(
+                    text,
+                    user,
+                    trigger_send=False,
+                    expressions_context=context,
+                    connection=run.connection,
+                    msg_type=self.MSG_TYPE,
+                    quick_replies=quick_replies,
+                    attachments=attachments,
+                    send_all=self.send_all,
+                    sent_on=None,
+                )
+            else:
+                # if our run has been responded to or any of our parent runs have
+                # been responded to consider us interactive with high priority
+                high_priority = run.get_session_responded()
+                replies = run.contact.send(
+                    text,
+                    user,
+                    trigger_send=False,
+                    expressions_context=context,
+                    connection=run.connection,
+                    msg_type=self.MSG_TYPE,
+                    attachments=attachments,
+                    quick_replies=quick_replies,
+                    sent_on=None,
+                    all_urns=self.send_all,
+                    high_priority=high_priority,
+                )
+        return replies
+
+
+class VariableContactAction(Action):
+    """
+    Base action that resolves variables into contacts. Used for actions that take
+    SendAction, TriggerAction, etc
+    """
+
+    CONTACTS = "contacts"
+    GROUPS = "groups"
+    VARIABLES = "variables"
+    PHONE = "phone"
+    PATH = "path"
+    SCHEME = "scheme"
+    URNS = "urns"
+    NAME = "name"
+    ID = "id"
+
+    def __init__(self, uuid, groups, contacts, variables):
+        super().__init__(uuid)
+
+        self.groups = groups
+        self.contacts = contacts
+        self.variables = variables
+
+    @classmethod
+    def parse_groups(cls, org, json_obj):
+        # we actually instantiate our contacts here
+        groups = []
+        for group_data in json_obj.get(VariableContactAction.GROUPS):
+            group_uuid = group_data.get(VariableContactAction.UUID, None)
+            group_name = group_data.get(VariableContactAction.NAME)
+
+            # flows from when true deletion was allowed need this
+            if not group_name:
+                group_name = "Missing"
+
+            group = ContactGroup.get_or_create(org, org.get_user(), group_name, uuid=group_uuid)
+            groups.append(group)
+
+        return groups
+
+    @classmethod
+    def parse_contacts(cls, org, json_obj):
+        contacts = []
+        for contact in json_obj.get(VariableContactAction.CONTACTS):
+            name = contact.get(VariableContactAction.NAME, None)
+            phone = contact.get(VariableContactAction.PHONE, None)
+            contact_uuid = contact.get(VariableContactAction.UUID, None)
+
+            urns = []
+            for urn in contact.get(VariableContactAction.URNS, []):
+                scheme = urn.get(VariableContactAction.SCHEME)
+                path = urn.get(VariableContactAction.PATH)
+
+                if scheme and path:
+                    urns.append(URN.from_parts(scheme, path))
+
+            if phone:  # pragma: needs cover
+                urns.append(URN.from_tel(phone))
+
+            contact = Contact.objects.filter(uuid=contact_uuid, org=org).first()
+
+            if not contact:
+                contact = Contact.get_or_create_by_urns(org, org.created_by, name=None, urns=urns)
+
+                # if they don't have a name use the one in our action
+                if name and not contact.name:  # pragma: needs cover
+                    contact.name = name
+                    contact.save(update_fields=["name"], handle_update=True)
+
+            if contact:
+                contacts.append(contact)
+
+        return contacts
+
+    @classmethod
+    def parse_variables(cls, org, json_obj):
+        variables = []
+        if VariableContactAction.VARIABLES in json_obj:
+            variables = list(_.get(VariableContactAction.ID) for _ in json_obj.get(VariableContactAction.VARIABLES))
+        return variables
+
+    def build_groups_and_contacts(self, run, msg):
+        expressions_context = run.flow.build_expressions_context(run.contact, msg, run=run)
+        contacts = list(self.contacts)
+        groups = list(self.groups)
+
+        # see if we've got groups or contacts
+        for variable in self.variables:
+            # this is a marker for a new contact
+            if variable == NEW_CONTACT_VARIABLE:
+                contacts.append(Contact.get_or_create_by_urns(run.org, get_flow_user(run.org), name=None, urns=()))
+
+            # other type of variable, perform our substitution
+            else:
+                (variable, errors) = Msg.evaluate_template(variable, expressions_context, org=run.flow.org)
+
+                # Check for possible contact uuid and use its contact
+                contact_variable_by_uuid = Contact.objects.filter(uuid=variable, org=run.flow.org).first()
+                if contact_variable_by_uuid:
+                    contacts.append(contact_variable_by_uuid)
+                    continue
+
+                variable_group = ContactGroup.get_user_group(run.flow.org, name=variable)
+                if variable_group:  # pragma: needs cover
+                    groups.append(variable_group)
+                else:
+                    country = run.flow.org.get_country_code()
+                    (number, valid) = URN.normalize_number(variable, country)
+                    if number and valid:
+                        contact, contact_urn = Contact.get_or_create(
+                            run.org, URN.from_tel(number), user=get_flow_user(run.org)
+                        )
+                        contacts.append(contact)
+
+        return groups, contacts
+
+
+class TriggerFlowAction(VariableContactAction):
+    """
+    Action that starts a set of contacts down another flow
+    """
+
+    TYPE = "trigger-flow"
+
+    def __init__(self, uuid, flow, groups, contacts, variables):
+        super().__init__(uuid, groups, contacts, variables)
+
+        self.flow = flow
+
+    @classmethod
+    def from_json(cls, org, json_obj):
+        flow_json = json_obj.get("flow")
+        flow_uuid = flow_json.get("uuid")
+        flow = Flow.objects.filter(org=org, is_active=True, is_archived=False, uuid=flow_uuid).first()
+
+        # it is possible our flow got deleted
+        if not flow:
+            return None
+
+        groups = VariableContactAction.parse_groups(org, json_obj)
+        contacts = VariableContactAction.parse_contacts(org, json_obj)
+        variables = VariableContactAction.parse_variables(org, json_obj)
+
+        return cls(json_obj.get(cls.UUID), flow, groups, contacts, variables)
+
+    def as_json(self):
+        contact_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.contacts]
+        group_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.groups]
+        variables = [dict(id=_) for _ in self.variables]
+
+        return dict(
+            type=self.TYPE,
+            uuid=self.uuid,
+            flow=dict(uuid=self.flow.uuid, name=self.flow.name),
+            contacts=contact_ids,
+            groups=group_ids,
+            variables=variables,
+        )
+
+    def execute(self, run, context, actionset_uuid, msg):
+        if self.flow:
+            (groups, contacts) = self.build_groups_and_contacts(run, msg)
+            # start our contacts down the flow
+            # our extra will be our flow variables in our message context
+            extra = context.get("extra", dict())
+            child_runs = self.flow.start(
+                groups, contacts, restart_participants=True, started_flows=[run.flow.pk], extra=extra, parent_run=run
+            )
+
+            # build up all the msgs that where sent by our flow
+            msgs = []
+            for run in child_runs:
+                msgs += run.start_msgs
+
+            return msgs
+        else:  # pragma: no cover
+            return []
+
+
+class SetLanguageAction(Action):
+    """
+    Action that sets the language for a contact
+    """
+
+    TYPE = "lang"
+    LANG = "lang"
+    NAME = "name"
+
+    def __init__(self, uuid, lang, name):
+        super().__init__(uuid)
+
+        self.lang = lang
+        self.name = name
+
+    @classmethod
+    def from_json(cls, org, json_obj):
+        return cls(json_obj.get(cls.UUID), json_obj.get(cls.LANG), json_obj.get(cls.NAME))
+
+    def as_json(self):
+        return dict(type=self.TYPE, uuid=self.uuid, lang=self.lang, name=self.name)
+
+    def execute(self, run, context, actionset_uuid, msg):
+        old_value = run.contact.language
+
+        if len(self.lang) != 3:
+            new_lang = None
+        else:
+            new_lang = self.lang
+
+        if old_value != new_lang:
+            run.contact.language = new_lang
+            run.contact.save(update_fields=["language"], handle_update=True)
+
+        return []
+
+
+class StartFlowAction(Action):
+    """
+    Action that starts the contact into another flow
+    """
+
+    TYPE = "flow"
+    FLOW = "flow"
+    NAME = "name"
+
+    def __init__(self, uuid, flow):
+        super().__init__(uuid)
+
+        self.flow = flow
+
+    @classmethod
+    def from_json(cls, org, json_obj):
+        flow_obj = json_obj.get(cls.FLOW)
+        flow_uuid = flow_obj.get("uuid")
+
+        flow = Flow.objects.filter(org=org, is_active=True, is_archived=False, uuid=flow_uuid).first()
+
+        # it is possible our flow got deleted
+        if not flow:
+            return None
+        else:
+            return cls(json_obj.get(cls.UUID), flow)
+
+    def as_json(self):
+        return dict(type=self.TYPE, uuid=self.uuid, flow=dict(uuid=self.flow.uuid, name=self.flow.name))
+
+    def execute(self, run, context, actionset_uuid, msg, started_flows):
+        msgs = []
+
+        # our extra will be our flow variables in our message context
+        extra = context.get("extra", dict())
+
+        # if they are both flow runs, just redirect the call
+        if run.flow.flow_type == Flow.TYPE_VOICE and self.flow.flow_type == Flow.TYPE_VOICE:
+            new_run = self.flow.start(
+                [], [run.contact], started_flows=started_flows, restart_participants=True, extra=extra, parent_run=run
+            )[0]
+            url = "https://%s%s" % (
+                new_run.org.get_brand_domain(),
+                reverse("ivr.ivrcall_handle", args=[new_run.connection.pk]),
+            )
+            run.voice_response.redirect(url)
+        else:
+            child_runs = self.flow.start(
+                [], [run.contact], started_flows=started_flows, restart_participants=True, extra=extra, parent_run=run
+            )
+            for run in child_runs:
+                for msg in run.start_msgs:
+                    msg.from_other_run = True
+                    msgs.append(msg)
+
+        return msgs
+
+
+class SaveToContactAction(Action):
+    """
+    Action to save a variable substitution to a field on a contact
+    """
+
+    TYPE = "save"
+    FIELD = "field"
+    LABEL = "label"
+    VALUE = "value"
+
+    def __init__(self, uuid, label, field, value):
+        super().__init__(uuid)
+
+        self.label = label
+        self.field = field
+        self.value = value
+
+    @classmethod
+    def get_label(cls, org, field, label=None):
+
+        # make sure this field exists
+        if field == "name":
+            label = "Contact Name"
+        elif field == "first_name":
+            label = "First Name"
+        elif field == "tel_e164":
+            label = "Phone Number"
+        elif field in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
+            label = str(ContactURN.CONTEXT_KEYS_TO_LABEL[field])
+        else:
+            contact_field = ContactField.user_fields.filter(org=org, key=field).first()
+
+            if not contact_field:
+                contact_field = ContactField.get_or_create(org, get_flow_user(org), field, label)
+
+            label = contact_field.label
+
+        return label
+
+    @classmethod
+    def from_json(cls, org, json_obj):
+        # they are creating a new field
+        label = json_obj.get(cls.LABEL)
+        field = json_obj.get(cls.FIELD)
+        value = json_obj.get(cls.VALUE)
+
+        if label and label.startswith("[_NEW_]"):
+            label = label[7:]
+
+        # create our contact field if necessary
+        if not field:
+            field = ContactField.make_key(label)
+
+        # look up our label
+        label = cls.get_label(org, field, label)
+
+        return cls(json_obj.get(cls.UUID), label, field, value)
+
+    def as_json(self):
+        return dict(type=self.TYPE, uuid=self.uuid, label=self.label, field=self.field, value=self.value)
+
+    def execute(self, run, context, actionset_uuid, msg):
+        # evaluate our value
+        contact = run.contact
+        user = get_flow_user(run.org)
+        (value, errors) = Msg.evaluate_template(self.value, context, org=run.flow.org)
+
+        value = value.strip()
+
+        if self.field == "name":
+            new_value = value[:128]
+            contact.name = new_value
+            contact.modified_by = user
+            contact.save(update_fields=("name", "modified_by", "modified_on"), handle_update=True)
+
+        elif self.field == "first_name":
+            new_value = value[:128]
+            contact.set_first_name(new_value)
+            contact.modified_by = user
+            contact.save(update_fields=("name", "modified_by", "modified_on"), handle_update=True)
+
+        elif self.field in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
+            new_value = value[:128]
+
+            # add in our new urn number
+            scheme = ContactURN.CONTEXT_KEYS_TO_SCHEME[self.field]
+
+            # trim off '@' for twitter handles
+            if self.field == "twitter":  # pragma: needs cover
+                if len(new_value) > 0:
+                    if new_value[0] == "@":
+                        new_value = new_value[1:]
+
+            # only valid urns get added, sorry
+            new_urn = None
+            if new_value:
+                new_urn = URN.normalize(URN.from_parts(scheme, new_value))
+                if not URN.validate(new_urn, contact.org.get_country_code()):  # pragma: no cover
+                    new_urn = False
+
+            if new_urn:
+                urns = [str(urn) for urn in contact.urns.all()]
+                urns += [new_urn]
+                contact.update_urns(user, urns)
+
+        else:
+            new_value = value[: Value.MAX_VALUE_LEN]
+            contact.set_field(user, self.field, new_value)
+
+        return []
+
+
+class SetChannelAction(Action):
+    """
+    Action which sets the preferred channel to use for this Contact. If the contact has no URNs that match
+    the Channel being set then this is a no-op.
+    """
+
+    TYPE = "channel"
+    CHANNEL = "channel"
+    NAME = "name"
+
+    def __init__(self, uuid, channel):
+        super().__init__(uuid)
+
+        self.channel = channel
+
+    @classmethod
+    def from_json(cls, org, json_obj):
+        channel_uuid = json_obj.get(SetChannelAction.CHANNEL)
+
+        if channel_uuid:
+            channel = Channel.objects.filter(org=org, is_active=True, uuid=channel_uuid).first()
+        else:  # pragma: needs cover
+            channel = None
+        return cls(json_obj.get(cls.UUID), channel)
+
+    def as_json(self):
+        channel_uuid = self.channel.uuid if self.channel else None
+        channel_name = (
+            "%s: %s" % (self.channel.get_channel_type_display(), self.channel.get_address_display())
+            if self.channel
+            else None
+        )
+        return dict(type=self.TYPE, uuid=self.uuid, channel=channel_uuid, name=channel_name)
+
+    def execute(self, run, context, actionset_uuid, msg):
+        # if we found the channel to set
+        if self.channel:
+            run.contact.set_preferred_channel(self.channel)
+            return []
+        else:
+            return []
+
+
+class SendAction(VariableContactAction):
+    """
+    Action which sends a message to a specified set of contacts and groups.
+    """
+
+    TYPE = "send"
+    MESSAGE = "msg"
+    MEDIA = "media"
+
+    def __init__(self, uuid, msg, groups, contacts, variables, media=None):
+        super().__init__(uuid, groups, contacts, variables)
+
+        self.msg = msg
+        self.media = media if media else {}
+
+    @classmethod
+    def from_json(cls, org, json_obj):
+        groups = VariableContactAction.parse_groups(org, json_obj)
+        contacts = VariableContactAction.parse_contacts(org, json_obj)
+        variables = VariableContactAction.parse_variables(org, json_obj)
+
+        return cls(
+            json_obj.get(cls.UUID),
+            json_obj.get(cls.MESSAGE),
+            groups,
+            contacts,
+            variables,
+            json_obj.get(cls.MEDIA, None),
+        )
+
+    def as_json(self):
+        contact_ids = [dict(uuid=_.uuid) for _ in self.contacts]
+        group_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.groups]
+        variables = [dict(id=_) for _ in self.variables]
+
+        return dict(
+            type=self.TYPE,
+            uuid=self.uuid,
+            msg=self.msg,
+            contacts=contact_ids,
+            groups=group_ids,
+            variables=variables,
+            media=self.media,
+        )
+
+    def execute(self, run, context, actionset_uuid, msg):
+        if self.msg or self.media:
+            flow = run.flow
+            (groups, contacts) = self.build_groups_and_contacts(run, msg)
+
+            # no-op if neither text nor media are defined in the flow base language
+            if not (self.msg.get(flow.base_language) or self.media.get(flow.base_language)):
+                return list()
+
+            broadcast = Broadcast.create(
+                flow.org,
+                flow.modified_by,
+                self.msg,
+                groups=groups,
+                contacts=contacts,
+                media=self.media,
+                base_language=flow.base_language,
+            )
+            broadcast.send(expressions_context=context)
+
+        return []
+
+
+class Rule(object):
+    def __init__(self, uuid, category, destination, destination_type, test, label=None):
+        self.uuid = uuid
+        self.category = category
+        self.destination = destination
+        self.destination_type = destination_type
+        self.test = test
+        self.label = label
+
+    def get_category_name(self, flow_lang, contact_lang=None):
+        if not self.category:  # pragma: needs cover
+            if isinstance(self.test, BetweenTest):
+                return "%s-%s" % (self.test.min, self.test.max)
+
+        # return the category name for the flow language version
+        if isinstance(self.category, dict):
+            category = None
+            if contact_lang:
+                category = self.category.get(contact_lang)
+
+            if not category and flow_lang:
+                category = self.category.get(flow_lang)
+
+            if not category:  # pragma: needs cover
+                category = list(self.category.values())[0]
+
+            return category
+
+        return self.category  # pragma: needs cover
+
+    def matches(self, run, sms, context, text):
+        return self.test.evaluate(run, sms, context, text)
+
+    def as_json(self):
+        return dict(
+            uuid=self.uuid,
+            category=self.category,
+            destination=self.destination,
+            destination_type=self.destination_type,
+            test=self.test.as_json(),
+            label=self.label,
+        )
+
+    @classmethod
+    def from_json_array(cls, org, json):
+        rules = []
+        for rule in json:
+            category = rule.get("category", None)
+
+            if isinstance(category, dict):
+                # prune all of our translations to 36
+                for k, v in category.items():
+                    if isinstance(v, str):
+                        category[k] = v[:36]
+            elif category:
+                category = category[:36]
+
+            destination = rule.get("destination", None)
+            destination_type = None
+
+            # determine our destination type, if its not set its an action set
+            if destination:
+                destination_type = rule.get("destination_type", Flow.NODE_TYPE_ACTIONSET)
+
+            rules.append(
+                Rule(
+                    rule.get("uuid"),
+                    category,
+                    destination,
+                    destination_type,
+                    Test.from_json(org, rule["test"]),
+                    rule.get("label"),
+                )
+            )
+
+        return rules
+
+
+class Test(object):
+    TYPE = "type"
+    __test_mapping = None
+
+    @classmethod
+    def from_json(cls, org, json_dict):
+        if not cls.__test_mapping:
+            cls.__test_mapping = {
+                AirtimeStatusTest.TYPE: AirtimeStatusTest,
+                AndTest.TYPE: AndTest,
+                BetweenTest.TYPE: BetweenTest,
+                ContainsAnyTest.TYPE: ContainsAnyTest,
+                ContainsOnlyPhraseTest.TYPE: ContainsOnlyPhraseTest,
+                ContainsPhraseTest.TYPE: ContainsPhraseTest,
+                ContainsTest.TYPE: ContainsTest,
+                DateAfterTest.TYPE: DateAfterTest,
+                DateBeforeTest.TYPE: DateBeforeTest,
+                DateEqualTest.TYPE: DateEqualTest,
+                EqTest.TYPE: EqTest,
+                FalseTest.TYPE: FalseTest,
+                GtTest.TYPE: GtTest,
+                GteTest.TYPE: GteTest,
+                DateTest.TYPE: DateTest,
+                HasDistrictTest.TYPE: HasDistrictTest,
+                HasEmailTest.TYPE: HasEmailTest,
+                HasStateTest.TYPE: HasStateTest,
+                HasWardTest.TYPE: HasWardTest,
+                InGroupTest.TYPE: InGroupTest,
+                LtTest.TYPE: LtTest,
+                LteTest.TYPE: LteTest,
+                NotEmptyTest.TYPE: NotEmptyTest,
+                NumberTest.TYPE: NumberTest,
+                OrTest.TYPE: OrTest,
+                PhoneTest.TYPE: PhoneTest,
+                RegexTest.TYPE: RegexTest,
+                StartsWithTest.TYPE: StartsWithTest,
+                SubflowTest.TYPE: SubflowTest,
+                TimeoutTest.TYPE: TimeoutTest,
+                TrueTest.TYPE: TrueTest,
+                WebhookStatusTest.TYPE: WebhookStatusTest,
+            }
+
+        type = json_dict.get(cls.TYPE, None)
+        if not type:  # pragma: no cover
+            raise FlowException("Test definition missing 'type' field: %s", json_dict)
+
+        if type not in cls.__test_mapping:  # pragma: no cover
+            raise FlowException("Unknown type: '%s' in definition: %s" % (type, json_dict))
+
+        return cls.__test_mapping[type].from_json(org, json_dict)
+
+    @classmethod
+    def from_json_array(cls, org, json):
+        tests = []
+        for inner in json:
+            tests.append(Test.from_json(org, inner))
+
+        return tests
+
+    def evaluate(self, run, sms, context, text):  # pragma: no cover
+        """
+        Where the work happens, subclasses need to be able to evalute their Test
+        according to their definition given the passed in message. Tests do not have
+        side effects.
+        """
+        raise FlowException(
+            "Subclasses must implement evaluate, returning a tuple containing 1 or 0 and the value tested"
+        )
+
+
+class WebhookStatusTest(Test):
+    """
+    {op: 'webhook', status: 'success' }
+    """
+
+    TYPE = "webhook_status"
+    STATUS = "status"
+
+    STATUS_SUCCESS = "success"
+    STATUS_FAILURE = "failure"
+
+    def __init__(self, status):
+        self.status = status
+
+    @classmethod
+    def from_json(cls, org, json):
+        return WebhookStatusTest(json.get("status"))
+
+    def as_json(self):  # pragma: needs cover
+        return dict(type=WebhookStatusTest.TYPE, status=self.status)
+
+    def evaluate(self, run, sms, context, text):
+        # we treat any 20* return code as successful
+        success = 200 <= int(text) < 300
+
+        if success and self.status == WebhookStatusTest.STATUS_SUCCESS:
+            return 1, text
+        elif not success and self.status == WebhookStatusTest.STATUS_FAILURE:
+            return 1, text
+        else:
+            return 0, None
+
+
+class AirtimeStatusTest(Test):
+    """
+    {op: 'airtime_status'}
+    """
+
+    TYPE = "airtime_status"
+    EXIT = "exit_status"
+
+    STATUS_SUCCESS = "success"
+    STATUS_FAILED = "failed"
+
+    STATUS_MAP = {STATUS_SUCCESS: AirtimeTransfer.STATUS_SUCCESS, STATUS_FAILED: AirtimeTransfer.STATUS_FAILED}
+
+    def __init__(self, exit_status):
+        self.exit_status = exit_status
+
+    @classmethod
+    def from_json(cls, org, json):
+        return AirtimeStatusTest(json.get("exit_status"))
+
+    def as_json(self):  # pragma: needs cover
+        return dict(type=AirtimeStatusTest.TYPE, exit_status=self.exit_status)
+
+    def evaluate(self, run, sms, context, text):
+        status = text
+        if status and AirtimeStatusTest.STATUS_MAP[self.exit_status] == status:
+            return 1, status
+        return 0, None
+
+
+class InGroupTest(Test):
+    """
+    { op: "in_group" }
+    """
+
+    TYPE = "in_group"
+    NAME = "name"
+    UUID = "uuid"
+    TEST = "test"
+
+    def __init__(self, group):
+        self.group = group
+
+    @classmethod
+    def from_json(cls, org, json):
+        group = json.get(InGroupTest.TEST)
+        name = group.get(InGroupTest.NAME)
+        uuid = group.get(InGroupTest.UUID)
+        return InGroupTest(ContactGroup.get_or_create(org, org.created_by, name, uuid=uuid))
+
+    def as_json(self):
+        group = ContactGroup.get_or_create(
+            self.group.org, self.group.org.created_by, self.group.name, uuid=self.group.uuid
+        )
+        return dict(type=InGroupTest.TYPE, test=dict(name=group.name, uuid=group.uuid))
+
+    def evaluate(self, run, sms, context, text):
+        if run.contact.user_groups.filter(id=self.group.id).first():
+            return 1, self.group.name
+        return 0, None
+
+
+class SubflowTest(Test):
+    """
+    { op: "subflow" }
+    """
+
+    TYPE = "subflow"
+    EXIT = "exit_type"
+
+    TYPE_COMPLETED = "completed"
+    TYPE_EXPIRED = "expired"
+
+    def __init__(self, exit_type):
+        self.exit_type = exit_type
+
+    @classmethod
+    def from_json(cls, org, json):
+        return SubflowTest(json.get(SubflowTest.EXIT))
+
+    def as_json(self):  # pragma: needs cover
+        return dict(type=SubflowTest.TYPE, exit_type=self.exit_type)
+
+    def evaluate(self, run, sms, context, text):
+        if self.exit_type == text:
+            return 1, self.exit_type
+        return 0, None
+
+
+class TimeoutTest(Test):
+    """
+    { op: "timeout", minutes: 60 }
+    """
+
+    TYPE = "timeout"
+    MINUTES = "minutes"
+
+    def __init__(self, minutes):
+        self.minutes = minutes
+
+    @classmethod
+    def from_json(cls, org, json):
+        return TimeoutTest(float(json.get(TimeoutTest.MINUTES)))
+
+    def as_json(self):  # pragma: no cover
+        return {"type": TimeoutTest.TYPE, TimeoutTest.MINUTES: self.minutes}
+
+    def evaluate(self, run, sms, context, text):  # pragma: no cover
+        pass
+
+
+class TrueTest(Test):
+    """
+    { op: "true" }
+    """
+
+    TYPE = "true"
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def from_json(cls, org, json):
+        return TrueTest()
+
+    def as_json(self):
+        return dict(type=TrueTest.TYPE)
+
+    def evaluate(self, run, sms, context, text):
+        return 1, text
+
+
+class FalseTest(Test):
+    """
+    { op: "false" }
+    """
+
+    TYPE = "false"
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def from_json(cls, org, json):
+        return FalseTest()
+
+    def as_json(self):
+        return dict(type=FalseTest.TYPE)
+
+    def evaluate(self, run, sms, context, text):
+        return 0, None
+
+
+class AndTest(Test):
+    """
+    { op: "and",  "tests": [ ... ] }
+    """
+
+    TESTS = "tests"
+    TYPE = "and"
+
+    def __init__(self, tests):
+        self.tests = tests
+
+    @classmethod
+    def from_json(cls, org, json):
+        return AndTest(Test.from_json_array(org, json[cls.TESTS]))
+
+    def as_json(self):
+        return dict(type=AndTest.TYPE, tests=[_.as_json() for _ in self.tests])
+
+    def evaluate(self, run, sms, context, text):  # pragma: needs cover
+        matches = []
+        for test in self.tests:
+            (result, value) = test.evaluate(run, sms, context, text)
+            if result:
+                matches.append(value)
+            else:
+                return 0, None
+
+        # all came out true, we are true
+        return 1, " ".join(matches)
+
+
+class OrTest(Test):
+    """
+    { op: "or",  "tests": [ ... ] }
+    """
+
+    TESTS = "tests"
+    TYPE = "or"
+
+    def __init__(self, tests):
+        self.tests = tests
+
+    @classmethod
+    def from_json(cls, org, json):
+        return OrTest(Test.from_json_array(org, json[cls.TESTS]))
+
+    def as_json(self):
+        return dict(type=OrTest.TYPE, tests=[_.as_json() for _ in self.tests])
+
+    def evaluate(self, run, sms, context, text):  # pragma: needs cover
+        for test in self.tests:
+            (result, value) = test.evaluate(run, sms, context, text)
+            if result:
+                return result, value
+
+        return 0, None
+
+
+class NotEmptyTest(Test):
+    """
+    { op: "not_empty" }
+    """
+
+    TYPE = "not_empty"
+
+    def __init__(self):  # pragma: needs cover
+        pass
+
+    @classmethod
+    def from_json(cls, org, json):  # pragma: needs cover
+        return NotEmptyTest()
+
+    def as_json(self):  # pragma: needs cover
+        return dict(type=NotEmptyTest.TYPE)
+
+    def evaluate(self, run, sms, context, text):  # pragma: needs cover
+        if text and len(text.strip()):
+            return 1, text.strip()
+        return 0, None
+
+
+class ContainsTest(Test):
+    """
+    { op: "contains", "test": "red" }
+    """
+
+    TEST = "test"
+    TYPE = "contains"
+
+    def __init__(self, test):
+        self.test = test
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls(json[cls.TEST])
+
+    def as_json(self):
+        json = dict(type=ContainsTest.TYPE, test=self.test)
+        return json
+
+    def test_in_words(self, test, words, raw_words):
+        matches = []
+        for index, word in enumerate(words):
+            if word == test:
+                matches.append(index)
+                continue
+
+        return matches
+
+    def evaluate(self, run, sms, context, text):
+        # substitute any variables
+        test = run.flow.get_localized_text(self.test, run.contact)
+        test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
+
+        # tokenize our test
+        tests = tokenize(test.lower())
+
+        # tokenize our sms
+        words = tokenize(text.lower())
+        raw_words = tokenize(text)
+
+        tests = [elt for elt in tests if elt != ""]
+        words = [elt for elt in words if elt != ""]
+        raw_words = [elt for elt in raw_words if elt != ""]
+
+        # run through each of our tests
+        matches = set()
+        matched_tests = 0
+        for test in tests:
+            match = self.test_in_words(test, words, raw_words)
+            if match:
+                matched_tests += 1
+                matches.update(match)
+
+        # we are a match only if every test matches
+        if matched_tests == len(tests):
+            matches = sorted(list(matches))
+            matched_words = " ".join([raw_words[idx] for idx in matches])
+            return len(tests), matched_words
+        else:
+            return 0, None
+
+
+class HasEmailTest(Test):
+    """
+    { op: "has_email" }
+    """
+
+    TYPE = "has_email"
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls()
+
+    def as_json(self):
+        return dict(type=self.TYPE)
+
+    def evaluate(self, run, sms, context, text):
+        # split on whitespace
+        words = text.split()
+        for word in words:
+            word = word.strip(",.;:|()[]\"'<>?&*/\\")
+            if is_valid_address(word):
+                return 1, word
+
+        return 0, None
+
+
+class ContainsAnyTest(ContainsTest):
+    """
+    { op: "contains_any", "test": "red" }
+    """
+
+    TEST = "test"
+    TYPE = "contains_any"
+
+    def as_json(self):
+        return dict(type=ContainsAnyTest.TYPE, test=self.test)
+
+    def evaluate(self, run, sms, context, text):
+        # substitute any variables
+        test = run.flow.get_localized_text(self.test, run.contact)
+        test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
+
+        # tokenize our test
+        tests = tokenize(test.lower())
+
+        # tokenize our sms
+        words = tokenize(text.lower())
+        raw_words = tokenize(text)
+
+        tests = [elt for elt in tests if elt != ""]
+        words = [elt for elt in words if elt != ""]
+        raw_words = [elt for elt in raw_words if elt != ""]
+
+        # run through each of our tests
+        matches = set()
+        for test in tests:
+            match = self.test_in_words(test, words, raw_words)
+            if match:
+                matches.update(match)
+
+        # we are a match if at least one test matches
+        if matches:
+            matches = sorted(list(matches))
+            matched_words = " ".join([raw_words[idx] for idx in matches])
+            return 1, matched_words
+        else:
+            return 0, None
+
+
+class ContainsOnlyPhraseTest(ContainsTest):
+    """
+    { op: "contains_only_phrase", "test": "red" }
+    """
+
+    TEST = "test"
+    TYPE = "contains_only_phrase"
+
+    def as_json(self):
+        return dict(type=ContainsOnlyPhraseTest.TYPE, test=self.test)
+
+    def evaluate(self, run, sms, context, text):
+        # substitute any variables
+        test = run.flow.get_localized_text(self.test, run.contact)
+        test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
+
+        # tokenize our test
+        tests = tokenize(test.lower())
+
+        # tokenize our sms
+        words = tokenize(text.lower())
+        raw_words = tokenize(text)
+
+        # they are the same? then we matched
+        if tests == words:
+            return 1, " ".join(raw_words)
+        else:
+            return 0, None
+
+
+class ContainsPhraseTest(ContainsTest):
+    """
+    { op: "contains_phrase", "test": "red" }
+    """
+
+    TEST = "test"
+    TYPE = "contains_phrase"
+
+    def as_json(self):
+        return dict(type=ContainsPhraseTest.TYPE, test=self.test)
+
+    def evaluate(self, run, sms, context, text):
+        # substitute any variables
+        test = run.flow.get_localized_text(self.test, run.contact)
+        test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
+
+        # tokenize our test
+        tests = tokenize(test.lower())
+        if not tests:
+            return True, ""
+
+        # tokenize our sms
+        words = tokenize(text.lower())
+        raw_words = tokenize(text)
+
+        # look for the phrase
+        test_idx = 0
+        matches = []
+        for i in range(len(words)):
+            if tests[test_idx] == words[i]:
+                matches.append(raw_words[i])
+                test_idx += 1
+                if test_idx == len(tests):
+                    break
+            else:
+                matches = []
+                test_idx = 0
+
+        # we found the phrase
+        if test_idx == len(tests):
+            matched_words = " ".join(matches)
+            return 1, matched_words
+        else:
+            return 0, None
+
+
+class StartsWithTest(Test):
+    """
+    { op: "starts", "test": "red" }
+    """
+
+    TEST = "test"
+    TYPE = "starts"
+
+    def __init__(self, test):
+        self.test = test
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls(json[cls.TEST])
+
+    def as_json(self):  # pragma: needs cover
+        return dict(type=StartsWithTest.TYPE, test=self.test)
+
+    def evaluate(self, run, sms, context, text):
+        # substitute any variables in our test
+        test = run.flow.get_localized_text(self.test, run.contact)
+        test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
+
+        # strip leading and trailing whitespace
+        text = text.strip()
+
+        # see whether we start with our test
+        if text.lower().find(test.lower()) == 0:
+            return 1, text[: len(test)]
+        else:
+            return 0, None
+
+
+class HasStateTest(Test):
+    TYPE = "state"
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls()
+
+    def as_json(self):
+        return dict(type=self.TYPE)
+
+    def evaluate(self, run, sms, context, text):
+        org = run.flow.org
+
+        # if they removed their country since adding the rule
+        if not org.country:
+            return 0, None
+
+        state = org.parse_location(text, AdminBoundary.LEVEL_STATE)
+        if state:
+            return 1, state[0]
+
+        return 0, None
+
+
+class HasDistrictTest(Test):
+    TYPE = "district"
+    TEST = "test"
+
+    def __init__(self, state=None):
+        self.state = state
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls(json[cls.TEST])
+
+    def as_json(self):
+        return dict(type=self.TYPE, test=self.state)
+
+    def evaluate(self, run, sms, context, text):
+
+        # if they removed their country since adding the rule
+        org = run.flow.org
+        if not org.country:
+            return 0, None
+
+        # evaluate our district in case it has a replacement variable
+        state, errors = Msg.evaluate_template(self.state, context, org=run.flow.org)
+
+        parent = org.parse_location(state, AdminBoundary.LEVEL_STATE)
+        if parent:
+            district = org.parse_location(text, AdminBoundary.LEVEL_DISTRICT, parent[0])
+            if district:
+                return 1, district[0]
+        district = org.parse_location(text, AdminBoundary.LEVEL_DISTRICT)
+
+        # parse location when state contraint is not provided or available
+        if (errors or not state) and len(district) == 1:
+            return 1, district[0]
+
+        return 0, None
+
+
+class HasWardTest(Test):
+    TYPE = "ward"
+    STATE = "state"
+    DISTRICT = "district"
+
+    def __init__(self, state=None, district=None):
+        self.state = state
+        self.district = district
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls(json[cls.STATE], json[cls.DISTRICT])
+
+    def as_json(self):
+        return dict(type=self.TYPE, state=self.state, district=self.district)
+
+    def evaluate(self, run, sms, context, text):
+        # if they removed their country since adding the rule
+        org = run.flow.org
+        if not org.country:  # pragma: needs cover
+            return 0, None
+        district = None
+
+        # evaluate our district in case it has a replacement variable
+        district_name, missing_district = Msg.evaluate_template(self.district, context, org=run.flow.org)
+        state_name, missing_state = Msg.evaluate_template(self.state, context, org=run.flow.org)
+        if (district_name and state_name) and (len(missing_district) == 0 and len(missing_state) == 0):
+            state = org.parse_location(state_name, AdminBoundary.LEVEL_STATE)
+            if state:
+                district = org.parse_location(district_name, AdminBoundary.LEVEL_DISTRICT, state[0])
+                if district:
+                    ward = org.parse_location(text, AdminBoundary.LEVEL_WARD, district[0])
+                    if ward:
+                        return 1, ward[0]
+
+        # parse location when district contraint is not provided or available
+        ward = org.parse_location(text, AdminBoundary.LEVEL_WARD)
+        if len(ward) == 1 and district is None:
+            return 1, ward[0]
+
+        return 0, None
+
+
+class DateTest(Test):
+    """
+    Base class for those tests that check relative dates
+    """
+
+    TEST = None
+    TYPE = "date"
+
+    def __init__(self, test=None):
+        self.test = test
+
+    @classmethod
+    def from_json(cls, org, json):
+        if cls.TEST:
+            return cls(json[cls.TEST])
+        else:
+            return cls()
+
+    def as_json(self):
+        if self.test:
+            return dict(type=self.TYPE, test=self.test)
+        else:
+            return dict(type=self.TYPE)
+
+    def evaluate_date_test(self, date_message, date_test):
+        return date_message is not None
+
+    def evaluate(self, run, sms, context, text):
+        org = run.flow.org
+        day_first = org.get_dayfirst()
+        tz = org.timezone
+
+        test, errors = Msg.evaluate_template(self.test, context, org=org)
+        if not errors:
+            date_message = str_to_datetime(text, tz=tz, dayfirst=day_first)
+            date_test = str_to_datetime(test, tz=tz, dayfirst=day_first)
+
+            if self.evaluate_date_test(date_message, date_test):
+                return 1, date_message.astimezone(tz)
+
+        return 0, None
+
+
+class DateEqualTest(DateTest):
+    TEST = "test"
+    TYPE = "date_equal"
+
+    def evaluate_date_test(self, date_message, date_test):
+        return date_message and date_test and date_message.date() == date_test.date()
+
+
+class DateAfterTest(DateTest):
+    TEST = "test"
+    TYPE = "date_after"
+
+    def evaluate_date_test(self, date_message, date_test):
+        return date_message and date_test and date_message >= date_test
+
+
+class DateBeforeTest(DateTest):
+    TEST = "test"
+    TYPE = "date_before"
+
+    def evaluate_date_test(self, date_message, date_test):
+        return date_message and date_test and date_message <= date_test
+
+
+class NumericTest(Test):
+    """
+    Base class for those tests that do numeric tests.
+    """
+
+    TEST = "test"
+    TYPE = ""
+
+    @classmethod
+    def convert_to_decimal(cls, word):
+        try:
+            return (word, Decimal(word))
+        except Exception as e:
+            # does this start with a number?  just use that part if so
+            match = regex.match(r"^[$£€]?([\d,][\d,\.]*([\.,]\d+)?)\D*$", word, regex.UNICODE | regex.V0)
+
+            if match:
+                return (match.group(1), Decimal(match.group(1)))
+            else:
+                raise e
+
+    # test every word in the message against our test
+    def evaluate(self, run, sms, context, text):
+        text = text.replace(",", "")
+        for word in regex.split(r"\s+", text, flags=regex.UNICODE | regex.V0):
+            try:
+                (word, decimal) = NumericTest.convert_to_decimal(word)
+                if self.evaluate_numeric_test(run, context, decimal):
+                    return 1, decimal
+            except Exception:  # pragma: needs cover
+                pass
+        return 0, None
+
+
+class BetweenTest(NumericTest):
+    """
+    Test whether we are between two numbers (inclusive)
+    """
+
+    MIN = "min"
+    MAX = "max"
+    TYPE = "between"
+
+    def __init__(self, min_val, max_val):
+        self.min = min_val
+        self.max = max_val
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls(json[cls.MIN], json[cls.MAX])
+
+    def as_json(self):
+        return dict(type=self.TYPE, min=self.min, max=self.max)
+
+    def evaluate_numeric_test(self, run, context, decimal_value):
+        min_val, min_errors = Msg.evaluate_template(self.min, context, org=run.flow.org)
+        max_val, max_errors = Msg.evaluate_template(self.max, context, org=run.flow.org)
+
+        if not min_errors and not max_errors:
+            try:
+                return Decimal(min_val) <= decimal_value <= Decimal(max_val)
+            except Exception:  # pragma: needs cover
+                pass
+
+        return False  # pragma: needs cover
+
+
+class NumberTest(NumericTest):
+    """
+    Tests that there is any number in the string.
+    """
+
+    TYPE = "number"
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls()
+
+    def as_json(self):  # pragma: needs cover
+        return dict(type=self.TYPE)
+
+    def evaluate_numeric_test(self, run, context, decimal_value):
+        return True
+
+
+class SimpleNumericTest(NumericTest):
+    """
+    Base class for those tests that do a numeric test with a single value
+    """
+
+    TEST = "test"
+    TYPE = ""
+
+    def __init__(self, test):
+        self.test = test
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls(json[cls.TEST])
+
+    def as_json(self):
+        return dict(type=self.TYPE, test=self.test)
+
+    def evaluate_numeric_test(self, message_numeric, test_numeric):  # pragma: no cover
+        raise FlowException("Evaluate numeric test needs to be defined by subclass")
+
+    # test every word in the message against our test
+    def evaluate(self, run, sms, context, text):
+        test, errors = Msg.evaluate_template(str(self.test), context, org=run.flow.org)
+
+        text = text.replace(",", "")
+        for word in regex.split(r"\s+", text, flags=regex.UNICODE | regex.V0):
+            try:
+                (word, decimal) = NumericTest.convert_to_decimal(word)
+                if self.evaluate_numeric_test(decimal, Decimal(test)):
+                    return 1, decimal
+            except Exception:
+                pass
+        return 0, None
+
+
+class GtTest(SimpleNumericTest):
+    TEST = "test"
+    TYPE = "gt"
+
+    def evaluate_numeric_test(self, message_numeric, test_numeric):
+        return message_numeric > test_numeric
+
+
+class GteTest(SimpleNumericTest):
+    TEST = "test"
+    TYPE = "gte"
+
+    def evaluate_numeric_test(self, message_numeric, test_numeric):
+        return message_numeric >= test_numeric
+
+
+class LtTest(SimpleNumericTest):
+    TEST = "test"
+    TYPE = "lt"
+
+    def evaluate_numeric_test(self, message_numeric, test_numeric):
+        return message_numeric < test_numeric
+
+
+class LteTest(SimpleNumericTest):
+    TEST = "test"
+    TYPE = "lte"
+
+    def evaluate_numeric_test(self, message_numeric, test_numeric):  # pragma: needs cover
+        return message_numeric <= test_numeric
+
+
+class EqTest(SimpleNumericTest):
+    TEST = "test"
+    TYPE = "eq"
+
+    def evaluate_numeric_test(self, message_numeric, test_numeric):
+        return message_numeric == test_numeric
+
+
+class PhoneTest(Test):
+    """
+    Test for whether a response contains a phone number
+    """
+
+    TYPE = "phone"
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls()
+
+    def as_json(self):  # pragma: needs cover
+        return dict(type=self.TYPE)
+
+    def evaluate(self, run, sms, context, text):
+        org = run.flow.org
+
+        # try to find a phone number in the text we have been sent
+        country_code = org.get_country_code()
+        if not country_code:  # pragma: needs cover
+            country_code = "US"
+
+        number = None
+        matches = phonenumbers.PhoneNumberMatcher(text, country_code)
+
+        # try it as an international number if we failed
+        if not matches.has_next():  # pragma: needs cover
+            matches = phonenumbers.PhoneNumberMatcher("+" + text, country_code)
+
+        for match in matches:
+            number = phonenumbers.format_number(match.number, phonenumbers.PhoneNumberFormat.E164)
+
+        return number, number
+
+
+class RegexTest(Test):  # pragma: needs cover
+    """
+    Test for whether a response matches a regular expression
+    """
+
+    TEST = "test"
+    TYPE = "regex"
+
+    def __init__(self, test):
+        self.test = test
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls(json[cls.TEST])
+
+    def as_json(self):
+        return dict(type=self.TYPE, test=self.test)
+
+    def evaluate(self, run, sms, context, text):
+        try:
+            test = run.flow.get_localized_text(self.test, run.contact)
+
+            # check whether we match
+            rexp = regex.compile(test, regex.UNICODE | regex.IGNORECASE | regex.MULTILINE | regex.V0)
+            match = rexp.search(text)
+
+            # if so, $0 will be what we return
+            if match:
+                return_match = match.group(0)
+
+                # build up a dictionary that contains indexed group matches
+                group_dict = {}
+                for idx in range(rexp.groups + 1):
+                    group_dict[str(idx)] = match.group(idx)
+
+                # set it on run@extra
+                run.update_fields(group_dict)
+
+                # return all matched values
+                return True, return_match
+
+        except Exception as e:
+            logger.error(f"Unable to evaluate RegexTest: {str(e)}", exc_info=True)
+
+        return False, None

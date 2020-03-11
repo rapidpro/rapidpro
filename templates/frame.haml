@@ -252,9 +252,8 @@
     #header
       &nbsp;
 
-    %a#big-logo.logo.icon-logo{href:"/", title:"{{brand.name}}"}
-      .name
-        {{brand.name}}
+    %a#big-logo.logo.icon-logo{href:"{% if request.session.org_id %}{% url 'orgs.org_home' %}{% elif not request.user.is_authenticated %}/{% endif %}", title:"{{brand.name}}"}
+      %img{src:'{{ STATIC_URL }}brands/rapidpro/cc-logo.png'}
 
     -block nav
       -include 'includes/nav.html'
@@ -390,6 +389,15 @@
 
     :javascript
       $(document).ready(function() {
+
+        $('ul#top-menu li a').mouseenter(function() {
+          var elem = $(this);
+          elem.parent().children('.custom-tooltip').addClass('active');
+        }).mouseleave(function(){
+          var elem = $(this);
+          elem.parent().children('.custom-tooltip').removeClass('active');
+        });
+
         if (navigator.appVersion.indexOf("Win")!=-1) {
           $("html").addClass("windows");
         }

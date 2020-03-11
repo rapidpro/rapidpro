@@ -213,3 +213,8 @@ class OrderStatus(View):
 
     def get(self, *args, **kwargs):
         return self.post(*args, **kwargs)
+
+
+class DemoPing(View):
+    def get(self, *args, **kwargs):
+        return HttpResponse(json.dumps(dict(response="pong")))

@@ -820,6 +820,18 @@
 .icon-nav-docs-inverted:before {
   content: "\f15c";
 }
+.icon-nav-help-inverted:before {
+  content: "\e90e";
+}
+.icon-nav-help:before {
+  content: "\e90f";
+}
+.icon-nav-hand-inverted:before {
+  content: "\e911";
+}
+.icon-nav-hand:before {
+  content: "\e912";
+}
 .icon-signalwire:before {
   content: "\e90d";
 }

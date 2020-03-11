@@ -1,3 +1,4 @@
+import copy
 import subprocess
 import time
 import uuid
@@ -29,6 +30,7 @@ from temba.contacts.models import DELETED_SCHEME
 from temba.contacts.search import SearchException, SearchResults, evaluate_query, is_phonenumber, search_contacts
 from temba.contacts.search.tests import MockParseQuery
 from temba.contacts.views import ContactListView
+from temba.flows import legacy
 from temba.flows.models import Flow, FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
@@ -36,11 +38,14 @@ from temba.mailroom import MailroomException
 from temba.msgs.models import Broadcast, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, ESMockWithScroll, MockPost, TembaTest, TembaTestMixin
+from temba.tests import AnonymousOrg, ESMockWithScroll, ESMockWithScrollMultiple, TembaTest, TembaTestMixin
+from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
-from temba.utils.dates import datetime_to_ms, datetime_to_str
+from temba.utils.dates import datetime_to_ms, datetime_to_str, get_datetime_format
+from temba.utils.es import ES
+from temba.utils.profiler import QueryTracker
 from temba.values.constants import Value
 
 from .models import (
@@ -55,9 +60,17 @@ from .models import (
     ContactURN,
     ExportContactsTask,
 )
-from .search import BoolCombination, Condition, ContactQuery, IsSetCondition, SinglePropCombination, legacy_parse_query
+from .search import (
+    BoolCombination,
+    Condition,
+    ContactQuery,
+    IsSetCondition,
+    SearchException,
+    SinglePropCombination,
+    legacy_parse_query,
+)
 from .tasks import check_elasticsearch_lag, squash_contactgroupcounts
-from .templatetags.contacts import contact_field, history_class, history_icon
+from .templatetags.contacts import activity_icon, contact_field, history_class
 
 
 class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
@@ -2567,7 +2580,7 @@ class ContactTest(TembaTest):
             )
 
             # fetch our contact history
-            with self.assertNumQueries(69):
+            with self.assertNumQueries(68):
                 response = self.fetch_protected(url, self.admin)
 
             # activity should include all messages in the last 90 days, the channel event, the call, and the flow run

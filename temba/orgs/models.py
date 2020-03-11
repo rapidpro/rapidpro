@@ -1,12 +1,14 @@
 import calendar
 import itertools
 import logging
+import mimetypes
 import os
-from collections import defaultdict
+import re
+from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-from urllib.parse import quote, urlencode, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
 from uuid import uuid4
 
 import pycountry
@@ -16,6 +18,7 @@ import stripe.error
 from dateutil.relativedelta import relativedelta
 from django_redis import get_redis_connection
 from packaging.version import Version
+from pandas import read_csv, read_excel
 from requests import Session
 from smartmin.models import SmartModel
 from timezone_field import TimeZoneField
@@ -41,12 +44,91 @@ from temba.utils import analytics, chunk_list, json, languages
 from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from temba.utils.currencies import currency_for_country
 from temba.utils.dates import datetime_to_str, str_to_datetime
-from temba.utils.email import send_template_email
+from temba.utils.email import send_custom_smtp_email, send_simple_email, send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import random_string
+from temba.values.constants import Value
 
 logger = logging.getLogger(__name__)
+
+
+FREE_PLAN = "FREE"
+TRIAL_PLAN = "TRIAL"
+TIER1_PLAN = "TIER1"
+TIER2_PLAN = "TIER2"
+TIER3_PLAN = "TIER3"
+
+TIER_39_PLAN = "TIER_39"
+TIER_249_PLAN = "TIER_249"
+TIER_449_PLAN = "TIER_449"
+
+DAYFIRST = "D"
+MONTHFIRST = "M"
+
+PLANS = (
+    (FREE_PLAN, _("Free Plan")),
+    (TRIAL_PLAN, _("Trial")),
+    (TIER_39_PLAN, _("Bronze")),
+    (TIER1_PLAN, _("Silver")),
+    (TIER2_PLAN, _("Gold (Legacy)")),
+    (TIER3_PLAN, _("Platinum (Legacy)")),
+    (TIER_249_PLAN, _("Gold")),
+    (TIER_449_PLAN, _("Platinum")),
+)
+
+DATE_PARSING = ((DAYFIRST, "DD-MM-YYYY"), (MONTHFIRST, "MM-DD-YYYY"))
+
+APPLICATION_SID = "APPLICATION_SID"
+ACCOUNT_SID = "ACCOUNT_SID"
+ACCOUNT_TOKEN = "ACCOUNT_TOKEN"
+
+NEXMO_KEY = "NEXMO_KEY"
+NEXMO_SECRET = "NEXMO_SECRET"
+NEXMO_UUID = "NEXMO_UUID"
+NEXMO_APP_ID = "NEXMO_APP_ID"
+NEXMO_APP_PRIVATE_KEY = "NEXMO_APP_PRIVATE_KEY"
+
+TRANSFERTO_ACCOUNT_LOGIN = "TRANSFERTO_ACCOUNT_LOGIN"
+TRANSFERTO_AIRTIME_API_TOKEN = "TRANSFERTO_AIRTIME_API_TOKEN"
+TRANSFERTO_ACCOUNT_CURRENCY = "TRANSFERTO_ACCOUNT_CURRENCY"
+
+SMTP_SERVER = "smtp_server"
+
+CHATBASE_AGENT_NAME = "CHATBASE_AGENT_NAME"
+CHATBASE_API_KEY = "CHATBASE_API_KEY"
+CHATBASE_TYPE_AGENT = "agent"
+CHATBASE_TYPE_USER = "user"
+CHATBASE_FEEDBACK = "CHATBASE_FEEDBACK"
+CHATBASE_VERSION = "CHATBASE_VERSION"
+
+GIFTCARDS = "GIFTCARDS"
+LOOKUPS = "LOOKUPS"
+
+DEFAULT_FIELDS_PAYLOAD_GIFTCARDS = {
+    "active": {"type": "Boolean"},
+    "egiftnumber": {"type": "String"},
+    "url": {"type": "String"},
+    "challengecode": {"type": "String"},
+    "identifier": {"type": "String"},
+}
+
+DEFAULT_FIELDS_PAYLOAD_LOOKUPS = {}
+
+DEFAULT_INDEXES_FIELDS_PAYLOAD_GIFTCARDS = {"IndexIdentifier": {"identifier": 1}}
+
+DEFAULT_INDEXES_FIELDS_PAYLOAD_LOOKUPS = {}
+
+ORG_STATUS = "STATUS"
+SUSPENDED = "suspended"
+RESTORED = "restored"
+WHITELISTED = "whitelisted"
+
+ORG_LOW_CREDIT_THRESHOLD = 500
+
+ORG_CREDIT_OVER = "O"
+ORG_CREDIT_LOW = "L"
+ORG_CREDIT_EXPIRING = "E"
 
 # cache keys and TTLs
 ORG_LOCK_KEY = "org:%d:lock:%s"
@@ -140,6 +222,7 @@ class Org(SmartModel):
     EXPORT_TRIGGERS = "triggers"
     EXPORT_FIELDS = "fields"
     EXPORT_GROUPS = "groups"
+    EXPORT_LINKS = "links"
 
     EARLIEST_IMPORT_VERSION = "3"
     CURRENT_EXPORT_VERSION = "13"
@@ -316,6 +399,132 @@ class Org(SmartModel):
     def get_brand_domain(self):
         return self.get_branding()["domain"]
 
+    def get_collections(self, collection_type=GIFTCARDS):
+        """
+        Returns the collections (gift card or lookup) set up on this Org
+        """
+        if self.config:
+            return self.config.get(collection_type, [])
+        return []
+
+    def remove_collection_from_org(self, user, index, collection_type=GIFTCARDS):
+        """
+        Remove collections (gift card or lookup) added on this Org
+        """
+        collections = self.get_collections(collection_type=collection_type)
+
+        if collections:
+            collections.pop(index)
+
+        config = self.config
+        config[collection_type] = collections
+        self.config = config
+        self.modified_by = user
+        self.save(update_fields=["config"])
+
+    def add_collection_to_org(self, user, name, collection_type=GIFTCARDS):
+        """
+        Add a collection (gift card or lookup) to this Org
+        """
+        collections = self.get_collections(collection_type=collection_type)
+        config = self.config
+
+        if collections:
+            collections.insert(0, name)
+        else:
+            collections = [name]
+
+        config[collection_type] = collections
+        self.config = config
+        self.modified_by = user
+        self.save(update_fields=["config"])
+
+    @classmethod
+    def get_parse_import_file_headers(cls, csv_file, needed_check=True, extension=None):
+        csv_file.open()
+
+        # this file isn't good enough, lets write it to local disk
+        from django.conf import settings
+        from uuid import uuid4
+
+        # make sure our tmp directory is present (throws if already present)
+        try:
+            os.makedirs(os.path.join(settings.MEDIA_ROOT, "tmp"))
+        except Exception:
+            pass
+
+        # write our file out
+        tmp_file = os.path.join(settings.MEDIA_ROOT, "tmp/%s" % str(uuid4()))
+
+        out_file = open(tmp_file, "wb")
+        out_file.write(csv_file.read())
+        out_file.close()
+
+        try:
+            if extension == "csv":
+                spamreader = read_csv(tmp_file, delimiter=",", index_col=False)
+            else:
+                spamreader = read_excel(tmp_file, index_col=False)
+            headers = spamreader.columns.tolist()
+
+            # Removing empty columns name from CSV files imported
+            headers = [str(item).lower() for item in headers if "Unnamed" not in item]
+        finally:
+            os.remove(tmp_file)
+
+        if needed_check:
+            Org.validate_parse_import_header(headers)
+        else:
+            valid_field_regex = r"^[a-zA-Z][a-zA-Z0-9_ -]*$"
+            invalid_fields = [item for item in headers if not re.match(valid_field_regex, item)]
+            reserved_keywords = ["class", "for", "return", "global", "pass", "or", "raise", "def"]
+
+            if not invalid_fields:
+                invalid_fields = [item for item in headers if item in reserved_keywords]
+
+            if invalid_fields:
+                raise Exception(
+                    _(
+                        "Upload error: The file you are trying to upload has a missing or invalid column "
+                        "header name. The column names should only contain spaces, underscores, and "
+                        "alphanumeric characters. They must begin with a letter and be unique. The following words are "
+                        "not allowed on the column names: words such 'class', 'for', 'return', 'global', 'pass', 'or', "
+                        "'raise', and 'def'."
+                    )
+                )
+
+        return [header.strip() for header in headers]
+
+    @classmethod
+    def validate_parse_import_header(cls, headers):
+        PARSE_GIFTCARDS_IMPORT_HEADERS = ["egiftnumber", "url", "challengecode"]
+
+        not_found_headers = [h for h in PARSE_GIFTCARDS_IMPORT_HEADERS if h not in headers]
+        string_possible_headers = '", "'.join([h for h in PARSE_GIFTCARDS_IMPORT_HEADERS])
+        blank_headers = [h for h in headers if h is None or h == "" or "Unnamed" in h]
+        valid_field_regex = r"^[a-zA-Z][a-zA-Z0-9_ -]*$"
+        invalid_fields = [h for h in headers if not re.match(valid_field_regex, h)]
+
+        if ("Identifier" in headers or "identifier" in headers) or ("Active" in headers or "active" in headers):
+            raise Exception(_('Please remove the "identifier" and/or "active" column from your file.'))
+
+        if blank_headers or invalid_fields:
+            raise Exception(
+                _(
+                    "Upload error: The file you are trying to upload has a missing or invalid column "
+                    "header name. The column names should only contain spaces, underscores, and "
+                    "alphanumeric characters. They must begin with a letter and be unique."
+                )
+            )
+
+        if not_found_headers:
+            raise Exception(
+                _(
+                    f"The file you provided is missing a required header. All these fields: "
+                    f'"{string_possible_headers}" should be included.'
+                )
+            )
+
     def lock_on(self, lock, qualifier=None):
         """
         Creates the requested type of org-level lock
@@ -380,6 +589,7 @@ class Org(SmartModel):
         from temba.contacts.models import ContactField, ContactGroup
         from temba.flows.models import Flow, FlowRevision
         from temba.triggers.models import Trigger
+        from temba.links.models import Link
 
         # only required field is version
         if Org.EXPORT_VERSION not in export_json:
@@ -405,6 +615,7 @@ class Org(SmartModel):
         export_groups = export_json.get(Org.EXPORT_GROUPS, [])
         export_campaigns = export_json.get(Org.EXPORT_CAMPAIGNS, [])
         export_triggers = export_json.get(Org.EXPORT_TRIGGERS, [])
+        export_links = export_json.get(Org.EXPORT_LINKS, [])
 
         dependency_mapping = {}  # dependency UUIDs in import => new UUIDs
 
@@ -417,6 +628,7 @@ class Org(SmartModel):
             # these depend on flows so are imported last
             Campaign.import_campaigns(self, user, export_campaigns, same_site)
             Trigger.import_triggers(self, user, export_triggers, same_site)
+            Link.import_links(self, user, export_links)
 
         # with all the flows and dependencies committed, we can now have mailroom do full validation
         for flow in new_flows:
@@ -428,10 +640,12 @@ class Org(SmartModel):
         from temba.campaigns.models import Campaign
         from temba.flows.models import Flow
         from temba.triggers.models import Trigger
+        from temba.links.models import Link
 
         exported_flows = []
         exported_campaigns = []
         exported_triggers = []
+        exported_links = []
 
         # users can't choose which fields/groups to export - we just include all the dependencies
         fields = set()
@@ -463,12 +677,16 @@ class Org(SmartModel):
                 if include_groups:
                     groups.update(component.groups.all())
 
+            elif isinstance(component, Link):
+                exported_links.append(component.as_json())
+
         return {
             Org.EXPORT_VERSION: Org.CURRENT_EXPORT_VERSION,
             Org.EXPORT_SITE: site_link,
             Org.EXPORT_FLOWS: exported_flows,
             Org.EXPORT_CAMPAIGNS: exported_campaigns,
             Org.EXPORT_TRIGGERS: exported_triggers,
+            Org.EXPORT_LINKS: exported_links,
             Org.EXPORT_FIELDS: [f.as_export_def() for f in sorted(fields, key=lambda f: f.key)],
             Org.EXPORT_GROUPS: [g.as_export_def() for g in sorted(groups, key=lambda g: g.name)],
         }
@@ -2126,6 +2344,9 @@ def get_user_orgs(user, brand=None):
         return Org.objects.all()
 
     user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
+    not_suspended_orgs_ids = [org.id for org in user_orgs if not org.is_suspended()]
+
+    user_orgs = user_orgs.filter(id__in=not_suspended_orgs_ids)
 
     if brand:
         user_orgs = user_orgs.filter(brand=brand)

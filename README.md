@@ -1,4 +1,4 @@
-# RapidPro [![Build Status](https://travis-ci.org/rapidpro/rapidpro.svg?branch=master)](https://travis-ci.org/rapidpro/rapidpro) [![codecov](https://codecov.io/gh/rapidpro/rapidpro/branch/master/graph/badge.svg)](https://codecov.io/gh/rapidpro/rapidpro)    
+# RapidPro [![Build Status](https://travis-ci.org/greatnonprofits-nfp/rapidpro.svg?branch=master)](https://travis-ci.org/rapidpro/rapidpro) [![codecov](https://codecov.io/gh/greatnonprofits-nfp/rapidpro/branch/master/graph/badge.svg)](https://codecov.io/gh/greatnonprofits-nfp/rapidpro)    
 
 RapidPro is a hosted service for visually building interactive messaging applications.
 To learn more, please visit the project site at http://rapidpro.github.io/rapidpro.
@@ -8,7 +8,7 @@ To learn more, please visit the project site at http://rapidpro.github.io/rapidp
 The set of versions that make up the latest stable release are:
 
  * [RapidPro v5.2.6](https://github.com/rapidpro/rapidpro/releases/tag/v5.2.6)
- * [Mailroom v5.2.4](https://github.com/nyaruka/mailroom/releases/tag/v5.2.4)
+ * [Mailroom v2.0.9.6](https://github.com/greatnonprofits-nfp/mailroom/releases/tag/v2.0.9.6)
  * [Courier v5.2.0](https://github.com/nyaruka/courier/releases/tag/v5.2.0)
  * [Archiver v5.2.0](https://github.com/nyaruka/rp-archiver/releases/tag/v5.2.0)
  * [Indexer v5.2.0](https://github.com/nyaruka/rp-indexer/releases/tag/v5.2.0)
@@ -41,7 +41,7 @@ RapidPro depends on other components such as Mailroom and Courier. These are ver
 ## Updating FlowEditor version
 
 ```
-% npm install @nyaruka/flow-editor@whatver-version --save
+% npm install @greatnonprofits-nfp/flow-editor@whatver-version --save
 ```
 
 ### Get Involved

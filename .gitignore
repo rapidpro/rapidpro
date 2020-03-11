@@ -19,6 +19,7 @@ config/gen
 config/settings.py
 coverage-report
 celerybeat-schedule.db
+celerybeat-schedule
 db
 node_modules
 parser.out
@@ -124,3 +125,13 @@ ansible/site.retry
 
 # VS Code projects
 .vscode/
+
+# CCL Custom
+env_py3/
+media/cache/
+media/flow_pdf/
+temba/settings_test.py
+docker.settings.aptible-prod
+docker.settings.aptible-stage
+docker.settings.prod
+.env

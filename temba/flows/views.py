@@ -21,13 +21,14 @@ from smartmin.views import (
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Lower
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
+from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
@@ -40,11 +41,11 @@ from temba.contacts.models import FACEBOOK_SCHEME, TEL_SCHEME, WHATSAPP_SCHEME, 
 from temba.contacts.omnibox import omnibox_deserialize
 from temba.flows import legacy
 from temba.flows.legacy.expressions import get_function_listing
-from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
+from temba.flows.models import Flow, FlowRevision, FlowRun, FlowStart, FlowRunCount, FlowSession
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
-from temba.orgs.models import Org
+from temba.orgs.models import Org, LOOKUPS, GIFTCARDS
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
@@ -52,6 +53,7 @@ from temba.utils import analytics, json, on_transaction_commit, str_to_bool
 from temba.utils.fields import ContactSearchWidget, JSONField, OmniboxChoice, SelectWidget
 from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm, NonAtomicMixin
+from temba.utils.json import JsonResponse
 
 from .models import (
     ExportFlowResultsTask,
@@ -256,9 +258,57 @@ class FlowCRUDL(SmartCRUDL):
         "recent_messages",
         "assets",
         "upload_media_action",
+        "pdf_export",
+        "lookups_api",
+        "giftcards_api",
     )
 
     model = Flow
+
+    class LookupsApi(OrgPermsMixin, SmartListView):
+        def get(self, request, *args, **kwargs):
+            db = self.request.GET.get("db", None)
+            collections = []
+
+            if db:
+                headers = {
+                    "X-Parse-Application-Id": settings.PARSE_APP_ID,
+                    "X-Parse-Master-Key": settings.PARSE_MASTER_KEY,
+                    "Content-Type": "application/json",
+                }
+                url = f"{settings.PARSE_URL}/schemas/{db}"
+                response = requests.get(url, headers=headers)
+                response_json = response.json()
+                if response.status_code == 200 and "fields" in response_json:
+                    fields = response_json["fields"]
+                    for key in sorted(fields.keys()):
+                        default_fields = ["ACL", "createdAt", "updatedAt", "order"]
+                        if key not in default_fields:
+                            field_type = fields[key]["type"] if "type" in fields[key] else None
+                            collections.append(dict(id=key, text=key, type=field_type))
+            else:
+                org = self.request.user.get_org()
+                for collection in org.get_collections(collection_type=LOOKUPS):
+                    slug_collection = slugify(collection)
+                    collection_full_name = (
+                        f"{settings.PARSE_SERVER_NAME}_{org.slug}_{org.id}_{str(LOOKUPS).lower()}_{slug_collection}"
+                    )
+                    collection_full_name = collection_full_name.replace("-", "")
+                    collections.append(dict(id=collection_full_name, text=collection))
+            return JsonResponse(dict(results=collections))
+
+    class GiftcardsApi(OrgPermsMixin, SmartListView):
+        def get(self, request, *args, **kwargs):
+            collections = []
+            org = self.request.user.get_org()
+            for collection in org.get_collections(collection_type=GIFTCARDS):
+                slug_collection = slugify(collection)
+                collection_full_name = (
+                    f"{settings.PARSE_SERVER_NAME}_{org.slug}_{org.id}_{str(GIFTCARDS).lower()}_{slug_collection}"
+                )
+                collection_full_name = collection_full_name.replace("-", "")
+                collections.append(dict(id=collection_full_name, text=collection))
+            return JsonResponse(dict(results=collections))
 
     class AllowOnlyActiveFlowMixin(object):
         def get_queryset(self):
@@ -1046,6 +1096,62 @@ class FlowCRUDL(SmartCRUDL):
 
             return super().get(request, *args, **kwargs)
 
+        def post(self, request, *args, **kwargs):
+            import os
+            import pdfkit
+
+            self.object = self.get_object()
+
+            protocol = "http" if settings.DEBUG else "https"
+
+            csrftoken = "%s" % request.COOKIES.get("csrftoken")
+            sessionid = "%s" % request.session.session_key
+
+            pdf_export_lang = request.POST.get("pdf_export_lang", None)
+
+            options = {
+                "page-size": "A4",
+                "margin-top": "0.1in",
+                "margin-right": "0.1in",
+                "margin-bottom": "0.1in",
+                "margin-left": "0.1in",
+                "encoding": "UTF-8",
+                "no-outline": None,
+                "orientation": "Landscape",
+                "dpi": "300",
+                "zoom": 0.7,
+                "viewport-size": "1920x900",
+                "javascript-delay": 2000,
+                "cookie": [("csrftoken", csrftoken), ("sessionid", sessionid)],
+                "quiet": "",
+            }
+
+            slug_flow = slugify(self.object.name)
+
+            url = "%s://%s%s" % (
+                protocol,
+                settings.HOSTNAME,
+                reverse("flows.flow_pdf_export", args=[self.object.uuid]),
+            )
+
+            if pdf_export_lang:
+                url += "?pdf_export_lang=%s" % pdf_export_lang
+
+            output_dir = "%s/flow_pdf" % settings.MEDIA_ROOT
+            output_path = "%s/%s.pdf" % (output_dir, slug_flow)
+
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+
+            pdfkit.from_url(url=url, output_path=output_path, options=options)
+
+            from django.http import FileResponse, Http404
+
+            try:
+                return FileResponse(open(output_path, "rb"), content_type="application/pdf")
+            except FileNotFoundError:
+                raise Http404()
+
         def derive_title(self):
             return self.object.name
 
@@ -1054,6 +1160,9 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
+
+            context["media_url"] = "%s://%s/" % ("http" if settings.DEBUG else "https", settings.AWS_BUCKET_DOMAIN)
+            context["pdf_export_lang"] = self.request.GET.get("pdf_export_lang", None)
 
             flow = self.object
             org = self.request.user.get_org()
@@ -1114,6 +1223,12 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_export"):
                 links.append(dict(title=_("Export"), href="%s?flow=%s" % (reverse("orgs.org_export"), flow.id)))
 
+            if self.has_org_perm("flows.flow_pdf_export"):
+                links.append(dict(title=_("Export to PDF"), href="javascript:;", js_class="pdf_export_submit"))
+
+            if self.has_org_perm("orgs.org_lookups") and flow.flow_type == Flow.TYPE_MESSAGE:
+                links.append(dict(title=_("Import Database"), href=reverse("orgs.org_lookups")))
+
             if self.has_org_perm("flows.flow_revisions"):
                 links.append(dict(divider=True)),
                 links.append(dict(title=_("Revision History"), ngClick="showRevisionHistory()", href="#"))
@@ -1140,6 +1255,65 @@ class FlowCRUDL(SmartCRUDL):
 
             return links
 
+    class PdfExport(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = "uuid"
+
+        def get_context_data(self, *args, **kwargs):
+            context = super(FlowCRUDL.PdfExport, self).get_context_data(*args, **kwargs)
+
+            context["media_url"] = "%s://%s/" % ("http" if settings.DEBUG else "https", settings.AWS_BUCKET_DOMAIN)
+
+            flow = self.object
+
+            # are there pending starts?
+            starting = False
+            start = flow.starts.all().order_by("-created_on")
+            if start.exists() and start[0].status in [
+                FlowStart.STATUS_STARTING,
+                FlowStart.STATUS_PENDING,
+            ]:  # pragma: needs cover
+                starting = True
+            context["starting"] = starting
+            context["mutable"] = False
+
+            org = self.request.user.get_org()
+
+            context["flow_version"] = Flow.FINAL_LEGACY_VERSION
+            flow.ensure_current_version()
+
+            if org:
+                languages = org.languages.all().order_by("orgs")
+                for lang in languages:
+                    if flow.base_language == lang.iso_code:
+                        context["base_language"] = lang
+
+                context["languages"] = languages
+
+            if flow.is_archived:
+                context["mutable"] = False
+                context["can_start"] = False
+            else:
+                context["mutable"] = self.has_org_perm("flows.flow_update") and not self.request.user.is_superuser
+                context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
+
+            static_url = f"http://{org.get_brand_domain()}{settings.STATIC_URL}" if org else settings.STATIC_URL
+
+            context["media_url"] = f"{settings.STORAGE_URL}/"
+            context["static_url"] = static_url
+            context["is_starting"] = flow.is_starting()
+            context["has_airtime_service"] = bool(flow.org.is_connected_to_transferto())
+            context["has_mailroom"] = bool(settings.MAILROOM_URL)
+
+            context["pdf_export_lang"] = self.request.GET.get("pdf_export_lang", None)
+
+            return context
+
+        def get_template_names(self):
+            return "flows/flow_pdf_export.haml"
+
+        def get_gear_links(self):
+            return []
+
     class EditorNext(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
@@ -1151,6 +1325,9 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
+
+            context["media_url"] = "%s://%s/" % ("http" if settings.DEBUG else "https", settings.AWS_BUCKET_DOMAIN)
+            context["pdf_export_lang"] = self.request.GET.get("pdf_export_lang", None)
 
             dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
             getattr(settings, "EDITOR_DEV_MODE", False)
@@ -1164,7 +1341,7 @@ class FlowCRUDL(SmartCRUDL):
                 response = requests.get("http://localhost:3000/asset-manifest.json")
                 data = response.json()
             else:
-                with open("node_modules/@nyaruka/flow-editor/build/asset-manifest.json") as json_file:
+                with open("node_modules/@greatnonprofits-nfp/flow-editor/build/asset-manifest.json") as json_file:
                     data = json.load(json_file)
 
             for key, filename in data.get("files").items():
@@ -1255,6 +1432,9 @@ class FlowCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_export"):
                 links.append(dict(title=_("Export"), href="%s?flow=%s" % (reverse("orgs.org_export"), flow.id)))
+
+            if self.has_org_perm("orgs.org_lookups") and flow.flow_type == Flow.TYPE_MESSAGE:
+                links.append(dict(title=_("Import Database"), href=reverse("orgs.org_lookups")))
 
             if self.has_org_perm("flows.flow_delete"):
                 links.append(dict(divider=True)),
@@ -1723,7 +1903,6 @@ class FlowCRUDL(SmartCRUDL):
         success_message = ""
 
         def get(self, request, *args, **kwargs):
-
             flow = self.get_object()
             flow.ensure_current_version()
 

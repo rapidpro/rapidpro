@@ -1,7 +1,7 @@
 -load contacts humanize smartmin temba i18n sms
 
 -for event in history
-  %tr(class="{{event|history_class}}")
+  %tr(class="{{event|history_class}}{% if item.obj.direction == 'I' %} in{% endif %}")
     %td.icon
       %span.det(title='{% if event.obj.channel %}{{event.obj.channel.get_channel_type_name}} {{event.obj.channel.get_name}}{% endif %}')
         {{ event|history_icon }}

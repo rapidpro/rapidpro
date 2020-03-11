@@ -30,6 +30,7 @@ from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import urlquote_plus
+from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -59,6 +60,7 @@ from .models import (
     ExportContactsTask,
 )
 from .omnibox import omnibox_query, omnibox_results_to_dict
+from .search import SearchException, parse_query
 from .tasks import export_contacts_task, release_group_task
 
 logger = logging.getLogger(__name__)

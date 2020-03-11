@@ -1,0 +1,29 @@
+-load humanize smartmin temba i18n
+
+-for item in activity
+  %tr.msg
+    %td.icon
+      %span.det{title:'{% if item.obj.channel %}{{item.obj.channel.get_channel_type_name}} {{item.obj.channel.get_name}}{% endif %}'}
+        .icon-user
+
+    %td.details.wrapped
+      -if item.type == 'contact'
+        -with item.obj as link
+          .activity-message
+            .activity-body
+              .text
+                {{ item.obj }}
+
+    %td.created_on
+      %span.time
+        %span.short
+          {{item.time|gmail_time}}
+        %span.long.hide
+          {{item.time}}
+
+-if has_older and not recent_only
+  %tr{ ic-append-from:"/link/history/{{link.uuid}}/?after={{after}}&before={{before}}", 
+        ic-trigger-on:"scrolled-into-view", 
+        ic-target:"table.activity tbody.previous", 
+        ic-indicator:"#indicator" }
+
