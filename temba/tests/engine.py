@@ -129,16 +129,16 @@ class MockSessionWriter:
         return self
 
     def send_msg(self, text, channel=None, attachments=[]):
-        self._log_event(
-            "msg_created",
-            msg={
-                "uuid": str(uuid4()),
-                "urn": self.contact.get_urn().urn,
-                "text": text,
-                "channel": self._channel_ref(channel),
-                "attachments": attachments,
-            },
-        )
+        msg = {
+            "uuid": str(uuid4()),
+            "urn": self.contact.get_urn().urn,
+            "text": text,
+            "channel": self._channel_ref(channel),
+        }
+        if attachments:
+            msg["attachments"] = attachments
+
+        self._log_event("msg_created", msg=msg)
         return self
 
     def send_email(self, to, subject, body):
