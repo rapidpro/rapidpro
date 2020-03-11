@@ -10,9 +10,9 @@ from temba.utils.analytics.base import IMetricBackend
 logger = logging.getLogger(__name__)
 
 
-MESSAGE_COUNTS = Gauge("message_counts", "Current count of messages", ["hostname", "direction", "state"])
-RELAYER_SYNC = Gauge("relayer_sync_seconds_duration", "Duration of relayer sync view", ["hostname"])
-CONTACTS = Counter("contacts_total", "Number of contacts", ["hostname", "action"])
+MESSAGE_COUNTS = Gauge("temba_message_counts", "Current count of messages", ["hostname", "direction", "state"])
+RELAYER_SYNC = Gauge("temba_relayer_sync_seconds_duration", "Duration of relayer sync view", ["hostname"])
+CONTACTS = Counter("temba_contacts_total", "Number of contacts", ["hostname", "action"])
 
 
 @zope.interface.implementer(IMetricBackend)
