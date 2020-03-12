@@ -4,8 +4,8 @@
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 # 
 # Translators:
-# Nyaruka <info@textit.in>, 2019
 # Jesus EKIE <jesus@fehudigital.com>, 2020
+# Nyaruka <info@textit.in>, 2020
 # 
 #, fuzzy
 msgid ""
@@ -14,7 +14,7 @@ msgstr ""
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2020-02-28 14:46+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
-"Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
+"Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -2976,7 +2976,7 @@ msgid ""
 "prefix \"Field:\"."
 msgstr ""
 "Le fichier fourni a des en-têtes non reconnus. Les colonnes "
-"\"{join_unsupported_headers}\" doivent être supprimées ou précédées du "
+"\"{joined_unsupported_headers}\" doivent être supprimées ou précédées du "
 "préfixe \"Field:\"."
 
 #, python-brace-format
@@ -2985,7 +2985,7 @@ msgid ""
 "\"{joined_possible_headers}\" or \"Contact UUID\" should be included."
 msgstr ""
 "Le fichier que vous avez fourni ne contient pas l'en-tête requis. Au moins "
-"un de \"{join_possible_headers}\" ou \"UUID de contact\" doit être inclus."
+"un de \"{joined_possible_headers}\" ou \"UUID de contact\" doit être inclus."
 
 msgid "The file you provided is missing a required header called \"Name\"."
 msgstr ""
@@ -11457,4 +11457,4 @@ msgstr "Entrez une requête"
 
 #, python-brace-format
 msgid "Found ${count} for ${query}"
-msgstr "${Count} trouvé pour ${query}"
+msgstr "${count} trouvé pour ${query}"
