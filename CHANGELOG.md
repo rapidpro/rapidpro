@@ -1,3 +1,8 @@
+v5.4.10
+----------
+ * Complete FR translations
+ * Update to floweditor 1.8.8
+
 v5.4.9
 ----------
  * Fix submitting API explorer requests where there is no editor for query part
