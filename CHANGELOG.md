@@ -1,3 +1,7 @@
+v5.4.12
+----------
+ * Don't allow localhost for URL fields
+
 v5.4.11
 ----------
  * Make sure external channel URLs are external
