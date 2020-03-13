@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-04 21:02+0000\n"
+"POT-Creation-Date: 2020-03-13 17:50+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4246,6 +4246,22 @@ msgid "Complete"
 msgstr ""
 
 msgid "The organization of the user."
+msgstr ""
+
+#, python-format
+msgid "%(value)s is not a valid URL"
+msgstr ""
+
+#, python-format
+msgid "%(value)s must be http or https scheme"
+msgstr ""
+
+#, python-format
+msgid "%(value)s host cannot be resolved"
+msgstr ""
+
+#, python-format
+msgid "%(value)s cannot be localhost"
 msgstr ""
 
 msgid "Unique Identifier"
