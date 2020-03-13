@@ -1,3 +1,7 @@
+v5.4.11
+----------
+ * Make sure external channel URLs are external
+
 v5.4.10
 ----------
  * Complete FR translations
