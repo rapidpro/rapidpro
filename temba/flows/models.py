@@ -1,10 +1,9 @@
 import logging
-import numbers
 import time
 import requests
 from array import array
 from collections import OrderedDict, defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 from enum import Enum
 from urllib.request import urlopen
@@ -13,6 +12,7 @@ from uuid import uuid4
 import iso8601
 import phonenumbers
 import regex
+from django.db.models.functions import TruncDate
 from django_redis import get_redis_connection
 from packaging.version import Version
 from smartmin.models import SmartModel
@@ -24,27 +24,23 @@ from django.contrib.auth.models import Group, User
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
-from django.db.models import Max, Q, QuerySet, Sum
+from django.db.models import Max, Q, Sum
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
-
-from celery import current_app
 
 from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
 from temba.contacts.models import (
-    TEL_SCHEME,
-    URN,
     Contact,
     ContactField,
     ContactGroup,
     ContactURN,
 )
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import DELIVERED, FAILED, FLOW, INBOX, INCOMING, OUTGOING, PENDING, Broadcast, Label, Msg
+from temba.msgs.models import DELIVERED, PENDING, Broadcast, Label, Msg
 from temba.orgs.models import Language, Org
 from temba.links.models import Link
 from temba.classifiers.models import Classifier
@@ -1101,7 +1097,7 @@ class Flow(TembaModel):
         Locks on this flow to let us make changes to the definition in a thread safe way
         """
         r = get_redis_connection()
-        lock_key = FLOW_LOCK_KEY % (self.org_id, self.id)
+        lock_key = FLOW_LOCK_KEY % (self.org_id, self.id, FLOW_LOCK_TTL)
         return r.lock(lock_key, FLOW_LOCK_TTL)
 
     def get_node_counts(self):
@@ -4674,7 +4670,7 @@ class VariableContactAction(Action):
         # see if we've got groups or contacts
         for variable in self.variables:
             # this is a marker for a new contact
-            if variable == NEW_CONTACT_VARIABLE:
+            if variable == "@new_contact":
                 contacts.append(Contact.get_or_create_by_urns(run.org, get_flow_user(run.org), name=None, urns=()))
 
             # other type of variable, perform our substitution

@@ -65,21 +65,6 @@ from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import NonAtomicMixin
 
 from .models import (
-    ACCOUNT_SID,
-    ACCOUNT_TOKEN,
-    CHATBASE_AGENT_NAME,
-    CHATBASE_API_KEY,
-    CHATBASE_VERSION,
-    MONTHFIRST,
-    NEXMO_KEY,
-    NEXMO_SECRET,
-    NEXMO_UUID,
-    RESTORED,
-    SMTP_SERVER,
-    SUSPENDED,
-    TRANSFERTO_ACCOUNT_LOGIN,
-    TRANSFERTO_AIRTIME_API_TOKEN,
-    WHITELISTED,
     GIFTCARDS,
     LOOKUPS,
     DEFAULT_FIELDS_PAYLOAD_GIFTCARDS,

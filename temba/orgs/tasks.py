@@ -2,8 +2,6 @@ from datetime import timedelta
 
 from smartmin.csv_imports.models import ImportTask
 
-from django.utils import timezone
-
 import time
 import requests
 import pytz

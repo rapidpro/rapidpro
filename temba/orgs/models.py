@@ -1,14 +1,14 @@
 import calendar
 import itertools
 import logging
-import mimetypes
 import os
 import re
-from collections import OrderedDict, defaultdict
+
+from collections import defaultdict
 from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
+from urllib.parse import quote, urlencode, urlparse
 from uuid import uuid4
 
 import pycountry
@@ -44,63 +44,13 @@ from temba.utils import analytics, chunk_list, json, languages
 from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from temba.utils.currencies import currency_for_country
 from temba.utils.dates import datetime_to_str, str_to_datetime
-from temba.utils.email import send_custom_smtp_email, send_simple_email, send_template_email
+from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import random_string
-from temba.values.constants import Value
 
 logger = logging.getLogger(__name__)
 
-
-FREE_PLAN = "FREE"
-TRIAL_PLAN = "TRIAL"
-TIER1_PLAN = "TIER1"
-TIER2_PLAN = "TIER2"
-TIER3_PLAN = "TIER3"
-
-TIER_39_PLAN = "TIER_39"
-TIER_249_PLAN = "TIER_249"
-TIER_449_PLAN = "TIER_449"
-
-DAYFIRST = "D"
-MONTHFIRST = "M"
-
-PLANS = (
-    (FREE_PLAN, _("Free Plan")),
-    (TRIAL_PLAN, _("Trial")),
-    (TIER_39_PLAN, _("Bronze")),
-    (TIER1_PLAN, _("Silver")),
-    (TIER2_PLAN, _("Gold (Legacy)")),
-    (TIER3_PLAN, _("Platinum (Legacy)")),
-    (TIER_249_PLAN, _("Gold")),
-    (TIER_449_PLAN, _("Platinum")),
-)
-
-DATE_PARSING = ((DAYFIRST, "DD-MM-YYYY"), (MONTHFIRST, "MM-DD-YYYY"))
-
-APPLICATION_SID = "APPLICATION_SID"
-ACCOUNT_SID = "ACCOUNT_SID"
-ACCOUNT_TOKEN = "ACCOUNT_TOKEN"
-
-NEXMO_KEY = "NEXMO_KEY"
-NEXMO_SECRET = "NEXMO_SECRET"
-NEXMO_UUID = "NEXMO_UUID"
-NEXMO_APP_ID = "NEXMO_APP_ID"
-NEXMO_APP_PRIVATE_KEY = "NEXMO_APP_PRIVATE_KEY"
-
-TRANSFERTO_ACCOUNT_LOGIN = "TRANSFERTO_ACCOUNT_LOGIN"
-TRANSFERTO_AIRTIME_API_TOKEN = "TRANSFERTO_AIRTIME_API_TOKEN"
-TRANSFERTO_ACCOUNT_CURRENCY = "TRANSFERTO_ACCOUNT_CURRENCY"
-
-SMTP_SERVER = "smtp_server"
-
-CHATBASE_AGENT_NAME = "CHATBASE_AGENT_NAME"
-CHATBASE_API_KEY = "CHATBASE_API_KEY"
-CHATBASE_TYPE_AGENT = "agent"
-CHATBASE_TYPE_USER = "user"
-CHATBASE_FEEDBACK = "CHATBASE_FEEDBACK"
-CHATBASE_VERSION = "CHATBASE_VERSION"
 
 GIFTCARDS = "GIFTCARDS"
 LOOKUPS = "LOOKUPS"
@@ -118,17 +68,6 @@ DEFAULT_FIELDS_PAYLOAD_LOOKUPS = {}
 DEFAULT_INDEXES_FIELDS_PAYLOAD_GIFTCARDS = {"IndexIdentifier": {"identifier": 1}}
 
 DEFAULT_INDEXES_FIELDS_PAYLOAD_LOOKUPS = {}
-
-ORG_STATUS = "STATUS"
-SUSPENDED = "suspended"
-RESTORED = "restored"
-WHITELISTED = "whitelisted"
-
-ORG_LOW_CREDIT_THRESHOLD = 500
-
-ORG_CREDIT_OVER = "O"
-ORG_CREDIT_LOW = "L"
-ORG_CREDIT_EXPIRING = "E"
 
 # cache keys and TTLs
 ORG_LOCK_KEY = "org:%d:lock:%s"

@@ -45,12 +45,8 @@ from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
-from temba.utils import dict_to_struct, json
-from temba.utils.dates import datetime_to_str
-from temba.utils.expressions import get_function_listing
-from temba.values.constants import Value
+from temba.utils import json
 
-from .management.commands.msg_console import MessageConsole
 from .tasks import retry_errored_messages, squash_msgcounts
 from .templatetags.sms import as_icon
 
@@ -388,7 +384,7 @@ class MsgTest(TembaTest):
         broadcast4.schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
         broadcast4.save(update_fields=["schedule"])
 
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(43):
             response = self.client.get(reverse("msgs.msg_outbox"))
 
         self.assertContains(response, "Outbox (5)")

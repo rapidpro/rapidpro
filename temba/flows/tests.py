@@ -518,6 +518,7 @@ class FlowTest(TembaTest):
                 "Copy",
                 "Export",
                 "Export to PDF",
+                "Import Database",
                 None,
                 "Revision History",
                 "Delete",
@@ -543,7 +544,18 @@ class FlowTest(TembaTest):
         # cannot 'Edit' an archived Flow
         self.assertListEqual(
             [link.get("title") for link in gear_links],
-            ["Results", "Copy", "Export", "Export to PDF", None, "Revision History", "Delete", None, "New Editor"],
+            [
+                "Results",
+                "Copy",
+                "Export",
+                "Export to PDF",
+                "Import Database",
+                None,
+                "Revision History",
+                "Delete",
+                None,
+                "New Editor"
+            ],
         )
 
     def test_legacy_flow_editor_for_inactive_flow(self):
@@ -1930,19 +1942,6 @@ class FlowTest(TembaTest):
         # also shouldn't be able to view other flow
         response = self.client.get(reverse("flows.flow_editor", args=[flow2.uuid]))
         self.assertEqual(302, response.status_code)
-
-    def test_flow_update_error(self):
-
-        flow = self.get_flow("favorites", legacy=True)
-        json_dict = flow.as_json()
-        json_dict["action_sets"][0]["actions"].append(dict(type="add_label", labels=[dict(name="@badlabel")]))
-        self.login(self.admin)
-        response = self.client.post(
-            reverse("flows.flow_json", args=[flow.uuid]), json.dumps(json_dict), content_type="application/json"
-        )
-
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["description"], "Your flow could not be saved. Please refresh your browser.")
 
     def test_validate_legacy_definition(self):
 
@@ -5852,7 +5851,7 @@ class FlowSessionCRUDLTest(TembaTest):
     def test_session_json(self):
         contact = self.create_contact("Bob", number="+1234567890")
         flow = self.get_flow("color_v13")
-
+        print(flow)
         session = MockSessionWriter(contact, flow).wait().save().session
 
         # normal users can't see session json
