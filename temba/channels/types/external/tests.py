@@ -20,11 +20,9 @@ class ExternalTypeTest(TembaTest):
         response = self.client.get(url)
         post_data = response.context["form"].initial
 
-        ext_url = "http://test.com/send.php?from={{from}}&text={{text}}&to={{to}}"
-
         post_data["number"] = "12345"
         post_data["country"] = "RW"
-        post_data["url"] = ext_url
+        post_data["url"] = "http://localhost:8000/foo"
         post_data["method"] = "POST"
         post_data["body"] = "send=true"
         post_data["scheme"] = "tel"
@@ -33,6 +31,13 @@ class ExternalTypeTest(TembaTest):
         post_data["encoding"] = Channel.ENCODING_SMART
         post_data["mt_response_check"] = "SENT"
 
+        # fail due to invalid URL
+        response = self.client.post(url, post_data)
+        self.assertFormError(response, "form", "url", "http://localhost:8000/foo cannot be localhost")
+
+        # update to valid URL
+        ext_url = "http://test.com/send.php?from={{from}}&text={{text}}&to={{to}}"
+        post_data["url"] = ext_url
         response = self.client.post(url, post_data)
         channel = Channel.objects.get()
 
