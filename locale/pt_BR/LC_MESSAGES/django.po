@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-10 11:24+0000\n"
+"POT-Creation-Date: 2020-03-13 19:11+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -5527,6 +5527,18 @@ msgstr ""
 #, fuzzy
 msgid "The organization of the user."
 msgstr "A organização utilizando esse transmissor"
+
+#, python-format
+msgid "%(value)s must be http or https scheme"
+msgstr ""
+
+#, python-format
+msgid "%(value)s host cannot be resolved"
+msgstr ""
+
+#, python-format
+msgid "%(value)s cannot be localhost"
+msgstr ""
 
 msgid "Unique Identifier"
 msgstr ""
