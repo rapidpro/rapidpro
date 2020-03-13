@@ -5927,6 +5927,13 @@ class ContactFieldTest(TembaTest):
         # ok, mark that one as finished and try again
         blocking_export.update_status(ExportContactsTask.STATUS_COMPLETE)
 
+        # make sure we can't redirect to places we shouldn't
+        response = self.client.post(
+            reverse("contacts.contact_export") + "?redirect=http://foo.me/", dict(group_memberships=(group.pk,))
+        )
+        self.assertEqual(302, response.status_code)
+        self.assertEqual("/contact/", response.url)
+
         def request_export(query=""):
             self.client.post(reverse("contacts.contact_export") + query, dict(group_memberships=(group.pk,)))
             task = ExportContactsTask.objects.all().order_by("-id").first()

@@ -29,11 +29,7 @@ class InputWidget(forms.TextInput):
 
 
 def validate_external_url(value):
-    # how get the host out
-    try:
-        parsed = parse.urlparse(value)
-    except Exception:
-        raise ValidationError(_("%(value)s is not a valid URL"), params={"value": value})
+    parsed = parse.urlparse(value)
 
     # if it isn't http or https, fail
     if parsed.scheme not in ("http", "https"):
