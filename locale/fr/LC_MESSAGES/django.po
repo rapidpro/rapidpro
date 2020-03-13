@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-13 18:24+0000\n"
+"POT-Creation-Date: 2020-03-13 19:11+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -4543,11 +4543,6 @@ msgstr "Terminé"
 
 msgid "The organization of the user."
 msgstr "L'organisation de l'utilisateur."
-
-#, fuzzy, python-format
-#| msgid "%(day)s is not a valid day of the week"
-msgid "%(value)s is not a valid URL"
-msgstr "%(day)s n'est pas un jour de la semaine valide"
 
 #, python-format
 msgid "%(value)s must be http or https scheme"
@@ -10357,6 +10352,11 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy, python-format
+#~| msgid "%(day)s is not a valid day of the week"
+#~ msgid "%(value)s is not a valid URL"
+#~ msgstr "%(day)s n'est pas un jour de la semaine valide"
 
 #~ msgid "Once you claim a number you will immediately be able to send and receive Whatsapp messages. Users who send messages to your Whatsapp number will be charged according to their plan."
 #~ msgstr "Une fois que vous réclamez un numéro, vous pourrez immédiatement envoyer et recevoir des messages Whatsapp. Les utilisateurs qui envoient des messages à votre numéro Whatsapp seront facturés selon leur forfait."

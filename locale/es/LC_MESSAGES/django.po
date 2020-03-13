@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-13 18:24+0000\n"
+"POT-Creation-Date: 2020-03-13 19:11+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -5825,10 +5825,6 @@ msgstr ""
 #, fuzzy
 msgid "The organization of the user."
 msgstr "La Organización del usuario."
-
-#, python-format
-msgid "%(value)s is not a valid URL"
-msgstr ""
 
 #, python-format
 msgid "%(value)s must be http or https scheme"
