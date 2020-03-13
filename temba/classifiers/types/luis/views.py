@@ -5,6 +5,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.classifiers.models import Classifier
 from temba.classifiers.views import BaseConnectView
+from temba.utils.fields import ExternalURLField
 
 
 class ConnectView(BaseConnectView):
@@ -13,7 +14,7 @@ class ConnectView(BaseConnectView):
         app_id = forms.CharField(label=_("App ID"), help_text=_("The ID for your LUIS app"))
         version = forms.CharField(help_text=_("The name of the version of your LUIS app to use"))
         primary_key = forms.CharField(help_text=_("The primary key for your LUIS app"))
-        endpoint_url = forms.URLField(help_text=_("The endpoint URL for your LUIS app"))
+        endpoint_url = ExternalURLField(help_text=_("The endpoint URL for your LUIS app"))
 
         def clean(self):
             from .type import LuisType

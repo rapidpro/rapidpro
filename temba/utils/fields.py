@@ -3,6 +3,7 @@ import socket
 from urllib import parse
 
 from django import forms
+from django.core.validators import URLValidator
 from django.forms import ValidationError, widgets
 from django.utils.translation import ugettext_lazy as _
 
@@ -47,6 +48,14 @@ def validate_external_url(value):
     # check it isn't localhost
     if ip in ("127.0.0.1", "::1"):
         raise ValidationError(_("%(value)s cannot be localhost"), params={"value": value})
+
+
+class ExternalURLField(forms.URLField):
+    """
+    Just like a normal URLField but also validates that the URL is external (not localhost)
+    """
+
+    default_validators = [URLValidator(), validate_external_url]
 
 
 class CheckboxWidget(forms.CheckboxInput):
