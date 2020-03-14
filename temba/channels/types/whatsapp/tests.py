@@ -42,7 +42,7 @@ class WhatsAppTypeTest(TembaTest):
         post_data["username"] = "temba"
         post_data["password"] = "tembapasswd"
         post_data["country"] = "RW"
-        post_data["base_url"] = "https://whatsapp.foo.bar"
+        post_data["base_url"] = "https://nyaruka.com/whatsapp"
         post_data["facebook_namespace"] = "my-custom-app"
         post_data["facebook_business_id"] = "1234"
         post_data["facebook_access_token"] = "token123"
@@ -93,7 +93,7 @@ class WhatsAppTypeTest(TembaTest):
         self.assertEqual("temba", channel.config[Channel.CONFIG_USERNAME])
         self.assertEqual("tembapasswd", channel.config[Channel.CONFIG_PASSWORD])
         self.assertEqual("abc123", channel.config[Channel.CONFIG_AUTH_TOKEN])
-        self.assertEqual("https://whatsapp.foo.bar", channel.config[Channel.CONFIG_BASE_URL])
+        self.assertEqual("https://nyaruka.com/whatsapp", channel.config[Channel.CONFIG_BASE_URL])
 
         self.assertEqual("+250788123123", channel.address)
         self.assertEqual("RW", channel.country)
@@ -355,7 +355,7 @@ class WhatsAppTypeTest(TembaTest):
         post_data["username"] = "temba"
         post_data["password"] = "tembapasswd"
         post_data["country"] = "RW"
-        post_data["base_url"] = "https://whatsapp.foo.bar"
+        post_data["base_url"] = "https://nyaruka.com/whatsapp"
         post_data["facebook_namespace"] = "my-custom-app"
         post_data["facebook_business_id"] = "1234"
         post_data["facebook_access_token"] = "token123"
