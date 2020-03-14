@@ -1,3 +1,7 @@
+v5.4.13
+----------
+ * Fix URL related test errors
+
 v5.4.12
 ----------
  * Don't allow localhost for URL fields
