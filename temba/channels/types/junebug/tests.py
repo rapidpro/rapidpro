@@ -22,7 +22,7 @@ class JunebugTypeTest(TembaTest):
         post_data = {
             "country": "ZA",
             "number": "+273454325324",
-            "url": "http://example.com/messages.json",
+            "url": "http://nyaruka.com/messages.json",
             "username": "foo",
             "password": "bar",
         }
@@ -56,7 +56,7 @@ class JunebugTypeTest(TembaTest):
         post_data = {
             "country": "ZA",
             "number": "+273454325324",
-            "url": "http://example.com/messages.json",
+            "url": "http://nyaruka.com/messages.json",
             "username": "foo",
             "password": "bar",
             "secret": "UjOq8ATo2PDS6L08t6vlqSoK",
