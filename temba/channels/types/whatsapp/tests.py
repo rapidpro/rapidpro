@@ -98,6 +98,7 @@ class WhatsAppTypeTest(TembaTest):
         self.assertEqual("+250788123123", channel.address)
         self.assertEqual("RW", channel.country)
         self.assertEqual("WA", channel.channel_type)
+        self.assertEqual(45, channel.tps)
         self.assertTrue(channel.get_type().has_attachment_support(channel))
 
         # test activating the channel
