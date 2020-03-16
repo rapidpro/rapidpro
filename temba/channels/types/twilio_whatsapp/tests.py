@@ -104,7 +104,7 @@ class TwilioWhatsappTypeTest(TembaTest):
             # claim it
             response = self.client.post(claim_twilio, dict(country="US", phone_number="12062345678"))
             self.assertFormError(
-                response, "form", "phone_number", "Only existing Twilio Whatsapp number are supported"
+                response, "form", "phone_number", "Only existing Twilio WhatsApp number are supported"
             )
 
         with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:

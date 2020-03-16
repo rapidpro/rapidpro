@@ -58,7 +58,6 @@ class CampaignTest(TembaTest):
         )
         self.assertEqual(campaign3.name, "Reminders 3")
 
-        self.setUpSecondaryOrg()
         self.assertEqual(Campaign.get_unique_name(self.org2, "Reminders"), "Reminders")  # different org
 
     def test_get_sorted_events(self):
@@ -1703,3 +1702,198 @@ class CampaignTest(TembaTest):
         self.assertEqual(campaign_event.event_type, "M")
         self.assertEqual(campaign_event.message, {"base": "oy, pancake man, come back"})
         self.assertEqual(campaign_event.delivery_hour, -1)
+
+
+class CampaignCRUDLTest(TembaTest):
+    def setUp(self):
+        super().setUp()
+
+        self.campaign1 = self.create_campaign(self.org)
+        self.other_org_campaign = self.create_campaign(self.org2)
+
+    def create_campaign(self, org):
+        user = org.get_user()
+        group = self.create_group("Reporters", contacts=[], org=org)
+        registered = self.create_field("registered", "Registered", value_type="D", org=org)
+        flow = self.create_flow(org=org)
+        campaign = Campaign.create(org, user, "Welcomes", group)
+        CampaignEvent.create_flow_event(
+            org, user, campaign, registered, offset=1, unit="W", flow=flow, delivery_hour="13"
+        )
+        return campaign
+
+    def test_read(self):
+        read_url = reverse("campaigns.campaign_read", args=[self.campaign1.id])
+
+        # can't view campaign if not logged in
+        response = self.client.get(read_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.get(read_url)
+        self.assertContains(response, "Welcomes")
+        self.assertContains(response, "Registered")
+
+        # can't view campaign from other org
+        response = self.client.get(reverse("campaigns.campaign_read", args=[self.other_org_campaign.id]))
+        self.assertLoginRedirect(response)
+
+    def test_archive_and_activate(self):
+        archive_url = reverse("campaigns.campaign_archive", args=[self.campaign1.id])
+
+        # can't archive campaign if not logged in
+        response = self.client.post(archive_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.post(archive_url)
+        self.assertEqual(302, response.status_code)
+
+        self.campaign1.refresh_from_db()
+        self.assertTrue(self.campaign1.is_archived)
+
+        # activate that archve
+        response = self.client.post(reverse("campaigns.campaign_activate", args=[self.campaign1.id]))
+        self.assertEqual(302, response.status_code)
+
+        self.campaign1.refresh_from_db()
+        self.assertFalse(self.campaign1.is_archived)
+
+        # can't archive campaign from other org
+        response = self.client.post(reverse("campaigns.campaign_archive", args=[self.other_org_campaign.id]))
+        self.assertEqual(404, response.status_code)
+
+        # check object is unchanged
+        self.other_org_campaign.refresh_from_db()
+        self.assertFalse(self.other_org_campaign.is_archived)
+
+
+class CampaignEventCRUDLTest(TembaTest):
+    def setUp(self):
+        super().setUp()
+
+        self.campaign1 = self.create_campaign(self.org)
+        self.other_org_campaign = self.create_campaign(self.org2)
+
+    def create_campaign(self, org):
+        user = org.get_user()
+        group = self.create_group("Reporters", contacts=[], org=org)
+        registered = self.create_field("registered", "Registered", value_type="D", org=org)
+        flow = self.create_flow(org=org)
+        campaign = Campaign.create(org, user, "Welcomes", group)
+        CampaignEvent.create_flow_event(
+            org, user, campaign, registered, offset=1, unit="W", flow=flow, delivery_hour="13"
+        )
+        CampaignEvent.create_flow_event(
+            org, user, campaign, registered, offset=2, unit="W", flow=flow, delivery_hour="13"
+        )
+        return campaign
+
+    def test_read(self):
+        event1 = self.campaign1.events.order_by("id").first()
+        other_org_event1 = self.other_org_campaign.events.order_by("id").first()
+
+        read_url = reverse("campaigns.campaignevent_read", args=[event1.id])
+
+        # can't view event if not logged in
+        response = self.client.get(read_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.get(read_url)
+        self.assertContains(response, "Welcomes")
+        self.assertContains(response, "1 Week After")
+        self.assertContains(response, "Registered")
+
+        # can't view event from other org
+        response = self.client.get(reverse("campaigns.campaignevent_read", args=[other_org_event1.id]))
+        self.assertLoginRedirect(response)
+
+    def test_update(self):
+        event1, event2 = self.campaign1.events.order_by("id")
+        other_org_event1 = self.other_org_campaign.events.order_by("id").first()
+
+        update_url = reverse("campaigns.campaignevent_update", args=[event1.id])
+
+        # can't view update form if not logged in
+        response = self.client.get(update_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.get(update_url)
+        self.assertEqual(
+            [
+                "event_type",
+                "relative_to",
+                "offset",
+                "unit",
+                "delivery_hour",
+                "direction",
+                "flow_to_start",
+                "flow_start_mode",
+                "message_start_mode",
+                "eng",
+                "loc",
+            ],
+            list(response.context["form"].fields.keys()),
+        )
+
+        # can't view update form for event from other org
+        response = self.client.get(reverse("campaigns.campaignevent_update", args=[other_org_event1.id]))
+        self.assertLoginRedirect(response)
+
+        accepted = self.create_field("accepted", "Accepted", value_type="D")
+
+        # update the first event
+        response = self.client.post(
+            update_url,
+            {
+                "relative_to": accepted.id,
+                "event_type": "M",
+                "eng": "Hi there",
+                "direction": "B",
+                "offset": 2,
+                "unit": "D",
+                "flow_to_start": "",
+                "delivery_hour": 11,
+            },
+        )
+        self.assertEqual(302, response.status_code)
+
+        # original event will be unchanged.. except to be inactive
+        event1.refresh_from_db()
+        self.assertEqual("F", event1.event_type)
+        self.assertFalse(event1.is_active)
+
+        # but will have a new replacement event
+        new_event1 = self.campaign1.events.filter(id__gt=event2.id).get()
+
+        self.assertEqual(accepted, new_event1.relative_to)
+        self.assertEqual("M", new_event1.event_type)
+        self.assertEqual(-2, new_event1.offset)
+        self.assertEqual("D", new_event1.unit)
+
+        # can't update event in other org
+        response = self.client.post(
+            update_url,
+            {
+                "relative_to": other_org_event1.relative_to,
+                "event_type": "M",
+                "eng": "Hi there",
+                "direction": "B",
+                "offset": 2,
+                "unit": "D",
+                "flow_to_start": "",
+                "delivery_hour": 11,
+            },
+        )
+        self.assertEqual(404, response.status_code)
+
+        # check event is unchanged
+        other_org_event1.refresh_from_db()
+        self.assertEqual("F", other_org_event1.event_type)
+        self.assertTrue(other_org_event1.is_active)

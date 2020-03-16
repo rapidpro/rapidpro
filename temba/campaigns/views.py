@@ -594,7 +594,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         def get_cancel_url(self):  # pragma: needs cover
             return reverse("campaigns.campaign_read", args=[self.object.campaign.pk])
 
-    class Update(OrgPermsMixin, ModalMixin, SmartUpdateView):
+    class Update(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
         success_message = ""
         form_class = CampaignEventForm
         submit_button_name = _("Update Event")
@@ -620,6 +620,9 @@ class CampaignEventCRUDL(SmartCRUDL):
             kwargs = super().get_form_kwargs()
             kwargs["user"] = self.request.user
             return kwargs
+
+        def get_object_org(self):
+            return self.get_object().campaign.org
 
         def get_context_data(self, **kwargs):
             return super().get_context_data(**kwargs)

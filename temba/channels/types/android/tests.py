@@ -330,7 +330,6 @@ class AndroidTypeTest(TembaTest):
         )
 
         # create channel in another org
-        self.setUpSecondaryOrg()
         Channel.create(self.org2, self.admin2, "RW", "A", "", "+250788382382")
 
         # can claim it with this number, and because it's a fully qualified RW number, doesn't matter that channel is US
