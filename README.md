@@ -13,7 +13,7 @@ The set of versions that make up the latest stable release are:
  * [Archiver v5.4.0](https://github.com/nyaruka/rp-archiver/releases/tag/v5.4.0)
  * [Indexer v5.4.0](https://github.com/nyaruka/rp-indexer/releases/tag/v5.4.0)
  * [Android Channel v2.0.0](https://github.com/rapidpro/android-channel/releases/tag/v2.0.0)
- * [Android Surveyor v13.2.0](https://github.com/rapidpro/surveyor/releases/tag/v13.4.2)
+ * [Android Surveyor v13.4.2](https://github.com/rapidpro/surveyor/releases/tag/v13.4.2)
 
 ### Versioning in RapidPro
 
