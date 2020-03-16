@@ -214,7 +214,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             name="WhatsApp: %s" % data["number"],
             address=data["number"],
             config=config,
-            tps=15,
+            tps=45,
         )
 
         return super().form_valid(form)
