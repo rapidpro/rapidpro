@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "autosize": "4.0.2",
-    "axios": "0.18.0",
+    "axios": "0.18.1",
     "es6-dynamic-template": "2.0.0",
     "flru": "1.0.2",
     "leaflet": "1.5.1",
