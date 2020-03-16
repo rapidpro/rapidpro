@@ -1,3 +1,7 @@
+v5.5.0
+----------
+ * Increase the WA channels tps to 45 by default
+
 v5.4.13
 ----------
  * Fix URL related test errors
