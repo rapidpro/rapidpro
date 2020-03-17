@@ -1709,6 +1709,10 @@ class MsgTest(TembaTest):
                 self.org.timezone,
             )
 
+        response = self.client.post(reverse("msgs.msg_export") + "?l=I&redirect=http://foo.me", {"export_all": 1})
+        self.assertEqual(302, response.status_code)
+        self.assertEqual("/msg/inbox/", response.url)
+
 
 class MsgCRUDLTest(TembaTest):
     def setUp(self):
@@ -2688,7 +2692,6 @@ class LabelCRUDLTest(TembaTest):
         Label.get_or_create(self.org, self.user, "Junk", folder=folder)
         Label.get_or_create(self.org, self.user, "Important")
 
-        self.setUpSecondaryOrg()
         Label.get_or_create(self.org2, self.admin2, "Other Org")
 
         # viewers can't edit flows so don't have access to this JSON endpoint as that's only place it's used

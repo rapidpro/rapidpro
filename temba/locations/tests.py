@@ -144,7 +144,6 @@ class LocationTest(TembaTest):
 
         self.assertEqual(200, response.status_code)
 
-        self.setUpSecondaryOrg()
         BoundaryAlias.objects.create(
             boundary=self.state1, org=self.org2, name="KGL", created_by=self.admin2, modified_by=self.admin2
         )

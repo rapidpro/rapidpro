@@ -42,7 +42,7 @@ class WhatsAppTypeTest(TembaTest):
         post_data["username"] = "temba"
         post_data["password"] = "tembapasswd"
         post_data["country"] = "RW"
-        post_data["base_url"] = "https://whatsapp.foo.bar"
+        post_data["base_url"] = "https://nyaruka.com/whatsapp"
         post_data["facebook_namespace"] = "my-custom-app"
         post_data["facebook_business_id"] = "1234"
         post_data["facebook_access_token"] = "token123"
@@ -93,11 +93,12 @@ class WhatsAppTypeTest(TembaTest):
         self.assertEqual("temba", channel.config[Channel.CONFIG_USERNAME])
         self.assertEqual("tembapasswd", channel.config[Channel.CONFIG_PASSWORD])
         self.assertEqual("abc123", channel.config[Channel.CONFIG_AUTH_TOKEN])
-        self.assertEqual("https://whatsapp.foo.bar", channel.config[Channel.CONFIG_BASE_URL])
+        self.assertEqual("https://nyaruka.com/whatsapp", channel.config[Channel.CONFIG_BASE_URL])
 
         self.assertEqual("+250788123123", channel.address)
         self.assertEqual("RW", channel.country)
         self.assertEqual("WA", channel.channel_type)
+        self.assertEqual(45, channel.tps)
         self.assertTrue(channel.get_type().has_attachment_support(channel))
 
         # test activating the channel
@@ -355,7 +356,7 @@ class WhatsAppTypeTest(TembaTest):
         post_data["username"] = "temba"
         post_data["password"] = "tembapasswd"
         post_data["country"] = "RW"
-        post_data["base_url"] = "https://whatsapp.foo.bar"
+        post_data["base_url"] = "https://nyaruka.com/whatsapp"
         post_data["facebook_namespace"] = "my-custom-app"
         post_data["facebook_business_id"] = "1234"
         post_data["facebook_access_token"] = "token123"
@@ -392,7 +393,7 @@ class WhatsAppTypeTest(TembaTest):
         response = self.client.get(reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
 
         # should have our log
-        self.assertContains(response, "Whatsapp Templates Synced")
+        self.assertContains(response, "WhatsApp Templates Synced")
         self.assertContains(response, reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
 
         sync_log = channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).first()
@@ -414,3 +415,8 @@ class WhatsAppTypeTest(TembaTest):
         response = self.client.get(log_url)
         self.assertContains(response, "Connection Error")
         self.assertContains(response, "https://example.org/v3.3/1234/message_templates")
+
+        # sync logs not accessible by user from other org
+        self.login(self.admin2)
+        response = self.client.get(reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
+        self.assertEqual(404, response.status_code)

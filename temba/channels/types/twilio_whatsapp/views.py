@@ -97,7 +97,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         twilio_phone = next(twilio_phones, None)
         if not twilio_phone:
-            raise Exception(_("Only existing Twilio Whatsapp number are supported"))
+            raise Exception(_("Only existing Twilio WhatsApp number are supported"))
 
         phone = phonenumbers.format_number(
             phonenumbers.parse(phone_number, None), phonenumbers.PhoneNumberFormat.NATIONAL

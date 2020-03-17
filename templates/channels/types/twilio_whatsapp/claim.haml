@@ -22,14 +22,13 @@
 
 - block claim-numbers-description
   - blocktrans trimmed
-    Once you claim a number you will immediately be able to send and receive Whatsapp messages. Users who send messages to your Whatsapp number will be charged according to their plan.
+    Once you claim a number you will immediately be able to send and receive WhatsApp messages.
 
   -if not account_numbers
     .account-trial-warning
       - blocktrans trimmed
-        You do not have any number on your Twilio Account. Please make sure you have a number and that it has access to Twilio Whatsapp.
+        You do not have any number on your Twilio Account. Please make sure you have a number and that it has access to Twilio WhatsApp.
 
       %br
       %a{href:"https://www.twilio.com/whatsapp/request-access"}
-        - trans "To request access to Twilio Whatsapp"        
-
+        - trans "To request access to Twilio WhatsApp"

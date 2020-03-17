@@ -1,3 +1,49 @@
+v5.5.0
+----------
+ * Increase the WA channels tps to 45 by default
+
+v5.4.13
+----------
+ * Fix URL related test errors
+
+v5.4.12
+----------
+ * Don't allow localhost for URL fields
+
+v5.4.11
+----------
+ * Make sure external channel URLs are external
+
+v5.4.10
+----------
+ * Complete FR translations
+ * Update to floweditor 1.8.8
+
+v5.4.9
+----------
+ * Fix submitting API explorer requests where there is no editor for query part
+ * Lockdown redirects on exports
+ * Add more detailed fresh chat instructions
+
+v5.4.8
+----------
+ * Find and fix more cases of not filtering by org
+
+v5.4.7
+----------
+ * Fix org filtering on updates to globals
+ * Fix campaign event update view not filtering by event org
+ * Fix error in API contact references when passed a JSON number
+ * Replace Whatsapp by WhatsApp
+
+v5.4.6
+----------
+ * Merge pull request #2718 from nyaruka/fe187
+
+v5.4.4
+----------
+ * fix various filtering issues
+
 v5.4.3
 ----------
  * Update sample flow test
