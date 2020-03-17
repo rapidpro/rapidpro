@@ -128,6 +128,7 @@ STATICFILES_DIRS = (
     os.path.join(PROJECT_DIR, "../static"),
     os.path.join(PROJECT_DIR, "../media"),
     os.path.join(PROJECT_DIR, "../node_modules/@nyaruka/flow-editor/build"),
+    os.path.join(PROJECT_DIR, "../node_modules"),
     os.path.join(PROJECT_DIR, "../node_modules/react/umd"),
     os.path.join(PROJECT_DIR, "../node_modules/react-dom/umd"),
 )
@@ -144,7 +145,10 @@ MEDIA_URL = "/media/"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [os.path.join(PROJECT_DIR, "../templates")],
+        "DIRS": [
+            os.path.join(PROJECT_DIR, "../templates"),
+            os.path.join(PROJECT_DIR, "../node_modules/@nyaruka/temba-components/build/templates"),
+        ],
         "OPTIONS": {
             "context_processors": [
                 "django.contrib.auth.context_processors.auth",

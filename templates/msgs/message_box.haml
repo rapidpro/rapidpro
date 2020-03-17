@@ -4,7 +4,7 @@
 
 -block extra-style
   :css
-    rp-button {
+    temba-button {
       display: block;
     }
 
@@ -49,8 +49,8 @@
         .span3.sidebox
           %div{style:"margin-bottom: 10px"}
             - if org_perms.msgs.broadcast_send
-              %rp-modax#send-message-modal{ header:'{% trans "Send Message" %}', endpoint:"{% url 'msgs.broadcast_send' %}" }
-                %rp-button#send-message-button{ name:'{% trans "Send Message"%}', primary: 'true'}
+              %temba-modax#send-message-modal{ header:'{% trans "Send Message" %}', endpoint:"{% url 'msgs.broadcast_send' %}" }
+                %temba-button#send-message-button{ name:'{% trans "Send Message"%}', primary: 'true'}
 
           #sidebar-nav
             %ul.nav.nav-list.level1

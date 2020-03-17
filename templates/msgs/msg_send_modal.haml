@@ -12,7 +12,7 @@
     -if send_channel
       #send-form
         {% csrf_token %}
-        %rp-completion#id_text{
+        %temba-completion#id_text{
           name:"text", 
           placeholder: "Hi @contact!"
           completionsEndpoint:"/mr/docs/completion.json", 
