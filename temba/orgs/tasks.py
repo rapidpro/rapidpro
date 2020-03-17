@@ -12,7 +12,6 @@ from temba.flows.models import ExportFlowResultsTask
 from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import ExportMessagesTask
 from temba.msgs.tasks import export_messages_task
-from temba.utils import chunk_list
 from temba.utils.celery import nonoverlapping_task
 
 from .models import CreditAlert, Invitation, Org, TopUpCredits
@@ -54,14 +53,9 @@ def normalize_contact_tels_task(org_id):
     # do we have an org-level country code? if so, try to normalize any numbers not starting with +
     country_code = org.get_country_code()
     if country_code:
-        urn_ids = (
-            ContactURN.objects.filter(org=org, scheme=TEL_SCHEME)
-            .exclude(path__startswith="+")
-            .values_list("id", flat=True)
-        )
-        for id_batch in chunk_list(urn_ids, 1000):
-            for urn in ContactURN.objects.filter(id__in=id_batch):
-                urn.ensure_number_normalization(country_code)
+        urns = ContactURN.objects.filter(org=org, scheme=TEL_SCHEME).exclude(path__startswith="+").iterator()
+        for urn in urns:
+            urn.ensure_number_normalization(country_code)
 
 
 @nonoverlapping_task(track_started=True, name="squash_topupcredits", lock_key="squash_topupcredits", lock_timeout=7200)
