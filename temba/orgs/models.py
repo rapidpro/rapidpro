@@ -631,14 +631,9 @@ class Org(SmartModel):
         """
         Attempts to normalize any contacts which don't have full e164 phone numbers
         """
-        from temba.contacts.models import ContactURN, TEL_SCHEME
+        from .tasks import normalize_contact_tels_task
 
-        # do we have an org-level country code? if so, try to normalize any numbers not starting with +
-        country_code = self.get_country_code()
-        if country_code:
-            urns = ContactURN.objects.filter(org=self, scheme=TEL_SCHEME).exclude(path__startswith="+")
-            for urn in urns:
-                urn.ensure_number_normalization(country_code)
+        normalize_contact_tels_task.delay(self.pk)
 
     def get_resthooks(self):
         """
