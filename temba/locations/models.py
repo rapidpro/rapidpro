@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 # default manager for AdminBoundary, doesn't load geometries
 class NoGeometryManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().defer("geometry", "simplified_geometry")
+        return super().get_queryset().defer("simplified_geometry")
 
 
 # optional 'geometries' manager for AdminBoundary, loads everything
@@ -59,8 +59,6 @@ class AdminBoundary(MPTTModel, models.Model):
     )
 
     path = models.CharField(max_length=768, help_text="The full path name for this location")
-
-    geometry = models.MultiPolygonField(null=True, help_text="The full geometry of this administrative boundary")
 
     simplified_geometry = models.MultiPolygonField(
         null=True, help_text="The simplified geometry of this administrative boundary"

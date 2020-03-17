@@ -231,7 +231,7 @@ class LocationTest(TembaTest):
         # create a simple boundary with parent
         child_boundary = AdminBoundary.create(osm_id="-2", name="Palm Tree", level=1, parent=boundary)
         self.assertEqual(child_boundary.path, "Null Island > Palm Tree")
-        self.assertIsNone(child_boundary.geometry)
+        self.assertIsNone(child_boundary.simplified_geometry)
 
         wkb_geometry = (
             "0106000000010000000103000000010000000400000000000000407241C01395356EBA0B304000000000602640C0CDC2B7C4027A27"
@@ -240,16 +240,10 @@ class LocationTest(TembaTest):
 
         # create a simple boundary with parent and geometry
         geom_boundary = AdminBoundary.create(
-            osm_id="-3",
-            name="Plum Tree",
-            level=1,
-            parent=boundary,
-            simplified_geometry=wkb_geometry,
-            geometry=wkb_geometry,
+            osm_id="-3", name="Plum Tree", level=1, parent=boundary, simplified_geometry=wkb_geometry
         )
         self.assertEqual(geom_boundary.path, "Null Island > Plum Tree")
         self.assertIsNotNone(geom_boundary.simplified_geometry)
-        self.assertIsNotNone(geom_boundary.geometry)
 
         # path should not be defined when calling AdminBoundary.create
         self.assertRaises(TypeError, AdminBoundary.create, osm_id="-1", name="Null Island", level=0, path="some path")
