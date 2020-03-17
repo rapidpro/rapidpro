@@ -5,7 +5,7 @@ from uuid import uuid4
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.tests import TembaTest
+from temba.tests import CRUDLTestMixin, TembaTest
 from temba.tests.s3 import MockS3Client
 
 from .models import Archive
@@ -71,8 +71,8 @@ class ArchiveTest(TembaTest):
         self.assertEqual(date(2018, 2, 1), self.org.get_delete_date(archive_type=Archive.TYPE_FLOWRUN))
 
 
-class ArchiveViewTest(TembaTest):
-    def create_archive(self, idx, start_date=None, period="D"):
+class ArchiveCRUDLTest(TembaTest, CRUDLTestMixin):
+    def create_archive(self, org, idx, start_date=None, period="D"):
 
         if not start_date:
             start_date = date(2018, idx, 1)
@@ -88,24 +88,27 @@ class ArchiveViewTest(TembaTest):
             start_date=start_date,
             period=period,
             build_time=idx * 123,
-            org=self.org,
+            org=org,
         )
 
     def test_empty_list(self):
-        self.login(self.admin)
-        response = self.client.get(reverse("archives.archive_run"))
-        self.assertEqual(0, response.context["object_list"].count())
-        self.assertEqual("Run Archive", response.context["title"])
+        response = self.assertListFetch(
+            reverse("archives.archive_run"), allow_viewers=False, allow_editors=True, context_objects=[]
+        )
 
-        response = self.client.get(reverse("archives.archive_message"))
-        self.assertEqual(0, response.context["object_list"].count())
-        self.assertEqual("Message Archive", response.context["title"])
+        self.assertContains(response, "Run Archive")
+
+        response = self.assertListFetch(
+            reverse("archives.archive_message"), allow_viewers=False, allow_editors=True, context_objects=[]
+        )
+
+        self.assertContains(response, "Message Archive")
 
     def test_archive_type_filter(self):
-        archives = [self.create_archive(idx) for idx in range(1, 10)]
+        archives = [self.create_archive(self.org, idx) for idx in range(1, 10)]
 
         # create a daily archive
-        self.create_archive(1, start_date=date(2018, 2, 1), period="D")
+        self.create_archive(self.org, 1, start_date=date(2018, 2, 1), period="D")
 
         # create a daily archive that has been rolled up and will not appear in the results
         Archive.objects.create(
@@ -120,34 +123,34 @@ class ArchiveViewTest(TembaTest):
             rollup_id=archives[-1].id,
         )
 
-        self.login(self.admin)
+        # create archive for other org
+        self.create_archive(self.org2, 1)
 
-        # make sure we have the right number of each
-        response = self.client.get(reverse("archives.archive_run"))
-        self.assertEqual(6, response.context["object_list"].count())
+        response = self.assertListFetch(
+            reverse("archives.archive_run"), allow_viewers=False, allow_editors=True, context_object_count=6
+        )
         self.assertContains(response, "jsonl.gz")
 
-        response = self.client.get(reverse("archives.archive_message"))
-        self.assertEqual(4, response.context["object_list"].count())
+        response = self.assertListFetch(
+            reverse("archives.archive_message"), allow_viewers=False, allow_editors=True, context_object_count=4
+        )
         self.assertContains(response, "jsonl.gz")
 
-    def test_download(self):
-        self.login(self.admin)
+    def test_read(self):
+        archive = self.create_archive(self.org, 1)
 
-        archive = self.create_archive(1)
-        response = self.client.get(reverse("archives.archive_read", args=[archive.id]))
-        url = response.get("Location")
-
-        self.assertEqual(302, response.status_code)
-        self.assertIn(
-            f"https://s3-bucket.s3.amazonaws.com/my/{archive.hash}.jsonl.gz?"
-            f"response-content-disposition=attachment%3B&"
-            f"response-content-type=application%2Foctet&"
-            f"response-content-encoding=none",
-            url,
+        download_url = (
+            f"https://s3-bucket.s3.amazonaws.com/my/{archive.hash}.jsonl.gz?response-content-disposition="
+            f"attachment%3B&response-content-type=application%2Foctet&response-content-encoding=none"
         )
 
-    def test_home_archives(self):
+        response = self.assertReadFetch(
+            reverse("archives.archive_read", args=[archive.id]), allow_viewers=False, allow_editors=True, status=302
+        )
+
+        self.assertIn(download_url, response.get("Location"))
+
+    def test_formax(self):
         self.login(self.admin)
         url = reverse("orgs.org_home")
 
@@ -155,7 +158,7 @@ class ArchiveViewTest(TembaTest):
         self.assertContains(response, "archives yet")
         self.assertContains(response, reverse("archives.archive_message"))
 
-        self.create_archive(1)
+        self.create_archive(self.org, 1)
 
         response = self.client.get(url)
         self.assertContains(response, "123,456,789 records")

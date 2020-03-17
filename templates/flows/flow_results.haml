@@ -218,6 +218,12 @@
           }
         }
 
+        .modal {
+          .modal-body {
+            max-height: 450px;
+          }
+        }
+
     {% endlessblock %}
 
 -block extra-script
@@ -616,16 +622,6 @@
                                       ic-indicator:"#indicator"}
             -trans "Responded"
             
-          .input-group
-            %input.contact-search{type:"text", name:"q", placeholder:"Search Contacts",
-                                      ic-get-from:"/flow/run_table/{{object.id}}/",
-                                      ic-on-beforeSend:'$("#results_run_table").empty()',
-                                      ic-trigger-on:"keyup changed",
-                                      ic-local-vars: "responded",
-                                      ic-trigger-delay:"500ms",
-                                      ic-target:"#results_run_table",
-                                      ic-indicator:"#indicator"}
-
           .add-columns.select
             .selection
               %input#columns{type:'hidden', style:'width:150px'}

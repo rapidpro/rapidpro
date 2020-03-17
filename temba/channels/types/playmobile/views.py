@@ -3,13 +3,15 @@ from smartmin.views import SmartFormView
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 
+from temba.utils.fields import ExternalURLField
+
 from ...models import Channel
 from ...views import ClaimViewMixin
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
     class PMClaimForm(ClaimViewMixin.Form):
-        base_url = forms.URLField(label=_("Base URL"), help_text=_("The base URL for PlayMobile"))
+        base_url = ExternalURLField(label=_("Base URL"), help_text=_("The base URL for PlayMobile"))
         shortcode = forms.CharField(
             label=_("Shortcode"), max_length=15, min_length=1, help_text=_("The short code you are connecting")
         )

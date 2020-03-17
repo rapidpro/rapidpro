@@ -1,3 +1,207 @@
+v5.5.0
+----------
+ * Increase the WA channels tps to 45 by default
+
+v5.4.13
+----------
+ * Fix URL related test errors
+
+v5.4.12
+----------
+ * Don't allow localhost for URL fields
+
+v5.4.11
+----------
+ * Make sure external channel URLs are external
+
+v5.4.10
+----------
+ * Complete FR translations
+ * Update to floweditor 1.8.8
+
+v5.4.9
+----------
+ * Fix submitting API explorer requests where there is no editor for query part
+ * Lockdown redirects on exports
+ * Add more detailed fresh chat instructions
+
+v5.4.8
+----------
+ * Find and fix more cases of not filtering by org
+
+v5.4.7
+----------
+ * Fix org filtering on updates to globals
+ * Fix campaign event update view not filtering by event org
+ * Fix error in API contact references when passed a JSON number
+ * Replace Whatsapp by WhatsApp
+
+v5.4.6
+----------
+ * Merge pull request #2718 from nyaruka/fe187
+
+v5.4.4
+----------
+ * fix various filtering issues
+
+v5.4.3
+----------
+ * Update sample flow test
+
+v5.4.2
+----------
+ * remove use of webhook where not appropriate
+
+v5.4.1
+----------
+ * Update sample flows to use @webhook instead of @legacy_extra
+
+v5.4.0
+----------
+ * Add API endpoint to update Globals
+ * Keep latest sync event for Android channels when trimming
+
+v5.3.64
+----------
+ * Add support for Twilio Whatsapp channel type
+
+v5.3.63
+----------
+ * Add pre_deploy command to check imports/exports
+ * Fix link to android APK downloads on claim page
+
+v5.3.62
+----------
+ * Temporarily disable resume imports task
+
+v5.3.61
+----------
+ * Fix text of save as group dialog
+ * Add support to restart export tasks that might have been stopped by deploy
+
+v5.3.60
+----------
+ * Update to latest mailroom
+ * Add urns to runs API endpoint
+
+v5.3.59
+----------
+ * Update to latest mailroom which returns allow_as_group from query parsing
+ * Don't create missing contact fields on flow save
+
+v5.3.57
+----------
+ * Update flow editor 1.7.16
+ * Fix translations on external channel claim page
+ * Add tabs to toggle between full flow event history and summary of messages
+ * Increase the max height on the flow results export modal dialog
+
+v5.3.56
+----------
+ * Add params to flow starts API
+ * Change name of org_id param in calls to flow/inspect
+ * Add quick replies variable to external channel claim page
+
+v5.3.55
+----------
+ * Allow editing of allow_international on channel update forms
+ * Use consistent format for datetimes like created_on on contact list page
+
+v5.3.54
+----------
+ * Hide loader on start flow dialog when there are no channels
+
+v5.3.53
+----------
+ * Fix creation of Android channels
+
+v5.3.52
+----------
+ * Convert Android to dynamic channel type
+
+v5.3.51
+----------
+ * Update to floweditor 1.7.15
+ * Add python script to do all CI required formatting and locale rebuilding
+ * Use mailroom for query parsing for contact exports
+ * Fix text positioning on list pages
+ * Fix delete contact group modal buttons when blocked by dependencies
+ * Completion with upper case functions
+
+v5.3.50
+----------
+ * Migration to set allow_international=true in configs of existing tel channels
+ * Remove no longer used flow definition caching stuff
+
+v5.3.49
+----------
+ * Use realistic phone numbers in mailroom test db
+ * Remove contact filtering from flow results page
+ * Add migration to populate Flow.template_dependencies
+
+v5.3.48
+----------
+ * Use mailroom searching for omnibox results
+
+v5.3.47
+----------
+ * Add template_dependencies m2m
+
+v5.3.46
+----------
+ * Do not subject requests to the API with sessions to rate limiting
+ * Migration to convert flow dependencies metadata to new format
+ * Update description on the flow results export to be clear
+
+v5.3.45
+----------
+ * Fix deletion of orgs and locations so that aliases are properly deleted
+ * Remove syntax highlighting in API explorer as it can't handle big responses
+ * Use new dependencies format from mailroom
+
+v5.3.44
+----------
+ * Dynamic group creation / reevaluation through Mailroom
+
+v5.3.43
+----------
+ * Update to latest mailroom
+
+v5.3.42
+----------
+ * Fix actions on blocked contact list page
+
+v5.3.41
+----------
+ * Disable simulation for archived flows
+ * Fix query explosion on Android channel alerts
+
+v5.3.40
+----------
+ * Add subflow parameters to editor
+
+v5.3.39
+----------
+ * Rework migration code so new flows are migrated too
+
+v5.3.38
+----------
+ * Use mailroom for contact searches, contact list pages and flow starts via search
+
+v5.3.35
+----------
+ * Rebuild components
+
+v5.3.34
+----------
+ * Update to flow editor 1.7.13
+ * Don't include 'version' in current definitions
+ * Migrate imports of flows to new spec by default
+
+v5.3.30
+----------
+ * Exclude inactive template translations from API endpoint
+
 v5.3.29
 ----------
  * Fix edge case for default alias dialog

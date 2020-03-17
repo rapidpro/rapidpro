@@ -26,25 +26,25 @@ from django.db import transaction
 from django.db.models import Count
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.http import urlquote_plus
+from django.utils.http import is_safe_url, urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel
-from temba.contacts.search import ContactQuery
 from temba.contacts.templatetags.contacts import MISSING_VALUE
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
+from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.text import slugify_with
-from temba.utils.views import BaseActionForm, ContactListPaginationMixin
+from temba.utils.views import BaseActionForm
 from temba.values.constants import Value
 
 from .models import (
@@ -59,7 +59,6 @@ from .models import (
     ExportContactsTask,
 )
 from .omnibox import omnibox_query, omnibox_results_to_dict
-from .search import SearchException, parse_query
 from .tasks import export_contacts_task, release_group_task
 
 logger = logging.getLogger(__name__)
@@ -125,27 +124,22 @@ class ContactGroupForm(forms.ModelForm):
         return name
 
     def clean_query(self):
+        from temba.contacts.search import parse_query, SearchException
+
         try:
-            parsed_query = parse_query(text=self.cleaned_data["query"], as_anon=self.org.is_anon)
-
-            # try to prepare query as it would be used, might raise errors for invalid search operators
-            parsed_query.as_elasticsearch(self.org)
-
-            cleaned_query = parsed_query.as_text()
+            parsed = parse_query(self.org.id, self.cleaned_data["query"])
+            if not parsed.allow_as_group:
+                raise forms.ValidationError(_('You cannot create a dynamic group based on "id" or "group".'))
 
             if (
                 self.instance
                 and self.instance.status != ContactGroup.STATUS_READY
-                and cleaned_query != self.instance.query
+                and parsed.query != self.instance.query
             ):
                 raise forms.ValidationError(_("You cannot update the query of a group that is evaluating."))
 
-            if parsed_query.can_be_dynamic_group():
-                return cleaned_query
-            else:
-                raise forms.ValidationError(_('You cannot create a dynamic group based on "name" or "id".'))
-        except forms.ValidationError as e:
-            raise e
+            return parsed.query
+
         except SearchException as e:
             raise forms.ValidationError(str(e))
 
@@ -154,7 +148,7 @@ class ContactGroupForm(forms.ModelForm):
         model = ContactGroup
 
 
-class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
+class ContactListView(OrgPermsMixin, SmartListView):
     """
     Base class for contact list views with contact folders and groups listed by the side
     """
@@ -163,7 +157,22 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
     add_button = True
     paginate_by = 50
 
-    parsed_search = None
+    parsed_query = None
+    save_dynamic_search = None
+
+    sort_field = None
+    sort_direction = None
+
+    search_error = None
+
+    def pre_process(self, request, *args, **kwargs):
+        """
+        Don't allow pagination past 200th page
+        """
+        if int(self.request.GET.get("page", "1")) > 200:
+            return HttpResponseNotFound()
+
+        return super().pre_process(request, *args, **kwargs)
 
     def derive_group(self):
         return ContactGroup.all_groups.get(org=self.request.user.get_org(), group_type=self.system_group)
@@ -177,6 +186,14 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
             search,
             redirect,
         )
+
+    def derive_refresh(self):
+        # dynamic groups that are reevaluating should refresh every 2 seconds
+        group = self.derive_group()
+        if group.is_dynamic and group.status != ContactGroup.STATUS_READY:
+            return 2000
+
+        return None
 
     @staticmethod
     def prepare_sort_field_struct(sort_on):
@@ -227,30 +244,29 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
             )
 
     def get_queryset(self, **kwargs):
+        from temba.contacts.search import search_contacts, SearchException
+
         org = self.request.user.get_org()
         group = self.derive_group()
         self.search_error = None
 
         # contact list views don't use regular field searching but use more complex contact searching
         search_query = self.request.GET.get("search", None)
+        sort_on = self.request.GET.get("sort_on", "")
+        page = self.request.GET.get("page", "1")
 
-        sort_on = self.request.GET.get("sort_on", None)
+        offset = (int(page) - 1) * 50
 
-        if sort_on is not None:
-            self.sort_field, self.sort_direction, sort_struct = self.prepare_sort_field_struct(sort_on)
-        else:
-            self.sort_field, self.sort_direction, sort_struct = (None, None, None)
+        self.sort_direction = "desc" if sort_on.startswith("-") else "asc"
+        self.sort_field = sort_on.lstrip("-")
 
-        if search_query or sort_struct:
-            from .search import contact_es_search
-            from temba.utils.es import ES
-
+        if search_query or sort_on:
             try:
-                search_object, self.parsed_search = contact_es_search(org, search_query, group, sort_struct)
-                es_search = search_object.source(fields=("id",)).using(ES)
+                results = search_contacts(org.id, str(group.uuid), search_query, sort_on, offset)
+                self.parsed_query = results.query if len(results.query) > 0 else None
+                self.save_dynamic_search = results.allow_as_group
 
-                return es_search
-
+                return IDSliceQuerySet(Contact, results.contact_ids, offset, results.total)
             except SearchException as e:
                 self.search_error = str(e)
 
@@ -258,7 +274,13 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
                 return Contact.objects.none()
         else:
             # if user search is not defined, use DB to select contacts
-            return group.contacts.all().order_by("-id").prefetch_related("org", "all_groups")
+            qs = (
+                group.contacts.filter(org=self.request.user.get_org())
+                .order_by("-id")
+                .prefetch_related("org", "all_groups")
+            )
+            patch_queryset_count(qs, group.get_member_count)
+            return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -273,7 +295,7 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
         ]
 
         # resolve the paginated object list so we can initialize a cache of URNs and fields
-        contacts = list(context["object_list"])
+        contacts = context["object_list"]
         Contact.bulk_cache_initialize(org, contacts)
 
         context["contacts"] = contacts
@@ -287,19 +309,14 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
         context["sort_field"] = self.sort_field
 
         # replace search string with parsed search expression
-        if self.parsed_search is not None:
-            context["search"] = self.parsed_search.as_text()
-            context["save_dynamic_search"] = self.parsed_search.can_be_dynamic_group()
+        if self.parsed_query is not None:
+            context["search"] = self.parsed_query
+            context["save_dynamic_search"] = self.save_dynamic_search
 
         return context
 
     def get_user_groups(self, org):
-        groups = (
-            ContactGroup.get_user_groups(org, ready_only=False)
-            .exclude(status=ContactGroup.STATUS_INITIALIZING)
-            .select_related("org")
-            .order_by(Upper("name"))
-        )
+        groups = ContactGroup.get_user_groups(org, ready_only=False).select_related("org").order_by(Upper("name"))
         group_counts = ContactGroupCount.get_totals(groups)
 
         rendered = []
@@ -559,6 +576,8 @@ class ContactCRUDL(SmartCRUDL):
             group_uuid = self.request.GET.get("g")
             search = self.request.GET.get("s")
             redirect = self.request.GET.get("redirect")
+            if redirect and not is_safe_url(redirect, self.request.get_host()):
+                redirect = None
 
             return group_uuid, search, redirect
 
@@ -1222,6 +1241,8 @@ class ContactCRUDL(SmartCRUDL):
         template_name = "contacts/contact_list.haml"
 
         def get(self, request, *args, **kwargs):
+            from temba.contacts.search import search_contacts, SearchException
+
             org = self.request.user.get_org()
             query = self.request.GET.get("search", None)
             samples = int(self.request.GET.get("samples", 10))
@@ -1230,7 +1251,13 @@ class ContactCRUDL(SmartCRUDL):
                 return JsonResponse({"total": 0, "sample": [], "fields": {}})
 
             try:
-                summary = Contact.query_summary(org, query, samples)
+                results = search_contacts(org.id, org.cached_all_contacts_group.uuid, query, "-created_on")
+                summary = {
+                    "total": results.total,
+                    "query": results.query,
+                    "fields": results.fields,
+                    "sample": IDSliceQuerySet(Contact, results.contact_ids, 0, results.total)[0:samples],
+                }
             except SearchException as e:
                 return JsonResponse({"total": 0, "sample": [], "query": "", "error": str(e)})
 
@@ -1254,18 +1281,11 @@ class ContactCRUDL(SmartCRUDL):
                 json_contacts.append(contact_json)
             summary["sample"] = json_contacts
 
-            # serialize our parsed query
-            fields = {}
-            parsed_query = summary["query"]
-            if parsed_query:
-                prop_map = parsed_query.get_prop_map(org)
-                for key, value in prop_map.items():
-                    prop_type, prop = value
-                    if prop_type == ContactQuery.PROP_FIELD:
-                        fields[str(prop.uuid)] = {"label": prop.label, "type": prop_type}
-
-            summary["query"] = parsed_query.as_text()
-            summary["fields"] = fields
+            # add in our field defs
+            summary["fields"] = {
+                str(f.uuid): {"label": f.label}
+                for f in ContactField.user_fields.filter(org=org, key__in=summary["fields"], is_active=True)
+            }
             return JsonResponse(summary)
 
     class List(ContactActionMixin, ContactListView):
@@ -1326,7 +1346,7 @@ class ContactCRUDL(SmartCRUDL):
             context["reply_disabled"] = True
             return context
 
-    class Filter(ContactActionMixin, ContactListView):
+    class Filter(ContactActionMixin, ContactListView, OrgObjPermsMixin):
         template_name = "contacts/contact_filter.haml"
 
         def get_gear_links(self):
@@ -1370,8 +1390,11 @@ class ContactCRUDL(SmartCRUDL):
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/(?P<group>[^/]+)/$" % (path, action)
 
+        def get_object_org(self):
+            return ContactGroup.user_groups.get(uuid=self.kwargs["group"]).org
+
         def derive_group(self):
-            return ContactGroup.user_groups.get(uuid=self.kwargs["group"])
+            return ContactGroup.user_groups.get(uuid=self.kwargs["group"], org=self.request.user.get_org())
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactForm
@@ -1553,7 +1576,7 @@ class ContactCRUDL(SmartCRUDL):
                     context["value"] = self.get_object().get_field_display(contact_field)
             return context
 
-    class Block(OrgPermsMixin, SmartUpdateView):
+    class Block(OrgObjPermsMixin, SmartUpdateView):
         """
         Block this contact
         """
@@ -1566,7 +1589,7 @@ class ContactCRUDL(SmartCRUDL):
             obj.block(self.request.user)
             return obj
 
-    class Unblock(OrgPermsMixin, SmartUpdateView):
+    class Unblock(OrgObjPermsMixin, SmartUpdateView):
         """
         Unblock this contact
         """
@@ -1579,7 +1602,7 @@ class ContactCRUDL(SmartCRUDL):
             obj.unblock(self.request.user)
             return obj
 
-    class Unstop(OrgPermsMixin, SmartUpdateView):
+    class Unstop(OrgObjPermsMixin, SmartUpdateView):
         """
         Unstops this contact
         """
@@ -1592,7 +1615,7 @@ class ContactCRUDL(SmartCRUDL):
             obj.unstop(self.request.user)
             return obj
 
-    class Delete(OrgPermsMixin, SmartUpdateView):
+    class Delete(OrgObjPermsMixin, SmartUpdateView):
         """
         Delete this contact (can't be undone)
         """
@@ -1867,7 +1890,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             response["Temba-Success"] = self.get_success_url()
             return response
 
-    class Update(ModalMixin, OrgPermsMixin, SmartUpdateView):
+    class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         queryset = ContactField.user_fields
         form_class = UpdateContactFieldForm
         success_message = ""
@@ -1898,7 +1921,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             response["Temba-Success"] = self.get_success_url()
             return response
 
-    class Delete(OrgPermsMixin, SmartUpdateView):
+    class Delete(OrgObjPermsMixin, SmartUpdateView):
         queryset = ContactField.user_fields
         success_url = "@contacts.contactfield_list"
         success_message = ""
@@ -1946,7 +1969,9 @@ class ContactFieldCRUDL(SmartCRUDL):
 
                 with transaction.atomic():
                     for cfid, priority in post_data.items():
-                        ContactField.user_fields.filter(id=cfid).update(priority=priority)
+                        ContactField.user_fields.filter(id=cfid, org=self.request.user.get_org()).update(
+                            priority=priority
+                        )
 
                 return HttpResponse('{"status":"OK"}', status=200, content_type="application/json")
 

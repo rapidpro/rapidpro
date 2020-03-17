@@ -25,7 +25,7 @@ class JasminTypeTest(TembaTest):
         post_data["number"] = "250788123123"
         post_data["username"] = "user1"
         post_data["password"] = "pass1"
-        post_data["url"] = "https://jasmin.gateway.io/send"
+        post_data["url"] = "https://nyaruka.com/send"
 
         response = self.client.post(url, post_data)
 
@@ -55,7 +55,7 @@ class JasminTypeTest(TembaTest):
         post_data["number"] = "20050"
         post_data["username"] = "user1"
         post_data["password"] = "pass1"
-        post_data["url"] = "https://jasmin.gateway.io/send"
+        post_data["url"] = "https://nyaruka.com/send"
 
         response = self.client.post(url, post_data)
 
