@@ -4349,9 +4349,11 @@ class ExportFlowResultsTest(TembaTest):
 
         # check messages sheet...
         self.assertEqual(14, len(list(sheet_msgs.rows)))  # header + 13 messages
-        self.assertEqual(7, len(list(sheet_msgs.columns)))
+        self.assertEqual(8, len(list(sheet_msgs.columns)))
 
-        self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"])
+        self.assertExcelRow(
+            sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Attachments", "Channel"]
+        )
 
         contact1_out1 = contact1_run1.get_messages().get(text="What is your favorite color?")
         contact1_out2 = contact1_run1.get_messages().get(text="That is a funny color. Try again.")
@@ -4374,6 +4376,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact3_out1.created_on,
                 "OUT",
                 "What is your favorite color?",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4388,6 +4391,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_out1.created_on,
                 "OUT",
                 "What is your favorite color?",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4402,6 +4406,7 @@ class ExportFlowResultsTest(TembaTest):
                 msg_event_time(contact1_run1, "light beige"),
                 "IN",
                 "light beige",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4416,6 +4421,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_out2.created_on,
                 "OUT",
                 "That is a funny color. Try again.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4430,6 +4436,7 @@ class ExportFlowResultsTest(TembaTest):
                 msg_event_time(contact1_run1, "orange"),
                 "IN",
                 "orange",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4444,6 +4451,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_out3.created_on,
                 "OUT",
                 "I love orange too! You said: orange which is category: Orange You are: 0788 382 382 SMS: orange Flow: color: orange",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4609,7 +4617,7 @@ class ExportFlowResultsTest(TembaTest):
 
         # check messages sheet...
         self.assertEqual(14, len(list(sheet_msgs.rows)))  # header + 13 messages
-        self.assertEqual(7, len(list(sheet_msgs.columns)))
+        self.assertEqual(8, len(list(sheet_msgs.columns)))
 
     def test_anon_org(self):
         with AnonymousOrg(self.org):
@@ -4668,6 +4676,56 @@ class ExportFlowResultsTest(TembaTest):
                 ],
                 self.org.timezone,
             )
+
+    def test_msg_with_attachments(self):
+        flow = self.get_flow("color_v13")
+        flow_nodes = flow.as_json()["nodes"]
+        color_prompt = flow_nodes[0]
+        color_split = flow_nodes[4]
+
+        contact1_run1 = (
+            MockSessionWriter(self.contact, flow)
+            .visit(color_prompt)
+            .send_msg(
+                "What is your favorite color?", self.channel, attachments=["audio:http://rapidpro.io/audio/sound.mp3"]
+            )
+            .visit(color_split)
+            .wait()
+            .save()
+        ).session.runs.get()
+
+        contact1_out1 = contact1_run1.get_messages().get(text="What is your favorite color?")
+
+        workbook = self._export(flow)
+        self.assertEqual(2, len(workbook.worksheets))
+
+        sheet_runs, sheet_msgs = workbook.worksheets
+
+        tz = self.org.timezone
+
+        # check runs sheet...
+        self.assertEqual(2, len(list(sheet_runs.rows)))
+        self.assertEqual(9, len(list(sheet_runs.columns)))
+
+        # check messages sheet...
+        self.assertEqual(2, len(list(sheet_msgs.rows)))
+        self.assertEqual(8, len(list(sheet_msgs.columns)))
+
+        self.assertExcelRow(
+            sheet_msgs,
+            1,
+            [
+                contact1_out1.contact.uuid,
+                "+250788382382",
+                "Eric",
+                contact1_out1.created_on,
+                "OUT",
+                "What is your favorite color?",
+                "http://rapidpro.io/audio/sound.mp3",
+                "Test Channel",
+            ],
+            tz,
+        )
 
     def test_broadcast_only_flow(self):
         flow = self.get_flow("send_only_v13")
@@ -4776,9 +4834,11 @@ class ExportFlowResultsTest(TembaTest):
 
         # check messages sheet...
         self.assertEqual(len(list(sheet_msgs.rows)), 11)  # header + 10 messages
-        self.assertEqual(len(list(sheet_msgs.columns)), 7)
+        self.assertEqual(len(list(sheet_msgs.columns)), 8)
 
-        self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"])
+        self.assertExcelRow(
+            sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Attachments", "Channel"]
+        )
 
         c1_run1_msg1 = contact1_run1.get_messages().get(text="This is the first message.")
         c1_run1_msg2 = contact1_run1.get_messages().get(text="This is the second message.")
@@ -4805,6 +4865,7 @@ class ExportFlowResultsTest(TembaTest):
                 c1_run1_msg1.created_on,
                 "OUT",
                 "This is the first message.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4820,6 +4881,7 @@ class ExportFlowResultsTest(TembaTest):
                 c1_run1_msg2.created_on,
                 "OUT",
                 "This is the second message.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4835,6 +4897,7 @@ class ExportFlowResultsTest(TembaTest):
                 c2_run1_msg1.created_on,
                 "OUT",
                 "This is the first message.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4850,6 +4913,7 @@ class ExportFlowResultsTest(TembaTest):
                 c2_run1_msg2.created_on,
                 "OUT",
                 "This is the second message.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4865,6 +4929,7 @@ class ExportFlowResultsTest(TembaTest):
                 c3_run1_msg1.created_on,
                 "OUT",
                 "This is the first message.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4880,6 +4945,7 @@ class ExportFlowResultsTest(TembaTest):
                 c3_run1_msg2.created_on,
                 "OUT",
                 "This is the second message.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4895,6 +4961,7 @@ class ExportFlowResultsTest(TembaTest):
                 c1_run2_msg1.created_on,
                 "OUT",
                 "This is the first message.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4910,6 +4977,7 @@ class ExportFlowResultsTest(TembaTest):
                 c1_run2_msg2.created_on,
                 "OUT",
                 "This is the second message.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4925,6 +4993,7 @@ class ExportFlowResultsTest(TembaTest):
                 c2_run2_msg1.created_on,
                 "OUT",
                 "This is the first message.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -4940,6 +5009,7 @@ class ExportFlowResultsTest(TembaTest):
                 c2_run2_msg2.created_on,
                 "OUT",
                 "This is the second message.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -5209,9 +5279,11 @@ class ExportFlowResultsTest(TembaTest):
 
         # check messages sheet...
         self.assertEqual(len(list(sheet_msgs.rows)), 14)  # header + 13 messages
-        self.assertEqual(len(list(sheet_msgs.columns)), 7)
+        self.assertEqual(len(list(sheet_msgs.columns)), 8)
 
-        self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"])
+        self.assertExcelRow(
+            sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Attachments", "Channel"]
+        )
 
         contact1_out1 = contact1_run1.get_messages().get(text="What is your favorite color?")
         contact1_out2 = contact1_run1.get_messages().get(text="I don't know that color. Try again.")
@@ -5230,6 +5302,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact3_out1.created_on,
                 "OUT",
                 "What is your favorite color?",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -5244,6 +5317,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_out1.created_on,
                 "OUT",
                 "What is your favorite color?",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -5258,6 +5332,7 @@ class ExportFlowResultsTest(TembaTest):
                 matchers.Datetime(),
                 "IN",
                 "light beige",
+                "",
                 "Test Channel",
             ],
         )
@@ -5271,6 +5346,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_out2.created_on,
                 "OUT",
                 "I don't know that color. Try again.",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -5278,7 +5354,7 @@ class ExportFlowResultsTest(TembaTest):
         self.assertExcelRow(
             sheet_msgs,
             5,
-            [contact1_in2.contact.uuid, "+250788382382", "Eric", matchers.Datetime(), "IN", "red", "Test Channel"],
+            [contact1_in2.contact.uuid, "+250788382382", "Eric", matchers.Datetime(), "IN", "red", "", "Test Channel"],
         )
         self.assertExcelRow(
             sheet_msgs,
@@ -5290,6 +5366,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_out3.created_on,
                 "OUT",
                 "Good choice, I like Red too! What is your favorite beer?",
+                "",
                 "Test Channel",
             ],
             tz,
@@ -5569,6 +5646,7 @@ class ExportFlowResultsTest(TembaTest):
                 out1.created_on,
                 "OUT",
                 "What is your favorite color?",
+                "",
                 "Test Channel",
             ],
             tz,

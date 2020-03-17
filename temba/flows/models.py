@@ -30,7 +30,7 @@ from temba.channels.models import Channel, ChannelConnection
 from temba.classifiers.models import Classifier
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.globals.models import Global
-from temba.msgs.models import Label, Msg
+from temba.msgs.models import Attachment, Label, Msg
 from temba.orgs.models import Org
 from temba.templates.models import Template
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
@@ -2800,7 +2800,7 @@ class ExportFlowResultsTask(BaseExportTask):
         sheet = book.add_sheet(name, index)
         book.num_msgs_sheets += 1
 
-        headers = ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"]
+        headers = ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Attachments", "Channel"]
 
         self.append_row(sheet, headers)
         return sheet
@@ -3047,6 +3047,7 @@ class ExportFlowResultsTask(BaseExportTask):
             msg_text = msg.get("text", "")
             msg_created_on = iso8601.parse_date(event["created_on"])
             msg_channel = msg.get("channel")
+            msg_attachments = [attachment.url for attachment in Attachment.parse_all(msg.get("attachments", []))]
 
             if "urn" in msg:
                 msg_urn = URN.format(msg["urn"], formatted=False)
@@ -3065,6 +3066,7 @@ class ExportFlowResultsTask(BaseExportTask):
                     msg_created_on,
                     msg_direction,
                     msg_text,
+                    ", ".join(msg_attachments),
                     msg_channel["name"] if msg_channel else "",
                 ],
             )
