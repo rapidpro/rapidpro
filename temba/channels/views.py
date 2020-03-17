@@ -1796,7 +1796,7 @@ class ChannelCRUDL(SmartCRUDL):
         def get_success_url(self):
             return reverse("orgs.org_home")
 
-    class Configuration(OrgPermsMixin, SmartReadView):
+    class Configuration(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
         def get_context_data(self, **kwargs):
@@ -2093,12 +2093,11 @@ class ChannelLogCRUDL(SmartCRUDL):
     class Connection(AnonMixin, SmartReadView):
         model = ChannelConnection
 
-    class Read(OrgPermsMixin, SmartReadView):
+    class Read(OrgObjPermsMixin, SmartReadView):
         fields = ("description", "created_on")
 
-        def derive_org(self):
-            object = self.get_object()
-            return object.channel.org if object else None
+        def get_object_org(self):
+            return self.get_object().channel.org
 
         def derive_queryset(self, **kwargs):
             queryset = super().derive_queryset(**kwargs)

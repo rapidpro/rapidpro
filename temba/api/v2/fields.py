@@ -212,7 +212,7 @@ class ContactField(TembaModelField):
     def get_object(self, value):
         # try to normalize as URN but don't blow up if it's a UUID
         try:
-            as_urn = URN.identity(URN.normalize(value))
+            as_urn = URN.identity(URN.normalize(str(value)))
         except ValueError:
             as_urn = value
 

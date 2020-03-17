@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-28 14:46+0000\n"
+"POT-Creation-Date: 2020-03-13 19:11+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -2486,7 +2486,7 @@ msgstr ""
 msgid "The Twilio Messaging Service SID"
 msgstr ""
 
-msgid "If you have a Twilio for Whatsapp number, you can connect it to communicate with your Whatsapp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio Whatsapp</a>"
+msgid "If you have a Twilio for WhatsApp number, you can connect it to communicate with your WhatsApp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio WhatsApp</a>"
 msgstr ""
 
 #, fuzzy
@@ -2498,7 +2498,7 @@ msgstr ""
 #| "      "
 msgid ""
 "\n"
-"        To finish configuring your Twilio Whatsapp connection you'll need to add the following URL in your Twilio Inbound Settings.\n"
+"        To finish configuring your Twilio WhatsApp connection you'll need to add the following URL in your Twilio Inbound Settings.\n"
 "        Check the Twilio WhatsApp documentation for more information.\n"
 "        "
 msgstr ""
@@ -2506,12 +2506,12 @@ msgstr ""
 "Para finalizar a configuração da sua conexão Infobip, você precisará definir as URLs de retorno de chamada a seguir, utilizando a sua conta no site do Infobip."
 
 #, fuzzy
-msgid "This endpoint should be called by Twilio when new messages are received by your Twilio Whatsapp number."
+msgid "This endpoint should be called by Twilio when new messages are received by your Twilio WhatsApp number."
 msgstr ""
 "\n"
 "Esse terminal deve ser chamado pelo Hub9 quando o seu número receber novas mensagens. Você pode definir a URL de recebimento na sua conta do Hub9 contatando o seu agente de vendas"
 
-msgid "Only existing Twilio Whatsapp number are supported"
+msgid "Only existing Twilio WhatsApp number are supported"
 msgstr ""
 
 msgid ""
@@ -5306,13 +5306,15 @@ msgstr "Evento do transmissor"
 msgid "Airtime Transferred"
 msgstr ""
 
-msgid "Whatsapp Templates Synced"
+#, fuzzy
+#| msgid "Has Template Error"
+msgid "WhatsApp Templates Synced"
+msgstr "Possui erro no modelo"
+
+msgid "WhatsApp Tokens Synced"
 msgstr ""
 
-msgid "Whatsapp Tokens Synced"
-msgstr ""
-
-msgid "Whatsapp Contacts Refreshed"
+msgid "WhatsApp Contacts Refreshed"
 msgstr ""
 
 msgid "Never"
@@ -5525,6 +5527,18 @@ msgstr ""
 #, fuzzy
 msgid "The organization of the user."
 msgstr "A organização utilizando esse transmissor"
+
+#, python-format
+msgid "%(value)s must be http or https scheme"
+msgstr ""
+
+#, python-format
+msgid "%(value)s host cannot be resolved"
+msgstr ""
+
+#, python-format
+msgid "%(value)s cannot be localhost"
+msgstr ""
 
 msgid "Unique Identifier"
 msgstr ""
@@ -6781,6 +6795,41 @@ msgid ""
 "      "
 msgstr ""
 
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "        You can connect your <a href=\"http://infobip.com\">Infobip</a> number by entering your number, username and password\n"
+#| "        here.\n"
+#| "\n"
+#| "      "
+msgid ""
+"\n"
+"        You can connect a <a href=\"https://www.freshworks.com/live-chat-software/\" target=\"_blank\">FreshChat</a> Account to your %(name)s account\n"
+"        to automate sending and receiving messages via FreshChat. This will also support Apple Business Chat if it's been configured on your FreshChat account.\n"
+"      "
+msgstr ""
+"\n"
+"Você pode conectar seu número <a href=\"http://infobip.com\">Infobip</a> inserindo aqui o seu número, nome de usuário e senha."
+
+msgid "You will need to have a  FreshChat account and get an authentication token and setup a webhook. To do so:"
+msgstr ""
+
+msgid "In the FreshChat web interface, under Settings, API Tokens, select Generate Token. Once the token is created you'll enter it below."
+msgstr ""
+
+msgid "Under Settings again, select Webhooks and copy the Public Key and paste it below. This assures all webhook request from FreshChat will be authenticated."
+msgstr ""
+
+#, python-format
+msgid "Lastly, you'll need the UUID of the Agent that %(name)s will use when it sends FreshChat Message. This is available via the <a href=\"https://developers.freshchat.com/api/#agent\" target=\"_blank\"> FreshChat API</a>."
+msgstr ""
+
+msgid "Once you press Submit below with all the information configured, the confirmation page will give you the URL to use for the FreshChat Webhooks. Enter this URL on the Settings page, under Webhooks where the Public Key was copied from before."
+msgstr ""
+
+msgid "Each Message sent to the channel will have a URN that's in the format of <code>channel-uuid/user-uuid</code> where the channel uuid is the FreshChat Message Channels uuid."
+msgstr ""
+
 #, python-format
 msgid ""
 "\n"
@@ -7192,15 +7241,15 @@ msgstr ""
 #| "        to your number will be charged according to their plan.\n"
 #| "\n"
 #| "      "
-msgid "Once you claim a number you will immediately be able to send and receive Whatsapp messages. Users who send messages to your Whatsapp number will be charged according to their plan."
+msgid "Once you claim a number you will immediately be able to send and receive WhatsApp messages."
 msgstr ""
 "\n"
 "Assim que você solicitar um número, você imediatamente será capaz de enviar e receber mensagens. Os usuários que enviarem mensagens ao seu número serão cobrados de acordo com os planos deles. "
 
-msgid "You do not have any number on your Twilio Account. Please make sure you have a number and that it has access to Twilio Whatsapp."
+msgid "You do not have any number on your Twilio Account. Please make sure you have a number and that it has access to Twilio WhatsApp."
 msgstr ""
 
-msgid "To request access to Twilio Whatsapp"
+msgid "To request access to Twilio WhatsApp"
 msgstr ""
 
 #, fuzzy
@@ -7321,7 +7370,7 @@ msgstr ""
 
 #, fuzzy
 #| msgid "Has Template Error"
-msgid "Whatsapp Templates Events"
+msgid "WhatsApp Templates Events"
 msgstr "Possui erro no modelo"
 
 #, fuzzy
@@ -11356,6 +11405,30 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "        You can connect your <a href=\"http://infobip.com\">Infobip</a> number by entering your number, username and password\n"
+#~| "        here.\n"
+#~| "\n"
+#~| "      "
+#~ msgid "You can connect your <a href=\"http://freshchat.com/\">FreshChat</a> number to %(name)s using the fields below. You will first need to create a DMark Mobile account and receive a username and password from them to use below."
+#~ msgstr ""
+#~ "\n"
+#~ "Você pode conectar seu número <a href=\"http://infobip.com\">Infobip</a> inserindo aqui o seu número, nome de usuário e senha."
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "        Once you claim a number you will immediately be able to send and receive messages. Users who send messages\n"
+#~| "        to your number will be charged according to their plan.\n"
+#~| "\n"
+#~| "      "
+#~ msgid "Once you claim a number you will immediately be able to send and receive Whatsapp messages. Users who send messages to your Whatsapp number will be charged according to their plan."
+#~ msgstr ""
+#~ "\n"
+#~ "Assim que você solicitar um número, você imediatamente será capaz de enviar e receber mensagens. Os usuários que enviarem mensagens ao seu número serão cobrados de acordo com os planos deles. "
 
 #~ msgid "Message History"
 #~ msgstr "Histórico de mensagens"
