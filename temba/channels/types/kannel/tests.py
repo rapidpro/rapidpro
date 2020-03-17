@@ -27,7 +27,7 @@ class KannelTypeTest(TembaTest):
 
         post_data["number"] = "3071"
         post_data["country"] = "RW"
-        post_data["url"] = "http://kannel.temba.com/cgi-bin/sendsms"
+        post_data["url"] = "http://nyaruka.com/cgi-bin/sendsms"
         post_data["verify_ssl"] = False
         post_data["encoding"] = Channel.ENCODING_SMART
 

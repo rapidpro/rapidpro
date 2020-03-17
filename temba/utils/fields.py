@@ -1,7 +1,11 @@
 import json
+import socket
+from urllib import parse
 
 from django import forms
-from django.forms import widgets
+from django.core.validators import URLValidator
+from django.forms import ValidationError, widgets
+from django.utils.translation import ugettext_lazy as _
 
 
 class Select2Field(forms.Field):
@@ -23,6 +27,35 @@ class JSONField(forms.Field):
 class InputWidget(forms.TextInput):
     template_name = "utils/forms/input.haml"
     is_annotated = True
+
+
+def validate_external_url(value):
+    parsed = parse.urlparse(value)
+
+    # if it isn't http or https, fail
+    if parsed.scheme not in ("http", "https"):
+        raise ValidationError(_("%(value)s must be http or https scheme"), params={"value": value})
+
+    # resolve the host
+    try:
+        host = parsed.netloc
+        if parsed.port:
+            host = parsed.netloc[: -(len(str(parsed.port)) + 1)]
+        ip = socket.gethostbyname(host)
+    except Exception:
+        raise ValidationError(_("%(value)s host cannot be resolved"), params={"value": value})
+
+    # check it isn't localhost
+    if ip in ("127.0.0.1", "::1"):
+        raise ValidationError(_("%(value)s cannot be localhost"), params={"value": value})
+
+
+class ExternalURLField(forms.URLField):
+    """
+    Just like a normal URLField but also validates that the URL is external (not localhost)
+    """
+
+    default_validators = [URLValidator(), validate_external_url]
 
 
 class CheckboxWidget(forms.CheckboxInput):

@@ -21,6 +21,7 @@ from django.contrib.auth.models import User
 from django.core import checks
 from django.core.management import CommandError, call_command
 from django.db import connection, models
+from django.forms import ValidationError
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -60,6 +61,7 @@ from .dates import (
 )
 from .email import is_valid_address, send_simple_email
 from .export import TableExporter
+from .fields import validate_external_url
 from .gsm7 import calculate_num_segments, is_gsm7, replace_non_gsm7_accents
 from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
@@ -1828,3 +1830,32 @@ class RedactTest(TestCase):
             ),
             "POST /c/t/23524/receive HTTP/1.1\r\nHost: yy********\r\n\r\n********",
         )
+
+
+class TestValidators(TestCase):
+    def test_validate_external_url(self):
+        cases = (
+            dict(url="ftp://localhost/foo", error="must be http or https scheme"),
+            dict(url="http://localhost/foo", error="cannot be localhost"),
+            dict(url="http://localhost:80/foo", error="cannot be localhost"),
+            dict(url="https://localhost/foo", error="cannot be localhost"),
+            dict(url="http://127.0.00.1/foo", error="cannot be localhost"),
+            dict(url="http://::1:80/foo", error="host cannot be resolved"),  # no ipv6 addresses for now
+            dict(url="http://google.com/foo", error=None),
+            dict(url="http://google.com:8000/foo", error=None),
+            dict(url="HTTP://google.com:8000/foo", error=None),
+        )
+
+        for case in cases:
+            if not case["error"]:
+                try:
+                    validate_external_url(case["url"])
+                except Exception as e:
+                    self.assertIsNone(e)
+
+            else:
+                with self.assertRaises(ValidationError) as cm:
+                    cm.expected.__name__ = f'ValueError for {case["url"]}'
+                    validate_external_url(case["url"])
+
+                self.assertTrue(case["error"] in str(cm.exception), f"{case['error']} not in {cm.exception}")

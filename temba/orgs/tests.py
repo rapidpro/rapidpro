@@ -13,14 +13,12 @@ import stripe.error
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
 from smartmin.csv_imports.models import ImportTask
-from smartmin.tests import SmartminTestMixin
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.core.exceptions import ValidationError
 from django.http import HttpRequest, HttpResponse
-from django.test import TransactionTestCase
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -52,7 +50,7 @@ from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
 from temba.orgs.models import Debit, UserSettings
 from temba.request_logs.models import HTTPLog
-from temba.tests import ESMockWithScroll, MockResponse, TembaTest, TembaTestMixin, matchers
+from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
@@ -185,9 +183,9 @@ class UserTest(TembaTest):
         self.assertFalse(self.org.is_active)
 
 
-class OrgDeleteTest(TransactionTestCase, TembaTestMixin, SmartminTestMixin):
+class OrgDeleteTest(TembaNonAtomicTest):
     def setUp(self):
-        self.setUpOrg()
+        self.setUpOrgs()
         self.setUpLocations()
 
         # set up a sync event and alert on our channel
@@ -499,7 +497,8 @@ class OrgTest(TembaTest):
         self.assertEqual(tigo, self.org.get_channel_for_role(Channel.ROLE_SEND, "tel", tigo_urn))
 
     def test_get_send_channel_for_tel_short_code(self):
-        self.releaseChannels()
+        self.channel.release()
+
         short_code = Channel.create(self.org, self.admin, "RW", "KN", "MTN", "5050")
         Channel.create(self.org, self.admin, "RW", "WA", name="WhatsApp", address="+250788383000", tps=15)
 
@@ -1336,8 +1335,6 @@ class OrgTest(TembaTest):
 
         choose_url = reverse("orgs.org_choose")
 
-        # have a second org
-        self.setUpSecondaryOrg()
         self.login(self.admin)
 
         response = self.client.get(reverse("orgs.org_home"))
@@ -1383,7 +1380,7 @@ class OrgTest(TembaTest):
     def test_topup_admin(self):
         self.login(self.admin)
 
-        topup = TopUp.objects.get()
+        topup = self.org.topups.get()
 
         # admins shouldn't be able to see the create / manage / update pages
         manage_url = reverse("orgs.topup_manage") + "?org=%d" % self.org.id
@@ -1400,17 +1397,21 @@ class OrgTest(TembaTest):
 
         # should list our one topup
         response = self.client.get(manage_url)
-        self.assertEqual(1, len(response.context["object_list"]))
+        self.assertEqual([topup], list(response.context["object_list"]))
 
         # create a new one
-        post_data = dict(price="1000", credits="500", comment="")
-        response = self.client.post(create_url, post_data)
-        self.assertEqual(2, TopUp.objects.filter(org=self.org).count())
+        response = self.client.post(create_url, {"price": "1000", "credits": "500", "comment": ""})
+        self.assertEqual(302, response.status_code)
+
+        self.assertEqual(2, self.org.topups.count())
         self.assertEqual(1500, self.org.get_credits_remaining())
 
         # update one of our topups
-        post_data = dict(is_active=True, price="0", credits="5000", comment="", expires_on="2025-04-03 13:47:46")
-        response = self.client.post(update_url, post_data)
+        response = self.client.post(
+            update_url,
+            {"is_active": True, "price": "0", "credits": "5000", "comment": "", "expires_on": "2025-04-03 13:47:46"},
+        )
+        self.assertEqual(302, response.status_code)
 
         self.assertEqual(5500, self.org.get_credits_remaining())
 
@@ -1437,7 +1438,7 @@ class OrgTest(TembaTest):
     def test_topup_expiration(self):
 
         contact = self.create_contact("Usain Bolt", "+250788123123")
-        welcome_topup = TopUp.objects.get()
+        welcome_topup = self.org.topups.get()
 
         # send some messages with a valid topup
         self.create_incoming_msgs(contact, 10)
@@ -1480,7 +1481,7 @@ class OrgTest(TembaTest):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_user=100_000, multi_org=1_000_000)
 
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
-        welcome_topup = TopUp.objects.get()
+        welcome_topup = self.org.topups.get()
 
         self.create_incoming_msgs(contact, 10)
 

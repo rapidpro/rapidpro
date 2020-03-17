@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-02-28 14:46+0000\n"
+"POT-Creation-Date: 2020-03-13 19:11+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1699,20 +1699,20 @@ msgstr ""
 msgid "The Twilio Messaging Service SID"
 msgstr ""
 
-msgid "If you have a Twilio for Whatsapp number, you can connect it to communicate with your Whatsapp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio Whatsapp</a>"
+msgid "If you have a Twilio for WhatsApp number, you can connect it to communicate with your WhatsApp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio WhatsApp</a>"
 msgstr ""
 
 msgid ""
 "\n"
-"        To finish configuring your Twilio Whatsapp connection you'll need to add the following URL in your Twilio Inbound Settings.\n"
+"        To finish configuring your Twilio WhatsApp connection you'll need to add the following URL in your Twilio Inbound Settings.\n"
 "        Check the Twilio WhatsApp documentation for more information.\n"
 "        "
 msgstr ""
 
-msgid "This endpoint should be called by Twilio when new messages are received by your Twilio Whatsapp number."
+msgid "This endpoint should be called by Twilio when new messages are received by your Twilio WhatsApp number."
 msgstr ""
 
-msgid "Only existing Twilio Whatsapp number are supported"
+msgid "Only existing Twilio WhatsApp number are supported"
 msgstr ""
 
 msgid ""
@@ -4056,13 +4056,13 @@ msgstr ""
 msgid "Airtime Transferred"
 msgstr ""
 
-msgid "Whatsapp Templates Synced"
+msgid "WhatsApp Templates Synced"
 msgstr ""
 
-msgid "Whatsapp Tokens Synced"
+msgid "WhatsApp Tokens Synced"
 msgstr ""
 
-msgid "Whatsapp Contacts Refreshed"
+msgid "WhatsApp Contacts Refreshed"
 msgstr ""
 
 msgid "Never"
@@ -4246,6 +4246,18 @@ msgid "Complete"
 msgstr ""
 
 msgid "The organization of the user."
+msgstr ""
+
+#, python-format
+msgid "%(value)s must be http or https scheme"
+msgstr ""
+
+#, python-format
+msgid "%(value)s host cannot be resolved"
+msgstr ""
+
+#, python-format
+msgid "%(value)s cannot be localhost"
 msgstr ""
 
 msgid "Unique Identifier"
@@ -5103,6 +5115,33 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
+"        You can connect a <a href=\"https://www.freshworks.com/live-chat-software/\" target=\"_blank\">FreshChat</a> Account to your %(name)s account\n"
+"        to automate sending and receiving messages via FreshChat. This will also support Apple Business Chat if it's been configured on your FreshChat account.\n"
+"      "
+msgstr ""
+
+msgid "You will need to have a  FreshChat account and get an authentication token and setup a webhook. To do so:"
+msgstr ""
+
+msgid "In the FreshChat web interface, under Settings, API Tokens, select Generate Token. Once the token is created you'll enter it below."
+msgstr ""
+
+msgid "Under Settings again, select Webhooks and copy the Public Key and paste it below. This assures all webhook request from FreshChat will be authenticated."
+msgstr ""
+
+#, python-format
+msgid "Lastly, you'll need the UUID of the Agent that %(name)s will use when it sends FreshChat Message. This is available via the <a href=\"https://developers.freshchat.com/api/#agent\" target=\"_blank\"> FreshChat API</a>."
+msgstr ""
+
+msgid "Once you press Submit below with all the information configured, the confirmation page will give you the URL to use for the FreshChat Webhooks. Enter this URL on the Settings page, under Webhooks where the Public Key was copied from before."
+msgstr ""
+
+msgid "Each Message sent to the channel will have a URN that's in the format of <code>channel-uuid/user-uuid</code> where the channel uuid is the FreshChat Message Channels uuid."
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
 "        You can connect your <a href=\"http://www.globelabs.com.ph/\">Globe Labs</a> application to %(name)s using the fields below. You\n"
 "        will first need to create a Globe Labs application, then get approval from Globe Labs by sending an email\n"
 "        to <a href:\"mailto:api@globelabsbeta.com\">api@globelabsbeta.com</a>.\n"
@@ -5417,13 +5456,13 @@ msgstr ""
 msgid "You have connected a Twilio Trial Account which has some restrictions."
 msgstr ""
 
-msgid "Once you claim a number you will immediately be able to send and receive Whatsapp messages. Users who send messages to your Whatsapp number will be charged according to their plan."
+msgid "Once you claim a number you will immediately be able to send and receive WhatsApp messages."
 msgstr ""
 
-msgid "You do not have any number on your Twilio Account. Please make sure you have a number and that it has access to Twilio Whatsapp."
+msgid "You do not have any number on your Twilio Account. Please make sure you have a number and that it has access to Twilio WhatsApp."
 msgstr ""
 
-msgid "To request access to Twilio Whatsapp"
+msgid "To request access to Twilio WhatsApp"
 msgstr ""
 
 msgid ""
@@ -5525,7 +5564,7 @@ msgid ""
 "  "
 msgstr ""
 
-msgid "Whatsapp Templates Events"
+msgid "WhatsApp Templates Events"
 msgstr ""
 
 msgid "Templates"

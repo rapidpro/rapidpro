@@ -524,7 +524,6 @@ class ChannelTest(TembaTest):
 
         # test that editors have the channel of the the org the are using
         other_user = self.create_user("Other")
-        self.setUpSecondaryOrg()
         self.org2.administrators.add(other_user)
         self.org.editors.add(other_user)
         self.assertFalse(self.org2.channels.all())
@@ -1020,7 +1019,8 @@ class ChannelTest(TembaTest):
         # Nexmo delegate should have been released as well
         nexmo.refresh_from_db()
         self.assertFalse(nexmo.is_active)
-        self.releaseChannels(delete=True)
+
+        Channel.objects.all().delete()
 
         # check we queued session interrupt tasks for each channel
         mock_queue_interrupt.assert_has_calls(calls=[call(self.org, channel=nexmo), call(self.org, channel=android)])
@@ -1591,6 +1591,51 @@ class ChannelTest(TembaTest):
         self.assertTrue(sms_context["has_outgoing_channel"])
 
 
+class ChannelCRUDLTest(TembaTest):
+    def setUp(self):
+        super().setUp()
+
+        self.ex_channel = Channel.create(
+            self.org,
+            self.admin,
+            "RW",
+            "EX",
+            name="External Channel",
+            address="+250785551313",
+            role="SR",
+            schemes=("tel",),
+            config={"send_url": "http://send.com"},
+        )
+        self.other_org_channel = Channel.create(
+            self.org2,
+            self.admin2,
+            "RW",
+            "EX",
+            name="Other Channel",
+            address="+250785551414",
+            role="SR",
+            secret="45473",
+            schemes=("tel",),
+            config={"send_url": "http://send.com"},
+        )
+
+    def test_configuration(self):
+        config_url = reverse("channels.channel_configuration", args=[self.ex_channel.uuid])
+
+        # can't view configuration if not logged in
+        response = self.client.get(config_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.get(config_url)
+        self.assertContains(response, "To finish configuring your connection")
+
+        # can't view configuration of channel in other org
+        response = self.client.get(reverse("channels.channel_configuration", args=[self.other_org_channel.uuid]))
+        self.assertLoginRedirect(response)
+
+
 class ChannelBatchTest(TembaTest):
     def test_time_utils(self):
         now = timezone.now()
@@ -1976,9 +2021,21 @@ class ChannelCountTest(TembaTest):
 
 
 class ChannelLogTest(TembaTest):
-    def test_channellog_views(self):
+    def test_views(self):
+        other_org_channel = Channel.create(
+            self.org2,
+            self.admin2,
+            "RW",
+            "EX",
+            name="Other Channel",
+            address="+250785551414",
+            role="SR",
+            secret="45473",
+            schemes=("tel",),
+            config={"send_url": "http://send.com"},
+        )
+
         contact = self.create_contact("Fred Jones", "+12067799191")
-        self.setUpSecondaryOrg(100_000)
 
         # create unrelated incoming message
         self.create_incoming_msg(contact, "incoming msg")
@@ -2006,6 +2063,16 @@ class ChannelLogTest(TembaTest):
 
         # create failed call with an interaction log
         self.create_incoming_call(ivr_flow, contact, status=IVRCall.FAILED)
+
+        # create log for other org
+        other_org_contact = self.create_contact("Hans", number="+593979123456")
+        other_org_msg = self.create_outgoing_msg(other_org_contact, "hi", status="D")
+        other_org_log = ChannelLog.objects.create(
+            channel=other_org_channel, msg=other_org_msg, description="Successfully Sent", is_error=False
+        )
+        other_org_log.response = ""
+        other_org_log.request = "POST https://foo.bar/send?msg=failed+message"
+        other_org_log.save(update_fields=["request", "response"])
 
         # can't see the view without logging in
         list_url = reverse("channels.channellog_list", args=[self.channel.uuid])
@@ -2042,6 +2109,10 @@ class ChannelLogTest(TembaTest):
         response = self.client.get(read_url)
         self.assertContains(response, "failed+message")
         self.assertContains(response, "invalid credentials")
+
+        # can't view log from other org
+        response = self.client.get(reverse("channels.channellog_read", args=[other_org_log.id]))
+        self.assertLoginRedirect(response)
 
         # disconnect our msg
         failed_log.msg = None

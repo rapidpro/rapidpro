@@ -58,7 +58,6 @@ class APITest(TembaTest):
             self.org, self.user, None, "TT", name="Twitter Channel", address="billy_bob", role="SR"
         )
 
-        self.setUpSecondaryOrg()
         self.hans = self.create_contact("Hans Gruber", "+4921551511", org=self.org2)
 
         self.org2channel = Channel.create(self.org2, self.user, "RW", "A", name="Org2Channel")
@@ -217,6 +216,8 @@ class APITest(TembaTest):
         field._context = {"org": self.org}
 
         self.assertEqual(field.to_internal_value(self.joe.uuid), self.joe)
+        self.assertEqual(field.to_internal_value(self.joe.get_urn().urn), self.joe)
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, [0])
         self.assertRaises(serializers.ValidationError, field.to_internal_value, [self.joe.uuid, self.frank.uuid])
 
         field = fields.ContactField(source="test", many=True)
@@ -2113,7 +2114,7 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url, fetch_returns=405)
 
         # create some contacts to act on
-        self.releaseContacts(delete=True)
+        self.bulk_release([self.joe, self.frank], user=self.admin, delete=True)
         contact1 = self.create_contact("Ann", "+250788000001")
         contact2 = self.create_contact("Bob", "+250788000002")
         contact3 = self.create_contact("Cat", "+250788000003")
@@ -2225,8 +2226,8 @@ class APITest(TembaTest):
         # unblock contact 1
         response = self.postJSON(url, None, {"contacts": [contact1.uuid], "action": "unblock"})
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(set(Contact.objects.filter(is_blocked=False)), {contact1, contact5})
-        self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact2, contact3, contact4})
+        self.assertEqual(set(self.org.contacts.filter(is_blocked=False)), {contact1, contact5})
+        self.assertEqual(set(self.org.contacts.filter(is_blocked=True)), {contact2, contact3, contact4})
 
         # interrupt any active runs of contacts 1 and 2
         with patch("temba.mailroom.queue_interrupt") as mock_queue_interrupt:
@@ -2244,8 +2245,8 @@ class APITest(TembaTest):
         # delete contacts 1 and 2
         response = self.postJSON(url, None, {"contacts": [contact1.uuid, contact2.uuid], "action": "delete"})
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(set(Contact.objects.filter(is_active=False)), {contact1, contact2, contact5})
-        self.assertEqual(set(Contact.objects.filter(is_active=True)), {contact3, contact4})
+        self.assertEqual(set(self.org.contacts.filter(is_active=False)), {contact1, contact2, contact5})
+        self.assertEqual(set(self.org.contacts.filter(is_active=True)), {contact3, contact4})
         self.assertFalse(Msg.objects.filter(contact__in=[contact1, contact2]).exclude(visibility="D").exists())
         self.assertTrue(Msg.objects.filter(contact=contact3).exclude(visibility="D").exists())
 
@@ -2851,7 +2852,7 @@ class APITest(TembaTest):
         response = self.deleteJSON(url, "uuid=%s" % spammers.uuid)
         self.assert404(response)
 
-        self.release(ContactGroup.user_groups.all())
+        self.bulk_release(ContactGroup.user_groups.all())
 
         for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
             ContactGroup.create_static(self.org2, self.admin2, "group%d" % i)

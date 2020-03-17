@@ -123,8 +123,8 @@
       var queryEditor = $("#request-query-" + slug);
       var bodyEditor = $("#request-body-" + slug);
 
-      var query = queryEditor ? ensureQueryPrefix(queryEditor.val()) : '';
-      var body = bodyEditor ? bodyEditor.val() : null;
+      var query = queryEditor.length ? ensureQueryPrefix(queryEditor.val()) : '';
+      var body = bodyEditor.length ? bodyEditor.val() : null;
 
       $("#result-" + slug).text("Requesting...");
 

@@ -86,40 +86,39 @@
   </style>
   <![endif]-->
 
-  - if all_contact_fields
-    .contact-fields
-      .featured
+  .contact-fields
+    .featured
+      .contact-field
+        .contact-field-label
+          -trans "Created On"
+
+        .contact-field-value
+          {% format_datetime contact.created_on %}
+
+      -if contact_language
         .contact-field
           .contact-field-label
-            -trans "Created On"
+            -trans "Language"
 
           .contact-field-value
-            {% format_datetime contact.created_on %}
+            {{contact_language}}
 
-        -if contact_language
-          .contact-field
-            .contact-field-label
-              -trans "Language"
+      -for field in all_contact_fields|slice:":6"
+        .contact-field{data-id:'{{field.id}}'}
+          .contact-field-label
+            {{field.label|title}}
 
-            .contact-field-value
-              {{contact_language}}
+          .contact-field-value.editable
+            {{field.value}}
 
-        -for field in all_contact_fields|slice:":6"
-          .contact-field{data-id:'{{field.id}}'}
-            .contact-field-label
-              {{field.label|title}}
+    .normal.hide
+      -for field in all_contact_fields|slice:"6:"
+        .contact-field{data-id:'{{field.id}}'}
+          .contact-field-label
+            {{field.label|title}}
 
-            .contact-field-value.editable
-              {{field.value}}
-
-      .normal.hide
-        -for field in all_contact_fields|slice:"6:"
-          .contact-field{data-id:'{{field.id}}'}
-            .contact-field-label
-              {{field.label|title}}
-
-            .contact-field-value.editable
-              {{field.value}}
+          .contact-field-value.editable
+            {{field.value}}
 
   -if all_contact_fields|length > 6
     %a.pull-right.show-all.fields
