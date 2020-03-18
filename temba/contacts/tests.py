@@ -622,7 +622,7 @@ class ContactGroupTest(TembaTest):
         second_trigger.groups.add(group)
 
         response = self.client.get(delete_url, dict(), HTTP_X_PJAX=True)
-        self.assertContains(response, "This group is used by 2 triggers.")
+        self.assertContains(response, 'This group is used by <a href="/trigger/">2 triggers<a>')
 
         response = self.client.post(delete_url, dict())
         self.assertEqual(302, response.status_code)

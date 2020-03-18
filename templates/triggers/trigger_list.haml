@@ -145,7 +145,8 @@
 
                         -if obj.groups.all
                           -trans "for contacts in"
-                          {{ obj.groups.all|join:", " }}
+                          -for group in obj.groups.all
+                            <a href="{% url 'contacts.contact_filter' group.uuid %}">{{ group.name }}</a>{% if not forloop.last %}, {% endif %}
 
                         -if obj.schedule
                           -if obj.schedule.next_fire and not obj.is_archived
