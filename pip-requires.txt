@@ -4,6 +4,7 @@ django-compressor
 django-countries
 django-hamlpy
 django-mptt
+django-prometheus
 django-redis
 django-storages
 django-timezone-field

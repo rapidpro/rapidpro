@@ -178,6 +178,7 @@ if TESTING:
 FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
 
 MIDDLEWARE = (
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -190,6 +191,7 @@ MIDDLEWARE = (
     "temba.middleware.OrgTimezoneMiddleware",
     "temba.middleware.ActivateLanguageMiddleware",
     "temba.middleware.OrgHeaderMiddleware",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 )
 
 # security middleware configuration
@@ -230,6 +232,8 @@ INSTALLED_APPS = (
     "smartmin.users",
     # django-timezone-field
     "timezone_field",
+    # prometheus metrics
+    "django_prometheus",
     # temba apps
     "temba.apks",
     "temba.archives",
