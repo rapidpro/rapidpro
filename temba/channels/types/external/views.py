@@ -160,7 +160,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     success_url = "uuid@channels.channel_configuration"
 
     def derive_initial(self):
-        return {"body": Channel.CONFIG_DEFAULT_SEND_BODY}
+        from .type import ExternalType
+
+        return {"body": ExternalType.CONFIG_DEFAULT_SEND_BODY}
 
     def get_form_class(self):
         if self.request.GET.get("role", None) == "S":  # pragma: needs cover
@@ -169,6 +171,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             return ClaimView.ClaimForm
 
     def form_valid(self, form):
+        from .type import ExternalType
+
         org = self.request.user.get_org()
         data = form.cleaned_data
 
@@ -200,20 +204,20 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         config = {
             Channel.CONFIG_SEND_URL: data["url"],
-            Channel.CONFIG_SEND_METHOD: data["method"],
-            Channel.CONFIG_CONTENT_TYPE: data["content_type"],
-            Channel.CONFIG_MAX_LENGTH: data["max_length"],
+            ExternalType.CONFIG_SEND_METHOD: data["method"],
+            ExternalType.CONFIG_CONTENT_TYPE: data["content_type"],
+            ExternalType.CONFIG_MAX_LENGTH: data["max_length"],
             Channel.CONFIG_ENCODING: data.get("encoding", Channel.ENCODING_DEFAULT),
         }
 
         if "send_authorization" in data:
-            config[Channel.CONFIG_SEND_AUTHORIZATION] = data["send_authorization"]
+            config[ExternalType.CONFIG_SEND_AUTHORIZATION] = data["send_authorization"]
 
         if "body" in data:
-            config[Channel.CONFIG_SEND_BODY] = data["body"]
+            config[ExternalType.CONFIG_SEND_BODY] = data["body"]
 
         if "mt_response_check" in data:
-            config[Channel.CONFIG_MT_RESPONSE_CHECK] = data["mt_response_check"]
+            config[ExternalType.CONFIG_MT_RESPONSE_CHECK] = data["mt_response_check"]
 
         self.object = Channel.add_config_external_channel(
             org, self.request.user, country, address, self.channel_type, config, role, [scheme], parent=channel

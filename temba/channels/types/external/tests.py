@@ -3,6 +3,7 @@ from django.urls import reverse
 from temba.tests import TembaTest
 
 from ...models import Channel
+from .type import ExternalType
 
 
 class ExternalTypeTest(TembaTest):
@@ -46,14 +47,14 @@ class ExternalTypeTest(TembaTest):
         self.assertTrue(channel.uuid)
         self.assertEqual(post_data["number"], channel.address)
         self.assertEqual(post_data["url"], channel.config[Channel.CONFIG_SEND_URL])
-        self.assertEqual(post_data["method"], channel.config[Channel.CONFIG_SEND_METHOD])
-        self.assertEqual(post_data["content_type"], channel.config[Channel.CONFIG_CONTENT_TYPE])
-        self.assertEqual(channel.config[Channel.CONFIG_MAX_LENGTH], 180)
-        self.assertEqual(channel.config[Channel.CONFIG_SEND_AUTHORIZATION], "Token 123")
+        self.assertEqual(post_data["method"], channel.config[ExternalType.CONFIG_SEND_METHOD])
+        self.assertEqual(post_data["content_type"], channel.config[ExternalType.CONFIG_CONTENT_TYPE])
+        self.assertEqual(channel.config[ExternalType.CONFIG_MAX_LENGTH], 180)
+        self.assertEqual(channel.config[ExternalType.CONFIG_SEND_AUTHORIZATION], "Token 123")
         self.assertEqual(channel.channel_type, "EX")
         self.assertEqual(Channel.ENCODING_SMART, channel.config[Channel.CONFIG_ENCODING])
-        self.assertEqual("send=true", channel.config[Channel.CONFIG_SEND_BODY])
-        self.assertEqual("SENT", channel.config[Channel.CONFIG_MT_RESPONSE_CHECK])
+        self.assertEqual("send=true", channel.config[ExternalType.CONFIG_SEND_BODY])
+        self.assertEqual("SENT", channel.config[ExternalType.CONFIG_MT_RESPONSE_CHECK])
 
         config_url = reverse("channels.channel_configuration", args=[channel.uuid])
         self.assertRedirect(response, config_url)
@@ -98,13 +99,13 @@ class ExternalTypeTest(TembaTest):
         )
 
         # raw content type should be loaded on setting page as is
-        channel.config[Channel.CONFIG_CONTENT_TYPE] = "application/x-www-form-urlencoded; charset=utf-8"
+        channel.config[ExternalType.CONFIG_CONTENT_TYPE] = "application/x-www-form-urlencoded; charset=utf-8"
         channel.save()
 
         response = self.client.get(config_url)
         self.assertEqual(response.status_code, 200)
 
-        channel.config[Channel.CONFIG_CONTENT_TYPE] = Channel.CONTENT_TYPE_XML
+        channel.config[ExternalType.CONFIG_CONTENT_TYPE] = Channel.CONTENT_TYPE_XML
         channel.save()
 
         response = self.client.get(config_url)
@@ -152,12 +153,12 @@ class ExternalTypeTest(TembaTest):
         self.assertTrue(channel.uuid)
         self.assertEqual(self.channel.address, channel.address)
         self.assertEqual(post_data["url"], channel.config[Channel.CONFIG_SEND_URL])
-        self.assertEqual(post_data["method"], channel.config[Channel.CONFIG_SEND_METHOD])
-        self.assertEqual(post_data["content_type"], channel.config[Channel.CONFIG_CONTENT_TYPE])
-        self.assertEqual(channel.config[Channel.CONFIG_MAX_LENGTH], 180)
+        self.assertEqual(post_data["method"], channel.config[ExternalType.CONFIG_SEND_METHOD])
+        self.assertEqual(post_data["content_type"], channel.config[ExternalType.CONFIG_CONTENT_TYPE])
+        self.assertEqual(channel.config[ExternalType.CONFIG_MAX_LENGTH], 180)
         self.assertEqual(channel.channel_type, "EX")
         self.assertEqual(Channel.ENCODING_SMART, channel.config[Channel.CONFIG_ENCODING])
-        self.assertEqual("send=true", channel.config[Channel.CONFIG_SEND_BODY])
-        self.assertEqual("SENT", channel.config[Channel.CONFIG_MT_RESPONSE_CHECK])
+        self.assertEqual("send=true", channel.config[ExternalType.CONFIG_SEND_BODY])
+        self.assertEqual("SENT", channel.config[ExternalType.CONFIG_MT_RESPONSE_CHECK])
         self.assertEqual(channel.role, "S")
         self.assertEqual(channel.parent, self.channel)
