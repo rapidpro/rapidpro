@@ -74,6 +74,7 @@ EXPIRES_CHOICES = (
     (60 * 3, _("After 3 hours")),
     (60 * 6, _("After 6 hours")),
     (60 * 12, _("After 12 hours")),
+    (60 * 18, _("After 18 hours")),
     (60 * 24, _("After 1 day")),
     (60 * 24 * 2, _("After 2 days")),
     (60 * 24 * 3, _("After 3 days")),
@@ -372,13 +373,15 @@ class FlowCRUDL(SmartCRUDL):
                     }
                 )
 
-            except FlowValidationException:  # pragma: no cover
+            except FlowValidationException as e:
                 error = _("Your flow failed validation. Please refresh your browser.")
+                detail = str(e)
             except FlowVersionConflictException:
                 error = _(
                     "Your flow has been upgraded to the latest version. "
                     "In order to continue editing, please refresh your browser."
                 )
+                detail = None
             except FlowUserConflictException as e:
                 error = (
                     _(
@@ -387,13 +390,15 @@ class FlowCRUDL(SmartCRUDL):
                     )
                     % e.other_user
                 )
+                detail = None
             except Exception as e:  # pragma: no cover
                 import traceback
 
                 traceback.print_stack(e)
                 error = _("Your flow could not be saved. Please refresh your browser.")
+                detail = None
 
-            return JsonResponse({"status": "failure", "description": error}, status=400)
+            return JsonResponse({"status": "failure", "description": error, "detail": detail}, status=400)
 
     class OrgQuerysetMixin(object):
         def derive_queryset(self, *args, **kwargs):

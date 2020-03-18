@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-18 15:48+0000\n"
+"POT-Creation-Date: 2020-03-18 15:57+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3012,6 +3012,11 @@ msgid "After 6 hours"
 msgstr "Après 6 heures"
 
 msgid "After 12 hours"
+msgstr "Après 12 heures"
+
+#, fuzzy
+#| msgid "After 12 hours"
+msgid "After 18 hours"
 msgstr "Après 12 heures"
 
 msgid "After 1 day"
