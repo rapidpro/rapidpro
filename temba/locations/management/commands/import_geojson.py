@@ -53,7 +53,7 @@ class Command(BaseCommand):
             props = feature.properties
 
             # get parent id which is set in new file format
-            parent_osm_id = props.get("parent_id")
+            parent_osm_id = str(props.get("parent_id"))
 
             # if parent_osm_id is not set and not LEVEL_COUNTRY check for old file format
             if not parent_osm_id and level != AdminBoundary.LEVEL_COUNTRY:
@@ -62,7 +62,7 @@ class Command(BaseCommand):
                 elif level == AdminBoundary.LEVEL_DISTRICT:
                     parent_osm_id = props["is_in_state"]
 
-            osm_id = props["osm_id"]
+            osm_id = str(props["osm_id"])
             name = props.get("name", "")
             if not name or name == "None" or level == AdminBoundary.LEVEL_COUNTRY:
                 name = props.get("name_en", "")
