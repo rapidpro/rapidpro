@@ -74,6 +74,7 @@ EXPIRES_CHOICES = (
     (60 * 3, _("After 3 hours")),
     (60 * 6, _("After 6 hours")),
     (60 * 12, _("After 12 hours")),
+    (60 * 18, _("After 18 hours")),
     (60 * 24, _("After 1 day")),
     (60 * 24 * 2, _("After 2 days")),
     (60 * 24 * 3, _("After 3 days")),
