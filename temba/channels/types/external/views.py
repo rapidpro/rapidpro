@@ -9,6 +9,15 @@ from temba.utils.fields import ExternalURLField
 
 from ...models import Channel
 from ...views import ALL_COUNTRIES, ClaimViewMixin
+from .const import (
+    CONFIG_CONTENT_TYPE,
+    CONFIG_DEFAULT_SEND_BODY,
+    CONFIG_MAX_LENGTH,
+    CONFIG_MT_RESPONSE_CHECK,
+    CONFIG_SEND_AUTHORIZATION,
+    CONFIG_SEND_BODY,
+    CONFIG_SEND_METHOD,
+)
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
@@ -160,7 +169,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     success_url = "uuid@channels.channel_configuration"
 
     def derive_initial(self):
-        return {"body": Channel.CONFIG_DEFAULT_SEND_BODY}
+        return {"body": CONFIG_DEFAULT_SEND_BODY}
 
     def get_form_class(self):
         if self.request.GET.get("role", None) == "S":  # pragma: needs cover
@@ -200,20 +209,20 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         config = {
             Channel.CONFIG_SEND_URL: data["url"],
-            Channel.CONFIG_SEND_METHOD: data["method"],
-            Channel.CONFIG_CONTENT_TYPE: data["content_type"],
-            Channel.CONFIG_MAX_LENGTH: data["max_length"],
+            CONFIG_SEND_METHOD: data["method"],
+            CONFIG_CONTENT_TYPE: data["content_type"],
+            CONFIG_MAX_LENGTH: data["max_length"],
             Channel.CONFIG_ENCODING: data.get("encoding", Channel.ENCODING_DEFAULT),
         }
 
         if "send_authorization" in data:
-            config[Channel.CONFIG_SEND_AUTHORIZATION] = data["send_authorization"]
+            config[CONFIG_SEND_AUTHORIZATION] = data["send_authorization"]
 
         if "body" in data:
-            config[Channel.CONFIG_SEND_BODY] = data["body"]
+            config[CONFIG_SEND_BODY] = data["body"]
 
         if "mt_response_check" in data:
-            config[Channel.CONFIG_MT_RESPONSE_CHECK] = data["mt_response_check"]
+            config[CONFIG_MT_RESPONSE_CHECK] = data["mt_response_check"]
 
         self.object = Channel.add_config_external_channel(
             org, self.request.user, country, address, self.channel_type, config, role, [scheme], parent=channel
