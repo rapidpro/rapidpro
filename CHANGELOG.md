@@ -1,3 +1,15 @@
+v5.5.3
+----------
+ * Update to floweditor 1.8.9
+ * Move EX constants to channel type package
+ * Remove unused deps and address npm security warnings
+ * Add 18 hours as flow expiration option
+ * FlowCRUDL.Revisions should return validation errors from engine as detail field
+ * Allow setting authentication header on External channels
+ * Add normalize contact tels task
+ * Drop full resolution geometry, only keep simplified
+ * Add attachments columns to flow results messages sheet
+
 v5.5.0
 ----------
  * Increase the WA channels tps to 45 by default
