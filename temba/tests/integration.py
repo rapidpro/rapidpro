@@ -7,7 +7,7 @@ import requests
 from django.utils import timezone
 
 from temba.channels.models import Channel
-from temba.channels.types.external.const import CONFIG_CONTENT_TYPE, CONFIG_SEND_BODY, CONFIG_SEND_METHOD
+from temba.channels.types.external.type import ExternalType
 from temba.msgs.models import Msg
 
 
@@ -34,9 +34,9 @@ class TestChannel:
 
         config = {
             Channel.CONFIG_SEND_URL: f"{server.base_url}/send",
-            CONFIG_SEND_METHOD: "POST",
-            CONFIG_CONTENT_TYPE: "application/json",
-            CONFIG_SEND_BODY: '{"text": "{{text}}"}',
+            ExternalType.CONFIG_SEND_METHOD: "POST",
+            ExternalType.CONFIG_CONTENT_TYPE: "application/json",
+            ExternalType.CONFIG_SEND_BODY: '{"text": "{{text}}"}',
         }
 
         db_channel = Channel.add_config_external_channel(
