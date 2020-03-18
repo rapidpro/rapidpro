@@ -372,13 +372,15 @@ class FlowCRUDL(SmartCRUDL):
                     }
                 )
 
-            except FlowValidationException:  # pragma: no cover
+            except FlowValidationException as e:
                 error = _("Your flow failed validation. Please refresh your browser.")
+                detail = str(e)
             except FlowVersionConflictException:
                 error = _(
                     "Your flow has been upgraded to the latest version. "
                     "In order to continue editing, please refresh your browser."
                 )
+                detail = None
             except FlowUserConflictException as e:
                 error = (
                     _(
@@ -387,13 +389,15 @@ class FlowCRUDL(SmartCRUDL):
                     )
                     % e.other_user
                 )
+                detail = None
             except Exception as e:  # pragma: no cover
                 import traceback
 
                 traceback.print_stack(e)
                 error = _("Your flow could not be saved. Please refresh your browser.")
+                detail = None
 
-            return JsonResponse({"status": "failure", "description": error}, status=400)
+            return JsonResponse({"status": "failure", "description": error, "detail": detail}, status=400)
 
     class OrgQuerysetMixin(object):
         def derive_queryset(self, *args, **kwargs):

@@ -1935,7 +1935,7 @@ class FlowTest(TembaTest):
         response = self.client.get(reverse("flows.flow_editor", args=[flow2.uuid]))
         self.assertEqual(302, response.status_code)
 
-    def test_flow_update_error(self):
+    def test_legacy_flow_update_error(self):
 
         flow = self.get_flow("favorites", legacy=True)
         json_dict = flow.as_json()
@@ -1946,9 +1946,12 @@ class FlowTest(TembaTest):
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["description"], "Your flow could not be saved. Please refresh your browser.")
+        self.assertEqual(
+            {"status": "failure", "description": "Your flow could not be saved. Please refresh your browser."},
+            response.json(),
+        )
 
-    def test_validate_legacy_definition(self):
+    def test_legacy_validate_definition(self):
 
         with self.assertRaises(ValueError):
             FlowRevision.validate_legacy_definition({"flow_type": "U", "nodes": []})
@@ -1967,7 +1970,7 @@ class FlowTest(TembaTest):
         with self.assertRaises(ValueError):
             FlowRevision.validate_legacy_definition(self.get_flow_json("non_localized_ruleset"))
 
-    def test_create_dependencies(self):
+    def test_legacy_create_dependencies(self):
         self.login(self.admin)
 
         flow = self.get_flow("favorites", legacy=True)
@@ -1992,7 +1995,7 @@ class FlowTest(TembaTest):
         label = Label.all_objects.get(name="Foo zap")
         self.assertTrue(flow.revisions.filter(definition__contains=str(label.uuid)).last())
 
-    def test_server_runtime_cycle(self):
+    def test_legacy_server_runtime_cycle(self):
         def update_destination(flow, source, destination):
             flow_json = flow.as_json()
 
@@ -2027,7 +2030,7 @@ class FlowTest(TembaTest):
         with self.assertRaises(FlowException):
             update_destination(flow, group_one_rule.uuid, first_actionset.uuid)
 
-    def test_group_dependencies(self):
+    def test_legacy_group_dependencies(self):
         self.get_flow("dependencies", legacy=True)
         flow = Flow.objects.filter(name="Dependencies").first()
 
@@ -2053,7 +2056,7 @@ class FlowTest(TembaTest):
         # global should have been created with blank value
         Global.objects.get(name="Org Name", key="org_name", value="")
 
-    def test_label_dependencies(self):
+    def test_legacy_label_dependencies(self):
         self.get_flow("add_label", legacy=True)
         flow = Flow.objects.filter(name="Add Label").first()
 
@@ -2067,7 +2070,7 @@ class FlowTest(TembaTest):
 
         self.assertEqual(flow.label_dependencies.count(), 0)
 
-    def test_channel_dependencies(self):
+    def test_legacy_channel_dependencies(self):
         self.channel.name = "1234"
         self.channel.save()
 
@@ -2083,7 +2086,7 @@ class FlowTest(TembaTest):
 
         self.assertEqual(flow.channel_dependencies.count(), 0)
 
-    def test_flow_dependencies(self):
+    def test_legacy_flow_dependencies(self):
 
         self.get_flow("dependencies", legacy=True)
         flow = Flow.objects.filter(name="Dependencies").first()
@@ -3689,6 +3692,48 @@ class FlowCRUDLTest(TembaTest):
         self.assertEqual(new_field.label, "New field label")
 
     def test_write_protection(self):
+        flow = self.get_flow("favorites_v13")
+        flow_json = flow.as_json()
+        flow_json_copy = flow_json.copy()
+
+        self.assertEqual(1, flow_json["revision"])
+
+        self.login(self.admin)
+
+        # saving should work
+        flow.save_revision(self.admin, flow_json)
+
+        self.assertEqual(2, flow_json["revision"])
+
+        # we can't save with older revision number
+        with self.assertRaises(FlowUserConflictException):
+            flow.save_revision(self.admin, flow_json_copy)
+
+        # make flow definition invalid by creating a duplicate node UUID
+        mode0_uuid = flow_json["nodes"][0]["uuid"]
+        flow_json["nodes"][1]["uuid"] = mode0_uuid
+
+        with self.assertRaises(FlowValidationException) as cm:
+            flow.save_revision(self.admin, flow_json)
+
+        self.assertEqual(f"unable to read flow: node UUID {mode0_uuid} isn't unique", str(cm.exception))
+
+        # check view converts exception to error response
+        response = self.client.post(
+            reverse("flows.flow_revisions", args=[flow.uuid]), data=flow_json, content_type="application/json"
+        )
+
+        self.assertEqual(400, response.status_code)
+        self.assertEqual(
+            {
+                "status": "failure",
+                "description": "Your flow failed validation. Please refresh your browser.",
+                "detail": f"unable to read flow: node UUID {mode0_uuid} isn't unique",
+            },
+            response.json(),
+        )
+
+    def test_legacy_write_protection(self):
         flow = self.get_flow("favorites", legacy=True)
         flow_json = flow.as_json()
 
