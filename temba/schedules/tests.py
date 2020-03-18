@@ -31,7 +31,7 @@ class ScheduleTest(TembaTest):
             ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
         )
 
-    def test_next_fire(self):
+    def test_schedules(self):
         default_tz = pytz.timezone("Africa/Kigali")
 
         tcs = [
@@ -42,6 +42,7 @@ class ScheduleTest(TembaTest):
                 repeat_period=Schedule.REPEAT_NEVER,
                 first=None,
                 next=[None],
+                display="",
             ),
             dict(
                 label="one time in the future (fire once)",
@@ -50,6 +51,7 @@ class ScheduleTest(TembaTest):
                 repeat_period=Schedule.REPEAT_NEVER,
                 first=datetime(2013, 1, 2, hour=10),
                 next=[],
+                display="in 0\xa0minutes",
             ),
             dict(
                 label="daily repeating starting in the past",
@@ -58,6 +60,7 @@ class ScheduleTest(TembaTest):
                 repeat_period=Schedule.REPEAT_DAILY,
                 first=datetime(2013, 1, 3, hour=10),
                 next=[datetime(2013, 1, 4, hour=10), datetime(2013, 1, 5, hour=10)],
+                display="each day at 10:00",
             ),
             dict(
                 label="monthly across start of DST",
@@ -77,6 +80,7 @@ class ScheduleTest(TembaTest):
                     datetime(2019, 10, 10, hour=10),
                     datetime(2019, 11, 10, hour=10),
                 ],
+                display="each month on the 10th",
             ),
             dict(
                 label="weekly across start of DST",
@@ -87,6 +91,7 @@ class ScheduleTest(TembaTest):
                 tz=pytz.timezone("America/Los_Angeles"),
                 first=datetime(2019, 3, 2, hour=10),
                 next=[datetime(2019, 3, 9, hour=10), datetime(2019, 3, 16, hour=10)],
+                display="each week on Saturday",
             ),
             dict(
                 label="weekly across end of DST",
@@ -97,6 +102,7 @@ class ScheduleTest(TembaTest):
                 tz=pytz.timezone("America/Los_Angeles"),
                 first=datetime(2019, 11, 2, hour=10),
                 next=[datetime(2019, 11, 9, hour=10), datetime(2019, 11, 16, hour=10)],
+                display="each week on Saturday",
             ),
             dict(
                 label="daily across start of DST",
@@ -106,6 +112,7 @@ class ScheduleTest(TembaTest):
                 tz=pytz.timezone("America/Los_Angeles"),
                 first=datetime(2019, 3, 8, hour=10),
                 next=[datetime(2019, 3, 9, hour=10), datetime(2019, 3, 10, hour=10), datetime(2019, 3, 11, hour=10)],
+                display="each day at 10:00",
             ),
             dict(
                 label="daily across end of DST",
@@ -115,6 +122,7 @@ class ScheduleTest(TembaTest):
                 tz=pytz.timezone("America/Los_Angeles"),
                 first=datetime(2019, 11, 2, hour=10),
                 next=[datetime(2019, 11, 3, hour=10), datetime(2019, 11, 4, hour=10), datetime(2019, 11, 5, hour=10)],
+                display="each day at 10:00",
             ),
             dict(
                 label="weekly repeating starting on non weekly day of the week",
@@ -129,6 +137,7 @@ class ScheduleTest(TembaTest):
                     datetime(2013, 1, 10, hour=10),
                     datetime(2013, 1, 12, hour=10),
                 ],
+                display="each week on Thursday, Saturday",
             ),
             dict(
                 label="weekly repeat starting in the past",
@@ -138,6 +147,7 @@ class ScheduleTest(TembaTest):
                 repeat_days_of_week="RS",
                 first=datetime(2013, 1, 3, hour=10),
                 next=[datetime(2013, 1, 5, hour=10), datetime(2013, 1, 10, hour=10), datetime(2013, 1, 12, hour=10)],
+                display="each week on Thursday, Saturday",
             ),
             dict(
                 label="monthly repeat starting in the past",
@@ -150,6 +160,7 @@ class ScheduleTest(TembaTest):
                     datetime(2013, 4, 2, hour=10, minute=35),
                     datetime(2013, 5, 2, hour=10, minute=35),
                 ],
+                display="each month on the 2nd",
             ),
             dict(
                 label="monthly on 31st",
@@ -162,6 +173,7 @@ class ScheduleTest(TembaTest):
                     datetime(2013, 3, 31, hour=10, minute=35),
                     datetime(2013, 4, 30, hour=10, minute=35),
                 ],
+                display="each month on the 31st",
             ),
         ]
 
@@ -202,6 +214,8 @@ class ScheduleTest(TembaTest):
                 next_fire = Schedule.get_next_fire(sched, next_fire)
                 expected_next = tz.localize(next) if next else None
                 self.assertEqual(expected_next, next_fire, f"{label}: {expected_next} != {next_fire}")
+
+            self.assertEqual(tc["display"], sched.get_display(), f"display mismatch for {label}")
 
     def test_schedule_ui(self):
         self.login(self.admin)
