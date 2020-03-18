@@ -28,6 +28,7 @@ class ExternalTypeTest(TembaTest):
         post_data["scheme"] = "tel"
         post_data["content_type"] = Channel.CONTENT_TYPE_JSON
         post_data["max_length"] = 180
+        post_data["send_authorization"] = "Token 123"
         post_data["encoding"] = Channel.ENCODING_SMART
         post_data["mt_response_check"] = "SENT"
 
@@ -48,6 +49,7 @@ class ExternalTypeTest(TembaTest):
         self.assertEqual(post_data["method"], channel.config[Channel.CONFIG_SEND_METHOD])
         self.assertEqual(post_data["content_type"], channel.config[Channel.CONFIG_CONTENT_TYPE])
         self.assertEqual(channel.config[Channel.CONFIG_MAX_LENGTH], 180)
+        self.assertEqual(channel.config[Channel.CONFIG_SEND_AUTHORIZATION], "Token 123")
         self.assertEqual(channel.channel_type, "EX")
         self.assertEqual(Channel.ENCODING_SMART, channel.config[Channel.CONFIG_ENCODING])
         self.assertEqual("send=true", channel.config[Channel.CONFIG_SEND_BODY])
@@ -116,7 +118,7 @@ class ExternalTypeTest(TembaTest):
         response = self.client.get(url)
         self.assertEqual(
             set(response.context["form"].fields.keys()),
-            set(["url", "method", "encoding", "content_type", "max_length", "body", "mt_response_check", "loc"]),
+            set(["url", "method", "encoding", "content_type", "max_length", "send_authorization", "body", "mt_response_check", "loc"]),
         )
 
         post_data = response.context["form"].initial

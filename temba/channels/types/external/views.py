@@ -73,6 +73,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             ),
         )
 
+        send_authorization = forms.CharField(
+            max_length=2048,
+            label=_("Authorization Header Value"),
+            required=False,
+            help_text=_("The Authorization header value added when calling the URL"),
+        )
+
         url = ExternalURLField(
             max_length=1024,
             label=_("Send URL"),
@@ -123,6 +130,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             help_text=_(
                 "The maximum length of any single message on this channel. " "(longer messages will be split)"
             ),
+        )
+
+        send_authorization = forms.CharField(
+            max_length=2048,
+            label=_("Authorization Header Value"),
+            required=False,
+            help_text=_("The Authorization header value added when calling the URL"),
         )
 
         body = forms.CharField(
@@ -191,6 +205,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_MAX_LENGTH: data["max_length"],
             Channel.CONFIG_ENCODING: data.get("encoding", Channel.ENCODING_DEFAULT),
         }
+
+        if "send_authorization" in data:
+            config[Channel.CONFIG_SEND_AUTHORIZATION] = data["send_authorization"]
 
         if "body" in data:
             config[Channel.CONFIG_SEND_BODY] = data["body"]
