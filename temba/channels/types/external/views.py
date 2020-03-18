@@ -161,6 +161,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
     def derive_initial(self):
         from .type import ExternalType
+
         return {"body": ExternalType.CONFIG_DEFAULT_SEND_BODY}
 
     def get_form_class(self):
