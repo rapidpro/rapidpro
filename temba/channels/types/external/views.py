@@ -77,7 +77,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             max_length=2048,
             label=_("Authorization Header Value"),
             required=False,
-            help_text=_("The Authorization header value added when calling the URL"),
+            help_text=_("The Authorization header value added when calling the URL (if any)"),
         )
 
         url = ExternalURLField(
@@ -136,7 +136,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             max_length=2048,
             label=_("Authorization Header Value"),
             required=False,
-            help_text=_("The Authorization header value added when calling the URL"),
+            help_text=_("The Authorization header value added when calling the URL (if any)"),
         )
 
         body = forms.CharField(

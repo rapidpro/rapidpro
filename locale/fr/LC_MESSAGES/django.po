@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-18 14:03+0000\n"
+"POT-Creation-Date: 2020-03-18 15:48+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1031,7 +1031,7 @@ msgstr "Valeur d'en-tête"
 
 #, fuzzy
 #| msgid "What HTTP method to use when calling the URL"
-msgid "The Authorization header value added when calling the URL"
+msgid "The Authorization header value added when calling the URL (if any)"
 msgstr "Quelle méthode HTTP utiliser pour appeler l'URL"
 
 msgid "Send URL"
@@ -10362,6 +10362,11 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy
+#~| msgid "What HTTP method to use when calling the URL"
+#~ msgid "The Authorization header value added when calling the URL"
+#~ msgstr "Quelle méthode HTTP utiliser pour appeler l'URL"
 
 #, fuzzy, python-format
 #~| msgid "%(day)s is not a valid day of the week"
