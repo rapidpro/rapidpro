@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-13 19:11+0000\n"
+"POT-Creation-Date: 2020-03-18 14:03+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -1275,6 +1275,14 @@ msgid "The content type used when sending the request"
 msgstr "O token secreto que este transmissor deve usar ao assinar os pedidos."
 
 msgid "The maximum length of any single message on this channel. (longer messages will be split)"
+msgstr ""
+
+#, fuzzy
+#| msgid "Numeric Value:"
+msgid "Authorization Header Value"
+msgstr "Valor numérico:"
+
+msgid "The Authorization header value added when calling the URL"
 msgstr ""
 
 msgid "Send URL"

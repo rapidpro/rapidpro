@@ -118,7 +118,19 @@ class ExternalTypeTest(TembaTest):
         response = self.client.get(url)
         self.assertEqual(
             set(response.context["form"].fields.keys()),
-            set(["url", "method", "encoding", "content_type", "max_length", "send_authorization", "body", "mt_response_check", "loc"]),
+            set(
+                [
+                    "url",
+                    "method",
+                    "encoding",
+                    "content_type",
+                    "max_length",
+                    "send_authorization",
+                    "body",
+                    "mt_response_check",
+                    "loc",
+                ]
+            ),
         )
 
         post_data = response.context["form"].initial

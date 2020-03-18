@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-13 19:11+0000\n"
+"POT-Creation-Date: 2020-03-18 14:03+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -1360,6 +1360,16 @@ msgstr "El token secreto que este transmisor deberá usar cuando firme los pedid
 
 msgid "The maximum length of any single message on this channel. (longer messages will be split)"
 msgstr ""
+
+#, fuzzy
+#| msgid "Numeric Value:"
+msgid "Authorization Header Value"
+msgstr "Valor numérico:"
+
+#, fuzzy
+#| msgid "What HTTP method to use when calling the URL"
+msgid "The Authorization header value added when calling the URL"
+msgstr "Qué método de HTTP utiliza cuando llama al URL"
 
 msgid "Send URL"
 msgstr "Enviar URL"
