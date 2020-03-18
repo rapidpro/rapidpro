@@ -406,20 +406,20 @@ class ImportGeoJSONtest(TembaTest):
     def test_filename_with_no_features(self):
         with patch("builtins.open", mock_open(read_data=self.data_geojson_no_features)):
             with captured_stdout() as captured_output:
-                call_command("import_geojson", "R188933admin0.json")
+                call_command("import_geojson", "R188933admin0_simplified.json")
 
-        self.assertEqual(captured_output.getvalue(), "=== parsing R188933admin0.json\n")
+        self.assertEqual(captured_output.getvalue(), "=== parsing R188933admin0_simplified.json\n")
 
         self.assertEqual(AdminBoundary.objects.count(), 0)
 
     def test_ok_filename_admin(self):
         with patch("builtins.open", mock_open(read_data=self.data_geojson_level_0)):
             with captured_stdout() as captured_output:
-                call_command("import_geojson", "R188933admin0.json")
+                call_command("import_geojson", "R188933admin0_simplified.json")
 
         self.assertEqual(
             captured_output.getvalue(),
-            "=== parsing R188933admin0.json\n ** adding Granica (R1000)\n ** removing unseen boundaries (R1000)\nOther unseen boundaries removed: 0\n ** updating paths for all of Granica\n",
+            "=== parsing R188933admin0_simplified.json\n ** adding Granica (R1000)\n ** removing unseen boundaries (R1000)\nOther unseen boundaries removed: 0\n ** updating paths for all of Granica\n",
         )
 
         self.assertEqual(AdminBoundary.objects.count(), 1)
@@ -427,11 +427,11 @@ class ImportGeoJSONtest(TembaTest):
     def test_ok_filename_admin_level_with_country_prefix(self):
         with patch("builtins.open", mock_open(read_data=self.data_geojson_level_0)):
             with captured_stdout() as captured_output:
-                call_command("import_geojson", "R188933admin0.json", "--country=R188933")
+                call_command("import_geojson", "R188933admin0_simplified.json", "--country=R188933")
 
         self.assertEqual(
             captured_output.getvalue(),
-            "=== parsing R188933admin0.json\n ** adding Granica (R1000)\n ** removing unseen boundaries (R1000)\nOther unseen boundaries removed: 0\n ** updating paths for all of Granica\n",
+            "=== parsing R188933admin0_simplified.json\n ** adding Granica (R1000)\n ** removing unseen boundaries (R1000)\nOther unseen boundaries removed: 0\n ** updating paths for all of Granica\n",
         )
 
         self.assertEqual(AdminBoundary.objects.count(), 1)
