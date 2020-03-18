@@ -25,13 +25,25 @@ class ExternalType(ChannelType):
     max_length = 160
     attachment_support = False
 
+    CONFIG_SEND_AUTHORIZATION = "send_authorization"
+    CONFIG_MAX_LENGTH = "max_length"
+    CONFIG_SEND_METHOD = "method"
+    CONFIG_SEND_BODY = "body"
+    CONFIG_MT_RESPONSE_CHECK = "mt_response_check"
+    CONFIG_CONTENT_TYPE = "content_type"
+
+    CONFIG_DEFAULT_SEND_BODY = (
+        "id={{id}}&text={{text}}&to={{to}}&to_no_plus={{to_no_plus}}&from={{from}}&from_no_plus={{from_no_plus}}"
+        "&channel={{channel}}"
+    )
+
     def get_configuration_context_dict(self, channel):
         context = dict(channel=channel, ip_addresses=settings.IP_ADDRESSES)
 
         config = channel.config
-        send_method = config.get(Channel.CONFIG_SEND_METHOD)
+        send_method = config.get(ExternalType.CONFIG_SEND_METHOD)
         send_url = config[Channel.CONFIG_SEND_URL]
-        send_body = config.get(Channel.CONFIG_SEND_BODY, Channel.CONFIG_DEFAULT_SEND_BODY)
+        send_body = config.get(ExternalType.CONFIG_SEND_BODY, ExternalType.CONFIG_DEFAULT_SEND_BODY)
 
         example_payload = {
             "to": "+250788123123",
@@ -43,7 +55,7 @@ class ExternalType(ChannelType):
             "channel": str(channel.id),
         }
 
-        content_type = config.get(Channel.CONFIG_CONTENT_TYPE, Channel.CONTENT_TYPE_URLENCODED)
+        content_type = config.get(ExternalType.CONFIG_CONTENT_TYPE, Channel.CONTENT_TYPE_URLENCODED)
         context["example_content_type"] = "Content-Type: " + Channel.CONTENT_TYPES.get(content_type, content_type)
         context["example_url"] = Channel.replace_variables(send_url, example_payload)
         context["example_body"] = Channel.replace_variables(send_body, example_payload, content_type)

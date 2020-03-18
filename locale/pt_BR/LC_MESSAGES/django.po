@@ -1277,6 +1277,14 @@ msgstr "O token secreto que este transmissor deve usar ao assinar os pedidos."
 msgid "The maximum length of any single message on this channel. (longer messages will be split)"
 msgstr ""
 
+#, fuzzy
+#| msgid "Numeric Value:"
+msgid "Authorization Header Value"
+msgstr "Valor numérico:"
+
+msgid "The Authorization header value added when calling the URL (if any)"
+msgstr ""
+
 msgid "Send URL"
 msgstr "Enviar URL"
 

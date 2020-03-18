@@ -937,6 +937,12 @@ msgstr ""
 msgid "The maximum length of any single message on this channel. (longer messages will be split)"
 msgstr ""
 
+msgid "Authorization Header Value"
+msgstr ""
+
+msgid "The Authorization header value added when calling the URL (if any)"
+msgstr ""
+
 msgid "Send URL"
 msgstr ""
 

@@ -1361,6 +1361,16 @@ msgstr "El token secreto que este transmisor deberá usar cuando firme los pedid
 msgid "The maximum length of any single message on this channel. (longer messages will be split)"
 msgstr ""
 
+#, fuzzy
+#| msgid "Numeric Value:"
+msgid "Authorization Header Value"
+msgstr "Valor numérico:"
+
+#, fuzzy
+#| msgid "What HTTP method to use when calling the URL"
+msgid "The Authorization header value added when calling the URL (if any)"
+msgstr "Qué método de HTTP utiliza cuando llama al URL"
+
 msgid "Send URL"
 msgstr "Enviar URL"
 
@@ -12328,6 +12338,11 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "What HTTP method to use when calling the URL"
+#~ msgid "The Authorization header value added when calling the URL"
+#~ msgstr "Qué método de HTTP utiliza cuando llama al URL"
 
 #, fuzzy, python-format
 #~| msgid ""
