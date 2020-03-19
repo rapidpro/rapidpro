@@ -143,11 +143,6 @@
                           %a{href:'{%url "flows.flow_editor" obj.flow.uuid %}'}= obj.flow
                         -trans "flow"
 
-                        -if obj.groups.all
-                          -trans "for contacts in"
-                          -for group in obj.groups.all
-                            <a href="{% url 'contacts.contact_filter' group.uuid %}">{{ group.name }}</a>{% if not forloop.last %}, {% endif %}
-
                         -if obj.schedule
                           -if obj.schedule.next_fire and not obj.is_archived
                             %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
@@ -171,7 +166,7 @@
                             %nobr
                               .icon.icon-users-2
                               .name
-                                {{ group.name }}
+                                <a href="{% url 'contacts.contact_filter' group.uuid %}">{{ group.name }}</a>
 
                     - empty
                       %tr.empty_list
