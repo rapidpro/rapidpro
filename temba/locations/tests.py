@@ -231,7 +231,7 @@ class LocationTest(TembaTest):
         # create a simple boundary with parent
         child_boundary = AdminBoundary.create(osm_id="-2", name="Palm Tree", level=1, parent=boundary)
         self.assertEqual(child_boundary.path, "Null Island > Palm Tree")
-        self.assertIsNone(child_boundary.geometry)
+        self.assertIsNone(child_boundary.simplified_geometry)
 
         wkb_geometry = (
             "0106000000010000000103000000010000000400000000000000407241C01395356EBA0B304000000000602640C0CDC2B7C4027A27"
@@ -240,16 +240,10 @@ class LocationTest(TembaTest):
 
         # create a simple boundary with parent and geometry
         geom_boundary = AdminBoundary.create(
-            osm_id="-3",
-            name="Plum Tree",
-            level=1,
-            parent=boundary,
-            simplified_geometry=wkb_geometry,
-            geometry=wkb_geometry,
+            osm_id="-3", name="Plum Tree", level=1, parent=boundary, simplified_geometry=wkb_geometry
         )
         self.assertEqual(geom_boundary.path, "Null Island > Plum Tree")
         self.assertIsNotNone(geom_boundary.simplified_geometry)
-        self.assertIsNotNone(geom_boundary.geometry)
 
         # path should not be defined when calling AdminBoundary.create
         self.assertRaises(TypeError, AdminBoundary.create, osm_id="-1", name="Null Island", level=0, path="some path")
@@ -412,20 +406,20 @@ class ImportGeoJSONtest(TembaTest):
     def test_filename_with_no_features(self):
         with patch("builtins.open", mock_open(read_data=self.data_geojson_no_features)):
             with captured_stdout() as captured_output:
-                call_command("import_geojson", "R188933admin0.json")
+                call_command("import_geojson", "R188933admin0_simplified.json")
 
-        self.assertEqual(captured_output.getvalue(), "=== parsing R188933admin0.json\n")
+        self.assertEqual(captured_output.getvalue(), "=== parsing R188933admin0_simplified.json\n")
 
         self.assertEqual(AdminBoundary.objects.count(), 0)
 
     def test_ok_filename_admin(self):
         with patch("builtins.open", mock_open(read_data=self.data_geojson_level_0)):
             with captured_stdout() as captured_output:
-                call_command("import_geojson", "R188933admin0.json")
+                call_command("import_geojson", "R188933admin0_simplified.json")
 
         self.assertEqual(
             captured_output.getvalue(),
-            "=== parsing R188933admin0.json\n ** adding Granica (R1000)\n ** removing unseen boundaries (R1000)\nOther unseen boundaries removed: 0\n ** updating paths for all of Granica\n",
+            "=== parsing R188933admin0_simplified.json\n ** adding Granica (R1000)\n ** removing unseen boundaries (R1000)\nOther unseen boundaries removed: 0\n ** updating paths for all of Granica\n",
         )
 
         self.assertEqual(AdminBoundary.objects.count(), 1)
@@ -433,11 +427,11 @@ class ImportGeoJSONtest(TembaTest):
     def test_ok_filename_admin_level_with_country_prefix(self):
         with patch("builtins.open", mock_open(read_data=self.data_geojson_level_0)):
             with captured_stdout() as captured_output:
-                call_command("import_geojson", "R188933admin0.json", "--country=R188933")
+                call_command("import_geojson", "R188933admin0_simplified.json", "--country=R188933")
 
         self.assertEqual(
             captured_output.getvalue(),
-            "=== parsing R188933admin0.json\n ** adding Granica (R1000)\n ** removing unseen boundaries (R1000)\nOther unseen boundaries removed: 0\n ** updating paths for all of Granica\n",
+            "=== parsing R188933admin0_simplified.json\n ** adding Granica (R1000)\n ** removing unseen boundaries (R1000)\nOther unseen boundaries removed: 0\n ** updating paths for all of Granica\n",
         )
 
         self.assertEqual(AdminBoundary.objects.count(), 1)

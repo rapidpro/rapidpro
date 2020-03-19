@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-18 20:44+0000\n"
+"POT-Creation-Date: 2020-03-19 19:37+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -1359,6 +1359,14 @@ msgid "The content type used when sending the request"
 msgstr "El token secreto que este transmisor deberá usar cuando firme los pedidos"
 
 msgid "The maximum length of any single message on this channel. (longer messages will be split)"
+msgstr ""
+
+#, fuzzy
+#| msgid "Numeric Value:"
+msgid "Authorization Header Value"
+msgstr "Valor numérico:"
+
+msgid "The Authorization header value added when calling the URL (if any)"
 msgstr ""
 
 msgid "Send URL"
@@ -5634,6 +5642,23 @@ msgstr "Semanalmente"
 #| msgid "Monthly"
 msgid "Monthly"
 msgstr "Mensualmente"
+
+#, fuzzy, python-format
+#| msgid "Join %(name)s"
+msgid "in %(timeperiod)s"
+msgstr "Participar en %(name)s"
+
+#, python-format
+msgid "each day at %(time)s"
+msgstr ""
+
+#, python-format
+msgid "each week on %(daysofweek)s"
+msgstr ""
+
+#, python-format
+msgid "each month on the %(dayofmonth)s"
+msgstr ""
 
 #, python-format
 msgid "%(day)s is not a valid day of the week"
@@ -12116,14 +12141,6 @@ msgstr "empieza el"
 msgid "flow"
 msgstr "flujo"
 
-#, fuzzy
-#| msgid "Your Contacts"
-msgid "for contacts in"
-msgstr "Sus Contactos"
-
-msgid "will start in"
-msgstr "empezará en"
-
 msgid "is"
 msgstr "no está"
 
@@ -12240,6 +12257,14 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Your Contacts"
+#~ msgid "for contacts in"
+#~ msgstr "Sus Contactos"
+
+#~ msgid "will start in"
+#~ msgstr "empezará en"
 
 #, fuzzy
 #~| msgid ""

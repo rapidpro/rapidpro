@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-18 20:44+0000\n"
+"POT-Creation-Date: 2020-03-19 19:37+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -935,6 +935,12 @@ msgid "The content type used when sending the request"
 msgstr ""
 
 msgid "The maximum length of any single message on this channel. (longer messages will be split)"
+msgstr ""
+
+msgid "Authorization Header Value"
+msgstr ""
+
+msgid "The Authorization header value added when calling the URL (if any)"
 msgstr ""
 
 msgid "Send URL"
@@ -4078,6 +4084,22 @@ msgid "Weekly"
 msgstr ""
 
 msgid "Monthly"
+msgstr ""
+
+#, python-format
+msgid "in %(timeperiod)s"
+msgstr ""
+
+#, python-format
+msgid "each day at %(time)s"
+msgstr ""
+
+#, python-format
+msgid "each week on %(daysofweek)s"
+msgstr ""
+
+#, python-format
+msgid "each month on the %(dayofmonth)s"
 msgstr ""
 
 #, python-format
@@ -8654,12 +8676,6 @@ msgid "starts the"
 msgstr ""
 
 msgid "flow"
-msgstr ""
-
-msgid "for contacts in"
-msgstr ""
-
-msgid "will start in"
 msgstr ""
 
 msgid "is"

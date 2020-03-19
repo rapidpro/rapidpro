@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-18 20:44+0000\n"
+"POT-Creation-Date: 2020-03-19 19:37+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1023,6 +1023,14 @@ msgstr "Le type de contenu utilisé lors de l'envoi de la demande"
 
 msgid "The maximum length of any single message on this channel. (longer messages will be split)"
 msgstr "La longueur maximale d'un seul message sur ce canal. (les messages plus longs seront divisés)"
+
+#, fuzzy
+#| msgid "Header Value"
+msgid "Authorization Header Value"
+msgstr "Valeur d'en-tête"
+
+msgid "The Authorization header value added when calling the URL (if any)"
+msgstr ""
 
 msgid "Send URL"
 msgstr "Envoyer l'URL"
@@ -4377,6 +4385,23 @@ msgstr "Hebdomadairement"
 
 msgid "Monthly"
 msgstr "Mensuellement"
+
+#, fuzzy, python-format
+#| msgid "Join %(name)s"
+msgid "in %(timeperiod)s"
+msgstr "Rejoignez %(name)s"
+
+#, python-format
+msgid "each day at %(time)s"
+msgstr ""
+
+#, python-format
+msgid "each week on %(daysofweek)s"
+msgstr ""
+
+#, python-format
+msgid "each month on the %(dayofmonth)s"
+msgstr ""
 
 #, python-format
 msgid "%(day)s is not a valid day of the week"
@@ -10221,12 +10246,6 @@ msgstr "commence le"
 msgid "flow"
 msgstr "flux"
 
-msgid "for contacts in"
-msgstr "pour les contacts dans"
-
-msgid "will start in"
-msgstr "va commencer dans"
-
 msgid "is"
 msgstr "est"
 
@@ -10322,6 +10341,12 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "for contacts in"
+#~ msgstr "pour les contacts dans"
+
+#~ msgid "will start in"
+#~ msgstr "va commencer dans"
 
 #~ msgid ""
 #~ "\n"
