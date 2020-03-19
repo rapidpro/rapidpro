@@ -206,6 +206,13 @@ class TwitterTypeTest(TembaTest):
         self.sarah.refresh_from_db()
         self.assertFalse(self.sarah.is_stopped)
 
+    def test_update(self):
+        update_url = reverse("channels.channel_update", args=[self.channel.id])
+
+        self.login(self.admin)
+        response = self.client.get(update_url)
+        self.assertEqual(["name", "alert_email", "loc"], list(response.context["form"].fields.keys()))
+
 
 class TwitterClientTest(TembaTest):
     def setUp(self):

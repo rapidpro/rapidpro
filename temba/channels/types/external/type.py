@@ -29,6 +29,7 @@ class ExternalType(ChannelType):
         context = dict(channel=channel, ip_addresses=settings.IP_ADDRESSES)
 
         config = channel.config
+        send_method = config.get(Channel.CONFIG_SEND_METHOD)
         send_url = config[Channel.CONFIG_SEND_URL]
         send_body = config.get(Channel.CONFIG_SEND_BODY, Channel.CONFIG_DEFAULT_SEND_BODY)
 
@@ -47,4 +48,19 @@ class ExternalType(ChannelType):
         context["example_url"] = Channel.replace_variables(send_url, example_payload)
         context["example_body"] = Channel.replace_variables(send_body, example_payload, content_type)
 
+        quick_replies_payload = {}
+
+        if (send_method == "POST" or send_method == "PUT") and content_type == Channel.CONTENT_TYPE_JSON:
+            quick_replies_payload["quick_replies"] = '["One","Two","Three"]'
+        elif (send_method == "POST" or send_method == "PUT") and content_type == Channel.CONTENT_TYPE_XML:
+            quick_replies_payload["quick_replies"] = "<item>One</item><item>Two</item><item>Three</item>"
+        else:
+            quick_replies_payload["quick_replies"] = "&quick_reply=One&quick_reply=Two&quick_reply=Three"
+
+        context["example_url"] = Channel.replace_variables(
+            context["example_url"], quick_replies_payload, "don't encode"
+        )
+        context["example_body"] = Channel.replace_variables(
+            context["example_body"], quick_replies_payload, "don't encode"
+        )
         return context

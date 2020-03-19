@@ -10,7 +10,7 @@
         #big-phone
           %img{ src:"{{ STATIC_URL }}/images/claim_phone.png" }
 
-        %form.claim-form{method:"post", action:"{% url 'channels.channel_claim_android' %}"}
+        %form.claim-form{method:"post", action:"{% url 'channels.types.android.claim' %}"}
           -csrf_token
           .claim-field
             .claim-label
@@ -32,8 +32,6 @@
           .glyph.icon-android
         %span.title-text
           -trans "Connect your Android phone"
-      {% url "public.public_android" as android_public_url %}
-
 
       #little-help
         %p
@@ -48,7 +46,7 @@
 
           -if relayer_app
             .release-header
-              {% trans "Version" %} {{relayer_app.version}} {% trans "was released on" %} {% pretty_datetime relayer_app.created_on %}
+              {% trans "Version" %} {{relayer_app.version}} {% trans "was released on" %} {% format_datetime relayer_app.created_on %}
 
             -if relayer_app.description
               .release-description
@@ -61,10 +59,10 @@
               -trans "Download App"
 
             %p
-              -blocktrans trimmed with brand=brand.name link=brand.link
+              -blocktrans trimmed
                 On your Android device, open your browser and download the app by entering the URL:
               %code
-                {{ link }}{{ android_public_url }}
+                {{ brand.link }}{% url "public.public_android" %}
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim1.png' }

@@ -200,6 +200,16 @@ def history_class(item):
         elif item["type"] == "campaign_fired" and obj.fired_result == EventFire.RESULT_SKIPPED:
             classes.append("skipped")
 
+    if item["type"] not in (
+        "call_started",
+        "campaign_fired",
+        "flow_entered",
+        "flow_exited",
+        "msg_created",
+        "msg_received",
+    ):
+        classes.append("detail-event")
+
     return " ".join(classes)
 
 

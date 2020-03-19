@@ -3,7 +3,7 @@ from smartmin.views import SmartCRUDL, SmartListView, SmartReadView
 from django.shortcuts import get_object_or_404
 
 from temba.classifiers.models import Classifier
-from temba.orgs.views import OrgPermsMixin
+from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
 
 from .models import HTTPLog
 
@@ -32,9 +32,5 @@ class HTTPLogCRUDL(SmartCRUDL):
             context["classifier"] = self.derive_classifier()
             return context
 
-    class Read(OrgPermsMixin, SmartReadView):
+    class Read(OrgObjPermsMixin, SmartReadView):
         fields = ("description", "created_on")
-
-        def derive_queryset(self, **kwargs):
-            queryset = super().derive_queryset(**kwargs)
-            return queryset.filter(org=self.derive_org())

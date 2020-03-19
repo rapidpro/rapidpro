@@ -1,6 +1,8 @@
 from unittest.mock import patch
 from uuid import uuid4
 
+from packaging.version import Version
+
 from django.urls import reverse
 
 from temba.contacts.models import ContactGroup
@@ -144,28 +146,13 @@ class ExpressionsTest(TembaTest):
 
 
 class FlowMigrationTest(TembaTest):
-    def test_is_before_version(self):
-
-        # works with numbers
-        self.assertTrue(Flow.is_before_version(5, 6))
-
-        self.assertTrue(Flow.is_before_version("10", "10.1"))
-        self.assertFalse(Flow.is_before_version("10", "9"))
-
-        # unknown versions return false
-        self.assertFalse(Flow.is_before_version("3.1", "5"))
-        self.assertFalse(Flow.is_before_version("200", "5"))
-        self.assertFalse(Flow.is_before_version("3.1", "3.5"))
-
-        self.assertFalse(Flow.is_before_version(Flow.FINAL_LEGACY_VERSION, 10))
-
     def migrate_flow(self, flow, to_version=None):
 
         if not to_version:
             to_version = Flow.FINAL_LEGACY_VERSION
 
         flow_json = flow.as_json()
-        if Flow.is_before_version(flow.version_number, "6"):
+        if Version(flow.version_number) < Version("6"):
             revision = flow.revisions.all().order_by("-revision").first()
             flow_json = dict(
                 definition=flow_json,
@@ -243,7 +230,7 @@ class FlowMigrationTest(TembaTest):
         revision = flow.revisions.order_by("id").last()
         response = self.client.get("%s%s/" % (reverse("flows.flow_revisions", args=[flow.uuid]), str(revision.id)))
 
-        self.assertEqual(response.json()["spec_version"], "13.0.0")
+        self.assertEqual(response.json()["definition"]["spec_version"], "13.1.0")
 
     def test_migrate_malformed_single_message_flow(self):
 
@@ -253,7 +240,7 @@ class FlowMigrationTest(TembaTest):
             created_by=self.admin,
             modified_by=self.admin,
             saved_by=self.admin,
-            version_number=3,
+            version_number="3",
         )
 
         flow_json = self.get_flow_json("malformed_single_message")["definition"]
@@ -492,7 +479,6 @@ class FlowMigrationTest(TembaTest):
 
     def test_migrate_to_11_12_other_org_new_flow(self):
         # change ownership of the channel it's referencing
-        self.setUpSecondaryOrg()
         self.channel.org = self.org2
         self.channel.save(update_fields=("org",))
 
@@ -512,7 +498,6 @@ class FlowMigrationTest(TembaTest):
         self.assertEqual(flow.revisions.order_by("revision").last().spec_version, "11.11")
 
         # change ownership of the channel it's referencing
-        self.setUpSecondaryOrg()
         self.channel.org = self.org2
         self.channel.save(update_fields=("org",))
 
@@ -1138,7 +1123,9 @@ class FlowMigrationTest(TembaTest):
         flow = Flow.objects.create(
             name="test flow", created_by=self.admin, modified_by=self.admin, org=self.org, saved_by=self.admin
         )
-        flow.update(FlowRevision.migrate_definition(exported_json["flows"][0], flow))
+        flow.update(
+            FlowRevision.migrate_definition(exported_json["flows"][0], flow, to_version=Flow.FINAL_LEGACY_VERSION)
+        )
 
         # can also just import a single flow
         exported_json = self.get_import_json("migrate_to_9", substitutions)
@@ -1306,7 +1293,7 @@ class FlowMigrationTest(TembaTest):
     def test_migrate_revisions(self):
         flow = self.get_flow("favorites_v4", legacy=True)
         rev = flow.revisions.all().first()
-        json_flow = rev.get_definition_json()
+        json_flow = rev.get_definition_json(Flow.FINAL_LEGACY_VERSION)
 
         # remove our flow version from the flow
         del json_flow[Flow.VERSION]
@@ -1314,7 +1301,7 @@ class FlowMigrationTest(TembaTest):
         rev.spec_version = "10"
         rev.save()
 
-        new_rev = flow.update(rev.get_definition_json())
+        new_rev = flow.update(rev.get_definition_json(Flow.FINAL_LEGACY_VERSION))
         self.assertEqual(new_rev.spec_version, Flow.FINAL_LEGACY_VERSION)
 
         flow.refresh_from_db()
@@ -1337,7 +1324,7 @@ class FlowMigrationTest(TembaTest):
         self.assertEqual("https://app.rapidpro.io/demo/status/", webhook_action["url"])
 
         # our test user doesn't use an email address, check for Administrator for the email
-        email_node = order_checker.as_json()["nodes"][9]
+        email_node = order_checker.as_json()["nodes"][10]
         email_action = email_node["actions"][1]
 
         self.assertEqual(["Administrator"], email_action["addresses"])

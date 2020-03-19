@@ -1,9 +1,9 @@
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.types.africastalking.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
 
 from ...models import ChannelType
+from .views import ClaimView
 
 
 class AfricasTalkingType(ChannelType):

@@ -466,7 +466,7 @@ class ChannelReadSerializer(ReadSerializer):
         return str(obj.country) if obj.country else None
 
     def get_device(self, obj):
-        if obj.channel_type != Channel.TYPE_ANDROID:
+        if not obj.is_android():
             return None
 
         return {
@@ -889,7 +889,7 @@ class FlowRunReadSerializer(ReadSerializer):
     }
 
     flow = fields.FlowField()
-    contact = fields.ContactField()
+    contact = fields.ContactField(with_urn=True)
     start = serializers.SerializerMethodField()
     path = serializers.SerializerMethodField()
     values = serializers.SerializerMethodField()
@@ -956,6 +956,7 @@ class FlowStartReadSerializer(ReadSerializer):
     groups = fields.ContactGroupField(many=True)
     contacts = fields.ContactField(many=True)
     extra = serializers.JSONField(required=False)
+    params = serializers.JSONField(required=False, source="extra")
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
@@ -973,6 +974,7 @@ class FlowStartReadSerializer(ReadSerializer):
             "contacts",
             "restart_participants",
             "extra",
+            "params",
             "created_on",
             "modified_on",
         )
@@ -985,6 +987,7 @@ class FlowStartWriteSerializer(WriteSerializer):
     urns = fields.URNListField(required=False)
     restart_participants = serializers.BooleanField(required=False)
     extra = serializers.JSONField(required=False)
+    params = serializers.JSONField(required=False)
 
     def validate_extra(self, value):
         # request is parsed by DRF.JSONParser, and if extra is a valid json it gets deserialized as dict
@@ -993,6 +996,9 @@ class FlowStartWriteSerializer(WriteSerializer):
             raise serializers.ValidationError("Must be a valid JSON object")
 
         return normalize_extra(value)
+
+    def validate_params(self, value):
+        return self.validate_extra(value)
 
     def validate(self, data):
         # need at least one of urns, groups or contacts
@@ -1008,6 +1014,10 @@ class FlowStartWriteSerializer(WriteSerializer):
         groups = self.validated_data.get("groups", [])
         restart_participants = self.validated_data.get("restart_participants", True)
         extra = self.validated_data.get("extra")
+
+        params = self.validated_data.get("params")
+        if params:
+            extra = params
 
         # convert URNs to contacts
         for urn in urns:
@@ -1031,6 +1041,34 @@ class GlobalReadSerializer(ReadSerializer):
     class Meta:
         model = Global
         fields = ("key", "name", "value", "modified_on")
+
+
+class GlobalWriteSerializer(WriteSerializer):
+    value = serializers.CharField(required=True)
+    name = serializers.CharField(
+        required=False,
+        max_length=Global.MAX_NAME_LEN,
+        validators=[UniqueForOrgValidator(queryset=Global.objects.filter(is_active=True), ignore_case=True)],
+    )
+
+    def validate_name(self, value):
+        if not Global.is_valid_name(value):
+            raise serializers.ValidationError("Name contains illegal characters.")
+        key = Global.make_key(value)
+        if not Global.is_valid_key(key):
+            raise serializers.ValidationError("Name creates Key that is invalid")
+        return value
+
+    def save(self):
+        value = self.validated_data["value"]
+        if self.instance:
+            self.instance.value = value
+            self.instance.save(update_fields=("value", "modified_on"))
+            return self.instance
+        else:
+            name = self.validated_data["name"]
+            key = Global.make_key(name)
+            return Global.get_or_create(self.context["org"], self.context["user"], key, name, value)
 
 
 class LabelReadSerializer(ReadSerializer):

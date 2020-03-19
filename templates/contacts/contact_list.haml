@@ -54,7 +54,7 @@
                       {{group.label}}
                       %i.spin.icon-loop
 
-          %div{style:"margin-top: 10px"}
+          %div{style:"margin-top: 10px; margin-bottom:10px;"}
             - if org_perms.contacts.contact_create
               %a#add-contact.btn.btn-block
                 -trans "Create Contact"
@@ -214,7 +214,7 @@
 
                         %td.value-received.field_received
                           %nobr
-                            {% short_datetime object.created_on %}
+                            {% format_datetime object.created_on %}
 
                         // This is needed for action buttons
                         %td.hide
@@ -344,14 +344,16 @@
       var sendEndpoint = "{% url 'msgs.broadcast_send' %}";
       var sendButton = document.querySelector(".send-button");
       var sendModal = document.querySelector("#send-message-modal");
-      sendButton.addEventListener('click', function(){
-        var ids = getCheckedUuids();
-        if (ids.length > 0) {
-          sendModal.setAttribute("endpoint", sendEndpoint + '?c=' + ids);
-        } else {
-          sendModal.setAttribute("endpoint", sendEndpoint);
-        }
-      });
+      if (sendButton) {
+        sendButton.addEventListener('click', function(){
+          var ids = getCheckedUuids();
+          if (ids.length > 0) {
+            sendModal.setAttribute("endpoint", sendEndpoint + '?c=' + ids);
+          } else {
+            sendModal.setAttribute("endpoint", sendEndpoint);
+          }
+        });
+      }
     }
 
     $(document).on('click', '.search-query', function() {
@@ -488,7 +490,7 @@
       modal.setRedirectOnSuccess(true);
       modal.show();
     {% else %}
-      var modal = new Modal('{% trans "Unable to create a dynamic group" %}','{% trans "You cannot create a dynamic group based on <strong>name</strong> or <strong>id</strong>." %}')
+      var modal = new Modal('{% trans "Unable to create a dynamic group" %}','{% trans "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>." %}')
       modal.setListeners({});
       modal.show();
     {% endif %}

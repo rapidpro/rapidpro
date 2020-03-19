@@ -217,6 +217,16 @@ class TwilioTypeTest(TembaTest):
                     mock_numbers.call_args_list[-1][1], dict(voice_application_sid="", sms_application_sid="")
                 )
 
+    def test_update(self):
+        update_url = reverse("channels.channel_update", args=[self.channel.id])
+
+        self.login(self.admin)
+        response = self.client.get(update_url)
+        self.assertEqual(
+            ["name", "address", "country", "alert_email", "allow_international", "loc"],
+            list(response.context["form"].fields.keys()),
+        )
+
     @patch("temba.orgs.models.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_deactivate(self):

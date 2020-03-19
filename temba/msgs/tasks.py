@@ -6,7 +6,6 @@ from django.utils import timezone
 
 from celery.task import task
 
-from temba.channels.models import Channel
 from temba.utils import analytics
 from temba.utils.celery import nonoverlapping_task
 
@@ -138,10 +137,13 @@ def retry_errored_messages():
     """
     Requeues any messages that have errored and have a next attempt in the past
     """
+
+    from temba.channels.types.android import AndroidType
+
     errored_msgs = (
         Msg.objects.filter(direction=OUTGOING, status=ERRORED, next_attempt__lte=timezone.now())
         .exclude(topup=None)
-        .exclude(channel__channel_type=Channel.TYPE_ANDROID)
+        .exclude(channel__channel_type=AndroidType.code)
         .order_by("created_on")
         .prefetch_related("channel")[:5000]
     )

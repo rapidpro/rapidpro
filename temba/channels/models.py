@@ -18,7 +18,7 @@ from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
-from django.db.models import Max, Q, Sum
+from django.db.models import Count, Max, Q, Sum
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template import Context, Engine, TemplateDoesNotExist
@@ -249,15 +249,16 @@ class Channel(TembaModel):
         - prefixed keys are legacy and should be avoided (2018-10-11)
     """
 
-    TYPE_ANDROID = "A"
-
     # keys for various config options stored in the channel config dict
     CONFIG_BASE_URL = "base_url"
     CONFIG_SEND_URL = "send_url"
     CONFIG_SEND_METHOD = "method"
     CONFIG_SEND_BODY = "body"
     CONFIG_MT_RESPONSE_CHECK = "mt_response_check"
-    CONFIG_DEFAULT_SEND_BODY = "id={{id}}&text={{text}}&to={{to}}&to_no_plus={{to_no_plus}}&from={{from}}&from_no_plus={{from_no_plus}}&channel={{channel}}"
+    CONFIG_DEFAULT_SEND_BODY = (
+        "id={{id}}&text={{text}}&to={{to}}&to_no_plus={{to_no_plus}}&from={{from}}&from_no_plus={{from_no_plus}}"
+        "&channel={{channel}}"
+    )
     CONFIG_USERNAME = "username"
     CONFIG_PASSWORD = "password"
     CONFIG_KEY = "key"
@@ -286,6 +287,7 @@ class Channel(TembaModel):
     CONFIG_NUMBER_SID = "number_sid"
     CONFIG_MESSAGING_SERVICE_SID = "messaging_service_sid"
     CONFIG_MAX_CONCURRENT_EVENTS = "max_concurrent_events"
+    CONFIG_ALLOW_INTERNATIONAL = "allow_international"
 
     CONFIG_NEXMO_API_KEY = "nexmo_api_key"
     CONFIG_NEXMO_API_SECRET = "nexmo_api_secret"
@@ -336,18 +338,6 @@ class Channel(TembaModel):
         (CONTENT_TYPE_JSON, _("JSON - application/json")),
         (CONTENT_TYPE_XML, _("XML - text/xml; charset=utf-8")),
     )
-
-    # our default max tps is 50
-    DEFAULT_TPS = 50
-
-    # various hard coded settings for the channel types
-    CHANNEL_SETTINGS = {TYPE_ANDROID: dict(schemes=["tel"], max_length=-1)}
-
-    TYPE_CHOICES = ((TYPE_ANDROID, "Android"),)
-
-    TYPE_ICONS = {TYPE_ANDROID: "icon-channel-android"}
-
-    HIDE_CONFIG_PAGE = [TYPE_ANDROID]
 
     SIMULATOR_CHANNEL = {
         "uuid": "440099cf-200c-4d45-a8e7-4a564f4a0e8b",
@@ -703,7 +693,7 @@ class Channel(TembaModel):
             None,
             anon,
             country,
-            Channel.TYPE_ANDROID,
+            cls.get_type_from_code("A"),
             None,
             None,
             config=config,
@@ -733,8 +723,13 @@ class Channel(TembaModel):
             code = random_string(length)
         return code
 
-    def has_channel_log(self):
-        return self.channel_type != Channel.TYPE_ANDROID
+    def is_android(self):
+        """
+        Is this an Android channel
+        """
+        from .types.android.type import AndroidType
+
+        return self.channel_type == AndroidType.code
 
     def get_delegate_channels(self):
         # detached channels can't have delegates
@@ -798,12 +793,10 @@ class Channel(TembaModel):
         return self.get_type().name
 
     def get_channel_type_name(self):
-        channel_type_display = self.get_channel_type_display()
-
-        if self.channel_type == Channel.TYPE_ANDROID:
+        if self.is_android():
             return _("Android Phone")
         else:
-            return _("%s Channel" % channel_type_display)
+            return _("%s Channel" % self.get_channel_type_display())
 
     def get_address_display(self, e164=False):
         from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, FACEBOOK_SCHEME
@@ -1011,7 +1004,7 @@ class Channel(TembaModel):
         )
 
         # trigger the orphaned channel
-        if trigger_sync and self.channel_type == Channel.TYPE_ANDROID and registration_id:
+        if trigger_sync and self.is_android() and registration_id:
             self.trigger_sync(registration_id)
 
         from temba.triggers.models import Trigger
@@ -1029,7 +1022,7 @@ class Channel(TembaModel):
         Sends a FCM command to trigger a sync on the client
         """
         # androids sync via FCM
-        if self.channel_type == Channel.TYPE_ANDROID:
+        if self.is_android():
             fcm_id = self.config.get(Channel.CONFIG_FCM_ID)
 
             if fcm_id is not None:
@@ -1092,6 +1085,8 @@ class Channel(TembaModel):
             2. Queued over twelve hours ago (something went awry and we need to re-queue)
             3. Errored and are ready for a retry
         """
+
+        from temba.channels.types.android import AndroidType
         from temba.msgs.models import Msg, PENDING, QUEUED, ERRORED, OUTGOING
 
         now = timezone.now()
@@ -1105,7 +1100,7 @@ class Channel(TembaModel):
                 | Q(status=QUEUED, queued_on__lte=hours_ago)
                 | Q(status=ERRORED, next_attempt__lte=now)
             )
-            .exclude(channel__channel_type=Channel.TYPE_ANDROID)
+            .exclude(channel__channel_type=AndroidType.code)
             .exclude(topup=None)
             .order_by("created_on")
         )
@@ -1578,8 +1573,19 @@ class SyncEvent(SmartModel):
     @classmethod
     def trim(cls):
         week_ago = timezone.now() - timedelta(days=7)
-        for event in cls.objects.filter(created_on__lte=week_ago):
-            event.release()
+
+        channels_with_sync_events = (
+            SyncEvent.objects.filter(created_on__lte=week_ago)
+            .values("channel")
+            .annotate(Count("id"))
+            .filter(id__count__gt=1)
+        )
+        for channel_sync_events in channels_with_sync_events:
+            sync_events = SyncEvent.objects.filter(
+                created_on__lte=week_ago, channel_id=channel_sync_events["channel"]
+            ).order_by("-created_on")[1:]
+            for event in sync_events:
+                event.release()
 
 
 @receiver(pre_save, sender=SyncEvent)
@@ -1664,6 +1670,7 @@ class Alert(SmartModel):
 
     @classmethod
     def check_alerts(cls):
+        from temba.channels.types.android import AndroidType
         from temba.msgs.models import Msg
 
         alert_user = get_alert_user()
@@ -1678,7 +1685,7 @@ class Alert(SmartModel):
                 alert.send_resolved()
 
         for channel in (
-            Channel.objects.filter(channel_type=Channel.TYPE_ANDROID, is_active=True)
+            Channel.objects.filter(channel_type=AndroidType.code, is_active=True)
             .exclude(org=None)
             .exclude(last_seen__gte=thirty_minutes_ago)
         ):
@@ -1693,7 +1700,7 @@ class Alert(SmartModel):
         six_hours_ago = timezone.now() - timedelta(hours=6)
 
         # end any sms alerts that are open and no longer seem valid
-        for alert in Alert.objects.filter(alert_type=cls.TYPE_SMS, ended_on=None):
+        for alert in Alert.objects.filter(alert_type=cls.TYPE_SMS, ended_on=None).distinct("channel_id"):
             # are there still queued messages?
 
             if (
@@ -1703,8 +1710,9 @@ class Alert(SmartModel):
                 .exclude(created_on__lte=day_ago)
                 .exists()
             ):
-                alert.ended_on = timezone.now()
-                alert.save()
+                Alert.objects.filter(alert_type=cls.TYPE_SMS, ended_on=None, channel_id=alert.channel_id).update(
+                    ended_on=timezone.now()
+                )
 
         # now look for channels that have many unsent messages
         queued_messages = (

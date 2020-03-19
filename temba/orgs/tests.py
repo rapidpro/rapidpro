@@ -12,14 +12,13 @@ import stripe
 import stripe.error
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
-from smartmin.tests import SmartminTestMixin
+from smartmin.csv_imports.models import ImportTask
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.core.exceptions import ValidationError
 from django.http import HttpRequest, HttpResponse
-from django.test import TransactionTestCase
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -43,6 +42,7 @@ from temba.contacts.models import (
     ExportContactsTask,
 )
 from temba.contacts.omnibox import omnibox_serialize
+from temba.contacts.search import ParsedQuery
 from temba.flows.models import ActionSet, ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
@@ -50,7 +50,7 @@ from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
 from temba.orgs.models import Debit, UserSettings
 from temba.request_logs.models import HTTPLog
-from temba.tests import ESMockWithScroll, MockResponse, TembaTest, TembaTestMixin, matchers
+from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
@@ -61,7 +61,7 @@ from temba.values.constants import Value
 
 from .context_processors import GroupPermWrapper
 from .models import CreditAlert, Invitation, Language, Org, TopUp, TopUpCredits
-from .tasks import squash_topupcredits
+from .tasks import resume_failed_tasks, squash_topupcredits
 
 
 class OrgContextProcessorTest(TembaTest):
@@ -183,9 +183,9 @@ class UserTest(TembaTest):
         self.assertFalse(self.org.is_active)
 
 
-class OrgDeleteTest(TransactionTestCase, TembaTestMixin, SmartminTestMixin):
+class OrgDeleteTest(TembaNonAtomicTest):
     def setUp(self):
-        self.setUpOrg()
+        self.setUpOrgs()
         self.setUpLocations()
 
         # set up a sync event and alert on our channel
@@ -497,7 +497,8 @@ class OrgTest(TembaTest):
         self.assertEqual(tigo, self.org.get_channel_for_role(Channel.ROLE_SEND, "tel", tigo_urn))
 
     def test_get_send_channel_for_tel_short_code(self):
-        self.releaseChannels()
+        self.channel.release()
+
         short_code = Channel.create(self.org, self.admin, "RW", "KN", "MTN", "5050")
         Channel.create(self.org, self.admin, "RW", "WA", name="WhatsApp", address="+250788383000", tps=15)
 
@@ -1334,8 +1335,6 @@ class OrgTest(TembaTest):
 
         choose_url = reverse("orgs.org_choose")
 
-        # have a second org
-        self.setUpSecondaryOrg()
         self.login(self.admin)
 
         response = self.client.get(reverse("orgs.org_home"))
@@ -1381,7 +1380,7 @@ class OrgTest(TembaTest):
     def test_topup_admin(self):
         self.login(self.admin)
 
-        topup = TopUp.objects.get()
+        topup = self.org.topups.get()
 
         # admins shouldn't be able to see the create / manage / update pages
         manage_url = reverse("orgs.topup_manage") + "?org=%d" % self.org.id
@@ -1398,17 +1397,21 @@ class OrgTest(TembaTest):
 
         # should list our one topup
         response = self.client.get(manage_url)
-        self.assertEqual(1, len(response.context["object_list"]))
+        self.assertEqual([topup], list(response.context["object_list"]))
 
         # create a new one
-        post_data = dict(price="1000", credits="500", comment="")
-        response = self.client.post(create_url, post_data)
-        self.assertEqual(2, TopUp.objects.filter(org=self.org).count())
+        response = self.client.post(create_url, {"price": "1000", "credits": "500", "comment": ""})
+        self.assertEqual(302, response.status_code)
+
+        self.assertEqual(2, self.org.topups.count())
         self.assertEqual(1500, self.org.get_credits_remaining())
 
         # update one of our topups
-        post_data = dict(is_active=True, price="0", credits="5000", comment="", expires_on="2025-04-03 13:47:46")
-        response = self.client.post(update_url, post_data)
+        response = self.client.post(
+            update_url,
+            {"is_active": True, "price": "0", "credits": "5000", "comment": "", "expires_on": "2025-04-03 13:47:46"},
+        )
+        self.assertEqual(302, response.status_code)
 
         self.assertEqual(5500, self.org.get_credits_remaining())
 
@@ -1435,7 +1438,7 @@ class OrgTest(TembaTest):
     def test_topup_expiration(self):
 
         contact = self.create_contact("Usain Bolt", "+250788123123")
-        welcome_topup = TopUp.objects.get()
+        welcome_topup = self.org.topups.get()
 
         # send some messages with a valid topup
         self.create_incoming_msgs(contact, 10)
@@ -1478,7 +1481,7 @@ class OrgTest(TembaTest):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_user=100_000, multi_org=1_000_000)
 
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
-        welcome_topup = TopUp.objects.get()
+        welcome_topup = self.org.topups.get()
 
         self.create_incoming_msgs(contact, 10)
 
@@ -2646,6 +2649,91 @@ class OrgTest(TembaTest):
         )
         self.assertAlmostEqual(self.org.account_value(), 1.23)
 
+    @patch("temba.msgs.tasks.export_messages_task.delay")
+    @patch("temba.flows.tasks.export_flow_results_task.delay")
+    @patch("temba.contacts.tasks.export_contacts_task.delay")
+    @patch("smartmin.csv_imports.models.ImportTask.start")
+    def test_resume_failed_task(
+        self, mock_import_task, mock_export_contacts_task, mock_export_flow_results_task, mock_export_messages_task
+    ):
+        mock_import_task.return_value = None
+        mock_export_contacts_task.return_value = None
+        mock_export_flow_results_task.return_value = None
+        mock_export_messages_task.return_value = None
+
+        filename = "sample_contacts.xls"
+        import_params = dict(
+            org_id=self.org.id, timezone=str(self.org.timezone), extra_fields=[], original_filename=filename
+        )
+
+        ImportTask.objects.create(
+            created_by=self.admin,
+            modified_by=self.admin,
+            csv_file="test_imports/" + filename,
+            model_class="Contact",
+            import_params=json.dumps(import_params),
+            import_log="",
+            task_id="A",
+            task_status=ImportTask.FAILURE,
+        )
+
+        ImportTask.objects.create(
+            created_by=self.admin,
+            modified_by=self.admin,
+            csv_file="test_imports/" + filename,
+            model_class="Contact",
+            import_params=json.dumps(import_params),
+            import_log="",
+            task_id="A",
+            task_status=ImportTask.SUCCESS,
+        )
+
+        ImportTask.objects.create(
+            created_by=self.admin,
+            modified_by=self.admin,
+            csv_file="test_imports/" + filename,
+            model_class="Contact",
+            import_params=json.dumps(import_params),
+            import_log="",
+            task_id="B",
+        )
+
+        ExportMessagesTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportMessagesTask.STATUS_FAILED
+        )
+        ExportMessagesTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportMessagesTask.STATUS_COMPLETE
+        )
+        ExportMessagesTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
+
+        ExportFlowResultsTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportFlowResultsTask.STATUS_FAILED
+        )
+        ExportFlowResultsTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportFlowResultsTask.STATUS_COMPLETE
+        )
+        ExportFlowResultsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
+
+        ExportContactsTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportContactsTask.STATUS_FAILED
+        )
+        ExportContactsTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportContactsTask.STATUS_COMPLETE
+        )
+        ExportContactsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
+
+        two_hours_ago = timezone.now() - timedelta(hours=2)
+        ImportTask.objects.all().update(modified_on=two_hours_ago)
+        ExportMessagesTask.objects.all().update(modified_on=two_hours_ago)
+        ExportFlowResultsTask.objects.all().update(modified_on=two_hours_ago)
+        ExportContactsTask.objects.all().update(modified_on=two_hours_ago)
+
+        resume_failed_tasks()
+        mock_import_task.assert_called_once()
+        mock_export_contacts_task.assert_called_once()
+        mock_export_flow_results_task.assert_called_once()
+        mock_export_messages_task.assert_called_once()
+
 
 class AnonOrgTest(TembaTest):
     """
@@ -2674,16 +2762,6 @@ class AnonOrgTest(TembaTest):
         # but the id is
         self.assertContains(response, masked)
         self.assertContains(response, ContactURN.ANON_MASK_HTML)
-
-        # can't search for it
-        with patch("temba.utils.es.ES") as mock_ES:
-            mock_ES.search.return_value = {"_hits": []}
-            mock_ES.count.return_value = {"count": 0}
-            response = self.client.get(reverse("contacts.contact_list") + "?search=788")
-
-            # can't look for 788 as that is in the search box..
-            self.assertNotContains(response, "123123")
-            self.assertContains(response, "No matching contacts.")
 
         # create an outgoing message, check number doesn't appear in outbox
         msg1 = self.create_outgoing_msg(contact, "hello", status="Q")
@@ -3522,7 +3600,7 @@ class BulkExportTest(TembaTest):
 
         # now make sure a call to get dependencies succeeds and shows our flow
         triggeree = Flow.objects.filter(name="Triggeree").first()
-        self.assertIn(triggeree, flow.get_dependencies())
+        self.assertIn(triggeree, flow.flow_dependencies.all())
 
     def test_trigger_flow(self):
         self.import_file("triggered_flow", legacy=True)
@@ -3556,7 +3634,7 @@ class BulkExportTest(TembaTest):
 
         parent = Flow.objects.filter(name="Parent Flow").first()
         child = Flow.objects.filter(name="Child Flow").first()
-        self.assertIn(child, parent.get_dependencies())
+        self.assertIn(child, parent.flow_dependencies.all())
 
         self.login(self.admin)
         response = self.client.get(reverse("orgs.org_export"))
@@ -3751,7 +3829,7 @@ class BulkExportTest(TembaTest):
         group = ContactGroup.user_groups.get(name="Survey Audience")
 
         child = Flow.objects.get(name="New Child")
-        self.assertEqual(child.version_number, "13.0.0")
+        self.assertEqual(child.version_number, Flow.CURRENT_SPEC_VERSION)
         self.assertEqual(set(child.flow_dependencies.all()), set())
         self.assertEqual(set(child.group_dependencies.all()), {group})
 
@@ -3820,31 +3898,31 @@ class BulkExportTest(TembaTest):
             )
 
     def validate_flow_dependencies(self, definition):
-        flow_info = mailroom.get_client().flow_inspect(definition)
+        flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
         deps = flow_info["dependencies"]
 
-        for ref in deps.get("fields", []):
+        for dep in [d for d in deps if d["type"] == "field"]:
             self.assertTrue(
-                ContactField.user_fields.filter(key=ref["key"]).exists(),
-                msg=f"missing field[key={ref['key']}, name={ref['name']}]",
+                ContactField.user_fields.filter(key=dep["key"]).exists(),
+                msg=f"missing field[key={dep['key']}, name={dep['name']}]",
             )
-        for ref in deps.get("flows", []):
+        for dep in [d for d in deps if d["type"] == "flow"]:
             self.assertTrue(
-                Flow.objects.filter(uuid=ref["uuid"]).exists(),
-                msg=f"missing flow[uuid={ref['uuid']}, name={ref['name']}]",
+                Flow.objects.filter(uuid=dep["uuid"]).exists(),
+                msg=f"missing flow[uuid={dep['uuid']}, name={dep['name']}]",
             )
-        for ref in deps.get("groups", []):
+        for dep in [d for d in deps if d["type"] == "group"]:
             self.assertTrue(
-                ContactGroup.user_groups.filter(uuid=ref["uuid"]).exists(),
-                msg=f"missing group[uuid={ref['uuid']}, name={ref['name']}]",
+                ContactGroup.user_groups.filter(uuid=dep["uuid"]).exists(),
+                msg=f"missing group[uuid={dep['uuid']}, name={dep['name']}]",
             )
 
     def test_implicit_field_and_group_imports(self):
         """
         Tests importing flow definitions without fields and groups included in the export
         """
-
         data = self.get_import_json("cataclysm")
+
         del data["fields"]
         del data["groups"]
 
@@ -3865,11 +3943,15 @@ class BulkExportTest(TembaTest):
         """
         Tests importing flow definitions with groups included in the export but not fields
         """
-
         data = self.get_import_json("cataclysm")
         del data["fields"]
 
-        with ESMockWithScroll():
+        with patch("temba.contacts.search.parse_query") as mock:
+            mock.side_effect = [
+                ParsedQuery("facts_per_day = 1", ["facts_per_day"], {}, allow_as_group=True),
+                ParsedQuery('likes_cats = "true"', ["likes_cats"], {}, allow_as_group=True),
+            ]
+
             self.org.import_app(data, self.admin, site="http://rapidpro.io")
 
         flow = Flow.objects.get(name="Cataclysmic")
@@ -3901,8 +3983,11 @@ class BulkExportTest(TembaTest):
         """
         Tests importing flow definitions with groups and fields included in the export
         """
-
-        with ESMockWithScroll():
+        with patch("temba.contacts.search.parse_query") as mock:
+            mock.side_effect = [
+                ParsedQuery("facts_per_day = 1", ["facts_per_day"], {}, allow_as_group=True),
+                ParsedQuery('likes_cats = "true"', ["likes_cats"], {}, allow_as_group=True),
+            ]
             self.import_file("cataclysm")
 
         flow = Flow.objects.get(name="Cataclysmic")

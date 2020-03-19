@@ -3,6 +3,7 @@ import datetime
 import os
 from collections import OrderedDict
 from decimal import Decimal
+from io import StringIO
 from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
@@ -20,6 +21,7 @@ from django.contrib.auth.models import User
 from django.core import checks
 from django.core.management import CommandError, call_command
 from django.db import connection, models
+from django.forms import ValidationError
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -59,6 +61,7 @@ from .dates import (
 )
 from .email import is_valid_address, send_simple_email
 from .export import TableExporter
+from .fields import validate_external_url
 from .gsm7 import calculate_num_segments, is_gsm7, replace_non_gsm7_accents
 from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
@@ -470,22 +473,29 @@ class TemplateTagTest(TembaTest):
         self.assertEqual("icon-tree", icon(flow))
         self.assertEqual("", icon(None))
 
-    def test_pretty_datetime(self):
+    def test_format_datetime(self):
         import pytz
-        from temba.utils.templatetags.temba import pretty_datetime
+        from temba.utils.templatetags.temba import format_datetime
 
         with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
             self.org.date_format = "D"
             self.org.save()
 
+            # date without timezone and no user org in context
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
+            self.assertEqual("20-07-2012 17:05", format_datetime(dict(), test_date))
+
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            self.assertEqual("20-07-2012 17:05", format_datetime(dict(), test_date))
+
             context = dict(user_org=self.org)
 
             # date without timezone
             test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
-            self.assertEqual("20 July 2012 19:05", pretty_datetime(context, test_date))
+            self.assertEqual("20-07-2012 19:05", format_datetime(context, test_date))
 
             test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
-            self.assertEqual("20 July 2012 19:05", pretty_datetime(context, test_date))
+            self.assertEqual("20-07-2012 19:05", format_datetime(context, test_date))
 
             # the org has month first configured
             self.org.date_format = "M"
@@ -493,10 +503,10 @@ class TemplateTagTest(TembaTest):
 
             # date without timezone
             test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
-            self.assertEqual("July 20, 2012 7:05 pm", pretty_datetime(context, test_date))
+            self.assertEqual("07-20-2012 19:05", format_datetime(context, test_date))
 
             test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
-            self.assertEqual("July 20, 2012 7:05 pm", pretty_datetime(context, test_date))
+            self.assertEqual("07-20-2012 19:05", format_datetime(context, test_date))
 
     def test_short_datetime(self):
         with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
@@ -1157,6 +1167,25 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
             call_command("test_db", num_orgs=3, num_contacts=30, seed=1234)
 
 
+class PreDeployTest(TembaTest):
+    def test_command(self):
+        buffer = StringIO()
+        call_command("pre_deploy", stdout=buffer)
+
+        self.assertEqual("", buffer.getvalue())
+
+        ExportContactsTask.create(self.org, self.admin)
+        ExportContactsTask.create(self.org, self.admin)
+
+        buffer = StringIO()
+        call_command("pre_deploy", stdout=buffer)
+
+        self.assertEqual(
+            "WARNING: there are 2 unfinished tasks of type contact-export. Last one started 0\xa0minutes ago.\n",
+            buffer.getvalue(),
+        )
+
+
 class JsonModelTestDefaultNull(models.Model):
     field = JSONAsTextField(default=dict, null=True)
 
@@ -1801,3 +1830,32 @@ class RedactTest(TestCase):
             ),
             "POST /c/t/23524/receive HTTP/1.1\r\nHost: yy********\r\n\r\n********",
         )
+
+
+class TestValidators(TestCase):
+    def test_validate_external_url(self):
+        cases = (
+            dict(url="ftp://localhost/foo", error="must be http or https scheme"),
+            dict(url="http://localhost/foo", error="cannot be localhost"),
+            dict(url="http://localhost:80/foo", error="cannot be localhost"),
+            dict(url="https://localhost/foo", error="cannot be localhost"),
+            dict(url="http://127.0.00.1/foo", error="cannot be localhost"),
+            dict(url="http://::1:80/foo", error="host cannot be resolved"),  # no ipv6 addresses for now
+            dict(url="http://google.com/foo", error=None),
+            dict(url="http://google.com:8000/foo", error=None),
+            dict(url="HTTP://google.com:8000/foo", error=None),
+        )
+
+        for case in cases:
+            if not case["error"]:
+                try:
+                    validate_external_url(case["url"])
+                except Exception as e:
+                    self.assertIsNone(e)
+
+            else:
+                with self.assertRaises(ValidationError) as cm:
+                    cm.expected.__name__ = f'ValueError for {case["url"]}'
+                    validate_external_url(case["url"])
+
+                self.assertTrue(case["error"] in str(cm.exception), f"{case['error']} not in {cm.exception}")
