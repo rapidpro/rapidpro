@@ -1,3 +1,8 @@
+v5.5.4
+----------
+ * Show better summary of schedules on trigger list page
+ * Fix display of trigger on contact group delete modal
+
 v5.5.3
 ----------
  * Update to floweditor 1.8.9
