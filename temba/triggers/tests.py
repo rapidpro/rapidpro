@@ -61,6 +61,7 @@ class TriggerTest(TembaTest):
 
         trigger = Trigger.objects.get(keyword="١٠٠")
         self.assertEqual(flow, trigger.flow)
+        self.assertEqual('Trigger[type=K, flow="Color Flow"]', str(trigger))
 
         # non-latin keyword (Hindi)
         self.client.post(reverse("triggers.trigger_keyword"), {"keyword": "मिलाए", "flow": flow.id, "match_type": "F"})
