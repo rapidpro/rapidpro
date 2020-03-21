@@ -119,15 +119,19 @@
       text-align: center;
     }
 
+    #grid {
+      background-color: #f9f9f9;
+      background-position: 13px 13px;
+      background-image: linear-gradient(0deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent),linear-gradient(90deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent);
+      background-size: 40px 40px;
+    }
+
     #rp-flow-editor {
       visibility: visible;
       min-height: 1000px;
       width: 100%;
       
-      background-color: #f9f9f9;
-      background-position: 13px 13px;
-      background-image: linear-gradient(0deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent),linear-gradient(90deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent);
-      background-size: 40px 40px;
+
     }
 
     #rp-flow-editor > div {
@@ -166,6 +170,7 @@
     }
 
     function handleEditorLoaded() {
+      $('temba-loading').hide();
       $('#rp-flow-editor > div').css('opacity', '1')
     }
 
@@ -313,6 +318,8 @@
           -blocktrans
             This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
 
-  #rp-flow-editor
+
+  #grid
     <temba-loading units="10" size="8"></temba-loading>
+    #rp-flow-editor
 
