@@ -31,18 +31,15 @@
         .span3.sidebox
           %div.contacts{style:"margin-bottom: 10px"}
             - if org_perms.contacts.contact_import
-              %a#id_import_contacts.btn.btn-primary.btn-block{href:"{% url 'contacts.contact_import' %}"}
-                -trans "Import Contacts"
-            - if org_perms.contacts.contact_invite_participants
-              %a#id_invite_participants.btn.btn-primary.btn-block{href:"{% url 'contacts.contact_invite_participants' %}"}
-                -trans "Invite Participants"
+              %a#id_manage_contacts.btn.btn-primary.btn-block{href:"{% url 'contacts.contact_list' %}"}
+                -trans "Manage Contacts"
 
           #sidebar-nav
             %ul.nav.nav-list
               %li.nav-header
                 -trans "Contacts"
               - for folder in folders
-                %li{'class':'{% if request.path == folder.url %}active{% endif %}'}
+                %li{'class':'{% if request.get_full_path == folder.url %}active{% endif %}'}
                   %a{'href':'{{folder.url}}'}
                     {{folder.label}} ({{ folder.count | intcomma }})
 
@@ -50,92 +47,30 @@
                 -trans "Groups"
               - for group in groups
                 %li{'class':'{% if current_group.id == group.pk %}active{% endif %}'}
-                  %a{'href':'{% url "contacts.contact_filter" group.uuid %}'}
+                  %a{'href':'{% url "contacts.contact_invite_participants"  %}?group={{group.uuid}}'}
                     -if group.is_ready
                       {{group.label}} ({{ group.count | intcomma }})
                     -else
                       {{group.label}}
                       %i.spin.icon-loop
 
-          %div{style:"margin-top: 10px"}
-            - if org_perms.contacts.contact_create
-              %a#add-contact.btn.btn-block
-                -trans "Create Contact"
-            - if org_perms.contacts.contactgroup_create
-              %a#id_add_group.btn.btn-block
-                -trans "Create Group"
-
         - if has_contacts
           - block contacts-list
             .span9
 
-              - block buttons
+              .control-group
+                %label.control-label
+                  %trans Opt-in flow
 
-                .pull-right
-                  -block buttons-right
-                    -block gear-menu
-                      -include "gear_links_include.haml"
-
-                - if org_perms.contacts.contact_update
-                  .list-buttons-container
-                    .list-buttons
-                      - if 'block' in actions
-                        %span.btn-group
-                          %a.object-btn-block{'href':'#'}
-                            %button.btn
-                              .glyph.icon-user-block
-                              -trans "Block"
-
-                      - if 'unblock' in actions
-                        %span.btn-group
-                          %a.object-btn-unblock{'href':'#'}
-                            %button.btn
-                              .glyph.icon-user
-                              -trans "Unblock"
-
-                      - if 'unstop' in actions
-                        %span.btn-group
-                          %a.object-btn-unstop{'href':'#'}
-                            %button.btn
-                              .glyph.icon-user
-                              -trans "Unstop"
-
-                      - if 'delete' in actions
-                        %span.btn-group
-                          %a.contacts-btn-delete{'href':'#'}
-                            %button.btn
-                              .glyph.icon-user-delete
-                              -trans "Delete"
-
-                      - if 'unlabel' in actions
-                        %span.btn-group
-                          %a{'href':'#', onclick:'unlabelObjectRows({{current_group.pk}})'}
-                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Remove from Group" %}'}
-                              .glyph.icon-user-remove
-
-                      - if 'label' in actions
-                        %span.btn-group
-                          %button.btn.dropdown-toggle{'data-toggle':"dropdown", data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Contact Groups" %}'}
-                            .glyph.icon-users-2
-                            %span.caret
-                          %ul.dropdown-menu.label-menu
-                            - for group in groups
-                              - if not group.is_dynamic
-                                %li
-                                  %a.lbl-menu{'href':'#', onclick:'addContactToGroup({{group.pk}})', data-id:'{{group.pk}}'}
-                                    .glyph.label-checkbox
-                                    = group.label
-                            - if org_perms.contacts.contactgroup_create
-                              - if groups
-                                %li.divider
-                              %li
-                                %a.lbl-menu.add-group{ href:'#' }
-                                  - trans "New Group..."
-
-                      - if org_perms.msgs.broadcast_send and not reply_disabled
-                        %span.btn-group
-                          %button.send-button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Send Message" %}'}
-                            .glyph.icon-bubble-replu
+                .controls
+                  %select#id_opt_in_flow{ name:"country", float:'left'}
+                    - for flow in flows
+                      %option{ value:"{{flow.uuid}}" }
+                        {{ flow.name }}
+                  %a.btn.btn-primary{href:"#"}
+                    %trans Save
+                  %a#id_open_in_flow_editor.btn-block{href:"{% url 'flows.flow_editor' 'uuid' %}"}
+                    %trans Open in the flow editor
 
               .search-details
                 -if search_error
@@ -150,11 +85,8 @@
               .list-container
                 %table.list-table.contact_list.table.object-list.table.table-condensed{style: '{% if not org_perms.contacts.contact_update %}margin-top:10px{% endif %}'}
                   %tr.contacts
-                    - if org_perms.contacts.contact_update
-                      %th
-
-                    %th
-                    %th
+                    %th User
+                    %th Phone
                     -for field in contact_fields
                       -if field.show_in_table
                         %th
@@ -193,14 +125,11 @@
                             %div
                               -trans "Created On"
                               %span.sort.icon.icon-arrow-down-2.sort-desc
+                      %th
 
                   %tbody
                     - for object in contacts
                       %tr.contact.select-row.object-row{'class':'{% cycle row1 row2 %}', 'data-uuid': '{{object.uuid}}', 'data-object-id':'{{object.id}}'}
-
-                        - if org_perms.contacts.contact_update or org_perms.msgs.broadcast_send
-                          %td.contact.checkbox.object-row-checkbox
-                            .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox
 
                         %td.value-text.field_name
                           {{ object|name:user_org }}
@@ -217,6 +146,10 @@
                         %td.value-received.field_received
                           %nobr
                             {% short_datetime object.created_on %}
+                        
+                        %td.value-received.field_received
+                          %a.invite.btn.btn-primary.btn-block{href:"{% url 'contacts.contact_invite_participants' %}"}
+                            -trans "Invite"
 
                         // This is needed for action buttons
                         %td.hide
@@ -502,3 +435,14 @@
       modal.show();
     });
     {% endif %}
+
+
+    /* Opt-in flow select functional */
+    $("#id_opt_in_flow").select2({containerCss: {
+      'min-width': '350px'
+    }})
+    $("#id_open_in_flow_editor").click(function(evt) {
+      evt.preventDefault();
+      var href = $(this).attr('href').replace('uuid', $("#id_opt_in_flow").val());
+      window.location.href = href;
+    })

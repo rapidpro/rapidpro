@@ -37,6 +37,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel
+from temba.flows.models import Flow
 from temba.contacts.templatetags.contacts import MISSING_VALUE
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
@@ -531,6 +532,7 @@ class ContactCRUDL(SmartCRUDL):
         "unstop",
         "delete",
         "history",
+        "invite_participants",
     )
 
     class Export(ModalMixin, OrgPermsMixin, SmartFormView):
@@ -1545,6 +1547,70 @@ class ContactCRUDL(SmartCRUDL):
         def save(self, obj):
             obj.release(self.request.user)
             return obj
+
+
+    class InviteParticipants(ContactActionMixin, ContactListView):
+        title = _("Invite Participants")
+        system_group = ContactGroup.TYPE_ALL
+
+        def derive_group(self):
+            group_uuid = self.request.GET.get("group", None)
+            folder = self.request.GET.get("folder", None)
+
+            if group_uuid:
+                return ContactGroup.user_groups.get(uuid=group_uuid)
+
+            if folder in ('stopped', 'blocked'):
+                group_types = {
+                    'blocked': ContactGroup.TYPE_BLOCKED,
+                    'stopped': ContactGroup.TYPE_STOPPED,
+                }
+                self.system_group = group_types[folder]
+
+            return super().derive_group()
+
+        def get_gear_links(self):
+            links = []
+
+            # define save search conditions
+            valid_search_condition = self.request.GET.get("search") and not self.search_error
+            has_contactgroup_create_perm = self.has_org_perm("contacts.contactgroup_create")
+
+            if has_contactgroup_create_perm and valid_search_condition:
+                links.append(dict(title=_("Save as Group"), js_class="add-dynamic-group", href="#"))
+
+            if self.has_org_perm("contacts.contactfield_list"):
+                links.append(
+                    dict(
+                        title=_("Manage Fields"), js_class="manage-fields", href=reverse("contacts.contactfield_list")
+                    )
+                )
+
+            if self.has_org_perm("contacts.contact_export"):
+                links.append(dict(title=_("Export"), js_class="export-contacts", href="#"))
+            return links
+
+        def get_context_data(self, *args, **kwargs):
+            context = super().get_context_data(*args, **kwargs)
+            org = self.request.user.get_org()
+            group = self.derive_group()
+            view_url = reverse("contacts.contact_invite_participants")
+            
+            counts = ContactGroup.get_system_group_counts(org)
+
+            folders = [
+                dict(count=counts[ContactGroup.TYPE_ALL], label=_("All Contacts"), url=view_url),
+                dict(count=counts[ContactGroup.TYPE_BLOCKED], label=_("Blocked"), url="{}?folder=blocked".format(view_url)),
+                dict(count=counts[ContactGroup.TYPE_STOPPED], label=_("Stopped"), url="{}?folder=stopped".format(view_url)),
+            ]
+
+            context["folders"] = folders
+            context["current_group"] = group
+            context["flows"] = Flow.objects.filter(is_active=True)
+            context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by("-priority", "pk")
+            context["export_url"] = self.derive_export_url()
+            context["actions"] = ("label", "block")
+            return context
 
 
 class ContactGroupCRUDL(SmartCRUDL):
