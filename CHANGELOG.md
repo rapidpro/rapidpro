@@ -1,3 +1,7 @@
+v5.5.6
+----------
+ * Temporaly disable templates requests to FB when claiming WA channels
+
 v5.5.5
 ----------
  * newest smartmin with BoM fix
