@@ -162,19 +162,20 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             # check we can access their facebook templates
             from .type import TEMPLATE_LIST_URL
 
-            response = requests.get(
-                TEMPLATE_LIST_URL
-                % (self.cleaned_data["facebook_template_list_domain"], self.cleaned_data["facebook_business_id"]),
-                params=dict(access_token=self.cleaned_data["facebook_access_token"]),
-            )
-
-            if response.status_code != 200:
-                raise forms.ValidationError(
-                    _(
-                        "Unable to access Facebook templates, please check user id and access token and make sure "
-                        + "the whatsapp_business_management permission is enabled"
-                    )
+            if self.cleaned_data["facebook_template_list_domain"] != "graph.facebook.com":
+                response = requests.get(
+                    TEMPLATE_LIST_URL
+                    % (self.cleaned_data["facebook_template_list_domain"], self.cleaned_data["facebook_business_id"]),
+                    params=dict(access_token=self.cleaned_data["facebook_access_token"]),
                 )
+
+                if response.status_code != 200:
+                    raise forms.ValidationError(
+                        _(
+                            "Unable to access Facebook templates, please check user id and access token and make sure "
+                            + "the whatsapp_business_management permission is enabled"
+                        )
+                    )
             return self.cleaned_data
 
     form_class = Form
