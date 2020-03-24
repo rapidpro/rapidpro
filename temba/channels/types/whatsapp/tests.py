@@ -64,20 +64,21 @@ class WhatsAppTypeTest(TembaTest):
 
             self.assertContains(response, "check username and password")
 
-        # then FB failure
-        with patch("requests.post") as mock_post:
-            with patch("requests.get") as mock_get:
-                mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
-                mock_get.return_value = MockResponse(400, '{"data": []}')
-
-                response = self.client.post(url, post_data)
-                self.assertEqual(200, response.status_code)
-                self.assertFalse(Channel.objects.all())
-                mock_get.assert_called_with(
-                    "https://graph.facebook.com/v3.3/1234/message_templates", params={"access_token": "token123"}
-                )
-
-                self.assertContains(response, "check user id and access token")
+        # Uncomment this when we activate back the checking of Facebook templates
+        # # then FB failure
+        # with patch("requests.post") as mock_post:
+        #     with patch("requests.get") as mock_get:
+        #         mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
+        #         mock_get.return_value = MockResponse(400, '{"data": []}')
+        #
+        #         response = self.client.post(url, post_data)
+        #         self.assertEqual(200, response.status_code)
+        #         self.assertFalse(Channel.objects.all())
+        #         mock_get.assert_called_with(
+        #             "https://graph.facebook.com/v3.3/1234/message_templates", params={"access_token": "token123"}
+        #         )
+        #
+        #         self.assertContains(response, "check user id and access token")
 
         # then success
         with patch("requests.post") as mock_post:
@@ -361,6 +362,20 @@ class WhatsAppTypeTest(TembaTest):
         post_data["facebook_business_id"] = "1234"
         post_data["facebook_access_token"] = "token123"
         post_data["facebook_template_list_domain"] = "example.org"
+
+        with patch("requests.post") as mock_post:
+            with patch("requests.get") as mock_get:
+                mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
+                mock_get.return_value = MockResponse(400, '{"data": []}')
+
+                response = self.client.post(url, post_data)
+                self.assertEqual(200, response.status_code)
+                self.assertFalse(Channel.objects.all())
+                mock_get.assert_called_with(
+                    "https://example.org/v3.3/1234/message_templates", params={"access_token": "token123"}
+                )
+
+                self.assertContains(response, "check user id and access token")
 
         # success claim
         with patch("requests.post") as mock_post:
