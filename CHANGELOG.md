@@ -1,3 +1,7 @@
+v5.5.5
+----------
+ * newest smartmin with BoM fix
+
 v5.5.4
 ----------
  * Show better summary of schedules on trigger list page
