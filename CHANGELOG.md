@@ -1,3 +1,8 @@
+v5.5.7
+----------
+ * Fix open modal check on pjax refersh
+ * Show warnings on contact field page when org is approaching the limit and has hit the limit
+
 v5.5.6
 ----------
  * Temporaly disable templates requests to FB when claiming WA channels
