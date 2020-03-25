@@ -35,7 +35,7 @@ from temba.mailroom import MailroomException
 from temba.msgs.models import Broadcast, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, ESMockWithScroll, MockPost, TembaNonAtomicTest, TembaTest
+from temba.tests import AnonymousOrg, CRUDLTestMixin, ESMockWithScroll, MockPost, TembaNonAtomicTest, TembaTest
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -6971,79 +6971,72 @@ class ContactFieldTest(TembaTest):
 
         self.assertEqual(["First", "Third", "Second"], list(fields.values_list("label", flat=True)))
 
+
+class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
+    def setUp(self):
+        super().setUp()
+
+        self.age = ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type="N", show_in_table=True)
+        self.gender = ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type="T")
+        self.state = ContactField.get_or_create(self.org, self.admin, "state", "State", value_type="S")
+
+        self.deleted = ContactField.get_or_create(self.org, self.admin, "foo", "Foo")
+        self.deleted.is_active = False
+        self.deleted.save(update_fields=("is_active",))
+
+        self.other_org_field = ContactField.get_or_create(self.org2, self.admin2, "other", "Other")
+
+    def test_list(self):
+        list_url = reverse("contacts.contactfield_list")
+
+        response = self.assertListFetch(
+            list_url, allow_viewers=False, allow_editors=True, context_objects=[self.age, self.gender, self.state]
+        )
+        self.assertEqual(3, response.context["total_count"])
+        self.assertEqual(255, response.context["total_limit"])
+        self.assertNotContains(response, "You have reached the limit")
+        self.assertNotContains(response, "You are approaching the limit")
+
+        with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=10):
+            response = self.requestView(list_url, self.admin)
+
+            self.assertContains(response, "You are approaching the limit")
+
+        with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=3):
+            response = self.requestView(list_url, self.admin)
+
+            self.assertContains(response, "You have reached the limit")
+
     def test_json(self):
-        contact_field_json_url = reverse("contacts.contactfield_json")
+        json_url = reverse("contacts.contactfield_json")
 
-        for i in range(30):
-            key = "key%d" % i
-            label = "label%d" % i
-            ContactField.get_or_create(self.org, self.admin, key, label)
-            ContactField.get_or_create(self.org2, self.admin, key, label)
+        response = self.assertListFetch(json_url, allow_viewers=False, allow_editors=True)
 
-        self.assertEqual(Org.objects.all().count(), 2)
-
-        ContactField.user_fields.filter(org=self.org, key="key1").update(is_active=False)
-
-        self.login(self.non_org_user)
-        response = self.client.get(contact_field_json_url)
-
-        # redirect to login because of no access to org
-        self.assertEqual(302, response.status_code)
-
-        self.login(self.admin)
-        response = self.client.get(contact_field_json_url)
-
-        response_json = response.json()
-
-        self.assertEqual(len(response_json), 49)
-        self.assertEqual(response_json[0]["label"], "Full name")
-        self.assertEqual(response_json[0]["key"], "name")
-        self.assertEqual(response_json[1]["label"], "Phone number")
-        self.assertEqual(response_json[1]["key"], "tel_e164")
-        self.assertEqual(response_json[2]["label"], "Facebook identifier")
-        self.assertEqual(response_json[2]["key"], "facebook")
-        self.assertEqual(response_json[3]["label"], "Twitter handle")
-        self.assertEqual(response_json[3]["key"], "twitter")
-        self.assertEqual(response_json[4]["label"], "Twitter ID")
-        self.assertEqual(response_json[4]["key"], "twitterid")
-        self.assertEqual(response_json[5]["label"], "Viber identifier")
-        self.assertEqual(response_json[5]["key"], "viber")
-        self.assertEqual(response_json[6]["label"], "LINE identifier")
-        self.assertEqual(response_json[6]["key"], "line")
-        self.assertEqual(response_json[7]["label"], "Telegram identifier")
-        self.assertEqual(response_json[7]["key"], "telegram")
-        self.assertEqual(response_json[8]["label"], "Email address")
-        self.assertEqual(response_json[8]["key"], "mailto")
-        self.assertEqual(response_json[9]["label"], "External identifier")
-        self.assertEqual(response_json[9]["key"], "ext")
-        self.assertEqual(response_json[10]["label"], "JioChat identifier")
-        self.assertEqual(response_json[10]["key"], "jiochat")
-        self.assertEqual(response_json[11]["label"], "WeChat identifier")
-        self.assertEqual(response_json[11]["key"], "wechat")
-        self.assertEqual(response_json[12]["label"], "Firebase Cloud Messaging identifier")
-        self.assertEqual(response_json[12]["key"], "fcm")
-        self.assertEqual(response_json[13]["label"], "WhatsApp identifier")
-        self.assertEqual(response_json[13]["key"], "whatsapp")
-        self.assertEqual(response_json[14]["label"], "Freshchat identifier")
-        self.assertEqual(response_json[14]["key"], "freshchat")
-        self.assertEqual(response_json[15]["label"], "VK identifier")
-        self.assertEqual(response_json[15]["key"], "vk")
-        self.assertEqual(response_json[16]["label"], "Groups")
-        self.assertEqual(response_json[16]["key"], "groups")
-        self.assertEqual(response_json[17]["label"], "First")
-        self.assertEqual(response_json[17]["key"], "first")
-        self.assertEqual(response_json[18]["label"], "label0")
-        self.assertEqual(response_json[18]["key"], "key0")
-
-        ContactField.user_fields.filter(org=self.org, key="key0").update(label="AAAA")
-
-        response = self.client.get(contact_field_json_url)
-        response_json = response.json()
-
-        self.assertEqual(response_json[16]["label"], "Groups")
-        self.assertEqual(response_json[16]["key"], "groups")
-        self.assertEqual(response_json[17]["label"], "AAAA")
-        self.assertEqual(response_json[17]["key"], "key0")
+        self.assertEqual(
+            [
+                {"key": "name", "label": "Full name"},
+                {"key": "tel_e164", "label": "Phone number"},
+                {"key": "facebook", "label": "Facebook identifier"},
+                {"key": "twitter", "label": "Twitter handle"},
+                {"key": "twitterid", "label": "Twitter ID"},
+                {"key": "viber", "label": "Viber identifier"},
+                {"key": "line", "label": "LINE identifier"},
+                {"key": "telegram", "label": "Telegram identifier"},
+                {"key": "mailto", "label": "Email address"},
+                {"key": "ext", "label": "External identifier"},
+                {"key": "jiochat", "label": "JioChat identifier"},
+                {"key": "wechat", "label": "WeChat identifier"},
+                {"key": "fcm", "label": "Firebase Cloud Messaging identifier"},
+                {"key": "whatsapp", "label": "WhatsApp identifier"},
+                {"key": "freshchat", "label": "Freshchat identifier"},
+                {"key": "vk", "label": "VK identifier"},
+                {"key": "groups", "label": "Groups"},
+                {"id": self.age.id, "key": "age", "label": "Age"},
+                {"id": self.gender.id, "key": "gender", "label": "Gender"},
+                {"id": self.state.id, "key": "state", "label": "State"},
+            ],
+            response.json(),
+        )
 
 
 class URNTest(TembaTest):

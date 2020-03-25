@@ -1811,27 +1811,16 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
     def _get_static_context_data(self, **kwargs):
 
         active_user_fields = self.queryset.filter(org=self.request.user.get_org(), is_active=True)
-
-        context = {}
-
-        context["cf_categories"] = [
-            {"label": "All", "count": active_user_fields.count(), "url": reverse("contacts.contactfield_list")},
-            {
-                "label": "Featured",
-                "count": active_user_fields.filter(show_in_table=True).count(),
-                "url": reverse("contacts.contactfield_featured"),
-            },
-        ]
+        all_count = active_user_fields.count()
+        featured_count = active_user_fields.filter(show_in_table=True).count()
 
         type_counts = (
             active_user_fields.values("value_type")
             .annotate(type_count=Count("value_type"))
             .order_by("-type_count", "value_type")
         )
-
         value_type_map = {vt[0]: vt[1] for vt in Value.TYPE_CONFIG}
-
-        context["cf_types"] = [
+        types = [
             {
                 "label": value_type_map[type_cnt["value_type"]],
                 "count": type_cnt["type_count"],
@@ -1841,7 +1830,15 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
             for type_cnt in type_counts
         ]
 
-        return context
+        return {
+            "total_count": all_count,
+            "total_limit": settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG,
+            "cf_categories": [
+                {"label": "All", "count": all_count, "url": reverse("contacts.contactfield_list")},
+                {"label": "Featured", "count": featured_count, "url": reverse("contacts.contactfield_featured")},
+            ],
+            "cf_types": types,
+        }
 
     def get_queryset(self, **kwargs):
         qs = super().get_queryset(**kwargs)
