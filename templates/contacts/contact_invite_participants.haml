@@ -63,13 +63,14 @@
                   %trans Opt-in flow
 
                 .controls
-                  %select#id_opt_in_flow{ name:"country", float:'left'}
+                  - csrf_token
+                  %select#id_opt_in_flow{float:'left', data-url-template:"{% url 'flows.flow_broadcast' '0' %}"}
                     - for flow in flows
-                      %option{ value:"{{flow.uuid}}" }
+                      %option{value:'{"id":"{{flow.id}}", "uuid":"{{flow.uuid}}"}'}
                         {{ flow.name }}
-                  %a.btn.btn-primary{href:"#"}
+                  %button#id_save_flow_btn.btn.btn-primary
                     %trans Save
-                  %a#id_open_in_flow_editor.btn-block{href:"{% url 'flows.flow_editor' 'uuid' %}"}
+                  %a#id_open_in_flow_editor.btn-block{'data-href-template':"{% url 'flows.flow_editor' 'uuid' %}"}
                     %trans Open in the flow editor
 
               .search-details
@@ -129,7 +130,7 @@
 
                   %tbody
                     - for object in contacts
-                      %tr.contact.select-row.object-row{'class':'{% cycle row1 row2 %}', 'data-uuid': '{{object.uuid}}', 'data-object-id':'{{object.id}}'}
+                      %tr.contact.select-row.object-row{'class':'{% cycle row1 row2 %}', 'data-uuid': '{{object.uuid}}', 'data-object-id': '{{object.id}}'}
 
                         %td.value-text.field_name
                           {{ object|name:user_org }}
@@ -147,8 +148,8 @@
                           %nobr
                             {% short_datetime object.created_on %}
                         
-                        %td.value-received.field_received
-                          %a.invite.btn.btn-primary.btn-block{href:"{% url 'contacts.contact_invite_participants' %}"}
+                        %td.invite-column.value-received.field_received
+                          %a.invite.btn.btn-primary.btn-block{href:"{% url 'contacts.contact_invite_participants' %}", 'data-omnibox': "c-{{object.uuid}}"}
                             -trans "Invite"
 
                         // This is needed for action buttons
@@ -387,7 +388,7 @@
     $('.select-row').live('mouseover', function(){
       url = '/contact/read/' + $(this).data('uuid');
 
-      $(this).find('td').not(':first-child').each(function(){
+      $(this).find('td').not(':first-child').not('.invite-column').each(function(){
         $(this).attr('onClick', "document.location.href=url;");
       });
     });
@@ -437,12 +438,50 @@
     {% endif %}
 
 
-    /* Opt-in flow select functional */
-    $("#id_opt_in_flow").select2({containerCss: {
-      'min-width': '350px'
-    }})
-    $("#id_open_in_flow_editor").click(function(evt) {
+    /* Invite functional for selected opt-in flow */
+    var saveBtn = $("#id_save_flow_btn");
+    var flowSelect = $("#id_opt_in_flow");
+    var flowEditLink = $("#id_open_in_flow_editor");
+    var inviteLinks = $('a.invite');
+    inviteLinks.hide();
+
+    function initInviteLinks() {
+      let flowID = JSON.parse(flowSelect.val()).id;
+      inviteLinks.attr('href', flowSelect.attr('data-url-template').replace('0', flowID));
+      inviteLinks.show();
+    }
+
+    function processInvite(url, params) {
+      let token = $('input[name=csrfmiddlewaretoken]').val();
+      $.ajax({
+        url: url,
+        type: "POST",
+        data: {
+          'omnibox': params.omnibox,
+          'restart_participants': false,
+          'include_active': false,
+          'csrfmiddlewaretoken': token,
+        }
+      });
+    }
+
+    flowSelect.select2({containerCss: {'min-width': '350px'}})
+
+    flowEditLink.mousedown(function(evt) {
+      let hrefTemplate = flowEditLink.attr('data-href-template');
+      let flowUUID = JSON.parse(flowSelect.val()).uuid;
+      flowEditLink.attr('href', hrefTemplate.replace('uuid', flowUUID));
+    })
+
+    saveBtn.click(initInviteLinks);
+
+    inviteLinks.click(function(evt) {
       evt.preventDefault();
-      var href = $(this).attr('href').replace('uuid', $("#id_opt_in_flow").val());
-      window.location.href = href;
+      let clickedLink = $(this);
+      if (clickedLink[0].hasAttribute('disabled')) return;
+      let url = clickedLink.attr('href');
+      let omnibox = clickedLink.attr('data-omnibox');
+      clickedLink.removeClass('btn btn-primary').html('Invite Sent').attr('disabled', true);
+      processInvite(url, {omnibox: omnibox});
+      setTimeout(function() {clickedLink.addClass('btn btn-primary').html('Invite').removeAttr('disabled')}, 5000)
     })
