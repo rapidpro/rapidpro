@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-19 19:37+0000\n"
+"POT-Creation-Date: 2020-03-24 18:52+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -8687,6 +8687,14 @@ msgstr "Flujos y Campañas"
 #| msgid "Create Contact Group"
 msgid "No related contact groups."
 msgstr "Crear Grupo de Contactos"
+
+#, python-format
+msgid "You have reached the limit of %(limit)s fields per account. Please remove fields that you are no longer using."
+msgstr ""
+
+#, python-format
+msgid "You are approaching the limit of %(limit)s fields per account. You should remove fields that you are no longer using."
+msgstr ""
 
 #, fuzzy
 #| msgid "Create Flow"
