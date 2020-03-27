@@ -24,11 +24,13 @@ from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Lower
+from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
 from django.utils.text import slugify
+from django.utils.timezone import get_current_timezone_name
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
@@ -46,6 +48,8 @@ from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
 from temba.orgs.models import Org, LOOKUPS, GIFTCARDS
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.schedules.views import BaseScheduleForm
+from temba.schedules.models import Schedule
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
 from temba.utils import analytics, json, on_transaction_commit, str_to_bool
@@ -62,6 +66,7 @@ from .models import (
     FlowUserConflictException,
     FlowVersionConflictException,
 )
+
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +86,15 @@ EXPIRES_CHOICES = (
     (60 * 24 * 7, _("After 1 week")),
     (60 * 24 * 14, _("After 2 weeks")),
     (60 * 24 * 30, _("After 30 days")),
+)
+
+LAUNCH_IMMEDIATELY = 'LAUNCH_IMMEDIATELY'
+LAUNCH_ON_KEYWORD_TRIGGER = 'LAUNCH_ON_KEYWORD_TRIGGER'
+LAUNCH_ON_SHEDULE_TRIGGER = 'LAUNCH_ON_SHEDULE_TRIGGER'
+LAUNCH_CHOICES = (
+    (LAUNCH_IMMEDIATELY, 'Start flow immediately and send to selected groups or individual'),
+    (LAUNCH_ON_KEYWORD_TRIGGER, 'Start flow when a specified keyword is received in a message'),
+    (LAUNCH_ON_SHEDULE_TRIGGER, 'Start flow at a future date and time'),
 )
 
 
@@ -259,6 +273,7 @@ class FlowCRUDL(SmartCRUDL):
         "pdf_export",
         "lookups_api",
         "giftcards_api",
+        "launch",
     )
 
     model = Flow
@@ -1205,7 +1220,7 @@ class FlowCRUDL(SmartCRUDL):
                 and not flow.is_archived
             ):
                 links.append(
-                    dict(title=_("Start Flow"), style="btn-primary", js_class="broadcast-rulesflow", href="#")
+                    dict(title=_("Launch Flow"), style="btn-primary", js_class="launch-rulesflow", href="#"),
                 )
 
             if self.has_org_perm("flows.flow_results"):
@@ -2153,6 +2168,302 @@ class FlowCRUDL(SmartCRUDL):
             else:
                 results = asset_type.serialize_set(org, simulator=simulator)
                 return JsonResponse({"results": results})
+
+    class Launch(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+        class LaunchForm(BaseScheduleForm, forms.ModelForm):
+            def __init__(self, *args, **kwargs):
+                self.user = kwargs.pop("user")
+                self.flow = kwargs.pop("flow")
+
+                super().__init__(*args, **kwargs)
+                self.fields["omnibox"].set_user(self.user)
+                self.fields["groups"].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
+
+            
+            launch_type = forms.ChoiceField(choices=LAUNCH_CHOICES, initial=LAUNCH_IMMEDIATELY)
+            
+            # Fields for immediate launch
+            omnibox = OmniboxField(
+                label=_("Contacts & Groups"),
+                help_text=_("These contacts will be added to the flow, sending the first message if appropriate."),
+                required=False,
+            )
+
+            restart_participants = forms.BooleanField(
+                label=_("Restart Participants"),
+                required=False,
+                initial=False,
+                help_text=_("Restart any contacts already participating in this flow"),
+            )
+
+            include_active = forms.BooleanField(
+                label=_("Include Active Contacts"),
+                required=False,
+                initial=False,
+                help_text=_("Include contacts currently active in a flow"),
+            )
+
+            # Fields for trigger keyword launch
+            keyword = forms.CharField(
+                label=_("Keyword"),
+                required=False,
+                help_text=_("Word to match in the message text"),
+            )
+
+            match_type = forms.ChoiceField(
+                label=_("Trigger When"),
+                choices=Trigger.MATCH_TYPES,
+                initial=Trigger.MATCH_FIRST_WORD,
+                required=False,
+                help_text=_("How to match a message with a keyword"),
+            )
+
+            groups = forms.ModelMultipleChoiceField(
+                label=_("Only Groups"),
+                queryset=ContactGroup.user_groups.filter(pk__lt=0),
+                required=False, 
+                help_text=_("Only apply this trigger to contacts in these groups. (leave empty to apply to all contacts)"),
+            )
+
+            # Fields for schedule trigger
+            repeat_period = forms.ChoiceField(
+                label=_("Repeat"),
+                choices=Schedule.REPEAT_CHOICES,
+            )
+
+            repeat_days = forms.IntegerField(
+                required=False
+            )
+
+            start = forms.CharField(
+                max_length=16
+            )
+            
+            start_datetime_value = forms.IntegerField(
+                required=False
+            )
+
+            def clean(self):
+                cleaned_data = super().clean()
+
+                def validate_keyword():
+                    keyword = cleaned_data.get("keyword", "")
+                    keyword = keyword.strip()
+
+                    if keyword == "" or (keyword and not regex.match(r"^\w+$", keyword, flags=regex.UNICODE | regex.V0)):
+                        self.add_error("keyword", forms.ValidationError(_("Keywords must be a single word containing only letter and numbers")))
+
+                    groups, org = cleaned_data.get("groups", []), self.user.get_org()
+                    existing = Trigger.objects.filter(org=org, is_archived=False, is_active=True, keyword__iexact=keyword)
+                    existing = existing.filter(groups__in=groups) if groups else existing.filter(groups=None)
+
+                    if existing:
+                        self.add_error("keyword", forms.ValidationError(_("An active trigger already exists, triggers must be unique for each group")))
+
+                    cleaned_data["keyword"] = keyword
+
+
+                def validate_omnibox():
+                    starting = cleaned_data["omnibox"]
+                    if not starting["groups"] and not starting["contacts"]:  # pragma: needs cover
+                        self.add_error("omnibox", ValidationError(_("You must specify at least one contact or one group to start a flow.")))
+                
+                if cleaned_data['launch_type'] in (LAUNCH_IMMEDIATELY, LAUNCH_ON_SHEDULE_TRIGGER):
+                    validate_omnibox()
+
+                if cleaned_data['launch_type'] == LAUNCH_ON_KEYWORD_TRIGGER:
+                    validate_keyword()
+
+                # only weekly gets repeat days
+                if cleaned_data["repeat_period"] != "W":
+                    cleaned_data["repeat_days"] = None
+
+                # check whether there are any flow starts that are incomplete
+                if self.flow.is_starting():
+                    raise ValidationError(
+                        _(
+                            "This flow is already being started, please wait until that process is complete before starting more contacts."
+                        )
+                    )
+
+                if self.flow.org.is_suspended():
+                    raise ValidationError(
+                        _(
+                            "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+                        )
+                    )
+
+                return cleaned_data
+
+            class Meta:
+                model = Flow
+                fields = (
+                    "launch_type",
+                    "omnibox", "restart_participants", "include_active",
+                    "keyword", "groups", "match_type",
+                    "repeat_period", "repeat_days", "start", "start_datetime_value",
+                )
+
+            
+        form_class = LaunchForm
+        fields = (
+            "launch_type",
+            "omnibox", "restart_participants", "include_active",
+            "keyword", "groups", "match_type",
+            "repeat_period", "repeat_days", "start", "start_datetime_value",
+        )
+        success_message = ""
+        submit_button_name = _("Add Contacts to Flow")
+        success_url = "uuid@flows.flow_editor"
+        
+        def get_context_data(self, *args, **kwargs):
+            context = super().get_context_data(*args, **kwargs)
+            flow = self.get_object()
+            org = flow.org
+
+            warnings = []
+
+            # if we have a whatsapp channel
+            whatsapp_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=WHATSAPP_SCHEME)
+            if whatsapp_channel:
+                # check to see we are using templates
+                templates = flow.metadata.get(Flow.METADATA_DEPENDENCIES, {}).get("templates", [])
+                if not templates:
+                    warnings.append(_("This flow does not use message templates."))
+
+                # check that this template is synced and ready to go
+                for ref in templates:
+                    template = Template.objects.filter(org=org, uuid=ref["uuid"]).first()
+                    if not template:
+                        warnings.append(
+                            _(f"The message template {ref['name']} does not exist on your account and cannot be sent.")
+                        )
+                    elif not template.is_approved():
+                        warnings.append(
+                            _(f"Your message template {template.name} is not approved and cannot be sent.")
+                        )
+
+            run_stats = self.object.get_run_stats()
+
+            context["warnings"] = warnings
+            context["run_count"] = run_stats["total"]
+            context["complete_count"] = run_stats["completed"]
+            context["user_tz"] = get_current_timezone_name()
+            context["user_tz_offset"] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() // 60)
+            return context
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            kwargs["flow"] = self.object
+            return kwargs
+
+        def save(self, *args, **kwargs):
+            form = self.form
+            flow = self.object
+
+            def process_immediately():
+                # save off our broadcast info
+                omnibox = form.cleaned_data["omnibox"]
+
+                analytics.track(
+                    self.request.user.username,
+                    "temba.flow_broadcast",
+                    dict(contacts=len(omnibox["contacts"]), groups=len(omnibox["groups"])),
+                )
+
+                # activate all our contacts
+                flow.async_start(
+                    self.request.user,
+                    list(omnibox["groups"]),
+                    list(omnibox["contacts"]),
+                    restart_participants=form.cleaned_data["restart_participants"],
+                    include_active=form.cleaned_data["include_active"],
+                )
+
+            def process_on_keyword_trigger():
+                user = self.request.user
+                keyword = form.cleaned_data["keyword"]
+                match_type = form.cleaned_data["match_type"]
+                groups = form.cleaned_data["groups"]
+
+                with transaction.atomic():
+                    trigger = Trigger.objects.create(
+                        flow=flow,
+                        keyword=keyword,
+                        match_type=match_type,
+                        org=user.get_org(),
+                        created_by=user,
+                        modified_by=user,
+                    )
+                    trigger.groups.set(groups)
+
+            def process_on_schedule_trigger():
+                with transaction.atomic():
+                    schedule = Schedule.objects.create(created_by=self.request.user, modified_by=self.request.user)
+
+                    if form.starts_never():
+                        schedule.reset()
+
+                    elif form.stopped():
+                        schedule.reset()
+
+                    elif form.starts_now():
+                        schedule.next_fire = timezone.now() - timedelta(days=1)
+                        schedule.repeat_period = "O"
+                        schedule.repeat_days = 0
+                        schedule.status = "S"
+                        schedule.save()
+
+                    else:
+                        # Scheduled case
+                        schedule.status = "S"
+                        schedule.repeat_period = form.cleaned_data["repeat_period"]
+                        start_time = form.get_start_time()
+                        if start_time:
+                            schedule.next_fire = start_time
+
+                        # create our recurrence
+                        if form.is_recurring():
+                            days = None
+                            if "repeat_days" in form.cleaned_data:
+                                days = form.cleaned_data["repeat_days"]
+                            schedule.repeat_days = days
+                            schedule.repeat_hour_of_day = schedule.next_fire.hour
+                            schedule.repeat_minute_of_hour = schedule.repeat_minute_of_hour
+                            schedule.repeat_day_of_month = schedule.next_fire.day
+                        schedule.save()
+
+                    recipients = self.form.cleaned_data["omnibox"]
+
+                    trigger = Trigger.objects.create(
+                        flow=flow,
+                        org=self.request.user.get_org(),
+                        schedule=schedule,
+                        trigger_type=Trigger.TYPE_SCHEDULE,
+                        created_by=self.request.user,
+                        modified_by=self.request.user,
+                    )
+
+                    for group in recipients["groups"]:
+                        trigger.groups.add(group)
+
+                    for contact in recipients["contacts"]:
+                        trigger.contacts.add(contact)
+
+                    if trigger.schedule.is_expired():
+                        from temba.schedules.tasks import check_schedule_task
+                        on_transaction_commit(lambda: check_schedule_task.delay(trigger.schedule.id))
+
+            launch_type = form.cleaned_data["launch_type"]
+            processors_mapper = {
+                LAUNCH_IMMEDIATELY: process_immediately,
+                LAUNCH_ON_KEYWORD_TRIGGER: process_on_keyword_trigger,
+                LAUNCH_ON_SHEDULE_TRIGGER: process_on_schedule_trigger,
+            }
+            processors_mapper.get(launch_type, lambda: None)()
+            
+            return flow
 
 
 # this is just for adhoc testing of the preprocess url

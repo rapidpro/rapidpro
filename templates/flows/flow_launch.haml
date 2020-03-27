@@ -1,0 +1,222 @@
+-extends 'smartmin/form.html'
+-load smartmin
+-load i18n
+
+-block fields
+
+  %style
+    :plain
+      .modal .modal-body .control-label {
+        display:none;
+      }
+
+      .modal .modal-body .controls {
+        margin-top: 6px;
+      }
+
+      .start-options {
+        margin-top: 10px;
+        color: #666;
+      }
+
+      .start-options .form-group {
+        margin-top: -15px;
+      }
+
+      .start-options > .font-checkbox > .controls > .help-block > label {
+        color: #666 !important;
+      }
+
+
+  -if object.flow_type == 'M' and not send_channel
+    %p
+    -blocktrans with name=brand.name
+      To get started you need to add a channel to your account. A channel is a phone number or social network
+      account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
+      Android phone and your own cell phone plan, or we can connect you with a service provider in your country
+      directly.
+    %hr
+    %p
+      -trans "You can always test your flow using the simulator, click"
+        %span.glyph.icon-mobile{style:"padding-top:2px;"}
+      -trans "on the right to open it."
+
+  -elif object.flow_type == 'V' and not call_channel
+    %p
+      -blocktrans with name=brand.name
+        To get started you need to add a voice-enabled channel to your account. A voice-enabled channel is a
+        phone number which {{ name }} can use to make and receive phone calls on your behalf. For example, Twilio
+        is a service which provides voice-enabled numbers which you can add as channels in your {{ name }} account.
+
+  -else
+    - render_field 'launch_type'
+
+    #id_omnibox_container
+      - render_field 'omnibox'
+
+    #id_launch_immedialy
+      .start-options
+        .control-group.restart-participants
+          %label.control-label{ for:"id_restart_participants" }
+            -trans "Restart Participants"
+          .controls
+            %input#id_restart_participants{ name:"restart_participants", type:"checkbox" }
+              .help-block
+                %label{ for:"id_restart_participants" }
+                  -trans "Restart contacts who have already entered this flow"
+
+        .control-group.include-active
+          %label.control-label{ for:"id_include_active" }
+            -trans "Include Active Contacts"
+          .controls
+            %input#id_include_active{ name:"include_active", type:"checkbox" }
+              .help-block
+                %label{ for:"id_include_active" }
+                  -trans "Interrupt contacts currently active in flows"
+    
+    #id_launch_on_keyword_trigger
+      - render_field 'keyword'
+      - render_field 'match_type'
+      - render_field 'groups'
+
+    #id_launch_on_schedule_trigger
+      #schedule-options
+        %label.schedule-options-label{for:"later-option"}
+        #start-datetime{ name:'start_datetime', disabled:'true', value:'{% trans "Select a date" %}'}
+        %input#start-datetime-value{ hidden:'true', name:'start_datetime_value', value:''}
+        %input#later-option{name:'start',type:'hidden',value:'later'}
+
+      #recurrence
+        .repeat-period
+          %p.instructions
+            -render_field 'repeat_period'
+        .weekly-repeat-options{class:'{% if form.initial.repeat_period == "W" %}{% else%}hide{%endif%}'}
+          .btn-group.week{'data-toggle':'buttons-checkbox'}
+            #mon.btn{value:2, class:'{% if 0 in days %}active{% endif %}'}
+              -trans "Mon"
+            #tue.btn{value:4, class:'{% if 1 in days %}active{% endif %}'}
+              -trans "Tue"
+            #wed.btn{value:8, class:'{% if 2 in days %}active{% endif %}'}
+              -trans "Wed"
+            #thu.btn{value:16, class:'{% if 3 in days %}active{% endif %}'}
+              -trans "Thu"
+            #fri.btn{value:32, class:'{% if 4 in days %}active{% endif %}'}
+              -trans "Fri"
+            #sat.btn{value:64, class:'{% if 5 in days %}active{% endif %}'}
+              -trans "Sat"
+            #sun.btn{value:128, class:'{% if 6 in days %}active{% endif %}'}
+              -trans "Sun"
+
+          %input#repeat-days-value{name:'repeat_days', type:'hidden'}
+    
+    -if warnings
+      %div.warning
+        -for warning in warnings
+          %p= warning
+
+        %p
+          -trans "You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
+    
+    %script{src:"{% url 'django.views.i18n.javascript_catalog' %}"}
+    %script{src:"{{ STATIC_URL }}js/schedules-ui.js?v=3"}
+    :javascript
+      var user_tz = "{{ user_tz }}";
+      var user_tz_offset = "{{ user_tz_offset }}";
+      var launchSelector = $('#id_launch_type');
+      var omniboxContainer = $('#id_omnibox_container');
+      var launchImmediatelyBox = $('#id_launch_immedialy');
+      var launchOnKeywordTriggerBox = $('#id_launch_on_keyword_trigger');
+      var launchOnScheduleTriggerBox = $('#id_launch_on_schedule_trigger');
+
+      launchSelector.select2({containerCssClass: "select2-temba-field", minimumResultsForSearch: -1});
+      
+      function showLaunchFlowBox(selected) {
+        omniboxContainer.hide();
+        launchImmediatelyBox.hide();
+        launchOnKeywordTriggerBox.hide();
+        launchOnScheduleTriggerBox.hide();
+        switch(selected) {
+          case "LAUNCH_IMMEDIATELY":
+            omniboxContainer.show();
+            launchImmediatelyBox.show();
+            break;
+          case "LAUNCH_ON_KEYWORD_TRIGGER":
+            launchOnKeywordTriggerBox.show();
+            break;
+          case "LAUNCH_ON_SHEDULE_TRIGGER":
+            omniboxContainer.show();
+            launchOnScheduleTriggerBox.show();
+            break;
+        }
+      };
+
+      showLaunchFlowBox(launchSelector.val());
+      launchSelector.change(function() {showLaunchFlowBox($(this).val())});
+
+      $('#id_match_type').select2({containerCssClass: "select2-temba-field", minimumResultsForSearch: -1});
+      $('#id_groups').select2({
+        containerCssClass: "select2-temba-field"
+      });
+
+      $(document).ready(function() {
+        var minDate = new Date();
+        var minutes = minDate.getMinutes();
+        if (minutes > 0) {
+            minDate.setMinutes(0);
+            minDate.setHours(minDate.getHours() + 1);
+        }
+        initializeDatetimePicker(minDate, undefined, false);
+      });
+
+      function updateDailySelection() {
+        var selected = 0;
+        $('.btn-group.week > .btn').each(function() {
+            if ($(this).hasClass('active')) {
+                selected += parseInt($(this).attr("value"));
+            }
+        });
+        $("#repeat-days-value").val(selected);
+      }
+
+-block form-buttons
+  -if send_channel
+    .form-actions
+      %input.btn.btn-primary{type:"submit", value:"{{ submit_button_name }}"}
+
+-block summary
+  %p
+    -if not run_count
+      -trans "This flow has never been started."
+    -elif run_count == 1
+      %span.attn1
+        -trans "This flow has been started once."
+    -else
+      %span.attn
+        -trans "This flow has been started {{ run_count }} times."
+
+    -if complete_count == 1
+      -trans "It has been completed"
+      %span.attn
+        -trans "Once."
+    -elif complete_count > 1
+      -trans "It has been completed"
+        %span.attn
+          -trans "{{ complete_count }} times."
+
+-block extra-script
+  {{ block.super }}
+  :javascript
+    prepareOmnibox();
+    $('#id_launch_type').select2()
+
+-block modal-script
+  {{block.super}}
+  :javascript
+    $(document).ready(function () {
+      useFontCheckbox("#id_restart_participants");
+      useFontCheckbox("#id_include_active");
+    });
+    
+    prepareOmnibox();
+
+-load humanize    
