@@ -119,7 +119,7 @@ class LocationTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # fetch our aliases again
-        with self.assertNumQueries(19):
+        with self.assertNumQueries(21):
             response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]))
         response_json = response.json()
 
@@ -149,7 +149,7 @@ class LocationTest(TembaTest):
         )
 
         # fetch our aliases again
-        with self.assertNumQueries(19):
+        with self.assertNumQueries(21):
             response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]))
         response_json = response.json()
 
