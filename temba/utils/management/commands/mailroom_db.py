@@ -115,7 +115,7 @@ ORG1 = dict(
             urns=["tel:+16055741111"],
             uuid="6393abc0-283d-4c9b-a1b3-641a035c34bf",
             groups=["Doctors"],
-            fields=dict(gender="F", state="Nigeria > Sokoto", ward="Nigeria > Sokoto > Yabo > Kilgori"),
+            fields=dict(gender="F", state="Nigeria > Yobe", ward="Nigeria > Yobe > Gulani > Dokshi"),
         ),
         dict(
             name="Bob",
