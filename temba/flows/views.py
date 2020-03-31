@@ -39,6 +39,7 @@ from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
+from temba.contacts.fields import OmniboxField
 from temba.contacts.models import FACEBOOK_SCHEME, TEL_SCHEME, WHATSAPP_SCHEME, ContactField, ContactGroup, ContactURN
 from temba.contacts.omnibox import omnibox_deserialize
 from temba.flows import legacy
@@ -2294,7 +2295,7 @@ class FlowCRUDL(SmartCRUDL):
                 choices=Schedule.REPEAT_CHOICES,
             )
 
-            repeat_days = forms.IntegerField(
+            repeat_days_of_week = forms.CharField(
                 required=False
             )
 
@@ -2339,7 +2340,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 # only weekly gets repeat days
                 if cleaned_data["repeat_period"] != "W":
-                    cleaned_data["repeat_days"] = None
+                    cleaned_data["repeat_days_of_week"] = None
 
                 # check whether there are any flow starts that are incomplete
                 if self.flow.is_starting():
@@ -2364,7 +2365,7 @@ class FlowCRUDL(SmartCRUDL):
                     "launch_type",
                     "omnibox", "restart_participants", "include_active",
                     "keyword", "groups", "match_type",
-                    "repeat_period", "repeat_days", "start", "start_datetime_value",
+                    "repeat_period", "repeat_days_of_week", "start", "start_datetime_value",
                 )
 
             
@@ -2373,7 +2374,7 @@ class FlowCRUDL(SmartCRUDL):
             "launch_type",
             "omnibox", "restart_participants", "include_active",
             "keyword", "groups", "match_type",
-            "repeat_period", "repeat_days", "start", "start_datetime_value",
+            "repeat_period", "repeat_days_of_week", "start", "start_datetime_value",
         )
         success_message = ""
         submit_button_name = _("Add Contacts to Flow")
@@ -2440,6 +2441,7 @@ class FlowCRUDL(SmartCRUDL):
                     self.request.user,
                     list(omnibox["groups"]),
                     list(omnibox["contacts"]),
+                    None,
                     restart_participants=form.cleaned_data["restart_participants"],
                     include_active=form.cleaned_data["include_active"],
                 )
@@ -2462,50 +2464,27 @@ class FlowCRUDL(SmartCRUDL):
                     trigger.groups.set(groups)
 
             def process_on_schedule_trigger():
+                user = self.request.user
+                org = user.get_org()
+                start_time = form.get_start_time(org.timezone)
                 with transaction.atomic():
-                    schedule = Schedule.objects.create(created_by=self.request.user, modified_by=self.request.user)
-
-                    if form.starts_never():
-                        schedule.reset()
-
-                    elif form.stopped():
-                        schedule.reset()
-
-                    elif form.starts_now():
-                        schedule.next_fire = timezone.now() - timedelta(days=1)
-                        schedule.repeat_period = "O"
-                        schedule.repeat_days = 0
-                        schedule.status = "S"
-                        schedule.save()
-
-                    else:
-                        # Scheduled case
-                        schedule.status = "S"
-                        schedule.repeat_period = form.cleaned_data["repeat_period"]
-                        start_time = form.get_start_time()
-                        if start_time:
-                            schedule.next_fire = start_time
-
-                        # create our recurrence
-                        if form.is_recurring():
-                            days = None
-                            if "repeat_days" in form.cleaned_data:
-                                days = form.cleaned_data["repeat_days"]
-                            schedule.repeat_days = days
-                            schedule.repeat_hour_of_day = schedule.next_fire.hour
-                            schedule.repeat_minute_of_hour = schedule.repeat_minute_of_hour
-                            schedule.repeat_day_of_month = schedule.next_fire.day
-                        schedule.save()
+                    schedule = Schedule.create_schedule(
+                        org,
+                        self.request.user,
+                        start_time,
+                        form.cleaned_data.get("repeat_period"),
+                        repeat_days_of_week=form.cleaned_data.get("repeat_days_of_week"),
+                    )
 
                     recipients = self.form.cleaned_data["omnibox"]
 
                     trigger = Trigger.objects.create(
                         flow=flow,
-                        org=self.request.user.get_org(),
+                        org=org,
                         schedule=schedule,
                         trigger_type=Trigger.TYPE_SCHEDULE,
-                        created_by=self.request.user,
-                        modified_by=self.request.user,
+                        created_by=user,
+                        modified_by=user,
                     )
 
                     for group in recipients["groups"]:
@@ -2513,10 +2492,6 @@ class FlowCRUDL(SmartCRUDL):
 
                     for contact in recipients["contacts"]:
                         trigger.contacts.add(contact)
-
-                    if trigger.schedule.is_expired():
-                        from temba.schedules.tasks import check_schedule_task
-                        on_transaction_commit(lambda: check_schedule_task.delay(trigger.schedule.id))
 
             launch_type = form.cleaned_data["launch_type"]
             processors_mapper = {
