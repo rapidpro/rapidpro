@@ -1,3 +1,9 @@
+v5.5.8
+----------
+ * Update help text on contact edit dialog
+ * Add prometheus endpoint config on account page
+ * Fix boundary aliases filtering by org
+
 v5.5.7
 ----------
  * Fix open modal check on pjax refersh
