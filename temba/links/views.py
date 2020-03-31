@@ -364,11 +364,11 @@ class LinkHandler(RedirectView):
 
             try:
                 host = socket.gethostbyaddr(ip)[0]
-                is_google_checking = "google" in host
+                is_host_checking = "amazonaws" in host
             except Exception:
-                is_google_checking = False
+                is_host_checking = False
 
-            if not is_google_checking and not user_agent.is_bot and not contact.is_test:
+            if not is_host_checking and not user_agent.is_bot:
                 on_transaction_commit(lambda: handle_link_task.delay(link.id, contact.id))
 
             return link.destination
