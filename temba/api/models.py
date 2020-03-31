@@ -226,7 +226,7 @@ class APIToken(models.Model):
         "Administrators": ("Administrators",),
         "Editors": ("Administrators", "Editors"),
         "Surveyors": ("Administrators", "Editors", "Surveyors"),
-        "Prometheus": ("Administrators", "Editors"),
+        "Prometheus": ("Administrators",),
     }
 
     is_active = models.BooleanField(default=True)

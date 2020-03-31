@@ -2107,7 +2107,6 @@ class OrgCRUDL(SmartCRUDL):
         form_class = ToggleForm
         success_url = "@orgs.org_home"
         success_message = ""
-        submit_button_name = "Enable Prometheus"
 
         def post_save(self, obj):
             group = Group.objects.get(name="Prometheus")
@@ -2117,22 +2116,20 @@ class OrgCRUDL(SmartCRUDL):
             # look up to see if there is a prometheus token on this org
             token = APIToken.objects.filter(is_active=True, org=org, role=group)
 
-            # if we have a token, disable it
+            # if our org has a token, disable it
             if token:
                 token.update(is_active=False)
 
-            # otherwise, create a new token
+            # otherwise, create a new token (it is created for user but shared for org)
             else:
                 APIToken.get_or_create(org, user, group)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
-            # do we already have a prometheus token?
             user = self.request.user
             org = user.get_org()
-            group = Group.objects.get(name="Prometheus")
-            token = APIToken.objects.filter(is_active=True, org=org, role=group).first()
+            token = APIToken.objects.filter(is_active=True, org=org, role=Group.objects.get(name="Prometheus")).first()
             if token:
                 context["prometheus_token"] = token.key
                 context["prometheus_url"] = f"https://{org.get_branding()['domain']}/mr/org/{org.uuid}/metrics"
