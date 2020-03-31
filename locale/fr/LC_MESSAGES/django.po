@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-31 18:53+0000\n"
+"POT-Creation-Date: 2020-03-31 20:20+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2742,6 +2742,11 @@ msgstr "Supprimer des contacts"
 
 msgid "Unstop Contacts"
 msgstr "Débloquer les contacts"
+
+#, fuzzy, python-brace-format
+#| msgid "The name of this contact"
+msgid "{label} for this contact"
+msgstr "Le nom de ce contact"
 
 msgid "Used by another contact"
 msgstr "Utilisé par un autre contact"
