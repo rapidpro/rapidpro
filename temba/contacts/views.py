@@ -419,9 +419,9 @@ class ContactForm(forms.ModelForm):
                 if urn_choice:
                     label = urn_choice[1]
 
-                help_text = "%s for this contact" % label
+                help_text = _(f"{label} for this contact")
                 if first_urn:
-                    help_text = "%s for this contact (@urns.%s)" % (label, scheme)
+                    help_text = _(f"{label} for this contact") + f" (@urns.{scheme})"
 
                 # get all the urns for this scheme
                 ctrl = forms.CharField(required=False, label=label, initial=urn.path, help_text=help_text)
