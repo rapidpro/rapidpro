@@ -468,6 +468,8 @@ class @Modax extends @ConfirmationModal
             if modal.listeners.onSuccess
               modal.listeners.onSuccess(xhr)
 
+          modal.dismiss()
+
           if modal.redirectOnSuccess
             modal.ele.find('.fetched-content').hide()
             modal.ele.find('.loader').show()
@@ -475,10 +477,6 @@ class @Modax extends @ConfirmationModal
             redirect = xhr.getResponseHeader("Temba-Success")
             if redirect
               document.location.href = redirect
-            else
-              modal.dismiss()
-          else
-            modal.dismiss()
 
         onSuccess: ->
           modal.ele.find(".primary").removeClass("disabled").text(modal.submitText)

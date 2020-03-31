@@ -427,6 +427,8 @@ PERMISSIONS = {
         "editor",
         "editor_next",
         "export",
+        "export_po",
+        "download_po",
         "export_results",
         "filter",
         "json",

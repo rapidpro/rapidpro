@@ -1,0 +1,16 @@
+-extends 'smartmin/form.html'
+-load i18n
+-load smartmin
+-load temba
+
+-block pre-form
+  -blocktrans trimmed
+    Extracts a PO file from the selected flows which can later be re-imported with updated translations.
+  %br
+  %br
+
+-block modal-script
+  {{block.super}}
+  %script
+    $('#id_language').select2({containerCssClass: "select2-temba-field"});
+    useFontCheckbox(".smartmin-form input[type=checkbox]")

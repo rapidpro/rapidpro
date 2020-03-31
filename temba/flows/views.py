@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timedelta
+from urllib.parse import urlencode
 from uuid import uuid4
 
 import iso8601
@@ -51,6 +52,7 @@ from temba.triggers.models import Trigger
 from temba.utils import analytics, json, on_transaction_commit, str_to_bool
 from temba.utils.fields import ContactSearchWidget, JSONField, OmniboxChoice, SelectWidget
 from temba.utils.s3 import public_file_storage
+from temba.utils.text import slugify_with
 from temba.utils.views import BaseActionForm, NonAtomicMixin
 
 from .models import (
@@ -239,6 +241,8 @@ class FlowCRUDL(SmartCRUDL):
         "delete",
         "update",
         "simulate",
+        "export_po",
+        "download_po",
         "export_results",
         "upload_action_recording",
         "editor",
@@ -1288,6 +1292,97 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(divider=True))
                 links.append(dict(title=_("Previous Editor"), js_class="previous-editor", href="#"))
             return links
+
+    class ExportPo(ModalMixin, OrgPermsMixin, SmartFormView):
+        class Form(forms.Form):
+            flows = forms.ModelMultipleChoiceField(
+                Flow.objects.filter(id__lt=0), required=True, widget=forms.MultipleHiddenInput()
+            )
+            language = forms.ChoiceField(
+                required=False,
+                label=_("Language"),
+                choices=[("", "None")],
+                help_text=_("Include translations in this language."),
+            )
+            include_args = forms.BooleanField(
+                required=False,
+                label=_("Include Arguments"),
+                initial=True,
+                help_text=_("Include arguments to tests on splits"),
+            )
+
+            def __init__(self, user, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                org = user.get_org()
+                org_languages = org.languages.all().order_by("orgs", "name")
+
+                self.user = user
+                self.fields["flows"].queryset = org.flows.filter(is_active=True)
+                self.fields["language"].choices += [(lang.iso_code, lang.name) for lang in org_languages]
+
+        form_class = Form
+        submit_button_name = _("Export")
+        success_url = "@flows.flow_list"
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            return kwargs
+
+        def derive_initial(self):
+            org = self.request.user.get_org()
+            flow_ids = self.request.GET.get("ids", "")
+            return {"flows": org.flows.filter(is_active=True, id__in=flow_ids.split(","))}
+
+        def form_valid(self, form):
+            flows = form.cleaned_data["flows"]
+            language = form.cleaned_data["language"]
+            params = {
+                "flow": [str(flow.id) for flow in flows],
+                "language": language,
+                "exclude_args": "0" if form.cleaned_data["include_args"] else "1",
+            }
+            download_url = reverse("flows.flow_download_po") + "?" + urlencode(params, doseq=True)
+
+            # if this is an XHR request, we need to return a structured response that it can parse
+            if "HTTP_X_PJAX" in self.request.META:
+                response = self.render_to_response(
+                    self.get_context_data(
+                        form=form,
+                        success_url=self.get_success_url(),
+                        success_script=getattr(self, "success_script", None),
+                    )
+                )
+                response["Temba-Success"] = download_url
+                return response
+
+            return HttpResponseRedirect(download_url)
+
+    class DownloadPo(OrgPermsMixin, SmartListView):
+        """
+        Download link for PO files extracted from flows by mailroom
+        """
+
+        def get(self, request, *args, **kwargs):
+            org = self.request.user.get_org()
+
+            flows = org.flows.filter(id__in=request.GET.getlist("flow"), is_active=True)
+            language = request.GET.get("language", "")
+            exclude_args = request.GET.get("exclude_args") == "1"
+
+            filename = slugify_with(flows[0].name) if len(flows) == 1 else "flows"
+            if language:
+                filename += f".{language}"
+            filename += ".po"
+
+            po = mailroom.get_client().po_export(
+                org.id, flow_ids=[f.id for f in flows], language=language, exclude_arguments=exclude_args
+            )
+
+            response = HttpResponse(po, content_type="text/x-gettext-translation")
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
+            return response
 
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
         class ExportForm(forms.Form):

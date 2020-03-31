@@ -127,9 +127,13 @@
                                 -trans "Add Label"
 
                     %span.btn-group
-                      %a.object-btn-export{'href':'#', onclick:'exportFlows()'}
+                      %a.object-btn-export{'href':'#', onclick:'exportResults()'}
                         %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Download Results" %}'}
                           .glyph.icon-excel
+
+                      %a.object-btn-export{'href':'#', onclick:'exportPO()'}
+                        %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Download PO" %}'}
+                          .glyph.icon-language
 
               %table.list-table.flow-list.object-list.table.table-condensed{style: '{% if not org_perms.flows.flow_update %}margin-top:10px{% endif %}'}
                 %tbody
@@ -187,16 +191,20 @@
   {{ block.super }}
 
   :javascript
-
-    {% if org_perms.flows.flow_update %}
-    function exportFlows(){
+    function exportResults(){
       var flowIds = getCheckedIds();
       var modal = new Modax('{% trans "Export Flow Results" %}', '{% url "flows.flow_export_results" %}?ids=' + flowIds.join());
       modal.setIcon('icon-excel');
       modal.setRedirectOnSuccess(true);
       modal.show();
     }
-    {% endif %}
+    function exportPO(){
+      var flowIds = getCheckedIds();
+      var modal = new Modax('{% trans "Export PO Translation" %}', '{% url "flows.flow_export_po" %}?ids=' + flowIds.join());
+      modal.setIcon('icon-language');
+      modal.setRedirectOnSuccess(true);
+      modal.show();
+    }
 
     {% if org_perms.flows.flow_update %}
 
