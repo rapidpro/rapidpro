@@ -404,8 +404,8 @@ class ContactForm(forms.ModelForm):
                 urn = ContactURN()
                 urn.scheme = "tel"
                 urns = [urn]
-            for urn in urns:
 
+            for urn in urns:
                 first_urn = last_urn is None or urn.scheme != last_urn.scheme
 
                 urn_choice = None
@@ -421,7 +421,7 @@ class ContactForm(forms.ModelForm):
 
                 help_text = "%s for this contact" % label
                 if first_urn:
-                    help_text = "%s for this contact (@contact.%s)" % (label, scheme)
+                    help_text = "%s for this contact (@urns.%s)" % (label, scheme)
 
                 # get all the urns for this scheme
                 ctrl = forms.CharField(required=False, label=label, initial=urn.path, help_text=help_text)
