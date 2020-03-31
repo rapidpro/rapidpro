@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-24 18:52+0000\n"
+"POT-Creation-Date: 2020-03-31 18:53+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -9741,6 +9741,29 @@ msgstr "Para se conectar a sua conta Nexmo você deverá nos fornecer a sua chav
 #| msgid "Nexmo Dashboard"
 msgid "Plivo Dashboard"
 msgstr "Painel de controle Nexmo"
+
+#, python-format
+msgid "You can monitor contact group counts and channel message counts on your organization using your %(prometheus)s endpoint. This will let you monitor usage over time using graphs and alerts in a dashboard such as %(grafana)s."
+msgstr ""
+
+msgid "Endpoint"
+msgstr ""
+
+msgid "Disable Prometheus"
+msgstr ""
+
+#, fuzzy
+#| msgid "Enable Voice"
+msgid "Enable Prometheus"
+msgstr "Ativar voz"
+
+#, python-format
+msgid "You are monitoring your organization using %(prometheus)s."
+msgstr ""
+
+#, fuzzy, python-format
+msgid "You have not enabled %(prometheus)s monitoring on your organization."
+msgstr "Nosso Id da classe do cliente para sua organização"
 
 msgid ""
 "\n"

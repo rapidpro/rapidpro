@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-24 18:52+0000\n"
+"POT-Creation-Date: 2020-03-31 18:53+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -8679,6 +8679,30 @@ msgstr "Pour connecter votre compte Plivo, vous devez nous fournir votre ID AUTH
 
 msgid "Plivo Dashboard"
 msgstr "Tableau de bord Plivo"
+
+#, python-format
+msgid "You can monitor contact group counts and channel message counts on your organization using your %(prometheus)s endpoint. This will let you monitor usage over time using graphs and alerts in a dashboard such as %(grafana)s."
+msgstr ""
+
+msgid "Endpoint"
+msgstr ""
+
+msgid "Disable Prometheus"
+msgstr ""
+
+#, fuzzy
+#| msgid "Enable Voice"
+msgid "Enable Prometheus"
+msgstr "Activer la voix"
+
+#, python-format
+msgid "You are monitoring your organization using %(prometheus)s."
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "You must select a country for your organization."
+msgid "You have not enabled %(prometheus)s monitoring on your organization."
+msgstr "Vous devez sélectionner un pays pour votre organisation."
 
 msgid ""
 "\n"
