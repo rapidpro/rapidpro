@@ -124,7 +124,7 @@
     %a.pull-right.show-all.fields
       .icon-arrow-down
   // Quick send message, chat style
-  -if org_perms.msgs.broadcast_send and not contact.is_blocked and not contact.is_stopped
+  -if org_perms.msgs.broadcast_send and not contact.is_blocked and not contact.is_stopped and contact.get_urn
     #msg-box
       %h5
         -trans "Compose message"
@@ -251,11 +251,15 @@
       .urn-link {
         display: inline-block;
       }
+      #gear-container {
+        z-index: 9999;
+        position: relative;
+      }
 
     {% lessblock %}
       :plain
         .show-all {
-          margin-top:-10px;
+          margin-top:-15px;
           margin-right:18px;
           color: #d1d1d1;
 
@@ -471,7 +475,7 @@
           font-size: 12px;
           color: @color-font-grey;
           border: 1px solid #f1f1f1;
-          margin-bottom:15px;
+          margin-bottom: 20px;
 
           .show-more {
             padding: 10px;
@@ -524,6 +528,7 @@
           z-index: 1000;
           top: 0;
           padding-bottom: 10px;
+          padding-top: 0.1px;
         }
 
         #send {
@@ -571,8 +576,6 @@
           $('table.activity.history').addClass('summary-events-only');
         }
       })
-
-
 
       $(".flow-event-display-selector a").on('click', function() {
         $(this).parent('.flow-event-display-selector').children('a').removeClass('is-active');
@@ -679,7 +682,7 @@
       $('.failed').remove();
       $('.succeeded').remove();
 
-      if(!$msg_input_obj.val()) {
+      if( (!$msg_input_obj.val()) || ($msg_input_obj.val().trim().length == 0)) {
         $msg_input_obj.css({'border':'1px solid #da4f49', 'color':'#da4f49'});
         $('.failed').remove();
         $('{% trans "<p>This field is required, please fill in the message to send out</p>" %}').insertAfter("#id_send").addClass('failed');
@@ -693,7 +696,7 @@
         return false;
       } else {
         var form = $('#send');
-        var post = "{% url 'msgs.broadcast_send' %}?_format=json";
+        var post = "{% url 'msgs.broadcast_send' %}?u={{ contact.get_urn.id }}";
 
         if (window.simulation) {
           post = post + "&simulation=true"
@@ -704,7 +707,12 @@
           schedule: null,
           text: form.find("#id_text").val(),
           csrfmiddlewaretoken: form.find("[name='csrfmiddlewaretoken']").val(),
-          omnibox: "c-{{ contact.uuid }}"
+          omnibox: JSON.stringify({
+            "id": "{{ contact.uuid }}",
+            "name": "{{ contact.name }}",
+            "type": "contact",
+            "urn": "{{ contact.get_urn.path }}"
+          })
         };
 
         $.post(post, data, function(data, textStatus, b, c) {
