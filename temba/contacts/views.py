@@ -1481,14 +1481,10 @@ class ContactCRUDL(SmartCRUDL):
             try:
                 existing_obj = Contact.objects.filter(id=obj.id).first()
                 modifiers = []
-                if (existing_obj.name is None and obj.name) or (
-                    existing_obj.name and obj.name and existing_obj.name != obj.name
-                ):
+                if (existing_obj.name or "") != (obj.name or ""):
                     modifiers.append({"type": "name", "name": obj.name or ""})
 
-                if (existing_obj.language is None and obj.language) or (
-                    existing_obj.language and obj.language and existing_obj.language != obj.language
-                ):
+                if (existing_obj.language or "") != (obj.language or ""):
                     modifiers.append({"type": "language", "language": obj.language or ""})
 
                 client = mailroom.get_client()
