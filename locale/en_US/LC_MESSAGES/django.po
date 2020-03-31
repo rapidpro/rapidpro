@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-24 18:52+0000\n"
+"POT-Creation-Date: 2020-03-31 16:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2543,6 +2543,9 @@ msgid "Delete Group"
 msgstr ""
 
 msgid "Create"
+msgstr ""
+
+msgid "An error occurred updating your contact. Please try again later."
 msgstr ""
 
 msgid "Contact blocked"

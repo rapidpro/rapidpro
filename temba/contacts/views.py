@@ -34,6 +34,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
+from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.templatetags.contacts import MISSING_VALUE
@@ -1477,10 +1478,28 @@ class ContactCRUDL(SmartCRUDL):
             return super().get_form()
 
         def save(self, obj):
-            fields = [f.name for f in obj._meta.concrete_fields if f.name not in self.exclude]
-            obj.save(update_fields=fields, handle_update=True)
+            try:
+                existing_obj = Contact.objects.filter(id=obj.id).first()
+                modifiers = []
+                if (existing_obj.name is None and obj.name) or (
+                    existing_obj.name and obj.name and existing_obj.name != obj.name
+                ):
+                    modifiers.append({"type": "name", "name": obj.name or ""})
 
-            self.save_m2m()
+                if (existing_obj.language is None and obj.language) or (
+                    existing_obj.language and obj.language and existing_obj.language != obj.language
+                ):
+                    modifiers.append({"type": "language", "language": obj.language or ""})
+
+                client = mailroom.get_client()
+                contact_ids = [obj.id]
+
+                if modifiers:
+                    client.contact_modify(obj.org_id, contact_ids, modifiers)
+            except mailroom.MailroomException as e:
+                logger.error(f"Contact update failed: {str(e)}", exc_info=True)
+
+                raise ValidationError(_("An error occurred updating your contact. Please try again later."))
 
             new_groups = self.form.cleaned_data.get("groups")
             if new_groups is not None:
