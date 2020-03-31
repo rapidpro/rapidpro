@@ -1,0 +1,298 @@
+<!doctype html>
+<html>
+  <head>
+    <script src="https://unpkg.com/@webcomponents/webcomponentsjs@2.3.0/bundles/webcomponents-sd-ce.js"></script>
+    <script
+      src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.js"
+    >
+    </script>
+  </head>
+  <body>
+    <link href="https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:300,400,500" rel="stylesheet">
+    <link rel="stylesheet" href="/sitestatic/fonts/temba/style.css">
+    <style>
+      
+      html {
+        --font-family: Helvetica, Helvetica, Arial, sans-serif;
+        
+        font-family: var(--font-family);
+        font-size: 13px;
+        font-weight: 200;
+        
+        /* 
+          --color-widget-bg: rgba(0, 0, 0, 0.04);
+          --color-widget-bg-focused: rgba(0, 0, 0, 0.06);
+          --color-widget-border: transparent;
+        */
+
+        --curvature: 4px;
+        --curvature-widget: 0px;
+
+        /* primary colors, should be dark */
+        /* --primary-rgb: 35, 135, 202; */
+        --primary-rgb: 52, 152, 219;
+        --secondary-rgb: 0, 77, 129;
+        --focus-rgb: 82, 168, 236;
+        --error-rgb: 255, 99, 71;
+
+        --color-info: #c0d9eb;
+        --color-warning: #fff6c0;
+        --color-error: rgb(var(--error-rgb));
+
+        /** --- secondary configuration, only for fine tuning --- */
+
+        /* page text, borders, widgets */
+
+        --color-text: #777;
+        --color-widget-text: #555;
+        --color-borders: rgba(0,0,0,.07);
+        
+        --widget-box-shadow-focused: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(var(--focus-rgb), 0.6);
+        --widget-box-shadow-focused-error: inset 0 1px 1px rgba(var(--error-rgb), 0.075), 0 0 8px rgba(var(--error-rgb), 0.6);
+        --color-focus: rgba(var(--focus-rgb), 0.8);
+        
+        --color-widget-bg: #fff;
+        --color-widget-bg-focused: #fff;
+        --color-widget-border: rgb(204,204,204);
+        --color-placeholder: var(--color-text-help);
+
+        /* light colors, panel backgrounds, selection, etc */
+        --color-primary-light: #eee;
+        --color-secondary-light: #ccc;
+
+        /* dark colors, nav bar, buttons, etc */
+        --color-primary-dark: rgb(var(--primary-rgb));
+        --color-secondary-dark: rgb(var(--secondary-rgb));
+
+        /* light text goes over dark, dark over lights */
+        --color-text-light: rgba(255,255,255,.92);
+        --color-text-dark: rgba(0,0,0,.5);
+        --color-text-dark-secondary: rgba(0,0,0,.2);
+        --color-text-help: rgba(0,0,0,.45);
+
+        /* --color-selection: #3875d7; */
+        --color-selection: rgb(var(--primary-rgb));
+
+        /* solid overlays with text */
+        --color-overlay-dark: rgba(0,0,0,.2);
+        --color-overlay-dark-text: rgba(255, 255, 255, .9);
+        --color-overlay-light: rgba(0,0,0,.05);
+        --color-overlay-light-text: rgba(0,0,0, .6);
+
+        /* links, buttons, and label badges */
+        --color-link-primary: rgba(var(--primary-rgb), .8);
+        --color-link-primary-hover: rgba(var(--primary-rgb), .9);
+        --color-link-secondary: rgba(var(--secondary-rgb), .8);
+        --color-link-secondary-hover: rgba(var(--secondary-rgb), .9);
+        --color-button-primary: var(--color-primary-dark);
+        --color-button-primary-text: var(--color-text-light);
+        --color-button-secondary: var(--color-secondary-light);
+        --color-button-secondary-text: var(--color-text-dark);
+        
+        --color-button-disabled: rgba(0,0,0,.03);
+        
+
+        --color-label-primary: var(--color-primary-dark);
+        --color-label-primary-text: var(--color-text-light);        
+        --color-label-secondary: rgba(0,0,0,.2);
+        --color-label-secondary-text: rgba(255, 255, 255, .9);        
+      }
+
+      rp-select {
+        width: 250px;
+      }
+
+      rp-select:focus {
+        outline: none;
+        box-shadow: none;
+      }
+
+      .example {
+        padding: 20px;
+        border: 1px solid #e6e6e6;
+        margin: 10px;
+        border-radius: 3px;
+      }
+
+      .example-header {
+        padding-bottom: 10px;
+        font-size: 12px;
+      }
+
+    </style>
+
+    <div class="example">
+      <rp-checkbox name="schedule" label="Schedule for later delivery"></rp-checkbox>
+    </div>
+
+
+    <div class="example">
+      <rp-modax id="send-message" header="Send Message" endpoint="/broadcast/send/">
+        <rp-button name="Send Message" primary></rp-button>
+      </rp-modax>
+    </div>
+
+    <div style="display: none">
+    <div class="example">
+      <div class="example-header">Contact Search</div>
+      <rp-contact-search 
+        name="contact_query" 
+        endpoint="/contact/search/?samples=5&search=" 
+        placeholder="Enter a query"
+        matches-text="Found ${count} for ${query}"
+      >
+      </rp-contact-search>
+    </div>
+
+    <div class="example">
+      <div class="example-header">Text Inputs</div>
+      <rp-textinput></rp-textinput>
+      <br/>
+      <rp-textinput textarea></rp-textinput>
+
+    </div>
+
+    <div class="example">
+      <div class="example-header">Single</div>
+      <rp-select name="start-type" placeholder="Choose how to start">
+        <rp-option value="0" name="Choose recipients manually"></rp-option>
+        <rp-option value="1" name="Search for contacts to start"></rp-option>
+      </rp-select>
+    </div>
+
+    <div class="example">
+      <div class="example-header">Single Initialized</div>
+      <rp-select name="start-type" placeholder="Choose how to start">
+        <rp-option value="0" name="Choose recipients manually"></rp-option>
+        <rp-option value="1" name="Search for contacts to start" selected></rp-option>
+      </rp-select>
+    </div>
+
+    <div class="example">
+      <div class="example-header">Single Searchable</div>
+      <rp-select name="start-type" placeholder="Search how to start" searchable>
+        <rp-option value="0" name="Choose recipients manually"></rp-option>
+        <rp-option value="1" name="Search for contacts to start"></rp-option>
+      </rp-select>
+    </div>
+    
+    <div class="example">
+      <div class="example-header">Single Remote</div>
+      <rp-select 
+        endpoint="/contact/omnibox/?v=2"
+        queryParam="search"
+        placeholder="Contacts"
+        searchable>
+      </rp-select>
+    </div>
+    
+    <div class="example">
+      <div class="example-header">Multi</div>
+      <rp-select name="start-type" placeholder="Pick some colors" multi>
+          <rp-option value="red" name="Red"></rp-option>
+          <rp-option value="gree" name="Green"></rp-option>
+          <rp-option value="blue" name="Blue"></rp-option>
+      </rp-select>        
+    </div>
+
+    <div class="example">
+      <div class="example-header">Multi Initialized</div>
+      <rp-select name="start-type" placeholder="Pick some colors" multi>
+          <rp-option value="red" name="Red"></rp-option>
+          <rp-option value="gree" name="Green" selected></rp-option>
+          <rp-option value="blue" name="Blue" selected></rp-option>
+      </rp-select>        
+    </div>
+  
+    <div class="example">
+      <div class="example-header">Multi Searchable</div>
+      <rp-select name="start-type" placeholder="Pick some colors" multi searchable>
+        <rp-option value="red" name="Red"></rp-option>
+        <rp-option value="green" name="Green"></rp-option>
+        <rp-option value="blue" name="Blue"></rp-option>
+      </rp-select>
+    </div>
+
+    <div class="example">
+      <div class="example-header">Multi Remote</div>
+      <rp-select 
+        endpoint="/contact/omnibox/?v=2"
+        queryParam="search"
+        placeholder="Contacts"
+        searchable
+        multi>
+      </rp-select>
+    </div>
+  
+    <div class="example">
+      <div class="example-header">Omnibox</div>
+      <rp-omnibox
+        endpoint="/contact/omnibox/?v=2"
+        groups
+        contacts
+      ></rp-omnibox>
+    </div>
+
+    <div class="example">
+      <div class="example-header">Omnibox Initialized</div>
+      <rp-omnibox
+        endpoint="/contact/omnibox/?v=2"
+        groups
+        contacts
+        value='[{"id": "f916ebaa-630d-450c-b72c-268822b70a42", "name": "a new", "type": "group", "count": 0}]'
+      ></rp-omnibox>
+    </div>
+  
+
+    <div class="example">
+      <div class="example-header">Completion</div>    
+      <rp-completion     
+        completionsEndpoint="/mr/docs/completion.json"
+        functionsEndpoint="/mr/docs/functions.json"
+        fieldsEndpoint="/api/v2/fields.json"
+        globalsEndpoint="/api/v2/globals.json"
+        textarea>
+      </rp-completion>
+    </div>
+
+    <!--alias-editor
+      osmid="192787"
+      endpoint="/adminboundary"
+    ></alias-editor-->
+  
+    <!-- rp-button name="Start Flow" primary onClick="javascript:showDialog();"></rp-button-->
+
+    <!--rp-dialog 
+      size="medium"
+      id="start-flow"
+      header="Start Flow"
+    >
+      <div style="position:relative">    
+        <div style="padding:20px; overflow-y: scroll;">
+          <rp-omnibox 
+            name="omni"
+            endpoint="http://localhost:8888/contact/omnibox/?v=2&search="
+            contacts
+            groups
+          ></rp-omnibox>
+        </div>
+      </div>
+    </rp-dialog -->
+    </div>
+
+    <script>
+      /*
+      function showDialog() {
+        document.querySelector("#start-flow").setAttribute("open", true);
+      }
+
+      document.querySelector("#start-flow").addEventListener("rp-button-clicked", (evt)=>{
+        evt.target.removeAttribute("open");
+      });
+      */
+    </script>
+
+    <script type="module" src="../src/rp-components.js"></script>
+    <script defer src="/sitestatic/fonts/temba/svgxuse.js"></script>
+  </body>
+</html>

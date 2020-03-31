@@ -5,6 +5,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, ContactURN
+from temba.utils.fields import ExternalURLField
 
 from ...models import Channel
 from ...views import ALL_COUNTRIES, ClaimViewMixin
@@ -72,7 +73,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             ),
         )
 
-        url = forms.URLField(
+        url = ExternalURLField(
             max_length=1024,
             label=_("Send URL"),
             help_text=_("The URL we will call when sending messages, with variable substitutions"),
@@ -95,7 +96,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
 
     class SendClaimForm(ClaimViewMixin.Form):
-        url = forms.URLField(
+        url = ExternalURLField(
             max_length=1024,
             label=_("Send URL"),
             help_text=_("The URL we will POST to when sending messages, with variable substitutions"),

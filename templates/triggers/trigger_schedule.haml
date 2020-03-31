@@ -18,6 +18,10 @@
       margin-left: 0px;
     }
 
+    #trigger_flow {
+      width: 430px;
+    }
+
     #trigger_omnibox {
       width: 430px;
     }
@@ -29,7 +33,7 @@
 
 -block extra-script
   {{ block.super }}
-  %script{src:"{{ STATIC_URL }}js/schedules-ui.js?v=3"}
+  %script{src:"{{ STATIC_URL }}js/schedules-ui.js"}
 
   <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
   :javascript
@@ -37,7 +41,11 @@
     var user_tz_offset = {{ user_tz_offset }};
 
     $(document).ready(function() {
-        select2div("#id_schedule_flow", "520px", '{% trans "Flow to start" %}');
+        var initialDate;
+        {% if form.start_datetime_value.value %}
+          initialDate = new Date({{form.start_datetime_value.value}} * 1000);
+        {% endif %}
+        
         var minDate = new Date();
         var minutes = minDate.getMinutes();
         if (minutes > 0) {
@@ -45,10 +53,7 @@
             minDate.setHours(minDate.getHours() + 1);
         }
 
-        initializeDatetimePicker(minDate, undefined, false);
-
-        // initialize our omnibox
-        prepareOmnibox();
+        initializeDatetimePicker(minDate, initialDate, false);
     });
 
 
@@ -71,24 +76,24 @@
     .repeat-period
       %p.instructions
         -render_field 'repeat_period'
-    .weekly-repeat-options{class:'{% if form.initial.repeat_period == "W" %}{% else%}hide{%endif%}'}
+    .weekly-repeat-options{class:'{% if form.repeat_period.value == "W" %}{% else%}hide{%endif%}'}
       .btn-group{'data-toggle':'buttons-checkbox'}
-        #mon.btn{value:2, class:'{% if 0 in days %}active{% endif %}'}
+        #mon.btn{value:"M", class:'{% if "M" in form.repeat_days_of_week.value %}active{% endif %}'}
           -trans "Mon"
-        #tue.btn{value:4, class:'{% if 1 in days %}active{% endif %}'}
+        #tue.btn{value:"T", class:'{% if "T" in form.repeat_days_of_week.value %}active{% endif %}'}
           -trans "Tue"
-        #wed.btn{value:8, class:'{% if 2 in days %}active{% endif %}'}
+        #wed.btn{value:"W", class:'{% if "W" in form.repeat_days_of_week.value %}active{% endif %}'}
           -trans "Wed"
-        #thu.btn{value:16, class:'{% if 3 in days %}active{% endif %}'}
+        #thu.btn{value:"R", class:'{% if "R" in form.repeat_days_of_week.value %}active{% endif %}'}
           -trans "Thu"
-        #fri.btn{value:32, class:'{% if 4 in days %}active{% endif %}'}
+        #fri.btn{value:"F", class:'{% if "F" in form.repeat_days_of_week.value %}active{% endif %}'}
           -trans "Fri"
-        #sat.btn{value:64, class:'{% if 5 in days %}active{% endif %}'}
+        #sat.btn{value:"S", class:'{% if "S" in form.repeat_days_of_week.value %}active{% endif %}'}
           -trans "Sat"
-        #sun.btn{value:128, class:'{% if 6 in days %}active{% endif %}'}
+        #sun.btn{value:"U", class:'{% if "U" in form.repeat_days_of_week.value %}active{% endif %}'}
           -trans "Sun"
 
-      %input#repeat-days-value{name:'repeat_days', type:'hidden'}
+      %input#repeat-days-value{name:'repeat_days_of_week', type:'hidden', value:'{{form.repeat_days_of_week.value|default:""}}'}
 
 -load humanize
 

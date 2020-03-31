@@ -1,9 +1,9 @@
 from django import forms
-from django.forms import widgets
+from django.forms import ValidationError, widgets
 
 from temba.utils import json
 
-from .models import URN, Contact, ContactGroup, ContactURN
+from .models import Contact, ContactGroup, ContactURN
 
 
 class OmniboxWidget(widgets.TextInput):
@@ -14,21 +14,13 @@ class OmniboxWidget(widgets.TextInput):
         group_uuids = []
         contact_uuids = []
         urn_ids = []
-        raw_numbers = []
 
-        item_lists = {"g": group_uuids, "c": contact_uuids, "u": urn_ids, "n": raw_numbers}
+        item_lists = {"g": group_uuids, "c": contact_uuids, "u": urn_ids}
 
         ids = spec.split(",") if spec else []
         for item_id in ids:
             item_type, item_id = item_id.split("-", 1)
             item_lists[item_type].append(item_id)
-
-        # turn our raw numbers into new contacts with tel URNs for orgs that aren't anonymous
-        if not org.is_anon:
-            for number in raw_numbers:
-                urn = URN.from_tel(number)
-                contact, urn_obj = Contact.get_or_create(org, urn, user=user)
-                urn_ids.append(urn_obj.pk)
 
         groups = ContactGroup.user_groups.filter(uuid__in=group_uuids, org=org)
         contacts = Contact.objects.filter(uuid__in=contact_uuids, org=org, is_active=True)
@@ -40,11 +32,14 @@ class OmniboxWidget(widgets.TextInput):
         self.__dict__["user"] = user
 
     def render(self, name, value, attrs=None, renderer=None):
+        # disable required attribute when rendering so that client side doesn't blow up from this field being hidden
+        if attrs is not None:
+            attrs["required"] = False
+
         value = self.get_json(value)
         return super().render(name, value, attrs)
 
     def get_json(self, value):
-
         if "user" not in self.__dict__:  # pragma: no cover
             raise ValueError(
                 "Omnibox requires a user, make sure you set one using field.set_user(user) in your form.__init__"
@@ -72,6 +67,13 @@ class OmniboxField(forms.Field):
     def set_user(self, user):
         self.user = user
         self.widget.set_user(user)
+
+    def validate(self, value):
+        if (
+            self.required
+            and len(value.get("groups", [])) + len(value.get("contacts", [])) + len(value.get("urns", [])) == 0
+        ):
+            raise ValidationError(self.error_messages["required"], code="required")
 
     def to_python(self, value):
         if "user" not in self.__dict__:  # pragma: no cover

@@ -1,9 +1,9 @@
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.types.africastalking.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
 
 from ...models import ChannelType
+from .views import ClaimView
 
 
 class AfricasTalkingType(ChannelType):
@@ -43,8 +43,8 @@ class AfricasTalkingType(ChannelType):
             url="https://{{ channel.callback_domain }}{% url 'courier.at' channel.uuid 'receive' %}",
             description=_(
                 """
-                You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on
-                <a href="http://www.africastalking.com/account/sms/smscallback" target="africastalking">Callback URL</a>.
+                You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page,
+                then clicking on Callback URL.
                 """
             ),
         ),
@@ -53,8 +53,8 @@ class AfricasTalkingType(ChannelType):
             url="https://{{ channel.callback_domain }}{% url 'courier.at' channel.uuid 'status' %}",
             description=_(
                 """
-                You can set the delivery URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on
-                <a href="http://www.africastalking.com/account/sms/dlrcallback" target="africastalking">Delivery Reports</a>.
+                You can set the delivery URL on your Africa's Talking account by visiting the SMS Dashboard page,
+                then clicking on Delivery Reports.
                 """
             ),
         ),

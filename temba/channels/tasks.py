@@ -8,7 +8,7 @@ from celery.task import task
 
 from temba.utils.celery import nonoverlapping_task
 
-from .models import Alert, Channel, ChannelCount, ChannelLog
+from .models import Alert, Channel, ChannelCount, ChannelLog, SyncEvent
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +30,13 @@ def check_channels_task():
 
 @nonoverlapping_task(track_started=True, name="sync_old_seen_channels_task", lock_key="sync_old_seen_channels")
 def sync_old_seen_channels_task():
+    from temba.channels.types.android import AndroidType
+
     now = timezone.now()
     window_end = now - timedelta(minutes=15)
     window_start = now - timedelta(days=7)
     old_seen_channels = Channel.objects.filter(
-        is_active=True, channel_type=Channel.TYPE_ANDROID, last_seen__lte=window_end, last_seen__gt=window_start
+        is_active=True, channel_type=AndroidType.code, last_seen__lte=window_end, last_seen__gt=window_start
     )
     for channel in old_seen_channels:
         channel.trigger_sync()
@@ -44,6 +46,14 @@ def sync_old_seen_channels_task():
 def send_alert_task(alert_id, resolved):
     alert = Alert.objects.get(pk=alert_id)
     alert.send_email(resolved)
+
+
+@nonoverlapping_task(track_started=True, name="trim_sync_events_task")
+def trim_sync_events_task():  # pragma: needs cover
+    """
+    Runs daily and clears any channel sync events that are older than 7 days
+    """
+    SyncEvent.trim()
 
 
 @nonoverlapping_task(track_started=True, name="trim_channel_log_task")

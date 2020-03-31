@@ -1,13 +1,15 @@
 import requests
 from smartmin.views import SmartFormView, SmartReadView, SmartUpdateView
 
-
 from django import forms
+from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import URN
 from temba.orgs.views import OrgPermsMixin
+from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
+from temba.utils.fields import ExternalURLField
 from temba.utils.views import PostOnlyMixin
 
 from ...models import Channel
@@ -47,6 +49,9 @@ class TemplatesView(OrgPermsMixin, SmartReadView):
     slug_url_kwarg = "uuid"
     template_name = "channels/types/whatsapp/templates.html"
 
+    def get_gear_links(self):
+        return [dict(title=_("Sync Logs"), href=reverse("channels.types.whatsapp.sync_logs", args=[self.object.uuid]))]
+
     def get_queryset(self):
         queryset = super().get_queryset()
         return queryset.filter(org=self.get_user().get_org())
@@ -59,13 +64,55 @@ class TemplatesView(OrgPermsMixin, SmartReadView):
         return context
 
 
+class SyncLogsView(OrgPermsMixin, SmartReadView):
+    """
+    Displays a simple table of the WhatsApp Templates Synced requests for this channel
+    """
+
+    model = Channel
+    fields = ()
+    permission = "channels.channel_read"
+    slug_url_kwarg = "uuid"
+    template_name = "channels/types/whatsapp/sync_logs.html"
+
+    def get_gear_links(self):
+        return [
+            dict(
+                title=_("Message Templates"),
+                href=reverse("channels.types.whatsapp.templates", args=[self.object.uuid]),
+            )
+        ]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return queryset.filter(org=self.get_user().get_org())
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # include all our http sync logs as well
+        context["sync_logs"] = (
+            HTTPLog.objects.filter(
+                log_type__in=[
+                    HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
+                    HTTPLog.WHATSAPP_TOKENS_SYNCED,
+                    HTTPLog.WHATSAPP_CONTACTS_REFRESHED,
+                ],
+                channel=self.object,
+            )
+            .order_by("-created_on")
+            .prefetch_related("channel")
+        )
+        return context
+
+
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
         number = forms.CharField(help_text=_("Your enterprise WhatsApp number"))
         country = forms.ChoiceField(
             choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this phone number is used in")
         )
-        base_url = forms.URLField(help_text=_("The base URL for your WhatsApp enterprise installation"))
+        base_url = ExternalURLField(help_text=_("The base URL for your WhatsApp enterprise installation"))
         username = forms.CharField(
             max_length=32, help_text=_("The username to access your WhatsApp enterprise account")
         )
@@ -167,7 +214,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             name="WhatsApp: %s" % data["number"],
             address=data["number"],
             config=config,
-            tps=15,
+            tps=45,
         )
 
         return super().form_valid(form)

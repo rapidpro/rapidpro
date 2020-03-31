@@ -1,22 +1,15 @@
 from unittest.mock import MagicMock
 
-from smartmin.tests import SmartminTest, _CRUDLTest
-
-from django.contrib.auth.models import User
 from django.core.files import File
 from django.urls import reverse
 
 from temba.apks.models import Apk
+from temba.tests import TembaTest
 
 from .models import Lead, Video
-from .views import VideoCRUDL
 
 
-class PublicTest(SmartminTest):
-    def setUp(self):
-        self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
-        self.user = self.create_user("tito")
-
+class PublicTest(TembaTest):
     def test_index(self):
         home_url = reverse("public.public_index")
         response = self.client.get(home_url, follow=True)
@@ -194,14 +187,100 @@ class PublicTest(SmartminTest):
         self.assertEqual(len(response.context["urlset"]), num_fixed_items + 1)
 
 
-class VideoCRUDLTest(_CRUDLTest):
-    def setUp(self):
-        super().setUp()
-        self.crudl = VideoCRUDL
-        self.user = User.objects.create_superuser("admin", "a@b.com", "admin")
+class VideoCRUDLTest(TembaTest):
+    def test_create_and_update(self):
+        create_url = reverse("public.video_create")
 
-    def getCreatePostData(self):
-        return dict(name="Video One", description="My description", summary="My Summary", vimeo_id="1234", order=0)
+        payload = {
+            "name": "Video One",
+            "description": "My description",
+            "summary": "My Summary",
+            "vimeo_id": "1234",
+            "order": 0,
+        }
 
-    def getUpdatePostData(self):
-        return dict(name="Video Updated", description="My description", summary="My Summary", vimeo_id="1234", order=0)
+        # can't create if not logged in
+        response = self.client.post(create_url, payload)
+        self.assertLoginRedirect(response)
+
+        # can't create as org user
+        self.login(self.admin)
+        response = self.client.post(create_url, payload)
+        self.assertLoginRedirect(response)
+
+        # can create as superuser
+        self.login(self.superuser)
+        response = self.client.post(create_url, payload)
+        self.assertEqual(302, response.status_code)
+
+        video = Video.objects.get()
+        self.assertEqual("Video One", video.name)
+        self.assertEqual("My description", video.description)
+        self.assertEqual("My Summary", video.summary)
+        self.assertEqual("1234", video.vimeo_id)
+        self.assertEqual(0, video.order)
+
+        payload = {
+            "name": "Name 2",
+            "description": "Description 2",
+            "summary": "Summary 2",
+            "vimeo_id": "4567",
+            "order": 2,
+        }
+
+        update_url = reverse("public.video_update", args=[video.id])
+
+        self.client.logout()
+
+        # can't update if not logged in
+        response = self.client.post(update_url, payload)
+        self.assertLoginRedirect(response)
+
+        # can't update as org user
+        self.login(self.admin)
+        response = self.client.post(update_url, payload)
+        self.assertLoginRedirect(response)
+
+        # can update as superuser
+        self.login(self.superuser)
+        response = self.client.post(update_url, payload)
+        self.assertEqual(302, response.status_code)
+
+        video.refresh_from_db()
+        self.assertEqual("Name 2", video.name)
+        self.assertEqual("Description 2", video.description)
+        self.assertEqual("Summary 2", video.summary)
+        self.assertEqual("4567", video.vimeo_id)
+        self.assertEqual(2, video.order)
+
+    def test_read_and_list(self):
+        video1 = Video.objects.create(
+            name="Video One",
+            summary="Unicorn",
+            description="Video of unicorns",
+            vimeo_id="1234",
+            order=0,
+            created_by=self.superuser,
+            modified_by=self.superuser,
+        )
+        video2 = Video.objects.create(
+            name="Video One",
+            summary="Unicorn",
+            description="Video of unicorns",
+            vimeo_id="1234",
+            order=0,
+            created_by=self.superuser,
+            modified_by=self.superuser,
+        )
+
+        list_url = reverse("public.video_list")
+        read_url = reverse("public.video_read", args=[video1.id])
+
+        # don't need to be logged in to list
+        response = self.client.get(list_url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual([video1, video2], list(response.context["object_list"]))
+
+        # don't need to be logged in to read
+        response = self.client.get(read_url)
+        self.assertEqual(200, response.status_code)

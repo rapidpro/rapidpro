@@ -1,0 +1,61 @@
+-extends "channels/channel_claim_form.html"
+-load i18n compress temba
+
+-block title
+  .medium-help.float-left{class:"{{ view.channel_type.icon }}"}
+
+  %h2.font_normalize.header-margin
+    {{ title }}
+
+-block pre-form
+  .info
+    %p
+      -blocktrans with name=brand.name
+        You can connect a <a href="https://www.freshworks.com/live-chat-software/" target="_blank">FreshChat</a> Account to your {{ name}} account
+        to automate sending and receiving messages via FreshChat. This will also support Apple Business Chat if it's been configured on your FreshChat account.
+    %p
+      -blocktrans trimmed
+        You will need to have a  FreshChat account and get an authentication token and setup a webhook. To do so:
+
+      %ol.freshchat-steps
+        %li
+          -blocktrans trimmed
+            In the FreshChat web interface, under Settings, API Tokens, select Generate Token. Once the token is created you'll enter it below.
+
+        %li
+          -blocktrans trimmed
+            Under Settings again, select Webhooks and copy the Public Key and paste it below. This assures all webhook request from FreshChat will be authenticated.
+
+        %li
+          -blocktrans trimmed
+            Lastly, you'll need the UUID of the Agent that {{name }} will use when it sends FreshChat Message. This is available via 
+            the <a href="https://developers.freshchat.com/api/#agent" target="_blank"> FreshChat API</a>. 
+        %li
+          -blocktrans trimmed
+            Once you press Submit below with all the information configured, the confirmation page will give you the URL to use for the FreshChat Webhooks.
+            Enter this URL on the Settings page, under Webhooks where the Public Key was copied from before.
+    %p
+      -blocktrans trimmed
+        Each Message sent to the channel will have a URN that's in the format of <code>channel-uuid/user-uuid</code> where the channel uuid is the FreshChat Message Channels uuid.
+
+-block extra-style
+  {{ block.super }}
+
+  :css
+    ol.freshchat-steps li {
+      margin-top: 10px;
+      list-style: decimal;
+    }
+
+    .info {
+      width: 800px;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom:15px;
+    }
+
+    #id_auth_token {
+      width: 340px;
+    }

@@ -29,9 +29,11 @@ from temba.api.v2.views_base import (
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
+from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ContactURN
 from temba.contacts.tasks import release_group_task
 from temba.flows.models import Flow, FlowRun, FlowStart
+from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
 from temba.templates.models import Template, TemplateTranslation
@@ -50,6 +52,7 @@ from .serializers import (
     CampaignWriteSerializer,
     ChannelEventReadSerializer,
     ChannelReadSerializer,
+    ClassifierReadSerializer,
     ContactBulkActionSerializer,
     ContactFieldReadSerializer,
     ContactFieldWriteSerializer,
@@ -61,6 +64,8 @@ from .serializers import (
     FlowRunReadSerializer,
     FlowStartReadSerializer,
     FlowStartWriteSerializer,
+    GlobalReadSerializer,
+    GlobalWriteSerializer,
     LabelReadSerializer,
     LabelWriteSerializer,
     MsgBulkActionSerializer,
@@ -85,12 +90,14 @@ class RootView(views.APIView):
      * [/api/v2/campaign_events](/api/v2/campaign_events) - to list, create, update or delete campaign events
      * [/api/v2/channels](/api/v2/channels) - to list channels
      * [/api/v2/channel_events](/api/v2/channel_events) - to list channel events
+     * [/api/v2/classifiers](/api/v2/classifiers) - to list classifiers
      * [/api/v2/contacts](/api/v2/contacts) - to list, create, update or delete contacts
      * [/api/v2/contact_actions](/api/v2/contact_actions) - to perform bulk contact actions
      * [/api/v2/definitions](/api/v2/definitions) - to export flow definitions, campaigns, and triggers
      * [/api/v2/fields](/api/v2/fields) - to list, create or update contact fields
      * [/api/v2/flow_starts](/api/v2/flow_starts) - to list flow starts and start contacts in flows
      * [/api/v2/flows](/api/v2/flows) - to list flows
+     * [/api/v2/globals](/api/v2/globals) - to list globals
      * [/api/v2/groups](/api/v2/groups) - to list, create, update or delete contact groups
      * [/api/v2/labels](/api/v2/labels) - to list, create, update or delete message labels
      * [/api/v2/messages](/api/v2/messages) - to list messages
@@ -186,12 +193,14 @@ class RootView(views.APIView):
                 "campaign_events": reverse("api.v2.campaign_events", request=request),
                 "channels": reverse("api.v2.channels", request=request),
                 "channel_events": reverse("api.v2.channel_events", request=request),
+                "classifiers": reverse("api.v2.classifiers", request=request),
                 "contacts": reverse("api.v2.contacts", request=request),
                 "contact_actions": reverse("api.v2.contact_actions", request=request),
                 "definitions": reverse("api.v2.definitions", request=request),
                 "fields": reverse("api.v2.fields", request=request),
                 "flow_starts": reverse("api.v2.flow_starts", request=request),
                 "flows": reverse("api.v2.flows", request=request),
+                "globals": reverse("api.v2.globals", request=request),
                 "groups": reverse("api.v2.groups", request=request),
                 "labels": reverse("api.v2.labels", request=request),
                 "messages": reverse("api.v2.messages", request=request),
@@ -227,6 +236,7 @@ class ExplorerView(SmartTemplateView):
             CampaignEventsEndpoint.get_delete_explorer(),
             ChannelsEndpoint.get_read_explorer(),
             ChannelEventsEndpoint.get_read_explorer(),
+            ClassifiersEndpoint.get_read_explorer(),
             ContactsEndpoint.get_read_explorer(),
             ContactsEndpoint.get_write_explorer(),
             ContactsEndpoint.get_delete_explorer(),
@@ -237,6 +247,8 @@ class ExplorerView(SmartTemplateView):
             FlowsEndpoint.get_read_explorer(),
             FlowStartsEndpoint.get_read_explorer(),
             FlowStartsEndpoint.get_write_explorer(),
+            GlobalsEndpoint.get_read_explorer(),
+            GlobalsEndpoint.get_write_explorer(),
             GroupsEndpoint.get_read_explorer(),
             GroupsEndpoint.get_write_explorer(),
             GroupsEndpoint.get_delete_explorer(),
@@ -526,6 +538,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
       * **contacts** - the UUIDs of contacts to send to (array of up to 100 strings, optional)
       * **groups** - the UUIDs of contact groups to send to (array of up to 100 strings, optional)
       * **channel** - the UUID of the channel to use. Contacts which can't be reached with this channel are ignored (string, optional)
+      * **new_expressions** - the whether **text** contains new style expressions (boolean, default: false)
 
     Example:
 
@@ -533,7 +546,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         {
             "urns": ["tel:+250788123123", "tel:+250788123124"],
             "contacts": ["09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"],
-            "text": "hello world"
+            "text": "hello @contact.name"
         }
 
     You will receive a response containing the message broadcast created:
@@ -796,6 +809,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
     * **delivery_hour** - the hour of the day to deliver the message (integer 0-24, -1 indicates send at the same hour as the field)
     * **message** - the message to send to the contact (string, required if flow is not specified)
     * **flow** - the UUID of the flow to start the contact down (string, required if message is not specified)
+    * **new_expressions** - the whether **message** contains new style expressions (boolean, default: false)
 
     Example:
 
@@ -1136,6 +1150,86 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
                     "name": "after",
                     "required": False,
                     "help": "Only return events created after this date, ex: 2015-01-28T18:00:00.000",
+                },
+            ],
+        }
+
+
+class ClassifiersEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to list the active natural language understanding classifiers on your account.
+
+    ## Listing Classifiers
+
+    A **GET** returns the classifiers for your organization, most recent first.
+
+     * **uuid** - the UUID of the classifier, filterable as `uuid`.
+     * **name** - the name of the classifier
+     * **intents** - the list of intents this classifier exposes (list of strings)
+     * **type** - the type of the classifier, one of 'wit' or 'luis'
+     * **created_on** - when this classifier was created
+
+    Example:
+
+        GET /api/v2/classifiers.json
+
+    Response:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "uuid": "9a8b001e-a913-486c-80f4-1356e23f582e",
+                "name": "Temba Classifier",
+                "intents": ["book_flight", "book_car"],
+                "type": "wit",
+                "created_on": "2013-02-27T09:06:15.456"
+            },
+            ...
+
+    """
+
+    permission = "classifiers.classifier_api"
+    model = Classifier
+    serializer_class = ClassifierReadSerializer
+    pagination_class = CreatedOnCursorPagination
+
+    def filter_queryset(self, queryset):
+        params = self.request.query_params
+        org = self.request.user.get_org()
+
+        queryset = queryset.filter(org=org, is_active=True)
+
+        # filter by uuid (optional)
+        uuid = params.get("uuid")
+        if uuid:
+            queryset = queryset.filter(uuid=uuid)
+
+        return self.filter_before_after(queryset, "created_on")
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            "method": "GET",
+            "title": "List Classifiers",
+            "url": reverse("api.v2.classifiers"),
+            "slug": "classifier-list",
+            "params": [
+                {
+                    "name": "uuid",
+                    "required": False,
+                    "help": "A classifier UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
+                },
+                {
+                    "name": "before",
+                    "required": False,
+                    "help": "Only return classifiers created before this date, ex: 2015-01-28T18:00:00.000",
+                },
+                {
+                    "name": "after",
+                    "required": False,
+                    "help": "Only return classifiers created after this date, ex: 2015-01-28T18:00:00.000",
                 },
             ],
         }
@@ -1756,9 +1850,11 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
      * **archived** - whether this flow is archived (boolean), filterable as `archived`
      * **labels** - the labels for this flow (array of objects)
      * **expires** - the time (in minutes) when this flow's inactive contacts will expire (integer)
+     * **runs** - the counts of completed, interrupted and expired runs (object)
+     * **results** - the results that this flow may create (array)
+     * **parent_refs** - the keys of the parent flow results referenced in this flow (array)
      * **created_on** - when this flow was created (datetime)
      * **modified_on** - when this flow was last modified (datetime), filterable as `before` and `after`.
-     * **runs** - the counts of completed, interrupted and expired runs (object)
 
     Example:
 
@@ -1791,6 +1887,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
                             "node_uuids": ["99afcda7-f928-4d4a-ae83-c90c96deb76d"]
                         }
                     ],
+                    "parent_refs": [],
                     "created_on": "2016-01-06T15:33:00.813162Z",
                     "modified_on": "2017-01-07T13:14:00.453567Z"
                 },
@@ -1853,6 +1950,143 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
                     "required": False,
                     "help": "Only return flows modified after this date, ex: 2017-01-28T18:00:00.000",
                 },
+            ],
+        }
+
+
+class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to list, create, and update active globals on your account.
+
+    ## Listing Globals
+
+    A **GET** returns the globals for your organization, most recently modified first.
+
+     * **key** - the key of the global
+     * **name** - the name of the global
+     * **value** - the value of the global
+     * **modified_on** - when this global was modified
+
+    Example:
+
+        GET /api/v2/globals.json
+
+    Response:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+                {
+                    "key": "org_name",
+                    "name": "Org Name",
+                    "value": "Acme Ltd",
+                    "modified_on": "2013-02-27T09:06:15.456"
+                },
+                ...
+            ]
+        }
+
+    ## Adding a Global
+
+    A **POST** can be used to create a new Global. Don't specify a key as this will be generated for you.
+
+     * **name** - the name of the global
+     * **value** - the value of the global
+
+    Example:
+
+        POST /api/v2/global.json
+        {
+            "name": "Org Name",
+            "value": "Acme Ltd"
+        }
+
+    You will receive a global object as a response if successful:
+
+        {
+            "key": "org_name",
+            "name": "Org Name",
+            "value": "Acme Ltd",
+            "modified_on": "2013-02-27T09:06:15.456"
+        }
+
+    ## Updating a Global
+
+    A **POST** can also be used to update an existing global if you specify its key in the URL.
+
+    Example:
+
+        POST /api/v2/globals.json?key=org_name
+        {
+            "value": "Acme Ltd"
+        }
+
+    You will receive the updated global object as a response if successful:
+
+        {
+            "key": "org_name",
+            "name": "Org Name",
+            "value": "Acme Ltd",
+            "modified_on": "2013-02-27T09:06:15.456"
+        }
+    """
+
+    permission = "globals.global_api"
+    model = Global
+    serializer_class = GlobalReadSerializer
+    write_serializer_class = GlobalWriteSerializer
+    pagination_class = ModifiedOnCursorPagination
+    lookup_params = {"key": "key"}
+
+    def filter_queryset(self, queryset):
+        params = self.request.query_params
+        # filter by key (optional)
+        key = params.get("key")
+        if key:
+            queryset = queryset.filter(key=key)
+
+        # filter by modified (optional)
+        before = params.get("before")
+        after = params.get("after")
+        if before or after:
+            return self.filter_before_after(queryset, "modified_on")
+
+        return queryset.filter(is_active=True)
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            "method": "GET",
+            "title": "List Globals",
+            "url": reverse("api.v2.globals"),
+            "slug": "globals-list",
+            "params": [
+                {
+                    "name": "before",
+                    "required": False,
+                    "help": "Only return globals modified before this date, ex: 2015-01-28T18:00:00.000",
+                },
+                {
+                    "name": "after",
+                    "required": False,
+                    "help": "Only return globals modified after this date, ex: 2015-01-28T18:00:00.000",
+                },
+                {"name": "key", "required": False, "help": "A global key filter by"},
+            ],
+        }
+
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            "method": "POST",
+            "title": "Add or Update Globals ",
+            "url": reverse("api.v2.globals"),
+            "slug": "globals-write",
+            "params": [{"name": "key", "required": False, "help": "Key of an existing global to update"}],
+            "fields": [
+                {"name": "name", "required": False, "help": "the Name value of the global"},
+                {"name": "value", "required": True, "help": "the new value of the global"},
             ],
         }
 
@@ -1985,21 +2219,22 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
         # if there are still dependencies, give up
         triggers = instance.trigger_set.filter(is_archived=False)
-        if triggers.count() > 0:
+        if triggers:
+            deps = ", ".join([str(t.id) for t in triggers])
             raise InvalidQueryError(
-                f"This group is used by active triggers. In order to delete it, first archive triggers: {', '.join(str(trigger) for trigger in triggers)}"
+                f"Group is being used by the following triggers which must be archived first: {deps}"
             )
 
         flows = Flow.objects.filter(org=instance.org, group_dependencies__in=[instance])
-        if flows.count():
-            raise InvalidQueryError(
-                f"This group is used by active flows. In order to delete it, first archive flows: {', '.join(str(flow) for flow in flows)}"
-            )
+        if flows:
+            deps = ", ".join([f.uuid for f in flows])
+            raise InvalidQueryError(f"Group is being used by the following flows which must be archived first: {deps}")
 
-        campaigns = instance.campaign_set.filter(is_archived=False)
-        if campaigns.exists():
+        campaigns = instance.campaigns.filter(is_archived=False)
+        if campaigns:
+            deps = ", ".join([c.uuid for c in campaigns])
             raise InvalidQueryError(
-                f"This group is used by active campaigns. In order to delete it, first archive campaigns: {', '.join(str(campaign) for campaign in campaigns)}"
+                f"Group is being used by the following campaigns which must be archived first: {deps}"
             )
 
         self.perform_destroy(instance)
@@ -2156,6 +2391,9 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         label_counts = LabelCount.get_totals(object_list)
         for label in object_list:
             label.count = label_counts[label]
+
+    def perform_destroy(self, instance):
+        instance.release(self.request.user)
 
     @classmethod
     def get_read_explorer(cls):
@@ -2826,6 +3064,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
      * **uuid** - the ID of the run (string), filterable as `uuid`.
      * **flow** - the UUID and name of the flow (object), filterable as `flow` with UUID.
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
+     * **start** - the UUID of the flow start (object)
      * **responded** - whether the contact responded (boolean), filterable as `responded`.
      * **path** - the contact's path through the flow nodes (array of objects)
      * **values** - values generated by rulesets in the flow (array of objects).
@@ -2849,7 +3088,11 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
             {
                 "id": 12345678,
                 "flow": {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Favorite Color"},
-                "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
+                "contact": {
+                    "uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d",
+                    "urn": "tel:+12065551212",
+                    "name": "Bob McFlow"
+                },
                 "responded": true,
                 "path": [
                     {"node": "27a86a1b-6cc4-4ae3-b73d-89650966a82f", "time": "2015-11-11T13:05:50.457742Z"},
@@ -2931,6 +3174,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         queryset = queryset.prefetch_related(
             Prefetch("flow", queryset=Flow.objects.only("uuid", "name", "base_language")),
             Prefetch("contact", queryset=Contact.objects.only("uuid", "name", "language")),
+            Prefetch("contact__urns", ContactURN.objects.order_by("-priority", "id")),
             Prefetch("start", queryset=FlowStart.objects.only("uuid")),
         )
 
@@ -2986,7 +3230,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **groups** - the list of groups that were started in the flow (objects)
      * **restart_particpants** - whether the contacts were restarted in this flow (boolean)
      * **status** - the status of this flow start
-     * **extra** - the dictionary of extra parameters passed to the flow start (object)
+     * **params** - the dictionary of extra parameters passed to the flow start (object)
      * **created_on** - the datetime when this flow start was created (datetime)
      * **modified_on** - the datetime when this flow start was modified (datetime)
 
@@ -3011,7 +3255,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                     ],
                     "restart_participants": true,
                     "status": "complete",
-                    "extra": {
+                    "params": {
                         "first_name": "Ryan",
                         "last_name": "Lewis"
                     },
@@ -3033,7 +3277,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **contacts** - the UUIDs of the contacts you want to start in this flow (array of up to 100 strings, optional)
      * **urns** - the URNs you want to start in this flow (array of up to 100 strings, optional)
      * **restart_participants** - whether to restart participants already in this flow (optional, defaults to true)
-     * **extra** - a dictionary of extra parameters to pass to the flow start (accessible via @extra in your flow)
+     * **params** - a dictionary of extra parameters to pass to the flow start (accessible via @trigger.params in your flow)
 
     Example:
 
@@ -3043,7 +3287,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             "groups": ["f5901b62-ba76-4003-9c62-72fdacc15515"],
             "contacts": ["f5901b62-ba76-4003-9c62-fjjajdsi15553"],
             "urns": ["twitter:sirmixalot", "tel:+12065551212"],
-            "extra": {"first_name": "Ryan", "last_name": "Lewis"}
+            "params": {"first_name": "Ryan", "last_name": "Lewis"}
         }
 
     Response is the created flow start:
@@ -3059,7 +3303,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             ],
             "restart_participants": true,
             "status": "complete",
-            "extra": {
+            "params": {
                 "first_name": "Ryan",
                 "last_name": "Lewis"
             },

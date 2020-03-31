@@ -1,4 +1,4 @@
-# Generated from ContactQL.g4 by ANTLR 4.7.1
+# Generated from ContactQL.g4 by ANTLR 4.7.2
 import sys
 from io import StringIO
 from typing.io import TextIO
@@ -143,7 +143,7 @@ def serializedATN():
         buf.write("DA\3\2\2\2DB\3\2\2\2DC\3\2\2\2E\20\3\2\2\2FJ\5\31\r\2")
         buf.write("GJ\5%\23\2HJ\t\13\2\2IF\3\2\2\2IG\3\2\2\2IH\3\2\2\2JK")
         buf.write("\3\2\2\2KI\3\2\2\2KL\3\2\2\2L\22\3\2\2\2MS\7$\2\2NR\n")
-        buf.write("\f\2\2OP\7$\2\2PR\7$\2\2QN\3\2\2\2QO\3\2\2\2RU\3\2\2\2")
+        buf.write("\f\2\2OP\7^\2\2PR\7$\2\2QN\3\2\2\2QO\3\2\2\2RU\3\2\2\2")
         buf.write("SQ\3\2\2\2ST\3\2\2\2TV\3\2\2\2US\3\2\2\2VW\7$\2\2W\24")
         buf.write("\3\2\2\2XZ\t\r\2\2YX\3\2\2\2Z[\3\2\2\2[Y\3\2\2\2[\\\3")
         buf.write("\2\2\2\\]\3\2\2\2]^\b\13\2\2^\26\3\2\2\2_`\13\2\2\2`\30")
@@ -205,7 +205,7 @@ class ContactQLLexer(Lexer):
 
     def __init__(self, input=None, output: TextIO = sys.stdout):
         super().__init__(input, output)
-        self.checkVersion("4.7.1")
+        self.checkVersion("4.7.2")
         self._interp = LexerATNSimulator(self, self.atn, self.decisionsToDFA, PredictionContextCache())
         self._actions = None
         self._predicates = None

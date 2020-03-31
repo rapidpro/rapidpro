@@ -135,7 +135,6 @@
 
       $("td .child-org-name").live('click', function(event) {
         var parent = $(this).parents('tr')
-        console.log($(parent));
         $(parent).find('.edit-org').each(function() {
           var url = $(this).attr('data-url');
           var modal = new Modax('Update', url);

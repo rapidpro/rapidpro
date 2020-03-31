@@ -145,10 +145,10 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
     $scope.dialog = utils.openModal("/partials/modal", SimpleMessageController, resolveObj)
     return $scope.dialog
 
-  showConnectTransferTo = ->
-    modal = new ConfirmationModal(gettext("TransferTo Disconnected"), gettext("No TransferTo account connected. Please first connect your TransferTo account."))
+  showConnectDTOne = ->
+    modal = new ConfirmationModal(gettext("DT One Disconnected"), gettext("No DT One account connected. Please first connect your DT One account."))
     modal.addClass('airtime-warning')
-    modal.setPrimaryButton(gettext("Connect TransferTo Account"))
+    modal.setPrimaryButton(gettext("Connect DT One Account"))
     modal.setListeners
       onPrimary: ->
         document.location.href = window.connectAirtimeServiceURL
@@ -527,7 +527,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
     # show message asking to connect TransferTo account for existing airtime node
     if ruleset.ruleset_type == 'airtime' and not $rootScope.hasAirtimeService
-      showConnectTransferTo()
+      showConnectDTOne()
       return
 
     if Flow.language and Flow.flow.base_language != Flow.language.iso_code and not dragSource

@@ -3,6 +3,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.channels.views import ALL_COUNTRIES, AuthenticatedExternalClaimView, ClaimViewMixin
+from temba.utils.fields import ExternalURLField
 
 
 class ClaimView(AuthenticatedExternalClaimView):
@@ -16,7 +17,7 @@ class ClaimView(AuthenticatedExternalClaimView):
             label=_("Number"),
             help_text=("The shortcode or phone number you are connecting."),
         )
-        url = forms.URLField(
+        url = ExternalURLField(
             label=_("URL"),
             help_text=_(
                 "The URL for the Junebug channel. ex: https://junebug.praekelt.org/jb/channels/3853bb51-d38a-4bca-b332-8a57c00f2a48/messages.json"

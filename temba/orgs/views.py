@@ -1,6 +1,7 @@
 import itertools
 import logging
 import regex
+import smtplib
 
 from collections import OrderedDict, namedtuple
 from datetime import datetime, timedelta
@@ -12,6 +13,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import nexmo
 import pytz
 import requests
+from packaging.version import Version
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -51,6 +53,7 @@ from django.views.generic import View
 from temba.api.models import APIToken
 from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
+from temba.classifiers.models import Classifier
 from temba.flows.models import Flow, RuleSet
 from temba.links.models import Link
 from temba.formax import FormaxMixin
@@ -62,21 +65,6 @@ from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import NonAtomicMixin
 
 from .models import (
-    ACCOUNT_SID,
-    ACCOUNT_TOKEN,
-    CHATBASE_AGENT_NAME,
-    CHATBASE_API_KEY,
-    CHATBASE_VERSION,
-    MONTHFIRST,
-    NEXMO_KEY,
-    NEXMO_SECRET,
-    NEXMO_UUID,
-    RESTORED,
-    SMTP_SERVER,
-    SUSPENDED,
-    TRANSFERTO_ACCOUNT_LOGIN,
-    TRANSFERTO_AIRTIME_API_TOKEN,
-    WHITELISTED,
     GIFTCARDS,
     LOOKUPS,
     DEFAULT_FIELDS_PAYLOAD_GIFTCARDS,
@@ -614,7 +602,6 @@ class OrgCRUDL(SmartCRUDL):
         "clear_cache",
         "twilio_connect",
         "twilio_account",
-        "nexmo_configuration",
         "nexmo_account",
         "nexmo_connect",
         "sub_orgs",
@@ -626,7 +613,7 @@ class OrgCRUDL(SmartCRUDL):
         "service",
         "surveyor",
         "transfer_credits",
-        "transfer_to_account",
+        "dtone_account",
         "smtp_server",
         "giftcards",
         "lookups",
@@ -658,7 +645,7 @@ class OrgCRUDL(SmartCRUDL):
                 except (DjangoUnicodeDecodeError, ValueError):
                     raise ValidationError(_("This file is not a valid flow definition file."))
 
-                if Flow.is_before_version(json_data.get("version", 0), Org.EARLIEST_IMPORT_VERSION):
+                if Version(str(json_data.get("version", 0))) < Version(Org.EARLIEST_IMPORT_VERSION):
                     raise ValidationError(
                         _("This file is no longer valid. Please export a new version and try again.")
                     )
@@ -834,44 +821,6 @@ class OrgCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(self.get_success_url())
 
-    class NexmoConfiguration(InferOrgMixin, OrgPermsMixin, SmartReadView):
-        def get(self, request, *args, **kwargs):
-            org = self.get_object()
-            domain = org.get_brand_domain()
-
-            nexmo_client = org.get_nexmo_client()
-            if not nexmo_client:
-                return HttpResponseRedirect(reverse("orgs.org_nexmo_connect"))
-
-            nexmo_uuid = org.nexmo_uuid()
-            mo_path = reverse("courier.nx", args=[nexmo_uuid, "receive"])
-            dl_path = reverse("courier.nx", args=[nexmo_uuid, "status"])
-            try:
-                nexmo_client.update_account("http://%s%s" % (domain, mo_path), "http://%s%s" % (domain, dl_path))
-
-                return HttpResponseRedirect(reverse("channels.types.nexmo.claim"))
-
-            except nexmo.Error:
-                return super().get(request, *args, **kwargs)
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-
-            org = self.get_object()
-            domain = org.get_brand_domain()
-
-            config = org.config
-            context["nexmo_api_key"] = config[NEXMO_KEY]
-            context["nexmo_api_secret"] = config[NEXMO_SECRET]
-
-            nexmo_uuid = org.config.get(NEXMO_UUID, None)
-            mo_path = reverse("courier.nx", args=[nexmo_uuid, "receive"])
-            dl_path = reverse("courier.nx", args=[nexmo_uuid, "status"])
-            context["mo_path"] = "https://%s%s" % (domain, mo_path)
-            context["dl_path"] = "https://%s%s" % (domain, dl_path)
-
-            return context
-
     class NexmoAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         success_message = ""
 
@@ -892,12 +841,9 @@ class OrgCRUDL(SmartCRUDL):
                     if not api_secret:  # pragma: needs cover
                         raise ValidationError(_("You must enter your Nexmo Account API Secret"))
 
-                    try:
-                        from nexmo import Client as NexmoClient
+                    from temba.channels.types.nexmo.client import NexmoClient
 
-                        client = NexmoClient(key=api_key, secret=api_secret)
-                        client.get_balance()
-                    except Exception:  # pragma: needs cover
+                    if not NexmoClient(api_key, api_secret).check_credentials():
                         raise ValidationError(
                             _("Your Nexmo API key and secret seem invalid. Please check them again and retry.")
                         )
@@ -914,8 +860,8 @@ class OrgCRUDL(SmartCRUDL):
             initial = super().derive_initial()
             org = self.get_object()
             config = org.config
-            initial["api_key"] = config.get(NEXMO_KEY, "")
-            initial["api_secret"] = config.get(NEXMO_SECRET, "")
+            initial["api_key"] = config.get(Org.CONFIG_NEXMO_KEY, "")
+            initial["api_secret"] = config.get(Org.CONFIG_NEXMO_SECRET, "")
             initial["disconnect"] = "false"
             return initial
 
@@ -941,7 +887,7 @@ class OrgCRUDL(SmartCRUDL):
             client = org.get_nexmo_client()
             if client:
                 config = org.config
-                context["api_key"] = config.get(NEXMO_KEY, "--")
+                context["api_key"] = config.get(Org.CONFIG_NEXMO_KEY, "--")
 
             return context
 
@@ -953,15 +899,12 @@ class OrgCRUDL(SmartCRUDL):
             def clean(self):
                 super().clean()
 
-                api_key = self.cleaned_data.get("api_key", None)
-                api_secret = self.cleaned_data.get("api_secret", None)
+                api_key = self.cleaned_data.get("api_key")
+                api_secret = self.cleaned_data.get("api_secret")
 
-                try:
-                    from nexmo import Client as NexmoClient
+                from temba.channels.types.nexmo.client import NexmoClient
 
-                    client = NexmoClient(key=api_key, secret=api_secret)
-                    client.get_balance()
-                except Exception:
+                if not NexmoClient(api_key, api_secret).check_credentials():
                     raise ValidationError(
                         _("Your Nexmo API key and secret seem invalid. Please check them again and retry.")
                     )
@@ -970,7 +913,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = NexmoConnectForm
         submit_button_name = "Save"
-        success_url = "@orgs.org_nexmo_configuration"
+        success_url = "@channels.types.nexmo.claim"
         field_config = dict(api_key=dict(label=""), api_secret=dict(label=""))
         success_message = "Nexmo Account successfully connected."
 
@@ -1086,6 +1029,40 @@ class OrgCRUDL(SmartCRUDL):
                         raise ValidationError(_("You must enter the SMTP port"))
 
                     self.cleaned_data["smtp_password"] = smtp_password
+
+                    try:
+                        from temba.utils.email import send_custom_smtp_email
+
+                        admin_emails = [admin.email for admin in self.instance.get_org_admins().order_by("email")]
+
+                        branding = self.instance.get_branding()
+                        subject = _("%(name)s SMTP configuration test") % branding
+                        body = (
+                            _(
+                                "This email is a test to confirm the custom SMTP server configuration added to your %(name)s account."
+                            )
+                            % branding
+                        )
+
+                        send_custom_smtp_email(
+                            admin_emails,
+                            subject,
+                            body,
+                            smtp_from_email,
+                            smtp_host,
+                            smtp_port,
+                            smtp_username,
+                            smtp_password,
+                            True,
+                        )
+
+                    except smtplib.SMTPException as e:
+                        raise ValidationError(
+                            _("Failed to send email with STMP server configuration with error '%s'") % str(e)
+                        )
+                    except Exception:
+                        raise ValidationError(_("Failed to send email with STMP server configuration"))
+
                 return self.cleaned_data
 
             class Meta:
@@ -1097,8 +1074,7 @@ class OrgCRUDL(SmartCRUDL):
         def derive_initial(self):
             initial = super().derive_initial()
             org = self.get_object()
-            config = org.config
-            smtp_server = config.get(SMTP_SERVER, None)
+            smtp_server = org.config.get(Org.CONFIG_SMTP_SERVER)
             parsed_smtp_server = urlparse(smtp_server)
             smtp_username = ""
             if parsed_smtp_server.username:
@@ -1139,8 +1115,7 @@ class OrgCRUDL(SmartCRUDL):
 
             org = self.get_object()
             if org.has_smtp_config():
-                config = org.config
-                smtp_server = config.get(SMTP_SERVER, None)
+                smtp_server = org.config.get(Org.CONFIG_SMTP_SERVER)
                 parsed_smtp_server = urlparse(smtp_server)
 
                 from_email = parse_qs(parsed_smtp_server.query).get("from", [None])[0]
@@ -1302,11 +1277,11 @@ class OrgCRUDL(SmartCRUDL):
 
         def post(self, request, *args, **kwargs):
             if "status" in request.POST:
-                if request.POST.get("status", None) == SUSPENDED:
+                if request.POST.get("status", None) == Org.STATUS_SUSPENDED:
                     self.get_object().set_suspended()
-                elif request.POST.get("status", None) == WHITELISTED:
+                elif request.POST.get("status", None) == Org.STATUS_WHITELISTED:
                     self.get_object().set_whitelisted()
-                elif request.POST.get("status", None) == RESTORED:
+                elif request.POST.get("status", None) == Org.STATUS_RESTORED:
                     self.get_object().set_restored()
                 elif request.POST.get("status", None) == "delete":
                     self.get_object().release()
@@ -2056,10 +2031,10 @@ class OrgCRUDL(SmartCRUDL):
 
             slug = Org.get_unique_slug(self.form.cleaned_data["name"])
             obj.slug = slug
-            obj.brand = self.request.branding.get("host", settings.DEFAULT_BRAND)
+            obj.brand = self.request.branding.get("brand", settings.DEFAULT_BRAND)
 
             if obj.timezone.zone in pytz.country_timezones("US"):
-                obj.date_format = MONTHFIRST
+                obj.date_format = Org.DATE_FORMAT_MONTH_FIRST
 
             return obj
 
@@ -2713,9 +2688,9 @@ class OrgCRUDL(SmartCRUDL):
             initial = super().derive_initial()
             org = self.get_object()
             config = org.config
-            initial["agent_name"] = config.get(CHATBASE_AGENT_NAME, "")
-            initial["api_key"] = config.get(CHATBASE_API_KEY, "")
-            initial["version"] = config.get(CHATBASE_VERSION, "")
+            initial["agent_name"] = config.get(Org.CONFIG_CHATBASE_AGENT_NAME, "")
+            initial["api_key"] = config.get(Org.CONFIG_CHATBASE_API_KEY, "")
+            initial["version"] = config.get(Org.CONFIG_CHATBASE_VERSION, "")
             initial["disconnect"] = "false"
             return initial
 
@@ -2724,7 +2699,7 @@ class OrgCRUDL(SmartCRUDL):
             (chatbase_api_key, chatbase_version) = self.object.get_chatbase_credentials()
             if chatbase_api_key:
                 config = self.object.config
-                agent_name = config.get(CHATBASE_AGENT_NAME, None)
+                agent_name = config.get(Org.CONFIG_CHATBASE_AGENT_NAME)
                 context["chatbase_agent_name"] = agent_name
 
             return context
@@ -2757,6 +2732,9 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("channels.channel_claim"):
                 links.append(dict(title=_("Add Channel"), href=reverse("channels.channel_claim")))
 
+            if self.has_org_perm("classifiers.classifier_connect"):
+                links.append(dict(title=_("Add Classifier"), href=reverse("classifiers.classifier_connect")))
+
             if self.has_org_perm("orgs.org_export"):
                 links.append(dict(title=_("Export"), href=reverse("orgs.org_export")))
 
@@ -2772,6 +2750,16 @@ class OrgCRUDL(SmartCRUDL):
 
                 formax.add_section(
                     "channel", get_channel_read_url(channel), icon=channel.get_type().icon, action="link"
+                )
+
+        def add_classifier_section(self, formax, classifier):
+
+            if self.has_org_perm("classifiers.classifier_read"):
+                formax.add_section(
+                    "classifier",
+                    reverse("classifiers.classifier_read", args=[classifier.uuid]),
+                    icon=classifier.get_type().icon,
+                    action="link",
                 )
 
         def derive_formax_sections(self, formax, context):
@@ -2797,6 +2785,11 @@ class OrgCRUDL(SmartCRUDL):
                 if nexmo_client:  # pragma: needs cover
                     formax.add_section("nexmo", reverse("orgs.org_nexmo_account"), icon="icon-channel-nexmo")
 
+            if self.has_org_perm("classifiers.classifier_read"):
+                classifiers = Classifier.objects.filter(org=org, is_active=True).order_by("created_on")
+                for classifier in classifiers:
+                    self.add_classifier_section(formax, classifier)
+
             if self.has_org_perm("orgs.org_profile"):
                 formax.add_section("user", reverse("orgs.user_edit"), icon="icon-user", action="redirect")
 
@@ -2816,22 +2809,18 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_smtp_server"):
                 formax.add_section("email", reverse("orgs.org_smtp_server"), icon="icon-envelop")
 
-            if self.has_org_perm("orgs.org_transfer_to_account"):
-                if not self.object.is_connected_to_transferto():
+            if self.has_org_perm("orgs.org_dtone_account"):
+                if not self.object.is_connected_to_dtone():
                     formax.add_section(
-                        "transferto",
-                        reverse("orgs.org_transfer_to_account"),
-                        icon="icon-transferto",
+                        "dtone",
+                        reverse("orgs.org_dtone_account"),
+                        icon="icon-dtone",
                         action="redirect",
                         button=_("Connect"),
                     )
                 else:  # pragma: needs cover
                     formax.add_section(
-                        "transferto",
-                        reverse("orgs.org_transfer_to_account"),
-                        icon="icon-transferto",
-                        action="redirect",
-                        nobutton=True,
+                        "dtone", reverse("orgs.org_dtone_account"), icon="icon-dtone", action="redirect", nobutton=True
                     )
 
             if self.has_org_perm("orgs.org_chatbase"):
@@ -2861,14 +2850,15 @@ class OrgCRUDL(SmartCRUDL):
                     "resthooks", reverse("orgs.org_resthooks"), icon="icon-cloud-lightning", dependents="resthooks"
                 )
 
-            # show archives
+            # show globals and archives
+            formax.add_section("globals", reverse("globals.global_list"), icon="icon-global", action="link")
             formax.add_section("archives", reverse("archives.archive_message"), icon="icon-box", action="link")
 
-    class TransferToAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+    class DtoneAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
         success_message = ""
 
-        class TransferToAccountForm(forms.ModelForm):
+        class DTOneAccountForm(forms.ModelForm):
             account_login = forms.CharField(label=_("Login"), required=False)
             airtime_api_token = forms.CharField(label=_("API Token"), required=False)
             disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
@@ -2880,25 +2870,23 @@ class OrgCRUDL(SmartCRUDL):
                     airtime_api_token = self.cleaned_data.get("airtime_api_token", None)
 
                     try:
-                        from temba.airtime.models import AirtimeTransfer
+                        from temba.airtime.dtone import DTOneClient
 
-                        response = AirtimeTransfer.post_transferto_api_response(
-                            account_login, airtime_api_token, action="ping"
-                        )
-                        parsed_response = AirtimeTransfer.parse_transferto_response(force_text(response.content))
+                        client = DTOneClient(account_login, airtime_api_token)
+                        response = client.ping()
 
-                        error_code = int(parsed_response.get("error_code", None))
-                        info_txt = parsed_response.get("info_txt", None)
-                        error_txt = parsed_response.get("error_txt", None)
+                        error_code = int(response.get("error_code", None))
+                        info_txt = response.get("info_txt", None)
+                        error_txt = response.get("error_txt", None)
 
                     except Exception:
                         raise ValidationError(
-                            _("Your TransferTo API key and secret seem invalid. " "Please check them again and retry.")
+                            _("Your DT One API key and secret seem invalid. Please check them again and retry.")
                         )
 
                     if error_code != 0 and info_txt != "pong":
                         raise ValidationError(
-                            _("Connecting to your TransferTo account " "failed with error text: %s") % error_txt
+                            _("Connecting to your DT One account failed with error text: %s") % error_txt
                         )
 
                 return self.cleaned_data
@@ -2907,24 +2895,24 @@ class OrgCRUDL(SmartCRUDL):
                 model = Org
                 fields = ("account_login", "airtime_api_token", "disconnect")
 
-        form_class = TransferToAccountForm
+        form_class = DTOneAccountForm
         submit_button_name = "Save"
         success_url = "@orgs.org_home"
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            if self.object.is_connected_to_transferto():
+            if self.object.is_connected_to_dtone():
                 config = self.object.config
-                account_login = config.get(TRANSFERTO_ACCOUNT_LOGIN, None)
-                context["transferto_account_login"] = account_login
+                account_login = config.get(Org.CONFIG_DTONE_LOGIN)
+                context["dtone_account_login"] = account_login
 
             return context
 
         def derive_initial(self):
             initial = super().derive_initial()
             config = self.object.config
-            initial["account_login"] = config.get(TRANSFERTO_ACCOUNT_LOGIN, None)
-            initial["airtime_api_token"] = config.get(TRANSFERTO_AIRTIME_API_TOKEN, None)
+            initial["account_login"] = config.get(Org.CONFIG_DTONE_LOGIN)
+            initial["airtime_api_token"] = config.get(Org.CONFIG_DTONE_API_TOKEN)
             initial["disconnect"] = "false"
             return initial
 
@@ -2933,14 +2921,14 @@ class OrgCRUDL(SmartCRUDL):
             org = user.get_org()
             disconnect = form.cleaned_data.get("disconnect", "false") == "true"
             if disconnect:
-                org.remove_transferto_account(user)
+                org.remove_dtone_account(user)
                 return HttpResponseRedirect(reverse("orgs.org_home"))
             else:
                 account_login = form.cleaned_data["account_login"]
                 airtime_api_token = form.cleaned_data["airtime_api_token"]
 
-                org.connect_transferto(account_login, airtime_api_token, user)
-                org.refresh_transferto_account_currency()
+                org.connect_dtone(account_login, airtime_api_token, user)
+                org.refresh_dtone_account_currency()
                 return super().form_valid(form)
 
     class TwilioAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
@@ -2996,8 +2984,8 @@ class OrgCRUDL(SmartCRUDL):
         def derive_initial(self):
             initial = super().derive_initial()
             config = self.object.config
-            initial["account_sid"] = config[ACCOUNT_SID]
-            initial["account_token"] = config[ACCOUNT_TOKEN]
+            initial["account_sid"] = config[Org.CONFIG_TWILIO_SID]
+            initial["account_token"] = config[Org.CONFIG_TWILIO_TOKEN]
             initial["disconnect"] = "false"
             return initial
 
@@ -3269,7 +3257,7 @@ class TopUpCRUDL(SmartCRUDL):
 
     class List(OrgPermsMixin, SmartListView):
         def derive_queryset(self, **kwargs):
-            queryset = TopUp.objects.filter(is_active=True, org=self.request.user.get_org())
+            queryset = TopUp.objects.filter(is_active=True, org=self.request.user.get_org()).order_by("-expires_on")
             return queryset.annotate(
                 credits_remaining=ExpressionWrapper(F("credits") - Sum(F("topupcredits__used")), IntegerField())
             )

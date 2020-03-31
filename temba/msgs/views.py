@@ -18,18 +18,21 @@ from django.forms import Form
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.http import urlquote_plus
+from django.utils.http import is_safe_url, urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
-from temba.contacts.models import TEL_SCHEME, URN, ContactGroup, ContactURN
+from temba.contacts.models import TEL_SCHEME, ContactGroup, ContactURN
+from temba.contacts.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
+from temba.flows.legacy.expressions import get_function_listing
 from temba.formax import FormaxMixin
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, on_transaction_commit
-from temba.utils.expressions import get_function_listing
+from temba.utils.fields import CheckboxWidget, CompletionTextarea, JSONField, OmniboxChoice
+from temba.utils.models import patch_queryset_count
 from temba.utils.views import BaseActionForm
 
 from .models import INITIALIZING, QUEUED, Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
@@ -76,15 +79,36 @@ def send_message_auto_complete_processor(request):
 
 
 class SendMessageForm(Form):
-    omnibox = OmniboxField()
-    text = forms.CharField(widget=forms.Textarea, max_length=640)
-    schedule = forms.BooleanField(widget=forms.HiddenInput, required=False)
+
+    omnibox = JSONField(
+        label=_("Recipients"),
+        required=False,
+        help_text=_("The contacts to send the message to"),
+        widget=OmniboxChoice(
+            attrs={
+                "placeholder": _("Recipients, enter contacts or groups"),
+                "groups": True,
+                "contacts": True,
+                "urns": True,
+            }
+        ),
+    )
+
+    text = forms.CharField(
+        widget=CompletionTextarea(attrs={"placeholder": _("Hi @contact.name!"), "widget_only": True})
+    )
+
+    schedule = forms.BooleanField(
+        widget=CheckboxWidget(attrs={"widget_only": True}),
+        required=False,
+        label=_("Schedule for later"),
+        help_text=None,
+    )
     step_node = forms.CharField(widget=forms.HiddenInput, max_length=36, required=False)
 
     def __init__(self, user, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
-        self.fields["omnibox"].set_user(user)
 
     def is_valid(self):
         valid = super().is_valid()
@@ -153,9 +177,9 @@ class InboxView(OrgPermsMixin, SmartListView):
         # if there isn't a search filtering the queryset, we can replace the count function with a pre-calculated value
         if "search" not in self.request.GET:
             if isinstance(label, Label) and not label.is_folder():
-                self.object_list.count = lambda: label.get_visible_count()
+                patch_queryset_count(self.object_list, label.get_visible_count)
             elif isinstance(label, str):
-                self.object_list.count = lambda: counts[label]
+                patch_queryset_count(self.object_list, lambda: counts[label])
 
         context = super().get_context_data(**kwargs)
 
@@ -177,7 +201,9 @@ class InboxView(OrgPermsMixin, SmartListView):
         context["org"] = org
         context["folders"] = folders
         context["labels"] = Label.get_hierarchy(org)
-        context["has_messages"] = any(counts.values())
+        context["has_messages"] = (
+            any(counts.values()) or Archive.objects.filter(org=org, archive_type=Archive.TYPE_MSG).exists()
+        )
         context["send_form"] = SendMessageForm(self.request.user)
         context["actions"] = self.actions
         context["current_label"] = label
@@ -200,7 +226,12 @@ class InboxView(OrgPermsMixin, SmartListView):
 
 
 class BroadcastForm(forms.ModelForm):
-    message = forms.CharField(required=True, widget=forms.Textarea, max_length=Broadcast.MAX_TEXT_LEN)
+    message = forms.CharField(
+        required=True,
+        widget=CompletionTextarea(attrs={"placeholder": _("Hi @contact.name!")}),
+        max_length=Broadcast.MAX_TEXT_LEN,
+    )
+
     omnibox = OmniboxField()
 
     def __init__(self, user, *args, **kwargs):
@@ -243,14 +274,11 @@ class BroadcastCRUDL(SmartCRUDL):
                 )
 
             if self.has_org_perm("schedules.schedule_update"):
-                action = "formax"
-                if len(self.get_object().children.all()) == 0:
-                    action = "fixed"
                 formax.add_section(
                     "schedule",
                     reverse("schedules.schedule_update", args=[self.object.schedule.pk]),
                     icon="icon-calendar",
-                    action=action,
+                    action="formax",
                 )
 
     class Update(OrgObjPermsMixin, SmartUpdateView):
@@ -299,61 +327,64 @@ class BroadcastCRUDL(SmartCRUDL):
             qs = super().get_queryset(**kwargs)
             return qs.select_related("schedule").order_by("-created_on")
 
-    class Send(OrgPermsMixin, SmartFormView):
+    class Send(OrgPermsMixin, ModalMixin, SmartFormView):
         title = _("Send Message")
         form_class = SendMessageForm
         fields = ("omnibox", "text", "schedule", "step_node")
         success_url = "@msgs.msg_inbox"
-        submit_button_name = _("Send")
+        submit_button_name = _("Send Message")
+
+        def derive_initial(self):
+            initial = super().derive_initial()
+            org = self.request.user.get_org()
+
+            urn_ids = [_ for _ in self.request.GET.get("u", "").split(",") if _]
+            msg_ids = [_ for _ in self.request.GET.get("m", "").split(",") if _]
+            contact_uuids = [_ for _ in self.request.GET.get("c", "").split(",") if _]
+
+            if msg_ids or contact_uuids or urn_ids:
+                params = {}
+                if len(msg_ids) > 0:
+                    params["m"] = ",".join(msg_ids)
+                if len(contact_uuids) > 0:
+                    params["c"] = ",".join(contact_uuids)
+                if len(urn_ids) > 0:
+                    params["u"] = ",".join(urn_ids)
+
+                results = omnibox_query(org, **params)
+                initial["omnibox"] = omnibox_results_to_dict(org, results, version=2)
+
+            initial["step_node"] = self.request.GET.get("step_node", None)
+            return initial
+
+        def derive_fields(self):
+            if self.request.GET.get("step_node"):
+                return ("text", "step_node")
+            else:
+                return super().derive_fields()
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
+            context["recipient_count"] = int(self.request.GET.get("count", 0))
             return context
 
         def pre_process(self, *args, **kwargs):
-            response = super().pre_process(*args, **kwargs)
-            org = self.request.user.get_org()
-
-            # can this org send to any URN schemes?
-            if not org.get_schemes(Channel.ROLE_SEND):
-                return HttpResponseBadRequest(_("You must add a phone number before sending messages"))
-
-            return response
-
-        def derive_success_message(self):
-            if "from_contact" not in self.request.POST:
-                return super().derive_success_message()
-            else:
-                return None
-
-        def get_success_url(self):
-            success_url = super().get_success_url()
-            if "from_contact" in self.request.POST:
-                contact = self.form.cleaned_data["omnibox"]["contacts"][0]
-                success_url = reverse("contacts.contact_read", args=[contact.uuid])
-            return success_url
-
-        def form_invalid(self, form):
-            if "_format" in self.request.GET and self.request.GET["_format"] == "json":
-                return HttpResponse(
-                    json.dumps(dict(status="error", errors=form.errors)), content_type="application/json", status=400
-                )
-            else:
-                return super().form_invalid(form)
+            if self.request.method == "POST":
+                response = super().pre_process(*args, **kwargs)
+                org = self.request.user.get_org()
+                # can this org send to any URN schemes?
+                if not org.get_schemes(Channel.ROLE_SEND):
+                    return HttpResponseBadRequest(_("You must add a phone number before sending messages"))
+                return response
 
         def form_valid(self, form):
             self.form = form
             user = self.request.user
             org = user.get_org()
 
-            omnibox = self.form.cleaned_data["omnibox"]
-            has_schedule = self.form.cleaned_data["schedule"]
             step_uuid = self.form.cleaned_data.get("step_node", None)
             text = self.form.cleaned_data["text"]
-
-            groups = list(omnibox["groups"])
-            contacts = list(omnibox["contacts"])
-            urns = list(omnibox["urns"])
+            has_schedule = False
 
             if step_uuid:
                 from .tasks import send_to_flow_node
@@ -361,39 +392,51 @@ class BroadcastCRUDL(SmartCRUDL):
                 get_params = {k: v for k, v in self.request.GET.items()}
                 get_params.update({"s": step_uuid})
                 send_to_flow_node.delay(org.pk, user.pk, text, **get_params)
-                if "_format" in self.request.GET and self.request.GET["_format"] == "json":
-                    return HttpResponse(json.dumps(dict(status="success")), content_type="application/json")
-                else:
-                    return HttpResponseRedirect(self.get_success_url())
-
-            schedule = Schedule.objects.create(created_by=user, modified_by=user) if has_schedule else None
-            broadcast = Broadcast.create(
-                org, user, text, groups=groups, contacts=contacts, urns=urns, schedule=schedule, status=QUEUED
-            )
-
-            if not has_schedule:
-                self.post_save(broadcast)
-                super().form_valid(form)
-
-            analytics.track(
-                self.request.user.username,
-                "temba.broadcast_created",
-                dict(contacts=len(contacts), groups=len(groups), urns=len(urns)),
-            )
-
-            if "_format" in self.request.GET and self.request.GET["_format"] == "json":
-                data = dict(status="success", redirect=reverse("msgs.broadcast_schedule_read", args=[broadcast.pk]))
-                return HttpResponse(json.dumps(data), content_type="application/json")
             else:
-                if self.form.cleaned_data["schedule"]:
-                    return HttpResponseRedirect(reverse("msgs.broadcast_schedule_read", args=[broadcast.pk]))
-                return HttpResponseRedirect(self.get_success_url())
+
+                omnibox = omnibox_deserialize(org, self.form.cleaned_data["omnibox"])
+                has_schedule = self.form.cleaned_data["schedule"]
+
+                groups = list(omnibox["groups"])
+                contacts = list(omnibox["contacts"])
+                urns = list(omnibox["urns"])
+
+                schedule = Schedule.create_blank_schedule(org, user) if has_schedule else None
+                broadcast = Broadcast.create(
+                    org,
+                    user,
+                    text,
+                    groups=groups,
+                    contacts=contacts,
+                    urns=urns,
+                    schedule=schedule,
+                    status=QUEUED,
+                    template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
+                )
+
+                if not has_schedule:
+                    self.post_save(broadcast)
+                    super().form_valid(form)
+
+                analytics.track(
+                    self.request.user.username,
+                    "temba.broadcast_created",
+                    dict(contacts=len(contacts), groups=len(groups), urns=len(urns)),
+                )
+
+            if "HTTP_X_PJAX" in self.request.META:
+                success_url = "hide"
+                if has_schedule:
+                    success_url = reverse("msgs.broadcast_schedule_read", args=[broadcast.pk])
+
+                response = self.render_to_response(self.get_context_data())
+                response["Temba-Success"] = success_url
+                return response
+
+            return HttpResponseRedirect(self.get_success_url())
 
         def post_save(self, obj):
-            # fire our send in celery
-            from temba.msgs.tasks import send_broadcast_task
-
-            on_transaction_commit(lambda: send_broadcast_task.delay(obj.pk))
+            on_transaction_commit(lambda: obj.send())
             return obj
 
         def get_form_kwargs(self):
@@ -501,7 +544,7 @@ class ExportForm(Form):
 
 class MsgCRUDL(SmartCRUDL):
     model = Msg
-    actions = ("inbox", "flow", "archived", "outbox", "sent", "failed", "filter", "test", "export")
+    actions = ("inbox", "flow", "archived", "outbox", "sent", "failed", "filter", "export")
 
     class Export(ModalMixin, OrgPermsMixin, SmartFormView):
 
@@ -518,7 +561,11 @@ class MsgCRUDL(SmartCRUDL):
                 return None, Label.all_objects.get(org=self.request.user.get_org(), uuid=label_id)
 
         def get_success_url(self):
-            return self.request.GET.get("redirect") or reverse("msgs.msg_inbox")
+            redirect = self.request.GET.get("redirect")
+            if redirect and not is_safe_url(redirect, self.request.get_host()):
+                redirect = None
+
+            return redirect or reverse("msgs.msg_inbox")
 
         def form_invalid(self, form):  # pragma: needs cover
             if "_format" in self.request.GET and self.request.GET["_format"] == "json":
@@ -601,37 +648,6 @@ class MsgCRUDL(SmartCRUDL):
             kwargs["label"] = self.derive_label()[1]
             return kwargs
 
-    class Test(SmartFormView):
-        form_class = TestMessageForm
-        fields = ("channel", "urn", "text")
-        title = "Test Message Delivery"
-        permissions = "msgs.msg_test"
-
-        def form_valid(self, *args, **kwargs):  # pragma: no cover
-            data = self.form.cleaned_data
-            handled = Msg.create_incoming(
-                data["channel"], URN.from_tel(data["urn"]), data["text"], user=self.request.user
-            )
-
-            kwargs = self.get_form_kwargs()
-            kwargs["initial"] = data
-            next_form = TestMessageForm(**kwargs)
-
-            context = self.get_context_data()
-            context["handled"] = handled
-            context["form"] = next_form
-            context["responses"] = handled.responses.all()
-
-            # passing a minimal base template and a simple Context (instead of RequestContext) helps us
-            # minimize number of other queries, allowing us to more easily measure queries per request
-            context["base_template"] = "msgs/msg_test_frame.html"
-            return self.render_to_response(context)
-
-        def get_form_kwargs(self, *args, **kwargs):  # pragma: needs cover
-            kwargs = super().get_form_kwargs(*args, **kwargs)
-            kwargs["org"] = self.request.user.get_org()
-            return kwargs
-
     class Inbox(MsgActionMixin, InboxView):
         title = _("Inbox")
         template_name = "msgs/message_box.haml"
@@ -677,9 +693,13 @@ class MsgCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
 
             # stuff in any pending broadcasts
-            context["pending_broadcasts"] = Broadcast.objects.filter(
-                org=self.request.user.get_org(), status__in=[QUEUED, INITIALIZING], schedule=None
-            ).order_by("-created_on")
+            context["pending_broadcasts"] = (
+                Broadcast.objects.filter(
+                    org=self.request.user.get_org(), status__in=[QUEUED, INITIALIZING], schedule=None
+                )
+                .prefetch_related("groups", "contacts", "urns")
+                .order_by("-created_on")
+            )
             return context
 
         def get_queryset(self, **kwargs):
@@ -741,10 +761,10 @@ class MsgCRUDL(SmartCRUDL):
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<label_id>\d+)/$" % (path, action)
+            return r"^%s/%s/(?P<label>[^/]+)/$" % (path, action)
 
         def derive_label(self):
-            return Label.all_objects.get(org=self.request.user.get_org(), id=self.kwargs["label_id"])
+            return self.request.user.get_org().msgs_labels.get(uuid=self.kwargs["label"])
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
@@ -863,7 +883,7 @@ class LabelCRUDL(SmartCRUDL):
             self.object = Label.get_or_create_folder(user.get_org(), user, obj.name)
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        success_url = "id@msgs.msg_filter"
+        success_url = "uuid@msgs.msg_filter"
         success_message = ""
 
         def get_form_kwargs(self):
@@ -888,6 +908,6 @@ class LabelCRUDL(SmartCRUDL):
 
         def post(self, request, *args, **kwargs):
             label = self.get_object()
-            label.release()
+            label.release(self.request.user)
 
             return HttpResponseRedirect(self.get_redirect_url())

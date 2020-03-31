@@ -1,0 +1,272 @@
+-extends "smartmin/create.html"
+-load i18n temba smartmin
+
+-block page-top
+
+-block content
+  .row
+    .span4
+      #claim
+        #big-phone
+          %img{ src:"{{ STATIC_URL }}/images/claim_phone.png" }
+
+        %form.claim-form{method:"post", action:"{% url 'channels.types.android.claim' %}"}
+          -csrf_token
+          .claim-field
+            .claim-label
+              -trans "Claim Code"
+            {{ form.claim_code }}
+            {{ form.claim_code.errors }}
+          .claim-field
+            .claim-label
+              -trans "Phone Number"
+            {{ form.phone_number }}
+            {{ form.phone_number.errors }}
+          %input.btn.btn-primary{type:"submit", value:"{% trans 'Add Phone' %}"}
+
+          %errors
+
+    .span8
+      %h2.help-title
+        %span.title-icon
+          .glyph.icon-android
+        %span.title-text
+          -trans "Connect your Android phone"
+
+      #little-help
+        %p
+          -blocktrans trimmed with brand.name as brand
+            {{ brand }} uses your Android phone to send and receive messages on your behalf.
+
+        %p
+          -blocktrans trimmed with brand.name as brand
+            Due to restrictions Android has on applications that send SMS messages, we cannot distribute
+            the {{ brand }} application through the Play Store. You will need to download the application manually
+            and install it using the steps below.
+
+          -if relayer_app
+            .release-header
+              {% trans "Version" %} {{relayer_app.version}} {% trans "was released on" %} {% format_datetime relayer_app.created_on %}
+
+            -if relayer_app.description
+              .release-description
+                {{ relayer_app.markdown_description}}
+
+        %p.step
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim0.png' }
+          .step-text
+            %h3
+              -trans "Download App"
+
+            %p
+              -blocktrans trimmed
+                On your Android device, open your browser and download the app by entering the URL:
+              %code
+                {{ brand.link }}{% url "public.public_android" %}
+
+        %p.step
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim1.png' }
+          .step-text
+            %h3
+              -blocktrans trimmed with brand.name as brand
+                Launch the {{ brand }} installer
+            %p
+              -blocktrans trimmed
+                Open the notifications shade by dragging from the top and select the downloaded file.
+
+
+        %p.step
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim2.png' }
+          .step-text
+            %h3
+              -trans "Tap Settings"
+            %p
+              -blocktrans trimmed
+                You will be taken to a screen with "allow from this source" toggle
+
+        %p.step
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim3.png' }
+          .step-text
+            %h3
+              -trans "Toggle allow from this source"
+            %p
+              -blocktrans trimmed
+                Make sure "allow from this source" toggle is in the On position.
+
+        %p.step
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim4.png' }
+          .step-text
+            %h3
+              -trans "Go Back"
+            %p
+              -trans "Click Install"
+
+        %p.step
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim5.png' }
+          .step-text
+            %h3
+              -blocktrans trimmed with brand.name as brand
+                Open {{ brand }}
+            %p
+              -blocktrans trimmed with brand.name as brand
+                Once {{ brand }} has been installed, open the app drawer and tap on the {{ brand }} icon to start the app.
+
+        %p.step
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim6.png' }
+          .step-text
+            %h3
+              -trans "Enter Claim Code"
+            %p
+              -blocktrans trimmed with brand.name as brand
+                When you first open {{ brand }}, the app will register your device with Google and our servers.  Once that is
+                complete, it will display a claim code.  Enter that claim code in the form to the left and click
+                "Add Phone" to connect your device.
+
+-block extra-script
+  {{ block.super }}
+  :javascript
+    $(function(){
+      // get the top of your sidebar based on its default position
+      var topOfSidebar = $("#claim").offset().top;
+
+      // when the window scrolls check to see whether it is about to go off screen. If so then switch to fixed.
+      $(window).scroll(function() {
+        var topOfWindow = $(window).scrollTop();
+        if (topOfSidebar < topOfWindow) {
+          $("#claim").addClass("fixed");
+        } else {
+          $("#claim").removeClass("fixed");
+        }
+      });
+    });
+  </script>
+
+-block extra-style
+  {{ block.super }}
+  :css
+    #little-help {
+      margin-top: 15px;
+      font-size: 16px;
+    }
+
+    ul.errorlist {
+      margin-left: 0px;
+    }
+
+    ul.errorlist li {
+      list-style-type: none;
+      color: #855;
+      text-align: center;
+    }
+
+    #claim {
+      position: relative;
+      margin-top: 10px;
+    }
+
+    @media (min-width: 480px) {
+      #claim.fixed {
+        position: fixed;
+        top: 0px;
+      }
+    }
+
+    .step {
+      padding-top: 30px;
+      clear: both;
+    }
+
+    .step-image {
+      width: 240px;
+      float: left;
+    }
+    .step-text {
+      margin-left: 250px;
+    }
+
+    @media (max-width: 480px) {
+      .step-image {
+        width: 240px;
+        display: block;
+        float: none;
+      }
+
+      .step-text {
+        margin-left: 0px;
+      }
+    }
+
+    .step-text h3 {
+      display: inline;
+    }
+
+    h3 {
+      clear: both;
+    }
+
+    h2.help-title {
+      margin-top: 5px;
+    }
+
+    .title-icon .icon-android {
+      font-size: 40px;
+      margin-top: 20px;
+    }
+
+    .title-icon + .title-text {
+      margin-left: -15px;
+    }
+
+    #big-phone {
+      position: absolute;
+      top: 0px;
+      left: 0px;
+      z-index: -1;
+    }
+
+    .claim-form {
+      position: absolute;
+      left: 50px;
+      top: 80px;
+      width: 182px;
+    }
+
+    .claim-label {
+      text-align: center;
+    }
+
+    .claim-field {
+      margin-bottom: 10px;
+    }
+
+    input[type="submit"] {
+      width: 100%;
+    }
+
+    #claim {
+      width: 285px;
+      height: 500px;
+    }
+
+    input[type="text"] {
+      height: 30px;
+      width: 100%;
+      padding-left: 0px;
+      padding-right: 0px;
+      line-height: 100%;
+      text-align:center;
+      font-size: 24px;
+      margin-bottom:0;
+    }
+
+    .release-header{
+      font-weight: bold;
+    }
+
+    .release-description {
+      color: #666;
+    }
+
+    .release-description ul li {
+      list-style-type: circle;
+    }

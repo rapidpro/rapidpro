@@ -5,6 +5,9 @@
 *.pyc
 *~
 .envrc
+.commit
+
+rp-indexer
 
 # temba
 dump.rdb

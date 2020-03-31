@@ -39,6 +39,7 @@
   %hr
 
 -block extra-script
+  {{block.super}}
   :javascript
     function confirmSMTPRemove() {
       removalConfirmation("remove-smtp", "Remove");
