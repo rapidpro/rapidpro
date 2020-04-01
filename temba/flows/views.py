@@ -1293,11 +1293,8 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Previous Editor"), js_class="previous-editor", href="#"))
             return links
 
-    class ExportPo(ModalMixin, OrgPermsMixin, SmartFormView):
+    class ExportPo(OrgObjPermsMixin, ModalMixin):
         class Form(forms.Form):
-            flows = forms.ModelMultipleChoiceField(
-                Flow.objects.filter(id__lt=0), required=True, widget=forms.MultipleHiddenInput()
-            )
             language = forms.ChoiceField(
                 required=False,
                 label=_("Language"),
@@ -1311,35 +1308,50 @@ class FlowCRUDL(SmartCRUDL):
                 help_text=_("Include arguments to tests on splits"),
             )
 
-            def __init__(self, user, *args, **kwargs):
+            def __init__(self, user, flows, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
                 org = user.get_org()
                 org_languages = org.languages.all().order_by("orgs", "name")
 
                 self.user = user
-                self.fields["flows"].queryset = org.flows.filter(is_active=True)
+                self.flows = flows
                 self.fields["language"].choices += [(lang.iso_code, lang.name) for lang in org_languages]
+
+            def is_valid(self):
+                super().is_valid()
+
+                # as long as the flows have a single base language, this form is valid
+                return len({flow.base_language for flow in self.flows}) == 1
 
         form_class = Form
         submit_button_name = _("Export")
         success_url = "@flows.flow_list"
 
+        def get_object_org(self):
+            flow_ids = self.request.GET.get("ids", "")
+            self.flows = Flow.objects.filter(is_active=True, id__in=flow_ids.split(","))
+            flow_orgs = {flow.org for flow in self.flows}
+            return self.flows[0].org if len(flow_orgs) == 1 else None
+
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["user"] = self.request.user
+            kwargs["flows"] = self.flows
             return kwargs
 
         def derive_initial(self):
-            org = self.request.user.get_org()
-            flow_ids = self.request.GET.get("ids", "")
-            return {"flows": org.flows.filter(is_active=True, id__in=flow_ids.split(","))}
+            return {"flows": self.flows}
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["flow_languages"] = {flow.base_language for flow in self.flows}
+            return context
 
         def form_valid(self, form):
-            flows = form.cleaned_data["flows"]
             language = form.cleaned_data["language"]
             params = {
-                "flow": [str(flow.id) for flow in flows],
+                "flow": [str(flow.id) for flow in self.flows.order_by("id")],
                 "language": language,
                 "exclude_args": "0" if form.cleaned_data["include_args"] else "1",
             }
@@ -1359,26 +1371,29 @@ class FlowCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(download_url)
 
-    class DownloadPo(OrgPermsMixin, SmartListView):
+    class DownloadPo(OrgObjPermsMixin, SmartListView):
         """
         Download link for PO files extracted from flows by mailroom
         """
 
+        def get_object_org(self):
+            self.flows = Flow.objects.filter(id__in=self.request.GET.getlist("flow"), is_active=True)
+            flow_orgs = {flow.org for flow in self.flows}
+            return self.flows[0].org if len(flow_orgs) == 1 else None
+
         def get(self, request, *args, **kwargs):
             org = self.request.user.get_org()
 
-            flows = org.flows.filter(id__in=request.GET.getlist("flow"), is_active=True)
             language = request.GET.get("language", "")
             exclude_args = request.GET.get("exclude_args") == "1"
 
-            filename = slugify_with(flows[0].name) if len(flows) == 1 else "flows"
+            filename = slugify_with(self.flows[0].name) if len(self.flows) == 1 else "flows"
             if language:
                 filename += f".{language}"
             filename += ".po"
 
-            po = mailroom.get_client().po_export(
-                org.id, flow_ids=[f.id for f in flows], language=language, exclude_arguments=exclude_args
-            )
+            flow_ids = [f.id for f in self.flows]
+            po = mailroom.get_client().po_export(org.id, flow_ids, language=language, exclude_arguments=exclude_args)
 
             response = HttpResponse(po, content_type="text/x-gettext-translation")
             response["Content-Disposition"] = f'attachment; filename="{filename}"'

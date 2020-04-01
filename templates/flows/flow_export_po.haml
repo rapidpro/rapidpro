@@ -4,6 +4,12 @@
 -load temba
 
 -block pre-form
+  -if flow_languages|length > 1
+    %temba-alert(level="error")
+      -blocktrans trimmed with languages=flow_languages|join:", "
+        Can't export from flows with different base languages: {{ languages }}
+    %br
+
   -blocktrans trimmed
     Extracts a PO file from the selected flows which can later be re-imported with updated translations.
   %br

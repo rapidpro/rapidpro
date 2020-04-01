@@ -28,7 +28,7 @@ from temba.mailroom import FlowValidationException, MailroomException
 from temba.msgs.models import Label
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, MigrationTest, MockResponse, TembaTest, matchers
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
@@ -2432,7 +2432,7 @@ class FlowTest(TembaTest):
         )
 
 
-class FlowCRUDLTest(TembaTest):
+class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_views(self):
         contact = self.create_contact("Eric", "+250788382382")
         flow = self.get_flow("color", legacy=True)
@@ -3819,6 +3819,36 @@ class FlowCRUDLTest(TembaTest):
             response.json(),
             {"description": "Your flow contains an invalid loop. Please refresh your browser.", "status": "failure"},
         )
+
+    def test_export_and_download_po(self):
+        flow1 = self.get_flow("favorites")
+        flow2 = self.get_flow("color")
+
+        export_url = reverse("flows.flow_export_po") + f"?ids={flow1.id},{flow2.id}"
+
+        self.assertUpdateFetch(
+            export_url, allow_viewers=False, allow_editors=True, form_fields=["language", "include_args"]
+        )
+
+        response = self.assertUpdateSubmit(export_url, {"flows": [flow1.id, flow2.id]}, success_status=302)
+
+        self.assertEqual(f"/flow/download_po/?flow={flow1.id}&flow={flow2.id}&language=&exclude_args=1", response.url)
+
+        # check fetching the PO from the download link
+        with patch("temba.mailroom.client.MailroomClient.po_export") as mock_po_export:
+            mock_po_export.return_value = b'msgid "Red"\nmsgstr "Roja"\n\n'
+            response = self.assertReadFetch(response.url, allow_viewers=False, allow_editors=True)
+
+            self.assertEqual(b'msgid "Red"\nmsgstr "Roja"\n\n', response.content)
+
+        # change the base language of one of the flows
+        flow2.base_language = "spa"
+        flow2.save(update_fields=("base_language",))
+
+        response = self.assertUpdateFetch(
+            export_url, allow_viewers=False, allow_editors=True, form_fields=["language", "include_args"]
+        )
+        self.assertContains(response, "Can't export from flows with different base languages")
 
 
 class FlowRunTest(TembaTest):
