@@ -56,7 +56,7 @@ class APITokenTest(TembaTest):
     def test_get_allowed_roles(self):
         self.assertEqual(
             set(APIToken.get_allowed_roles(self.org, self.admin)),
-            {self.admins_group, self.editors_group, self.surveyors_group},
+            {Group.objects.get(name="Prometheus"), self.admins_group, self.editors_group, self.surveyors_group},
         )
         self.assertEqual(
             set(APIToken.get_allowed_roles(self.org, self.editor)), {self.editors_group, self.surveyors_group}
