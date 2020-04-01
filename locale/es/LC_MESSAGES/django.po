@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-24 18:52+0000\n"
+"POT-Creation-Date: 2020-04-01 17:34+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4283,9 +4283,24 @@ msgid "New Editor"
 msgstr "Sin Editores"
 
 #, fuzzy
+#| msgid "Export"
+msgid "Export PO"
+msgstr "Exportar"
+
+#, fuzzy
 #| msgid "No Editors"
 msgid "Previous Editor"
 msgstr "Sin Editores"
+
+msgid "Include translations in this language."
+msgstr ""
+
+#, fuzzy
+msgid "Include Arguments"
+msgstr "Mensajes de texto entrantes"
+
+msgid "Include arguments to tests on splits"
+msgstr ""
 
 msgid "Which group memberships, if any, to include in the export"
 msgstr ""
@@ -9217,6 +9232,10 @@ msgstr "Correr flujo"
 msgid "Run flow "
 msgstr "Correr flujo"
 
+#, fuzzy
+msgid "Export PO Translation"
+msgstr "Traducciones"
+
 msgid ""
 "\n"
 "      Sorry, this flow cannot be exported because it references another flow. To export it, please remove any\n"
@@ -9232,6 +9251,13 @@ msgstr ""
 
 msgid "Back to Flow"
 msgstr "Regresar al flujo"
+
+#, python-format
+msgid "Can't export from flows with different base languages: %(languages)s"
+msgstr ""
+
+msgid "Extracts a PO file from the selected flows which can later be re-imported with updated translations."
+msgstr ""
 
 msgid "Remove Label"
 msgstr "Borrar etiqueta"
@@ -9252,6 +9278,11 @@ msgid "Add Label"
 msgstr "Agregar etiqueta"
 
 msgid "Download Results"
+msgstr "Descargar Resultados"
+
+#, fuzzy
+#| msgid "Download Results"
+msgid "Download PO"
 msgstr "Descargar Resultados"
 
 msgid "No runs"

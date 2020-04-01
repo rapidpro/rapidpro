@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-24 18:52+0000\n"
+"POT-Creation-Date: 2020-04-01 17:34+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2907,7 +2907,19 @@ msgstr ""
 msgid "New Editor"
 msgstr ""
 
+msgid "Export PO"
+msgstr ""
+
 msgid "Previous Editor"
+msgstr ""
+
+msgid "Include translations in this language."
+msgstr ""
+
+msgid "Include Arguments"
+msgstr ""
+
+msgid "Include arguments to tests on splits"
 msgstr ""
 
 msgid "Which group memberships, if any, to include in the export"
@@ -6449,6 +6461,9 @@ msgstr ""
 msgid "Run flow "
 msgstr ""
 
+msgid "Export PO Translation"
+msgstr ""
+
 msgid ""
 "\n"
 "      Sorry, this flow cannot be exported because it references another flow. To export it, please remove any\n"
@@ -6458,6 +6473,13 @@ msgid ""
 msgstr ""
 
 msgid "Back to Flow"
+msgstr ""
+
+#, python-format
+msgid "Can't export from flows with different base languages: %(languages)s"
+msgstr ""
+
+msgid "Extracts a PO file from the selected flows which can later be re-imported with updated translations."
 msgstr ""
 
 msgid "Remove Label"
@@ -6479,6 +6501,9 @@ msgid "Add Label"
 msgstr ""
 
 msgid "Download Results"
+msgstr ""
+
+msgid "Download PO"
 msgstr ""
 
 msgid "No runs"
