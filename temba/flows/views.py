@@ -241,8 +241,9 @@ class FlowCRUDL(SmartCRUDL):
         "delete",
         "update",
         "simulate",
-        "export_po",
-        "download_po",
+        "export_translation",
+        "download_translation",
+        "import_translation",
         "export_results",
         "upload_action_recording",
         "editor",
@@ -1270,14 +1271,19 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm("flows.flow_copy"):
                 links.append(dict(title=_("Copy"), posterize=True, href=reverse("flows.flow_copy", args=[flow.id])))
 
-            if self.has_org_perm("orgs.org_export"):
-                links.append(dict(title=_("Export"), href="%s?flow=%s" % (reverse("orgs.org_export"), flow.id)))
-            if self.has_org_perm("flows.flow_export_po"):
-                links.append(dict(title=_("Export PO"), js_class="flow-export-po", href="#"))
-
             if self.has_org_perm("flows.flow_delete"):
-                links.append(dict(divider=True)),
                 links.append(dict(title=_("Delete"), js_class="delete-flow", href="#"))
+
+            links.append(dict(divider=True)),
+
+            if self.has_org_perm("orgs.org_export"):
+                links.append(
+                    dict(title=_("Export Definition"), href="%s?flow=%s" % (reverse("orgs.org_export"), flow.id))
+                )
+            if self.has_org_perm("flows.flow_export_translation"):
+                links.append(dict(title=_("Export Translation"), js_class="export-translation", href="#"))
+            if self.has_org_perm("flows.flow_import_translation"):
+                links.append(dict(title=_("Import Translation"), js_class="import-translation", href="#"))
 
             user = self.get_user()
             if user.is_superuser or user.is_staff:
@@ -1295,7 +1301,7 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Previous Editor"), js_class="previous-editor", href="#"))
             return links
 
-    class ExportPo(OrgObjPermsMixin, ModalMixin):
+    class ExportTranslation(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
         class Form(forms.Form):
             language = forms.ChoiceField(
                 required=False,
@@ -1310,54 +1316,31 @@ class FlowCRUDL(SmartCRUDL):
                 help_text=_("Include arguments to tests on splits"),
             )
 
-            def __init__(self, user, flows, *args, **kwargs):
+            def __init__(self, user, instance, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
                 org = user.get_org()
                 org_languages = org.languages.all().order_by("orgs", "name")
 
                 self.user = user
-                self.flows = flows
                 self.fields["language"].choices += [(lang.iso_code, lang.name) for lang in org_languages]
-
-            def is_valid(self):
-                super().is_valid()
-
-                # as long as the flows have a single base language, this form is valid
-                return len({flow.base_language for flow in self.flows}) == 1
 
         form_class = Form
         submit_button_name = _("Export")
         success_url = "@flows.flow_list"
 
-        def get_object_org(self):
-            flow_ids = self.request.GET.get("ids", "")
-            self.flows = Flow.objects.filter(is_active=True, id__in=flow_ids.split(","))
-            flow_orgs = {flow.org for flow in self.flows}
-            return self.flows[0].org if len(flow_orgs) == 1 else None
-
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["user"] = self.request.user
-            kwargs["flows"] = self.flows
             return kwargs
 
-        def derive_initial(self):
-            return {"flows": self.flows}
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["flow_languages"] = {flow.base_language for flow in self.flows}
-            return context
-
         def form_valid(self, form):
-            language = form.cleaned_data["language"]
             params = {
-                "flow": [str(flow.id) for flow in self.flows.order_by("id")],
-                "language": language,
+                "flow": self.object.id,
+                "language": form.cleaned_data["language"],
                 "exclude_args": "0" if form.cleaned_data["include_args"] else "1",
             }
-            download_url = reverse("flows.flow_download_po") + "?" + urlencode(params, doseq=True)
+            download_url = reverse("flows.flow_download_translation") + "?" + urlencode(params, doseq=True)
 
             # if this is an XHR request, we need to return a structured response that it can parse
             if "HTTP_X_PJAX" in self.request.META:
@@ -1373,9 +1356,9 @@ class FlowCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(download_url)
 
-    class DownloadPo(OrgObjPermsMixin, SmartListView):
+    class DownloadTranslation(OrgObjPermsMixin, SmartListView):
         """
-        Download link for PO files extracted from flows by mailroom
+        Download link for PO translation files extracted from flows by mailroom
         """
 
         def get_object_org(self):
@@ -1400,6 +1383,9 @@ class FlowCRUDL(SmartCRUDL):
             response = HttpResponse(po, content_type="text/x-gettext-translation")
             response["Content-Disposition"] = f'attachment; filename="{filename}"'
             return response
+
+    class ImportTranslation(OrgObjPermsMixin, SmartReadView):
+        pass
 
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
         class ExportForm(forms.Form):

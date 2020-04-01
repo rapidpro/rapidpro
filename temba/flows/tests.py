@@ -3820,22 +3820,21 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             {"description": "Your flow contains an invalid loop. Please refresh your browser.", "status": "failure"},
         )
 
-    def test_export_and_download_po(self):
+    def test_export_and_download_translation(self):
         Language.create(self.org, self.admin, name="Spanish", iso_code="spa")
 
-        flow1 = self.get_flow("favorites")
-        flow2 = self.get_flow("color")
+        flow = self.get_flow("favorites")
 
-        export_url = reverse("flows.flow_export_po") + f"?ids={flow1.id},{flow2.id}"
+        export_url = reverse("flows.flow_export_translation", args=[flow.id])
 
         self.assertUpdateFetch(
             export_url, allow_viewers=False, allow_editors=True, form_fields=["language", "include_args"]
         )
 
         # submit with no language
-        response = self.assertUpdateSubmit(export_url, {"flows": [flow1.id, flow2.id]}, success_status=302)
+        response = self.assertUpdateSubmit(export_url, {}, success_status=302)
 
-        self.assertEqual(f"/flow/download_po/?flow={flow1.id}&flow={flow2.id}&language=&exclude_args=1", response.url)
+        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=&exclude_args=1", response.url)
 
         # check fetching the PO from the download link
         with patch("temba.mailroom.client.MailroomClient.po_export") as mock_po_export:
@@ -3843,17 +3842,13 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             response = self.assertReadFetch(response.url, allow_viewers=False, allow_editors=True)
 
             self.assertEqual(b'msgid "Red"\nmsgstr "Roja"\n\n', response.content)
-            self.assertEqual('attachment; filename="flows.po"', response["Content-Disposition"])
+            self.assertEqual('attachment; filename="favorites.po"', response["Content-Disposition"])
             self.assertEqual("text/x-gettext-translation", response["Content-Type"])
 
         # submit with a language
-        response = self.requestView(
-            export_url, self.admin, post_data={"flows": [flow1.id, flow2.id], "language": "spa"}
-        )
+        response = self.requestView(export_url, self.admin, post_data={"language": "spa"})
 
-        self.assertEqual(
-            f"/flow/download_po/?flow={flow1.id}&flow={flow2.id}&language=spa&exclude_args=1", response.url
-        )
+        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=spa&exclude_args=1", response.url)
 
         # check fetching the PO from the download link
         with patch("temba.mailroom.client.MailroomClient.po_export") as mock_po_export:
@@ -3861,22 +3856,13 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             response = self.requestView(response.url, self.admin)
 
             # filename includes language now
-            self.assertEqual('attachment; filename="flows.spa.po"', response["Content-Disposition"])
+            self.assertEqual('attachment; filename="favorites.spa.po"', response["Content-Disposition"])
 
         # check submitting the form from a modal
-        response = self.client.post(export_url, data={"flows": [flow1.id, flow2.id]}, HTTP_X_PJAX=True)
+        response = self.client.post(export_url, data={}, HTTP_X_PJAX=True)
         self.assertEqual(
-            f"/flow/download_po/?flow={flow1.id}&flow={flow2.id}&language=&exclude_args=1", response["Temba-Success"]
+            f"/flow/download_translation/?flow={flow.id}&language=&exclude_args=1", response["Temba-Success"]
         )
-
-        # change the base language of one of the flows
-        flow2.base_language = "spa"
-        flow2.save(update_fields=("base_language",))
-
-        response = self.assertUpdateFetch(
-            export_url, allow_viewers=False, allow_editors=True, form_fields=["language", "include_args"]
-        )
-        self.assertContains(response, "Can't export from flows with different base languages")
 
 
 class FlowRunTest(TembaTest):

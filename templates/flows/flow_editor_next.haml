@@ -268,8 +268,8 @@
       });
     {% endif %}
 
-    $(".flow-export-po").live('click', function(){
-      var modal = new Modax('{% trans "Export PO Translation" %}', '{% url "flows.flow_export_po" %}?ids={{ object.id }}');
+    $(".export-translation").live('click', function(){
+      var modal = new Modax('{% trans "Export Translation" %}', '{% url "flows.flow_export_translation" object.id %}');
       modal.setIcon('icon-language');
       modal.setRedirectOnSuccess(true);
       modal.show();
