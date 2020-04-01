@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-24 18:52+0000\n"
+"POT-Creation-Date: 2020-03-31 20:20+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2449,6 +2449,10 @@ msgid "Delete Contacts"
 msgstr ""
 
 msgid "Unstop Contacts"
+msgstr ""
+
+#, python-brace-format
+msgid "{label} for this contact"
 msgstr ""
 
 msgid "Used by another contact"
@@ -7456,6 +7460,27 @@ msgid "To connect your Plivo Account you will need to provide us your Plivo AUTH
 msgstr ""
 
 msgid "Plivo Dashboard"
+msgstr ""
+
+#, python-format
+msgid "You can monitor contact group counts and channel message counts on your organization using your %(prometheus)s endpoint. This will let you monitor usage over time using graphs and alerts in a dashboard such as %(grafana)s."
+msgstr ""
+
+msgid "Endpoint"
+msgstr ""
+
+msgid "Disable Prometheus"
+msgstr ""
+
+msgid "Enable Prometheus"
+msgstr ""
+
+#, python-format
+msgid "You are monitoring your organization using %(prometheus)s."
+msgstr ""
+
+#, python-format
+msgid "You have not enabled %(prometheus)s monitoring on your organization."
 msgstr ""
 
 msgid ""
