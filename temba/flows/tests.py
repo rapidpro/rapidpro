@@ -1,4 +1,5 @@
 import datetime
+import io
 import os
 import re
 from datetime import timedelta
@@ -3824,7 +3825,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         Language.create(self.org, self.admin, name="Spanish", iso_code="spa")
 
         flow = self.get_flow("favorites")
-
         export_url = reverse("flows.flow_export_translation", args=[flow.id])
 
         self.assertUpdateFetch(
@@ -3832,7 +3832,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # submit with no language
-        response = self.assertUpdateSubmit(export_url, {}, success_status=302)
+        response = self.assertUpdateSubmit(export_url, {})
 
         self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=&exclude_args=1", response.url)
 
@@ -3863,6 +3863,31 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(
             f"/flow/download_translation/?flow={flow.id}&language=&exclude_args=1", response["Temba-Success"]
         )
+
+    def test_import_translation(self):
+        Language.create(self.org, self.admin, name="Spanish", iso_code="spa")
+
+        flow = self.get_flow("favorites")
+        import_url = reverse("flows.flow_import_translation", args=[flow.id])
+
+        self.assertUpdateFetch(
+            import_url, allow_viewers=False, allow_editors=True, form_fields=["po_file", "language"]
+        )
+
+        # submit with no file
+        self.assertUpdateSubmit(
+            import_url, {"language": "spa"}, form_errors={"po_file": "This field is required."}, object_unchanged=flow
+        )
+
+        # submit with file
+        with patch("temba.mailroom.client.MailroomClient.po_import") as mock_po_import:
+            mock_po_import.return_value = {"flows": [flow.as_json()]}
+
+            po_file = io.BytesIO(b'msgid "Red"\nmsgstr "Roja"\n\n')
+            self.requestView(import_url, self.admin, post_data={"language": "spa", "po_file": po_file})
+
+        # should have a new revision
+        self.assertEqual(2, flow.revisions.count())
 
 
 class FlowRunTest(TembaTest):

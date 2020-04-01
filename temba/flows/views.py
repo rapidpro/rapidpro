@@ -1277,13 +1277,13 @@ class FlowCRUDL(SmartCRUDL):
             links.append(dict(divider=True)),
 
             if self.has_org_perm("orgs.org_export"):
-                links.append(
-                    dict(title=_("Export Definition"), href="%s?flow=%s" % (reverse("orgs.org_export"), flow.id))
-                )
+                links.append(dict(title=_("Export Definition"), href=f"{reverse('orgs.org_export')}?flow={flow.id}"))
             if self.has_org_perm("flows.flow_export_translation"):
                 links.append(dict(title=_("Export Translation"), js_class="export-translation", href="#"))
             if self.has_org_perm("flows.flow_import_translation"):
-                links.append(dict(title=_("Import Translation"), js_class="import-translation", href="#"))
+                links.append(
+                    dict(title=_("Import Translation"), href=reverse("flows.flow_import_translation", args=[flow.id]))
+                )
 
             user = self.get_user()
             if user.is_superuser or user.is_staff:
@@ -1377,15 +1377,45 @@ class FlowCRUDL(SmartCRUDL):
                 filename += f".{language}"
             filename += ".po"
 
-            flow_ids = [f.id for f in self.flows]
-            po = mailroom.get_client().po_export(org.id, flow_ids, language=language, exclude_arguments=exclude_args)
+            po = Flow.export_translation(org, self.flows, language, exclude_args)
 
             response = HttpResponse(po, content_type="text/x-gettext-translation")
             response["Content-Disposition"] = f'attachment; filename="{filename}"'
             return response
 
-    class ImportTranslation(OrgObjPermsMixin, SmartReadView):
-        pass
+    class ImportTranslation(OrgObjPermsMixin, SmartUpdateView):
+        class UploadForm(forms.Form):
+            po_file = forms.FileField(label=_("PO translation file"), required=True)
+            language = forms.ChoiceField(
+                label=_("Language"), help_text=_("Replace flow translations in this language."), required=True
+            )
+
+            def __init__(self, user, instance, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                org = user.get_org()
+                languages = org.languages.exclude(iso_code=instance.base_language).order_by("name")
+
+                self.user = user
+                self.fields["language"].choices += [(lang.iso_code, lang.name) for lang in languages]
+
+        title = _("Import Translation")
+        form_class = UploadForm
+        submit_button_name = _("Import")
+        success_url = "uuid@flows.flow_editor_next"
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            return kwargs
+
+        def form_valid(self, form):
+            po_file = form.cleaned_data["po_file"]
+            language = form.cleaned_data["language"]
+            updated_defs = Flow.import_translation(self.object.org, [self.object], language, po_file)
+            self.object.save_revision(self.request.user, updated_defs[str(self.object.uuid)])
+
+            return HttpResponseRedirect(self.get_success_url())
 
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
         class ExportForm(forms.Form):

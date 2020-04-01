@@ -1,0 +1,16 @@
+-extends 'smartmin/update.html'
+-load i18n
+-load smartmin
+-load temba
+
+-block pre-form
+  -blocktrans trimmed
+    Importing a PO translation file will replace any translations flow in the selected language, with any matching
+    translations in the PO file.
+  %br
+  %br
+
+-block extra-script
+  {{block.super}}
+  %script
+    $('#id_language').select2({containerCssClass: "select2-temba-field"});
