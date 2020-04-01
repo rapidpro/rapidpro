@@ -1814,6 +1814,44 @@ class OrgTest(TembaTest):
         self.assertIsNone(org.get_dtone_client())
         self.assertEqual(org.modified_by, self.admin)
 
+    def test_prometheus(self):
+        # visit as viewer, no prometheus section
+        self.login(self.user)
+        org_home_url = reverse("orgs.org_home")
+        response = self.client.get(org_home_url)
+
+        self.assertNotContains(response, "Prometheus")
+
+        # admin can see it though
+        self.login(self.admin)
+
+        response = self.client.get(org_home_url)
+        self.assertContains(response, "Prometheus")
+        self.assertContains(response, "Enable Prometheus")
+
+        # enable it
+        prometheus_url = reverse("orgs.org_prometheus")
+        response = self.client.post(prometheus_url, {}, follow=True)
+        self.assertContains(response, "Disable Prometheus")
+
+        # make sure our API token exists
+        prometheus_group = Group.objects.get(name="Prometheus")
+        self.assertTrue(APIToken.objects.filter(org=self.org, role=prometheus_group, is_active=True))
+
+        # other admin sees it enabled too
+        self.other_admin = self.create_user("Other Administrator")
+        self.org.administrators.add(self.other_admin)
+        self.login(self.other_admin)
+
+        response = self.client.get(org_home_url)
+        self.assertContains(response, "Prometheus")
+        self.assertContains(response, "Disable Prometheus")
+
+        # now disable it
+        response = self.client.post(prometheus_url, {}, follow=True)
+        self.assertFalse(APIToken.objects.filter(org=self.org, role=prometheus_group, is_active=True))
+        self.assertContains(response, "Enable Prometheus")
+
     def test_dtone_account(self):
         self.login(self.admin)
 

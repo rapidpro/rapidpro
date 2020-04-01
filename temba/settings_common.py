@@ -385,6 +385,7 @@ PERMISSIONS = {
         "nexmo_connect",
         "plivo_connect",
         "profile",
+        "prometheus",
         "resthooks",
         "service",
         "signup",
@@ -594,6 +595,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_nexmo_connect",
         "orgs.org_plivo_connect",
         "orgs.org_profile",
+        "orgs.org_prometheus",
         "orgs.org_resthooks",
         "orgs.org_sub_orgs",
         "orgs.org_transfer_credits",
@@ -817,6 +819,7 @@ GROUP_PERMISSIONS = {
         "triggers.trigger_archived",
         "triggers.trigger_list",
     ),
+    "Prometheus": (),
 }
 
 # -----------------------------------------------------------------------------------
