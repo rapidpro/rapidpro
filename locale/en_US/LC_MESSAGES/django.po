@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-31 20:20+0000\n"
+"POT-Creation-Date: 2020-04-01 04:40+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6451,6 +6451,9 @@ msgid "Run Flow"
 msgstr ""
 
 msgid "Run flow "
+msgstr ""
+
+msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
 msgstr ""
 
 msgid ""
