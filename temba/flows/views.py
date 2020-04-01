@@ -1272,6 +1272,8 @@ class FlowCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_export"):
                 links.append(dict(title=_("Export"), href="%s?flow=%s" % (reverse("orgs.org_export"), flow.id)))
+            if self.has_org_perm("flows.flow_export_po"):
+                links.append(dict(title=_("Export PO"), js_class="flow-export-po", href="#"))
 
             if self.has_org_perm("flows.flow_delete"):
                 links.append(dict(divider=True)),

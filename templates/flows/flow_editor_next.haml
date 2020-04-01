@@ -268,6 +268,13 @@
       });
     {% endif %}
 
+    $(".flow-export-po").live('click', function(){
+      var modal = new Modax('{% trans "Export PO Translation" %}', '{% url "flows.flow_export_po" %}?ids={{ object.id }}');
+      modal.setIcon('icon-language');
+      modal.setRedirectOnSuccess(true);
+      modal.show();
+    });
+
     {% if org_perms.flows.flow_delete %}
       $(".delete-flow").live('click', function() {
         var modal = new Modax('{% trans "Delete Flow" %}', '{% url "flows.flow_delete" flow.id %}');
