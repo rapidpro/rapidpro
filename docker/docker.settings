@@ -112,7 +112,7 @@ BRANDING["rapidpro.io"]["email"] = os.environ.get("BRANDING_EMAIL", "")
 BRANDING["rapidpro.io"]["support_email"] = os.environ.get("BRANDING_EMAIL_SUPPORT", "")
 BRANDING["rapidpro.io"]["colors"] = dict(primary=os.environ.get("BRANDING_PRIMARY_COLOR", "#569D9B"))
 BRANDING["rapidpro.io"]["favico"] = os.environ.get("BRANDING_FAVICO", "brands/rapidpro/icon.png")
-BRANDING["rapidpro.io"]["allow_signups"] = os.environ.get("BRANDING_ALLOW_SIGNUPS", "true") == "true"
+BRANDING["rapidpro.io"]["allow_signups"] = os.environ.get("BRANDING_ALLOW_SIGNUPS", "false") == "true"
 BRANDING["rapidpro.io"]["welcome_packs"] = [dict(size=500, name="Trial"),
                                             dict(size=2500, name="Bronze"),
                                             dict(size=30000, name="Silver"),
@@ -149,6 +149,15 @@ else:
     AWS_BUCKET_DOMAIN = f"{HOSTNAME}/media"
 
 STORAGE_URL = os.environ.get("STORAGE_URL", "/media")
+
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
+    "v2": "1000000/hour",
+    "v2.contacts": "1000000/hour",
+    "v2.messages": "1000000/hour",
+    "v2.broadcasts": "1000000/hour",
+    "v2.runs": "1000000/hour",
+    "v2.api": "1000000/hour",
+}
 
 REST_HANDLE_EXCEPTIONS = os.environ.get("REST_HANDLE_EXCEPTIONS", "true") == "true"
 
