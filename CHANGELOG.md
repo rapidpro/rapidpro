@@ -1,3 +1,8 @@
+v5.5.10
+----------
+ * Bump up the simulator when popped so it fits on more screens
+ * Editor performance improvements
+
 v5.5.8
 ----------
  * Update help text on contact edit dialog
