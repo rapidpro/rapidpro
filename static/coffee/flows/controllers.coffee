@@ -226,7 +226,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       return
 
     # if we have an attachment already, confirm they want to replace it
-    if action.type in ['reply', 'send'] and action._media
+    if action.type in ['reply', 'send', 'email'] and action._media
       modal = showDialog('Overwrite Attachment', 'This step already has an attachment, would you like to replace this attachment with ' + file.name + '?', 'Overwrite Attachemnt', false)
       modal.result.then (value) ->
         if value == 'ok'
@@ -2186,9 +2186,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
 
-  $scope.saveEmail = (addresses) ->
+  $scope.saveEmail = (addresses, hasAttachURL=false) ->
 
-    if $scope.hasInvalidFields([$scope.action.subject, $scope.action.msg])
+    inputs = [$scope.action.subject, $scope.action.msg]
+    if hasAttachURL
+      inputs.push($scope.action._attachURL)
+    if $scope.hasInvalidFields(inputs)
       return
 
     to = []
@@ -2196,6 +2199,21 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       to.push(address.text)
     $scope.action.emails = to
     $scope.action.type = 'email'
+
+    if hasAttachURL and $scope.action._attachURL
+      if not $scope.action.media
+        $scope.action.media = {}
+
+      $scope.action.media[$scope.base_language] = $scope.action._attachType + ':' + $scope.action._attachURL
+
+      # make sure our localizations all have the same type
+      for key in Object.keys($scope.action.media)
+        if key != $scope.base_language
+          translation = $scope.action.media[key]
+          $scope.action.media[key] = $scope.action._attachType + ':' + translation.split(':')[1]
+    
+    else if not $scope.action._media
+      delete $scope.action['media']
 
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
