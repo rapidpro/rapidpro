@@ -11,12 +11,12 @@
 -block pre-form
   .info
     %p
-      -blocktrans
+      -blocktrans trimmed
         To connect a <a href="http://clickatell.com">Clickatell</a> number, first create an HTTP integration for a two way number, then
         enter the number and API key below.
 
     %p
-      -blocktrans with brand.name as brand
+      -blocktrans trimmed with brand.name as brand
         After connecting your service we will provide URLs for the endpoints for Clickatell to call when they want
         to push a message to {{ brand }}.
 

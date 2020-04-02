@@ -137,6 +137,13 @@ def slugify_with(value, sep="_"):
     return slugify(value).replace("-", sep)
 
 
+def unsnakify(value):
+    """
+    Un-snakifies the given text
+    """
+    return " ".join([word.capitalize() for word in value.split("_")])
+
+
 def random_string(length):
     """
     Generates a random alphanumeric string

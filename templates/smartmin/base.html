@@ -8,6 +8,8 @@
 
 {% block extra-script %}
 
+<script type="text/javascript" src="{{ STATIC_URL }}js/libs/jquery.url.js"></script>
+
 <script>
   $("td.clickable").hover(function(){
     this.style.cursor='pointer'
@@ -17,6 +19,7 @@
   $("td.clickable").click(function(){
     document.location = $(this).children("a").attr("href");
   });
+
 
   function fetchPJAXContent(url, container, options) {
 
@@ -35,6 +38,9 @@
               headers[key] = options['headers'][key];
           }
       }
+
+      var event = new Event("rp-refresh-begin");
+      document.dispatchEvent(event);
 
       $.ajax({
           headers: headers,
@@ -69,6 +75,9 @@
                 }
             }
             $(container).html(data);
+
+            var event = new Event("rp-refresh-complete");
+            document.dispatchEvent(event);
 
             if (options) {
                 if ('onSuccess' in options && options['onSuccess']) {

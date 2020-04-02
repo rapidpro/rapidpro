@@ -1,0 +1,66 @@
+-extends "smartmin/form.html"
+
+-load compress temba smartmin i18n
+
+-block form-span
+
+-block title-text
+  .title-text
+    %h1
+      -trans "DT One Account"
+
+-block summary
+  -if object.is_connected_to_dtone
+    -blocktrans with login=dtone_account_login
+      Connected to DT One account <b>{{ login }}</b>.
+  -else
+    -trans "No DT One account connected."
+
+-block pre-form
+  -if not object.is_connected_to_dtone
+    -blocktrans
+      Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected
+      you can transfer airtime credit within your Flows. To signup for an account, visit
+    <a target='_new' href='https://www.dtone.com/'>DT One</a>.
+    %hr
+
+-block fields
+  -if not object.is_connected_to_dtone
+    {{ block.super }}
+
+-block form-buttons
+
+-block post-form
+  -if object.is_connected_to_dtone and request.META.HTTP_X_FORMAX
+    %a.btn.pull-right{style: 'margin-left: 30px', href:'{% url "airtime.airtimetransfer_list" %}'}
+      -trans "Transfer Log"
+
+    %p
+      -trans "Your account is connected to a DT One account"
+      {{ dtone_account_login }}.
+
+    %p
+      -trans "If you no longer want it connected, you can"
+      %a{href:'javascript:confirmDTOneDisconnect();'}
+        -trans "disconnect"
+      -trans "your DT One account. Doing so will cause the payment actions in your flows to no longer be processed."
+
+    .disconnect-dtone.hide
+      .title
+        -trans "Disconnect DT One"
+      .body
+        -blocktrans
+          This will disconnect your DT One account. Payment actions will no longer be processed. Are you sure you want to proceed?
+    %a#disconnect-dtone-form.posterize{href:'{% url "orgs.org_dtone_account" %}?disconnect=true'}
+  -else
+    -trans "You can find your API Token by clicking on "
+    %a{href:'https://tshop-app.dtone.com', target:'_new'}><
+      Developer
+    -trans " on the DT One site."
+
+-block extra-script
+  {{block.super}}
+  :javascript
+    function confirmDTOneDisconnect() {
+      removalConfirmation("disconnect-dtone", "Disconnect");
+    }

@@ -52,3 +52,8 @@ a.logo img {
   border: 0;
   -ms-interpolation-mode: bicubic;
 }
+/* component styling */
+html {
+  --primary-rgb: 86, 157, 155;
+  --secondary-rgb: 69, 140, 138;
+}

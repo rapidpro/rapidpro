@@ -5,6 +5,9 @@
 *.pyc
 *~
 .envrc
+.commit
+
+rp-indexer
 
 # temba
 dump.rdb
@@ -132,5 +135,4 @@ temba/settings_test.py
 docker.settings.aptible-prod
 docker.settings.aptible-stage
 docker.settings.prod
-package-lock.json
 .env

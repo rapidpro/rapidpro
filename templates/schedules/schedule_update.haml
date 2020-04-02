@@ -1,6 +1,7 @@
 -extends 'smartmin/form.html'
 
 -block form-span
+-load i18n
 
 
 -block extra-script
@@ -24,10 +25,6 @@
         {% else %}
           initializeDatetimePicker(minDate);
         {% endif %}
-
-        {% if object.next_fire %}
-        setNextFireText({{ object.next_fire|date:"U" }})
-        {% endif %}
     });
     
 
@@ -41,82 +38,86 @@
 
   #schedule-options
     -if object.get_broadcast
-      -if object.get_broadcast.schedule.status == 'U'
-        <input id='stop-option' name='start' class='unchanged' type='radio' value='stop' checked> Leave unscheduled<br/>
+      -if not object.next_fire
+        <input id='stop-option' name='start' class='unchanged' type='radio' value='stop' checked>
+        -trans "Leave unscheduled"
+        <br/>
       -else
-        <input id='stop-option' name='start' type='radio' value='stop'> Cancel schedule<br/>
+        <input id='stop-option' name='start' type='radio' value='stop'>
+        -trans "Cancel schedule"
+        <br/>
 
-    <input id='later-option' name='start' type='radio' value='later' {% if object.status == 'S' %} checked {%endif%}>
+    <input id='later-option' name='start' type='radio' value='later' {% if object.next_fire %} checked {%endif%}>
     %input#start-datetime{ disabled:'true', name:'start_datetime', value:'Schedule for later'}
     %input#start-datetime-value{ hidden:'true', name:'start_datetime_value', value:'{{ object.next_fire|date:"U" }}'}
 
-  #recurrence{class:'{% if object.status != "S" %}hide{%endif%}'}
+  #recurrence{class:'{% if not object.next_fire %}hide{% endif %}'}
     .repeat-period
       %p.instructions
         -render_field 'repeat_period'
-    .weekly-repeat-options{class:'{% if form.initial.repeat_period == "W" %}{% else%}hide{%endif%}'}
+    .weekly-repeat-options{class:'{% if object.repeat_period == "W" %}{% else%}hide{%endif%}'}
       .btn-group{'data-toggle':'buttons-checkbox'}
-        #mon.btn{value:2, class:'{% if 0 in days %}active{% endif %}'}
-          Mon
-        #tue.btn{value:4, class:'{% if 1 in days %}active{% endif %}'}
-          Tue
-        #wed.btn{value:8, class:'{% if 2 in days %}active{% endif %}'}
-          Wed
-        #thu.btn{value:16, class:'{% if 3 in days %}active{% endif %}'}
-          Thu
-        #fri.btn{value:32, class:'{% if 4 in days %}active{% endif %}'}
-          Fri
-        #sat.btn{value:64, class:'{% if 5 in days %}active{% endif %}'}
-          Sat
-        #sun.btn{value:128, class:'{% if 6 in days %}active{% endif %}'}
-          Sun
+        #mon.btn{value:"M", class:'{% if "M" in days %}active{% endif %}'}
+          -trans "Mon"
+        #tue.btn{value:"T", class:'{% if "T" in days %}active{% endif %}'}
+          -trans "Tue"
+        #wed.btn{value:"W", class:'{% if "W" in days %}active{% endif %}'}
+          -trans "Wed"
+        #thu.btn{value:"R", class:'{% if "R" in days %}active{% endif %}'}
+          -trans "Thu"
+        #fri.btn{value:"F", class:'{% if "F" in days %}active{% endif %}'}
+          -trans "Fri"
+        #sat.btn{value:"S", class:'{% if "S" in days %}active{% endif %}'}
+          -trans "Sat"
+        #sun.btn{value:"U", class:'{% if "U" in days %}active{% endif %}'}
+          -trans "Sun"
 
-      %input#repeat-days-value{name:'repeat_days', type:'hidden'}
+      %input#repeat-days-value{name:'repeat_days_of_week', type:'hidden', value:'{{days}}'}
 
 -load humanize
 
 -block summary
   -if object.next_fire
     -spaceless
-
       -if object.get_broadcast
-
-        The next message will be sent <span class='attn next-fire'/>.
+        -trans "The next message will be sent on"
+        <span class='attn next-fire'>{{ object.next_fire|naturaltime }}</span>.
 
     -if not object.repeat_period == 'O'
-      -if object.repeat_period == 'W' and object.repeat_days
-        It will repeat every
+      -if object.repeat_period == 'W'
+        -trans "It will repeat every"
         -with object.get_repeat_days_display|length as day_count
           -for day in object.get_repeat_days_display
             {% if forloop.last and day_count > 1 %} and {%endif%}
             %span.attn
               {{day}}{% if not forloop.last and day_count > 2%}, {%endif%}
 
-        at around the same time.
+        -trans "at around the same time."
       -elif object.repeat_period == 'M'
-        It will repeat every
+        -trans "It will repeat every"
         %span.attn
           month
-        on the {{ object.repeat_day_of_month|ordinal }}.
+        -trans "on the"
+        {{ object.repeat_day_of_month|ordinal }}.
 
       -else
-        It will repeat
-        <span class='attn'>{{object.get_repeat_period_display|lower}}</span> at around the same time.
+        -trans "It will repeat"
+        <span class='attn'>{{object.get_repeat_period_display|lower}}</span>
+        -trans "at around the same time."
     -else
-      It will <span class='attn'>not repeat</span>.
+      -trans "It will "
+      <span class='attn'>
+      -trans "not repeat"
+      </span>.
 
   -else
-    Not scheduled
+    -trans "Not scheduled"
 
 -block form-buttons
   #form-buttons
     %br
-    -if object.status == 'U'
+    -if not object.next_fire
       %input.btn.start-button{type:'submit',value:'Done'}
 
-    -elif object.status == 'S'
-      %input.btn.btn-primary.start-button{type:'submit',value:'Schedule'}
-
     -else
-      %input.btn.btn-success.start-button{type:'submit',value:'Start'}
-
+      %input.btn.btn-primary.start-button{type:'submit',value:'Schedule'}

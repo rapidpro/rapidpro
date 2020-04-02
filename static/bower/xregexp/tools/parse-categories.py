@@ -6,6 +6,7 @@ import sys
 import string
 import re
 
+
 class RegExpGenerator(object):
 	def __init__(self, detector):
 		self.detector = detector
@@ -60,6 +61,7 @@ class Detector(object):
 		else:
 			return c.startswith(category)
 
+
 def analyze(source):
 	data = []
 	dictionary = {}
@@ -76,7 +78,7 @@ def analyze(source):
 					for t in range(first, val+1):
 						dictionary[t] = str(d[2])
 				else:
-					raise 'Database Exception'
+					raise Exception('Database Exception')
 			else:
 				if re.compile('<.+, First>').match(d[1]):
 					# print '%s : u%X' % (d[1], val)
@@ -91,10 +93,12 @@ def analyze(source):
 			data.append(dictionary[i])
 	return RegExpGenerator(Detector(data))
 
+
 def main(source):
 	generator = analyze(source)
 	for category in ['L', 'Ll', 'Lu', 'Lt', 'Lm', 'Lo', 'M', 'Mn', 'Mc', 'Me', 'N', 'Nd', 'Nl', 'No', 'P', 'Pd', 'Ps', 'Pe', 'Pi', 'Pf', 'Pc', 'Po', 'S', 'Sm', 'Sc', 'Sk', 'So', 'Z', 'Zs', 'Zl', 'Zp', 'C', 'Cc', 'Cf', 'Co', 'Cs', 'Cn']:
-		print category + ': "' + generator.generate_category(category) + '",'
+		print(category + ': "' + generator.generate_category(category) + '",')
+
 
 if __name__ == '__main__':
 	main(sys.argv[1])

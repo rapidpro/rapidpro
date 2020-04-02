@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel
-from temba.channels.types.whatsapp.views import ClaimView, RefreshView, TemplatesView
+from temba.channels.types.whatsapp.views import ClaimView, RefreshView, SyncLogsView, TemplatesView
 from temba.contacts.models import WHATSAPP_SCHEME
 from temba.templates.models import TemplateTranslation
 
@@ -131,6 +131,7 @@ class WhatsAppType(ChannelType):
             self.get_claim_url(),
             url(r"^(?P<uuid>[a-z0-9\-]+)/refresh$", RefreshView.as_view(), name="refresh"),
             url(r"^(?P<uuid>[a-z0-9\-]+)/templates$", TemplatesView.as_view(), name="templates"),
+            url(r"^(?P<uuid>[a-z0-9\-]+)/sync_logs$", SyncLogsView.as_view(), name="sync_logs"),
         ]
 
     def deactivate(self, channel):

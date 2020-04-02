@@ -1,18 +1,23 @@
-import cmd
+import threading
 
-from colorama import Fore, Style, init as colorama_init
+import requests
+from colorama import Fore, init as colorama_init
+from requests.exceptions import ConnectionError
 
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
-from temba.contacts.models import URN, Contact
-from temba.msgs.models import OUTGOING, Msg
+from temba import mailroom
+from temba.contacts.models import URN
 from temba.orgs.models import Org
+from temba.tests.integration import TestChannel
 
+COURIER_URL = "http://localhost:8080"
 DEFAULT_ORG = "1"
 DEFAULT_URN = "tel:+250788123123"
 
 
-def get_org(id_or_name):
+def get_org(id_or_name):  # pragma: no cover
     """
     Gets an org by its id or name. If more than one org has the name, first org is returned
     """
@@ -21,119 +26,12 @@ def get_org(id_or_name):
         try:
             return Org.objects.get(pk=org_id)
         except Org.DoesNotExist:
-            raise CommandError("No such org with id %d" % org_id)
+            raise CommandError(f"No such org with id {org_id}")
     except ValueError:
         org = Org.objects.filter(name=id_or_name).first()
         if not org:
-            raise CommandError("No such org with name '%s'" % id_or_name)
+            raise CommandError(f"No such org with name '{id_or_name}'")
         return org
-
-
-class MessageConsole(cmd.Cmd):
-    """
-    Useful REPL'like utility to simulate sending messages into RapidPro. Mostly useful for testing things
-    with real contacts across multiple flows and contacts where the simulator isn't enough.
-    """
-
-    def __init__(self, org, urn, *args, **kwargs):
-        cmd.Cmd.__init__(self, *args, **kwargs)
-
-        self.org = org
-        self.user = org.get_org_users()[0]
-        self.user.set_org(org)
-
-        self.urn = urn
-        self.contact = self.get_or_create_contact(urn)
-
-        self.update_prompt()
-        self.echoed = []
-
-    def clear_echoed(self):
-        self.echoed = []
-
-    def echo(self, line):
-        print(line)
-        self.echoed.append(line)
-
-    def update_prompt(self):
-        self.prompt = ("\n" + Fore.CYAN + "[%s] " + Fore.WHITE) % self.contact
-
-    def get_or_create_contact(self, urn):
-        if ":" not in urn:
-            urn = URN.from_tel(urn)  # assume phone number
-
-        contact, urn_obj = Contact.get_or_create(self.org, urn, user=self.user)
-        return contact
-
-    def do_org(self, line):
-        """
-        Changes the current org
-        """
-        if not line:
-            self.echo("Select org with org id or name.  ex: org 4")
-
-            # list all org options
-            for org in Org.objects.all().order_by("pk"):
-                user = ""
-                if org.get_org_admins():
-                    user = org.get_org_admins()[0].username
-                self.echo((Fore.YELLOW + "[%d]" + Fore.WHITE + " %s % 40s") % (org.pk, org.name, user))
-        else:
-            try:
-                self.org = get_org(line)
-                self.user = self.org.get_org_admins()[0]
-                self.user.set_org(self.org)
-                self.contact = self.get_or_create_contact(self.urn)
-
-                self.update_prompt()
-
-                self.echo("You are now sending messages for %s [%d]" % (self.org.name, self.org.pk))
-                self.echo("You are now sending as %s [%d]" % (self.contact, self.contact.pk))
-            except Exception as e:
-                self.echo("Error changing org: %s" % e)
-
-    def do_contact(self, line):
-        """
-        Sets the current contact by URN
-        """
-        if not line:
-            self.echo("Set contact by specifying URN, ex: tel:+250788123123")
-        else:
-            self.contact = self.get_or_create_contact(line)
-            self.update_prompt()
-            self.echo("You are now sending as %s [%d]" % (self.contact, self.contact.pk))
-
-    def default(self, line):
-        """
-        Sends a message as the current contact's highest priority URN
-        """
-        urn = self.contact.get_urn()
-
-        incoming = Msg.create_incoming(None, URN.from_parts(urn.scheme, urn.path), line, org=self.org)
-
-        self.echo(
-            (Fore.GREEN + "[%s] " + Fore.YELLOW + ">>" + Fore.MAGENTA + " %s" + Fore.WHITE) % (str(urn), incoming.text)
-        )
-
-        # look up any message responses
-        outgoing = Msg.objects.filter(org=self.org, pk__gt=incoming.pk, direction=OUTGOING).order_by("sent_on")
-        for response in outgoing:
-            self.echo(
-                (Fore.GREEN + "[%s] " + Fore.YELLOW + "<<" + Fore.MAGENTA + " %s" + Fore.WHITE)
-                % (str(urn), response.text)
-            )
-
-    def do_EOF(self, line):
-        """
-        Exit console
-        """
-        return True
-
-    def do_exit(self, line):
-        """
-        Exit console
-        """
-        return True
 
 
 class Command(BaseCommand):  # pragma: no cover
@@ -144,40 +42,67 @@ class Command(BaseCommand):  # pragma: no cover
             action="store",
             dest="org",
             default=DEFAULT_ORG,
-            help="The id or name of the organization to send messages for",
+            help="The id or name of the organization to send messages to",
         )
 
         parser.add_argument(
-            "--urn",
-            type=str,
-            action="store",
-            dest="urn",
-            default=DEFAULT_URN,
-            help="The URN of the contact to send messages for",
+            "--urn", type=str, action="store", dest="urn", default=DEFAULT_URN, help="The URN to send messages from"
         )
 
     def handle(self, *args, **options):
         colorama_init()
-
         org = get_org(options["org"])
-        urn = options["urn"]
+        scheme, path, *rest = URN.to_parts(options["urn"])
 
-        intro = Style.BRIGHT + "Welcome to the message console.\n\n"
-        intro += Style.NORMAL + "Send messages by typing anything\n"
-        intro += "Change org with the org command, ex: " + Fore.YELLOW + "org 3" + Fore.WHITE + "\n"
-        intro += (
-            "Change contact with the contact command, ex: "
-            + Fore.YELLOW
-            + "contact tel:+250788124124"
-            + Fore.WHITE
-            + "\n"
+        db = settings.DATABASES["default"]
+        db_url = f"postgres://{db['USER']}:{db['PASSWORD']}@{db['HOST']}:{db['PORT']}/{db['NAME']}?sslmode=disable"
+        redis_url = settings.CACHES["default"]["LOCATION"]
+
+        try:
+            print(
+                f"✅ Mailroom version {mailroom.get_client().version()} running at️ {Fore.CYAN}{settings.MAILROOM_URL}{Fore.RESET}"
+            )
+        except ConnectionError:
+            launch = f'mailroom -db="{db_url}" -redis={redis_url}'
+            raise CommandError(f"Unable to connect to mailroom. Please launch it with...\n\n{launch}")
+
+        try:
+            requests.get(COURIER_URL)
+            print(f"✅ Courier running at️ {Fore.CYAN}{COURIER_URL}{Fore.RESET}")
+        except ConnectionError:
+            launch = f'courier -db="{db_url}" -redis={redis_url} -spool-dir="."'
+            raise CommandError(f"Unable to connect to courier. Please launch it with...\n\n{launch}")
+
+        try:
+            channel = TestChannel.create(
+                org, org.administrators.first(), COURIER_URL, callback=self.response_callback, scheme=scheme
+            )
+            print(f"✅ Testing channel started at️ {Fore.CYAN}{channel.server.base_url}{Fore.RESET}")
+        except Exception as e:
+            raise CommandError(f"Unable to start test channel: {str(e)}")
+
+        print(
+            f"\nSending messages to {Fore.CYAN}{org.name}{Fore.RESET} as {Fore.CYAN}{scheme}:{path}{Fore.RESET}. Use Ctrl+C to quit."
         )
-        intro += "Exit with the " + Fore.YELLOW + "exit" + Fore.WHITE + " command\n\n"
 
-        intro += ("Currently sending messages for %s [%d] as " + Fore.CYAN + "%s" + Fore.WHITE) % (
-            org.name,
-            org.id,
-            urn,
-        )
+        self.responses_wait = None
+        try:
+            while True:
+                line = input(f"📱 {Fore.CYAN}{path}{Fore.RESET}> ")
+                if not line:
+                    continue
 
-        MessageConsole(org, urn).cmdloop(intro=intro)
+                msg_in = channel.incoming(path, line)
+
+                # we wait up to 2 seconds for a response from courier
+                self.responses_wait = threading.Event()
+                self.responses_wait.wait(timeout=2)
+
+                for response in org.msgs.filter(direction="O", id__gt=msg_in.id).order_by("id"):
+                    print(f"💬 {Fore.GREEN}{response.channel.address}{Fore.RESET}> {response.text}")
+
+        except KeyboardInterrupt:
+            pass
+
+    def response_callback(self, data):
+        self.responses_wait.set()

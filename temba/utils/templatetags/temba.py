@@ -1,3 +1,4 @@
+import json
 from datetime import timedelta, datetime
 
 import pytz
@@ -11,6 +12,8 @@ from django.utils import timezone
 from django.utils.html import escapejs
 from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext, ugettext_lazy as _, ungettext_lazy
+
+from temba.utils.dates import datetime_to_str
 
 from ...campaigns.models import Campaign
 from ...flows.models import Flow
@@ -77,6 +80,15 @@ def format_seconds(seconds):
     if seconds >= 30:
         minutes += 1
     return "%s min" % minutes
+
+
+@register.simple_tag()
+def annotated_field(field, label, help_text):
+    attrs = field.field.widget.attrs
+    attrs["label"] = label
+    attrs["help_text"] = help_text
+    attrs["errors"] = json.dumps([str(error) for error in field.errors])
+    return field.as_widget(attrs=attrs)
 
 
 @register.simple_tag(takes_context=True)
@@ -241,7 +253,22 @@ def short_datetime(context, dtime):
             return "%d/%d/%s" % (int(dtime.strftime("%m")), int(dtime.strftime("%d")), dtime.strftime("%y"))
 
 
-def format_datetime(time, tz):
+@register.simple_tag(takes_context=True)
+def format_datetime(context, dtime):
+    if dtime.tzinfo is None:
+        dtime = dtime.replace(tzinfo=pytz.utc)
+
+    tz = pytz.UTC
+    org = context.get("user_org")
+    if org:
+        tz = org.timezone
+    dtime = dtime.astimezone(tz)
+    if org:
+        return org.format_datetime(dtime)
+    return datetime_to_str(dtime, "%d-%m-%Y %H:%M", tz)
+
+
+def format_tz_datetime(time, tz):
     user_time_zone = pytz.timezone(tz.zone)
 
     if time.tzinfo is None:
@@ -262,7 +289,7 @@ def temba_get_value(context, obj, field):
             value = value.get("iso")
 
         value = datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%fZ")
-        return format_datetime(value, org.timezone)
+        return format_tz_datetime(value, org.timezone)
     except Exception:
         pass
 

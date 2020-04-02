@@ -29,8 +29,9 @@
         .{class:"glyph {{urn|urn_icon}}"}
         -if not user_org.is_anon
           -if urn.sendable
-            %a.contact-urn-path{href:"javascript:showComposeInitialized(\"u={{ urn.id }}\", null, refreshRecents)"}><
-              {{urn|format_urn:user_org}}
+            %rp-modax.urn-link{ header:'Send Message', endpoint:"{% url 'msgs.broadcast_send' %}?u={{urn.id}}"}
+              %a.contact-urn-path{href:'#'}><
+                {{urn|format_urn:user_org}}
           -else
             %i.contact-urn-path
               -if urn.scheme == 'mailto'
@@ -69,7 +70,7 @@
           -if org_perms.contacts.contact_update and not group.is_dynamic
             %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.uuid %}"}
               = group.name
-              %a.btn.btn-primary.btn-mini{href:"#", onclick:'removeContactFromGroup({{group.pk}}, {{contact.pk}})'} x
+              %a.btn.btn-primary.btn-mini{href:"#", onclick:'removeContactFromGroup({{group.id}}, {{contact.id}})'} x
           -else
             %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.uuid %}"}
               = group.name
@@ -85,47 +86,46 @@
   </style>
   <![endif]-->
 
-  - if all_contact_fields
-    .contact-fields
-      .featured
+  .contact-fields
+    .featured
+      .contact-field
+        .contact-field-label
+          -trans "Created On"
+
+        .contact-field-value
+          {% format_datetime contact.created_on %}
+
+      -if contact_language
         .contact-field
           .contact-field-label
-            -trans "Created On"
+            -trans "Language"
 
           .contact-field-value
-            {% pretty_datetime contact.created_on %}
+            {{contact_language}}
 
-        -if contact_language
-          .contact-field
-            .contact-field-label
-              -trans "Language"
+      -for field in all_contact_fields|slice:":6"
+        .contact-field{data-id:'{{field.id}}'}
+          .contact-field-label
+            {{field.label|title}}
 
-            .contact-field-value
-              {{contact_language}}
+          .contact-field-value.editable
+            {{field.value}}
 
-        -for field in all_contact_fields|slice:":6"
-          .contact-field{data-id:'{{field.id}}'}
-            .contact-field-label
-              {{field.label|title}}
+    .normal.hide
+      -for field in all_contact_fields|slice:"6:"
+        .contact-field{data-id:'{{field.id}}'}
+          .contact-field-label
+            {{field.label|title}}
 
-            .contact-field-value.editable
-              {{field.value}}
-
-      .normal.hide
-        -for field in all_contact_fields|slice:"6:"
-          .contact-field{data-id:'{{field.id}}'}
-            .contact-field-label
-              {{field.label|title}}
-
-            .contact-field-value.editable
-              {{field.value}}
+          .contact-field-value.editable
+            {{field.value}}
 
   -if all_contact_fields|length > 6
     %a.pull-right.show-all.fields
       .icon-arrow-down
   // Quick send message, chat style
-  -if org_perms.msgs.broadcast_send and not contact.is_blocked and not contact.is_stopped
-    #msg-box 
+  -if org_perms.msgs.broadcast_send and not contact.is_blocked and not contact.is_stopped and contact.get_urn
+    #msg-box
       %h5
         -trans "Compose message"
       -if send_channel
@@ -176,7 +176,7 @@
                 -trans "Start"
                 %a.href{ href: "{% url 'flows.flow_editor' evt.flow_uuid %}" }= evt.flow_name
           %td.created_on
-            {% pretty_datetime evt.scheduled %}
+            {{ evt.scheduled|naturaltime }}
 
             .repeats
               -if evt.repeat_period == 'D'
@@ -187,10 +187,18 @@
     -if upcoming_events|length > 3
       %a.pull-right.show-all.upcoming
         more
-  
 
-  %h5
-    -trans "Message History"
+
+  %h5{style:"margin-top: 40px;"}
+    -trans "History"
+
+    .flow-event-display-selector.pull-right
+      %a.is-active(href="#")
+        -trans "Full"
+      |
+      %a.summary-events-only(href="#")
+        -trans "Summary"
+
   %table.activity.history{style:'padding:0;margin:0'}
     // poll for our most recent messages
 
@@ -239,10 +247,19 @@
 -block extra-less
   -compress css
 
+    :css
+      .urn-link {
+        display: inline-block;
+      }
+      #gear-container {
+        z-index: 9999;
+        position: relative;
+      }
+
     {% lessblock %}
       :plain
         .show-all {
-          margin-top:-10px;
+          margin-top:-15px;
           margin-right:18px;
           color: #d1d1d1;
 
@@ -261,6 +278,18 @@
             cursor: pointer;
           }
         }
+
+        .flow-event-display-selector {
+          a {
+              display: inline-block;
+              &.is-active {
+                cursor: none;
+                color: #999999;
+                cursor: text;
+                text-decoration: none;
+              }
+            }
+          }
 
         table.activity {
 
@@ -351,6 +380,10 @@
               }
             }
 
+            &.detail-event {
+              display: table-row;
+            }
+
             &.non-msg {
               background: #fafafa;
 
@@ -358,8 +391,20 @@
                 background: #fafafa;
               }
 
+              &.new-session {
+                background: #f0f0f0;
+              }
+
               .icon {
                 color: rgba(0, 0, 0, 0.20);
+              }
+            }
+          }
+
+          &.summary-events-only {
+            tbody {
+              tr.detail-event {
+                display: none;
               }
             }
           }
@@ -382,6 +427,10 @@
                 color: rgba(0,0,0,.20);
                 padding: 5px;
               }
+            }
+
+            b {
+              color: #666
             }
           }
 
@@ -426,7 +475,7 @@
           font-size: 12px;
           color: @color-font-grey;
           border: 1px solid #f1f1f1;
-          margin-bottom:15px;
+          margin-bottom: 20px;
 
           .show-more {
             padding: 10px;
@@ -479,6 +528,7 @@
           z-index: 1000;
           top: 0;
           padding-bottom: 10px;
+          padding-top: 0.1px;
         }
 
         #send {
@@ -518,6 +568,27 @@
     var startTime = null;
 
     $(document).ready(function() {
+      $(".flow-event-display-selector a").each(function() {
+        var onlySummary = getCookie('rp-summaryEventsDisplay') === 'summary';
+        if(onlySummary && $(this).hasClass('summary-events-only')) {
+          $(this).parent('.flow-event-display-selector').children('a').removeClass('is-active');
+          $(this).addClass('is-active');
+          $('table.activity.history').addClass('summary-events-only');
+        }
+      })
+
+      $(".flow-event-display-selector a").on('click', function() {
+        $(this).parent('.flow-event-display-selector').children('a').removeClass('is-active');
+        $(this).addClass('is-active');
+        if($(this).hasClass('summary-events-only')) {
+          $('table.activity.history').addClass('summary-events-only');
+          document.cookie = "rp-summaryEventsDisplay=summary;path=/;expires=-1";
+        } else {
+          $('table.activity.history').removeClass('summary-events-only');
+          document.cookie = "rp-summaryEventsDisplay=all;path=/;expires=-1";
+        }
+        return false;
+      });
 
       $('.show-all.upcoming').live('click', function() {
         $(this).hide();
@@ -611,7 +682,7 @@
       $('.failed').remove();
       $('.succeeded').remove();
 
-      if(!$msg_input_obj.val()) {
+      if( (!$msg_input_obj.val()) || ($msg_input_obj.val().trim().length == 0)) {
         $msg_input_obj.css({'border':'1px solid #da4f49', 'color':'#da4f49'});
         $('.failed').remove();
         $('{% trans "<p>This field is required, please fill in the message to send out</p>" %}').insertAfter("#id_send").addClass('failed');
@@ -625,7 +696,7 @@
         return false;
       } else {
         var form = $('#send');
-        var post = "{% url 'msgs.broadcast_send' %}?_format=json";
+        var post = "{% url 'msgs.broadcast_send' %}?u={{ contact.get_urn.id }}";
 
         if (window.simulation) {
           post = post + "&simulation=true"
@@ -636,7 +707,12 @@
           schedule: null,
           text: form.find("#id_text").val(),
           csrfmiddlewaretoken: form.find("[name='csrfmiddlewaretoken']").val(),
-          omnibox: "c-{{ contact.uuid }}"
+          omnibox: JSON.stringify({
+            "id": "{{ contact.uuid }}",
+            "name": "{{ contact.name }}",
+            "type": "contact",
+            "urn": "{{ contact.get_urn.path }}"
+          })
         };
 
         $.post(post, data, function(data, textStatus, b, c) {
@@ -701,9 +777,9 @@
 
     {% if org_perms.contacts.contact_update %}
     function removeContactFromGroup(groupId, contactId){
-      id = '#group_' + groupId + '_' + contactId;
-      $.post('{% url 'contacts.contact_read' contact.uuid %}', {contact: contactId, group: groupId}, function(groupId, contactId) {
-        $(id).remove();
+      var elementId = '#group_' + groupId + '_' + contactId;
+      $.post('{% url 'contacts.contact_read' contact.uuid %}' + '?action=remove_from_group', {contact: contactId, group: groupId}, function() {
+        $(elementId).remove();
       });
     }
     {% endif %}
@@ -718,21 +794,5 @@
       }}, false);
       modal.setPrimaryButton('{% trans "Delete" %}');
       modal.show();
-    });
-    {% endif %}
-
-    {% if org_perms.msgs.broadcast_send %}
-    $(".contact-send-button").on('click', function() {
-      {% if has_sendable_urn %}
-      $(".gear-menu").removeClass("open");
-      showComposeInitialized("c={{object.uuid}}", null, refreshRecents);
-      {% else %}
-      modal = new Modal('{% trans "Error" %}', '{% trans "This contact does not have any number which you can send to. Please edit the contact first or add a new phone." %}');
-      modal.addClass('alert');
-      modal.setListeners({onPrimary: function(){ modal.dismiss(); }}, false);
-      modal.show();
-      {% endif %}
-
-      return false;
     });
     {% endif %}

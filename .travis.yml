@@ -1,32 +1,44 @@
 # use container-based Ubuntu Trusty
-dist: trusty
+dist: bionic
 sudo: true
 
 language: python
 python:
-  - "3.6.6"
+  - "3.6.8"
 
 services:
   - redis-server
 
 env:
-  - PGDB=10
-  - PGDB=9.6
+  global:
+    - DJANGO_SETTINGS_MODULE=temba.settings_travis
+  jobs:
+    - PGDB=11 PGIS=2.5
+    - PGDB=10 PGIS=2.4
 
 cache:
   directories:
     - "$HOME/.cache/pip"
 
 before_install:
-  - sudo -E service postgresql stop 9.2
-  - sudo -E service postgresql stop 9.3
-  - sudo -E service postgresql stop 9.4
-  - sudo -E service postgresql stop 9.5
-  - sudo -E service postgresql stop 9.6
-  - sudo -E apt-get -yq --no-install-suggests --no-install-recommends $(travis_apt_get_options) install postgresql-$PGDB postgresql-client-$PGDB postgresql-$PGDB-postgis-2.4 postgresql-$PGDB-postgis-2.4-scripts
+  # install the chosen PG version
+  - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install postgresql-$PGDB postgresql-client-$PGDB postgresql-$PGDB-postgis-$PGIS postgresql-$PGDB-postgis-$PGIS-scripts
   - sudo -E sed -i -e '/local.*peer/s/postgres/all/' -e 's/peer\|md5/trust/g' /etc/postgresql/*/main/pg_hba.conf
   - sudo -E sed -i 's/port = 5433/port = 5432/' /etc/postgresql/*/main/postgresql.conf
-  - sudo -E service postgresql restart $PGDB
+
+  # give PG some time to finish setup
+  - sleep 10
+
+  # stop any running postgres versions
+  - sudo -E service postgresql stop 10
+  - sudo -E ps axuwww | grep -i postg
+
+  # possibly a Travis bug but data directory sometimes not initialized
+  - if [ ! -d /var/ramfs/postgresql/$PGDB/main ]; then sudo -u postgres /usr/lib/postgresql/$PGDB/bin/initdb -D /var/ramfs/postgresql/$PGDB/main; fi
+
+  # start the chosen PG version
+  - sudo -E systemctl -l restart postgresql@$PGDB-main
+  - sudo -E systemctl -l status postgresql@$PGDB-main
 
 install:
   # install Elasticsearch
@@ -36,12 +48,12 @@ install:
   - ./elasticsearch-${ES_VERSION}/bin/elasticsearch &
 
   # install mailroom
-  - MAILROOM_VERSION=1.0.1
+  - MAILROOM_VERSION=5.3.42
   - wget https://github.com/nyaruka/mailroom/releases/download/v${MAILROOM_VERSION}/mailroom_${MAILROOM_VERSION}_linux_amd64.tar.gz
   - tar -xvf mailroom_${MAILROOM_VERSION}_linux_amd64.tar.gz mailroom
 
   # install rp-indexer
-  - RPINDEXER_VERSION=1.0.25
+  - RPINDEXER_VERSION=5.2.0
   - wget https://github.com/nyaruka/rp-indexer/releases/download/v${RPINDEXER_VERSION}/rp-indexer_${RPINDEXER_VERSION}_linux_amd64.tar.gz
   - tar -xvf rp-indexer_${RPINDEXER_VERSION}_linux_amd64.tar.gz
 
@@ -76,7 +88,8 @@ script:
   # any non-zero error code should be treated as an immediate failure
   - set -e
 
-  # test that everything is well formatted
+  # test that everything is well formatted, no missing migrations etc
+  - ./code_check.py
   - black --line-length=119 --target-version=py36 temba --check --quiet || (echo 'The source code could use a bit more black.' && exit 1)
 
   # test PEP8 compliance on both Python 2 and 3
@@ -93,14 +106,14 @@ script:
   - (! python manage.py compress --extension=".haml" --settings=temba.settings_compress | grep 'Error') || exit 1
 
   # install database schema
-  - python manage.py migrate --settings=temba.settings_travis
+  - python manage.py migrate
 
   # fire up mailroom
   - ./mailroom -db=postgres://temba:temba@localhost:5432/temba -redis=redis://localhost:6379/10 -log-level=info &
   - jobs
 
   # run our Python unit tests on same database
-  - coverage run manage.py test --settings=temba.settings_travis --keepdb --noinput --verbosity=2
+  - coverage run manage.py test --keepdb --noinput --verbosity=2
 
   - set +e
 
@@ -109,3 +122,7 @@ after_success:
   - codecov
   - coverage report -i
   - coverage report -i --rcfile .coveragerc_todo
+
+notifications:
+  slack:
+    secure: "b2/RUpO6gWEDgOI/sEWsjt2cVnwp3hOWUSMnHpVuY0pZBzzrICZ5MeqEulwCoKy+8ohaCmYUL42RzJwq1v2FITo5YDeiLrqmrkYR0Zieel/Vey+o6sBdR6y2yPvWjBmydHNvfUyMshT5iqEn4bS6bjhm57F0rLJX7mTqp19A+68="

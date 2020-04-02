@@ -2,20 +2,20 @@ import operator
 from collections import OrderedDict
 from decimal import Decimal
 from functools import reduce
+from typing import NamedTuple
 
 import pytz
 import regex
 from antlr4 import CommonTokenStream, InputStream, ParseTreeVisitor
 from antlr4.error.Errors import NoViableAltException, ParseCancellationException
 from antlr4.error.ErrorStrategy import BailErrorStrategy
-from elasticsearch_dsl import Q as es_Q
 
 from django.utils.encoding import force_text
 from django.utils.translation import gettext as _
 
-from temba.contacts.models import URN_SCHEME_CONFIG, Contact, ContactField
+from temba import mailroom
+from temba.contacts.models import URN_SCHEME_CONFIG, ContactField
 from temba.utils.dates import date_to_day_range_utc, str_to_date, str_to_datetime
-from temba.utils.es import ModelESSearch
 from temba.values.constants import Value
 
 TEL_VALUE_REGEX = regex.compile(r"^[+ \d\-\(\)]+$", flags=regex.V0)
@@ -59,11 +59,6 @@ class ContactQuery(object):
 
         return self.root.evaluate(org, contact_json, prop_map)
 
-    def as_elasticsearch(self, org):
-        prop_map = self.get_prop_map(org)
-
-        return self.root.as_elasticsearch(org, prop_map)
-
     def get_prop_map(self, org, validate=True):
         """
         Recursively collects all property names from this query and tries to match them to fields, searchable attributes
@@ -97,12 +92,6 @@ class ContactQuery(object):
 
         return prop_map
 
-    def can_be_dynamic_group(self):
-        props_not_allowed = {"id"}
-        prop_names = set(self.root.get_prop_names())
-
-        return not (prop_names.intersection(props_not_allowed))
-
     def __eq__(self, other):
         return isinstance(other, ContactQuery) and self.root == other.root
 
@@ -125,9 +114,6 @@ class QueryNode(object):
         return self
 
     def as_text(self):  # pragma: no cover
-        pass
-
-    def as_elasticsearch(self, org, prop_map):  # pragma: no cover
         pass
 
     def evaluate(self, org, contact_json, prop_map):  # pragma: no cover
@@ -341,171 +327,6 @@ class Condition(QueryNode):
         else:  # pragma: no cover
             raise SearchException(_(f"Unrecognized contact field type '{prop_type}'"))
 
-    def as_elasticsearch(self, org, prop_map):
-        prop_type, field = prop_map[self.prop]
-
-        if prop_type == ContactQuery.PROP_FIELD:
-            field_uuid = str(field.uuid)
-            es_query = es_Q("term", **{"fields.field": field_uuid})
-
-            if field.value_type == Value.TYPE_TEXT:
-                query_value = self.value.lower()
-
-                if self.comparator == "=":
-                    es_query &= es_Q("term", **{"fields.text": query_value})
-                elif self.comparator == "!=":
-                    es_query &= es_Q("term", **{"fields.text": query_value})
-                    es_query &= es_Q("exists", **{"field": "fields.text"})
-
-                    # search for the inverse of what was specified
-                    return ~es_Q("nested", path="fields", query=es_query)
-
-                else:
-                    raise SearchException(_(f"Unknown text comparator: '{self.comparator}'"))
-
-            elif field.value_type == Value.TYPE_NUMBER:
-                query_value = str(self._parse_number(self.value))
-
-                if self.comparator == "=":
-                    es_query &= es_Q("match", **{"fields.number": query_value})
-                elif self.comparator == ">":
-                    es_query &= es_Q("range", **{"fields.number": {"gt": query_value}})
-                elif self.comparator == ">=":
-                    es_query &= es_Q("range", **{"fields.number": {"gte": query_value}})
-                elif self.comparator == "<":
-                    es_query &= es_Q("range", **{"fields.number": {"lt": query_value}})
-                elif self.comparator == "<=":
-                    es_query &= es_Q("range", **{"fields.number": {"lte": query_value}})
-                else:
-                    raise SearchException(_(f"Unknown number comparator: '{self.comparator}'"))
-
-            elif field.value_type == Value.TYPE_DATETIME:
-                query_value = str_to_date(self.value, field.org.get_dayfirst())
-
-                if not query_value:
-                    raise SearchException(_(f"Unable to parse the date '{self.value}'"))
-
-                # datetime contact values are serialized as ISO8601 timestamps in local time on ElasticSearch
-                lower_bound, upper_bound = date_to_day_range_utc(query_value, org)
-
-                if self.comparator == "=":
-                    es_query &= es_Q(
-                        "range", **{"fields.datetime": {"gte": lower_bound.isoformat(), "lt": upper_bound.isoformat()}}
-                    )
-                elif self.comparator == ">":
-                    es_query &= es_Q("range", **{"fields.datetime": {"gte": upper_bound.isoformat()}})
-                elif self.comparator == ">=":
-                    es_query &= es_Q("range", **{"fields.datetime": {"gte": lower_bound.isoformat()}})
-                elif self.comparator == "<":
-                    es_query &= es_Q("range", **{"fields.datetime": {"lt": lower_bound.isoformat()}})
-                elif self.comparator == "<=":
-                    es_query &= es_Q("range", **{"fields.datetime": {"lt": upper_bound.isoformat()}})
-                else:
-                    raise SearchException(_(f"Unknown datetime comparator: '{self.comparator}'"))
-
-            elif field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
-                query_value = self.value.lower()
-
-                if field.value_type == Value.TYPE_WARD:
-                    field_name = "fields.ward"
-                elif field.value_type == Value.TYPE_DISTRICT:
-                    field_name = "fields.district"
-                elif field.value_type == Value.TYPE_STATE:
-                    field_name = "fields.state"
-                else:  # pragma: no cover
-                    raise SearchException(_(f"Unknown location type: '{field.value_type}'"))
-
-                if self.comparator == "=":
-                    field_name += "_keyword"
-                    es_query &= es_Q("term", **{field_name: query_value})
-                elif self.comparator == "!=":
-                    field_name += "_keyword"
-                    es_query &= es_Q("term", **{field_name: query_value})
-                    es_query &= es_Q("exists", **{"field": field_name})
-
-                    return ~es_Q("nested", path="fields", query=es_query)
-
-                else:
-                    raise SearchException(_(f"Unsupported comparator '{self.comparator}' for location field"))
-
-            else:  # pragma: no cover
-                raise SearchException(_(f"Unrecognized contact field type '{field.value_type}'"))
-
-            return es_Q("nested", path="fields", query=es_query)
-
-        elif prop_type == ContactQuery.PROP_ATTRIBUTE:
-            query_value = self.value.lower()
-
-            field_key = field.key
-
-            if field_key == "name":
-                if self.comparator == "=":
-                    field_name = "name.keyword"
-                    es_query = es_Q("term", **{field_name: query_value})
-                elif self.comparator == "~":
-                    field_name = "name"
-                    es_query = es_Q("match", **{field_name: query_value})
-                elif self.comparator == "!=":
-                    field_name = "name.keyword"
-                    es_query = ~es_Q("term", **{field_name: query_value})
-                else:
-                    raise SearchException(_(f"Unknown attribute comparator: '{self.comparator}'"))
-            elif field_key == "id":
-                es_query = es_Q("ids", **{"values": [query_value]})
-            elif field_key == "language":
-                if self.comparator == "=":
-                    field_name = "language"
-                    es_query = es_Q("term", **{field_name: query_value})
-                elif self.comparator == "!=":
-                    field_name = "language"
-                    es_query = ~es_Q("term", **{field_name: query_value})
-                else:
-                    raise SearchException(_(f"Unknown attribute comparator: '{self.comparator}'"))
-            elif field_key == "created_on":
-                query_value = str_to_date(self.value, field.org.get_dayfirst())
-
-                if not query_value:
-                    raise SearchException(_(f"Unable to parse the date '{self.value}'"))
-
-                # contact created_on is serialized as ISO8601 timestamp in utc time on ElasticSearch
-                lower_bound, upper_bound = date_to_day_range_utc(query_value, org)
-
-                if self.comparator == "=":
-                    es_query = es_Q(
-                        "range", **{"created_on": {"gte": lower_bound.isoformat(), "lt": upper_bound.isoformat()}}
-                    )
-                elif self.comparator == ">":
-                    es_query = es_Q("range", **{"created_on": {"gte": upper_bound.isoformat()}})
-                elif self.comparator == ">=":
-                    es_query = es_Q("range", **{"created_on": {"gte": lower_bound.isoformat()}})
-                elif self.comparator == "<":
-                    es_query = es_Q("range", **{"created_on": {"lt": lower_bound.isoformat()}})
-                elif self.comparator == "<=":
-                    es_query = es_Q("range", **{"created_on": {"lt": upper_bound.isoformat()}})
-                else:
-                    raise SearchException(_(f"Unknown created_on comparator: '{self.comparator}'"))
-            else:  # pragma: no cover
-                raise SearchException(_(f"Unknown attribute field '{field}'"))
-            return es_query
-
-        elif prop_type == ContactQuery.PROP_SCHEME:
-            query_value = self.value.lower()
-            es_query = es_Q("term", **{"urns.scheme": field.lower()})
-
-            if org.is_anon:
-                return es_Q("ids", **{"values": [-1]})
-            else:
-                if self.comparator == "=":
-                    es_query &= es_Q("term", **{"urns.path.keyword": query_value})
-                elif self.comparator == "~":
-                    es_query &= es_Q("match_phrase", **{"urns.path": query_value})
-                else:
-                    raise SearchException(_(f"Unknown scheme comparator: '{self.comparator}'"))
-
-                return es_Q("nested", path="urns", query=es_query)
-        else:  # pragma: no cover
-            raise SearchException(_(f"Unrecognized contact field type '{prop_type}'"))
-
     def __eq__(self, other):
         return (
             isinstance(other, Condition)
@@ -685,77 +506,6 @@ class IsSetCondition(Condition):
         else:  # pragma: no cover
             raise SearchException(_(f"Unrecognized contact field type '{prop_type}'"))
 
-    def as_elasticsearch(self, org, prop_map):
-        prop_type, field = prop_map[self.prop]
-
-        if self.comparator.lower() in self.IS_SET_LOOKUPS:
-            is_set = True
-        elif self.comparator.lower() in self.IS_NOT_SET_LOOKUPS:
-            is_set = False
-        else:
-            raise SearchException(_("Invalid operator for empty string comparison"))
-
-        if prop_type == ContactQuery.PROP_FIELD:
-            field_uuid = str(field.uuid)
-            es_query = es_Q("term", **{"fields.field": field_uuid})
-
-            if field.value_type == Value.TYPE_TEXT:
-                field_name = "fields.text"
-            elif field.value_type == Value.TYPE_NUMBER:
-                field_name = "fields.number"
-            elif field.value_type == Value.TYPE_DATETIME:
-                field_name = "fields.datetime"
-            elif field.value_type == Value.TYPE_STATE:
-                field_name = "fields.state"
-            elif field.value_type == Value.TYPE_DISTRICT:
-                field_name = "fields.district"
-            elif field.value_type == Value.TYPE_WARD:
-                field_name = "fields.ward"
-            else:  # pragma: no cover
-                raise SearchException(_(f"Unrecognized contact field type '{field.value_type}'"))
-
-            es_query &= es_Q("exists", **{"field": field_name})
-
-            if is_set:
-                return es_Q("nested", path="fields", query=es_query)
-            else:
-                return ~es_Q("nested", path="fields", query=es_query)
-        elif prop_type == ContactQuery.PROP_SCHEME:
-            if org.is_anon:
-                return es_Q("ids", **{"values": [-1]})
-
-            es_query = es_Q("exists", **{"field": "urns.path"}) & es_Q("term", **{"urns.scheme": field.lower()})
-
-            if is_set:
-                return es_Q("nested", path="urns", query=es_query)
-            else:
-                return ~es_Q("nested", path="urns", query=es_query)
-        elif prop_type == ContactQuery.PROP_ATTRIBUTE:
-            field_key = field.key
-
-            if field_key == "name":
-                if is_set:
-                    es_query = es_Q("exists", **{"field": "name"}) & ~es_Q("term", **{"name.keyword": ""})
-                else:
-                    es_query = ~(es_Q("exists", **{"field": "name"}) & ~es_Q("term", **{"name.keyword": ""}))
-                return es_query
-            elif field_key == "language":
-                if is_set:
-                    es_query = es_Q("exists", **{"field": "language"}) & ~es_Q("term", **{"language": ""})
-                else:
-                    es_query = ~(es_Q("exists", **{"field": "language"}) & ~es_Q("term", **{"language": ""}))
-                return es_query
-            elif field_key == "id":
-                raise SearchException(_("All contacts have an 'id', it's not possible to check if 'id' is set"))
-            elif field_key == "created_on":
-                raise SearchException(
-                    _("All contacts have a 'created_on', it's not possible to check if 'created_on' is set")
-                )
-            else:  # pragma: no cover
-                raise SearchException(_(f"Unknown attribute field '{field}'"))
-        else:  # pragma: no cover
-            raise SearchException(_(f"Unrecognized contact field type '{prop_type}'"))
-
 
 class BoolCombination(QueryNode):
     """
@@ -822,9 +572,6 @@ class BoolCombination(QueryNode):
 
     def evaluate(self, org, contact_json, prop_map):
         return reduce(self.op, [child.evaluate(org, contact_json, prop_map) for child in self.children])
-
-    def as_elasticsearch(self, org, prop_map):
-        return reduce(self.op, [child.as_elasticsearch(org, prop_map) for child in self.children])
 
     def as_text(self):
         op = " OR " if self.op == self.OR else " AND "
@@ -940,10 +687,56 @@ class ContactQLVisitor(ParseTreeVisitor):
         literal : STRING
         """
         value = ctx.getText()[1:-1]
-        return value.replace('""', '"')  # unescape embedded quotes
+        return value.replace(r"\"", '"')  # unescape embedded quotes
 
 
-def parse_query(text, optimize=True, as_anon=False):
+class ParsedQuery(NamedTuple):
+    query: str
+    fields: list
+    elastic_query: dict
+    allow_as_group: bool
+
+
+def parse_query(org_id, query, group_uuid=""):
+    """
+    Parses the passed in query in the context of the org
+    """
+    try:
+        client = mailroom.get_client()
+        response = client.parse_query(org_id, query, group_uuid=str(group_uuid))
+        return ParsedQuery(
+            response["query"], response["fields"], response["elastic_query"], response.get("allow_as_group", False)
+        )
+
+    except mailroom.MailroomException as e:
+        raise SearchException(e.response["error"])
+
+
+class SearchResults(NamedTuple):
+    total: int
+    query: str
+    fields: list
+    allow_as_group: bool
+    contact_ids: list
+
+
+def search_contacts(org_id, group_uuid, query, sort=None, offset=None):
+    try:
+        client = mailroom.get_client()
+        response = client.contact_search(org_id, str(group_uuid), query, sort, offset=offset)
+        return SearchResults(
+            response["total"],
+            response["query"],
+            response["fields"],
+            response.get("allow_as_group", False),
+            response["contact_ids"],
+        )
+
+    except mailroom.MailroomException as e:
+        raise SearchException(e.response["error"])
+
+
+def legacy_parse_query(text, optimize=True, as_anon=False):  # pragma: no cover
     """
     Parses the given contact query and optionally optimizes it
     """
@@ -983,71 +776,9 @@ def parse_query(text, optimize=True, as_anon=False):
 
 
 def evaluate_query(org, text, contact_json=dict):
-    parsed = parse_query(text, optimize=True, as_anon=org.is_anon)
+    parsed = legacy_parse_query(text, optimize=True, as_anon=org.is_anon)
 
     return parsed.evaluate(org, contact_json)
-
-
-def contact_es_search(org, text, base_group=None, sort_struct=None):
-    """
-    Returns ES query
-    """
-
-    if not base_group:
-        base_group = org.cached_all_contacts_group
-
-    if not sort_struct:
-        sort_field = "-id"
-    else:
-        if sort_struct["field_type"] == "field":
-            sort_field = {
-                sort_struct["field_path"]: {
-                    "order": sort_struct["sort_direction"],
-                    "nested": {"path": "fields", "filter": {"term": {"fields.field": sort_struct["field_uuid"]}}},
-                }
-            }
-        else:
-            sort_field = {sort_struct["field_name"]: {"order": sort_struct["sort_direction"]}}
-
-    es_filter = es_Q(
-        "bool",
-        filter=[
-            # es_Q('term', is_blocked=False),
-            # es_Q('term', is_stopped=False),
-            es_Q("term", org_id=org.id),
-            es_Q("term", groups=str(base_group.uuid)),
-        ],
-    )
-
-    if text:
-        parsed = parse_query(text, as_anon=org.is_anon)
-        es_match = parsed.as_elasticsearch(org)
-    else:
-        parsed = None
-        es_match = es_Q()
-
-    return (
-        (
-            ModelESSearch(model=Contact, index="contacts")
-            .params(routing=org.id)
-            .query(es_match & es_filter)
-            .sort(sort_field)
-        ),
-        parsed,
-    )
-
-
-def extract_fields(org, text):
-    """
-    Extracts contact fields from the given text query
-    """
-    parsed = parse_query(text, as_anon=org.is_anon)
-    prop_map = parsed.get_prop_map(org)
-    return [
-        prop_obj
-        for (prop_type, prop_obj) in prop_map.values()
-        if prop_type in (ContactQuery.PROP_FIELD, ContactQuery.PROP_ATTRIBUTE)
-    ]
 
 
 def is_phonenumber(text):

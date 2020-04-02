@@ -1,0 +1,12 @@
+<rp-completion 
+  {% include "django/forms/widgets/attrs.html" %}  
+  
+  name="{{widget.name}}"
+  value="{% if widget.value %}{{widget.value}}{%endif%}"
+  
+  completionsEndpoint="/mr/docs/completion.json"
+  functionsEndpoint="/mr/docs/functions.json"
+  fieldsEndpoint="/api/v2/fields.json"
+  globalsEndpoint:"/api/v2/globals.json"
+  textarea>
+</rp-completion>
