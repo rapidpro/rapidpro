@@ -10,7 +10,72 @@
   %br
   %br
 
+-block fields
+  %fieldset
+    %div#po_file_errors
+      {{ form.po_file.errors }}
+    #file-upload
+      %input(type="file" name="po_file" id="id_po_file" onchange='updatePOFile()')
+    #real_button
+      %input(type="text" id="file-field")
+      %a.btn.btn-primary
+        -trans "Choose File"
+    %br
+    %br
+
+    {% render_field "language" %}
+    {% render_field "loc" %}
+
 -block extra-script
-  {{block.super}}
+  {{ block.super }}
   %script
     $('#id_language').select2({containerCssClass: "select2-temba-field"});
+
+    function updatePOFile(){
+      var file = $("#id_po_file").val();
+      while (file.indexOf("\\") >= 0) {
+        file = file.substring(file.indexOf("\\")+1, file.length);
+      }
+      $("#file-field").val(file);
+    }
+
+
+-block extra-style
+  :css
+    #file-upload {
+      position:relative;
+    }
+
+    #po_file_errors {
+      font-size: 14px;
+    }
+
+    #real-button {
+      position: absolute;
+      top: 0px;
+      left: 0px;
+      z-index: 1;
+      height:35px;
+      width:340px;
+    }
+
+    #file-field {
+      width:255px;
+      height:25px;
+      font-size:16px;
+      border:solid 1px #777;
+      margin-bottom: 0px;
+    }
+
+    #id_po_file {
+      position:absolute;
+      width:340px;
+      height:35px;
+      top: 0px;
+      left: 0px;
+      text-align: right;
+      -moz-opacity:0 ;
+      filter:alpha(opacity: 0);
+      opacity: 0;
+      z-index: 2;
+    }
