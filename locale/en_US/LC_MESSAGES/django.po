@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-01 17:36+0000\n"
+"POT-Creation-Date: 2020-04-02 13:45+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2911,7 +2911,13 @@ msgstr ""
 msgid "New Editor"
 msgstr ""
 
-msgid "Export PO"
+msgid "Export Definition"
+msgstr ""
+
+msgid "Export Translation"
+msgstr ""
+
+msgid "Import Translation"
 msgstr ""
 
 msgid "Previous Editor"
@@ -2924,6 +2930,15 @@ msgid "Include Arguments"
 msgstr ""
 
 msgid "Include arguments to tests on splits"
+msgstr ""
+
+msgid "PO translation file"
+msgstr ""
+
+msgid "Replace flow translations in this language."
+msgstr ""
+
+msgid "Import"
 msgstr ""
 
 msgid "Which group memberships, if any, to include in the export"
@@ -3955,9 +3970,6 @@ msgid "Add Channel"
 msgstr ""
 
 msgid "Add Classifier"
-msgstr ""
-
-msgid "Import"
 msgstr ""
 
 msgid "Login"
@@ -6465,9 +6477,6 @@ msgstr ""
 msgid "Run flow "
 msgstr ""
 
-msgid "Export PO Translation"
-msgstr ""
-
 msgid ""
 "\n"
 "      Sorry, this flow cannot be exported because it references another flow. To export it, please remove any\n"
@@ -6479,11 +6488,7 @@ msgstr ""
 msgid "Back to Flow"
 msgstr ""
 
-#, python-format
-msgid "Can't export from flows with different base languages: %(languages)s"
-msgstr ""
-
-msgid "Extracts a PO file from the selected flows which can later be re-imported with updated translations."
+msgid "Extracts a <a href=\"https://en.wikipedia.org/wiki/Gettext\">gettext</a> PO file from the flow which can later be re-imported with updated translations."
 msgstr ""
 
 msgid "Remove Label"
@@ -6493,6 +6498,9 @@ msgid "Are you sure you want to remove this label?"
 msgstr ""
 
 msgid "You cannot remove a label which has child labels. Please remove all children first."
+msgstr ""
+
+msgid "Importing a PO translation file will replace any translations flow in the selected language, with any matching translations in the PO file."
 msgstr ""
 
 msgid "Unlabel"
@@ -6505,9 +6513,6 @@ msgid "Add Label"
 msgstr ""
 
 msgid "Download Results"
-msgstr ""
-
-msgid "Download PO"
 msgstr ""
 
 msgid "No runs"
