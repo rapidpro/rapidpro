@@ -1048,11 +1048,8 @@ class FlowCRUDL(SmartCRUDL):
 
         def get(self, request, *args, **kwargs):
             flow = self.get_object()
-            if "legacy" in self.request.GET:
-                flow.version_number = Flow.FINAL_LEGACY_VERSION
-                flow.save(update_fields=("version_number",))
 
-            # require update permissions
+            # redirect to new editor if this is a migrated flow
             if Version(flow.version_number) >= Version(Flow.INITIAL_GOFLOW_VERSION):
                 return HttpResponseRedirect(reverse("flows.flow_editor_next", args=[self.get_object().uuid]))
 
