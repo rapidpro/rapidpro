@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-01 04:40+0000\n"
+"POT-Creation-Date: 2020-04-03 21:07+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4285,11 +4285,6 @@ msgstr "Historial de mensajes"
 #, fuzzy
 #| msgid "No Editors"
 msgid "New Editor"
-msgstr "Sin Editores"
-
-#, fuzzy
-#| msgid "No Editors"
-msgid "Previous Editor"
 msgstr "Sin Editores"
 
 msgid "Which group memberships, if any, to include in the export"
@@ -9067,6 +9062,9 @@ msgstr ""
 msgid "Delete Flow"
 msgstr "Crear Flujos"
 
+msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
+msgstr ""
+
 msgid "To make your next connection,"
 msgstr "Para hacer su próxima conexión"
 
@@ -12297,6 +12295,11 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "No Editors"
+#~ msgid "Previous Editor"
+#~ msgstr "Sin Editores"
 
 #, fuzzy
 #~| msgid "Your Contacts"
