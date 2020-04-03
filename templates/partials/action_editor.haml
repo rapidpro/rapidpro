@@ -237,7 +237,7 @@
                   Video
             %span.attach-url
               %input{ng-model:"action._attachURL", name:"url", type:'text', auto-complete:"", placeholder: '@extra.attachment_url', ng-required:"showAttachVariable"}
-            .icon.icon-close{ng-click:"showAttachOptions = false; showAttachVariable = false"}
+            .icon.icon-close{ng-click:"removeAttachment(); showAttachOptions = false; showAttachVariable = false"}
 
         .tag-button{ng-show:'action._media', ng-click:'clickShowActionMedia(action); $event.stopPropagation();'}
           .viewer-button{ng-class:'{"icon-videocam": action._media.type == "video", "icon-photo": action._media.type=="image", "icon-arrow-right-8": action._media.type=="audio"}'}
