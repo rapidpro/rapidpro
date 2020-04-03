@@ -1307,8 +1307,9 @@ class FlowCRUDL(SmartCRUDL):
             language = forms.ChoiceField(
                 required=False,
                 label=_("Language"),
-                choices=[("", "None")],
                 help_text=_("Include translations in this language."),
+                choices=[("", "None")],
+                widget=SelectWidget(),
             )
             include_args = forms.BooleanField(
                 required=False,

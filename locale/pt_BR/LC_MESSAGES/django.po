@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-03 19:43+0000\n"
+"POT-Creation-Date: 2020-04-03 21:15+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -8625,7 +8625,7 @@ msgstr "Você tem certeza que deseja remover esse rótulo?"
 msgid "You cannot remove a label which has child labels. Please remove all children first."
 msgstr ""
 
-msgid "Importing a PO translation file will replace any translations flow in the selected language, with any matching translations in the PO file."
+msgid "Importing a PO translation file will replace any translations in the flow for the selected language, with any matching translations in the PO file."
 msgstr ""
 
 #, fuzzy
