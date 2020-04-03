@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-03 17:19+0000\n"
+"POT-Creation-Date: 2020-04-03 19:43+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -7434,6 +7434,16 @@ msgstr "Vous ne pouvez pas supprimer une étiquette qui a des étiquettes enfant
 
 msgid "Importing a PO translation file will replace any translations flow in the selected language, with any matching translations in the PO file."
 msgstr ""
+
+#, fuzzy
+#| msgid "Delete Flow"
+msgid "Selected Flow"
+msgstr "Supprimer le flux"
+
+#, fuzzy
+#| msgid "Language"
+msgid "Base Language"
+msgstr "Langue"
 
 msgid "Uploaded PO File"
 msgstr ""

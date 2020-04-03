@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-03 17:19+0000\n"
+"POT-Creation-Date: 2020-04-03 19:43+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -9296,6 +9296,16 @@ msgstr ""
 
 msgid "Importing a PO translation file will replace any translations flow in the selected language, with any matching translations in the PO file."
 msgstr ""
+
+#, fuzzy
+#| msgid "Create Flow"
+msgid "Selected Flow"
+msgstr "Crear Flujos"
+
+#, fuzzy
+#| msgid "Language"
+msgid "Base Language"
+msgstr "Idioma"
 
 msgid "Uploaded PO File"
 msgstr ""

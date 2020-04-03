@@ -29,6 +29,7 @@ from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
+from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
@@ -1417,7 +1418,10 @@ class FlowCRUDL(SmartCRUDL):
 
         class ConfirmForm(forms.Form):
             language = forms.ChoiceField(
-                label=_("Language"), help_text=_("Replace flow translations in this language."), required=True
+                label=_("Language"),
+                help_text=_("Replace flow translations in this language."),
+                required=True,
+                widget=SelectWidget(),
             )
 
             def __init__(self, user, instance, *args, **kwargs):
@@ -1460,18 +1464,27 @@ class FlowCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(self.get_success_url())
 
-        def get_context_data(self, *args, **kwargs):
-            context = super().get_context_data(*args, **kwargs)
+        @cached_property
+        def po_info(self):
+            po_uuid = self.request.GET.get("po")
+            if not po_uuid:
+                return None
 
             org = self.request.user.get_org()
-            po_uuid = self.request.GET.get("po")
+            po_data = gettext.po_load(org, po_uuid)
+            return gettext.po_get_info(po_data)
 
-            if po_uuid:
-                po_data = gettext.po_load(org, po_uuid)
-                context["po_info"] = gettext.po_get_info(po_data)
+        def get_context_data(self, *args, **kwargs):
+            org = self.request.user.get_org()
 
-            context["upload_form"] = not po_uuid
+            context = super().get_context_data(*args, **kwargs)
+            context["show_upload_form"] = not self.po_info
+            context["po_info"] = self.po_info
+            context["flow_language"] = org.languages.filter(iso_code=self.object.base_language).first()
             return context
+
+        def derive_initial(self):
+            return {"language": self.po_info.language_code if self.po_info else ""}
 
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
         class ExportForm(forms.Form):

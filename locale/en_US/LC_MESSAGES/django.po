@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-03 17:19+0000\n"
+"POT-Creation-Date: 2020-04-03 19:43+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6515,6 +6515,12 @@ msgid "You cannot remove a label which has child labels. Please remove all child
 msgstr ""
 
 msgid "Importing a PO translation file will replace any translations flow in the selected language, with any matching translations in the PO file."
+msgstr ""
+
+msgid "Selected Flow"
+msgstr ""
+
+msgid "Base Language"
 msgstr ""
 
 msgid "Uploaded PO File"

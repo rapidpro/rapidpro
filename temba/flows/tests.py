@@ -3973,6 +3973,7 @@ msgstr "Azul"
 
         response = self.assertUpdateFetch(step2_url, allow_viewers=False, allow_editors=True, form_fields=["language"])
         self.assertContains(response, "Spanish (spa)")
+        self.assertEqual({"language": "spa"}, response.context["form"].initial)
 
         # confirm the import
         with patch("temba.mailroom.client.MailroomClient.po_import") as mock_po_import:

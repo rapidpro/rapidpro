@@ -9,29 +9,40 @@
     translations in the PO file.
   %br
   %br
-  -if po_info
+  .flow-info
     %h3
-      -trans "Uploaded PO File"
+      -trans "Selected Flow"
     .
-      {% trans "Language" %}:
-        %b
-          -if po_info.language_name
-            {{ po_info.language_name }} ({{ po_info.language_code }})
-          -else
-            -trans "Unknown"
+      {% trans "Name" %}:
+      %b
+        {{ object.name }}
     .
-      {% trans "Number of entries" %}:
-        %b
-          {{ po_info.num_entries }}
-    .
-      {% trans "Number of translations" %}:
-        %b
-          {{ po_info.num_translations }}
-    %br
+      {% trans "Base Language" %}:
+      %b
+        {{ flow_language.name }} ({{ flow_language.iso_code }})
+  -if po_info
+    .po-info
+      %h3
+        -trans "Uploaded PO File"
+      .
+        {% trans "Language" %}:
+          %b
+            -if po_info.language_name
+              {{ po_info.language_name }} ({{ po_info.language_code }})
+            -else
+              -trans "Unknown"
+      .
+        {% trans "Number of entries" %}:
+          %b
+            {{ po_info.num_entries }}
+      .
+        {% trans "Number of translations" %}:
+          %b
+            {{ po_info.num_translations }}
 
 -block fields
   %fieldset
-    -if upload_form
+    -if show_upload_form
       .control-group.field_po_file
         %label.control-label
           PO Translation File
@@ -52,7 +63,7 @@
 -block form-buttons
   .form-group.smartmin-form-buttons
     .col-sm-offset-2.col-sm-10
-      -if upload_form
+      -if show_upload_form
         %button.btn.btn-primary(type="submit")
           -trans "Upload"
         %a.btn.btn-default(onclick="javascript:history.go(-1)")
@@ -66,11 +77,6 @@
 -block extra-script
   {{ block.super }}
   %script
-    $('#id_language').select2({containerCssClass: "select2-temba-field"});
-    {% if po_info.language_code %}
-    $('#id_language').select2("val", "{{ po_info.language_code }}");
-    {% endif %}
-
     function updatePOFile(){
       var file = $("#id_po_file").val();
       while (file.indexOf("\\") >= 0) {
@@ -82,6 +88,10 @@
 
 -block extra-style
   :css
+    .flow-info, .po-info {
+      padding-bottom: 2em;
+    }
+
     #file-upload {
       position:relative;
     }
@@ -118,4 +128,9 @@
       filter:alpha(opacity: 0);
       opacity: 0;
       z-index: 2;
+    }
+
+    #id_language {
+      display: block;
+      width: 500px;
     }
