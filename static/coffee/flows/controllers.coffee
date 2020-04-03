@@ -203,7 +203,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
     media_type = parts[0]
     media_encoding = parts[1]
 
-    if action.type in ['reply', 'send']
+    if action.type in ['reply', 'send', 'email']
       if media_type not in ['audio', 'video', 'image']
         showDialog('Invalid Attachment', 'Attachments must be either video, audio, or an image.')
         return
@@ -212,7 +212,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         showDialog('Invalid Format', 'Audio attachments must be encoded as mp3, m4a, wav, ogg or oga files.')
         return
 
-    if action.type in ['reply', 'send'] and (file.size > 20000000 or (file.name.endsWith('.jpg') and file.size > 500000))
+    if action.type in ['reply', 'send', 'email'] and (file.size > 20000000 or (file.name.endsWith('.jpg') and file.size > 500000))
       showDialog('File Size Exceeded', "The file size should be less than 500kB for images and less than 20MB for audio and video files. Please choose another file and try again.")
       return
 
@@ -243,7 +243,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
     if action.type == 'say'
       uploadURL = window.uploadURL
 
-    if action.type in ['reply', 'send']
+    if action.type in ['reply', 'send', 'email']
       uploadURL = window.uploadMediaURL
 
     if not uploadURL
@@ -264,7 +264,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           action.recording = {}
         action.recording[Flow.language.iso_code] = data['path']
 
-      if action.type in ['reply', 'send']
+      if action.type in ['reply', 'send', 'email']
         if not action.media
           action.media = {}
         action.media[Flow.language.iso_code] = data['type'] + ':' + data['url']

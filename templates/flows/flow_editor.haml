@@ -482,7 +482,8 @@
                   .subject
                     [[action.subject]]
                   .node-attachments
-                    .node-attachment.icon-attachment{ng-show:'action._attachURL'}
+                    .node-attachment.viewer-button{ng-class:'{"icon-videocam": action._media.type == "video", "icon-photo": action._media.type=="image", "icon-arrow-right-8": action._media.type=="audio"}', ng-show:'action._media', ng-click:'clickShowActionMedia(action); $event.stopPropagation();'}
+                    .node-attachment.icon-attachment{ng-show:'action._attachURL', ng-hide:'action._media'}
 
                 // starting flows
                 %span{ng-show:'action.type == "flow" || action.type == "trigger-flow"'}
