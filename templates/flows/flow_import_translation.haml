@@ -9,27 +9,67 @@
     translations in the PO file.
   %br
   %br
+  -if po_info
+    %h3
+      -trans "Uploaded PO File"
+    .
+      {% trans "Language" %}:
+        %b
+          -if po_info.language_name
+            {{ po_info.language_name }} ({{ po_info.language_code }})
+          -else
+            -trans "Unknown"
+    .
+      {% trans "Number of entries" %}:
+        %b
+          {{ po_info.num_entries }}
+    .
+      {% trans "Number of translations" %}:
+        %b
+          {{ po_info.num_translations }}
+    %br
 
 -block fields
   %fieldset
-    %div#po_file_errors
-      {{ form.po_file.errors }}
-    #file-upload
-      %input(type="file" name="po_file" id="id_po_file" onchange='updatePOFile()')
-    #real_button
-      %input(type="text" id="file-field")
-      %a.btn.btn-primary
-        -trans "Choose File"
-    %br
-    %br
+    -if upload_form
+      .control-group.field_po_file
+        %label.control-label
+          PO Translation File
+        .controls
+          #po_file_errors
+            {{ form.po_file.errors }}
+          #file-upload
+            %input(type="file" name="po_file" id="id_po_file" onchange='updatePOFile()')
+          #real_button
+            %input(type="text" id="file-field")
+            %a.btn.btn-primary
+              -trans "Choose File"
+      {% render_field "loc" %}
+    -else
+      {% render_field "language" %}
+      {% render_field "loc" %}
 
-    {% render_field "language" %}
-    {% render_field "loc" %}
+-block form-buttons
+  .form-group.smartmin-form-buttons
+    .col-sm-offset-2.col-sm-10
+      -if upload_form
+        %button.btn.btn-primary(type="submit")
+          -trans "Upload"
+        %a.btn.btn-default(onclick="javascript:history.go(-1)")
+          -trans "Cancel"
+      -else
+        %button.btn.btn-primary(type="submit")
+          -trans "Import"
+        %a.btn.btn-default(href="{% url 'flows.flow_import_translation' object.id %}")
+          -trans "Back"
 
 -block extra-script
   {{ block.super }}
   %script
     $('#id_language').select2({containerCssClass: "select2-temba-field"});
+    {% if po_info.language_code %}
+    $('#id_language').select2("val", "{{ po_info.language_code }}");
+    {% endif %}
 
     function updatePOFile(){
       var file = $("#id_po_file").val();

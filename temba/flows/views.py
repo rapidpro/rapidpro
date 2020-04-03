@@ -49,7 +49,7 @@ from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
-from temba.utils import analytics, json, on_transaction_commit, str_to_bool
+from temba.utils import analytics, gettext, json, on_transaction_commit, str_to_bool
 from temba.utils.fields import ContactSearchWidget, JSONField, OmniboxChoice, SelectWidget
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
@@ -1386,6 +1386,36 @@ class FlowCRUDL(SmartCRUDL):
     class ImportTranslation(OrgObjPermsMixin, SmartUpdateView):
         class UploadForm(forms.Form):
             po_file = forms.FileField(label=_("PO translation file"), required=True)
+
+            def __init__(self, user, instance, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                self.flow = instance
+
+            def clean_po_file(self):
+                data = self.cleaned_data["po_file"]
+                if data:
+                    try:
+                        po_info = gettext.po_get_info(data.read().decode())
+                    except Exception:
+                        raise ValidationError(_("File doesn't appear to be a valid PO file."))
+
+                    if po_info.language_code:
+                        if po_info.language_code == self.flow.base_language:
+                            raise ValidationError(
+                                _("Contains translations in %(lang)s which is the base language of this flow."),
+                                params={"lang": po_info.language_name},
+                            )
+
+                        if not self.flow.org.languages.filter(iso_code=po_info.language_code).exists():
+                            raise ValidationError(
+                                _("Contains translations in %(lang)s which is not a supported translation language."),
+                                params={"lang": po_info.language_name},
+                            )
+
+                return data
+
+        class ConfirmForm(forms.Form):
             language = forms.ChoiceField(
                 label=_("Language"), help_text=_("Replace flow translations in this language."), required=True
             )
@@ -1396,13 +1426,14 @@ class FlowCRUDL(SmartCRUDL):
                 org = user.get_org()
                 languages = org.languages.exclude(iso_code=instance.base_language).order_by("name")
 
-                self.user = user
                 self.fields["language"].choices += [(lang.iso_code, lang.name) for lang in languages]
 
         title = _("Import Translation")
-        form_class = UploadForm
         submit_button_name = _("Import")
         success_url = "uuid@flows.flow_editor_next"
+
+        def get_form_class(self):
+            return self.ConfirmForm if self.request.GET.get("po") else self.UploadForm
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -1410,12 +1441,37 @@ class FlowCRUDL(SmartCRUDL):
             return kwargs
 
         def form_valid(self, form):
-            po_file = form.cleaned_data["po_file"]
-            language = form.cleaned_data["language"]
-            updated_defs = Flow.import_translation(self.object.org, [self.object], language, po_file)
-            self.object.save_revision(self.request.user, updated_defs[str(self.object.uuid)])
+            org = self.request.user.get_org()
+            po_uuid = self.request.GET.get("po")
+
+            if not po_uuid:
+                po_file = form.cleaned_data["po_file"]
+                po_uuid = gettext.po_save(org, po_file)
+
+                return HttpResponseRedirect(
+                    reverse("flows.flow_import_translation", args=[self.object.id]) + f"?po={po_uuid}"
+                )
+            else:
+                po_data = gettext.po_load(org, po_uuid)
+                language = form.cleaned_data["language"]
+
+                updated_defs = Flow.import_translation(self.object.org, [self.object], language, po_data)
+                self.object.save_revision(self.request.user, updated_defs[str(self.object.uuid)])
 
             return HttpResponseRedirect(self.get_success_url())
+
+        def get_context_data(self, *args, **kwargs):
+            context = super().get_context_data(*args, **kwargs)
+
+            org = self.request.user.get_org()
+            po_uuid = self.request.GET.get("po")
+
+            if po_uuid:
+                po_data = gettext.po_load(org, po_uuid)
+                context["po_info"] = gettext.po_get_info(po_data)
+
+            context["upload_form"] = not po_uuid
+            return context
 
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
         class ExportForm(forms.Form):
