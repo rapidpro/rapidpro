@@ -38,7 +38,6 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.contacts.models import FACEBOOK_SCHEME, TEL_SCHEME, WHATSAPP_SCHEME, ContactField, ContactGroup, ContactURN
 from temba.contacts.omnibox import omnibox_deserialize
-from temba.flows import legacy
 from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
 from temba.flows.tasks import export_flow_results_task
@@ -1135,9 +1134,7 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Delete"), js_class="delete-flow", href="#"))
 
             links.append(dict(divider=True))
-            links.append(
-                dict(title=_("New Editor"), href=f'{reverse("flows.flow_editor_next", args=[flow.uuid])}?migrate=1')
-            )
+            links.append(dict(title=_("New Editor"), js_class="migrate-flow", href="#"))
 
             user = self.get_user()
             if user.is_superuser or user.is_staff:
@@ -1242,8 +1239,6 @@ class FlowCRUDL(SmartCRUDL):
             links = []
             flow = self.object
 
-            has_legacy_revision = flow.revisions.filter(spec_version__in=legacy.VERSIONS).exists()
-
             if (
                 flow.flow_type != Flow.TYPE_SURVEY
                 and self.has_org_perm("flows.flow_broadcast")
@@ -1283,10 +1278,6 @@ class FlowCRUDL(SmartCRUDL):
                     )
                 )
 
-            # show previous editor option if we have a legacy revision
-            if has_legacy_revision:
-                links.append(dict(divider=True))
-                links.append(dict(title=_("Previous Editor"), js_class="previous-editor", href="#"))
             return links
 
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
