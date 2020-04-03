@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-03 14:23+0000\n"
+"POT-Creation-Date: 2020-04-03 17:19+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4318,6 +4318,17 @@ msgstr ""
 #, fuzzy
 msgid "PO translation file"
 msgstr "Traducciones"
+
+msgid "File doesn't appear to be a valid PO file."
+msgstr ""
+
+#, python-format
+msgid "Contains translations in %(lang)s which is the base language of this flow."
+msgstr ""
+
+#, python-format
+msgid "Contains translations in %(lang)s which is not a supported translation language."
+msgstr ""
 
 msgid "Replace flow translations in this language."
 msgstr ""
@@ -9284,6 +9295,25 @@ msgid "You cannot remove a label which has child labels. Please remove all child
 msgstr ""
 
 msgid "Importing a PO translation file will replace any translations flow in the selected language, with any matching translations in the PO file."
+msgstr ""
+
+msgid "Uploaded PO File"
+msgstr ""
+
+#, fuzzy
+#| msgid "Number of Credits"
+msgid "Number of entries"
+msgstr "Número de créditos"
+
+#, fuzzy
+#| msgid "Number of Credits"
+msgid "Number of translations"
+msgstr "Número de créditos"
+
+msgid "Upload"
+msgstr ""
+
+msgid "Back"
 msgstr ""
 
 msgid "Unlabel"

@@ -3969,17 +3969,23 @@ msgstr "Azul"
         self.assertEqual(302, response.status_code)
         self.assertIn(f"/flow/import_translation/{flow.id}/?po=", response.url)
 
-        response = self.assertUpdateFetch(
-            response.url, allow_viewers=False, allow_editors=True, form_fields=["language"]
-        )
+        step2_url = response.url
+
+        response = self.assertUpdateFetch(step2_url, allow_viewers=False, allow_editors=True, form_fields=["language"])
         self.assertContains(response, "Spanish (spa)")
 
-        # submit with file
-        # with patch("temba.mailroom.client.MailroomClient.po_import") as mock_po_import:
-        #    mock_po_import.return_value = {"flows": [flow.as_json()]}
+        # confirm the import
+        with patch("temba.mailroom.client.MailroomClient.po_import") as mock_po_import:
+            mock_po_import.return_value = {"flows": [flow.as_json()]}
+
+            response = self.requestView(step2_url, self.admin, post_data={"language": "spa"})
+
+        # should redirect back to editor
+        self.assertEqual(302, response.status_code)
+        self.assertEqual(f"/flow/editor_next/{flow.uuid}/", response.url)
 
         # should have a new revision
-        # self.assertEqual(2, flow.revisions.count())
+        self.assertEqual(2, flow.revisions.count())
 
 
 class FlowRunTest(TembaTest):

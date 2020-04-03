@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-03 14:23+0000\n"
+"POT-Creation-Date: 2020-04-03 17:19+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3239,6 +3239,17 @@ msgstr ""
 #| msgid "Translation"
 msgid "PO translation file"
 msgstr "Traduction"
+
+msgid "File doesn't appear to be a valid PO file."
+msgstr ""
+
+#, python-format
+msgid "Contains translations in %(lang)s which is the base language of this flow."
+msgstr ""
+
+#, python-format
+msgid "Contains translations in %(lang)s which is not a supported translation language."
+msgstr ""
 
 msgid "Replace flow translations in this language."
 msgstr ""
@@ -7423,6 +7434,27 @@ msgstr "Vous ne pouvez pas supprimer une étiquette qui a des étiquettes enfant
 
 msgid "Importing a PO translation file will replace any translations flow in the selected language, with any matching translations in the PO file."
 msgstr ""
+
+msgid "Uploaded PO File"
+msgstr ""
+
+#, fuzzy
+#| msgid "Number of Credits"
+msgid "Number of entries"
+msgstr "Nombre de Credits"
+
+#, fuzzy
+#| msgid "Number of Credits"
+msgid "Number of translations"
+msgstr "Nombre de Credits"
+
+msgid "Upload"
+msgstr ""
+
+#, fuzzy
+#| msgid "Go Back"
+msgid "Back"
+msgstr "Retourner"
 
 msgid "Unlabel"
 msgstr "Sans étiquette"
