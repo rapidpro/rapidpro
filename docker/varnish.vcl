@@ -2,6 +2,8 @@ vcl 4.0;
 
 backend default {
   .host = "BACKEND_ADDRESS";
+  .pipe_timeout = 1200s;
+  .thread_pool_timeout = 1200s;
 }
 
 sub vcl_recv {
