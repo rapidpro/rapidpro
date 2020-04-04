@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-03 22:29+0000\n"
+"POT-Creation-Date: 2020-04-04 02:10+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2918,9 +2918,6 @@ msgid "Export Translation"
 msgstr ""
 
 msgid "Import Translation"
-msgstr ""
-
-msgid "Previous Editor"
 msgstr ""
 
 msgid "Include translations in this language."
@@ -6364,6 +6361,9 @@ msgid ""
 msgstr ""
 
 msgid "Delete Flow"
+msgstr ""
+
+msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
 msgstr ""
 
 msgid "To make your next connection,"

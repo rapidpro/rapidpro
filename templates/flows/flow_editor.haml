@@ -121,6 +121,15 @@
       });
     {% endif %}
 
+    $(".migrate-flow").live("click", function(){
+      var modal = new ConfirmationModal("Switch to New Editor", "{% trans 'The new editor provides powerful new features and better performance, but please note that this cannot be undone.' %}");
+      modal.addClass('alert');
+      modal.setListeners({
+        onPrimary: function() {document.location.href = "{% url 'flows.flow_editor_next' object.uuid %}?migrate=1";},
+      });
+      modal.show()
+    });
+
     $(function(){
       // where is our status box now?
       var statusTop = $("#status").offset().top;

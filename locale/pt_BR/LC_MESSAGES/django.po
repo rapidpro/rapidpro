@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-03 22:29+0000\n"
+"POT-Creation-Date: 2020-04-04 02:10+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4008,10 +4008,6 @@ msgstr "Organização"
 #, fuzzy
 msgid "Import Translation"
 msgstr "Organização"
-
-#, fuzzy
-msgid "Previous Editor"
-msgstr "Nenhum editor"
 
 msgid "Include translations in this language."
 msgstr ""
@@ -8434,6 +8430,9 @@ msgstr ""
 msgid "Delete Flow"
 msgstr "Criar fluxo"
 
+msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
+msgstr ""
+
 msgid "To make your next connection,"
 msgstr "Para fazer a sua próxima conexão,"
 
@@ -11472,6 +11471,10 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "Previous Editor"
+#~ msgstr "Nenhum editor"
 
 #, fuzzy
 #~| msgid "Export"

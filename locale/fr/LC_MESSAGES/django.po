@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-03 22:29+0000\n"
+"POT-Creation-Date: 2020-04-04 02:10+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3220,9 +3220,6 @@ msgstr "Traduction"
 #| msgid "Translation"
 msgid "Import Translation"
 msgstr "Traduction"
-
-msgid "Previous Editor"
-msgstr "Editeur précédent"
 
 msgid "Include translations in this language."
 msgstr ""
@@ -7248,6 +7245,9 @@ msgstr ""
 msgid "Delete Flow"
 msgstr "Supprimer le flux"
 
+msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
+msgstr ""
+
 msgid "To make your next connection,"
 msgstr "Pour faire votre prochaine connexion,"
 
@@ -10473,6 +10473,9 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Previous Editor"
+#~ msgstr "Editeur précédent"
 
 #, fuzzy
 #~| msgid "Export"
