@@ -1199,6 +1199,7 @@ class FlowCRUDL(SmartCRUDL):
             context["is_starting"] = flow.is_starting()
             context["has_airtime_service"] = bool(flow.org.is_connected_to_dtone())
             context["has_mailroom"] = bool(settings.MAILROOM_URL)
+            context["pdf_export_lang"] = self.request.GET.get("pdf_export_lang", None)
             return context
 
         def get_gear_links(self):
@@ -1262,58 +1263,8 @@ class FlowCRUDL(SmartCRUDL):
 
             return links
 
-    class PdfExport(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+    class PdfExport(Editor):
         slug_url_kwarg = "uuid"
-
-        def get_context_data(self, *args, **kwargs):
-            context = super(FlowCRUDL.PdfExport, self).get_context_data(*args, **kwargs)
-
-            context["media_url"] = "%s://%s/" % ("http" if settings.DEBUG else "https", settings.AWS_BUCKET_DOMAIN)
-
-            flow = self.object
-
-            # are there pending starts?
-            starting = False
-            start = flow.starts.all().order_by("-created_on")
-            if start.exists() and start[0].status in [
-                FlowStart.STATUS_STARTING,
-                FlowStart.STATUS_PENDING,
-            ]:  # pragma: needs cover
-                starting = True
-            context["starting"] = starting
-            context["mutable"] = False
-
-            org = self.request.user.get_org()
-
-            context["flow_version"] = Flow.FINAL_LEGACY_VERSION
-            flow.ensure_current_version()
-
-            if org:
-                languages = org.languages.all().order_by("orgs")
-                for lang in languages:
-                    if flow.base_language == lang.iso_code:
-                        context["base_language"] = lang
-
-                context["languages"] = languages
-
-            if flow.is_archived:
-                context["mutable"] = False
-                context["can_start"] = False
-            else:
-                context["mutable"] = self.has_org_perm("flows.flow_update") and not self.request.user.is_superuser
-                context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
-
-            static_url = f"http://{org.get_brand_domain()}{settings.STATIC_URL}" if org else settings.STATIC_URL
-
-            context["media_url"] = f"{settings.STORAGE_URL}/"
-            context["static_url"] = static_url
-            context["is_starting"] = flow.is_starting()
-            context["has_airtime_service"] = bool(flow.org.is_connected_to_transferto())
-            context["has_mailroom"] = bool(settings.MAILROOM_URL)
-
-            context["pdf_export_lang"] = self.request.GET.get("pdf_export_lang", None)
-
-            return context
 
         def get_template_names(self):
             return "flows/flow_pdf_export.haml"

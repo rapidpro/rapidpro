@@ -12,24 +12,6 @@
   -compress css
     {% lessblock %}
       :plain
-
-        body, html {
-          margin: 0;
-          padding: 0;
-        }
-
-        #flow {
-          height: auto !important;
-        }
-
-        #flow .node.action-node .action, #flow .node.rule-node .rules .rule {
-          color: #333 !important;
-        }
-
-        .print-header, .logo, #header, #big-logo, ul#top-menu, .org-header, .languages, #show-simulator {
-          display: none;
-        }
-
         .empty {
           margin-left: 30px;
 
@@ -50,6 +32,19 @@
 
 -block extra-script
   {{ block.super }}
+
+  // ==== ANGULAR ====
+  :javascript
+
+    // this has to be loaded before angular
+    conditionalLoad('lib/angular-file-upload-1.6.12/angular-file-upload-shim.js', null);
+
+    // our angular scripts
+    conditionalLoad('bower/angular/angular.js', null);
+    conditionalLoad('bower/angular-animate/angular-animate.js', null);
+
+    // this must be loaded after angular
+    conditionalLoad('lib/angular-file-upload-1.6.12/angular-file-upload.js', null)
 
   -if org_perms.flows.flow_delete
     :javascript
@@ -84,7 +79,7 @@
     window.mediaURL = '{{media_url}}';
     window.staticURL = '{{static_url}}';
     window.hasAirtimeService = {{has_airtime_service|lower}};
-    window.connectAirtimeServiceURL = '{% url "orgs.org_home" %}#id-transferto';
+    window.connectAirtimeServiceURL = '{% url "orgs.org_home" %}#id-dtone';
     window.contactName = '{{user.get_full_name}}';
 
     $('.draggable').draggable();
@@ -182,12 +177,6 @@
       }, 100)
     });
 
-    {% if pdf_export_lang %}
-      window.setInterval(function(){
-        $('[data-lang="{{pdf_export_lang}}"]').click();
-      }, 500);
-    {% endif %}
-
     $(window).bind('beforeunload', function(e) {
       scope = $('html').scope();
       if (scope && scope.saving) {
@@ -277,7 +266,7 @@
 
       .languages{ng-show:'languages.length > 1 && flow.base_language && (flow.action_sets.length + flow.rule_sets.length) > 0'}
         <span ng-repeat="lang in languages">
-          <a href="javascript:void(0);" class='language' data-lang='[[lang.iso_code]]' ng-class='{active:lang.iso_code == language.iso_code}' ng-click="setLanguage(lang)">[[lang.name]]</a>
+          <a href="javascript:void(0);" class='language' data-lang="[[lang.iso_code]]" ng-class='{active:lang.iso_code == language.iso_code}' ng-click="setLanguage(lang)">[[lang.name]]</a>
           <span ng-hide='$last'>|</span>
         </span>
 
@@ -679,4 +668,7 @@
       :plain
         @import "flow_editor.less";
         @import "simulator.less";
+        .print-header, .logo, #header, #big-logo, ul#top-menu, .org-header, .languages, #show-simulator {
+          display: none;
+        }
     {% endlessblock %}
