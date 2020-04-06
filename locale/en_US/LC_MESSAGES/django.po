@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-03 21:07+0000\n"
+"POT-Creation-Date: 2020-04-04 02:10+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2911,6 +2911,44 @@ msgstr ""
 msgid "New Editor"
 msgstr ""
 
+msgid "Export Definition"
+msgstr ""
+
+msgid "Export Translation"
+msgstr ""
+
+msgid "Import Translation"
+msgstr ""
+
+msgid "Include translations in this language."
+msgstr ""
+
+msgid "Include Arguments"
+msgstr ""
+
+msgid "Include arguments to tests on splits"
+msgstr ""
+
+msgid "PO translation file"
+msgstr ""
+
+msgid "File doesn't appear to be a valid PO file."
+msgstr ""
+
+#, python-format
+msgid "Contains translations in %(lang)s which is the base language of this flow."
+msgstr ""
+
+#, python-format
+msgid "Contains translations in %(lang)s which is not a supported translation language."
+msgstr ""
+
+msgid "Replace flow translations in this language."
+msgstr ""
+
+msgid "Import"
+msgstr ""
+
 msgid "Which group memberships, if any, to include in the export"
 msgstr ""
 
@@ -3940,9 +3978,6 @@ msgid "Add Channel"
 msgstr ""
 
 msgid "Add Classifier"
-msgstr ""
-
-msgid "Import"
 msgstr ""
 
 msgid "Login"
@@ -6467,6 +6502,9 @@ msgstr ""
 msgid "Back to Flow"
 msgstr ""
 
+msgid "Extracts a <a href=\"https://en.wikipedia.org/wiki/Gettext\">gettext</a> PO file from the flow which can later be re-imported with updated translations."
+msgstr ""
+
 msgid "Remove Label"
 msgstr ""
 
@@ -6474,6 +6512,30 @@ msgid "Are you sure you want to remove this label?"
 msgstr ""
 
 msgid "You cannot remove a label which has child labels. Please remove all children first."
+msgstr ""
+
+msgid "Importing a PO file will replace all matching translations in the flow for the selected language."
+msgstr ""
+
+msgid "Selected Flow"
+msgstr ""
+
+msgid "Base Language"
+msgstr ""
+
+msgid "Uploaded PO File"
+msgstr ""
+
+msgid "Number of entries"
+msgstr ""
+
+msgid "Number of translations"
+msgstr ""
+
+msgid "Upload"
+msgstr ""
+
+msgid "Back"
 msgstr ""
 
 msgid "Unlabel"

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-03 21:07+0000\n"
+"POT-Creation-Date: 2020-04-04 02:10+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3206,6 +3206,54 @@ msgstr "Historique des révisions"
 msgid "New Editor"
 msgstr "Nouvel éditeur"
 
+#, fuzzy
+#| msgid "Translation"
+msgid "Export Definition"
+msgstr "Traduction"
+
+#, fuzzy
+#| msgid "Translation"
+msgid "Export Translation"
+msgstr "Traduction"
+
+#, fuzzy
+#| msgid "Translation"
+msgid "Import Translation"
+msgstr "Traduction"
+
+msgid "Include translations in this language."
+msgstr ""
+
+#, fuzzy
+#| msgid "Include Messages"
+msgid "Include Arguments"
+msgstr "Inclure les messages"
+
+msgid "Include arguments to tests on splits"
+msgstr ""
+
+#, fuzzy
+#| msgid "Translation"
+msgid "PO translation file"
+msgstr "Traduction"
+
+msgid "File doesn't appear to be a valid PO file."
+msgstr ""
+
+#, python-format
+msgid "Contains translations in %(lang)s which is the base language of this flow."
+msgstr ""
+
+#, python-format
+msgid "Contains translations in %(lang)s which is not a supported translation language."
+msgstr ""
+
+msgid "Replace flow translations in this language."
+msgstr ""
+
+msgid "Import"
+msgstr "Importer"
+
 msgid "Which group memberships, if any, to include in the export"
 msgstr "Quelles appartenances de groupe, le cas échéant, à inclure dans l'exportation"
 
@@ -4236,9 +4284,6 @@ msgstr "Ajouter un canal"
 
 msgid "Add Classifier"
 msgstr "Ajouter un classificateur"
-
-msgid "Import"
-msgstr "Importer"
 
 msgid "Login"
 msgstr "S'identifier"
@@ -7375,6 +7420,9 @@ msgstr ""
 msgid "Back to Flow"
 msgstr "Retour au flux"
 
+msgid "Extracts a <a href=\"https://en.wikipedia.org/wiki/Gettext\">gettext</a> PO file from the flow which can later be re-imported with updated translations."
+msgstr ""
+
 msgid "Remove Label"
 msgstr "Supprimer le libellé"
 
@@ -7383,6 +7431,40 @@ msgstr "Etes-vous sûr de vouloir supprimer ce libellé?"
 
 msgid "You cannot remove a label which has child labels. Please remove all children first."
 msgstr "Vous ne pouvez pas supprimer une étiquette qui a des étiquettes enfants. Veuillez d'abord retirer tous les enfants."
+
+msgid "Importing a PO file will replace all matching translations in the flow for the selected language."
+msgstr ""
+
+#, fuzzy
+#| msgid "Delete Flow"
+msgid "Selected Flow"
+msgstr "Supprimer le flux"
+
+#, fuzzy
+#| msgid "Language"
+msgid "Base Language"
+msgstr "Langue"
+
+msgid "Uploaded PO File"
+msgstr ""
+
+#, fuzzy
+#| msgid "Number of Credits"
+msgid "Number of entries"
+msgstr "Nombre de Credits"
+
+#, fuzzy
+#| msgid "Number of Credits"
+msgid "Number of translations"
+msgstr "Nombre de Credits"
+
+msgid "Upload"
+msgstr ""
+
+#, fuzzy
+#| msgid "Go Back"
+msgid "Back"
+msgstr "Retourner"
 
 msgid "Unlabel"
 msgstr "Sans étiquette"
@@ -10394,6 +10476,16 @@ msgstr "${count} trouvé pour ${query}"
 
 #~ msgid "Previous Editor"
 #~ msgstr "Editeur précédent"
+
+#, fuzzy
+#~| msgid "Export"
+#~ msgid "Export PO"
+#~ msgstr "Exporter"
+
+#, fuzzy
+#~| msgid "Download"
+#~ msgid "Download PO"
+#~ msgstr "Télécharger"
 
 #~ msgid "for contacts in"
 #~ msgstr "pour les contacts dans"

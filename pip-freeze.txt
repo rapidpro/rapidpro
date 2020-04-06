@@ -65,6 +65,7 @@ openpyxl==2.5.14
 packaging==19.0
 phonenumbers
 pip-tools==4.0.0
+polib==1.1.0
 psycopg2-binary==2.7.7
 pycodestyle==2.5.0        # via flake8
 pycountry==18.12.8

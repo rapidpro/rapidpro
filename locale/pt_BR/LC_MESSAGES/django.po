@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-03 21:07+0000\n"
+"POT-Creation-Date: 2020-04-04 02:10+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3996,6 +3996,50 @@ msgstr "Histórico de mensagens"
 msgid "New Editor"
 msgstr "Nenhum editor"
 
+#, fuzzy
+#| msgid "Export Data"
+msgid "Export Definition"
+msgstr "Exportar dados"
+
+#, fuzzy
+msgid "Export Translation"
+msgstr "Organização"
+
+#, fuzzy
+msgid "Import Translation"
+msgstr "Organização"
+
+msgid "Include translations in this language."
+msgstr ""
+
+#, fuzzy
+msgid "Include Arguments"
+msgstr "Mensagens SMS recebidas"
+
+msgid "Include arguments to tests on splits"
+msgstr ""
+
+#, fuzzy
+msgid "PO translation file"
+msgstr "Organização"
+
+msgid "File doesn't appear to be a valid PO file."
+msgstr ""
+
+#, python-format
+msgid "Contains translations in %(lang)s which is the base language of this flow."
+msgstr ""
+
+#, python-format
+msgid "Contains translations in %(lang)s which is not a supported translation language."
+msgstr ""
+
+msgid "Replace flow translations in this language."
+msgstr ""
+
+msgid "Import"
+msgstr "Importar"
+
 msgid "Which group memberships, if any, to include in the export"
 msgstr ""
 
@@ -5177,9 +5221,6 @@ msgstr "Transmissor"
 
 msgid "Add Classifier"
 msgstr ""
-
-msgid "Import"
-msgstr "Importar"
 
 msgid "Login"
 msgstr ""
@@ -8571,6 +8612,9 @@ msgstr ""
 msgid "Back to Flow"
 msgstr "Ação de iniciar o fluxo"
 
+msgid "Extracts a <a href=\"https://en.wikipedia.org/wiki/Gettext\">gettext</a> PO file from the flow which can later be re-imported with updated translations."
+msgstr ""
+
 msgid "Remove Label"
 msgstr "Remover rótulo"
 
@@ -8578,6 +8622,38 @@ msgid "Are you sure you want to remove this label?"
 msgstr "Você tem certeza que deseja remover esse rótulo?"
 
 msgid "You cannot remove a label which has child labels. Please remove all children first."
+msgstr ""
+
+msgid "Importing a PO file will replace all matching translations in the flow for the selected language."
+msgstr ""
+
+#, fuzzy
+#| msgid "Create Flow"
+msgid "Selected Flow"
+msgstr "Criar fluxo"
+
+#, fuzzy
+#| msgid "Language"
+msgid "Base Language"
+msgstr "Linguagem"
+
+msgid "Uploaded PO File"
+msgstr ""
+
+#, fuzzy
+#| msgid "Number of Credits"
+msgid "Number of entries"
+msgstr "Quantidade de créditos"
+
+#, fuzzy
+#| msgid "Number of Credits"
+msgid "Number of translations"
+msgstr "Quantidade de créditos"
+
+msgid "Upload"
+msgstr ""
+
+msgid "Back"
 msgstr ""
 
 msgid "Unlabel"
@@ -11401,6 +11477,15 @@ msgstr ""
 #~ msgstr "Nenhum editor"
 
 #, fuzzy
+#~| msgid "Export"
+#~ msgid "Export PO"
+#~ msgstr "Exportar"
+
+#, fuzzy
+#~ msgid "Download PO"
+#~ msgstr "Resultados ao vivo"
+
+#, fuzzy
 #~| msgid "Your Contacts"
 #~ msgid "for contacts in"
 #~ msgstr "Seus contatos"
@@ -13566,9 +13651,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "The localized versions of the broadcast"
 #~ msgstr "Estado atual desta divulgação"
-
-#~ msgid "Export Data"
-#~ msgstr "Exportar dados"
 
 #~ msgid "Another active trigger uses this keyword, keywords must be unique"
 #~ msgstr "Outro disparador ativo usa esta palavra-chave, palavras-chave devem ser exclusivas"
