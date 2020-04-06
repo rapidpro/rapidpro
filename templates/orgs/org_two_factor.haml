@@ -63,17 +63,23 @@
     :javascript
 
       $(document).ready(function() {
-        var tokens = '';
-        var backups = {{ tokens|safe }};
-        if (backups) {
-          for(backup of backups) {
-            tokens = tokens + `<li>${backup}</li>`;
+        $.ajax({
+          type: "POST",
+          url: "{%url 'orgs.org_two_factor'%}",
+          data: {
+            "get_backup_tokens": true,
+          },
+          success: function( backups ) {
+            var tokens = '';
+            for(token of backups.tokens) {
+                tokens = tokens + `<li>${token}</li>`;
+            }
+
+            element = `<ul>${tokens}</ul>`
+
+            $('#backup').html(element);
           }
-
-          element = `<ul>${tokens}</ul>`
-
-          $('#backup').html(element);
-        }
+        });
       });
 
       $('#generate-backup-tokens').click(function() {

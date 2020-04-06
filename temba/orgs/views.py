@@ -1457,7 +1457,7 @@ class OrgCRUDL(SmartCRUDL):
                 self.user_cache = user
                 return token
 
-            def get_user(self):
+            def get_user(self):  # pragma: no cover
                 return self.user_cache
 
         form_class = TwoFactorForm
@@ -1475,7 +1475,6 @@ class OrgCRUDL(SmartCRUDL):
         def get(self, request, *args, **kwargs):
             user = self.request.user
             form = self.get_form()
-            tokens = [backup.token for backup in BackupToken.objects.filter(profile__user=user)]
             secret = pyotp.random_base32()
             try:
                 user.profile.otp_secret = secret
@@ -1485,17 +1484,21 @@ class OrgCRUDL(SmartCRUDL):
                 Profile.objects.create(user=user, otp_secret=secret, created_by=user, modified_by=user)
 
             secret_url = self.get_secret_url()
-            return self.render_to_response(self.get_context_data(form=form, secret_url=secret_url, tokens=tokens))
+            return self.render_to_response(self.get_context_data(form=form, secret_url=secret_url))
 
         def post(self, request, *args, **kwargs):
             form = self.get_form()
             if "disable_two_factor_auth" in request.POST:
                 self.disable_two_factor_auth()
+            if "get_backup_tokens" in request.POST:
+                tokens = self.get_backup_tokens()
+                data = {"tokens": tokens}
+                return JsonResponse(data)
             elif "generate_backup_tokens" in request.POST:
                 tokens = self.generate_backup_tokens()
                 data = {"tokens": tokens}
                 return JsonResponse(data)
-            elif form.is_valid():
+            elif form.is_valid():  # pragma: needs cover
                 self.generate_backup_tokens()
                 user = self.get_user()
                 user.profile.two_factor_enabled = True
@@ -1521,6 +1524,11 @@ class OrgCRUDL(SmartCRUDL):
             self.delete_backup_tokens()
             for backup in range(10):
                 BackupToken.objects.create(profile=user.profile, created_by=user, modified_by=user)
+            tokens = [backup.token for backup in BackupToken.objects.filter(profile__user=user)]
+            return tokens
+
+        def get_backup_tokens(self):
+            user = self.get_user()
             tokens = [backup.token for backup in BackupToken.objects.filter(profile__user=user)]
             return tokens
 
