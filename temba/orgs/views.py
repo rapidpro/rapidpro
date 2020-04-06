@@ -10,7 +10,6 @@ from email.utils import parseaddr
 from functools import cmp_to_key
 from urllib.parse import parse_qs, unquote, urlparse
 
-import nexmo
 import pytz
 import requests
 from packaging.version import Version

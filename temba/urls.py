@@ -45,9 +45,6 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
-    from .settings_test import urlpatterns as debug_urls
-
-    urlpatterns += debug_urls
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 

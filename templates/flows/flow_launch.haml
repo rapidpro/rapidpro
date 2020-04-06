@@ -27,6 +27,10 @@
         color: #666 !important;
       }
 
+      .select2-container {
+        width: 100% !important; 
+      }
+
 
   -if object.flow_type == 'M' and not send_channel
     %p
@@ -49,37 +53,43 @@
         is a service which provides voice-enabled numbers which you can add as channels in your {{ name }} account.
 
   -else
-    - render_field 'launch_type'
+    .field
+      - render_field 'launch_type'
 
-    #id_omnibox_container
+    .field.start-type.l-immediately
+      - render_field 'start_type'
+
+    .field.omnibox.l-immediately.l-schedule
       - render_field 'omnibox'
 
-    #id_launch_immedialy
-      .start-options
-        .control-group.restart-participants
-          %label.control-label{ for:"id_restart_participants" }
-            -trans "Restart Participants"
-          .controls
-            %input#id_restart_participants{ name:"restart_participants", type:"checkbox" }
-              .help-block
-                %label{ for:"id_restart_participants" }
-                  -trans "Restart contacts who have already entered this flow"
+    .field.contact-query.l-immediately
+      - render_field 'contact_query'
 
-        .control-group.include-active
-          %label.control-label{ for:"id_include_active" }
-            -trans "Include Active Contacts"
-          .controls
-            %input#id_include_active{ name:"include_active", type:"checkbox" }
-              .help-block
-                %label{ for:"id_include_active" }
-                  -trans "Interrupt contacts currently active in flows"
+    .start-options.l-immediately
+      .control-group.restart-participants
+        %label.control-label{ for:"id_restart_participants" }
+          -trans "Restart Participants"
+        .controls
+          %input#id_restart_participants{ name:"restart_participants", type:"checkbox" }
+            .help-block
+              %label{ for:"id_restart_participants" }
+                -trans "Restart contacts who have already entered this flow"
+
+      .control-group.include-active
+        %label.control-label{ for:"id_include_active" }
+          -trans "Include Active Contacts"
+        .controls
+          %input#id_include_active{ name:"include_active", type:"checkbox" }
+            .help-block
+              %label{ for:"id_include_active" }
+                -trans "Interrupt contacts currently active in flows"
     
-    #id_launch_on_keyword_trigger
+    .l-keyword
       - render_field 'keyword'
       - render_field 'match_type'
       - render_field 'groups'
 
-    #id_launch_on_schedule_trigger
+    .l-schedule
       #schedule-options
         %label.schedule-options-label{for:"later-option"}
         #start-datetime{ name:'start_datetime', disabled:'true', value:'{% trans "Select a date" %}'}
@@ -91,7 +101,7 @@
           %p.instructions
             -render_field 'repeat_period'
         .weekly-repeat-options{class:'{% if form.repeat_period.value == "W" %}{% else%}hide{%endif%}'}
-          .btn-group{'data-toggle':'buttons-checkbox'}
+          .btn-group.week{'data-toggle':'buttons-checkbox'}
             #mon.btn{value:"M", class:'{% if "M" in form.repeat_days_of_week.value %}active{% endif %}'}
               -trans "Mon"
             #tue.btn{value:"T", class:'{% if "T" in form.repeat_days_of_week.value %}active{% endif %}'}
@@ -123,28 +133,28 @@
       var user_tz = "{{ user_tz }}";
       var user_tz_offset = "{{ user_tz_offset }}";
       var launchSelector = $('#id_launch_type');
-      var omniboxContainer = $('#id_omnibox_container');
-      var launchImmediatelyBox = $('#id_launch_immedialy');
-      var launchOnKeywordTriggerBox = $('#id_launch_on_keyword_trigger');
-      var launchOnScheduleTriggerBox = $('#id_launch_on_schedule_trigger');
+      var startFlowTypeSelector = $('#id_start_type');
+      var launchImmediatelyBox = $('.l-immediately');
+      var launchOnKeywordTriggerBox = $('.l-keyword');
+      var launchOnScheduleTriggerBox = $('.l-schedule');
+      var repeatPeriodSelector = $('#id_repeat_period');
 
       launchSelector.select2({containerCssClass: "select2-temba-field", minimumResultsForSearch: -1});
+      startFlowTypeSelector.select2({containerCssClass: "select2-temba-field", minimumResultsForSearch: -1});
+      repeatPeriodSelector.select2({containerCssClass: "select2-temba-field", minimumResultsForSearch: -1});
       
       function showLaunchFlowBox(selected) {
-        omniboxContainer.hide();
         launchImmediatelyBox.hide();
         launchOnKeywordTriggerBox.hide();
         launchOnScheduleTriggerBox.hide();
         switch(selected) {
           case "LAUNCH_IMMEDIATELY":
-            omniboxContainer.show();
             launchImmediatelyBox.show();
             break;
           case "LAUNCH_ON_KEYWORD_TRIGGER":
             launchOnKeywordTriggerBox.show();
             break;
           case "LAUNCH_ON_SHEDULE_TRIGGER":
-            omniboxContainer.show();
             launchOnScheduleTriggerBox.show();
             break;
         }
@@ -167,6 +177,30 @@
         }
         initializeDatetimePicker(minDate, undefined, false);
       });
+
+      function showFieldsOnStartType(selected) {
+        let omnibox = $(".omnibox");
+        let query = $(".contact-query");
+        if (selected === 'query') {
+          omnibox.hide();
+          query.show();
+        } else {
+          query.hide();
+          omnibox.show();
+        }
+      }
+      showFieldsOnStartType(startFlowTypeSelector.val());
+      startFlowTypeSelector.change(function (){showFieldsOnStartType($(this).val());});
+
+      function updateDailySelection() {
+        var selected = '';
+        $('.btn-group.week > .btn').each(function() {
+            if ($(this).hasClass('active')) {
+                selected += $(this).attr('value');
+            }
+        });
+        $('#repeat-days-value').val(selected);
+      }
 
 -block form-buttons
   -if send_channel
@@ -197,7 +231,6 @@
   {{ block.super }}
   :javascript
     prepareOmnibox();
-    $('#id_launch_type').select2()
 
 -block modal-script
   {{block.super}}
