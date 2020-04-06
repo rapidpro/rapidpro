@@ -488,6 +488,17 @@ class Flow(TembaModel):
         return copy
 
     @classmethod
+    def export_translation(cls, org, flows, language, exclude_args):
+        flow_ids = [f.id for f in flows]
+        return mailroom.get_client().po_export(org.id, flow_ids, language=language, exclude_arguments=exclude_args)
+
+    @classmethod
+    def import_translation(cls, org, flows, language, po_data):
+        flow_ids = [f.id for f in flows]
+        response = mailroom.get_client().po_import(org.id, flow_ids, language=language, po_data=po_data)
+        return {d["uuid"]: d for d in response["flows"]}
+
+    @classmethod
     def get_unique_name(cls, org, base_name, ignore=None):
         """
         Generates a unique flow name based on the given base name

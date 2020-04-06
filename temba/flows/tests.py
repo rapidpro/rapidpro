@@ -1,4 +1,5 @@
 import datetime
+import io
 import os
 import re
 from datetime import timedelta
@@ -28,7 +29,7 @@ from temba.mailroom import FlowValidationException, MailroomException
 from temba.msgs.models import Label
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, MigrationTest, MockResponse, TembaTest, matchers
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
@@ -2427,7 +2428,7 @@ class FlowTest(TembaTest):
         )
 
 
-class FlowCRUDLTest(TembaTest):
+class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_views(self):
         contact = self.create_contact("Eric", "+250788382382")
         flow = self.get_flow("color", legacy=True)
@@ -3814,6 +3815,173 @@ class FlowCRUDLTest(TembaTest):
             response.json(),
             {"description": "Your flow contains an invalid loop. Please refresh your browser.", "status": "failure"},
         )
+
+    def test_export_and_download_translation(self):
+        Language.create(self.org, self.admin, name="Spanish", iso_code="spa")
+
+        flow = self.get_flow("favorites")
+        export_url = reverse("flows.flow_export_translation", args=[flow.id])
+
+        self.assertUpdateFetch(
+            export_url, allow_viewers=False, allow_editors=True, form_fields=["language", "include_args"]
+        )
+
+        # submit with no language
+        response = self.assertUpdateSubmit(export_url, {})
+
+        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=&exclude_args=1", response.url)
+
+        # check fetching the PO from the download link
+        with patch("temba.mailroom.client.MailroomClient.po_export") as mock_po_export:
+            mock_po_export.return_value = b'msgid "Red"\nmsgstr "Roja"\n\n'
+            response = self.assertReadFetch(response.url, allow_viewers=False, allow_editors=True)
+
+            self.assertEqual(b'msgid "Red"\nmsgstr "Roja"\n\n', response.content)
+            self.assertEqual('attachment; filename="favorites.po"', response["Content-Disposition"])
+            self.assertEqual("text/x-gettext-translation", response["Content-Type"])
+
+        # submit with a language
+        response = self.requestView(export_url, self.admin, post_data={"language": "spa"})
+
+        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=spa&exclude_args=1", response.url)
+
+        # check fetching the PO from the download link
+        with patch("temba.mailroom.client.MailroomClient.po_export") as mock_po_export:
+            mock_po_export.return_value = b'msgid "Red"\nmsgstr "Roja"\n\n'
+            response = self.requestView(response.url, self.admin)
+
+            # filename includes language now
+            self.assertEqual('attachment; filename="favorites.spa.po"', response["Content-Disposition"])
+
+        # check submitting the form from a modal
+        response = self.client.post(export_url, data={}, HTTP_X_PJAX=True)
+        self.assertEqual(
+            f"/flow/download_translation/?flow={flow.id}&language=&exclude_args=1", response["Temba-Success"]
+        )
+
+    def test_import_translation(self):
+        Language.create(self.org, self.admin, name="English", iso_code="eng")
+        Language.create(self.org, self.admin, name="Spanish", iso_code="spa")
+        self.org.set_languages(self.admin, ["eng", "spa"], primary="eng")
+
+        flow = self.get_flow("favorites_v13")
+        step1_url = reverse("flows.flow_import_translation", args=[flow.id])
+
+        # check step 1 is just a file upload
+        self.assertUpdateFetch(step1_url, allow_viewers=False, allow_editors=True, form_fields=["po_file"])
+
+        # submit with no file
+        self.assertUpdateSubmit(
+            step1_url, {}, form_errors={"po_file": "This field is required."}, object_unchanged=flow
+        )
+
+        # submit with something that's empty
+        response = self.requestView(step1_url, self.admin, post_data={"po_file": io.BytesIO(b"")})
+        self.assertFormError(response, "form", "po_file", "The submitted file is empty.")
+
+        # submit with something that's not a valid PO file
+        response = self.requestView(step1_url, self.admin, post_data={"po_file": io.BytesIO(b"msgid")})
+        self.assertFormError(response, "form", "po_file", "File doesn't appear to be a valid PO file.")
+
+        # submit with something that's in the base language of the flow
+        po_file = io.BytesIO(
+            b"""
+#, fuzzy
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2018-07-06 12:30+0000\\n"
+"Language: en\\n"
+"Language-3: eng\\n"
+
+msgid "Blue"
+msgstr "Bluuu"
+        """
+        )
+        response = self.requestView(step1_url, self.admin, post_data={"po_file": po_file})
+        self.assertFormError(
+            response, "form", "po_file", "Contains translations in English which is the base language of this flow."
+        )
+
+        # submit with something that's in the base language of the flow
+        po_file = io.BytesIO(
+            b"""
+#, fuzzy
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2018-07-06 12:30+0000\\n"
+"Language: fr\\n"
+"Language-3: fra\\n"
+
+msgid "Blue"
+msgstr "Bleu"
+        """
+        )
+        response = self.requestView(step1_url, self.admin, post_data={"po_file": po_file})
+        self.assertFormError(
+            response,
+            "form",
+            "po_file",
+            "Contains translations in French which is not a supported translation language.",
+        )
+
+        # submit with something that doesn't have an explicit language
+        po_file = io.BytesIO(
+            b"""
+msgid "Blue"
+msgstr "Azul"
+        """
+        )
+        response = self.requestView(step1_url, self.admin, post_data={"po_file": po_file})
+
+        self.assertEqual(302, response.status_code)
+        self.assertIn(f"/flow/import_translation/{flow.id}/?po=", response.url)
+
+        response = self.assertUpdateFetch(
+            response.url, allow_viewers=False, allow_editors=True, form_fields=["language"]
+        )
+        self.assertContains(response, "Unknown")
+
+        # submit a different PO that does have language set
+        po_file = io.BytesIO(
+            b"""
+#, fuzzy
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2018-07-06 12:30+0000\\n"
+"Language: es\\n"
+"MIME-Version: 1.0\\n"
+"Content-Type: text/plain; charset=UTF-8\\n"
+"Language-3: spa\\n"
+
+#: Favorites/8720f157-ca1c-432f-9c0b-2014ddc77094/name:0
+#: Favorites/a4d15ed4-5b24-407f-b86e-4b881f09a186/arguments:0
+msgid "Blue"
+msgstr "Azul"
+"""
+        )
+        response = self.requestView(step1_url, self.admin, post_data={"po_file": po_file})
+
+        self.assertEqual(302, response.status_code)
+        self.assertIn(f"/flow/import_translation/{flow.id}/?po=", response.url)
+
+        step2_url = response.url
+
+        response = self.assertUpdateFetch(step2_url, allow_viewers=False, allow_editors=True, form_fields=["language"])
+        self.assertContains(response, "Spanish (spa)")
+        self.assertEqual({"language": "spa"}, response.context["form"].initial)
+
+        # confirm the import
+        with patch("temba.mailroom.client.MailroomClient.po_import") as mock_po_import:
+            mock_po_import.return_value = {"flows": [flow.as_json()]}
+
+            response = self.requestView(step2_url, self.admin, post_data={"language": "spa"})
+
+        # should redirect back to editor
+        self.assertEqual(302, response.status_code)
+        self.assertEqual(f"/flow/editor_next/{flow.uuid}/", response.url)
+
+        # should have a new revision
+        self.assertEqual(2, flow.revisions.count())
 
 
 class FlowRunTest(TembaTest):
