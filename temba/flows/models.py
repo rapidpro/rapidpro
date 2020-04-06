@@ -33,12 +33,7 @@ from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
-from temba.contacts.models import (
-    Contact,
-    ContactField,
-    ContactGroup,
-    ContactURN,
-)
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import DELIVERED, PENDING, Broadcast, Label, Msg
 from temba.orgs.models import Language, Org
