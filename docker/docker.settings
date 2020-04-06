@@ -100,11 +100,11 @@ SEND_AIRTIME = os.environ.get("SEND_AIRTIME", "true") == "true"
 SEND_CHATBASE = os.environ.get("SEND_CHATBASE", "true") == "true"
 SEND_CALLS = os.environ.get("SEND_CALLS", "true") == "true"
 
-BRANDING["rapidpro.io"]["name"] = os.environ.get("BRANDING_NAME", "Community Connect Labs")
+BRANDING["rapidpro.io"]["name"] = os.environ.get("BRANDING_NAME", "CommunityConnect Labs")
 BRANDING["rapidpro.io"]["description"] = os.environ.get("BRANDING_DESCRIPTION", "Unlocking Insights and Engagement.")
 BRANDING["rapidpro.io"]["slug"] = os.environ.get("BRANDING_SLUG", "rapidpro")
 BRANDING["rapidpro.io"]["credits"] = os.environ.get("BRANDING_CREDITS",
-                                                    f"Copyright &copy; {timezone.now().year}. Community Connect Labs.")
+                                                    f"Copyright &copy; {timezone.now().year}. CommunityConnect Labs.")
 BRANDING["rapidpro.io"]["link"] = os.environ.get("BRANDING_LINK", f"https://{HOSTNAME}")
 BRANDING["rapidpro.io"]["api_link"] = os.environ.get("BRANDING_API_LINK", f"https://{HOSTNAME}")
 BRANDING["rapidpro.io"]["domain"] = f"{HOSTNAME}"
