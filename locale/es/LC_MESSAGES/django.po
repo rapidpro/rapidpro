@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-24 18:52+0000\n"
+"POT-Creation-Date: 2020-04-06 07:01+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -5408,6 +5408,17 @@ msgstr "Grupo de usuarios"
 msgid "One of the emails you entered is invalid."
 msgstr "Uno de los correos electrónicos que ingresó es inválido."
 
+msgid "I scanned the qrcode with an application with Google Authenticator for example, and enter the generated token."
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid phone number, try again."
+msgid "Invalid MFA token. Please try again."
+msgstr "Número de teléfono inválido, inténtelo nuevamente."
+
+msgid "Activate"
+msgstr "Activar"
+
 msgid "Select your Organization"
 msgstr "Elija su Organización"
 
@@ -5845,6 +5856,22 @@ msgstr "Crear activadores"
 
 msgid "Create Schedule"
 msgstr "Crear cronograma"
+
+#, fuzzy
+#| msgid "Username"
+msgid "User"
+msgstr "Nombre de usuario"
+
+#, fuzzy
+#| msgid "API Secret:"
+msgid "OTP Secret"
+msgstr "Código secreto API:"
+
+msgid "Two Factor Enabled"
+msgstr ""
+
+msgid "Used"
+msgstr ""
 
 msgid "Processing"
 msgstr ""
@@ -9245,9 +9272,6 @@ msgstr ""
 msgid "Unlabel"
 msgstr "Retirar la etiqueta"
 
-msgid "Activate"
-msgstr "Activar"
-
 msgid "Add Label"
 msgstr "Agregar etiqueta"
 
@@ -10684,6 +10708,21 @@ msgid ""
 "\n"
 "          Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?\n"
 "        "
+msgstr ""
+
+msgid "These are your backup tokens, save them somewhere safe and use when you lose access to the application you used to generate your access code via qrcode."
+msgstr ""
+
+msgid "Generate Backup Tokens"
+msgstr ""
+
+msgid "You can disable two-factor authentication on your account."
+msgstr ""
+
+msgid "Disable Two Factor"
+msgstr ""
+
+msgid "Two Factor Authentication"
 msgstr ""
 
 #, fuzzy

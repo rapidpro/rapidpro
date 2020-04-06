@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-24 18:52+0000\n"
+"POT-Creation-Date: 2020-04-06 07:01+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -4177,6 +4177,17 @@ msgstr "Groupe d'utilisateurs"
 msgid "One of the emails you entered is invalid."
 msgstr "L'un des e-mails que vous avez inscrits est invalide."
 
+msgid "I scanned the qrcode with an application with Google Authenticator for example, and enter the generated token."
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid phone number, try again."
+msgid "Invalid MFA token. Please try again."
+msgstr "Numéro de téléphone incorrect, essayez à nouveau."
+
+msgid "Activate"
+msgstr "activer"
+
 msgid "Select your Organization"
 msgstr "Choisissez votre Organisation"
 
@@ -4564,6 +4575,22 @@ msgstr "Créer un déclencheur de référence"
 
 msgid "Create Schedule"
 msgstr "Créer un planning"
+
+#, fuzzy
+#| msgid "Username"
+msgid "User"
+msgstr "Nom d'utilisateur"
+
+#, fuzzy
+#| msgid "API Secret"
+msgid "OTP Secret"
+msgstr "Secret API"
+
+msgid "Two Factor Enabled"
+msgstr ""
+
+msgid "Used"
+msgstr ""
 
 msgid "Processing"
 msgstr "En traitement"
@@ -7369,9 +7396,6 @@ msgstr "Vous ne pouvez pas supprimer une étiquette qui a des étiquettes enfant
 msgid "Unlabel"
 msgstr "Sans étiquette"
 
-msgid "Activate"
-msgstr "activer"
-
 msgid "Add Label"
 msgstr "Ajouter une étiquette"
 
@@ -8873,6 +8897,23 @@ msgstr ""
 "\n"
 "          Déconnecter votre compte Twilio supprimera également tous les canaux Twilio qui y sont connectés. Êtes-vous sur de vouloir continuer?\n"
 "        "
+
+msgid "These are your backup tokens, save them somewhere safe and use when you lose access to the application you used to generate your access code via qrcode."
+msgstr ""
+
+msgid "Generate Backup Tokens"
+msgstr ""
+
+msgid "You can disable two-factor authentication on your account."
+msgstr ""
+
+msgid "Disable Two Factor"
+msgstr ""
+
+#, fuzzy
+#| msgid "Authentication Token"
+msgid "Two Factor Authentication"
+msgstr "Jeton d'authentification"
 
 msgid "This organization has been suspended"
 msgstr "Cette organisation a été suspendue"
