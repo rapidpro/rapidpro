@@ -2743,6 +2743,11 @@ msgstr "Supprimer des contacts"
 msgid "Unstop Contacts"
 msgstr "Débloquer les contacts"
 
+#, fuzzy, python-brace-format
+#| msgid "The name of this contact"
+msgid "{label} for this contact"
+msgstr "Le nom de ce contact"
+
 msgid "Used by another contact"
 msgstr "Utilisé par un autre contact"
 
@@ -3200,9 +3205,6 @@ msgstr "Historique des révisions"
 
 msgid "New Editor"
 msgstr "Nouvel éditeur"
-
-msgid "Previous Editor"
-msgstr "Editeur précédent"
 
 msgid "Which group memberships, if any, to include in the export"
 msgstr "Quelles appartenances de groupe, le cas échéant, à inclure dans l'exportation"
@@ -7225,6 +7227,9 @@ msgstr ""
 msgid "Delete Flow"
 msgstr "Supprimer le flux"
 
+msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
+msgstr ""
+
 msgid "To make your next connection,"
 msgstr "Pour faire votre prochaine connexion,"
 
@@ -7369,6 +7374,19 @@ msgstr "Exécuter le flux"
 
 msgid "Run flow "
 msgstr "Exécuter le flux"
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "            This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.\n"
+#| "\n"
+#| "          "
+msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
+msgstr ""
+"\n"
+"            Ce flux est en cours d'envoi, ce message disparaîtra une fois tous les contacts ajoutés au flux.\n"
+"\n"
+"          "
 
 msgid ""
 "\n"
@@ -8703,6 +8721,30 @@ msgstr "Pour connecter votre compte Plivo, vous devez nous fournir votre ID AUTH
 
 msgid "Plivo Dashboard"
 msgstr "Tableau de bord Plivo"
+
+#, python-format
+msgid "You can monitor contact group counts and channel message counts on your organization using your %(prometheus)s endpoint. This will let you monitor usage over time using graphs and alerts in a dashboard such as %(grafana)s."
+msgstr ""
+
+msgid "Endpoint"
+msgstr ""
+
+msgid "Disable Prometheus"
+msgstr ""
+
+#, fuzzy
+#| msgid "Enable Voice"
+msgid "Enable Prometheus"
+msgstr "Activer la voix"
+
+#, python-format
+msgid "You are monitoring your organization using %(prometheus)s."
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "You must select a country for your organization."
+msgid "You have not enabled %(prometheus)s monitoring on your organization."
+msgstr "Vous devez sélectionner un pays pour votre organisation."
 
 msgid ""
 "\n"
@@ -10390,6 +10432,9 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Previous Editor"
+#~ msgstr "Editeur précédent"
 
 #~ msgid "for contacts in"
 #~ msgstr "pour les contacts dans"

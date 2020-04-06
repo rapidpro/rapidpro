@@ -25,6 +25,11 @@
       width: 40px;
     }
 
+    #rp-flow-editor #simulator {
+      top: -180px;
+      margin-left: 20px;
+    }
+
     #header *, #top-menu *, .org-header * {
       -webkit-touch-callout: none;
       -webkit-user-select: none;
@@ -104,10 +109,10 @@
       visibility: visible;
       position: relative;
       padding: 18px 30px;
-      background-color: #f9f9f9;
-      background-position: 13px 13px;
-      background-image: linear-gradient(0deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent),linear-gradient(90deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent);
-      background-size: 40px 40px;
+    }
+
+    #toolbar h2 {
+      margin-bottom: 0;
     }
 
     #pending {
@@ -119,15 +124,21 @@
       text-align: center;
     }
 
+    #grid {
+    }
+
     #rp-flow-editor {
       visibility: visible;
-      min-height: 1000px;
-      width: 100%;
+      width: 100%;    
+    }
+
+    #rp-flow-editor #canvas-container > div {
+      box-shadow: inset 0 7px 9px -10px rgba(0,0,0,0.4);
+    }
+
+    #rp-flow-editor #canvas-container #canvas:after {
+      box-shadow: inset 0 7px 9px -10px rgba(0,0,0,0.4);
       
-      background-color: #f9f9f9;
-      background-position: 13px 13px;
-      background-image: linear-gradient(0deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent),linear-gradient(90deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent);
-      background-size: 40px 40px;
     }
 
     #rp-flow-editor > div {
@@ -136,14 +147,25 @@
     }
 
     #rp-flow-editor .language-selector {
-      top: -15px !important;
+      /* top: 14px; */
     }
 
     temba-loading {
       margin-left: 30px;
-      padding-top: 5px;
+      padding-top: 25px;
       display: block;
     }
+
+    .page-wrap {
+      min-height: inherit;
+      padding-bottom: inherit;
+      margin-bottom: inherit;
+    }
+
+    .footerArea {
+      display: none;
+    }
+
 
 -block extra-script
   {{ block.super }}
@@ -166,6 +188,7 @@
     }
 
     function handleEditorLoaded() {
+      $('temba-loading').hide();
       $('#rp-flow-editor > div').css('opacity', '1')
     }
 
@@ -310,9 +333,11 @@
     -if is_starting
       #pending
         %div{class:"alert alert-info"}
-          -blocktrans
+          -blocktrans trimmed
             This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
 
-  #rp-flow-editor
+
+  #grid
     <temba-loading units="10" size="8"></temba-loading>
+    #rp-flow-editor
 

@@ -550,6 +550,7 @@ class OrgCRUDL(SmartCRUDL):
         "export",
         "import",
         "plivo_connect",
+        "prometheus",
         "resthooks",
         "service",
         "surveyor",
@@ -2198,6 +2199,44 @@ class OrgCRUDL(SmartCRUDL):
             context["failed_webhooks"] = WebHookResult.get_recent_errored(self.request.user.get_org()).exists()
             return context
 
+    class Prometheus(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+        class ToggleForm(forms.ModelForm):
+            class Meta:
+                model = Org
+                fields = ("id",)
+
+        form_class = ToggleForm
+        success_url = "@orgs.org_home"
+        success_message = ""
+
+        def post_save(self, obj):
+            group = Group.objects.get(name="Prometheus")
+            user = self.request.user
+            org = user.get_org()
+
+            # look up to see if there is a prometheus token on this org
+            token = APIToken.objects.filter(is_active=True, org=org, role=group)
+
+            # if our org has a token, disable it
+            if token:
+                token.update(is_active=False)
+
+            # otherwise, create a new token (it is created for user but shared for org)
+            else:
+                APIToken.get_or_create(org, user, group)
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            user = self.request.user
+            org = user.get_org()
+            token = APIToken.objects.filter(is_active=True, org=org, role=Group.objects.get(name="Prometheus")).first()
+            if token:
+                context["prometheus_token"] = token.key
+                context["prometheus_url"] = f"https://{org.get_branding()['domain']}/mr/org/{org.uuid}/metrics"
+
+            return context
+
     class Chatbase(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class ChatbaseForm(forms.ModelForm):
             agent_name = forms.CharField(
@@ -2405,6 +2444,9 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_token"):
                 formax.add_section("token", reverse("orgs.org_token"), icon="icon-cloud-upload", nobutton=True)
+
+            if self.has_org_perm("orgs.org_prometheus"):
+                formax.add_section("prometheus", reverse("orgs.org_prometheus"), icon="icon-prometheus", nobutton=True)
 
             if self.has_org_perm("orgs.org_resthooks"):
                 formax.add_section(

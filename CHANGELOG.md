@@ -1,3 +1,14 @@
+v5.5.10
+----------
+ * Bump up the simulator when popped so it fits on more screens
+ * Editor performance improvements
+
+v5.5.8
+----------
+ * Update help text on contact edit dialog
+ * Add prometheus endpoint config on account page
+ * Fix boundary aliases filtering by org
+
 v5.5.7
 ----------
  * Fix open modal check on pjax refersh

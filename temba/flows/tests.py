@@ -421,14 +421,9 @@ class FlowTest(TembaTest):
         csrep.save()
 
         self.login(csrep)
-        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
-        gear_links = response.context["view"].get_gear_links()
-        self.assertEqual(gear_links[-1]["title"], "Previous Editor")
 
-        # convert our flow back to an old version
-        response = self.client.get(f"{reverse('flows.flow_editor', args=[flow.uuid])}?legacy=true")
-        flow.refresh_from_db()
-        self.assertEqual(flow.version_number, Flow.FINAL_LEGACY_VERSION)
+        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
+        self.assertContains(response, "Service")
 
         # flows that are archived can't be edited, started or simulated
         self.login(self.admin)

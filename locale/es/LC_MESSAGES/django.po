@@ -3746,6 +3746,11 @@ msgstr "Borrar Contactos"
 msgid "Unstop Contacts"
 msgstr "Restaurar contactos"
 
+#, fuzzy, python-brace-format
+#| msgid "The name of this contact"
+msgid "{label} for this contact"
+msgstr "El nombre de este contacto"
+
 #, fuzzy
 msgid "Used by another contact"
 msgstr "Enviar un mensaje de texto al contacto"
@@ -4280,11 +4285,6 @@ msgstr "Historial de mensajes"
 #, fuzzy
 #| msgid "No Editors"
 msgid "New Editor"
-msgstr "Sin Editores"
-
-#, fuzzy
-#| msgid "No Editors"
-msgid "Previous Editor"
 msgstr "Sin Editores"
 
 msgid "Which group memberships, if any, to include in the export"
@@ -9089,6 +9089,9 @@ msgstr ""
 msgid "Delete Flow"
 msgstr "Crear Flujos"
 
+msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
+msgstr ""
+
 msgid "To make your next connection,"
 msgstr "Para hacer su próxima conexión"
 
@@ -9243,6 +9246,9 @@ msgstr "Correr flujo"
 #| msgid "Run flow over"
 msgid "Run flow "
 msgstr "Correr flujo"
+
+msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
+msgstr ""
 
 msgid ""
 "\n"
@@ -10523,6 +10529,30 @@ msgstr "Para poder conectar su cuenta Nexmo, envíenos su clave y código secret
 #| msgid "Nexmo Dashboard"
 msgid "Plivo Dashboard"
 msgstr "panel de Nexmo"
+
+#, python-format
+msgid "You can monitor contact group counts and channel message counts on your organization using your %(prometheus)s endpoint. This will let you monitor usage over time using graphs and alerts in a dashboard such as %(grafana)s."
+msgstr ""
+
+msgid "Endpoint"
+msgstr ""
+
+msgid "Disable Prometheus"
+msgstr ""
+
+#, fuzzy
+#| msgid "Enable Voice"
+msgid "Enable Prometheus"
+msgstr "Permitir voz"
+
+#, python-format
+msgid "You are monitoring your organization using %(prometheus)s."
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "You must select a country for your organization."
+msgid "You have not enabled %(prometheus)s monitoring on your organization."
+msgstr "Debe elegir un país para su organización."
 
 msgid ""
 "\n"
@@ -12304,6 +12334,11 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "No Editors"
+#~ msgid "Previous Editor"
+#~ msgstr "Sin Editores"
 
 #, fuzzy
 #~| msgid "Your Contacts"
