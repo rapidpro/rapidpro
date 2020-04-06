@@ -17,6 +17,7 @@ boto3
 librato_bg
 nexmo
 pyfcm
+pyotp
 python-gcm
 python-telegram-bot
 raven
