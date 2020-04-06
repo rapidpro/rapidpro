@@ -58,7 +58,8 @@
     "angular-mocks": "1.3.15",
     "intercooler-js": "1.1.2",
     "sticky-kit": "^1.1.2",
-    "Sortable": "1.8.4"
+    "Sortable": "1.8.4",
+    "qrious": "^4.0.2"
   },
   "resolutions": {
     "angular": "1.3.15",
