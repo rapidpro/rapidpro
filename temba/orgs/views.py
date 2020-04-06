@@ -8,6 +8,7 @@ from email.utils import parseaddr
 from functools import cmp_to_key
 from urllib.parse import parse_qs, unquote, urlparse
 
+import pyotp
 import pytz
 import requests
 from packaging.version import Version
@@ -52,6 +53,7 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
+from temba.two_factor.models import BackupToken, Profile
 from temba.utils import analytics, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address
 from temba.utils.http import http_headers
@@ -524,6 +526,7 @@ class OrgCRUDL(SmartCRUDL):
         "token",
         "edit",
         "edit_sub_org",
+        "two_factor",
         "join",
         "grant",
         "accounts",
@@ -1426,6 +1429,104 @@ class OrgCRUDL(SmartCRUDL):
             org_id = self.request.GET.get("org")
             return "%s?org=%s" % (reverse("orgs.org_manage_accounts_sub_org"), org_id)
 
+    class TwoFactor(InferOrgMixin, OrgPermsMixin, SmartFormView):
+        class TwoFactorForm(forms.Form):
+            token = forms.CharField(
+                label=_("Token"),
+                help_text=_(
+                    "I scanned the qrcode with an application with Google Authenticator for example, and enter the generated token."
+                ),
+                strip=True,
+                required=True,
+            )
+
+            def __init__(self, *args, **kwargs):
+                self.request = kwargs.pop("request")
+                self.user_cache = None
+                super().__init__(*args, **kwargs)
+
+            def clean_token(self):
+                token = self.cleaned_data.get("token", None)
+                user_pk = self.request.user.pk
+                user = User.objects.get(pk=user_pk)
+                totp = pyotp.TOTP(user.profile.otp_secret)
+                token_valid = totp.verify(token, valid_window=2)
+                if not token_valid:
+                    raise forms.ValidationError(_("Invalid MFA token. Please try again."), code="invalid-token")
+                self.user_cache = user
+                return token
+
+            def get_user(self):
+                return self.user_cache
+
+        form_class = TwoFactorForm
+        fields = ("token",)
+        success_url = "@orgs.org_two_factor"
+        success_message = ""
+        submit_button_name = _("Activate")
+        title = "Two Factor Authentication"
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["request"] = self.request
+            return kwargs
+
+        def get(self, request, *args, **kwargs):
+            user = self.request.user
+            form = self.get_form()
+            tokens = [backup.token for backup in BackupToken.objects.filter(profile__user=user)]
+            secret = pyotp.random_base32()
+            try:
+                user.profile.otp_secret = secret
+                user.profile.modified_by = user
+                user.profile.save()
+            except User.profile.RelatedObjectDoesNotExist:
+                Profile.objects.create(user=user, otp_secret=secret, created_by=user, modified_by=user)
+
+            secret_url = self.get_secret_url()
+            return self.render_to_response(self.get_context_data(form=form, secret_url=secret_url, tokens=tokens))
+
+        def post(self, request, *args, **kwargs):
+            form = self.get_form()
+            if "disable_two_factor_auth" in request.POST:
+                self.disable_two_factor_auth()
+            elif "generate_backup_tokens" in request.POST:
+                tokens = self.generate_backup_tokens()
+                data = {"tokens": tokens}
+                return JsonResponse(data)
+            elif form.is_valid():
+                self.generate_backup_tokens()
+                user = self.get_user()
+                user.profile.two_factor_enabled = True
+                user.profile.save()
+            secret_url = self.get_secret_url()
+            return self.render_to_response(self.get_context_data(form=form, secret_url=secret_url))
+
+        def get_secret_url(self):
+            user = self.request.user
+            otp_secret = user.profile.otp_secret
+            if otp_secret:
+                secret_url = pyotp.TOTP(otp_secret).provisioning_uri(user.username, issuer_name="Rapidpro")
+            return secret_url
+
+        def disable_two_factor_auth(self):
+            self.delete_backup_tokens()
+            user = self.get_user()
+            user.profile.two_factor_enabled = False
+            user.profile.save()
+
+        def generate_backup_tokens(self):
+            user = self.get_user()
+            self.delete_backup_tokens()
+            for backup in range(10):
+                BackupToken.objects.create(profile=user.profile, created_by=user, modified_by=user)
+            tokens = [backup.token for backup in BackupToken.objects.filter(profile__user=user)]
+            return tokens
+
+        def delete_backup_tokens(self):
+            user = self.get_user()
+            BackupToken.objects.filter(profile__user=user).delete()
+
     class Service(SmartFormView):
         class ServiceForm(forms.Form):
             organization = forms.ModelChoiceField(queryset=Org.objects.all(), empty_label=None)
@@ -2247,6 +2348,15 @@ class OrgCRUDL(SmartCRUDL):
             # only pro orgs get multiple users
             if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user_tier():
                 formax.add_section("accounts", reverse("orgs.org_accounts"), icon="icon-users", action="redirect")
+
+            if self.has_org_perm("orgs.org_two_factor"):
+                formax.add_section(
+                    "two_factor",
+                    reverse("orgs.org_two_factor"),
+                    icon="icon-two-factor",
+                    action="redirect",
+                    nobutton=True,
+                )
 
             if self.has_org_perm("orgs.org_edit"):
                 formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")

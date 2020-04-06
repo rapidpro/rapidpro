@@ -55,6 +55,7 @@ from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
+from temba.two_factor.models import BackupToken, Profile
 from temba.utils import dict_to_struct, json, languages
 from temba.utils.email import link_components
 from temba.values.constants import Value
@@ -570,6 +571,34 @@ class OrgTest(TembaTest):
         org = Org.objects.get(pk=self.org.pk)
         self.assertEqual("Temba", org.name)
         self.assertEqual("nice-temba", org.slug)
+
+    def test_two_factor(self):
+        # use a manager now
+        self.login(self.admin)
+
+        # create profile
+        response = self.client.get(reverse("orgs.org_two_factor"))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(Profile.objects.count(), 1)
+        self.assertEqual(Profile.objects.first().user, self.admin)
+
+        # validate token error
+        data = dict(token="12345")
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertIn("token", response.context["form"].errors)
+        self.assertIn("Invalid MFA token. Please try again.", response.context["form"].errors["token"])
+
+        self.assertEqual(BackupToken.objects.filter(profile__user=self.admin).count(), 0)
+        data = dict(generate_backup_tokens=True)
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(BackupToken.objects.filter(profile__user=self.admin).count(), 10)
+
+        # disable two factor
+        data = dict(disable_two_factor_auth=True)
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(BackupToken.objects.filter(profile__user=self.admin).count(), 0)
+        self.assertFalse(self.admin.profile.two_factor_enabled)
 
     def test_country(self):
         self.setUpLocations()
