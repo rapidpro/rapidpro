@@ -127,34 +127,6 @@ if env.bool("DATABASE_USE_SSL", default=True):
     DATABASES["default"]["OPTIONS"]["sslmode"] = "verify-ca"
     DATABASES["default"]["OPTIONS"]["sslrootcert"] = "/etc/ssl/certs/rds.pem"
 
-# -----------------------------------------------------------------------------------
-# Django-rest-framework configuration
-# -----------------------------------------------------------------------------------
-
-REST_FRAMEWORK = {
-    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "temba.api.support.APISessionAuthentication",
-        "temba.api.support.APITokenAuthentication",
-        "temba.api.support.APIBasicAuthentication",
-    ),
-    "DEFAULT_THROTTLE_CLASSES": ("temba.api.support.OrgUserRateThrottle",),
-    "DEFAULT_THROTTLE_RATES": {
-        "v2": env("V2", default="3000/hour"),
-        "v2.contacts": env("V2_CONTACTS", default="3000/hour"),
-        "v2.messages": env("V2_MESSAGES", default="3000/hour"),
-        "v2.broadcasts": env("V2_BROADCASTS", default="36000/hour"),
-        "v2.runs": env("V2_RUNS", default="3000/hour"),
-        "v2.api": env("V2_API", default="3000/hour"),
-    },
-    "PAGE_SIZE": 250,
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
-    "DEFAULT_RENDERER_CLASSES": ("temba.api.support.DocumentationRenderer", "rest_framework.renderers.JSONRenderer"),
-    "EXCEPTION_HANDLER": "temba.api.support.temba_exception_handler",
-    "UNICODE_JSON": False,
-    "STRICT_JSON": False,
-}
-
 # BROKER
 # ------------------------------------------------------------------------------
 BROKER_URL = REDIS_URL
