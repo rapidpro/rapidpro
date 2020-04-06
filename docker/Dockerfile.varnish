@@ -7,3 +7,5 @@ COPY varnish.vcl /etc/varnish/default.vcl
 RUN chmod -R 755 /etc/varnish/
 
 RUN sed -i "s/BACKEND_ADDRESS/${BACKEND_ADDRESS}/g" /etc/varnish/default.vcl
+
+ENTRYPOINT ["/usr/sbin/varnishd", "-F", "-f", "/etc/varnish/default.vcl", "-p", "pipe_timeout=1200", "-p", "thread_pool_timeout=1200"]
