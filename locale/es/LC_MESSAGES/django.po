@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-31 20:20+0000\n"
+"POT-Creation-Date: 2020-04-04 02:10+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4293,9 +4293,48 @@ msgid "New Editor"
 msgstr "Sin Editores"
 
 #, fuzzy
-#| msgid "No Editors"
-msgid "Previous Editor"
-msgstr "Sin Editores"
+#| msgid "Export Data"
+msgid "Export Definition"
+msgstr "Exportar datos"
+
+#, fuzzy
+msgid "Export Translation"
+msgstr "Traducciones"
+
+#, fuzzy
+msgid "Import Translation"
+msgstr "Traducciones"
+
+msgid "Include translations in this language."
+msgstr ""
+
+#, fuzzy
+msgid "Include Arguments"
+msgstr "Mensajes de texto entrantes"
+
+msgid "Include arguments to tests on splits"
+msgstr ""
+
+#, fuzzy
+msgid "PO translation file"
+msgstr "Traducciones"
+
+msgid "File doesn't appear to be a valid PO file."
+msgstr ""
+
+#, python-format
+msgid "Contains translations in %(lang)s which is the base language of this flow."
+msgstr ""
+
+#, python-format
+msgid "Contains translations in %(lang)s which is not a supported translation language."
+msgstr ""
+
+msgid "Replace flow translations in this language."
+msgstr ""
+
+msgid "Import"
+msgstr "Importar"
 
 msgid "Which group memberships, if any, to include in the export"
 msgstr ""
@@ -5487,9 +5526,6 @@ msgstr "Transmisor"
 
 msgid "Add Classifier"
 msgstr ""
-
-msgid "Import"
-msgstr "Importar"
 
 msgid "Login"
 msgstr ""
@@ -9072,6 +9108,9 @@ msgstr ""
 msgid "Delete Flow"
 msgstr "Crear Flujos"
 
+msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
+msgstr ""
+
 msgid "To make your next connection,"
 msgstr "Para hacer su próxima conexión"
 
@@ -9227,6 +9266,9 @@ msgstr "Correr flujo"
 msgid "Run flow "
 msgstr "Correr flujo"
 
+msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
+msgstr ""
+
 msgid ""
 "\n"
 "      Sorry, this flow cannot be exported because it references another flow. To export it, please remove any\n"
@@ -9243,6 +9285,9 @@ msgstr ""
 msgid "Back to Flow"
 msgstr "Regresar al flujo"
 
+msgid "Extracts a <a href=\"https://en.wikipedia.org/wiki/Gettext\">gettext</a> PO file from the flow which can later be re-imported with updated translations."
+msgstr ""
+
 msgid "Remove Label"
 msgstr "Borrar etiqueta"
 
@@ -9250,6 +9295,38 @@ msgid "Are you sure you want to remove this label?"
 msgstr "¿Está seguro de que desea retirar esta etiqueta?"
 
 msgid "You cannot remove a label which has child labels. Please remove all children first."
+msgstr ""
+
+msgid "Importing a PO file will replace all matching translations in the flow for the selected language."
+msgstr ""
+
+#, fuzzy
+#| msgid "Create Flow"
+msgid "Selected Flow"
+msgstr "Crear Flujos"
+
+#, fuzzy
+#| msgid "Language"
+msgid "Base Language"
+msgstr "Idioma"
+
+msgid "Uploaded PO File"
+msgstr ""
+
+#, fuzzy
+#| msgid "Number of Credits"
+msgid "Number of entries"
+msgstr "Número de créditos"
+
+#, fuzzy
+#| msgid "Number of Credits"
+msgid "Number of translations"
+msgstr "Número de créditos"
+
+msgid "Upload"
+msgstr ""
+
+msgid "Back"
 msgstr ""
 
 msgid "Unlabel"
@@ -12301,6 +12378,21 @@ msgid "Found ${count} for ${query}"
 msgstr ""
 
 #, fuzzy
+#~| msgid "No Editors"
+#~ msgid "Previous Editor"
+#~ msgstr "Sin Editores"
+
+#, fuzzy
+#~| msgid "Export"
+#~ msgid "Export PO"
+#~ msgstr "Exportar"
+
+#, fuzzy
+#~| msgid "Download Results"
+#~ msgid "Download PO"
+#~ msgstr "Descargar Resultados"
+
+#, fuzzy
 #~| msgid "Your Contacts"
 #~ msgid "for contacts in"
 #~ msgstr "Sus Contactos"
@@ -14549,9 +14641,6 @@ msgstr ""
 
 #~ msgid "The End Date should be a date after the Start Date"
 #~ msgstr "La fecha de finalización deberá ser una fecha posterior a la fecha de inicio."
-
-#~ msgid "Export Data"
-#~ msgstr "Exportar datos"
 
 #~ msgid "Another active trigger uses this keyword, keywords must be unique"
 #~ msgstr "Otro activador activo usa esta palabra clave, las palabras clave deben ser únicas"

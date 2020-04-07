@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timedelta
+from urllib.parse import urlencode
 from uuid import uuid4
 
 import iso8601
@@ -28,6 +29,7 @@ from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
+from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
@@ -38,7 +40,6 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.contacts.models import FACEBOOK_SCHEME, TEL_SCHEME, WHATSAPP_SCHEME, ContactField, ContactGroup, ContactURN
 from temba.contacts.omnibox import omnibox_deserialize
-from temba.flows import legacy
 from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
 from temba.flows.tasks import export_flow_results_task
@@ -48,9 +49,10 @@ from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
-from temba.utils import analytics, json, on_transaction_commit, str_to_bool
+from temba.utils import analytics, gettext, json, on_transaction_commit, str_to_bool
 from temba.utils.fields import ContactSearchWidget, JSONField, OmniboxChoice, SelectWidget
 from temba.utils.s3 import public_file_storage
+from temba.utils.text import slugify_with
 from temba.utils.views import BaseActionForm, NonAtomicMixin
 
 from .models import (
@@ -239,6 +241,9 @@ class FlowCRUDL(SmartCRUDL):
         "delete",
         "update",
         "simulate",
+        "export_translation",
+        "download_translation",
+        "import_translation",
         "export_results",
         "upload_action_recording",
         "editor",
@@ -1049,11 +1054,8 @@ class FlowCRUDL(SmartCRUDL):
 
         def get(self, request, *args, **kwargs):
             flow = self.get_object()
-            if "legacy" in self.request.GET:
-                flow.version_number = Flow.FINAL_LEGACY_VERSION
-                flow.save(update_fields=("version_number",))
 
-            # require update permissions
+            # redirect to new editor if this is a migrated flow
             if Version(flow.version_number) >= Version(Flow.INITIAL_GOFLOW_VERSION):
                 return HttpResponseRedirect(reverse("flows.flow_editor_next", args=[self.get_object().uuid]))
 
@@ -1135,9 +1137,7 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Delete"), js_class="delete-flow", href="#"))
 
             links.append(dict(divider=True))
-            links.append(
-                dict(title=_("New Editor"), href=f'{reverse("flows.flow_editor_next", args=[flow.uuid])}?migrate=1')
-            )
+            links.append(dict(title=_("New Editor"), js_class="migrate-flow", href="#"))
 
             user = self.get_user()
             if user.is_superuser or user.is_staff:
@@ -1242,8 +1242,6 @@ class FlowCRUDL(SmartCRUDL):
             links = []
             flow = self.object
 
-            has_legacy_revision = flow.revisions.filter(spec_version__in=legacy.VERSIONS).exists()
-
             if (
                 flow.flow_type != Flow.TYPE_SURVEY
                 and self.has_org_perm("flows.flow_broadcast")
@@ -1266,12 +1264,19 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm("flows.flow_copy"):
                 links.append(dict(title=_("Copy"), posterize=True, href=reverse("flows.flow_copy", args=[flow.id])))
 
-            if self.has_org_perm("orgs.org_export"):
-                links.append(dict(title=_("Export"), href="%s?flow=%s" % (reverse("orgs.org_export"), flow.id)))
-
             if self.has_org_perm("flows.flow_delete"):
-                links.append(dict(divider=True)),
                 links.append(dict(title=_("Delete"), js_class="delete-flow", href="#"))
+
+            links.append(dict(divider=True)),
+
+            if self.has_org_perm("orgs.org_export"):
+                links.append(dict(title=_("Export Definition"), href=f"{reverse('orgs.org_export')}?flow={flow.id}"))
+            if self.has_org_perm("flows.flow_export_translation"):
+                links.append(dict(title=_("Export Translation"), js_class="export-translation", href="#"))
+            if self.has_org_perm("flows.flow_import_translation"):
+                links.append(
+                    dict(title=_("Import Translation"), href=reverse("flows.flow_import_translation", args=[flow.id]))
+                )
 
             user = self.get_user()
             if user.is_superuser or user.is_staff:
@@ -1283,11 +1288,192 @@ class FlowCRUDL(SmartCRUDL):
                     )
                 )
 
-            # show previous editor option if we have a legacy revision
-            if has_legacy_revision:
-                links.append(dict(divider=True))
-                links.append(dict(title=_("Previous Editor"), js_class="previous-editor", href="#"))
             return links
+
+    class ExportTranslation(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
+        class Form(forms.Form):
+            language = forms.ChoiceField(
+                required=False,
+                label=_("Language"),
+                help_text=_("Include translations in this language."),
+                choices=[("", "None")],
+                widget=SelectWidget(),
+            )
+            include_args = forms.BooleanField(
+                required=False,
+                label=_("Include Arguments"),
+                initial=True,
+                help_text=_("Include arguments to tests on splits"),
+            )
+
+            def __init__(self, user, instance, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                org = user.get_org()
+                org_languages = org.languages.all().order_by("orgs", "name")
+
+                self.user = user
+                self.fields["language"].choices += [(lang.iso_code, lang.name) for lang in org_languages]
+
+        form_class = Form
+        submit_button_name = _("Export")
+        success_url = "@flows.flow_list"
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            return kwargs
+
+        def form_valid(self, form):
+            params = {
+                "flow": self.object.id,
+                "language": form.cleaned_data["language"],
+                "exclude_args": "0" if form.cleaned_data["include_args"] else "1",
+            }
+            download_url = reverse("flows.flow_download_translation") + "?" + urlencode(params, doseq=True)
+
+            # if this is an XHR request, we need to return a structured response that it can parse
+            if "HTTP_X_PJAX" in self.request.META:
+                response = self.render_to_response(
+                    self.get_context_data(
+                        form=form,
+                        success_url=self.get_success_url(),
+                        success_script=getattr(self, "success_script", None),
+                    )
+                )
+                response["Temba-Success"] = download_url
+                return response
+
+            return HttpResponseRedirect(download_url)
+
+    class DownloadTranslation(OrgObjPermsMixin, SmartListView):
+        """
+        Download link for PO translation files extracted from flows by mailroom
+        """
+
+        def get_object_org(self):
+            self.flows = Flow.objects.filter(id__in=self.request.GET.getlist("flow"), is_active=True)
+            flow_orgs = {flow.org for flow in self.flows}
+            return self.flows[0].org if len(flow_orgs) == 1 else None
+
+        def get(self, request, *args, **kwargs):
+            org = self.request.user.get_org()
+
+            language = request.GET.get("language", "")
+            exclude_args = request.GET.get("exclude_args") == "1"
+
+            filename = slugify_with(self.flows[0].name) if len(self.flows) == 1 else "flows"
+            if language:
+                filename += f".{language}"
+            filename += ".po"
+
+            po = Flow.export_translation(org, self.flows, language, exclude_args)
+
+            response = HttpResponse(po, content_type="text/x-gettext-translation")
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
+            return response
+
+    class ImportTranslation(OrgObjPermsMixin, SmartUpdateView):
+        class UploadForm(forms.Form):
+            po_file = forms.FileField(label=_("PO translation file"), required=True)
+
+            def __init__(self, user, instance, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                self.flow = instance
+
+            def clean_po_file(self):
+                data = self.cleaned_data["po_file"]
+                if data:
+                    try:
+                        po_info = gettext.po_get_info(data.read().decode())
+                    except Exception:
+                        raise ValidationError(_("File doesn't appear to be a valid PO file."))
+
+                    if po_info.language_code:
+                        if po_info.language_code == self.flow.base_language:
+                            raise ValidationError(
+                                _("Contains translations in %(lang)s which is the base language of this flow."),
+                                params={"lang": po_info.language_name},
+                            )
+
+                        if not self.flow.org.languages.filter(iso_code=po_info.language_code).exists():
+                            raise ValidationError(
+                                _("Contains translations in %(lang)s which is not a supported translation language."),
+                                params={"lang": po_info.language_name},
+                            )
+
+                return data
+
+        class ConfirmForm(forms.Form):
+            language = forms.ChoiceField(
+                label=_("Language"),
+                help_text=_("Replace flow translations in this language."),
+                required=True,
+                widget=SelectWidget(),
+            )
+
+            def __init__(self, user, instance, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                org = user.get_org()
+                languages = org.languages.exclude(iso_code=instance.base_language).order_by("name")
+
+                self.fields["language"].choices += [(lang.iso_code, lang.name) for lang in languages]
+
+        title = _("Import Translation")
+        submit_button_name = _("Import")
+        success_url = "uuid@flows.flow_editor_next"
+
+        def get_form_class(self):
+            return self.ConfirmForm if self.request.GET.get("po") else self.UploadForm
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            return kwargs
+
+        def form_valid(self, form):
+            org = self.request.user.get_org()
+            po_uuid = self.request.GET.get("po")
+
+            if not po_uuid:
+                po_file = form.cleaned_data["po_file"]
+                po_uuid = gettext.po_save(org, po_file)
+
+                return HttpResponseRedirect(
+                    reverse("flows.flow_import_translation", args=[self.object.id]) + f"?po={po_uuid}"
+                )
+            else:
+                po_data = gettext.po_load(org, po_uuid)
+                language = form.cleaned_data["language"]
+
+                updated_defs = Flow.import_translation(self.object.org, [self.object], language, po_data)
+                self.object.save_revision(self.request.user, updated_defs[str(self.object.uuid)])
+
+            return HttpResponseRedirect(self.get_success_url())
+
+        @cached_property
+        def po_info(self):
+            po_uuid = self.request.GET.get("po")
+            if not po_uuid:
+                return None
+
+            org = self.request.user.get_org()
+            po_data = gettext.po_load(org, po_uuid)
+            return gettext.po_get_info(po_data)
+
+        def get_context_data(self, *args, **kwargs):
+            org = self.request.user.get_org()
+
+            context = super().get_context_data(*args, **kwargs)
+            context["show_upload_form"] = not self.po_info
+            context["po_info"] = self.po_info
+            context["flow_language"] = org.languages.filter(iso_code=self.object.base_language).first()
+            return context
+
+        def derive_initial(self):
+            return {"language": self.po_info.language_code if self.po_info else ""}
 
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
         class ExportForm(forms.Form):
