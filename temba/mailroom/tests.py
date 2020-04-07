@@ -91,7 +91,7 @@ class MailroomClientTest(TembaTest):
                     },
                 },
             )
-            
+
     def test_po_export(self):
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, 'msgid "Red"\nmsgstr "Rojo"\n\n')
