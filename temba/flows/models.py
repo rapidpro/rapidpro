@@ -3107,6 +3107,9 @@ class FlowStart(models.Model):
     # the uuid of this start
     uuid = models.UUIDField(unique=True, default=uuid4)
 
+    # the org the flow belongs to
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flow_starts", null=True)
+
     # the flow that should be started
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="starts")
 
@@ -3150,12 +3153,8 @@ class FlowStart(models.Model):
     # when this flow start was created
     created_on = models.DateTimeField(default=timezone.now, editable=False)
 
+    # the number of de-duped contacts that might be started, depending on options above
     contact_count = models.IntegerField(default=0, null=True)
-
-    # TODO: remove these deprecated fields
-    is_active = models.BooleanField(default=True, null=True)
-    modified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True)
-    modified_on = models.DateTimeField(default=timezone.now, editable=False, null=True)
 
     @classmethod
     def create(
