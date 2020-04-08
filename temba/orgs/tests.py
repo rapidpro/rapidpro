@@ -319,7 +319,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
         )
         parent_trigger.groups.add(self.parent_org.all_groups.all().first())
 
-        FlowStart.objects.create(flow=parent_flow)
+        FlowStart.objects.create(org=self.parent_org, flow=parent_flow)
 
         child_trigger = Trigger.create(
             self.child_org,

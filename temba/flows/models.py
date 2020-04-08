@@ -925,6 +925,7 @@ class Flow(TembaModel):
         """
 
         flow_start = FlowStart.objects.create(
+            org=self.org,
             flow=self,
             restart_participants=restart_participants,
             include_active=include_active,
@@ -3175,6 +3176,7 @@ class FlowStart(models.Model):
             groups = []
 
         start = FlowStart.objects.create(
+            org=flow.org,
             flow=flow,
             restart_participants=restart_participants,
             include_active=include_active,
