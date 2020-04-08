@@ -1184,6 +1184,8 @@ ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
 MAX_ACTIVE_GLOBALS_PER_ORG = 255
 
+COURIER_DEFAULT_TPS = 1000
+
 # Firebase Dynamic Links configuration
 FDL_API_KEY = "FirebaseDynamicLinkAPIKey"
 FDL_URL = "FirebaseDynamicLinkURL"
