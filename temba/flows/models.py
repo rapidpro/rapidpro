@@ -929,7 +929,6 @@ class Flow(TembaModel):
             restart_participants=restart_participants,
             include_active=include_active,
             created_by=user,
-            modified_by=user,
             query=query,
         )
 
@@ -3151,14 +3150,12 @@ class FlowStart(models.Model):
     # when this flow start was created
     created_on = models.DateTimeField(default=timezone.now, editable=False)
 
-    # deprecated fields
-    is_active = models.BooleanField(default=True, null=True)
-
-    modified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True)
-
-    modified_on = models.DateTimeField(default=timezone.now, editable=False, null=True)
-
     contact_count = models.IntegerField(default=0, null=True)
+
+    # TODO: remove these deprecated fields
+    is_active = models.BooleanField(default=True, null=True)
+    modified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True)
+    modified_on = models.DateTimeField(default=timezone.now, editable=False, null=True)
 
     @classmethod
     def create(
