@@ -1,0 +1,19 @@
+-extends 'smartmin/form.html'
+-load smartmin
+-load i18n
+
+-block fields
+    -render_field 'email'
+    -render_field 'user_group'
+
+
+-block modal-script
+  {{block.super}}
+  :javascript
+    $(document).ready(function() {
+      $("#id_user_group").select2({
+        containerCssClass: 'select2-temba-user-group-field',
+        minimumResultsForSearch: -1,
+        width:'100%',
+      });
+    });
