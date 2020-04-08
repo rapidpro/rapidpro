@@ -181,14 +181,19 @@ def refresh_whatsapp_templates():
 
                     content_parts = []
 
+                    all_supported = True
                     for component in template["components"]:
                         if component["type"] not in ["HEADER", "BODY", "FOOTER"]:
                             logger.error(f"unknown component type: {component}")
                             continue
 
+                        if component["type"] in ["HEADER", "FOOTER"] and _calculate_variable_count(component["text"]):
+                            logger.error(f"unsupported component type wih variables: {component}")
+                            all_supported = False
+
                         content_parts.append(component["text"])
 
-                    if not content_parts:
+                    if not content_parts or not all_supported:
                         continue
 
                     content = "\n\n".join(content_parts)
