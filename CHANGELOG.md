@@ -1,3 +1,8 @@
+v5.5.13
+----------
+ * Stop using FlowStart.modified_on so that it can be removed
+ * Disable syncing templates with variables in headers and footers
+
 v5.5.12
 ----------
  * Import and export of PO files
