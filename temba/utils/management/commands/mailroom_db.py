@@ -30,6 +30,7 @@ USER_PASSWORD = "Arst1234"
 LOCATIONS_DUMP = "test-data/nigeria.bin"
 
 ORG1 = dict(
+    uuid="bf0514a5-9407-44c9-b0f9-3f36f9c18414",
     name="UNICEF",
     has_locations=True,
     languages=("eng", "fra"),
@@ -198,6 +199,7 @@ ORG1 = dict(
 )
 
 ORG2 = dict(
+    uuid="3ae7cdeb-fd96-46e5-abc4-a4622f349921",
     name="Nyaruka",
     has_locations=True,
     languages=("eng", "fra"),
@@ -318,6 +320,7 @@ class Command(BaseCommand):
         self._log(f"\nCreating org {spec['name']}...\n")
 
         org = Org.objects.create(
+            uuid=spec["uuid"],
             name=spec["name"],
             timezone=pytz.timezone("America/Los_Angeles"),
             brand="rapidpro.io",
