@@ -3917,11 +3917,7 @@ class ContactTest(TembaTest):
             instance = mock_mr.return_value
             instance.contact_modify.return_value = {"1": {"contact": {}, "events": []}}
 
-            Contact.update(self.org.id, self.admin.id, self.other_org_contact.id, "Muller", "eng")
-
-            self.assertFalse(instance.contact_modify.called)
-
-            Contact.update(self.org.id, self.admin.id, self.joe.id, "Muller", "eng")
+            self.joe.update(self.admin.id, "Muller", "eng")
 
             instance.contact_modify.assert_called_once_with(
                 self.joe.org.id,

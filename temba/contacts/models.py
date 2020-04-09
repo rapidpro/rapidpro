@@ -1231,11 +1231,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             # ensure our campaigns are up to date
             EventFire.update_events_for_contact_groups(self, changed_groups)
 
-    @classmethod
-    def update(cls, org_id, user_id, contact_id, name, language):
-        existing = Contact.objects.filter(id=contact_id, org_id=org_id).first()
-        if existing is None:
-            return
+    def update(self, user_id, name, language):
+        org = self.org
+        existing = Contact.objects.filter(id=self.id, org=self.org).first()
 
         try:
             modifiers = []
@@ -1246,10 +1244,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 modifiers.append({"type": "language", "language": language or ""})
 
             client = mailroom.get_client()
-            contact_ids = [contact_id]
+            contact_ids = [self.id]
 
             if modifiers:
-                client.contact_modify(org_id, user_id, contact_ids, modifiers)
+                client.contact_modify(org.id, user_id, contact_ids, modifiers)
 
         except mailroom.MailroomException as e:
             logger.error(f"Contact update failed: {str(e)}", exc_info=True)
