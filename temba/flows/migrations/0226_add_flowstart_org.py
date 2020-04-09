@@ -18,5 +18,4 @@ class Migration(migrations.Migration):
         ),
         migrations.RemoveField(model_name="flowstart", name="is_active"),
         migrations.RemoveField(model_name="flowstart", name="modified_by"),
-        migrations.RemoveField(model_name="flowstart", name="modified_on"),
     ]

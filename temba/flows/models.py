@@ -3154,6 +3154,9 @@ class FlowStart(models.Model):
     # when this flow start was created
     created_on = models.DateTimeField(default=timezone.now, editable=False)
 
+    # when this flow start was last modified
+    modified_on = models.DateTimeField(default=timezone.now, editable=False, null=True)
+
     # the number of de-duped contacts that might be started, depending on options above
     contact_count = models.IntegerField(default=0, null=True)
 
@@ -3183,7 +3186,6 @@ class FlowStart(models.Model):
             campaign_event=campaign_event,
             extra=extra,
             created_by=user,
-            created_on=timezone.now(),
         )
 
         for contact in contacts:
