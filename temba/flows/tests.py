@@ -29,7 +29,7 @@ from temba.mailroom import FlowValidationException, MailroomException
 from temba.msgs.models import Label
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
@@ -6287,3 +6287,31 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
+
+
+class PopulateFlowStartOrgTest(MigrationTest):
+    app = "flows"
+    migrate_from = "0226_add_flowstart_org"
+    migrate_to = "0227_populate_flowstart_org"
+
+    def setUpBeforeMigration(self, apps):
+        contact = self.create_contact("Bob", twitter="bobby")
+        flow1 = self.create_flow(org=self.org)
+        flow2 = self.create_flow(org=self.org)
+
+        other_org_contact = self.create_contact("Jim", twitter="jimmy")
+        other_org_flow = self.create_flow(org=self.org2)
+
+        FlowStart.create(flow1, self.admin, contacts=[contact])
+        FlowStart.create(flow2, self.admin, contacts=[contact])
+        FlowStart.create(other_org_flow, self.admin2, contacts=[other_org_contact])
+
+        # clear org so migration sets it
+        FlowStart.objects.all().update(org=None)
+
+        # create one with org already set
+        FlowStart.create(flow1, self.admin, contacts=[contact])
+
+    def test_migration(self):
+        self.assertEqual(3, FlowStart.objects.filter(org=self.org).count())
+        self.assertEqual(1, FlowStart.objects.filter(org=self.org2).count())
