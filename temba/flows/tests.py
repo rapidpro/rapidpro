@@ -1489,7 +1489,7 @@ class FlowTest(TembaTest):
         flow = self.get_flow("color", legacy=True)
 
         # create start for 10 contacts
-        start = FlowStart.objects.create(flow=flow, created_by=self.admin, modified_by=self.admin)
+        start = FlowStart.objects.create(flow=flow, created_by=self.admin)
         for i in range(10):
             contact = self.create_contact("Bob", twitter=f"bobby{i}")
             start.contacts.add(contact)
