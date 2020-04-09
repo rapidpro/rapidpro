@@ -2349,6 +2349,8 @@ class UserSettings(models.Model):
         blank=True,
         help_text=_("Phone number for testing and recording voice flows"),
     )
+    otp_secret = models.CharField(verbose_name=_("OTP Secret"), max_length=18, null=True, blank=True)
+    two_factor_enabled = models.BooleanField(verbose_name=_("Two Factor Enabled"), default=False)
 
     def get_tel_formatted(self):
         if self.tel:

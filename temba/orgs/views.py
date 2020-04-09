@@ -53,7 +53,7 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
-from temba.two_factor.models import BackupToken, Profile
+from temba.two_factor.models import BackupToken
 from temba.utils import analytics, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address
 from temba.utils.http import http_headers
@@ -1433,10 +1433,8 @@ class OrgCRUDL(SmartCRUDL):
     class TwoFactor(InferOrgMixin, OrgPermsMixin, SmartFormView):
         class TwoFactorForm(forms.Form):
             token = forms.CharField(
-                label=_("Token"),
-                help_text=_(
-                    "I scanned the qrcode with an application with Google Authenticator for example, and enter the generated token."
-                ),
+                label=_("Authentication Token"),
+                help_text=_("Enter the code from your authentication application"),
                 strip=True,
                 required=True,
             )
@@ -1450,7 +1448,7 @@ class OrgCRUDL(SmartCRUDL):
                 token = self.cleaned_data.get("token", None)
                 user_pk = self.request.user.pk
                 user = User.objects.get(pk=user_pk)
-                totp = pyotp.TOTP(user.profile.otp_secret)
+                totp = pyotp.TOTP(user.settings.first().otp_secret)
                 token_valid = totp.verify(token, valid_window=2)
                 if not token_valid:
                     raise forms.ValidationError(_("Invalid MFA token. Please try again."), code="invalid-token")
@@ -1476,12 +1474,13 @@ class OrgCRUDL(SmartCRUDL):
             user = self.request.user
             form = self.get_form()
             secret = pyotp.random_base32()
+
             try:
-                user.profile.otp_secret = secret
-                user.profile.modified_by = user
-                user.profile.save()
-            except User.profile.RelatedObjectDoesNotExist:
-                Profile.objects.create(user=user, otp_secret=secret, created_by=user, modified_by=user)
+                settings = UserSettings.objects.get(user=user)
+                settings.otp_secret = secret
+                settings.save()
+            except UserSettings.DoesNotExist:
+                UserSettings.objects.create(user=user, otp_secret=secret)
 
             secret_url = self.get_secret_url()
             return self.render_to_response(self.get_context_data(form=form, secret_url=secret_url))
@@ -1501,14 +1500,22 @@ class OrgCRUDL(SmartCRUDL):
             elif form.is_valid():  # pragma: needs cover
                 self.generate_backup_tokens()
                 user = self.get_user()
-                user.profile.two_factor_enabled = True
-                user.profile.save()
+                settings = UserSettings.objects.get(user=user)
+                settings.two_factor_enabled = True
+                settings.save()
             secret_url = self.get_secret_url()
             return self.render_to_response(self.get_context_data(form=form, secret_url=secret_url))
 
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            user = self.get_user()
+            settings = UserSettings.objects.get(user=user)
+            context["settings"] = settings
+            return context
+
         def get_secret_url(self):
             user = self.request.user
-            otp_secret = user.profile.otp_secret
+            otp_secret = user.get_settings().otp_secret
             if otp_secret:
                 secret_url = pyotp.TOTP(otp_secret).provisioning_uri(user.username, issuer_name="Rapidpro")
             return secret_url
@@ -1516,25 +1523,26 @@ class OrgCRUDL(SmartCRUDL):
         def disable_two_factor_auth(self):
             self.delete_backup_tokens()
             user = self.get_user()
-            user.profile.two_factor_enabled = False
-            user.profile.save()
+            settings = UserSettings.objects.get(user=user)
+            settings.two_factor_enabled = False
+            settings.save()
 
         def generate_backup_tokens(self):
             user = self.get_user()
             self.delete_backup_tokens()
             for backup in range(10):
-                BackupToken.objects.create(profile=user.profile, created_by=user, modified_by=user)
-            tokens = [backup.token for backup in BackupToken.objects.filter(profile__user=user)]
+                BackupToken.objects.create(settings=user.settings.first(), created_by=user, modified_by=user)
+            tokens = [backup.token for backup in BackupToken.objects.filter(settings__user=user)]
             return tokens
 
         def get_backup_tokens(self):
             user = self.get_user()
-            tokens = [backup.token for backup in BackupToken.objects.filter(profile__user=user)]
+            tokens = [backup.token for backup in BackupToken.objects.filter(settings__user=user)]
             return tokens
 
         def delete_backup_tokens(self):
             user = self.get_user()
-            BackupToken.objects.filter(profile__user=user).delete()
+            BackupToken.objects.filter(settings__user=user).delete()
 
     class Service(SmartFormView):
         class ServiceForm(forms.Form):

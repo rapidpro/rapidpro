@@ -7,7 +7,7 @@
 
 -block pre-form
 
-  -if not user.profile.two_factor_enabled
+  -if not settings.two_factor_enabled
 
     %canvas#qr
 
@@ -32,12 +32,29 @@
     
 
 -block fields
-  -if not user.profile.two_factor_enabled
+  -if not settings.two_factor_enabled
+
+    To enable two factor authentication, use a one time password application such as
+    
+    %a{ href: "https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2", target: "_blank"}
+      Google Authentication
+    
+    or
+
+    %a{ href: "https://authy.com/", target: "_blank"}
+
+      Authy
+
+    %br
+    
     {{block.super}}
   -else
     -blocktrans trimmed
-      These are your backup tokens, save them somewhere safe and use when you
-      lose access to the application you used to generate your access code via qrcode.
+      Backup tokens can be used if you no longer have access to the authentication application configured for your account.
+      
+    %br
+
+    %div#backup
 
     %br
 
@@ -45,20 +62,9 @@
 
       -trans "Generate Backup Tokens"
 
-   %br
-   %br
-
-    %div#backup
-
-    %hr
-
-    -blocktrans trimmed
-      You can disable two-factor authentication on your account.
-
-    %br
-
     %a.btn.btn-primary.btn-tiny{href:"{% url 'orgs.org_home' %}", id:'disable-two-factor-auth', style:'margin-top:5px'}
       -trans "Disable Two Factor"
+
 
     :javascript
 
@@ -113,7 +119,7 @@
       });
 
 - block form-buttons
-  -if not user.profile.two_factor_enabled
+  -if not settings.two_factor_enabled
     {{block.super}}
 
 - block summary
