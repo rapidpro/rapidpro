@@ -4,7 +4,6 @@ import os
 import re
 from datetime import timedelta
 from unittest.mock import PropertyMock, patch
-from uuid import uuid4
 
 import iso8601
 import pytz
@@ -34,6 +33,7 @@ from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.utils import json
+from temba.utils.uuid import uuid4
 from temba.values.constants import Value
 
 from . import legacy

@@ -1,12 +1,13 @@
 import os
 from typing import NamedTuple
-from uuid import uuid4
 
 import polib
 import pycountry
 
 from django.conf import settings
 from django.core.files.storage import default_storage
+
+from .uuid import uuid4
 
 
 def po_get_path(org, uuid):

@@ -37,6 +37,7 @@ from temba.msgs.models import Label
 from temba.orgs.models import Org
 from temba.utils import chunk_list
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
+from temba.utils.uuid import uuid4_generator
 from temba.values.constants import Value
 
 # maximum age in days of database content
@@ -196,13 +197,10 @@ class Command(BaseCommand):
 
         self.random = random.Random(seed)
 
-        # monkey patch uuid4 so it returns the same UUIDs for the same seed, see https://github.com/joke2k/faker/issues/484#issuecomment-287931101
-        from temba.utils import models
+        # monkey patch uuid4 so it returns the same UUIDs for the same seed
+        from temba.utils import uuid
 
-        models.uuid4 = lambda: uuid.UUID(
-            int=(self.random.getrandbits(128) | (1 << 63) | (1 << 78))
-            & (~(1 << 79) & ~(1 << 77) & ~(1 << 76) & ~(1 << 62))
-        )
+        uuid.uuid_generator = uuid4_generator(seed)
 
         # We want a variety of large and small orgs so when allocating content like contacts and messages, we apply a
         # bias toward the beginning orgs. if there are N orgs, then the amount of content the first org will be
