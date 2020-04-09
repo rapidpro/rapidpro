@@ -1,7 +1,6 @@
 import logging
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
-from uuid import uuid4
 
 import iso8601
 import regex
@@ -53,6 +52,7 @@ from temba.utils import analytics, gettext, json, on_transaction_commit, str_to_
 from temba.utils.fields import ContactSearchWidget, JSONField, OmniboxChoice, SelectWidget
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
+from temba.utils.uuid import uuid4
 from temba.utils.views import BaseActionForm, NonAtomicMixin
 
 from .models import (

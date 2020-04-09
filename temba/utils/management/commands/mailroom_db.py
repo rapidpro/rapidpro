@@ -260,6 +260,11 @@ class Command(BaseCommand):
         settings.DATABASES["default"]["NAME"] = "mailroom_test"
         settings.DATABASES["default"]["USER"] = "mailroom_test"
 
+        # patch UUID generation so it's deterministic
+        from temba.utils import uuid
+
+        uuid.default_generator = uuid.seeded_generator(1234)
+
         self._log("Running migrations...\n")
 
         # run our migrations to put our database in the right state

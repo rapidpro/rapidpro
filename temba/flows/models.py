@@ -5,7 +5,6 @@ from collections import OrderedDict, defaultdict
 from datetime import date, timedelta
 from enum import Enum
 from urllib.request import urlopen
-from uuid import uuid4
 
 import iso8601
 import regex
@@ -45,6 +44,7 @@ from temba.utils.models import (
     generate_uuid,
 )
 from temba.utils.s3 import public_file_storage
+from temba.utils.uuid import uuid4
 from temba.values.constants import Value
 
 from . import legacy
