@@ -3930,7 +3930,6 @@ class ContactTest(TembaTest):
                 [{"type": "name", "name": "Muller"}, {"type": "language", "language": "eng"}],
             )
 
-
     def test_number_normalized(self):
         self.org.country = None
         self.org.save(update_fields=("country",))
