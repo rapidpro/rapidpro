@@ -2,11 +2,11 @@ import random
 import sys
 from uuid import UUID, uuid4 as real_uuid4
 
-uuid_generator = real_uuid4
+default_generator = real_uuid4
 
 
 def uuid4() -> UUID:
-    return uuid_generator()
+    return default_generator()
 
 
 def uuid4_generator(seed: int):

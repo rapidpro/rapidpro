@@ -200,7 +200,7 @@ class Command(BaseCommand):
         # monkey patch uuid4 so it returns the same UUIDs for the same seed
         from temba.utils import uuid
 
-        uuid.uuid_generator = uuid4_generator(seed)
+        uuid.default_generator = uuid4_generator(seed)
 
         # We want a variety of large and small orgs so when allocating content like contacts and messages, we apply a
         # bias toward the beginning orgs. if there are N orgs, then the amount of content the first org will be

@@ -33,7 +33,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGr
 from temba.flows.models import FlowRun
 from temba.orgs.models import Org, UserSettings
 from temba.tests import ESMockWithScroll, TembaTest, matchers
-from temba.utils import json
+from temba.utils import json, uuid
 from temba.utils.json import TembaJsonAdapter
 
 from . import (
@@ -1859,3 +1859,20 @@ class TestValidators(TestCase):
                     validate_external_url(case["url"])
 
                 self.assertTrue(case["error"] in str(cm.exception), f"{case['error']} not in {cm.exception}")
+
+
+class TestUUIDs(TembaTest):
+    def test_uuid4_generator(self):
+        g = uuid.uuid4_generator(123)
+        self.assertEqual(uuid.UUID("66b3670d-b37d-4644-aedd-51167c53dac4", version=4), g())
+        self.assertEqual(uuid.UUID("07ff4068-f3de-4c44-8a3e-921b952aa8d6", version=4), g())
+
+        # same seed, same UUIDs
+        g = uuid.uuid4_generator(123)
+        self.assertEqual(uuid.UUID("66b3670d-b37d-4644-aedd-51167c53dac4", version=4), g())
+        self.assertEqual(uuid.UUID("07ff4068-f3de-4c44-8a3e-921b952aa8d6", version=4), g())
+
+        # different seed, different UUIDs
+        g = uuid.uuid4_generator(456)
+        self.assertEqual(uuid.UUID("8c338abf-94e2-4c73-9944-72f7a6ff5877", version=4), g())
+        self.assertEqual(uuid.UUID("c8e0696f-b3f6-4e63-a03a-57cb95bdb6e3", version=4), g())
