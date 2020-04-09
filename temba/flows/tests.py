@@ -4021,6 +4021,7 @@ class FlowRunTest(TembaTest):
             set(
                 [
                     "id",
+                    "uuid",
                     "flow",
                     "contact",
                     "responded",
@@ -4446,7 +4447,7 @@ class ExportFlowResultsTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(6, len(list(sheet_runs.rows)))  # header + 5 runs
-        self.assertEqual(10, len(list(sheet_runs.columns)))
+        self.assertEqual(11, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
             sheet_runs,
@@ -4459,6 +4460,7 @@ class ExportFlowResultsTest(TembaTest):
                 "Started",
                 "Modified",
                 "Exited",
+                "Run UUID",
                 "Color (Category) - Colors",
                 "Color (Value) - Colors",
                 "Color (Text) - Colors",
@@ -4476,6 +4478,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact3_run1.created_on,
                 contact3_run1.modified_on,
                 "",
+                contact3_run1.uuid,
                 "",
                 "",
                 "",
@@ -4494,6 +4497,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_run1.created_on,
                 contact1_run1.modified_on,
                 contact1_run1.exited_on,
+                contact1_run1.uuid,
                 "Orange",
                 "orange",
                 "orange",
@@ -4512,6 +4516,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact2_run1.created_on,
                 contact2_run1.modified_on,
                 contact2_run1.exited_on,
+                contact2_run1.uuid,
                 "Other",
                 "green",
                 "green",
@@ -4530,6 +4535,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact2_run2.created_on,
                 contact2_run2.modified_on,
                 "",
+                contact2_run2.uuid,
                 "",
                 "",
                 "",
@@ -4548,6 +4554,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_run2.created_on,
                 contact1_run2.modified_on,
                 contact1_run2.exited_on,
+                contact1_run2.uuid,
                 "Blue",
                 "blue",
                 " blue ",
@@ -4673,7 +4680,7 @@ class ExportFlowResultsTest(TembaTest):
         sheet_runs = workbook.worksheets[0]
 
         self.assertEqual(4, len(list(sheet_runs.rows)))  # header + 3 runs
-        self.assertEqual(10, len(list(sheet_runs.columns)))
+        self.assertEqual(11, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
             sheet_runs,
@@ -4686,6 +4693,7 @@ class ExportFlowResultsTest(TembaTest):
                 "Started",
                 "Modified",
                 "Exited",
+                "Run UUID",
                 "Color (Category) - Colors",
                 "Color (Value) - Colors",
                 "Color (Text) - Colors",
@@ -4703,6 +4711,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_run1.created_on,
                 contact1_run1.modified_on,
                 contact1_run1.exited_on,
+                contact1_run1.uuid,
                 "Orange",
                 "orange",
                 "orange",
@@ -4721,6 +4730,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact2_run1.created_on,
                 contact2_run1.modified_on,
                 contact2_run1.exited_on,
+                contact2_run1.uuid,
                 "Other",
                 "green",
                 "green",
@@ -4750,7 +4760,7 @@ class ExportFlowResultsTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(4, len(list(sheet_runs.rows)))  # header + 3 runs
-        self.assertEqual(13, len(list(sheet_runs.columns)))
+        self.assertEqual(14, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
             sheet_runs,
@@ -4766,6 +4776,7 @@ class ExportFlowResultsTest(TembaTest):
                 "Started",
                 "Modified",
                 "Exited",
+                "Run UUID",
                 "Color (Category) - Colors",
                 "Color (Value) - Colors",
                 "Color (Text) - Colors",
@@ -4786,6 +4797,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_run1.created_on,
                 contact1_run1.modified_on,
                 contact1_run1.exited_on,
+                contact1_run1.uuid,
                 "Orange",
                 "orange",
                 "orange",
@@ -4821,7 +4833,7 @@ class ExportFlowResultsTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(6, len(list(sheet_runs.rows)))  # header + 5 runs
-        self.assertEqual(9, len(list(sheet_runs.columns)))
+        self.assertEqual(10, len(list(sheet_runs.columns)))
 
         # check messages sheet...
         self.assertEqual(14, len(list(sheet_msgs.rows)))  # header + 13 messages
@@ -4862,6 +4874,7 @@ class ExportFlowResultsTest(TembaTest):
                     "Started",
                     "Modified",
                     "Exited",
+                    "Run UUID",
                     "Color (Category) - Colors",
                     "Color (Value) - Colors",
                     "Color (Text) - Colors",
@@ -4878,6 +4891,7 @@ class ExportFlowResultsTest(TembaTest):
                     run1.created_on,
                     run1.modified_on,
                     run1.exited_on,
+                    run1.uuid,
                     "Orange",
                     "orange",
                     "orange",
@@ -4913,7 +4927,7 @@ class ExportFlowResultsTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(2, len(list(sheet_runs.rows)))
-        self.assertEqual(9, len(list(sheet_runs.columns)))
+        self.assertEqual(10, len(list(sheet_runs.columns)))
 
         # check messages sheet...
         self.assertEqual(2, len(list(sheet_msgs.rows)))
@@ -4970,9 +4984,11 @@ class ExportFlowResultsTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(len(list(sheet_runs.rows)), 6)  # header + 5 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 6)
+        self.assertEqual(len(list(sheet_runs.columns)), 7)
 
-        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Name", "Started", "Modified", "Exited"])
+        self.assertExcelRow(
+            sheet_runs, 0, ["Contact UUID", "URN", "Name", "Started", "Modified", "Exited", "Run UUID"]
+        )
 
         self.assertExcelRow(
             sheet_runs,
@@ -4984,6 +5000,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_run1.created_on,
                 contact1_run1.modified_on,
                 contact1_run1.exited_on,
+                contact1_run1.uuid,
             ],
             tz,
         )
@@ -4997,6 +5014,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact2_run1.created_on,
                 contact2_run1.modified_on,
                 contact2_run1.exited_on,
+                contact2_run1.uuid,
             ],
             tz,
         )
@@ -5010,6 +5028,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact3_run1.created_on,
                 contact3_run1.modified_on,
                 contact3_run1.exited_on,
+                contact3_run1.uuid,
             ],
             tz,
         )
@@ -5023,6 +5042,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_run2.created_on,
                 contact1_run2.modified_on,
                 contact1_run2.exited_on,
+                contact1_run2.uuid,
             ],
             tz,
         )
@@ -5036,6 +5056,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact2_run2.created_on,
                 contact2_run2.modified_on,
                 contact2_run2.exited_on,
+                contact2_run2.uuid,
             ],
             tz,
         )
@@ -5231,9 +5252,11 @@ class ExportFlowResultsTest(TembaTest):
         sheet_runs = workbook.worksheets[0]
 
         self.assertEqual(len(list(sheet_runs.rows)), 1)  # header; no resposes to a broadcast only flow
-        self.assertEqual(len(list(sheet_runs.columns)), 6)
+        self.assertEqual(len(list(sheet_runs.columns)), 7)
 
-        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Name", "Started", "Modified", "Exited"])
+        self.assertExcelRow(
+            sheet_runs, 0, ["Contact UUID", "URN", "Name", "Started", "Modified", "Exited", "Run UUID"]
+        )
 
     def test_replaced_rulesets(self):
         favorites = self.get_flow("favorites_v13")
@@ -5340,7 +5363,7 @@ class ExportFlowResultsTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(6, len(list(sheet_runs.rows)))  # header + 5 runs
-        self.assertEqual(16, len(list(sheet_runs.columns)))
+        self.assertEqual(17, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
             sheet_runs,
@@ -5353,6 +5376,7 @@ class ExportFlowResultsTest(TembaTest):
                 "Started",
                 "Modified",
                 "Exited",
+                "Run UUID",
                 "Color (Category) - Favorites",
                 "Color (Value) - Favorites",
                 "Color (Text) - Favorites",
@@ -5376,6 +5400,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact3_run1.created_on,
                 contact3_run1.modified_on,
                 "",
+                contact3_run1.uuid,
                 "",
                 "",
                 "",
@@ -5400,6 +5425,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_run1.created_on,
                 contact1_run1.modified_on,
                 contact1_run1.exited_on,
+                contact1_run1.uuid,
                 "Red",
                 "red",
                 "red",
@@ -5424,6 +5450,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact2_run1.created_on,
                 contact2_run1.modified_on,
                 contact2_run1.exited_on,
+                contact2_run1.uuid,
                 "Green",
                 "green",
                 "green",
@@ -5448,6 +5475,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact2_run2.created_on,
                 contact2_run2.modified_on,
                 "",
+                contact2_run2.uuid,
                 "",
                 "",
                 "",
@@ -5472,6 +5500,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_run2.created_on,
                 contact1_run2.modified_on,
                 "",
+                contact1_run2.uuid,
                 "Blue",
                 "blue",
                 " blue ",
@@ -5618,6 +5647,7 @@ class ExportFlowResultsTest(TembaTest):
                 run1.created_on,
                 run1.modified_on,
                 "",
+                run1.uuid,
                 "Other",
                 "ngertin.",
                 "ngertin.",
@@ -5752,6 +5782,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_run.created_on,
                 contact1_run.modified_on,
                 "",
+                contact1_run.uuid,
                 "Other",
                 "green",
                 "green",
@@ -5768,6 +5799,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact2_run.created_on,
                 contact2_run.modified_on,
                 contact2_run.exited_on,
+                contact2_run.uuid,
                 "Blue",
                 "blue",
                 "blue",
@@ -5784,6 +5816,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact3_run.created_on,
                 contact3_run.modified_on,
                 "",
+                contact3_run.uuid,
                 "",
                 "",
                 "",
@@ -5835,6 +5868,7 @@ class ExportFlowResultsTest(TembaTest):
                 run.created_on,
                 run.modified_on,
                 run.exited_on,
+                run.uuid,
                 "Blue",
                 "blue",
                 "blue",
@@ -5884,6 +5918,7 @@ class ExportFlowResultsTest(TembaTest):
                 run.created_on,
                 run.modified_on,
                 run.exited_on,
+                run.uuid,
                 "Blue",
                 "blue",
                 "blue",
@@ -5902,7 +5937,7 @@ class ExportFlowResultsTest(TembaTest):
 
         # every sheet has only the head row
         self.assertEqual(len(list(workbook.worksheets[0].rows)), 1)
-        self.assertEqual(len(list(workbook.worksheets[0].columns)), 9)
+        self.assertEqual(len(list(workbook.worksheets[0].columns)), 10)
 
 
 class FlowLabelTest(TembaTest):
