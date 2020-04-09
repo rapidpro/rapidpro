@@ -929,7 +929,6 @@ class Flow(TembaModel):
             restart_participants=restart_participants,
             include_active=include_active,
             created_by=user,
-            modified_by=user,
             query=query,
         )
 
@@ -1990,6 +1989,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         return {
             "id": self.id,
+            "uuid": str(self.uuid),
             "flow": {"uuid": str(self.flow.uuid), "name": self.flow.name},
             "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
             "responded": self.responded,
@@ -2788,6 +2788,7 @@ class ExportFlowResultsTask(BaseExportTask):
         columns.append("Started")
         columns.append("Modified")
         columns.append("Exited")
+        columns.append("Run UUID")
 
         for result_field in result_fields:
             field_name, flow_name = result_field["name"], result_field["flow_name"]
@@ -3033,6 +3034,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 iso8601.parse_date(run["created_on"]),
                 iso8601.parse_date(run["modified_on"]),
                 iso8601.parse_date(run["exited_on"]) if run["exited_on"] else None,
+                run["uuid"],
             ]
             runs_sheet_row += result_values
 
@@ -3151,14 +3153,12 @@ class FlowStart(models.Model):
     # when this flow start was created
     created_on = models.DateTimeField(default=timezone.now, editable=False)
 
-    # deprecated fields
-    is_active = models.BooleanField(default=True, null=True)
-
-    modified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True)
-
-    modified_on = models.DateTimeField(default=timezone.now, editable=False, null=True)
-
     contact_count = models.IntegerField(default=0, null=True)
+
+    # TODO: remove these deprecated fields
+    is_active = models.BooleanField(default=True, null=True)
+    modified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True)
+    modified_on = models.DateTimeField(default=timezone.now, editable=False, null=True)
 
     @classmethod
     def create(
