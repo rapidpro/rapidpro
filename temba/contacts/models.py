@@ -1233,7 +1233,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def update(cls, org_id, user_id, contact_id, name, language):
-        existing = Contact.objects.filter(id=contact_id).first()
+        existing = Contact.objects.filter(id=contact_id, org_id=org_id).first()
         if existing is None:
             return
 

@@ -3907,6 +3907,30 @@ class ContactTest(TembaTest):
                 response, "form", None, "An error occurred updating your contact. Please try again later."
             )
 
+    def test_contact_model_update(self):
+        self.login(self.admin)
+
+        self.client.post(reverse("orgs.org_languages"), dict(primary_lang="eng", languages="fra"))
+        self.assertIsNone(self.joe.language)
+
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.contact_modify.return_value = {"1": {"contact": {}, "events": []}}
+
+            Contact.update(self.org.id, self.admin.id, self.other_org_contact.id, "Muller", "eng")
+
+            self.assertFalse(instance.contact_modify.called)
+
+            Contact.update(self.org.id, self.admin.id, self.joe.id, "Muller", "eng")
+
+            instance.contact_modify.assert_called_once_with(
+                self.joe.org.id,
+                self.admin.id,
+                [self.joe.id],
+                [{"type": "name", "name": "Muller"}, {"type": "language", "language": "eng"}],
+            )
+
+
     def test_number_normalized(self):
         self.org.country = None
         self.org.save(update_fields=("country",))
