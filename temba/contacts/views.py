@@ -890,6 +890,31 @@ class ContactCRUDL(SmartCRUDL):
         fields = ("csv_file",)
         success_message = ""
 
+        def get(self, *args, **kwargs):
+            # overwritten to unblock contacts manually when unblock param is present
+            task = self.request.GET.get('task')
+            task = ImportTask.objects.filter(id=task).last()
+            results = json.loads(task.import_results) if task and task.import_results else dict()
+            blocked_contacts = results.pop('blocked_contacts', [])
+            group = ContactGroup.user_groups.filter(import_task=task).first()
+            unblock = self.request.GET.get('unblock')
+            unblock = True if unblock == 'true' else False
+            
+            if unblock and blocked_contacts:
+                # unblock contact
+                contacts = Contact.objects.filter(id__in=blocked_contacts)
+                contacts.update(is_blocked=False)
+
+                # adding contact to the task group
+                if group:
+                    group.contacts.add(*contacts)
+                    group.save()
+                
+                # update import_results because it doesn't has an blocked_contacts anymore
+                task.import_results = json.dumps(results)
+                task.save()
+            return super().get(*args, **kwargs)
+
         def pre_save(self, task):
             super().pre_save(task)
 
