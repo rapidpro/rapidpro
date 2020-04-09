@@ -70,6 +70,7 @@ class MailroomClientTest(TembaTest):
 
             response = get_client().contact_modify(
                 1,
+                1,
                 [1],
                 {
                     "type": "groups",
@@ -83,6 +84,7 @@ class MailroomClientTest(TembaTest):
                 headers={"User-Agent": "Temba"},
                 json={
                     "org_id": 1,
+                    "user_id": 1,
                     "contact_ids": [1],
                     "modifiers": {
                         "type": "groups",

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-04 02:10+0000\n"
+"POT-Creation-Date: 2020-04-09 14:30+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2569,6 +2569,11 @@ msgstr "Le nom de ce contact"
 msgid "The preferred language for this contact"
 msgstr "La langue préférée pour ce contact"
 
+#, fuzzy
+#| msgid "We encountered an error removing your channel, please try again later."
+msgid "An error occurred updating your contact. Please try again later."
+msgstr "Nous avons rencontré une erreur de retrait de votre channel, s'il vous plaît réessayer plus tard."
+
 msgid "Provided URNs belong to different existing contacts"
 msgstr "Les URNs fournis appartiennent à différents contacts existants"
 
@@ -2841,11 +2846,6 @@ msgstr "Supprimer le groupe"
 
 msgid "Create"
 msgstr "Créer"
-
-#, fuzzy
-#| msgid "We encountered an error removing your channel, please try again later."
-msgid "An error occurred updating your contact. Please try again later."
-msgstr "Nous avons rencontré une erreur de retrait de votre channel, s'il vous plaît réessayer plus tard."
 
 msgid "Contact blocked"
 msgstr "Contact bloqué"
