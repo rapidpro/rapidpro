@@ -1989,6 +1989,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         return {
             "id": self.id,
+            "uuid": str(self.uuid),
             "flow": {"uuid": str(self.flow.uuid), "name": self.flow.name},
             "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
             "responded": self.responded,
@@ -2787,6 +2788,7 @@ class ExportFlowResultsTask(BaseExportTask):
         columns.append("Started")
         columns.append("Modified")
         columns.append("Exited")
+        columns.append("Run UUID")
 
         for result_field in result_fields:
             field_name, flow_name = result_field["name"], result_field["flow_name"]
@@ -3032,6 +3034,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 iso8601.parse_date(run["created_on"]),
                 iso8601.parse_date(run["modified_on"]),
                 iso8601.parse_date(run["exited_on"]) if run["exited_on"] else None,
+                run["uuid"],
             ]
             runs_sheet_row += result_values
 
