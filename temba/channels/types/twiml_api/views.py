@@ -1,5 +1,3 @@
-from uuid import uuid4
-
 import phonenumbers
 from smartmin.views import SmartFormView
 
@@ -7,6 +5,7 @@ from django import forms
 from django.utils.translation import ugettext_lazy as _
 
 from temba.utils.fields import ExternalURLField
+from temba.utils.uuid import uuid4
 
 from ...models import Channel
 from ...views import ALL_COUNTRIES, ClaimViewMixin

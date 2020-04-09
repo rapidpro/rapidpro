@@ -5,7 +5,6 @@ from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import Mock, patch
 from urllib.parse import urlencode
-from uuid import uuid4
 
 import pytz
 import stripe
@@ -57,6 +56,7 @@ from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json, languages
 from temba.utils.email import link_components
+from temba.utils.uuid import uuid4
 from temba.values.constants import Value
 
 from .context_processors import GroupPermWrapper

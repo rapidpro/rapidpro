@@ -1,5 +1,3 @@
-from uuid import uuid4
-
 from django.utils import timezone
 
 from temba.api.models import WebHookResult
@@ -8,6 +6,7 @@ from temba.contacts.models import URN
 from temba.flows.models import Flow, FlowRun, FlowSession
 from temba.msgs.models import Msg
 from temba.utils.text import slugify_with
+from temba.utils.uuid import uuid4
 
 # engine session statuses to db statuses
 SESSION_STATUSES = {

@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from urllib.parse import quote, urlencode, urlparse
-from uuid import uuid4
 
 import pycountry
 import regex
@@ -45,6 +44,7 @@ from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import random_string
+from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
