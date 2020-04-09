@@ -1,6 +1,6 @@
 import shutil
 from datetime import datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytz
 import redis
@@ -495,6 +495,9 @@ class TembaTestMixin:
             # if expected value is datetime, localize and remove microseconds since Excel doesn't have that accuracy
             if tz and isinstance(expected, datetime):
                 expected = expected.astimezone(tz).replace(microsecond=0, tzinfo=None)
+
+            if isinstance(expected, UUID):
+                expected = str(expected)
 
             self.assertEqual(expected, actual, f"mismatch in cell {chr(index+65)}{row_num+1}")
 
