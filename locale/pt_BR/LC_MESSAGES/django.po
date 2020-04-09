@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-06 07:01+0000\n"
+"POT-Creation-Date: 2020-04-09 18:37+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4814,6 +4814,14 @@ msgstr "Número do telefone"
 msgid "Phone number for testing and recording voice flows"
 msgstr "Número do telefone para testar e gravar fluxos de voz"
 
+#, fuzzy
+#| msgid "API Secret:"
+msgid "OTP Secret"
+msgstr "Segredo da API:"
+
+msgid "Two Factor Enabled"
+msgstr ""
+
 msgid "Price Paid"
 msgstr "Preço Pago"
 
@@ -5151,7 +5159,7 @@ msgstr "Grupo do usuário"
 msgid "One of the emails you entered is invalid."
 msgstr "Um dos e-mails que você digitou é inválido."
 
-msgid "I scanned the qrcode with an application with Google Authenticator for example, and enter the generated token."
+msgid "Enter the code from your authentication application"
 msgstr ""
 
 #, fuzzy
@@ -5599,18 +5607,8 @@ msgstr "Criar disparador"
 msgid "Create Schedule"
 msgstr "Criar agendamento"
 
-#, fuzzy
-#| msgid "Username"
-msgid "User"
-msgstr "Nome de usuário"
-
-#, fuzzy
-#| msgid "API Secret:"
-msgid "OTP Secret"
-msgstr "Segredo da API:"
-
-msgid "Two Factor Enabled"
-msgstr ""
+msgid "Settings"
+msgstr "Configurações"
 
 msgid "Used"
 msgstr ""
@@ -6025,9 +6023,6 @@ msgstr "Envio em massa habilitado"
 
 msgid "Voice calls enabled"
 msgstr "Chamadas de voz habilitado"
-
-msgid "Settings"
-msgstr "Configurações"
 
 #, fuzzy
 #| msgid "Channel"
@@ -10053,13 +10048,10 @@ msgid ""
 "        "
 msgstr ""
 
-msgid "These are your backup tokens, save them somewhere safe and use when you lose access to the application you used to generate your access code via qrcode."
+msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
 msgstr ""
 
 msgid "Generate Backup Tokens"
-msgstr ""
-
-msgid "You can disable two-factor authentication on your account."
 msgstr ""
 
 msgid "Disable Two Factor"
@@ -11510,6 +11502,11 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Username"
+#~ msgid "User"
+#~ msgstr "Nome de usuário"
 
 #, fuzzy
 #~ msgid "Previous Editor"

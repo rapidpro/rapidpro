@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-06 07:01+0000\n"
+"POT-Creation-Date: 2020-04-09 18:37+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3627,6 +3627,12 @@ msgstr ""
 msgid "Phone number for testing and recording voice flows"
 msgstr ""
 
+msgid "OTP Secret"
+msgstr ""
+
+msgid "Two Factor Enabled"
+msgstr ""
+
 msgid "Price Paid"
 msgstr ""
 
@@ -3922,7 +3928,7 @@ msgstr ""
 msgid "One of the emails you entered is invalid."
 msgstr ""
 
-msgid "I scanned the qrcode with an application with Google Authenticator for example, and enter the generated token."
+msgid "Enter the code from your authentication application"
 msgstr ""
 
 msgid "Invalid MFA token. Please try again."
@@ -4309,13 +4315,7 @@ msgstr ""
 msgid "Create Schedule"
 msgstr ""
 
-msgid "User"
-msgstr ""
-
-msgid "OTP Secret"
-msgstr ""
-
-msgid "Two Factor Enabled"
+msgid "Settings"
 msgstr ""
 
 msgid "Used"
@@ -4603,9 +4603,6 @@ msgid "Bulk sending enabled"
 msgstr ""
 
 msgid "Voice calls enabled"
-msgstr ""
-
-msgid "Settings"
 msgstr ""
 
 msgid "Channel Log"
@@ -7714,13 +7711,10 @@ msgid ""
 "        "
 msgstr ""
 
-msgid "These are your backup tokens, save them somewhere safe and use when you lose access to the application you used to generate your access code via qrcode."
+msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
 msgstr ""
 
 msgid "Generate Backup Tokens"
-msgstr ""
-
-msgid "You can disable two-factor authentication on your account."
 msgstr ""
 
 msgid "Disable Two Factor"

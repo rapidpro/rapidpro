@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-06 07:01+0000\n"
+"POT-Creation-Date: 2020-04-09 18:37+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3932,6 +3932,14 @@ msgstr "Numéro de téléphone"
 msgid "Phone number for testing and recording voice flows"
 msgstr "Numéro de téléphone pour les essais et l'enregistrement des flux voix "
 
+#, fuzzy
+#| msgid "API Secret"
+msgid "OTP Secret"
+msgstr "Secret API"
+
+msgid "Two Factor Enabled"
+msgstr ""
+
 msgid "Price Paid"
 msgstr "Prix ​​payé"
 
@@ -4227,7 +4235,7 @@ msgstr "Groupe d'utilisateurs"
 msgid "One of the emails you entered is invalid."
 msgstr "L'un des e-mails que vous avez inscrits est invalide."
 
-msgid "I scanned the qrcode with an application with Google Authenticator for example, and enter the generated token."
+msgid "Enter the code from your authentication application"
 msgstr ""
 
 #, fuzzy
@@ -4623,18 +4631,8 @@ msgstr "Créer un déclencheur de référence"
 msgid "Create Schedule"
 msgstr "Créer un planning"
 
-#, fuzzy
-#| msgid "Username"
-msgid "User"
-msgstr "Nom d'utilisateur"
-
-#, fuzzy
-#| msgid "API Secret"
-msgid "OTP Secret"
-msgstr "Secret API"
-
-msgid "Two Factor Enabled"
-msgstr ""
+msgid "Settings"
+msgstr "Paramètres"
 
 msgid "Used"
 msgstr ""
@@ -4922,9 +4920,6 @@ msgstr "Envoi groupé configuré"
 
 msgid "Voice calls enabled"
 msgstr "Les appels vocaux activés"
-
-msgid "Settings"
-msgstr "Paramètres"
 
 msgid "Channel Log"
 msgstr "Journal des canaux"
@@ -9022,13 +9017,10 @@ msgstr ""
 "          Déconnecter votre compte Twilio supprimera également tous les canaux Twilio qui y sont connectés. Êtes-vous sur de vouloir continuer?\n"
 "        "
 
-msgid "These are your backup tokens, save them somewhere safe and use when you lose access to the application you used to generate your access code via qrcode."
+msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
 msgstr ""
 
 msgid "Generate Backup Tokens"
-msgstr ""
-
-msgid "You can disable two-factor authentication on your account."
 msgstr ""
 
 msgid "Disable Two Factor"
@@ -10514,6 +10506,11 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy
+#~| msgid "Username"
+#~ msgid "User"
+#~ msgstr "Nom d'utilisateur"
 
 #~ msgid "Previous Editor"
 #~ msgstr "Editeur précédent"
