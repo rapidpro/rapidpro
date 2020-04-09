@@ -9,7 +9,7 @@ def uuid4() -> UUID:
     return default_generator()
 
 
-def uuid4_generator(seed: int):
+def seeded_generator(seed: int):
     """
     Returns a UUID v4 generation function which is backed by a RNG with the given seed
     """

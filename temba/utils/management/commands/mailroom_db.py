@@ -263,7 +263,7 @@ class Command(BaseCommand):
         # patch UUID generation so it's deterministic
         from temba.utils import uuid
 
-        uuid.default_generator = uuid.uuid4_generator(1234)
+        uuid.default_generator = uuid.seeded_generator(1234)
 
         self._log("Running migrations...\n")
 
