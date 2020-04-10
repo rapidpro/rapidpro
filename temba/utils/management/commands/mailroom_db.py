@@ -460,7 +460,7 @@ class Command(BaseCommand):
 
         for f in spec["flows"]:
             with open("media/test_flows/mailroom/" + f["file"], "r") as flow_file:
-                org.import_app(json.load(flow_file), user, legacy=True)
+                org.import_app(json.load(flow_file), user)
 
                 # set the uuid on this flow
                 Flow.objects.filter(org=org, name=f["name"]).update(uuid=f["uuid"])
