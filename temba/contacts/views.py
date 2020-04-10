@@ -655,11 +655,18 @@ class ContactCRUDL(SmartCRUDL):
                 used_labels = []
                 # don't allow users to specify field keys or labels
                 re_col_name_field = regex.compile(r"column_\w+_label$", regex.V0)
+                re_col_name_include = regex.compile(r"column_(?P<name>\w+)_label$", regex.V0)
                 for key, value in self.data.items():
                     if re_col_name_field.match(key):
                         field_label = value.strip()
                         if field_label.startswith("[_NEW_]"):
                             field_label = field_label[7:]
+
+                        # skip fields that are not included and remove them from data
+                        column_name = re_col_name_include.match(key).groupdict().get('name')
+                        column_include = self.data.get("column_{}_include".format(column_name))
+                        if not column_include or 'on' not in column_include:
+                            continue
 
                         field_key = ContactField.make_key(field_label)
 
