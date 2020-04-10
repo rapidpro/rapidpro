@@ -1477,7 +1477,7 @@ class ContactCRUDL(SmartCRUDL):
             return super().get_form()
 
         def save(self, obj):
-            obj.update(self.request.user.id, obj.name, obj.language)
+            obj.update(self.request.user, obj.name, obj.language)
 
             new_groups = self.form.cleaned_data.get("groups")
             if new_groups is not None:
