@@ -925,6 +925,7 @@ class Flow(TembaModel):
         """
 
         flow_start = FlowStart.objects.create(
+            org=self.org,
             flow=self,
             restart_participants=restart_participants,
             include_active=include_active,
@@ -3110,6 +3111,9 @@ class FlowStart(models.Model):
     # the uuid of this start
     uuid = models.UUIDField(unique=True, default=uuid4)
 
+    # the org the flow belongs to
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flow_starts", null=True)
+
     # the flow that should be started
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="starts")
 
@@ -3153,12 +3157,11 @@ class FlowStart(models.Model):
     # when this flow start was created
     created_on = models.DateTimeField(default=timezone.now, editable=False)
 
-    contact_count = models.IntegerField(default=0, null=True)
-
-    # TODO: remove these deprecated fields
-    is_active = models.BooleanField(default=True, null=True)
-    modified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True)
+    # when this flow start was last modified
     modified_on = models.DateTimeField(default=timezone.now, editable=False, null=True)
+
+    # the number of de-duped contacts that might be started, depending on options above
+    contact_count = models.IntegerField(default=0, null=True)
 
     @classmethod
     def create(
@@ -3179,13 +3182,13 @@ class FlowStart(models.Model):
             groups = []
 
         start = FlowStart.objects.create(
+            org=flow.org,
             flow=flow,
             restart_participants=restart_participants,
             include_active=include_active,
             campaign_event=campaign_event,
             extra=extra,
             created_by=user,
-            created_on=timezone.now(),
         )
 
         for contact in contacts:
