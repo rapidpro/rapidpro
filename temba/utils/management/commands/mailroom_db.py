@@ -280,9 +280,8 @@ class Command(BaseCommand):
         superuser = User.objects.create_superuser("root", "root@nyaruka.com", USER_PASSWORD)
         self._log(self.style.SUCCESS("OK") + "\n")
 
-        input(
-            '\nPlease start mailroom:\n   % ./mailroom -db="postgres://mailroom_test:temba@localhost/mailroom_test?sslmode=disable"\n\nPress enter when ready.\n'
-        )
+        mr_cmd = 'mailroom -db="postgres://mailroom_test:temba@localhost/mailroom_test?sslmode=disable" -uuid-seed=123'
+        input(f"\nPlease start mailroom:\n   % ./{mr_cmd}\n\nPress enter when ready.\n")
 
         country, locations = self.load_locations(LOCATIONS_DUMP)
 
