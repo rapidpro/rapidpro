@@ -227,3 +227,9 @@ ELASTIC_APM = {
         "elasticapm.processors.sanitize_http_request_body",
     ),
 }
+
+
+# -----------------------------------------------------------------------------------
+# Crontab Settings ..
+# -----------------------------------------------------------------------------------
+CELERYBEAT_SCHEDULE["retry-errored-messages"] = {"task": "retry_errored_messages", "schedule": timedelta(hour=1)}
