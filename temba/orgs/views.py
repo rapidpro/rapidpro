@@ -1479,7 +1479,7 @@ class OrgCRUDL(SmartCRUDL):
                 settings = UserSettings.objects.get(user=user)
                 settings.otp_secret = secret
                 settings.save()
-            except UserSettings.DoesNotExist: # pragma: no cover
+            except UserSettings.DoesNotExist:  # pragma: no cover
                 UserSettings.objects.create(user=user, otp_secret=secret)
 
             secret_url = self.get_secret_url()
@@ -1489,7 +1489,7 @@ class OrgCRUDL(SmartCRUDL):
             form = self.get_form()
             if "disable_two_factor_auth" in request.POST:
                 self.disable_two_factor_auth()
-            if "get_backup_tokens" in request.POST: # pragma: no cover
+            if "get_backup_tokens" in request.POST:  # pragma: no cover
                 tokens = self.get_backup_tokens()
                 data = {"tokens": tokens}
                 return JsonResponse(data)
