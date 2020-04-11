@@ -260,6 +260,11 @@ class Command(BaseCommand):
         settings.DATABASES["default"]["NAME"] = "mailroom_test"
         settings.DATABASES["default"]["USER"] = "mailroom_test"
 
+        # patch UUID generation so it's deterministic
+        from temba.utils import uuid
+
+        uuid.default_generator = uuid.seeded_generator(1234)
+
         self._log("Running migrations...\n")
 
         # run our migrations to put our database in the right state
@@ -275,9 +280,8 @@ class Command(BaseCommand):
         superuser = User.objects.create_superuser("root", "root@nyaruka.com", USER_PASSWORD)
         self._log(self.style.SUCCESS("OK") + "\n")
 
-        input(
-            '\nPlease start mailroom:\n   % ./mailroom -db="postgres://mailroom_test:temba@localhost/mailroom_test?sslmode=disable"\n\nPress enter when ready.\n'
-        )
+        mr_cmd = 'mailroom -db="postgres://mailroom_test:temba@localhost/mailroom_test?sslmode=disable" -uuid-seed=123'
+        input(f"\nPlease start mailroom:\n   % ./{mr_cmd}\n\nPress enter when ready.\n")
 
         country, locations = self.load_locations(LOCATIONS_DUMP)
 
@@ -456,7 +460,7 @@ class Command(BaseCommand):
 
         for f in spec["flows"]:
             with open("media/test_flows/mailroom/" + f["file"], "r") as flow_file:
-                org.import_app(json.load(flow_file), user, legacy=True)
+                org.import_app(json.load(flow_file), user)
 
                 # set the uuid on this flow
                 Flow.objects.filter(org=org, name=f["name"]).update(uuid=f["uuid"])

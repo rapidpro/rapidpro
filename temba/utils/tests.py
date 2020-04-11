@@ -33,7 +33,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGr
 from temba.flows.models import FlowRun
 from temba.orgs.models import Org, UserSettings
 from temba.tests import ESMockWithScroll, TembaTest, matchers
-from temba.utils import json
+from temba.utils import json, uuid
 from temba.utils.json import TembaJsonAdapter
 
 from . import (
@@ -1147,17 +1147,17 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
         )
         assertOrgCounts(ContactField.user_fields.all(), [6, 6, 6])
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
-        assertOrgCounts(Contact.objects.all(), [18, 5, 7])
+        assertOrgCounts(Contact.objects.all(), [12, 11, 7])
 
         org_1_all_contacts = ContactGroup.system_groups.get(org=org1, name="All Contacts")
 
-        self.assertEqual(org_1_all_contacts.contacts.count(), 18)
+        self.assertEqual(org_1_all_contacts.contacts.count(), 12)
         self.assertEqual(
-            list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list("count")), [(18,)]
+            list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list("count")), [(12,)]
         )
 
         # same seed should generate objects with same UUIDs
-        self.assertEqual(ContactGroup.user_groups.order_by("id").first().uuid, "12b01ad0-db44-462d-81e6-dc0995c13a79")
+        self.assertEqual(ContactGroup.user_groups.order_by("id").first().uuid, "086dde0d-eb11-4413-aa44-6896fef91f7f")
 
         # check if contact fields are serialized
         self.assertIsNotNone(Contact.objects.first().fields)
@@ -1859,3 +1859,20 @@ class TestValidators(TestCase):
                     validate_external_url(case["url"])
 
                 self.assertTrue(case["error"] in str(cm.exception), f"{case['error']} not in {cm.exception}")
+
+
+class TestUUIDs(TembaTest):
+    def test_seeded_generator(self):
+        g = uuid.seeded_generator(123)
+        self.assertEqual(uuid.UUID("66b3670d-b37d-4644-aedd-51167c53dac4", version=4), g())
+        self.assertEqual(uuid.UUID("07ff4068-f3de-4c44-8a3e-921b952aa8d6", version=4), g())
+
+        # same seed, same UUIDs
+        g = uuid.seeded_generator(123)
+        self.assertEqual(uuid.UUID("66b3670d-b37d-4644-aedd-51167c53dac4", version=4), g())
+        self.assertEqual(uuid.UUID("07ff4068-f3de-4c44-8a3e-921b952aa8d6", version=4), g())
+
+        # different seed, different UUIDs
+        g = uuid.seeded_generator(456)
+        self.assertEqual(uuid.UUID("8c338abf-94e2-4c73-9944-72f7a6ff5877", version=4), g())
+        self.assertEqual(uuid.UUID("c8e0696f-b3f6-4e63-a03a-57cb95bdb6e3", version=4), g())
