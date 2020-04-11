@@ -1,7 +1,6 @@
-from uuid import uuid4
-
 from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
+from temba.utils.uuid import uuid4
 
 
 class Action:

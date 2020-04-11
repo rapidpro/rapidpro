@@ -1,5 +1,3 @@
-from uuid import uuid4
-
 import phonenumbers
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartFormView
@@ -13,6 +11,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import WHATSAPP_SCHEME
 from temba.orgs.models import Org
 from temba.utils import analytics
+from temba.utils.uuid import uuid4
 
 from ...models import Channel
 from ...views import ALL_COUNTRIES, TWILIO_SUPPORTED_COUNTRIES, BaseClaimNumberMixin, ClaimViewMixin

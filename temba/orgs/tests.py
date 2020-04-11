@@ -5,7 +5,6 @@ from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import Mock, patch
 from urllib.parse import urlencode
-from uuid import uuid4
 
 import pytz
 import stripe
@@ -58,6 +57,7 @@ from temba.triggers.models import Trigger
 from temba.two_factor.models import BackupToken
 from temba.utils import dict_to_struct, json, languages
 from temba.utils.email import link_components
+from temba.utils.uuid import uuid4
 from temba.values.constants import Value
 
 from .context_processors import GroupPermWrapper
@@ -320,7 +320,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
         )
         parent_trigger.groups.add(self.parent_org.all_groups.all().first())
 
-        FlowStart.objects.create(flow=parent_flow)
+        FlowStart.objects.create(org=self.parent_org, flow=parent_flow)
 
         child_trigger = Trigger.create(
             self.child_org,

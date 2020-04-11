@@ -1,6 +1,5 @@
 import shutil
 from datetime import datetime
-from uuid import UUID, uuid4
 
 import pytz
 import redis
@@ -22,6 +21,7 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Broadcast, Label, Msg
 from temba.orgs.models import Org
 from temba.utils import json
+from temba.utils.uuid import UUID, uuid4
 from temba.values.constants import Value
 
 

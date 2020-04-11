@@ -2,7 +2,6 @@ import logging
 import time
 from array import array
 from datetime import date, datetime, timedelta
-from uuid import uuid4
 
 import iso8601
 import pytz
@@ -30,6 +29,7 @@ from temba.utils import chunk_list, extract_constants, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
 from temba.utils.text import clean_string
+from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
