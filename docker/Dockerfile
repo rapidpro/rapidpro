@@ -29,7 +29,6 @@ RUN npm install
 
 COPY ./pip-freeze.txt /app
 RUN pip install --no-cache-dir -r pip-freeze.txt
-RUN pip install gevent
 
 COPY . .
 RUN ln -s /app/temba/settings.py.prod /app/temba/settings.py
