@@ -5,7 +5,6 @@ from collections import OrderedDict, defaultdict
 from datetime import date, timedelta
 from enum import Enum
 from urllib.request import urlopen
-from uuid import uuid4
 
 import iso8601
 import regex
@@ -45,6 +44,7 @@ from temba.utils.models import (
     generate_uuid,
 )
 from temba.utils.s3 import public_file_storage
+from temba.utils.uuid import uuid4
 from temba.values.constants import Value
 
 from . import legacy
@@ -129,17 +129,20 @@ class Flow(TembaModel):
     FLOW_TYPE = "flow_type"
     ID = "id"
 
-    # items in Flow.metadata
+    # items in metadata
     METADATA = "metadata"
-    METADATA_SAVED_ON = "saved_on"
-    METADATA_NAME = "name"
-    METADATA_REVISION = "revision"
-    METADATA_EXPIRES = "expires"
     METADATA_RESULTS = "results"
     METADATA_DEPENDENCIES = "dependencies"
     METADATA_WAITING_EXIT_UUIDS = "waiting_exit_uuids"
     METADATA_PARENT_REFS = "parent_refs"
     METADATA_ISSUES = "issues"
+    METADATA_IVR_RETRY = "ivr_retry"
+
+    # items in legacy metadata
+    METADATA_SAVED_ON = "saved_on"
+    METADATA_NAME = "name"
+    METADATA_REVISION = "revision"
+    METADATA_EXPIRES = "expires"
 
     # items in the response from mailroom flow inspection
     INSPECT_RESULTS = "results"
@@ -1107,14 +1110,20 @@ class Flow(TembaModel):
         return metadata
 
     @classmethod
-    def get_metadata(cls, flow_info):
-        return {
+    def get_metadata(cls, flow_info, previous=None):
+        data = {
             Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
             Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
             Flow.METADATA_WAITING_EXIT_UUIDS: flow_info[Flow.INSPECT_WAITING_EXITS],
             Flow.METADATA_PARENT_REFS: flow_info[Flow.INSPECT_PARENT_REFS],
             Flow.METADATA_ISSUES: flow_info[Flow.INSPECT_ISSUES],
         }
+
+        # IVR retry is the only value in metadata that doesn't come from flow inspection
+        if previous and Flow.METADATA_IVR_RETRY in previous:
+            data[Flow.METADATA_IVR_RETRY] = previous[Flow.METADATA_IVR_RETRY]
+
+        return data
 
     @classmethod
     def detect_invalid_cycles(cls, json_dict):
@@ -1265,7 +1274,7 @@ class Flow(TembaModel):
         with transaction.atomic():
             # update our flow fields
             self.base_language = definition.get(Flow.DEFINITION_LANGUAGE, None)
-            self.metadata = Flow.get_metadata(flow_info)
+            self.metadata = Flow.get_metadata(flow_info, self.metadata)
             self.saved_by = user
             self.saved_on = timezone.now()
             self.version_number = Flow.CURRENT_SPEC_VERSION
@@ -1990,6 +1999,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         return {
             "id": self.id,
+            "uuid": str(self.uuid),
             "flow": {"uuid": str(self.flow.uuid), "name": self.flow.name},
             "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
             "responded": self.responded,
@@ -2788,6 +2798,7 @@ class ExportFlowResultsTask(BaseExportTask):
         columns.append("Started")
         columns.append("Modified")
         columns.append("Exited")
+        columns.append("Run UUID")
 
         for result_field in result_fields:
             field_name, flow_name = result_field["name"], result_field["flow_name"]
@@ -3033,6 +3044,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 iso8601.parse_date(run["created_on"]),
                 iso8601.parse_date(run["modified_on"]),
                 iso8601.parse_date(run["exited_on"]) if run["exited_on"] else None,
+                run["uuid"],
             ]
             runs_sheet_row += result_values
 

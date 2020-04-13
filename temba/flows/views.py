@@ -1,7 +1,6 @@
 import logging
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
-from uuid import uuid4
 
 import iso8601
 import regex
@@ -53,6 +52,7 @@ from temba.utils import analytics, gettext, json, on_transaction_commit, str_to_
 from temba.utils.fields import ContactSearchWidget, JSONField, OmniboxChoice, SelectWidget
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
+from temba.utils.uuid import uuid4
 from temba.utils.views import BaseActionForm, NonAtomicMixin
 
 from .models import (
@@ -699,7 +699,7 @@ class FlowCRUDL(SmartCRUDL):
                 metadata[Flow.CONTACT_CREATION] = self.form.cleaned_data[Flow.CONTACT_CREATION]
 
             if "ivr_retry" in self.form.cleaned_data:
-                metadata["ivr_retry"] = int(self.form.cleaned_data["ivr_retry"])
+                metadata[Flow.METADATA_IVR_RETRY] = int(self.form.cleaned_data["ivr_retry"])
 
             obj.metadata = metadata
             return obj
