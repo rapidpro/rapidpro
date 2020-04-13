@@ -6347,10 +6347,23 @@ class PopulateFlowStartOrgTest(MigrationTest):
 
         # clear org so migration sets it
         FlowStart.objects.all().update(org=None)
+        self.start1, self.start2, self.start3 = FlowStart.objects.order_by("id")
 
-        # create one with org already set
-        FlowStart.create(flow1, self.admin, contacts=[contact])
+        # create a new one with modified_on cleared
+        self.start4 = FlowStart.create(flow2, self.admin, contacts=[contact])
+        self.start4.modified_on = None
+        self.start4.save()
+
+        # create a new one which will have both fields already set
+        self.start5 = FlowStart.create(flow1, self.admin, contacts=[contact])
 
     def test_migration(self):
-        self.assertEqual(3, FlowStart.objects.filter(org=self.org).count())
-        self.assertEqual(1, FlowStart.objects.filter(org=self.org2).count())
+        for s in (self.start1, self.start2, self.start3, self.start4, self.start5):
+            s.refresh_from_db()
+            self.assertIsNotNone(s.modified_on)
+
+        self.assertEqual(self.org, self.start1.org)
+        self.assertEqual(self.org, self.start2.org)
+        self.assertEqual(self.org2, self.start3.org)
+        self.assertEqual(self.org, self.start4.org)
+        self.assertEqual(self.org, self.start5.org)
