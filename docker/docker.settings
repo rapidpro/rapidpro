@@ -178,6 +178,7 @@ FDL_URL = os.environ.get("FDL_URL", "")
 
 # Parse configuration
 PARSE_SERVER_NAME = os.environ.get("PARSE_SERVER_NAME", "")
+PARSE_ENDPOINT = os.environ.get("PARSE_ENDPOINT",  "/parse/")
 PARSE_URL = os.environ.get("PARSE_URL", "")
 PARSE_APP_ID = os.environ.get("PARSE_APP_ID", "")
 PARSE_REST_KEY = os.environ.get("PARSE_REST_KEY", "")
