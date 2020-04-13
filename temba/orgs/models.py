@@ -407,7 +407,7 @@ class Org(SmartModel):
             headers = spamreader.columns.tolist()
 
             # Removing empty columns name from CSV files imported
-            headers = [str(item).lower() for item in headers if "Unnamed" not in item]
+            headers = [slugify(str(item).lower()).replace('-', '_') for item in headers if "Unnamed" not in item]
         finally:
             os.remove(tmp_file)
 

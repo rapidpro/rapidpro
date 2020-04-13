@@ -1193,6 +1193,7 @@ FDL_URL = "FirebaseDynamicLinkURL"
 # Parse configuration
 PARSE_SERVER_NAME = ""
 PARSE_URL = ""
+PARSE_ENDPOINT = "/parse/"
 PARSE_APP_ID = ""
 PARSE_REST_KEY = ""
 PARSE_MASTER_KEY = ""
