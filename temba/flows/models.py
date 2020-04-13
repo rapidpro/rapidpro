@@ -129,17 +129,20 @@ class Flow(TembaModel):
     FLOW_TYPE = "flow_type"
     ID = "id"
 
-    # items in Flow.metadata
+    # items in metadata
     METADATA = "metadata"
-    METADATA_SAVED_ON = "saved_on"
-    METADATA_NAME = "name"
-    METADATA_REVISION = "revision"
-    METADATA_EXPIRES = "expires"
     METADATA_RESULTS = "results"
     METADATA_DEPENDENCIES = "dependencies"
     METADATA_WAITING_EXIT_UUIDS = "waiting_exit_uuids"
     METADATA_PARENT_REFS = "parent_refs"
     METADATA_ISSUES = "issues"
+    METADATA_IVR_RETRY = "ivr_retry"
+
+    # items in legacy metadata
+    METADATA_SAVED_ON = "saved_on"
+    METADATA_NAME = "name"
+    METADATA_REVISION = "revision"
+    METADATA_EXPIRES = "expires"
 
     # items in the response from mailroom flow inspection
     INSPECT_RESULTS = "results"
@@ -1107,14 +1110,20 @@ class Flow(TembaModel):
         return metadata
 
     @classmethod
-    def get_metadata(cls, flow_info):
-        return {
+    def get_metadata(cls, flow_info, previous=None):
+        data = {
             Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
             Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
             Flow.METADATA_WAITING_EXIT_UUIDS: flow_info[Flow.INSPECT_WAITING_EXITS],
             Flow.METADATA_PARENT_REFS: flow_info[Flow.INSPECT_PARENT_REFS],
             Flow.METADATA_ISSUES: flow_info[Flow.INSPECT_ISSUES],
         }
+
+        # IVR retry is the only value in metadata that doesn't come from flow inspection
+        if previous and Flow.METADATA_IVR_RETRY in previous:
+            data[Flow.METADATA_IVR_RETRY] = previous[Flow.METADATA_IVR_RETRY]
+
+        return data
 
     @classmethod
     def detect_invalid_cycles(cls, json_dict):
@@ -1265,7 +1274,7 @@ class Flow(TembaModel):
         with transaction.atomic():
             # update our flow fields
             self.base_language = definition.get(Flow.DEFINITION_LANGUAGE, None)
-            self.metadata = Flow.get_metadata(flow_info)
+            self.metadata = Flow.get_metadata(flow_info, self.metadata)
             self.saved_by = user
             self.saved_on = timezone.now()
             self.version_number = Flow.CURRENT_SPEC_VERSION

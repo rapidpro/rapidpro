@@ -2608,6 +2608,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         voice_flow.refresh_from_db()
         self.assertEqual(voice_flow.metadata["ivr_retry"], 1440)
 
+        # check we still have that value after saving a new revision
+        voice_flow.save_revision(self.admin, voice_flow.as_json())
+        self.assertEqual(voice_flow.metadata["ivr_retry"], 1440)
+
         # update flow triggers, and test if form has expected fields
         post_data = dict()
         response = self.client.post(reverse("flows.flow_update", args=[flow3.pk]), post_data, follow=True)
@@ -2680,7 +2684,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check flow listing
         response = self.client.get(reverse("flows.flow_list"))
-        self.assertEqual(list(response.context["object_list"]), [flow3, voice_flow, flow2, flow1, flow])  # by saved_on
+        self.assertEqual(list(response.context["object_list"]), [voice_flow, flow3, flow2, flow1, flow])  # by saved_on
 
         # test getting the json
         response = self.client.get(reverse("flows.flow_json", args=[flow.uuid]))

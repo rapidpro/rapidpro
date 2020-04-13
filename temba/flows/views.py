@@ -699,7 +699,7 @@ class FlowCRUDL(SmartCRUDL):
                 metadata[Flow.CONTACT_CREATION] = self.form.cleaned_data[Flow.CONTACT_CREATION]
 
             if "ivr_retry" in self.form.cleaned_data:
-                metadata["ivr_retry"] = int(self.form.cleaned_data["ivr_retry"])
+                metadata[Flow.METADATA_IVR_RETRY] = int(self.form.cleaned_data["ivr_retry"])
 
             obj.metadata = metadata
             return obj
