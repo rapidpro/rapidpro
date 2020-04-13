@@ -1,3 +1,7 @@
+v5.5.15
+----------
+ * Update to flow-editor 1.9.2, security patches
+
 v5.5.14
 ----------
  * Ensure IVR retry is preserved on new revisions
