@@ -1448,7 +1448,7 @@ class OrgCRUDL(SmartCRUDL):
                 token = self.cleaned_data.get("token", None)
                 user_pk = self.request.user.pk
                 user = User.objects.get(pk=user_pk)
-                totp = pyotp.TOTP(user.settings.first().otp_secret)
+                totp = pyotp.TOTP(user.get_settings().otp_secret)
                 token_valid = totp.verify(token, valid_window=2)
                 if not token_valid:
                     raise forms.ValidationError(_("Invalid MFA token. Please try again."), code="invalid-token")
