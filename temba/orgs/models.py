@@ -416,10 +416,10 @@ class Org(SmartModel):
         else:
             valid_field_regex = r"^[a-zA-Z][a-zA-Z0-9_ -]*$"
             invalid_fields = [item for item in headers if not re.match(valid_field_regex, item)]
-            reserved_keywords = ["class", "for", "return", "global", "pass", "or", "raise", "def"]
+            reserved_keywords = ["class", "for", "return", "global", "pass", "or", "raise", "def", "id", "objectid"]
 
             if not invalid_fields:
-                invalid_fields = [item for item in headers if item in reserved_keywords]
+                invalid_fields = [item for item in headers if item.replace("numeric_", "").replace("date_", "") in reserved_keywords]
 
             if invalid_fields:
                 raise Exception(
@@ -428,7 +428,7 @@ class Org(SmartModel):
                         "header name. The column names should only contain spaces, underscores, and "
                         "alphanumeric characters. They must begin with a letter and be unique. The following words are "
                         "not allowed on the column names: words such 'class', 'for', 'return', 'global', 'pass', 'or', "
-                        "'raise', and 'def'."
+                        "'raise', 'def', 'id' and 'objectid'."
                     )
                 )
 
