@@ -3223,6 +3223,15 @@ class FlowStart(models.Model):
     def __str__(self):  # pragma: no cover
         return f"FlowStart[id={self.id}, flow={self.flow.uuid}]"
 
+    class Meta:
+        indexes = [
+            models.Index(
+                name="flows_flowstarts_manual",
+                fields=["org", "flow", "-created_on"],
+                condition=Q(created_by__isnull=False),
+            )
+        ]
+
 
 class FlowStartCount(SquashableModel):
     """
