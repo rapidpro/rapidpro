@@ -7,7 +7,7 @@
 
 -block pre-form
 
-  -if not settings.two_factor_enabled
+  -if not user_settings.two_factor_enabled
 
     %canvas#qr
 
@@ -32,7 +32,7 @@
     
 
 -block fields
-  -if not settings.two_factor_enabled
+  -if not user_settings.two_factor_enabled
 
     To enable two factor authentication, use a one time password application such as
     
@@ -119,7 +119,7 @@
       });
 
 - block form-buttons
-  -if not settings.two_factor_enabled
+  -if not user_settings.two_factor_enabled
     {{block.super}}
 
 - block summary

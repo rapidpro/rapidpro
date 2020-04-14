@@ -1506,7 +1506,7 @@ class OrgCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             user = self.get_user()
             user_settings = user.get_settings()
-            context["settings"] = settings
+            context["user_settings"] = user_settings
             return context
 
         def get_secret_url(self):
