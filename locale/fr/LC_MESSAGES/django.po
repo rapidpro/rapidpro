@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-14 22:01+0000\n"
+"POT-Creation-Date: 2020-04-14 22:14+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -7481,11 +7481,6 @@ msgstr ""
 msgid "Back"
 msgstr "Retourner"
 
-#, fuzzy
-#| msgid "Start Flow"
-msgid "Start Log"
-msgstr "Lancer un Flux"
-
 msgid "Unlabel"
 msgstr "Sans étiquette"
 
@@ -10517,6 +10512,11 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy
+#~| msgid "Start Flow"
+#~ msgid "Start Log"
+#~ msgstr "Lancer un Flux"
 
 #, fuzzy
 #~| msgid "Started"

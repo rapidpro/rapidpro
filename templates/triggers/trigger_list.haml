@@ -161,7 +161,7 @@
                                 -trans "not scheduled"
 
                       %td{ width: "250px" }
-                        -include "includes/recipients.haml" with groups=obj.groups.all
+                        -include "includes/recipients.haml" with groups=obj.groups.all contacts=obj.contacts.all
 
                     - empty
                       %tr.empty_list
