@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-14 21:58+0000\n"
+"POT-Creation-Date: 2020-04-14 22:01+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3403,16 +3403,6 @@ msgstr "Nom déjà utilisé"
 #| msgid "Flow Start"
 msgid "Flow Start Log"
 msgstr "Début de flux"
-
-#, fuzzy
-#| msgid "Started"
-msgid "Started By"
-msgstr "Démarré"
-
-#, fuzzy
-#| msgid "Started"
-msgid "Started On"
-msgstr "Démarré"
 
 #, python-format
 msgid "Cannot create a new global as limit is %(limit)s."
@@ -10527,6 +10517,16 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy
+#~| msgid "Started"
+#~ msgid "Started By"
+#~ msgstr "Démarré"
+
+#, fuzzy
+#~| msgid "Started"
+#~ msgid "Started On"
+#~ msgstr "Démarré"
 
 #~ msgid "Previous Editor"
 #~ msgstr "Editeur précédent"

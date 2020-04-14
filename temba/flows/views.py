@@ -2339,11 +2339,7 @@ class FlowStartCRUDL(SmartCRUDL):
 
     class List(OrgQuerysetMixin, OrgPermsMixin, SmartListView):
         title = _("Flow Start Log")
-        fields = ("flow", "created_by", "restart_participants", "include_active", "status", "created_on")
         ordering = ("-created_on",)
 
-        field_config = {"created_by": {"label": _("Started By")}, "created_on": {"label": _("Started On")}}
-
         def derive_queryset(self, *args, **kwargs):
-            qs = super().derive_queryset(*args, **kwargs)
-            return qs.exclude(created_by=None)
+            return super().derive_queryset(*args, **kwargs).exclude(created_by=None)
