@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-09 14:30+0000\n"
+"POT-Creation-Date: 2020-04-14 21:24+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3630,6 +3630,12 @@ msgstr ""
 msgid "Phone number for testing and recording voice flows"
 msgstr ""
 
+msgid "OTP Secret"
+msgstr ""
+
+msgid "Two Factor Enabled"
+msgstr ""
+
 msgid "Price Paid"
 msgstr ""
 
@@ -3923,6 +3929,15 @@ msgid "User group"
 msgstr ""
 
 msgid "One of the emails you entered is invalid."
+msgstr ""
+
+msgid "Enter the code from your authentication application"
+msgstr ""
+
+msgid "Invalid MFA token. Please try again."
+msgstr ""
+
+msgid "Activate"
 msgstr ""
 
 msgid "Select your Organization"
@@ -4303,6 +4318,18 @@ msgstr ""
 msgid "Create Schedule"
 msgstr ""
 
+msgid "Settings"
+msgstr ""
+
+msgid "Used"
+msgstr ""
+
+msgid "Backup Token"
+msgstr ""
+
+msgid "Enter one of the tokens generated when activating the two-factor login"
+msgstr ""
+
 msgid "Processing"
 msgstr ""
 
@@ -4585,9 +4612,6 @@ msgid "Bulk sending enabled"
 msgstr ""
 
 msgid "Voice calls enabled"
-msgstr ""
-
-msgid "Settings"
 msgstr ""
 
 msgid "Channel Log"
@@ -6544,9 +6568,6 @@ msgstr ""
 msgid "Unlabel"
 msgstr ""
 
-msgid "Activate"
-msgstr ""
-
 msgid "Add Label"
 msgstr ""
 
@@ -7697,6 +7718,18 @@ msgid ""
 "\n"
 "          Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?\n"
 "        "
+msgstr ""
+
+msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
+msgstr ""
+
+msgid "Generate Backup Tokens"
+msgstr ""
+
+msgid "Disable Two Factor"
+msgstr ""
+
+msgid "Two Factor Authentication"
 msgstr ""
 
 msgid "This organization has been suspended"
@@ -8860,6 +8893,9 @@ msgid "Choose when you would like the flow to start."
 msgstr ""
 
 msgid "Facebook Channel"
+msgstr ""
+
+msgid "Backup Tokens"
 msgstr ""
 
 msgid "Enter a query"

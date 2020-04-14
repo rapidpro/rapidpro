@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-09 14:30+0000\n"
+"POT-Creation-Date: 2020-04-14 21:24+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -5119,6 +5119,14 @@ msgstr "Número de teléfono"
 msgid "Phone number for testing and recording voice flows"
 msgstr "Número de teléfono para probar y grabar los flujos de voz"
 
+#, fuzzy
+#| msgid "API Secret:"
+msgid "OTP Secret"
+msgstr "Código secreto API:"
+
+msgid "Two Factor Enabled"
+msgstr ""
+
 msgid "Price Paid"
 msgstr "Precio pagado"
 
@@ -5456,6 +5464,17 @@ msgstr "Grupo de usuarios"
 
 msgid "One of the emails you entered is invalid."
 msgstr "Uno de los correos electrónicos que ingresó es inválido."
+
+msgid "Enter the code from your authentication application"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid phone number, try again."
+msgid "Invalid MFA token. Please try again."
+msgstr "Número de teléfono inválido, inténtelo nuevamente."
+
+msgid "Activate"
+msgstr "Activar"
 
 msgid "Select your Organization"
 msgstr "Elija su Organización"
@@ -5891,6 +5910,20 @@ msgstr "Crear activadores"
 
 msgid "Create Schedule"
 msgstr "Crear cronograma"
+
+msgid "Settings"
+msgstr "Configuraciones"
+
+msgid "Used"
+msgstr ""
+
+#, fuzzy
+#| msgid "Account Key"
+msgid "Backup Token"
+msgstr "Clave de la cuenta"
+
+msgid "Enter one of the tokens generated when activating the two-factor login"
+msgstr ""
 
 msgid "Processing"
 msgstr ""
@@ -6330,9 +6363,6 @@ msgstr "Envío masivo permitido"
 
 msgid "Voice calls enabled"
 msgstr "Llamadas de voz permitidas"
-
-msgid "Settings"
-msgstr "Configuraciones"
 
 #, fuzzy
 #| msgid "Channel"
@@ -9332,9 +9362,6 @@ msgstr ""
 msgid "Unlabel"
 msgstr "Retirar la etiqueta"
 
-msgid "Activate"
-msgstr "Activar"
-
 msgid "Add Label"
 msgstr "Agregar etiqueta"
 
@@ -10795,6 +10822,18 @@ msgid ""
 "\n"
 "          Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?\n"
 "        "
+msgstr ""
+
+msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
+msgstr ""
+
+msgid "Generate Backup Tokens"
+msgstr ""
+
+msgid "Disable Two Factor"
+msgstr ""
+
+msgid "Two Factor Authentication"
 msgstr ""
 
 #, fuzzy
@@ -12367,6 +12406,11 @@ msgstr "Elija cuándo le gustaría que empiece el flujo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Borrar teléfono"
+
+#, fuzzy
+#| msgid "Account Key"
+msgid "Backup Tokens"
+msgstr "Clave de la cuenta"
 
 #, fuzzy
 #| msgid "Enter Claim Code"
