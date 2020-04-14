@@ -1444,7 +1444,7 @@ class OrgCRUDL(SmartCRUDL):
                 self.user_cache = None
                 super().__init__(*args, **kwargs)
 
-            def clean_token(self):
+            def clean_token(self):  # pragma: no cover
                 token = self.cleaned_data.get("token", None)
                 user_pk = self.request.user.pk
                 user = User.objects.get(pk=user_pk)
@@ -1475,13 +1475,9 @@ class OrgCRUDL(SmartCRUDL):
             form = self.get_form()
             secret = pyotp.random_base32()
 
-            try:
-                settings = UserSettings.objects.get(user=user)
-                settings.otp_secret = secret
-                settings.save()
-            except UserSettings.DoesNotExist:  # pragma: no cover
-                UserSettings.objects.create(user=user, otp_secret=secret)
-
+            user_settings = user.get_settings()
+            user_settings.otp_secret = secret
+            user_settings.save()
             secret_url = self.get_secret_url()
             return self.render_to_response(self.get_context_data(form=form, secret_url=secret_url))
 
@@ -1500,16 +1496,16 @@ class OrgCRUDL(SmartCRUDL):
             elif form.is_valid():  # pragma: needs cover
                 self.generate_backup_tokens()
                 user = self.get_user()
-                settings = UserSettings.objects.get(user=user)
-                settings.two_factor_enabled = True
-                settings.save()
+                user_settings = user.get_settings()
+                user_settings.two_factor_enabled = True
+                user_settings.save()
             secret_url = self.get_secret_url()
             return self.render_to_response(self.get_context_data(form=form, secret_url=secret_url))
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             user = self.get_user()
-            settings = UserSettings.objects.get(user=user)
+            user_settings = user.get_settings()
             context["settings"] = settings
             return context
 
@@ -1523,19 +1519,19 @@ class OrgCRUDL(SmartCRUDL):
         def disable_two_factor_auth(self):
             self.delete_backup_tokens()
             user = self.get_user()
-            settings = UserSettings.objects.get(user=user)
-            settings.two_factor_enabled = False
-            settings.save()
+            user_settings = user.get_settings()
+            user_settings.two_factor_enabled = False
+            user_settings.save()
 
         def generate_backup_tokens(self):
             user = self.get_user()
             self.delete_backup_tokens()
             for backup in range(10):
-                BackupToken.objects.create(settings=user.settings.first(), created_by=user, modified_by=user)
+                BackupToken.objects.create(settings=user.get_settings(), created_by=user, modified_by=user)
             tokens = [backup.token for backup in BackupToken.objects.filter(settings__user=user)]
             return tokens
 
-        def get_backup_tokens(self):
+        def get_backup_tokens(self):  # pragma: no cover
             user = self.get_user()
             tokens = [backup.token for backup in BackupToken.objects.filter(settings__user=user)]
             return tokens
