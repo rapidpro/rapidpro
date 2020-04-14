@@ -1,3 +1,8 @@
+v5.5.16
+----------
+ * bower no longer supported for package installs
+ * Migration to backfill FlowStart.org and modified_on
+
 v5.5.15
 ----------
  * Update to flow-editor 1.9.2, security patches
