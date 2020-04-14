@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-09 14:30+0000\n"
+"POT-Creation-Date: 2020-04-14 21:58+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2697,6 +2697,18 @@ msgstr ""
 msgid "Any configuration options for this flow export"
 msgstr ""
 
+msgid "Pending"
+msgstr ""
+
+msgid "Starting"
+msgstr ""
+
+msgid "Complete"
+msgstr ""
+
+msgid "Failed"
+msgstr ""
+
 msgid "The name of this flow label"
 msgstr ""
 
@@ -3078,6 +3090,15 @@ msgstr ""
 msgid "Name already used"
 msgstr ""
 
+msgid "Flow Start Log"
+msgstr ""
+
+msgid "Started By"
+msgstr ""
+
+msgid "Started On"
+msgstr ""
+
 #, python-format
 msgid "Cannot create a new global as limit is %(limit)s."
 msgstr ""
@@ -3107,9 +3128,6 @@ msgid "After 4 minutes"
 msgstr ""
 
 msgid "You must select a country for your organization."
-msgstr ""
-
-msgid "Pending"
 msgstr ""
 
 msgid "Queued"
@@ -3372,9 +3390,6 @@ msgid "Outbox"
 msgstr ""
 
 msgid "Schedules"
-msgstr ""
-
-msgid "Failed"
 msgstr ""
 
 msgid "Schedule Message"
@@ -4304,9 +4319,6 @@ msgid "Create Schedule"
 msgstr ""
 
 msgid "Processing"
-msgstr ""
-
-msgid "Complete"
 msgstr ""
 
 msgid "The organization of the user."
@@ -6541,6 +6553,9 @@ msgstr ""
 msgid "Back"
 msgstr ""
 
+msgid "Start Log"
+msgstr ""
+
 msgid "Unlabel"
 msgstr ""
 
@@ -6610,6 +6625,22 @@ msgid ""
 msgstr ""
 
 msgid "Ask a series of questions to collect data from your contacts."
+msgstr ""
+
+#, python-format
+msgid "was started by %(user)s for"
+msgstr ""
+
+msgid "all contacts"
+msgstr ""
+
+msgid "contacts not in other flows"
+msgstr ""
+
+msgid "contacts not in other flows who haven't already been through this flow"
+msgstr ""
+
+msgid "contacts who haven't already been through this flow"
 msgstr ""
 
 msgid "Are you sure you want to delete this global?"
