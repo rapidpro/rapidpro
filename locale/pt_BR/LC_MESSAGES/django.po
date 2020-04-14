@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-04 02:10+0000\n"
+"POT-Creation-Date: 2020-04-09 14:30+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3268,6 +3268,11 @@ msgstr "O nome deste contato"
 #, fuzzy
 msgid "The preferred language for this contact"
 msgstr "O nome deste contato"
+
+#, fuzzy
+#| msgid "We encountered an error removing your channel, please try again later."
+msgid "An error occurred updating your contact. Please try again later."
+msgstr "Encontramos um erro ao remover o seu transmissor, por favor, tente novamente mais tarde."
 
 msgid "Provided URNs belong to different existing contacts"
 msgstr ""
