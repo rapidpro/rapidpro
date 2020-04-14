@@ -21,6 +21,7 @@ from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
+from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
@@ -1230,6 +1231,28 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if changed_groups:
             # ensure our campaigns are up to date
             EventFire.update_events_for_contact_groups(self, changed_groups)
+
+    def update(self, user, name, language):
+        org = self.org
+        existing = Contact.objects.filter(id=self.id, org=self.org).first()
+
+        try:
+            modifiers = []
+            if (existing.name or "") != (name or ""):
+                modifiers.append({"type": "name", "name": name or ""})
+
+            if (existing.language or "") != (language or ""):
+                modifiers.append({"type": "language", "language": language or ""})
+
+            client = mailroom.get_client()
+            contact_ids = [self.id]
+
+            if modifiers:
+                client.contact_modify(org.id, user.id, contact_ids, modifiers)
+
+        except mailroom.MailroomException as e:
+            logger.error(f"Contact update failed: {str(e)}", exc_info=True)
+            raise ValidationError(_("An error occurred updating your contact. Please try again later."))
 
     @classmethod
     def from_urn(cls, org, urn_as_string, country=None):

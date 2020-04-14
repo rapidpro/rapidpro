@@ -1477,10 +1477,7 @@ class ContactCRUDL(SmartCRUDL):
             return super().get_form()
 
         def save(self, obj):
-            fields = [f.name for f in obj._meta.concrete_fields if f.name not in self.exclude]
-            obj.save(update_fields=fields, handle_update=True)
-
-            self.save_m2m()
+            obj.update(self.request.user, obj.name, obj.language)
 
             new_groups = self.form.cleaned_data.get("groups")
             if new_groups is not None:

@@ -2277,6 +2277,9 @@ msgstr ""
 msgid "The preferred language for this contact"
 msgstr ""
 
+msgid "An error occurred updating your contact. Please try again later."
+msgstr ""
+
 msgid "Provided URNs belong to different existing contacts"
 msgstr ""
 

@@ -2569,6 +2569,11 @@ msgstr "Le nom de ce contact"
 msgid "The preferred language for this contact"
 msgstr "La langue préférée pour ce contact"
 
+#, fuzzy
+#| msgid "We encountered an error removing your channel, please try again later."
+msgid "An error occurred updating your contact. Please try again later."
+msgstr "Nous avons rencontré une erreur de retrait de votre channel, s'il vous plaît réessayer plus tard."
+
 msgid "Provided URNs belong to different existing contacts"
 msgstr "Les URNs fournis appartiennent à différents contacts existants"
 
