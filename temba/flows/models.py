@@ -3111,10 +3111,10 @@ class FlowStart(models.Model):
     STATUS_FAILED = "F"
 
     STATUS_CHOICES = (
-        (STATUS_PENDING, "Pending"),
-        (STATUS_STARTING, "Starting"),
-        (STATUS_COMPLETE, "Complete"),
-        (STATUS_FAILED, "Failed"),
+        (STATUS_PENDING, _("Pending")),
+        (STATUS_STARTING, _("Starting")),
+        (STATUS_COMPLETE, _("Complete")),
+        (STATUS_FAILED, _("Failed")),
     )
 
     # the uuid of this start

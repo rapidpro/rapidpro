@@ -3,47 +3,40 @@
 -load i18n humanize
 
 -block table
-  %table.list-table.table.table-striped(cellspacing="0")
-    %thead
-      %tr
-        %th
-          -trans "Flow"
-        %th
-          -trans "Who"
-        %th
-          -trans "Restart Participants"
-        %th
-          -trans "Include Active"
-        %th
-          -trans "Status"
-        %th
-          -trans "Started By"
-        %th
-          -trans "Started On"
+  %table.list-table.table(cellspacing="0")
     %tbody
       -for obj in object_list
-        %tr(class="{% cycle 'row2' 'row1' %}")
+        %tr
+          %td(width="16px")
+            -if obj.status == "P" or obj.status == "S"
+              %span.spin.icon-loop(title="{{ obj.get_status_display }}")
+            -elif obj.status == "C"
+              %span.icon-checkmark(title="{{ obj.get_status_display }}")
+            -elif obj.status == "F"
+              %span.icon-warning(title="{{ obj.get_status_display }}")
           %td
             %a(href="{% url 'flows.flow_editor' obj.flow.uuid %}")
               {{ obj.flow.name }}
-          %td
-            -include "includes/recipients.haml" with groups=obj.groups.all contacts=obj.contacts.all query=obj.query
-          %td
-            {{ obj.restart_participants }}
-          %td
-            {{ obj.include_active }}
-          %td
-            {{ obj.get_status_display }}
-          %td
-            {{ obj.created_by }}
-          %td
-            {% format_datetime obj.created_on %}
+
+            -blocktrans trimmed with user=obj.created_by
+              was started by {{ user }} for
+
+            -if obj.restart_participants and obj.include_active
+              -trans "all contacts"
+            -elif obj.restart_participants and not obj.include_active
+              -trans "contacts not in other flows"
+            -elif not obj.restart_participants and not obj.include_active
+              -trans "contacts not in other flows who haven't already been through this flow"
+            -else
+              -trans "contacts who haven't already been through this flow"
+
+            .(style="padding-top: 10px")
+              -include "includes/recipients.haml" with groups=obj.groups.all contacts=obj.contacts.all query=obj.query
+
+          %td(style="text-align: right")
+            {% short_datetime obj.created_on %}
       -empty
         %tr.empty_list
-          %td
-          %td
-          %td
-          %td
           %td
           %td
           %td
