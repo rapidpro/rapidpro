@@ -17,7 +17,7 @@ class BackupToken(SmartModel):
     settings = models.ForeignKey(
         UserSettings, verbose_name=_("Settings"), related_name="backups", on_delete=models.CASCADE
     )
-    token = models.CharField(verbose_name=_("Token"), max_length=18, default=generate_token)
+    token = models.CharField(verbose_name=_("Token"), max_length=18, unique=True, default=generate_token)
     used = models.BooleanField(verbose_name=_("Used"), default=False)
 
     def __str__(self):
