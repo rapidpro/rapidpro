@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-14 00:13+0000\n"
+"POT-Creation-Date: 2020-04-09 14:30+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4819,14 +4819,6 @@ msgstr "Número do telefone"
 msgid "Phone number for testing and recording voice flows"
 msgstr "Número do telefone para testar e gravar fluxos de voz"
 
-#, fuzzy
-#| msgid "API Secret:"
-msgid "OTP Secret"
-msgstr "Segredo da API:"
-
-msgid "Two Factor Enabled"
-msgstr ""
-
 msgid "Price Paid"
 msgstr "Preço Pago"
 
@@ -5163,17 +5155,6 @@ msgstr "Grupo do usuário"
 
 msgid "One of the emails you entered is invalid."
 msgstr "Um dos e-mails que você digitou é inválido."
-
-msgid "Enter the code from your authentication application"
-msgstr ""
-
-#, fuzzy
-#| msgid "Invalid phone number, try again."
-msgid "Invalid MFA token. Please try again."
-msgstr "Número de telefone inválido, tente novamente."
-
-msgid "Activate"
-msgstr "Ativar"
 
 #, fuzzy
 msgid "Select your Organization"
@@ -5612,19 +5593,6 @@ msgstr "Criar disparador"
 msgid "Create Schedule"
 msgstr "Criar agendamento"
 
-msgid "Settings"
-msgstr "Configurações"
-
-msgid "Used"
-msgstr ""
-
-#, fuzzy
-msgid "Backup Token"
-msgstr "Contas"
-
-msgid "Enter one of the tokens generated when activating the two-factor login"
-msgstr ""
-
 msgid "Processing"
 msgstr ""
 
@@ -6035,6 +6003,9 @@ msgstr "Envio em massa habilitado"
 
 msgid "Voice calls enabled"
 msgstr "Chamadas de voz habilitado"
+
+msgid "Settings"
+msgstr "Configurações"
 
 #, fuzzy
 #| msgid "Channel"
@@ -8693,6 +8664,9 @@ msgstr ""
 msgid "Unlabel"
 msgstr "Remover rótulo"
 
+msgid "Activate"
+msgstr "Ativar"
+
 msgid "Add Label"
 msgstr "Adicionar rótulo"
 
@@ -10058,18 +10032,6 @@ msgid ""
 "\n"
 "          Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?\n"
 "        "
-msgstr ""
-
-msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
-msgstr ""
-
-msgid "Generate Backup Tokens"
-msgstr ""
-
-msgid "Disable Two Factor"
-msgstr ""
-
-msgid "Two Factor Authentication"
 msgstr ""
 
 #, fuzzy
@@ -11507,10 +11469,6 @@ msgid "Facebook Channel"
 msgstr "Remover telefone"
 
 #, fuzzy
-msgid "Backup Tokens"
-msgstr "Contas"
-
-#, fuzzy
 #| msgid "Enter Claim Code"
 msgid "Enter a query"
 msgstr "Insira o seu código de requisição"
@@ -11518,11 +11476,6 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
-
-#, fuzzy
-#~| msgid "Username"
-#~ msgid "User"
-#~ msgstr "Nome de usuário"
 
 #, fuzzy
 #~ msgid "Previous Editor"
