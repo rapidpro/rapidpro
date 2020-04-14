@@ -1,3 +1,14 @@
+v5.5.17
+----------
+ * Add index to list manually created flow starts
+ * Make FlowStart.org and modified_on non-NULL
+ * Move contact modification for name and language to be done by mailroom
+
+v5.5.16
+----------
+ * bower no longer supported for package installs
+ * Migration to backfill FlowStart.org and modified_on
+
 v5.5.15
 ----------
  * Update to flow-editor 1.9.2, security patches

@@ -3269,6 +3269,11 @@ msgstr "O nome deste contato"
 msgid "The preferred language for this contact"
 msgstr "O nome deste contato"
 
+#, fuzzy
+#| msgid "We encountered an error removing your channel, please try again later."
+msgid "An error occurred updating your contact. Please try again later."
+msgstr "Encontramos um erro ao remover o seu transmissor, por favor, tente novamente mais tarde."
+
 msgid "Provided URNs belong to different existing contacts"
 msgstr ""
 
