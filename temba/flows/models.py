@@ -3179,6 +3179,7 @@ class FlowStart(models.Model):
         user,
         groups=None,
         contacts=None,
+        query=None,
         restart_participants=True,
         extra=None,
         include_active=True,
@@ -3196,6 +3197,7 @@ class FlowStart(models.Model):
             restart_participants=restart_participants,
             include_active=include_active,
             campaign_event=campaign_event,
+            query=query,
             extra=extra,
             created_by=user,
         )

@@ -6213,6 +6213,21 @@ class FlowSessionCRUDLTest(TembaTest):
         self.assertEqual("Temba", response_json["_metadata"]["org"])
 
 
+class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_list(self):
+        list_url = reverse("flows.flowstart_list")
+
+        flow = self.get_flow("color_v13")
+        contact = self.create_contact("Bob", number="+1234567890")
+        start1 = FlowStart.create(flow, self.admin, contacts=[contact])
+        start2 = FlowStart.create(flow, self.admin, query="name ~ Bob")
+
+        other_org_flow = self.create_flow(org=self.org2)
+        FlowStart.create(other_org_flow, self.admin2)
+
+        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[start2, start1])
+
+
 class AssetServerTest(TembaTest):
     def test_environment(self):
         self.login(self.admin)
