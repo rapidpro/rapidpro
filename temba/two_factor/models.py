@@ -20,5 +20,5 @@ class BackupToken(SmartModel):
     token = models.CharField(verbose_name=_("Token"), max_length=18, unique=True, default=generate_token)
     used = models.BooleanField(verbose_name=_("Used"), default=False)
 
-    def __str__(self): # pragma: no cover
+    def __str__(self):  # pragma: no cover
         return f"{self.token}"
