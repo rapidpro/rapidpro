@@ -3226,8 +3226,8 @@ class FlowStart(models.Model):
     class Meta:
         indexes = [
             models.Index(
-                name="flows_flowstarts_manual",
-                fields=["org", "flow", "-created_on"],
+                name="flows_flowstarts_org_created",
+                fields=["org", "-created_on"],
                 condition=Q(created_by__isnull=False),
             )
         ]

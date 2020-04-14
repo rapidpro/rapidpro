@@ -12,8 +12,8 @@ class Migration(migrations.Migration):
             model_name="flowstart",
             index=models.Index(
                 condition=models.Q(created_by__isnull=False),
-                fields=["org", "flow", "-created_on"],
-                name="flows_flowstarts_manual",
+                fields=["org", "-created_on"],
+                name="flows_flowstarts_org_created",
             ),
         )
     ]
