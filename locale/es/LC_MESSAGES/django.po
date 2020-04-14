@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-14 21:24+0000\n"
+"POT-Creation-Date: 2020-04-14 22:08+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -5915,14 +5915,6 @@ msgid "Settings"
 msgstr "Configuraciones"
 
 msgid "Used"
-msgstr ""
-
-#, fuzzy
-#| msgid "Account Key"
-msgid "Backup Token"
-msgstr "Clave de la cuenta"
-
-msgid "Enter one of the tokens generated when activating the two-factor login"
 msgstr ""
 
 msgid "Processing"
@@ -12420,6 +12412,11 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Account Key"
+#~ msgid "Backup Token"
+#~ msgstr "Clave de la cuenta"
 
 #, fuzzy
 #~| msgid "No Editors"

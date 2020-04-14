@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-14 21:24+0000\n"
+"POT-Creation-Date: 2020-04-14 22:08+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -5616,13 +5616,6 @@ msgid "Settings"
 msgstr "Configurações"
 
 msgid "Used"
-msgstr ""
-
-#, fuzzy
-msgid "Backup Token"
-msgstr "Contas"
-
-msgid "Enter one of the tokens generated when activating the two-factor login"
 msgstr ""
 
 msgid "Processing"
@@ -11518,6 +11511,10 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "Backup Token"
+#~ msgstr "Contas"
 
 #, fuzzy
 #~ msgid "Previous Editor"

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-14 21:24+0000\n"
+"POT-Creation-Date: 2020-04-14 22:08+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -4640,14 +4640,6 @@ msgid "Settings"
 msgstr "Paramètres"
 
 msgid "Used"
-msgstr ""
-
-#, fuzzy
-#| msgid "Account Token"
-msgid "Backup Token"
-msgstr "Jeton de compte"
-
-msgid "Enter one of the tokens generated when activating the two-factor login"
 msgstr ""
 
 msgid "Processing"
@@ -10524,6 +10516,11 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy
+#~| msgid "Account Token"
+#~ msgid "Backup Token"
+#~ msgstr "Jeton de compte"
 
 #~ msgid "Previous Editor"
 #~ msgstr "Editeur précédent"
