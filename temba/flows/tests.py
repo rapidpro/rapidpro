@@ -6220,12 +6220,17 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
         flow = self.get_flow("color_v13")
         contact = self.create_contact("Bob", number="+1234567890")
         start1 = FlowStart.create(flow, self.admin, contacts=[contact])
-        start2 = FlowStart.create(flow, self.admin, query="name ~ Bob")
+        start2 = FlowStart.create(flow, self.admin, query="name ~ Bob", restart_participants=False)
 
         other_org_flow = self.create_flow(org=self.org2)
         FlowStart.create(other_org_flow, self.admin2)
 
-        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[start2, start1])
+        response = self.assertListFetch(
+            list_url, allow_viewers=True, allow_editors=True, context_objects=[start2, start1]
+        )
+        self.assertContains(response, "was started by Administrator for")
+        self.assertContains(response, "all contacts")
+        self.assertContains(response, "contacts who haven't already been through this flow")
 
 
 class AssetServerTest(TembaTest):
