@@ -3120,8 +3120,14 @@ class FlowStart(models.Model):
     TYPE_MANUAL = "M"
     TYPE_API = "A"
     TYPE_FLOW_ACTION = "F"
+    TYPE_TRIGGER = "T"
 
-    TYPE_CHOICES = ((TYPE_MANUAL, "Manual"), (TYPE_API, "API"), (TYPE_FLOW_ACTION, "Flow Action"))
+    TYPE_CHOICES = (
+        (TYPE_MANUAL, "Manual"),
+        (TYPE_API, "API"),
+        (TYPE_FLOW_ACTION, "Flow Action"),
+        (TYPE_TRIGGER, "Trigger"),
+    )
 
     # the uuid of this start
     uuid = models.UUIDField(unique=True, default=uuid4)

@@ -12,7 +12,9 @@ class Migration(migrations.Migration):
             model_name="flowstart",
             name="start_type",
             field=models.CharField(
-                choices=[("M", "Manual"), ("A", "API"), ("F", "Flow Action")], max_length=1, null=True
+                choices=[("M", "Manual"), ("A", "API"), ("F", "Flow Action"), ("T", "Trigger")],
+                max_length=1,
+                null=True,
             ),
         )
     ]
