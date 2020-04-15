@@ -9,7 +9,7 @@
   <div class="span7 offset2">
     <div class="page-header"><h2>Sign in</h2></div>
 
-    <form method="post" class="form-stacked" id="login-form">
+    <form method="post" class="form-stacked" id="login-form" onsubmit="return validateRecaptcha();">
       {% for field, errors in form.errors.items %}
       {% if field == '__all__' %}
       <div class="alert alert-error form-errors">
@@ -23,7 +23,7 @@
 
         <div class="clearfix ">
           <label for="username">Email Address</label>
-          <div class="input"><input id="id_username" type="text" name="username" maxlength="254"></div>
+          <div class="input"><input id="id_username" type="text" name="username" maxlength="254" value="{{ request.POST.username }}"></div>
           {% if field.error %}
           <span class="help-inline">{{ field.error }}</span>
           {% endif %}
@@ -31,11 +31,46 @@
 
         <div class="clearfix ">
           <label for="password">Password</label>
-          <div class="input"><input type="password" name="password" id="id_password"></div>
+          <div class="input"><input type="password" name="password" id="id_password" value="{{ request.POST.password }}"></div>
         </div>
+
+        {% if no_cellphone %}
+        <div class="clearfix ">
+          <label for="cellphone">Phone Number</label>
+          <div class="input">
+            <select name="country_code" id="id_country_code">
+              {% for country in countries %}
+                <option value="{{ country.value }}">{{ country.text }}</option>
+              {% endfor %}
+            </select>
+            <input type="text" name="tel" id="id_tel" value="">
+          </div>
+          <span class="help-inline help-cell-phone">Ex. 4154354423</span>
+        </div>
+        {% endif %}
+
+        {% if no_authy_code %}
+          <div class="clearfix sms_code">
+            <label for="authy_code">SMS Code</label>
+            <div class="input">
+              <input type="text" name="authy_code" id="id_authy_code" value="" required>
+            </div>
+            <a href="javascript:resendCode();">Resend code</a>
+          </div>
+          <input type="hidden" name="change_phone_number" value="" id="change_phone_number">
+        {% endif %}
+
+        {% if not no_recaptcha %}
+        <div id="recaptcha"></div>
+        {% endif %}
+
         {% csrf_token %}
         <input type="submit" class="btn btn-primary" value="Login">
-        <span style="margin-left:170px;"><a href="/users/user/forget/">Forgot Password?</a></span>
+        {% if no_authy_code %}
+          <span style="margin-left:144px;"><a href="javascript:changePhoneNumberProcess();">Change phone number?</a></span>
+        {% else %}
+          <span style="margin-left:170px;"><a href="/users/user/forget/">Forgot Password?</a></span>
+        {% endif %}
       </fieldset>
     </form>
   </div>
@@ -53,5 +88,72 @@ li {
   list-style: none;
   margin-left: 0px;
 }
+
+#recaptcha {
+  margin: 5px 0 10px 0;
+}
+
+.help-cell-phone {
+    margin: 0 0 10px 0;
+    font-size: 12px;
+  }
+
+  #s2id_id_country_code {
+    margin-top: -6px;
+  }
+
+  #s2id_id_country_code a.select2-choice {
+    padding: 3px 5px 4px 5px;
+  }
+
+  #id_tel {
+    width: 206px;
+  }
+
+  #form-change-phone-number {
+    margin: 20px 0 0 0;
+  }
+
+  .sms_code {
+    margin-bottom: 12px;
+  }
 </style>
+{% endblock %}
+
+{% block extra-script %}
+  <script src="{{ STATIC_URL }}js/jquery.mask.min.js"></script>
+  <script>
+    $(document).ready(function() {
+      $('#id_tel').mask('00000000000');
+    });
+    function changePhoneNumberProcess() {
+      $('#change_phone_number').val('true');
+      $('form#login-form').removeAttr('onsubmit');
+      $('form#login-form').submit();
+    }
+    function resendCode() {
+      $('form#login-form').removeAttr('onsubmit');
+      $('#id_authy_code').val('');
+      $('form#login-form').submit();
+    }
+    $(function(){
+      $("#id_country_code").select2({
+        width:'140px',
+      });
+    });
+  </script>
+  {% if not no_recaptcha %}
+  <script src="https://www.google.com/recaptcha/api.js?render={{ recaptcha_secrete_key }}"></script>
+  <script>
+    function validateRecaptcha() {
+      const response = grecaptcha.getResponse();
+      return response.length !== 0;
+    }
+    grecaptcha.ready(() => {
+      grecaptcha.render('recaptcha', {
+        'sitekey': '{{ recaptcha_site_key }}'
+      });
+    });
+  </script>
+  {% endif %}
 {% endblock %}
