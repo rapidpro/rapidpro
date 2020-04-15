@@ -12,6 +12,8 @@ import pycountry
 import regex
 import stripe
 import stripe.error
+from base64 import b32encode
+from os import urandom
 from dateutil.relativedelta import relativedelta
 from django_redis import get_redis_connection
 from packaging.version import Version
@@ -2713,3 +2715,18 @@ class CreditAlert(SmartModel):
 
         for topup in expiring_final_topups:
             CreditAlert.trigger_credit_alert(topup.org, CreditAlert.TYPE_EXPIRING)
+
+
+def generate_token():  # pragma: no cover
+    return b32encode(urandom(5)).decode("utf-8").lower()
+
+
+class BackupToken(SmartModel):
+    settings = models.ForeignKey(
+        UserSettings, verbose_name=_("Settings"), related_name="backups", on_delete=models.CASCADE
+    )
+    token = models.CharField(verbose_name=_("Token"), max_length=18, unique=True, default=generate_token)
+    used = models.BooleanField(verbose_name=_("Used"), default=False)
+
+    def __str__(self):  # pragma: no cover
+        return f"{self.token}"
