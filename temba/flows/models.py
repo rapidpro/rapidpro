@@ -941,8 +941,7 @@ class Flow(TembaModel):
 
         group_ids = [g.id for g in groups]
         flow_start.groups.add(*group_ids)
-
-        on_transaction_commit(lambda: flow_start.async_start())
+        flow_start.async_start()
 
     def get_export_dependencies(self):
         """
@@ -3211,7 +3210,7 @@ class FlowStart(models.Model):
         return start
 
     def async_start(self):
-        mailroom.queue_flow_start(self)
+        on_transaction_commit(lambda: mailroom.queue_flow_start(self))
 
     def release(self):
         with transaction.atomic():
