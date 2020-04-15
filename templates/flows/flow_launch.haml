@@ -142,6 +142,21 @@
       launchSelector.select2({containerCssClass: "select2-temba-field", minimumResultsForSearch: -1});
       startFlowTypeSelector.select2({containerCssClass: "select2-temba-field", minimumResultsForSearch: -1});
       repeatPeriodSelector.select2({containerCssClass: "select2-temba-field", minimumResultsForSearch: -1});
+
+      function showFieldsOnStartType(selected) {
+        let omnibox = $(".omnibox");
+        let query = $(".contact-query");
+        if (selected === 'query') {
+          omnibox.hide();
+          query.show();
+        } else {
+          query.hide();
+          omnibox.show();
+        }
+      }
+      
+      showFieldsOnStartType(startFlowTypeSelector.val());
+      startFlowTypeSelector.change(function (){showFieldsOnStartType($(this).val());});
       
       function showLaunchFlowBox(selected) {
         launchImmediatelyBox.hide();
@@ -150,6 +165,7 @@
         switch(selected) {
           case "LAUNCH_IMMEDIATELY":
             launchImmediatelyBox.show();
+            showFieldsOnStartType(startFlowTypeSelector.val());
             break;
           case "LAUNCH_ON_KEYWORD_TRIGGER":
             launchOnKeywordTriggerBox.show();
@@ -177,20 +193,6 @@
         }
         initializeDatetimePicker(minDate, undefined, false);
       });
-
-      function showFieldsOnStartType(selected) {
-        let omnibox = $(".omnibox");
-        let query = $(".contact-query");
-        if (selected === 'query') {
-          omnibox.hide();
-          query.show();
-        } else {
-          query.hide();
-          omnibox.show();
-        }
-      }
-      showFieldsOnStartType(startFlowTypeSelector.val());
-      startFlowTypeSelector.change(function (){showFieldsOnStartType($(this).val());});
 
       function updateDailySelection() {
         var selected = '';
