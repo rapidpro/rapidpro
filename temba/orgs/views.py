@@ -619,6 +619,7 @@ class OrgCRUDL(SmartCRUDL):
         "lookups",
         "parse_data_view",
         "parse_data_import",
+        "send_invite",
     )
 
     model = Org
@@ -3245,6 +3246,61 @@ class OrgCRUDL(SmartCRUDL):
             self.success_message = _("Cleared %(name)s cache for this organization (%(count)d keys)") % dict(
                 name=cache.name, count=num_deleted
             )
+    
+
+    class SendInvite(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
+        class SentInviteForm(forms.Form):
+            # set email field readonly when email provided
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                if self.initial.get("email"):
+                    self.fields["email"].widget.attrs['readonly'] = True
+
+            email = forms.EmailField(label=_("Invite people to your organization"), required=True)
+            user_group = forms.ChoiceField(
+                choices=(("A", _("Administrators")), ("E", _("Editors")), ("V", _("Viewers")), ("S", _("Surveyors"))),
+                required=True,
+                initial="V",
+                label=_("User group"),
+            )
+
+        form_class = SentInviteForm
+        success_url = "@orgs.org_manage_accounts"
+        fields = ("email", "user_group")
+
+        def derive_initial(self):
+            initial = super().derive_initial()
+            org, invitation_id = self.request.user.get_org(), self.request.GET.get('id')
+            invite = Invitation.objects.filter(org=org, id=invitation_id).first()
+            if invite:
+                initial["email"] = invite.email
+                initial["user_group"] = invite.user_group
+            return initial
+
+        def form_valid(self, form):
+            user = self.request.user
+            org = user.get_org()
+            email = form.cleaned_data.get("email")
+            user_group = form.cleaned_data.get("user_group")
+
+            # if they already have an invite, update it
+            invites = Invitation.objects.filter(email=email, org=org).order_by("-pk")
+            invitation = invites.first()
+
+            if invitation:
+                invites.exclude(pk=invitation.pk).delete()  # remove any old invites
+
+                invitation.user_group = user_group
+                invitation.is_active = True
+                # generate new secret for this invitation
+                invitation.secret = random_string(64)
+                invitation.save()
+            else:
+                invitation = Invitation.create(org, self.request.user, email, user_group)
+
+            invitation.send_invitation()
+
+            return super().form_valid(form)
 
 
 class TopUpCRUDL(SmartCRUDL):
