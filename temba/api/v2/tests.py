@@ -3891,8 +3891,9 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         # assert our new start
-        start2 = flow.starts.get(pk=response.json()["id"])
+        start2 = flow.starts.get(id=response.json()["id"])
         self.assertEqual(start2.flow, flow)
+        self.assertEqual(start2.start_type, FlowStart.TYPE_API)
         self.assertTrue(start2.contacts.filter(urns__path="+12067791212"))
         self.assertTrue(start2.contacts.filter(id=self.joe.id))
         self.assertTrue(start2.groups.filter(id=hans_group.id))
