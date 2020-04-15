@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-14 22:35+0000\n"
+"POT-Creation-Date: 2020-04-15 01:44+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4921,6 +4921,12 @@ msgstr "créditos restantes."
 msgid "%(name)s Credits Alert"
 msgstr ""
 
+msgid "Settings"
+msgstr "Configurações"
+
+msgid "Used"
+msgstr ""
+
 msgid "Your first name"
 msgstr "Seu primeiro nome"
 
@@ -5611,12 +5617,6 @@ msgstr "Criar disparador"
 
 msgid "Create Schedule"
 msgstr "Criar agendamento"
-
-msgid "Settings"
-msgstr "Configurações"
-
-msgid "Used"
-msgstr ""
 
 msgid "Processing"
 msgstr ""

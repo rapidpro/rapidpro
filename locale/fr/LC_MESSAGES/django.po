@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-14 22:35+0000\n"
+"POT-Creation-Date: 2020-04-15 01:44+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -4023,6 +4023,12 @@ msgstr "Crédits expirant bientôt"
 msgid "%(name)s Credits Alert"
 msgstr "%(name)s Alerte Crédits"
 
+msgid "Settings"
+msgstr "Paramètres"
+
+msgid "Used"
+msgstr ""
+
 msgid "Your first name"
 msgstr "Votre prénom"
 
@@ -4635,12 +4641,6 @@ msgstr "Créer un déclencheur de référence"
 
 msgid "Create Schedule"
 msgstr "Créer un planning"
-
-msgid "Settings"
-msgstr "Paramètres"
-
-msgid "Used"
-msgstr ""
 
 msgid "Processing"
 msgstr "En traitement"

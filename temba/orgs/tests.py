@@ -47,7 +47,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
-from temba.orgs.models import Debit, UserSettings, BackupToken
+from temba.orgs.models import BackupToken, Debit, UserSettings
 from temba.request_logs.models import HTTPLog
 from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
