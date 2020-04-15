@@ -1200,5 +1200,10 @@ PARSE_APP_ID = ""
 PARSE_REST_KEY = ""
 PARSE_MASTER_KEY = ""
 
+# Recaptcha configuration
 RECAPTCHA_SITE_KEY = ""
 RECAPTCHA_SECRET_KEY = ""
+
+# Authy configuration
+AUTHY_API_KEY = os.environ.get("AUTHY_API_KEY", "")
+AUTHY_MAGIC_PASS = os.environ.get("AUTHY_MAGIC_PASS", "")
