@@ -3116,6 +3116,12 @@ class FlowStart(models.Model):
         (STATUS_FAILED, _("Failed")),
     )
 
+    TYPE_MANUAL = "M"
+    TYPE_API = "A"
+    TYPE_FLOW_ACTION = "F"
+
+    TYPE_CHOICES = ((TYPE_MANUAL, "Manual"), (TYPE_API, "API"), (TYPE_FLOW_ACTION, "Flow Action"))
+
     # the uuid of this start
     uuid = models.UUIDField(unique=True, default=uuid4)
 
@@ -3124,6 +3130,9 @@ class FlowStart(models.Model):
 
     # the flow that should be started
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="starts")
+
+    # the type of start
+    start_type = models.CharField(max_length=1, choices=TYPE_CHOICES, null=True)
 
     # the groups that should be considered for start in this flow
     groups = models.ManyToManyField(ContactGroup)
@@ -3176,6 +3185,7 @@ class FlowStart(models.Model):
         cls,
         flow,
         user,
+        start_type=TYPE_MANUAL,
         groups=None,
         contacts=None,
         query=None,
@@ -3193,6 +3203,7 @@ class FlowStart(models.Model):
         start = FlowStart.objects.create(
             org=flow.org,
             flow=flow,
+            start_type=start_type,
             restart_participants=restart_participants,
             include_active=include_active,
             campaign_event=campaign_event,
