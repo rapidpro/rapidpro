@@ -198,7 +198,7 @@ def import_data_to_parse(
                     if "success" in item:
                         success += 1
                     else:
-                        failures.append(item.get("error"))
+                        failures.append(item.get("error").get('error'))
             batch_package = []
             batch_counter = 0
 
@@ -216,7 +216,7 @@ def import_data_to_parse(
                 if "success" in item:
                     success += 1
                 else:
-                    failures.append(item.get("error"))
+                    failures.append(item.get("error").get('error'))
 
     print("-- Importation task ran in %0.2f seconds" % (time.time() - start))
 
