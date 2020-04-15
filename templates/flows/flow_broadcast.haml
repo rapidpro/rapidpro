@@ -139,9 +139,9 @@
     var queryField = document.querySelector('.query');
     var recipientsField = document.querySelector('.omnibox');
 
-    var startTypeSelect = document.querySelector("temba-select[name='recipients_mode']");
-    if (startTypeSelect) {
-      startTypeSelect.addEventListener("temba-selection", function(evt) {
+    var modeSelect = document.querySelector("temba-select[name='recipients_mode']");
+    if (modeSelect) {
+      modeSelect.addEventListener("temba-selection", function(evt) {
         var selected = evt.detail.selected;
         if (selected.value === "query") {
           removeClass(queryField, "hidden");
