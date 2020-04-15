@@ -930,6 +930,7 @@ class Flow(TembaModel):
         flow_start = FlowStart.objects.create(
             org=self.org,
             flow=self,
+            start_type=FlowStart.TYPE_MANUAL,
             restart_participants=restart_participants,
             include_active=include_active,
             created_by=user,
@@ -941,8 +942,7 @@ class Flow(TembaModel):
 
         group_ids = [g.id for g in groups]
         flow_start.groups.add(*group_ids)
-
-        on_transaction_commit(lambda: flow_start.async_start())
+        flow_start.async_start()
 
     def get_export_dependencies(self):
         """
@@ -3111,10 +3111,22 @@ class FlowStart(models.Model):
     STATUS_FAILED = "F"
 
     STATUS_CHOICES = (
-        (STATUS_PENDING, "Pending"),
-        (STATUS_STARTING, "Starting"),
-        (STATUS_COMPLETE, "Complete"),
-        (STATUS_FAILED, "Failed"),
+        (STATUS_PENDING, _("Pending")),
+        (STATUS_STARTING, _("Starting")),
+        (STATUS_COMPLETE, _("Complete")),
+        (STATUS_FAILED, _("Failed")),
+    )
+
+    TYPE_MANUAL = "M"
+    TYPE_API = "A"
+    TYPE_FLOW_ACTION = "F"
+    TYPE_TRIGGER = "T"
+
+    TYPE_CHOICES = (
+        (TYPE_MANUAL, "Manual"),
+        (TYPE_API, "API"),
+        (TYPE_FLOW_ACTION, "Flow Action"),
+        (TYPE_TRIGGER, "Trigger"),
     )
 
     # the uuid of this start
@@ -3125,6 +3137,9 @@ class FlowStart(models.Model):
 
     # the flow that should be started
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="starts")
+
+    # the type of start
+    start_type = models.CharField(max_length=1, choices=TYPE_CHOICES, null=True)
 
     # the groups that should be considered for start in this flow
     groups = models.ManyToManyField(ContactGroup)
@@ -3177,8 +3192,10 @@ class FlowStart(models.Model):
         cls,
         flow,
         user,
+        start_type=TYPE_MANUAL,
         groups=None,
         contacts=None,
+        query=None,
         restart_participants=True,
         extra=None,
         include_active=True,
@@ -3193,9 +3210,11 @@ class FlowStart(models.Model):
         start = FlowStart.objects.create(
             org=flow.org,
             flow=flow,
+            start_type=start_type,
             restart_participants=restart_participants,
             include_active=include_active,
             campaign_event=campaign_event,
+            query=query,
             extra=extra,
             created_by=user,
         )
@@ -3209,7 +3228,7 @@ class FlowStart(models.Model):
         return start
 
     def async_start(self):
-        mailroom.queue_flow_start(self)
+        on_transaction_commit(lambda: mailroom.queue_flow_start(self))
 
     def release(self):
         with transaction.atomic():

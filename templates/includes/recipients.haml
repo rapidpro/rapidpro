@@ -1,0 +1,19 @@
+
+.recipients
+  -for group in groups
+    .item.group
+      .icon.icon-users-2
+      %a(href="{% url 'contacts.contact_filter' group.uuid %}")
+        {{ group.name }}
+
+  -for contact in contacts
+    .item.contact
+      .icon.icon-user
+      %a(href="{% url 'contacts.contact_read' contact.uuid %}")
+        {{ contact.get_display }}
+
+  -if query
+    .item.query
+      .icon.icon-filter
+      %a(href="{% url 'contacts.contact_list' %}?search={{ query|urlencode }}")
+        {{ query }}
