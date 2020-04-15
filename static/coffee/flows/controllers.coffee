@@ -203,7 +203,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
     media_type = parts[0]
     media_encoding = parts[1]
 
-    if action.type in ['reply', 'send', 'email']
+    if action.type in ['reply', 'send']
       if media_type not in ['audio', 'video', 'image']
         showDialog('Invalid Attachment', 'Attachments must be either video, audio, or an image.')
         return
@@ -212,8 +212,12 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         showDialog('Invalid Format', 'Audio attachments must be encoded as mp3, m4a, wav, ogg or oga files.')
         return
 
-    if action.type in ['reply', 'send', 'email'] and (file.size > 20000000 or (file.name.endsWith('.jpg') and file.size > 500000))
+    if action.type in ['reply', 'send'] and (file.size > 20000000 or (file.name.endsWith('.jpg') and file.size > 500000))
       showDialog('File Size Exceeded', "The file size should be less than 500kB for images and less than 20MB for audio and video files. Please choose another file and try again.")
+      return
+
+    if action.type == 'email' and file.name.split('.').pop() in ['ade', 'adp', 'apk', 'bat', 'chm', 'cmd', 'com', 'cpl', 'dll', 'dmg', 'exe', 'hta', 'ins', 'isp', 'jar', 'js', 'jse', 'lib', 'lnk', 'mde', 'msc', 'msi', 'msp', 'mst', 'nshpif', 'scr', 'sct', 'shb', 'sys', 'vb', 'vbe', 'vbs', 'vxd', 'wsc', 'wsf', 'wsh', 'cab']
+      showDialog('Invalid Format', 'This file type is not supported for security reasons. If you still wish to send, please convert this file to an allowable type.')
       return
 
     # if we have a recording already, confirm they want to replace it
@@ -1922,6 +1926,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     resolveObj =
       action: -> action
       type: -> "attachment-viewer"
+
+    if action._media.type == "application"
+      return
 
     $scope.dialog = utils.openModal("/partials/attachment_viewer", AttachmentViewerController , resolveObj)
 

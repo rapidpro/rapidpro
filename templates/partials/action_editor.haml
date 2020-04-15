@@ -59,6 +59,10 @@
     margin-left: 0px;
   }
 
+  #id_email_text {
+    height: 50px;
+  }
+
 .modal-header.title
   %span{ng-model:"config",data-icon:"show",class:"modal-title action-name"}><
 .modal-body
@@ -211,7 +215,7 @@
       %input{ng-model:"action.subject",name:"subject",auto-complete:"",flow:"[[flowId]]",ng-required:"true",type:"text"}
       .label
         -trans "Message"
-      %textarea{ng-model:"action.msg",auto-complete:"",flow:"[[flowId]]",name:"body",ng-required:"true"}
+      %textarea#id_email_text{ng-model:"action.msg",auto-complete:"",flow:"[[flowId]]",name:"body",ng-required:"true"}
       %button{ng-click:"saveEmail(action_editor.to.selected, showAttachVariable)",class:"submit hide"}
       .media{ng-hide:'action.uploading'}
         .attachments{ng-class: '{active:showAttachOptions}', ng-show: '!action._media'}
@@ -242,7 +246,10 @@
         .tag-button{ng-show:'action._media', ng-click:'clickShowActionMedia(action); $event.stopPropagation();'}
           .viewer-button{ng-class:'{"icon-videocam": action._media.type == "video", "icon-photo": action._media.type=="image", "icon-arrow-right-8": action._media.type=="audio"}'}
           .summary
-            [[action._media.type]] attachment
+            %a{ng-if:'action._media.type == "application"', ng-href:"[[action._media.url]]", target:"_blank"}
+              [[action._media.type]] attachment
+            %p{ng-if:'action._media.type != "application"'}
+              [[action._media.type]] attachment
           .remove
             %a{href:'javascript:void(0);', ng-click:'removeAttachment(); $event.stopPropagation();'}
               .icon-close
