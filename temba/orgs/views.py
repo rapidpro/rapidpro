@@ -3250,6 +3250,12 @@ class OrgCRUDL(SmartCRUDL):
 
     class SendInvite(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class SentInviteForm(forms.Form):
+            # set email field readonly when email provided
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                if self.initial.get("email"):
+                    self.fields["email"].widget.attrs['readonly'] = True
+
             email = forms.EmailField(label=_("Invite people to your organization"), required=True)
             user_group = forms.ChoiceField(
                 choices=(("A", _("Administrators")), ("E", _("Editors")), ("V", _("Viewers")), ("S", _("Surveyors"))),

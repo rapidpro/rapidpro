@@ -3,8 +3,14 @@
 -load i18n
 
 -block fields
-    -render_field 'email'
-    -render_field 'user_group'
+  %style
+    :plain
+      .field_user_group .control-label {
+        margin-top: 10px;
+      }
+
+  -render_field 'email'
+  -render_field 'user_group'
 
 
 -block modal-script
