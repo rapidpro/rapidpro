@@ -139,7 +139,9 @@
       -for invite in invites
         %tr.invite
           %td
-            {{invite.email}} (Invite Sent)
+            {{invite.email}}
+            %a.resend-invite{"data-email": '{{invite.email}}', "data-user-group": '{{invite.user_group}}', "href": '{% url "orgs.org_send_invite" %}?id={{invite.id}}'}
+              - trans "Resend Invite"
           %td.permission
             .glyph.level-checkbox{class:'{% if invite.user_group == "A"%}checked{%endif%}'}
           %td.permission
@@ -277,16 +279,32 @@
     });
 
     $(document).ready(function() {
-      $("#did_emails").select2({
+      $("#id_invite_emails").select2({
         containerCssClass: 'select2-temba-field',
         tags: [],
         selectOnBlur: true,
         placeholder: '{% trans "Enter emails of people to invite" %}',
       });
 
-      $("#id_user_group").select2({
+      $("#id_invite_group").select2({
         containerCssClass: 'select2-temba-user-group-field',
         minimumResultsForSearch: -1,
         width:'300px',
       });
+    });
+
+    $(".resend-invite").live('click', function(evt){
+      evt.preventDefault();
+
+      let href = $(this).attr('href');
+      let modal = new Modax(gettext('Resend Invite'), href);
+      let onActions = {
+        onSuccess: function(data) {
+          document.location.reload(true);
+        },
+        onFormLoaded: function() { }
+      }
+
+      modal.setListeners(onActions);
+      modal.show();
     });
