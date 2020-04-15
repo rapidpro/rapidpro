@@ -33,8 +33,8 @@
 
 -block fields
   -if not user_settings.two_factor_enabled
-
-    To enable two factor authentication, use a one time password application such as
+    -blocktrans trimmed
+      To enable two factor authentication, use a one time password application such as
     
     %a{ href: "https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2", target: "_blank"}
       Google Authentication
@@ -42,7 +42,6 @@
     or
 
     %a{ href: "https://authy.com/", target: "_blank"}
-
       Authy
 
     %br
@@ -59,7 +58,6 @@
     %br
 
     %a.btn.btn-primary.btn-tiny{id:'generate-backup-tokens', style:'margin-top:5px'}
-
       -trans "Generate Backup Tokens"
 
     %a.btn.btn-primary.btn-tiny{href:"{% url 'orgs.org_home' %}", id:'disable-two-factor-auth', style:'margin-top:5px'}
@@ -101,7 +99,12 @@
                 tokens = tokens + `<li>${token}</li>`;
             }
 
-            element = `<ul>${tokens}</ul>`
+            element = `
+            <br>
+            <p>Your 10 old backup tokens have been invalidated, please save these new 10 created in a safe place.</p>
+            <br>
+            <ul>${tokens}</ul>
+            `
 
             $('#backup').html(element);
           }
