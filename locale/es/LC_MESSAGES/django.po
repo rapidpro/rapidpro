@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-09 14:30+0000\n"
+"POT-Creation-Date: 2020-04-14 22:14+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4040,6 +4040,20 @@ msgstr "Los flujos para exportar"
 msgid "Any configuration options for this flow export"
 msgstr "Configuraciones codificadas JSON para este informe"
 
+msgid "Pending"
+msgstr "Pendiente"
+
+#, fuzzy
+#| msgid "Start Flow"
+msgid "Starting"
+msgstr "Empezar flujo"
+
+msgid "Complete"
+msgstr ""
+
+msgid "Failed"
+msgstr "Error"
+
 msgid "The name of this flow label"
 msgstr "El nombre de la etiqueta de este flujo"
 
@@ -4482,6 +4496,11 @@ msgstr ""
 msgid "Name already used"
 msgstr "Nombre ya utilizado"
 
+#, fuzzy
+#| msgid "Flow Start"
+msgid "Flow Start Log"
+msgstr "Inicio de Flujo"
+
 #, python-format
 msgid "Cannot create a new global as limit is %(limit)s."
 msgstr ""
@@ -4524,9 +4543,6 @@ msgstr "Después de 5 minutos"
 
 msgid "You must select a country for your organization."
 msgstr "Debe elegir un país para su organización."
-
-msgid "Pending"
-msgstr "Pendiente"
 
 msgid "Queued"
 msgstr "En cola"
@@ -4833,9 +4849,6 @@ msgstr "Bandeja de salida"
 
 msgid "Schedules"
 msgstr "Programaciones"
-
-msgid "Failed"
-msgstr "Error"
 
 msgid "Schedule Message"
 msgstr "Programar mensaje"
@@ -5893,9 +5906,6 @@ msgid "Create Schedule"
 msgstr "Crear cronograma"
 
 msgid "Processing"
-msgstr ""
-
-msgid "Complete"
 msgstr ""
 
 #, fuzzy
@@ -9432,6 +9442,31 @@ msgstr ""
 msgid "Ask a series of questions to collect data from your contacts."
 msgstr "Haga una serie de preguntas para obtener los datos de sus contactos."
 
+#, fuzzy, python-format
+#| msgid "has started this flow."
+msgid "was started by %(user)s for"
+msgstr "ha iniciado en este flujo."
+
+#, fuzzy
+#| msgid "All Contacts"
+msgid "all contacts"
+msgstr "Todos los contactos"
+
+#, fuzzy
+#| msgid "Place contact in another flow"
+msgid "contacts not in other flows"
+msgstr "Colocar el contacto en otro flujo"
+
+#, fuzzy
+#| msgid "No contacts have started this flow."
+msgid "contacts not in other flows who haven't already been through this flow"
+msgstr "No se han iniciado contactos en este flujo."
+
+#, fuzzy
+#| msgid "No contacts have started this flow."
+msgid "contacts who haven't already been through this flow"
+msgstr "No se han iniciado contactos en este flujo."
+
 #, fuzzy
 #| msgid "Are you sure you want to delete this contact?"
 msgid "Are you sure you want to delete this global?"
@@ -12378,6 +12413,21 @@ msgid "Found ${count} for ${query}"
 msgstr ""
 
 #, fuzzy
+#~| msgid "Start Flow"
+#~ msgid "Start Log"
+#~ msgstr "Empezar flujo"
+
+#, fuzzy
+#~| msgid "Start Flow"
+#~ msgid "Started By"
+#~ msgstr "Empezar flujo"
+
+#, fuzzy
+#~| msgid "Start Flow"
+#~ msgid "Started On"
+#~ msgstr "Empezar flujo"
+
+#, fuzzy
 #~| msgid "No Editors"
 #~ msgid "Previous Editor"
 #~ msgstr "Sin Editores"
@@ -15079,9 +15129,6 @@ msgstr ""
 #~ msgid "1 Contact"
 #~ msgstr "1 Contacto"
 
-#~ msgid "has started this flow."
-#~ msgstr "ha iniciado en este flujo."
-
 #~ msgid "{{ participant_count }} Contacts"
 #~ msgstr "{{ participant_count }} Contactos"
 
@@ -15197,9 +15244,6 @@ msgstr ""
 
 #~ msgid "Send an e-mail"
 #~ msgstr "Enviar un mensaje de correo electrónico"
-
-#~ msgid "Place contact in another flow"
-#~ msgstr "Colocar el contacto en otro flujo"
 
 #~ msgid "Place somebody else in a flow"
 #~ msgstr "Colocar a alguien más en un flujo"

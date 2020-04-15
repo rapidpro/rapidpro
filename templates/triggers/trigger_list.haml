@@ -161,12 +161,7 @@
                                 -trans "not scheduled"
 
                       %td{ width: "250px" }
-                        .groups
-                          -for group in obj.groups.all
-                            %nobr
-                              .icon.icon-users-2
-                              .name
-                                <a href="{% url 'contacts.contact_filter' group.uuid %}">{{ group.name }}</a>
+                        -include "includes/recipients.haml" with groups=obj.groups.all contacts=obj.contacts.all
 
                     - empty
                       %tr.empty_list
@@ -179,24 +174,6 @@
                 - if object_list.count
                   .paginator
                     - include "smartmin/sidebar_pagination.haml"
-
--block extra-style
-  :css
-    .groups {
-      font-size: 11px;
-      color: #aaa;
-    }
-
-    .groups .icon {
-      display:inline-block;
-      margin-right: -3px;
-
-    }
-
-    .groups .name {
-      display: inline-block;
-      margin-right:6px;
-    }
 
 -block extra-script
   {{ block.super }}

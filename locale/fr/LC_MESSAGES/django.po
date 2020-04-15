@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-09 14:30+0000\n"
+"POT-Creation-Date: 2020-04-14 22:14+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2992,6 +2992,20 @@ msgstr "Les flux d'exportation"
 msgid "Any configuration options for this flow export"
 msgstr "Toutes les options de configuration pour cette exportation de flux"
 
+msgid "Pending"
+msgstr "En attente"
+
+#, fuzzy
+#| msgid "Start"
+msgid "Starting"
+msgstr "Démarrer"
+
+msgid "Complete"
+msgstr "Terminé"
+
+msgid "Failed"
+msgstr "manqué"
+
 msgid "The name of this flow label"
 msgstr "Le nom de ce label de flux"
 
@@ -3385,6 +3399,11 @@ msgstr "Votre modèle de message {template.name} n'est pas approuvé et ne peut 
 msgid "Name already used"
 msgstr "Nom déjà utilisé"
 
+#, fuzzy
+#| msgid "Flow Start"
+msgid "Flow Start Log"
+msgstr "Début de flux"
+
 #, python-format
 msgid "Cannot create a new global as limit is %(limit)s."
 msgstr "Impossible de créer un nouveau global car la limite est %(limit)s."
@@ -3415,9 +3434,6 @@ msgstr "Après 4 minutes"
 
 msgid "You must select a country for your organization."
 msgstr "Vous devez sélectionner un pays pour votre organisation."
-
-msgid "Pending"
-msgstr "En attente"
 
 msgid "Queued"
 msgstr "File d'attente"
@@ -3680,9 +3696,6 @@ msgstr "Boîte d'Envoi"
 
 msgid "Schedules"
 msgstr "Planning"
-
-msgid "Failed"
-msgstr "manqué"
 
 msgid "Schedule Message"
 msgstr "Messages planning"
@@ -4619,9 +4632,6 @@ msgstr "Créer un planning"
 
 msgid "Processing"
 msgstr "En traitement"
-
-msgid "Complete"
-msgstr "Terminé"
 
 msgid "The organization of the user."
 msgstr "L'organisation de l'utilisateur."
@@ -7554,6 +7564,30 @@ msgstr ""
 msgid "Ask a series of questions to collect data from your contacts."
 msgstr "Poser une série de questions visant à recueillir les données de vos contacts."
 
+#, python-format
+msgid "was started by %(user)s for"
+msgstr ""
+
+#, fuzzy
+#| msgid "All Contacts"
+msgid "all contacts"
+msgstr "Tous les contacts"
+
+#, fuzzy
+#| msgid "recipients at this point in the flow"
+msgid "contacts not in other flows"
+msgstr "destinataires à ce stade du flux"
+
+#, fuzzy
+#| msgid "Restart contacts who have already entered this flow"
+msgid "contacts not in other flows who haven't already been through this flow"
+msgstr "Redémarrez les contacts qui ont déjà entré ce flux"
+
+#, fuzzy
+#| msgid "Restart contacts who have already entered this flow"
+msgid "contacts who haven't already been through this flow"
+msgstr "Redémarrez les contacts qui ont déjà entré ce flux"
+
 msgid "Are you sure you want to delete this global?"
 msgstr "Voulez-vous vraiment supprimer cette variable globale?"
 
@@ -10478,6 +10512,21 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy
+#~| msgid "Start Flow"
+#~ msgid "Start Log"
+#~ msgstr "Lancer un Flux"
+
+#, fuzzy
+#~| msgid "Started"
+#~ msgid "Started By"
+#~ msgstr "Démarré"
+
+#, fuzzy
+#~| msgid "Started"
+#~ msgid "Started On"
+#~ msgstr "Démarré"
 
 #~ msgid "Previous Editor"
 #~ msgstr "Editeur précédent"
