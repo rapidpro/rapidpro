@@ -2037,7 +2037,7 @@ class FlowCRUDL(SmartCRUDL):
                 help_text=_("Include contacts currently active in a flow"),
             )
 
-            start_type = forms.ChoiceField(
+            recipients_mode = forms.ChoiceField(
                 widget=SelectWidget(
                     attrs={"placeholder": _("Select contacts or groups to start in the flow"), "widget_only": True}
                 ),
@@ -2054,9 +2054,9 @@ class FlowCRUDL(SmartCRUDL):
 
             def clean_contact_query(self):
                 contact_query = self.cleaned_data["contact_query"]
-                start_type = self.data["start_type"]
+                recipients_mode = self.data["recipients_mode"]
 
-                if start_type == "query":
+                if recipients_mode == "query":
                     if not contact_query.strip():
                         raise ValidationError(_("Contact query is required"))
 
@@ -2072,9 +2072,9 @@ class FlowCRUDL(SmartCRUDL):
 
             def clean_omnibox(self):
                 starting = self.cleaned_data["omnibox"]
-                start_type = self.data["start_type"]
+                recipients_mode = self.data["recipients_mode"]
 
-                if start_type == "select" and not starting:  # pragma: needs cover
+                if recipients_mode == "select" and not starting:  # pragma: needs cover
                     raise ValidationError(_("You must specify at least one contact or one group to start a flow."))
 
                 return omnibox_deserialize(self.user.get_org(), starting)
@@ -2105,7 +2105,7 @@ class FlowCRUDL(SmartCRUDL):
                 fields = ("omnibox", "restart_participants", "include_active")
 
         form_class = BroadcastForm
-        fields = ("omnibox", "restart_participants", "include_active", "start_type", "contact_query")
+        fields = ("omnibox", "restart_participants", "include_active", "recipients_mode", "contact_query")
         success_message = ""
         submit_button_name = _("Add Contacts to Flow")
         success_url = "uuid@flows.flow_editor"
@@ -2176,14 +2176,14 @@ class FlowCRUDL(SmartCRUDL):
             form = self.form
             flow = self.object
 
-            start_type = form.cleaned_data["start_type"]
+            recipients_mode = form.cleaned_data["recipients_mode"]
 
             # save off our broadcast info
             groups = []
             contacts = []
             contact_query = None
 
-            if start_type == "query":
+            if recipients_mode == "query":
                 contact_query = form.cleaned_data["contact_query"]
             else:
                 omnibox = form.cleaned_data["omnibox"]

@@ -708,7 +708,7 @@ class OrgTest(TembaTest):
         omni_mark = json.dumps({"id": mark.uuid, "name": mark.name, "type": "contact"})
         self.client.post(
             reverse("flows.flow_broadcast", args=[flow.id]),
-            {"start_type": "select", "omnibox": omni_mark, "restart_participants": "on"},
+            {"recipients_mode": "select", "omnibox": omni_mark, "restart_participants": "on"},
             follow=True,
         )
 
@@ -751,7 +751,7 @@ class OrgTest(TembaTest):
 
         self.client.post(
             reverse("flows.flow_broadcast", args=[flow.id]),
-            {"start_type": "select", "omnibox": omni_mark, "restart_participants": "on"},
+            {"recipients_mode": "select", "omnibox": omni_mark, "restart_participants": "on"},
             follow=True,
         )
 

@@ -930,6 +930,7 @@ class Flow(TembaModel):
         flow_start = FlowStart.objects.create(
             org=self.org,
             flow=self,
+            start_type=FlowStart.TYPE_MANUAL,
             restart_participants=restart_participants,
             include_active=include_active,
             created_by=user,
