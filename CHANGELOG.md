@@ -1,3 +1,8 @@
+v5.5.19
+----------
+ * Add FlowStart.start_type
+ * Ensure flow starts created via the API are only sent to mailroom after the open transaction is committed
+
 v5.5.18
 ----------
  * Add flow start log page
