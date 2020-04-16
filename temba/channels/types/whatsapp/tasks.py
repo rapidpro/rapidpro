@@ -221,5 +221,8 @@ def refresh_whatsapp_templates():
                 # trim any translations we didn't see
                 TemplateTranslation.trim(channel, seen)
 
-            except RequestException as e:  # pragma: no cover
+            except RequestException as e:
                 HTTPLog.create_from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, e, start, channel=channel)
+
+            except Exception as e:
+                logger.error(f"Error refreshing whatsapp templates: {str(e)}", exc_info=True)
