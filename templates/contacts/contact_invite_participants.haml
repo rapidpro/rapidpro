@@ -70,8 +70,10 @@
                         {{ flow.name }}
                   %button#id_save_flow_btn.btn.btn-primary
                     %trans Save
+                  %p#id_message
+                    -trans "Select Opt-In flow and press 'Save' before 'Invite' pressed."
                   %a#id_open_in_flow_editor.btn-block{'data-href-template':"{% url 'flows.flow_editor' 'uuid' %}"}
-                    %trans Open in the flow editor
+                    -trans "Open in the flow editor"
 
               .search-details
                 -if search_error
@@ -149,7 +151,7 @@
                             {% short_datetime object.created_on %}
                         
                         %td.invite-column.value-received.field_received
-                          %a.invite.btn.btn-primary.btn-block{href:"{% url 'contacts.contact_invite_participants' %}", 'data-omnibox': "c-{{object.uuid}}"}
+                          %a.invite.btn.btn-primary.btn-block{href:"{% url 'contacts.contact_invite_participants' %}", 'data-uuid': "{{object.uuid}}"}
                             -trans "Invite"
 
                         // This is needed for action buttons
@@ -262,6 +264,15 @@
     .pagination-notification {
       background: #ecf0f1;
       padding: 10px;
+    }
+
+    #id_message {
+      color: red;
+      margin: 0;
+    }
+
+    #id_open_in_flow_editor {
+      cursor: pointer;
     }
 
 
@@ -439,16 +450,19 @@
 
 
     /* Invite functional for selected opt-in flow */
+    var message = $("#id_message");
     var saveBtn = $("#id_save_flow_btn");
     var flowSelect = $("#id_opt_in_flow");
     var flowEditLink = $("#id_open_in_flow_editor");
     var inviteLinks = $('a.invite');
-    inviteLinks.hide();
+
+    message.hide();
+    inviteLinks.attr("data-available", false);
 
     function initInviteLinks() {
       let flowID = JSON.parse(flowSelect.val()).id;
       inviteLinks.attr('href', flowSelect.attr('data-url-template').replace('0', flowID));
-      inviteLinks.show();
+      inviteLinks.attr("data-available", true);
     }
 
     function processInvite(url, params) {
@@ -456,32 +470,53 @@
       $.ajax({
         url: url,
         type: "POST",
+        contentType: 'application/x-www-form-urlencoded',
         data: {
           'omnibox': params.omnibox,
+          'omnibox': JSON.stringify({
+            'id': params.id,
+            'type': params.type,
+          }),
           'restart_participants': false,
           'include_active': false,
           'csrfmiddlewaretoken': token,
+          'start_type': 'select',
+          'contact_query': '',
         }
+      })
+      .done(function (data) {
+        console.log("Flow started successful!");
+      })
+      .fail(function (jqXHR, textStatus, errorThrown) { 
+        console.log(textStatus);
       });
     }
 
-    flowSelect.select2({containerCss: {'min-width': '350px'}})
+    flowSelect.select2({containerCss: {'min-width': '350px'}}).change(function() {
+      inviteLinks.attr("data-available", false);
+    });
 
     flowEditLink.mousedown(function(evt) {
       let hrefTemplate = flowEditLink.attr('data-href-template');
       let flowUUID = JSON.parse(flowSelect.val()).uuid;
       flowEditLink.attr('href', hrefTemplate.replace('uuid', flowUUID));
-    })
+    });
 
     saveBtn.click(initInviteLinks);
 
     inviteLinks.click(function(evt) {
       evt.preventDefault();
       let clickedLink = $(this);
-      if (clickedLink[0].hasAttribute('disabled')) return;
-      let url = clickedLink.attr('href');
-      let omnibox = clickedLink.attr('data-omnibox');
-      clickedLink.removeClass('btn btn-primary').html('Invite Sent').attr('disabled', true);
-      processInvite(url, {omnibox: omnibox});
-      setTimeout(function() {clickedLink.addClass('btn btn-primary').html('Invite').removeAttr('disabled')}, 5000)
-    })
+      if (clickedLink.attr("data-available") === "true") {
+        // If flow selected, run flow for contact
+        let url = clickedLink.attr('href');
+        clickedLink.removeClass('btn btn-primary').html('Invite Sent').attr('disabled', true);
+        processInvite(url, {id: clickedLink.attr('data-uuid'), type: 'contact'});
+        setTimeout(function() {clickedLink.addClass('btn btn-primary').html('Invite').removeAttr('disabled')}, 5000)
+      } else {
+        // If flow not selected, display message about it and scroll to message.
+        message.show();
+        $('html, body').animate({scrollTop: 0}, 200);
+        setTimeout(function () {message.hide();}, 3000);
+      }
+    });
