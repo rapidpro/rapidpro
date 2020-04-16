@@ -3,6 +3,8 @@
 -load i18n
 
 -block fields
+  %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}css/bootstrap-datetimepicker.min.css", media:'all'}
+  %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/awesome/css/font-awesome.min.css", media:'all'}
 
   %style
     :plain
@@ -31,6 +33,71 @@
         width: 100% !important; 
       }
 
+      #start-datetime {
+        width: 100%;
+      }
+
+      .col-md-6 {
+        width: 48%;
+      }
+
+      .datepicker {
+        float: left;
+      }
+
+      .timepicker {
+        float: right;
+        margin: 50px 0 0 0;
+      }
+
+      .bootstrap-datetimepicker-widget table td {
+        width: 40px;
+        height: 40px;
+        line-height: 40px;
+      }
+
+      .bootstrap-datetimepicker-widget table td.separator {
+        width: 20px;
+      }
+
+      .bootstrap-datetimepicker-widget .timepicker-hour, .bootstrap-datetimepicker-widget .timepicker-minute, .bootstrap-datetimepicker-widget .timepicker-second {
+        width: 40px;
+        height: 40px;
+        line-height: 40px;
+      }
+
+      .bootstrap-datetimepicker-widget a[data-action] {
+        padding: 0;
+      }
+
+      .timepicker-picker a.btn {
+        background-color: transparent !important;
+        border: none;
+        background-image: none;
+        box-shadow: none;
+      }
+
+      .timepicker-picker a.btn span {
+        line-height: 40px;
+        height: 40px;
+        width: 45px;
+        background-color: transparent !important;
+      }
+
+      .weekly-repeat-options .btn-group .btn {
+        margin: 2px;
+        border-radius: 5px;
+      }
+
+      .weekly-repeat-options .btn-group .btn.active {
+        color: #e6e6e6;
+        background-color: #569D9B;
+      }
+
+      .bootstrap-datetimepicker-widget table td.active, .bootstrap-datetimepicker-widget table td.active:hover {
+        background-color: #569D9B;
+        color: #FFFFFF;
+      }
 
   -if object.flow_type == 'M' and not send_channel
     %p
@@ -93,8 +160,8 @@
       #schedule-options
         %label.schedule-options-label{for:"later-option"}
         #start-datetime{ name:'start_datetime', disabled:'true', value:'{% trans "Select a date" %}'}
-        %input#start-datetime-value{ hidden:'true', name:'start_datetime_value', value:''}
-        %input#later-option{name:'start',type:'hidden',value:'later'}
+        %input#start-datetime-value{type:'hidden', name:'start_datetime_value', value:''}
+        %input#later-option{type:'hidden', name:'start',value:'later'}
 
       #recurrence
         .repeat-period
@@ -128,6 +195,7 @@
           -trans "You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
     
     %script{src:"{% url 'django.views.i18n.javascript_catalog' %}"}
+    %script{src:"{{ STATIC_URL }}js/bootstrap-datetimepicker.min.js"}
     %script{src:"{{ STATIC_URL }}js/schedules-ui.js?v=3"}
     :javascript
       var user_tz = "{{ user_tz }}";
@@ -191,7 +259,7 @@
             minDate.setMinutes(0);
             minDate.setHours(minDate.getHours() + 1);
         }
-        initializeDatetimePicker(minDate, undefined, false);
+        initializeBootstrapDatetimePicker(minDate, undefined, false);
       });
 
       function updateDailySelection() {
@@ -234,15 +302,12 @@
   :javascript
     prepareOmnibox();
     $("#id_keyword").select2({
-      containerCssClass: "select2-temba-field",
-      initSelection : function (element, callback) {
-        callback({id: element.val(), text: element.val()});
-      },
-      query: function (params) {
-        if (params.term.length > 0)
-          return params.callback({results: [{id: params.term, text: params.term}]});
-      }
-    })
+      tags: [],
+      tokenSeparators: [",", " "],
+      minimumResultsForSearch: -1,
+      placeholder: "Add a keyword to begin this flow",
+      containerCssClass: "select2-temba-field"
+    });
 
 -block modal-script
   {{block.super}}
@@ -254,14 +319,11 @@
     
     prepareOmnibox();
     $("#id_keyword").select2({
-      containerCssClass: "select2-temba-field",
-      initSelection : function (element, callback) {
-        callback({id: element.val(), text: element.val()});
-      },
-      query: function (params) {
-        if (params.term.length > 0)
-          return params.callback({results: [{id: params.term, text: params.term}]});
-      }
-    })
+      tags: [],
+      tokenSeparators: [",", " "],
+      minimumResultsForSearch: -1,
+      placeholder: "Add a keyword to begin this flow",
+      containerCssClass: "select2-temba-field"
+    });
 
 -load humanize    
