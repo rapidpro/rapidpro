@@ -233,6 +233,16 @@
   {{ block.super }}
   :javascript
     prepareOmnibox();
+    $("#id_keyword").select2({
+      containerCssClass: "select2-temba-field",
+      initSelection : function (element, callback) {
+        callback({id: element.val(), text: element.val()});
+      },
+      query: function (params) {
+        if (params.term.length > 0)
+          return params.callback({results: [{id: params.term, text: params.term}]});
+      }
+    })
 
 -block modal-script
   {{block.super}}
@@ -243,5 +253,15 @@
     });
     
     prepareOmnibox();
+    $("#id_keyword").select2({
+      containerCssClass: "select2-temba-field",
+      initSelection : function (element, callback) {
+        callback({id: element.val(), text: element.val()});
+      },
+      query: function (params) {
+        if (params.term.length > 0)
+          return params.callback({results: [{id: params.term, text: params.term}]});
+      }
+    })
 
 -load humanize    
