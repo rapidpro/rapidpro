@@ -453,6 +453,13 @@ class WhatsAppTypeTest(TembaTest):
         self.assertContains(response, "Connection Error")
         self.assertContains(response, "https://example.org/v3.3/1234/message_templates")
 
+        with patch("requests.get") as mock_get:
+            mock_get.side_effect = Exception("Random Error")
+
+            with patch("logging.Logger.error") as mock_logger:
+                refresh_whatsapp_templates()
+                mock_logger.assert_called_once()
+
         # sync logs not accessible by user from other org
         self.login(self.admin2)
         response = self.client.get(reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
