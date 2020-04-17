@@ -5,6 +5,7 @@ from uuid import uuid4
 import iso8601
 import regex
 import requests
+import itertools
 from packaging.version import Version
 from smartmin.views import (
     SmartCreateView,
@@ -2265,8 +2266,10 @@ class FlowCRUDL(SmartCRUDL):
             )
 
             # Fields for trigger keyword launch
-            keyword = forms.CharField(
-                label=_("Keyword"), required=False, help_text=_("Word to match in the message text")
+            keyword_triggers = forms.CharField(
+                label=_("Keyword triggers"),
+                required=False, 
+                help_text=_("When a user sends any of these keywords they will begin this flow"),
             )
 
             match_type = forms.ChoiceField(
@@ -2309,35 +2312,61 @@ class FlowCRUDL(SmartCRUDL):
             def clean(self):
                 cleaned_data = super().clean()
 
-                def validate_keyword():
-                    keyword = cleaned_data.get("keyword", "")
-                    keyword = keyword.strip()
-
-                    if keyword == "" or (
-                        keyword and not regex.match(r"^\w+$", keyword, flags=regex.UNICODE | regex.V0)
-                    ):
-                        self.add_error(
-                            "keyword",
-                            forms.ValidationError(
-                                _("Keywords must be a single word containing only letter and numbers")
-                            ),
-                        )
-
+                def validate_keyword_triggers():
+                    duplicates = []
+                    wrong_format = []
+                    cleaned_keywords = []
+                    keyword_triggers = cleaned_data.get("keyword_triggers", "")
                     groups, org = cleaned_data.get("groups", []), self.user.get_org()
-                    existing = Trigger.objects.filter(
-                        org=org, is_archived=False, is_active=True, keyword__iexact=keyword
-                    )
-                    existing = existing.filter(groups__in=groups) if groups else existing.filter(groups=None)
 
-                    if existing:
+                    for keyword in keyword_triggers.split(','):
+                        keyword = keyword.strip()
+
+                        # format validation
+                        keyword_has_wrong_format = (
+                            keyword == "" or
+                            keyword and not regex.match(r"^\w+$", keyword, flags=regex.UNICODE | regex.V0) or
+                            len(keyword) > Trigger.KEYWORD_MAX_LEN
+                        )
+                        if keyword_has_wrong_format:
+                            wrong_format.append(keyword)
+                            continue
+                        
+                        # duplicates validation
+                        keyword_already_exist = (
+                            Trigger.objects
+                            .filter(org=org, is_archived=False, is_active=True, keyword__iexact=keyword)
+                            .exists()
+                        )
+                        if keyword_already_exist:
+                            duplicates.append(keyword)
+                            continue
+
+                        # if keyword valid we need add it to cleaned
+                        cleaned_keywords.append(keyword)
+
+                    if not keyword_triggers:
                         self.add_error(
-                            "keyword",
+                            "keyword_triggers",
+                            forms.ValidationError(_("You must specify at least one keyword to launch the flow.")),
+                        )
+                    elif wrong_format:
+                        self.add_error(
+                            "keyword_triggers",
                             forms.ValidationError(
-                                _("An active trigger already exists, triggers must be unique for each group")
+                                _('"%s" must be a single word, less than %d characters, containing only letter '
+                                  'and numbers') % (', '.join(wrong_format), Trigger.KEYWORD_MAX_LEN)
                             ),
                         )
+                    
+                    if duplicates:
+                        error_message = (
+                            _('The keywords "{}" are already used for another flow') if len(duplicates) > 1 else
+                            _('The keyword "{}" is already used for another flow')
+                        ).format(', '.join(duplicates))
+                        self.add_error("keyword_triggers", forms.ValidationError(error_message))
 
-                    cleaned_data["keyword"] = keyword
+                    cleaned_data["keyword_triggers"] = ','.join(cleaned_keywords)
 
                 def validate_omnibox():
                     starting = cleaned_data["omnibox"]
@@ -2369,7 +2398,7 @@ class FlowCRUDL(SmartCRUDL):
                     validate_omnibox()
 
                 if cleaned_data["launch_type"] == LAUNCH_ON_KEYWORD_TRIGGER:
-                    validate_keyword()
+                    validate_keyword_triggers()
 
                 # only weekly gets repeat days
                 if cleaned_data["repeat_period"] != "W":
@@ -2401,7 +2430,7 @@ class FlowCRUDL(SmartCRUDL):
                     "contact_query",
                     "restart_participants",
                     "include_active",
-                    "keyword",
+                    "keyword_triggers",
                     "groups",
                     "match_type",
                     "repeat_period",
@@ -2418,7 +2447,7 @@ class FlowCRUDL(SmartCRUDL):
             "contact_query",
             "restart_participants",
             "include_active",
-            "keyword",
+            "keyword_triggers",
             "groups",
             "match_type",
             "repeat_period",
@@ -2508,20 +2537,33 @@ class FlowCRUDL(SmartCRUDL):
 
             def process_on_keyword_trigger():
                 user = self.request.user
-                keyword = form.cleaned_data["keyword"]
+                org = user.get_org()
+                keyword_triggers = form.cleaned_data["keyword_triggers"]
                 match_type = form.cleaned_data["match_type"]
                 groups = form.cleaned_data["groups"]
 
                 with transaction.atomic():
-                    trigger = Trigger.objects.create(
-                        flow=flow,
-                        keyword=keyword,
-                        match_type=match_type,
-                        org=user.get_org(),
-                        created_by=user,
-                        modified_by=user,
-                    )
-                    trigger.groups.set(groups)
+                    triggers = []
+                    # creating of triggers
+                    for keyword in keyword_triggers.split(','):
+                        pass
+                        triggers.append(Trigger(
+                            flow=flow,
+                            keyword=keyword,
+                            match_type=match_type,
+                            org=org,
+                            created_by=user,
+                            modified_by=user,
+                        ))
+                    triggers = Trigger.objects.bulk_create(triggers)
+                    
+                    # adding groups to triggers
+                    trigger_group_relations = []
+                    TriggerGroupRelation = Trigger.groups.through
+                    for trigger, group in itertools.product(triggers, groups):
+                        trigger_group_relations.append(TriggerGroupRelation(trigger=trigger, contactgroup=group))
+                    
+                    TriggerGroupRelation.objects.bulk_create(trigger_group_relations)
 
             def process_on_schedule_trigger():
                 user = self.request.user

@@ -152,7 +152,7 @@
                 -trans "Interrupt contacts currently active in flows"
     
     .l-keyword
-      - render_field 'keyword'
+      - render_field 'keyword_triggers'
       - render_field 'match_type'
       - render_field 'groups'
 
@@ -301,7 +301,7 @@
   {{ block.super }}
   :javascript
     prepareOmnibox();
-    $("#id_keyword").select2({
+    $("#id_keyword_triggers").select2({
       tags: [],
       tokenSeparators: [",", " "],
       minimumResultsForSearch: -1,
@@ -318,7 +318,7 @@
     });
     
     prepareOmnibox();
-    $("#id_keyword").select2({
+    $("#id_keyword_triggers").select2({
       tags: [],
       tokenSeparators: [",", " "],
       minimumResultsForSearch: -1,
