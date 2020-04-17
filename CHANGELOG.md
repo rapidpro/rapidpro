@@ -1,3 +1,9 @@
+v5.5.20
+----------
+ * Use actual PO library to check for msgid differences
+ * Migration to backfill FlowStart.start_type
+ * Log error of WA channel failing to sync templates
+
 v5.5.19
 ----------
  * Add FlowStart.start_type
