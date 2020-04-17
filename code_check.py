@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 
-import os
+import argparse
 import subprocess
 
 import colorama
+import polib
 
-DEBUG = "TRAVIS" in os.environ
+parser = argparse.ArgumentParser(description="Code checks")
+parser.add_argument("--debug", action="store_true")
+args = parser.parse_args()
+
+DEBUG = args.debug
 
 
 def cmd(line):
@@ -26,17 +31,35 @@ def status(line):
 
 
 def update_po_files():
+    def get_current_msgids():
+        pot = polib.pofile("locale/en_US/LC_MESSAGES/django.po")
+        return {e.msgid for e in pot if not e.fuzzy and not e.obsolete}
+
+    # get the current set of msgids
+    saved_msgids = get_current_msgids()
+
+    # re-extract locale files from source code
     ignore_paths = ("env/*", "static/bower/*", "static/components/*", "node_modules/*")
     ignore_args = " ".join([f'--ignore="{p}"' for p in ignore_paths])
 
     cmd(f"python manage.py makemessages -a -e haml,html,txt,py --no-location --no-wrap {ignore_args}")
     cmd(f"python manage.py makemessages -d djangojs -a --no-location --no-wrap {ignore_args}")
 
-    modified_pos = cmd("git diff --name-only locale/").split("\n")
-    for po in modified_pos:
-        # we only care about changes to msgids, so if we can't find any of those, revert the file
-        if not cmd(rf'git diff -U0 {po} | grep -e "^[\+\-]msgid" || true').strip():
-            cmd(f"git checkout -- {po}")
+    # get the new set of msgids
+    actual_msgids = get_current_msgids()
+
+    added_msgids = actual_msgids.difference(saved_msgids)
+    removed_msgids = saved_msgids.difference(actual_msgids)
+
+    if DEBUG:
+        for mid in added_msgids:
+            print(f"  + {repr(mid)}")
+        for mid in removed_msgids:
+            print(f"  - {repr(mid)}")
+
+    # if there are no actual changes to msgids, revert
+    if not added_msgids and not removed_msgids:
+        cmd(f"git checkout -- locale")
 
 
 if __name__ == "__main__":
