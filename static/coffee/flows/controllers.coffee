@@ -216,6 +216,12 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       showDialog('File Size Exceeded', "The file size should be less than 500kB for images and less than 20MB for audio and video files. Please choose another file and try again.")
       return
 
+
+    if action.type == 'email' and file.size > 26214400
+      showDialog('File Size Exceeded', "The file size should be less than 25MB for files. Please choose another file and try again.")
+      return
+    
+
     if action.type == 'email' and file.name.split('.').pop() in ['ade', 'adp', 'apk', 'bat', 'chm', 'cmd', 'com', 'cpl', 'dll', 'dmg', 'exe', 'hta', 'ins', 'isp', 'jar', 'js', 'jse', 'lib', 'lnk', 'mde', 'msc', 'msi', 'msp', 'mst', 'nshpif', 'scr', 'sct', 'shb', 'sys', 'vb', 'vbe', 'vbs', 'vxd', 'wsc', 'wsf', 'wsh', 'cab']
       showDialog('Invalid Format', 'This file type is not supported for security reasons. If you still wish to send, please convert this file to an allowable type.')
       return
