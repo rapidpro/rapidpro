@@ -2238,17 +2238,26 @@ class FlowCRUDL(SmartCRUDL):
 
                 super().__init__(*args, **kwargs)
                 self.fields["omnibox"].set_user(self.user)
-                self.fields["groups"].queryset = ContactGroup.user_groups.filter(
-                    org=self.user.get_org(), is_active=True
-                )
 
             launch_type = forms.ChoiceField(choices=LAUNCH_CHOICES, initial=LAUNCH_IMMEDIATELY)
 
             # Fields for immediate launch
+            start_type = forms.ChoiceField(
+                choices=(
+                    ("select", _("Enter contacts and groups to start below")),
+                    ("query", _("Search for contacts to start")),
+                ),
+                initial="select",
+            )
+            
             omnibox = OmniboxField(
                 label=_("Contacts & Groups"),
                 help_text=_("These contacts will be added to the flow, sending the first message if appropriate."),
                 required=False,
+            )
+
+            contact_query = forms.CharField(
+                required=False, widget=ContactSearchWidget(attrs={"placeholder": _("Enter contact query")})
             )
 
             restart_participants = forms.BooleanField(
@@ -2272,23 +2281,6 @@ class FlowCRUDL(SmartCRUDL):
                 help_text=_("When a user sends any of these keywords they will begin this flow"),
             )
 
-            match_type = forms.ChoiceField(
-                label=_("Trigger When"),
-                choices=Trigger.MATCH_TYPES,
-                initial=Trigger.MATCH_FIRST_WORD,
-                required=False,
-                help_text=_("How to match a message with a keyword"),
-            )
-
-            groups = forms.ModelMultipleChoiceField(
-                label=_("Only Groups"),
-                queryset=ContactGroup.user_groups.filter(pk__lt=0),
-                required=False,
-                help_text=_(
-                    "Only apply this trigger to contacts in these groups. (leave empty to apply to all contacts)"
-                ),
-            )
-
             # Fields for schedule trigger
             repeat_period = forms.ChoiceField(label=_("Repeat"), choices=Schedule.REPEAT_CHOICES)
 
@@ -2298,17 +2290,6 @@ class FlowCRUDL(SmartCRUDL):
 
             start_datetime_value = forms.IntegerField(required=False)
 
-            start_type = forms.ChoiceField(
-                choices=(
-                    ("select", _("Enter contacts and groups to start below")),
-                    ("query", _("Search for contacts to start")),
-                ),
-                initial="select",
-            )
-            contact_query = forms.CharField(
-                required=False, widget=ContactSearchWidget(attrs={"placeholder": _("Enter contact query")})
-            )
-
             def clean(self):
                 cleaned_data = super().clean()
 
@@ -2317,7 +2298,7 @@ class FlowCRUDL(SmartCRUDL):
                     wrong_format = []
                     cleaned_keywords = []
                     keyword_triggers = cleaned_data.get("keyword_triggers", "")
-                    groups, org = cleaned_data.get("groups", []), self.user.get_org()
+                    org = self.user.get_org()
 
                     for keyword in keyword_triggers.split(','):
                         keyword = keyword.strip()
@@ -2431,8 +2412,6 @@ class FlowCRUDL(SmartCRUDL):
                     "restart_participants",
                     "include_active",
                     "keyword_triggers",
-                    "groups",
-                    "match_type",
                     "repeat_period",
                     "repeat_days_of_week",
                     "start",
@@ -2448,8 +2427,6 @@ class FlowCRUDL(SmartCRUDL):
             "restart_participants",
             "include_active",
             "keyword_triggers",
-            "groups",
-            "match_type",
             "repeat_period",
             "repeat_days_of_week",
             "start",
@@ -2539,8 +2516,6 @@ class FlowCRUDL(SmartCRUDL):
                 user = self.request.user
                 org = user.get_org()
                 keyword_triggers = form.cleaned_data["keyword_triggers"]
-                match_type = form.cleaned_data["match_type"]
-                groups = form.cleaned_data["groups"]
 
                 with transaction.atomic():
                     triggers = []
@@ -2550,20 +2525,12 @@ class FlowCRUDL(SmartCRUDL):
                         triggers.append(Trigger(
                             flow=flow,
                             keyword=keyword,
-                            match_type=match_type,
+                            match_type=Trigger.MATCH_FIRST_WORD,
                             org=org,
                             created_by=user,
                             modified_by=user,
                         ))
                     triggers = Trigger.objects.bulk_create(triggers)
-                    
-                    # adding groups to triggers
-                    trigger_group_relations = []
-                    TriggerGroupRelation = Trigger.groups.through
-                    for trigger, group in itertools.product(triggers, groups):
-                        trigger_group_relations.append(TriggerGroupRelation(trigger=trigger, contactgroup=group))
-                    
-                    TriggerGroupRelation.objects.bulk_create(trigger_group_relations)
 
             def process_on_schedule_trigger():
                 user = self.request.user
