@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-15 21:57+0000\n"
+"POT-Creation-Date: 2020-04-17 19:15+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -9467,6 +9467,14 @@ msgid "was started by %(user)s for"
 msgstr "ha iniciado en este flujo."
 
 #, fuzzy
+<<<<<<< HEAD
+=======
+#| msgid "has started this flow."
+msgid "was started by an API call for"
+msgstr "ha iniciado en este flujo."
+
+#, fuzzy
+>>>>>>> 92ec4d94cd4ad55d49ff7a62d0eecfdf4db46b82
 #| msgid "All Contacts"
 msgid "all contacts"
 msgstr "Todos los contactos"
