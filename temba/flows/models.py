@@ -3139,11 +3139,7 @@ class FlowStart(models.Model):
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="starts")
 
     # the type of start
-<<<<<<< HEAD
-    start_type = models.CharField(max_length=1, choices=TYPE_CHOICES, null=True)
-=======
     start_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
->>>>>>> 92ec4d94cd4ad55d49ff7a62d0eecfdf4db46b82
 
     # the groups that should be considered for start in this flow
     groups = models.ManyToManyField(ContactGroup)

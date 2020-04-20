@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-17 19:15+0000\n"
+"POT-Creation-Date: 2020-04-20 14:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6637,12 +6637,9 @@ msgstr ""
 msgid "was started by %(user)s for"
 msgstr ""
 
-<<<<<<< HEAD
-=======
 msgid "was started by an API call for"
 msgstr ""
 
->>>>>>> 92ec4d94cd4ad55d49ff7a62d0eecfdf4db46b82
 msgid "all contacts"
 msgstr ""
 
