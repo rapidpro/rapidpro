@@ -1,3 +1,8 @@
+v5.5.21
+----------
+ * Optimze flow start list page with DB prefetching
+ * Indicate on flow start list page where start was created by an API call
+
 v5.5.20
 ----------
  * Use actual PO library to check for msgid differences
