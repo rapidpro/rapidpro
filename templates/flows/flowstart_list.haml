@@ -41,7 +41,9 @@
               {% short_datetime obj.created_on %}
             .(style="padding-top: 10px; font-size: 11px")
               -blocktrans trimmed with count=obj.run_count|intcomma
-                <b>{{ count }}</b> runs
+                <b>{{ count }}</b> run
+                -plural
+                  <b>{{ count }}</b> runs
       -empty
         %tr.empty_list
           %td
