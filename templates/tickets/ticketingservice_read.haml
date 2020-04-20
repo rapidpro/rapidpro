@@ -1,0 +1,110 @@
+-extends "smartmin/read.html"
+
+-load smartmin temba compress humanize channels
+-load i18n tz
+
+
+-block fields
+
+-block title
+  .medium-help.float-left{class:'{{object.get_type.icon}}'}
+
+  %h2.font_normalize.header-margin.title
+    {{ object.get_type.name }}
+    -trans "Ticketing Service"
+    .name
+      {{ object.name }}
+
+  .header-margin
+    %a.btn.btn-tiny(href="{% url 'request_logs.httplog_list' 'ticketing_service' ticketingservice.uuid %}")
+      -trans "Ticketing Service Log"
+
+-block content
+  %div(style="float:right;line-height:40px")
+    -trans "Tickets can be viewed and closed here manually"
+  %h3
+    -trans "Active Tickets"
+
+  %table.list-table.table.table-bordered.table-striped.table-condensed.message-stats-table
+    %thead
+      %tr
+        %th
+          -trans "Contact"
+        %th
+          -trans "Subject"
+        %th
+          -trans "Created On"
+
+    %tbody
+      -for ticket in object.active_tickets
+        %tr
+          %td.ticket-contact
+            {{ ticket.contact }}
+
+          %td.ticket-subject
+            {{ ticket.subject }}
+
+          %td.ticket-created
+            {{ ticket.created_on }}
+
+        -empty
+          %tr.empty
+            %td(colspan=3)
+              -trans "No open tickets at this time."
+
+-block post-content
+  - if org_perms.tickets.ticketingservice_delete
+    .deletion.hide
+      .title
+        -trans "Delete Ticketing Service"
+      .body
+        %p
+          -trans "Once it is removed, it will be gone forever. There is no way to undo this operation."
+
+    %a#deletion-form.posterize{href:'{% url "tickets.ticketingservice_delete" object.uuid %}'}
+
+-block extra-script
+  {{block.super}}
+
+  :javascript
+    {% if org_perms.classifiers.classifier_delete %}
+      $(".delete-ticketingservice").live('click', function(){
+        modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
+        modal.addClass('alert');
+
+        modal.setListeners({onPrimary: function(){
+          $('#deletion-form').click();
+        }}, false);
+        modal.setPrimaryButton('{% trans "Delete" %}');
+
+        modal.show();
+        });
+    {% endif %}
+
+-block extra-style
+  {{ block.super }}
+
+  :css
+    td {
+      padding: 5px;
+    }
+
+    td.ticket-id {
+      font-family: monospace;
+      width: 400px;
+    }
+
+    td.ticked-created {
+      width: 200px;
+    }
+
+    .name {
+      font-size: 16pt;
+    }
+
+-block summary
+  {{ ticketingservice.get_type.name }}
+  -trans "Ticketing Service"
+  %span -
+  %strong
+    {{ ticketingservice.name }}

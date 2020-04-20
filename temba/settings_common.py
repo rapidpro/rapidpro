@@ -253,6 +253,7 @@ INSTALLED_APPS = (
     "temba.channels",
     "temba.msgs",
     "temba.flows",
+    "temba.tickets",
     "temba.triggers",
     "temba.utils",
     "temba.campaigns",
@@ -459,6 +460,7 @@ PERMISSIONS = {
     "orgs.topup": ("manage",),
     "policies.policy": ("admin", "history", "give_consent"),
     "templates.template": ("api",),
+    "tickets.ticketingservice": ("connect",),
     "triggers.trigger": (
         "archived",
         "catchall",
@@ -650,6 +652,9 @@ GROUP_PERMISSIONS = {
         "request_logs.httplog_list",
         "request_logs.httplog_read",
         "templates.template_api",
+        "tickets.ticketingservice_connect",
+        "tickets.ticketingservice_read",
+        "tickets.ticketingservice_delete",
         "triggers.trigger.*",
     ),
     "Editors": (
@@ -747,6 +752,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "templates.template_api",
+        "tickets.ticketingservice_read",
         "triggers.trigger.*",
     ),
     "Viewers": (
@@ -814,6 +820,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "tickets.ticketingservice_read",
         "triggers.trigger_archived",
         "triggers.trigger_list",
     ),
@@ -1065,6 +1072,8 @@ CHANNEL_TYPES = [
     "temba.channels.types.clicksend.ClickSendType",
     "temba.channels.types.android.AndroidType",
 ]
+
+TICKETING_SERVICE_TYPES = ["temba.tickets.types.email.EmailType", "temba.tickets.types.zendesk.ZendeskType"]
 
 # -----------------------------------------------------------------------------------
 # Store sessions in our cache

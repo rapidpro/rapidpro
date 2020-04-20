@@ -52,6 +52,7 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
+from temba.tickets.models import TicketingService
 from temba.utils import analytics, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address
 from temba.utils.http import http_headers
@@ -2225,6 +2226,9 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("classifiers.classifier_connect"):
                 links.append(dict(title=_("Add Classifier"), href=reverse("classifiers.classifier_connect")))
 
+            if self.has_org_perm("tickets.ticketingservice_connect"):
+                links.append(dict(title=_("Add Ticketing Service"), href=reverse("tickets.ticketingservice_connect")))
+
             if self.has_org_perm("orgs.org_export"):
                 links.append(dict(title=_("Export"), href=reverse("orgs.org_export")))
 
@@ -2249,6 +2253,16 @@ class OrgCRUDL(SmartCRUDL):
                     "classifier",
                     reverse("classifiers.classifier_read", args=[classifier.uuid]),
                     icon=classifier.get_type().icon,
+                    action="link",
+                )
+
+        def add_ticketingservice_section(self, formax, service):
+
+            if self.has_org_perm("tickets.ticketingservice_read"):
+                formax.add_section(
+                    "tickets",
+                    reverse("tickets.ticketingservice_read", args=[service.uuid]),
+                    icon=service.get_type().icon,
                     action="link",
                 )
 
@@ -2279,6 +2293,11 @@ class OrgCRUDL(SmartCRUDL):
                 classifiers = Classifier.objects.filter(org=org, is_active=True).order_by("created_on")
                 for classifier in classifiers:
                     self.add_classifier_section(formax, classifier)
+
+            if self.has_org_perm("tickets.ticketingservice_read"):
+                services = TicketingService.objects.filter(org=org, is_active=True).order_by("created_on")
+                for service in services:
+                    self.add_ticketingservice_section(formax, service)
 
             if self.has_org_perm("orgs.org_profile"):
                 formax.add_section("user", reverse("orgs.user_edit"), icon="icon-user", action="redirect")

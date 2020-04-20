@@ -40,6 +40,9 @@ if localhost_domain is not None:
 # allow all hosts in dev
 ALLOWED_HOSTS = ["*"]
 
+if localhost_domain is not None:
+    IS_PROD = True
+
 # -----------------------------------------------------------------------------------
 # Redis & Cache Configuration (we expect a Redis instance on localhost)
 # -----------------------------------------------------------------------------------

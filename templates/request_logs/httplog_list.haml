@@ -7,13 +7,23 @@
 -block title
   .medium-help.icon-cloud-upload{ style:'float:left;' }
   %h2.header-margin
-    -trans "Recent Classifier Events"
+    -if classifier
+      -trans "Recent Classifier Events"
+    -if ticketing_service
+      -trans "Recent Ticketing Service Events"
 
   %h5.header-margin
-    {{classifier.get_type.name}}
-    -trans "Classifier: "
-    %a(href="{% url 'classifiers.classifier_read' classifier.uuid %}")
-      {{ classifier.name }}
+    -if classifier
+      {{classifier.get_type.name}}
+      -trans "Classifier: "
+      %a(href="{% url 'classifiers.classifier_read' classifier.uuid %}")
+        {{ classifier.name }}
+
+    -if ticketing_service
+      {{ticketing_service.get_type.name}}
+      -trans "Ticketing Service: "
+      %a(href="{% url 'tickets.ticketingservice_read' ticketing_service.uuid %}")
+        {{ ticketing_service.name }}
 
 -block table
 
@@ -28,7 +38,10 @@
       -for obj in object_list
         %tr{ class:"{% if obj.is_error %}warning{% endif %}" }
           %td
-            {{ obj.classifier.name }}
+            -if classifier
+              {{ obj.classifier.name }}
+            -if ticketing_service
+              {{ obj.ticketing_service.name }}
 
           %td.clickable
             %a{ href:'{% url "request_logs.httplog_read" obj.id %}' }= obj.get_log_type_display

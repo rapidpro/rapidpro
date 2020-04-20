@@ -24,6 +24,7 @@ class HTTPLog(models.Model):
     # log type choices
     INTENTS_SYNCED = "intents_synced"
     CLASSIFIER_CALLED = "classifier_called"
+    TICKETING_SERVICE_CALLED = "ticketing_service_called"
     AIRTIME_TRANSFERRED = "airtime_transferred"
     WHATSAPP_TEMPLATES_SYNCED = "whatsapp_templates_synced"
     WHATSAPP_TOKENS_SYNCED = "whatsapp_tokens_synced"
@@ -34,6 +35,7 @@ class HTTPLog(models.Model):
         (INTENTS_SYNCED, _("Intents Synced")),
         (CLASSIFIER_CALLED, _("Classifier Called")),
         (AIRTIME_TRANSFERRED, _("Airtime Transferred")),
+        (TICKETING_SERVICE_CALLED, _("Ticketing Service Called")),
         (WHATSAPP_TEMPLATES_SYNCED, _("WhatsApp Templates Synced")),
         (WHATSAPP_TOKENS_SYNCED, _("WhatsApp Tokens Synced")),
         (WHATSAPP_CONTACTS_REFRESHED, _("WhatsApp Contacts Refreshed")),
@@ -42,6 +44,11 @@ class HTTPLog(models.Model):
     # the classifier this log is for
     classifier = models.ForeignKey(
         "classifiers.Classifier", related_name="http_logs", on_delete=models.PROTECT, db_index=False, null=True
+    )
+
+    # the ticketing service this log is for
+    ticketing_service = models.ForeignKey(
+        "tickets.TicketingService", related_name="http_logs", on_delete=models.PROTECT, db_index=False, null=True
     )
 
     # the airtime transfer this log is for
@@ -99,12 +106,17 @@ class HTTPLog(models.Model):
             HTTPLog.objects.filter(id__in=chunk).delete()
 
     @classmethod
-    def create_from_response(cls, log_type, url, response, classifier=None, channel=None, request_time=None):
+    def create_from_response(
+        cls, log_type, url, response, classifier=None, channel=None, ticketing_service=None, request_time=None
+    ):
         if classifier is not None:
             org = classifier.org
 
         if channel is not None:
             org = channel.org
+
+        if ticketing_service is not None:
+            org = ticketing_service.org
 
         is_error = response.status_code != 200
         data = dump.dump_response(
@@ -127,6 +139,7 @@ class HTTPLog(models.Model):
         return HTTPLog.objects.create(
             classifier=classifier,
             channel=channel,
+            ticketing_service=ticketing_service,
             log_type=log_type,
             url=url,
             request=request,
@@ -138,12 +151,17 @@ class HTTPLog(models.Model):
         )
 
     @classmethod
-    def create_from_exception(cls, log_type, url, exception, start, classifier=None, channel=None):
+    def create_from_exception(
+        cls, log_type, url, exception, start, classifier=None, channel=None, ticketing_service=None
+    ):
         if classifier is not None:
             org = classifier.org
 
         if channel is not None:
             org = channel.org
+
+        if ticketing_service is not None:
+            org = ticketing_service.org
 
         data = bytearray()
         prefixes = dump.PrefixSettings(cls.REQUEST_DELIM, cls.RESPONSE_DELIM)
@@ -156,6 +174,7 @@ class HTTPLog(models.Model):
         return HTTPLog.objects.create(
             channel=channel,
             classifier=classifier,
+            ticketing_service=ticketing_service,
             log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
             url=url,
             request=request,
