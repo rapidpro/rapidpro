@@ -18,8 +18,11 @@
             %a(href="{% url 'flows.flow_editor' obj.flow.uuid %}")
               {{ obj.flow.name }}
 
-            -blocktrans trimmed with user=obj.created_by
-              was started by {{ user }} for
+            -if obj.start_type == "M"
+              -blocktrans trimmed with user=obj.created_by
+                was started by {{ user }} for
+            -else
+              -trans "was started by an API call for"
 
             -if obj.restart_participants and obj.include_active
               -trans "all contacts"

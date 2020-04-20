@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-15 21:57+0000\n"
+"POT-Creation-Date: 2020-04-17 19:15+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -8781,6 +8781,10 @@ msgstr "Fazer uma série de perguntas para coletar informações de seus contato
 
 #, fuzzy, python-format
 msgid "was started by %(user)s for"
+msgstr "iniciou este fluxo"
+
+#, fuzzy
+msgid "was started by an API call for"
 msgstr "iniciou este fluxo"
 
 #, fuzzy
