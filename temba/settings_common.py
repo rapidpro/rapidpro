@@ -395,7 +395,6 @@ PERMISSIONS = {
         "trial",
         "twilio_account",
         "twilio_connect",
-        "two_factor",
         "token",
     ),
     "orgs.usersettings": ("phone",),
