@@ -1,18 +1,14 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> 9bcc78539e15ec1c007be4aa76ac7279707c9fc9
+v5.5.21
+----------
+ * Optimze flow start list page with DB prefetching
+ * Indicate on flow start list page where start was created by an API call
+
 v5.5.20
 ----------
  * Use actual PO library to check for msgid differences
  * Migration to backfill FlowStart.start_type
  * Log error of WA channel failing to sync templates
 
-<<<<<<< HEAD
->>>>>>> 92ec4d94cd4ad55d49ff7a62d0eecfdf4db46b82
-=======
->>>>>>> 9bcc78539e15ec1c007be4aa76ac7279707c9fc9
 v5.5.19
 ----------
  * Add FlowStart.start_type
