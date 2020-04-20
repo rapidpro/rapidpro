@@ -37,7 +37,11 @@
               -include "includes/recipients.haml" with groups=obj.groups.all contacts=obj.contacts.all query=obj.query
 
           %td(style="text-align: right")
-            {% short_datetime obj.created_on %}
+            .
+              {% short_datetime obj.created_on %}
+            .(style="padding-top: 10px; font-size: 11px")
+              -blocktrans trimmed with count=obj.run_count|intcomma
+                <b>{{ count }}</b> runs
       -empty
         %tr.empty_list
           %td
