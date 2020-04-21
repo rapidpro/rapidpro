@@ -3321,7 +3321,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     def get_queryset(self):
         org = self.request.user.get_org()
-        return self.model.objects.filter(flow__org=org, is_active=True)
+        return self.model.objects.filter(flow__org=org)
 
     def filter_queryset(self, queryset):
         # filter by id (optional and deprecated)

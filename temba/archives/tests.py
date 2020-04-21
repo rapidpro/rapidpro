@@ -1,12 +1,12 @@
 from datetime import date
 from unittest.mock import patch
-from uuid import uuid4
 
 from django.urls import reverse
 from django.utils import timezone
 
 from temba.tests import CRUDLTestMixin, TembaTest
 from temba.tests.s3 import MockS3Client
+from temba.utils.uuid import uuid4
 
 from .models import Archive
 

@@ -1,3 +1,60 @@
+v5.5.22
+----------
+ * Add nullable contact.is_paused field
+ * Display run count on flow start list page
+
+v5.5.21
+----------
+ * Optimze flow start list page with DB prefetching
+ * Indicate on flow start list page where start was created by an API call
+
+v5.5.20
+----------
+ * Use actual PO library to check for msgid differences
+ * Migration to backfill FlowStart.start_type
+ * Log error of WA channel failing to sync templates
+
+v5.5.19
+----------
+ * Add FlowStart.start_type
+ * Ensure flow starts created via the API are only sent to mailroom after the open transaction is committed
+
+v5.5.18
+----------
+ * Add flow start log page
+
+v5.5.17
+----------
+ * Add index to list manually created flow starts
+ * Make FlowStart.org and modified_on non-NULL
+ * Move contact modification for name and language to be done by mailroom
+
+v5.5.16
+----------
+ * bower no longer supported for package installs
+ * Migration to backfill FlowStart.org and modified_on
+
+v5.5.15
+----------
+ * Update to flow-editor 1.9.2, security patches
+
+v5.5.14
+----------
+ * Ensure IVR retry is preserved on new revisions
+ * Import flows for mailroom test db as v13
+ * Make UUID generation fully mockable
+ * Add run UUID on flow results exports
+ * Drop unused fields on FlowStart and add org
+
+v5.5.13
+----------
+ * Stop using FlowStart.modified_on so that it can be removed
+ * Disable syncing templates with variables in headers and footers
+
+v5.5.12
+----------
+ * Import and export of PO files
+
 v5.5.10
 ----------
  * Bump up the simulator when popped so it fits on more screens

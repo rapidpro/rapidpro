@@ -166,6 +166,12 @@
       display: none;
     }
 
+    label, input, button, select, textarea {
+      font-size: inherit;
+      font-weight: inherit;
+      line-height: inherit;
+      margin-bottom: 0;
+    }
 
 -block extra-script
   {{ block.super }}
@@ -290,6 +296,13 @@
         modal.show();
       });
     {% endif %}
+
+    $(".export-translation").live('click', function(){
+      var modal = new Modax('{% trans "Export Translation" %}', '{% url "flows.flow_export_translation" object.id %}');
+      modal.setIcon('icon-language');
+      modal.setRedirectOnSuccess(true);
+      modal.show();
+    });
 
     {% if org_perms.flows.flow_delete %}
       $(".delete-flow").live('click', function() {

@@ -77,6 +77,11 @@
                       %a{'href':'{% url "flows.flow_campaign" campaign.campaign__id %}'}
                         {{ campaign.campaign__name }} ({{campaign.count}})
 
+            .(style="margin-top: 10px; margin-bottom:10px;")
+              -if org_perms.flows.flowstart_list
+                %a.btn.btn-default.btn-block(href="{% url 'flows.flowstart_list' %}")
+                  -trans "Flow Start Log"
+
           -block flow-list
             .span9
               - block buttons

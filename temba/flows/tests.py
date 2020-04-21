@@ -1,9 +1,9 @@
 import datetime
+import io
 import os
 import re
 from datetime import timedelta
 from unittest.mock import PropertyMock, patch
-from uuid import uuid4
 
 import iso8601
 import pytz
@@ -28,11 +28,12 @@ from temba.mailroom import FlowValidationException, MailroomException
 from temba.msgs.models import Label
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, MigrationTest, MockResponse, TembaTest, matchers
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.utils import json
+from temba.utils.uuid import uuid4
 from temba.values.constants import Value
 
 from . import legacy
@@ -421,14 +422,9 @@ class FlowTest(TembaTest):
         csrep.save()
 
         self.login(csrep)
-        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
-        gear_links = response.context["view"].get_gear_links()
-        self.assertEqual(gear_links[-1]["title"], "Previous Editor")
 
-        # convert our flow back to an old version
-        response = self.client.get(f"{reverse('flows.flow_editor', args=[flow.uuid])}?legacy=true")
-        flow.refresh_from_db()
-        self.assertEqual(flow.version_number, Flow.FINAL_LEGACY_VERSION)
+        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
+        self.assertContains(response, "Service")
 
         # flows that are archived can't be edited, started or simulated
         self.login(self.admin)
@@ -1493,7 +1489,7 @@ class FlowTest(TembaTest):
         flow = self.get_flow("color", legacy=True)
 
         # create start for 10 contacts
-        start = FlowStart.objects.create(flow=flow, created_by=self.admin, modified_by=self.admin)
+        start = FlowStart.objects.create(org=self.org, flow=flow, created_by=self.admin)
         for i in range(10):
             contact = self.create_contact("Bob", twitter=f"bobby{i}")
             start.contacts.add(contact)
@@ -1514,10 +1510,6 @@ class FlowTest(TembaTest):
 
         # squash them
         FlowStartCount.squash()
-        self.assertEqual(FlowStartCount.get_count(start), 10)
-
-        # recalculate and try again
-        FlowStartCount.populate_for_start(start)
         self.assertEqual(FlowStartCount.get_count(start), 10)
 
     def test_prune_recentruns(self):
@@ -2432,7 +2424,7 @@ class FlowTest(TembaTest):
         )
 
 
-class FlowCRUDLTest(TembaTest):
+class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_views(self):
         contact = self.create_contact("Eric", "+250788382382")
         flow = self.get_flow("color", legacy=True)
@@ -2612,6 +2604,10 @@ class FlowCRUDLTest(TembaTest):
         voice_flow.refresh_from_db()
         self.assertEqual(voice_flow.metadata["ivr_retry"], 1440)
 
+        # check we still have that value after saving a new revision
+        voice_flow.save_revision(self.admin, voice_flow.as_json())
+        self.assertEqual(voice_flow.metadata["ivr_retry"], 1440)
+
         # update flow triggers, and test if form has expected fields
         post_data = dict()
         response = self.client.post(reverse("flows.flow_update", args=[flow3.pk]), post_data, follow=True)
@@ -2684,7 +2680,7 @@ class FlowCRUDLTest(TembaTest):
 
         # check flow listing
         response = self.client.get(reverse("flows.flow_list"))
-        self.assertEqual(list(response.context["object_list"]), [flow3, voice_flow, flow2, flow1, flow])  # by saved_on
+        self.assertEqual(list(response.context["object_list"]), [voice_flow, flow3, flow2, flow1, flow])  # by saved_on
 
         # test getting the json
         response = self.client.get(reverse("flows.flow_json", args=[flow.uuid]))
@@ -3060,7 +3056,7 @@ class FlowCRUDLTest(TembaTest):
         response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
 
         self.assertEqual(
-            ["omnibox", "restart_participants", "include_active", "start_type", "contact_query", "loc"],
+            ["omnibox", "restart_participants", "include_active", "recipients_mode", "contact_query", "loc"],
             list(response.context["form"].fields.keys()),
         )
 
@@ -3074,7 +3070,7 @@ class FlowCRUDLTest(TembaTest):
                     reverse("flows.flow_broadcast", args=[flow.id]),
                     {
                         "contact_query": "frank",
-                        "start_type": "query",
+                        "recipients_mode": "query",
                         "restart_participants": "on",
                         "include_active": "on",
                     },
@@ -3100,7 +3096,7 @@ class FlowCRUDLTest(TembaTest):
                 reverse("flows.flow_broadcast", args=[flow.id]),
                 {
                     "contact_query": 'name = "frank',
-                    "start_type": "query",
+                    "recipients_mode": "query",
                     "restart_participants": "on",
                     "include_active": "on",
                 },
@@ -3112,7 +3108,7 @@ class FlowCRUDLTest(TembaTest):
         # create flow start with an empty query
         response = self.client.post(
             reverse("flows.flow_broadcast", args=[flow.id]),
-            {"contact_query": "", "start_type": "query", "restart_participants": "on", "include_active": "on"},
+            {"contact_query": "", "recipients_mode": "query", "restart_participants": "on", "include_active": "on"},
             follow=True,
         )
 
@@ -3125,13 +3121,19 @@ class FlowCRUDLTest(TembaTest):
 
             self.client.post(
                 reverse("flows.flow_broadcast", args=[flow.id]),
-                {"omnibox": selection, "start_type": "select", "restart_participants": "on", "include_active": "on"},
+                {
+                    "omnibox": selection,
+                    "recipients_mode": "select",
+                    "restart_participants": "on",
+                    "include_active": "on",
+                },
                 follow=True,
             )
 
             start = FlowStart.objects.get()
             self.assertEqual({contact}, set(start.contacts.all()))
             self.assertEqual(flow, start.flow)
+            self.assertEqual(FlowStart.TYPE_MANUAL, start.start_type)
             self.assertEqual(FlowStart.STATUS_PENDING, start.status)
             self.assertTrue(start.restart_participants)
             self.assertTrue(start.include_active)
@@ -3144,7 +3146,7 @@ class FlowCRUDLTest(TembaTest):
         with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
             self.client.post(
                 reverse("flows.flow_broadcast", args=[flow.id]),
-                {"omnibox": selection, "start_type": "select"},
+                {"omnibox": selection, "recipients_mode": "select"},
                 follow=True,
             )
 
@@ -3161,7 +3163,7 @@ class FlowCRUDLTest(TembaTest):
         with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
             response = self.client.post(
                 reverse("flows.flow_broadcast", args=[flow.id]),
-                {"omnibox": selection, "start_type": "select"},
+                {"omnibox": selection, "recipients_mode": "select"},
                 follow=True,
             )
 
@@ -3820,6 +3822,173 @@ class FlowCRUDLTest(TembaTest):
             {"description": "Your flow contains an invalid loop. Please refresh your browser.", "status": "failure"},
         )
 
+    def test_export_and_download_translation(self):
+        Language.create(self.org, self.admin, name="Spanish", iso_code="spa")
+
+        flow = self.get_flow("favorites")
+        export_url = reverse("flows.flow_export_translation", args=[flow.id])
+
+        self.assertUpdateFetch(
+            export_url, allow_viewers=False, allow_editors=True, form_fields=["language", "include_args"]
+        )
+
+        # submit with no language
+        response = self.assertUpdateSubmit(export_url, {})
+
+        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=&exclude_args=1", response.url)
+
+        # check fetching the PO from the download link
+        with patch("temba.mailroom.client.MailroomClient.po_export") as mock_po_export:
+            mock_po_export.return_value = b'msgid "Red"\nmsgstr "Roja"\n\n'
+            response = self.assertReadFetch(response.url, allow_viewers=False, allow_editors=True)
+
+            self.assertEqual(b'msgid "Red"\nmsgstr "Roja"\n\n', response.content)
+            self.assertEqual('attachment; filename="favorites.po"', response["Content-Disposition"])
+            self.assertEqual("text/x-gettext-translation", response["Content-Type"])
+
+        # submit with a language
+        response = self.requestView(export_url, self.admin, post_data={"language": "spa"})
+
+        self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=spa&exclude_args=1", response.url)
+
+        # check fetching the PO from the download link
+        with patch("temba.mailroom.client.MailroomClient.po_export") as mock_po_export:
+            mock_po_export.return_value = b'msgid "Red"\nmsgstr "Roja"\n\n'
+            response = self.requestView(response.url, self.admin)
+
+            # filename includes language now
+            self.assertEqual('attachment; filename="favorites.spa.po"', response["Content-Disposition"])
+
+        # check submitting the form from a modal
+        response = self.client.post(export_url, data={}, HTTP_X_PJAX=True)
+        self.assertEqual(
+            f"/flow/download_translation/?flow={flow.id}&language=&exclude_args=1", response["Temba-Success"]
+        )
+
+    def test_import_translation(self):
+        Language.create(self.org, self.admin, name="English", iso_code="eng")
+        Language.create(self.org, self.admin, name="Spanish", iso_code="spa")
+        self.org.set_languages(self.admin, ["eng", "spa"], primary="eng")
+
+        flow = self.get_flow("favorites_v13")
+        step1_url = reverse("flows.flow_import_translation", args=[flow.id])
+
+        # check step 1 is just a file upload
+        self.assertUpdateFetch(step1_url, allow_viewers=False, allow_editors=True, form_fields=["po_file"])
+
+        # submit with no file
+        self.assertUpdateSubmit(
+            step1_url, {}, form_errors={"po_file": "This field is required."}, object_unchanged=flow
+        )
+
+        # submit with something that's empty
+        response = self.requestView(step1_url, self.admin, post_data={"po_file": io.BytesIO(b"")})
+        self.assertFormError(response, "form", "po_file", "The submitted file is empty.")
+
+        # submit with something that's not a valid PO file
+        response = self.requestView(step1_url, self.admin, post_data={"po_file": io.BytesIO(b"msgid")})
+        self.assertFormError(response, "form", "po_file", "File doesn't appear to be a valid PO file.")
+
+        # submit with something that's in the base language of the flow
+        po_file = io.BytesIO(
+            b"""
+#, fuzzy
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2018-07-06 12:30+0000\\n"
+"Language: en\\n"
+"Language-3: eng\\n"
+
+msgid "Blue"
+msgstr "Bluuu"
+        """
+        )
+        response = self.requestView(step1_url, self.admin, post_data={"po_file": po_file})
+        self.assertFormError(
+            response, "form", "po_file", "Contains translations in English which is the base language of this flow."
+        )
+
+        # submit with something that's in the base language of the flow
+        po_file = io.BytesIO(
+            b"""
+#, fuzzy
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2018-07-06 12:30+0000\\n"
+"Language: fr\\n"
+"Language-3: fra\\n"
+
+msgid "Blue"
+msgstr "Bleu"
+        """
+        )
+        response = self.requestView(step1_url, self.admin, post_data={"po_file": po_file})
+        self.assertFormError(
+            response,
+            "form",
+            "po_file",
+            "Contains translations in French which is not a supported translation language.",
+        )
+
+        # submit with something that doesn't have an explicit language
+        po_file = io.BytesIO(
+            b"""
+msgid "Blue"
+msgstr "Azul"
+        """
+        )
+        response = self.requestView(step1_url, self.admin, post_data={"po_file": po_file})
+
+        self.assertEqual(302, response.status_code)
+        self.assertIn(f"/flow/import_translation/{flow.id}/?po=", response.url)
+
+        response = self.assertUpdateFetch(
+            response.url, allow_viewers=False, allow_editors=True, form_fields=["language"]
+        )
+        self.assertContains(response, "Unknown")
+
+        # submit a different PO that does have language set
+        po_file = io.BytesIO(
+            b"""
+#, fuzzy
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2018-07-06 12:30+0000\\n"
+"Language: es\\n"
+"MIME-Version: 1.0\\n"
+"Content-Type: text/plain; charset=UTF-8\\n"
+"Language-3: spa\\n"
+
+#: Favorites/8720f157-ca1c-432f-9c0b-2014ddc77094/name:0
+#: Favorites/a4d15ed4-5b24-407f-b86e-4b881f09a186/arguments:0
+msgid "Blue"
+msgstr "Azul"
+"""
+        )
+        response = self.requestView(step1_url, self.admin, post_data={"po_file": po_file})
+
+        self.assertEqual(302, response.status_code)
+        self.assertIn(f"/flow/import_translation/{flow.id}/?po=", response.url)
+
+        step2_url = response.url
+
+        response = self.assertUpdateFetch(step2_url, allow_viewers=False, allow_editors=True, form_fields=["language"])
+        self.assertContains(response, "Spanish (spa)")
+        self.assertEqual({"language": "spa"}, response.context["form"].initial)
+
+        # confirm the import
+        with patch("temba.mailroom.client.MailroomClient.po_import") as mock_po_import:
+            mock_po_import.return_value = {"flows": [flow.as_json()]}
+
+            response = self.requestView(step2_url, self.admin, post_data={"language": "spa"})
+
+        # should redirect back to editor
+        self.assertEqual(302, response.status_code)
+        self.assertEqual(f"/flow/editor_next/{flow.uuid}/", response.url)
+
+        # should have a new revision
+        self.assertEqual(2, flow.revisions.count())
+
 
 class FlowRunTest(TembaTest):
     def setUp(self):
@@ -3858,6 +4027,7 @@ class FlowRunTest(TembaTest):
             set(
                 [
                     "id",
+                    "uuid",
                     "flow",
                     "contact",
                     "responded",
@@ -4283,7 +4453,7 @@ class ExportFlowResultsTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(6, len(list(sheet_runs.rows)))  # header + 5 runs
-        self.assertEqual(10, len(list(sheet_runs.columns)))
+        self.assertEqual(11, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
             sheet_runs,
@@ -4296,6 +4466,7 @@ class ExportFlowResultsTest(TembaTest):
                 "Started",
                 "Modified",
                 "Exited",
+                "Run UUID",
                 "Color (Category) - Colors",
                 "Color (Value) - Colors",
                 "Color (Text) - Colors",
@@ -4313,6 +4484,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact3_run1.created_on,
                 contact3_run1.modified_on,
                 "",
+                contact3_run1.uuid,
                 "",
                 "",
                 "",
@@ -4331,6 +4503,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_run1.created_on,
                 contact1_run1.modified_on,
                 contact1_run1.exited_on,
+                contact1_run1.uuid,
                 "Orange",
                 "orange",
                 "orange",
@@ -4349,6 +4522,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact2_run1.created_on,
                 contact2_run1.modified_on,
                 contact2_run1.exited_on,
+                contact2_run1.uuid,
                 "Other",
                 "green",
                 "green",
@@ -4367,6 +4541,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact2_run2.created_on,
                 contact2_run2.modified_on,
                 "",
+                contact2_run2.uuid,
                 "",
                 "",
                 "",
@@ -4385,6 +4560,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_run2.created_on,
                 contact1_run2.modified_on,
                 contact1_run2.exited_on,
+                contact1_run2.uuid,
                 "Blue",
                 "blue",
                 " blue ",
@@ -4510,7 +4686,7 @@ class ExportFlowResultsTest(TembaTest):
         sheet_runs = workbook.worksheets[0]
 
         self.assertEqual(4, len(list(sheet_runs.rows)))  # header + 3 runs
-        self.assertEqual(10, len(list(sheet_runs.columns)))
+        self.assertEqual(11, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
             sheet_runs,
@@ -4523,6 +4699,7 @@ class ExportFlowResultsTest(TembaTest):
                 "Started",
                 "Modified",
                 "Exited",
+                "Run UUID",
                 "Color (Category) - Colors",
                 "Color (Value) - Colors",
                 "Color (Text) - Colors",
@@ -4540,6 +4717,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_run1.created_on,
                 contact1_run1.modified_on,
                 contact1_run1.exited_on,
+                contact1_run1.uuid,
                 "Orange",
                 "orange",
                 "orange",
@@ -4558,6 +4736,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact2_run1.created_on,
                 contact2_run1.modified_on,
                 contact2_run1.exited_on,
+                contact2_run1.uuid,
                 "Other",
                 "green",
                 "green",
@@ -4587,7 +4766,7 @@ class ExportFlowResultsTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(4, len(list(sheet_runs.rows)))  # header + 3 runs
-        self.assertEqual(13, len(list(sheet_runs.columns)))
+        self.assertEqual(14, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
             sheet_runs,
@@ -4603,6 +4782,7 @@ class ExportFlowResultsTest(TembaTest):
                 "Started",
                 "Modified",
                 "Exited",
+                "Run UUID",
                 "Color (Category) - Colors",
                 "Color (Value) - Colors",
                 "Color (Text) - Colors",
@@ -4623,6 +4803,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_run1.created_on,
                 contact1_run1.modified_on,
                 contact1_run1.exited_on,
+                contact1_run1.uuid,
                 "Orange",
                 "orange",
                 "orange",
@@ -4658,7 +4839,7 @@ class ExportFlowResultsTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(6, len(list(sheet_runs.rows)))  # header + 5 runs
-        self.assertEqual(9, len(list(sheet_runs.columns)))
+        self.assertEqual(10, len(list(sheet_runs.columns)))
 
         # check messages sheet...
         self.assertEqual(14, len(list(sheet_msgs.rows)))  # header + 13 messages
@@ -4699,6 +4880,7 @@ class ExportFlowResultsTest(TembaTest):
                     "Started",
                     "Modified",
                     "Exited",
+                    "Run UUID",
                     "Color (Category) - Colors",
                     "Color (Value) - Colors",
                     "Color (Text) - Colors",
@@ -4715,6 +4897,7 @@ class ExportFlowResultsTest(TembaTest):
                     run1.created_on,
                     run1.modified_on,
                     run1.exited_on,
+                    run1.uuid,
                     "Orange",
                     "orange",
                     "orange",
@@ -4750,7 +4933,7 @@ class ExportFlowResultsTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(2, len(list(sheet_runs.rows)))
-        self.assertEqual(9, len(list(sheet_runs.columns)))
+        self.assertEqual(10, len(list(sheet_runs.columns)))
 
         # check messages sheet...
         self.assertEqual(2, len(list(sheet_msgs.rows)))
@@ -4807,9 +4990,11 @@ class ExportFlowResultsTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(len(list(sheet_runs.rows)), 6)  # header + 5 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 6)
+        self.assertEqual(len(list(sheet_runs.columns)), 7)
 
-        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Name", "Started", "Modified", "Exited"])
+        self.assertExcelRow(
+            sheet_runs, 0, ["Contact UUID", "URN", "Name", "Started", "Modified", "Exited", "Run UUID"]
+        )
 
         self.assertExcelRow(
             sheet_runs,
@@ -4821,6 +5006,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_run1.created_on,
                 contact1_run1.modified_on,
                 contact1_run1.exited_on,
+                contact1_run1.uuid,
             ],
             tz,
         )
@@ -4834,6 +5020,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact2_run1.created_on,
                 contact2_run1.modified_on,
                 contact2_run1.exited_on,
+                contact2_run1.uuid,
             ],
             tz,
         )
@@ -4847,6 +5034,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact3_run1.created_on,
                 contact3_run1.modified_on,
                 contact3_run1.exited_on,
+                contact3_run1.uuid,
             ],
             tz,
         )
@@ -4860,6 +5048,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_run2.created_on,
                 contact1_run2.modified_on,
                 contact1_run2.exited_on,
+                contact1_run2.uuid,
             ],
             tz,
         )
@@ -4873,6 +5062,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact2_run2.created_on,
                 contact2_run2.modified_on,
                 contact2_run2.exited_on,
+                contact2_run2.uuid,
             ],
             tz,
         )
@@ -5068,9 +5258,11 @@ class ExportFlowResultsTest(TembaTest):
         sheet_runs = workbook.worksheets[0]
 
         self.assertEqual(len(list(sheet_runs.rows)), 1)  # header; no resposes to a broadcast only flow
-        self.assertEqual(len(list(sheet_runs.columns)), 6)
+        self.assertEqual(len(list(sheet_runs.columns)), 7)
 
-        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Name", "Started", "Modified", "Exited"])
+        self.assertExcelRow(
+            sheet_runs, 0, ["Contact UUID", "URN", "Name", "Started", "Modified", "Exited", "Run UUID"]
+        )
 
     def test_replaced_rulesets(self):
         favorites = self.get_flow("favorites_v13")
@@ -5177,7 +5369,7 @@ class ExportFlowResultsTest(TembaTest):
 
         # check runs sheet...
         self.assertEqual(6, len(list(sheet_runs.rows)))  # header + 5 runs
-        self.assertEqual(16, len(list(sheet_runs.columns)))
+        self.assertEqual(17, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
             sheet_runs,
@@ -5190,6 +5382,7 @@ class ExportFlowResultsTest(TembaTest):
                 "Started",
                 "Modified",
                 "Exited",
+                "Run UUID",
                 "Color (Category) - Favorites",
                 "Color (Value) - Favorites",
                 "Color (Text) - Favorites",
@@ -5213,6 +5406,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact3_run1.created_on,
                 contact3_run1.modified_on,
                 "",
+                contact3_run1.uuid,
                 "",
                 "",
                 "",
@@ -5237,6 +5431,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_run1.created_on,
                 contact1_run1.modified_on,
                 contact1_run1.exited_on,
+                contact1_run1.uuid,
                 "Red",
                 "red",
                 "red",
@@ -5261,6 +5456,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact2_run1.created_on,
                 contact2_run1.modified_on,
                 contact2_run1.exited_on,
+                contact2_run1.uuid,
                 "Green",
                 "green",
                 "green",
@@ -5285,6 +5481,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact2_run2.created_on,
                 contact2_run2.modified_on,
                 "",
+                contact2_run2.uuid,
                 "",
                 "",
                 "",
@@ -5309,6 +5506,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_run2.created_on,
                 contact1_run2.modified_on,
                 "",
+                contact1_run2.uuid,
                 "Blue",
                 "blue",
                 " blue ",
@@ -5455,6 +5653,7 @@ class ExportFlowResultsTest(TembaTest):
                 run1.created_on,
                 run1.modified_on,
                 "",
+                run1.uuid,
                 "Other",
                 "ngertin.",
                 "ngertin.",
@@ -5589,6 +5788,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact1_run.created_on,
                 contact1_run.modified_on,
                 "",
+                contact1_run.uuid,
                 "Other",
                 "green",
                 "green",
@@ -5605,6 +5805,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact2_run.created_on,
                 contact2_run.modified_on,
                 contact2_run.exited_on,
+                contact2_run.uuid,
                 "Blue",
                 "blue",
                 "blue",
@@ -5621,6 +5822,7 @@ class ExportFlowResultsTest(TembaTest):
                 contact3_run.created_on,
                 contact3_run.modified_on,
                 "",
+                contact3_run.uuid,
                 "",
                 "",
                 "",
@@ -5672,6 +5874,7 @@ class ExportFlowResultsTest(TembaTest):
                 run.created_on,
                 run.modified_on,
                 run.exited_on,
+                run.uuid,
                 "Blue",
                 "blue",
                 "blue",
@@ -5721,6 +5924,7 @@ class ExportFlowResultsTest(TembaTest):
                 run.created_on,
                 run.modified_on,
                 run.exited_on,
+                run.uuid,
                 "Blue",
                 "blue",
                 "blue",
@@ -5739,7 +5943,7 @@ class ExportFlowResultsTest(TembaTest):
 
         # every sheet has only the head row
         self.assertEqual(len(list(workbook.worksheets[0].rows)), 1)
-        self.assertEqual(len(list(workbook.worksheets[0].columns)), 9)
+        self.assertEqual(len(list(workbook.worksheets[0].columns)), 10)
 
 
 class FlowLabelTest(TembaTest):
@@ -6011,6 +6215,32 @@ class FlowSessionCRUDLTest(TembaTest):
         self.assertEqual("Temba", response_json["_metadata"]["org"])
 
 
+class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_list(self):
+        list_url = reverse("flows.flowstart_list")
+
+        flow = self.get_flow("color_v13")
+        contact = self.create_contact("Bob", number="+1234567890")
+        group = self.create_group("Testers", contacts=[contact])
+        start1 = FlowStart.create(flow, self.admin, contacts=[contact])
+        start2 = FlowStart.create(flow, self.admin, query="name ~ Bob", restart_participants=False)
+        start3 = FlowStart.create(flow, self.admin, groups=[group], include_active=False)
+
+        FlowStartCount.objects.create(start=start3, count=1000)
+        FlowStartCount.objects.create(start=start3, count=234)
+
+        other_org_flow = self.create_flow(org=self.org2)
+        FlowStart.create(other_org_flow, self.admin2)
+
+        response = self.assertListFetch(
+            list_url, allow_viewers=True, allow_editors=True, context_objects=[start3, start2, start1]
+        )
+        self.assertContains(response, "was started by Administrator for")
+        self.assertContains(response, "all contacts")
+        self.assertContains(response, "contacts who haven't already been through this flow")
+        self.assertContains(response, "<b>1,234</b> runs")
+
+
 class AssetServerTest(TembaTest):
     def test_environment(self):
         self.login(self.admin)
@@ -6126,44 +6356,43 @@ class FlowRevisionTest(TembaTest):
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
 
 
-class PopulateTemplateDepsTest(MigrationTest):
+class PopulateFlowStartTypeTest(MigrationTest):
     app = "flows"
-    migrate_from = "0224_flow_dependencies"
-    migrate_to = "0225_populate_template_deps"
+    migrate_from = "0230_flowstart_start_type"
+    migrate_to = "0231_populate_flowstart_type"
 
     def setUpBeforeMigration(self, apps):
-        self.template1 = Template.objects.create(uuid="8e35f470-edf3-4420-abc5-8fcd662d07ba", org=self.org, name="T1")
-        self.template2 = Template.objects.create(uuid="9678a80c-cf97-4072-9006-36e2f342913c", org=self.org, name="T2")
-        self.template3 = Template.objects.create(uuid="5841d652-f3df-485c-a0fa-4047bee83b28", org=self.org, name="T3")
+        contact = self.create_contact("Bob", twitter="bobby")
+        flow1 = self.create_flow(org=self.org)
+        flow2 = self.create_flow(org=self.org)
 
-        # a flow with no template dependencies
-        self.flow1 = self.create_flow()
-        self.flow1.metadata["dependencies"] = [
-            {"uuid": "21da3551-1556-4a5f-b30e-73d59a4ac6ba", "name": "Spam", "type": "label"}
-        ]
-        self.flow1.save(update_fields=("metadata",))
+        # starts from UI have user but not extra
+        self.start1 = FlowStart.create(flow1, self.admin, contacts=[contact])  # from UI
 
-        # a flow with template dependencies
-        self.flow2 = self.create_flow()
-        self.flow2.metadata["dependencies"] = [
-            {"uuid": "8e35f470-edf3-4420-abc5-8fcd662d07ba", "name": "T1", "type": "template"},
-            {"uuid": "5841d652-f3df-485c-a0fa-4047bee83b28", "name": "T3", "type": "template"},
-        ]
-        self.flow2.save(update_fields=("metadata",))
+        # only API calls can have extra
+        self.start2 = FlowStart.create(flow2, self.admin, contacts=[contact], extra={"foo": "bar"})
 
-        # a flow with template dependencies already in the database
-        self.flow3 = self.create_flow()
-        self.flow3.metadata["dependencies"] = [
-            {"uuid": "9678a80c-cf97-4072-9006-36e2f342913c", "name": "T2", "type": "template"}
-        ]
-        self.flow3.save(update_fields=("metadata",))
-        self.flow3.template_dependencies.add(self.template2)
+        # starts from mailroom session_triggered event handling have no user but do have parent_summary
+        self.start3 = FlowStart.create(flow2, None, contacts=[contact])
+        self.start3.parent_summary = {"foo": "bar"}
+        self.start3.save(update_fields=("parent_summary",))
+
+        # starts from mailroom IVR/schedule trigger handling have no user and no parent_summary
+        self.start4 = FlowStart.create(flow2, None, contacts=[contact])
+
+        # clear type so migration sets it
+        FlowStart.objects.all().update(start_type=None)
+
+        # create a new one which will have type already set
+        self.start5 = FlowStart.create(flow1, self.admin, contacts=[contact])
 
     def test_migration(self):
-        self.flow1.refresh_from_db()
-        self.flow2.refresh_from_db()
-        self.flow3.refresh_from_db()
+        def assert_type(start, type_code):
+            start.refresh_from_db()
+            self.assertEqual(type_code, start.start_type)
 
-        self.assertEqual(set(), set(self.flow1.template_dependencies.all()))
-        self.assertEqual({self.template1, self.template3}, set(self.flow2.template_dependencies.all()))
-        self.assertEqual({self.template2}, set(self.flow3.template_dependencies.all()))
+        assert_type(self.start1, "M")
+        assert_type(self.start2, "A")
+        assert_type(self.start3, "F")
+        assert_type(self.start4, "T")
+        assert_type(self.start5, "M")

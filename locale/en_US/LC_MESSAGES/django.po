@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-01 04:40+0000\n"
+"POT-Creation-Date: 2020-04-20 21:59+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2277,6 +2277,9 @@ msgstr ""
 msgid "The preferred language for this contact"
 msgstr ""
 
+msgid "An error occurred updating your contact. Please try again later."
+msgstr ""
+
 msgid "Provided URNs belong to different existing contacts"
 msgstr ""
 
@@ -2694,6 +2697,18 @@ msgstr ""
 msgid "Any configuration options for this flow export"
 msgstr ""
 
+msgid "Pending"
+msgstr ""
+
+msgid "Starting"
+msgstr ""
+
+msgid "Complete"
+msgstr ""
+
+msgid "Failed"
+msgstr ""
+
 msgid "The name of this flow label"
 msgstr ""
 
@@ -2911,7 +2926,42 @@ msgstr ""
 msgid "New Editor"
 msgstr ""
 
-msgid "Previous Editor"
+msgid "Export Definition"
+msgstr ""
+
+msgid "Export Translation"
+msgstr ""
+
+msgid "Import Translation"
+msgstr ""
+
+msgid "Include translations in this language."
+msgstr ""
+
+msgid "Include Arguments"
+msgstr ""
+
+msgid "Include arguments to tests on splits"
+msgstr ""
+
+msgid "PO translation file"
+msgstr ""
+
+msgid "File doesn't appear to be a valid PO file."
+msgstr ""
+
+#, python-format
+msgid "Contains translations in %(lang)s which is the base language of this flow."
+msgstr ""
+
+#, python-format
+msgid "Contains translations in %(lang)s which is not a supported translation language."
+msgstr ""
+
+msgid "Replace flow translations in this language."
+msgstr ""
+
+msgid "Import"
 msgstr ""
 
 msgid "Which group memberships, if any, to include in the export"
@@ -3040,6 +3090,9 @@ msgstr ""
 msgid "Name already used"
 msgstr ""
 
+msgid "Flow Start Log"
+msgstr ""
+
 #, python-format
 msgid "Cannot create a new global as limit is %(limit)s."
 msgstr ""
@@ -3069,9 +3122,6 @@ msgid "After 4 minutes"
 msgstr ""
 
 msgid "You must select a country for your organization."
-msgstr ""
-
-msgid "Pending"
 msgstr ""
 
 msgid "Queued"
@@ -3334,9 +3384,6 @@ msgid "Outbox"
 msgstr ""
 
 msgid "Schedules"
-msgstr ""
-
-msgid "Failed"
 msgstr ""
 
 msgid "Schedule Message"
@@ -3945,9 +3992,6 @@ msgstr ""
 msgid "Add Classifier"
 msgstr ""
 
-msgid "Import"
-msgstr ""
-
 msgid "Login"
 msgstr ""
 
@@ -4269,9 +4313,6 @@ msgid "Create Schedule"
 msgstr ""
 
 msgid "Processing"
-msgstr ""
-
-msgid "Complete"
 msgstr ""
 
 msgid "The organization of the user."
@@ -6331,6 +6372,9 @@ msgstr ""
 msgid "Delete Flow"
 msgstr ""
 
+msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
+msgstr ""
+
 msgid "To make your next connection,"
 msgstr ""
 
@@ -6467,6 +6511,9 @@ msgstr ""
 msgid "Back to Flow"
 msgstr ""
 
+msgid "Extracts a <a href=\"https://en.wikipedia.org/wiki/Gettext\">gettext</a> PO file from the flow which can later be re-imported with updated translations."
+msgstr ""
+
 msgid "Remove Label"
 msgstr ""
 
@@ -6474,6 +6521,30 @@ msgid "Are you sure you want to remove this label?"
 msgstr ""
 
 msgid "You cannot remove a label which has child labels. Please remove all children first."
+msgstr ""
+
+msgid "Importing a PO file will replace all matching translations in the flow for the selected language."
+msgstr ""
+
+msgid "Selected Flow"
+msgstr ""
+
+msgid "Base Language"
+msgstr ""
+
+msgid "Uploaded PO File"
+msgstr ""
+
+msgid "Number of entries"
+msgstr ""
+
+msgid "Number of translations"
+msgstr ""
+
+msgid "Upload"
+msgstr ""
+
+msgid "Back"
 msgstr ""
 
 msgid "Unlabel"
@@ -6546,6 +6617,31 @@ msgstr ""
 
 msgid "Ask a series of questions to collect data from your contacts."
 msgstr ""
+
+#, python-format
+msgid "was started by %(user)s for"
+msgstr ""
+
+msgid "was started by an API call for"
+msgstr ""
+
+msgid "all contacts"
+msgstr ""
+
+msgid "contacts not in other flows"
+msgstr ""
+
+msgid "contacts not in other flows who haven't already been through this flow"
+msgstr ""
+
+msgid "contacts who haven't already been through this flow"
+msgstr ""
+
+#, python-format
+msgid "<b>%(count)s</b> run"
+msgid_plural "<b>%(count)s</b> runs"
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Are you sure you want to delete this global?"
 msgstr ""

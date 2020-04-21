@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-01 04:40+0000\n"
+"POT-Creation-Date: 2020-04-20 21:59+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3269,6 +3269,11 @@ msgstr "O nome deste contato"
 msgid "The preferred language for this contact"
 msgstr "O nome deste contato"
 
+#, fuzzy
+#| msgid "We encountered an error removing your channel, please try again later."
+msgid "An error occurred updating your contact. Please try again later."
+msgstr "Encontramos um erro ao remover o seu transmissor, por favor, tente novamente mais tarde."
+
 msgid "Provided URNs belong to different existing contacts"
 msgstr ""
 
@@ -3753,6 +3758,19 @@ msgstr "Os fluxos para exportar"
 msgid "Any configuration options for this flow export"
 msgstr "JSON codificou configurações para este relatório"
 
+msgid "Pending"
+msgstr "Pendente"
+
+#, fuzzy
+msgid "Starting"
+msgstr "Ação de iniciar o fluxo"
+
+msgid "Complete"
+msgstr ""
+
+msgid "Failed"
+msgstr "Falha"
+
 #, fuzzy
 msgid "The name of this flow label"
 msgstr "O nome deste rótulo"
@@ -3997,8 +4015,48 @@ msgid "New Editor"
 msgstr "Nenhum editor"
 
 #, fuzzy
-msgid "Previous Editor"
-msgstr "Nenhum editor"
+#| msgid "Export Data"
+msgid "Export Definition"
+msgstr "Exportar dados"
+
+#, fuzzy
+msgid "Export Translation"
+msgstr "Organização"
+
+#, fuzzy
+msgid "Import Translation"
+msgstr "Organização"
+
+msgid "Include translations in this language."
+msgstr ""
+
+#, fuzzy
+msgid "Include Arguments"
+msgstr "Mensagens SMS recebidas"
+
+msgid "Include arguments to tests on splits"
+msgstr ""
+
+#, fuzzy
+msgid "PO translation file"
+msgstr "Organização"
+
+msgid "File doesn't appear to be a valid PO file."
+msgstr ""
+
+#, python-format
+msgid "Contains translations in %(lang)s which is the base language of this flow."
+msgstr ""
+
+#, python-format
+msgid "Contains translations in %(lang)s which is not a supported translation language."
+msgstr ""
+
+msgid "Replace flow translations in this language."
+msgstr ""
+
+msgid "Import"
+msgstr "Importar"
 
 msgid "Which group memberships, if any, to include in the export"
 msgstr ""
@@ -4148,6 +4206,11 @@ msgstr ""
 msgid "Name already used"
 msgstr "Esse endereço de e-mail já está sendo usado"
 
+#, fuzzy
+#| msgid "Flow Start"
+msgid "Flow Start Log"
+msgstr "Início do fluxo"
+
 #, python-format
 msgid "Cannot create a new global as limit is %(limit)s."
 msgstr ""
@@ -4183,9 +4246,6 @@ msgstr ""
 #, fuzzy
 msgid "You must select a country for your organization."
 msgstr "Nosso Id da classe do cliente para sua organização"
-
-msgid "Pending"
-msgstr "Pendente"
 
 msgid "Queued"
 msgstr "Em fila"
@@ -4495,9 +4555,6 @@ msgstr "Caixa de saída"
 #, fuzzy
 msgid "Schedules"
 msgstr "Agendar"
-
-msgid "Failed"
-msgstr "Falha"
 
 msgid "Schedule Message"
 msgstr "Agendar mensagem"
@@ -5182,9 +5239,6 @@ msgstr "Transmissor"
 msgid "Add Classifier"
 msgstr ""
 
-msgid "Import"
-msgstr "Importar"
-
 msgid "Login"
 msgstr ""
 
@@ -5552,9 +5606,6 @@ msgid "Create Schedule"
 msgstr "Criar agendamento"
 
 msgid "Processing"
-msgstr ""
-
-msgid "Complete"
 msgstr ""
 
 #, fuzzy
@@ -8393,6 +8444,9 @@ msgstr ""
 msgid "Delete Flow"
 msgstr "Criar fluxo"
 
+msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
+msgstr ""
+
 msgid "To make your next connection,"
 msgstr "Para fazer a sua próxima conexão,"
 
@@ -8572,6 +8626,9 @@ msgstr ""
 msgid "Back to Flow"
 msgstr "Ação de iniciar o fluxo"
 
+msgid "Extracts a <a href=\"https://en.wikipedia.org/wiki/Gettext\">gettext</a> PO file from the flow which can later be re-imported with updated translations."
+msgstr ""
+
 msgid "Remove Label"
 msgstr "Remover rótulo"
 
@@ -8579,6 +8636,38 @@ msgid "Are you sure you want to remove this label?"
 msgstr "Você tem certeza que deseja remover esse rótulo?"
 
 msgid "You cannot remove a label which has child labels. Please remove all children first."
+msgstr ""
+
+msgid "Importing a PO file will replace all matching translations in the flow for the selected language."
+msgstr ""
+
+#, fuzzy
+#| msgid "Create Flow"
+msgid "Selected Flow"
+msgstr "Criar fluxo"
+
+#, fuzzy
+#| msgid "Language"
+msgid "Base Language"
+msgstr "Linguagem"
+
+msgid "Uploaded PO File"
+msgstr ""
+
+#, fuzzy
+#| msgid "Number of Credits"
+msgid "Number of entries"
+msgstr "Quantidade de créditos"
+
+#, fuzzy
+#| msgid "Number of Credits"
+msgid "Number of translations"
+msgstr "Quantidade de créditos"
+
+msgid "Upload"
+msgstr ""
+
+msgid "Back"
 msgstr ""
 
 msgid "Unlabel"
@@ -8670,6 +8759,37 @@ msgstr ""
 
 msgid "Ask a series of questions to collect data from your contacts."
 msgstr "Fazer uma série de perguntas para coletar informações de seus contatos."
+
+#, fuzzy, python-format
+msgid "was started by %(user)s for"
+msgstr "iniciou este fluxo"
+
+#, fuzzy
+msgid "was started by an API call for"
+msgstr "iniciou este fluxo"
+
+#, fuzzy
+msgid "all contacts"
+msgstr "Contatos"
+
+#, fuzzy
+#| msgid "Place contact in another flow"
+msgid "contacts not in other flows"
+msgstr "Inserir contato em outro fluxo"
+
+#, fuzzy
+msgid "contacts not in other flows who haven't already been through this flow"
+msgstr "iniciou este fluxo"
+
+#, fuzzy
+msgid "contacts who haven't already been through this flow"
+msgstr "iniciou este fluxo"
+
+#, python-format
+msgid "<b>%(count)s</b> run"
+msgid_plural "<b>%(count)s</b> runs"
+msgstr[0] ""
+msgstr[1] ""
 
 #, fuzzy
 msgid "Are you sure you want to delete this global?"
@@ -11398,6 +11518,31 @@ msgid "Found ${count} for ${query}"
 msgstr ""
 
 #, fuzzy
+#~ msgid "Start Log"
+#~ msgstr "Ação de iniciar o fluxo"
+
+#, fuzzy
+#~ msgid "Started By"
+#~ msgstr "Ação de iniciar o fluxo"
+
+#, fuzzy
+#~ msgid "Started On"
+#~ msgstr "Ação de iniciar o fluxo"
+
+#, fuzzy
+#~ msgid "Previous Editor"
+#~ msgstr "Nenhum editor"
+
+#, fuzzy
+#~| msgid "Export"
+#~ msgid "Export PO"
+#~ msgstr "Exportar"
+
+#, fuzzy
+#~ msgid "Download PO"
+#~ msgstr "Resultados ao vivo"
+
+#, fuzzy
 #~| msgid "Your Contacts"
 #~ msgid "for contacts in"
 #~ msgstr "Seus contatos"
@@ -13564,9 +13709,6 @@ msgstr ""
 #~ msgid "The localized versions of the broadcast"
 #~ msgstr "Estado atual desta divulgação"
 
-#~ msgid "Export Data"
-#~ msgstr "Exportar dados"
-
 #~ msgid "Another active trigger uses this keyword, keywords must be unique"
 #~ msgstr "Outro disparador ativo usa esta palavra-chave, palavras-chave devem ser exclusivas"
 
@@ -14027,10 +14169,6 @@ msgstr ""
 #~ msgid "1 Contact"
 #~ msgstr "1 Contato"
 
-#, fuzzy
-#~ msgid "has started this flow."
-#~ msgstr "iniciou este fluxo"
-
 #~ msgid "{{ participant_count }} Contacts"
 #~ msgstr "{{ participant_count }} Contatos"
 
@@ -14141,9 +14279,6 @@ msgstr ""
 
 #~ msgid "Send an e-mail"
 #~ msgstr "Enviar um e-mail"
-
-#~ msgid "Place contact in another flow"
-#~ msgstr "Inserir contato em outro fluxo"
 
 #~ msgid "Place somebody else in a flow"
 #~ msgstr "Inserir outro contato em um fluxo"

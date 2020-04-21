@@ -1,6 +1,5 @@
 import shutil
 from datetime import datetime
-from uuid import uuid4
 
 import pytz
 import redis
@@ -22,6 +21,7 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Broadcast, Label, Msg
 from temba.orgs.models import Org
 from temba.utils import json
+from temba.utils.uuid import UUID, uuid4
 from temba.values.constants import Value
 
 
@@ -495,6 +495,9 @@ class TembaTestMixin:
             # if expected value is datetime, localize and remove microseconds since Excel doesn't have that accuracy
             if tz and isinstance(expected, datetime):
                 expected = expected.astimezone(tz).replace(microsecond=0, tzinfo=None)
+
+            if isinstance(expected, UUID):
+                expected = str(expected)
 
             self.assertEqual(expected, actual, f"mismatch in cell {chr(index+65)}{row_num+1}")
 

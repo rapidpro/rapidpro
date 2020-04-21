@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 from unittest.mock import PropertyMock, patch
-from uuid import uuid4
 
 import pytz
 from openpyxl import load_workbook
@@ -44,6 +43,7 @@ from temba.tests import AnonymousOrg, TembaTest
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.utils import json
+from temba.utils.uuid import uuid4
 
 from .tasks import retry_errored_messages, squash_msgcounts
 from .templatetags.sms import as_icon

@@ -38,6 +38,89 @@ class MailroomClientTest(TembaTest):
             json={"flow": {"nodes": []}, "to_version": "13.1.0"},
         )
 
+    def test_contact_modify(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(
+                200,
+                """{
+                    "1": {
+                        "contact": {
+                            "uuid": "6393abc0-283d-4c9b-a1b3-641a035c34bf",
+                            "id": 1,
+                            "name": "Frank",
+                            "timezone": "America/Los_Angeles",
+                            "created_on": "2018-07-06T12:30:00.123457Z"
+                        },
+                        "events": [
+                            {
+                                "type": "contact_groups_changed",
+                                "created_on": "2018-07-06T12:30:03.123456789Z",
+                                "groups_added": [
+                                    {
+                                        "uuid": "c153e265-f7c9-4539-9dbc-9b358714b638",
+                                        "name": "Doctors"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+                """,
+            )
+
+            response = get_client().contact_modify(
+                1,
+                1,
+                [1],
+                {
+                    "type": "groups",
+                    "modification": "add",
+                    "groups": [{"uuid": "c153e265-f7c9-4539-9dbc-9b358714b638", "name": "Doctors"}],
+                },
+            )
+            self.assertEqual("6393abc0-283d-4c9b-a1b3-641a035c34bf", response["1"]["contact"]["uuid"])
+            mock_post.assert_called_once_with(
+                "http://localhost:8090/mr/contact/modify",
+                headers={"User-Agent": "Temba"},
+                json={
+                    "org_id": 1,
+                    "user_id": 1,
+                    "contact_ids": [1],
+                    "modifiers": {
+                        "type": "groups",
+                        "modification": "add",
+                        "groups": [{"uuid": "c153e265-f7c9-4539-9dbc-9b358714b638", "name": "Doctors"}],
+                    },
+                },
+            )
+
+    def test_po_export(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, 'msgid "Red"\nmsgstr "Rojo"\n\n')
+            response = get_client().po_export(self.org.id, [123, 234], "spa")
+
+            self.assertEqual(b'msgid "Red"\nmsgstr "Rojo"\n\n', response)
+
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/po/export",
+            headers={"User-Agent": "Temba"},
+            json={"org_id": self.org.id, "flow_ids": [123, 234], "language": "spa", "exclude_arguments": False},
+        )
+
+    def test_po_import(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"flows": []}')
+            response = get_client().po_import(self.org.id, [123, 234], "spa", b'msgid "Red"\nmsgstr "Rojo"\n\n')
+
+            self.assertEqual({"flows": []}, response)
+
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/po/import",
+            headers={"User-Agent": "Temba"},
+            data={"org_id": self.org.id, "flow_ids": [123, 234], "language": "spa"},
+            files={"po": b'msgid "Red"\nmsgstr "Rojo"\n\n'},
+        )
+
     def test_parse_query(self):
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, '{"query":"name ~ \\"frank\\"","fields":["name"]}')

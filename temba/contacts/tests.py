@@ -3542,18 +3542,24 @@ class ContactTest(TembaTest):
         self.joe.set_field(self.user, "state", " kiGali   citY ")  # should match "Kigali City"
 
         # check that the field appears on the update form
-        response = self.client.get(reverse("contacts.contact_update", args=[self.joe.id]))
-        self.assertEqual(
-            list(response.context["form"].fields.keys()), ["name", "groups", "urn__twitter__0", "urn__tel__1", "loc"]
-        )
-        self.assertEqual(response.context["form"].initial["name"], "Joe Blow")
-        self.assertEqual(response.context["form"].fields["urn__tel__1"].initial, "+250781111111")
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.contact_modify.return_value = {"1": {"contact": {}, "events": []}}
 
-        contact_field = ContactField.user_fields.filter(key="state").first()
-        response = self.client.get(
-            "%s?field=%s" % (reverse("contacts.contact_update_fields", args=[self.joe.id]), contact_field.id)
-        )
-        self.assertEqual("Home state", response.context["contact_field"].label)
+            response = self.client.get(reverse("contacts.contact_update", args=[self.joe.id]))
+
+            self.assertEqual(
+                list(response.context["form"].fields.keys()),
+                ["name", "groups", "urn__twitter__0", "urn__tel__1", "loc"],
+            )
+            self.assertEqual(response.context["form"].initial["name"], "Joe Blow")
+            self.assertEqual(response.context["form"].fields["urn__tel__1"].initial, "+250781111111")
+
+            contact_field = ContactField.user_fields.filter(key="state").first()
+            response = self.client.get(
+                "%s?field=%s" % (reverse("contacts.contact_update_fields", args=[self.joe.id]), contact_field.id)
+            )
+            self.assertEqual("Home state", response.context["contact_field"].label)
 
         # grab our input field which is loaded async
         response = self.client.get(
@@ -3569,8 +3575,12 @@ class ContactTest(TembaTest):
         self.assertContains(response, "Eastern Province")
 
         # update joe - change his tel URN
-        data = dict(name="Joe Blow", urn__tel__1="+250 783835665", order__urn__tel__1="0")
-        self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), data)
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.contact_modify.return_value = {"1": {"contact": {}, "events": []}}
+
+            data = dict(name="Joe Blow", urn__tel__1="+250 783835665", order__urn__tel__1="0")
+            self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), data)
 
         # update the state contact field to something invalid
         self.client.post(
@@ -3586,9 +3596,15 @@ class ContactTest(TembaTest):
         )  # raw user input as location wasn't matched
         self.assertIsNone(Contact.from_urn(self.org, "tel:+250781111111"))  # original tel is nobody now
 
-        # update joe, change his number back
-        data = dict(name="Joe Blow", urn__tel__0="+250781111111", order__urn__tel__0="0", __field__location="Kigali")
-        self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), data)
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.contact_modify.return_value = {"1": {"contact": {}, "events": []}}
+
+            # update joe, change his number back
+            data = dict(
+                name="Joe Blow", urn__tel__0="+250781111111", order__urn__tel__0="0", __field__location="Kigali"
+            )
+            self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), data)
 
         # check that old URN is re-attached
         self.assertIsNone(ContactURN.objects.get(identity="tel:+250783835665").contact)
@@ -3606,65 +3622,84 @@ class ContactTest(TembaTest):
         post_data = dict(
             name="Joe Gashyantare", groups=[self.just_joe.id], urn__tel__0="+250781111111", urn__tel__1="+250786666666"
         )
-        response = self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True)
-        self.assertEqual(response.context["contact"].name, "Joe Gashyantare")
+
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.contact_modify.return_value = {"1": {"contact": {}, "events": []}}
+
+            response = self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True)
+
+            instance.contact_modify.assert_called_once_with(
+                self.joe.org.id, self.admin.id, [self.joe.id], [{"type": "name", "name": "Joe Gashyantare"}]
+            )
+
         self.assertEqual(set(self.joe.user_groups.all()), {self.just_joe})
         self.assertTrue(ContactURN.objects.filter(contact=self.joe, path="+250781111111"))
         self.assertTrue(ContactURN.objects.filter(contact=self.joe, path="+250786666666"))
 
         # remove him from this group "Just joe", and his second number
         post_data = dict(name="Joe Gashyantare", urn__tel__0="+250781111111", groups=[])
-        response = self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True)
-        self.assertEqual(set(self.joe.user_groups.all()), set())
-        self.assertTrue(ContactURN.objects.filter(contact=self.joe, path="+250781111111"))
-        self.assertFalse(ContactURN.objects.filter(contact=self.joe, path="+250786666666"))
 
-        # should no longer be in our update form either
-        response = self.client.get(reverse("contacts.contact_update", args=[self.joe.id]))
-        self.assertEqual(response.context["form"].fields["urn__tel__0"].initial, "+250781111111")
-        self.assertNotIn("urn__tel__1", response.context["form"].fields)
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.contact_modify.return_value = {"1": {"contact": {}, "events": []}}
 
-        # check that groups field isn't displayed when contact is blocked
-        self.joe.block(self.user)
-        response = self.client.get(reverse("contacts.contact_update", args=[self.joe.id]))
-        self.assertNotIn("groups", response.context["form"].fields)
+            response = self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True)
 
-        # and that we can still update the contact
-        post_data = dict(name="Joe Bloggs", urn__tel__0="+250781111111")
-        self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True)
+            self.assertEqual(set(self.joe.user_groups.all()), set())
+            self.assertTrue(ContactURN.objects.filter(contact=self.joe, path="+250781111111"))
+            self.assertFalse(ContactURN.objects.filter(contact=self.joe, path="+250786666666"))
 
-        self.joe = Contact.objects.get(pk=self.joe.pk)
-        self.assertEqual(self.joe.name, "Joe Bloggs")
+            # should no longer be in our update form either
+            response = self.client.get(reverse("contacts.contact_update", args=[self.joe.id]))
+            self.assertEqual(response.context["form"].fields["urn__tel__0"].initial, "+250781111111")
+            self.assertNotIn("urn__tel__1", response.context["form"].fields)
 
-        self.joe.unblock(self.user)
+            # check that groups field isn't displayed when contact is blocked
+            self.joe.block(self.user)
+            response = self.client.get(reverse("contacts.contact_update", args=[self.joe.id]))
+            self.assertNotIn("groups", response.context["form"].fields)
 
-        # add new urn for joe
-        self.client.post(
-            reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(name="Joey", urn__tel__0="+250781111111", new_scheme="ext", new_path="EXT123"),
-        )
+            instance.contact_modify.reset_mock()
 
-        urn = ContactURN.objects.filter(contact=self.joe, scheme="ext").first()
-        self.assertIsNotNone(urn)
-        self.assertEqual("EXT123", urn.path)
+            # and that we can still update the contact
+            post_data = dict(name="Joe Bloggs", urn__tel__0="+250781111111")
+            self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True)
 
-        # now try adding one that is invalid
-        self.client.post(
-            reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(name="Joey", urn__tel__0="+250781111111", new_scheme="mailto", new_path="malformed"),
-        )
-        self.assertIsNone(ContactURN.objects.filter(contact=self.joe, scheme="mailto").first())
+            instance.contact_modify.assert_called_once_with(
+                self.joe.org.id, self.admin.id, [self.joe.id], [{"type": "name", "name": "Joe Bloggs"}]
+            )
 
-        # update our language to something not on the org
-        self.joe.refresh_from_db()
-        self.joe.language = "fra"
-        self.joe.save(update_fields=("language",), handle_update=False)
+            self.joe = Contact.objects.get(pk=self.joe.pk)
+            self.joe.unblock(self.user)
 
-        # add some languages to our org, but not french
-        self.client.post(reverse("orgs.org_languages"), dict(primary_lang="hat", languages="arc,spa"))
+            # add new urn for joe
+            self.client.post(
+                reverse("contacts.contact_update", args=[self.joe.id]),
+                dict(name="Joey", urn__tel__0="+250781111111", new_scheme="ext", new_path="EXT123"),
+            )
 
-        response = self.client.get(reverse("contacts.contact_update", args=[self.joe.id]))
-        self.assertContains(response, "French (Missing)")
+            urn = ContactURN.objects.filter(contact=self.joe, scheme="ext").first()
+            self.assertIsNotNone(urn)
+            self.assertEqual("EXT123", urn.path)
+
+            # now try adding one that is invalid
+            self.client.post(
+                reverse("contacts.contact_update", args=[self.joe.id]),
+                dict(name="Joey", urn__tel__0="+250781111111", new_scheme="mailto", new_path="malformed"),
+            )
+            self.assertIsNone(ContactURN.objects.filter(contact=self.joe, scheme="mailto").first())
+
+            # update our language to something not on the org
+            self.joe.refresh_from_db()
+            self.joe.language = "fra"
+            self.joe.save(update_fields=("language",), handle_update=False)
+
+            # add some languages to our org, but not french
+            self.client.post(reverse("orgs.org_languages"), dict(primary_lang="hat", languages="arc,spa"))
+
+            response = self.client.get(reverse("contacts.contact_update", args=[self.joe.id]))
+            self.assertContains(response, "French (Missing)")
 
         # update our contact with some locations
         state = ContactField.get_or_create(self.org, self.admin, "state", "Home State", value_type="S")
@@ -3734,11 +3769,18 @@ class ContactTest(TembaTest):
         self.org.is_anon = True
         self.org.save()
 
-        post_data = dict(name="Joe X", groups=[self.just_joe.id])
-        self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True)
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.contact_modify.return_value = {"1": {"contact": {}, "events": []}}
+
+            post_data = dict(name="Joe X", groups=[self.just_joe.id])
+            self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True)
+
+            instance.contact_modify.assert_called_once_with(
+                self.joe.org.id, self.admin.id, [self.joe.id], [{"type": "name", "name": "Joe X"}]
+            )
 
         self.joe.refresh_from_db()
-        self.assertEqual(self.joe.name, "Joe X")
         self.assertEqual({str(u) for u in self.joe.urns.all()}, {"tel:+250781111111", "ext:EXT123"})  # urns unaffected
 
         # remove all of joe's URNs
@@ -3795,57 +3837,94 @@ class ContactTest(TembaTest):
         # there should be one 'normal' field and one 'featured' contact field
         self.assertEqual(len(response.context_data["all_contact_fields"]), 2)
 
-    def test_contact_language_update(self):
+    def test_contact_update_name_language(self):
         self.login(self.admin)
 
         self.client.post(reverse("orgs.org_languages"), dict(primary_lang="eng", languages="fra"))
+        self.assertIsNone(self.joe.language)
 
-        with MockParseQuery('language = "eng"', ["language"]):
-            language_group = self.create_group("English humans", query="language is eng")
-            ContactGroup.user_groups.filter(id=language_group.id).update(status=ContactGroup.STATUS_READY)
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.contact_modify.return_value = {"1": {"contact": {}, "events": []}}
 
-        self.assertEqual(language_group.contacts.count(), 0)
+            # no change, should not call mailroom contact modify
+            self.client.post(
+                reverse("contacts.contact_update", args=[self.joe.id]),
+                dict(language="", name="Joe Blow", urn__tel__0="+250781111111", urn__twitter__1="blow80"),
+            )
+            self.assertFalse(instance.contact_modify.called)
+            instance.contact_modify.reset_mock()
 
-        # set language, adds contact to a group
-        self.client.post(
-            reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(language="eng", name="Joe Blow", urn__tel__0="+250781111111", urn__twitter__1="blow80"),
-        )
+            # set language, calls mailroom contact modify with language modifier only
+            self.client.post(
+                reverse("contacts.contact_update", args=[self.joe.id]),
+                dict(language="eng", name="Joe Blow", urn__tel__0="+250781111111", urn__twitter__1="blow80"),
+            )
 
-        self.assertEqual(language_group.contacts.count(), 1)
+            instance.contact_modify.assert_called_once_with(
+                self.joe.org.id, self.admin.id, [self.joe.id], [{"type": "language", "language": "eng"}]
+            )
 
-        # unset language, removes contact from group
-        self.client.post(
-            reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(language="fra", name="Joe Blow", urn__tel__0="+250781111111", urn__twitter__1="blow80"),
-        )
+            instance.contact_modify.reset_mock()
 
-        self.assertEqual(language_group.contacts.count(), 0)
+            self.joe.refresh_from_db()
+            self.joe.language = "eng"
+            self.joe.save(update_fields=("language",), handle_update=False)
 
-    def test_contact_name_update(self):
+            # set different name, calls mailroom contact modify with name modify only
+            self.client.post(
+                reverse("contacts.contact_update", args=[self.joe.id]),
+                dict(language="eng", name="Muller Awesome", urn__tel__0="+250781111111", urn__twitter__1="blow80"),
+            )
+
+            instance.contact_modify.assert_called_once_with(
+                self.joe.org.id, self.admin.id, [self.joe.id], [{"type": "name", "name": "Muller Awesome"}]
+            )
+
+            instance.contact_modify.reset_mock()
+
+            self.client.post(
+                reverse("contacts.contact_update", args=[self.joe.id]),
+                dict(language="fra", name="Muller Awesome", urn__tel__0="+250781111111", urn__twitter__1="blow80"),
+            )
+
+            instance.contact_modify.assert_called_once_with(
+                self.joe.org.id,
+                self.admin.id,
+                [self.joe.id],
+                [{"type": "name", "name": "Muller Awesome"}, {"type": "language", "language": "fra"}],
+            )
+
+            instance.contact_modify.side_effect = MailroomException("", "", {"error": "Error updating contact"})
+
+            # set different name and language with an error from mailroom, should displa some error message to user
+            response = self.client.post(
+                reverse("contacts.contact_update", args=[self.joe.id]),
+                dict(language="fra", name="Muller Awesome", urn__tel__0="+250781111111", urn__twitter__1="blow80"),
+            )
+
+            self.assertFormError(
+                response, "form", None, "An error occurred updating your contact. Please try again later."
+            )
+
+    def test_contact_model_update(self):
         self.login(self.admin)
 
-        with MockParseQuery('name ~ "Dave"', ["name"]):
-            dave_group = self.create_group("All Daves of the world", query="name has Dave")
-            ContactGroup.user_groups.filter(id=dave_group.id).update(status=ContactGroup.STATUS_READY)
+        self.client.post(reverse("orgs.org_languages"), dict(primary_lang="eng", languages="fra"))
+        self.assertIsNone(self.joe.language)
 
-        self.assertEqual(dave_group.contacts.count(), 0)
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.contact_modify.return_value = {"1": {"contact": {}, "events": []}}
 
-        # update name, adds contact to a group
-        self.client.post(
-            reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(language="eng", name="Dave Awesome", urn__tel__0="+250781111111", urn__twitter__1="blow80"),
-        )
+            self.joe.update(self.admin, "Muller", "eng")
 
-        self.assertEqual(dave_group.contacts.count(), 1)
-
-        # update name, removes contact from a group
-        self.client.post(
-            reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(language="eng", name="Muller Awesome", urn__tel__0="+250781111111", urn__twitter__1="blow80"),
-        )
-
-        self.assertEqual(dave_group.contacts.count(), 0)
+            instance.contact_modify.assert_called_once_with(
+                self.joe.org.id,
+                self.admin.id,
+                [self.joe.id],
+                [{"type": "name", "name": "Muller"}, {"type": "language", "language": "eng"}],
+            )
 
     def test_number_normalized(self):
         self.org.country = None
@@ -3860,13 +3939,22 @@ class ContactTest(TembaTest):
         contact = Contact.from_urn(self.org, "tel:+447531669965")
         self.assertEqual("Ryan Lewis", contact.name)
 
-        # try the update case
-        self.client.post(
-            reverse("contacts.contact_update", args=[contact.id]),
-            dict(name="Marshal Mathers", urn__tel__0="07531669966"),
-        )
-        contact = Contact.from_urn(self.org, "tel:+447531669966")
-        self.assertEqual("Marshal Mathers", contact.name)
+        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
+            instance = mock_mr.return_value
+            instance.contact_modify.return_value = {"1": {"contact": {}, "events": []}}
+
+            # try the update case
+            self.client.post(
+                reverse("contacts.contact_update", args=[contact.id]),
+                dict(name="Marshal Mathers", urn__tel__0="07531669966"),
+            )
+
+            instance.contact_modify.assert_called_once_with(
+                self.org.id, self.admin.id, [contact.id], [{"type": "name", "name": "Marshal Mathers"}]
+            )
+
+            contact_updated = Contact.from_urn(self.org, "tel:+447531669966")
+            self.assertEqual(contact_updated.pk, contact.pk)
 
     def test_contact_model(self):
         contact1 = self.create_contact(name="Ludacris", number="123456")

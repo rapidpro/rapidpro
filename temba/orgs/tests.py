@@ -5,7 +5,6 @@ from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import Mock, patch
 from urllib.parse import urlencode
-from uuid import uuid4
 
 import pytz
 import stripe
@@ -57,6 +56,7 @@ from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json, languages
 from temba.utils.email import link_components
+from temba.utils.uuid import uuid4
 from temba.values.constants import Value
 
 from .context_processors import GroupPermWrapper
@@ -319,7 +319,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
         )
         parent_trigger.groups.add(self.parent_org.all_groups.all().first())
 
-        FlowStart.objects.create(flow=parent_flow)
+        FlowStart.objects.create(org=self.parent_org, flow=parent_flow)
 
         child_trigger = Trigger.create(
             self.child_org,
@@ -708,7 +708,7 @@ class OrgTest(TembaTest):
         omni_mark = json.dumps({"id": mark.uuid, "name": mark.name, "type": "contact"})
         self.client.post(
             reverse("flows.flow_broadcast", args=[flow.id]),
-            {"start_type": "select", "omnibox": omni_mark, "restart_participants": "on"},
+            {"recipients_mode": "select", "omnibox": omni_mark, "restart_participants": "on"},
             follow=True,
         )
 
@@ -751,7 +751,7 @@ class OrgTest(TembaTest):
 
         self.client.post(
             reverse("flows.flow_broadcast", args=[flow.id]),
-            {"start_type": "select", "omnibox": omni_mark, "restart_participants": "on"},
+            {"recipients_mode": "select", "omnibox": omni_mark, "restart_participants": "on"},
             follow=True,
         )
 
