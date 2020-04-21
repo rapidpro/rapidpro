@@ -3308,11 +3308,11 @@ class TopUpCRUDL(SmartCRUDL):
 
     class Read(OrgPermsMixin, SmartReadView):
         def derive_queryset(self, **kwargs):  # pragma: needs cover
-            return TopUp.objects.filter(is_active=True, org=self.request.user.get_org()).order_by("-expires_on")
+            return TopUp.objects.filter(is_active=True, org=self.request.user.get_org())
 
     class List(OrgPermsMixin, SmartListView):
         def derive_queryset(self, **kwargs):
-            queryset = TopUp.objects.filter(is_active=True, org=self.request.user.get_org()).order_by("-expires_on")
+            queryset = TopUp.objects.filter(is_active=True, org=self.request.user.get_org())
             return queryset.annotate(
                 credits_remaining=ExpressionWrapper(F("credits") - Sum(F("topupcredits__used")), IntegerField())
             )
@@ -3332,10 +3332,6 @@ class TopUpCRUDL(SmartCRUDL):
 
                 # non expired first
                 now = timezone.now()
-                if topup1.expires_on > now and topup2.expires_on <= now:
-                    return -1
-                elif topup2.expires_on > now and topup1.expires_on <= now:
-                    return 1
 
                 # then push those without credits remaining to the bottom
                 if topup1.credits_remaining is None:
@@ -3347,12 +3343,6 @@ class TopUpCRUDL(SmartCRUDL):
                 if topup1.credits_remaining and not topup2.credits_remaining:
                     return -1
                 elif topup2.credits_remaining and not topup1.credits_remaining:
-                    return 1
-
-                # sor the rest by their expiration date
-                if topup1.expires_on > topup2.expires_on:
-                    return -1
-                elif topup1.expires_on < topup2.expires_on:
                     return 1
 
                 # if we end up with the same expiration, show the oldest first
@@ -3388,7 +3378,7 @@ class TopUpCRUDL(SmartCRUDL):
             return obj
 
     class Update(SmartUpdateView):
-        fields = ("is_active", "price", "credits", "expires_on")
+        fields = ("is_active", "price", "credits")
 
         def get_success_url(self):
             return reverse("orgs.topup_manage") + ("?org=%d" % self.object.org.id)

@@ -1435,34 +1435,6 @@ class OrgTest(TembaTest):
         topup.save(update_fields=["expires_on"])
         self.assertEqual(10, self.org.get_topup_ttl(topup))
 
-    def test_topup_expiration(self):
-
-        contact = self.create_contact("Usain Bolt", "+250788123123")
-        welcome_topup = self.org.topups.get()
-
-        # send some messages with a valid topup
-        self.create_incoming_msgs(contact, 10)
-        self.assertEqual(10, Msg.objects.filter(org=self.org, topup=welcome_topup).count())
-        self.assertEqual(990, self.org.get_credits_remaining())
-
-        # now expire our topup and try sending more messages
-        welcome_topup.expires_on = timezone.now() - timedelta(hours=1)
-        welcome_topup.save(update_fields=("expires_on",))
-        self.org.clear_credit_cache()
-
-        # we should have no credits remaining since we expired
-        self.assertEqual(0, self.org.get_credits_remaining())
-        self.create_incoming_msgs(contact, 5)
-
-        # those messages are waiting to send
-        self.assertEqual(5, Msg.objects.filter(org=self.org, topup=None).count())
-
-        # so we should report -5 credits
-        self.assertEqual(-5, self.org.get_credits_remaining())
-
-        # our first 10 messages plus our 5 pending a topup
-        self.assertEqual(15, self.org.get_credits_used())
-
     def test_low_credits_threshold(self):
         contact = self.create_contact("Usain Bolt", "+250788123123")
 
@@ -2643,7 +2615,6 @@ class OrgTest(TembaTest):
             org=self.org,
             price=123,
             credits=1001,
-            expires_on=timezone.now() + timedelta(days=30),
             created_by=self.admin,
             modified_by=self.admin,
         )
