@@ -577,7 +577,7 @@ class OrgTest(TembaTest):
 
         # create profile
         response = self.client.get(reverse("orgs.org_two_factor"))
-        self.assertEqual(302, response.status_code)
+        self.assertEqual(200, response.status_code)
         self.assertEqual(UserSettings.objects.count(), 1)
         self.assertEqual(UserSettings.objects.first().user, self.admin)
 

@@ -261,6 +261,7 @@ INSTALLED_APPS = (
     "temba.values",
     "temba.airtime",
     "temba.sql",
+    "temba.two_factor",
 )
 
 # the last installed app that uses smartmin permissions
@@ -395,6 +396,7 @@ PERMISSIONS = {
         "trial",
         "twilio_account",
         "twilio_connect",
+        "two_factor",
         "token",
     ),
     "orgs.usersettings": ("phone",),
