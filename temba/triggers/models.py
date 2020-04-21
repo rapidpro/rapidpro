@@ -9,6 +9,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup
 from temba.flows.models import Flow
 from temba.orgs.models import Org
+from temba.utils.models import JSONAsTextField
 
 
 class Trigger(SmartModel):
@@ -118,6 +119,9 @@ class Trigger(SmartModel):
         related_name="triggers",
         help_text=_("The associated channel"),
     )
+
+    # any extra parameters that should be passed as trigger params for this trigger
+    extra = JSONAsTextField(null=True, default=dict)
 
     @classmethod
     def create(cls, org, user, trigger_type, flow, channel=None, **kwargs):

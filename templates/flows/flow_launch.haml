@@ -150,6 +150,27 @@
             .help-block
               %label{ for:"id_include_active" }
                 -trans "Interrupt contacts currently active in flows"
+
+      -if flow_params_fields
+        .control-group
+          %h5
+            -trans "Flow Parameters"
+
+          #embedded-data
+            .embed-row.embed-header
+              .embed-field
+                %label
+                  -trans "Field"
+              .embed-value
+                %label
+                  -trans "Value"
+            .embed-container
+              -for flow_param_field in flow_params_fields
+                .embed-row.embed-template
+                  .embed-field
+                    - render_field flow_param_field.0
+                  .embed-value
+                    - render_field flow_param_field.1
     
     .l-keyword
       - render_field 'keyword_triggers'
@@ -220,10 +241,10 @@
           omnibox.show();
         }
       }
-      
+
       showFieldsOnStartType(startFlowTypeSelector.val());
       startFlowTypeSelector.change(function (){showFieldsOnStartType($(this).val());});
-      
+
       function showLaunchFlowBox(selected) {
         launchImmediatelyBox.hide();
         launchOnKeywordTriggerBox.hide();

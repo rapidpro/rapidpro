@@ -10,7 +10,7 @@ from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.utils import json, on_transaction_commit
-from temba.utils.models import TembaModel, TranslatableField
+from temba.utils.models import TembaModel, TranslatableField, JSONAsTextField
 from temba.values.constants import Value
 
 
@@ -319,6 +319,9 @@ class CampaignEvent(TembaModel):
 
     # can also specify the hour during the day that the even should be triggered
     delivery_hour = models.IntegerField(default=-1)
+
+    # any extra parameters that should be passed as trigger params for this campaign event
+    extra = JSONAsTextField(null=True, default=dict)
 
     @classmethod
     def create_message_event(

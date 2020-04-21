@@ -1014,6 +1014,13 @@ class Flow(TembaModel):
     def as_select2(self):
         return dict(id=self.uuid, text=self.name)
 
+    def get_trigger_params(self):
+        flow_json = self.as_json()
+        rule = r"@trigger.params.([a-zA-Z0-9_]+)"
+        matches = regex.finditer(rule, json.dumps(flow_json), regex.MULTILINE | regex.IGNORECASE)
+        params = [match.group() for match in matches]
+        return list(set(params))
+
     def get_category_counts(self):
         keys = [r["key"] for r in self.metadata["results"]]
         counts = (

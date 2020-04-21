@@ -2182,13 +2182,32 @@ class FlowCRUDL(SmartCRUDL):
                 return JsonResponse({"results": [{"iso": l.iso_code, "name": l.name} for l in languages]})
 
     class Launch(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+        flow_params_fields = []
+        flow_params_values = []
+
         class LaunchForm(BaseScheduleForm, forms.ModelForm):
+
             def __init__(self, *args, **kwargs):
                 self.user = kwargs.pop("user")
                 self.flow = kwargs.pop("flow")
+                FlowCRUDL.Launch.flow_params_fields = []
+                FlowCRUDL.Launch.flow_params_values = []
 
                 super().__init__(*args, **kwargs)
                 self.fields["omnibox"].set_user(self.user)
+
+                for counter, flow_param in enumerate(sorted(self.flow.get_trigger_params())):
+                    self.fields[f"flow_param_field_{counter}"] = forms.CharField(
+                        required=False,
+                        initial=flow_param,
+                        label=None,
+                        widget=forms.TextInput(attrs={"readonly": True})
+                    )
+                    self.fields[f"flow_param_value_{counter}"] = forms.CharField(required=False)
+                    if f"flow_param_field_{counter}" not in FlowCRUDL.Launch.flow_params_fields:
+                        FlowCRUDL.Launch.flow_params_fields.append(f"flow_param_field_{counter}")
+                    if f"flow_param_value_{counter}" not in FlowCRUDL.Launch.flow_params_values:
+                        FlowCRUDL.Launch.flow_params_values.append(f"flow_param_value_{counter}")
 
             launch_type = forms.ChoiceField(choices=LAUNCH_CHOICES, initial=LAUNCH_IMMEDIATELY)
 
@@ -2243,6 +2262,15 @@ class FlowCRUDL(SmartCRUDL):
 
             def clean(self):
                 cleaned_data = super().clean()
+
+                def validate_flow_params():
+                    value_fields = [item for item in cleaned_data if "flow_param_value" in item]
+                    for value_field in value_fields:
+                        if not cleaned_data.get(value_field):
+                            self.add_error(
+                                value_field,
+                                ValidationError(_("You must specify the value for this field.")),
+                            )
 
                 def validate_keyword_triggers():
                     duplicates = []
@@ -2328,6 +2356,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 if cleaned_data["launch_type"] in (LAUNCH_IMMEDIATELY, LAUNCH_ON_SHEDULE_TRIGGER):
                     validate_omnibox()
+                    validate_flow_params()
 
                 if cleaned_data["launch_type"] == LAUNCH_ON_KEYWORD_TRIGGER:
                     validate_keyword_triggers()
@@ -2370,22 +2399,24 @@ class FlowCRUDL(SmartCRUDL):
                 )
 
         form_class = LaunchForm
-        fields = (
-            "launch_type",
-            "start_type",
-            "omnibox",
-            "contact_query",
-            "restart_participants",
-            "include_active",
-            "keyword_triggers",
-            "repeat_period",
-            "repeat_days_of_week",
-            "start",
-            "start_datetime_value",
-        )
         success_message = ""
         submit_button_name = _("Add Contacts to Flow")
         success_url = "uuid@flows.flow_editor"
+
+        def derive_fields(self):
+            return (
+                "launch_type",
+                "start_type",
+                "omnibox",
+                "contact_query",
+                "restart_participants",
+                "include_active",
+                "keyword_triggers",
+                "repeat_period",
+                "repeat_days_of_week",
+                "start",
+                "start_datetime_value",
+            ) + tuple(self.flow_params_fields) + tuple(self.flow_params_values)
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -2421,6 +2452,8 @@ class FlowCRUDL(SmartCRUDL):
             context["complete_count"] = run_stats["completed"]
             context["user_tz"] = get_current_timezone_name()
             context["user_tz_offset"] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() // 60)
+            flow_params_fields = [(self.flow_params_fields[count], self.flow_params_values[count]) for count in range(len(self.flow_params_values))]
+            context["flow_params_fields"] = flow_params_fields
             return context
 
         def get_form_kwargs(self):
