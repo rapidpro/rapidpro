@@ -1512,10 +1512,6 @@ class FlowTest(TembaTest):
         FlowStartCount.squash()
         self.assertEqual(FlowStartCount.get_count(start), 10)
 
-        # recalculate and try again
-        FlowStartCount.populate_for_start(start)
-        self.assertEqual(FlowStartCount.get_count(start), 10)
-
     def test_prune_recentruns(self):
         flow = self.get_flow("color_v13")
         flow_nodes = flow.as_json()["nodes"]
@@ -6230,6 +6226,9 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
         start2 = FlowStart.create(flow, self.admin, query="name ~ Bob", restart_participants=False)
         start3 = FlowStart.create(flow, self.admin, groups=[group], include_active=False)
 
+        FlowStartCount.objects.create(start=start3, count=1000)
+        FlowStartCount.objects.create(start=start3, count=234)
+
         other_org_flow = self.create_flow(org=self.org2)
         FlowStart.create(other_org_flow, self.admin2)
 
@@ -6239,6 +6238,7 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "was started by Administrator for")
         self.assertContains(response, "all contacts")
         self.assertContains(response, "contacts who haven't already been through this flow")
+        self.assertContains(response, "<b>1,234</b> runs")
 
 
 class AssetServerTest(TembaTest):
