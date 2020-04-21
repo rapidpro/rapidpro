@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-21 21:41+0000\n"
+"POT-Creation-Date: 2020-04-21 22:36+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -5929,14 +5929,6 @@ msgstr "Crear activadores"
 
 msgid "Create Schedule"
 msgstr "Crear cronograma"
-
-#, fuzzy
-#| msgid "Account Key"
-msgid "Backup Token"
-msgstr "Clave de la cuenta"
-
-msgid "Enter one of the tokens generated when activating the two-factor login"
-msgstr ""
 
 msgid "Processing"
 msgstr ""
