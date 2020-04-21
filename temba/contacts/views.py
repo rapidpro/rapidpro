@@ -473,7 +473,7 @@ class ContactForm(forms.ModelForm):
 
     class Meta:
         model = Contact
-        fields = "__all__"
+        fields = ("name",)
 
 
 class UpdateContactForm(ContactForm):
@@ -504,6 +504,10 @@ class UpdateContactForm(ContactForm):
         self.fields["groups"].initial = self.instance.user_groups.all()
         self.fields["groups"].queryset = ContactGroup.get_user_groups(self.user.get_org(), dynamic=False)
         self.fields["groups"].help_text = _("The groups which this contact belongs to")
+
+    class Meta:
+        model = Contact
+        fields = ("name", "language", "groups")
 
 
 class ExportForm(Form):
@@ -1438,19 +1442,6 @@ class ContactCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
-        exclude = (
-            "is_active",
-            "uuid",
-            "id",
-            "org",
-            "fields",
-            "is_blocked",
-            "is_stopped",
-            "created_by",
-            "modified_by",
-            "is_test",
-            "channel",
-        )
         success_url = "uuid@contacts.contact_read"
         success_message = ""
         submit_button_name = _("Save Changes")
