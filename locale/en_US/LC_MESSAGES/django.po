@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-20 21:59+0000\n"
+"POT-Creation-Date: 2020-04-21 20:19+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4333,6 +4333,12 @@ msgstr ""
 msgid "Create Schedule"
 msgstr ""
 
+msgid "Backup Token"
+msgstr ""
+
+msgid "Enter one of the tokens generated when activating the two-factor login"
+msgstr ""
+
 msgid "Processing"
 msgstr ""
 
@@ -7749,6 +7755,9 @@ msgid "To enable two factor authentication, use a one time password application 
 msgstr ""
 
 msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
+msgstr ""
+
+msgid "These backup tokens can be used if you lose access to your authentication application, store them in a safe place. Any tokens you may have previously generated are invalid."
 msgstr ""
 
 msgid "Generate Backup Tokens"
