@@ -60,13 +60,7 @@ from .models import (
     RuleSet,
     get_flow_user,
 )
-from .tasks import (
-    squash_flowpathcounts,
-    squash_flowruncounts,
-    trim_flow_revisions,
-    trim_flow_sessions,
-    update_run_expirations_task,
-)
+from .tasks import squash_flowcounts, trim_flow_revisions, trim_flow_sessions_and_starts, update_run_expirations_task
 from .views import FlowCRUDL
 
 
@@ -1023,8 +1017,7 @@ class FlowTest(TembaTest):
         )
 
         # check squashing doesn't change anything
-        squash_flowruncounts()
-        squash_flowpathcounts()
+        squash_flowcounts()
 
         (active, visited) = flow.get_activity()
 
@@ -1242,7 +1235,7 @@ class FlowTest(TembaTest):
             flow.get_run_stats(),
         )
 
-    def test_squash_run_counts(self):
+    def test_squash_counts(self):
         flow = self.get_flow("favorites")
         flow2 = self.get_flow("pick_a_number")
 
@@ -1252,7 +1245,7 @@ class FlowTest(TembaTest):
         FlowRunCount.objects.create(flow=flow2, count=10, exit_type="I")
         FlowRunCount.objects.create(flow=flow2, count=-1, exit_type="I")
 
-        squash_flowruncounts()
+        squash_flowcounts()
         self.assertEqual(FlowRunCount.objects.all().count(), 3)
         self.assertEqual(FlowRunCount.get_totals(flow2), {"A": 0, "C": 0, "E": 0, "I": 9})
         self.assertEqual(FlowRunCount.get_totals(flow), {"A": 3, "C": 0, "E": 3, "I": 0})
@@ -1260,7 +1253,7 @@ class FlowTest(TembaTest):
         max_id = FlowRunCount.objects.all().order_by("-id").first().id
 
         # no-op this time
-        squash_flowruncounts()
+        squash_flowcounts()
         self.assertEqual(max_id, FlowRunCount.objects.all().order_by("-id").first().id)
 
     def test_category_counts(self):
@@ -1552,7 +1545,7 @@ class FlowTest(TembaTest):
         other_recent = FlowPathRecentRun.get_recent([other_exit["uuid"]], color_other["uuid"], limit=5)
         self.assertEqual(["12", "11", "10", "9", "8"], [r["text"] for r in other_recent])
 
-        squash_flowruncounts()
+        squash_flowcounts()
 
         # now only 5 newest are stored
         other_recent = FlowPathRecentRun.objects.filter(from_uuid=other_exit["uuid"], to_uuid=color_other["uuid"])
@@ -1563,7 +1556,7 @@ class FlowTest(TembaTest):
 
         # send another message and prune again
         (session.resume(msg=self.create_incoming_msg(bob, "13")).visit(color_other).visit(color_split).wait().save())
-        squash_flowruncounts()
+        squash_flowcounts()
 
         other_recent = FlowPathRecentRun.get_recent([other_exit["uuid"]], color_other["uuid"])
         self.assertEqual(["13", "12", "11", "10", "9"], [r["text"] for r in other_recent])
@@ -4229,7 +4222,7 @@ class FlowRunTest(TembaTest):
 
 
 class FlowSessionTest(TembaTest):
-    def test_release(self):
+    def test_trim(self):
         contact = self.create_contact("Ben Haggerty", "+250788123123")
         flow = self.get_flow("color")
 
@@ -4260,7 +4253,7 @@ class FlowSessionTest(TembaTest):
         run2.session.ended_on = timezone.now()
         run2.session.save(update_fields=("ended_on",))
 
-        trim_flow_sessions()
+        trim_flow_sessions_and_starts()
 
         run1, run2, run3, run4 = FlowRun.objects.order_by("id")
 
@@ -4272,6 +4265,48 @@ class FlowSessionTest(TembaTest):
 
         # only sessions for run2 and run3 are left
         self.assertEqual(FlowSession.objects.count(), 2)
+
+
+class FlowStartTest(TembaTest):
+    def test_trim(self):
+        contact = self.create_contact("Ben Haggerty", "+250788123123")
+        group = self.create_group("Testers", contacts=[contact])
+        flow = self.get_flow("color")
+
+        def create_start(user, start_type, status, **kwargs):
+            start = FlowStart.create(flow, user, start_type, **kwargs)
+            start.status = status
+            start.save(update_fields=("status",))
+
+        # some starts that won't be deleted because they are user created
+        create_start(self.admin, FlowStart.TYPE_API, FlowStart.STATUS_COMPLETE, contacts=[contact])
+        create_start(self.admin, FlowStart.TYPE_MANUAL, FlowStart.STATUS_COMPLETE, groups=[group])
+        create_start(self.admin, FlowStart.TYPE_MANUAL, FlowStart.STATUS_FAILED, query="name ~ Ben")
+
+        # some starts that are mailroom created and will be deleted
+        create_start(None, FlowStart.TYPE_FLOW_ACTION, FlowStart.STATUS_COMPLETE, contacts=[contact])
+        create_start(None, FlowStart.TYPE_TRIGGER, FlowStart.STATUS_COMPLETE, groups=[group])
+
+        # some starts that are mailroom created but not completed so won't be deleted
+        create_start(None, FlowStart.TYPE_FLOW_ACTION, FlowStart.STATUS_STARTING, contacts=[contact])
+        create_start(None, FlowStart.TYPE_TRIGGER, FlowStart.STATUS_PENDING, groups=[group])
+        create_start(None, FlowStart.TYPE_TRIGGER, FlowStart.STATUS_FAILED, groups=[group])
+
+        trim_flow_sessions_and_starts()
+
+        # check that related objects still exist!
+        contact.refresh_from_db()
+        group.refresh_from_db()
+        flow.refresh_from_db()
+
+        # check user created starts still exist
+        self.assertEqual(3, FlowStart.objects.filter(created_by=self.admin).count())
+
+        # check incomplete mailroom created starts still exist
+        self.assertEqual(3, FlowStart.objects.filter(created_by=None).exclude(status="C").count())
+
+        # and the rest are gone..
+        self.assertEqual(0, FlowStart.objects.filter(created_by=None, status="C").count())
 
 
 class ExportFlowResultsTest(TembaTest):
