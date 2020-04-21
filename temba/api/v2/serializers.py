@@ -1028,6 +1028,7 @@ class FlowStartWriteSerializer(WriteSerializer):
         return FlowStart.create(
             self.validated_data["flow"],
             self.context["user"],
+            start_type=FlowStart.TYPE_API,
             restart_participants=restart_participants,
             contacts=contacts,
             groups=groups,

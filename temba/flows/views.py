@@ -40,7 +40,7 @@ from temba.classifiers.models import Classifier
 from temba.contacts.models import FACEBOOK_SCHEME, TEL_SCHEME, WHATSAPP_SCHEME, ContactField, ContactGroup, ContactURN
 from temba.contacts.omnibox import omnibox_deserialize
 from temba.flows.legacy.expressions import get_function_listing
-from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
+from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
@@ -60,6 +60,7 @@ from .models import (
     FlowInvalidCycleException,
     FlowLabel,
     FlowPathRecentRun,
+    FlowStartCount,
     FlowUserConflictException,
     FlowVersionConflictException,
 )
@@ -84,6 +85,15 @@ EXPIRES_CHOICES = (
     (60 * 24 * 14, _("After 2 weeks")),
     (60 * 24 * 30, _("After 30 days")),
 )
+
+
+class OrgQuerysetMixin:
+    def derive_queryset(self, *args, **kwargs):
+        queryset = super().derive_queryset(*args, **kwargs)
+        if not self.request.user.is_authenticated:  # pragma: needs cover
+            return queryset.exclude(pk__gt=0)
+        else:
+            return queryset.filter(org=self.request.user.get_org())
 
 
 class BaseFlowForm(forms.ModelForm):
@@ -404,14 +414,6 @@ class FlowCRUDL(SmartCRUDL):
                 detail = None
 
             return JsonResponse({"status": "failure", "description": error, "detail": detail}, status=400)
-
-    class OrgQuerysetMixin(object):
-        def derive_queryset(self, *args, **kwargs):
-            queryset = super().derive_queryset(*args, **kwargs)
-            if not self.request.user.is_authenticated:  # pragma: needs cover
-                return queryset.exclude(pk__gt=0)
-            else:
-                return queryset.filter(org=self.request.user.get_org())
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         class FlowCreateForm(BaseFlowForm):
@@ -2036,7 +2038,7 @@ class FlowCRUDL(SmartCRUDL):
                 help_text=_("Include contacts currently active in a flow"),
             )
 
-            start_type = forms.ChoiceField(
+            recipients_mode = forms.ChoiceField(
                 widget=SelectWidget(
                     attrs={"placeholder": _("Select contacts or groups to start in the flow"), "widget_only": True}
                 ),
@@ -2053,9 +2055,9 @@ class FlowCRUDL(SmartCRUDL):
 
             def clean_contact_query(self):
                 contact_query = self.cleaned_data["contact_query"]
-                start_type = self.data["start_type"]
+                recipients_mode = self.data["recipients_mode"]
 
-                if start_type == "query":
+                if recipients_mode == "query":
                     if not contact_query.strip():
                         raise ValidationError(_("Contact query is required"))
 
@@ -2071,9 +2073,9 @@ class FlowCRUDL(SmartCRUDL):
 
             def clean_omnibox(self):
                 starting = self.cleaned_data["omnibox"]
-                start_type = self.data["start_type"]
+                recipients_mode = self.data["recipients_mode"]
 
-                if start_type == "select" and not starting:  # pragma: needs cover
+                if recipients_mode == "select" and not starting:  # pragma: needs cover
                     raise ValidationError(_("You must specify at least one contact or one group to start a flow."))
 
                 return omnibox_deserialize(self.user.get_org(), starting)
@@ -2104,7 +2106,7 @@ class FlowCRUDL(SmartCRUDL):
                 fields = ("omnibox", "restart_participants", "include_active")
 
         form_class = BroadcastForm
-        fields = ("omnibox", "restart_participants", "include_active", "start_type", "contact_query")
+        fields = ("omnibox", "restart_participants", "include_active", "recipients_mode", "contact_query")
         success_message = ""
         submit_button_name = _("Add Contacts to Flow")
         success_url = "uuid@flows.flow_editor"
@@ -2175,14 +2177,14 @@ class FlowCRUDL(SmartCRUDL):
             form = self.form
             flow = self.object
 
-            start_type = form.cleaned_data["start_type"]
+            recipients_mode = form.cleaned_data["recipients_mode"]
 
             # save off our broadcast info
             groups = []
             contacts = []
             contact_query = None
 
-            if start_type == "query":
+            if recipients_mode == "query":
                 contact_query = form.cleaned_data["contact_query"]
             else:
                 omnibox = form.cleaned_data["omnibox"]
@@ -2330,3 +2332,28 @@ class FlowLabelCRUDL(SmartCRUDL):
                 obj.toggle_label(flows, add=True)
 
             return obj
+
+
+class FlowStartCRUDL(SmartCRUDL):
+    model = FlowStart
+    actions = ("list",)
+
+    class List(OrgQuerysetMixin, OrgPermsMixin, SmartListView):
+        title = _("Flow Start Log")
+        ordering = ("-created_on",)
+        select_related = ("flow", "created_by")
+
+        def derive_queryset(self, *args, **kwargs):
+            return (
+                super()
+                .derive_queryset(*args, **kwargs)
+                .exclude(created_by=None)
+                .prefetch_related("contacts", "groups")
+            )
+
+        def get_context_data(self, *args, **kwargs):
+            context = super().get_context_data(*args, **kwargs)
+
+            FlowStartCount.bulk_annotate(context["object_list"])
+
+            return context

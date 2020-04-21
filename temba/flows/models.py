@@ -930,6 +930,7 @@ class Flow(TembaModel):
         flow_start = FlowStart.objects.create(
             org=self.org,
             flow=self,
+            start_type=FlowStart.TYPE_MANUAL,
             restart_participants=restart_participants,
             include_active=include_active,
             created_by=user,
@@ -941,8 +942,7 @@ class Flow(TembaModel):
 
         group_ids = [g.id for g in groups]
         flow_start.groups.add(*group_ids)
-
-        on_transaction_commit(lambda: flow_start.async_start())
+        flow_start.async_start()
 
     def get_export_dependencies(self):
         """
@@ -3111,20 +3111,35 @@ class FlowStart(models.Model):
     STATUS_FAILED = "F"
 
     STATUS_CHOICES = (
-        (STATUS_PENDING, "Pending"),
-        (STATUS_STARTING, "Starting"),
-        (STATUS_COMPLETE, "Complete"),
-        (STATUS_FAILED, "Failed"),
+        (STATUS_PENDING, _("Pending")),
+        (STATUS_STARTING, _("Starting")),
+        (STATUS_COMPLETE, _("Complete")),
+        (STATUS_FAILED, _("Failed")),
+    )
+
+    TYPE_MANUAL = "M"
+    TYPE_API = "A"
+    TYPE_FLOW_ACTION = "F"
+    TYPE_TRIGGER = "T"
+
+    TYPE_CHOICES = (
+        (TYPE_MANUAL, "Manual"),
+        (TYPE_API, "API"),
+        (TYPE_FLOW_ACTION, "Flow Action"),
+        (TYPE_TRIGGER, "Trigger"),
     )
 
     # the uuid of this start
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     # the org the flow belongs to
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flow_starts", null=True)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flow_starts")
 
     # the flow that should be started
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="starts")
+
+    # the type of start
+    start_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
 
     # the groups that should be considered for start in this flow
     groups = models.ManyToManyField(ContactGroup)
@@ -3160,14 +3175,14 @@ class FlowStart(models.Model):
 
     # who created this flow start
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT, related_name="%(app_label)s_%(class)s_creations"
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT, related_name="flow_starts"
     )
 
     # when this flow start was created
     created_on = models.DateTimeField(default=timezone.now, editable=False)
 
     # when this flow start was last modified
-    modified_on = models.DateTimeField(default=timezone.now, editable=False, null=True)
+    modified_on = models.DateTimeField(default=timezone.now, editable=False)
 
     # the number of de-duped contacts that might be started, depending on options above
     contact_count = models.IntegerField(default=0, null=True)
@@ -3177,8 +3192,10 @@ class FlowStart(models.Model):
         cls,
         flow,
         user,
+        start_type=TYPE_MANUAL,
         groups=None,
         contacts=None,
+        query=None,
         restart_participants=True,
         extra=None,
         include_active=True,
@@ -3193,9 +3210,11 @@ class FlowStart(models.Model):
         start = FlowStart.objects.create(
             org=flow.org,
             flow=flow,
+            start_type=start_type,
             restart_participants=restart_participants,
             include_active=include_active,
             campaign_event=campaign_event,
+            query=query,
             extra=extra,
             created_by=user,
         )
@@ -3209,7 +3228,7 @@ class FlowStart(models.Model):
         return start
 
     def async_start(self):
-        mailroom.queue_flow_start(self)
+        on_transaction_commit(lambda: mailroom.queue_flow_start(self))
 
     def release(self):
         with transaction.atomic():
@@ -3222,6 +3241,15 @@ class FlowStart(models.Model):
 
     def __str__(self):  # pragma: no cover
         return f"FlowStart[id={self.id}, flow={self.flow.uuid}]"
+
+    class Meta:
+        indexes = [
+            models.Index(
+                name="flows_flowstarts_org_created",
+                fields=["org", "-created_on"],
+                condition=Q(created_by__isnull=False),
+            )
+        ]
 
 
 class FlowStartCount(SquashableModel):
@@ -3250,16 +3278,24 @@ class FlowStartCount(SquashableModel):
 
     @classmethod
     def get_count(cls, start):
-        count = FlowStartCount.objects.filter(start=start).aggregate(count_sum=Sum("count"))["count_sum"]
+        count = start.counts.aggregate(count_sum=Sum("count"))["count_sum"]
         return count if count else 0
 
     @classmethod
-    def populate_for_start(cls, start):
-        FlowStartCount.objects.filter(start=start).delete()
-        return FlowStartCount.objects.create(start=start, count=start.runs.count())
+    def bulk_annotate(cls, starts):
+        counts = (
+            cls.objects.filter(start_id__in=[s.id for s in starts])
+            .values("start_id")
+            .order_by("start_id")
+            .annotate(count=Sum("count"))
+        )
+        counts_by_start = {c["start_id"]: c["count"] for c in counts}
+
+        for start in starts:
+            start.run_count = counts_by_start.get(start.id, 0)
 
     def __str__(self):  # pragma: needs cover
-        return "FlowStartCount[%d:%d]" % (self.start_id, self.count)
+        return f"FlowStartCount[start={self.start_id}, count={self.count}]"
 
 
 class FlowLabel(models.Model):

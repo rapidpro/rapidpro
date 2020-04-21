@@ -28,7 +28,7 @@ from temba.mailroom import FlowValidationException, MailroomException
 from temba.msgs.models import Label
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
@@ -1510,10 +1510,6 @@ class FlowTest(TembaTest):
 
         # squash them
         FlowStartCount.squash()
-        self.assertEqual(FlowStartCount.get_count(start), 10)
-
-        # recalculate and try again
-        FlowStartCount.populate_for_start(start)
         self.assertEqual(FlowStartCount.get_count(start), 10)
 
     def test_prune_recentruns(self):
@@ -3060,7 +3056,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
 
         self.assertEqual(
-            ["omnibox", "restart_participants", "include_active", "start_type", "contact_query", "loc"],
+            ["omnibox", "restart_participants", "include_active", "recipients_mode", "contact_query", "loc"],
             list(response.context["form"].fields.keys()),
         )
 
@@ -3074,7 +3070,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                     reverse("flows.flow_broadcast", args=[flow.id]),
                     {
                         "contact_query": "frank",
-                        "start_type": "query",
+                        "recipients_mode": "query",
                         "restart_participants": "on",
                         "include_active": "on",
                     },
@@ -3100,7 +3096,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                 reverse("flows.flow_broadcast", args=[flow.id]),
                 {
                     "contact_query": 'name = "frank',
-                    "start_type": "query",
+                    "recipients_mode": "query",
                     "restart_participants": "on",
                     "include_active": "on",
                 },
@@ -3112,7 +3108,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # create flow start with an empty query
         response = self.client.post(
             reverse("flows.flow_broadcast", args=[flow.id]),
-            {"contact_query": "", "start_type": "query", "restart_participants": "on", "include_active": "on"},
+            {"contact_query": "", "recipients_mode": "query", "restart_participants": "on", "include_active": "on"},
             follow=True,
         )
 
@@ -3125,13 +3121,19 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
             self.client.post(
                 reverse("flows.flow_broadcast", args=[flow.id]),
-                {"omnibox": selection, "start_type": "select", "restart_participants": "on", "include_active": "on"},
+                {
+                    "omnibox": selection,
+                    "recipients_mode": "select",
+                    "restart_participants": "on",
+                    "include_active": "on",
+                },
                 follow=True,
             )
 
             start = FlowStart.objects.get()
             self.assertEqual({contact}, set(start.contacts.all()))
             self.assertEqual(flow, start.flow)
+            self.assertEqual(FlowStart.TYPE_MANUAL, start.start_type)
             self.assertEqual(FlowStart.STATUS_PENDING, start.status)
             self.assertTrue(start.restart_participants)
             self.assertTrue(start.include_active)
@@ -3144,7 +3146,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
             self.client.post(
                 reverse("flows.flow_broadcast", args=[flow.id]),
-                {"omnibox": selection, "start_type": "select"},
+                {"omnibox": selection, "recipients_mode": "select"},
                 follow=True,
             )
 
@@ -3161,7 +3163,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
             response = self.client.post(
                 reverse("flows.flow_broadcast", args=[flow.id]),
-                {"omnibox": selection, "start_type": "select"},
+                {"omnibox": selection, "recipients_mode": "select"},
                 follow=True,
             )
 
@@ -6213,6 +6215,32 @@ class FlowSessionCRUDLTest(TembaTest):
         self.assertEqual("Temba", response_json["_metadata"]["org"])
 
 
+class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_list(self):
+        list_url = reverse("flows.flowstart_list")
+
+        flow = self.get_flow("color_v13")
+        contact = self.create_contact("Bob", number="+1234567890")
+        group = self.create_group("Testers", contacts=[contact])
+        start1 = FlowStart.create(flow, self.admin, contacts=[contact])
+        start2 = FlowStart.create(flow, self.admin, query="name ~ Bob", restart_participants=False)
+        start3 = FlowStart.create(flow, self.admin, groups=[group], include_active=False)
+
+        FlowStartCount.objects.create(start=start3, count=1000)
+        FlowStartCount.objects.create(start=start3, count=234)
+
+        other_org_flow = self.create_flow(org=self.org2)
+        FlowStart.create(other_org_flow, self.admin2)
+
+        response = self.assertListFetch(
+            list_url, allow_viewers=True, allow_editors=True, context_objects=[start3, start2, start1]
+        )
+        self.assertContains(response, "was started by Administrator for")
+        self.assertContains(response, "all contacts")
+        self.assertContains(response, "contacts who haven't already been through this flow")
+        self.assertContains(response, "<b>1,234</b> runs")
+
+
 class AssetServerTest(TembaTest):
     def test_environment(self):
         self.login(self.admin)
@@ -6326,3 +6354,45 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
+
+
+class PopulateFlowStartTypeTest(MigrationTest):
+    app = "flows"
+    migrate_from = "0230_flowstart_start_type"
+    migrate_to = "0231_populate_flowstart_type"
+
+    def setUpBeforeMigration(self, apps):
+        contact = self.create_contact("Bob", twitter="bobby")
+        flow1 = self.create_flow(org=self.org)
+        flow2 = self.create_flow(org=self.org)
+
+        # starts from UI have user but not extra
+        self.start1 = FlowStart.create(flow1, self.admin, contacts=[contact])  # from UI
+
+        # only API calls can have extra
+        self.start2 = FlowStart.create(flow2, self.admin, contacts=[contact], extra={"foo": "bar"})
+
+        # starts from mailroom session_triggered event handling have no user but do have parent_summary
+        self.start3 = FlowStart.create(flow2, None, contacts=[contact])
+        self.start3.parent_summary = {"foo": "bar"}
+        self.start3.save(update_fields=("parent_summary",))
+
+        # starts from mailroom IVR/schedule trigger handling have no user and no parent_summary
+        self.start4 = FlowStart.create(flow2, None, contacts=[contact])
+
+        # clear type so migration sets it
+        FlowStart.objects.all().update(start_type=None)
+
+        # create a new one which will have type already set
+        self.start5 = FlowStart.create(flow1, self.admin, contacts=[contact])
+
+    def test_migration(self):
+        def assert_type(start, type_code):
+            start.refresh_from_db()
+            self.assertEqual(type_code, start.start_type)
+
+        assert_type(self.start1, "M")
+        assert_type(self.start2, "A")
+        assert_type(self.start3, "F")
+        assert_type(self.start4, "T")
+        assert_type(self.start5, "M")
