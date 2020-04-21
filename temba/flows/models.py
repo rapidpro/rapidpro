@@ -3278,13 +3278,21 @@ class FlowStartCount(SquashableModel):
 
     @classmethod
     def get_count(cls, start):
-        count = FlowStartCount.objects.filter(start=start).aggregate(count_sum=Sum("count"))["count_sum"]
+        count = start.counts.aggregate(count_sum=Sum("count"))["count_sum"]
         return count if count else 0
 
     @classmethod
-    def populate_for_start(cls, start):
-        FlowStartCount.objects.filter(start=start).delete()
-        return FlowStartCount.objects.create(start=start, count=start.runs.count())
+    def bulk_annotate(cls, starts):
+        counts = (
+            cls.objects.filter(start_id__in=[s.id for s in starts])
+            .values("start_id")
+            .order_by("start_id")
+            .annotate(count=Sum("count"))
+        )
+        counts_by_start = {c["start_id"]: c["count"] for c in counts}
+
+        for start in starts:
+            start.run_count = counts_by_start.get(start.id, 0)
 
     def __str__(self):  # pragma: needs cover
         return f"FlowStartCount[start={self.start_id}, count={self.count}]"
