@@ -1,3 +1,8 @@
+v5.5.22
+----------
+ * Add nullable contact.is_paused field
+ * Display run count on flow start list page
+
 v5.5.21
 ----------
  * Optimze flow start list page with DB prefetching
