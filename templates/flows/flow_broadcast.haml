@@ -143,7 +143,6 @@
     if (modeSelect) {
       modeSelect.addEventListener("change", function(evt) {
         var selected = evt.target.values[0];
-        var selected = evt.detail.selected;
         if (selected.value === "query") {
           removeClass(queryField, "hidden");
           addClass(recipientsField, "hidden");
