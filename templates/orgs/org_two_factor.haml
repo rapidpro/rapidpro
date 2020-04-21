@@ -50,7 +50,14 @@
   -else
     -blocktrans trimmed
       Backup tokens can be used if you no longer have access to the authentication application configured for your account.
-      
+
+    %br
+    %br
+
+    %p
+      -blocktrans trimmed
+        These backup tokens can be used if you lose access to your authentication application, store them in a safe place. Any tokens you may have previously generated are invalid.
+
     %br
 
     %div#backup
@@ -63,8 +70,11 @@
     %a.btn.btn-primary.btn-tiny{href:"{% url 'orgs.org_home' %}", id:'disable-two-factor-auth', style:'margin-top:5px'}
       -trans "Disable Two Factor"
 
-
     :javascript
+
+      $(document).ready(function () {
+        $("p").hide();
+      });
 
       $(document).ready(function() {
         $.ajax({
@@ -100,13 +110,11 @@
             }
 
             element = `
-            <br>
-            <p>These backup tokens can be used if you lose access to your authentication application, store them in a safe place. Any tokens you may have previously generated are invalid.</p>
-            <br>
             <ul>${tokens}</ul>
             `
 
             $('#backup').html(element);
+            $("p").show();
           }
         })
       });
