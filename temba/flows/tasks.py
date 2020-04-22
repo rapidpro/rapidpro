@@ -147,3 +147,21 @@ def trim_flow_starts():
 
     elapsed = timesince(start)
     logger.info(f"Deleted {num_deleted} completed non-user created flow starts in {elapsed}")
+
+
+# celery tasks that were renamed and can removed once celery no longer has them queued
+
+
+@task
+def squash_flowruncounts():  # pragma: no cover
+    pass
+
+
+@task
+def squash_flowpathcounts():  # pragma: no cover
+    pass
+
+
+@task(name="trim_flow_sessions")
+def trim_flow_sessions_old():  # pragma: no cover
+    pass
