@@ -1,0 +1,37 @@
+{% extends "smartmin/form.html" %}
+
+{% load i18n %}
+
+{% block pre-form %}
+<div class="alert alert-info">{% trans "Please enter the email address you used to sign up and we will help you recover your password." %}</div>
+{% endblock %}
+
+{% block extra-style %}
+<style>
+  #recaptcha {
+    margin: 5px 0 10px 0;
+  }
+</style>
+{% endblock %}
+
+{% block extra-script %}
+  <script src="https://www.google.com/recaptcha/api.js?render={{ recaptcha_secrete_key }}"></script>
+  <script>
+    $(document).ready(function() {
+      $('form.smartmin-form').attr('onsubmit', 'return validateRecaptcha();');
+      var fieldset = document.getElementsByTagName('fieldset');
+      var recaptcha = document.createElement('div');
+      recaptcha.setAttribute('id', 'recaptcha');
+      fieldset[0].appendChild(recaptcha);
+    });
+    function validateRecaptcha() {
+      const response = grecaptcha.getResponse();
+      return response.length !== 0;
+    }
+    grecaptcha.ready(() => {
+      grecaptcha.render('recaptcha', {
+        'sitekey': '{{ recaptcha_site_key }}'
+      });
+    });
+  </script>
+{% endblock %}
