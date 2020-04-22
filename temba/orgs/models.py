@@ -43,7 +43,7 @@ from temba.utils.dates import datetime_to_str, str_to_datetime
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
-from temba.utils.text import random_string, generate_token
+from temba.utils.text import generate_token, random_string
 from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
