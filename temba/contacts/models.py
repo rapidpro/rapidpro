@@ -700,8 +700,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     # whether contact has opted out of receiving messages
     is_stopped = models.BooleanField(default=False)
 
-    # whether contact is being temporarily by an external system
-    is_paused = models.BooleanField(default=False, null=True)
+    # TODO remove field
+    is_paused = models.BooleanField(null=True)
 
     # custom field values for this contact, keyed by field UUID
     fields = JSONField(null=True)
