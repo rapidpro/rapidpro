@@ -19,7 +19,7 @@ from temba.msgs.views import ModalMixin
 from temba.orgs.views import OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.schedules.views import BaseScheduleForm
-from temba.utils import analytics, json
+from temba.utils import analytics, json, build_flow_parameters
 from temba.utils.fields import CompletionTextarea, JSONField, OmniboxChoice, SelectWidget
 from temba.utils.views import BaseActionForm
 
@@ -575,6 +575,13 @@ class TriggerCRUDL(SmartCRUDL):
         def pre_save(self, obj, *args, **kwargs):
             obj = super().pre_save(obj, *args, **kwargs)
             obj.org = self.request.user.get_org()
+
+            flow_params_fields = [field for field in self.request.POST.keys() if 'flow_parameter_field' in field]
+            flow_params_values = [field for field in self.request.POST.keys() if 'flow_parameter_value' in field]
+
+            params = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
+            obj.extra = params if params else None
+
             return obj
 
         def form_valid(self, form):

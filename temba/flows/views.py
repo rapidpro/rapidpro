@@ -277,6 +277,7 @@ class FlowCRUDL(SmartCRUDL):
         "lookups_api",
         "giftcards_api",
         "launch",
+        "flow_parameters",
     )
 
     model = Flow
@@ -325,6 +326,14 @@ class FlowCRUDL(SmartCRUDL):
                 collection_full_name = collection_full_name.replace("-", "")
                 collections.append(dict(id=collection_full_name, text=collection))
             return JsonResponse(dict(results=collections))
+
+    class FlowParameters(OrgPermsMixin, SmartListView):
+        def get(self, request, *args, **kwargs):
+            flow_id = self.request.GET.get("flow_id", None)
+            org = self.request.user.get_org()
+            flow = Flow.objects.filter(is_active=True, org=org, id=int(flow_id)).first()
+            params = sorted(flow.get_trigger_params()) if flow else []
+            return JsonResponse(dict(results=params))
 
     class AllowOnlyActiveFlowMixin(object):
         def get_queryset(self):

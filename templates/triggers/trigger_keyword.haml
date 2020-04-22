@@ -4,6 +4,29 @@
 -block summary
   -trans "Create a message keyword that launches a flow."
 
+-block fields
+  {{ block.super }}
+
+  %script{src:"{{ STATIC_URL }}js/flow-parameters.js"}
+
+  %h5.embedded-data.hide
+    -trans "Flow Parameters"
+  #embedded-data.hide
+    .embed-row.embed-header-keyword.hide
+      .embed-field-keyword
+        %label
+          -trans "Field"
+      .embed-value-keyword
+        %label
+          -trans "Value"
+    #embed-container-keyword.hide
+
+-block extra-style
+  :css
+    #embedded-data {
+      width: 538px;
+    }
+
 -block extra-script
   {{block.super}}
   %script
@@ -13,4 +36,17 @@
       $('#id_keyword_groups').select2({
         containerCssClass: "select2-temba-field"
       });
+
+      $('#id_keyword_flow').on('change', function (e) {
+        var flowId = (e.added.id !== '' ? parseInt(e.added.id) : null);
+        if (flowId) {
+          var api_url = '{% url 'flows.flow_flow_parameters' %}?flow_id=' + flowId;
+          $.getJSON(api_url).done(function(data) {
+            buildTriggerFlowParams(data.results);
+          });
+        } else {
+          buildTriggerFlowParams();
+        }
+      });
+
     });

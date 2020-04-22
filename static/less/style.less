@@ -298,12 +298,16 @@ td.created_on {
     display: table;
     margin-bottom: 5px;
 
-    &.embed-header, &.embed-header-keyword {
+    &.embed-header {
       margin: 10px 0 0 0;
 
       &.inactive {
         display: none;
       }
+    }
+
+    &.embed-header-keyword {
+      margin: 5px 0 0 0;
     }
 
     .embed-field, .embed-value, .embed-field-keyword, .embed-value-keyword {
@@ -315,6 +319,7 @@ td.created_on {
         color: #666;
         font-size: 14px;
         font-weight: 200;
+        margin-bottom: 0;
       }
 
       input {
