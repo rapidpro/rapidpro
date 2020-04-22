@@ -152,12 +152,12 @@ def trim_flow_starts():
 # celery tasks that were renamed and can removed once celery no longer has them queued
 
 
-@task
+@task(name="squash_flowruncounts")
 def squash_flowruncounts():  # pragma: no cover
     pass
 
 
-@task
+@task(name="squash_flowpathcounts")
 def squash_flowpathcounts():  # pragma: no cover
     pass
 
