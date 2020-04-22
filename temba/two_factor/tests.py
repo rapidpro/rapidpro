@@ -13,9 +13,3 @@ class LoginTest(TembaTest):
     def test_login_with_two_factor_enabled(self):
         response = self.client.post(reverse("two_factor.login"), dict(username="test", password="test"))
         self.assertRedirect(response, reverse("two_factor.token"))
-
-    def test_login_without_two_factor_enabled(self):
-        self.user_settings.two_factor_enabled = False
-        self.user_settings.save()
-        response = self.client.post(reverse("two_factor.login"), dict(username="test", password="test"), follow=True)
-        self.assertRedirect(response, reverse("orgs.org_choose"))
