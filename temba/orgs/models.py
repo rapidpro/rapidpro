@@ -2,12 +2,10 @@ import calendar
 import itertools
 import logging
 import os
-from base64 import b32encode
 from collections import defaultdict
 from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-from os import urandom
 from urllib.parse import quote, urlencode, urlparse
 
 import pycountry

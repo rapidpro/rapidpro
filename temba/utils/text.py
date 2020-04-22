@@ -4,6 +4,7 @@ import re
 import string
 import sys
 from collections import Counter
+from os import urandom
 
 import regex
 
@@ -153,4 +154,4 @@ def random_string(length):
 
 
 def generate_token():  # pragma: no cover
-    return b32encode(urandom(5)).decode("utf-8").lower()
+    return base64.b32encode(urandom(5)).decode("utf-8").lower()
