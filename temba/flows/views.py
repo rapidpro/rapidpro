@@ -5,7 +5,7 @@ from uuid import uuid4
 import iso8601
 import regex
 import requests
-import itertools
+
 from packaging.version import Version
 from smartmin.views import (
     SmartCreateView,
@@ -55,7 +55,7 @@ from temba.schedules.views import BaseScheduleForm
 from temba.schedules.models import Schedule
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
-from temba.utils import analytics, json, on_transaction_commit, str_to_bool
+from temba.utils import analytics, json, on_transaction_commit, str_to_bool, build_flow_parameters
 from temba.utils.fields import ContactSearchWidget, JSONField, OmniboxChoice, SelectWidget
 from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm, NonAtomicMixin
@@ -2354,11 +2354,12 @@ class FlowCRUDL(SmartCRUDL):
                         except mailroom.MailroomException as e:
                             self.add_error("contact_query", ValidationError(e.response["error"]))
 
-                if cleaned_data["launch_type"] in (LAUNCH_IMMEDIATELY, LAUNCH_ON_SHEDULE_TRIGGER):
+                if cleaned_data["launch_type"] == LAUNCH_IMMEDIATELY:
                     validate_omnibox()
                     validate_flow_params()
-
-                if cleaned_data["launch_type"] == LAUNCH_ON_KEYWORD_TRIGGER:
+                elif cleaned_data["launch_type"] == LAUNCH_ON_SHEDULE_TRIGGER:
+                    validate_omnibox()
+                elif cleaned_data["launch_type"] == LAUNCH_ON_KEYWORD_TRIGGER:
                     validate_keyword_triggers()
 
                 # only weekly gets repeat days
@@ -2473,6 +2474,8 @@ class FlowCRUDL(SmartCRUDL):
                 contacts = []
                 contact_query = None
 
+                flow_params = build_flow_parameters(self.request.POST, self.flow_params_fields, self.flow_params_values)
+
                 if start_type == "query":
                     contact_query = form.cleaned_data["contact_query"]
                 else:
@@ -2494,6 +2497,7 @@ class FlowCRUDL(SmartCRUDL):
                     contact_query,
                     restart_participants=form.cleaned_data["restart_participants"],
                     include_active=form.cleaned_data["include_active"],
+                    params=flow_params,
                 )
 
             def process_on_keyword_trigger():

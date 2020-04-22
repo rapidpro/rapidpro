@@ -205,3 +205,21 @@ def extract_constants(config, reverse=False):
         return {t[2]: t[0] for t in config}
     else:
         return {t[0]: t[2] for t in config}
+
+
+def build_flow_parameters(request_post, fields, values):
+    """
+    Returns the flow parameters as a dict
+    :param request_post: HTTP POST request data
+    :param fields: Names of the fields to find
+    :param values: Names of the values to find
+    :return:
+    """
+    fields = sorted(fields)
+    values = sorted(values)
+
+    params = {}
+    for i, field in enumerate(fields):
+        param_name = str(request_post.get(fields[i])).replace("@trigger.params.", "")
+        params[param_name] = request_post.get(values[i])
+    return params
