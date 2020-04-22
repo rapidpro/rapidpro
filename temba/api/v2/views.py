@@ -3228,7 +3228,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **flow** - the flow which was started (object)
      * **contacts** - the list of contacts that were started in the flow (objects)
      * **groups** - the list of groups that were started in the flow (objects)
-     * **restart_particpants** - whether the contacts were restarted in this flow (boolean)
+     * **restart_participants** - whether the contacts were restarted in this flow (boolean)
      * **status** - the status of this flow start
      * **params** - the dictionary of extra parameters passed to the flow start (object)
      * **created_on** - the datetime when this flow start was created (datetime)
@@ -3319,11 +3319,10 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     write_serializer_class = FlowStartWriteSerializer
     pagination_class = ModifiedOnCursorPagination
 
-    def get_queryset(self):
-        org = self.request.user.get_org()
-        return self.model.objects.filter(flow__org=org)
-
     def filter_queryset(self, queryset):
+        # ignore flow starts created by mailroom
+        queryset = queryset.exclude(created_by=None)
+
         # filter by id (optional and deprecated)
         start_id = self.get_int_param("id")
         if start_id:
@@ -3336,8 +3335,8 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
-            Prefetch("contacts", queryset=Contact.objects.only("uuid", "name").order_by("pk")),
-            Prefetch("groups", queryset=ContactGroup.user_groups.only("uuid", "name").order_by("pk")),
+            Prefetch("contacts", queryset=Contact.objects.only("uuid", "name").order_by("id")),
+            Prefetch("groups", queryset=ContactGroup.user_groups.only("uuid", "name").order_by("id")),
         )
 
         return self.filter_before_after(queryset, "modified_on")
