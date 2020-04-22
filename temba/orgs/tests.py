@@ -1474,7 +1474,7 @@ class OrgTest(TembaTest):
         # send some messages with a valid topup
         self.create_incoming_msgs(contact, 2200)
 
-        self.assertEqual(300, self.org.get_low_credits_threshold())
+        self.assertEqual(150, self.org.get_low_credits_threshold())
 
     def test_topups(self):
 
@@ -1485,7 +1485,7 @@ class OrgTest(TembaTest):
 
         self.create_incoming_msgs(contact, 10)
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(2):
             self.assertEqual(150, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
@@ -1615,7 +1615,7 @@ class OrgTest(TembaTest):
         gift_topup.save(update_fields=["expires_on"])
         self.org.apply_topups()
 
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(4):
             self.assertEqual(15, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
@@ -1628,29 +1628,29 @@ class OrgTest(TembaTest):
         later_active_topup.save(update_fields=["expires_on"])
         self.org.apply_topups()
 
-        with self.assertNumQueries(6):
-            self.assertEqual(45, self.org.get_low_credits_threshold())
+        with self.assertNumQueries(4):
+            self.assertEqual(30, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
-            self.assertEqual(45, self.org.get_low_credits_threshold())
+            self.assertEqual(30, self.org.get_low_credits_threshold())
 
         # no expiring credits
         gift_topup.expires_on = five_week_ahead
         gift_topup.save(update_fields=["expires_on"])
         self.org.clear_credit_cache()
 
-        with self.assertNumQueries(6):
-            self.assertEqual(45, self.org.get_low_credits_threshold())
+        with self.assertNumQueries(4):
+            self.assertEqual(30, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
-            self.assertEqual(45, self.org.get_low_credits_threshold())
+            self.assertEqual(30, self.org.get_low_credits_threshold())
 
         # do not consider expired topup
         gift_topup.expires_on = yesterday
         gift_topup.save(update_fields=["expires_on"])
         self.org.clear_credit_cache()
 
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(4):
             self.assertEqual(30, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
