@@ -153,5 +153,5 @@ def random_string(length):
     return "".join([random.choice(letters) for _ in range(length)])
 
 
-def generate_token():  # pragma: no cover
+def generate_token():
     return base64.b32encode(urandom(5)).decode("utf-8").lower()
