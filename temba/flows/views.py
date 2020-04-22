@@ -2186,7 +2186,6 @@ class FlowCRUDL(SmartCRUDL):
         flow_params_values = []
 
         class LaunchForm(BaseScheduleForm, forms.ModelForm):
-
             def __init__(self, *args, **kwargs):
                 self.user = kwargs.pop("user")
                 self.flow = kwargs.pop("flow")
@@ -2201,7 +2200,7 @@ class FlowCRUDL(SmartCRUDL):
                         required=False,
                         initial=flow_param,
                         label=None,
-                        widget=forms.TextInput(attrs={"readonly": True})
+                        widget=forms.TextInput(attrs={"readonly": True}),
                     )
                     self.fields[f"flow_param_value_{counter}"] = forms.CharField(required=False)
                     if f"flow_param_field_{counter}" not in FlowCRUDL.Launch.flow_params_fields:
@@ -2219,7 +2218,7 @@ class FlowCRUDL(SmartCRUDL):
                 ),
                 initial="select",
             )
-            
+
             omnibox = OmniboxField(
                 label=_("Contacts & Groups"),
                 help_text=_("These contacts will be added to the flow, sending the first message if appropriate."),
@@ -2247,7 +2246,7 @@ class FlowCRUDL(SmartCRUDL):
             # Fields for trigger keyword launch
             keyword_triggers = forms.CharField(
                 label=_("Keyword triggers"),
-                required=False, 
+                required=False,
                 help_text=_("When a user sends any of these keywords they will begin this flow"),
             )
 
@@ -2268,8 +2267,7 @@ class FlowCRUDL(SmartCRUDL):
                     for value_field in value_fields:
                         if not cleaned_data.get(value_field):
                             self.add_error(
-                                value_field,
-                                ValidationError(_("You must specify the value for this field.")),
+                                value_field, ValidationError(_("You must specify the value for this field."))
                             )
 
                 def validate_keyword_triggers():
@@ -2279,25 +2277,24 @@ class FlowCRUDL(SmartCRUDL):
                     keyword_triggers = cleaned_data.get("keyword_triggers", "")
                     org = self.user.get_org()
 
-                    for keyword in keyword_triggers.split(','):
+                    for keyword in keyword_triggers.split(","):
                         keyword = keyword.strip()
 
                         # format validation
                         keyword_has_wrong_format = (
-                            keyword == "" or
-                            keyword and not regex.match(r"^\w+$", keyword, flags=regex.UNICODE | regex.V0) or
-                            len(keyword) > Trigger.KEYWORD_MAX_LEN
+                            keyword == ""
+                            or keyword
+                            and not regex.match(r"^\w+$", keyword, flags=regex.UNICODE | regex.V0)
+                            or len(keyword) > Trigger.KEYWORD_MAX_LEN
                         )
                         if keyword_has_wrong_format:
                             wrong_format.append(keyword)
                             continue
-                        
+
                         # duplicates validation
-                        keyword_already_exist = (
-                            Trigger.objects
-                            .filter(org=org, is_archived=False, is_active=True, keyword__iexact=keyword)
-                            .exists()
-                        )
+                        keyword_already_exist = Trigger.objects.filter(
+                            org=org, is_archived=False, is_active=True, keyword__iexact=keyword
+                        ).exists()
                         if keyword_already_exist:
                             duplicates.append(keyword)
                             continue
@@ -2314,19 +2311,23 @@ class FlowCRUDL(SmartCRUDL):
                         self.add_error(
                             "keyword_triggers",
                             forms.ValidationError(
-                                _('"%s" must be a single word, less than %d characters, containing only letter '
-                                  'and numbers') % (', '.join(wrong_format), Trigger.KEYWORD_MAX_LEN)
+                                _(
+                                    '"%s" must be a single word, less than %d characters, containing only letter '
+                                    "and numbers"
+                                )
+                                % (", ".join(wrong_format), Trigger.KEYWORD_MAX_LEN)
                             ),
                         )
-                    
+
                     if duplicates:
                         error_message = (
-                            _('The keywords "{}" are already used for another flow') if len(duplicates) > 1 else
-                            _('The keyword "{}" is already used for another flow')
-                        ).format(', '.join(duplicates))
+                            _('The keywords "{}" are already used for another flow')
+                            if len(duplicates) > 1
+                            else _('The keyword "{}" is already used for another flow')
+                        ).format(", ".join(duplicates))
                         self.add_error("keyword_triggers", forms.ValidationError(error_message))
 
-                    cleaned_data["keyword_triggers"] = ','.join(cleaned_keywords)
+                    cleaned_data["keyword_triggers"] = ",".join(cleaned_keywords)
 
                 def validate_omnibox():
                     starting = cleaned_data["omnibox"]
@@ -2406,18 +2407,22 @@ class FlowCRUDL(SmartCRUDL):
 
         def derive_fields(self):
             return (
-                "launch_type",
-                "start_type",
-                "omnibox",
-                "contact_query",
-                "restart_participants",
-                "include_active",
-                "keyword_triggers",
-                "repeat_period",
-                "repeat_days_of_week",
-                "start",
-                "start_datetime_value",
-            ) + tuple(self.flow_params_fields) + tuple(self.flow_params_values)
+                (
+                    "launch_type",
+                    "start_type",
+                    "omnibox",
+                    "contact_query",
+                    "restart_participants",
+                    "include_active",
+                    "keyword_triggers",
+                    "repeat_period",
+                    "repeat_days_of_week",
+                    "start",
+                    "start_datetime_value",
+                )
+                + tuple(self.flow_params_fields)
+                + tuple(self.flow_params_values)
+            )
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -2453,7 +2458,10 @@ class FlowCRUDL(SmartCRUDL):
             context["complete_count"] = run_stats["completed"]
             context["user_tz"] = get_current_timezone_name()
             context["user_tz_offset"] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() // 60)
-            flow_params_fields = [(self.flow_params_fields[count], self.flow_params_values[count]) for count in range(len(self.flow_params_values))]
+            flow_params_fields = [
+                (self.flow_params_fields[count], self.flow_params_values[count])
+                for count in range(len(self.flow_params_values))
+            ]
             context["flow_params_fields"] = flow_params_fields
             return context
 
@@ -2474,7 +2482,9 @@ class FlowCRUDL(SmartCRUDL):
                 contacts = []
                 contact_query = None
 
-                flow_params = build_flow_parameters(self.request.POST, self.flow_params_fields, self.flow_params_values)
+                flow_params = build_flow_parameters(
+                    self.request.POST, self.flow_params_fields, self.flow_params_values
+                )
 
                 if start_type == "query":
                     contact_query = form.cleaned_data["contact_query"]
@@ -2508,16 +2518,18 @@ class FlowCRUDL(SmartCRUDL):
                 with transaction.atomic():
                     triggers = []
                     # creating of triggers
-                    for keyword in keyword_triggers.split(','):
+                    for keyword in keyword_triggers.split(","):
                         pass
-                        triggers.append(Trigger(
-                            flow=flow,
-                            keyword=keyword,
-                            match_type=Trigger.MATCH_FIRST_WORD,
-                            org=org,
-                            created_by=user,
-                            modified_by=user,
-                        ))
+                        triggers.append(
+                            Trigger(
+                                flow=flow,
+                                keyword=keyword,
+                                match_type=Trigger.MATCH_FIRST_WORD,
+                                org=org,
+                                created_by=user,
+                                modified_by=user,
+                            )
+                        )
                     triggers = Trigger.objects.bulk_create(triggers)
 
             def process_on_schedule_trigger():

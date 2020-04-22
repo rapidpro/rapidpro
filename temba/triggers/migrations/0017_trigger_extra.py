@@ -6,14 +6,10 @@ import temba.utils.models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('triggers', '0016_auto_20190816_1517'),
-    ]
+    dependencies = [("triggers", "0016_auto_20190816_1517")]
 
     operations = [
         migrations.AddField(
-            model_name='trigger',
-            name='extra',
-            field=temba.utils.models.JSONAsTextField(default=dict, null=True),
-        ),
+            model_name="trigger", name="extra", field=temba.utils.models.JSONAsTextField(default=dict, null=True)
+        )
     ]
