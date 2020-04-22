@@ -3308,11 +3308,11 @@ class TopUpCRUDL(SmartCRUDL):
 
     class Read(OrgPermsMixin, SmartReadView):
         def derive_queryset(self, **kwargs):  # pragma: needs cover
-            return TopUp.objects.filter(is_active=True, org=self.request.user.get_org())
+            return TopUp.objects.filter(is_active=True, org=self.request.user.get_org()).order_by("-created_on")
 
     class List(OrgPermsMixin, SmartListView):
         def derive_queryset(self, **kwargs):
-            queryset = TopUp.objects.filter(is_active=True, org=self.request.user.get_org())
+            queryset = TopUp.objects.filter(is_active=True, org=self.request.user.get_org()).order_by("-created_on")
             return queryset.annotate(
                 credits_remaining=ExpressionWrapper(F("credits") - Sum(F("topupcredits__used")), IntegerField())
             )

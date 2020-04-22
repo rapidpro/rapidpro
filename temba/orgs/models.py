@@ -1428,7 +1428,7 @@ class Org(SmartModel):
         """
         # if we have an active topup cache, we need to decrement the amount remaining
         non_expired_topups = self.topups.filter(is_active=True).order_by(
-            "id"
+            "-created_on", "id"
         )
         active_topups = (
             non_expired_topups.annotate(used_credits=Sum("topupcredits__used"))
@@ -1574,7 +1574,9 @@ class Org(SmartModel):
         """
         Calculates the oldest non-expired topup that still has credits
         """
-        non_expired_topups = self.topups.filter(is_active=True).order_by("id")
+        non_expired_topups = self.topups.filter(is_active=True).order_by(
+            "-created_on", "id"
+        )
         active_topups = (
             non_expired_topups.annotate(used_credits=Sum("topupcredits__used"))
             .filter(credits__gt=0)
@@ -1605,7 +1607,7 @@ class Org(SmartModel):
 
             # get all topups that haven't expired
             unexpired_topups = list(
-                self.topups.filter(is_active=True)
+                self.topups.filter(is_active=True).order_by("-created_on")
             )
 
             # dict of topups to lists of their newly assigned items
