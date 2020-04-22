@@ -117,6 +117,7 @@ def trim_flow_starts():
     """
     Cleanup completed non-user created flow starts
     """
+    threshold = timezone.now() - timedelta(days=7)
     num_deleted = 0
     start = timezone.now()
 
@@ -124,9 +125,11 @@ def trim_flow_starts():
 
     while True:
         start_ids = list(
-            FlowStart.objects.filter(created_by=None, status=FlowStart.STATUS_COMPLETE).values_list("id", flat=True)[
-                :1000
-            ]
+            FlowStart.objects.filter(
+                created_by=None,
+                status__in=(FlowStart.STATUS_COMPLETE, FlowStart.STATUS_FAILED),
+                modified_on__lte=threshold,
+            ).values_list("id", flat=True)[:1000]
         )
         if not start_ids:
             break
