@@ -54,7 +54,7 @@
     %br
     %br
 
-    %p
+    %p#backup_text_help
       -blocktrans trimmed
         These backup tokens can be used if you lose access to your authentication application, store them in a safe place. Any tokens you may have previously generated are invalid.
 
@@ -73,7 +73,7 @@
     :javascript
 
       $(document).ready(function () {
-        $("p").hide();
+        $("#backup_text_help").hide();
       });
 
       $(document).ready(function() {
@@ -114,7 +114,7 @@
             `
 
             $('#backup').html(element);
-            $("p").show();
+            $("#backup_text_help").show();
           }
         })
       });
