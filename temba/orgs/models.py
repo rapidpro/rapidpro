@@ -45,7 +45,7 @@ from temba.utils.dates import datetime_to_str, str_to_datetime
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
-from temba.utils.text import random_string
+from temba.utils.text import random_string, generate_token
 from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
@@ -2715,10 +2715,6 @@ class CreditAlert(SmartModel):
 
         for topup in expiring_final_topups:
             CreditAlert.trigger_credit_alert(topup.org, CreditAlert.TYPE_EXPIRING)
-
-
-def generate_token():  # pragma: no cover
-    return b32encode(urandom(5)).decode("utf-8").lower()
 
 
 class BackupToken(SmartModel):
