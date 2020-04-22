@@ -67,7 +67,7 @@ from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import IDSliceQuerySet, JSONAsTextField, patch_queryset_count
 from .templatetags.temba import short_datetime
-from .text import clean_string, decode_base64, random_string, slugify_with, truncate, unsnakify
+from .text import clean_string, decode_base64, generate_token, random_string, slugify_with, truncate, unsnakify
 from .timezones import TimeZoneFormField, timezone_to_country_code
 
 
@@ -217,6 +217,9 @@ class InitTest(TembaTest):
 
         self.assertEqual(headers, {"User-agent": "RapidPro", "Foo": "Bar", "Token": "123456"})
         self.assertEqual(http_headers(), {"User-agent": "RapidPro"})  # check changes don't leak
+
+    def test_generate_token(self):
+        self.assertEqual(len(generate_token()), 8)
 
 
 class DatesTest(TembaTest):
