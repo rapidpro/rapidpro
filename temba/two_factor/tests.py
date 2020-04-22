@@ -1,5 +1,4 @@
 from django.contrib.auth.models import User
-from django.urls import reverse
 
 from temba.orgs.models import UserSettings
 from temba.tests import TembaTest
