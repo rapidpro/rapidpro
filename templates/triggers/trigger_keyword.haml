@@ -7,11 +7,9 @@
 -block fields
   {{ block.super }}
 
-  %script{src:"{{ STATIC_URL }}js/flow-parameters.js"}
-
-  %h5.embedded-data.hide
+  %h5.embedded-data-keyword.hide
     -trans "Flow Parameters"
-  #embedded-data.hide
+  #embedded-data-keyword.hide
     .embed-row.embed-header-keyword.hide
       .embed-field-keyword
         %label
@@ -20,12 +18,6 @@
         %label
           -trans "Value"
     #embed-container-keyword.hide
-
--block extra-style
-  :css
-    #embedded-data {
-      width: 538px;
-    }
 
 -block extra-script
   {{block.super}}
@@ -40,7 +32,7 @@
       $('#id_keyword_flow').on('change', function (e) {
         var flowId = (e.added.id !== '' ? parseInt(e.added.id) : null);
         if (flowId) {
-          var api_url = '{% url 'flows.flow_flow_parameters' %}?flow_id=' + flowId;
+          var api_url = "{% url 'flows.flow_flow_parameters' %}?flow_id=" + flowId;
           $.getJSON(api_url).done(function(data) {
             buildTriggerFlowParams(data.results);
           });

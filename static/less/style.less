@@ -246,7 +246,7 @@ td.created_on {
   }
 }
 
-#embedded-data {
+#embedded-data, #embedded-data-keyword, #embedded-data-schedule {
   width: 100%;
 
   &.launch-flow-keyword {
@@ -306,11 +306,17 @@ td.created_on {
       }
     }
 
-    &.embed-header-keyword {
+    &.embed-header-keyword,
+    &.embed-header-schedule {
       margin: 5px 0 0 0;
     }
 
-    .embed-field, .embed-value, .embed-field-keyword, .embed-value-keyword {
+    .embed-field,
+    .embed-value,
+    .embed-field-keyword,
+    .embed-value-keyword,
+    .embed-field-schedule,
+    .embed-value-schedule {
       float: left;
       width: 49%;
 

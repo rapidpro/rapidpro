@@ -223,3 +223,17 @@ def build_flow_parameters(request_post, fields, values):
         param_name = str(request_post.get(fields[i])).replace("@trigger.params.", "")
         params[param_name] = request_post.get(values[i])
     return params
+
+
+def flow_params_context(request):
+    param_fields = {}
+    if request.method == "POST":
+        flow_params_fields = [field for field in request.POST.keys() if 'flow_parameter_field' in field]
+        flow_params_values = [field for field in request.POST.keys() if 'flow_parameter_value' in field]
+        param_fields = build_flow_parameters(request.POST, flow_params_fields, flow_params_values)
+
+    return dict(
+        param_fields=param_fields,
+        flow_parameters_fields=",".join([f"@trigger.params.{field}" for field in param_fields.keys()]),
+        flow_parameters_values=",".join(param_fields.values())
+    )

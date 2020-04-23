@@ -1,14 +1,14 @@
-function buildTriggerFlowParams(params = [], values = []) {
-    const embedContainer = document.getElementById('embed-container-keyword');
+function buildTriggerFlowParams(params = [], values = [], category = 'keyword') {
+    var embedContainer = document.getElementById('embed-container-' + category);
     embedContainer.innerHTML = '';
 
     if (params.length > 0) {
         for (var param in params) {
             var embedRow = document.createElement('div');
-            embedRow.className = 'embed-row embed-header-keyword';
+            embedRow.className = 'embed-row embed-header-' + category;
 
             var embedField = document.createElement('div');
-            embedField.className = 'embed-field-keyword';
+            embedField.className = 'embed-field-' + category;
 
             var embedFieldInput = document.createElement('input');
             embedFieldInput.type = 'text';
@@ -17,7 +17,7 @@ function buildTriggerFlowParams(params = [], values = []) {
             embedFieldInput.value = params[param];
 
             var embedValue = document.createElement('div');
-            embedValue.className = 'embed-value-keyword';
+            embedValue.className = 'embed-value-' + category;
 
             embedField.append(embedFieldInput);
 
@@ -43,15 +43,15 @@ function buildTriggerFlowParams(params = [], values = []) {
             embedContainer.append(embedRow);
         }
 
-        $('#embedded-data').show();
-        $('h5.embedded-data').show();
-        $('#embed-container-keyword').show();
-        $('.embed-header-keyword').show();
+        $('#embedded-data-' + category).show();
+        $('h5.embedded-data-' + category).show();
+        $('#embed-container-' + category).show();
+        $('.embed-header-' + category).show();
     } else {
-        $('#embedded-data').hide();
-        $('h5.embedded-data').hide();
-        $('#embed-container-keyword').hide();
-        $('.embed-header-keyword').hide();
+        $('#embedded-data-' + category).hide();
+        $('h5.embedded-data-' + category).hide();
+        $('#embed-container-' + category).hide();
+        $('.embed-header-' + category).hide();
     }
 }
 
