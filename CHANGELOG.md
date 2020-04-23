@@ -1,3 +1,9 @@
+v5.5.27
+----------
+ * Remove temporary NOOP celery tasks
+ * Drop Contact.is_paused field
+ * Editor 1.9.4, better modal centering
+
 v5.5.26
 ----------
  * Add NOOP versions of renamed celery tasks to avoid problems during deploy
