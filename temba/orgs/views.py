@@ -1482,7 +1482,7 @@ class OrgCRUDL(SmartCRUDL):
             form = self.get_form()
             if "disable_two_factor_auth" in request.POST:
                 self.disable_two_factor_auth()
-            if "get_backup_tokens" in request.POST:  # pragma: no cover
+            if "get_backup_tokens" in request.POST:
                 tokens = self.get_backup_tokens()
                 data = {"tokens": tokens}
                 return JsonResponse(data)
@@ -1490,7 +1490,7 @@ class OrgCRUDL(SmartCRUDL):
                 tokens = self.generate_backup_tokens()
                 data = {"tokens": tokens}
                 return JsonResponse(data)
-            elif form.is_valid():  # pragma: needs cover
+            elif form.is_valid():
                 self.generate_backup_tokens()
                 user = self.get_user()
                 user_settings = user.get_settings()
