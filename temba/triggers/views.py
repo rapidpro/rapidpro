@@ -593,6 +593,21 @@ class TriggerCRUDL(SmartCRUDL):
             kwargs["auto_id"] = "id_keyword_%s"
             return kwargs
 
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            param_fields = {}
+            if self.request.method == "POST":
+                flow_params_fields = [field for field in self.request.POST.keys() if 'flow_parameter_field' in field]
+                flow_params_values = [field for field in self.request.POST.keys() if 'flow_parameter_value' in field]
+                param_fields = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
+
+            context["param_fields"] = param_fields
+            context["flow_parameters_fields"] = ",".join([f"@trigger.params.{field}" for field in param_fields.keys()])
+            context["flow_parameters_values"] = ",".join(param_fields.values())
+
+            return context
+
     class Register(CreateTrigger):
         form_class = RegisterTriggerForm
         field_config = dict(keyword=dict(label=_("Join Keyword"), help=_("The first word of the message")))

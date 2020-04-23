@@ -1,4 +1,4 @@
-function buildTriggerFlowParams(params = []) {
+function buildTriggerFlowParams(params = [], values = []) {
     const embedContainer = document.getElementById('embed-container-keyword');
     embedContainer.innerHTML = '';
 
@@ -27,14 +27,18 @@ function buildTriggerFlowParams(params = []) {
             embedValueInput.type = 'text';
             embedValueInput.required = true;
 
+            if (values[param]) {
+                embedValueInput.value = values[param];
+            }
+
             var embedValueErrorMsg = document.createElement('div');
             embedValueErrorMsg.className = 'embed-error-message embed-error-message-value';
 
             embedValue.append(embedValueInput);
+            embedValue.append(embedValueErrorMsg);
 
             embedRow.append(embedField);
             embedRow.append(embedValue);
-            embedRow.append(embedValueErrorMsg);
 
             embedContainer.append(embedRow);
         }
@@ -51,9 +55,9 @@ function buildTriggerFlowParams(params = []) {
     }
 }
 
-function validateFlowParams(form, value_name) {
+function validateFlowParams(form) {
     var error = false;
-    var flowParamsValues = form.find('input[name="flow_parameter_value"]');
+    var flowParamsValues = form.find('input.flow_parameter_value');
     flowParamsValues.each(function() {
         var element = $(this);
         var trimValue = $.trim(element.val());

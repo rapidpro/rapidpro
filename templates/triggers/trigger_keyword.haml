@@ -49,4 +49,19 @@
         }
       });
 
+      $('li#id-trigger-keyword input[type="submit"]').on('click', function(event) {
+        var form = $(this).parent('form');
+        var error = validateFlowParams(form);
+        if (error) {
+          event.preventDefault();
+          $(this).removeClass('disabled');
+        }
+      });
+
+      {% if param_fields %}
+        var flowParamsFields = "{{ flow_parameters_fields }}".split(",");
+        var flowParamsValues = "{{ flow_parameters_values }}".split(",");
+        buildTriggerFlowParams(flowParamsFields, flowParamsValues);
+      {% endif %}
+
     });
