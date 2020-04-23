@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-20 21:59+0000\n"
+"POT-Creation-Date: 2020-04-23 14:11+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -2367,6 +2367,28 @@ msgstr ""
 #| msgid "Invalid claim code, please check and try again."
 msgid "Your authentication token is invalid, please check and try again"
 msgstr "Código de requisição inválido, por favor, verifique-o e tente novamente."
+
+#, fuzzy
+msgid ""
+"If you are based in Somalia, you can integrate with Telesom to send\n"
+"                       and receive messages on your shortcode."
+msgstr ""
+"\n"
+"Adicione instantaneamente um número de telefone dedicado dentro do código de área de sua escolha a partir de sua conexão"
+
+#, fuzzy
+msgid ""
+"\n"
+"        To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery\n"
+"        URL for incoming messages to {{ channel.address }}.\n"
+"        "
+msgstr ""
+"\n"
+"Para finalizar a configuração da sua conexão com o Hub9, você terá que fornece-los com os seguintes detalhes."
+
+#, fuzzy
+msgid "The private key provided to use their API"
+msgstr "O nome de usuário fornecido pelo provedor para usar a API deles"
 
 #, fuzzy
 msgid ""

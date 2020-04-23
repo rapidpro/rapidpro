@@ -44,7 +44,7 @@ class TelesomTypeTest(TembaTest):
         self.assertTrue(channel.uuid)
         self.assertEqual(post_data["number"], channel.address)
         self.assertEqual(post_data["username"], channel.config["username"])
-        self.assertEqual(post_data["password"], channel.config["password"])        
+        self.assertEqual(post_data["password"], channel.config["password"])
         self.assertEqual(post_data["secret"], channel.config["secret"])
         self.assertEqual("TS", channel.channel_type)
 
