@@ -1455,9 +1455,6 @@ class OrgCRUDL(SmartCRUDL):
                 self.user_cache = user
                 return token
 
-            def get_user(self):  # pragma: no cover
-                return self.user_cache
-
         form_class = TwoFactorForm
         fields = ("token",)
         success_url = "@orgs.org_two_factor"
