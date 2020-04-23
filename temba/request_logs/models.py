@@ -109,18 +109,13 @@ class HTTPLog(models.Model):
     def create_from_response(
         cls, log_type, url, response, classifier=None, channel=None, ticketing_service=None, request_time=None
     ):
-        if classifier is not None:
-            org = classifier.org
-
-        if channel is not None:
-            org = channel.org
-
-        if ticketing_service is not None:
-            org = ticketing_service.org
+        org = classifier.org or channel.org or ticketing_service.org
 
         is_error = response.status_code != 200
         data = dump.dump_response(
-            response, request_prefix=cls.REQUEST_DELIM, response_prefix=cls.RESPONSE_DELIM
+            response,
+            request_prefix=cls.REQUEST_DELIM.encode("utf-8"),
+            response_prefix=cls.RESPONSE_DELIM.encode("utf-8"),
         ).decode("utf-8")
 
         # first build our array of request lines, our last item will also contain our response lines
@@ -154,14 +149,7 @@ class HTTPLog(models.Model):
     def create_from_exception(
         cls, log_type, url, exception, start, classifier=None, channel=None, ticketing_service=None
     ):
-        if classifier is not None:
-            org = classifier.org
-
-        if channel is not None:
-            org = channel.org
-
-        if ticketing_service is not None:
-            org = ticketing_service.org
+        org = classifier.org or channel.org or ticketing_service.org
 
         data = bytearray()
         prefixes = dump.PrefixSettings(cls.REQUEST_DELIM, cls.RESPONSE_DELIM)
@@ -175,7 +163,7 @@ class HTTPLog(models.Model):
             channel=channel,
             classifier=classifier,
             ticketing_service=ticketing_service,
-            log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
+            log_type=log_type,
             url=url,
             request=request,
             response="",

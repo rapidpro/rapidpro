@@ -1,16 +1,16 @@
 from abc import ABCMeta
-from uuid import uuid4
 
 from smartmin.models import SmartModel
 
 from django.conf.urls import url
 from django.contrib.postgres.fields import JSONField
 from django.db import models
-from django.template import Engine
 from django.utils import timezone
+from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import Contact
 from temba.orgs.models import Org
+from temba.utils.uuid import uuid4
 
 
 class TicketingServiceType(metaclass=ABCMeta):
@@ -30,6 +30,9 @@ class TicketingServiceType(metaclass=ABCMeta):
     # the blurb to show on the main connect page
     connect_blurb = None
 
+    # the blurb to show above the connection form
+    form_blurb = None
+
     # the view that handles connection of a new service
     connect_view = None
 
@@ -37,13 +40,13 @@ class TicketingServiceType(metaclass=ABCMeta):
         """
         Gets the blurb for use on the connect page
         """
-        return Engine.get_default().from_string(self.connect_blurb)
+        return self.connect_blurb
 
     def get_form_blurb(self):
         """
         Gets the blurb for use on the connect page
         """
-        return Engine.get_default().from_string(self.form_blurb)
+        return self.form_blurb
 
     def get_urls(self):
         """
@@ -76,11 +79,11 @@ class TicketingService(SmartModel):
     name = models.CharField(max_length=64)
 
     # the configuration options for this ticketing service
-    config = JSONField(null=True)
+    config = JSONField()
 
     @classmethod
     def create(cls, org, user, service_type, name, config):
-        service = TicketingService.objects.create(
+        return cls.objects.create(
             uuid=uuid4(),
             service_type=service_type,
             name=name,
@@ -88,11 +91,16 @@ class TicketingService(SmartModel):
             org=org,
             created_by=user,
             modified_by=user,
-            created_on=timezone.now(),
-            modified_on=timezone.now(),
         )
 
-        return service
+    @classmethod
+    def get_types(cls):
+        """
+        Returns the possible types available for ticketing services
+        """
+        from .types import TYPES
+
+        return TYPES.values()
 
     def get_type(self):
         """
@@ -106,21 +114,12 @@ class TicketingService(SmartModel):
         """
         Releases this ticketing service, closing all associated tickets in the process
         """
-        # TODO: dependencies? or is ticketing a runtime thing?
+
         for ticket in self.tickets.all():
             ticket.close()
 
         self.is_active = False
-        self.save(update_fields=["is_active", "modified_on"])
-
-    @classmethod
-    def get_types(cls):
-        """
-        Returns the possible types available for ticketing services
-        """
-        from .types import TYPES
-
-        return TYPES.values()
+        self.save(update_fields=("is_active", "modified_on"))
 
 
 class Ticket(models.Model):
@@ -130,19 +129,19 @@ class Ticket(models.Model):
 
     STATUS_OPEN = "O"
     STATUS_CLOSED = "C"
-    STATUS_EXPIRED = "X"
+    STATUS_CHOICES = ((STATUS_OPEN, _("Open")), (STATUS_CLOSED, _("Closed")))
 
     # our uuid
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     # the organization this ticket belongs to
-    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="tickets")
 
     # the ticketing service that this ticket belongs to
     service = models.ForeignKey(TicketingService, on_delete=models.PROTECT, related_name="tickets")
 
     # the contact this ticket is tied to
-    contact = models.ForeignKey(Contact, on_delete=models.PROTECT)
+    contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="tickets")
 
     # the subject of the ticket
     subject = models.TextField()
@@ -153,29 +152,24 @@ class Ticket(models.Model):
     external_id = models.CharField(null=True, max_length=255)
 
     # any configuration attributes for this ticket
-    config = JSONField(null=True)
+    config = JSONField()
 
     # the status of this ticket, one of open, closed, expired
-    status = models.CharField(max_length=1)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES)
 
     # when this ticket was opened
     opened_on = models.DateTimeField(default=timezone.now)
 
     # when this ticket was last modified
-    modified_on = models.DateTimeField(null=True)
+    modified_on = models.DateTimeField(default=timezone.now)
 
-    # when this ticket was closed or expired
-    # TODO: should this be something less close specific?
+    # when this ticket was closed
     closed_on = models.DateTimeField(null=True)
 
     def close(self):
         """
-        Closes the ticket, un-pausing our contact in the process
+        Closes the ticket
         """
         self.status = Ticket.STATUS_CLOSED
         self.closed_on = timezone.now()
-        self.save(update_fields=["status", "closed_on"])
-
-        # TODO: should probably be a method on contact / mailroom
-        self.contact.is_paused = False
-        self.contact.save(update_fields=["is_paused", "modified_on"])
+        self.save(update_fields=("status", "modified_on", "closed_on"))
