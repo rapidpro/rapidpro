@@ -1,3 +1,13 @@
+v5.5.26
+----------
+ * Add NOOP versions of renamed celery tasks to avoid problems during deploy
+
+v5.5.23
+----------
+ * Remove default value on Contact.is_paused so it can be dropped
+ * Trim completed mailroom created flow starts
+ * Update flow starts API endpoint to only show user created flow starts and add index
+
 v5.5.22
 ----------
  * Add nullable contact.is_paused field
