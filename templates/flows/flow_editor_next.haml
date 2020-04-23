@@ -1,6 +1,6 @@
 {% extends "smartmin/base.html" %}
 
--load compress temba i18n
+-load compress temba i18n static
 
 -block page-title
   {{object.name}}
@@ -132,6 +132,34 @@
       margin-left: 30px;
       padding-top: 5px;
       display: block;
+    }
+
+    /* Styles for PDF File on Export PDF */
+    @media print{
+      [class*="Sticky_sticky"] {
+        background: #fff9c2 !important;
+        box-shadow: 5px 5px 0 -2px rgba(255,244,143,.3) !important;
+      }
+      [class*="Sticky_title_wrapper"] {
+        background: rgba(0,0,0,.05) !important;
+      }
+      [class*="Node_flow_start_message"] {
+        color: rgba(52,152,219,.5) !important;
+      }
+      [class*="TitleBar_normal"] {
+        font-weight: 400;
+        background: #289f9b !important;
+      }
+      [class*="TitleBar_titletext"] {
+        color: #ffffff !important;
+      }
+      [class*="Exit_endpoint"] {
+        background: red !important;
+      }
+      [class*="Node_node"] {
+        background: white !important;
+        -webkit-print-color-adjust: exact !important;
+      }
     }
 
 -block extra-script
