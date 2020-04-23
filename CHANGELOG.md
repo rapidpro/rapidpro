@@ -1,3 +1,7 @@
+v5.5.26
+----------
+ * Add NOOP versions of renamed celery tasks to avoid problems during deploy
+
 v5.5.23
 ----------
  * Remove default value on Contact.is_paused so it can be dropped
