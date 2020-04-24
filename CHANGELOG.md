@@ -1,3 +1,7 @@
+v5.5.28
+----------
+ * Update Africa's Talking supported countries
+
 v5.5.27
 ----------
  * Remove temporary NOOP celery tasks
