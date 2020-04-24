@@ -1460,7 +1460,7 @@ class OrgCRUDL(SmartCRUDL):
         success_url = "@orgs.org_two_factor"
         success_message = ""
         submit_button_name = _("Activate")
-        title = "Two Factor Authentication"
+        title = _("Two Factor Authentication")
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
