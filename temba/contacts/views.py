@@ -985,6 +985,9 @@ class ContactCRUDL(SmartCRUDL):
                     elif not task.status() in ["PENDING", "RUNNING", "STARTED"]:  # pragma: no cover
                         context["show_form"] = True
 
+                    blocked_contacts = "blocked_contacts" in context["results"] and task.status() == "SUCCESS"
+                    context["show_form"] = False if blocked_contacts else context["show_form"]
+
             return context
 
         def derive_refresh(self):
