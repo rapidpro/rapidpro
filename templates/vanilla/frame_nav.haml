@@ -1,0 +1,84 @@
+-load smartmin i18n temba
+
+#nav.flex.flex-row.items-stretch.px-6.py-12
+  .nav-item.flex-grow
+  
+  -if org_perms.msgs.msg_inbox and not request.user.is_superuser
+    .nav-item.messages
+      %a.icon-nav-messages{href:"{% url 'msgs.msg_inbox' %}", class:"{% active request 'inbox|outbox|broadcast|call|msg/filter|msg/flow|msg/archived|failed' %}"}
+        .title
+          -trans "messages"
+
+  -if org_perms.contacts.contact_list and not request.user.is_superuser
+    .nav-item.contacts
+      %a.icon-nav-contacts{href:"{% url 'contacts.contact_list' %}", class:"{% active request 'contact|imports' %}"}
+        .title
+          -trans "contacts"
+
+  -if org_perms.flows.flow_list and not request.user.is_superuser
+    .nav-item.flows
+      %a.icon-nav-flows{href:"{% url 'flows.flow_list' %}", class:"{% active request '(?<!msg)/flow' %}"}
+        .title
+          -trans "flows"
+
+  -if org_perms.campaigns.campaign_list and not request.user.is_superuser
+    .nav-item.campaigns
+      %a.icon-nav-campaigns{href:"{% url 'campaigns.campaign_list' %}", class:"{% active request 'campaign' %}"}
+        .title
+          -trans "campaigns"
+
+  -if org_perms.triggers.trigger_list and not request.user.is_superuser
+    .nav-item.triggers
+      %a.icon-nav-triggers{href:"{% url 'triggers.trigger_list' %}", class:"{% active request 'trigger' %}"}
+        .title
+          -trans "triggers"
+
+  -if org_perms.channels.channel_list or request.user.is_superuser
+    -if not has_outgoing_channel and org_perms.channels.channel_claim
+      .nav-item.channels
+        %a.icon-nav-channels{href:"{% url 'channels.channel_list' %}", class:"{% active request 'channels' %}"}
+          .title
+            -trans "channels"
+
+  -if request.user.is_superuser or perms.auth.user_list
+    -if not user_org
+      .nav-item.users
+        %a.icon-nav-groups{href:"{% url 'orgs.user_list' %}", class:"{% active request 'users' %}"}
+          .title
+            -trans "users"
+
+  -if request.user.is_superuser or perms.orgs.org_manage
+    -if not user_org
+      .nav-item.orgs
+        %a.icon-nav-orgs{href:"{% url 'orgs.org_manage' %}?search=Nyaruka", class:"{% active request 'org' %}"}
+          .title
+            -trans "orgs"
+
+  -if request.user.is_superuser or perms.orgs.org_dashboard
+    .nav-item.dashboard
+      %a.icon-nav-dashboard{href:"{% url 'dashboard.dashboard_home' %}", class:"{% active request 'dashboard(?!/flows)' %}"}
+        .title
+          -trans "dashboard"
+
+  -if request.user.is_superuser or perms.apks.apk_list
+    .nav-item.nav-android
+      %a.icon-nav-android{href:"{% url 'apks.apk_list' %}", class:"{% active request 'apks' %}"}
+        .title
+          -trans "android"
+
+  -if not request.user.is_anonymous
+    .more.nav-item
+      %a.icon-menu-4{href:""}
+      .submenu-container
+        .submenu
+          .nav-item.logout
+            %a.icon-nav-logout{href:"{% url 'users.user_logout' %}"}
+              .title
+                -trans "logout"
+
+  -else
+    -block temba-login
+      .nav-item.login
+        %a.icon-nav-login{href:"{% ssl_brand_url 'users.user_check_login' %}"}
+          .title
+            -trans "sign in"

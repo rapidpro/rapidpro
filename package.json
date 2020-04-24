@@ -11,6 +11,7 @@
   "dependencies": {
     "@nyaruka/flow-editor": "1.9.2",
     "@nyaruka/temba-components": "0.1.2",
+    "@tailwindcss/ui": "0.2.2",
     "coffeescript": "1.12.7",
     "fa-icons": "0.2.0",
     "less": "2.7.1",
@@ -18,10 +19,13 @@
     "react-dom": "16.3.3"
   },
   "scripts": {
-    "preinstall": "npx npm-force-resolutions"
+    "preinstall": "npx npm-force-resolutions",
+    "build": "postcss static/scss/tailwind.scss -o static/css/tailwind.css",
+    "watch": "watch 'npm run build' ./static/scss"
   },
   "devDependencies": {
     "bower": "1.8.8",
+    "cssnano": "^4.1.10",
     "jasmine-core": "2.5.0",
     "karma": "4.4.1",
     "karma-coffee-preprocessor": "1.0.1",
@@ -30,7 +34,14 @@
     "karma-jasmine": "0.3.5",
     "karma-ng-html2js-preprocessor": "0.1.1",
     "karma-phantomjs-launcher": "1.0.4",
-    "phantomjs-prebuilt": "2.1.16"
+    "phantomjs-prebuilt": "2.1.16",
+    "postcss-cli": "^7.1.0",
+    "postcss-nested": "^4.2.1",
+    "postcss-scss": "^2.0.0",
+    "postcss-simple-vars": "^5.0.2",
+    "tailwindcss": "1.3.5",
+    "tailwindcss-dir": "^4.0.0",
+    "watch": "^1.0.2"
   },
   "resolutions": {
     "minimist": "1.2.5"

@@ -16,7 +16,7 @@ from temba.utils.text import random_string
 
 
 class IndexView(SmartTemplateView):
-    template_name = "public/public_index.haml"
+    template_name = "public/public_index_refresh.haml"
 
     def pre_process(self, request, *args, **kwargs):
         response = super().pre_process(request, *args, **kwargs)

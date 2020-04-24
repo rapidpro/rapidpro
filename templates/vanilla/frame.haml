@@ -1,0 +1,81 @@
+<!DOCTYPE HTML>
+-load humanize smartmin
+{% block html-tag %}
+<!--[if lte IE 8]><html class="ie" lang="en">    <![endif]-->
+<!--[if !IE]><!--><html lang="en">              <!--<![endif]-->
+{% endblock %}
+  
+  %head
+    %title
+      {% block page-title %}
+        {{ brand.name }} - Visually build your own chatbots
+      {% endblock %}
+
+    %meta{charset:"utf-8"}
+    %meta{name:"viewport", content:"width=device-width, initial-scale=1.0"}
+    %meta{name:"description", content:"{% block page-description %}{{brand.name}} lets you visually build interactive SMS applications and launch them anywhere in the world.{% endblock %}"}
+    %meta{name:"author", content:"Nyaruka Ltd"}
+    %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
+
+    -load compress
+    :javascript
+      window.supportEmail = '{{brand.support_email}}';
+    
+    -include "components-head.html"
+
+    -if brand.favico
+      %link{type:"image/ico", rel:"shortcut icon", href:"{{ STATIC_URL }}{{ brand.favico }}"}
+    -else
+      %link{type:"image/ico", rel:"shortcut icon", href:"{{ STATIC_URL }}images/favicon.ico"}
+
+    -load smartmin sms
+    -load i18n
+
+    -compress js
+      :javascript
+         var static_url = '{{STATIC_URL}}';
+
+    -block styles
+      %link{rel:'stylesheet', href:'https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:300,400,500'}
+      %link{rel:"stylesheet", href:"{{ STATIC_URL }}css/temba-components.css", type:"text/css"}
+      %link{rel:"stylesheet", href:"{{ STATIC_URL }}css/tailwind.css", type:"text/css"}
+
+      -compress css
+        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
+
+        {% lessblock %}
+          :plain
+            // any brand styling tweaks
+            @import (optional, reference) "../brands/style.less";
+            @import (optional) "../brands/{{brand.slug}}/less/style.less";
+
+        {% endlessblock %}
+        
+         // any additional brand styling such as fonts, etc
+        -for style in brand.styles
+          -if 'less' in style
+            %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}{{style}}', media:'all'}
+          -else
+            %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}{{style}}", media:'all'}
+
+
+    -for incl in brand.head_includes
+      -include incl
+
+-block body
+  %body.flex.flex-col.items-stretch.min-h-screen
+    -include "components-body.html"
+
+    #frame-header
+      -block frame-header
+        -include "vanilla/frame_header.haml"
+
+    #frame-body.flex-grow
+      -block frame-body
+        -include "vanilla/frame_body.haml"
+
+    #frame-footer
+      -block frame-footer
+        -include "vanilla/frame_footer.html"
+
+</html>
