@@ -1335,7 +1335,11 @@ class Org(SmartModel):
         return self.administrators.filter(is_active=True).first()
 
     def has_low_credits(self):
-        return self.get_credits_remaining() <= self.get_low_credits_threshold()
+        """
+        Whether the organization has less than 15% of the total of credits available
+        :return: bool
+        """
+        return float(self.get_credits_remaining()) <= (0.15 * float(self.get_credits_total()))
 
     def get_low_credits_threshold(self):
         """
