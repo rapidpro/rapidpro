@@ -208,9 +208,20 @@
 
   :javascript
     $(document).on('click', '.update-trigger', function(e){
-       var modal = new Modax('{% trans "Update Trigger" %}', '/trigger/update/' + $(this).data("object-id") + '/');
-       modal.setIcon('icon-feed');
-       modal.setRedirectOnSuccess(true);
-       modal.show();
+      var modal = new Modax('{% trans "Update Trigger" %}', '/trigger/update/' + $(this).data("object-id") + '/');
+      modal.setIcon('icon-feed');
+      modal.setRedirectOnSuccess(true);
+      modal.setListeners({onPrimary: function() {
+        var form = modal.ele.find('form');
+        var error = validateFlowParams(form);
+        if (error) {
+          modal.focusFirstInput();
+          var divForm = $('.modal-body').find('input.invalid');
+          $('.modal-body').scrollTop(divForm[0].offsetTop - 10);
+        } else {
+          modal.submit();
+        }
+      }}, false);
+      modal.show();
     });
     

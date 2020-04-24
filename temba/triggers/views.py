@@ -430,16 +430,36 @@ class TriggerCRUDL(SmartCRUDL):
             Trigger.TYPE_REFERRAL: ReferralTriggerForm,
         }
 
+        def pre_save(self, obj, *args, **kwargs):
+            obj = super().pre_save(obj, *args, **kwargs)
+            obj.org = self.request.user.get_org()
+
+            flow_params_fields = [field for field in self.request.POST.keys() if 'flow_parameter_field' in field]
+            flow_params_values = [field for field in self.request.POST.keys() if 'flow_parameter_value' in field]
+
+            params = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
+            obj.extra = params if params else None
+
+            return obj
+
         def get_form_class(self):
             trigger_type = self.object.trigger_type
             return self.trigger_forms[trigger_type]
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            if self.get_object().schedule:
+            obj = self.get_object()
+            if obj.schedule:
                 context["days"] = self.get_object().schedule.repeat_days_of_week or ""
             context["user_tz"] = get_current_timezone_name()
             context["user_tz_offset"] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() // 60)
+            if obj.extra:
+                context["flow_parameters_fields"] = ",".join([f"@trigger.params.{key}" for key in obj.extra.keys()])
+                context["flow_parameters_values"] = ",".join(obj.extra.values())
+
+            params_context = flow_params_context(self.request)
+            context.update(params_context)
+
             return context
 
         def form_invalid(self, form):

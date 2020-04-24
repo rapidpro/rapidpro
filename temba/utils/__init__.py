@@ -226,11 +226,17 @@ def build_flow_parameters(request_post, fields, values):
 
 
 def flow_params_context(request):
-    param_fields = {}
-    if request.method == "POST":
-        flow_params_fields = [field for field in request.POST.keys() if 'flow_parameter_field' in field]
-        flow_params_values = [field for field in request.POST.keys() if 'flow_parameter_value' in field]
-        param_fields = build_flow_parameters(request.POST, flow_params_fields, flow_params_values)
+    """
+    Returns the flow parameters as context to be used on get_context function
+    :param request: HTTP request
+    :return:
+    """
+    if request.method != "POST":
+        return dict()
+
+    flow_params_fields = [field for field in request.POST.keys() if "flow_parameter_field" in field]
+    flow_params_values = [field for field in request.POST.keys() if "flow_parameter_value" in field]
+    param_fields = build_flow_parameters(request.POST, flow_params_fields, flow_params_values)
 
     return dict(
         param_fields=param_fields,
