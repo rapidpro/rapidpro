@@ -1351,8 +1351,10 @@ class Org(SmartModel):
 
     def _calculate_low_credits_threshold(self):
         now = timezone.now()
-        last_topup = self.topups.filter(is_active=True).order_by("created_on").last()
-        last_topup_credits = last_topup.credits if last_topup else 0
+        unexpired_topups = self.topups.filter(is_active=True, expires_on__gte=now)
+
+        active_topup_credits = [topup.credits for topup in unexpired_topups if topup.get_remaining() > 0]
+        last_topup_credits = sum(active_topup_credits)
 
         return int(last_topup_credits * 0.15), self.get_credit_ttl()
 
