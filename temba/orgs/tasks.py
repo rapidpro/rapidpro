@@ -129,6 +129,8 @@ def import_data_to_parse(
     batch_counter = 0
     order = 1
 
+    parse_endpoint = settings.PARSE_ENDPOINT or '/'
+
     for i, row in enumerate(iterator):
         if i == 0:
             counter = 0
@@ -189,14 +191,14 @@ def import_data_to_parse(
                 return
             queries, callbacks = list(zip(*[m(batch=True) for m in methods]))
             for query in queries:
-                query["path"] = f"{query['path']}".replace("/1/", "/")
+                query["path"] = f"{query['path']}".replace("/1/", parse_endpoint)
             response = requests.post(parse_batch_url, data=json.dumps(dict(requests=queries)), headers=parse_headers)
             if response.status_code == 200:
                 for item in response.json():
                     if "success" in item:
                         success += 1
                     else:
-                        failures.append(item.get("error"))
+                        failures.append(item.get("error").get('error'))
             batch_package = []
             batch_counter = 0
 
@@ -207,14 +209,14 @@ def import_data_to_parse(
             return
         queries, callbacks = list(zip(*[m(batch=True) for m in methods]))
         for query in queries:
-            query["path"] = f"{query['path']}".replace("/1/", "/")
+            query["path"] = f"{query['path']}".replace("/1/", parse_endpoint)
         response = requests.post(parse_batch_url, data=json.dumps(dict(requests=queries)), headers=parse_headers)
         if response.status_code == 200:
             for item in response.json():
                 if "success" in item:
                     success += 1
                 else:
-                    failures.append(item.get("error"))
+                    failures.append(item.get("error").get('error'))
 
     print("-- Importation task ran in %0.2f seconds" % (time.time() - start))
 

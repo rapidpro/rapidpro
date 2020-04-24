@@ -6,14 +6,12 @@ import temba.utils.models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('campaigns', '0034_merge_20200313_1149'),
-    ]
+    dependencies = [("campaigns", "0034_merge_20200313_1149")]
 
     operations = [
         migrations.AlterField(
-            model_name='campaignevent',
-            name='message',
+            model_name="campaignevent",
+            name="message",
             field=temba.utils.models.TranslatableField(max_length=640, null=True),
-        ),
+        )
     ]
