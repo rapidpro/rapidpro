@@ -12,11 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-<<<<<<< HEAD
-"POT-Creation-Date: 2020-04-23 14:11+0000\n"
-=======
 "POT-Creation-Date: 2020-04-24 11:36+0000\n"
->>>>>>> 9166a37186ba309725764f7d0768f82276eb5197
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
