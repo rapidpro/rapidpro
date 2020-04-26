@@ -4279,6 +4279,8 @@ class FlowStartTest(TembaTest):
             start.modified_on = modified_on
             start.save(update_fields=("status", "modified_on"))
 
+            FlowStartCount.objects.create(start=start, count=1, is_squashed=False)
+
         date1 = timezone.now() - timedelta(days=8)
         date2 = timezone.now()
 

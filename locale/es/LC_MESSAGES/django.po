@@ -7,7 +7,11 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
+<<<<<<< HEAD
 "POT-Creation-Date: 2020-04-23 14:11+0000\n"
+=======
+"POT-Creation-Date: 2020-04-24 11:36+0000\n"
+>>>>>>> 9166a37186ba309725764f7d0768f82276eb5197
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -695,19 +699,37 @@ msgstr ""
 msgid "Your short code on Africa's Talking"
 msgstr "Su código abreviado en Africa's Talking"
 
-msgid "Kenya"
+msgid "Burkina Faso"
 msgstr ""
 
-msgid "Uganda"
+msgid "Côte d'Ivoire"
+msgstr ""
+
+msgid "Ethiopia"
+msgstr ""
+
+msgid "Kenya"
 msgstr ""
 
 msgid "Malawi"
 msgstr ""
 
+msgid "Nigeria"
+msgstr ""
+
 msgid "Rwanda"
 msgstr ""
 
-msgid "Nigeria"
+msgid "Tanzania"
+msgstr ""
+
+msgid "Uganda"
+msgstr ""
+
+msgid "South Africa"
+msgstr "Sudáfrica"
+
+msgid "Zambia"
 msgstr ""
 
 #, fuzzy
@@ -15054,9 +15076,6 @@ msgstr ""
 
 #~ msgid "Netherlands"
 #~ msgstr "Países Bajos"
-
-#~ msgid "South Africa"
-#~ msgstr "Sudáfrica"
 
 #, fuzzy
 #~ msgid "South Korea"

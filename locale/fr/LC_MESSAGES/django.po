@@ -12,7 +12,11 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
+<<<<<<< HEAD
 "POT-Creation-Date: 2020-04-23 14:11+0000\n"
+=======
+"POT-Creation-Date: 2020-04-24 11:36+0000\n"
+>>>>>>> 9166a37186ba309725764f7d0768f82276eb5197
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -566,20 +570,38 @@ msgstr ""
 msgid "Your short code on Africa's Talking"
 msgstr "Votre numero court sur Africa's Talking"
 
+msgid "Burkina Faso"
+msgstr ""
+
+msgid "Côte d'Ivoire"
+msgstr ""
+
+msgid "Ethiopia"
+msgstr ""
+
 msgid "Kenya"
 msgstr "Kenya"
-
-msgid "Uganda"
-msgstr "Ouganda"
 
 msgid "Malawi"
 msgstr "Malawi"
 
+msgid "Nigeria"
+msgstr "Nigeria"
+
 msgid "Rwanda"
 msgstr "Rwanda"
 
-msgid "Nigeria"
-msgstr "Nigeria"
+msgid "Tanzania"
+msgstr ""
+
+msgid "Uganda"
+msgstr "Ouganda"
+
+msgid "South Africa"
+msgstr ""
+
+msgid "Zambia"
+msgstr ""
 
 msgid "Whether this short code is shared with others"
 msgstr "Si ce code court est partagé avec d'autres"
