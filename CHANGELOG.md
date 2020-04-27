@@ -1,3 +1,10 @@
+v5.5.30
+----------
+ * Add new flow start type to record that flow was started by a Zapier API call
+ * Contact bulk actions endpoint should error if passed no contacts
+ * Remove mentioning the countries for AT claim section
+ * Add Telesom channel type
+
 v5.5.29
 ----------
  * Fix trimming flow starts with start counts
