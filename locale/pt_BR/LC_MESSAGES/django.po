@@ -624,9 +624,10 @@ msgstr "Próxima tentativa"
 
 #, fuzzy
 msgid ""
-"If you are based in Kenya, Malawi, Nigeria, Rwanda or Uganda you can purchase a short\n"
-"    code from <a href=\"http://africastalking.com\">Africa's Talking</a> and connect it\n"
-"    in a few simple steps."
+"\n"
+"        You can purchase a short code from <a href=\"http://africastalking.com\">Africa's Talking</a>\n"
+"        and connect it in a few simple steps.\n"
+"        "
 msgstr ""
 "\n"
 "Se sua base estiver no Quênia, você pode comprar um número curto da %(link_start)s Africa's Talking %(link_end)s e\n"
