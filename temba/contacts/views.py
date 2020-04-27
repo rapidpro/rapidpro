@@ -657,11 +657,18 @@ class ContactCRUDL(SmartCRUDL):
                 used_labels = []
                 # don't allow users to specify field keys or labels
                 re_col_name_field = regex.compile(r"column_\w+_label$", regex.V0)
+                re_col_name_include = regex.compile(r"column_(?P<name>\w+)_label$", regex.V0)
                 for key, value in self.data.items():
                     if re_col_name_field.match(key):
                         field_label = value.strip()
                         if field_label.startswith("[_NEW_]"):
                             field_label = field_label[7:]
+
+                        # skip fields that are not included and remove them from data
+                        column_name = re_col_name_include.match(key).groupdict().get('name')
+                        column_include = self.data.get("column_{}_include".format(column_name))
+                        if not column_include or 'on' not in column_include:
+                            continue
 
                         field_key = ContactField.make_key(field_label)
 
@@ -892,6 +899,31 @@ class ContactCRUDL(SmartCRUDL):
         fields = ("csv_file",)
         success_message = ""
 
+        def get(self, *args, **kwargs):
+            # overwritten to unblock contacts manually when unblock param is present
+            task = self.request.GET.get('task')
+            task = ImportTask.objects.filter(id=task).last()
+            results = json.loads(task.import_results) if task and task.import_results else dict()
+            blocked_contacts = results.pop('blocked_contacts', [])
+            group = ContactGroup.user_groups.filter(import_task=task).first()
+            unblock = self.request.GET.get('unblock')
+            unblock = True if unblock == 'true' else False
+            
+            if unblock and blocked_contacts:
+                # unblock contact
+                contacts = Contact.objects.filter(id__in=blocked_contacts)
+                contacts.update(is_blocked=False)
+
+                # adding contact to the task group
+                if group:
+                    group.contacts.add(*contacts)
+                    group.save()
+                
+                # update import_results because it doesn't has an blocked_contacts anymore
+                task.import_results = json.dumps(results)
+                task.save()
+            return super().get(*args, **kwargs)
+
         def pre_save(self, task):
             super().pre_save(task)
 
@@ -954,6 +986,9 @@ class ContactCRUDL(SmartCRUDL):
 
                     elif not task.status() in ["PENDING", "RUNNING", "STARTED"]:  # pragma: no cover
                         context["show_form"] = True
+
+                    blocked_contacts = "blocked_contacts" in context["results"] and task.status() == "SUCCESS"
+                    context["show_form"] = False if blocked_contacts else context["show_form"]
 
             return context
 

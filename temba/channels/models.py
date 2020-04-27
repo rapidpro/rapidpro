@@ -500,6 +500,7 @@ class Channel(TembaModel):
             schemes=schemes,
             created_by=user,
             modified_by=user,
+            tps=settings.COURIER_DEFAULT_TPS,
         )
         create_args.update(kwargs)
 

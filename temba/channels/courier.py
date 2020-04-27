@@ -1,5 +1,7 @@
 import time
 
+from django.conf import settings
+
 from django_redis import get_redis_connection
 
 from temba.utils import json
@@ -11,7 +13,7 @@ def push_courier_msgs(channel, msgs, high_priority=False):
     """
     r = get_redis_connection("default")
     priority = COURIER_HIGH_PRIORITY if high_priority else COURIER_LOW_PRIORITY
-    tps = channel.tps if channel.tps else COURIER_DEFAULT_TPS
+    tps = channel.tps if channel.tps else settings.COURIER_DEFAULT_TPS
 
     # create our payload
     payload = []
@@ -73,7 +75,6 @@ def msg_as_task(msg):
 
 COURIER_HIGH_PRIORITY = 1
 COURIER_LOW_PRIORITY = 0
-COURIER_DEFAULT_TPS = 10
 
 
 # Our lua script for properly inserting items to a courier queue

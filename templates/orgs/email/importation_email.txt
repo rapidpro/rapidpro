@@ -8,7 +8,7 @@ Rows imported: {{success}}
 {% endblocktrans %}
 {% if failures %}
 {% blocktrans with failures=failures %}
-Failures at lines: {{failures}}
+Failures: {{failures}}
 {% endblocktrans %}
 {% endif %}
 {% blocktrans %}

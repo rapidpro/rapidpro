@@ -388,6 +388,7 @@ PERMISSIONS = {
         "plivo_connect",
         "profile",
         "resthooks",
+        "send_invite",
         "service",
         "signup",
         "sub_orgs",
@@ -442,6 +443,7 @@ PERMISSIONS = {
         "pdf_export",
         "lookups_api",
         "giftcards_api",
+        "launch",
     ),
     "flows.flowsession": ("json",),
     "links.link": ("archived", "read", "history", "export", "api"),
@@ -604,6 +606,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_plivo_connect",
         "orgs.org_profile",
         "orgs.org_resthooks",
+        "orgs.org_send_invite",
         "orgs.org_sub_orgs",
         "orgs.org_transfer_credits",
         "orgs.org_twilio_account",
@@ -1187,6 +1190,8 @@ ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
 MAX_ACTIVE_GLOBALS_PER_ORG = 255
 
+COURIER_DEFAULT_TPS = 1000
+
 # Firebase Dynamic Links configuration
 FDL_API_KEY = "FirebaseDynamicLinkAPIKey"
 FDL_URL = "FirebaseDynamicLinkURL"
@@ -1194,6 +1199,15 @@ FDL_URL = "FirebaseDynamicLinkURL"
 # Parse configuration
 PARSE_SERVER_NAME = ""
 PARSE_URL = ""
+PARSE_ENDPOINT = "/parse/"
 PARSE_APP_ID = ""
 PARSE_REST_KEY = ""
 PARSE_MASTER_KEY = ""
+
+# Recaptcha configuration
+RECAPTCHA_SITE_KEY = ""
+RECAPTCHA_SECRET_KEY = ""
+
+# Authy configuration
+AUTHY_API_KEY = os.environ.get("AUTHY_API_KEY", "")
+AUTHY_MAGIC_PASS = os.environ.get("AUTHY_MAGIC_PASS", "")
