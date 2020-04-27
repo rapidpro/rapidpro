@@ -6271,8 +6271,8 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
         contact = self.create_contact("Bob", number="+1234567890")
         group = self.create_group("Testers", contacts=[contact])
         start1 = FlowStart.create(flow, self.admin, contacts=[contact])
-        start2 = FlowStart.create(flow, self.admin, query="name ~ Bob", restart_participants=False)
-        start3 = FlowStart.create(flow, self.admin, groups=[group], include_active=False)
+        start2 = FlowStart.create(flow, self.admin, query="name ~ Bob", restart_participants=False, start_type="A")
+        start3 = FlowStart.create(flow, self.admin, groups=[group], include_active=False, start_type="Z")
 
         FlowStartCount.objects.create(start=start3, count=1000)
         FlowStartCount.objects.create(start=start3, count=234)
@@ -6284,6 +6284,8 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
             list_url, allow_viewers=True, allow_editors=True, context_objects=[start3, start2, start1]
         )
         self.assertContains(response, "was started by Administrator for")
+        self.assertContains(response, "was started by an API call for")
+        self.assertContains(response, "was started by Zapier for")
         self.assertContains(response, "all contacts")
         self.assertContains(response, "contacts who haven't already been through this flow")
         self.assertContains(response, "<b>1,234</b> runs")

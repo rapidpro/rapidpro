@@ -1033,7 +1033,7 @@ class FlowStartWriteSerializer(WriteSerializer):
         return FlowStart.create(
             self.validated_data["flow"],
             self.context["user"],
-            start_type=FlowStart.TYPE_API,
+            start_type=FlowStart.TYPE_API_ZAPIER if self.context["is_zapier"] else FlowStart.TYPE_API,
             restart_participants=restart_participants,
             contacts=contacts,
             groups=groups,
