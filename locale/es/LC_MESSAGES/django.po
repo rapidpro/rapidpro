@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-27 20:01+0000\n"
+"POT-Creation-Date: 2020-04-27 21:09+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -2618,6 +2618,26 @@ msgstr ""
 #| msgid "Invalid claim code, please check and try again."
 msgid "Your authentication token is invalid, please check and try again"
 msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
+
+#, fuzzy
+msgid "If you are based in Somalia, you can integrate with Telesom to send and receive messages on your shortcode."
+msgstr ""
+"\n"
+"                  Agregar instantáneamente un número de teléfono especial en el código de área de su\n"
+"                  preferencia de su\n"
+"                "
+
+#, fuzzy
+msgid "To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery URL for incoming messages to {{ channel.address }}."
+msgstr ""
+"\n"
+"        Para terminar de configurar su conexión Vumi, tendrá que establecer los siguientes parámetros en su conversación Vumi:\n"
+"\n"
+"      "
+
+#, fuzzy
+msgid "The private key provided to use their API"
+msgstr "El nombre de usuario otorgado por el proveedor para usar su API"
 
 #, fuzzy
 msgid ""

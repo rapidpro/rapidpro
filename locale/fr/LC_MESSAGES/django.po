@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-27 20:01+0000\n"
+"POT-Creation-Date: 2020-04-27 21:09+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1860,6 +1860,33 @@ msgstr "Un canal Telegram pour ce bot existe déjà sur votre compte."
 
 msgid "Your authentication token is invalid, please check and try again"
 msgstr "Votre jeton d'authentification n'est pas valide. Veuillez vérifier et réessayer"
+
+#, fuzzy
+#| msgid ""
+#| "If you are based in Somalia, you can integrate with Shaqodoon to send\n"
+#| "                       and receive messages on your shortcode."
+msgid "If you are based in Somalia, you can integrate with Telesom to send and receive messages on your shortcode."
+msgstr ""
+"Si vous êtes basé en Somalie, vous pouvez intégrer Shaqodoon pour envoyer\n"
+"                       et recevoir des messages sur votre code court."
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your Shaqodoon connection you'll need to provide Shaqodoon with the following delivery\n"
+#| "        URL for incoming messages to {{ channel.address }}.\n"
+#| "        "
+msgid "To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery URL for incoming messages to {{ channel.address }}."
+msgstr ""
+"\n"
+"        Pour terminer la configuration de votre connexion Shaqodoon, vous devez fournir à Shaqodoon\n"
+"        l'URL de livraison suivante pour les messages entrants à  {{ channel.address }}.\n"
+" "
+
+#, fuzzy
+#| msgid "The username provided to use their API"
+msgid "The private key provided to use their API"
+msgstr "Le nom d'utilisateur fourni pour utiliser leur API"
 
 msgid ""
 "If you have a number with <a href=\"https://thinq.com\">ThinQ</a> you can connect it in a few easy steps to\n"
