@@ -19,8 +19,7 @@ class TelesomType(ChannelType):
     name = "Telesom"
 
     claim_blurb = _(
-        """If you are based in Somalia, you can integrate with Telesom to send
-                       and receive messages on your shortcode."""
+        """If you are based in Somalia, you can integrate with Telesom to send and receive messages on your shortcode."""
     )
     claim_view = ClaimView
 
