@@ -786,6 +786,11 @@ class ContactBulkActionSerializer(WriteSerializer):
     action = serializers.ChoiceField(required=True, choices=ACTIONS)
     group = fields.ContactGroupField(required=False, allow_dynamic=False)
 
+    def validate_contacts(self, value):
+        if not value:
+            raise serializers.ValidationError("Contacts can't be empty.")
+        return value
+
     def validate(self, data):
         contacts = data["contacts"]
         action = data["action"]
@@ -811,9 +816,6 @@ class ContactBulkActionSerializer(WriteSerializer):
         contacts = self.validated_data["contacts"]
         action = self.validated_data["action"]
         group = self.validated_data.get("group")
-
-        if not contacts:
-            return
 
         if action == self.ADD:
             group.update_contacts(user, contacts, add=True)
