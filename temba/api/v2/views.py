@@ -3341,6 +3341,11 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
         return self.filter_before_after(queryset, "modified_on")
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["is_zapier"] = "Zapier" in self.request.META.get("HTTP_USER_AGENT", "")
+        return context
+
     def post_save(self, instance):
         # actually start our flow
         instance.async_start()
