@@ -28,10 +28,7 @@ class TelesomType(ChannelType):
     attachment_support = False
 
     configuration_blurb = _(
-        """
-        To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery
-        URL for incoming messages to {{ channel.address }}.
-        """
+        """To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery URL for incoming messages to {{ channel.address }}."""
     )
 
     configuration_urls = (
