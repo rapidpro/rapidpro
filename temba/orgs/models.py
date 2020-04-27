@@ -140,6 +140,8 @@ class Org(SmartModel):
     STATUS_RESTORED = "restored"
     STATUS_WHITELISTED = "whitelisted"
 
+    OPTIN_FLOW = "OPTIN_FLOW"
+
     CONFIG_STATUS = "STATUS"
     CONFIG_SMTP_SERVER = "smtp_server"
     CONFIG_TWILIO_SID = "ACCOUNT_SID"
@@ -2248,6 +2250,13 @@ class Org(SmartModel):
     def __str__(self):
         return self.name
 
+    def set_optin_flow(self, user, flow_uuid):
+        self.modified_by = user
+        self.config.update({Org.OPTIN_FLOW: flow_uuid})
+        self.save(update_fields=("config", "modified_on"))
+
+    def get_optin_flow(self):
+        return self.config.get(Org.OPTIN_FLOW)
 
 # ===================== monkey patch User class with a few extra functions ========================
 

@@ -1635,6 +1635,33 @@ class ContactCRUDL(SmartCRUDL):
         title = _("Invite Participants")
         system_group = ContactGroup.TYPE_ALL
 
+        def get(self, request, *args, **kwargs):
+            contact_uuid = request.GET.get('contact_uuid')
+            if not contact_uuid:
+                return super().get(request, *args, **kwargs)
+
+            org = request.user.get_org()
+            flow_uuid = org.config.get(org.OPTIN_FLOW, None)
+            flow = Flow.objects.filter(org=org, is_active=True, uuid=flow_uuid).exclude(is_archived=True).first()
+            existing_contact = Contact.objects.filter(uuid=contact_uuid).first()
+
+            if existing_contact and flow:
+                flow.async_start(self.request.user, list([]), list([existing_contact]), restart_participants=True, include_active=True)
+                result = dict(sent=True)
+            else:
+                result = dict(sent=False)
+
+            return HttpResponse(json.dumps(result), content_type='application/json')
+
+        def post(self, request, *args, **kwargs):
+            optin_flow_uuid = request.POST.get('optin_flow_uuid', None)
+
+            if optin_flow_uuid:
+                self.org.set_optin_flow(request.user, optin_flow_uuid)
+                messages.success(request, _('Opt-in Flow updated'))
+
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
+
         def derive_group(self):
             group_uuid = self.request.GET.get("group", None)
             folder = self.request.GET.get("folder", None)
