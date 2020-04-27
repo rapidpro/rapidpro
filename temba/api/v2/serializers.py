@@ -812,6 +812,9 @@ class ContactBulkActionSerializer(WriteSerializer):
         action = self.validated_data["action"]
         group = self.validated_data.get("group")
 
+        if not contacts:
+            return
+
         if action == self.ADD:
             group.update_contacts(user, contacts, add=True)
         elif action == self.REMOVE:

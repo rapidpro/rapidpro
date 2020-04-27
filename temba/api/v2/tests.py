@@ -2254,6 +2254,10 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"contacts": [contact3.uuid], "action": "block", "group": "Testers"})
         self.assertResponseError(response, "non_field_errors", 'For action "block" you should not specify a group')
 
+        # trying to act on zero contacts is just a NOOP
+        response = self.postJSON(url, None, {"contacts": [], "action": "interrupt"})
+        self.assertEqual(response.status_code, 204)
+
         # try to invoke an invalid action
         response = self.postJSON(url, None, {"contacts": [contact3.uuid], "action": "like"})
         self.assertResponseError(response, "action", '"like" is not a valid choice.')
