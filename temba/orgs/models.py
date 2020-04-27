@@ -1313,24 +1313,28 @@ class Org(SmartModel):
 
     def create_sample_flows(self, api_url):
         # get our sample dir
-        filename = os.path.join(settings.STATICFILES_DIRS[0], "examples", "sample_flows.json")
-
-        # for each of our samples
-        with open(filename, "r") as example_file:
-            samples = example_file.read()
+        filenames = (
+            os.path.join(settings.STATICFILES_DIRS[0], "examples", "sample_flows.json"),
+            os.path.join(settings.STATICFILES_DIRS[0], "examples", "opt_in_flows.json"),
+        )
 
         user = self.get_user()
         if user:
-            # some some substitutions
-            samples = samples.replace("{{EMAIL}}", user.username).replace("{{API_URL}}", api_url)
+            for filename in filenames:
+                # for each of our samples
+                with open(filename, "r") as example_file:
+                    samples = example_file.read()
 
-            try:
-                self.import_app(json.loads(samples), user)
-            except Exception as e:  # pragma: needs cover
-                logger.error(
-                    f"Failed creating sample flows: {str(e)}",
-                    exc_info=True,
-                    extra=dict(definition=json.loads(samples)),
+                # some some substitutions
+                samples = samples.replace("{{EMAIL}}", user.username).replace("{{API_URL}}", api_url)
+
+                try:
+                    self.import_app(json.loads(samples), user)
+                except Exception as e:  # pragma: needs cover
+                    logger.error(
+                        f"Failed creating sample flows: {str(e)}",
+                        exc_info=True,
+                        extra=dict(definition=json.loads(samples)),
                 )
 
     def get_user(self):
