@@ -3119,12 +3119,14 @@ class FlowStart(models.Model):
 
     TYPE_MANUAL = "M"
     TYPE_API = "A"
+    TYPE_API_ZAPIER = "Z"
     TYPE_FLOW_ACTION = "F"
     TYPE_TRIGGER = "T"
 
     TYPE_CHOICES = (
         (TYPE_MANUAL, "Manual"),
         (TYPE_API, "API"),
+        (TYPE_API_ZAPIER, "Zapier"),
         (TYPE_FLOW_ACTION, "Flow Action"),
         (TYPE_TRIGGER, "Trigger"),
     )

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-27 17:04+0000\n"
+"POT-Creation-Date: 2020-04-27 21:09+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6648,6 +6648,9 @@ msgstr ""
 
 #, python-format
 msgid "was started by %(user)s for"
+msgstr ""
+
+msgid "was started by Zapier for"
 msgstr ""
 
 msgid "was started by an API call for"
