@@ -89,12 +89,14 @@ class APITest(TembaTest):
         response.json()
         return response
 
-    def postJSON(self, url, query, data):
+    def postJSON(self, url, query, data, **kwargs):
         url += ".json"
         if query:
             url = url + "?" + query
 
-        return self.client.post(url, json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS="https")
+        return self.client.post(
+            url, json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS="https", **kwargs
+        )
 
     def deleteJSON(self, url, query=None):
         url += ".json"
@@ -2254,6 +2256,10 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"contacts": [contact3.uuid], "action": "block", "group": "Testers"})
         self.assertResponseError(response, "non_field_errors", 'For action "block" you should not specify a group')
 
+        # trying to act on zero contacts is an error
+        response = self.postJSON(url, None, {"contacts": [], "action": "interrupt"})
+        self.assertResponseError(response, "contacts", "Contacts can't be empty.")
+
         # try to invoke an invalid action
         response = self.postJSON(url, None, {"contacts": [contact3.uuid], "action": "like"})
         self.assertResponseError(response, "action", '"like" is not a valid choice.')
@@ -3933,6 +3939,15 @@ class APITest(TembaTest):
         mock_async_start.assert_called_once()
         mock_async_start.reset_mock()
 
+        # calls from Zapier have user-agent set to Zapier
+        response = self.postJSON(url, None, {"contacts": [self.joe.uuid], "flow": flow.uuid}, HTTP_USER_AGENT="Zapier")
+
+        self.assertEqual(response.status_code, 201)
+
+        # assert our new start has start_type of Zapier
+        start4 = flow.starts.get(id=response.json()["id"])
+        self.assertEqual(FlowStart.TYPE_API_ZAPIER, start4.start_type)
+
         # try to start a flow with no contact/group/URN
         response = self.postJSON(url, None, {"flow": flow.uuid, "restart_participants": True})
         self.assertResponseError(response, "non_field_errors", "Must specify at least one group, contact or URN")
@@ -4037,9 +4052,9 @@ class APITest(TembaTest):
         response = self.fetchJSON(url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["next"], None)
-        self.assertResultsById(response, [start3, start2, start1])
+        self.assertResultsById(response, [start4, start3, start2, start1])
         self.assertEqual(
-            response.json()["results"][0],
+            response.json()["results"][1],
             {
                 "id": start3.id,
                 "uuid": str(start3.uuid),

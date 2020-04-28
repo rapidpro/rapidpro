@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-21 23:29+0000\n"
+"POT-Creation-Date: 2020-04-27 21:09+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -511,9 +511,10 @@ msgid "Next Attempt"
 msgstr ""
 
 msgid ""
-"If you are based in Kenya, Malawi, Nigeria, Rwanda or Uganda you can purchase a short\n"
-"    code from <a href=\"http://africastalking.com\">Africa's Talking</a> and connect it\n"
-"    in a few simple steps."
+"\n"
+"        You can purchase a short code from <a href=\"http://africastalking.com\">Africa's Talking</a>\n"
+"        and connect it in a few simple steps.\n"
+"        "
 msgstr ""
 
 msgid ""
@@ -546,19 +547,37 @@ msgstr ""
 msgid "Your short code on Africa's Talking"
 msgstr ""
 
-msgid "Kenya"
+msgid "Burkina Faso"
 msgstr ""
 
-msgid "Uganda"
+msgid "Côte d'Ivoire"
+msgstr ""
+
+msgid "Ethiopia"
+msgstr ""
+
+msgid "Kenya"
 msgstr ""
 
 msgid "Malawi"
 msgstr ""
 
+msgid "Nigeria"
+msgstr ""
+
 msgid "Rwanda"
 msgstr ""
 
-msgid "Nigeria"
+msgid "Tanzania"
+msgstr ""
+
+msgid "Uganda"
+msgstr ""
+
+msgid "South Africa"
+msgstr ""
+
+msgid "Zambia"
 msgstr ""
 
 msgid "Whether this short code is shared with others"
@@ -1624,6 +1643,15 @@ msgid "A telegram channel for this bot already exists on your account."
 msgstr ""
 
 msgid "Your authentication token is invalid, please check and try again"
+msgstr ""
+
+msgid "If you are based in Somalia, you can integrate with Telesom to send and receive messages on your shortcode."
+msgstr ""
+
+msgid "To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery URL for incoming messages to {{ channel.address }}."
+msgstr ""
+
+msgid "The private key provided to use their API"
 msgstr ""
 
 msgid ""
@@ -6635,6 +6663,9 @@ msgstr ""
 
 #, python-format
 msgid "was started by %(user)s for"
+msgstr ""
+
+msgid "was started by Zapier for"
 msgstr ""
 
 msgid "was started by an API call for"
