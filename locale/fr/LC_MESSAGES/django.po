@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-20 21:59+0000\n"
+"POT-Creation-Date: 2020-04-27 21:09+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -515,10 +515,16 @@ msgstr "Nombre d'erreurs"
 msgid "Next Attempt"
 msgstr "Tentative Suivant"
 
+#, fuzzy
+#| msgid ""
+#| "If you are based in Kenya, Malawi, Nigeria, Rwanda or Uganda you can purchase a short\n"
+#| "    code from <a href=\"http://africastalking.com\">Africa's Talking</a> and connect it\n"
+#| "    in a few simple steps."
 msgid ""
-"If you are based in Kenya, Malawi, Nigeria, Rwanda or Uganda you can purchase a short\n"
-"    code from <a href=\"http://africastalking.com\">Africa's Talking</a> and connect it\n"
-"    in a few simple steps."
+"\n"
+"        You can purchase a short code from <a href=\"http://africastalking.com\">Africa's Talking</a>\n"
+"        and connect it in a few simple steps.\n"
+"        "
 msgstr ""
 "Si vous résidez au Kenya, au Malawi, au nigeria, au Rwanda ou en Ouganda vous pouvez acheter un code court\n"
 "    auprès de <a href=\"http://africastalking.com\">Africa Talking</a> et le connecter\n"
@@ -566,20 +572,38 @@ msgstr ""
 msgid "Your short code on Africa's Talking"
 msgstr "Votre numero court sur Africa's Talking"
 
+msgid "Burkina Faso"
+msgstr ""
+
+msgid "Côte d'Ivoire"
+msgstr ""
+
+msgid "Ethiopia"
+msgstr ""
+
 msgid "Kenya"
 msgstr "Kenya"
-
-msgid "Uganda"
-msgstr "Ouganda"
 
 msgid "Malawi"
 msgstr "Malawi"
 
+msgid "Nigeria"
+msgstr "Nigeria"
+
 msgid "Rwanda"
 msgstr "Rwanda"
 
-msgid "Nigeria"
-msgstr "Nigeria"
+msgid "Tanzania"
+msgstr ""
+
+msgid "Uganda"
+msgstr "Ouganda"
+
+msgid "South Africa"
+msgstr ""
+
+msgid "Zambia"
+msgstr ""
 
 msgid "Whether this short code is shared with others"
 msgstr "Si ce code court est partagé avec d'autres"
@@ -1836,6 +1860,33 @@ msgstr "Un canal Telegram pour ce bot existe déjà sur votre compte."
 
 msgid "Your authentication token is invalid, please check and try again"
 msgstr "Votre jeton d'authentification n'est pas valide. Veuillez vérifier et réessayer"
+
+#, fuzzy
+#| msgid ""
+#| "If you are based in Somalia, you can integrate with Shaqodoon to send\n"
+#| "                       and receive messages on your shortcode."
+msgid "If you are based in Somalia, you can integrate with Telesom to send and receive messages on your shortcode."
+msgstr ""
+"Si vous êtes basé en Somalie, vous pouvez intégrer Shaqodoon pour envoyer\n"
+"                       et recevoir des messages sur votre code court."
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your Shaqodoon connection you'll need to provide Shaqodoon with the following delivery\n"
+#| "        URL for incoming messages to {{ channel.address }}.\n"
+#| "        "
+msgid "To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery URL for incoming messages to {{ channel.address }}."
+msgstr ""
+"\n"
+"        Pour terminer la configuration de votre connexion Shaqodoon, vous devez fournir à Shaqodoon\n"
+"        l'URL de livraison suivante pour les messages entrants à  {{ channel.address }}.\n"
+" "
+
+#, fuzzy
+#| msgid "The username provided to use their API"
+msgid "The private key provided to use their API"
+msgstr "Le nom d'utilisateur fourni pour utiliser leur API"
 
 msgid ""
 "If you have a number with <a href=\"https://thinq.com\">ThinQ</a> you can connect it in a few easy steps to\n"
@@ -7566,6 +7617,9 @@ msgstr "Poser une série de questions visant à recueillir les données de vos c
 
 #, python-format
 msgid "was started by %(user)s for"
+msgstr ""
+
+msgid "was started by Zapier for"
 msgstr ""
 
 msgid "was started by an API call for"

@@ -139,6 +139,7 @@ def trim_flow_starts():
 
         FlowStart.contacts.through.objects.filter(flowstart_id__in=start_ids).delete()
         FlowStart.groups.through.objects.filter(flowstart_id__in=start_ids).delete()
+        FlowStartCount.objects.filter(start_id__in=start_ids).delete()
         FlowStart.objects.filter(id__in=start_ids).delete()
         num_deleted += len(start_ids)
 

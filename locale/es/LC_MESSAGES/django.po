@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-20 21:59+0000\n"
+"POT-Creation-Date: 2020-04-27 21:09+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -618,9 +618,10 @@ msgstr "Próximo intento"
 
 #, fuzzy
 msgid ""
-"If you are based in Kenya, Malawi, Nigeria, Rwanda or Uganda you can purchase a short\n"
-"    code from <a href=\"http://africastalking.com\">Africa's Talking</a> and connect it\n"
-"    in a few simple steps."
+"\n"
+"        You can purchase a short code from <a href=\"http://africastalking.com\">Africa's Talking</a>\n"
+"        and connect it in a few simple steps.\n"
+"        "
 msgstr ""
 "\n"
 "                  Si vive en Kenia, puede comprar un código abreviado\n"
@@ -695,19 +696,37 @@ msgstr ""
 msgid "Your short code on Africa's Talking"
 msgstr "Su código abreviado en Africa's Talking"
 
-msgid "Kenya"
+msgid "Burkina Faso"
 msgstr ""
 
-msgid "Uganda"
+msgid "Côte d'Ivoire"
+msgstr ""
+
+msgid "Ethiopia"
+msgstr ""
+
+msgid "Kenya"
 msgstr ""
 
 msgid "Malawi"
 msgstr ""
 
+msgid "Nigeria"
+msgstr ""
+
 msgid "Rwanda"
 msgstr ""
 
-msgid "Nigeria"
+msgid "Tanzania"
+msgstr ""
+
+msgid "Uganda"
+msgstr ""
+
+msgid "South Africa"
+msgstr "Sudáfrica"
+
+msgid "Zambia"
 msgstr ""
 
 #, fuzzy
@@ -2599,6 +2618,26 @@ msgstr ""
 #| msgid "Invalid claim code, please check and try again."
 msgid "Your authentication token is invalid, please check and try again"
 msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
+
+#, fuzzy
+msgid "If you are based in Somalia, you can integrate with Telesom to send and receive messages on your shortcode."
+msgstr ""
+"\n"
+"                  Agregar instantáneamente un número de teléfono especial en el código de área de su\n"
+"                  preferencia de su\n"
+"                "
+
+#, fuzzy
+msgid "To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery URL for incoming messages to {{ channel.address }}."
+msgstr ""
+"\n"
+"        Para terminar de configurar su conexión Vumi, tendrá que establecer los siguientes parámetros en su conversación Vumi:\n"
+"\n"
+"      "
+
+#, fuzzy
+msgid "The private key provided to use their API"
+msgstr "El nombre de usuario otorgado por el proveedor para usar su API"
 
 #, fuzzy
 msgid ""
@@ -9449,6 +9488,11 @@ msgstr "ha iniciado en este flujo."
 
 #, fuzzy
 #| msgid "has started this flow."
+msgid "was started by Zapier for"
+msgstr "ha iniciado en este flujo."
+
+#, fuzzy
+#| msgid "has started this flow."
 msgid "was started by an API call for"
 msgstr "ha iniciado en este flujo."
 
@@ -15028,9 +15072,6 @@ msgstr ""
 
 #~ msgid "Netherlands"
 #~ msgstr "Países Bajos"
-
-#~ msgid "South Africa"
-#~ msgstr "Sudáfrica"
 
 #, fuzzy
 #~ msgid "South Korea"
