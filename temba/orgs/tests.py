@@ -6,6 +6,7 @@ from decimal import Decimal
 from unittest.mock import Mock, patch
 from urllib.parse import urlencode
 
+import pyotp
 import pytz
 import stripe
 import stripe.error
@@ -616,8 +617,15 @@ class OrgTest(TembaTest):
         self.assertEqual(response.json(), {"tokens": [f"{backup_token.token}"]})
 
         # test form is valid
-        response = self.client.post(reverse("orgs.org_two_factor"))
+        settings = UserSettings.objects.get(user=self.admin)
+        settings.two_factor_enabled = False
+        settings.save()
+        totp = pyotp.TOTP(self.admin.get_settings().otp_secret)
+        data = dict(token=totp.now())
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 10)
+        self.assertEqual(self.admin.get_settings().two_factor_enabled, True)
 
     def test_country(self):
         self.setUpLocations()
