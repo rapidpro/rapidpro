@@ -625,8 +625,12 @@ class OrgTest(TembaTest):
         data = dict(token=totp.now())
         response = self.client.post(reverse("orgs.org_two_factor"), data)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 10)
+        self.assertEqual(BackupToken.objects.count(), 10)
         self.assertEqual(self.admin.get_settings().two_factor_enabled, True)
+
+        # check backup tokens now listed on account home page
+        response = self.client.get(reverse("orgs.org_home"))
+        self.assertContains(response, "Backup tokens can be used")
 
     def test_country(self):
         self.setUpLocations()
