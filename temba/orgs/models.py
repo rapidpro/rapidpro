@@ -43,7 +43,7 @@ from temba.utils.dates import datetime_to_str, str_to_datetime
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
-from temba.utils.text import random_string
+from temba.utils.text import generate_token, random_string
 from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
@@ -2349,6 +2349,8 @@ class UserSettings(models.Model):
         blank=True,
         help_text=_("Phone number for testing and recording voice flows"),
     )
+    otp_secret = models.CharField(verbose_name=_("OTP Secret"), max_length=18, null=True, blank=True)
+    two_factor_enabled = models.BooleanField(verbose_name=_("Two Factor Enabled"), default=False)
 
     def get_tel_formatted(self):
         if self.tel:
@@ -2711,3 +2713,14 @@ class CreditAlert(SmartModel):
 
         for topup in expiring_final_topups:
             CreditAlert.trigger_credit_alert(topup.org, CreditAlert.TYPE_EXPIRING)
+
+
+class BackupToken(SmartModel):
+    settings = models.ForeignKey(
+        UserSettings, verbose_name=_("Settings"), related_name="backups", on_delete=models.CASCADE
+    )
+    token = models.CharField(verbose_name=_("Token"), max_length=18, unique=True, default=generate_token)
+    used = models.BooleanField(verbose_name=_("Used"), default=False)
+
+    def __str__(self):  # pragma: no cover
+        return f"{self.token}"

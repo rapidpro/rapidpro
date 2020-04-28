@@ -8,6 +8,7 @@ from email.utils import parseaddr
 from functools import cmp_to_key
 from urllib.parse import parse_qs, unquote, urlparse
 
+import pyotp
 import pytz
 import requests
 from packaging.version import Version
@@ -52,6 +53,7 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
+from temba.orgs.models import BackupToken
 from temba.utils import analytics, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address
 from temba.utils.http import http_headers
@@ -540,6 +542,7 @@ class OrgCRUDL(SmartCRUDL):
         "clear_cache",
         "twilio_connect",
         "twilio_account",
+        "two_factor",
         "nexmo_account",
         "nexmo_connect",
         "sub_orgs",
@@ -1427,6 +1430,113 @@ class OrgCRUDL(SmartCRUDL):
             org_id = self.request.GET.get("org")
             return "%s?org=%s" % (reverse("orgs.org_manage_accounts_sub_org"), org_id)
 
+    class TwoFactor(InferOrgMixin, OrgPermsMixin, SmartFormView):
+        class TwoFactorForm(forms.Form):
+            token = forms.CharField(
+                label=_("Authentication Token"),
+                help_text=_("Enter the code from your authentication application"),
+                strip=True,
+                required=True,
+            )
+
+            def __init__(self, *args, **kwargs):
+                self.request = kwargs.pop("request")
+                self.user_cache = None
+                super().__init__(*args, **kwargs)
+
+            def clean_token(self):  # pragma: no cover
+                token = self.cleaned_data.get("token", None)
+                user_pk = self.request.user.pk
+                user = User.objects.get(pk=user_pk)
+                totp = pyotp.TOTP(user.get_settings().otp_secret)
+                token_valid = totp.verify(token, valid_window=2)
+                if not token_valid:
+                    raise forms.ValidationError(_("Invalid MFA token. Please try again."), code="invalid-token")
+                self.user_cache = user
+                return token
+
+        form_class = TwoFactorForm
+        fields = ("token",)
+        success_url = "@orgs.org_two_factor"
+        success_message = ""
+        submit_button_name = _("Activate")
+        title = _("Two Factor Authentication")
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["request"] = self.request
+            return kwargs
+
+        def get(self, request, *args, **kwargs):
+            user = self.request.user
+            form = self.get_form()
+            secret = pyotp.random_base32()
+
+            user_settings = user.get_settings()
+            user_settings.otp_secret = secret
+            user_settings.save()
+            secret_url = self.get_secret_url()
+            return self.render_to_response(self.get_context_data(form=form, secret_url=secret_url))
+
+        def post(self, request, *args, **kwargs):
+            form = self.get_form()
+            if "disable_two_factor_auth" in request.POST:
+                self.disable_two_factor_auth()
+            if "get_backup_tokens" in request.POST:
+                tokens = self.get_backup_tokens()
+                data = {"tokens": tokens}
+                return JsonResponse(data)
+            elif "generate_backup_tokens" in request.POST:
+                tokens = self.generate_backup_tokens()
+                data = {"tokens": tokens}
+                return JsonResponse(data)
+            elif form.is_valid():
+                self.generate_backup_tokens()
+                user = self.request.user
+                user_settings = user.get_settings()
+                user_settings.two_factor_enabled = True
+                user_settings.save()
+            secret_url = self.get_secret_url()
+            return self.render_to_response(self.get_context_data(form=form, secret_url=secret_url))
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            user = self.get_user()
+            user_settings = user.get_settings()
+            context["user_settings"] = user_settings
+            return context
+
+        def get_secret_url(self):
+            user = self.request.user
+            otp_secret = user.get_settings().otp_secret
+            if otp_secret:
+                secret_url = pyotp.TOTP(otp_secret).provisioning_uri(user.username, issuer_name="Rapidpro")
+            return secret_url
+
+        def disable_two_factor_auth(self):
+            self.delete_backup_tokens()
+            user = self.get_user()
+            user_settings = user.get_settings()
+            user_settings.two_factor_enabled = False
+            user_settings.save()
+
+        def generate_backup_tokens(self):
+            user = self.get_user()
+            self.delete_backup_tokens()
+            for backup in range(10):
+                BackupToken.objects.create(settings=user.get_settings(), created_by=user, modified_by=user)
+            tokens = [backup.token for backup in BackupToken.objects.filter(settings__user=user)]
+            return tokens
+
+        def get_backup_tokens(self):
+            user = self.get_user()
+            tokens = [backup.token for backup in BackupToken.objects.filter(settings__user=user)]
+            return tokens
+
+        def delete_backup_tokens(self):
+            user = self.get_user()
+            BackupToken.objects.filter(settings__user=user).delete()
+
     class Service(SmartFormView):
         class ServiceForm(forms.Form):
             organization = forms.ModelChoiceField(queryset=Org.objects.all(), empty_label=None)
@@ -2286,6 +2396,15 @@ class OrgCRUDL(SmartCRUDL):
             # only pro orgs get multiple users
             if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user_tier():
                 formax.add_section("accounts", reverse("orgs.org_accounts"), icon="icon-users", action="redirect")
+
+            if self.has_org_perm("orgs.org_two_factor"):
+                formax.add_section(
+                    "two_factor",
+                    reverse("orgs.org_two_factor"),
+                    icon="icon-two-factor",
+                    action="redirect",
+                    nobutton=True,
+                )
 
             if self.has_org_perm("orgs.org_edit"):
                 formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")

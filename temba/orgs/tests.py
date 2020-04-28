@@ -6,6 +6,7 @@ from decimal import Decimal
 from unittest.mock import Mock, patch
 from urllib.parse import urlencode
 
+import pyotp
 import pytz
 import stripe
 import stripe.error
@@ -47,7 +48,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
-from temba.orgs.models import Debit, UserSettings
+from temba.orgs.models import BackupToken, Debit, UserSettings
 from temba.request_logs.models import HTTPLog
 from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
@@ -570,6 +571,61 @@ class OrgTest(TembaTest):
         org = Org.objects.get(pk=self.org.pk)
         self.assertEqual("Temba", org.name)
         self.assertEqual("nice-temba", org.slug)
+
+    def test_two_factor(self):
+        # use a manager now
+        self.login(self.admin)
+
+        # create profile
+        response = self.client.get(reverse("orgs.org_two_factor"))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(UserSettings.objects.count(), 1)
+        self.assertEqual(UserSettings.objects.first().user, self.admin)
+
+        # validate token error
+        data = dict(token="12345")
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertIn("token", response.context["form"].errors)
+        self.assertIn("Invalid MFA token. Please try again.", response.context["form"].errors["token"])
+
+        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 0)
+        data = dict(generate_backup_tokens=True)
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 10)
+
+        # disable two factor
+        data = dict(disable_two_factor_auth=True)
+        settings = UserSettings.objects.get(user=self.admin)
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 0)
+        self.assertFalse(settings.two_factor_enabled)
+
+        # get backup tokens without backup tokens
+        data = dict(get_backup_tokens=True)
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"tokens": []})
+
+        # get backup tokens with backup tokens
+        backup_token = BackupToken.objects.create(
+            settings=self.admin.get_settings(), created_by=self.admin, modified_by=self.admin
+        )
+        data = dict(get_backup_tokens=True)
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"tokens": [f"{backup_token.token}"]})
+
+        # test form is valid
+        settings = UserSettings.objects.get(user=self.admin)
+        settings.two_factor_enabled = False
+        settings.save()
+        totp = pyotp.TOTP(self.admin.get_settings().otp_secret)
+        data = dict(token=totp.now())
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 10)
+        self.assertEqual(self.admin.get_settings().two_factor_enabled, True)
 
     def test_country(self):
         self.setUpLocations()
