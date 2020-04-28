@@ -42,6 +42,10 @@
         Start the
         %a.href{ href: "{% url 'flows.flow_editor' object.flow.uuid %}" }= object.flow.name
         Flow
+        -if object.extra
+          |
+          %a.href{href:"#", data-success-url:"", class:"update-event", data-original-title:"", title:""}
+            -trans "Contains flow parameters"
 
 -block content
   -if not scheduled_event_fires

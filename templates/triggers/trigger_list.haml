@@ -165,6 +165,16 @@
                               - else
                                 -trans "not scheduled"
 
+                        -if obj.extra
+                          |
+                          -trans "Contains "
+                          - if org_perms.triggers.trigger_update
+                            %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}
+                              -trans "flow parameters"
+                          - else
+                            -trans "Contains flow parameters"
+
+
                       %td{ width: "250px" }
                         .groups
                           -for group in obj.groups.all

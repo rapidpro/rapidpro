@@ -72,6 +72,9 @@
                 Start the
                 %a.href{ href: "{% url 'flows.flow_editor' event.flow.uuid %}" }= event.flow.name
                 flow.
+                -if event.extra
+                  |
+                  -trans "Contains flow parameters"
 
         -if not forloop.last
           %tr.break
