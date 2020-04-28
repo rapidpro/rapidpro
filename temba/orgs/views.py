@@ -1528,7 +1528,7 @@ class OrgCRUDL(SmartCRUDL):
             tokens = [backup.token for backup in BackupToken.objects.filter(settings__user=user)]
             return tokens
 
-        def get_backup_tokens(self):  # pragma: no cover
+        def get_backup_tokens(self):
             user = self.get_user()
             tokens = [backup.token for backup in BackupToken.objects.filter(settings__user=user)]
             return tokens
