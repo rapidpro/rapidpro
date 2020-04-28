@@ -37,6 +37,7 @@ from django.views.decorators.csrf import csrf_exempt
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.templatetags.contacts import MISSING_VALUE
+from temba.mixins import NotFoundRedirectMixin
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, languages, on_transaction_commit
@@ -1152,7 +1153,12 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm("msgs.broadcast_send") and not self.object.is_blocked and not self.object.is_stopped and self.object.get_urn():
+            if (
+                self.has_org_perm("msgs.broadcast_send")
+                and not self.object.is_blocked
+                and not self.object.is_stopped
+                and self.object.get_urn()
+            ):
                 links.append(
                     dict(
                         id="send-message",
@@ -1381,8 +1387,18 @@ class ContactCRUDL(SmartCRUDL):
             context["reply_disabled"] = True
             return context
 
-    class Filter(ContactActionMixin, ContactListView, OrgObjPermsMixin):
+    class Filter(NotFoundRedirectMixin, ContactActionMixin, ContactListView, OrgObjPermsMixin):
         template_name = "contacts/contact_filter.haml"
+
+        # fields for NotFoundRedirectMixin
+        redirect_checking_model = ContactGroup
+        redirect_url = "contacts.contact_list"
+        redirect_params = {
+            "filter_key": "uuid",
+            "filter_value": "group",
+            "model_manager": "user_groups",
+            "message": _("Contact group not found."),
+        }
 
         def get_gear_links(self):
             links = []

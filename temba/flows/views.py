@@ -5,7 +5,6 @@ from uuid import uuid4
 import iso8601
 import regex
 import requests
-import itertools
 from packaging.version import Version
 from smartmin.views import (
     SmartCreateView,
@@ -45,7 +44,7 @@ from temba.contacts.models import FACEBOOK_SCHEME, TEL_SCHEME, WHATSAPP_SCHEME, 
 from temba.contacts.omnibox import omnibox_deserialize
 from temba.flows import legacy
 from temba.flows.legacy.expressions import get_function_listing
-from temba.flows.models import Flow, FlowRevision, FlowRun, FlowStart, FlowRunCount, FlowSession
+from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
@@ -2200,7 +2199,7 @@ class FlowCRUDL(SmartCRUDL):
                 ),
                 initial="select",
             )
-            
+
             omnibox = OmniboxField(
                 label=_("Contacts & Groups"),
                 help_text=_("These contacts will be added to the flow, sending the first message if appropriate."),
@@ -2228,7 +2227,7 @@ class FlowCRUDL(SmartCRUDL):
             # Fields for trigger keyword launch
             keyword_triggers = forms.CharField(
                 label=_("Keyword triggers"),
-                required=False, 
+                required=False,
                 help_text=_("When a user sends any of these keywords they will begin this flow"),
             )
 
@@ -2251,25 +2250,24 @@ class FlowCRUDL(SmartCRUDL):
                     keyword_triggers = cleaned_data.get("keyword_triggers", "")
                     org = self.user.get_org()
 
-                    for keyword in keyword_triggers.split(','):
+                    for keyword in keyword_triggers.split(","):
                         keyword = keyword.strip()
 
                         # format validation
                         keyword_has_wrong_format = (
-                            keyword == "" or
-                            keyword and not regex.match(r"^\w+$", keyword, flags=regex.UNICODE | regex.V0) or
-                            len(keyword) > Trigger.KEYWORD_MAX_LEN
+                            keyword == ""
+                            or keyword
+                            and not regex.match(r"^\w+$", keyword, flags=regex.UNICODE | regex.V0)
+                            or len(keyword) > Trigger.KEYWORD_MAX_LEN
                         )
                         if keyword_has_wrong_format:
                             wrong_format.append(keyword)
                             continue
-                        
+
                         # duplicates validation
-                        keyword_already_exist = (
-                            Trigger.objects
-                            .filter(org=org, is_archived=False, is_active=True, keyword__iexact=keyword)
-                            .exists()
-                        )
+                        keyword_already_exist = Trigger.objects.filter(
+                            org=org, is_archived=False, is_active=True, keyword__iexact=keyword
+                        ).exists()
                         if keyword_already_exist:
                             duplicates.append(keyword)
                             continue
@@ -2286,19 +2284,23 @@ class FlowCRUDL(SmartCRUDL):
                         self.add_error(
                             "keyword_triggers",
                             forms.ValidationError(
-                                _('"%s" must be a single word, less than %d characters, containing only letter '
-                                  'and numbers') % (', '.join(wrong_format), Trigger.KEYWORD_MAX_LEN)
+                                _(
+                                    '"%s" must be a single word, less than %d characters, containing only letter '
+                                    "and numbers"
+                                )
+                                % (", ".join(wrong_format), Trigger.KEYWORD_MAX_LEN)
                             ),
                         )
-                    
+
                     if duplicates:
                         error_message = (
-                            _('The keywords "{}" are already used for another flow') if len(duplicates) > 1 else
-                            _('The keyword "{}" is already used for another flow')
-                        ).format(', '.join(duplicates))
+                            _('The keywords "{}" are already used for another flow')
+                            if len(duplicates) > 1
+                            else _('The keyword "{}" is already used for another flow')
+                        ).format(", ".join(duplicates))
                         self.add_error("keyword_triggers", forms.ValidationError(error_message))
 
-                    cleaned_data["keyword_triggers"] = ','.join(cleaned_keywords)
+                    cleaned_data["keyword_triggers"] = ",".join(cleaned_keywords)
 
                 def validate_omnibox():
                     starting = cleaned_data["omnibox"]
@@ -2471,16 +2473,17 @@ class FlowCRUDL(SmartCRUDL):
                 with transaction.atomic():
                     triggers = []
                     # creating of triggers
-                    for keyword in keyword_triggers.split(','):
-                        pass
-                        triggers.append(Trigger(
-                            flow=flow,
-                            keyword=keyword,
-                            match_type=Trigger.MATCH_FIRST_WORD,
-                            org=org,
-                            created_by=user,
-                            modified_by=user,
-                        ))
+                    for keyword in keyword_triggers.split(","):
+                        triggers.append(
+                            Trigger(
+                                flow=flow,
+                                keyword=keyword,
+                                match_type=Trigger.MATCH_FIRST_WORD,
+                                org=org,
+                                created_by=user,
+                                modified_by=user,
+                            )
+                        )
                     triggers = Trigger.objects.bulk_create(triggers)
 
             def process_on_schedule_trigger():

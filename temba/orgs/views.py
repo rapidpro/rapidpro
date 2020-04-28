@@ -3245,7 +3245,6 @@ class OrgCRUDL(SmartCRUDL):
             self.success_message = _("Cleared %(name)s cache for this organization (%(count)d keys)") % dict(
                 name=cache.name, count=num_deleted
             )
-    
 
     class SendInvite(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class SentInviteForm(forms.Form):
@@ -3253,7 +3252,7 @@ class OrgCRUDL(SmartCRUDL):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 if self.initial.get("email"):
-                    self.fields["email"].widget.attrs['readonly'] = True
+                    self.fields["email"].widget.attrs["readonly"] = True
 
             email = forms.EmailField(label=_("Invite people to your organization"), required=True)
             user_group = forms.ChoiceField(
@@ -3269,7 +3268,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def derive_initial(self):
             initial = super().derive_initial()
-            org, invitation_id = self.request.user.get_org(), self.request.GET.get('id')
+            org, invitation_id = self.request.user.get_org(), self.request.GET.get("id")
             invite = Invitation.objects.filter(org=org, id=invitation_id).first()
             if invite:
                 initial["email"] = invite.email
