@@ -146,7 +146,8 @@ class Ticket(models.Model):
     # the subject of the ticket
     subject = models.TextField()
 
-    # TODO: tickets should have a body as well
+    # the body of the ticket
+    body = models.TextField()
 
     # the external id of the ticket
     external_id = models.CharField(null=True, max_length=255)

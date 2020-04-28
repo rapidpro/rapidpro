@@ -85,6 +85,7 @@ class Migration(migrations.Migration):
                 ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("uuid", models.UUIDField(default=temba.utils.uuid.uuid4, unique=True)),
                 ("subject", models.TextField()),
+                ("body", models.TextField()),
                 ("external_id", models.CharField(max_length=255, null=True)),
                 ("config", django.contrib.postgres.fields.jsonb.JSONField()),
                 ("status", models.CharField(choices=[("O", "Open"), ("C", "Closed")], max_length=1)),
