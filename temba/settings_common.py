@@ -1208,3 +1208,6 @@ RECAPTCHA_SECRET_KEY = ""
 # Authy configuration
 AUTHY_API_KEY = os.environ.get("AUTHY_API_KEY", "")
 AUTHY_MAGIC_PASS = os.environ.get("AUTHY_MAGIC_PASS", "")
+
+# Credits expiration config
+CREDITS_EXPIRATION = False
