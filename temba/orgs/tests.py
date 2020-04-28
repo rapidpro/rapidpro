@@ -600,6 +600,25 @@ class OrgTest(TembaTest):
         self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 0)
         self.assertFalse(settings.two_factor_enabled)
 
+        # get backup tokens without backup tokens
+        data = dict(get_backup_tokens=True)
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"tokens": []})
+
+        # get backup tokens with backup tokens
+        backup_token = BackupToken.objects.create(
+            settings=self.admin.get_settings(), created_by=self.admin, modified_by=self.admin
+        )
+        data = dict(get_backup_tokens=True)
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"tokens": [f"{backup_token.token}"]})
+
+        # test form is valid
+        response = self.client.post(reverse("orgs.org_two_factor"))
+        self.assertEqual(response.status_code, 200)
+
     def test_country(self):
         self.setUpLocations()
 
