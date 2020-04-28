@@ -21,7 +21,7 @@
 
 -block above-bar
   -block top-form
-    %form.search{method:'get'}
+    %form{method:'get'}
       %input.input-medium.search-query{'type':'text', 'placeholder':'{% trans "Search" %}', 'name':"search", 'value':"{{search}}"}
 
 -block content
@@ -510,16 +510,4 @@
       modal.setPrimaryButton('{% trans "Start Export" %}');
       modal.show();
     });
-    {% endif %}
-
-    {% if error_message %}
-    /* display an error from redirected page */
-    var search = $('.search');
-    var container = search.parent();
-    search.hide();
-    container.append("<div class='alert alert-error'>{{error_message}}</div>")
-    setTimeout(function() {
-      container.find('.alert').remove();
-      search.show();
-    }, 3000);
     {% endif %}

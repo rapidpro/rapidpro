@@ -1360,9 +1360,7 @@ class ContactCRUDL(SmartCRUDL):
             "filter_key": 'uuid',
             "filter_value": 'group',
             "model_manager": 'user_groups',
-            "redirect_context": {
-                "error_message": str(_('Contact group not found.')),
-            }
+            "message": _('Contact group not found.'),
         }
 
         def get_gear_links(self):

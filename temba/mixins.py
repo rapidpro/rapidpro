@@ -1,3 +1,4 @@
+from django.contrib import messages
 from django.shortcuts import redirect
 
 
@@ -11,8 +12,7 @@ class NotFoundRedirectMixin:
         :param filter_key: keyword that is using for model filtering, by default is same as `filter_value`
         :param filter_value: keyword for selecting value from the request kwargs to be used for model filtering
         :param model_manager: using to select exact manager of model
-        :param redirect_context: dict of values that will be passed to the session for processing
-        in the redirected view,
+        :param message: message for messages the messages framework
 
     :param redirect_url: an url for redict, when object not found
 
@@ -21,8 +21,8 @@ class NotFoundRedirectMixin:
     redirect_params = {
         "filter_key": None,
         "filter_value": 'pk',
-        "model_manager": "objects",
-        "redirect_context": None,
+        "model_manager": 'objects',
+        "message": '',
     }
     redirect_url = None
 
@@ -45,8 +45,8 @@ class NotFoundRedirectMixin:
             )
 
             if not is_exists:
-                if self.redirect_params.get("redirect_context"):
-                    request.session['redirect_context'] = self.redirect_params["redirect_context"]
+                if self.redirect_params.get("message"):
+                    messages.error(request, self.redirect_params["message"])
                 return redirect(self.redirect_url)
         
         return super().dispatch(request, *args, **kwargs)
