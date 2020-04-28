@@ -9,8 +9,8 @@
   %h2.header-margin
     -if classifier
       -trans "Recent Classifier Events"
-    -if ticketing_service
-      -trans "Recent Ticketing Service Events"
+    -if ticket_service
+      -trans "Recent Ticket Service Events"
 
   %h5.header-margin
     -if classifier
@@ -19,11 +19,11 @@
       %a(href="{% url 'classifiers.classifier_read' classifier.uuid %}")
         {{ classifier.name }}
 
-    -if ticketing_service
-      {{ticketing_service.get_type.name}}
-      -trans "Ticketing Service: "
-      %a(href="{% url 'tickets.ticketingservice_read' ticketing_service.uuid %}")
-        {{ ticketing_service.name }}
+    -if ticket_service
+      {{ticket_service.get_type.name}}
+      -trans "Ticket Service: "
+      %a(href="{% url 'tickets.ticketservice_read' ticket_service.uuid %}")
+        {{ ticket_service.name }}
 
 -block table
 
@@ -40,8 +40,8 @@
           %td
             -if classifier
               {{ obj.classifier.name }}
-            -if ticketing_service
-              {{ obj.ticketing_service.name }}
+            -if ticket_service
+              {{ obj.ticket_service.name }}
 
           %td.clickable
             %a{ href:'{% url "request_logs.httplog_read" obj.id %}' }= obj.get_log_type_display

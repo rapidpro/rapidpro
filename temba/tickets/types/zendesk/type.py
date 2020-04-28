@@ -1,26 +1,20 @@
-from ...models import TicketingServiceType
+from ...models import TicketServiceType
 from .views import ConnectView
 
 
-class ZendeskType(TicketingServiceType):
+class ZendeskType(TicketServiceType):
     """
-    Type for using Zendesk as a ticketing service
+    Type for using Zendesk as a ticket service
     """
 
     name = "Zendesk"
     slug = "zendesk"
 
+    CONFIG_SUBDOMAIN = "subdomain"
     CONFIG_USERNAME = "username"
     CONFIG_API_TOKEN = "api_token"
-    CONFIG_SUBDOMAIN = "subdomain"
 
     connect_view = ConnectView
-    connect_blurb = """
-        <a href="https://www.zendesk.com/">Zendesk</a> is one of the most popular ticketing systems around. You can
-        use it to manage all the tickets created on your account.
-        """
+    connect_blurb = """<a href="https://www.zendesk.com/">Zendesk</a> is one of the most popular customer service systems around. You can use it to manage all the tickets created on your account."""
 
-    form_blurb = """
-        Enter your credentials below to connect your ZenDesk account. You can create a new API Token by visiting the API
-        page in your ZenDesk settings.
-        """
+    form_blurb = """Enter your credentials below to connect your Zendesk account. You can create a new API Token by visiting the API page in your Zendesk settings."""

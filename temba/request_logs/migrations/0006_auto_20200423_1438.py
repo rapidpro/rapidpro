@@ -11,13 +11,13 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name="httplog",
-            name="ticketing_service",
+            name="ticket_service",
             field=models.ForeignKey(
                 db_index=False,
                 null=True,
                 on_delete=django.db.models.deletion.PROTECT,
                 related_name="http_logs",
-                to="tickets.TicketingService",
+                to="tickets.TicketService",
             ),
         ),
         migrations.AlterField(
@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
                     ("intents_synced", "Intents Synced"),
                     ("classifier_called", "Classifier Called"),
                     ("airtime_transferred", "Airtime Transferred"),
-                    ("ticketing_service_called", "Ticketing Service Called"),
+                    ("ticket_service_called", "Ticket Service Called"),
                     ("whatsapp_templates_synced", "WhatsApp Templates Synced"),
                     ("whatsapp_tokens_synced", "WhatsApp Tokens Synced"),
                     ("whatsapp_contacts_refreshed", "WhatsApp Contacts Refreshed"),

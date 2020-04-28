@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404
 
 from temba.classifiers.models import Classifier
 from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
-from temba.tickets.models import TicketingService
+from temba.tickets.models import TicketService
 
 from .models import HTTPLog
 
@@ -19,21 +19,21 @@ class HTTPLogCRUDL(SmartCRUDL):
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r"^%s/(?P<log_type>classifier|ticketing_service)/(?P<uuid>[^/]+)/$" % path
+            return r"^%s/(?P<log_type>classifier|ticket_service)/(?P<uuid>[^/]+)/$" % path
 
         def derive_classifier(self):
             return get_object_or_404(Classifier, uuid=self.kwargs["uuid"], org=self.derive_org(), is_active=True)
 
-        def derive_ticketing_service(self):
-            return get_object_or_404(TicketingService, uuid=self.kwargs["uuid"], org=self.derive_org(), is_active=True)
+        def derive_ticket_service(self):
+            return get_object_or_404(TicketService, uuid=self.kwargs["uuid"], org=self.derive_org(), is_active=True)
 
         def derive_queryset(self, **kwargs):
             # will need to be customized for other types once we support them
             log_type = self.kwargs["log_type"]
             if log_type == "classifier":
                 kwargs["classifier"] = self.derive_classifier()
-            elif log_type == "ticketing_service":
-                kwargs["ticketing_service"] = self.derive_ticketing_service()
+            elif log_type == "ticket_service":
+                kwargs["ticket_service"] = self.derive_ticket_service()
             else:
                 raise ValidationError(f"invalid log type: {log_type}")
 
@@ -44,8 +44,8 @@ class HTTPLogCRUDL(SmartCRUDL):
             log_type = self.kwargs["log_type"]
             if log_type == "classifier":
                 context["classifier"] = self.derive_classifier()
-            elif log_type == "ticketing_service":
-                context["ticketing_service"] = self.derive_ticketing_service()
+            elif log_type == "ticket_service":
+                context["ticket_service"] = self.derive_ticket_service()
 
             return context
 

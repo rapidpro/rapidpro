@@ -11,13 +11,13 @@
 
   %h2.font_normalize.header-margin.title
     {{ object.get_type.name }}
-    -trans "Ticketing Service"
+    -trans "Ticket Service"
     .name
       {{ object.name }}
 
   .header-margin
-    %a.btn.btn-tiny(href="{% url 'request_logs.httplog_list' 'ticketing_service' ticketingservice.uuid %}")
-      -trans "Ticketing Service Log"
+    %a.btn.btn-tiny(href="{% url 'request_logs.httplog_list' 'ticket_service' ticketservice.uuid %}")
+      -trans "Ticket Service Log"
 
 -block content
   %div(style="float:right;line-height:40px")
@@ -53,33 +53,31 @@
               -trans "No open tickets at this time."
 
 -block post-content
-  - if org_perms.tickets.ticketingservice_delete
+  - if org_perms.tickets.ticketservice_delete
     .deletion.hide
       .title
-        -trans "Delete Ticketing Service"
+        -trans "Delete Ticket Service"
       .body
         %p
           -trans "Once it is removed, it will be gone forever. There is no way to undo this operation."
 
-    %a#deletion-form.posterize{href:'{% url "tickets.ticketingservice_delete" object.uuid %}'}
+    %a#deletion-form.posterize{href:'{% url "tickets.ticketservice_delete" object.uuid %}'}
 
 -block extra-script
   {{block.super}}
 
   :javascript
-    {% if org_perms.classifiers.classifier_delete %}
-      $(".delete-ticketingservice").live('click', function(){
-        modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
-        modal.addClass('alert');
+    $(".delete-ticketservice").live('click', function(){
+      modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
+      modal.addClass('alert');
 
-        modal.setListeners({onPrimary: function(){
-          $('#deletion-form').click();
-        }}, false);
-        modal.setPrimaryButton('{% trans "Delete" %}');
+      modal.setListeners({onPrimary: function(){
+        $('#deletion-form').click();
+      }}, false);
+      modal.setPrimaryButton('{% trans "Delete" %}');
 
-        modal.show();
-        });
-    {% endif %}
+      modal.show();
+      });
 
 -block extra-style
   {{ block.super }}
@@ -94,7 +92,7 @@
       width: 400px;
     }
 
-    td.ticked-created {
+    td.ticket-created {
       width: 200px;
     }
 
@@ -103,8 +101,8 @@
     }
 
 -block summary
-  {{ ticketingservice.get_type.name }}
-  -trans "Ticketing Service"
+  {{ ticketservice.get_type.name }}
+  -trans "Ticket Service"
   %span -
   %strong
-    {{ ticketingservice.name }}
+    {{ ticketservice.name }}

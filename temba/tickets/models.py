@@ -13,18 +13,18 @@ from temba.orgs.models import Org
 from temba.utils.uuid import uuid4
 
 
-class TicketingServiceType(metaclass=ABCMeta):
+class TicketServiceType(metaclass=ABCMeta):
     """
-    TicketingServiceType is our abstract base type for ticketing services.
+    TicketServiceType is our abstract base type for ticket services.
     """
 
-    # the verbose name for this ticketing service type
+    # the verbose name for this ticket service type
     name = None
 
-    # the short code for this ticketing service type (< 16 chars, lowercase)
+    # the short code for this ticket service type (< 16 chars, lowercase)
     slug = None
 
-    # the icon to show for this ticketing service type
+    # the icon to show for this ticket service type
     icon = "icon-channel-external"
 
     # the blurb to show on the main connect page
@@ -50,35 +50,35 @@ class TicketingServiceType(metaclass=ABCMeta):
 
     def get_urls(self):
         """
-        Returns all the URLs this ticketing service exposes to Django, the URL should be relative.
+        Returns all the URLs this ticket service exposes to Django, the URL should be relative.
         """
         return [self.get_connect_url()]
 
     def get_connect_url(self):
         """
-        Gets the URL/view configuration for this ticketing service's connect page
+        Gets the URL/view configuration for this ticket service's connect page
         """
         return url(r"^connect", self.connect_view.as_view(service_type=self), name="connect")
 
 
-class TicketingService(SmartModel):
+class TicketService(SmartModel):
     """
-    A ticketing service is a specific connection of a service, say Zendesk with an organization
+    A service that can open and close tickets
     """
 
     # our uuid
     uuid = models.UUIDField(default=uuid4)
 
-    # the type of this ticketing service
+    # the type of this ticket service
     service_type = models.CharField(max_length=16)
 
-    # the org this ticketing service is connected to
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticketing_services")
+    # the org this service is connected to
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticket_services")
 
-    # a name for this ticketing service
+    # a name for this service
     name = models.CharField(max_length=64)
 
-    # the configuration options for this ticketing service
+    # the configuration options
     config = JSONField()
 
     @classmethod
@@ -96,7 +96,7 @@ class TicketingService(SmartModel):
     @classmethod
     def get_types(cls):
         """
-        Returns the possible types available for ticketing services
+        Returns the possible types available for ticket services
         """
         from .types import TYPES
 
@@ -104,7 +104,7 @@ class TicketingService(SmartModel):
 
     def get_type(self):
         """
-        Returns the type instance for this ticketing service
+        Returns the type instance for this service
         """
         from .types import TYPES
 
@@ -112,7 +112,7 @@ class TicketingService(SmartModel):
 
     def release(self):
         """
-        Releases this ticketing service, closing all associated tickets in the process
+        Releases this service, closing all associated tickets in the process
         """
 
         for ticket in self.tickets.all():
@@ -137,8 +137,8 @@ class Ticket(models.Model):
     # the organization this ticket belongs to
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="tickets")
 
-    # the ticketing service that this ticket belongs to
-    service = models.ForeignKey(TicketingService, on_delete=models.PROTECT, related_name="tickets")
+    # the service that manages this ticket
+    service = models.ForeignKey(TicketService, on_delete=models.PROTECT, related_name="tickets")
 
     # the contact this ticket is tied to
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="tickets")
