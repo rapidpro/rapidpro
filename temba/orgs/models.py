@@ -1347,7 +1347,7 @@ class Org(SmartModel):
 
     def _calculate_low_credits_threshold(self):
         now = timezone.now()
-        unexpired_topups = self.topups.filter(is_active=True)
+        unexpired_topups = self.topups.filter(is_active=True, expires_on__gte=now)
 
         active_topup_credits = [topup.credits for topup in unexpired_topups if topup.get_remaining() > 0]
         last_topup_credits = sum(active_topup_credits)
@@ -1377,7 +1377,7 @@ class Org(SmartModel):
 
     def _calculate_credits_total(self):
         active_credits = (
-            self.topups.filter(is_active=True)
+            self.topups.filter(is_active=True, expires_on__gte=timezone.now())
             .aggregate(Sum("credits"))
             .get("credits__sum")
         )
@@ -1385,7 +1385,7 @@ class Org(SmartModel):
 
         # these are the credits that have been used in expired topups
         expired_credits = (
-            TopUpCredits.objects.filter(topup__org=self, topup__is_active=True)
+            TopUpCredits.objects.filter(topup__org=self, topup__is_active=True, topup__expires_on__lte=timezone.now())
             .aggregate(Sum("used"))
             .get("used__sum")
         )
@@ -1427,8 +1427,8 @@ class Org(SmartModel):
         decremented is not guaranteed to be the full amount requested.
         """
         # if we have an active topup cache, we need to decrement the amount remaining
-        non_expired_topups = self.topups.filter(is_active=True).order_by(
-            "-created_on", "id"
+        non_expired_topups = self.topups.filter(is_active=True, expires_on__gte=timezone.now()).order_by(
+            "-expires_on", "id"
         )
         active_topups = (
             non_expired_topups.annotate(used_credits=Sum("topupcredits__used"))
@@ -1471,7 +1471,7 @@ class Org(SmartModel):
 
                             # create the topup for our child, expiring on the same date
                             new_topup = TopUp.create(
-                                user, credits=debited, org=org, price=None
+                                user, credits=debited, org=org, expires_on=topup.expires_on, price=None
                             )
 
                             # create a debit for transaction history
@@ -1568,14 +1568,14 @@ class Org(SmartModel):
         if not topup:
             return 10
 
-        return max(10, ORG_CREDITS_CACHE_TTL)
+        return max(10, min((ORG_CREDITS_CACHE_TTL, int((topup.expires_on - timezone.now()).total_seconds()))))
 
     def _calculate_active_topup(self):
         """
         Calculates the oldest non-expired topup that still has credits
         """
-        non_expired_topups = self.topups.filter(is_active=True).order_by(
-            "-created_on", "id"
+        non_expired_topups = self.topups.filter(is_active=True, expires_on__gte=timezone.now()).order_by(
+            "expires_on", "id"
         )
         active_topups = (
             non_expired_topups.annotate(used_credits=Sum("topupcredits__used"))
@@ -1607,7 +1607,7 @@ class Org(SmartModel):
 
             # get all topups that haven't expired
             unexpired_topups = list(
-                self.topups.filter(is_active=True).order_by("-created_on")
+                self.topups.filter(is_active=True, expires_on__gte=timezone.now()).order_by("-expires_on")
             )
 
             # dict of topups to lists of their newly assigned items
@@ -2542,6 +2542,9 @@ class TopUp(SmartModel):
     credits = models.IntegerField(
         verbose_name=_("Number of Credits"), help_text=_("The number of credits bought in this top up")
     )
+    expires_on = models.DateTimeField(
+        verbose_name=_("Expiration Date"), help_text=_("The date that this top up will expire")
+    )
     stripe_charge = models.CharField(
         verbose_name=_("Stripe Charge Id"),
         max_length=32,
@@ -2557,17 +2560,21 @@ class TopUp(SmartModel):
     )
 
     @classmethod
-    def create(cls, user, price, credits, stripe_charge=None, org=None):
+    def create(cls, user, price, credits, stripe_charge=None, org=None, expires_on=None):
         """
         Creates a new topup
         """
         if not org:
             org = user.get_org()
 
+        if not expires_on:
+            expires_on = timezone.now() + timedelta(days=365)  # credits last 1 year
+
         topup = TopUp.objects.create(
             org=org,
             price=price,
             credits=credits,
+            expires_on=expires_on,
             stripe_charge=stripe_charge,
             created_by=user,
             modified_by=user,
@@ -2628,18 +2635,24 @@ class TopUp(SmartModel):
             )
 
         now = timezone.now()
+        expired = self.expires_on < now
 
         # add a line for used message credits
         if active:
             ledger.append(
                 dict(
-                    date=now,
+                    date=self.expires_on if expired else now,
                     comment=_("Messaging credits used"),
                     amount=self.get_remaining() - balance,
                     balance=self.get_remaining(),
                 )
             )
 
+        # add a line for expired credits
+        if expired and self.get_remaining() > 0:
+            ledger.append(
+                dict(date=self.expires_on, comment=_("Expired credits"), amount=-self.get_remaining(), balance=0)
+            )
         return ledger
 
     def get_price_display(self):
@@ -2770,7 +2783,8 @@ class CreditAlert(SmartModel):
 
     TYPE_OVER = "O"
     TYPE_LOW = "L"
-    TYPES = ((TYPE_OVER, _("Credits Over")), (TYPE_LOW, _("Low Credits")))
+    TYPE_EXPIRING = "E"
+    TYPES = ((TYPE_OVER, _("Credits Over")), (TYPE_LOW, _("Low Credits")), (TYPE_EXPIRING, _("Credits expiring soon")))
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="credit_alerts")
 
@@ -2836,3 +2850,30 @@ class CreditAlert(SmartModel):
                 CreditAlert.trigger_credit_alert(org, CreditAlert.TYPE_OVER)
             elif org_low_credits:  # pragma: needs cover
                 CreditAlert.trigger_credit_alert(org, CreditAlert.TYPE_LOW)
+
+    @classmethod
+    def check_topup_expiration(cls):
+        """
+        Triggers an expiring credit alert for any org that has its last
+        active topup expiring in the next 30 days and still has available credits
+        """
+
+        # get the ids of the last to expire topup, with credits, for each org
+        final_topups = (
+            TopUp.objects.filter(is_active=True, org__is_active=True, credits__gt=0)
+            .order_by("org_id", "-expires_on")
+            .distinct("org_id")
+            .values_list("id", flat=True)
+        )
+
+        # figure out which of those have credits remaining, and will expire in next 30 days
+        expiring_final_topups = (
+            TopUp.objects.filter(id__in=final_topups)
+            .annotate(used_credits=Sum("topupcredits__used"))
+            .filter(expires_on__gt=timezone.now(), expires_on__lte=(timezone.now() + timedelta(days=30)))
+            .filter(Q(used_credits__lt=F("credits")) | Q(used_credits=None))
+            .select_related("org")
+        )
+
+        for topup in expiring_final_topups:
+            CreditAlert.trigger_credit_alert(topup.org, CreditAlert.TYPE_EXPIRING)

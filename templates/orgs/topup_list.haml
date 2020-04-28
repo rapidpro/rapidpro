@@ -98,13 +98,20 @@
           -trans "credits remaining. Top up early to prevent any disruption in your service."
 
   -for topup in object_list
-    .topup
+    .topup{ class:"{% if topup.expires_on < now %}expired{% elif topup.expires_on < expiration_period %}expiring{% endif %}" }
       .topup-price
         {{ topup.get_price_display }}
 
       .topup-credits
         {{ topup.get_used|intcomma }} {% trans "of" %} {{ topup.credits|intcomma }} {% trans "Credits Used" %}
 
+      .topup-expires
+        -if topup.expires_on < now
+          -trans "Expired on "
+          {{ topup.expires_on }}
+        -else
+          -trans "Expires on "
+          {{ topup.expires_on }}
 
       .topup-history
         -if topup.comment
