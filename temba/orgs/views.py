@@ -1492,7 +1492,7 @@ class OrgCRUDL(SmartCRUDL):
                 return JsonResponse(data)
             elif form.is_valid():
                 self.generate_backup_tokens()
-                user = self.get_user()
+                user = self.request.user
                 user_settings = user.get_settings()
                 user_settings.two_factor_enabled = True
                 user_settings.save()
