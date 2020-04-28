@@ -321,7 +321,7 @@ class CampaignEvent(TembaModel):
     delivery_hour = models.IntegerField(default=-1)
 
     # any extra parameters that should be passed as trigger params for this campaign event
-    extra = JSONAsTextField(null=True, default=dict)
+    extra = JSONAsTextField(null=True, blank=True, default=dict)
 
     @classmethod
     def create_message_event(
@@ -363,6 +363,7 @@ class CampaignEvent(TembaModel):
             start_mode=start_mode,
             created_by=user,
             modified_by=user,
+            extra=None,
         )
 
     @classmethod
