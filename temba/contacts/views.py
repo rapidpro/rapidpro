@@ -1750,7 +1750,8 @@ class ContactCRUDL(SmartCRUDL):
 
             context["folders"] = folders
             context["current_group"] = group
-            context["flows"] = Flow.objects.filter(org=org, is_active=True)
+            context["flows"] = Flow.objects.filter(org=org, is_active=True, is_system=False, is_archived=False)
+            context["optin_flow"] = org.get_optin_flow()
             context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by("-priority", "pk")
             context["export_url"] = self.derive_export_url()
             context["actions"] = ("label", "block")

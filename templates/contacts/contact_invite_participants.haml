@@ -65,8 +65,9 @@
                 %form.controls{method:"POST"}
                   - csrf_token
                   %select#id_opt_in_flow{float:'left', name:'optin_flow_uuid', data-url-template:"{% url 'flows.flow_broadcast' '0' %}"}
+                    %option
                     - for flow in flows
-                      %option{value:'{{flow.uuid}}'}
+                      %option{value:'{{flow.uuid}}', '{% if flow.uuid == optin_flow %}selected{% endif %}'}
                         {{ flow.name }}
                   %button#id_save_flow_btn.btn.btn-primary{type:'submit'}
                     %trans Save
@@ -452,14 +453,19 @@
     var flowEditLink = $("#id_open_in_flow_editor");
     var inviteLinks = $('a.invite');
 
-    flowSelect.select2({containerCss: {'min-width': '350px'}}).change(function() {
+    flowSelect.select2({
+      containerCss: {'min-width': '350px'},
+      placeholder: gettext('Choose the Opt-In Flow'),
+    }).change(function() {
       inviteLinks.attr("data-available", false);
     });
 
     flowEditLink.mousedown(function(evt) {
       let hrefTemplate = flowEditLink.attr('data-href-template');
-      let flowUUID = JSON.parse(flowSelect.val()).uuid;
-      flowEditLink.attr('href', hrefTemplate.replace('uuid', flowUUID));
+      let flowUUID = flowSelect.val();
+      if (flowUUID) {
+        flowEditLink.attr('href', hrefTemplate.replace('uuid', flowUUID));
+      }
     });
 
     inviteLinks.click(function(evt) {
