@@ -1,3 +1,7 @@
+v5.5.32
+----------
+ * Add basic 2FA support
+
 v5.5.31
 ----------
  * Update to latest smartmin
