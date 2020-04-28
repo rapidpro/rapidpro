@@ -53,7 +53,6 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
-from temba.orgs.models import BackupToken
 from temba.utils import analytics, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address
 from temba.utils.http import http_headers
@@ -61,7 +60,7 @@ from temba.utils.text import random_string
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import NonAtomicMixin
 
-from .models import Invitation, Org, OrgCache, TopUp, UserSettings, get_stripe_credentials
+from .models import BackupToken, Invitation, Org, OrgCache, TopUp, UserSettings, get_stripe_credentials
 from .tasks import apply_topups_task
 
 
