@@ -4866,6 +4866,14 @@ msgstr "Número do telefone"
 msgid "Phone number for testing and recording voice flows"
 msgstr "Número do telefone para testar e gravar fluxos de voz"
 
+#, fuzzy
+#| msgid "API Secret:"
+msgid "OTP Secret"
+msgstr "Segredo da API:"
+
+msgid "Two Factor Enabled"
+msgstr ""
+
 msgid "Price Paid"
 msgstr "Preço Pago"
 
@@ -4958,6 +4966,12 @@ msgstr "créditos restantes."
 
 #, python-format
 msgid "%(name)s Credits Alert"
+msgstr ""
+
+msgid "Settings"
+msgstr "Configurações"
+
+msgid "Used"
 msgstr ""
 
 msgid "Your first name"
@@ -5202,6 +5216,17 @@ msgstr "Grupo do usuário"
 
 msgid "One of the emails you entered is invalid."
 msgstr "Um dos e-mails que você digitou é inválido."
+
+msgid "Enter the code from your authentication application"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid phone number, try again."
+msgid "Invalid MFA token. Please try again."
+msgstr "Número de telefone inválido, tente novamente."
+
+msgid "Activate"
+msgstr "Ativar"
 
 #, fuzzy
 msgid "Select your Organization"
@@ -6047,9 +6072,6 @@ msgstr "Envio em massa habilitado"
 
 msgid "Voice calls enabled"
 msgstr "Chamadas de voz habilitado"
-
-msgid "Settings"
-msgstr "Configurações"
 
 #, fuzzy
 #| msgid "Channel"
@@ -8708,9 +8730,6 @@ msgstr ""
 msgid "Unlabel"
 msgstr "Remover rótulo"
 
-msgid "Activate"
-msgstr "Ativar"
-
 msgid "Add Label"
 msgstr "Adicionar rótulo"
 
@@ -10111,6 +10130,24 @@ msgid ""
 "\n"
 "          Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?\n"
 "        "
+msgstr ""
+
+msgid "To enable two factor authentication, use a one time password application such as"
+msgstr ""
+
+msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
+msgstr ""
+
+msgid "These backup tokens can be used if you lose access to your authentication application, store them in a safe place. Any tokens you may have previously generated are invalid."
+msgstr ""
+
+msgid "Generate Backup Tokens"
+msgstr ""
+
+msgid "Disable Two Factor"
+msgstr ""
+
+msgid "Two Factor Authentication"
 msgstr ""
 
 #, fuzzy

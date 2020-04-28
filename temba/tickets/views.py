@@ -7,40 +7,40 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 
-from .models import TicketService
+from .models import Ticketer
 
 
 class BaseConnectView(OrgPermsMixin, SmartFormView):
-    permission = "tickets.ticketservice_connect"
-    service_type = None
+    permission = "tickets.ticketer_connect"
+    ticketer_type = None
 
-    def __init__(self, service_type):
-        self.service_type = service_type
+    def __init__(self, ticketer_type):
+        self.ticketer_type = ticketer_type
         super().__init__()
 
     def get_template_names(self):
-        return ("tickets/types/%s/connect.html" % self.service_type.slug, "tickets/ticketservice_connect_form.html")
+        return ("tickets/types/%s/connect.html" % self.ticketer_type.slug, "tickets/ticketer_connect_form.html")
 
     def derive_title(self):
-        return _("Connect") + " " + self.service_type.name
+        return _("Connect") + " " + self.ticketer_type.name
 
     def get_success_url(self):
-        return reverse("tickets.ticketservice_read", args=[self.object.uuid])
+        return reverse("tickets.ticketer_read", args=[self.object.uuid])
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["form_blurb"] = self.service_type.get_form_blurb()
+        context["form_blurb"] = self.ticketer_type.get_form_blurb()
         return context
 
 
-class TicketServiceCRUDL(SmartCRUDL):
-    model = TicketService
+class TicketerCRUDL(SmartCRUDL):
+    model = Ticketer
     actions = ("read", "connect", "delete")
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
         slug_url_kwarg = "uuid"
-        cancel_url = "uuid@tickets.ticketservice_read"
-        title = _("Delete Ticket Service")
+        cancel_url = "uuid@tickets.ticketer_read"
+        title = _("Delete Ticketing Service")
         success_message = ""
         fields = ("uuid",)
 
@@ -51,7 +51,7 @@ class TicketServiceCRUDL(SmartCRUDL):
             service = self.get_object()
             service.release()
 
-            messages.info(request, _("Your ticket service has been deleted."))
+            messages.info(request, _("Your ticketing service has been deleted."))
             return HttpResponseRedirect(self.get_success_url())
 
     class Read(OrgObjPermsMixin, SmartReadView):
@@ -60,8 +60,8 @@ class TicketServiceCRUDL(SmartCRUDL):
 
         def get_gear_links(self):
             links = []
-            if self.has_org_perm("tickets.ticketservice_delete"):
-                links.append(dict(title=_("Delete"), js_class="delete-ticketservice", href="#"))
+            if self.has_org_perm("tickets.ticketer_delete"):
+                links.append(dict(title=_("Delete"), js_class="delete-ticketer", href="#"))
 
             return links
 
@@ -72,5 +72,5 @@ class TicketServiceCRUDL(SmartCRUDL):
     class Connect(OrgPermsMixin, SmartTemplateView):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["service_types"] = TicketService.get_types()
+            context["ticketer_types"] = Ticketer.get_types()
             return context

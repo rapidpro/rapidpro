@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name="TicketService",
+            name="Ticketer",
             fields=[
                 ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 (
@@ -49,7 +49,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 ("uuid", models.UUIDField(default=temba.utils.uuid.uuid4)),
-                ("service_type", models.CharField(max_length=16)),
+                ("ticketer_type", models.CharField(max_length=16)),
                 ("name", models.CharField(max_length=64)),
                 ("config", django.contrib.postgres.fields.jsonb.JSONField()),
                 (
@@ -57,7 +57,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         help_text="The user which originally created this item",
                         on_delete=django.db.models.deletion.PROTECT,
-                        related_name="tickets_ticketservice_creations",
+                        related_name="tickets_ticketer_creations",
                         to=settings.AUTH_USER_MODEL,
                     ),
                 ),
@@ -66,7 +66,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         help_text="The user which last modified this item",
                         on_delete=django.db.models.deletion.PROTECT,
-                        related_name="tickets_ticketservice_modifications",
+                        related_name="tickets_ticketer_modifications",
                         to=settings.AUTH_USER_MODEL,
                     ),
                 ),
@@ -105,9 +105,9 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    "service",
+                    "ticketer",
                     models.ForeignKey(
-                        on_delete=django.db.models.deletion.PROTECT, related_name="tickets", to="tickets.TicketService"
+                        on_delete=django.db.models.deletion.PROTECT, related_name="tickets", to="tickets.Ticketer"
                     ),
                 ),
             ],

@@ -6,9 +6,9 @@ from django.utils.module_loading import import_string
 TYPES = OrderedDict({})
 
 
-def register_ticket_service_type(type_class):
+def register_ticketer_type(type_class):
     """
-    Registers a ticket service type
+    Registers a ticketer type
     """
     global TYPES
 
@@ -16,19 +16,19 @@ def register_ticket_service_type(type_class):
         type_class.slug = type_class.__module__.split(".")[-2]
 
     if type_class.slug in TYPES:  # pragma: no cover
-        raise ValueError("More than one ticket service type with slug: %s" % type_class.slug)
+        raise ValueError("More than one ticketer type with slug: %s" % type_class.slug)
     TYPES[type_class.slug] = type_class()
 
 
-def reload_ticket_service_types():
+def reload_ticketer_types():
     """
-    Re-loads the dynamic classifier types
+    Re-loads the dynamic ticketer types
     """
     global TYPES
 
     TYPES = OrderedDict({})
-    for class_name in settings.TICKET_SERVICE_TYPES:
-        register_ticket_service_type(import_string(class_name))
+    for class_name in settings.TICKETER_TYPES:
+        register_ticketer_type(import_string(class_name))
 
 
-reload_ticket_service_types()
+reload_ticketer_types()

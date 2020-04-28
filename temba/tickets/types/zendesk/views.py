@@ -3,7 +3,7 @@ import requests
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 
-from temba.tickets.models import TicketService
+from temba.tickets.models import Ticketer
 from temba.tickets.views import BaseConnectView
 
 
@@ -50,10 +50,10 @@ class ConnectView(BaseConnectView):
             ZendeskType.CONFIG_API_TOKEN: api_token,
         }
 
-        self.object = TicketService.create(
+        self.object = Ticketer.create(
             org=self.org,
             user=self.request.user,
-            service_type=ZendeskType.slug,
+            ticketer_type=ZendeskType.slug,
             name=f"Zendesk ({subdomain})",
             config=config,
         )

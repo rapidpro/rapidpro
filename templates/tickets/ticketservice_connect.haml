@@ -5,32 +5,32 @@
   .row
     .span12
       %h2
-        -trans "Connect a Ticket Service"
+        -trans "Connect a Ticketing Service"
       .instructions
         %p
           -blocktrans
-            Ticket Services let a human agent take over communication for a contact. In a flow you can create a new
+            Ticketing Services let a human agent take over communication for a contact. In a flow you can create a new
             ticket for a contact and from that point until the ticket is closed all incoming and outgoing messages will
             be handled by the service you connect.
 
         %p
           -blocktrans
-            Select the ticket service you want to connect below to get started.
+            Select the ticketing service you want to connect below to get started.
 
 -block content
   .service-options
-    -for service_type in service_types
+    -for ticketer_type in ticketer_types
       .service-row
         .row
           .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-connect{href:"{% url 'tickets.types.'|add:service_type.slug|add:'.connect' %}"}
+            %a.btn.btn-primary.btn-primary-muted.btn-connect{href:"{% url 'tickets.types.'|add:ticketer_type.slug|add:'.connect' %}"}
               .btn-container
-                .service-glyph{class:"{{ service_type.icon }}"}
-                %p.service-text= service_type.name
+                .service-glyph{class:"{{ ticketer_type.icon }}"}
+                %p.service-text= ticketer_type.name
           .span8
             .service-description
               %div
-                {% include service_type.get_connect_blurb %}
+                {% include ticketer_type.get_connect_blurb %}
 
 -block extra-style
   :css

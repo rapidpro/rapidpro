@@ -24,7 +24,7 @@ class HTTPLog(models.Model):
     # log type choices
     INTENTS_SYNCED = "intents_synced"
     CLASSIFIER_CALLED = "classifier_called"
-    TICKET_SERVICE_CALLED = "ticket_service_called"
+    TICKETER_CALLED = "ticketer_called"
     AIRTIME_TRANSFERRED = "airtime_transferred"
     WHATSAPP_TEMPLATES_SYNCED = "whatsapp_templates_synced"
     WHATSAPP_TOKENS_SYNCED = "whatsapp_tokens_synced"
@@ -35,7 +35,7 @@ class HTTPLog(models.Model):
         (INTENTS_SYNCED, _("Intents Synced")),
         (CLASSIFIER_CALLED, _("Classifier Called")),
         (AIRTIME_TRANSFERRED, _("Airtime Transferred")),
-        (TICKET_SERVICE_CALLED, _("Ticket Service Called")),
+        (TICKETER_CALLED, _("Ticketing Service Called")),
         (WHATSAPP_TEMPLATES_SYNCED, _("WhatsApp Templates Synced")),
         (WHATSAPP_TOKENS_SYNCED, _("WhatsApp Tokens Synced")),
         (WHATSAPP_CONTACTS_REFRESHED, _("WhatsApp Contacts Refreshed")),
@@ -46,9 +46,9 @@ class HTTPLog(models.Model):
         "classifiers.Classifier", related_name="http_logs", on_delete=models.PROTECT, db_index=False, null=True
     )
 
-    # the ticket service this log is for
-    ticket_service = models.ForeignKey(
-        "tickets.TicketService", related_name="http_logs", on_delete=models.PROTECT, db_index=False, null=True
+    # the ticketer this log is for
+    ticketer = models.ForeignKey(
+        "tickets.Ticketer", related_name="http_logs", on_delete=models.PROTECT, db_index=False, null=True
     )
 
     # the airtime transfer this log is for

@@ -1,3 +1,11 @@
+v5.5.32
+----------
+ * Add basic 2FA support
+
+v5.5.31
+----------
+ * Update to latest smartmin
+
 v5.5.30
 ----------
  * Add new flow start type to record that flow was started by a Zapier API call

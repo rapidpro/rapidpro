@@ -396,6 +396,7 @@ PERMISSIONS = {
         "trial",
         "twilio_account",
         "twilio_connect",
+        "two_factor",
         "token",
     ),
     "orgs.usersettings": ("phone",),
@@ -463,7 +464,7 @@ PERMISSIONS = {
     "orgs.topup": ("manage",),
     "policies.policy": ("admin", "history", "give_consent"),
     "templates.template": ("api",),
-    "tickets.ticketservice": ("connect",),
+    "tickets.ticketer": ("connect",),
     "triggers.trigger": (
         "archived",
         "catchall",
@@ -483,7 +484,7 @@ PERMISSIONS = {
 GROUP_PERMISSIONS = {
     "Service Users": ("flows.flow_assets", "msgs.msg_create"),  # internal Temba services have limited permissions
     "Alpha": (),
-    "Beta": (),
+    "Beta": ("orgs.org_two_factor",),
     "Dashboard": ("orgs.org_dashboard",),
     "Surveyors": (
         "contacts.contact_api",
@@ -655,9 +656,9 @@ GROUP_PERMISSIONS = {
         "request_logs.httplog_list",
         "request_logs.httplog_read",
         "templates.template_api",
-        "tickets.ticketservice_connect",
-        "tickets.ticketservice_read",
-        "tickets.ticketservice_delete",
+        "tickets.ticketer_connect",
+        "tickets.ticketer_read",
+        "tickets.ticketer_delete",
         "triggers.trigger.*",
     ),
     "Editors": (
@@ -756,7 +757,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "templates.template_api",
-        "tickets.ticketservice_read",
+        "tickets.ticketer_read",
         "triggers.trigger.*",
     ),
     "Viewers": (
@@ -825,7 +826,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
-        "tickets.ticketservice_read",
+        "tickets.ticketer_read",
         "triggers.trigger_archived",
         "triggers.trigger_list",
     ),
@@ -1078,7 +1079,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.android.AndroidType",
 ]
 
-TICKET_SERVICE_TYPES = ["temba.tickets.types.mailgun.MailgunType", "temba.tickets.types.zendesk.ZendeskType"]
+TICKETER_TYPES = ["temba.tickets.types.mailgun.MailgunType", "temba.tickets.types.zendesk.ZendeskType"]
 
 # -----------------------------------------------------------------------------------
 # Store sessions in our cache

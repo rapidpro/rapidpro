@@ -1,10 +1,10 @@
-from ...models import TicketServiceType
+from ...models import TicketerType
 from .views import ConnectView
 
 
-class MailgunType(TicketServiceType):
+class MailgunType(TicketerType):
     """
-    Type for using mailgun as an email-based ticket service
+    Type for using mailgun as an email-based ticketer
     """
 
     CONFIG_DOMAIN = "domain"

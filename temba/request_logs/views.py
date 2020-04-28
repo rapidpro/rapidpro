@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404
 
 from temba.classifiers.models import Classifier
 from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
-from temba.tickets.models import TicketService
+from temba.tickets.models import Ticketer
 
 from .models import HTTPLog
 
@@ -24,8 +24,8 @@ class HTTPLogCRUDL(SmartCRUDL):
         def derive_classifier(self):
             return get_object_or_404(Classifier, uuid=self.kwargs["uuid"], org=self.derive_org(), is_active=True)
 
-        def derive_ticket_service(self):
-            return get_object_or_404(TicketService, uuid=self.kwargs["uuid"], org=self.derive_org(), is_active=True)
+        def derive_ticketer(self):
+            return get_object_or_404(Ticketer, uuid=self.kwargs["uuid"], org=self.derive_org(), is_active=True)
 
         def derive_queryset(self, **kwargs):
             # will need to be customized for other types once we support them
@@ -33,7 +33,7 @@ class HTTPLogCRUDL(SmartCRUDL):
             if log_type == "classifier":
                 kwargs["classifier"] = self.derive_classifier()
             elif log_type == "ticket_service":
-                kwargs["ticket_service"] = self.derive_ticket_service()
+                kwargs["ticketer"] = self.derive_ticketer()
             else:
                 raise ValidationError(f"invalid log type: {log_type}")
 
@@ -44,8 +44,8 @@ class HTTPLogCRUDL(SmartCRUDL):
             log_type = self.kwargs["log_type"]
             if log_type == "classifier":
                 context["classifier"] = self.derive_classifier()
-            elif log_type == "ticket_service":
-                context["ticket_service"] = self.derive_ticket_service()
+            elif log_type == "ticketer":
+                context["ticketer"] = self.derive_ticketer()
 
             return context
 

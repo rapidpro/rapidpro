@@ -11,13 +11,13 @@
 
   %h2.font_normalize.header-margin.title
     {{ object.get_type.name }}
-    -trans "Ticket Service"
+    -trans "Ticketing Service"
     .name
       {{ object.name }}
 
   .header-margin
-    %a.btn.btn-tiny(href="{% url 'request_logs.httplog_list' 'ticket_service' ticketservice.uuid %}")
-      -trans "Ticket Service Log"
+    %a.btn.btn-tiny(href="{% url 'request_logs.httplog_list' 'ticketer' ticketer.uuid %}")
+      -trans "Ticketing Service Log"
 
 -block content
   %div(style="float:right;line-height:40px")
@@ -53,21 +53,21 @@
               -trans "No open tickets at this time."
 
 -block post-content
-  - if org_perms.tickets.ticketservice_delete
+  - if org_perms.tickets.ticketer_delete
     .deletion.hide
       .title
-        -trans "Delete Ticket Service"
+        -trans "Delete Ticketing Service"
       .body
         %p
           -trans "Once it is removed, it will be gone forever. There is no way to undo this operation."
 
-    %a#deletion-form.posterize{href:'{% url "tickets.ticketservice_delete" object.uuid %}'}
+    %a#deletion-form.posterize{href:'{% url "tickets.ticketer_delete" object.uuid %}'}
 
 -block extra-script
   {{block.super}}
 
   :javascript
-    $(".delete-ticketservice").live('click', function(){
+    $(".delete-ticketer").live('click', function(){
       modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
       modal.addClass('alert');
 
@@ -101,8 +101,8 @@
     }
 
 -block summary
-  {{ ticketservice.get_type.name }}
-  -trans "Ticket Service"
+  {{ ticketer.get_type.name }}
+  -trans "Ticketing Service"
   %span -
   %strong
-    {{ ticketservice.name }}
+    {{ ticketer.name }}

@@ -1,7 +1,7 @@
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 
-from temba.tickets.models import TicketService
+from temba.tickets.models import Ticketer
 from temba.tickets.views import BaseConnectView
 
 
@@ -40,10 +40,10 @@ class ConnectView(BaseConnectView):
             MailgunType.CONFIG_TO_ADDRESS: to_address,
         }
 
-        self.object = TicketService.create(
+        self.object = Ticketer.create(
             org=self.org,
             user=self.request.user,
-            service_type=MailgunType.slug,
+            ticketer_type=MailgunType.slug,
             config=config,
             name=f"Mailgun ({to_address})",
         )

@@ -5171,6 +5171,14 @@ msgstr "Número de teléfono"
 msgid "Phone number for testing and recording voice flows"
 msgstr "Número de teléfono para probar y grabar los flujos de voz"
 
+#, fuzzy
+#| msgid "API Secret:"
+msgid "OTP Secret"
+msgstr "Código secreto API:"
+
+msgid "Two Factor Enabled"
+msgstr ""
+
 msgid "Price Paid"
 msgstr "Precio pagado"
 
@@ -5263,6 +5271,12 @@ msgstr "créditos."
 
 #, python-format
 msgid "%(name)s Credits Alert"
+msgstr ""
+
+msgid "Settings"
+msgstr "Configuraciones"
+
+msgid "Used"
 msgstr ""
 
 msgid "Your first name"
@@ -5508,6 +5522,17 @@ msgstr "Grupo de usuarios"
 
 msgid "One of the emails you entered is invalid."
 msgstr "Uno de los correos electrónicos que ingresó es inválido."
+
+msgid "Enter the code from your authentication application"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid phone number, try again."
+msgid "Invalid MFA token. Please try again."
+msgstr "Número de teléfono inválido, inténtelo nuevamente."
+
+msgid "Activate"
+msgstr "Activar"
 
 msgid "Select your Organization"
 msgstr "Elija su Organización"
@@ -6379,9 +6404,6 @@ msgstr "Envío masivo permitido"
 
 msgid "Voice calls enabled"
 msgstr "Llamadas de voz permitidas"
-
-msgid "Settings"
-msgstr "Configuraciones"
 
 #, fuzzy
 #| msgid "Channel"
@@ -9381,9 +9403,6 @@ msgstr ""
 msgid "Unlabel"
 msgstr "Retirar la etiqueta"
 
-msgid "Activate"
-msgstr "Activar"
-
 msgid "Add Label"
 msgstr "Agregar etiqueta"
 
@@ -10885,6 +10904,24 @@ msgid ""
 "\n"
 "          Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?\n"
 "        "
+msgstr ""
+
+msgid "To enable two factor authentication, use a one time password application such as"
+msgstr ""
+
+msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
+msgstr ""
+
+msgid "These backup tokens can be used if you lose access to your authentication application, store them in a safe place. Any tokens you may have previously generated are invalid."
+msgstr ""
+
+msgid "Generate Backup Tokens"
+msgstr ""
+
+msgid "Disable Two Factor"
+msgstr ""
+
+msgid "Two Factor Authentication"
 msgstr ""
 
 #, fuzzy

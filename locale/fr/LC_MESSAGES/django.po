@@ -4001,6 +4001,14 @@ msgstr "Numéro de téléphone"
 msgid "Phone number for testing and recording voice flows"
 msgstr "Numéro de téléphone pour les essais et l'enregistrement des flux voix "
 
+#, fuzzy
+#| msgid "API Secret"
+msgid "OTP Secret"
+msgstr "Secret API"
+
+msgid "Two Factor Enabled"
+msgstr ""
+
 msgid "Price Paid"
 msgstr "Prix ​​payé"
 
@@ -4078,6 +4086,12 @@ msgstr "Crédits expirant bientôt"
 #, python-format
 msgid "%(name)s Credits Alert"
 msgstr "%(name)s Alerte Crédits"
+
+msgid "Settings"
+msgstr "Paramètres"
+
+msgid "Used"
+msgstr ""
 
 msgid "Your first name"
 msgstr "Votre prénom"
@@ -4295,6 +4309,17 @@ msgstr "Groupe d'utilisateurs"
 
 msgid "One of the emails you entered is invalid."
 msgstr "L'un des e-mails que vous avez inscrits est invalide."
+
+msgid "Enter the code from your authentication application"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid phone number, try again."
+msgid "Invalid MFA token. Please try again."
+msgstr "Numéro de téléphone incorrect, essayez à nouveau."
+
+msgid "Activate"
+msgstr "activer"
 
 msgid "Select your Organization"
 msgstr "Choisissez votre Organisation"
@@ -4961,9 +4986,6 @@ msgstr "Envoi groupé configuré"
 
 msgid "Voice calls enabled"
 msgstr "Les appels vocaux activés"
-
-msgid "Settings"
-msgstr "Paramètres"
 
 msgid "Channel Log"
 msgstr "Journal des canaux"
@@ -7535,9 +7557,6 @@ msgstr "Retourner"
 msgid "Unlabel"
 msgstr "Sans étiquette"
 
-msgid "Activate"
-msgstr "activer"
-
 msgid "Add Label"
 msgstr "Ajouter une étiquette"
 
@@ -9101,6 +9120,26 @@ msgstr ""
 "\n"
 "          Déconnecter votre compte Twilio supprimera également tous les canaux Twilio qui y sont connectés. Êtes-vous sur de vouloir continuer?\n"
 "        "
+
+msgid "To enable two factor authentication, use a one time password application such as"
+msgstr ""
+
+msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
+msgstr ""
+
+msgid "These backup tokens can be used if you lose access to your authentication application, store them in a safe place. Any tokens you may have previously generated are invalid."
+msgstr ""
+
+msgid "Generate Backup Tokens"
+msgstr ""
+
+msgid "Disable Two Factor"
+msgstr ""
+
+#, fuzzy
+#| msgid "Authentication Token"
+msgid "Two Factor Authentication"
+msgstr "Jeton d'authentification"
 
 msgid "This organization has been suspended"
 msgstr "Cette organisation a été suspendue"

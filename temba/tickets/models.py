@@ -13,18 +13,18 @@ from temba.orgs.models import Org
 from temba.utils.uuid import uuid4
 
 
-class TicketServiceType(metaclass=ABCMeta):
+class TicketerType(metaclass=ABCMeta):
     """
-    TicketServiceType is our abstract base type for ticket services.
+    TicketerType is our abstract base type for ticketers.
     """
 
-    # the verbose name for this ticket service type
+    # the verbose name for this ticketer type
     name = None
 
-    # the short code for this ticket service type (< 16 chars, lowercase)
+    # the short code for this ticketer type (< 16 chars, lowercase)
     slug = None
 
-    # the icon to show for this ticket service type
+    # the icon to show for this ticketer type
     icon = "icon-channel-external"
 
     # the blurb to show on the main connect page
@@ -50,18 +50,18 @@ class TicketServiceType(metaclass=ABCMeta):
 
     def get_urls(self):
         """
-        Returns all the URLs this ticket service exposes to Django, the URL should be relative.
+        Returns all the URLs this ticketer exposes to Django, the URL should be relative.
         """
         return [self.get_connect_url()]
 
     def get_connect_url(self):
         """
-        Gets the URL/view configuration for this ticket service's connect page
+        Gets the URL/view configuration for this ticketer's connect page
         """
-        return url(r"^connect", self.connect_view.as_view(service_type=self), name="connect")
+        return url(r"^connect", self.connect_view.as_view(ticketer_type=self), name="connect")
 
 
-class TicketService(SmartModel):
+class Ticketer(SmartModel):
     """
     A service that can open and close tickets
     """
@@ -69,11 +69,11 @@ class TicketService(SmartModel):
     # our uuid
     uuid = models.UUIDField(default=uuid4)
 
-    # the type of this ticket service
-    service_type = models.CharField(max_length=16)
+    # the type of this ticketer
+    ticketer_type = models.CharField(max_length=16)
 
     # the org this service is connected to
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticket_services")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticketers")
 
     # a name for this service
     name = models.CharField(max_length=64)
@@ -82,10 +82,10 @@ class TicketService(SmartModel):
     config = JSONField()
 
     @classmethod
-    def create(cls, org, user, service_type, name, config):
+    def create(cls, org, user, ticketer_type, name, config):
         return cls.objects.create(
             uuid=uuid4(),
-            service_type=service_type,
+            ticketer_type=ticketer_type,
             name=name,
             config=config,
             org=org,
@@ -96,7 +96,7 @@ class TicketService(SmartModel):
     @classmethod
     def get_types(cls):
         """
-        Returns the possible types available for ticket services
+        Returns the possible types available for ticketers
         """
         from .types import TYPES
 
@@ -104,15 +104,15 @@ class TicketService(SmartModel):
 
     def get_type(self):
         """
-        Returns the type instance for this service
+        Returns the type instance
         """
         from .types import TYPES
 
-        return TYPES[self.service_type]
+        return TYPES[self.ticketer_type]
 
     def release(self):
         """
-        Releases this service, closing all associated tickets in the process
+        Releases this, closing all associated tickets in the process
         """
 
         for ticket in self.tickets.all():
@@ -138,7 +138,7 @@ class Ticket(models.Model):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="tickets")
 
     # the service that manages this ticket
-    service = models.ForeignKey(TicketService, on_delete=models.PROTECT, related_name="tickets")
+    ticketer = models.ForeignKey(Ticketer, on_delete=models.PROTECT, related_name="tickets")
 
     # the contact this ticket is tied to
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="tickets")

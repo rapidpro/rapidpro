@@ -1,10 +1,10 @@
-from ...models import TicketServiceType
+from ...models import TicketerType
 from .views import ConnectView
 
 
-class ZendeskType(TicketServiceType):
+class ZendeskType(TicketerType):
     """
-    Type for using Zendesk as a ticket service
+    Type for using Zendesk as a ticketer
     """
 
     name = "Zendesk"
