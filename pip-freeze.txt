@@ -100,7 +100,7 @@ rjsmin==1.0.12            # via django-compressor
 s3transfer==0.2.0         # via boto3
 simplejson==3.16.0
 six==1.10.0               # via analytics-python, cryptography, elasticsearch-dsl, librato-bg, librato-metrics, packaging, pip-tools, python-dateutil, python-intercom, responses, twilio
-smartmin==2.2.1
+smartmin==2.2.2
 soupsieve==1.6.2          # via beautifulsoup4
 sqlparse==0.2.3           # via django, smartmin
 stripe==2.20.3
