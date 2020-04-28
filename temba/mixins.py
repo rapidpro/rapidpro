@@ -17,13 +17,9 @@ class NotFoundRedirectMixin:
     :param redirect_url: an url for redict, when object not found
 
     """
+
     redirect_checking_model = None
-    redirect_params = {
-        "filter_key": None,
-        "filter_value": 'pk',
-        "model_manager": 'objects',
-        "message": '',
-    }
+    redirect_params = {"filter_key": None, "filter_value": "pk", "model_manager": "objects", "message": ""}
     redirect_url = None
 
     def __init__(self, *args, **kwargs):
@@ -31,16 +27,16 @@ class NotFoundRedirectMixin:
 
         if self.redirect_checking_model is None:
             self.redirect_checking_model = getattr(self, "model")
-        
-        if not self.redirect_params['filter_key']:
-            self.redirect_params['filter_key'] = self.redirect_params['filter_value']
 
-    def dispatch(self, request, *args, **kwargs):        
+        if not self.redirect_params["filter_key"]:
+            self.redirect_params["filter_key"] = self.redirect_params["filter_value"]
+
+    def dispatch(self, request, *args, **kwargs):
         if self.redirect_url and self.redirect_checking_model:
-            checking_value = kwargs.get(self.redirect_params['filter_value'])
+            checking_value = kwargs.get(self.redirect_params["filter_value"])
             is_exists = (
                 getattr(self.redirect_checking_model, self.redirect_params["model_manager"])
-                .filter(**{self.redirect_params['filter_key']: checking_value})
+                .filter(**{self.redirect_params["filter_key"]: checking_value})
                 .exists()
             )
 
@@ -48,5 +44,5 @@ class NotFoundRedirectMixin:
                 if self.redirect_params.get("message"):
                     messages.error(request, self.redirect_params["message"])
                 return redirect(self.redirect_url)
-        
+
         return super().dispatch(request, *args, **kwargs)
