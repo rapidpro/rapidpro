@@ -573,7 +573,8 @@ class OrgTest(TembaTest):
         self.assertEqual("nice-temba", org.slug)
 
     def test_two_factor(self):
-        # use a manager now
+        # for now only Beta members have access
+        Group.objects.get(name="Beta").user_set.add(self.admin)
         self.login(self.admin)
 
         # create profile
