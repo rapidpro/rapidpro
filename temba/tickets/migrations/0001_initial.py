@@ -51,7 +51,7 @@ class Migration(migrations.Migration):
                 ("uuid", models.UUIDField(default=temba.utils.uuid.uuid4)),
                 ("ticketer_type", models.CharField(max_length=16)),
                 ("name", models.CharField(max_length=64)),
-                ("config", django.contrib.postgres.fields.jsonb.JSONField()),
+                ("config", django.contrib.postgres.fields.jsonb.JSONField(null=True)),
                 (
                     "created_by",
                     models.ForeignKey(
@@ -73,7 +73,7 @@ class Migration(migrations.Migration):
                 (
                     "org",
                     models.ForeignKey(
-                        on_delete=django.db.models.deletion.PROTECT, related_name="ticket_services", to="orgs.Org"
+                        on_delete=django.db.models.deletion.PROTECT, related_name="ticketers", to="orgs.Org"
                     ),
                 ),
             ],
@@ -87,7 +87,7 @@ class Migration(migrations.Migration):
                 ("subject", models.TextField()),
                 ("body", models.TextField()),
                 ("external_id", models.CharField(max_length=255, null=True)),
-                ("config", django.contrib.postgres.fields.jsonb.JSONField()),
+                ("config", django.contrib.postgres.fields.jsonb.JSONField(null=True)),
                 ("status", models.CharField(choices=[("O", "Open"), ("C", "Closed")], max_length=1)),
                 ("opened_on", models.DateTimeField(default=django.utils.timezone.now)),
                 ("modified_on", models.DateTimeField(default=django.utils.timezone.now)),

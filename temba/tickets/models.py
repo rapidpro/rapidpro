@@ -79,7 +79,7 @@ class Ticketer(SmartModel):
     name = models.CharField(max_length=64)
 
     # the configuration options
-    config = JSONField()
+    config = JSONField(null=True)
 
     @classmethod
     def create(cls, org, user, ticketer_type, name, config):
@@ -153,7 +153,7 @@ class Ticket(models.Model):
     external_id = models.CharField(null=True, max_length=255)
 
     # any configuration attributes for this ticket
-    config = JSONField()
+    config = JSONField(null=True)
 
     # the status of this ticket, one of open, closed, expired
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
