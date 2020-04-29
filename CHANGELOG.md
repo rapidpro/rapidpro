@@ -1,3 +1,7 @@
+v5.5.35
+----------
+ * Revert Segment.io identify change to stay consistent with other tools
+
 v5.5.34
 ----------
  * Identify users in Segment.io using best practice of user id, not email
