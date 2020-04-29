@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'temba';
-  src:  url('fonts/temba.eot?1mw283');
-  src:  url('fonts/temba.eot?1mw283#iefix') format('embedded-opentype'),
-    url('fonts/temba.ttf?1mw283') format('truetype'),
-    url('fonts/temba.woff?1mw283') format('woff'),
-    url('fonts/temba.svg?1mw283#temba') format('svg');
+  src:  url('fonts/temba.eot?9vp2b4');
+  src:  url('fonts/temba.eot?9vp2b4#iefix') format('embedded-opentype'),
+    url('fonts/temba.ttf?9vp2b4') format('truetype'),
+    url('fonts/temba.woff?9vp2b4') format('woff'),
+    url('fonts/temba.svg?9vp2b4#temba') format('svg');
   font-weight: normal;
   font-style: normal;
   font-display: block;
@@ -25,9 +25,17 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-mailgun:before {
+  content: "\e917";
+}
+.icon-zendesk:before {
+  content: "\e918";
+}
 .icon-two-factor:before {
   content: "\e916";
-  color: #8f8f8f;
+}
+.icon-vk:before {
+  content: "\e900";
 }
 .icon-prometheus:before {
   content: "\e915";
@@ -838,7 +846,4 @@
 }
 .icon-mtarget:before {
   content: "\e914";
-}
-.icon-vk:before {
-  content: "\e900";
 }
