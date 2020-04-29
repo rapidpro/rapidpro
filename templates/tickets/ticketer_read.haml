@@ -36,16 +36,17 @@
           -trans "Created On"
 
     %tbody
-      -for ticket in object.active_tickets
+      -for ticket in tickets
         %tr
           %td.ticket-contact
-            {{ ticket.contact }}
+            %a(href="{% url 'contacts.contact_read' ticket.contact.uuid %}")
+              {{ ticket.contact }}
 
           %td.ticket-subject
             {{ ticket.subject }}
 
-          %td.ticket-created
-            {{ ticket.created_on }}
+          %td.ticket-opened
+            {{ ticket.opened_on }}
 
         -empty
           %tr.empty
@@ -92,7 +93,7 @@
       width: 400px;
     }
 
-    td.ticket-created {
+    td.ticket-opened {
       width: 200px;
     }
 

@@ -9,7 +9,7 @@
   %h2.header-margin
     -if classifier
       -trans "Recent Classifier Events"
-    -if ticket_service
+    -if ticketer
       -trans "Recent Ticketing Service Events"
 
   %h5.header-margin
@@ -22,7 +22,7 @@
     -if ticketer
       {{ticketer.get_type.name}}
       -trans "Ticketing Service: "
-      %a(href="{% url 'tickets.ticketer_read' ticket_service.uuid %}")
+      %a(href="{% url 'tickets.ticketer_read' ticketer.uuid %}")
         {{ ticketer.name }}
 
 -block table

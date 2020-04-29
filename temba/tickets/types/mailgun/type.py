@@ -1,3 +1,5 @@
+from django.utils.translation import ugettext_lazy as _
+
 from ...models import TicketerType
 from .views import ConnectView
 
@@ -13,8 +15,11 @@ class MailgunType(TicketerType):
 
     name = "Mailgun"
     slug = "mailgun"
+    icon = "icon-mailgun"
 
     connect_view = ConnectView
-    connect_blurb = """Connecting a mailgun managed email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."""
+    connect_blurb = _(
+        """Connecting a mailgun managed email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."""
+    )
 
-    form_blurb = """You will need to verify your email address by entering the token sent to you."""
+    form_blurb = _("""You will need to verify your email address by entering the token sent to you.""")

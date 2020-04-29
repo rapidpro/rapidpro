@@ -296,10 +296,10 @@ BRANDING = {
         "welcome_topup": 1000,
         "email": "join@rapidpro.io",
         "support_email": "support@rapidpro.io",
-        "link": "https://app.rapidpro.io",
+        "link": "https://temba.ngrok.io",
         "api_link": "https://api.rapidpro.io",
         "docs_link": "http://docs.rapidpro.io",
-        "domain": "app.rapidpro.io",
+        "domain": "temba.ngrok.io",
         "favico": "brands/rapidpro/rapidpro.ico",
         "splash": "brands/rapidpro/splash.jpg",
         "logo": "brands/rapidpro/logo.png",
@@ -931,8 +931,8 @@ CELERY_RESULT_BACKEND = None
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 
-IS_PROD = False
-HOSTNAME = "localhost"
+IS_PROD = True
+HOSTNAME = "temba.ngrok.io"
 
 # The URL and port of the proxy server to use when needed (if any, in requests format)
 OUTGOING_PROXIES = {}

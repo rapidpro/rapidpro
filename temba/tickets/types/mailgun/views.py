@@ -1,3 +1,5 @@
+import requests
+
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 
@@ -6,13 +8,9 @@ from temba.tickets.views import BaseConnectView
 
 
 class ConnectView(BaseConnectView):
-    class Form(forms.Form):
-        def __init__(self, request, *args, **kwargs):
-            self.request = request
-            super().__init__(*args, **kwargs)
-
-        domain = forms.CharField(help_text=_("The email domain"))
-        api_token = forms.CharField(max_length=64, help_text=_("Your API token on your account"))
+    class Form(BaseConnectView.Form):
+        domain = forms.CharField(help_text=_("The email domain name"))
+        api_key = forms.CharField(max_length=64, label=_("API Key"), help_text=_("Your private API key"))
         to_address = forms.EmailField(help_text=_("The email address to forward tickets and replies to"))
 
         def clean(self):
@@ -21,11 +19,18 @@ class ConnectView(BaseConnectView):
             if not self.is_valid():
                 return cleaned
 
-            # TODO verify credentials
-
-            # TODO verify ownership of to address?
+            # ping their API to see if we can authenticate
+            response = requests.get(
+                f"https://api.mailgun.net/v3/{cleaned['domain']}/log", auth=("api", cleaned["api_key"])
+            )
+            if response.status_code >= 400:
+                raise forms.ValidationError(
+                    _("Unable to get verify your domain and API key, please check them and try again")
+                )
 
             return cleaned
+
+    form_class = Form
 
     def form_valid(self, form):
         from .type import MailgunType

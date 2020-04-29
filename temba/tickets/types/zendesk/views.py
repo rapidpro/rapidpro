@@ -19,12 +19,11 @@ class ConnectView(BaseConnectView):
             if not self.is_valid():
                 return cleaned
 
-            # try to look up triggers
+            # ping their API to see if we can authenticate
             response = requests.get(
-                "https://" + cleaned["subdomain"] + ".zendesk.com/api/v2/triggers.json",
+                f"https://{cleaned['subdomain']}.zendesk.com/api/v2/triggers.json",
                 auth=(cleaned["username"] + "/token", cleaned["api_token"]),
             )
-
             if response.status_code != 200:
                 raise forms.ValidationError(
                     _("Unable to get verify your username and API token, please check them and try again")

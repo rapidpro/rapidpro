@@ -5,6 +5,7 @@ from smartmin.models import SmartModel
 from django.conf.urls import url
 from django.contrib.postgres.fields import JSONField
 from django.db import models
+from django.template import Engine
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
@@ -40,13 +41,13 @@ class TicketerType(metaclass=ABCMeta):
         """
         Gets the blurb for use on the connect page
         """
-        return self.connect_blurb
+        return Engine.get_default().from_string(str(self.connect_blurb))
 
     def get_form_blurb(self):
         """
         Gets the blurb for use on the connect page
         """
-        return self.form_blurb
+        return Engine.get_default().from_string(str(self.form_blurb))
 
     def get_urls(self):
         """

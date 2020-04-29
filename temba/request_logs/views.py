@@ -19,7 +19,7 @@ class HTTPLogCRUDL(SmartCRUDL):
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r"^%s/(?P<log_type>classifier|ticket_service)/(?P<uuid>[^/]+)/$" % path
+            return r"^%s/(?P<log_type>classifier|ticketer)/(?P<uuid>[^/]+)/$" % path
 
         def derive_classifier(self):
             return get_object_or_404(Classifier, uuid=self.kwargs["uuid"], org=self.derive_org(), is_active=True)
@@ -32,7 +32,7 @@ class HTTPLogCRUDL(SmartCRUDL):
             log_type = self.kwargs["log_type"]
             if log_type == "classifier":
                 kwargs["classifier"] = self.derive_classifier()
-            elif log_type == "ticket_service":
+            elif log_type == "ticketer":
                 kwargs["ticketer"] = self.derive_ticketer()
             else:
                 raise ValidationError(f"invalid log type: {log_type}")

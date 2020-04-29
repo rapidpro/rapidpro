@@ -107,9 +107,9 @@ class HTTPLog(models.Model):
 
     @classmethod
     def create_from_response(
-        cls, log_type, url, response, classifier=None, channel=None, ticket_service=None, request_time=None
+        cls, log_type, url, response, classifier=None, channel=None, ticketer=None, request_time=None
     ):
-        org = classifier.org or channel.org or ticket_service.org
+        org = classifier.org or channel.org or ticketer.org
 
         is_error = response.status_code != 200
         data = dump.dump_response(
@@ -134,7 +134,7 @@ class HTTPLog(models.Model):
         return HTTPLog.objects.create(
             classifier=classifier,
             channel=channel,
-            ticket_service=ticket_service,
+            ticketer=ticketer,
             log_type=log_type,
             url=url,
             request=request,
@@ -146,10 +146,8 @@ class HTTPLog(models.Model):
         )
 
     @classmethod
-    def create_from_exception(
-        cls, log_type, url, exception, start, classifier=None, channel=None, ticket_service=None
-    ):
-        org = classifier.org or channel.org or ticket_service.org
+    def create_from_exception(cls, log_type, url, exception, start, classifier=None, channel=None, ticketer=None):
+        org = classifier.org or channel.org or ticketer.org
 
         data = bytearray()
         prefixes = dump.PrefixSettings(cls.REQUEST_DELIM, cls.RESPONSE_DELIM)
@@ -162,7 +160,7 @@ class HTTPLog(models.Model):
         return HTTPLog.objects.create(
             channel=channel,
             classifier=classifier,
-            ticket_service=ticket_service,
+            ticketer=ticketer,
             log_type=log_type,
             url=url,
             request=request,
