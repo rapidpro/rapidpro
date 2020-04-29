@@ -1,3 +1,7 @@
+v5.5.34
+----------
+ * Identify users in Segment.io using best practice of user id, not email
+
 v5.5.33
 ----------
  * Add context processor to stuff analytics keys into request context
