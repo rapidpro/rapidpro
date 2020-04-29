@@ -140,6 +140,8 @@ class Org(SmartModel):
     STATUS_RESTORED = "restored"
     STATUS_WHITELISTED = "whitelisted"
 
+    OPTIN_FLOW = "OPTIN_FLOW"
+
     CONFIG_STATUS = "STATUS"
     CONFIG_SMTP_SERVER = "smtp_server"
     CONFIG_TWILIO_SID = "ACCOUNT_SID"
@@ -1313,24 +1315,28 @@ class Org(SmartModel):
 
     def create_sample_flows(self, api_url):
         # get our sample dir
-        filename = os.path.join(settings.STATICFILES_DIRS[0], "examples", "sample_flows.json")
-
-        # for each of our samples
-        with open(filename, "r") as example_file:
-            samples = example_file.read()
+        filenames = (
+            os.path.join(settings.STATICFILES_DIRS[0], "examples", "sample_flows.json"),
+            os.path.join(settings.STATICFILES_DIRS[0], "examples", "opt_in_flows.json"),
+        )
 
         user = self.get_user()
         if user:
-            # some some substitutions
-            samples = samples.replace("{{EMAIL}}", user.username).replace("{{API_URL}}", api_url)
+            for filename in filenames:
+                # for each of our samples
+                with open(filename, "r") as example_file:
+                    samples = example_file.read()
 
-            try:
-                self.import_app(json.loads(samples), user)
-            except Exception as e:  # pragma: needs cover
-                logger.error(
-                    f"Failed creating sample flows: {str(e)}",
-                    exc_info=True,
-                    extra=dict(definition=json.loads(samples)),
+                # some some substitutions
+                samples = samples.replace("{{EMAIL}}", user.username).replace("{{API_URL}}", api_url)
+
+                try:
+                    self.import_app(json.loads(samples), user)
+                except Exception as e:  # pragma: needs cover
+                    logger.error(
+                        f"Failed creating sample flows: {str(e)}",
+                        exc_info=True,
+                        extra=dict(definition=json.loads(samples)),
                 )
 
     def get_user(self):
@@ -2256,6 +2262,13 @@ class Org(SmartModel):
     def __str__(self):
         return self.name
 
+    def set_optin_flow(self, user, flow_uuid):
+        self.modified_by = user
+        self.config.update({Org.OPTIN_FLOW: flow_uuid})
+        self.save(update_fields=("config", "modified_on"))
+
+    def get_optin_flow(self):
+        return self.config.get(Org.OPTIN_FLOW)
 
 # ===================== monkey patch User class with a few extra functions ========================
 
