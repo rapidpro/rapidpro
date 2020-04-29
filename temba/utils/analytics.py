@@ -122,7 +122,7 @@ def identify(user, brand, org):
 
     # post to segment if configured
     if _segment:  # pragma: no cover
-        segment_analytics.identify(user.id, attributes)
+        segment_analytics.identify(user.username, attributes)
 
     # post to intercom if configured
     if _intercom:
