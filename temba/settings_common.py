@@ -483,7 +483,7 @@ PERMISSIONS = {
 GROUP_PERMISSIONS = {
     "Service Users": ("flows.flow_assets", "msgs.msg_create"),  # internal Temba services have limited permissions
     "Alpha": (),
-    "Beta": (),
+    "Beta": ("orgs.org_two_factor",),
     "Dashboard": ("orgs.org_dashboard",),
     "Surveyors": (
         "contacts.contact_api",
@@ -493,10 +493,9 @@ GROUP_PERMISSIONS = {
         "locations.adminboundary_api",
         "orgs.org_api",
         "orgs.org_surveyor",
-        "orgs.org_two_factor",
         "msgs.msg_api",
     ),
-    "Granters": ("orgs.org_grant", "orgs.org_two_factor"),
+    "Granters": ("orgs.org_grant",),
     "Customer Support": (
         "auth.user_list",
         "auth.user_update",
@@ -524,7 +523,6 @@ GROUP_PERMISSIONS = {
         "orgs.topup_create",
         "orgs.topup_manage",
         "orgs.topup_update",
-        "orgs.org_two_factor",
         "policies.policy_create",
         "policies.policy_update",
         "policies.policy_admin",
@@ -611,7 +609,6 @@ GROUP_PERMISSIONS = {
         "orgs.topup_read",
         "orgs.usersettings_phone",
         "orgs.usersettings_update",
-        "orgs.org_two_factor",
         "channels.channel_api",
         "channels.channel_bulk_sender_options",
         "channels.channel_claim",
@@ -717,7 +714,6 @@ GROUP_PERMISSIONS = {
         "orgs.topup_read",
         "orgs.usersettings_phone",
         "orgs.usersettings_update",
-        "orgs.org_two_factor",
         "channels.channel_api",
         "channels.channel_bulk_sender_options",
         "channels.channel_claim",
@@ -788,7 +784,6 @@ GROUP_PERMISSIONS = {
         "orgs.org_profile",
         "orgs.topup_list",
         "orgs.topup_read",
-        "orgs.org_two_factor",
         "channels.channel_list",
         "channels.channel_read",
         "channels.channelevent_calls",

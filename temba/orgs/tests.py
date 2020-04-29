@@ -573,7 +573,8 @@ class OrgTest(TembaTest):
         self.assertEqual("nice-temba", org.slug)
 
     def test_two_factor(self):
-        # use a manager now
+        # for now only Beta members have access
+        Group.objects.get(name="Beta").user_set.add(self.admin)
         self.login(self.admin)
 
         # create profile
@@ -595,11 +596,11 @@ class OrgTest(TembaTest):
 
         # disable two factor
         data = dict(disable_two_factor_auth=True)
-        settings = UserSettings.objects.get(user=self.admin)
+        user_settings = UserSettings.objects.get(user=self.admin)
         response = self.client.post(reverse("orgs.org_two_factor"), data)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 0)
-        self.assertFalse(settings.two_factor_enabled)
+        self.assertFalse(user_settings.two_factor_enabled)
 
         # get backup tokens without backup tokens
         data = dict(get_backup_tokens=True)
@@ -617,15 +618,19 @@ class OrgTest(TembaTest):
         self.assertEqual(response.json(), {"tokens": [f"{backup_token.token}"]})
 
         # test form is valid
-        settings = UserSettings.objects.get(user=self.admin)
-        settings.two_factor_enabled = False
-        settings.save()
+        user_settings = UserSettings.objects.get(user=self.admin)
+        user_settings.two_factor_enabled = False
+        user_settings.save()
         totp = pyotp.TOTP(self.admin.get_settings().otp_secret)
         data = dict(token=totp.now())
         response = self.client.post(reverse("orgs.org_two_factor"), data)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 10)
+        self.assertEqual(BackupToken.objects.count(), 10)
         self.assertEqual(self.admin.get_settings().two_factor_enabled, True)
+
+        # check backup tokens now listed on account home page
+        response = self.client.get(reverse("orgs.org_home"))
+        self.assertContains(response, "Backup tokens can be used")
 
     def test_country(self):
         self.setUpLocations()
