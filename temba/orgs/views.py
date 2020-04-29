@@ -3008,17 +3008,14 @@ class OrgCRUDL(SmartCRUDL):
         class OrgForm(forms.ModelForm):
             name = forms.CharField(max_length=128, label=_("The name of your organization"), help_text="")
             timezone = TimeZoneFormField(label=_("Your organization's timezone"), help_text="")
-            slug = forms.SlugField(
-                max_length=255, label=_("The slug, or short name for your organization"), help_text=""
-            )
 
             class Meta:
                 model = Org
-                fields = ("name", "slug", "timezone", "date_format")
+                fields = ("name", "timezone", "date_format")
 
         success_message = ""
         form_class = OrgForm
-        fields = ("name", "slug", "timezone", "date_format")
+        fields = ("name", "timezone", "date_format")
 
         def has_permission(self, request, *args, **kwargs):
             self.org = self.derive_org()
