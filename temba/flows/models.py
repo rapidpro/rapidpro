@@ -291,7 +291,7 @@ class Flow(TembaModel):
                 },
             )
 
-        analytics.track(user.username, "nyaruka.flow_created", dict(name=name))
+        analytics.track(user.username, "temba.flow_created", dict(name=name))
         return flow
 
     @classmethod
