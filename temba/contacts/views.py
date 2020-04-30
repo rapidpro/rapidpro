@@ -1777,6 +1777,9 @@ class CreateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
 
         super().__init__(*args, **kwargs)
 
+        self.fields["label"].help_text = _("The label of this custom field")
+        self.fields["value_type"].help_text = _("The value type of this custom field")
+
     def clean(self):
         super().clean()
 
