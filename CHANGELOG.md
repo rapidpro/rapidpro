@@ -1,3 +1,16 @@
+v5.5.35
+----------
+ * Revert Segment.io identify change to stay consistent with other tools
+
+v5.5.34
+----------
+ * Identify users in Segment.io using best practice of user id, not email
+
+v5.5.33
+----------
+ * Add context processor to stuff analytics keys into request context
+ * Restrict 2FA functionality to BETA users
+
 v5.5.32
 ----------
  * Add basic 2FA support

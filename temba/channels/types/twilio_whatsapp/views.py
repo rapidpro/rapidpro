@@ -10,7 +10,6 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import WHATSAPP_SCHEME
 from temba.orgs.models import Org
-from temba.utils import analytics
 from temba.utils.uuid import uuid4
 
 from ...models import Channel
@@ -126,7 +125,5 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             uuid=channel_uuid,
             schemes=[WHATSAPP_SCHEME],
         )
-
-        analytics.track(user.username, "temba.channel_claim_twilio_whatsapp", properties=dict(number=phone_number))
 
         return channel

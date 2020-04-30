@@ -28,7 +28,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
 from temba.orgs.models import Org
-from temba.utils import get_anonymous_user, json, on_transaction_commit, redact
+from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit, redact
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
@@ -503,6 +503,9 @@ class Channel(TembaModel):
         # normalize any telephone numbers that we may now have a clue as to country
         if org and country:
             org.normalize_contact_tels()
+
+        # track our creation
+        analytics.track(user.username, "temba.channel_created", dict(channel_type=channel_type.code))
 
         if settings.IS_PROD:
             if channel_type.async_activation:
