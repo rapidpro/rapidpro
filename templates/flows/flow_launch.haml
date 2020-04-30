@@ -185,7 +185,7 @@
           %input#repeat-days-value{name:'repeat_days_of_week', type:'hidden', value:'{{form.repeat_days_of_week.value|default:""}}'}
 
     -if flow_params_fields
-      .l-flow-params.control-group
+      .control-group
         %h5
           -trans "Flow Parameters"
 
@@ -222,7 +222,6 @@
       var launchSelector = $('#id_launch_type');
       var startFlowTypeSelector = $('#id_start_type');
       var launchImmediatelyBox = $('.l-immediately');
-      var launchFlowParamsBox = $('.l-flow-params');
       var launchOnKeywordTriggerBox = $('.l-keyword');
       var launchOnScheduleTriggerBox = $('.l-schedule');
       var repeatPeriodSelector = $('#id_repeat_period');
@@ -250,18 +249,16 @@
         launchImmediatelyBox.hide();
         launchOnKeywordTriggerBox.hide();
         launchOnScheduleTriggerBox.hide();
-        launchFlowParamsBox.hide();
         switch(selected) {
           case "LAUNCH_IMMEDIATELY":
             launchImmediatelyBox.show();
-            launchFlowParamsBox.show();
             showFieldsOnStartType(startFlowTypeSelector.val());
             break;
           case "LAUNCH_ON_KEYWORD_TRIGGER":
             launchOnKeywordTriggerBox.show();
+            $("#s2id_id_keyword_triggers").find(".select2-input").focus();
             break;
           case "LAUNCH_ON_SHEDULE_TRIGGER":
-            launchFlowParamsBox.show();
             launchOnScheduleTriggerBox.show();
             break;
         }
@@ -323,15 +320,6 @@
 -block extra-script
   {{ block.super }}
   :javascript
-    prepareOmnibox();
-    $("#id_keyword_triggers").select2({
-      tags: [],
-      tokenSeparators: [",", " "],
-      minimumResultsForSearch: -1,
-      placeholder: "Add a keyword to begin this flow",
-      containerCssClass: "select2-temba-field"
-    });
-    $("#s2id_id_keyword_triggers").find(".select2-input").css("width", "500px");
 
 -block modal-script
   {{block.super}}
@@ -349,6 +337,5 @@
       placeholder: "Add a keyword to begin this flow",
       containerCssClass: "select2-temba-field"
     });
-    $("#s2id_id_keyword_triggers").find(".select2-input").css("width", "500px");
 
 -load humanize    

@@ -2366,9 +2366,10 @@ class FlowCRUDL(SmartCRUDL):
 
                 if cleaned_data["launch_type"] in [LAUNCH_IMMEDIATELY, LAUNCH_ON_SHEDULE_TRIGGER]:
                     validate_omnibox()
-                    validate_flow_params()
                 elif cleaned_data["launch_type"] == LAUNCH_ON_KEYWORD_TRIGGER:
                     validate_keyword_triggers()
+
+                validate_flow_params()
 
                 # only weekly gets repeat days
                 if cleaned_data["repeat_period"] != "W":
@@ -2524,9 +2525,11 @@ class FlowCRUDL(SmartCRUDL):
 
                 with transaction.atomic():
                     triggers = []
+                    flow_params = build_flow_parameters(
+                        self.request.POST, self.flow_params_fields, self.flow_params_values
+                    )
                     # creating of triggers
                     for keyword in keyword_triggers.split(","):
-                        pass
                         triggers.append(
                             Trigger(
                                 flow=flow,
@@ -2535,9 +2538,10 @@ class FlowCRUDL(SmartCRUDL):
                                 org=org,
                                 created_by=user,
                                 modified_by=user,
+                                extra=flow_params,
                             )
                         )
-                    triggers = Trigger.objects.bulk_create(triggers)
+                    Trigger.objects.bulk_create(triggers)
 
             def process_on_schedule_trigger():
                 user = self.request.user
