@@ -80,7 +80,7 @@ class Ticketer(SmartModel):
     name = models.CharField(max_length=64)
 
     # the configuration options
-    config = JSONField(null=True)
+    config = JSONField()
 
     @classmethod
     def create(cls, org, user, ticketer_type, name, config):

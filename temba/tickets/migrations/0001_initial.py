@@ -51,7 +51,7 @@ class Migration(migrations.Migration):
                 ("uuid", models.UUIDField(default=temba.utils.uuid.uuid4)),
                 ("ticketer_type", models.CharField(max_length=16)),
                 ("name", models.CharField(max_length=64)),
-                ("config", django.contrib.postgres.fields.jsonb.JSONField(null=True)),
+                ("config", django.contrib.postgres.fields.jsonb.JSONField()),
                 (
                     "created_by",
                     models.ForeignKey(
