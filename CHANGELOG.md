@@ -1,3 +1,8 @@
+v5.5.36
+----------
+ * Better tracking of channel creation and triggers, track simulation
+ * Do not use font checkboxes for contact import extra fields
+
 v5.5.35
 ----------
  * Revert Segment.io identify change to stay consistent with other tools
