@@ -2364,11 +2364,9 @@ class FlowCRUDL(SmartCRUDL):
                         except mailroom.MailroomException as e:
                             self.add_error("contact_query", ValidationError(e.response["error"]))
 
-                if cleaned_data["launch_type"] == LAUNCH_IMMEDIATELY:
+                if cleaned_data["launch_type"] in [LAUNCH_IMMEDIATELY, LAUNCH_ON_SHEDULE_TRIGGER]:
                     validate_omnibox()
                     validate_flow_params()
-                elif cleaned_data["launch_type"] == LAUNCH_ON_SHEDULE_TRIGGER:
-                    validate_omnibox()
                 elif cleaned_data["launch_type"] == LAUNCH_ON_KEYWORD_TRIGGER:
                     validate_keyword_triggers()
 
@@ -2556,6 +2554,10 @@ class FlowCRUDL(SmartCRUDL):
 
                     recipients = self.form.cleaned_data["omnibox"]
 
+                    flow_params = build_flow_parameters(
+                        self.request.POST, self.flow_params_fields, self.flow_params_values
+                    )
+
                     trigger = Trigger.objects.create(
                         flow=flow,
                         org=org,
@@ -2563,6 +2565,7 @@ class FlowCRUDL(SmartCRUDL):
                         trigger_type=Trigger.TYPE_SCHEDULE,
                         created_by=user,
                         modified_by=user,
+                        extra=flow_params,
                     )
 
                     for group in recipients["groups"]:
