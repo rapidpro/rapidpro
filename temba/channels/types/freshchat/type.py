@@ -20,7 +20,7 @@ class FreshChatType(ChannelType):
     icon = "icon-freshchat"
 
     claim_blurb = _(
-        """Connect your approved <a href="https://www.freshworks.com/live-chat-software/" target="_blank">FreshChat</a> Channel"""
+        """Connect your approved <a href="https://www.freshworks.com/live-chat-software/">FreshChat</a> Channel"""
     )
     claim_view = ClaimView
 
