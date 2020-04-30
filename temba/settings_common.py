@@ -300,6 +300,7 @@ BRANDING = {
         "api_link": "https://api.rapidpro.io",
         "docs_link": "http://docs.rapidpro.io",
         "domain": "temba.ngrok.io",
+        "ticket_email_domain": "mr.nyaruka.com",
         "favico": "brands/rapidpro/rapidpro.ico",
         "splash": "brands/rapidpro/splash.jpg",
         "logo": "brands/rapidpro/logo.png",
@@ -1099,6 +1100,8 @@ INTERCOM_TOKEN = os.environ.get("INTERCOM_TOKEN", "")
 
 LIBRATO_USER = os.environ.get("LIBRATO_USER", "")
 LIBRATO_TOKEN = os.environ.get("LIBRATO_TOKEN", "")
+
+MAILGUN_API_KEY = os.environ.get("MAILGUN_API_KEY", "")
 
 # -----------------------------------------------------------------------------------
 # IP Addresses

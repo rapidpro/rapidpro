@@ -3,8 +3,8 @@ import requests
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 
-from temba.tickets.models import Ticketer
-from temba.tickets.views import BaseConnectView
+from ...models import Ticketer
+from ...views import BaseConnectView
 
 
 class ConnectView(BaseConnectView):

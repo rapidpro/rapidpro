@@ -1,44 +1,74 @@
 import requests
 
 from django import forms
+from django.conf import settings
+from django.http import HttpResponseRedirect
+from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
-from temba.tickets.models import Ticketer
-from temba.tickets.views import BaseConnectView
+from temba.utils.text import random_string
+
+from ...models import Ticketer
+from ...views import BaseConnectView
 
 
 class ConnectView(BaseConnectView):
-    class Form(BaseConnectView.Form):
-        domain = forms.CharField(help_text=_("The email domain name"))
-        api_key = forms.CharField(max_length=64, label=_("API Key"), help_text=_("Your private API key"))
+    class EmailForm(BaseConnectView.Form):
         to_address = forms.EmailField(help_text=_("The email address to forward tickets and replies to"))
 
-        def clean(self):
-            cleaned = super().clean()
+    class VerifyForm(BaseConnectView.Form):
+        verification_token = forms.CharField(
+            max_length=6, help_text=_("The verification token that was sent to your email")
+        )
 
-            if not self.is_valid():
-                return cleaned
+        def clean_verification_token(self):
+            value = self.cleaned_data["verification_token"]
+            token = self.request.session.get("verification_token")
+            if token == "":
+                raise forms.ValidationError(_("No verification token found, please start over"))
 
-            # ping their API to see if we can authenticate
-            response = requests.get(
-                f"https://api.mailgun.net/v3/{cleaned['domain']}/log", auth=("api", cleaned["api_key"])
-            )
-            if response.status_code >= 400:
-                raise forms.ValidationError(
-                    _("Unable to get verify your domain and API key, please check them and try again")
-                )
+            if token != value:
+                raise forms.ValidationError(_("Token does not match, please check your email"))
 
-            return cleaned
+            return value
 
-    form_class = Form
+    def get(self, request, *args, **kwargs):
+        if not request.GET.get("verify"):
+            request.session["verification_token"] = random_string(6)
+
+            print(f"generated token: {request.session['verification_token']}")
+
+        return super().get(request, *args, **kwargs)
+
+    def get_form_class(self):
+        return ConnectView.VerifyForm if self.request.GET.get("verify") else ConnectView.EmailForm
 
     def form_valid(self, form):
         from .type import MailgunType
 
-        domain = form.cleaned_data["domain"]
-        api_key = form.cleaned_data["api_key"]
-        to_address = form.cleaned_data["to_address"]
+        domain = self.org.get_branding()["ticket_email_domain"]
+        api_key = settings.MAILGUN_API_KEY
+        verification_code = self.request.session["verification_token"]
 
+        # step 1, they entered their email, off to verify
+        if isinstance(form, ConnectView.EmailForm):
+            to_address = form.cleaned_data["to_address"]
+
+            requests.post(
+                f"https://api.mailgun.net/v3/{domain}/messages",
+                files={
+                    "from": (None, f"no-reply@{domain}"),
+                    "to": (None, to_address),
+                    "subject": (None, "Verify your email address"),
+                    "text": (None, f"Your verification code is {verification_code}"),
+                },
+                auth=("api", api_key),
+            )
+
+            self.request.session["to_address"] = to_address
+            return HttpResponseRedirect(reverse("tickets.types.mailgun.connect") + "?verify=true")
+
+        to_address = self.request.session["to_address"]
         config = {
             MailgunType.CONFIG_DOMAIN: domain,
             MailgunType.CONFIG_API_KEY: api_key,
