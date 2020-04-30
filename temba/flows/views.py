@@ -1453,6 +1453,8 @@ class FlowCRUDL(SmartCRUDL):
                 updated_defs = Flow.import_translation(self.object.org, [self.object], language, po_data)
                 self.object.save_revision(self.request.user, updated_defs[str(self.object.uuid)])
 
+                analytics.track(self.request.user.username, "temba.flow_po_imported")
+
             return HttpResponseRedirect(self.get_success_url())
 
         @cached_property
@@ -1863,6 +1865,8 @@ class FlowCRUDL(SmartCRUDL):
                     dict(status="error", description="mailroom not configured, cannot simulate"), status=500
                 )
 
+            analytics.track(request.user.username, "temba.flow_simulated")
+
             flow = self.get_object()
             client = mailroom.get_client()
 
@@ -1891,7 +1895,6 @@ class FlowCRUDL(SmartCRUDL):
 
             # check if we are triggering a new session
             if "trigger" in json_dict:
-
                 payload["trigger"] = json_dict["trigger"]
 
                 # ivr flows need a connection in their trigger
