@@ -1,3 +1,8 @@
+v5.5.37
+----------
+ * Remove all uses of _blank frame name
+ * Strip exif data from images
+
 v5.5.36
 ----------
  * Better tracking of channel creation and triggers, track simulation
