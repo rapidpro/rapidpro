@@ -37,6 +37,8 @@ from temba.orgs.models import Language
 from temba.templates.models import TemplateTranslation
 from temba.tests import AnonymousOrg, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
+from temba.tickets.models import Ticketer
+from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.values.constants import Value
@@ -4197,3 +4199,56 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(1, len(resp_json["results"]))
         self.assertEqual("Booker", resp_json["results"][0]["name"])
+
+    def test_ticketers(self):
+        url = reverse("api.v2.ticketers")
+        self.assertEndpointAccess(url)
+
+        # create some ticketers
+        c1 = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun (bob@acme.com)", {})
+        c2 = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun (jim@acme.com)", {})
+
+        c3 = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun (deleted)", {})
+        c3.is_active = False
+        c3.save()
+
+        # on another org
+        Ticketer.create(self.org2, self.admin, LuisType.slug, "Mailgun", {})
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+            response = self.fetchJSON(url)
+
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertEqual(
+            resp_json["results"],
+            [
+                {
+                    "uuid": str(c2.uuid),
+                    "name": "Mailgun (jim@acme.com)",
+                    "type": "mailgun",
+                    "created_on": format_datetime(c2.created_on),
+                },
+                {
+                    "uuid": str(c1.uuid),
+                    "name": "Mailgun (bob@acme.com)",
+                    "type": "mailgun",
+                    "created_on": format_datetime(c1.created_on),
+                },
+            ],
+        )
+
+        # filter by uuid (not there)
+        response = self.fetchJSON(url, "uuid=09d23a05-47fe-11e4-bfe9-b8f6b119e9ab")
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(0, len(resp_json["results"]))
+
+        # filter by uuid present
+        response = self.fetchJSON(url, "uuid=" + str(c1.uuid))
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(1, len(resp_json["results"]))
+        self.assertEqual("Mailgun (bob@acme.com)", resp_json["results"][0]["name"])
