@@ -205,3 +205,41 @@ def extract_constants(config, reverse=False):
         return {t[2]: t[0] for t in config}
     else:
         return {t[0]: t[2] for t in config}
+
+
+def build_flow_parameters(request_post, fields, values):
+    """
+    Returns the flow parameters as a dict
+    :param request_post: HTTP POST request data
+    :param fields: Names of the fields to find
+    :param values: Names of the values to find
+    :return:
+    """
+    fields = sorted(fields)
+    values = sorted(values)
+
+    params = {}
+    for i, field in enumerate(fields):
+        param_name = str(request_post.get(fields[i])).replace("@trigger.params.", "")
+        params[param_name] = request_post.get(values[i])
+    return params
+
+
+def flow_params_context(request):
+    """
+    Returns the flow parameters as context to be used on get_context function
+    :param request: HTTP request
+    :return:
+    """
+    if request.method != "POST":
+        return dict()
+
+    flow_params_fields = [field for field in request.POST.keys() if "flow_parameter_field" in field]
+    flow_params_values = [field for field in request.POST.keys() if "flow_parameter_value" in field]
+    param_fields = build_flow_parameters(request.POST, flow_params_fields, flow_params_values)
+
+    return dict(
+        param_fields=param_fields,
+        flow_parameters_fields=",".join([f"@trigger.params.{field}" for field in param_fields.keys()]),
+        flow_parameters_values=",".join(param_fields.values())
+    )

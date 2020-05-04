@@ -245,3 +245,127 @@ td.created_on {
     font-weight: 400;
   }
 }
+
+#embedded-data,
+#embedded-data-keyword,
+#embedded-data-schedule,
+#embedded-data-update {
+  width: 100%;
+
+  &.launch-flow-keyword {
+    .embed-row-keyword {
+      width: 22%;
+      float: left;
+
+      .embed-row-keyword-field {
+        label {
+          display: inline-block;
+          color: #666;
+          font-size: 14px;
+          font-weight: 200;
+        }
+      }
+    }
+    .embed-row-content {
+      width: 75%;
+      float: right;
+      display: none;
+      &.active {
+        display: block;
+      }
+      .embed-row.embed-header {
+        margin: 0;
+      }
+      .embed-container{
+        .embed-row {
+          .embed-field, .embed-value {
+            input {
+              width: 89%;
+              &.invalid {
+                border: 1px solid #b94a48;
+              }
+            }
+            .embed-field-slug {
+              font-size: 13px;
+              margin: -5px 0 5px 0;
+              color: #999999;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .embed-row {
+    width: 100%;
+    display: table;
+    margin-bottom: 5px;
+
+    &.embed-header {
+      margin: 10px 0 0 0;
+
+      &.inactive {
+        display: none;
+      }
+    }
+
+    &.embed-header-keyword,
+    &.embed-header-schedule,
+    &.embed-header-update {
+      margin: 5px 0 0 0;
+    }
+
+    .embed-field,
+    .embed-value,
+    .embed-field-keyword,
+    .embed-value-keyword,
+    .embed-field-schedule,
+    .embed-value-schedule,
+    .embed-field-update,
+    .embed-value-update {
+      float: left;
+      width: 49%;
+
+      label {
+        display: inline-block;
+        color: #666;
+        font-size: 14px;
+        font-weight: 200;
+        margin-bottom: 0;
+      }
+
+      input {
+        width: 92%;
+        &.invalid {
+          border: 1px solid var(--color-error);
+        }
+      }
+
+      .embed-field-slug {
+        font-size: 13px;
+        margin: -5px 0 5px 0;
+        color: #999999;
+      }
+    }
+
+    .embed-value,
+    .embed-value-update {
+      float: right;
+    }
+
+    .embed-error-message {
+      float: left;
+      width: 100%;
+      color: var(--color-error);
+      font-size: 13px;
+      margin: -5px 0 5px 0;
+    }
+  }
+}
+
+.embedded-data-default-message {
+  width: 100%;
+  float: left;
+  margin-top: 10px;
+  color: red;
+}

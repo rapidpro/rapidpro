@@ -444,6 +444,7 @@ PERMISSIONS = {
         "lookups_api",
         "giftcards_api",
         "launch",
+        "flow_parameters",
     ),
     "flows.flowsession": ("json",),
     "links.link": ("archived", "read", "history", "export", "api"),

@@ -5,6 +5,7 @@ from uuid import uuid4
 import iso8601
 import regex
 import requests
+
 from packaging.version import Version
 from smartmin.views import (
     SmartCreateView,
@@ -44,7 +45,7 @@ from temba.contacts.models import FACEBOOK_SCHEME, TEL_SCHEME, WHATSAPP_SCHEME, 
 from temba.contacts.omnibox import omnibox_deserialize
 from temba.flows import legacy
 from temba.flows.legacy.expressions import get_function_listing
-from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
+from temba.flows.models import Flow, FlowRevision, FlowRun, FlowStart, FlowRunCount, FlowSession
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
@@ -54,7 +55,7 @@ from temba.schedules.views import BaseScheduleForm
 from temba.schedules.models import Schedule
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
-from temba.utils import analytics, json, on_transaction_commit, str_to_bool
+from temba.utils import analytics, json, on_transaction_commit, str_to_bool, build_flow_parameters
 from temba.utils.fields import ContactSearchWidget, JSONField, OmniboxChoice, SelectWidget
 from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm, NonAtomicMixin
@@ -276,6 +277,7 @@ class FlowCRUDL(SmartCRUDL):
         "lookups_api",
         "giftcards_api",
         "launch",
+        "flow_parameters",
     )
 
     model = Flow
@@ -324,6 +326,14 @@ class FlowCRUDL(SmartCRUDL):
                 collection_full_name = collection_full_name.replace("-", "")
                 collections.append(dict(id=collection_full_name, text=collection))
             return JsonResponse(dict(results=collections))
+
+    class FlowParameters(OrgPermsMixin, SmartListView):
+        def get(self, request, *args, **kwargs):
+            flow_id = self.request.GET.get("flow_id", None)
+            org = self.request.user.get_org()
+            flow = Flow.objects.filter(is_active=True, org=org, id=int(flow_id)).first()
+            params = sorted(flow.get_trigger_params()) if flow else []
+            return JsonResponse(dict(results=params))
 
     class AllowOnlyActiveFlowMixin(object):
         def get_queryset(self):
@@ -2181,13 +2191,31 @@ class FlowCRUDL(SmartCRUDL):
                 return JsonResponse({"results": [{"iso": l.iso_code, "name": l.name} for l in languages]})
 
     class Launch(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+        flow_params_fields = []
+        flow_params_values = []
+
         class LaunchForm(BaseScheduleForm, forms.ModelForm):
             def __init__(self, *args, **kwargs):
                 self.user = kwargs.pop("user")
                 self.flow = kwargs.pop("flow")
+                FlowCRUDL.Launch.flow_params_fields = []
+                FlowCRUDL.Launch.flow_params_values = []
 
                 super().__init__(*args, **kwargs)
                 self.fields["omnibox"].set_user(self.user)
+
+                for counter, flow_param in enumerate(sorted(self.flow.get_trigger_params())):
+                    self.fields[f"flow_param_field_{counter}"] = forms.CharField(
+                        required=False,
+                        initial=flow_param,
+                        label=None,
+                        widget=forms.TextInput(attrs={"readonly": True}),
+                    )
+                    self.fields[f"flow_param_value_{counter}"] = forms.CharField(required=False)
+                    if f"flow_param_field_{counter}" not in FlowCRUDL.Launch.flow_params_fields:
+                        FlowCRUDL.Launch.flow_params_fields.append(f"flow_param_field_{counter}")
+                    if f"flow_param_value_{counter}" not in FlowCRUDL.Launch.flow_params_values:
+                        FlowCRUDL.Launch.flow_params_values.append(f"flow_param_value_{counter}")
 
             launch_type = forms.ChoiceField(choices=LAUNCH_CHOICES, initial=LAUNCH_IMMEDIATELY)
 
@@ -2242,6 +2270,14 @@ class FlowCRUDL(SmartCRUDL):
 
             def clean(self):
                 cleaned_data = super().clean()
+
+                def validate_flow_params():
+                    value_fields = [item for item in cleaned_data if "flow_param_value" in item]
+                    for value_field in value_fields:
+                        if not cleaned_data.get(value_field):
+                            self.add_error(
+                                value_field, ValidationError(_("You must specify the value for this field."))
+                            )
 
                 def validate_keyword_triggers():
                     duplicates = []
@@ -2328,10 +2364,12 @@ class FlowCRUDL(SmartCRUDL):
                         except mailroom.MailroomException as e:
                             self.add_error("contact_query", ValidationError(e.response["error"]))
 
-                if cleaned_data["launch_type"] in (LAUNCH_IMMEDIATELY, LAUNCH_ON_SHEDULE_TRIGGER):
+                if cleaned_data["launch_type"] == LAUNCH_IMMEDIATELY:
+                    validate_flow_params()
                     validate_omnibox()
-
-                if cleaned_data["launch_type"] == LAUNCH_ON_KEYWORD_TRIGGER:
+                elif cleaned_data["launch_type"] == LAUNCH_ON_SHEDULE_TRIGGER:
+                    validate_omnibox()
+                elif cleaned_data["launch_type"] == LAUNCH_ON_KEYWORD_TRIGGER:
                     validate_keyword_triggers()
 
                 # only weekly gets repeat days
@@ -2372,22 +2410,28 @@ class FlowCRUDL(SmartCRUDL):
                 )
 
         form_class = LaunchForm
-        fields = (
-            "launch_type",
-            "start_type",
-            "omnibox",
-            "contact_query",
-            "restart_participants",
-            "include_active",
-            "keyword_triggers",
-            "repeat_period",
-            "repeat_days_of_week",
-            "start",
-            "start_datetime_value",
-        )
         success_message = ""
         submit_button_name = _("Add Contacts to Flow")
         success_url = "uuid@flows.flow_editor"
+
+        def derive_fields(self):
+            return (
+                (
+                    "launch_type",
+                    "start_type",
+                    "omnibox",
+                    "contact_query",
+                    "restart_participants",
+                    "include_active",
+                    "keyword_triggers",
+                    "repeat_period",
+                    "repeat_days_of_week",
+                    "start",
+                    "start_datetime_value",
+                )
+                + tuple(self.flow_params_fields)
+                + tuple(self.flow_params_values)
+            )
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -2423,6 +2467,11 @@ class FlowCRUDL(SmartCRUDL):
             context["complete_count"] = run_stats["completed"]
             context["user_tz"] = get_current_timezone_name()
             context["user_tz_offset"] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() // 60)
+            flow_params_fields = [
+                (self.flow_params_fields[count], self.flow_params_values[count])
+                for count in range(len(self.flow_params_values))
+            ]
+            context["flow_params_fields"] = flow_params_fields
             return context
 
         def get_form_kwargs(self):
@@ -2441,6 +2490,10 @@ class FlowCRUDL(SmartCRUDL):
                 groups = []
                 contacts = []
                 contact_query = None
+
+                flow_params = build_flow_parameters(
+                    self.request.POST, self.flow_params_fields, self.flow_params_values
+                )
 
                 if start_type == "query":
                     contact_query = form.cleaned_data["contact_query"]
@@ -2463,6 +2516,7 @@ class FlowCRUDL(SmartCRUDL):
                     contact_query,
                     restart_participants=form.cleaned_data["restart_participants"],
                     include_active=form.cleaned_data["include_active"],
+                    params=flow_params,
                 )
 
             def process_on_keyword_trigger():
@@ -2484,7 +2538,7 @@ class FlowCRUDL(SmartCRUDL):
                                 modified_by=user,
                             )
                         )
-                    triggers = Trigger.objects.bulk_create(triggers)
+                    Trigger.objects.bulk_create(triggers)
 
             def process_on_schedule_trigger():
                 user = self.request.user
