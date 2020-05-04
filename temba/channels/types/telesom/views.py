@@ -5,6 +5,7 @@ from temba.channels.models import Channel
 from temba.channels.views import ALL_COUNTRIES, AuthenticatedExternalClaimView, ClaimViewMixin
 from temba.utils.fields import ExternalURLField
 
+
 class ClaimView(AuthenticatedExternalClaimView):
     class TelesomForm(ClaimViewMixin.Form):
         country = forms.ChoiceField(
