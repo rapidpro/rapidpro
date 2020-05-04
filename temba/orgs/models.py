@@ -26,6 +26,7 @@ from twilio.rest import Client as TwilioClient
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
+from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
@@ -2788,6 +2789,9 @@ class CreditAlert(SmartModel):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="credit_alerts")
 
     alert_type = models.CharField(max_length=1, choices=TYPES)
+    admin_emails = ArrayField(
+        models.EmailField(), help_text=_('Emails of administrators who will be alerted'), default=[]
+    )
 
     @classmethod
     def trigger_credit_alert(cls, org, alert_type):
@@ -2797,11 +2801,15 @@ class CreditAlert(SmartModel):
 
         logging.info(f"triggering {alert_type} credits alert type for {org.name}")
 
-        admin = org.get_org_admins().first()
+        admins = org.get_org_admins().exclude(email__isnull=True).exclude(email__exact='')
+        admin = admins.first()
 
-        if admin:
+        if admins:
             # Otherwise, create our alert objects and trigger our event
-            alert = CreditAlert.objects.create(org=org, alert_type=alert_type, created_by=admin, modified_by=admin)
+            admin_emails = list(admins.values_list('email', flat=True))
+            alert = CreditAlert.objects.create(
+                org=org, alert_type=alert_type, admin_emails=admin_emails, created_by=admin, modified_by=admin
+            )
 
             alert.send_alert()
 
@@ -2811,17 +2819,15 @@ class CreditAlert(SmartModel):
         send_alert_email_task(self.id)
 
     def send_email(self):
-        admin_emails = [admin.email for admin in self.org.get_org_admins().order_by("email")]
-
-        if len(admin_emails) == 0:
+        if len(self.admin_emails) == 0:
             return
 
         branding = self.org.get_branding()
         subject = _("%(name)s Credits Alert") % branding
         template = "orgs/email/alert_email"
-        to_email = admin_emails
+        to_email = self.admin_emails
 
-        context = dict(org=self.org, now=timezone.now(), branding=branding, alert=self, customer=self.created_by)
+        context = dict(org=self.org, now=timezone.now(), branding=branding, alert=self)
         context["subject"] = subject
 
         send_template_email(to_email, subject, template, context, branding)
