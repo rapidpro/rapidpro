@@ -1,3 +1,8 @@
+v5.5.38
+----------
+ * Update to flow editor 1.9.5
+ * Allow custom TS send URLs
+
 v5.5.37
 ----------
  * Remove all uses of _blank frame name
