@@ -348,6 +348,7 @@ PERMISSIONS = {
         "unstop",
         "update_fields",
         "update_fields_input",
+        "invite_participants",
     ),
     "contacts.contactfield": ("api", "json", "update_priority", "featured", "filter_by_type", "detail"),
     "contacts.contactgroup": ("api",),
@@ -570,6 +571,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_update",
         "contacts.contact_update_fields",
         "contacts.contact_update_fields_input",
+        "contacts.contact_invite_participants",
         "contacts.contactfield.*",
         "contacts.contactgroup.*",
         "csv_imports.importtask.*",
@@ -701,6 +703,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_update",
         "contacts.contact_update_fields",
         "contacts.contact_update_fields_input",
+        "contacts.contact_invite_participants",
         "contacts.contactfield.*",
         "contacts.contactgroup.*",
         "csv_imports.importtask.*",
@@ -1209,3 +1212,6 @@ RECAPTCHA_SECRET_KEY = ""
 # Authy configuration
 AUTHY_API_KEY = os.environ.get("AUTHY_API_KEY", "")
 AUTHY_MAGIC_PASS = os.environ.get("AUTHY_MAGIC_PASS", "")
+
+# Credits expiration config
+CREDITS_EXPIRATION = False

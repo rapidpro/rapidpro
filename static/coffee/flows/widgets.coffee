@@ -147,6 +147,65 @@ app.directive "msg", [ "$log", "Flow", ($log, Flow) ->
   }
 ]
 
+app.directive "jsonInput", [ "$log", "Flow", ($log, Flow) ->
+
+  controller = ["$scope", ($scope) ->
+    $scope.validateJSON = () ->
+      try
+        $scope.json = JSON.stringify(JSON.parse($scope.json), null, 4)
+        $scope.message = $scope.validJsonMsg
+      catch e
+        $scope.message = $scope.invalidJsonMsg
+
+    $scope.textChanged = () ->
+      $scope.message = ""
+
+    $scope.onTabBehavior = (event) ->
+      if (event.keyCode == 9) # tab was pressed
+        # get caret position/selection
+        element = event.currentTarget
+        val = element.value
+        start = element.selectionStart
+        end = element.selectionEnd
+
+        # set textarea value to: text before caret + tab + text after caret
+        element.value = val.substring(0, start) + '    ' + val.substring(end)
+
+        # put caret at right position again
+        element.selectionStart = element.selectionEnd = start + 4
+
+        # prevent the focus lose
+        event.preventDefault();
+  ]
+
+  return {
+    templateUrl: "/partials/json_directive"
+    restrict: "A"
+    controller: controller
+    scope: {
+      json: '='
+      btnText: '@'
+      validJsonMsg: '@'
+      invalidJsonMsg: '@'
+      message: '@'
+    }
+  }
+]
+
+app.directive "ngJsonValidator", [() ->
+  return {
+    restrict: 'A',
+    require: 'ngModel',
+    link: (scope, element, attr, ngModel) ->
+      ngModel.$validators.json = (modelValue, viewValue) ->
+        try
+          JSON.parse(viewValue)
+          return true
+        catch e
+          return false
+  }
+]
+
 # auto completion widget
 app.directive "autoComplete", ["$rootScope", "$timeout", "$http", "$log", "Flow", ($rootScope, $timeout, $http, $log, Flow) ->
 
