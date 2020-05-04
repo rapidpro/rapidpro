@@ -80,7 +80,7 @@ class ConnectView(BaseConnectView):
             user=self.request.user,
             ticketer_type=MailgunType.slug,
             config=config,
-            name=f"Mailgun ({to_address})",
+            name=f"Email ({to_address})",
         )
 
         return super().form_valid(form)

@@ -13,13 +13,13 @@ class MailgunType(TicketerType):
     CONFIG_API_KEY = "api_key"
     CONFIG_TO_ADDRESS = "to_address"
 
-    name = "Mailgun"
+    name = "Email"
     slug = "mailgun"
-    icon = "icon-mailgun"
+    icon = "icon-envelop"
 
     connect_view = ConnectView
     connect_blurb = _(
-        """Connecting a mailgun managed email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."""
+        """Connecting a email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."""
     )
 
     form_blurb = _("""You will need to verify your email address by entering the token sent to you.""")
