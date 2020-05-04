@@ -37,6 +37,12 @@ class TicketerType(metaclass=ABCMeta):
     # the view that handles connection of a new service
     connect_view = None
 
+    def is_available(self):
+        """
+        Determines whether this ticketer type is available
+        """
+        return True
+
     def get_connect_blurb(self):
         """
         Gets the blurb for use on the connect page
@@ -115,6 +121,9 @@ class Ticketer(SmartModel):
         """
         Releases this, closing all associated tickets in the process
         """
+        used_by = self.dependent_flows.count()
+        if used_by > 0:
+            raise ValueError(f"Cannot delete ticketer: {self.name}, used by {used_by} flows")
 
         for ticket in self.tickets.all():
             ticket.close()

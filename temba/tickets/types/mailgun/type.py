@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 
 from ...models import TicketerType
@@ -22,4 +23,9 @@ class MailgunType(TicketerType):
         """Connecting a email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."""
     )
 
-    form_blurb = _("""You will need to verify your email address by entering the token sent to you.""")
+    form_blurb = _(
+        """New tickets and replies will be sent to the email address that you configure below. You will need to verify it by entering the token sent to you."""
+    )
+
+    def is_available(self):
+        return bool(settings.MAILGUN_API_KEY)

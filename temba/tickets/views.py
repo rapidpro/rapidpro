@@ -95,5 +95,5 @@ class TicketerCRUDL(SmartCRUDL):
     class Connect(OrgPermsMixin, SmartTemplateView):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["ticketer_types"] = Ticketer.get_types()
+            context["ticketer_types"] = [tt for tt in Ticketer.get_types() if tt.is_available()]
             return context

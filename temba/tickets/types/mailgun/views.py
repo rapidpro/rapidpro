@@ -1,11 +1,10 @@
-import requests
-
 from django import forms
 from django.conf import settings
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
+from temba.utils.email import send_template_email
 from temba.utils.text import random_string
 
 from ...models import Ticketer
@@ -48,22 +47,15 @@ class ConnectView(BaseConnectView):
 
         domain = self.org.get_branding()["ticket_email_domain"]
         api_key = settings.MAILGUN_API_KEY
-        verification_code = self.request.session["verification_token"]
+        verification_token = self.request.session["verification_token"]
 
         # step 1, they entered their email, off to verify
         if isinstance(form, ConnectView.EmailForm):
             to_address = form.cleaned_data["to_address"]
-
-            requests.post(
-                f"https://api.mailgun.net/v3/{domain}/messages",
-                files={
-                    "from": (None, f"no-reply@{domain}"),
-                    "to": (None, to_address),
-                    "subject": (None, "Verify your email address"),
-                    "text": (None, f"Your verification code is {verification_code}"),
-                },
-                auth=("api", api_key),
-            )
+            subject = _("Verify your email address for tickets")
+            template = "tickets/types/mailgun/verify_email"
+            context = {"verification_token": verification_token}
+            send_template_email(to_address, subject, template, context, self.org.get_branding())
 
             self.request.session["to_address"] = to_address
             return HttpResponseRedirect(reverse("tickets.types.mailgun.connect") + "?verify=true")

@@ -1,0 +1,5 @@
+{% load i18n %}
+
+{% blocktrans trimmed with token=verification_token %}
+Your verification token is {{ token }} to continue adding an email-based ticketing service.
+{% endblocktrans %}
