@@ -666,9 +666,9 @@ class ContactCRUDL(SmartCRUDL):
                             field_label = field_label[7:]
 
                         # skip fields that are not included and remove them from data
-                        column_name = re_col_name_include.match(key).groupdict().get('name')
+                        column_name = re_col_name_include.match(key).groupdict().get("name")
                         column_include = self.data.get("column_{}_include".format(column_name))
-                        if not column_include or 'on' not in column_include:
+                        if not column_include or "on" not in column_include:
                             continue
 
                         field_key = ContactField.make_key(field_label)
@@ -902,14 +902,14 @@ class ContactCRUDL(SmartCRUDL):
 
         def get(self, *args, **kwargs):
             # overwritten to unblock contacts manually when unblock param is present
-            task = self.request.GET.get('task')
+            task = self.request.GET.get("task")
             task = ImportTask.objects.filter(id=task).last()
             results = json.loads(task.import_results) if task and task.import_results else dict()
-            blocked_contacts = results.pop('blocked_contacts', [])
+            blocked_contacts = results.pop("blocked_contacts", [])
             group = ContactGroup.user_groups.filter(import_task=task).first()
-            unblock = self.request.GET.get('unblock')
-            unblock = True if unblock == 'true' else False
-            
+            unblock = self.request.GET.get("unblock")
+            unblock = True if unblock == "true" else False
+
             if unblock and blocked_contacts:
                 # unblock contact
                 contacts = Contact.objects.filter(id__in=blocked_contacts)
@@ -919,7 +919,7 @@ class ContactCRUDL(SmartCRUDL):
                 if group:
                     group.contacts.add(*contacts)
                     group.save()
-                
+
                 # update import_results because it doesn't has an blocked_contacts anymore
                 task.import_results = json.dumps(results)
                 task.save()
@@ -1681,13 +1681,12 @@ class ContactCRUDL(SmartCRUDL):
             obj.release(self.request.user)
             return obj
 
-
     class InviteParticipants(ContactActionMixin, ContactListView):
         title = _("Invite Participants")
         system_group = ContactGroup.TYPE_ALL
 
         def get(self, request, *args, **kwargs):
-            contact_uuid = request.GET.get('contact_uuid')
+            contact_uuid = request.GET.get("contact_uuid")
             if not contact_uuid:
                 return super().get(request, *args, **kwargs)
 
@@ -1697,21 +1696,27 @@ class ContactCRUDL(SmartCRUDL):
             existing_contact = Contact.objects.filter(uuid=contact_uuid).first()
 
             if existing_contact and flow:
-                flow.async_start(self.request.user, list([]), list([existing_contact]), restart_participants=True, include_active=True)
+                flow.async_start(
+                    self.request.user,
+                    list([]),
+                    list([existing_contact]),
+                    restart_participants=True,
+                    include_active=True,
+                )
                 result = dict(sent=True)
             else:
                 result = dict(sent=False)
 
-            return HttpResponse(json.dumps(result), content_type='application/json')
+            return HttpResponse(json.dumps(result), content_type="application/json")
 
         def post(self, request, *args, **kwargs):
-            optin_flow_uuid = request.POST.get('optin_flow_uuid', None)
+            optin_flow_uuid = request.POST.get("optin_flow_uuid", None)
 
             if optin_flow_uuid:
                 self.org.set_optin_flow(request.user, optin_flow_uuid)
-                messages.success(request, _('Opt-in Flow updated'))
+                messages.success(request, _("Opt-in Flow updated"))
 
-            return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
+            return HttpResponseRedirect(request.META.get("HTTP_REFERER"))
 
         def derive_group(self):
             group_uuid = self.request.GET.get("group", None)
@@ -1720,11 +1725,8 @@ class ContactCRUDL(SmartCRUDL):
             if group_uuid:
                 return ContactGroup.user_groups.get(uuid=group_uuid)
 
-            if folder in ('stopped', 'blocked'):
-                group_types = {
-                    'blocked': ContactGroup.TYPE_BLOCKED,
-                    'stopped': ContactGroup.TYPE_STOPPED,
-                }
+            if folder in ("stopped", "blocked"):
+                group_types = {"blocked": ContactGroup.TYPE_BLOCKED, "stopped": ContactGroup.TYPE_STOPPED}
                 self.system_group = group_types[folder]
 
             return super().derive_group()
@@ -1755,13 +1757,21 @@ class ContactCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
             group = self.derive_group()
             view_url = reverse("contacts.contact_invite_participants")
-            
+
             counts = ContactGroup.get_system_group_counts(org)
 
             folders = [
                 dict(count=counts[ContactGroup.TYPE_ALL], label=_("All Contacts"), url=view_url),
-                dict(count=counts[ContactGroup.TYPE_BLOCKED], label=_("Blocked"), url="{}?folder=blocked".format(view_url)),
-                dict(count=counts[ContactGroup.TYPE_STOPPED], label=_("Stopped"), url="{}?folder=stopped".format(view_url)),
+                dict(
+                    count=counts[ContactGroup.TYPE_BLOCKED],
+                    label=_("Blocked"),
+                    url="{}?folder=blocked".format(view_url),
+                ),
+                dict(
+                    count=counts[ContactGroup.TYPE_STOPPED],
+                    label=_("Stopped"),
+                    url="{}?folder=stopped".format(view_url),
+                ),
             ]
 
             context["folders"] = folders

@@ -45,7 +45,7 @@ from temba.contacts.models import FACEBOOK_SCHEME, TEL_SCHEME, WHATSAPP_SCHEME, 
 from temba.contacts.omnibox import omnibox_deserialize
 from temba.flows import legacy
 from temba.flows.legacy.expressions import get_function_listing
-from temba.flows.models import Flow, FlowRevision, FlowRun, FlowStart, FlowRunCount, FlowSession
+from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException

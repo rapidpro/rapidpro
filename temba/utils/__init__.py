@@ -241,5 +241,5 @@ def flow_params_context(request):
     return dict(
         param_fields=param_fields,
         flow_parameters_fields=",".join([f"@trigger.params.{field}" for field in param_fields.keys()]),
-        flow_parameters_values=",".join(param_fields.values())
+        flow_parameters_values=",".join(param_fields.values()),
     )
