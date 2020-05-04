@@ -144,14 +144,7 @@ class CampaignCRUDL(SmartCRUDL):
 
             else:
                 if self.has_org_perm("campaigns.campaignevent_create"):
-                    links.append(
-                        dict(
-                            title='Add Event',
-                            style='btn-primary',
-                            js_class='add-event',
-                            href='#'
-                        )
-                    )
+                    links.append(dict(title="Add Event", style="btn-primary", js_class="add-event", href="#"))
                 if self.has_org_perm("orgs.org_export"):
                     links.append(
                         dict(title=_("Export"), href=f"{reverse('orgs.org_export')}?campaign={self.object.id}")
@@ -303,31 +296,15 @@ class CampaignEventForm(forms.ModelForm):
         required=True,
     )
 
-    direction = forms.ChoiceField(
-        choices=(("B", "Before"), ("A", "After")),
-        required=True,
-    )
+    direction = forms.ChoiceField(choices=(("B", "Before"), ("A", "After")), required=True)
 
-    unit = forms.ChoiceField(
-        choices=CampaignEvent.UNIT_CHOICES,
-        required=True,
-    )
+    unit = forms.ChoiceField(choices=CampaignEvent.UNIT_CHOICES, required=True)
 
-    flow_to_start = forms.ModelChoiceField(
-        queryset=Flow.objects.filter(is_active=True),
-        required=False,
-    )
+    flow_to_start = forms.ModelChoiceField(queryset=Flow.objects.filter(is_active=True), required=False)
 
-    relative_to = forms.ModelChoiceField(
-        queryset=ContactField.all_fields.none(),
-        required=False,
-        empty_label=None,
-    )
+    relative_to = forms.ModelChoiceField(queryset=ContactField.all_fields.none(), required=False, empty_label=None)
 
-    delivery_hour = forms.ChoiceField(
-        choices=CampaignEvent.get_hour_choices(),
-        required=False,
-    )
+    delivery_hour = forms.ChoiceField(choices=CampaignEvent.get_hour_choices(), required=False)
 
     flow_start_mode = forms.ChoiceField(
         choices=(
@@ -454,12 +431,7 @@ class CampaignEventForm(forms.ModelForm):
                 # otherwise, its just a normal language
                 initial = message.get(language.iso_code, "")
 
-            field = forms.CharField(
-                widget=forms.Textarea,
-                required=False,
-                label=language.name,
-                initial=initial,
-            )
+            field = forms.CharField(widget=forms.Textarea, required=False, label=language.name, initial=initial)
 
             self.fields[language.iso_code] = field
             field.language = dict(name=language.name, iso_code=language.iso_code)
@@ -532,14 +504,7 @@ class CampaignEventCRUDL(SmartCRUDL):
             campaign_event = self.get_object()
 
             if self.has_org_perm("campaigns.campaignevent_update") and not campaign_event.campaign.is_archived:
-                links.append(
-                    dict(
-                        title='Edit',
-                        style='btn-primary',
-                        js_class='update-event',
-                        href='#'
-                    )
-                )
+                links.append(dict(title="Edit", style="btn-primary", js_class="update-event", href="#"))
 
             if self.has_org_perm("campaigns.campaignevent_delete"):
                 links.append(
@@ -680,8 +645,8 @@ class CampaignEventCRUDL(SmartCRUDL):
                 EventFire.create_eventfires_for_event(obj)
 
             if obj.event_type == CampaignEvent.TYPE_FLOW:
-                flow_params_fields = [field for field in self.request.POST.keys() if 'flow_parameter_field' in field]
-                flow_params_values = [field for field in self.request.POST.keys() if 'flow_parameter_value' in field]
+                flow_params_fields = [field for field in self.request.POST.keys() if "flow_parameter_field" in field]
+                flow_params_values = [field for field in self.request.POST.keys() if "flow_parameter_value" in field]
 
                 params = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
                 obj.extra = params if params else None
@@ -772,8 +737,8 @@ class CampaignEventCRUDL(SmartCRUDL):
             obj.campaign = Campaign.objects.get(org=self.request.user.get_org(), pk=self.request.GET.get("campaign"))
 
             if obj.event_type == CampaignEvent.TYPE_FLOW:
-                flow_params_fields = [field for field in self.request.POST.keys() if 'flow_parameter_field' in field]
-                flow_params_values = [field for field in self.request.POST.keys() if 'flow_parameter_value' in field]
+                flow_params_fields = [field for field in self.request.POST.keys() if "flow_parameter_field" in field]
+                flow_params_values = [field for field in self.request.POST.keys() if "flow_parameter_value" in field]
 
                 params = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
                 obj.extra = params if params else None

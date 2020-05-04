@@ -6,14 +6,12 @@ import temba.utils.models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('campaigns', '0037_campaignevent_extra'),
-    ]
+    dependencies = [("campaigns", "0037_campaignevent_extra")]
 
     operations = [
         migrations.AlterField(
-            model_name='campaignevent',
-            name='extra',
+            model_name="campaignevent",
+            name="extra",
             field=temba.utils.models.JSONAsTextField(blank=True, default=dict, null=True),
-        ),
+        )
     ]

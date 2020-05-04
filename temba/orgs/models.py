@@ -1337,7 +1337,7 @@ class Org(SmartModel):
                         f"Failed creating sample flows: {str(e)}",
                         exc_info=True,
                         extra=dict(definition=json.loads(samples)),
-                )
+                    )
 
     def get_user(self):
         return self.administrators.filter(is_active=True).first()
@@ -1359,12 +1359,12 @@ class Org(SmartModel):
 
     def _calculate_low_credits_threshold(self):
         now = timezone.now()
-        
+
         filter_ = dict(is_active=True)
         if settings.CREDITS_EXPIRATION:
             filter_.update(dict(expires_on__gte=now))
 
-        last_topup_credits = self.topups.filter(**filter_).aggregate(Sum('credits')).get('credits__sum')
+        last_topup_credits = self.topups.filter(**filter_).aggregate(Sum("credits")).get("credits__sum")
         return int(last_topup_credits * 0.15), self.get_credit_ttl()
 
     def get_credits_total(self, force_dirty=False):
@@ -1394,13 +1394,17 @@ class Org(SmartModel):
             filter_.update(dict(expires_on__gte=timezone.now()))
 
             # these are the credits that have been used in expired topups
-            expired_credits = TopUpCredits.objects.filter(
-                topup__org=self, topup__is_active=True, topup__expires_on__lte=timezone.now()
-            ).aggregate(Sum('used')).get('used__sum')
+            expired_credits = (
+                TopUpCredits.objects.filter(
+                    topup__org=self, topup__is_active=True, topup__expires_on__lte=timezone.now()
+                )
+                .aggregate(Sum("used"))
+                .get("used__sum")
+            )
         else:
             expired_credits = False
-        
-        active_credits = self.topups.filter(**filter_).aggregate(Sum('credits')).get('credits__sum')
+
+        active_credits = self.topups.filter(**filter_).aggregate(Sum("credits")).get("credits__sum")
         active_credits = active_credits if active_credits else 0
         expired_credits = expired_credits if expired_credits else 0
 
@@ -1589,7 +1593,7 @@ class Org(SmartModel):
         filter_ = dict(is_active=True)
         if settings.CREDITS_EXPIRATION:
             filter_.update(dict(expires_on__gte=timezone.now()))
-        non_expired_topups = self.topups.filter(**filter_).order_by('expires_on', 'id')
+        non_expired_topups = self.topups.filter(**filter_).order_by("expires_on", "id")
         active_topups = (
             non_expired_topups.annotate(used_credits=Sum("topupcredits__used"))
             .filter(credits__gt=0)
@@ -1622,7 +1626,7 @@ class Org(SmartModel):
             filter_ = dict(is_active=True)
             if settings.CREDITS_EXPIRATION:
                 filter_.update(dict(expires_on__gte=timezone.now()))
-            unexpired_topups = list(self.topups.filter(**filter_).order_by('-expires_on'))
+            unexpired_topups = list(self.topups.filter(**filter_).order_by("-expires_on"))
 
             # dict of topups to lists of their newly assigned items
             new_topup_items = {topup: [] for topup in unexpired_topups}
@@ -2269,6 +2273,7 @@ class Org(SmartModel):
 
     def get_optin_flow(self):
         return self.config.get(Org.OPTIN_FLOW)
+
 
 # ===================== monkey patch User class with a few extra functions ========================
 

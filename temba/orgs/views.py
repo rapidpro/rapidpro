@@ -3306,9 +3306,9 @@ class TopUpCRUDL(SmartCRUDL):
         def derive_queryset(self, **kwargs):  # pragma: needs cover
             query = TopUp.objects.filter(is_active=True, org=self.request.user.get_org())
             if settings.CREDITS_EXPIRATION:
-                query = query.order_by('-expires_on')
+                query = query.order_by("-expires_on")
             else:
-                query = query.order_by('-created_on')
+                query = query.order_by("-created_on")
             return query
 
     class List(OrgPermsMixin, SmartListView):
@@ -3323,7 +3323,7 @@ class TopUpCRUDL(SmartCRUDL):
             context["org"] = self.request.user.get_org()
 
             if settings.CREDITS_EXPIRATION:
-                context['credits_expiration'] = True
+                context["credits_expiration"] = True
 
             now = timezone.now()
             context["now"] = now
@@ -3408,13 +3408,14 @@ class TopUpCRUDL(SmartCRUDL):
         """
         This is only for root to be able to manage topups on an account
         """
-        success_url = '@orgs.org_manage'
-        fields = ('credits', 'price', 'comment', 'created_on')
+
+        success_url = "@orgs.org_manage"
+        fields = ("credits", "price", "comment", "created_on")
         if settings.CREDITS_EXPIRATION:
-            fields = fields + ('expires_on',)
-            default_order = '-expires_on'
+            fields = fields + ("expires_on",)
+            default_order = "-expires_on"
         else:
-            default_order = '-created_on'
+            default_order = "-created_on"
 
         def lookup_field_link(self, context, field, obj):
             return reverse("orgs.topup_update", args=[obj.id])

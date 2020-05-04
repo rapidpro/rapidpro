@@ -222,11 +222,7 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
     repeat_days_of_week = forms.CharField(required=False)
     start = forms.ChoiceField(choices=(("stop", "Stop Schedule"), ("later", "Schedule for later")))
     start_datetime_value = forms.IntegerField(required=False)
-    flow = forms.ModelChoiceField(
-        Flow.objects.filter(pk__lt=0),
-        label=_("Flow"),
-        required=True,
-    )
+    flow = forms.ModelChoiceField(Flow.objects.filter(pk__lt=0), label=_("Flow"), required=True)
 
     omnibox = JSONField(
         label=_("Contacts"),
@@ -434,8 +430,8 @@ class TriggerCRUDL(SmartCRUDL):
             obj = super().pre_save(obj, *args, **kwargs)
             obj.org = self.request.user.get_org()
 
-            flow_params_fields = [field for field in self.request.POST.keys() if 'flow_parameter_field' in field]
-            flow_params_values = [field for field in self.request.POST.keys() if 'flow_parameter_value' in field]
+            flow_params_fields = [field for field in self.request.POST.keys() if "flow_parameter_field" in field]
+            flow_params_values = [field for field in self.request.POST.keys() if "flow_parameter_value" in field]
 
             params = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
             obj.extra = params if params else None
@@ -594,8 +590,8 @@ class TriggerCRUDL(SmartCRUDL):
             obj = super().pre_save(obj, *args, **kwargs)
             obj.org = self.request.user.get_org()
 
-            flow_params_fields = [field for field in self.request.POST.keys() if 'flow_parameter_field' in field]
-            flow_params_values = [field for field in self.request.POST.keys() if 'flow_parameter_value' in field]
+            flow_params_fields = [field for field in self.request.POST.keys() if "flow_parameter_field" in field]
+            flow_params_values = [field for field in self.request.POST.keys() if "flow_parameter_value" in field]
 
             params = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
             obj.extra = params if params else None
@@ -718,8 +714,8 @@ class TriggerCRUDL(SmartCRUDL):
             recipients = self.form.cleaned_data["omnibox"]
 
             # Getting flow parameters
-            flow_params_fields = [field for field in self.request.POST.keys() if 'flow_parameter_field' in field]
-            flow_params_values = [field for field in self.request.POST.keys() if 'flow_parameter_value' in field]
+            flow_params_fields = [field for field in self.request.POST.keys() if "flow_parameter_field" in field]
+            flow_params_values = [field for field in self.request.POST.keys() if "flow_parameter_value" in field]
             params = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
 
             trigger = Trigger.objects.create(
