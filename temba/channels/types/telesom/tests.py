@@ -32,6 +32,7 @@ class TelesomTypeTest(TembaTest):
         post_data = response.context["form"].initial
 
         post_data["country"] = "SO"
+        post_data["url"] = "http://test.com/send.php"
         post_data["username"] = "uname"
         post_data["password"] = "pword"
         post_data["secret"] = "secret"
@@ -43,6 +44,7 @@ class TelesomTypeTest(TembaTest):
         self.assertEqual("SO", channel.country)
         self.assertTrue(channel.uuid)
         self.assertEqual(post_data["number"], channel.address)
+        self.assertEqual(post_data["url"], channel.config["send_url"])
         self.assertEqual(post_data["username"], channel.config["username"])
         self.assertEqual(post_data["password"], channel.config["password"])
         self.assertEqual(post_data["secret"], channel.config["secret"])
