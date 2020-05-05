@@ -1273,7 +1273,12 @@ class ChannelTest(TembaTest):
                 dict(cmd="mt_fail", msg_id=msg5.pk, ts=date),
                 # a missed call
                 dict(cmd="call", phone="2505551212", type="miss", ts=date),
+                # repeated missed calls should be skipped
+                dict(cmd="call", phone="2505551212", type="miss", ts=date),
+                dict(cmd="call", phone="2505551212", type="miss", ts=date),
                 # incoming
+                dict(cmd="call", phone="2505551212", type="mt", dur=10, ts=date),
+                # repeated calls should be skipped
                 dict(cmd="call", phone="2505551212", type="mt", dur=10, ts=date),
                 # incoming, invalid URN
                 dict(cmd="call", phone="*", type="mt", dur=10, ts=date),
@@ -1312,6 +1317,9 @@ class ChannelTest(TembaTest):
 
         # We should now have one sync
         self.assertEqual(1, SyncEvent.objects.filter(channel=self.tel_channel).count())
+
+        # We should have 3 channel event
+        self.assertEqual(3, ChannelEvent.objects.filter(channel=self.tel_channel).count())
 
         # check our channel fcm and uuid were updated
         self.tel_channel = Channel.objects.get(pk=self.tel_channel.pk)
