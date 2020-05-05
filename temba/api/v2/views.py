@@ -3484,23 +3484,20 @@ class TicketersEndpoint(ListAPIMixin, BaseAPIView):
      * **created_on** - when this ticketer was created
 
     Example:
-
         GET /api/v2/ticketers.json
 
     Response:
-
         {
             "next": null,
             "previous": null,
             "results": [
             {
                 "uuid": "9a8b001e-a913-486c-80f4-1356e23f582e",
-                "name": "Mailgun (bob@acme.com)",
+                "name": "Email (bob@acme.com)",
                 "type": "mailgun",
                 "created_on": "2013-02-27T09:06:15.456"
             },
             ...
-
     """
 
     permission = "tickets.ticketer_api"

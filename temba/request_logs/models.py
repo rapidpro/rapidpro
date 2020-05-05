@@ -34,6 +34,7 @@ class HTTPLog(models.Model):
     LOG_TYPE_CHOICES = (
         (INTENTS_SYNCED, _("Intents Synced")),
         (CLASSIFIER_CALLED, _("Classifier Called")),
+        (TICKETER_CALLED, _("Ticketing Service Called")),
         (AIRTIME_TRANSFERRED, _("Airtime Transferred")),
         (TICKETER_CALLED, _("Ticketing Service Called")),
         (WHATSAPP_TEMPLATES_SYNCED, _("WhatsApp Templates Synced")),

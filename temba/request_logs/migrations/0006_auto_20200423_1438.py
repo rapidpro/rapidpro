@@ -27,8 +27,8 @@ class Migration(migrations.Migration):
                 choices=[
                     ("intents_synced", "Intents Synced"),
                     ("classifier_called", "Classifier Called"),
-                    ("airtime_transferred", "Airtime Transferred"),
                     ("ticketer_called", "Ticketing Service Called"),
+                    ("airtime_transferred", "Airtime Transferred"),
                     ("whatsapp_templates_synced", "WhatsApp Templates Synced"),
                     ("whatsapp_tokens_synced", "WhatsApp Tokens Synced"),
                     ("whatsapp_contacts_refreshed", "WhatsApp Contacts Refreshed"),

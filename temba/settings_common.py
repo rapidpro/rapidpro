@@ -1024,6 +1024,8 @@ CLASSIFIER_TYPES = [
     "temba.classifiers.types.bothub.BothubType",
 ]
 
+TICKETER_TYPES = ["temba.tickets.types.mailgun.MailgunType"]
+
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
     "temba.channels.types.whatsapp.WhatsAppType",
