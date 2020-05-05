@@ -17,7 +17,6 @@ from temba.channels.views import (
     BaseClaimNumberMixin,
     ClaimViewMixin,
 )
-from temba.utils import analytics
 from temba.utils.http import http_headers
 from temba.utils.models import generate_uuid
 
@@ -175,8 +174,6 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         channel = Channel.create(
             org, user, country, "PL", name=phone, address=phone_number, config=plivo_config, uuid=plivo_uuid
         )
-
-        analytics.track(user.username, "temba.channel_claim_plivo", dict(number=phone_number))
 
         return channel
 

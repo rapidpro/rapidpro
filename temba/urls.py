@@ -65,7 +65,6 @@ def track_user(self):  # pragma: no cover
     """
     Should the current user be tracked
     """
-
     # don't track unless we are on production
     if not settings.IS_PROD:
         return False

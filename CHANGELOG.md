@@ -1,3 +1,31 @@
+v5.5.38
+----------
+ * Update to flow editor 1.9.5
+ * Allow custom TS send URLs
+
+v5.5.37
+----------
+ * Remove all uses of _blank frame name
+ * Strip exif data from images
+
+v5.5.36
+----------
+ * Better tracking of channel creation and triggers, track simulation
+ * Do not use font checkboxes for contact import extra fields
+
+v5.5.35
+----------
+ * Revert Segment.io identify change to stay consistent with other tools
+
+v5.5.34
+----------
+ * Identify users in Segment.io using best practice of user id, not email
+
+v5.5.33
+----------
+ * Add context processor to stuff analytics keys into request context
+ * Restrict 2FA functionality to BETA users
+
 v5.5.32
 ----------
  * Add basic 2FA support

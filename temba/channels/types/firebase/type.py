@@ -20,7 +20,7 @@ class FirebaseCloudMessagingType(ChannelType):
     icon = "icon-fcm"
 
     claim_blurb = _(
-        """Add a <a href="https://firebase.google.com/docs/cloud-messaging/" target="_blank"> Firebase Cloud
+        """Add a <a href="https://firebase.google.com/docs/cloud-messaging/"> Firebase Cloud
     Messaging Channel</a> to send and receive messages. Your users will need an App to send and receive messages."""
     )
     claim_view = ClaimView
