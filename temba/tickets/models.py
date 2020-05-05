@@ -26,7 +26,7 @@ class TicketerType(metaclass=ABCMeta):
     # the icon to show for this ticketer type
     icon = "icon-channel-external"
 
-    def is_available(self):
+    def is_available(self):  # pragma: no cover
         """
         Determines whether this ticketer type is available
         """
@@ -66,7 +66,7 @@ class Ticketer(SmartModel):
         )
 
     @classmethod
-    def get_types(cls):
+    def get_types(cls):  # pragma: no cover
         """
         Returns the possible types available for ticketers
         """
@@ -74,7 +74,7 @@ class Ticketer(SmartModel):
 
         return TYPES.values()
 
-    def get_type(self):
+    def get_type(self):  # pragma: no cover
         """
         Returns the type instance
         """
