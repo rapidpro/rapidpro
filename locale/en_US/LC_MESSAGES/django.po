@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-30 19:40+0000\n"
+"POT-Creation-Date: 2020-05-05 21:49+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4162,6 +4162,9 @@ msgstr ""
 msgid "Classifier Called"
 msgstr ""
 
+msgid "Ticketing Service Called"
+msgstr ""
+
 msgid "Airtime Transferred"
 msgstr ""
 
@@ -4225,6 +4228,12 @@ msgid "Visually build nationally scalable mobile applications from anywhere in t
 msgstr ""
 
 msgid "Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."
+msgstr ""
+
+msgid "Open"
+msgstr ""
+
+msgid "Closed"
 msgstr ""
 
 msgid "Keyword Trigger"

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-30 19:40+0000\n"
+"POT-Creation-Date: 2020-05-05 21:49+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -5436,6 +5436,9 @@ msgstr ""
 msgid "Classifier Called"
 msgstr "Evento do transmissor"
 
+msgid "Ticketing Service Called"
+msgstr ""
+
 msgid "Airtime Transferred"
 msgstr ""
 
@@ -5508,6 +5511,12 @@ msgid "Visually build nationally scalable mobile applications from anywhere in t
 msgstr "Cria Visualmente aplicações interativas através de SMS em qualquer lugar do mundo."
 
 msgid "Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."
+msgstr ""
+
+msgid "Open"
+msgstr ""
+
+msgid "Closed"
 msgstr ""
 
 msgid "Keyword Trigger"
