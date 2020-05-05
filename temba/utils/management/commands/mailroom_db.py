@@ -21,6 +21,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label
 from temba.orgs.models import Org
 from temba.templates.models import Template, TemplateTranslation
+from temba.tickets.models import Ticketer
 from temba.values.constants import Value
 
 # by default every user will have this password including the superuser
@@ -196,6 +197,20 @@ ORG1 = dict(
             ),
         ),
     ),
+    ticketers=(
+        dict(
+            uuid="f9c9447f-a291-4f3c-8c79-c089bbd4e713",
+            name="Mailgun (IT Support)",
+            ticketer_type="mailgun",
+            config=dict(domain="mr.nyaruka.com", api_key="sesame", to_address="bob@acme.com"),
+        ),
+        dict(
+            uuid="4ee6d4f3-f92b-439b-9718-8da90c05490b",
+            name="Zendesk (Nyaruka)",
+            ticketer_type="zendesk",
+            config=dict(subdomain="nyaruka", username="jim@nyaruka.com", api_token="523562167"),
+        ),
+    ),
 )
 
 ORG2 = dict(
@@ -226,6 +241,7 @@ ORG2 = dict(
     ),
     campaigns=(),
     templates=(),
+    ticketers=(),
 )
 
 ORGS = [ORG1, ORG2]
@@ -363,6 +379,7 @@ class Command(BaseCommand):
         self.create_campaigns(spec, org, superuser)
         self.create_templates(spec, org, superuser)
         self.create_classifiers(spec, org, superuser)
+        self.create_ticketers(spec, org, superuser)
 
         return org
 
@@ -403,6 +420,22 @@ class Command(BaseCommand):
                 classifier.intents.create(
                     name=intent["name"], external_id=intent["external_id"], created_on=timezone.now()
                 )
+
+        self._log(self.style.SUCCESS("OK") + "\n")
+
+    def create_ticketers(self, spec, org, user):
+        self._log(f"Creating {len(spec['ticketers'])} ticketers... ")
+
+        for t in spec["ticketers"]:
+            Ticketer.objects.create(
+                org=org,
+                name=t["name"],
+                config=t["config"],
+                ticketer_type=t["ticketer_type"],
+                uuid=t["uuid"],
+                created_by=user,
+                modified_by=user,
+            )
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
