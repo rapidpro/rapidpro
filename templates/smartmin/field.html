@@ -19,9 +19,7 @@
   </div>
 
   {% else %}
-  {% if field.label %}
   <label class="control-label" for="{{ field.name }}">{{label}}</label>
-  {% endif %}
   <div class="controls">
 
     {% with view|field_help:field as help %}
