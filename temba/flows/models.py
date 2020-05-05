@@ -1,17 +1,22 @@
+import os
 import logging
 import time
 import requests
+import zipfile
+
 from array import array
 from collections import OrderedDict, defaultdict
 from datetime import date, timedelta
 from decimal import Decimal
 from enum import Enum
+from io import BytesIO
 from urllib.request import urlopen
 from uuid import uuid4
 
 import iso8601
 import phonenumbers
 import regex
+import boto3
 from django.db.models.functions import TruncDate
 from django_redis import get_redis_connection
 from packaging.version import Version
@@ -68,8 +73,6 @@ from temba.utils.s3 import public_file_storage
 from temba.values.constants import Value
 
 from . import legacy
-import os
-import boto3
 
 logger = logging.getLogger(__name__)
 
@@ -1117,6 +1120,9 @@ class Flow(TembaModel):
         """
         return FlowPathCount.get_totals(self)
 
+    def get_images_count(self):
+        return self.flow_images.filter(is_active=True).count()
+    
     def get_activity(self):
         """
         Get the activity summary for a flow as a tuple of the number of active runs
@@ -3539,7 +3545,7 @@ class ExportFlowResultsTask(BaseExportTask):
     """
 
     analytics_key = "flowresult_export"
-    email_subject = "Your results export from %s is ready"
+    email_subject = "Your results export from {} is ready"
     email_template = "flows/email/flow_export_download"
 
     INCLUDE_MSGS = "include_msgs"
@@ -3900,6 +3906,52 @@ class ResultsExportAssetStore(BaseExportAssetStore):
     directory = "results_exports"
     permission = "flows.flow_export_results"
     extensions = ("xlsx",)
+
+
+class ExportFlowImagesTask(BaseExportTask):
+    """
+    Container for managing our flow images download requests
+    """
+    analytics_key = 'flowimages_download'
+    email_subject = "Your download file is ready"
+    email_template = 'flowimages/email/flowimages_download'
+
+    files = models.TextField(help_text=_("Array as text of the files ID to download in a zip file"))
+
+    @classmethod
+    def create(cls, org, user, files):
+        dict_files = json.dumps(dict(files=files))
+        return cls.objects.create(org=org, created_by=user, modified_by=user, files=dict_files)
+
+    def write_export(self):
+        files = json.loads(self.files)
+        files_obj = FlowImage.objects.filter(id__in=files.get('files')).order_by('-created_on')
+
+        stream = BytesIO()
+        zf = zipfile.ZipFile(stream, "w")
+
+        for file in files_obj:
+            fpath = file.get_full_path()
+            fdir, fname = os.path.split(fpath)
+
+            # Add file, at correct path
+            zf.write(fpath, arcname=fname)
+
+        zf.close()
+
+        temp = NamedTemporaryFile(delete=True)
+        temp.write(stream.getvalue())
+        temp.flush()
+        return temp, 'zip'
+
+
+@register_asset_store
+class FlowImagesExportAssetStore(BaseExportAssetStore):
+    model = ExportFlowImagesTask
+    key = 'flowimages_download'
+    directory = 'flowimages_download'
+    permission = 'flows.flowimage_download'
+    extensions = ('zip',)
 
 
 class FlowStart(models.Model):
