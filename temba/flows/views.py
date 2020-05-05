@@ -36,7 +36,6 @@ from django.views.generic import FormView
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
-from temba.classifiers.models import Classifier
 from temba.contacts.models import FACEBOOK_SCHEME, TEL_SCHEME, WHATSAPP_SCHEME, ContactField, ContactGroup, ContactURN
 from temba.contacts.omnibox import omnibox_deserialize
 from temba.flows.legacy.expressions import get_function_listing
@@ -1230,8 +1229,11 @@ class FlowCRUDL(SmartCRUDL):
             if flow.org.is_connected_to_dtone():
                 feature_filters.append("airtime")
 
-            if Classifier.objects.filter(org=flow.org, is_active=True):
+            if flow.org.classifiers.filter(is_active=True).exists():
                 feature_filters.append("classifier")
+
+            if flow.org.ticketers.filter(is_active=True).exists():
+                feature_filters.append("ticketer")
 
             if flow.org.get_resthooks():
                 feature_filters.append("resthook")

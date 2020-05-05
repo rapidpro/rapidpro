@@ -8,10 +8,10 @@ from ...views import BaseConnectView
 
 
 class ConnectView(BaseConnectView):
-    class Form(forms.Form):
-        subdomain = forms.CharField(help_text=_("Your subdomain on ZenDesk"))
-        username = forms.EmailField(help_text=_("Your email address on ZenDesk (without /token)"))
-        api_token = forms.CharField(max_length=64, help_text=_("Your API token on your account"))
+    class Form(BaseConnectView.Form):
+        subdomain = forms.CharField(help_text=_("Your subdomain on Zendesk"))
+        username = forms.EmailField(help_text=_("Your email address on Zendesk (without /token)"))
+        api_token = forms.CharField(max_length=64, label=_("API Token"), help_text=_("Your API token on your account"))
 
         def clean(self):
             cleaned = super().clean()
@@ -26,7 +26,7 @@ class ConnectView(BaseConnectView):
             )
             if response.status_code != 200:
                 raise forms.ValidationError(
-                    _("Unable to get verify your username and API token, please check them and try again")
+                    _("Unable to verify your username and API token, please check them and try again.")
                 )
 
             return cleaned
