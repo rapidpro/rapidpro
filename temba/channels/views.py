@@ -804,7 +804,7 @@ def sync(request, channel_id):
 
                     # phone event
                     elif keyword == "call":
-                        call_tuple = (cmd['ts'], cmd['type'], cmd['phone'])
+                        call_tuple = (cmd["ts"], cmd["type"], cmd["phone"])
                         date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=pytz.utc)
 
                         duration = 0
