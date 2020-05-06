@@ -102,10 +102,10 @@ def track_org_channel_counts(now=None):
     yesterday = (now.astimezone(pytz.utc) - timedelta(days=1)).date()
 
     stats = [
-        dict(key="temba.channel_incoming_msgs", count_type=ChannelCount.INCOMING_MSG_TYPE),
-        dict(key="temba.channel_outgoing_msgs", count_type=ChannelCount.OUTGOING_MSG_TYPE),
-        dict(key="temba.channel_incoming_voices", count_type=ChannelCount.INCOMING_IVR_TYPE),
-        dict(key="temba.channel_outgoing_voices", count_type=ChannelCount.OUTGOING_IVR_TYPE),
+        dict(key="temba.msg_incoming", count_type=ChannelCount.INCOMING_MSG_TYPE),
+        dict(key="temba.msg_outgoing", count_type=ChannelCount.OUTGOING_MSG_TYPE),
+        dict(key="temba.ivr_incoming", count_type=ChannelCount.INCOMING_IVR_TYPE),
+        dict(key="temba.ivr_outgoing", count_type=ChannelCount.OUTGOING_IVR_TYPE),
     ]
 
     # calculate each stat and track
