@@ -3,6 +3,7 @@ import logging
 import os
 import time
 import uuid
+from collections import Counter
 from decimal import Decimal
 from itertools import chain
 
@@ -1698,6 +1699,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                     f'The file you provided is missing a required header. At least one of "{joined_possible_headers}" or "Contact UUID" should be included.'
                 )
             )
+
+        headers = [h.lower() for h in headers if h]
+        duplicated = [header for header, times in Counter(headers).items() if times > 1]
+        joined_duplicated_headers = '", "'.join([h for h in duplicated])
+
+        if duplicated:
+            raise Exception(_(f'The file you provided has duplicated headers. Columns "{joined_duplicated_headers}" should be renamed.'))
 
         if "name" not in headers:
             raise Exception(_('The file you provided is missing a required header called "Name".'))
