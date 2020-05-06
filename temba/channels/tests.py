@@ -31,7 +31,13 @@ from temba.utils import dict_to_struct, json
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 
 from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
-from .tasks import check_channels_task, squash_channelcounts, sync_old_seen_channels_task, trim_sync_events_task
+from .tasks import (
+    check_channels_task,
+    squash_channelcounts,
+    sync_old_seen_channels_task,
+    track_org_channel_counts,
+    trim_sync_events_task,
+)
 
 
 class ChannelTest(TembaTest):
@@ -2026,6 +2032,14 @@ class ChannelCountTest(TembaTest):
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
         msg.release()
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
+
+        with patch("temba.channels.tasks.track") as mock:
+            self.create_incoming_msg(contact, "Test Message")
+
+            with self.assertNumQueries(6):
+                track_org_channel_counts(now=timezone.now() + timedelta(days=1))
+                self.assertEqual(2, mock.call_count)
+                mock.assert_called_with("Administrator@nyaruka.com", "temba.ivr_outgoing", {"count": 1})
 
 
 class ChannelLogTest(TembaTest):
