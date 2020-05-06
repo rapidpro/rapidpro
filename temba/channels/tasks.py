@@ -97,8 +97,7 @@ def track_org_channel_counts(now=None):
     Run daily, logs to our analytics the number of incoming and outgoing messages/ivr messages per org that had
     more than one message received or sent in the previous day. This helps track engagement of orgs.
     """
-    if not now:
-        now = timezone.now()
+    now = now or timezone.now()
     yesterday = (now.astimezone(pytz.utc) - timedelta(days=1)).date()
 
     stats = [
