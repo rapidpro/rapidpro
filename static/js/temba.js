@@ -103,10 +103,10 @@ function bindRefreshBlock() {
  */
 document.addEventListener('rp-refresh-begin', function() {
     var checkedIds = getCheckedIds().length > 0;
-    let openedModals = false;
+    var openedModals = false;
     var modals = document.querySelectorAll('rp-modax, rp-modax');
 
-    for (var modal of modals) {
+    for (var modal in modals) {
         if (modal.open) {
             openedModals = true;
             break;
