@@ -1,3 +1,11 @@
+v5.5.39
+----------
+ * Update to floweditor 1.9.6
+ * New task to track daily msgs per user for analytics
+ * Add support for Russian as a UI language
+ * Models and editor API endpoint for tickets
+ * Skip duplicate relayer call events
+
 v5.5.38
 ----------
  * Update to flow editor 1.9.5
