@@ -38,16 +38,16 @@ class Ticketer(SmartModel):
     A service that can open and close tickets
     """
 
-    # our uuid
+    # our UUID
     uuid = models.UUIDField(default=uuid4)
 
     # the type of this ticketer
     ticketer_type = models.CharField(max_length=16)
 
-    # the org this service is connected to
+    # the org this ticketer is connected to
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticketers")
 
-    # a name for this service
+    # a name for this ticketer
     name = models.CharField(max_length=64)
 
     # the configuration options
@@ -106,13 +106,13 @@ class Ticket(models.Model):
     STATUS_CLOSED = "C"
     STATUS_CHOICES = ((STATUS_OPEN, _("Open")), (STATUS_CLOSED, _("Closed")))
 
-    # our uuid
+    # our UUID
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     # the organization this ticket belongs to
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="tickets")
 
-    # the service that manages this ticket
+    # the ticketer that manages this ticket
     ticketer = models.ForeignKey(Ticketer, on_delete=models.PROTECT, related_name="tickets")
 
     # the contact this ticket is tied to
