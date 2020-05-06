@@ -67,6 +67,17 @@ BRANDING = {
 }
 HOSTNAME = DEFAULT_BRAND
 
+# VARIABLES TO API REQUISITIONS
+# ------------------------------------------------------------------------------
+
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["v2"] = env("V2", default="3000/hour")
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["v2.contacts"] = env("V2_CONTACTS", default="3000/hour")
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["v2.messages"] = env("V2_MESSAGES", default="3000/hour")
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["v2.broadcasts"] = env("V2_BROADCASTS", default="36000/hour")
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["v2.runs"] = env("V2_RUNS", default="3000/hour")
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["v2.api"] = env("V2_API", default="3000/hour")
+ 
+
 # EMAIL
 # ------------------------------------------------------------------------------
 EMAIL_HOST = env("EMAIL_HOST", default="")
