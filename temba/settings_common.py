@@ -1116,6 +1116,9 @@ LIBRATO_TOKEN = os.environ.get("LIBRATO_TOKEN", "")
 
 MAILGUN_API_KEY = os.environ.get("MAILGUN_API_KEY", "")
 
+ZENDESK_CLIENT_ID = os.environ.get("ZENDESK_CLIENT_ID", "")
+ZENDESK_CLIENT_SECRET = os.environ.get("ZENDESK_CLIENT_SECRET", "")
+
 # -----------------------------------------------------------------------------------
 # IP Addresses
 # These are the externally accessible IP addresses of the servers running RapidPro.

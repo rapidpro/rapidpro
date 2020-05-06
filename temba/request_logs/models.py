@@ -36,7 +36,6 @@ class HTTPLog(models.Model):
         (CLASSIFIER_CALLED, _("Classifier Called")),
         (TICKETER_CALLED, _("Ticketing Service Called")),
         (AIRTIME_TRANSFERRED, _("Airtime Transferred")),
-        (TICKETER_CALLED, _("Ticketing Service Called")),
         (WHATSAPP_TEMPLATES_SYNCED, _("WhatsApp Templates Synced")),
         (WHATSAPP_TOKENS_SYNCED, _("WhatsApp Tokens Synced")),
         (WHATSAPP_CONTACTS_REFRESHED, _("WhatsApp Contacts Refreshed")),

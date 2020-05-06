@@ -10,8 +10,7 @@ class ZendeskType(TicketerType):
     """
 
     CONFIG_SUBDOMAIN = "subdomain"
-    CONFIG_USERNAME = "username"
-    CONFIG_API_TOKEN = "api_token"
+    CONFIG_OAUTH_TOKEN = "oauth_token"
 
     name = "Zendesk"
     slug = "zendesk"
@@ -23,5 +22,5 @@ class ZendeskType(TicketerType):
     )
 
     form_blurb = _(
-        """Enter your credentials below to connect your Zendesk account. You can create a new API Token by visiting the API page in your Zendesk settings."""
+        """Enter your Zendesk subdomain. You will be redirected to Zendesk where you need to grant access to this application."""
     )
