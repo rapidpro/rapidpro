@@ -82,7 +82,13 @@ LANGUAGE_CODE = "en-us"
 # -----------------------------------------------------------------------------------
 # Available languages for translation
 # -----------------------------------------------------------------------------------
-LANGUAGES = (("en-us", _("English")), ("pt-br", _("Portuguese")), ("fr", _("French")), ("es", _("Spanish")))
+LANGUAGES = (
+    ("en-us", _("English")),
+    ("pt-br", _("Portuguese")),
+    ("fr", _("French")),
+    ("es", _("Spanish")),
+    ("ru", _("Russian")),
+)
 
 DEFAULT_LANGUAGE = "en-us"
 DEFAULT_SMS_LANGUAGE = "en-us"
