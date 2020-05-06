@@ -28,4 +28,4 @@ class MailgunType(TicketerType):
     )
 
     def is_available(self):
-        return bool(settings.MAILGUN_API_KEY)
+        return bool(getattr(settings, "MAILGUN_API_KEY", None))

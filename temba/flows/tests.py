@@ -28,9 +28,10 @@ from temba.mailroom import FlowValidationException, MailroomException
 from temba.msgs.models import Label
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
+from temba.tickets.models import Ticketer
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.uuid import uuid4
@@ -471,6 +472,14 @@ class FlowTest(TembaTest):
         response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
         self.assertEqual(
             ["facebook", "airtime", "classifier", "resthook"], json.loads(response.context["feature_filters"])
+        )
+
+        # add in a ticketer
+        Ticketer.create(self.org, self.user, "mailgun", "Email (bob@acme.com)", {})
+        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
+        self.assertEqual(
+            ["facebook", "airtime", "classifier", "ticketer", "resthook"],
+            json.loads(response.context["feature_filters"]),
         )
 
     def test_legacy_editor(self):
@@ -6404,45 +6413,3 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
-
-
-class PopulateFlowStartTypeTest(MigrationTest):
-    app = "flows"
-    migrate_from = "0230_flowstart_start_type"
-    migrate_to = "0231_populate_flowstart_type"
-
-    def setUpBeforeMigration(self, apps):
-        contact = self.create_contact("Bob", twitter="bobby")
-        flow1 = self.create_flow(org=self.org)
-        flow2 = self.create_flow(org=self.org)
-
-        # starts from UI have user but not extra
-        self.start1 = FlowStart.create(flow1, self.admin, contacts=[contact])  # from UI
-
-        # only API calls can have extra
-        self.start2 = FlowStart.create(flow2, self.admin, contacts=[contact], extra={"foo": "bar"})
-
-        # starts from mailroom session_triggered event handling have no user but do have parent_summary
-        self.start3 = FlowStart.create(flow2, None, contacts=[contact])
-        self.start3.parent_summary = {"foo": "bar"}
-        self.start3.save(update_fields=("parent_summary",))
-
-        # starts from mailroom IVR/schedule trigger handling have no user and no parent_summary
-        self.start4 = FlowStart.create(flow2, None, contacts=[contact])
-
-        # clear type so migration sets it
-        FlowStart.objects.all().update(start_type=None)
-
-        # create a new one which will have type already set
-        self.start5 = FlowStart.create(flow1, self.admin, contacts=[contact])
-
-    def test_migration(self):
-        def assert_type(start, type_code):
-            start.refresh_from_db()
-            self.assertEqual(type_code, start.start_type)
-
-        assert_type(self.start1, "M")
-        assert_type(self.start2, "A")
-        assert_type(self.start3, "F")
-        assert_type(self.start4, "T")
-        assert_type(self.start5, "M")

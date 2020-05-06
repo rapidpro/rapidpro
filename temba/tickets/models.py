@@ -101,7 +101,7 @@ class Ticketer(SmartModel):
         )
 
     @classmethod
-    def get_types(cls):
+    def get_types(cls):  # pragma: no cover
         """
         Returns the possible types available for ticketers
         """
@@ -109,7 +109,7 @@ class Ticketer(SmartModel):
 
         return TYPES.values()
 
-    def get_type(self):
+    def get_type(self):  # pragma: no cover
         """
         Returns the type instance
         """
