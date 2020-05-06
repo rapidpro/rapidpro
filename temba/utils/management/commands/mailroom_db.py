@@ -208,7 +208,7 @@ ORG1 = dict(
             uuid="4ee6d4f3-f92b-439b-9718-8da90c05490b",
             name="Zendesk (Nyaruka)",
             ticketer_type="zendesk",
-            config=dict(subdomain="nyaruka", username="jim@nyaruka.com", api_token="523562167"),
+            config=dict(subdomain="nyaruka", oauth_token="523562167"),
         ),
     ),
 )
