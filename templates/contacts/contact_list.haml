@@ -33,6 +33,9 @@
             - if org_perms.contacts.contact_import
               %a#id_import_contacts.btn.btn-primary.btn-block{href:"{% url 'contacts.contact_import' %}"}
                 -trans "Import Contacts"
+            - if org_perms.contacts.contact_invite_participants
+              %a#id_invite_participants.btn.btn-block{href:"{% url 'contacts.contact_invite_participants' %}"}
+                -trans "Invite Participants"
 
           #sidebar-nav
             %ul.nav.nav-list

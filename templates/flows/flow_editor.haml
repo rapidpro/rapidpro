@@ -110,15 +110,15 @@
       }
     });
 
-    // Starting the flow
+    // Launching the flow
     {% if org_perms.msgs.broadcast_send %}
-      $(".broadcast-rulesflow").live('click', function(){
-        var modal = new Modax(gettext('Start Flow'), '{% url "flows.flow_broadcast" object.pk %}');
+      $(".launch-rulesflow").live('click', function() {
+        var modal = new Modax(gettext('Launch Flow'), '{% url "flows.flow_launch" object.pk %}')
         var onActions = {
-          onSuccess: function(data) {
-            $('html').scope().is_starting = true;
-          },
-          onFormLoaded: function() { }
+            onSuccess: function(data) {
+              $('html').scope().is_starting = true;
+            },
+            onFormLoaded: function() { }
         }
         // check if there is no channel, change the primary button behavior to redirect to channel creation
         {% if not can_start or not has_outgoing_channel %}
@@ -481,7 +481,9 @@
                 %span{ng-show:'action.type == "email"'}
                   .subject
                     [[action.subject]]
-
+                  .node-attachments
+                    .node-attachment.viewer-button{ng-class:'{"icon-videocam": action._media.type == "video", "icon-photo": action._media.type=="image", "icon-arrow-right-8": action._media.type=="audio"}', ng-show:'action._media', ng-click:'clickShowActionMedia(action); $event.stopPropagation();'}
+                    .node-attachment.icon-attachment{ng-show:'action._attachURL || action._media.type.length > 0 && !["video", "image", "audio"].includes(action._media.type)'}
                 // starting flows
                 %span{ng-show:'action.type == "flow" || action.type == "trigger-flow"'}
                   .start-flow{ng-click:'$event.stopPropagation();'}

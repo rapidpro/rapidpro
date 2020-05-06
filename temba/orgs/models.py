@@ -140,6 +140,8 @@ class Org(SmartModel):
     STATUS_RESTORED = "restored"
     STATUS_WHITELISTED = "whitelisted"
 
+    OPTIN_FLOW = "OPTIN_FLOW"
+
     CONFIG_STATUS = "STATUS"
     CONFIG_SMTP_SERVER = "smtp_server"
     CONFIG_TWILIO_SID = "ACCOUNT_SID"
@@ -407,7 +409,7 @@ class Org(SmartModel):
             headers = spamreader.columns.tolist()
 
             # Removing empty columns name from CSV files imported
-            headers = [slugify(str(item).lower()).replace('-', '_') for item in headers if "Unnamed" not in item]
+            headers = [slugify(str(item).lower()).replace("-", "_") for item in headers if "Unnamed" not in item]
         finally:
             os.remove(tmp_file)
 
@@ -419,7 +421,9 @@ class Org(SmartModel):
             reserved_keywords = ["class", "for", "return", "global", "pass", "or", "raise", "def", "id", "objectid"]
 
             if not invalid_fields:
-                invalid_fields = [item for item in headers if item.replace("numeric_", "").replace("date_", "") in reserved_keywords]
+                invalid_fields = [
+                    item for item in headers if item.replace("numeric_", "").replace("date_", "") in reserved_keywords
+                ]
 
             if invalid_fields:
                 raise Exception(
@@ -1311,31 +1315,39 @@ class Org(SmartModel):
 
     def create_sample_flows(self, api_url):
         # get our sample dir
-        filename = os.path.join(settings.STATICFILES_DIRS[0], "examples", "sample_flows.json")
-
-        # for each of our samples
-        with open(filename, "r") as example_file:
-            samples = example_file.read()
+        filenames = (
+            os.path.join(settings.STATICFILES_DIRS[0], "examples", "sample_flows.json"),
+            os.path.join(settings.STATICFILES_DIRS[0], "examples", "opt_in_flows.json"),
+        )
 
         user = self.get_user()
         if user:
-            # some some substitutions
-            samples = samples.replace("{{EMAIL}}", user.username).replace("{{API_URL}}", api_url)
+            for filename in filenames:
+                # for each of our samples
+                with open(filename, "r") as example_file:
+                    samples = example_file.read()
 
-            try:
-                self.import_app(json.loads(samples), user)
-            except Exception as e:  # pragma: needs cover
-                logger.error(
-                    f"Failed creating sample flows: {str(e)}",
-                    exc_info=True,
-                    extra=dict(definition=json.loads(samples)),
-                )
+                # some some substitutions
+                samples = samples.replace("{{EMAIL}}", user.username).replace("{{API_URL}}", api_url)
+
+                try:
+                    self.import_app(json.loads(samples), user)
+                except Exception as e:  # pragma: needs cover
+                    logger.error(
+                        f"Failed creating sample flows: {str(e)}",
+                        exc_info=True,
+                        extra=dict(definition=json.loads(samples)),
+                    )
 
     def get_user(self):
         return self.administrators.filter(is_active=True).first()
 
     def has_low_credits(self):
-        return self.get_credits_remaining() <= self.get_low_credits_threshold()
+        """
+        Whether the organization has less than 15% of the total of credits available
+        :return: bool
+        """
+        return float(self.get_credits_remaining()) <= (0.15 * float(self.get_credits_total()))
 
     def get_low_credits_threshold(self):
         """
@@ -1347,11 +1359,12 @@ class Org(SmartModel):
 
     def _calculate_low_credits_threshold(self):
         now = timezone.now()
-        unexpired_topups = self.topups.filter(is_active=True, expires_on__gte=now)
 
-        active_topup_credits = [topup.credits for topup in unexpired_topups if topup.get_remaining() > 0]
-        last_topup_credits = sum(active_topup_credits)
+        filter_ = dict(is_active=True)
+        if settings.CREDITS_EXPIRATION:
+            filter_.update(dict(expires_on__gte=now))
 
+        last_topup_credits = self.topups.filter(**filter_).aggregate(Sum("credits")).get("credits__sum")
         return int(last_topup_credits * 0.15), self.get_credit_ttl()
 
     def get_credits_total(self, force_dirty=False):
@@ -1376,20 +1389,23 @@ class Org(SmartModel):
         return purchased_credits if purchased_credits else 0, self.get_credit_ttl()
 
     def _calculate_credits_total(self):
-        active_credits = (
-            self.topups.filter(is_active=True, expires_on__gte=timezone.now())
-            .aggregate(Sum("credits"))
-            .get("credits__sum")
-        )
+        filter_ = dict(is_active=True)
+        if settings.CREDITS_EXPIRATION:
+            filter_.update(dict(expires_on__gte=timezone.now()))
+
+            # these are the credits that have been used in expired topups
+            expired_credits = (
+                TopUpCredits.objects.filter(
+                    topup__org=self, topup__is_active=True, topup__expires_on__lte=timezone.now()
+                )
+                .aggregate(Sum("used"))
+                .get("used__sum")
+            )
+        else:
+            expired_credits = False
+
+        active_credits = self.topups.filter(**filter_).aggregate(Sum("credits")).get("credits__sum")
         active_credits = active_credits if active_credits else 0
-
-        # these are the credits that have been used in expired topups
-        expired_credits = (
-            TopUpCredits.objects.filter(topup__org=self, topup__is_active=True, topup__expires_on__lte=timezone.now())
-            .aggregate(Sum("used"))
-            .get("used__sum")
-        )
-
         expired_credits = expired_credits if expired_credits else 0
 
         return active_credits + expired_credits, self.get_credit_ttl()
@@ -1574,9 +1590,10 @@ class Org(SmartModel):
         """
         Calculates the oldest non-expired topup that still has credits
         """
-        non_expired_topups = self.topups.filter(is_active=True, expires_on__gte=timezone.now()).order_by(
-            "expires_on", "id"
-        )
+        filter_ = dict(is_active=True)
+        if settings.CREDITS_EXPIRATION:
+            filter_.update(dict(expires_on__gte=timezone.now()))
+        non_expired_topups = self.topups.filter(**filter_).order_by("expires_on", "id")
         active_topups = (
             non_expired_topups.annotate(used_credits=Sum("topupcredits__used"))
             .filter(credits__gt=0)
@@ -1606,9 +1623,10 @@ class Org(SmartModel):
             all_uncredited = list(msg_uncredited)
 
             # get all topups that haven't expired
-            unexpired_topups = list(
-                self.topups.filter(is_active=True, expires_on__gte=timezone.now()).order_by("-expires_on")
-            )
+            filter_ = dict(is_active=True)
+            if settings.CREDITS_EXPIRATION:
+                filter_.update(dict(expires_on__gte=timezone.now()))
+            unexpired_topups = list(self.topups.filter(**filter_).order_by("-expires_on"))
 
             # dict of topups to lists of their newly assigned items
             new_topup_items = {topup: [] for topup in unexpired_topups}
@@ -2248,6 +2266,14 @@ class Org(SmartModel):
     def __str__(self):
         return self.name
 
+    def set_optin_flow(self, user, flow_uuid):
+        self.modified_by = user
+        self.config.update({Org.OPTIN_FLOW: flow_uuid})
+        self.save(update_fields=("config", "modified_on"))
+
+    def get_optin_flow(self):
+        return self.config.get(Org.OPTIN_FLOW)
+
 
 # ===================== monkey patch User class with a few extra functions ========================
 
@@ -2514,6 +2540,7 @@ class UserSettings(models.Model):
         blank=True,
         help_text=_("Phone number for testing and recording voice flows"),
     )
+    authy_id = models.CharField(verbose_name=_("Authy ID"), max_length=255, null=True, blank=True)
 
     def get_tel_formatted(self):
         if self.tel:
@@ -2634,7 +2661,7 @@ class TopUp(SmartModel):
             )
 
         now = timezone.now()
-        expired = self.expires_on < now
+        expired = self.expires_on < now if settings.CREDITS_EXPIRATION else False
 
         # add a line for used message credits
         if active:

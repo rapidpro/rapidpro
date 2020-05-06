@@ -3,7 +3,6 @@ from unittest.mock import PropertyMock, patch
 from uuid import uuid4
 
 import pytz
-from django_redis import get_redis_connection
 from openpyxl import load_workbook
 
 from django.conf import settings
@@ -15,7 +14,7 @@ from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLo
 from temba.contacts.models import TEL_SCHEME, Contact, ContactField, ContactURN
 from temba.contacts.omnibox import omnibox_serialize
 from temba.flows.legacy.expressions import get_function_listing
-from temba.flows.models import Flow, RuleSet
+from temba.flows.models import Flow
 from temba.msgs.models import (
     DELIVERED,
     ERRORED,
@@ -38,7 +37,6 @@ from temba.msgs.models import (
     Msg,
     SystemLabel,
     SystemLabelCount,
-    UnreachableException,
 )
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
