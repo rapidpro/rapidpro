@@ -64,6 +64,8 @@ def update_po_files():
 if __name__ == "__main__":
     colorama.init()
 
+    status("Make any missing migrations")
+    cmd("python manage.py makemigrations")
     status("Running black")
     cmd("black --line-length=119 --target-version=py36 temba")
     status("Running flake8")
@@ -74,8 +76,6 @@ if __name__ == "__main__":
     update_po_files()
     status("Recompiling locale MO files")
     cmd("python manage.py compilemessages")
-    status("Make any missing migrations")
-    cmd("python manage.py makemigrations")
 
     # if any code changes were made, exit with error
     if cmd("git diff temba locale"):
