@@ -37,6 +37,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
 from temba.templates.models import Template, TemplateTranslation
+from temba.tickets.models import Ticketer
 from temba.utils import on_transaction_commit, splitting_getlist, str_to_bool
 
 from ..models import SSLPermission
@@ -74,6 +75,7 @@ from .serializers import (
     ResthookSubscriberReadSerializer,
     ResthookSubscriberWriteSerializer,
     TemplateReadSerializer,
+    TicketerReadSerializer,
     WebHookEventReadSerializer,
 )
 
@@ -108,6 +110,7 @@ class RootView(views.APIView):
      * [/api/v2/resthook_events](/api/v2/resthook_events) - to list resthook events
      * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list, create or delete subscribers on your resthooks
      * [/api/v2/templates](/api/v2/templates) - to list current WhatsApp templates on your account
+     * [/api/v2/ticketers](/api/v2/ticketers) - to list ticketing services
 
     To use the endpoint simply append _.json_ to the URL. For example [/api/v2/flows](/api/v2/flows) will return the
     documentation for that endpoint but a request to [/api/v2/flows.json](/api/v2/flows.json) will return a JSON list of
@@ -211,6 +214,7 @@ class RootView(views.APIView):
                 "resthook_subscribers": reverse("api.v2.resthook_subscribers", request=request),
                 "runs": reverse("api.v2.runs", request=request),
                 "templates": reverse("api.v2.templates", request=request),
+                "ticketers": reverse("api.v2.ticketers", request=request),
             }
         )
 
@@ -265,6 +269,7 @@ class ExplorerView(SmartTemplateView):
             ResthookSubscribersEndpoint.get_delete_explorer(),
             RunsEndpoint.get_read_explorer(),
             TemplatesEndpoint.get_read_explorer(),
+            TicketersEndpoint.get_read_explorer(),
         ]
         return context
 
@@ -3465,4 +3470,78 @@ class TemplatesEndpoint(ListAPIMixin, BaseAPIView):
             "slug": "templates-list",
             "params": [],
             "example": {},
+        }
+
+
+class TicketersEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to list the active ticketing services on your account.
+
+    ## Listing Ticketers
+
+    A **GET** returns the ticketers for your organization, most recent first.
+     * **uuid** - the UUID of the ticketer, filterable as `uuid`.
+     * **name** - the name of the ticketer
+     * **type** - the type of the ticketer, e.g. 'mailgun' or 'zendesk'
+     * **created_on** - when this ticketer was created
+
+    Example:
+        GET /api/v2/ticketers.json
+
+    Response:
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "uuid": "9a8b001e-a913-486c-80f4-1356e23f582e",
+                "name": "Email (bob@acme.com)",
+                "type": "mailgun",
+                "created_on": "2013-02-27T09:06:15.456"
+            },
+            ...
+    """
+
+    permission = "tickets.ticketer_api"
+    model = Ticketer
+    serializer_class = TicketerReadSerializer
+    pagination_class = CreatedOnCursorPagination
+
+    def filter_queryset(self, queryset):
+        params = self.request.query_params
+        org = self.request.user.get_org()
+
+        queryset = queryset.filter(org=org, is_active=True)
+
+        # filter by uuid (optional)
+        uuid = params.get("uuid")
+        if uuid:
+            queryset = queryset.filter(uuid=uuid)
+
+        return self.filter_before_after(queryset, "created_on")
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            "method": "GET",
+            "title": "List Ticketers",
+            "url": reverse("api.v2.ticketers"),
+            "slug": "ticketer-list",
+            "params": [
+                {
+                    "name": "uuid",
+                    "required": False,
+                    "help": "A ticketer UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
+                },
+                {
+                    "name": "before",
+                    "required": False,
+                    "help": "Only return ticketers created before this date, ex: 2015-01-28T18:00:00.000",
+                },
+                {
+                    "name": "after",
+                    "required": False,
+                    "help": "Only return ticketers created after this date, ex: 2015-01-28T18:00:00.000",
+                },
+            ],
         }

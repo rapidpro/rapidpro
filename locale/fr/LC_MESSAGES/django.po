@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-30 19:40+0000\n"
+"POT-Creation-Date: 2020-05-05 21:49+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -4522,6 +4522,9 @@ msgstr "Intentions synchronisées"
 msgid "Classifier Called"
 msgstr "Classificateur appelé"
 
+msgid "Ticketing Service Called"
+msgstr ""
+
 msgid "Airtime Transferred"
 msgstr "Temps d'antenne transféré"
 
@@ -4593,6 +4596,12 @@ msgstr "Créez visuellement des applications mobiles évolutives à l'échelle n
 
 msgid "Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."
 msgstr "Copyright &copy; 2012-2017 UNICEF, Nyaruka. Tous Droits Réservés."
+
+msgid "Open"
+msgstr ""
+
+msgid "Closed"
+msgstr ""
 
 msgid "Keyword Trigger"
 msgstr "Mot-clé du declencheur"

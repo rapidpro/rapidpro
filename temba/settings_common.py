@@ -254,6 +254,7 @@ INSTALLED_APPS = (
     "temba.channels",
     "temba.msgs",
     "temba.flows",
+    "temba.tickets",
     "temba.triggers",
     "temba.utils",
     "temba.campaigns",
@@ -464,6 +465,7 @@ PERMISSIONS = {
     "orgs.topup": ("manage",),
     "policies.policy": ("admin", "history", "give_consent"),
     "templates.template": ("api",),
+    "tickets.ticketer": ("api",),
     "triggers.trigger": (
         "archived",
         "catchall",
@@ -655,6 +657,7 @@ GROUP_PERMISSIONS = {
         "request_logs.httplog_list",
         "request_logs.httplog_read",
         "templates.template_api",
+        "tickets.ticketer_api",
         "triggers.trigger.*",
     ),
     "Editors": (
@@ -753,6 +756,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "templates.template_api",
+        "tickets.ticketer_api",
         "triggers.trigger.*",
     ),
     "Viewers": (
@@ -821,6 +825,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "tickets.ticketer_api",
         "triggers.trigger_archived",
         "triggers.trigger_list",
     ),
@@ -1012,6 +1017,8 @@ CLASSIFIER_TYPES = [
     "temba.classifiers.types.luis.LuisType",
     "temba.classifiers.types.bothub.BothubType",
 ]
+
+TICKETER_TYPES = ["temba.tickets.types.mailgun.MailgunType"]
 
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",

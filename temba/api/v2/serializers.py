@@ -20,6 +20,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
 from temba.templates.models import Template, TemplateTranslation
+from temba.tickets.models import Ticketer
 from temba.utils import extract_constants, json, on_transaction_commit
 from temba.values.constants import Value
 
@@ -1366,3 +1367,15 @@ class TemplateReadSerializer(ReadSerializer):
     class Meta:
         model = Template
         fields = ("uuid", "name", "translations", "created_on", "modified_on")
+
+
+class TicketerReadSerializer(ReadSerializer):
+    type = serializers.SerializerMethodField()
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    def get_type(self, obj):
+        return obj.ticketer_type
+
+    class Meta:
+        model = Ticketer
+        fields = ("uuid", "name", "type", "created_on")
