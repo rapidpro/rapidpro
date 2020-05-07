@@ -25,6 +25,8 @@ from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
 from django.db.models import Max, Q, Sum
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -33,21 +35,13 @@ from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
-from temba.contacts.models import (
-    Contact,
-    ContactField,
-    ContactGroup,
-    ContactURN,
-)
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, URN
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import DELIVERED, PENDING, Broadcast, Label, Msg
-from temba.orgs.models import Language, Org
+from temba.orgs.models import Org
 from temba.links.models import Link
 from temba.classifiers.models import Classifier
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.globals.models import Global
-from temba.msgs.models import Label, Msg
-from temba.orgs.models import Org
 from temba.templates.models import Template
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
@@ -2221,6 +2215,48 @@ class Flow(TembaModel):
 
     class Meta:
         ordering = ("-modified_on",)
+
+
+@receiver(post_save, sender=Flow)
+def update_related_flows(sender, instance, created, **kwargs):
+    dependent_flows = instance.dependent_flows.all()
+    if created:
+        return
+
+    def flow_dependency_filter(dependency):
+        if dependency.get("type") == "flow":
+            return dependency.get("uuid") == instance.uuid
+        return False
+
+    def flow_node_filter(node):
+        if node["actions"] and node["actions"][0]["type"] == "enter_flow":
+            return node["actions"][0]["flow"]["uuid"] == instance.uuid
+        return False
+
+    for flow in dependent_flows:
+        # update dependency for flow metadata
+        dependencies = filter(flow_dependency_filter, flow.metadata.get("dependencies", []))
+        for dependency in dependencies:
+            dependency.update({"name": instance.name})
+
+        # update dependency for flow revision
+        flow_revision = flow.revisions.order_by("revision").last()
+        nodes = filter(flow_node_filter, flow_revision.definition.get("nodes", []))
+        for node in nodes:
+            action = node["actions"][0]
+            action.update({"flow": {"uuid": instance.uuid, "name": instance.name}})
+        flow_revision.save()
+
+        # update dependency for rule set (legacy flow editor)
+        rulesets = flow.rule_sets.filter(config__icontains=instance.uuid)
+        for ruleset in rulesets:
+            config = ruleset.config
+            if "flow" in config:
+                config["flow"].update({"name": instance.name})
+
+        RuleSet.objects.bulk_update(rulesets, ["config"])
+
+        flow.save()
 
 
 class FlowSession(models.Model):
