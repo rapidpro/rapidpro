@@ -1,7 +1,7 @@
 from django.conf.urls import include, url
 
 from .models import Ticketer
-from .views import TicketerCRUDL
+from .views import TicketCRUDL, TicketerCRUDL
 
 # build up all the type specific urls
 service_urls = []
@@ -13,4 +13,8 @@ for ticketer_type in Ticketer.get_types():
     if urls:
         service_urls.append(url("^%s/" % ticketer_type.slug, include(urls)))
 
-urlpatterns = [url(r"^", include(TicketerCRUDL().as_urlpatterns())), url(r"^tickets/types/", include(service_urls))]
+urlpatterns = [
+    url(r"^", include(TicketCRUDL().as_urlpatterns())),
+    url(r"^", include(TicketerCRUDL().as_urlpatterns())),
+    url(r"^tickets/types/", include(service_urls)),
+]

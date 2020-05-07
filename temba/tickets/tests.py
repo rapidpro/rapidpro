@@ -38,7 +38,7 @@ class TicketerTest(TembaTest):
         flow = self.create_flow()
         flow.ticketer_dependencies.add(ticketer)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(AssertionError):
             ticketer.release()
 
         ticketer.refresh_from_db()

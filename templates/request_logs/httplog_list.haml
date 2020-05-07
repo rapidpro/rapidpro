@@ -14,15 +14,15 @@
 
   %h5.header-margin
     -if classifier
-      {{classifier.get_type.name}}
+      {{ classifier.get_type.name }}
       -trans "Classifier: "
       %a(href="{% url 'classifiers.classifier_read' classifier.uuid %}")
         {{ classifier.name }}
 
     -if ticketer
-      {{ticketer.get_type.name}}
+      {{ ticketer.get_type.name }}
       -trans "Ticketing Service: "
-      %a(href="{% url 'tickets.ticketer_read' ticketer.uuid %}")
+      %a(href="{% url 'tickets.ticket_filter' ticketer.uuid %}")
         {{ ticketer.name }}
 
 -block table

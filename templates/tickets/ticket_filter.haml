@@ -1,4 +1,4 @@
--extends "smartmin/read.html"
+-extends "smartmin/list.html"
 
 -load smartmin temba compress humanize channels
 -load i18n tz
@@ -7,21 +7,19 @@
 -block fields
 
 -block title
-  .medium-help.float-left{class:'{{object.get_type.icon}}'}
+  .medium-help.float-left(class='{{ ticketer.get_type.icon }}')
 
   %h2.font_normalize.header-margin.title
-    {{ object.get_type.name }}
+    {{ ticketer.get_type.name }}
     -trans "Ticketing Service"
     .name
-      {{ object.name }}
+      {{ ticketer.name }}
 
   .header-margin
     %a.btn.btn-tiny(href="{% url 'request_logs.httplog_list' 'ticketer' ticketer.uuid %}")
       -trans "Ticketing Service Log"
 
 -block content
-  %div(style="float:right;line-height:40px")
-    -trans "Tickets can be viewed and closed here manually"
   %h3
     -trans "Active Tickets"
 
@@ -33,24 +31,31 @@
         %th
           -trans "Subject"
         %th
+          -trans "Body"
+        %th
           -trans "Created On"
+        %th
 
     %tbody
-      -for ticket in tickets
+      -for ticket in object_list
         %tr
           %td.ticket-contact
             %a(href="{% url 'contacts.contact_read' ticket.contact.uuid %}")
               {{ ticket.contact }}
-
           %td.ticket-subject
             {{ ticket.subject }}
-
+          %td.ticket-body
+            {{ ticket.body }}
           %td.ticket-opened
             {{ ticket.opened_on }}
+          %td.ticket-actions
+            -if org_perms.tickets.ticket_close
+              %a(href="#" onclick='closeTicket("{{ ticket.uuid }}")')
+                -trans "Close"
 
         -empty
           %tr.empty
-            %td(colspan=3)
+            %td(colspan=4)
               -trans "No open tickets at this time."
 
 -block post-content
@@ -62,23 +67,33 @@
         %p
           -trans "Once it is removed, it will be gone forever. There is no way to undo this operation."
 
-    %a#deletion-form.posterize{href:'{% url "tickets.ticketer_delete" object.uuid %}'}
+    %a#deletion-form.posterize{href:'{% url "tickets.ticketer_delete" ticketer.uuid %}'}
 
 -block extra-script
-  {{block.super}}
+  {{ block.super }}
 
   :javascript
     $(".delete-ticketer").live('click', function(){
-      modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
+    {% if used_by_flows %}
+      var modal = new Modal("{% trans 'Warning' %}", '{% trans "Unable to delete service still being used by flows" %}');
       modal.addClass('alert');
-
+      modal.setListeners({onPrimary: function(){modal.dismiss();}}, false);
+      modal.show();
+    {% else %}
+      var modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
+      modal.addClass('alert');
       modal.setListeners({onPrimary: function(){
         $('#deletion-form').click();
       }}, false);
       modal.setPrimaryButton('{% trans "Delete" %}');
-
       modal.show();
-      });
+    {% endif %}
+    });
+
+    function closeTicket(uuid) {
+      // TODO
+      alert("TODO close ticket " + uuid);
+    }
 
 -block extra-style
   {{ block.super }}
@@ -101,8 +116,9 @@
       font-size: 16pt;
     }
 
+
 -block summary
-  {{ ticketer.get_type.name }}
+  {{ object.get_type.name }}
   -trans "Ticketing Service"
   %span -
   %strong

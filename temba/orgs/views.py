@@ -53,7 +53,6 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
-from temba.tickets.models import Ticketer
 from temba.utils import analytics, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address
 from temba.utils.http import http_headers
@@ -2365,13 +2364,13 @@ class OrgCRUDL(SmartCRUDL):
                     action="link",
                 )
 
-        def add_ticketer_section(self, formax, service):
+        def add_ticketer_section(self, formax, ticketer):
 
-            if self.has_org_perm("tickets.ticketer_read"):
+            if self.has_org_perm("tickets.ticket_filter"):
                 formax.add_section(
                     "tickets",
-                    reverse("tickets.ticketer_read", args=[service.uuid]),
-                    icon=service.get_type().icon,
+                    reverse("tickets.ticket_filter", args=[ticketer.uuid]),
+                    icon=ticketer.get_type().icon,
                     action="link",
                 )
 
@@ -2403,10 +2402,9 @@ class OrgCRUDL(SmartCRUDL):
                 for classifier in classifiers:
                     self.add_classifier_section(formax, classifier)
 
-            if self.has_org_perm("tickets.ticketer_read"):
-                services = Ticketer.objects.filter(org=org, is_active=True).order_by("created_on")
-                for service in services:
-                    self.add_ticketer_section(formax, service)
+            if self.has_org_perm("tickets.ticket_filter"):
+                for ticketer in org.ticketers.filter(is_active=True).order_by("created_on"):
+                    self.add_ticketer_section(formax, ticketer)
 
             if self.has_org_perm("orgs.org_profile"):
                 formax.add_section("user", reverse("orgs.user_edit"), icon="icon-user", action="redirect")

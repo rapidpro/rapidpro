@@ -121,15 +121,16 @@ class Ticketer(SmartModel):
         """
         Releases this, closing all associated tickets in the process
         """
-        used_by = self.dependent_flows.count()
-        if used_by > 0:
-            raise ValueError(f"Cannot delete ticketer: {self.name}, used by {used_by} flows")
+        assert not self.dependent_flows.exists(), "can't delete ticketer currently in use by flows"
 
         for ticket in self.tickets.all():
             ticket.close()
 
         self.is_active = False
         self.save(update_fields=("is_active", "modified_on"))
+
+    def __str__(self):
+        return f"Ticketer[uuid={self.uuid}, name={self.name}]"
 
 
 class Ticket(models.Model):
@@ -184,3 +185,6 @@ class Ticket(models.Model):
         self.status = Ticket.STATUS_CLOSED
         self.closed_on = timezone.now()
         self.save(update_fields=("status", "modified_on", "closed_on"))
+
+    def __str__(self):
+        return f"Ticket[uuid={self.uuid}, subject={self.subject}]"
