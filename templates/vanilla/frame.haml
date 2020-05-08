@@ -35,11 +35,14 @@
       :javascript
          var static_url = '{{STATIC_URL}}';
 
+    -block extra-script
+
     -block styles
       %link{rel:'stylesheet', href:'https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:300,400,500'}
       %link{rel:"stylesheet", href:"{{ STATIC_URL }}css/temba-components.css", type:"text/css"}
       %link{rel:"stylesheet", href:"{{ STATIC_URL }}css/tailwind.css", type:"text/css"}
 
+      -block extra-style
       -compress css
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
 
@@ -57,7 +60,6 @@
             %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}{{style}}', media:'all'}
           -else
             %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}{{style}}", media:'all'}
-
 
     -for incl in brand.head_includes
       -include incl
@@ -77,5 +79,7 @@
     #frame-footer
       -block frame-footer
         -include "vanilla/frame_footer.html"
+
+  -block extra-body
 
 </html>
