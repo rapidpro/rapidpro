@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'temba';
-  src:  url('fonts/temba.eot?9vp2b4');
-  src:  url('fonts/temba.eot?9vp2b4#iefix') format('embedded-opentype'),
-    url('fonts/temba.ttf?9vp2b4') format('truetype'),
-    url('fonts/temba.woff?9vp2b4') format('woff'),
-    url('fonts/temba.svg?9vp2b4#temba') format('svg');
+  src:  url('fonts/temba.eot?3kce42');
+  src:  url('fonts/temba.eot?3kce42#iefix') format('embedded-opentype'),
+    url('fonts/temba.ttf?3kce42') format('truetype'),
+    url('fonts/temba.woff?3kce42') format('woff'),
+    url('fonts/temba.svg?3kce42#temba') format('svg');
   font-weight: normal;
   font-style: normal;
   font-display: block;
@@ -25,6 +25,9 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-ticket:before {
+  content: "\e939";
+}
 .icon-mailgun:before {
   content: "\e917";
 }

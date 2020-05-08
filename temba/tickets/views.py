@@ -3,6 +3,7 @@ from smartmin.views import (
     SmartDeleteView,
     SmartFormView,
     SmartListView,
+    SmartReadView,
     SmartTemplateView,
     SmartUpdateView,
 )
@@ -11,10 +12,12 @@ from django import forms
 from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.utils.views import PostOnlyMixin
 
 from .models import Ticket, Ticketer
 
@@ -58,10 +61,11 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("filter", "close")
+    actions = ("filter", "read", "close")
 
     class Filter(OrgObjPermsMixin, SmartListView):
-        fields = ("contact", "subject", "body", "opened_on")
+        fields = ("subject", "contact", "body", "opened_on")
+        select_related = ("ticketer", "contact")
 
         @classmethod
         def derive_url_pattern(cls, path, action):
@@ -69,7 +73,7 @@ class TicketCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
-            qs = qs.filter(ticketer=self.ticketer)  # , status=Ticket.STATUS_OPEN
+            qs = qs.filter(ticketer=self.ticketer, status=Ticket.STATUS_OPEN)
             return qs
 
         def get_gear_links(self):
@@ -91,8 +95,27 @@ class TicketCRUDL(SmartCRUDL):
         def ticketer(self):
             return Ticketer.objects.get(uuid=self.kwargs["ticketer"], is_active=True)
 
-    class Close(OrgObjPermsMixin, SmartUpdateView):
-        pass
+    class Read(OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = "uuid"
+        fields = ("subject", "body", "status")
+
+        def get_gear_links(self):
+            links = []
+            if self.object.status == Ticket.STATUS_OPEN and self.has_org_perm("tickets.ticket_close"):
+                links.append(dict(title=_("Close"), js_class="close-ticket", href="#"))
+            return links
+
+    class Close(PostOnlyMixin, OrgObjPermsMixin, SmartUpdateView):
+        slug_url_kwarg = "uuid"
+        fields = ()
+
+        def save(self, obj):
+            obj.status = Ticket.STATUS_CLOSED
+            obj.closed_on = timezone.now()
+            obj.save(update_fields=("status", "closed_on"))
+
+        def get_success_url(self):
+            return reverse("tickets.ticket_filter", args=[self.object.ticketer.uuid])
 
 
 class TicketerCRUDL(SmartCRUDL):
