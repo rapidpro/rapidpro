@@ -1,7 +1,8 @@
+from django.conf.urls import url
 from django.utils.translation import ugettext_lazy as _
 
 from ...models import TicketerType
-from .views import ConnectView
+from .views import AdminUIView, ConnectView, ManifestView
 
 
 class ZendeskType(TicketerType):
@@ -24,3 +25,13 @@ class ZendeskType(TicketerType):
     form_blurb = _(
         """Enter your Zendesk subdomain. You will be redirected to Zendesk where you need to grant access to this application."""
     )
+
+    def get_urls(self):
+        """
+        Returns all the URLs this ticketer exposes to Django, the URL should be relative.
+        """
+        return [
+            self.get_connect_url(),
+            url(r"^manifest", ManifestView.as_view(), name="manifest"),
+            url(r"^admin_ui", AdminUIView.as_view(), name="admin_ui"),
+        ]
