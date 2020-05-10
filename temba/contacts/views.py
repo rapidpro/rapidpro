@@ -1117,7 +1117,12 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm("msgs.broadcast_send") and not self.object.is_blocked and not self.object.is_stopped and self.object.get_urn():
+            if (
+                self.has_org_perm("msgs.broadcast_send")
+                and not self.object.is_blocked
+                and not self.object.is_stopped
+                and self.object.get_urn()
+            ):
                 links.append(
                     dict(
                         id="send-message",
@@ -1350,8 +1355,9 @@ class ContactCRUDL(SmartCRUDL):
         template_name = "contacts/contact_filter.haml"
 
         def has_permission_view_objects(self):
-            group = ContactGroup.all_groups.filter(org=self.request.user.get_org(),
-                                                   uuid=self.kwargs.get('group')).first()
+            group = ContactGroup.all_groups.filter(
+                org=self.request.user.get_org(), uuid=self.kwargs.get("group")
+            ).first()
             if not group:
                 raise PermissionDenied()
             return None

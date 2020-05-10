@@ -930,8 +930,10 @@ class FlowCRUDL(SmartCRUDL):
 
         def has_permission_view_objects(self):
             from temba.campaigns.models import Campaign
-            campaign = Campaign.objects.filter(org=self.request.user.get_org(),
-                                               id=self.kwargs.get('campaign_id')).first()
+
+            campaign = Campaign.objects.filter(
+                org=self.request.user.get_org(), id=self.kwargs.get("campaign_id")
+            ).first()
             if not campaign:
                 raise PermissionDenied()
             return None
@@ -976,8 +978,9 @@ class FlowCRUDL(SmartCRUDL):
         actions = ["unlabel", "label"]
 
         def has_permission_view_objects(self):
-            flow_label = FlowLabel.objects.filter(org=self.request.user.get_org(),
-                                                  id=self.kwargs.get('label_id')).first()
+            flow_label = FlowLabel.objects.filter(
+                org=self.request.user.get_org(), id=self.kwargs.get("label_id")
+            ).first()
             if not flow_label:
                 raise PermissionDenied()
             return None

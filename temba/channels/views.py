@@ -1825,7 +1825,7 @@ class ChannelCRUDL(SmartCRUDL):
         search_fields = ("name", "address", "org__created_by__email")
 
         def lookup_field_link(self, context, field, obj):
-            if field == 'name':
+            if field == "name":
                 return reverse("channels.channel_read", args=[obj.uuid])
             return super().lookup_field_link(context, field, obj)
 
@@ -2097,7 +2097,9 @@ class ChannelLogCRUDL(SmartCRUDL):
             return events
 
         def has_permission_view_objects(self):
-            channel = Channel.objects.filter(org=self.request.user.get_org(), uuid=self.kwargs.get("channel_uuid")).first()
+            channel = Channel.objects.filter(
+                org=self.request.user.get_org(), uuid=self.kwargs.get("channel_uuid")
+            ).first()
             if not channel:
                 raise PermissionDenied()
             return None
