@@ -12,7 +12,8 @@ from temba.contacts.models import ContactField, ContactGroup
 from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget
+from temba.utils import build_flow_parameters, flow_params_context
+from temba.utils.fields import InputWidget, SelectWidget
 from temba.utils.views import BaseActionForm
 from temba.values.constants import Value
 
@@ -143,14 +144,7 @@ class CampaignCRUDL(SmartCRUDL):
 
             else:
                 if self.has_org_perm("campaigns.campaignevent_create"):
-                    links.append(
-                        dict(
-                            id="event-add",
-                            title=_("Add Event"),
-                            href=f"{reverse('campaigns.campaignevent_create')}?campaign={self.object.pk}",
-                            modax=_("Add Event"),
-                        )
-                    )
+                    links.append(dict(title="Add Event", style="btn-primary", js_class="add-event", href="#"))
                 if self.has_org_perm("orgs.org_export"):
                     links.append(
                         dict(title=_("Export"), href=f"{reverse('orgs.org_export')}?campaign={self.object.id}")
@@ -300,46 +294,17 @@ class CampaignEventForm(forms.ModelForm):
     event_type = forms.ChoiceField(
         choices=((CampaignEvent.TYPE_MESSAGE, "Send a message"), (CampaignEvent.TYPE_FLOW, "Start a flow")),
         required=True,
-        widget=SelectWidget(attrs={"placeholder": _("Select the event type"), "widget_only": True}),
     )
 
-    direction = forms.ChoiceField(
-        choices=(("B", "Before"), ("A", "After")),
-        required=True,
-        widget=SelectWidget(attrs={"placeholder": _("Relative date direction"), "widget_only": True}),
-    )
+    direction = forms.ChoiceField(choices=(("B", "Before"), ("A", "After")), required=True)
 
-    unit = forms.ChoiceField(
-        choices=CampaignEvent.UNIT_CHOICES,
-        required=True,
-        widget=SelectWidget(attrs={"placeholder": _("Select a unit"), "widget_only": True}),
-    )
+    unit = forms.ChoiceField(choices=CampaignEvent.UNIT_CHOICES, required=True)
 
-    flow_to_start = forms.ModelChoiceField(
-        queryset=Flow.objects.filter(is_active=True),
-        required=False,
-        empty_label=None,
-        widget=SelectWidget(attrs={"placeholder": _("Select a flow to start"), "widget_only": True}),
-    )
+    flow_to_start = forms.ModelChoiceField(queryset=Flow.objects.filter(is_active=True), required=False)
 
-    relative_to = forms.ModelChoiceField(
-        queryset=ContactField.all_fields.none(),
-        required=False,
-        empty_label=None,
-        widget=SelectWidget(
-            attrs={
-                "placeholder": _("Select a date field to base this event on"),
-                "widget_only": True,
-                "searchable": True,
-            }
-        ),
-    )
+    relative_to = forms.ModelChoiceField(queryset=ContactField.all_fields.none(), required=False, empty_label=None)
 
-    delivery_hour = forms.ChoiceField(
-        choices=CampaignEvent.get_hour_choices(),
-        required=False,
-        widget=SelectWidget(attrs={"placeholder": _("Select hour for delivery"), "widget_only": True}),
-    )
+    delivery_hour = forms.ChoiceField(choices=CampaignEvent.get_hour_choices(), required=False)
 
     flow_start_mode = forms.ChoiceField(
         choices=(
@@ -347,7 +312,6 @@ class CampaignEventForm(forms.ModelForm):
             (CampaignEvent.MODE_SKIP, _("Skip this event")),
         ),
         required=False,
-        widget=SelectWidget(attrs={"placeholder": _("Flow starting rules"), "widget_only": True}),
     )
 
     message_start_mode = forms.ChoiceField(
@@ -356,7 +320,6 @@ class CampaignEventForm(forms.ModelForm):
             (CampaignEvent.MODE_SKIP, _("Skip this message")),
         ),
         required=False,
-        widget=SelectWidget(attrs={"placeholder": _("Message sending rules"), "widget_only": True}),
     )
 
     def clean(self):
@@ -468,19 +431,7 @@ class CampaignEventForm(forms.ModelForm):
                 # otherwise, its just a normal language
                 initial = message.get(language.iso_code, "")
 
-            field = forms.CharField(
-                widget=CompletionTextarea(
-                    attrs={
-                        "placeholder": _(
-                            "Hi @contact.name! This is just a friendly reminder to apply your fertilizer."
-                        ),
-                        "widget_only": True,
-                    }
-                ),
-                required=False,
-                label=language.name,
-                initial=initial,
-            )
+            field = forms.CharField(widget=forms.Textarea, required=False, label=language.name, initial=initial)
 
             self.fields[language.iso_code] = field
             field.language = dict(name=language.name, iso_code=language.iso_code)
@@ -513,7 +464,7 @@ class CampaignEventForm(forms.ModelForm):
     class Meta:
         model = CampaignEvent
         fields = "__all__"
-        widgets = {"offset": InputWidget(attrs={"widget_only": True})}
+        exclude = ("extra",)
 
 
 class CampaignEventCRUDL(SmartCRUDL):
@@ -553,14 +504,7 @@ class CampaignEventCRUDL(SmartCRUDL):
             campaign_event = self.get_object()
 
             if self.has_org_perm("campaigns.campaignevent_update") and not campaign_event.campaign.is_archived:
-                links.append(
-                    dict(
-                        id="event-update",
-                        title=_("Edit"),
-                        href=reverse("campaigns.campaignevent_update", args=[campaign_event.pk]),
-                        modax=_("Update Event"),
-                    )
-                )
+                links.append(dict(title="Edit", style="btn-primary", js_class="update-event", href="#"))
 
             if self.has_org_perm("campaigns.campaignevent_delete"):
                 links.append(
@@ -625,7 +569,14 @@ class CampaignEventCRUDL(SmartCRUDL):
             return self.get_object().campaign.org
 
         def get_context_data(self, **kwargs):
-            return super().get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
+            obj = self.get_object()
+            if obj.extra:
+                context["flow_parameters_fields"] = ",".join([f"@trigger.params.{key}" for key in obj.extra.keys()])
+                context["flow_parameters_values"] = ",".join(obj.extra.values())
+            params_context = flow_params_context(self.request)
+            context.update(params_context)
+            return context
 
         def derive_fields(self):
 
@@ -693,6 +644,13 @@ class CampaignEventCRUDL(SmartCRUDL):
                 obj = obj.deactivate_and_copy()
                 EventFire.create_eventfires_for_event(obj)
 
+            if obj.event_type == CampaignEvent.TYPE_FLOW:
+                flow_params_fields = [field for field in self.request.POST.keys() if "flow_parameter_field" in field]
+                flow_params_values = [field for field in self.request.POST.keys() if "flow_parameter_value" in field]
+
+                params = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
+                obj.extra = params if params else None
+
             return obj
 
         def get_success_url(self):
@@ -715,6 +673,12 @@ class CampaignEventCRUDL(SmartCRUDL):
         success_message = ""
         template_name = "campaigns/campaignevent_update.haml"
         submit_button_name = _("Add Event")
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            params_context = flow_params_context(self.request)
+            context.update(params_context)
+            return context
 
         def pre_process(self, request, *args, **kwargs):
             campaign_id = request.GET.get("campaign", None)
@@ -771,6 +735,14 @@ class CampaignEventCRUDL(SmartCRUDL):
         def pre_save(self, obj):
             obj = super().pre_save(obj)
             obj.campaign = Campaign.objects.get(org=self.request.user.get_org(), pk=self.request.GET.get("campaign"))
+
+            if obj.event_type == CampaignEvent.TYPE_FLOW:
+                flow_params_fields = [field for field in self.request.POST.keys() if "flow_parameter_field" in field]
+                flow_params_values = [field for field in self.request.POST.keys() if "flow_parameter_value" in field]
+
+                params = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
+                obj.extra = params if params else None
+
             self.form.pre_save(self.request, obj)
             return obj
 

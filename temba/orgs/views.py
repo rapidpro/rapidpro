@@ -622,6 +622,7 @@ class OrgCRUDL(SmartCRUDL):
         "lookups",
         "parse_data_view",
         "parse_data_import",
+        "send_invite",
     )
 
     model = Org
@@ -3011,17 +3012,14 @@ class OrgCRUDL(SmartCRUDL):
         class OrgForm(forms.ModelForm):
             name = forms.CharField(max_length=128, label=_("The name of your organization"), help_text="")
             timezone = TimeZoneFormField(label=_("Your organization's timezone"), help_text="")
-            slug = forms.SlugField(
-                max_length=255, label=_("The slug, or short name for your organization"), help_text=""
-            )
 
             class Meta:
                 model = Org
-                fields = ("name", "slug", "timezone", "date_format")
+                fields = ("name", "timezone", "date_format")
 
         success_message = ""
         form_class = OrgForm
-        fields = ("name", "slug", "timezone", "date_format")
+        fields = ("name", "timezone", "date_format")
 
         def has_permission(self, request, *args, **kwargs):
             self.org = self.derive_org()
@@ -3249,6 +3247,60 @@ class OrgCRUDL(SmartCRUDL):
                 name=cache.name, count=num_deleted
             )
 
+    class SendInvite(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
+        class SentInviteForm(forms.Form):
+            # set email field readonly when email provided
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                if self.initial.get("email"):
+                    self.fields["email"].widget.attrs["readonly"] = True
+
+            email = forms.EmailField(label=_("Invite people to your organization"), required=True)
+            user_group = forms.ChoiceField(
+                choices=(("A", _("Administrators")), ("E", _("Editors")), ("V", _("Viewers")), ("S", _("Surveyors"))),
+                required=True,
+                initial="V",
+                label=_("User group"),
+            )
+
+        form_class = SentInviteForm
+        success_url = "@orgs.org_manage_accounts"
+        fields = ("email", "user_group")
+
+        def derive_initial(self):
+            initial = super().derive_initial()
+            org, invitation_id = self.request.user.get_org(), self.request.GET.get("id")
+            invite = Invitation.objects.filter(org=org, id=invitation_id).first()
+            if invite:
+                initial["email"] = invite.email
+                initial["user_group"] = invite.user_group
+            return initial
+
+        def form_valid(self, form):
+            user = self.request.user
+            org = user.get_org()
+            email = form.cleaned_data.get("email")
+            user_group = form.cleaned_data.get("user_group")
+
+            # if they already have an invite, update it
+            invites = Invitation.objects.filter(email=email, org=org).order_by("-pk")
+            invitation = invites.first()
+
+            if invitation:
+                invites.exclude(pk=invitation.pk).delete()  # remove any old invites
+
+                invitation.user_group = user_group
+                invitation.is_active = True
+                # generate new secret for this invitation
+                invitation.secret = random_string(64)
+                invitation.save()
+            else:
+                invitation = Invitation.create(org, self.request.user, email, user_group)
+
+            invitation.send_invitation()
+
+            return super().form_valid(form)
+
 
 class TopUpCRUDL(SmartCRUDL):
     actions = ("list", "create", "read", "manage", "update")
@@ -3256,7 +3308,12 @@ class TopUpCRUDL(SmartCRUDL):
 
     class Read(OrgPermsMixin, SmartReadView):
         def derive_queryset(self, **kwargs):  # pragma: needs cover
-            return TopUp.objects.filter(is_active=True, org=self.request.user.get_org()).order_by("-expires_on")
+            query = TopUp.objects.filter(is_active=True, org=self.request.user.get_org())
+            if settings.CREDITS_EXPIRATION:
+                query = query.order_by("-expires_on")
+            else:
+                query = query.order_by("-created_on")
+            return query
 
     class List(OrgPermsMixin, SmartListView):
         def derive_queryset(self, **kwargs):
@@ -3269,6 +3326,9 @@ class TopUpCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             context["org"] = self.request.user.get_org()
 
+            if settings.CREDITS_EXPIRATION:
+                context["credits_expiration"] = True
+
             now = timezone.now()
             context["now"] = now
             context["expiration_period"] = now + timedelta(days=30)
@@ -3278,12 +3338,13 @@ class TopUpCRUDL(SmartCRUDL):
 
             def compare(topup1, topup2):  # pragma: no cover
 
-                # non expired first
-                now = timezone.now()
-                if topup1.expires_on > now and topup2.expires_on <= now:
-                    return -1
-                elif topup2.expires_on > now and topup1.expires_on <= now:
-                    return 1
+                if settings.CREDITS_EXPIRATION:
+                    # non expired first
+                    now = timezone.now()
+                    if topup1.expires_on > now and topup2.expires_on <= now:
+                        return -1
+                    elif topup2.expires_on > now and topup1.expires_on <= now:
+                        return 1
 
                 # then push those without credits remaining to the bottom
                 if topup1.credits_remaining is None:
@@ -3297,11 +3358,12 @@ class TopUpCRUDL(SmartCRUDL):
                 elif topup2.credits_remaining and not topup1.credits_remaining:
                     return 1
 
-                # sor the rest by their expiration date
-                if topup1.expires_on > topup2.expires_on:
-                    return -1
-                elif topup1.expires_on < topup2.expires_on:
-                    return 1
+                if settings.CREDITS_EXPIRATION:
+                    # sor the rest by their expiration date
+                    if topup1.expires_on > topup2.expires_on:
+                        return -1
+                    elif topup1.expires_on < topup2.expires_on:
+                        return 1
 
                 # if we end up with the same expiration, show the oldest first
                 return topup2.id - topup1.id
@@ -3351,9 +3413,13 @@ class TopUpCRUDL(SmartCRUDL):
         This is only for root to be able to manage topups on an account
         """
 
-        fields = ("credits", "price", "comment", "created_on", "expires_on")
         success_url = "@orgs.org_manage"
-        default_order = "-expires_on"
+        fields = ("credits", "price", "comment", "created_on")
+        if settings.CREDITS_EXPIRATION:
+            fields = fields + ("expires_on",)
+            default_order = "-expires_on"
+        else:
+            default_order = "-created_on"
 
         def lookup_field_link(self, context, field, obj):
             return reverse("orgs.topup_update", args=[obj.id])

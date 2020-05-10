@@ -19,8 +19,8 @@ from temba.msgs.views import ModalMixin
 from temba.orgs.views import OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.schedules.views import BaseScheduleForm
-from temba.utils import analytics, json
-from temba.utils.fields import CompletionTextarea, JSONField, OmniboxChoice, SelectWidget
+from temba.utils import analytics, json, build_flow_parameters, flow_params_context
+from temba.utils.fields import CompletionTextarea, JSONField, OmniboxChoice
 from temba.utils.views import BaseActionForm
 
 from .models import Trigger
@@ -222,13 +222,7 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
     repeat_days_of_week = forms.CharField(required=False)
     start = forms.ChoiceField(choices=(("stop", "Stop Schedule"), ("later", "Schedule for later")))
     start_datetime_value = forms.IntegerField(required=False)
-    flow = forms.ModelChoiceField(
-        Flow.objects.filter(pk__lt=0),
-        label=_("Flow"),
-        required=True,
-        widget=SelectWidget(attrs={"placeholder": _("Select a flow")}),
-        empty_label=None,
-    )
+    flow = forms.ModelChoiceField(Flow.objects.filter(pk__lt=0), label=_("Flow"), required=True)
 
     omnibox = JSONField(
         label=_("Contacts"),
@@ -244,7 +238,7 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
         self.user = user
         flows = Flow.get_triggerable_flows(user.get_org())
 
-        self.fields["flow"].queryset = flows
+        self.fields["flow"].queryset = flows.order_by("name")
 
     def clean_omnibox(self):
         return omnibox_deserialize(self.user.get_org(), self.cleaned_data["omnibox"])
@@ -432,16 +426,36 @@ class TriggerCRUDL(SmartCRUDL):
             Trigger.TYPE_REFERRAL: ReferralTriggerForm,
         }
 
+        def pre_save(self, obj, *args, **kwargs):
+            obj = super().pre_save(obj, *args, **kwargs)
+            obj.org = self.request.user.get_org()
+
+            flow_params_fields = [field for field in self.request.POST.keys() if "flow_parameter_field" in field]
+            flow_params_values = [field for field in self.request.POST.keys() if "flow_parameter_value" in field]
+
+            params = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
+            obj.extra = params if params else None
+
+            return obj
+
         def get_form_class(self):
             trigger_type = self.object.trigger_type
             return self.trigger_forms[trigger_type]
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            if self.get_object().schedule:
+            obj = self.get_object()
+            if obj.schedule:
                 context["days"] = self.get_object().schedule.repeat_days_of_week or ""
             context["user_tz"] = get_current_timezone_name()
             context["user_tz_offset"] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() // 60)
+            if obj.extra:
+                context["flow_parameters_fields"] = ",".join([f"@trigger.params.{key}" for key in obj.extra.keys()])
+                context["flow_parameters_values"] = ",".join(obj.extra.values())
+
+            params_context = flow_params_context(self.request)
+            context.update(params_context)
+
             return context
 
         def form_invalid(self, form):
@@ -575,6 +589,13 @@ class TriggerCRUDL(SmartCRUDL):
         def pre_save(self, obj, *args, **kwargs):
             obj = super().pre_save(obj, *args, **kwargs)
             obj.org = self.request.user.get_org()
+
+            flow_params_fields = [field for field in self.request.POST.keys() if "flow_parameter_field" in field]
+            flow_params_values = [field for field in self.request.POST.keys() if "flow_parameter_value" in field]
+
+            params = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
+            obj.extra = params if params else None
+
             return obj
 
         def form_valid(self, form):
@@ -585,6 +606,14 @@ class TriggerCRUDL(SmartCRUDL):
             kwargs = super().get_form_kwargs()
             kwargs["auto_id"] = "id_keyword_%s"
             return kwargs
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            params_context = flow_params_context(self.request)
+            context.update(params_context)
+
+            return context
 
     class Register(CreateTrigger):
         form_class = RegisterTriggerForm
@@ -655,6 +684,10 @@ class TriggerCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             context["user_tz"] = get_current_timezone_name()
             context["user_tz_offset"] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() // 60)
+
+            params_context = flow_params_context(self.request)
+            context.update(params_context)
+
             return context
 
         def form_invalid(self, form):
@@ -680,6 +713,11 @@ class TriggerCRUDL(SmartCRUDL):
 
             recipients = self.form.cleaned_data["omnibox"]
 
+            # Getting flow parameters
+            flow_params_fields = [field for field in self.request.POST.keys() if "flow_parameter_field" in field]
+            flow_params_values = [field for field in self.request.POST.keys() if "flow_parameter_value" in field]
+            params = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
+
             trigger = Trigger.objects.create(
                 flow=self.form.cleaned_data["flow"],
                 org=self.request.user.get_org(),
@@ -687,6 +725,7 @@ class TriggerCRUDL(SmartCRUDL):
                 trigger_type=Trigger.TYPE_SCHEDULE,
                 created_by=self.request.user,
                 modified_by=self.request.user,
+                extra=params if params else None,
             )
 
             for group in recipients["groups"]:
