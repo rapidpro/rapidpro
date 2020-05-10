@@ -142,8 +142,12 @@ class OrgPermsMixin(object):
         if user.is_authenticated and not (user.is_superuser or user.is_staff):
             if not self.derive_org():
                 return HttpResponseRedirect(reverse("orgs.org_choose"))
+            self.has_permission_view_objects()
 
         return super().dispatch(request, *args, **kwargs)
+
+    def has_permission_view_objects(self):
+        pass
 
 
 class AnonMixin(OrgPermsMixin):

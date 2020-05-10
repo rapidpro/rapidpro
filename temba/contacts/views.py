@@ -20,7 +20,7 @@ from smartmin.views import (
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, PermissionDenied
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Count
@@ -1348,6 +1348,13 @@ class ContactCRUDL(SmartCRUDL):
 
     class Filter(ContactActionMixin, ContactListView, OrgObjPermsMixin):
         template_name = "contacts/contact_filter.haml"
+
+        def has_permission_view_objects(self):
+            group = ContactGroup.all_groups.filter(org=self.request.user.get_org(),
+                                                   uuid=self.kwargs.get('group')).first()
+            if not group:
+                raise PermissionDenied()
+            return None
 
         def get_gear_links(self):
             links = []
