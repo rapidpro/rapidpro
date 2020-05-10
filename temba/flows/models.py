@@ -33,15 +33,12 @@ from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
-from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import DELIVERED, PENDING, Broadcast, Label, Msg
-from temba.orgs.models import Language, Org
 from temba.links.models import Link
 from temba.classifiers.models import Classifier
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.globals.models import Global
-from temba.msgs.models import Label, Msg
+from temba.msgs.models import Label, Msg, DELIVERED, PENDING, Broadcast
 from temba.orgs.models import Org
 from temba.templates.models import Template
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
@@ -1016,35 +1013,6 @@ class Flow(TembaModel):
 
     def as_select2(self):
         return dict(id=self.uuid, text=self.name)
-
-    def release(self):
-        """
-        Releases this flow, marking it inactive. We interrupt all flow runs in a background process.
-        We keep FlowRevisions and FlowStarts however.
-        """
-        from .tasks import interrupt_flow_runs_task
-
-        self.is_active = False
-        self.save()
-
-        # release any campaign events that depend on this flow
-        from temba.campaigns.models import CampaignEvent
-
-        for event in CampaignEvent.objects.filter(flow=self, is_active=True):
-            event.release()
-
-        # release any triggers that depend on this flow
-        for trigger in self.triggers.all():
-            trigger.release()
-
-        self.group_dependencies.clear()
-        self.flow_dependencies.clear()
-        self.field_dependencies.clear()
-        self.channel_dependencies.clear()
-        self.label_dependencies.clear()
-
-        # interrupt our runs in the background
-        on_transaction_commit(lambda: interrupt_flow_runs_task.delay(self.id))
 
     def get_category_counts(self):
         keys = [r["key"] for r in self.metadata["results"]]
