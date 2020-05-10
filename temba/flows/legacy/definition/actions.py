@@ -58,23 +58,33 @@ class EmailAction(Action):
     EMAILS = "emails"
     SUBJECT = "subject"
     MESSAGE = "msg"
+    MEDIA = "media"
 
-    def __init__(self, uuid, emails, subject, message):
+    def __init__(self, uuid, emails, subject, message, media=None):
         super().__init__(uuid)
 
         self.emails = emails
         self.subject = subject
         self.message = message
+        self.media = media if media else {}
 
     @classmethod
     def from_json(cls, org, json_obj):
         emails = json_obj.get(EmailAction.EMAILS)
         message = json_obj.get(EmailAction.MESSAGE)
         subject = json_obj.get(EmailAction.SUBJECT)
-        return cls(json_obj.get(cls.UUID), emails, subject, message)
+        media = json_obj.get(EmailAction.MEDIA)
+        return cls(json_obj.get(cls.UUID), emails, subject, message, media)
 
     def as_json(self):
-        return dict(type=self.TYPE, uuid=self.uuid, emails=self.emails, subject=self.subject, msg=self.message)
+        return dict(
+            type=self.TYPE,
+            uuid=self.uuid,
+            emails=self.emails,
+            subject=self.subject,
+            msg=self.message,
+            media=self.media,
+        )
 
 
 class AddToGroupAction(Action):

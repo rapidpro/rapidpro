@@ -33,21 +33,13 @@ from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
-from temba.contacts.models import (
-    Contact,
-    ContactField,
-    ContactGroup,
-    ContactURN,
-)
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, URN
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import DELIVERED, PENDING, Broadcast, Label, Msg
-from temba.orgs.models import Language, Org
+from temba.orgs.models import Org
 from temba.links.models import Link
 from temba.classifiers.models import Classifier
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.globals.models import Global
-from temba.msgs.models import Label, Msg
-from temba.orgs.models import Org
 from temba.templates.models import Template
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
@@ -1022,34 +1014,12 @@ class Flow(TembaModel):
     def as_select2(self):
         return dict(id=self.uuid, text=self.name)
 
-    def release(self):
-        """
-        Releases this flow, marking it inactive. We interrupt all flow runs in a background process.
-        We keep FlowRevisions and FlowStarts however.
-        """
-        from .tasks import interrupt_flow_runs_task
-
-        self.is_active = False
-        self.save()
-
-        # release any campaign events that depend on this flow
-        from temba.campaigns.models import CampaignEvent
-
-        for event in CampaignEvent.objects.filter(flow=self, is_active=True):
-            event.release()
-
-        # release any triggers that depend on this flow
-        for trigger in self.triggers.all():
-            trigger.release()
-
-        self.group_dependencies.clear()
-        self.flow_dependencies.clear()
-        self.field_dependencies.clear()
-        self.channel_dependencies.clear()
-        self.label_dependencies.clear()
-
-        # interrupt our runs in the background
-        on_transaction_commit(lambda: interrupt_flow_runs_task.delay(self.id))
+    def get_trigger_params(self):
+        flow_json = self.as_json()
+        rule = r"@trigger.params.([a-zA-Z0-9_]+)"
+        matches = regex.finditer(rule, json.dumps(flow_json), regex.MULTILINE | regex.IGNORECASE)
+        params = [match.group() for match in matches]
+        return list(set(params))
 
     def get_category_counts(self):
         keys = [r["key"] for r in self.metadata["results"]]
@@ -1434,7 +1404,9 @@ class Flow(TembaModel):
             "completion": int(totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED] * 100 // total_runs) if total_runs else 0,
         }
 
-    def async_start(self, user, groups, contacts, query=None, restart_participants=False, include_active=True):
+    def async_start(
+        self, user, groups, contacts, query=None, restart_participants=False, include_active=True, params=None
+    ):
         """
         Causes us to schedule a flow to start in a background thread.
         """
@@ -1446,6 +1418,7 @@ class Flow(TembaModel):
             created_by=user,
             modified_by=user,
             query=query,
+            extra=params,
         )
 
         contact_ids = [c.id for c in contacts]

@@ -1,0 +1,313 @@
+{
+  "version": "13",
+  "site": "https://app.communityconnectlabs.com",
+  "flows": [
+    {
+      "_ui": {
+        "nodes": {
+          "2999b27a-9071-4f37-bbba-07fa0e814c21": {
+            "position": {
+              "left": 917,
+              "top": 24
+            },
+            "type": "execute_actions"
+          },
+          "3dc80676-14cd-48f7-85f1-ed208d28afb7": {
+            "position": {
+              "left": 719,
+              "top": 392
+            },
+            "type": "execute_actions"
+          },
+          "5d741d44-8922-4d1a-8a7d-9ffdb5afaf71": {
+            "position": {
+              "left": 441,
+              "top": 381
+            },
+            "type": "execute_actions"
+          },
+          "6a6971b5-dc28-4a84-baa1-48b5d33e51e0": {
+            "position": {
+              "left": 424,
+              "top": 481
+            },
+            "type": "execute_actions"
+          },
+          "728f3de3-15e4-4de4-8bc8-6b42db475eb3": {
+            "position": {
+              "left": 596,
+              "top": 10
+            },
+            "type": "execute_actions"
+          },
+          "aeee19f5-513b-4efd-8e7e-e96ba5eea65f": {
+            "position": {
+              "left": 419,
+              "top": 589
+            },
+            "type": "execute_actions"
+          },
+          "b7b04770-23eb-4568-aeb0-342a16cbd607": {
+            "position": {
+              "left": 562,
+              "top": 267
+            },
+            "type": "wait_for_response"
+          },
+          "be2554c5-d3f6-48f8-98d5-2e7444db1d72": {
+            "position": {
+              "left": 727,
+              "top": 581
+            },
+            "type": "execute_actions"
+          },
+          "fec56f60-46ee-4bd2-b149-e64d882951bf": {
+            "position": {
+              "left": 724,
+              "top": 483
+            },
+            "type": "execute_actions"
+          }
+        },
+        "stickies": {}
+      },
+      "expire_after_minutes": 10080,
+      "language": "eng",
+      "localization": {},
+      "name": "Sample Opt-in Flow",
+      "nodes": [
+        {
+          "actions": [
+            {
+              "text": "Hi, this is Jacob from CommunityConnect Labs. Interested in receiving text messages about services that may help you? Msg&DataRatesMayApply\nReply:\nY Yes\nN No",
+              "type": "send_msg",
+              "uuid": "c371aef9-4758-44c7-baba-da8bef50683b"
+            }
+          ],
+          "exits": [
+            {
+              "destination_uuid": "b7b04770-23eb-4568-aeb0-342a16cbd607",
+              "uuid": "6deb909a-1957-48f2-9dda-38296480a743"
+            }
+          ],
+          "uuid": "728f3de3-15e4-4de4-8bc8-6b42db475eb3"
+        },
+        {
+          "actions": [
+            {
+              "text": "Sorry! We didn't understand that. Reply with the letter Y to opt-in to receiving messages or N to not receive these messages.\n\nTo stop all messages, reply STOP",
+              "type": "send_msg",
+              "uuid": "380b1b1c-f4bf-4499-9723-fbc461c7c6fe"
+            }
+          ],
+          "exits": [
+            {
+              "destination_uuid": "728f3de3-15e4-4de4-8bc8-6b42db475eb3",
+              "uuid": "53202541-9dd9-435a-880a-7e00ec732a3e"
+            }
+          ],
+          "uuid": "2999b27a-9071-4f37-bbba-07fa0e814c21"
+        },
+        {
+          "exits": [
+            {
+              "destination_uuid": "5d741d44-8922-4d1a-8a7d-9ffdb5afaf71",
+              "uuid": "0110652d-f7a0-4419-b219-8070533b172c"
+            },
+            {
+              "destination_uuid": "3dc80676-14cd-48f7-85f1-ed208d28afb7",
+              "uuid": "d94c9bf7-4591-40a6-af9c-e17941914854"
+            },
+            {
+              "destination_uuid": "2999b27a-9071-4f37-bbba-07fa0e814c21",
+              "uuid": "dd3bbd34-ed3f-410d-ab54-a19c42d402ae"
+            }
+          ],
+          "router": {
+            "cases": [
+              {
+                "arguments": [
+                  "Y, Yes, S, Si, Yeah, Yea, Ya, Yup, Yep"
+                ],
+                "category_uuid": "93d5e35b-7987-4aa5-bb84-bc874723119c",
+                "type": "has_any_word",
+                "uuid": "83d710f2-3cfe-4fa4-be2d-eb245d015f76"
+              },
+              {
+                "arguments": [
+                  "N, No, Nope, Nopes, Naw, Nah"
+                ],
+                "category_uuid": "b83968d3-d0db-48cd-bd7c-748a7e83c341",
+                "type": "has_any_word",
+                "uuid": "7a317dae-241f-49b3-9b72-1969bbb04fde"
+              }
+            ],
+            "categories": [
+              {
+                "exit_uuid": "0110652d-f7a0-4419-b219-8070533b172c",
+                "name": "Y",
+                "uuid": "93d5e35b-7987-4aa5-bb84-bc874723119c"
+              },
+              {
+                "exit_uuid": "d94c9bf7-4591-40a6-af9c-e17941914854",
+                "name": "N",
+                "uuid": "b83968d3-d0db-48cd-bd7c-748a7e83c341"
+              },
+              {
+                "exit_uuid": "dd3bbd34-ed3f-410d-ab54-a19c42d402ae",
+                "name": "Other",
+                "uuid": "026a0996-b9c1-4ccd-940e-d5046f8c27ac"
+              }
+            ],
+            "default_category_uuid": "026a0996-b9c1-4ccd-940e-d5046f8c27ac",
+            "operand": "@input",
+            "result_name": "optIn",
+            "type": "switch",
+            "wait": {
+              "type": "msg"
+            }
+          },
+          "uuid": "b7b04770-23eb-4568-aeb0-342a16cbd607"
+        },
+        {
+          "actions": [
+            {
+              "all_groups": true,
+              "type": "remove_contact_groups",
+              "uuid": "fc88e49d-e8a1-4f4e-8b26-4ceb3c687406"
+            }
+          ],
+          "exits": [
+            {
+              "destination_uuid": "6a6971b5-dc28-4a84-baa1-48b5d33e51e0",
+              "uuid": "2fcd9838-21d9-4314-9094-80eacfaaddeb"
+            }
+          ],
+          "uuid": "5d741d44-8922-4d1a-8a7d-9ffdb5afaf71"
+        },
+        {
+          "actions": [
+            {
+              "all_groups": true,
+              "type": "remove_contact_groups",
+              "uuid": "1a5c25a9-4d66-4787-afad-1bd39cf4a77a"
+            }
+          ],
+          "exits": [
+            {
+              "destination_uuid": "fec56f60-46ee-4bd2-b149-e64d882951bf",
+              "uuid": "82e2018e-b0dd-4374-87d0-51021a93ee85"
+            }
+          ],
+          "uuid": "3dc80676-14cd-48f7-85f1-ed208d28afb7"
+        },
+        {
+          "actions": [
+            {
+              "groups": [
+                {
+                  "name": "Opted-In",
+                  "uuid": "a318798d-b25b-4b6f-a7d8-22ff036fd6eb"
+                }
+              ],
+              "type": "add_contact_groups",
+              "uuid": "04a5e71f-067b-43e1-93c3-9c0c1d154820"
+            }
+          ],
+          "exits": [
+            {
+              "destination_uuid": "aeee19f5-513b-4efd-8e7e-e96ba5eea65f",
+              "uuid": "67e5d658-56cc-4a1c-8ab6-b967fd3b7679"
+            }
+          ],
+          "uuid": "6a6971b5-dc28-4a84-baa1-48b5d33e51e0"
+        },
+        {
+          "actions": [
+            {
+              "groups": [
+                {
+                  "name": "Opted-Out",
+                  "uuid": "7029f20c-0395-450b-b46f-149366670705"
+                }
+              ],
+              "type": "add_contact_groups",
+              "uuid": "8c7cafc8-ef89-4937-bd46-45ca98e60a0d"
+            }
+          ],
+          "exits": [
+            {
+              "destination_uuid": "be2554c5-d3f6-48f8-98d5-2e7444db1d72",
+              "uuid": "d8b32f0b-f495-4d63-9cc5-9557f3656e8c"
+            }
+          ],
+          "uuid": "fec56f60-46ee-4bd2-b149-e64d882951bf"
+        },
+        {
+          "actions": [
+            {
+              "field": {
+                "key": "opt_in",
+                "name": "Opt In"
+              },
+              "type": "set_contact_field",
+              "uuid": "4c793321-2cb0-41a7-9351-4f7bde9e8e35",
+              "value": "No"
+            }
+          ],
+          "exits": [
+            {
+              "uuid": "89336223-389b-46bd-a096-fe76638827f2"
+            }
+          ],
+          "uuid": "be2554c5-d3f6-48f8-98d5-2e7444db1d72"
+        },
+        {
+          "actions": [
+            {
+              "field": {
+                "key": "opt_in",
+                "name": "Opt In"
+              },
+              "type": "set_contact_field",
+              "uuid": "7a3b203a-dbc1-4bcb-81fb-6d4459414f1a",
+              "value": "Yes"
+            }
+          ],
+          "exits": [
+            {
+              "uuid": "9af6cc3c-1df5-4133-bee0-303433f424d8"
+            }
+          ],
+          "uuid": "aeee19f5-513b-4efd-8e7e-e96ba5eea65f"
+        }
+      ],
+      "spec_version": "13.1.0",
+      "type": "messaging",
+      "uuid": "e87a745b-94f1-49ad-8725-54436f1c7b58",
+      "revision": 1
+    }
+  ],
+  "campaigns": [],
+  "triggers": [],
+  "links": [],
+  "fields": [
+    {
+      "key": "opt_in",
+      "name": "Opt In",
+      "type": "text"
+    }
+  ],
+  "groups": [
+    {
+      "uuid": "a318798d-b25b-4b6f-a7d8-22ff036fd6eb",
+      "name": "Opted-In",
+      "query": null
+    },
+    {
+      "uuid": "7029f20c-0395-450b-b46f-149366670705",
+      "name": "Opted-Out",
+      "query": null
+    }
+  ]
+}

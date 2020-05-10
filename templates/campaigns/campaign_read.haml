@@ -72,6 +72,9 @@
                 Start the
                 %a.href{ href: "{% url 'flows.flow_editor' event.flow.uuid %}" }= event.flow.name
                 flow.
+                -if event.extra
+                  |
+                  -trans "Contains flow parameters"
 
         -if not forloop.last
           %tr.break
@@ -206,7 +209,26 @@
       $(".add-event").live('click', function(){
         var modal = new Modax('Add Event','{% url "campaigns.campaignevent_create" %}?campaign={{ object.id }}');
         modal.setIcon('icon-instant');
-        modal.setListeners({ onFormLoaded: function() { $('#id_message').focus() }});
+        modal.setRedirectOnSuccess(true);
+        modal.setListeners({
+          onFormLoaded: function() {
+            $('#id_message').focus()
+          },
+          onPrimary: function() {
+            var form = modal.ele.find('form');
+            if (form.find('#id_event_type').val() != "F") {
+              modal.submit();
+            }
+            var error = validateFlowParams(form);
+            if (error) {
+              modal.focusFirstInput();
+              var divForm = $('.modal-body').find('input.invalid');
+              $('.modal-body').scrollTop(divForm[0].offsetTop - 10);
+            } else {
+              modal.submit();
+            }
+          }
+        }, false);
         modal.setRedirectOnSuccess(true);
         modal.show();
       });
