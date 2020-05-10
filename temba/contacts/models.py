@@ -2511,7 +2511,7 @@ class ContactGroup(TembaModel):
     """
 
     MAX_NAME_LEN = 64
-    MAX_ORG_CONTACTGROUPS = 250
+    MAX_ORG_CONTACTGROUPS = settings.MAX_ORG_CONTACTGROUPS
 
     TYPE_ALL = "A"
     TYPE_BLOCKED = "B"
