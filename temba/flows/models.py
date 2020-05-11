@@ -2207,7 +2207,7 @@ class Flow(TembaModel):
         ordering = ("-modified_on",)
 
 
-class FlowImage(TembaModel):
+class FlowImage(models.Model):
     uuid = models.UUIDField(unique=True, default=uuid4)
     org = models.ForeignKey(Org, related_name="flow_images", db_index=False, on_delete=models.CASCADE)
     flow = models.ForeignKey(Flow, related_name="flow_images", on_delete=models.CASCADE)
@@ -2216,6 +2216,12 @@ class FlowImage(TembaModel):
     path = models.CharField(help_text="Image URL", max_length=255)
     path_thumbnail = models.CharField(help_text="Image thumbnail URL", max_length=255, null=True)
     exif = models.TextField(blank=True, null=True, help_text=_("A JSON representation the exif"))
+    created_on = models.DateTimeField(default=timezone.now, editable=False, blank=True,
+                                      help_text="When this item was originally created")
+    modified_on = models.DateTimeField(default=timezone.now, editable=False, blank=True,
+                                       help_text="When this item was last modified")
+    is_active = models.BooleanField(default=True,
+                                    help_text="Whether this item is active, use this instead of deleting")
 
     @classmethod
     def apply_action_archive(cls, user, objects):
@@ -5434,8 +5440,6 @@ class PhotoTest(Test):
                 exif=exif,
                 path_thumbnail=media_thumbnail_path,
                 name=file_name,
-                created_by=run.flow.created_by,
-                modified_by=run.flow.created_by,
             )
             flow_image = FlowImage.objects.create(**image_args)
             image_url = flow_image.get_url()
