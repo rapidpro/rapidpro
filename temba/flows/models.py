@@ -2229,25 +2229,27 @@ def update_related_flows(sender, instance, created, **kwargs):
         return False
 
     def flow_node_filter(node):
-        if node["actions"] and node["actions"][0]["type"] == "enter_flow":
+        flow_types = ("enter_flow", "start_session")
+        if node["actions"] and node["actions"][0]["type"] in flow_types:
             return node["actions"][0]["flow"]["uuid"] == instance.uuid
         return False
 
-    for flow in dependent_flows:
-        # update dependency for flow metadata
+    def general_flow_update(flow):
         dependencies = filter(flow_dependency_filter, flow.metadata.get("dependencies", []))
         for dependency in dependencies:
             dependency.update({"name": instance.name})
+        flow.save()
 
-        # update dependency for flow revision
-        flow_revision = flow.revisions.order_by("revision").last()
-        nodes = filter(flow_node_filter, flow_revision.definition.get("nodes", []))
-        for node in nodes:
-            action = node["actions"][0]
-            action.update({"flow": {"uuid": instance.uuid, "name": instance.name}})
-        flow_revision.save()
+    def legacy_flow_update(flow):
+        actionsets = flow.action_sets.filter(actions__icontains=instance.uuid)
+        for actionset in actionsets:
+            actions = actionset.actions
+            for action in actions:
+                if action.get("type") in ("flow", "trigger-flow") and action.get("flow"):
+                    action["flow"].update({"name": instance.name})
 
-        # update dependency for rule set (legacy flow editor)
+        ActionSet.objects.bulk_update(actionsets, ["actions"])
+
         rulesets = flow.rule_sets.filter(config__icontains=instance.uuid)
         for ruleset in rulesets:
             config = ruleset.config
@@ -2256,7 +2258,18 @@ def update_related_flows(sender, instance, created, **kwargs):
 
         RuleSet.objects.bulk_update(rulesets, ["config"])
 
-        flow.save()
+    def next_flow_update(flow):
+        flow_revision = flow.revisions.order_by("revision").last()
+        nodes = filter(flow_node_filter, flow_revision.definition.get("nodes", []))
+        for node in nodes:
+            action = node["actions"][0]
+            action.update({"flow": {"uuid": instance.uuid, "name": instance.name}})
+        flow_revision.save()
+
+    for flow in dependent_flows:
+        next_flow_update(flow)
+        legacy_flow_update(flow)
+        general_flow_update(flow)
 
 
 class FlowSession(models.Model):
