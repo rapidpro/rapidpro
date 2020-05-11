@@ -2817,7 +2817,7 @@ class CreditAlert(SmartModel):
 
     alert_type = models.CharField(max_length=1, choices=TYPES)
     admin_emails = ArrayField(
-        models.EmailField(), help_text=_('Emails of administrators who will be alerted'), default=[]
+        models.EmailField(), help_text=_('Emails of administrators who will be alerted'), default=list
     )
 
     @classmethod

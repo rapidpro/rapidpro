@@ -14,6 +14,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='creditalert',
             name='admin_emails',
-            field=django.contrib.postgres.fields.ArrayField(base_field=models.EmailField(max_length=254), default=[], help_text='Emails of administrators who will be alerted', size=None),
+            field=django.contrib.postgres.fields.ArrayField(base_field=models.EmailField(max_length=254), default=list, help_text='Emails of administrators who will be alerted', size=None),
         ),
     ]
