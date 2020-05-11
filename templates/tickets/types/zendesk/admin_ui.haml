@@ -1,4 +1,4 @@
--load i18n
+-load i18n smartmin
 
 %html(lang="en")
   %head
@@ -26,32 +26,26 @@
       -blocktrans trimmed
         This will connect your TextIt account with Zendesk.
 
-    %small.c-txt__message.c-txt__message--error
-      {{ error }}
+    %form(method="post" enctype="multipart/form-data" id="admin_form")
+      -block pre-form-errors
 
-    %form(method="post" id="admin_form")
-      .first.c-txt.u-mb-sm
-        %label.c-txt__label(for="name")
-          -trans "Name"
-        %input.c-txt__input(type="text" name="name" value="{{ name }}")
-        %small.c-txt__message
-          %span(dir="ltr")
-            -trans "The display name of this account"
-      .c-txt.u-mb-sm
-        %label.c-txt__label(for="token")
-          -trans "API Token"
-        %input.c-txt__input(type="text" name="token" value="{{ token }}")
-        %small.c-txt__message
-          %span(dir="ltr")
-            -trans "The TextIt API Token"
+      -if form.non_field_errors
+        .alert.alert-error.form-errors
+          {{ form.non_field_errors }}
 
-      %input(type="hidden" name="metadata" value="{{ metadata }}")
-      %input(type="hidden" name="subdomain" value="{{ subdomain }}")
-      %input(type="hidden" name="return_url" value="{{ return_url }}")
+      -block post-form-errors
+      -block pre-fields
+      -block form-help
+      -block fields
 
-      %button.c-btn.u-mt-sm(type="submit" form="admin_form")
-        -if metadata
-          -trans "Update"
-        -else
-          -trans "Add"
+        -for field in fields
+          -render_field field
 
+        -block extra-fields
+
+      -block post-fields
+
+      -block form-buttons
+        .form-actions
+          %button.c-btn.u-mt-sm(type="submit" form="admin_form")
+            {{ submit_button_name }}
