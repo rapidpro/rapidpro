@@ -2259,7 +2259,7 @@ class FlowImage(models.Model):
         return json.loads(self.exif) if self.exif else dict()
 
     def get_url(self):
-        if settings.AWS_BUCKET_DOMAIN in self.path:
+        if "s3.amazonaws.com" in self.path:
             return self.path
         protocol = "https" if settings.IS_PROD else "http"
         image_url = "%s://%s/%s" % (protocol, settings.AWS_BUCKET_DOMAIN, self.path)
