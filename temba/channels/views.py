@@ -767,6 +767,8 @@ def sync(request, channel_id):
         if "cmds" in client_updates:
             cmds = client_updates["cmds"]
 
+            unique_calls = set()
+
             for cmd in cmds:
                 handled = False
                 extra = None
@@ -802,6 +804,7 @@ def sync(request, channel_id):
 
                     # phone event
                     elif keyword == "call":
+                        call_tuple = (cmd["ts"], cmd["type"], cmd["phone"])
                         date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=pytz.utc)
 
                         duration = 0
@@ -811,7 +814,7 @@ def sync(request, channel_id):
                         # Android sometimes will pass us a call from an 'unknown number', which is null
                         # ignore these events on our side as they have no purpose and break a lot of our
                         # assumptions
-                        if cmd["phone"]:
+                        if cmd["phone"] and call_tuple not in unique_calls:
                             urn = URN.from_parts(TEL_SCHEME, cmd["phone"])
                             try:
                                 ChannelEvent.create_relayer_event(
@@ -820,6 +823,7 @@ def sync(request, channel_id):
                             except ValueError:
                                 # in some cases Android passes us invalid URNs, in those cases just ignore them
                                 pass
+                            unique_calls.add(call_tuple)
                         handled = True
 
                     elif keyword == "fcm":

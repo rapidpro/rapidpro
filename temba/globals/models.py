@@ -1,5 +1,3 @@
-from uuid import uuid4
-
 import regex
 from smartmin.models import SmartModel
 
@@ -9,6 +7,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.models import Org
 from temba.utils.text import unsnakify
+from temba.utils.uuid import uuid4
 
 
 class Global(SmartModel):

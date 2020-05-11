@@ -5,8 +5,8 @@ from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import Mock, patch
 from urllib.parse import urlencode
-from uuid import uuid4
 
+import pyotp
 import pytz
 import stripe
 import stripe.error
@@ -48,7 +48,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
-from temba.orgs.models import Debit, UserSettings
+from temba.orgs.models import BackupToken, Debit, UserSettings
 from temba.request_logs.models import HTTPLog
 from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
@@ -57,6 +57,7 @@ from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json, languages
 from temba.utils.email import link_components
+from temba.utils.uuid import uuid4
 from temba.values.constants import Value
 
 from .context_processors import GroupPermWrapper
@@ -319,7 +320,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
         )
         parent_trigger.groups.add(self.parent_org.all_groups.all().first())
 
-        FlowStart.objects.create(flow=parent_flow)
+        FlowStart.objects.create(org=self.parent_org, flow=parent_flow)
 
         child_trigger = Trigger.create(
             self.child_org,
@@ -571,6 +572,66 @@ class OrgTest(TembaTest):
         self.assertEqual("Temba", org.name)
         self.assertEqual("nice-temba", org.slug)
 
+    def test_two_factor(self):
+        # for now only Beta members have access
+        Group.objects.get(name="Beta").user_set.add(self.admin)
+        self.login(self.admin)
+
+        # create profile
+        response = self.client.get(reverse("orgs.org_two_factor"))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(UserSettings.objects.count(), 1)
+        self.assertEqual(UserSettings.objects.first().user, self.admin)
+
+        # validate token error
+        data = dict(token="12345")
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertIn("token", response.context["form"].errors)
+        self.assertIn("Invalid MFA token. Please try again.", response.context["form"].errors["token"])
+
+        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 0)
+        data = dict(generate_backup_tokens=True)
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 10)
+
+        # disable two factor
+        data = dict(disable_two_factor_auth=True)
+        user_settings = UserSettings.objects.get(user=self.admin)
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 0)
+        self.assertFalse(user_settings.two_factor_enabled)
+
+        # get backup tokens without backup tokens
+        data = dict(get_backup_tokens=True)
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"tokens": []})
+
+        # get backup tokens with backup tokens
+        backup_token = BackupToken.objects.create(
+            settings=self.admin.get_settings(), created_by=self.admin, modified_by=self.admin
+        )
+        data = dict(get_backup_tokens=True)
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"tokens": [f"{backup_token.token}"]})
+
+        # test form is valid
+        user_settings = UserSettings.objects.get(user=self.admin)
+        user_settings.two_factor_enabled = False
+        user_settings.save()
+        totp = pyotp.TOTP(self.admin.get_settings().otp_secret)
+        data = dict(token=totp.now())
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(BackupToken.objects.count(), 10)
+        self.assertEqual(self.admin.get_settings().two_factor_enabled, True)
+
+        # check backup tokens now listed on account home page
+        response = self.client.get(reverse("orgs.org_home"))
+        self.assertContains(response, "Backup tokens can be used")
+
     def test_country(self):
         self.setUpLocations()
 
@@ -708,7 +769,7 @@ class OrgTest(TembaTest):
         omni_mark = json.dumps({"id": mark.uuid, "name": mark.name, "type": "contact"})
         self.client.post(
             reverse("flows.flow_broadcast", args=[flow.id]),
-            {"start_type": "select", "omnibox": omni_mark, "restart_participants": "on"},
+            {"recipients_mode": "select", "omnibox": omni_mark, "restart_participants": "on"},
             follow=True,
         )
 
@@ -751,7 +812,7 @@ class OrgTest(TembaTest):
 
         self.client.post(
             reverse("flows.flow_broadcast", args=[flow.id]),
-            {"start_type": "select", "omnibox": omni_mark, "restart_participants": "on"},
+            {"recipients_mode": "select", "omnibox": omni_mark, "restart_participants": "on"},
             follow=True,
         )
 
@@ -1813,6 +1874,44 @@ class OrgTest(TembaTest):
         self.assertFalse(org.is_connected_to_dtone())
         self.assertIsNone(org.get_dtone_client())
         self.assertEqual(org.modified_by, self.admin)
+
+    def test_prometheus(self):
+        # visit as viewer, no prometheus section
+        self.login(self.user)
+        org_home_url = reverse("orgs.org_home")
+        response = self.client.get(org_home_url)
+
+        self.assertNotContains(response, "Prometheus")
+
+        # admin can see it though
+        self.login(self.admin)
+
+        response = self.client.get(org_home_url)
+        self.assertContains(response, "Prometheus")
+        self.assertContains(response, "Enable Prometheus")
+
+        # enable it
+        prometheus_url = reverse("orgs.org_prometheus")
+        response = self.client.post(prometheus_url, {}, follow=True)
+        self.assertContains(response, "Disable Prometheus")
+
+        # make sure our API token exists
+        prometheus_group = Group.objects.get(name="Prometheus")
+        self.assertTrue(APIToken.objects.filter(org=self.org, role=prometheus_group, is_active=True))
+
+        # other admin sees it enabled too
+        self.other_admin = self.create_user("Other Administrator")
+        self.org.administrators.add(self.other_admin)
+        self.login(self.other_admin)
+
+        response = self.client.get(org_home_url)
+        self.assertContains(response, "Prometheus")
+        self.assertContains(response, "Disable Prometheus")
+
+        # now disable it
+        response = self.client.post(prometheus_url, {}, follow=True)
+        self.assertFalse(APIToken.objects.filter(org=self.org, role=prometheus_group, is_active=True))
+        self.assertContains(response, "Enable Prometheus")
 
     def test_dtone_account(self):
         self.login(self.admin)

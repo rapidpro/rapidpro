@@ -544,7 +544,6 @@ class CampaignEvent(TembaModel):
 
         # if flow isn't a user created flow we can delete it too
         if self.event_type == CampaignEvent.TYPE_MESSAGE:
-            self.flow.starts.all().update(is_active=False)
             self.flow.release()
 
     def _full_release(self):

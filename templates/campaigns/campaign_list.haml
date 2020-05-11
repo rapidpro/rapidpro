@@ -3,7 +3,7 @@
 
 -block extra-style
   :css
-    rp-button {
+    temba-button {
       display: block;
     }
 
@@ -27,8 +27,8 @@
           .span3.sidebox
             %div{style:"margin-bottom: 10px"}
               - if org_perms.campaigns.campaign_create
-                %rp-modax{ header:"Create Campaign", endpoint:"/campaign/create/" }
-                  %rp-button{ name:"Create Campaign", primary: 'true' }
+                %temba-modax{ header:"Create Campaign", endpoint:"/campaign/create/" }
+                  %temba-button{ name:"Create Campaign", primary: 'true' }
 
             #sidebar-nav
               %ul.nav.nav-list.level1

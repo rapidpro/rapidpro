@@ -1,3 +1,176 @@
+v5.5.39
+----------
+ * Update to floweditor 1.9.6
+ * New task to track daily msgs per user for analytics
+ * Add support for Russian as a UI language
+ * Models and editor API endpoint for tickets
+ * Skip duplicate relayer call events
+
+v5.5.38
+----------
+ * Update to flow editor 1.9.5
+ * Allow custom TS send URLs
+
+v5.5.37
+----------
+ * Remove all uses of _blank frame name
+ * Strip exif data from images
+
+v5.5.36
+----------
+ * Better tracking of channel creation and triggers, track simulation
+ * Do not use font checkboxes for contact import extra fields
+
+v5.5.35
+----------
+ * Revert Segment.io identify change to stay consistent with other tools
+
+v5.5.34
+----------
+ * Identify users in Segment.io using best practice of user id, not email
+
+v5.5.33
+----------
+ * Add context processor to stuff analytics keys into request context
+ * Restrict 2FA functionality to BETA users
+
+v5.5.32
+----------
+ * Add basic 2FA support
+
+v5.5.31
+----------
+ * Update to latest smartmin
+
+v5.5.30
+----------
+ * Add new flow start type to record that flow was started by a Zapier API call
+ * Contact bulk actions endpoint should error if passed no contacts
+ * Remove mentioning the countries for AT claim section
+ * Add Telesom channel type
+
+v5.5.29
+----------
+ * Fix trimming flow starts with start counts
+
+v5.5.28
+----------
+ * Update Africa's Talking supported countries
+
+v5.5.27
+----------
+ * Remove temporary NOOP celery tasks
+ * Drop Contact.is_paused field
+ * Editor 1.9.4, better modal centering
+
+v5.5.26
+----------
+ * Add NOOP versions of renamed celery tasks to avoid problems during deploy
+
+v5.5.23
+----------
+ * Remove default value on Contact.is_paused so it can be dropped
+ * Trim completed mailroom created flow starts
+ * Update flow starts API endpoint to only show user created flow starts and add index
+
+v5.5.22
+----------
+ * Add nullable contact.is_paused field
+ * Display run count on flow start list page
+
+v5.5.21
+----------
+ * Optimze flow start list page with DB prefetching
+ * Indicate on flow start list page where start was created by an API call
+
+v5.5.20
+----------
+ * Use actual PO library to check for msgid differences
+ * Migration to backfill FlowStart.start_type
+ * Log error of WA channel failing to sync templates
+
+v5.5.19
+----------
+ * Add FlowStart.start_type
+ * Ensure flow starts created via the API are only sent to mailroom after the open transaction is committed
+
+v5.5.18
+----------
+ * Add flow start log page
+
+v5.5.17
+----------
+ * Add index to list manually created flow starts
+ * Make FlowStart.org and modified_on non-NULL
+ * Move contact modification for name and language to be done by mailroom
+
+v5.5.16
+----------
+ * bower no longer supported for package installs
+ * Migration to backfill FlowStart.org and modified_on
+
+v5.5.15
+----------
+ * Update to flow-editor 1.9.2, security patches
+
+v5.5.14
+----------
+ * Ensure IVR retry is preserved on new revisions
+ * Import flows for mailroom test db as v13
+ * Make UUID generation fully mockable
+ * Add run UUID on flow results exports
+ * Drop unused fields on FlowStart and add org
+
+v5.5.13
+----------
+ * Stop using FlowStart.modified_on so that it can be removed
+ * Disable syncing templates with variables in headers and footers
+
+v5.5.12
+----------
+ * Import and export of PO files
+
+v5.5.10
+----------
+ * Bump up the simulator when popped so it fits on more screens
+ * Editor performance improvements
+
+v5.5.8
+----------
+ * Update help text on contact edit dialog
+ * Add prometheus endpoint config on account page
+ * Fix boundary aliases filtering by org
+
+v5.5.7
+----------
+ * Fix open modal check on pjax refersh
+ * Show warnings on contact field page when org is approaching the limit and has hit the limit
+
+v5.5.6
+----------
+ * Temporaly disable templates requests to FB when claiming WA channels
+
+v5.5.5
+----------
+ * newest smartmin with BoM fix
+
+v5.5.4
+----------
+ * Show better summary of schedules on trigger list page
+ * Fix display of trigger on contact group delete modal
+
+v5.5.3
+----------
+ * Update to floweditor 1.8.9
+ * Move EX constants to channel type package
+ * Remove unused deps and address npm security warnings
+ * Add 18 hours as flow expiration option
+ * FlowCRUDL.Revisions should return validation errors from engine as detail field
+ * Allow setting authentication header on External channels
+ * Add normalize contact tels task
+ * Drop full resolution geometry, only keep simplified
+ * Add attachments columns to flow results messages sheet
+
 v5.5.0
 ----------
  * Increase the WA channels tps to 45 by default

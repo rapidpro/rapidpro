@@ -12,7 +12,7 @@
     -if send_channel
       #send-form
         {% csrf_token %}
-        %rp-completion#id_text{
+        %temba-completion#id_text{
           name:"text", 
           placeholder: "Hi @contact!"
           completionsEndpoint:"/mr/docs/completion.json", 
@@ -80,7 +80,7 @@
       $("#send-message .error").remove();
 
       // clear the previous text
-      document.querySelector("#send-message rp-completion").value = "";
+      document.querySelector("#send-message temba-completion").value = "";
 
       // show us as loading or initialize and empty select2
       if (loading) {
@@ -166,7 +166,7 @@
         post = post + "&simulation=true"
       }
 
-      var text = document.querySelector("#send-form rp-completion").value
+      var text = document.querySelector("#send-form temba-completion").value
 
       // our post data
       var data = {

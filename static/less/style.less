@@ -4,6 +4,7 @@
 @import "formax";
 
 
+
 .btn-alert {
   .btn-colored(@color-alert-error, @color-font-white);
 }
@@ -23,6 +24,14 @@
 
 html, body {
   height: 100%;
+
+}
+
+body{
+  @media (max-width: 767px) {
+    padding-right: 0px;
+    padding-left: 0px;
+  }
 }
 
 .page-wrap:after {
@@ -38,6 +47,19 @@ html, body {
   height: @footer-height;
   position: relative;
   margin-top: 40px;
+  padding-bottom: 10px;
+
+  #footerArea1 {
+    padding-left: 20px;
+  }
+
+  #copyright {
+    margin: 0;
+  }
+
+  .container {
+    width: inherit;
+  }
 
   ul#contact-info {
     list-style: none;
@@ -244,5 +266,19 @@ td.created_on {
 
   dt {
     font-weight: 400;
+  }
+}
+
+.recipients {
+  .item {
+    display:inline-block;
+    margin-right:6px;
+    font-size: 11px;
+    color: #aaa;
+
+    .icon {
+      display:inline-block;
+      margin-right: -3px;
+    }
   }
 }

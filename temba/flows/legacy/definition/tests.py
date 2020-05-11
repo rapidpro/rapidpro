@@ -1,10 +1,9 @@
-from uuid import uuid4
-
 from temba.channels.models import Channel
 from temba.flows.models import FlowException
 from temba.msgs.models import Label
 from temba.tests import TembaTest
 from temba.utils import json
+from temba.utils.uuid import uuid4
 
 from .actions import (
     Action,

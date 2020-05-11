@@ -28,7 +28,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
 from temba.orgs.models import Org
-from temba.utils import get_anonymous_user, json, on_transaction_commit, redact
+from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit, redact
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
@@ -252,19 +252,12 @@ class Channel(TembaModel):
     # keys for various config options stored in the channel config dict
     CONFIG_BASE_URL = "base_url"
     CONFIG_SEND_URL = "send_url"
-    CONFIG_SEND_METHOD = "method"
-    CONFIG_SEND_BODY = "body"
-    CONFIG_MT_RESPONSE_CHECK = "mt_response_check"
-    CONFIG_DEFAULT_SEND_BODY = (
-        "id={{id}}&text={{text}}&to={{to}}&to_no_plus={{to_no_plus}}&from={{from}}&from_no_plus={{from_no_plus}}"
-        "&channel={{channel}}"
-    )
+
     CONFIG_USERNAME = "username"
     CONFIG_PASSWORD = "password"
     CONFIG_KEY = "key"
     CONFIG_API_ID = "api_id"
     CONFIG_API_KEY = "api_key"
-    CONFIG_CONTENT_TYPE = "content_type"
     CONFIG_VERIFY_SSL = "verify_ssl"
     CONFIG_USE_NATIONAL = "use_national"
     CONFIG_ENCODING = "encoding"
@@ -277,7 +270,6 @@ class Channel(TembaModel):
     CONFIG_CHANNEL_ID = "channel_id"
     CONFIG_CHANNEL_MID = "channel_mid"
     CONFIG_FCM_ID = "FCM_ID"
-    CONFIG_MAX_LENGTH = "max_length"
     CONFIG_MACROKIOSK_SENDER_ID = "macrokiosk_sender_id"
     CONFIG_MACROKIOSK_SERVICE_ID = "macrokiosk_service_id"
     CONFIG_RP_HOSTNAME_OVERRIDE = "rp_hostname_override"
@@ -511,6 +503,9 @@ class Channel(TembaModel):
         # normalize any telephone numbers that we may now have a clue as to country
         if org and country:
             org.normalize_contact_tels()
+
+        # track our creation
+        analytics.track(user.username, "temba.channel_created", dict(channel_type=channel_type.code))
 
         if settings.IS_PROD:
             if channel_type.async_activation:

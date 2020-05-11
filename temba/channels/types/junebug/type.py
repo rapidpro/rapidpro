@@ -19,7 +19,7 @@ class JunebugType(ChannelType):
     icon = "icon-junebug"
 
     claim_blurb = _(
-        """Connect your <a href="https://junebug.praekelt.org/" target="_blank">Junebug</a> instance that you have already set up and configured."""
+        """Connect your <a href="https://junebug.praekelt.org/">Junebug</a> instance that you have already set up and configured."""
     )
     claim_view = ClaimView
 

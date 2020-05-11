@@ -41,7 +41,6 @@ class LocationTest(TembaTest):
         # now set it to rwanda
         self.org.country = self.country
         self.org.save()
-
         # our country is set to rwanda, we should get it as the main object
         response = self.client.get(reverse("locations.adminboundary_alias"))
         self.assertEqual(self.country, response.context["object"])
@@ -58,7 +57,6 @@ class LocationTest(TembaTest):
 
         # should have our two top level states
         self.assertEqual(2, len(geometry["features"]))
-
         # now get it for one of the sub areas
         response = self.client.get(reverse("locations.adminboundary_geometry", args=[self.district1.osm_id]))
         response_json = response.json()
@@ -119,7 +117,7 @@ class LocationTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # fetch our aliases again
-        with self.assertNumQueries(19):
+        with self.assertNumQueries(21):
             response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]))
         response_json = response.json()
 
@@ -149,9 +147,11 @@ class LocationTest(TembaTest):
         )
 
         # fetch our aliases again
-        with self.assertNumQueries(19):
+        with self.assertNumQueries(21):
             response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]))
         response_json = response.json()
+
+        self.assertEqual(response_json[0]["aliases"], "")
 
         # now have kigs as an alias
         children = response_json[0]["children"]
@@ -178,6 +178,20 @@ class LocationTest(TembaTest):
         )
 
         self.assertEqual(200, response.status_code)
+
+        BoundaryAlias.objects.create(
+            boundary=self.country, org=self.org2, name="SameRwanda", created_by=self.admin2, modified_by=self.admin2
+        )
+        BoundaryAlias.objects.create(
+            boundary=self.country, org=self.org, name="MyRwanda", created_by=self.admin2, modified_by=self.admin2
+        )
+
+        # fetch our aliases again
+        with self.assertNumQueries(21):
+            response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]))
+        response_json = response.json()
+
+        self.assertEqual(response_json[0]["aliases"], "MyRwanda")
 
         # exact match
         boundary = self.org.find_boundary_by_name("kigali city", AdminBoundary.LEVEL_STATE, self.country)
@@ -231,7 +245,7 @@ class LocationTest(TembaTest):
         # create a simple boundary with parent
         child_boundary = AdminBoundary.create(osm_id="-2", name="Palm Tree", level=1, parent=boundary)
         self.assertEqual(child_boundary.path, "Null Island > Palm Tree")
-        self.assertIsNone(child_boundary.geometry)
+        self.assertIsNone(child_boundary.simplified_geometry)
 
         wkb_geometry = (
             "0106000000010000000103000000010000000400000000000000407241C01395356EBA0B304000000000602640C0CDC2B7C4027A27"
@@ -240,16 +254,10 @@ class LocationTest(TembaTest):
 
         # create a simple boundary with parent and geometry
         geom_boundary = AdminBoundary.create(
-            osm_id="-3",
-            name="Plum Tree",
-            level=1,
-            parent=boundary,
-            simplified_geometry=wkb_geometry,
-            geometry=wkb_geometry,
+            osm_id="-3", name="Plum Tree", level=1, parent=boundary, simplified_geometry=wkb_geometry
         )
         self.assertEqual(geom_boundary.path, "Null Island > Plum Tree")
         self.assertIsNotNone(geom_boundary.simplified_geometry)
-        self.assertIsNotNone(geom_boundary.geometry)
 
         # path should not be defined when calling AdminBoundary.create
         self.assertRaises(TypeError, AdminBoundary.create, osm_id="-1", name="Null Island", level=0, path="some path")
@@ -412,20 +420,20 @@ class ImportGeoJSONtest(TembaTest):
     def test_filename_with_no_features(self):
         with patch("builtins.open", mock_open(read_data=self.data_geojson_no_features)):
             with captured_stdout() as captured_output:
-                call_command("import_geojson", "R188933admin0.json")
+                call_command("import_geojson", "R188933admin0_simplified.json")
 
-        self.assertEqual(captured_output.getvalue(), "=== parsing R188933admin0.json\n")
+        self.assertEqual(captured_output.getvalue(), "=== parsing R188933admin0_simplified.json\n")
 
         self.assertEqual(AdminBoundary.objects.count(), 0)
 
     def test_ok_filename_admin(self):
         with patch("builtins.open", mock_open(read_data=self.data_geojson_level_0)):
             with captured_stdout() as captured_output:
-                call_command("import_geojson", "R188933admin0.json")
+                call_command("import_geojson", "R188933admin0_simplified.json")
 
         self.assertEqual(
             captured_output.getvalue(),
-            "=== parsing R188933admin0.json\n ** adding Granica (R1000)\n ** removing unseen boundaries (R1000)\nOther unseen boundaries removed: 0\n ** updating paths for all of Granica\n",
+            "=== parsing R188933admin0_simplified.json\n ** adding Granica (R1000)\n ** removing unseen boundaries (R1000)\nOther unseen boundaries removed: 0\n ** updating paths for all of Granica\n",
         )
 
         self.assertEqual(AdminBoundary.objects.count(), 1)
@@ -433,11 +441,11 @@ class ImportGeoJSONtest(TembaTest):
     def test_ok_filename_admin_level_with_country_prefix(self):
         with patch("builtins.open", mock_open(read_data=self.data_geojson_level_0)):
             with captured_stdout() as captured_output:
-                call_command("import_geojson", "R188933admin0.json", "--country=R188933")
+                call_command("import_geojson", "R188933admin0_simplified.json", "--country=R188933")
 
         self.assertEqual(
             captured_output.getvalue(),
-            "=== parsing R188933admin0.json\n ** adding Granica (R1000)\n ** removing unseen boundaries (R1000)\nOther unseen boundaries removed: 0\n ** updating paths for all of Granica\n",
+            "=== parsing R188933admin0_simplified.json\n ** adding Granica (R1000)\n ** removing unseen boundaries (R1000)\nOther unseen boundaries removed: 0\n ** updating paths for all of Granica\n",
         )
 
         self.assertEqual(AdminBoundary.objects.count(), 1)

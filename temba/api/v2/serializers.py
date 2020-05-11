@@ -20,6 +20,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
 from temba.templates.models import Template, TemplateTranslation
+from temba.tickets.models import Ticketer
 from temba.utils import extract_constants, json, on_transaction_commit
 from temba.values.constants import Value
 
@@ -786,6 +787,11 @@ class ContactBulkActionSerializer(WriteSerializer):
     action = serializers.ChoiceField(required=True, choices=ACTIONS)
     group = fields.ContactGroupField(required=False, allow_dynamic=False)
 
+    def validate_contacts(self, value):
+        if not value:
+            raise serializers.ValidationError("Contacts can't be empty.")
+        return value
+
     def validate(self, data):
         contacts = data["contacts"]
         action = data["action"]
@@ -1028,6 +1034,7 @@ class FlowStartWriteSerializer(WriteSerializer):
         return FlowStart.create(
             self.validated_data["flow"],
             self.context["user"],
+            start_type=FlowStart.TYPE_API_ZAPIER if self.context["is_zapier"] else FlowStart.TYPE_API,
             restart_participants=restart_participants,
             contacts=contacts,
             groups=groups,
@@ -1360,3 +1367,15 @@ class TemplateReadSerializer(ReadSerializer):
     class Meta:
         model = Template
         fields = ("uuid", "name", "translations", "created_on", "modified_on")
+
+
+class TicketerReadSerializer(ReadSerializer):
+    type = serializers.SerializerMethodField()
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    def get_type(self, obj):
+        return obj.ticketer_type
+
+    class Meta:
+        model = Ticketer
+        fields = ("uuid", "name", "type", "created_on")

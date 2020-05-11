@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-13 19:11+0000\n"
+"POT-Creation-Date: 2020-05-06 20:49+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -511,9 +511,10 @@ msgid "Next Attempt"
 msgstr ""
 
 msgid ""
-"If you are based in Kenya, Malawi, Nigeria, Rwanda or Uganda you can purchase a short\n"
-"    code from <a href=\"http://africastalking.com\">Africa's Talking</a> and connect it\n"
-"    in a few simple steps."
+"\n"
+"        You can purchase a short code from <a href=\"http://africastalking.com\">Africa's Talking</a>\n"
+"        and connect it in a few simple steps.\n"
+"        "
 msgstr ""
 
 msgid ""
@@ -546,19 +547,37 @@ msgstr ""
 msgid "Your short code on Africa's Talking"
 msgstr ""
 
-msgid "Kenya"
+msgid "Burkina Faso"
 msgstr ""
 
-msgid "Uganda"
+msgid "Côte d'Ivoire"
+msgstr ""
+
+msgid "Ethiopia"
+msgstr ""
+
+msgid "Kenya"
 msgstr ""
 
 msgid "Malawi"
 msgstr ""
 
+msgid "Nigeria"
+msgstr ""
+
 msgid "Rwanda"
 msgstr ""
 
-msgid "Nigeria"
+msgid "Tanzania"
+msgstr ""
+
+msgid "Uganda"
+msgstr ""
+
+msgid "South Africa"
+msgstr ""
+
+msgid "Zambia"
 msgstr ""
 
 msgid "Whether this short code is shared with others"
@@ -777,7 +796,7 @@ msgid "The Secret Key found on your Chikka API credentials page"
 msgstr ""
 
 msgid ""
-"Connect your <a href=\"http://clickatell.com/\" target=\"_blank\">Clickatell</a> number, we'll walk you\n"
+"Connect your <a href=\"http://clickatell.com/\">Clickatell</a> number, we'll walk you\n"
 "                           through the steps necessary to get your Clickatell connection working in a few minutes."
 msgstr ""
 
@@ -937,6 +956,12 @@ msgstr ""
 msgid "The maximum length of any single message on this channel. (longer messages will be split)"
 msgstr ""
 
+msgid "Authorization Header Value"
+msgstr ""
+
+msgid "The Authorization header value added when calling the URL (if any)"
+msgstr ""
+
 msgid "Send URL"
 msgstr ""
 
@@ -975,7 +1000,7 @@ msgid "The name of the Facebook page"
 msgstr ""
 
 msgid ""
-"Add a <a href=\"https://firebase.google.com/docs/cloud-messaging/\" target=\"_blank\"> Firebase Cloud\n"
+"Add a <a href=\"https://firebase.google.com/docs/cloud-messaging/\"> Firebase Cloud\n"
 "    Messaging Channel</a> to send and receive messages. Your users will need an App to send and receive messages."
 msgstr ""
 
@@ -1009,7 +1034,7 @@ msgstr ""
 msgid "Check if you want this channel to send notifications to contacts."
 msgstr ""
 
-msgid "Connect your approved <a href=\"https://www.freshworks.com/live-chat-software/\" target=\"_blank\">FreshChat</a> Channel"
+msgid "Connect your approved <a href=\"https://www.freshworks.com/live-chat-software/\">FreshChat</a> Channel"
 msgstr ""
 
 msgid ""
@@ -1181,7 +1206,7 @@ msgid ""
 msgstr ""
 
 msgid ""
-"Connect your <a href=\"http://www.jasminsms.com/\" target=\"_blank\">Jasmin</a> instance that you have\n"
+"Connect your <a href=\"http://www.jasminsms.com/\">Jasmin</a> instance that you have\n"
 "                       already connected to an SMSC."
 msgstr ""
 
@@ -1236,7 +1261,7 @@ msgstr ""
 msgid "The JioChat App secret"
 msgstr ""
 
-msgid "Connect your <a href=\"https://junebug.praekelt.org/\" target=\"_blank\">Junebug</a> instance that you have already set up and configured."
+msgid "Connect your <a href=\"https://junebug.praekelt.org/\">Junebug</a> instance that you have already set up and configured."
 msgstr ""
 
 msgid ""
@@ -1261,7 +1286,7 @@ msgid "The token Junebug should use to authenticate"
 msgstr ""
 
 msgid ""
-"Connect your <a href=\"http://www.kannel.org/\" target=\"_blank\">Kannel</a> instance, we'll walk you through\n"
+"Connect your <a href=\"http://www.kannel.org/\">Kannel</a> instance, we'll walk you through\n"
 "                       the steps necessary to get your SMSC connection working in a few minutes."
 msgstr ""
 
@@ -1618,6 +1643,15 @@ msgid "A telegram channel for this bot already exists on your account."
 msgstr ""
 
 msgid "Your authentication token is invalid, please check and try again"
+msgstr ""
+
+msgid "If you are based in Somalia, you can integrate with Telesom to send and receive messages on your shortcode."
+msgstr ""
+
+msgid "To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery URL for incoming messages to {{ channel.address }}."
+msgstr ""
+
+msgid "The private key provided to use their API"
 msgstr ""
 
 msgid ""
@@ -2271,6 +2305,9 @@ msgstr ""
 msgid "The preferred language for this contact"
 msgstr ""
 
+msgid "An error occurred updating your contact. Please try again later."
+msgstr ""
+
 msgid "Provided URNs belong to different existing contacts"
 msgstr ""
 
@@ -2443,6 +2480,10 @@ msgid "Delete Contacts"
 msgstr ""
 
 msgid "Unstop Contacts"
+msgstr ""
+
+#, python-brace-format
+msgid "{label} for this contact"
 msgstr ""
 
 msgid "Used by another contact"
@@ -2684,6 +2725,18 @@ msgstr ""
 msgid "Any configuration options for this flow export"
 msgstr ""
 
+msgid "Pending"
+msgstr ""
+
+msgid "Starting"
+msgstr ""
+
+msgid "Complete"
+msgstr ""
+
+msgid "Failed"
+msgstr ""
+
 msgid "The name of this flow label"
 msgstr ""
 
@@ -2712,6 +2765,9 @@ msgid "After 6 hours"
 msgstr ""
 
 msgid "After 12 hours"
+msgstr ""
+
+msgid "After 18 hours"
 msgstr ""
 
 msgid "After 1 day"
@@ -2898,7 +2954,42 @@ msgstr ""
 msgid "New Editor"
 msgstr ""
 
-msgid "Previous Editor"
+msgid "Export Definition"
+msgstr ""
+
+msgid "Export Translation"
+msgstr ""
+
+msgid "Import Translation"
+msgstr ""
+
+msgid "Include translations in this language."
+msgstr ""
+
+msgid "Include Arguments"
+msgstr ""
+
+msgid "Include arguments to tests on splits"
+msgstr ""
+
+msgid "PO translation file"
+msgstr ""
+
+msgid "File doesn't appear to be a valid PO file."
+msgstr ""
+
+#, python-format
+msgid "Contains translations in %(lang)s which is the base language of this flow."
+msgstr ""
+
+#, python-format
+msgid "Contains translations in %(lang)s which is not a supported translation language."
+msgstr ""
+
+msgid "Replace flow translations in this language."
+msgstr ""
+
+msgid "Import"
 msgstr ""
 
 msgid "Which group memberships, if any, to include in the export"
@@ -3027,6 +3118,9 @@ msgstr ""
 msgid "Name already used"
 msgstr ""
 
+msgid "Flow Start Log"
+msgstr ""
+
 #, python-format
 msgid "Cannot create a new global as limit is %(limit)s."
 msgstr ""
@@ -3056,9 +3150,6 @@ msgid "After 4 minutes"
 msgstr ""
 
 msgid "You must select a country for your organization."
-msgstr ""
-
-msgid "Pending"
 msgstr ""
 
 msgid "Queued"
@@ -3323,9 +3414,6 @@ msgstr ""
 msgid "Schedules"
 msgstr ""
 
-msgid "Failed"
-msgstr ""
-
 msgid "Schedule Message"
 msgstr ""
 
@@ -3579,6 +3667,12 @@ msgstr ""
 msgid "Phone number for testing and recording voice flows"
 msgstr ""
 
+msgid "OTP Secret"
+msgstr ""
+
+msgid "Two Factor Enabled"
+msgstr ""
+
 msgid "Price Paid"
 msgstr ""
 
@@ -3655,6 +3749,12 @@ msgstr ""
 
 #, python-format
 msgid "%(name)s Credits Alert"
+msgstr ""
+
+msgid "Settings"
+msgstr ""
+
+msgid "Used"
 msgstr ""
 
 msgid "Your first name"
@@ -3874,6 +3974,18 @@ msgstr ""
 msgid "One of the emails you entered is invalid."
 msgstr ""
 
+msgid "Enter the code from your authentication application"
+msgstr ""
+
+msgid "Invalid MFA token. Please try again."
+msgstr ""
+
+msgid "Activate"
+msgstr ""
+
+msgid "Two Factor Authentication"
+msgstr ""
+
 msgid "Select your Organization"
 msgstr ""
 
@@ -3930,9 +4042,6 @@ msgid "Add Channel"
 msgstr ""
 
 msgid "Add Classifier"
-msgstr ""
-
-msgid "Import"
 msgstr ""
 
 msgid "Login"
@@ -4053,6 +4162,9 @@ msgstr ""
 msgid "Classifier Called"
 msgstr ""
 
+msgid "Ticketing Service Called"
+msgstr ""
+
 msgid "Airtime Transferred"
 msgstr ""
 
@@ -4078,6 +4190,22 @@ msgid "Monthly"
 msgstr ""
 
 #, python-format
+msgid "in %(timeperiod)s"
+msgstr ""
+
+#, python-format
+msgid "each day at %(time)s"
+msgstr ""
+
+#, python-format
+msgid "each week on %(daysofweek)s"
+msgstr ""
+
+#, python-format
+msgid "each month on the %(dayofmonth)s"
+msgstr ""
+
+#, python-format
 msgid "%(day)s is not a valid day of the week"
 msgstr ""
 
@@ -4096,10 +4224,19 @@ msgstr ""
 msgid "Spanish"
 msgstr ""
 
+msgid "Russian"
+msgstr ""
+
 msgid "Visually build nationally scalable mobile applications from anywhere in the world."
 msgstr ""
 
 msgid "Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."
+msgstr ""
+
+msgid "Open"
+msgstr ""
+
+msgid "Closed"
 msgstr ""
 
 msgid "Keyword Trigger"
@@ -4240,9 +4377,6 @@ msgid "Create Schedule"
 msgstr ""
 
 msgid "Processing"
-msgstr ""
-
-msgid "Complete"
 msgstr ""
 
 msgid "The organization of the user."
@@ -4521,9 +4655,6 @@ msgid "Bulk sending enabled"
 msgstr ""
 
 msgid "Voice calls enabled"
-msgstr ""
-
-msgid "Settings"
 msgstr ""
 
 msgid "Channel Log"
@@ -5100,7 +5231,7 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"        You can to connect using a <a href=\"https://firebase.google.com/docs/cloud-messaging/\" target=\"_blank\">\n"
+"        You can to connect using a <a href=\"https://firebase.google.com/docs/cloud-messaging/\">\n"
 "        Firebase Cloud Messaging App</a> to your %(name)s account to automate sending notifications.\n"
 "      "
 msgstr ""
@@ -5115,7 +5246,7 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"        You can connect a <a href=\"https://www.freshworks.com/live-chat-software/\" target=\"_blank\">FreshChat</a> Account to your %(name)s account\n"
+"        You can connect a <a href=\"https://www.freshworks.com/live-chat-software/\">FreshChat</a> Account to your %(name)s account\n"
 "        to automate sending and receiving messages via FreshChat. This will also support Apple Business Chat if it's been configured on your FreshChat account.\n"
 "      "
 msgstr ""
@@ -5130,7 +5261,7 @@ msgid "Under Settings again, select Webhooks and copy the Public Key and paste i
 msgstr ""
 
 #, python-format
-msgid "Lastly, you'll need the UUID of the Agent that %(name)s will use when it sends FreshChat Message. This is available via the <a href=\"https://developers.freshchat.com/api/#agent\" target=\"_blank\"> FreshChat API</a>."
+msgid "Lastly, you'll need the UUID of the Agent that %(name)s will use when it sends FreshChat Message. This is available via the <a href=\"https://developers.freshchat.com/api/#agent\">FreshChat API</a>."
 msgstr ""
 
 msgid "Once you press Submit below with all the information configured, the confirmation page will give you the URL to use for the FreshChat Webhooks. Enter this URL on the Settings page, under Webhooks where the Public Key was copied from before."
@@ -5175,7 +5306,7 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"        You can connect a <a href=\"https://jiochat.com\" target=\"_blank\">JioChat Channel</a> to your %(name)s account\n"
+"        You can connect a <a href=\"https://jiochat.com\">JioChat Channel</a> to your %(name)s account\n"
 "        to automate sending and receiving JioChat messages.\n"
 "      "
 msgstr ""
@@ -5207,21 +5338,21 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"        You can connect a <a href=\"https://developers.line.me/messaging-api/overview\" target=\"_blank\">LINE Bot</a> to your %(name)s account\n"
+"        You can connect a <a href=\"https://developers.line.me/messaging-api/overview\">LINE Bot</a> to your %(name)s account\n"
 "        to automate sending and receiving LINE messages.\n"
 "      "
 msgstr ""
 
 msgid ""
 "\n"
-"        To start creating a LINE bot, go to <a href=\"https://developers.line.me/messaging-api/getting-started\" target=\"_blank\">Getting started with the Messaging API</a>.\n"
+"        To start creating a LINE bot, go to <a href=\"https://developers.line.me/messaging-api/getting-started\">Getting started with the Messaging API</a>.\n"
 "\n"
 "      "
 msgstr ""
 
 msgid ""
 "\n"
-"            Access the <a href=\"https://developers.line.me/channels/\" target=\"_blank\">LINE Channels</a> page and add a new Channel.</li>\n"
+"            Access the <a href=\"https://developers.line.me/channels/\">LINE Channels</a> page and add a new Channel.</li>\n"
 "\n"
 "          "
 msgstr ""
@@ -5256,7 +5387,7 @@ msgstr ""
 
 msgid ""
 "\n"
-"                In <a href=\"https://business.line.me/en/\" target=\"_blank\">LINE Business Center</a>, select \"Messaging API\" in the \"Services\"\n"
+"                In <a href=\"https://business.line.me/en/\">LINE Business Center</a>, select \"Messaging API\" in the \"Services\"\n"
 "\n"
 "              "
 msgstr ""
@@ -5319,7 +5450,7 @@ msgstr ""
 
 msgid ""
 "\n"
-"                Click on the menu \"Accounts\" at the top of the page at the link <a href=\"https://business.line.me\" target=\"_blank\">https://business.line.me</a>\n"
+"                Click on the menu \"Accounts\" at the top of the page at the link <a href=\"https://business.line.me\">https://business.line.me</a>\n"
 "\n"
 "              "
 msgstr ""
@@ -5491,7 +5622,7 @@ msgstr ""
 msgid ""
 "\n"
 "          In order to receive direct messages from new followers, you'll need to update your Twitter account to enable\n"
-"          the option to <b>Receive Direct Messages from anyone</b>. You can do so from your <a href=\"https://twitter.com/settings/security\" target=\"_blank\">\n"
+"          the option to <b>Receive Direct Messages from anyone</b>. You can do so from your <a href=\"https://twitter.com/settings/security\">\n"
 "          Twitter Security Settings</a>.\n"
 "\n"
 "        "
@@ -6034,6 +6165,14 @@ msgstr ""
 msgid "No related contact groups."
 msgstr ""
 
+#, python-format
+msgid "You have reached the limit of %(limit)s fields per account. Please remove fields that you are no longer using."
+msgstr ""
+
+#, python-format
+msgid "You are approaching the limit of %(limit)s fields per account. You should remove fields that you are no longer using."
+msgstr ""
+
 msgid "Create Field"
 msgstr ""
 
@@ -6068,101 +6207,39 @@ msgid "Uses"
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"        Sorry, %(group_name)s cannot be deleted quite yet.\n"
-"      "
+msgid "Sorry, %(group_name)s cannot be deleted quite yet."
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"          This group is used by an active trigger. In order to delete it,\n"
-"          first remove the\n"
-"          "
-msgid_plural ""
-"\n"
-"            This group is used by %(counter)s triggers. In order to delete it,\n"
-"            first remove the\n"
-"\n"
-"        "
-msgstr[0] ""
-msgstr[1] ""
-
-msgid ""
-"\n"
-"          trigger.\n"
-"        "
-msgid_plural ""
-"\n"
-"          triggers.\n"
-"\n"
-"        "
+msgid "This group is used by an <a href=\"%(triggers_url)s\">active trigger</a>. In order to delete it, first remove the trigger."
+msgid_plural "This group is used by <a href=\"%(triggers_url)s\">%(counter)s triggers<a>. In order to delete it, first remove the triggers."
 msgstr[0] ""
 msgstr[1] ""
 
 #, python-format
-msgid ""
-"\n"
-"          There is an active flow using this group. It cannot be deleted until it is removed from the\n"
-"\n"
-"          "
-msgid_plural ""
-"\n"
-"            There are %(counter)s flows using this group. It cannot be deleted until it is removed from the\n"
-"\n"
-"        "
+msgid "There is an active flow using this group. It cannot be deleted until it is removed from the"
+msgid_plural "There are %(counter)s flows using this group. It cannot be deleted until it is removed from the"
 msgstr[0] ""
 msgstr[1] ""
 
-msgid ""
-"\n"
-"          flow.\n"
-"        "
-msgid_plural ""
-"\n"
-"          flows.\n"
-"\n"
-"        "
+msgid "flow."
+msgid_plural "flows."
 msgstr[0] ""
 msgstr[1] ""
 
 #, python-format
-msgid ""
-"\n"
-"          There is an active campaign using this group. It cannot be deleted until it is removed from the\n"
-"\n"
-"          "
-msgid_plural ""
-"\n"
-"            There are %(counter)s campaigns using this group. It cannot be deleted until it is removed from the\n"
-"\n"
-"        "
+msgid "There is an active campaign using this group. It cannot be deleted until it is removed from the"
+msgid_plural "There are %(counter)s campaigns using this group. It cannot be deleted until it is removed from the"
 msgstr[0] ""
 msgstr[1] ""
 
-msgid ""
-"\n"
-"          campaign.\n"
-"        "
-msgid_plural ""
-"\n"
-"          campaigns.\n"
-"\n"
-"        "
+msgid "campaign."
+msgid_plural "campaigns."
 msgstr[0] ""
 msgstr[1] ""
 
 #, python-format
-msgid ""
-"\n"
-"        You are about to delete\n"
-"        <span class='group_name'>\n"
-"          %(object)s.\n"
-"        </span>\n"
-"        No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?\n"
-"\n"
-"      "
+msgid "You are about to delete <span class='group_name'> %(object)s. </span> No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?"
 msgstr ""
 
 msgid "Show Contacts"
@@ -6356,6 +6433,9 @@ msgstr ""
 msgid "Delete Flow"
 msgstr ""
 
+msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
+msgstr ""
+
 msgid "To make your next connection,"
 msgstr ""
 
@@ -6478,6 +6558,9 @@ msgstr ""
 msgid "Run flow "
 msgstr ""
 
+msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
+msgstr ""
+
 msgid ""
 "\n"
 "      Sorry, this flow cannot be exported because it references another flow. To export it, please remove any\n"
@@ -6489,6 +6572,9 @@ msgstr ""
 msgid "Back to Flow"
 msgstr ""
 
+msgid "Extracts a <a href=\"https://en.wikipedia.org/wiki/Gettext\">gettext</a> PO file from the flow which can later be re-imported with updated translations."
+msgstr ""
+
 msgid "Remove Label"
 msgstr ""
 
@@ -6498,10 +6584,31 @@ msgstr ""
 msgid "You cannot remove a label which has child labels. Please remove all children first."
 msgstr ""
 
-msgid "Unlabel"
+msgid "Importing a PO file will replace all matching translations in the flow for the selected language."
 msgstr ""
 
-msgid "Activate"
+msgid "Selected Flow"
+msgstr ""
+
+msgid "Base Language"
+msgstr ""
+
+msgid "Uploaded PO File"
+msgstr ""
+
+msgid "Number of entries"
+msgstr ""
+
+msgid "Number of translations"
+msgstr ""
+
+msgid "Upload"
+msgstr ""
+
+msgid "Back"
+msgstr ""
+
+msgid "Unlabel"
 msgstr ""
 
 msgid "Add Label"
@@ -6568,6 +6675,34 @@ msgstr ""
 
 msgid "Ask a series of questions to collect data from your contacts."
 msgstr ""
+
+#, python-format
+msgid "was started by %(user)s for"
+msgstr ""
+
+msgid "was started by Zapier for"
+msgstr ""
+
+msgid "was started by an API call for"
+msgstr ""
+
+msgid "all contacts"
+msgstr ""
+
+msgid "contacts not in other flows"
+msgstr ""
+
+msgid "contacts not in other flows who haven't already been through this flow"
+msgstr ""
+
+msgid "contacts who haven't already been through this flow"
+msgstr ""
+
+#, python-format
+msgid "<b>%(count)s</b> run"
+msgid_plural "<b>%(count)s</b> runs"
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Are you sure you want to delete this global?"
 msgstr ""
@@ -7487,6 +7622,27 @@ msgstr ""
 msgid "Plivo Dashboard"
 msgstr ""
 
+#, python-format
+msgid "You can monitor contact group counts and channel message counts on your organization using your %(prometheus)s endpoint. This will let you monitor usage over time using graphs and alerts in a dashboard such as %(grafana)s."
+msgstr ""
+
+msgid "Endpoint"
+msgstr ""
+
+msgid "Disable Prometheus"
+msgstr ""
+
+msgid "Enable Prometheus"
+msgstr ""
+
+#, python-format
+msgid "You are monitoring your organization using %(prometheus)s."
+msgstr ""
+
+#, python-format
+msgid "You have not enabled %(prometheus)s monitoring on your organization."
+msgstr ""
+
 msgid ""
 "\n"
 "    You can create flow events which external services can subscribe to. For example, Zapier can subscribe\n"
@@ -7633,6 +7789,21 @@ msgid ""
 "\n"
 "          Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?\n"
 "        "
+msgstr ""
+
+msgid "To enable two factor authentication, use a one time password application such as"
+msgstr ""
+
+msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
+msgstr ""
+
+msgid "These backup tokens can be used if you lose access to your authentication application, store them in a safe place. Any tokens you may have previously generated are invalid."
+msgstr ""
+
+msgid "Generate Backup Tokens"
+msgstr ""
+
+msgid "Disable Two Factor"
 msgstr ""
 
 msgid "This organization has been suspended"
@@ -8713,12 +8884,6 @@ msgid "starts the"
 msgstr ""
 
 msgid "flow"
-msgstr ""
-
-msgid "for contacts in"
-msgstr ""
-
-msgid "will start in"
 msgstr ""
 
 msgid "is"

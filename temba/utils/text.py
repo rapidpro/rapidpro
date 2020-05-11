@@ -4,6 +4,7 @@ import re
 import string
 import sys
 from collections import Counter
+from os import urandom
 
 import regex
 
@@ -150,3 +151,7 @@ def random_string(length):
     """
     letters = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"  # avoid things that could be mistaken ex: 'I' and '1'
     return "".join([random.choice(letters) for _ in range(length)])
+
+
+def generate_token():
+    return base64.b32encode(urandom(5)).decode("utf-8").lower()

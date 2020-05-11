@@ -1,5 +1,4 @@
 from unittest.mock import patch
-from uuid import uuid4
 
 from packaging.version import Version
 
@@ -10,6 +9,7 @@ from temba.flows.models import ActionSet, Flow, FlowRevision, RuleSet, get_flow_
 from temba.msgs.models import Label
 from temba.tests import TembaTest, matchers
 from temba.utils import json
+from temba.utils.uuid import uuid4
 from temba.values.constants import Value
 
 from .definition import InGroupTest

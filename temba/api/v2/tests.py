@@ -37,6 +37,8 @@ from temba.orgs.models import Language
 from temba.templates.models import TemplateTranslation
 from temba.tests import AnonymousOrg, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
+from temba.tickets.models import Ticketer
+from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.values.constants import Value
@@ -89,12 +91,14 @@ class APITest(TembaTest):
         response.json()
         return response
 
-    def postJSON(self, url, query, data):
+    def postJSON(self, url, query, data, **kwargs):
         url += ".json"
         if query:
             url = url + "?" + query
 
-        return self.client.post(url, json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS="https")
+        return self.client.post(
+            url, json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS="https", **kwargs
+        )
 
     def deleteJSON(self, url, query=None):
         url += ".json"
@@ -2254,6 +2258,10 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"contacts": [contact3.uuid], "action": "block", "group": "Testers"})
         self.assertResponseError(response, "non_field_errors", 'For action "block" you should not specify a group')
 
+        # trying to act on zero contacts is an error
+        response = self.postJSON(url, None, {"contacts": [], "action": "interrupt"})
+        self.assertResponseError(response, "contacts", "Contacts can't be empty.")
+
         # try to invoke an invalid action
         response = self.postJSON(url, None, {"contacts": [contact3.uuid], "action": "like"})
         self.assertResponseError(response, "action", '"like" is not a valid choice.')
@@ -3891,8 +3899,9 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         # assert our new start
-        start2 = flow.starts.get(pk=response.json()["id"])
+        start2 = flow.starts.get(id=response.json()["id"])
         self.assertEqual(start2.flow, flow)
+        self.assertEqual(start2.start_type, FlowStart.TYPE_API)
         self.assertTrue(start2.contacts.filter(urns__path="+12067791212"))
         self.assertTrue(start2.contacts.filter(id=self.joe.id))
         self.assertTrue(start2.groups.filter(id=hans_group.id))
@@ -3931,6 +3940,15 @@ class APITest(TembaTest):
         # check we tried to start the new flow start
         mock_async_start.assert_called_once()
         mock_async_start.reset_mock()
+
+        # calls from Zapier have user-agent set to Zapier
+        response = self.postJSON(url, None, {"contacts": [self.joe.uuid], "flow": flow.uuid}, HTTP_USER_AGENT="Zapier")
+
+        self.assertEqual(response.status_code, 201)
+
+        # assert our new start has start_type of Zapier
+        start4 = flow.starts.get(id=response.json()["id"])
+        self.assertEqual(FlowStart.TYPE_API_ZAPIER, start4.start_type)
 
         # try to start a flow with no contact/group/URN
         response = self.postJSON(url, None, {"flow": flow.uuid, "restart_participants": True})
@@ -4036,9 +4054,9 @@ class APITest(TembaTest):
         response = self.fetchJSON(url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["next"], None)
-        self.assertResultsById(response, [start3, start2, start1])
+        self.assertResultsById(response, [start4, start3, start2, start1])
         self.assertEqual(
-            response.json()["results"][0],
+            response.json()["results"][1],
             {
                 "id": start3.id,
                 "uuid": str(start3.uuid),
@@ -4181,3 +4199,56 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(1, len(resp_json["results"]))
         self.assertEqual("Booker", resp_json["results"][0]["name"])
+
+    def test_ticketers(self):
+        url = reverse("api.v2.ticketers")
+        self.assertEndpointAccess(url)
+
+        # create some ticketers
+        c1 = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun (bob@acme.com)", {})
+        c2 = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun (jim@acme.com)", {})
+
+        c3 = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun (deleted)", {})
+        c3.is_active = False
+        c3.save()
+
+        # on another org
+        Ticketer.create(self.org2, self.admin, LuisType.slug, "Mailgun", {})
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+            response = self.fetchJSON(url)
+
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertEqual(
+            resp_json["results"],
+            [
+                {
+                    "uuid": str(c2.uuid),
+                    "name": "Mailgun (jim@acme.com)",
+                    "type": "mailgun",
+                    "created_on": format_datetime(c2.created_on),
+                },
+                {
+                    "uuid": str(c1.uuid),
+                    "name": "Mailgun (bob@acme.com)",
+                    "type": "mailgun",
+                    "created_on": format_datetime(c1.created_on),
+                },
+            ],
+        )
+
+        # filter by uuid (not there)
+        response = self.fetchJSON(url, "uuid=09d23a05-47fe-11e4-bfe9-b8f6b119e9ab")
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(0, len(resp_json["results"]))
+
+        # filter by uuid present
+        response = self.fetchJSON(url, "uuid=" + str(c1.uuid))
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(1, len(resp_json["results"]))
+        self.assertEqual("Mailgun (bob@acme.com)", resp_json["results"][0]["name"])

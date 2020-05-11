@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from urllib.parse import quote, urlencode, urlparse
-from uuid import uuid4
 
 import pycountry
 import regex
@@ -44,7 +43,8 @@ from temba.utils.dates import datetime_to_str, str_to_datetime
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
-from temba.utils.text import random_string
+from temba.utils.text import generate_token, random_string
+from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -631,14 +631,9 @@ class Org(SmartModel):
         """
         Attempts to normalize any contacts which don't have full e164 phone numbers
         """
-        from temba.contacts.models import ContactURN, TEL_SCHEME
+        from .tasks import normalize_contact_tels_task
 
-        # do we have an org-level country code? if so, try to normalize any numbers not starting with +
-        country_code = self.get_country_code()
-        if country_code:
-            urns = ContactURN.objects.filter(org=self, scheme=TEL_SCHEME).exclude(path__startswith="+")
-            for urn in urns:
-                urn.ensure_number_normalization(country_code)
+        normalize_contact_tels_task.delay(self.pk)
 
     def get_resthooks(self):
         """
@@ -2354,6 +2349,8 @@ class UserSettings(models.Model):
         blank=True,
         help_text=_("Phone number for testing and recording voice flows"),
     )
+    otp_secret = models.CharField(verbose_name=_("OTP Secret"), max_length=18, null=True, blank=True)
+    two_factor_enabled = models.BooleanField(verbose_name=_("Two Factor Enabled"), default=False)
 
     def get_tel_formatted(self):
         if self.tel:
@@ -2716,3 +2713,14 @@ class CreditAlert(SmartModel):
 
         for topup in expiring_final_topups:
             CreditAlert.trigger_credit_alert(topup.org, CreditAlert.TYPE_EXPIRING)
+
+
+class BackupToken(SmartModel):
+    settings = models.ForeignKey(
+        UserSettings, verbose_name=_("Settings"), related_name="backups", on_delete=models.CASCADE
+    )
+    token = models.CharField(verbose_name=_("Token"), max_length=18, unique=True, default=generate_token)
+    used = models.BooleanField(verbose_name=_("Used"), default=False)
+
+    def __str__(self):  # pragma: no cover
+        return f"{self.token}"

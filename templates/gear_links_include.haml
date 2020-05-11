@@ -14,7 +14,7 @@
 
     -for link in gear_links
       -if link.modax
-        %rp-modax{ header:'{{link.modax}}', endpoint:"{{link.href}}", id:"{{link.id}}"}
+        %temba-modax{ header:'{{link.modax}}', endpoint:"{{link.href}}", id:"{{link.id}}"}
 
     #gear-container
       -if gear_links|length == 1
@@ -74,7 +74,8 @@
 
       :javascript
         function showModax(endpoint) {
-          const modax = document.querySelector("rp-modax[endpoint='" + endpoint + "']");
+          const modax = document.querySelector("temba-modax[endpoint='" + endpoint + "']");
+
           if(modax) {
             modax.setAttribute("open", "true");
           }

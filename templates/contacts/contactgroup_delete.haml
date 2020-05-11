@@ -7,28 +7,21 @@
   -with flows=object.dependent_flows.all
 
     -if flows or triggers or campaigns
-      -blocktrans with group_name=object.name
+      -blocktrans trimmed with group_name=object.name
         Sorry, {{group_name}} cannot be deleted quite yet.
       %p
 
       -if triggers
-        -blocktrans count counter=triggers|length
-          This group is used by an active trigger. In order to delete it,
-          first remove the
+        -url 'triggers.trigger_list' as triggers_url
+        -blocktrans trimmed count counter=triggers|length
+          This group is used by an <a href="{{ triggers_url }}">active trigger</a>.
+          In order to delete it, first remove the trigger.
           -plural
-            This group is used by {{counter}} triggers. In order to delete it,
-            first remove the
-
-        -for trigger in triggers
-          <a href="{%url 'triggers.trigger_list'%}">{{trigger}}</a>{{forloop|oxford}}
-
-        -blocktrans count counter=triggers|length
-          trigger.
-        -plural
-          triggers.
+            This group is used by <a href="{{ triggers_url }}">{{counter}} triggers<a>.
+            In order to delete it, first remove the triggers.
 
       -if flows
-        -blocktrans count counter=flows|length
+        -blocktrans trimmed count counter=flows|length
           There is an active flow using this group. It cannot be deleted until it is removed from the
 
           -plural
@@ -37,13 +30,13 @@
         -for flow in flows
           <a href="{%url 'flows.flow_editor' flow.uuid%}">{{flow.name}}</a>{{forloop|oxford}}
 
-        -blocktrans count counter=flows|length
+        -blocktrans trimmed count counter=flows|length
           flow.
         -plural
           flows.
 
       -if campaigns
-        -blocktrans count counter=campaigns|length
+        -blocktrans trimmed count counter=campaigns|length
           There is an active campaign using this group. It cannot be deleted until it is removed from the
 
           -plural
@@ -52,7 +45,7 @@
         -for campaign in campaigns
           <a href="{% url 'campaigns.campaign_read' campaign.id %}">{{campaign.name}}</a>{{forloop|oxford}}
 
-        -blocktrans count counter=campaigns|length
+        -blocktrans trimmed count counter=campaigns|length
           campaign.
         -plural
           campaigns.
@@ -66,7 +59,7 @@
         $(".modal-footer .btn.primary").show();
         $(".modal-footer .btn.secondary").text("Cancel");
 
-      -blocktrans
+      -blocktrans trimmed
         You are about to delete
         %span.group_name
           {{object}}.
