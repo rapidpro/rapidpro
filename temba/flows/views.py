@@ -210,16 +210,18 @@ class FlowActionMixin(SmartListView):
 
 
 class FlowImageActionForm(BaseActionForm):
-    allowed_actions = (('archive', _("Archive Flow Images")),
-                       ('delete', _("Delete Flow Images")),
-                       ('download', _("Download Flow Images")),
-                       ('restore', _("Restore Flows Images")))
-    
+    allowed_actions = (
+        ("archive", _("Archive Flow Images")),
+        ("delete", _("Delete Flow Images")),
+        ("download", _("Download Flow Images")),
+        ("restore", _("Restore Flows Images")),
+    )
+
     model = FlowImage
     has_is_active = False
 
     class Meta:
-        fields = ('action', 'objects', 'label', 'add')
+        fields = ("action", "objects", "label", "add")
 
 
 class FlowImageActionMixin(SmartListView):
@@ -277,7 +279,7 @@ class FlowRunCRUDL(SmartCRUDL):
 
 
 class FlowImageCRUDL(SmartCRUDL):
-    actions = ('list', 'read', 'filter', 'archived', 'download',)
+    actions = ("list", "read", "filter", "archived", "download")
     model = FlowImage
 
     class OrgQuerysetMixin(object):
@@ -291,54 +293,59 @@ class FlowImageCRUDL(SmartCRUDL):
     class BaseList(FlowImageActionMixin, OrgQuerysetMixin, OrgPermsMixin, SmartListView):
         title = _("Flow Images")
         refresh = 10000
-        fields = ('name', 'modified_on')
-        default_template = 'flowimages/flowimage_list.html'
-        default_order = ('-created_on',)
-        search_fields = ('name__icontains', 'contact__name__icontains', 'contact__urns__path__icontains')
+        fields = ("name", "modified_on")
+        default_template = "flowimages/flowimage_list.html"
+        default_order = ("-created_on",)
+        search_fields = ("name__icontains", "contact__name__icontains", "contact__urns__path__icontains")
 
         def get_counter(self):
             query = FlowImage.objects.filter(org=self.request.user.get_org())
             return query.filter(is_active=True).count(), query.filter(is_active=False).count()
-        
+
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             folders = self.get_folders()
-            context['org_has_flowimages'] = folders[0].get('count')
-            context['org_has_flowimages_archived'] = folders[1].get('count')
-            context['flows'] = Flow.objects.filter(org=self.request.user.get_org(),
-                                                   is_active=True,
-                                                   ).only('name', 'uuid').order_by('name')
-            context['groups'] = ContactGroup.user_groups.filter(org=self.request.user.get_org(),
-                                                                is_active=True).only('name', 'uuid').order_by('name')
-            context['folders'] = folders
-            context['request_url'] = self.request.path
-            context['actions'] = self.actions
-            context['contact_fields'] = ContactField.user_fields.filter(org=self.request.user.get_org(), is_active=True).order_by('pk')
+            context["org_has_flowimages"] = folders[0].get("count")
+            context["org_has_flowimages_archived"] = folders[1].get("count")
+            context["flows"] = (
+                Flow.objects.filter(org=self.request.user.get_org(), is_active=True)
+                .only("name", "uuid")
+                .order_by("name")
+            )
+            context["groups"] = (
+                ContactGroup.user_groups.filter(org=self.request.user.get_org(), is_active=True)
+                .only("name", "uuid")
+                .order_by("name")
+            )
+            context["folders"] = folders
+            context["request_url"] = self.request.path
+            context["actions"] = self.actions
+            context["contact_fields"] = ContactField.user_fields.filter(
+                org=self.request.user.get_org(), is_active=True
+            ).order_by("pk")
             return context
-        
+
         def get_folders(self):
             (active_count, archived_count) = self.get_counter()
             return [
-                dict(label="Active", url=reverse('flows.flowimage_list'),
-                     count=active_count),
-                dict(label="Archived", url=reverse('flows.flowimage_archived'),
-                     count=archived_count)
+                dict(label="Active", url=reverse("flows.flowimage_list"), count=active_count),
+                dict(label="Archived", url=reverse("flows.flowimage_archived"), count=archived_count),
             ]
-        
+
         def derive_queryset(self, *args, **kwargs):
             return super().derive_queryset(*args, **kwargs)
-        
+
         def get_gear_links(self):
             links = []
-            if self.has_org_perm('contacts.contactfield_managefields'):
-                links.append(dict(title=_('Manage Fields'), js_class='manage-fields', href="#"))
-            if self.has_org_perm('flows.flowimage_download'):
-                links.append(dict(title=_('Download all images'), js_class='download-all-images', href=''))
+            if self.has_org_perm("contacts.contactfield_managefields"):
+                links.append(dict(title=_("Manage Fields"), js_class="manage-fields", href="#"))
+            if self.has_org_perm("flows.flowimage_download"):
+                links.append(dict(title=_("Download all images"), js_class="download-all-images", href=""))
             return links
 
     class List(BaseList):
         title = _("Flow Images")
-        actions = ('download', 'archive',)
+        actions = ("download", "archive")
 
         def derive_queryset(self, *args, **kwargs):
             qs = super().derive_queryset(*args, **kwargs)
@@ -346,78 +353,85 @@ class FlowImageCRUDL(SmartCRUDL):
 
     class Archived(BaseList):
         title = _("Flow Images Archived")
-        actions = ('restore', 'delete',)
+        actions = ("restore", "delete")
 
         def derive_queryset(self, *args, **kwargs):
             qs = super().derive_queryset(*args, **kwargs)
             return qs.exclude(is_active=True)
-    
+
     class Filter(BaseList):
-        actions = ('download', 'archive',)
+        actions = ("download", "archive")
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
-            context['current_object'] = self.derive_object()
+            context["current_object"] = self.derive_object()
             return context
-        
+
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r'^%s/%s/(?P<type>group|flow)/(?P<uuid>[^/]+)/$' % (path, action)
-        
+            return r"^%s/%s/(?P<type>group|flow)/(?P<uuid>[^/]+)/$" % (path, action)
+
         def derive_title(self, *args, **kwargs):
             obj = self.derive_object()
             return _('Images from "%s"' % obj.name) if obj else _("Flow Images")
-        
+
         def derive_object(self):
-            obj_type = self.kwargs.get('type')
-            uuid = self.kwargs.get('uuid')
-            if obj_type == 'flow':
+            obj_type = self.kwargs.get("type")
+            uuid = self.kwargs.get("uuid")
+            if obj_type == "flow":
                 return Flow.objects.filter(org=self.org, uuid=uuid).first()
             else:
                 return ContactGroup.user_groups.filter(org=self.org, uuid=uuid).first()
-        
+
         def get_queryset_filter(self):
             obj = self.derive_object()
-            obj_type = self.kwargs.get('type')
-            if obj_type == 'flow':
+            obj_type = self.kwargs.get("type")
+            if obj_type == "flow":
                 get_filter = dict(flow=obj)
             else:
-                contacts_id = obj.contacts.all().exclude(is_active=False).order_by('pk').\
-                    values_list('pk', flat=True).distinct()
+                contacts_id = (
+                    obj.contacts.all().exclude(is_active=False).order_by("pk").values_list("pk", flat=True).distinct()
+                )
                 get_filter = dict(contact__id__in=contacts_id)
             return get_filter
-        
+
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
             _filter = self.get_queryset_filter()
             qs = qs.filter(**_filter).exclude(is_active=False).distinct()
             return qs
-    
+
     class Read(OrgObjPermsMixin, SmartReadView):
-        slug_url_kwarg = 'uuid'
+        slug_url_kwarg = "uuid"
+
         def get(self, request, *args, **kwargs):
             flow_image = self.get_object()
-            with open(flow_image.get_full_path(), 'r') as image:
-                return HttpResponse(image.read(), content_type='image/png')
-    
+            with open(flow_image.get_full_path(), "r") as image:
+                return HttpResponse(image.read(), content_type="image/png")
+
     class Download(OrgPermsMixin, SmartListView):
         def post(self, request, *args, **kwargs):
             user = self.request.user
             org = user.get_org()
 
-            type_ = self.request.POST.get('type', None)
-            uuid_ = self.request.POST.get('uuid', None)
+            type_ = self.request.POST.get("type", None)
+            uuid_ = self.request.POST.get("uuid", None)
 
-            if type_ in ['list', 'archived', 'group', 'flow']:
-                if type_ == 'list':
+            if type_ in ["list", "archived", "group", "flow"]:
+                if type_ == "list":
                     get_filter = dict(is_active=True, org=org)
-                elif type_ == 'archived':
+                elif type_ == "archived":
                     get_filter = dict(is_active=False, org=org)
-                elif (type_ == 'group' or type_ == 'flow') and uuid_:
-                    if type_ == 'group':
-                        group = ContactGroup.user_groups.filter(org=org, uuid=uuid_).only('id').first()
-                        contacts_id = group.contacts.all().exclude(is_active=False).order_by('id').\
-                            values_list('pk', flat=True).distinct()
+                elif (type_ == "group" or type_ == "flow") and uuid_:
+                    if type_ == "group":
+                        group = ContactGroup.user_groups.filter(org=org, uuid=uuid_).only("id").first()
+                        contacts_id = (
+                            group.contacts.all()
+                            .exclude(is_active=False)
+                            .order_by("id")
+                            .values_list("pk", flat=True)
+                            .distinct()
+                        )
                         get_filter = dict(is_active=True, contact__id__in=contacts_id, org=org)
                     else:
                         flow = Flow.objects.filter(org=org, uuid=uuid_).first()
@@ -426,35 +440,48 @@ class FlowImageCRUDL(SmartCRUDL):
                     get_filter = None
 
                 if get_filter:
-                    objects_list = list(FlowImage.objects.filter(**get_filter).only('id').order_by('-created_on').values_list('id', flat=True).distinct())
+                    objects_list = list(
+                        FlowImage.objects.filter(**get_filter)
+                        .only("id")
+                        .order_by("-created_on")
+                        .values_list("id", flat=True)
+                        .distinct()
+                    )
                 else:
                     objects_list = []
             else:
-                objects = self.request.POST.get('objects')
-                objects_list = objects.split(',')
-            
+                objects = self.request.POST.get("objects")
+                objects_list = objects.split(",")
+
             # is there already an export taking place?
             existing = ExportFlowImagesTask.get_recent_unfinished(org)
             if existing:
-                messages.info(self.request,
-                              _("There is already a download in progress, started by %s. You must wait "
-                                "for that download process to complete before starting another." % existing.created_by.username))
+                messages.info(
+                    self.request,
+                    _(
+                        "There is already a download in progress, started by %s. You must wait "
+                        "for that download process to complete before starting another." % existing.created_by.username
+                    ),
+                )
             else:
                 export = ExportFlowImagesTask.create(org, user, files=objects_list)
                 on_transaction_commit(lambda: download_flow_images_task.delay(export.pk))
 
-                if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):  # pragma: needs cover
-                    messages.info(self.request,
-                                  _("We are preparing your download file. We will e-mail you at %s when it is ready.")
-                                  % self.request.user.username)
+                if not getattr(settings, "CELERY_ALWAYS_EAGER", False):  # pragma: needs cover
+                    messages.info(
+                        self.request,
+                        _("We are preparing your download file. We will e-mail you at %s when it is ready.")
+                        % self.request.user.username,
+                    )
                 else:
                     export = ExportFlowImagesTask.objects.get(id=export.pk)
-                    dl_url = reverse('assets.download', kwargs=dict(type='flowimages_download', pk=export.pk))
-                    messages.info(self.request,
-                                  _("Download complete, you can find it here: %s (production users will get an email)")
-                                  % dl_url)
-            
-            return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
+                    dl_url = reverse("assets.download", kwargs=dict(type="flowimages_download", pk=export.pk))
+                    messages.info(
+                        self.request,
+                        _("Download complete, you can find it here: %s (production users will get an email)") % dl_url,
+                    )
+
+            return HttpResponseRedirect(request.META.get("HTTP_REFERER"))
 
 
 class FlowCRUDL(SmartCRUDL):
@@ -1468,9 +1495,15 @@ class FlowCRUDL(SmartCRUDL):
 
             if self.has_org_perm("flows.flow_pdf_export"):
                 links.append(dict(title=_("Export to PDF"), href="javascript:;", js_class="pdf_export_submit"))
-            
+
             if self.has_org_perm("flows.flow_results"):
-                links.append(dict(title=_("Download Images"), style="btn-primary",href=reverse("flows.flowimage_filter", args=['flow', flow.uuid])))
+                links.append(
+                    dict(
+                        title=_("Download Images"),
+                        style="btn-primary",
+                        href=reverse("flows.flowimage_filter", args=["flow", flow.uuid]),
+                    )
+                )
 
             if self.has_org_perm("orgs.org_lookups") and flow.flow_type == Flow.TYPE_MESSAGE:
                 links.append(dict(title=_("Import Database"), href=reverse("orgs.org_lookups")))
@@ -1626,9 +1659,15 @@ class FlowCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_export"):
                 links.append(dict(title=_("Export"), href="%s?flow=%s" % (reverse("orgs.org_export"), flow.id)))
-            
+
             if self.has_org_perm("flows.flow_results"):
-                links.append(dict(title=_("Download Images"), style="btn-primary",href=reverse("flows.flowimage_filter", args=['flow', flow.uuid])))
+                links.append(
+                    dict(
+                        title=_("Download Images"),
+                        style="btn-primary",
+                        href=reverse("flows.flowimage_filter", args=["flow", flow.uuid]),
+                    )
+                )
 
             if self.has_org_perm("orgs.org_lookups") and flow.flow_type == Flow.TYPE_MESSAGE:
                 links.append(dict(title=_("Import Database"), href=reverse("orgs.org_lookups")))

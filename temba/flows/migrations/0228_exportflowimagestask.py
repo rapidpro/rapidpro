@@ -10,28 +10,88 @@ import temba.utils.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('orgs', '0058_auto_20190723_2129'),
+        ("orgs", "0058_auto_20190723_2129"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('flows', '0227_flowimage'),
+        ("flows", "0227_flowimage"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ExportFlowImagesTask',
+            name="ExportFlowImagesTask",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('is_active', models.BooleanField(default=True, help_text='Whether this item is active, use this instead of deleting')),
-                ('created_on', models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was originally created')),
-                ('modified_on', models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was last modified')),
-                ('uuid', models.CharField(db_index=True, default=temba.utils.models.generate_uuid, help_text='The unique identifier for this object', max_length=36, unique=True, verbose_name='Unique Identifier')),
-                ('status', models.CharField(choices=[('P', 'Pending'), ('O', 'Processing'), ('C', 'Complete'), ('F', 'Failed')], default='P', max_length=1)),
-                ('files', models.TextField(help_text='Array as text of the files ID to download in a zip file')),
-                ('created_by', models.ForeignKey(help_text='The user which originally created this item', on_delete=django.db.models.deletion.PROTECT, related_name='flows_exportflowimagestask_creations', to=settings.AUTH_USER_MODEL)),
-                ('modified_by', models.ForeignKey(help_text='The user which last modified this item', on_delete=django.db.models.deletion.PROTECT, related_name='flows_exportflowimagestask_modifications', to=settings.AUTH_USER_MODEL)),
-                ('org', models.ForeignKey(help_text='The organization of the user.', on_delete=django.db.models.deletion.PROTECT, related_name='exportflowimagestasks', to='orgs.Org')),
+                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "is_active",
+                    models.BooleanField(
+                        default=True, help_text="Whether this item is active, use this instead of deleting"
+                    ),
+                ),
+                (
+                    "created_on",
+                    models.DateTimeField(
+                        blank=True,
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        help_text="When this item was originally created",
+                    ),
+                ),
+                (
+                    "modified_on",
+                    models.DateTimeField(
+                        blank=True,
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        help_text="When this item was last modified",
+                    ),
+                ),
+                (
+                    "uuid",
+                    models.CharField(
+                        db_index=True,
+                        default=temba.utils.models.generate_uuid,
+                        help_text="The unique identifier for this object",
+                        max_length=36,
+                        unique=True,
+                        verbose_name="Unique Identifier",
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[("P", "Pending"), ("O", "Processing"), ("C", "Complete"), ("F", "Failed")],
+                        default="P",
+                        max_length=1,
+                    ),
+                ),
+                ("files", models.TextField(help_text="Array as text of the files ID to download in a zip file")),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        help_text="The user which originally created this item",
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="flows_exportflowimagestask_creations",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "modified_by",
+                    models.ForeignKey(
+                        help_text="The user which last modified this item",
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="flows_exportflowimagestask_modifications",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "org",
+                    models.ForeignKey(
+                        help_text="The organization of the user.",
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="exportflowimagestasks",
+                        to="orgs.Org",
+                    ),
+                ),
             ],
-            options={
-                'abstract': False,
-            },
-        ),
+            options={"abstract": False},
+        )
     ]

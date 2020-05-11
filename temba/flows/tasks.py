@@ -64,7 +64,7 @@ def export_flow_results_task(export_id):
     ExportFlowResultsTask.objects.select_related("org").get(id=export_id).perform()
 
 
-@task(track_started=True, name='download_flow_images_task')
+@task(track_started=True, name="download_flow_images_task")
 def download_flow_images_task(id):
     """
     Download flow images to a zip file and e-mail a link to the user

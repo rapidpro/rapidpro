@@ -1092,7 +1092,7 @@ class Flow(TembaModel):
 
     def get_images_count(self):
         return self.flow_images.filter(is_active=True).count()
-    
+
     def get_activity(self):
         """
         Get the activity summary for a flow as a tuple of the number of active runs
@@ -2209,12 +2209,12 @@ class Flow(TembaModel):
 
 class FlowImage(TembaModel):
     uuid = models.UUIDField(unique=True, default=uuid4)
-    org = models.ForeignKey(Org, related_name='flow_images', db_index=False, on_delete=models.CASCADE)
-    flow = models.ForeignKey(Flow, related_name='flow_images', on_delete=models.CASCADE)
-    contact = models.ForeignKey(Contact, related_name='flow_images', on_delete=models.CASCADE)
-    name = models.CharField(help_text='Image name', max_length=255)
-    path = models.CharField(help_text='Image URL', max_length=255)
-    path_thumbnail = models.CharField(help_text='Image thumbnail URL', max_length=255, null=True)
+    org = models.ForeignKey(Org, related_name="flow_images", db_index=False, on_delete=models.CASCADE)
+    flow = models.ForeignKey(Flow, related_name="flow_images", on_delete=models.CASCADE)
+    contact = models.ForeignKey(Contact, related_name="flow_images", on_delete=models.CASCADE)
+    name = models.CharField(help_text="Image name", max_length=255)
+    path = models.CharField(help_text="Image URL", max_length=255)
+    path_thumbnail = models.CharField(help_text="Image thumbnail URL", max_length=255, null=True)
     exif = models.TextField(blank=True, null=True, help_text=_("A JSON representation the exif"))
 
     @classmethod
@@ -2224,6 +2224,7 @@ class FlowImage(TembaModel):
             item.archive()
             changed.append(item.pk)
         return changed
+
     @classmethod
     def apply_action_restore(cls, user, objects):
         changed = []
@@ -2239,51 +2240,51 @@ class FlowImage(TembaModel):
             changed.append(item.pk)
             item.delete()
         return changed
-    
+
     def archive(self):
         self.is_active = False
-        self.save(update_fields=['is_active'])
-    
+        self.save(update_fields=["is_active"])
+
     def restore(self):
         self.is_active = True
-        self.save(update_fields=['is_active'])
-    
+        self.save(update_fields=["is_active"])
+
     def get_exif(self):
         return json.loads(self.exif) if self.exif else dict()
-    
+
     def get_url(self):
         if settings.AWS_BUCKET_DOMAIN in self.path:
             return self.path
-        protocol = 'https' if settings.IS_PROD else 'http'
-        image_url = '%s://%s/%s' % (protocol, settings.AWS_BUCKET_DOMAIN, self.path)
+        protocol = "https" if settings.IS_PROD else "http"
+        image_url = "%s://%s/%s" % (protocol, settings.AWS_BUCKET_DOMAIN, self.path)
         return image_url
-    
+
     def get_full_path(self):
-        return '%s/%s' % (settings.MEDIA_ROOT, self.path)
-    
+        return "%s/%s" % (settings.MEDIA_ROOT, self.path)
+
     def get_permalink(self):
-        protocol = 'https' if settings.IS_PROD else 'http'
-        return '%s://%s%s' % (protocol, settings.HOSTNAME, reverse('flows.flowimage_read', args=[self.uuid]))
-    
+        protocol = "https" if settings.IS_PROD else "http"
+        return "%s://%s%s" % (protocol, settings.HOSTNAME, reverse("flows.flowimage_read", args=[self.uuid]))
+
     def set_deleted(self):
         self.is_active = False
-        self.save(update_fields=('is_active'))
-    
+        self.save(update_fields=("is_active"))
+
     def get_content_type(self):
         if self.is_playable():
-            extension = self.path.split('.')[-1]
+            extension = self.path.split(".")[-1]
             mime_types = {
-                'avi': 'video/x-msvideo',
-                'flv': 'video/x-flv',
-                'wmv': 'video/x-ms-wmv',
-                'mp4': 'video/mp4',
-                'mov': 'video/quicktime',
-                '3gp': 'video/3gpp'
+                "avi": "video/x-msvideo",
+                "flv": "video/x-flv",
+                "wmv": "video/x-ms-wmv",
+                "mp4": "video/mp4",
+                "mov": "video/quicktime",
+                "3gp": "video/3gpp",
             }
-            return mime_types.get(extension, 'video/mp4')
+            return mime_types.get(extension, "video/mp4")
         else:
             return None
-    
+
     def __str__(self):
         return self.name
 
@@ -2295,15 +2296,18 @@ def auto_delete_file_on_delete(sender, instance, **kwargs):
     Deletes file from filesystem
     when corresponding `MediaFile` object is deleted.
     """
-    s3 = boto3.resource('s3',
-                        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY) \
-        if settings.DEFAULT_FILE_STORAGE == 'storages.backends.s3boto3.S3Boto3Storage' else None
+    s3 = (
+        boto3.resource(
+            "s3", aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+        )
+        if settings.DEFAULT_FILE_STORAGE == "storages.backends.s3boto3.S3Boto3Storage"
+        else None
+    )
     if instance.path:
         if os.path.isfile(instance.get_full_path()):
             os.remove(instance.get_full_path())
         elif s3 and settings.AWS_BUCKET_DOMAIN in instance.path:
-            key = instance.path.replace('https://%s/' % settings.AWS_BUCKET_DOMAIN, '')
+            key = instance.path.replace("https://%s/" % settings.AWS_BUCKET_DOMAIN, "")
             obj = s3.Object(settings.AWS_STORAGE_BUCKET_NAME, key)
             obj.delete()
 
@@ -3885,9 +3889,10 @@ class ExportFlowImagesTask(BaseExportTask):
     """
     Container for managing our flow images download requests
     """
-    analytics_key = 'flowimages_download'
+
+    analytics_key = "flowimages_download"
     email_subject = "Your download file is ready"
-    email_template = 'flowimages/email/flowimages_download'
+    email_template = "flowimages/email/flowimages_download"
 
     files = models.TextField(help_text=_("Array as text of the files ID to download in a zip file"))
 
@@ -3898,7 +3903,7 @@ class ExportFlowImagesTask(BaseExportTask):
 
     def write_export(self):
         files = json.loads(self.files)
-        files_obj = FlowImage.objects.filter(id__in=files.get('files')).order_by('-created_on')
+        files_obj = FlowImage.objects.filter(id__in=files.get("files")).order_by("-created_on")
 
         stream = BytesIO()
         zf = zipfile.ZipFile(stream, "w")
@@ -3915,16 +3920,16 @@ class ExportFlowImagesTask(BaseExportTask):
         temp = NamedTemporaryFile(delete=True)
         temp.write(stream.getvalue())
         temp.flush()
-        return temp, 'zip'
+        return temp, "zip"
 
 
 @register_asset_store
 class FlowImagesExportAssetStore(BaseExportAssetStore):
     model = ExportFlowImagesTask
-    key = 'flowimages_download'
-    directory = 'flowimages_download'
-    permission = 'flows.flowimage_download'
-    extensions = ('zip',)
+    key = "flowimages_download"
+    directory = "flowimages_download"
+    permission = "flows.flowimage_download"
+    extensions = ("zip",)
 
 
 class FlowStart(models.Model):
@@ -5362,7 +5367,8 @@ class PhotoTest(Test):
     """
     Test for whether a response contains a photo
     """
-    TYPE = 'image'
+
+    TYPE = "image"
 
     def __init__(self):
         pass
@@ -5382,57 +5388,61 @@ class PhotoTest(Test):
         has_attachment = 1 if sms.attachments and len(sms.attachments) > 0 else 0
 
         if has_attachment:
-            text_split = sms.attachments[0].split(':', 1)
+            text_split = sms.attachments[0].split(":", 1)
             image = text_split[1]
-            is_image = 1 if 'image' in text_split[0] or 'mp4' in text_split[0] else 0
+            is_image = 1 if "image" in text_split[0] or "mp4" in text_split[0] else 0
         else:
             is_image = 0
-        
+
         if is_image and not run.contact.is_test:
-            if settings.DEFAULT_FILE_STORAGE == 'storages.backends.s3boto3.S3Boto3Storage':
+            if settings.DEFAULT_FILE_STORAGE == "storages.backends.s3boto3.S3Boto3Storage":
                 media_path = image
                 image = Org.get_temporary_file_from_url(media_url=image)
                 image_path = image.file.name
                 thumbnail_path = media_path
             else:
-                media_path = image.split('media', 1)[1]
-                image_path = '%s%s' % (settings.MEDIA_ROOT, media_path)
-                media_path = media_path.replace('/', '', 1)
+                media_path = image.split("media", 1)[1]
+                image_path = "%s%s" % (settings.MEDIA_ROOT, media_path)
+                media_path = media_path.replace("/", "", 1)
                 thumbnail_path = image_path
-            
-            if text_split and 'image' in text_split[0]:
-                media_thumbnail = get_thumbnail(thumbnail_path, '50x50', crop='center', quality=99, format='PNG')
+
+            if text_split and "image" in text_split[0]:
+                media_thumbnail = get_thumbnail(thumbnail_path, "50x50", crop="center", quality=99, format="PNG")
                 media_thumbnail_path = media_thumbnail.url
             else:
                 media_thumbnail_path = None
-            
+
             try:
                 img = Image.open(image_path)
                 exif_data = img._getexif()
             except Exception:
                 exif_data = {}
-            
-            exif = {
-                ExifTags.TAGS[k]: v
-                for k, v in exif_data.items()
-                if k in ExifTags.TAGS
-            } if exif_data else {}
+
+            exif = {ExifTags.TAGS[k]: v for k, v in exif_data.items() if k in ExifTags.TAGS} if exif_data else {}
 
             try:
                 exif = json.dumps(exif)
             except Exception:
                 exif = None
 
-            file_name = media_path.split('/', -1)[-1]
-            image_args = dict(org=org, flow=run.flow, contact=run.contact, path=media_path, exif=exif,
-                              path_thumbnail=media_thumbnail_path, name=file_name, created_by=run.flow.created_by,
-                              modified_by=run.flow.created_by)
+            file_name = media_path.split("/", -1)[-1]
+            image_args = dict(
+                org=org,
+                flow=run.flow,
+                contact=run.contact,
+                path=media_path,
+                exif=exif,
+                path_thumbnail=media_thumbnail_path,
+                name=file_name,
+                created_by=run.flow.created_by,
+                modified_by=run.flow.created_by,
+            )
             flow_image = FlowImage.objects.create(**image_args)
             image_url = flow_image.get_url()
         elif is_image:
-            text_split = sms.attachments[0].split(':', 1)
+            text_split = sms.attachments[0].split(":", 1)
             image_url = text_split[1]
-        
+
         return is_image, image_url
 
 

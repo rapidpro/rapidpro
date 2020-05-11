@@ -11,32 +11,85 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('orgs', '0058_auto_20190723_2129'),
-        ('contacts', '0105_auto_20191112_2039'),
-        ('flows', '0226_merge_20200313_1155'),
+        ("orgs", "0058_auto_20190723_2129"),
+        ("contacts", "0105_auto_20191112_2039"),
+        ("flows", "0226_merge_20200313_1155"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='FlowImage',
+            name="FlowImage",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('is_active', models.BooleanField(default=True, help_text='Whether this item is active, use this instead of deleting')),
-                ('created_on', models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was originally created')),
-                ('modified_on', models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was last modified')),
-                ('uuid', models.UUIDField(default=uuid.uuid4, unique=True)),
-                ('name', models.CharField(help_text='Image name', max_length=255)),
-                ('path', models.CharField(help_text='Image URL', max_length=255)),
-                ('path_thumbnail', models.CharField(help_text='Image thumbnail URL', max_length=255, null=True)),
-                ('exif', models.TextField(blank=True, help_text='A JSON representation the exif', null=True)),
-                ('contact', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='flow_images', to='contacts.Contact')),
-                ('created_by', models.ForeignKey(help_text='The user which originally created this item', on_delete=django.db.models.deletion.PROTECT, related_name='flows_flowimage_creations', to=settings.AUTH_USER_MODEL)),
-                ('flow', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='flow_images', to='flows.Flow')),
-                ('modified_by', models.ForeignKey(help_text='The user which last modified this item', on_delete=django.db.models.deletion.PROTECT, related_name='flows_flowimage_modifications', to=settings.AUTH_USER_MODEL)),
-                ('org', models.ForeignKey(db_index=False, on_delete=django.db.models.deletion.CASCADE, related_name='flow_images', to='orgs.Org')),
+                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "is_active",
+                    models.BooleanField(
+                        default=True, help_text="Whether this item is active, use this instead of deleting"
+                    ),
+                ),
+                (
+                    "created_on",
+                    models.DateTimeField(
+                        blank=True,
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        help_text="When this item was originally created",
+                    ),
+                ),
+                (
+                    "modified_on",
+                    models.DateTimeField(
+                        blank=True,
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        help_text="When this item was last modified",
+                    ),
+                ),
+                ("uuid", models.UUIDField(default=uuid.uuid4, unique=True)),
+                ("name", models.CharField(help_text="Image name", max_length=255)),
+                ("path", models.CharField(help_text="Image URL", max_length=255)),
+                ("path_thumbnail", models.CharField(help_text="Image thumbnail URL", max_length=255, null=True)),
+                ("exif", models.TextField(blank=True, help_text="A JSON representation the exif", null=True)),
+                (
+                    "contact",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, related_name="flow_images", to="contacts.Contact"
+                    ),
+                ),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        help_text="The user which originally created this item",
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="flows_flowimage_creations",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "flow",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, related_name="flow_images", to="flows.Flow"
+                    ),
+                ),
+                (
+                    "modified_by",
+                    models.ForeignKey(
+                        help_text="The user which last modified this item",
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="flows_flowimage_modifications",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "org",
+                    models.ForeignKey(
+                        db_index=False,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="flow_images",
+                        to="orgs.Org",
+                    ),
+                ),
             ],
-            options={
-                'abstract': False,
-            },
-        ),
+            options={"abstract": False},
+        )
     ]

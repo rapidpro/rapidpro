@@ -229,7 +229,7 @@ INSTALLED_APPS = (
     "smartmin.csv_imports",
     "smartmin.users",
     # sorl-thumbnail
-    'sorl.thumbnail',
+    "sorl.thumbnail",
     # django-timezone-field
     "timezone_field",
     # temba apps
