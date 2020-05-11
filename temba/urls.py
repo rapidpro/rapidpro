@@ -81,6 +81,7 @@ def track_user(self):  # pragma: no cover
 User.track_user = track_user
 AnonymousUser.track_user = track_user
 
+
 def handler404(request, exception):
     """
     404 error handler which includes ``request`` in the context.
@@ -91,7 +92,7 @@ def handler404(request, exception):
     brand = user.get_org().get_branding() if not user.is_anonymous else getattr(settings, "BRANDING")
     context = dict(request=request, brand=brand)
 
-    return render(request, '404.html', context=context, status=404)  # pragma: needs cover
+    return render(request, "404.html", context=context, status=404)  # pragma: needs cover
 
 
 def handler500(request):
@@ -104,4 +105,4 @@ def handler500(request):
     brand = user.get_org().get_branding() if not user.is_anonymous else getattr(settings, "BRANDING")
     context = dict(request=request, brand=brand)
 
-    return render(request, '500.html', context=context, status=500)  # pragma: needs cover
+    return render(request, "500.html", context=context, status=500)  # pragma: needs cover

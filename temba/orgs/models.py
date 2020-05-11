@@ -2817,7 +2817,7 @@ class CreditAlert(SmartModel):
 
     alert_type = models.CharField(max_length=1, choices=TYPES)
     admin_emails = ArrayField(
-        models.EmailField(), help_text=_('Emails of administrators who will be alerted'), default=list
+        models.EmailField(), help_text=_("Emails of administrators who will be alerted"), default=list
     )
 
     @classmethod
@@ -2828,12 +2828,12 @@ class CreditAlert(SmartModel):
 
         logging.info(f"triggering {alert_type} credits alert type for {org.name}")
 
-        admins = org.get_org_admins().exclude(email__isnull=True).exclude(email__exact='')
+        admins = org.get_org_admins().exclude(email__isnull=True).exclude(email__exact="")
         admin = admins.first()
 
         if admins:
             # Otherwise, create our alert objects and trigger our event
-            admin_emails = list(admins.values_list('email', flat=True))
+            admin_emails = list(admins.values_list("email", flat=True))
             alert = CreditAlert.objects.create(
                 org=org, alert_type=alert_type, admin_emails=admin_emails, created_by=admin, modified_by=admin
             )
