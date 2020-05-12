@@ -2743,16 +2743,16 @@ class OrgActivity(models.Model):
     day = models.DateField()
 
     # the total number of contacts on this day
-    contact_count = models.IntegerField(null=True)
+    contact_count = models.IntegerField(default=0)
 
     # the number of active contacts on this day
-    active_contact_count = models.IntegerField(null=True)
+    active_contact_count = models.IntegerField(default=0)
 
     # the number of messages sent on this day
-    outgoing_count = models.IntegerField(null=True)
+    outgoing_count = models.IntegerField(default=0)
 
     # the number of messages received on this day
-    incoming_count = models.IntegerField(null=True)
+    incoming_count = models.IntegerField(default=0)
 
     @classmethod
     def update_day(cls, now):
@@ -2791,9 +2791,9 @@ class OrgActivity(models.Model):
                 org=org,
                 day=start,
                 contact_count=org.contact_count,
-                active_contact_count=active_counts.get(org.id),
-                incoming_count=incoming_count.get(org.id),
-                outgoing_count=outgoing_count.get(org.id),
+                active_contact_count=active_counts.get(org.id, 0),
+                incoming_count=incoming_count.get(org.id, 0),
+                outgoing_count=outgoing_count.get(org.id, 0),
             )
 
     class Meta:
