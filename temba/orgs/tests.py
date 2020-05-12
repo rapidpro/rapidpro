@@ -48,7 +48,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
-from temba.orgs.models import BackupToken, Debit, OrgActivity, UserSettings
+from temba.orgs.models import BackupToken, Debit, UserSettings
 from temba.request_logs.models import HTTPLog
 from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
@@ -4800,32 +4800,3 @@ class ParsingTest(TembaTest):
         )
 
         self.assertRaises(AssertionError, self.org.parse_datetime, timezone.now())
-
-
-class OrgActivityTest(TembaTest):
-    def test_get_dependencies(self):
-        from temba.orgs.tasks import update_org_activity
-
-        now = timezone.now()
-
-        # create a few contacts
-        self.create_contact("Marshawn", "+14255551212")
-        russell = self.create_contact("Marshawn", "+14255551313")
-
-        # create some messages for russel
-        self.create_incoming_msg(russell, "hut")
-        self.create_incoming_msg(russell, "10-2")
-        self.create_outgoing_msg(russell, "first down")
-
-        # calculate our org activity, should get nothing because we aren't tomorrow yet
-        update_org_activity(now)
-        self.assertEqual(0, OrgActivity.objects.all().count())
-
-        # ok, calculate based on a now of tomorrow, will calculate today's stats
-        update_org_activity(now + timedelta(days=1))
-
-        activity = OrgActivity.objects.get()
-        self.assertEqual(2, activity.contact_count)
-        self.assertEqual(1, activity.active_contact_count)
-        self.assertEqual(2, activity.incoming_count)
-        self.assertEqual(1, activity.outgoing_count)
