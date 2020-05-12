@@ -44,9 +44,8 @@
           case "schedule":
             $('#id-trigger-schedule')[0].scrollIntoView({behavior: 'smooth'});
             $('#id-trigger-schedule>.formax-icon').trigger('click');
-            var option = $('rp-option[value="{{flow}}"]');
-            $('#id_schedule_flow')[0].addEventListener("rp-selection", $('#id_schedule_flow')[0].handleOptionSelection);
-            $('#id_schedule_flow')[0].dispatchEvent(new CustomEvent("rp-selection", {detail: {selected: {name: option.attr('name'), value: option.attr('value')}}}));
+            $('#id_schedule_flow').val(flow);
+            $('#id_schedule_flow').trigger('change.select2'); 
             break;
         }
       }, 1000)
