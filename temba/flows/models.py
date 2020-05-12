@@ -2276,6 +2276,10 @@ class FlowImage(models.Model):
         self.is_active = False
         self.save(update_fields=("is_active"))
 
+    def is_playable(self):
+        extension = self.path.split('.')[-1]
+        return True if extension in ['avi', 'flv', 'wmv', 'mp4', 'mov', '3gp'] else False
+
     def get_content_type(self):
         if self.is_playable():
             extension = self.path.split(".")[-1]
