@@ -32,6 +32,8 @@ from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
 from django.db.models import Max, Q, Sum
+
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.urls import reverse
 from django.utils import timezone
@@ -2207,6 +2209,61 @@ class Flow(TembaModel):
         ordering = ("-modified_on",)
 
 
+@receiver(post_save, sender=Flow)
+def update_related_flows(sender, instance, created, **kwargs):
+    dependent_flows = instance.dependent_flows.all()
+    if created:
+        return
+
+    def flow_dependency_filter(dependency):
+        if dependency.get("type") == "flow":
+            return dependency.get("uuid") == instance.uuid
+        return False
+
+    def flow_node_filter(node):
+        flow_types = ("enter_flow", "start_session")
+        if node["actions"] and node["actions"][0]["type"] in flow_types:
+            return node["actions"][0]["flow"]["uuid"] == instance.uuid
+        return False
+
+    def general_flow_update(flow):
+        dependencies = filter(flow_dependency_filter, flow.metadata.get("dependencies", []))
+        for dependency in dependencies:
+            dependency.update({"name": instance.name})
+        flow.save()
+
+    def legacy_flow_update(flow):
+        actionsets = flow.action_sets.filter(actions__icontains=instance.uuid)
+        for actionset in actionsets:
+            actions = actionset.actions
+            for action in actions:
+                if action.get("type") in ("flow", "trigger-flow") and action.get("flow"):
+                    action["flow"].update({"name": instance.name})
+
+        ActionSet.objects.bulk_update(actionsets, ["actions"])
+
+        rulesets = flow.rule_sets.filter(config__icontains=instance.uuid)
+        for ruleset in rulesets:
+            config = ruleset.config
+            if "flow" in config:
+                config["flow"].update({"name": instance.name})
+
+        RuleSet.objects.bulk_update(rulesets, ["config"])
+
+    def next_flow_update(flow):
+        flow_revision = flow.revisions.order_by("revision").last()
+        nodes = filter(flow_node_filter, flow_revision.definition.get("nodes", []))
+        for node in nodes:
+            action = node["actions"][0]
+            action.update({"flow": {"uuid": instance.uuid, "name": instance.name}})
+        flow_revision.save()
+
+    for flow in dependent_flows:
+        next_flow_update(flow)
+        legacy_flow_update(flow)
+        general_flow_update(flow)
+
+        
 class FlowImage(models.Model):
     uuid = models.UUIDField(unique=True, default=uuid4)
     org = models.ForeignKey(Org, related_name="flow_images", db_index=False, on_delete=models.CASCADE)
