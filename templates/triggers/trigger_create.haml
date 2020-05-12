@@ -22,3 +22,28 @@
 -block extra-script
   {{ block.super }}
   <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
+  :javascript
+    {% if trigger %}
+    $(document).ready(function() {
+      var trigger = '{{trigger}}';
+      var flow = parseInt('{{flow}}');
+
+      setTimeout(function () {
+        switch(trigger) {
+          case "keyword":
+            $('#id-trigger-keyword')[0].scrollIntoView({behavior: 'smooth'});
+            $('#id-trigger-keyword>.formax-icon').trigger('click');
+            $('#id_keyword_flow').val(flow);
+            $('#id_keyword_flow').trigger('change.select2'); 
+            break;
+          case "schedule":
+            $('#id-trigger-schedule')[0].scrollIntoView({behavior: 'smooth'});
+            $('#id-trigger-schedule>.formax-icon').trigger('click');
+            var option = $('rp-option[value="{{flow}}"]');
+            $('#id_schedule_flow')[0].addEventListener("rp-selection", $('#id_schedule_flow')[0].handleOptionSelection);
+            $('#id_schedule_flow')[0].dispatchEvent(new CustomEvent("rp-selection", {detail: {selected: {name: option.attr('name'), value: option.attr('value')}}}));
+            break;
+        }
+      }, 1000)
+    });
+    {% endif %}

@@ -234,10 +234,12 @@
             showFieldsOnStartType(startFlowTypeSelector.val());
             break;
           case "LAUNCH_ON_KEYWORD_TRIGGER":
-            launchOnKeywordTriggerBox.show();
+            window.location.href = "{% url 'triggers.trigger_create' %}?trigger=keyword&flow={{flow.id}}"
+            $('.modal-body>.loader').show();
             break;
           case "LAUNCH_ON_SHEDULE_TRIGGER":
-            launchOnScheduleTriggerBox.show();
+            window.location.href = "{% url 'triggers.trigger_create' %}?trigger=schedule&flow={{flow.id}}"
+            $('.modal-body>.loader').show();
             break;
         }
       };

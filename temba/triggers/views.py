@@ -420,6 +420,18 @@ class TriggerCRUDL(SmartCRUDL):
 
             add_section("trigger-catchall", "triggers.trigger_catchall", "icon-bubble")
 
+        def get_context_data(self, *args, **kwargs):
+            context = super().get_context_data(*args, **kwargs)
+            query_params = self.request.GET
+            trigger = query_params.get("trigger")
+            flow = query_params.get("flow")
+
+            if trigger in ("keyword", "schedule") and flow:
+                context["trigger"] = trigger
+                context["flow"] = flow
+
+            return context
+
     class Update(ModalMixin, OrgMixin, SmartUpdateView):
         success_message = ""
         trigger_forms = {
