@@ -348,6 +348,7 @@ PERMISSIONS = {
         "unstop",
         "update_fields",
         "update_fields_input",
+        "invite_participants",
     ),
     "contacts.contactfield": ("api", "json", "update_priority", "featured", "filter_by_type", "detail"),
     "contacts.contactgroup": ("api",),
@@ -387,6 +388,7 @@ PERMISSIONS = {
         "plivo_connect",
         "profile",
         "resthooks",
+        "send_invite",
         "service",
         "signup",
         "sub_orgs",
@@ -442,6 +444,7 @@ PERMISSIONS = {
         "lookups_api",
         "giftcards_api",
         "launch",
+        "flow_parameters",
     ),
     "flows.flowsession": ("json",),
     "links.link": ("archived", "read", "history", "export", "api"),
@@ -568,6 +571,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_update",
         "contacts.contact_update_fields",
         "contacts.contact_update_fields_input",
+        "contacts.contact_invite_participants",
         "contacts.contactfield.*",
         "contacts.contactgroup.*",
         "csv_imports.importtask.*",
@@ -603,6 +607,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_plivo_connect",
         "orgs.org_profile",
         "orgs.org_resthooks",
+        "orgs.org_send_invite",
         "orgs.org_sub_orgs",
         "orgs.org_transfer_credits",
         "orgs.org_twilio_account",
@@ -698,6 +703,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_update",
         "contacts.contact_update_fields",
         "contacts.contact_update_fields_input",
+        "contacts.contact_invite_participants",
         "contacts.contactfield.*",
         "contacts.contactgroup.*",
         "csv_imports.importtask.*",
@@ -1184,6 +1190,9 @@ ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 # Maximum active objects are org can have
 MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
 MAX_ACTIVE_GLOBALS_PER_ORG = 255
+MAX_ORG_CONTACTGROUPS = 250
+
+COURIER_DEFAULT_TPS = 1000
 
 # Firebase Dynamic Links configuration
 FDL_API_KEY = "FirebaseDynamicLinkAPIKey"
@@ -1192,6 +1201,18 @@ FDL_URL = "FirebaseDynamicLinkURL"
 # Parse configuration
 PARSE_SERVER_NAME = ""
 PARSE_URL = ""
+PARSE_ENDPOINT = "/parse/"
 PARSE_APP_ID = ""
 PARSE_REST_KEY = ""
 PARSE_MASTER_KEY = ""
+
+# Recaptcha configuration
+RECAPTCHA_SITE_KEY = ""
+RECAPTCHA_SECRET_KEY = ""
+
+# Authy configuration
+AUTHY_API_KEY = os.environ.get("AUTHY_API_KEY", "")
+AUTHY_MAGIC_PASS = os.environ.get("AUTHY_MAGIC_PASS", "")
+
+# Credits expiration config
+CREDITS_EXPIRATION = False

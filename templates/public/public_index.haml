@@ -49,18 +49,6 @@
         %h1.description
           {{ brand.description }}
 
-    .row
-      #lead-form
-        %form{action:'{% ssl_brand_url "public.lead_create" %}', method:'POST'}
-          -csrf_token
-
-          %fieldset
-            .control-group
-              .controls
-                %nobr
-                  %input.controls{'type':"text", 'name':"email", 'placeholder':"Enter your email.."}
-                  %button.btn.btn-success{type:"submit"}
-                    -trans "Create Account"
         -if errors
           %p.text-error {{error_msg}}
 

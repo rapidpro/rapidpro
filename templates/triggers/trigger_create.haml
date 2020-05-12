@@ -12,6 +12,10 @@
       margin-top:15px;
     }
 
+    #embedded-data, #embedded-data-keyword, #embedded-data-schedule {
+      width: 538px;
+    }
+
 -block content
 
   %p.instructions
@@ -22,6 +26,7 @@
 -block extra-script
   {{ block.super }}
   <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
+  <script src="{{ STATIC_URL }}js/flow-parameters.js"></script>
   :javascript
     {% if trigger %}
     $(document).ready(function() {

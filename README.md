@@ -8,7 +8,7 @@ To learn more, please visit the project site at http://rapidpro.github.io/rapidp
 The set of versions that make up the latest stable release are:
 
  * [RapidPro v5.4.13](https://github.com/rapidpro/rapidpro/releases/tag/v5.4.13)
- * [Mailroom v2.0.9.6](https://github.com/greatnonprofits-nfp/mailroom/releases/tag/v2.0.9.6)
+ * [Mailroom v5.4.4](https://github.com/nyaruka/mailroom/releases/tag/v5.4.4)
  * [Courier v5.4.1](https://github.com/nyaruka/courier/releases/tag/v5.4.1)
  * [Archiver v5.4.0](https://github.com/nyaruka/rp-archiver/releases/tag/v5.4.0)
  * [Indexer v5.4.0](https://github.com/nyaruka/rp-indexer/releases/tag/v5.4.0)

@@ -100,11 +100,11 @@ SEND_AIRTIME = os.environ.get("SEND_AIRTIME", "true") == "true"
 SEND_CHATBASE = os.environ.get("SEND_CHATBASE", "true") == "true"
 SEND_CALLS = os.environ.get("SEND_CALLS", "true") == "true"
 
-BRANDING["rapidpro.io"]["name"] = os.environ.get("BRANDING_NAME", "Community Connect Labs")
+BRANDING["rapidpro.io"]["name"] = os.environ.get("BRANDING_NAME", "CommunityConnect Labs")
 BRANDING["rapidpro.io"]["description"] = os.environ.get("BRANDING_DESCRIPTION", "Unlocking Insights and Engagement.")
 BRANDING["rapidpro.io"]["slug"] = os.environ.get("BRANDING_SLUG", "rapidpro")
 BRANDING["rapidpro.io"]["credits"] = os.environ.get("BRANDING_CREDITS",
-                                                    f"Copyright &copy; {timezone.now().year}. Community Connect Labs.")
+                                                    f"Copyright &copy; {timezone.now().year}. CommunityConnect Labs.")
 BRANDING["rapidpro.io"]["link"] = os.environ.get("BRANDING_LINK", f"https://{HOSTNAME}")
 BRANDING["rapidpro.io"]["api_link"] = os.environ.get("BRANDING_API_LINK", f"https://{HOSTNAME}")
 BRANDING["rapidpro.io"]["domain"] = f"{HOSTNAME}"
@@ -112,7 +112,7 @@ BRANDING["rapidpro.io"]["email"] = os.environ.get("BRANDING_EMAIL", "")
 BRANDING["rapidpro.io"]["support_email"] = os.environ.get("BRANDING_EMAIL_SUPPORT", "")
 BRANDING["rapidpro.io"]["colors"] = dict(primary=os.environ.get("BRANDING_PRIMARY_COLOR", "#569D9B"))
 BRANDING["rapidpro.io"]["favico"] = os.environ.get("BRANDING_FAVICO", "brands/rapidpro/icon.png")
-BRANDING["rapidpro.io"]["allow_signups"] = os.environ.get("BRANDING_ALLOW_SIGNUPS", "true") == "true"
+BRANDING["rapidpro.io"]["allow_signups"] = os.environ.get("BRANDING_ALLOW_SIGNUPS", "false") == "true"
 BRANDING["rapidpro.io"]["welcome_packs"] = [dict(size=500, name="Trial"),
                                             dict(size=2500, name="Bronze"),
                                             dict(size=30000, name="Silver"),
@@ -150,6 +150,15 @@ else:
 
 STORAGE_URL = os.environ.get("STORAGE_URL", "/media")
 
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
+    "v2": "1000000/hour",
+    "v2.contacts": "1000000/hour",
+    "v2.messages": "1000000/hour",
+    "v2.broadcasts": "1000000/hour",
+    "v2.runs": "1000000/hour",
+    "v2.api": "1000000/hour",
+}
+
 REST_HANDLE_EXCEPTIONS = os.environ.get("REST_HANDLE_EXCEPTIONS", "true") == "true"
 
 MAILROOM_URL = os.environ.get("MAILROOM_URL", "http://localhost:8090")
@@ -161,13 +170,26 @@ MSG_FIELD_SIZE = int(os.environ.get("MSG_FIELD_SIZE", 640))
 VALUE_FIELD_SIZE = int(os.environ.get("VALUE_FIELD_SIZE", 640))
 FLOWRUN_FIELDS_SIZE = int(os.environ.get("FLOWRUN_FIELDS_SIZE", 256))
 
+COURIER_DEFAULT_TPS = int(os.environ.get("COURIER_DEFAULT_TPS", 1000))
+
 # Firebase Dynamic Links configuration
 FDL_API_KEY = os.environ.get("FDL_API_KEY", "")
 FDL_URL = os.environ.get("FDL_URL", "")
 
 # Parse configuration
 PARSE_SERVER_NAME = os.environ.get("PARSE_SERVER_NAME", "")
+PARSE_ENDPOINT = os.environ.get("PARSE_ENDPOINT",  "/parse/")
 PARSE_URL = os.environ.get("PARSE_URL", "")
 PARSE_APP_ID = os.environ.get("PARSE_APP_ID", "")
 PARSE_REST_KEY = os.environ.get("PARSE_REST_KEY", "")
 PARSE_MASTER_KEY = os.environ.get("PARSE_MASTER_KEY", "")
+
+# Recaptcha configuration
+RECAPTCHA_SITE_KEY = os.environ.get("RECAPTCHA_SITE_KEY", "")
+RECAPTCHA_SECRET_KEY = os.environ.get("RECAPTCHA_SECRET_KEY", "")
+
+# Authy configuration
+AUTHY_API_KEY = os.environ.get("AUTHY_API_KEY", "")
+AUTHY_MAGIC_PASS = os.environ.get("AUTHY_MAGIC_PASS", "")
+
+MAX_ORG_CONTACTGROUPS = int(os.environ.get("MAX_ORG_CONTACTGROUPS", 250))
