@@ -142,7 +142,7 @@ if AWS_S3_ENABLED:
     # bucket where archives files are stored
     ARCHIVE_BUCKET = os.environ.get("ARCHIVE_BUCKET", "")
 
-    AWS_BUCKET_DOMAIN = f"s3.amazonaws.com/{AWS_STORAGE_BUCKET_NAME}"
+    AWS_BUCKET_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
     MEDIA_URL = f"https://{AWS_BUCKET_DOMAIN}/media/"
     DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 else:

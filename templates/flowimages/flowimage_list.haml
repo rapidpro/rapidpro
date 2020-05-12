@@ -1,0 +1,314 @@
+-extends "smartmin/list.html"
+-load smartmin sms contacts
+-load i18n humanize
+
+-block title-icon
+  .title-icon
+    %span.glyph.icon-photo
+
+-block page-title
+  -if current_object
+    -trans "Flow Images - "
+    {{current_object.name}}
+  -else
+    {{title}}
+
+-block page-top
+  {% render as page_top %}
+    {{block.super}}
+  {% endrender %}
+  -if org_has_flowimages
+    {{page_top}}
+
+-block above-bar
+  -block top-form
+    %form{method:'get'}
+      %input.input-medium.search-query{'type':'text', 'placeholder':'{% trans "Search" %}', 'name':"search", 'value':"{{search}}"}
+
+-block content
+  #pjax
+    -block pjax
+      .row-fluid
+        .span3.sidebox
+
+          #sidebar-nav
+            %ul.nav.nav-list
+              %li.nav-header
+                -trans "Flow Images"
+              - for folder in folders
+                %li{'class':"{% if folder.url == request_url %}active{% endif %}" }
+                  %a{'href':'{{folder.url}}'}
+                    {{ folder.label }} ({{ folder.count }})
+              %li.nav-header
+                -trans "Images by Flows"
+              - for flow in flows
+                %li{'class':'{% if current_object.uuid == flow.uuid %}active{% endif %}'}
+                  %a{'href':'{% url "flows.flowimage_filter" "flow" flow.uuid %}'}
+                    {{flow.name}} ({{ flow.get_images_count | intcomma }})
+              %li.nav-header
+                -trans "Images by Groups"
+              - for group in groups
+                %li{'class':'{% if current_object.uuid == group.uuid %}active{% endif %}'}
+                  %a{'href':'{% url "flows.flowimage_filter" "group" group.uuid %}'}
+                    {{group.name}}
+        - if org_has_flowimages or org_has_flowimages_archived
+          - block contacts-list
+            .span9
+              - block buttons
+                -if object_list
+                  .pull-right
+                    -block buttons-right
+                      -block gear-menu
+                        -include "gear_links_include.haml"
+                    %form#download-images{method:'POST', action:'{% url "flows.flowimage_download" %}', style:'display:none'}
+                      -csrf_token
+                      %input#objects{type:'hidden', name:'objects'}
+                      %input#type{type:'hidden', name:'type'}
+                      %input#uuid{type:'hidden', name:'uuid'}
+                .list-buttons-container
+                  .list-buttons
+                    - if 'download' in actions and org_perms.flows.flowimage_download
+                      %span.btn-group
+                        %a.object-btn-download{href:'#', onclick:'submitDownloadImages()'}
+                          %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Download" %}'}
+                            .glyph.icon-cloud-download
+                    - if 'restore' in actions
+                      %span.btn-group
+                        %a.object-btn-restore{href:'#'}
+                          %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Activate" %}'}
+                            .glyph.icon-photo
+                    - if 'archive' in actions
+                      %span.btn-group
+                        %a.object-btn-archive{href:'#'}
+                          %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Archive" %}'}
+                            .glyph.icon-box
+                    - if 'delete' in actions
+                      %span.btn-group
+                        %a{href:'javascript:confirmRemoveItems("remove-items")'}
+                          %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Delete" %}'}
+                            .glyph.icon-remove-2
+                      %a.hide.object-btn-delete#remove-items-form
+                        -trans 'Delete items'
+                      .hide{'class': 'remove-items'}
+                        .title
+                          -trans "Delete selected images"
+                        .body
+                          -blocktrans
+                            Are you sure you want to delete the selected files? This action cannot be undone.
+                        %a.posterize
+              .search-details
+                -if search_error
+                  %span.search-error
+                    =search_error
+                -elif search
+                  -blocktrans count results_count=paginator.count
+                    Found {{ results_count }} contact matching <i>{{search}}</i>.
+                    -plural
+                      Found {{ results_count }} contacts matching <i>{{search}}</i>.
+              .list-container
+                %table.list-table.flowimage_list.table.object-list.table.table-condensed{style: '{% if not org_perms.flows.flowimage_list %}margin-top:10px{% endif %}'}
+                  %tr.flowimages
+                    -if object_list
+                      %th.checkbox.object-row-checkbox
+                        .glyph.icon-checkbox-unchecked.flowimage-checkbox.object-row-checkbox{'title':'Select/Deselect all items'}
+                    %th.select-all-items-text{'style': 'text-align: left'}
+                      -trans "Select all items"
+                    -if not current_object.flow_type
+                      %th
+                        -trans "Flow"
+                    -if object_list
+                      %th
+                        -trans "Image"
+                    -for field in contact_fields
+                      -if field.show_in_table
+                        %th
+                          {{ field.label }}
+                    %th
+                      - if object_list
+                        -trans "Created On"
+                  %tbody.infinite-scroll
+                    - for object in object_list
+                      %tr.flowimage.select-row.object-row{'class':'{% cycle row1 row2 %}', 'data-uuid': '{{object.uuid}}', 'data-object-id':'{{object.id}}'}
+                        - if org_perms.flows.flowimage_archived
+                          %td.flowimage.checkbox.object-row-checkbox
+                            .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox
+                        %td.value-text.field_name
+                          {{ object.contact|name_or_urn:user_org }}
+                        -if not current_object.flow_type
+                          %td.value-text.field_name{'style': 'text-align: center'}
+                            {{ object.flow.name }}
+                        %td.value-text.field_name{'style': 'text-align: center; min-width: 50px'}
+                          -if object.is_playable
+                            %a.attachment-preview{
+                              href:"#",
+                              data-featherlight:'<video class="video-js vjs-default-skin" controls preload="auto"><source type="{{ object.get_content_type }}" src="{{ object.get_url }}" /></video>',
+                              data-featherlight-after-content:'initializeVideoPlayer(this.$content[0])',
+                              data-featherlight-after-close:'disposeVideoPlayer(this.$content[0])'
+                            }
+                              .attachment-icon.icon-videocam{'style': 'font-size: 18px;'}
+                          -else
+                            %a{'href':'#', 'data-featherlight':'<img class="image-full" src="{{ object.get_url }}"/>'}
+                              -if object.path_thumbnail
+                                %img{'src':'{{ object.path_thumbnail }}'}
+                              -else
+                                .attachment-icon.icon-photo{'style': 'font-size: 18px;'}
+
+                        -for field in contact_fields
+                          -if field.show_in_table
+                            %td.field
+                              {{ object.contact|contact_field:field.key }}
+
+                        %td.value-received.field_received
+                          %nobr
+                            {{ object.created_on|gmail_time }}
+
+                    -empty
+                      %tr
+                        %td{colspan:3}
+                          -trans "No matching flow images."
+                        -for field in contact_fields
+                          -if field.show_in_table
+                            %td.field
+                        %td
+
+
+              - block paginator
+                - if object_list.count
+                  .paginator
+                    - include "smartmin/sidebar_pagination.haml"
+
+        - else
+          - include "flowimages/empty_include.haml"
+
+-block post-content
+
+-block extra-style
+  :css
+
+    .flowimage-checkbox {
+      padding: 0 0 10px 0;
+      margin: 0px 0 0px 4px !important;
+    }
+
+    .pagination {
+      display: none;
+    }
+
+    tr.flowimages th {
+      font-size:11px;
+      height:10px;
+      padding:0;
+      padding-top:10px;
+      font-weight:200;
+      color: #aaa;
+      border:0px solid;
+      text-align:center;
+    }
+
+    td.field {
+      text-align:center;
+      min-width:125px;
+    }
+
+    .span9 .flowimage_list tr.flowimages {
+      border-top: none;
+    }
+
+    .span9 .object-list tbody td.value-text {
+      min-width: 30px;
+    }
+
+    .modal .modal-body .control-group .control-label {
+      display:none;
+    }
+
+    .search-error {
+      color: #da4f49;
+    }
+
+
+-block extra-script
+  {{ block.super }}
+
+  %script{src:"{{ STATIC_URL }}js/jquery.ias.min.js"}
+
+  :javascript
+
+    function confirmRemoveItems(name) {
+      removalConfirmation(name, "Delete");
+    }
+
+    function submitDownloadImages() {
+      var objects = getCheckedIds();
+      $('input#objects').val(objects);
+      $('form#download-images').submit();
+    }
+
+    $(document).on('click', '#remove-items-form', function() {
+        var modal = $('#active-modal');
+        var modal_backdrop = $('.modal-backdrop');
+        modal.remove();
+        modal_backdrop.remove();
+    });
+
+    var refresh = 0;
+
+    $(document).on('click', '.search-query', function() {
+      $(this).animate({ width: '600px'}, 200);
+    });
+
+
+    // keeps track if we are on a link or not
+    var onLink = false;
+
+    $(document).ready(function () {
+      var ias = $.ias({
+        container: ".infinite-scroll",
+        item: "tr",
+        pagination: ".paginator .span9 .pagination",
+        next: "li.next a"
+      });
+      ias.extension(new IASSpinnerExtension());
+      ias.extension(new IASPagingExtension());
+        ias.on('next', function(url) {
+          if(url == '#'){
+            ias.destroy();
+            return false;
+          } else {
+            return true;
+          }
+        });
+    });
+
+    {% if org_perms.contacts.contactfield_managefields %}
+    $('.page-content').on('click', ".manage-fields", function() {
+      lastChecked = getCheckedIds();
+      var modal = new Modax('{% trans "Manage Contact Fields" %}', '{% url "contacts.contactfield_managefields" %}');
+      modal.setIcon('icon-vcard');
+      modal.setListeners({
+        onFormLoaded:function() {
+          useFontCheckbox("input[type=checkbox]", false);
+        },
+        onSuccess: function() { location.reload(); }
+      });
+      modal.show();
+    });
+    {% endif %}
+
+    {% if object_list %}
+    $('.page-content').on('click', ".download-all-images", function(e) {
+        e.preventDefault();
+        var href = $(this)[0].href;
+        splitted = href.split('/');
+        if (splitted[4] == 'filter') {
+            $('input#type').val(splitted[5]);
+            $('input#uuid').val(splitted[6]);
+        } else if (splitted[4] == 'archived') {
+            $('input#type').val('archived');
+        }
+        else {
+            $('input#type').val('list');
+        }
+        $('form#download-images').submit();
+    });
+    {% endif %}
