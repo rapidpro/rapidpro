@@ -2312,7 +2312,7 @@ def auto_delete_file_on_delete(sender, instance, **kwargs):
     if instance.path:
         if os.path.isfile(instance.get_full_path()):
             os.remove(instance.get_full_path())
-        elif s3 and settings.AWS_BUCKET_DOMAIN in instance.path:
+        elif s3 and "s3.amazonaws.com" in instance.path:
             key = instance.path.replace("https://%s/" % settings.AWS_BUCKET_DOMAIN, "")
             obj = s3.Object(settings.AWS_STORAGE_BUCKET_NAME, key)
             obj.delete()
