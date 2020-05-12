@@ -32,6 +32,6 @@ class ZendeskType(TicketerType):
         """
         return [
             self.get_connect_url(),
-            url(r"^manifest", ManifestView.as_view(), name="manifest"),
+            url(r"^manifest\.json", ManifestView.as_view(), name="manifest"),
             url(r"^admin_ui", AdminUIView.as_view(), name="admin_ui"),
         ]

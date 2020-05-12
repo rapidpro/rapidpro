@@ -118,7 +118,6 @@ class ManifestView(View):
                 "push_client_id": "temba",
                 "urls": {
                     "admin_ui": f"https://{domain}{reverse('tickets.types.zendesk.admin_ui')}",
-                    "pull_url": f"https://{domain}/mr/ticket/zendesk/pull",
                     "channelback_url": f"https://{domain}/mr/ticket/zendesk/channelback",
                     "event_callback_url": f"https://{domain}/mr/ticket/zendesk/event_callback",
                 },
@@ -215,7 +214,7 @@ class AdminUIView(SmartFormView):
         config = {
             "subdomain": subdomain,
             "instance_push_id": form.cleaned_data["instance_push_id"],
-            "access_token": form.cleaned_data["zendesk_access_token"],
+            "push_token": form.cleaned_data["zendesk_access_token"],
         }
 
         # look for existing Zendesk ticketer for this domain
