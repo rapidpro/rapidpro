@@ -1,3 +1,8 @@
+v5.5.40
+----------
+ * Allow branding to have aliases
+ * Fix bug of removing URNs when updating fields looking up by URN
+
 v5.5.39
 ----------
  * Update to floweditor 1.9.6
