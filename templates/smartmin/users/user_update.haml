@@ -16,6 +16,16 @@
 
 - block post-form
 
+  -if perms.auth.user_mimic
+    %form.smartmin-form.form-horizontal.user_mimic{action:"{% url 'users.user_mimic' object.id %}", method:"post", enctype:"multipart/form-data"}
+      -csrf_token
+      %div.form-group
+        %label.col-sm-2.control-label
+          Login as
+        %div.col-sm-10
+          %button{type:"submit", class:"btn btn-primary"}
+            {{object|user_as_string}}
+
   - with user.get_owned_orgs as orgs
     .deletion.hide
       .title
@@ -78,5 +88,9 @@
 
     .controls #id_groups {
       margin-left: 0px;
+    }
+
+    form.user_mimic {
+      margin-top: 20px
     }
 

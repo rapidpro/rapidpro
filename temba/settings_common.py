@@ -348,6 +348,7 @@ PERMISSIONS = {
         "unstop",
         "update_fields",
         "update_fields_input",
+        "invite_participants",
     ),
     "contacts.contactfield": ("api", "json", "update_priority", "featured", "filter_by_type", "detail"),
     "contacts.contactgroup": ("api",),
@@ -387,6 +388,7 @@ PERMISSIONS = {
         "plivo_connect",
         "profile",
         "resthooks",
+        "send_invite",
         "service",
         "signup",
         "sub_orgs",
@@ -441,6 +443,8 @@ PERMISSIONS = {
         "pdf_export",
         "lookups_api",
         "giftcards_api",
+        "launch",
+        "flow_parameters",
     ),
     "flows.flowsession": ("json",),
     "links.link": ("archived", "read", "history", "export", "api"),
@@ -567,6 +571,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_update",
         "contacts.contact_update_fields",
         "contacts.contact_update_fields_input",
+        "contacts.contact_invite_participants",
         "contacts.contactfield.*",
         "contacts.contactgroup.*",
         "csv_imports.importtask.*",
@@ -602,6 +607,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_plivo_connect",
         "orgs.org_profile",
         "orgs.org_resthooks",
+        "orgs.org_send_invite",
         "orgs.org_sub_orgs",
         "orgs.org_transfer_credits",
         "orgs.org_twilio_account",
@@ -697,6 +703,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_update",
         "contacts.contact_update_fields",
         "contacts.contact_update_fields_input",
+        "contacts.contact_invite_participants",
         "contacts.contactfield.*",
         "contacts.contactgroup.*",
         "csv_imports.importtask.*",
@@ -1198,3 +1205,14 @@ PARSE_ENDPOINT = "/parse/"
 PARSE_APP_ID = ""
 PARSE_REST_KEY = ""
 PARSE_MASTER_KEY = ""
+
+# Recaptcha configuration
+RECAPTCHA_SITE_KEY = ""
+RECAPTCHA_SECRET_KEY = ""
+
+# Authy configuration
+AUTHY_API_KEY = os.environ.get("AUTHY_API_KEY", "")
+AUTHY_MAGIC_PASS = os.environ.get("AUTHY_MAGIC_PASS", "")
+
+# Credits expiration config
+CREDITS_EXPIRATION = False

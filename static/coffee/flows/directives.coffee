@@ -153,6 +153,22 @@ app.directive "action", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
       if currentLanguage
         iso_code = currentLanguage.iso_code
 
+      if action.type == 'email' and action.media and action.media[iso_code]
+        parts = action.media[iso_code].split(/:(.+)/)
+        url = parts[1]
+        if not url.startsWith('http')
+          url = window.mediaURL + parts[1]
+        if parts.length >= 2
+          mime_parts = parts[0].split('/')
+          if mime_parts.length > 1
+            action._media =
+              mime: parts[0]
+              url: url
+              type: mime_parts[0]
+          else
+            action._attachURL = parts[1]
+            action._attachType = mime_parts[0]
+
       if action.type in ['send', 'reply', 'say', 'end_ussd']
         action._translation = action.msg[iso_code]
 

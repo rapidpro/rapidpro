@@ -6,14 +6,14 @@ import temba.utils.models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0139_merge_20200313_1155'),
-    ]
+    dependencies = [("msgs", "0139_merge_20200313_1155")]
 
     operations = [
         migrations.AlterField(
-            model_name='broadcast',
-            name='text',
-            field=temba.utils.models.TranslatableField(help_text='The localized versions of the message text', max_length=640, verbose_name='Translations'),
-        ),
+            model_name="broadcast",
+            name="text",
+            field=temba.utils.models.TranslatableField(
+                help_text="The localized versions of the message text", max_length=640, verbose_name="Translations"
+            ),
+        )
     ]

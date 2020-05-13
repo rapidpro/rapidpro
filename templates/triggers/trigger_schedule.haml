@@ -19,11 +19,11 @@
     }
 
     #trigger_flow {
-      width: 430px;
+      width: 520px;
     }
 
     #trigger_omnibox {
-      width: 430px;
+      width: 520px;
     }
 
     #start-datetime {
@@ -41,6 +41,7 @@
     var user_tz_offset = {{ user_tz_offset }};
 
     $(document).ready(function() {
+        select2div("#id_schedule_flow", "520px", '{% trans "Flow to start" %}');
         var initialDate;
         {% if form.start_datetime_value.value %}
           initialDate = new Date({{form.start_datetime_value.value}} * 1000);
@@ -54,6 +55,33 @@
         }
 
         initializeDatetimePicker(minDate, initialDate, false);
+
+        $('#id_schedule_flow').on('change', function (e) {
+          var flowId = (e.added.id !== '' ? parseInt(e.added.id) : null);
+          if (flowId) {
+            var api_url = "{% url 'flows.flow_flow_parameters' %}?flow_id=" + flowId;
+            $.getJSON(api_url).done(function(data) {
+              buildTriggerFlowParams(data.results, [], 'schedule');
+            });
+          } else {
+            buildTriggerFlowParams([], [], 'schedule');
+          }
+        });
+
+        $('li#id-trigger-schedule input[type="submit"]').on('click', function(event) {
+          var form = $(this).parent('form');
+          var error = validateFlowParams(form);
+          if (error) {
+            event.preventDefault();
+            $(this).removeClass('disabled');
+          }
+        });
+
+        {% if param_fields %}
+          var flowParamsFields = "{{ flow_parameters_fields }}".split(",");
+          var flowParamsValues = "{{ flow_parameters_values }}".split(",");
+          buildTriggerFlowParams(flowParamsFields, flowParamsValues, 'schedule');
+        {% endif %}
     });
 
 
@@ -94,6 +122,11 @@
           -trans "Sun"
 
       %input#repeat-days-value{name:'repeat_days_of_week', type:'hidden', value:'{{form.repeat_days_of_week.value|default:""}}'}
+
+  %h5.embedded-data-schedule.hide
+    -trans "Flow Parameters"
+  #embedded-data-schedule.hide
+    #embed-container-schedule.hide
 
 -load humanize
 

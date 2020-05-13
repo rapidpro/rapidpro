@@ -559,7 +559,7 @@ class FlowTest(TembaTest):
                 "Revision History",
                 "Delete",
                 None,
-                "New Editor"
+                "New Editor",
             ],
         )
 
