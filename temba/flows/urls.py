@@ -1,8 +1,9 @@
 from django.conf.urls import url
 
-from .views import FlowCRUDL, FlowLabelCRUDL, FlowRunCRUDL, FlowSessionCRUDL, PartialTemplate
+from .views import FlowCRUDL, FlowImageCRUDL, FlowLabelCRUDL, FlowRunCRUDL, FlowSessionCRUDL, PartialTemplate
 
 urlpatterns = FlowCRUDL().as_urlpatterns()
+urlpatterns += FlowImageCRUDL().as_urlpatterns()
 urlpatterns += FlowLabelCRUDL().as_urlpatterns()
 urlpatterns += FlowRunCRUDL().as_urlpatterns()
 urlpatterns += FlowSessionCRUDL().as_urlpatterns()

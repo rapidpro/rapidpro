@@ -42,6 +42,10 @@
         Start the
         %a.href{ href: "{% url 'flows.flow_editor' object.flow.uuid %}" }= object.flow.name
         Flow
+        -if object.extra
+          |
+          %a.href{href:"#", data-success-url:"", class:"update-event", data-original-title:"", title:""}
+            -trans "Contains flow parameters"
 
 -block content
   -if not scheduled_event_fires
@@ -134,6 +138,22 @@
           var modal = new Modax('Update Event', '{% url "campaigns.campaignevent_update" object.pk %}');
           modal.setIcon('icon-instant');
           modal.setRedirectOnSuccess(true);
+          modal.setListeners({
+            onPrimary: function() {
+              var form = modal.ele.find('form');
+              if (form.find('#id_event_type').val() != "F") {
+                modal.submit();
+              }
+              var error = validateFlowParams(form);
+              if (error) {
+                modal.focusFirstInput();
+                var divForm = $('.modal-body').find('input.invalid');
+                $('.modal-body').scrollTop(divForm[0].offsetTop - 10);
+              } else {
+                modal.submit();
+              }
+            }
+          }, false);
           modal.show();
         });
       {% endif %}

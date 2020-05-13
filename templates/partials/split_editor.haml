@@ -51,6 +51,18 @@
     opacity: 1;
   }
 
+  .json-directive {
+    margin-top: 5px;
+  }
+
+  .json-directive .json-body {
+    width: calc(100% - 24px) !important;
+  }
+
+  .json-directive .json-msg {
+    margin-left: 10px;
+  }
+
 .modal-header.title
   %span{ng-model:"formData.rulesetConfig", data-icon:"show", class:"modal-title ruleset-name"}><
 .modal-body.split-editor
@@ -271,6 +283,18 @@
           .help-text
             %a.add-header{href:"javascript:;",ng-click:"addNewWebhookHeader()"}
               -trans "Add header"
+
+        .div{ng-show:"formData.isWebhookAdditionalOptionsVisible || formData.isWebhookJsonBodyVisible"}
+          .message.help-text
+            -trans "JSON Body"
+          %span{
+            json-input
+            "ng-required":"true"
+            "json": "formData.webhook_json"
+            "btn-text": "{% trans 'Check JSON' %}"
+            "valid-json-msg": "{% trans 'JSON body is valid.' %}"
+            "invalid-json-msg": "{% trans 'Does not conform to JSON format.' %}"
+          }
 
         .div
           .help-text{ng-show:'formData.webhook_action == "POST"'}

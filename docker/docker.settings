@@ -142,7 +142,7 @@ if AWS_S3_ENABLED:
     # bucket where archives files are stored
     ARCHIVE_BUCKET = os.environ.get("ARCHIVE_BUCKET", "")
 
-    AWS_BUCKET_DOMAIN = f"s3.amazonaws.com/{AWS_STORAGE_BUCKET_NAME}"
+    AWS_BUCKET_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
     MEDIA_URL = f"https://{AWS_BUCKET_DOMAIN}/media/"
     DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 else:
@@ -183,3 +183,13 @@ PARSE_URL = os.environ.get("PARSE_URL", "")
 PARSE_APP_ID = os.environ.get("PARSE_APP_ID", "")
 PARSE_REST_KEY = os.environ.get("PARSE_REST_KEY", "")
 PARSE_MASTER_KEY = os.environ.get("PARSE_MASTER_KEY", "")
+
+# Recaptcha configuration
+RECAPTCHA_SITE_KEY = os.environ.get("RECAPTCHA_SITE_KEY", "")
+RECAPTCHA_SECRET_KEY = os.environ.get("RECAPTCHA_SECRET_KEY", "")
+
+# Authy configuration
+AUTHY_API_KEY = os.environ.get("AUTHY_API_KEY", "")
+AUTHY_MAGIC_PASS = os.environ.get("AUTHY_MAGIC_PASS", "")
+
+MAX_ORG_CONTACTGROUPS = int(os.environ.get("MAX_ORG_CONTACTGROUPS", 250))

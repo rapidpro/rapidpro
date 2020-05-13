@@ -1,9 +1,8 @@
 {% load i18n %}
 
-{% blocktrans with customer=customer.first_name %}
+{% blocktrans %}
 
-Hi {{ customer }},
-
+Hi,
 {% endblocktrans %}
 
 {% if alert.alert_type == 'O' %}
