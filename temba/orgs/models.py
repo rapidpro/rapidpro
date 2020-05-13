@@ -2104,36 +2104,35 @@ def release(user, brand):
         user.save()
 
     # release any orgs we own on this brand
-    for org in user.get_owned_orgs(brand):
+    for org in user.get_owned_orgs([brand]):
         org.release(release_users=False)
 
     # remove us as a user on any org for our brand
-    for org in user.get_user_orgs(brand):
+    for org in user.get_user_orgs([brand]):
         org.administrators.remove(user)
         org.editors.remove(user)
         org.viewers.remove(user)
         org.surveyors.remove(user)
 
 
-def get_user_orgs(user, brand=None):
-
+def get_user_orgs(user, brands=None):
     if user.is_superuser:
         return Org.objects.all()
 
     user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
 
-    if brand:
-        user_orgs = user_orgs.filter(brand=brand)
+    if brands:
+        user_orgs = user_orgs.filter(brand__in=brands)
 
     return user_orgs.filter(is_active=True).distinct().order_by("name")
 
 
-def get_owned_orgs(user, brand=None):
+def get_owned_orgs(user, brands):
     """
-    Gets all the orgs where this is the only user for the currend brand
+    Gets all the orgs where this is the only user for the current brand
     """
     owned_orgs = []
-    for org in user.get_user_orgs(brand=brand):
+    for org in user.get_user_orgs(brands=brands):
         if not org.get_org_users().exclude(id=user.id).exists():
             owned_orgs.append(org)
     return owned_orgs
