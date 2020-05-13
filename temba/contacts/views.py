@@ -1051,6 +1051,8 @@ class ContactCRUDL(SmartCRUDL):
                 event__is_active=True, event__campaign__is_archived=False, scheduled__gte=timezone.now()
             ).order_by("scheduled")
 
+            scheduled_triggers = contact.get_scheduled_triggers()
+
             scheduled_messages = contact.get_scheduled_messages()
 
             merged_upcoming_events = []
@@ -1062,6 +1064,18 @@ class ContactCRUDL(SmartCRUDL):
                         flow_uuid=fire.event.flow.uuid,
                         flow_name=fire.event.flow.name,
                         scheduled=fire.scheduled,
+                    )
+                )
+
+            for sched_trigger in scheduled_triggers:
+                merged_upcoming_events.append(
+                    dict(
+                        repeat_period=sched_trigger.schedule.repeat_period,
+                        event_type="F",
+                        message=None,
+                        flow_uuid=sched_trigger.flow.uuid,
+                        flow_name=sched_trigger.flow.name,
+                        scheduled=sched_trigger.schedule.next_fire,
                     )
                 )
 
@@ -1078,7 +1092,7 @@ class ContactCRUDL(SmartCRUDL):
                 )
 
             # upcoming scheduled events
-            context["upcoming_events"] = sorted(merged_upcoming_events, key=lambda k: k["scheduled"], reverse=True)
+            context["upcoming_events"] = sorted(merged_upcoming_events, key=lambda k: k["scheduled"])
 
             # divide contact's URNs into those we can send to, and those we can't
             from temba.channels.models import Channel

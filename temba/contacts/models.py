@@ -827,6 +827,17 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             logger.error("Error evaluating query", exc_info=True)
             raise  # reraise the exception
 
+    def get_scheduled_triggers(self):
+        from temba.triggers.models import Trigger
+
+        triggers = (
+            Trigger.objects.select_related("schedule")
+            .filter(trigger_type=Trigger.TYPE_SCHEDULE)
+            .filter(schedule__next_fire__gte=timezone.now())
+            .filter(Q(contacts=self) | Q(groups__contacts=self))
+        )
+        return triggers
+
     def get_scheduled_messages(self):
         from temba.msgs.models import SystemLabel
 
