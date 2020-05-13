@@ -1,3 +1,7 @@
+v5.5.41
+----------
+ * Use branding keys when picking which orgs to show on manage
+
 v5.5.40
 ----------
  * Allow branding to have aliases
