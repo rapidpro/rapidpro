@@ -2736,6 +2736,7 @@ class FlowCRUDL(SmartCRUDL):
 
             run_stats = self.object.get_run_stats()
 
+            context["flow"] = flow
             context["warnings"] = warnings
             context["run_count"] = run_stats["total"]
             context["complete_count"] = run_stats["completed"]
