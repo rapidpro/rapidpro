@@ -473,7 +473,7 @@ PERMISSIONS = {
     "policies.policy": ("admin", "history", "give_consent"),
     "templates.template": ("api",),
     "tickets.ticket": ("filter", "close"),
-    "tickets.ticketer": ("api", "connect"),
+    "tickets.ticketer": ("api", "connect", "configure"),
     "triggers.trigger": (
         "archived",
         "catchall",
@@ -667,6 +667,7 @@ GROUP_PERMISSIONS = {
         "templates.template_api",
         "tickets.ticket.*",
         "tickets.ticketer_api",
+        "tickets.ticketer_configure",
         "tickets.ticketer_connect",
         "tickets.ticketer_delete",
         "triggers.trigger.*",

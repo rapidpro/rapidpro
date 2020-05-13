@@ -2,7 +2,7 @@ from django.conf.urls import url
 from django.utils.translation import ugettext_lazy as _
 
 from ...models import TicketerType
-from .views import AdminUIView, ConnectView, ManifestView
+from .views import AdminUIView, ConfigureView, ConnectView, ManifestView
 
 
 class ZendeskType(TicketerType):
@@ -12,6 +12,9 @@ class ZendeskType(TicketerType):
 
     CONFIG_SUBDOMAIN = "subdomain"
     CONFIG_OAUTH_TOKEN = "oauth_token"
+    CONFIG_SECRET = "secret"
+    CONFIG_PUSH_ID = "push_id"
+    CONFIG_PUSH_TOKEN = "push_token"
 
     name = "Zendesk"
     slug = "zendesk"
@@ -34,4 +37,5 @@ class ZendeskType(TicketerType):
             self.get_connect_url(),
             url(r"^manifest\.json", ManifestView.as_view(), name="manifest"),
             url(r"^admin_ui", AdminUIView.as_view(), name="admin_ui"),
+            url(r"^configure/(?P<uuid>[a-z0-9\-]+)/$", ConfigureView.as_view(), name="configure"),
         ]
