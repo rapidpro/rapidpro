@@ -1111,9 +1111,9 @@ class OrgCRUDL(SmartCRUDL):
             queryset = super().derive_queryset(**kwargs)
             queryset = queryset.filter(is_active=True)
 
-            brand = self.request.branding.get("brand")
-            if brand:
-                queryset = queryset.filter(brand=brand)
+            brands = self.request.branding.get("keys")
+            if brands:
+                queryset = queryset.filter(brand__in=brands)
 
             queryset = queryset.annotate(credits=Sum("topups__credits"))
             queryset = queryset.annotate(paid=Sum("topups__price"))
