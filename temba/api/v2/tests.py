@@ -1946,14 +1946,14 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         xavier = Contact.objects.get(name="Xavier")
-        self.assertEqual(set(xavier.urns.values_list("identity", flat=True)), {'twitter:xavier', 'tel:+250787777777'})
+        self.assertEqual(set(xavier.urns.values_list("identity", flat=True)), {"twitter:xavier", "tel:+250787777777"})
 
         # updating fields by urn should keep all exiting urns
         response = self.postJSON(url, "urn=%s" % quote_plus("tel:+250787777777"), {"fields": {"gender": "Male"}})
         self.assertEqual(response.status_code, 200)
 
         xavier = Contact.objects.get(name="Xavier")
-        self.assertEqual(set(xavier.urns.values_list("identity", flat=True)), {'twitter:xavier', 'tel:+250787777777'})
+        self.assertEqual(set(xavier.urns.values_list("identity", flat=True)), {"twitter:xavier", "tel:+250787777777"})
         self.assertEqual(xavier.get_field_value(gender), "Male")
 
         # delete a contact by URN (which should be normalized)
