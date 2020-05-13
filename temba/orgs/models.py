@@ -2127,7 +2127,7 @@ def get_user_orgs(user, brands=None):
     return user_orgs.filter(is_active=True).distinct().order_by("name")
 
 
-def get_owned_orgs(user, brands):
+def get_owned_orgs(user, brands=None):
     """
     Gets all the orgs where this is the only user for the current brand
     """
