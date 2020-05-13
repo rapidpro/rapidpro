@@ -190,9 +190,6 @@
                       {{ form.non_field_errors }}
                   
                   -csrf_token
-                  -if form.non_field_errors
-                    %div.alert.alert-error.form-errors
-                      {{ form.non_field_errors }}
 
                   -block fields
                     %div#csv_file_errors
