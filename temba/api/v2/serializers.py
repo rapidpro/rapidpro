@@ -610,19 +610,10 @@ class ContactWriteSerializer(WriteSerializer):
             raise serializers.ValidationError("Inactive contacts can't be modified.")
 
         # we allow creation of contacts by URN used for lookup
-        if not data.get("urns") and "urns__identity" in self.context["lookup_values"]:
+        if not data.get("urns") and "urns__identity" in self.context["lookup_values"] and not self.instance:
             url_urn = self.context["lookup_values"]["urns__identity"]
 
-            contact_urns = []
-            if self.instance:
-                contact_urns = self.instance.urns.values_list("identity", flat=True).order_by("priority")
-
-            validate_url_urn = fields.validate_urn(url_urn)
-            if validate_url_urn not in contact_urns:
-                contact_urns.append(validate_url_urn)
-
-            if contact_urns:
-                data["urns"] = contact_urns
+            data["urns"] = [fields.validate_urn(url_urn)]
 
         return data
 
