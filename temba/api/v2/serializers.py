@@ -613,7 +613,16 @@ class ContactWriteSerializer(WriteSerializer):
         if not data.get("urns") and "urns__identity" in self.context["lookup_values"]:
             url_urn = self.context["lookup_values"]["urns__identity"]
 
-            data["urns"] = [fields.validate_urn(url_urn)]
+            contact_urns = []
+            if self.instance:
+                contact_urns = self.instance.urns.values_list("identity", flat=True).order_by("priority")
+
+            validate_url_urn = fields.validate_urn(url_urn)
+            if validate_url_urn not in contact_urns:
+                contact_urns.append(validate_url_urn)
+
+            if contact_urns:
+                data["urns"] = contact_urns
 
         return data
 
