@@ -161,7 +161,7 @@ class UserTest(TembaTest):
         self.assertNotEqual("Administrator@nyaruka.com", self.admin.email)
         self.assertFalse(self.admin.get_user_orgs().exists())
 
-    def test_multi_brands(self):
+    def test_brand_aliases(self):
         # set our brand to our custom org
         self.org.brand = "custom-brand.io"
         self.org.save(update_fields=["brand"])

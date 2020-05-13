@@ -1674,7 +1674,7 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Select your Organization")
 
         def get_user_orgs(self):
-            return self.request.user.get_user_orgs(self.request.branding.get("brands"))
+            return self.request.user.get_user_orgs(self.request.branding.get("keys"))
 
         def pre_process(self, request, *args, **kwargs):
             user = self.request.user
