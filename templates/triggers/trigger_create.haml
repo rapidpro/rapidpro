@@ -39,13 +39,29 @@
             $('#id-trigger-keyword')[0].scrollIntoView({behavior: 'smooth'});
             $('#id-trigger-keyword>.formax-icon').trigger('click');
             $('#id_keyword_flow').val(flow);
-            $('#id_keyword_flow').trigger('change.select2'); 
+            $('#id_keyword_flow').trigger('change.select2');
+            if (flow) {
+              var api_url = "{% url 'flows.flow_flow_parameters' %}?flow_id=" + flow;
+              $.getJSON(api_url).done(function(data) {
+                buildTriggerFlowParams(data.results);
+              });
+            } else {
+              buildTriggerFlowParams();
+            }
             break;
           case "schedule":
             $('#id-trigger-schedule')[0].scrollIntoView({behavior: 'smooth'});
             $('#id-trigger-schedule>.formax-icon').trigger('click');
             $('#id_schedule_flow').val(flow);
-            $('#id_schedule_flow').trigger('change.select2'); 
+            $('#id_schedule_flow').trigger('change.select2');
+            if (flow) {
+              var api_url = "{% url 'flows.flow_flow_parameters' %}?flow_id=" + flow;
+              $.getJSON(api_url).done(function(data) {
+                buildTriggerFlowParams(data.results, [], 'schedule');
+              });
+            } else {
+              buildTriggerFlowParams([], [], 'schedule');
+            }
             break;
         }
       }, 1000)
