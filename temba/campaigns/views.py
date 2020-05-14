@@ -6,7 +6,6 @@ from django.core.exceptions import ValidationError
 from django.http import Http404, HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
-from django.views.decorators.csrf import csrf_exempt
 
 from temba.contacts.models import ContactField, ContactGroup
 from temba.flows.models import Flow
@@ -30,7 +29,6 @@ class CampaignActionForm(BaseActionForm):
 
 
 class CampaignActionMixin(SmartListView):
-    @csrf_exempt
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 

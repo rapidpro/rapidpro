@@ -164,7 +164,6 @@ class FlowActionForm(BaseActionForm):
 
 
 class FlowActionMixin(SmartListView):
-    @csrf_exempt
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
