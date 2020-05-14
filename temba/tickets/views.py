@@ -30,6 +30,7 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
 
             super().__init__(**kwargs)
 
+    submit_button_name = _("Connect")
     permission = "tickets.ticketer_connect"
     ticketer_type = None
 
@@ -61,7 +62,7 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("filter", "read", "close")
+    actions = ("filter", "close")
 
     class Filter(OrgObjPermsMixin, SmartListView):
         fields = ("subject", "contact", "body", "opened_on")
@@ -80,15 +81,25 @@ class TicketCRUDL(SmartCRUDL):
             links = []
             if self.has_org_perm("tickets.ticketer_delete"):
                 links.append(dict(title=_("Delete"), js_class="delete-ticketer", href="#"))
+            if self.get_user().is_support():
+                links.append(
+                    dict(
+                        title=_("HTTP Log"),
+                        href=reverse("request_logs.httplog_list", args=["ticketer", self.ticketer.uuid]),
+                    )
+                )
             return links
 
         def get_object_org(self):
             return self.ticketer.org
 
         def get_context_data(self, **kwargs):
+            org = self.request.user.get_org()
+
             context = super().get_context_data(**kwargs)
+            context["ticketers"] = org.ticketers.filter(is_active=True).order_by("created_on")
             context["ticketer"] = self.ticketer
-            context["used_by_flows"] = self.ticketer.dependent_flows.count()
+            context["used_by_flows"] = self.ticketer.dependent_flows.all()[:5]
             return context
 
         @cached_property
@@ -110,6 +121,8 @@ class TicketCRUDL(SmartCRUDL):
         fields = ()
 
         def save(self, obj):
+            # TODO ticket should be closed on the external system too.. maybe better to let mailroom do this via a task
+
             obj.status = Ticket.STATUS_CLOSED
             obj.closed_on = timezone.now()
             obj.save(update_fields=("status", "closed_on"))

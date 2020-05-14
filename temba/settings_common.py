@@ -770,7 +770,6 @@ GROUP_PERMISSIONS = {
         "templates.template_api",
         "tickets.ticket_filter",
         "tickets.ticket_close",
-        "tickets.ticket_read",
         "tickets.ticketer_api",
         "triggers.trigger.*",
     ),
@@ -841,7 +840,6 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "tickets.ticket_filter",
-        "tickets.ticket_read",
         "tickets.ticketer_api",
         "triggers.trigger_archived",
         "triggers.trigger_list",
@@ -1036,7 +1034,7 @@ CLASSIFIER_TYPES = [
     "temba.classifiers.types.bothub.BothubType",
 ]
 
-TICKETER_TYPES = ["temba.tickets.types.mailgun.MailgunType"]
+TICKETER_TYPES = ["temba.tickets.types.mailgun.MailgunType", "temba.tickets.types.zendesk.ZendeskType"]
 
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
@@ -1097,8 +1095,6 @@ CHANNEL_TYPES = [
     "temba.channels.types.clicksend.ClickSendType",
     "temba.channels.types.android.AndroidType",
 ]
-
-TICKETER_TYPES = ["temba.tickets.types.mailgun.MailgunType", "temba.tickets.types.zendesk.ZendeskType"]
 
 # -----------------------------------------------------------------------------------
 # Store sessions in our cache

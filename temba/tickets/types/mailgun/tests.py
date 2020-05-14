@@ -21,6 +21,9 @@ class MailgunTypeTest(TembaTest):
     def test_connect(self):
         connect_url = reverse("tickets.types.mailgun.connect")
 
+        response = self.client.get(connect_url)
+        self.assertLoginRedirect(response)
+
         self.login(self.admin)
 
         response = self.client.get(connect_url)
@@ -64,7 +67,7 @@ class MailgunTypeTest(TembaTest):
 
         ticketer = Ticketer.objects.get()
 
-        self.assertRedirect(response, f"/ticketer/read/{ticketer.uuid}/")
+        self.assertRedirect(response, f"/ticket/filter/{ticketer.uuid}/")
         self.assertEqual(
             {"domain": "mr.nyaruka.com", "api_key": "1234567", "to_address": "bob@acme.com"}, ticketer.config
         )
@@ -101,7 +104,7 @@ class MailgunTypeTest(TembaTest):
         flow = self.create_flow()
         flow.ticketer_dependencies.add(ticketer)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(AssertionError):
             self.client.post(url)
 
         ticketer.refresh_from_db()

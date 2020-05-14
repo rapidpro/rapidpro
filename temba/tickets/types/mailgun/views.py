@@ -35,8 +35,6 @@ class ConnectView(BaseConnectView):
         if not request.GET.get("verify"):
             request.session["verification_token"] = random_string(6)
 
-            print(f"generated token: {request.session['verification_token']}")
-
         return super().get(request, *args, **kwargs)
 
     def get_form_class(self):

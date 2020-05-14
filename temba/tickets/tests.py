@@ -1,8 +1,10 @@
+from django.test.utils import override_settings
 from django.urls import reverse
 
 from temba.tests import CRUDLTestMixin, TembaTest
 
 from .models import Ticket, Ticketer
+from .types import reload_ticketer_types
 from .types.mailgun import MailgunType
 
 
@@ -49,4 +51,18 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_connect(self):
         connect_url = reverse("tickets.ticketer_connect")
 
-        self.assertListFetch(connect_url, allow_viewers=False, allow_editors=False)
+        with override_settings(TICKETER_TYPES=[]):
+            reload_ticketer_types()
+
+            response = self.assertListFetch(connect_url, allow_viewers=False, allow_editors=False)
+
+            self.assertEqual([], response.context["ticketer_types"])
+            self.assertContains(response, "No ticketing services are available.")
+
+        with override_settings(TICKETER_TYPES=["temba.tickets.types.mailgun.MailgunType"], MAILGUN_API_KEY="123"):
+            reload_ticketer_types()
+
+            response = self.assertListFetch(connect_url, allow_viewers=False, allow_editors=False)
+
+            self.assertNotContains(response, "No ticketing services are available.")
+            self.assertContains(response, reverse("tickets.types.mailgun.connect"))

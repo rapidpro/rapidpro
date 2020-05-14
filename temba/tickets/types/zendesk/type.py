@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.conf.urls import url
 from django.utils.translation import ugettext_lazy as _
 
@@ -28,6 +29,9 @@ class ZendeskType(TicketerType):
     form_blurb = _(
         """Enter your Zendesk subdomain. You will be redirected to Zendesk where you need to grant access to this application."""
     )
+
+    def is_available(self):
+        return bool(settings.ZENDESK_CLIENT_ID and settings.ZENDESK_CLIENT_SECRET)
 
     def get_urls(self):
         """

@@ -1,6 +1,6 @@
+import re
 from urllib.parse import urlparse
 
-import requests
 from smartmin.views import SmartFormView, SmartReadView
 
 from django import forms
@@ -22,6 +22,7 @@ from temba.utils.text import random_string
 
 from ...models import Ticketer
 from ...views import BaseConnectView
+from .client import Client, ClientError
 
 
 class ConnectView(BaseConnectView):
@@ -31,12 +32,15 @@ class ConnectView(BaseConnectView):
         def clean_subdomain(self):
             from .type import ZendeskType
 
+            org = self.request.user.get_org()
             data = self.cleaned_data["subdomain"]
 
-            if Ticketer.objects.filter(
-                is_active=True, ticketer_type=ZendeskType.slug, config__subdomain=data
-            ).exists():
-                raise forms.ValidationError(_("There is already a ticketer configured for that subdomain"))
+            if not re.match(r"^[\w\-]+", data):
+                raise forms.ValidationError(_("Not a valid subdomain name."))
+
+            for_domain = org.ticketers.filter(is_active=True, ticketer_type=ZendeskType.slug, config__subdomain=data)
+            if for_domain.exists():
+                raise forms.ValidationError(_("There is already a ticketing service configured for this subdomain."))
 
             return data
 
@@ -58,7 +62,7 @@ class ConnectView(BaseConnectView):
         return f"https://{brand['domain']}{reverse('tickets.types.zendesk.connect')}"
 
     def get_success_url(self):
-        return reverse("tickets.ticketer_configure", args=[self.object.uuid])
+        return reverse("tickets.types.zendesk.configure", args=[self.object.uuid])
 
     def form_valid(self, form):
         subdomain = form.cleaned_data["subdomain"]
@@ -79,27 +83,18 @@ class ConnectView(BaseConnectView):
 
         code = request.GET["code"]
         subdomain = request.GET["state"]
-
-        response = requests.post(
-            f"https://{subdomain}.zendesk.com/oauth/tokens",
-            json={
-                "grant_type": "authorization_code",
-                "code": code,
-                "client_id": settings.ZENDESK_CLIENT_ID,
-                "client_secret": settings.ZENDESK_CLIENT_SECRET,
-                "redirect_uri": self.get_absolute_url(),
-                "scope": "read write",
-            },
-        )
-
-        if response.status_code != 200:
+        client = Client(subdomain)
+        try:
+            access_token = client.get_oauth_token(
+                settings.ZENDESK_CLIENT_ID, settings.ZENDESK_CLIENT_SECRET, code, self.get_absolute_url(),
+            )
+        except ClientError:
             messages.error(request, _("Unable to request OAuth token."))
             return super(ConnectView, self).get(request, *args, **kwargs)
 
-        resp_json = response.json()
         config = {
             ZendeskType.CONFIG_SUBDOMAIN: subdomain,
-            ZendeskType.CONFIG_OAUTH_TOKEN: resp_json["access_token"],
+            ZendeskType.CONFIG_OAUTH_TOKEN: access_token,
             ZendeskType.CONFIG_SECRET: random_string(32),
         }
 
@@ -124,18 +119,26 @@ class ConfigureView(OrgPermsMixin, SmartReadView):
     slug_url_kwarg = "uuid"
     template_name = "tickets/types/zendesk/configure.html"
 
-    def derive_title(self):
-        return _("Configure Zendesk Ticketer")
-
     def get_queryset(self):
         queryset = super().get_queryset()
         return queryset.filter(org=self.get_user().get_org())
 
+    def get_gear_links(self):
+        links = []
+        if self.has_org_perm("tickets.ticket_filter"):
+            links.append(dict(title=_("Tickets"), href=reverse("tickets.ticket_filter", args=[self.object.uuid])))
+        return links
+
     def get_context_data(self, **kwargs):
         from .type import ZendeskType
 
+        subdomain = self.object.config[ZendeskType.CONFIG_SUBDOMAIN]
+        secret = self.object.config[ZendeskType.CONFIG_SECRET]
+
         context = super().get_context_data(**kwargs)
-        context["secret"] = self.object.config[ZendeskType.CONFIG_SECRET]
+        context["market_url"] = "https://www.zendesk.com/apps/directory"
+        context["channels_url"] = f"https://{subdomain}.zendesk.com/agent/admin/registered_integration_services"
+        context["secret"] = secret
         return context
 
 
@@ -202,7 +205,7 @@ class AdminUIView(SmartFormView):
                 ticketer_type=ZendeskType.slug, config__subdomain=self.subdomain, config__secret=data, is_active=True,
             )
             if not ticketers.exists():
-                raise forms.ValidationError(_("Secret is incorrect"))
+                raise forms.ValidationError(_("Secret is incorrect."))
 
             return data
 

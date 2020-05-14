@@ -2144,11 +2144,15 @@ def get_org(obj):
 
 
 def is_alpha_user(user):  # pragma: needs cover
-    return user.groups.filter(name="Alpha")
+    return user.groups.filter(name="Alpha").exists()
 
 
 def is_beta_user(user):  # pragma: needs cover
-    return user.groups.filter(name="Beta")
+    return user.groups.filter(name="Beta").exists()
+
+
+def is_support_user(user):
+    return user.groups.filter(name="Customer Support").exists()
 
 
 def get_settings(user):
@@ -2204,6 +2208,7 @@ User.get_org = get_org
 User.set_org = set_org
 User.is_alpha = is_alpha_user
 User.is_beta = is_beta_user
+User.is_support = is_support_user
 User.get_settings = get_settings
 User.get_user_orgs = get_user_orgs
 User.get_org_group = get_org_group
