@@ -26,7 +26,7 @@ from django.db import transaction
 from django.db.models import Count
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
-from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import is_safe_url, urlquote_plus
@@ -1671,7 +1671,7 @@ class ContactCRUDL(SmartCRUDL):
         system_group = ContactGroup.TYPE_ALL
 
         def get(self, request, *args, **kwargs):
-            contact_uuid = request.GET.get('contact_uuid')
+            contact_uuid = request.GET.get("contact_uuid")
             if not contact_uuid:
                 return super().get(request, *args, **kwargs)
 
@@ -1684,32 +1684,36 @@ class ContactCRUDL(SmartCRUDL):
                 flow.async_start(self.request.user, list([]), list([existing_contact]), restart_participants=True, include_active=True)
                 result = dict(sent=True)
             else:
+                org.config.pop(org.OPTIN_FLOW, None)
+                org.save(update_fields=["config"])
+                messages.error(request, _("The current opt-in flow doesn't set or unavailable. Please, choose another one before you click 'Invite'."))
                 result = dict(sent=False)
 
-            return HttpResponse(json.dumps(result), content_type='application/json')
+            return HttpResponse(json.dumps(result), content_type="application/json")
 
         def post(self, request, *args, **kwargs):
             optin_flow_uuid = request.POST.get('optin_flow_uuid', None)
+            flow = Flow.objects.filter(org=self.org, is_active=True, is_system=False, is_archived=False, uuid=optin_flow_uuid).first()
 
-            if optin_flow_uuid:
+            if optin_flow_uuid and flow:
                 self.org.set_optin_flow(request.user, optin_flow_uuid)
-                messages.success(request, _('Opt-in Flow updated'))
+                messages.success(request, _("Opt-in Flow updated."))
+            elif optin_flow_uuid:
+                messages.error(request, _("This opt-in flow can't be selected. Please provide another flow."))
+            else:
+                messages.error(request, _("You haven't provided any opt-in flow."))
 
             return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
 
         def derive_group(self):
+            org = self.request.user.get_org()
             group_uuid = self.request.GET.get("group", None)
-            folder = self.request.GET.get("folder", None)
 
             if group_uuid:
-                return ContactGroup.user_groups.get(uuid=group_uuid)
-
-            if folder in ('stopped', 'blocked'):
-                group_types = {
-                    'blocked': ContactGroup.TYPE_BLOCKED,
-                    'stopped': ContactGroup.TYPE_STOPPED,
-                }
-                self.system_group = group_types[folder]
+                try:
+                    return ContactGroup.user_groups.get(uuid=group_uuid, org=org)
+                except ContactGroup.DoesNotExist:
+                    raise Http404
 
             return super().derive_group()
 
@@ -1742,16 +1746,18 @@ class ContactCRUDL(SmartCRUDL):
             
             counts = ContactGroup.get_system_group_counts(org)
 
-            folders = [
-                dict(count=counts[ContactGroup.TYPE_ALL], label=_("All Contacts"), url=view_url),
-                dict(count=counts[ContactGroup.TYPE_BLOCKED], label=_("Blocked"), url="{}?folder=blocked".format(view_url)),
-                dict(count=counts[ContactGroup.TYPE_STOPPED], label=_("Stopped"), url="{}?folder=stopped".format(view_url)),
-            ]
+            folders = [dict(count=counts[ContactGroup.TYPE_ALL], label=_("All Contacts"), url=view_url)]
 
+            available_flows = Flow.objects.filter(org=org, is_active=True, is_system=False, is_archived=False)
+            current_optin_flow = available_flows.filter(uuid=org.get_optin_flow())
+            if not current_optin_flow:
+                org.config.pop(org.OPTIN_FLOW, None)
+                org.save(update_fields=["config"])
+
+            context["flows"] = available_flows
+            context["optin_flow"] = org.get_optin_flow()
             context["folders"] = folders
             context["current_group"] = group
-            context["flows"] = Flow.objects.filter(org=org, is_active=True, is_system=False, is_archived=False)
-            context["optin_flow"] = org.get_optin_flow()
             context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by("-priority", "pk")
             context["export_url"] = self.derive_export_url()
             context["actions"] = ("label", "block")
