@@ -15,6 +15,7 @@ from temba.orgs.models import Org
 from temba.utils.celery import nonoverlapping_task
 
 from .models import (
+    ExportFlowImagesTask,
     ExportFlowResultsTask,
     FlowCategoryCount,
     FlowNodeCount,
@@ -61,6 +62,16 @@ def export_flow_results_task(export_id):
     Export a flow to a file and e-mail a link to the user
     """
     ExportFlowResultsTask.objects.select_related("org").get(id=export_id).perform()
+
+
+@task(track_started=True, name="download_flow_images_task")
+def download_flow_images_task(id):
+    """
+    Download flow images to a zip file and e-mail a link to the user
+    """
+    export_task = ExportFlowImagesTask.objects.filter(pk=id).first()
+    if export_task:
+        export_task.perform()
 
 
 @nonoverlapping_task(

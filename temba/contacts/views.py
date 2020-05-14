@@ -20,7 +20,7 @@ from smartmin.views import (
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, PermissionDenied
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Count
@@ -38,6 +38,7 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.flows.models import Flow
 from temba.contacts.templatetags.contacts import MISSING_VALUE
+from temba.mixins import NotFoundRedirectMixin
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, languages, on_transaction_commit
@@ -1050,6 +1051,8 @@ class ContactCRUDL(SmartCRUDL):
                 event__is_active=True, event__campaign__is_archived=False, scheduled__gte=timezone.now()
             ).order_by("scheduled")
 
+            scheduled_triggers = contact.get_scheduled_triggers()
+
             scheduled_messages = contact.get_scheduled_messages()
 
             merged_upcoming_events = []
@@ -1061,6 +1064,18 @@ class ContactCRUDL(SmartCRUDL):
                         flow_uuid=fire.event.flow.uuid,
                         flow_name=fire.event.flow.name,
                         scheduled=fire.scheduled,
+                    )
+                )
+
+            for sched_trigger in scheduled_triggers:
+                merged_upcoming_events.append(
+                    dict(
+                        repeat_period=sched_trigger.schedule.repeat_period,
+                        event_type="F",
+                        message=None,
+                        flow_uuid=sched_trigger.flow.uuid,
+                        flow_name=sched_trigger.flow.name,
+                        scheduled=sched_trigger.schedule.next_fire,
                     )
                 )
 
@@ -1077,7 +1092,7 @@ class ContactCRUDL(SmartCRUDL):
                 )
 
             # upcoming scheduled events
-            context["upcoming_events"] = sorted(merged_upcoming_events, key=lambda k: k["scheduled"], reverse=True)
+            context["upcoming_events"] = sorted(merged_upcoming_events, key=lambda k: k["scheduled"])
 
             # divide contact's URNs into those we can send to, and those we can't
             from temba.channels.models import Channel
@@ -1388,8 +1403,26 @@ class ContactCRUDL(SmartCRUDL):
             context["reply_disabled"] = True
             return context
 
-    class Filter(ContactActionMixin, ContactListView, OrgObjPermsMixin):
+    class Filter(NotFoundRedirectMixin, ContactActionMixin, ContactListView, OrgObjPermsMixin):
         template_name = "contacts/contact_filter.haml"
+
+        # fields for NotFoundRedirectMixin
+        redirect_checking_model = ContactGroup
+        redirect_url = "contacts.contact_list"
+        redirect_params = {
+            "filter_key": "uuid",
+            "filter_value": "group",
+            "model_manager": "user_groups",
+            "message": _("Contact group not found."),
+        }
+
+        def has_permission_view_objects(self):
+            group = ContactGroup.all_groups.filter(
+                org=self.request.user.get_org(), uuid=self.kwargs.get("group")
+            ).first()
+            if not group:
+                raise PermissionDenied()
+            return None
 
         def get_gear_links(self):
             links = []

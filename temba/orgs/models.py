@@ -26,6 +26,7 @@ from twilio.rest import Client as TwilioClient
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
+from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
@@ -1359,11 +1360,12 @@ class Org(SmartModel):
 
     def _calculate_low_credits_threshold(self):
         now = timezone.now()
-        unexpired_topups = self.topups.filter(is_active=True, expires_on__gte=now)
 
-        active_topup_credits = [topup.credits for topup in unexpired_topups if topup.get_remaining() > 0]
-        last_topup_credits = sum(active_topup_credits)
+        filter_ = dict(is_active=True)
+        if settings.CREDITS_EXPIRATION:
+            filter_.update(dict(expires_on__gte=now))
 
+        last_topup_credits = self.topups.filter(**filter_).aggregate(Sum("credits")).get("credits__sum")
         return int(last_topup_credits * 0.15), self.get_credit_ttl()
 
     def get_credits_total(self, force_dirty=False):
@@ -1388,20 +1390,23 @@ class Org(SmartModel):
         return purchased_credits if purchased_credits else 0, self.get_credit_ttl()
 
     def _calculate_credits_total(self):
-        active_credits = (
-            self.topups.filter(is_active=True, expires_on__gte=timezone.now())
-            .aggregate(Sum("credits"))
-            .get("credits__sum")
-        )
+        filter_ = dict(is_active=True)
+        if settings.CREDITS_EXPIRATION:
+            filter_.update(dict(expires_on__gte=timezone.now()))
+
+            # these are the credits that have been used in expired topups
+            expired_credits = (
+                TopUpCredits.objects.filter(
+                    topup__org=self, topup__is_active=True, topup__expires_on__lte=timezone.now()
+                )
+                .aggregate(Sum("used"))
+                .get("used__sum")
+            )
+        else:
+            expired_credits = False
+
+        active_credits = self.topups.filter(**filter_).aggregate(Sum("credits")).get("credits__sum")
         active_credits = active_credits if active_credits else 0
-
-        # these are the credits that have been used in expired topups
-        expired_credits = (
-            TopUpCredits.objects.filter(topup__org=self, topup__is_active=True, topup__expires_on__lte=timezone.now())
-            .aggregate(Sum("used"))
-            .get("used__sum")
-        )
-
         expired_credits = expired_credits if expired_credits else 0
 
         return active_credits + expired_credits, self.get_credit_ttl()
@@ -1586,9 +1591,10 @@ class Org(SmartModel):
         """
         Calculates the oldest non-expired topup that still has credits
         """
-        non_expired_topups = self.topups.filter(is_active=True, expires_on__gte=timezone.now()).order_by(
-            "expires_on", "id"
-        )
+        filter_ = dict(is_active=True)
+        if settings.CREDITS_EXPIRATION:
+            filter_.update(dict(expires_on__gte=timezone.now()))
+        non_expired_topups = self.topups.filter(**filter_).order_by("expires_on", "id")
         active_topups = (
             non_expired_topups.annotate(used_credits=Sum("topupcredits__used"))
             .filter(credits__gt=0)
@@ -1618,9 +1624,10 @@ class Org(SmartModel):
             all_uncredited = list(msg_uncredited)
 
             # get all topups that haven't expired
-            unexpired_topups = list(
-                self.topups.filter(is_active=True, expires_on__gte=timezone.now()).order_by("-expires_on")
-            )
+            filter_ = dict(is_active=True)
+            if settings.CREDITS_EXPIRATION:
+                filter_.update(dict(expires_on__gte=timezone.now()))
+            unexpired_topups = list(self.topups.filter(**filter_).order_by("-expires_on"))
 
             # dict of topups to lists of their newly assigned items
             new_topup_items = {topup: [] for topup in unexpired_topups}
@@ -2655,7 +2662,7 @@ class TopUp(SmartModel):
             )
 
         now = timezone.now()
-        expired = self.expires_on < now
+        expired = self.expires_on < now if settings.CREDITS_EXPIRATION else False
 
         # add a line for used message credits
         if active:
@@ -2809,6 +2816,9 @@ class CreditAlert(SmartModel):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="credit_alerts")
 
     alert_type = models.CharField(max_length=1, choices=TYPES)
+    admin_emails = ArrayField(
+        models.EmailField(), help_text=_("Emails of administrators who will be alerted"), default=list
+    )
 
     @classmethod
     def trigger_credit_alert(cls, org, alert_type):
@@ -2818,11 +2828,15 @@ class CreditAlert(SmartModel):
 
         logging.info(f"triggering {alert_type} credits alert type for {org.name}")
 
-        admin = org.get_org_admins().first()
+        admins = org.get_org_admins().exclude(email__isnull=True).exclude(email__exact="")
+        admin = admins.first()
 
-        if admin:
+        if admins:
             # Otherwise, create our alert objects and trigger our event
-            alert = CreditAlert.objects.create(org=org, alert_type=alert_type, created_by=admin, modified_by=admin)
+            admin_emails = list(admins.values_list("email", flat=True))
+            alert = CreditAlert.objects.create(
+                org=org, alert_type=alert_type, admin_emails=admin_emails, created_by=admin, modified_by=admin
+            )
 
             alert.send_alert()
 
@@ -2832,17 +2846,15 @@ class CreditAlert(SmartModel):
         send_alert_email_task(self.id)
 
     def send_email(self):
-        admin_emails = [admin.email for admin in self.org.get_org_admins().order_by("email")]
-
-        if len(admin_emails) == 0:
+        if len(self.admin_emails) == 0:
             return
 
         branding = self.org.get_branding()
         subject = _("%(name)s Credits Alert") % branding
         template = "orgs/email/alert_email"
-        to_email = admin_emails
+        to_email = self.admin_emails
 
-        context = dict(org=self.org, now=timezone.now(), branding=branding, alert=self, customer=self.created_by)
+        context = dict(org=self.org, now=timezone.now(), branding=branding, alert=self)
         context["subject"] = subject
 
         send_template_email(to_email, subject, template, context, branding)

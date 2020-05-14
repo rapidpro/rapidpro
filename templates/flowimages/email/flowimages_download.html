@@ -1,0 +1,17 @@
+{% load tz %}
+{% load i18n %}
+
+<p>{% trans "Hi there!" %}</p>
+
+<p>{% trans "Your download file is ready" %}</p>
+
+<p>{% trans "Download your .zip file here:" %}
+    <br/>
+{{ link }}
+</p>
+<br/>
+<p>{% trans "Note: The file will be removed from the server after it has been downloaded." %}</p>
+<br/>
+<p>{% trans "Thanks," %}</p>
+
+<p>{% blocktrans with brand=branding.name %}The {{ brand }} Team{% endblocktrans %}</p>

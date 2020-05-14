@@ -3,6 +3,7 @@ import logging
 import os
 import time
 import uuid
+from collections import Counter
 from decimal import Decimal
 from itertools import chain
 
@@ -826,6 +827,17 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         except search.SearchException:
             logger.error("Error evaluating query", exc_info=True)
             raise  # reraise the exception
+
+    def get_scheduled_triggers(self):
+        from temba.triggers.models import Trigger
+
+        triggers = (
+            Trigger.objects.select_related("schedule")
+            .filter(trigger_type=Trigger.TYPE_SCHEDULE)
+            .filter(schedule__next_fire__gte=timezone.now())
+            .filter(Q(contacts=self) | Q(groups__contacts=self))
+        )
+        return triggers
 
     def get_scheduled_messages(self):
         from temba.msgs.models import SystemLabel
@@ -1699,6 +1711,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 )
             )
 
+        headers = [h.lower() for h in headers if h]
+        duplicated = [header for header, times in Counter(headers).items() if times > 1]
+        joined_duplicated_headers = '", "'.join([h for h in duplicated])
+
+        if duplicated:
+            raise Exception(_(f'The file you provided has duplicated headers. Columns "{joined_duplicated_headers}" should be renamed.'))
+
         if "name" not in headers:
             raise Exception(_('The file you provided is missing a required header called "Name".'))
 
@@ -2513,7 +2532,7 @@ class ContactGroup(TembaModel):
     """
 
     MAX_NAME_LEN = 64
-    MAX_ORG_CONTACTGROUPS = 250
+    MAX_ORG_CONTACTGROUPS = settings.MAX_ORG_CONTACTGROUPS
 
     TYPE_ALL = "A"
     TYPE_BLOCKED = "B"

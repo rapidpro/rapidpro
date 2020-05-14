@@ -27,7 +27,7 @@ from twilio.base.exceptions import TwilioException, TwilioRestException
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, PermissionDenied
 from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
@@ -1799,6 +1799,12 @@ class ChannelCRUDL(SmartCRUDL):
     class Configuration(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
+        def has_permission_view_objects(self):
+            channel = Channel.objects.filter(org=self.request.user.get_org(), uuid=self.kwargs.get("uuid")).first()
+            if not channel:
+                raise PermissionDenied()
+            return None
+
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["domain"] = self.object.callback_domain
@@ -2089,6 +2095,14 @@ class ChannelLogCRUDL(SmartCRUDL):
                 patch_queryset_count(events, channel.get_non_ivr_log_count)
 
             return events
+
+        def has_permission_view_objects(self):
+            channel = Channel.objects.filter(
+                org=self.request.user.get_org(), uuid=self.kwargs.get("channel_uuid")
+            ).first()
+            if not channel:
+                raise PermissionDenied()
+            return None
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
