@@ -1679,8 +1679,13 @@ class ContactCRUDL(SmartCRUDL):
             flow_uuid = org.config.get(org.OPTIN_FLOW, None)
             flow = Flow.objects.filter(org=org, is_active=True, uuid=flow_uuid).exclude(is_archived=True).first()
             existing_contact = Contact.objects.filter(uuid=contact_uuid).first()
+            send_channel = org.get_send_channel()
+            call_channel = org.get_call_channel()
 
-            if existing_contact and flow:
+            if not any((send_channel, call_channel)):
+                messages.error(request, _("To get started you need to add a channel to your account."))
+                result = dict(sent=False)
+            elif existing_contact and flow:
                 flow.async_start(self.request.user, list([]), list([existing_contact]), restart_participants=True, include_active=True)
                 result = dict(sent=True)
             else:
