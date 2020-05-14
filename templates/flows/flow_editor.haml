@@ -49,7 +49,7 @@
   -if org_perms.flows.flow_delete
     :javascript
       $(".delete-flow").live('click', function() {    
-        var modal = new Modax('{% trans "Delete Flow" %}', '{% url "flows.flow_delete" flow.id %}');
+        var modal = new Modax('{{ _("Delete Flow")|escapejs }}', '{% url "flows.flow_delete" flow.id %}');
         modal.addClass("alert");
         modal.setRedirectOnSuccess(true);
         modal.show();

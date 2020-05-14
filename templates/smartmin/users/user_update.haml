@@ -54,7 +54,7 @@
         modal.setListeners({onPrimary: function(){
           $('#delete-form').click();
         }}, false);
-        modal.setPrimaryButton('{% trans "Delete" %}');
+        modal.setPrimaryButton('{{ _("Delete")|escapejs }}');
         modal.show();
 
       });

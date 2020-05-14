@@ -65,7 +65,7 @@
   {{block.super}}
   :javascript
     $(".connect-nexmo").live('click', function() {
-      var modal = new Modax('{% trans "Connect Nexmo" %}', '{% url "orgs.org_nexmo_connect" %}');
+      var modal = new Modax('{{ _("Connect Nexmo")|escapejs }}', '{% url "orgs.org_nexmo_connect" %}');
       modal.setIcon("icon-nexmo");
       modal.setListeners({onCompleted: function() {
         $('.btn-create-sender').click();
@@ -78,7 +78,7 @@
     });
 
     $(".nexmo-account").live('click', function() {
-      var modal = new Modax('{% trans "Disconnect Nexmo" %}', '{% url "orgs.org_nexmo_account" %}');
+      var modal = new Modax('{{ _("Disconnect Nexmo")|escapejs }}', '{% url "orgs.org_nexmo_account" %}');
       modal.setIcon("icon-nexmo");
       modal.addClass("alert");
       modal.setRedirectOnSuccess(true);

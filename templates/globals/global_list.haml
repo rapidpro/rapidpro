@@ -105,9 +105,9 @@
 
     function showCreateGlobalModal() {
 
-      var modal = new Modax('{% trans "Create Global" %}', '{% url "globals.global_create" %}');
+      var modal = new Modax('{{ _("Create Global")|escapejs }}', '{% url "globals.global_create" %}');
       modal.setIcon('icon-global');
-      modal.ele.find('.primary').text('{% trans "Create" %}');
+      modal.ele.find('.primary').text('{{ _("Create")|escapejs }}');
 
       modal.setListeners({
         onSuccess: function() {
@@ -124,13 +124,13 @@
     function showUpdateGlobalModal(gid) {
       var updateUrl = '/global/update/' + gid + '/';
 
-      var modal = new Modax('{% trans "Update Global" %}', updateUrl);
+      var modal = new Modax('{{ _("Update Global")|escapejs }}', updateUrl);
 
       modal.setIcon('icon-global');
-      modal.ele.find('.primary').text('{% trans "Update" %}');
+      modal.ele.find('.primary').text('{{ _("Update")|escapejs }}');
 
       - if org_perms.globals.global_delete
-        modal.setTertiaryButton('{% trans "Delete" %}', function() {
+        modal.setTertiaryButton('{{ _("Delete")|escapejs }}', function() {
           // hide current UpdateModal
           modal.dismiss();
 
@@ -162,14 +162,14 @@
 
         modal.submit = function () {};
       } else {
-        modal.ele.find('.primary').text('{% trans "Delete" %}').addClass('btn-danger')
+        modal.ele.find('.primary').text('{{ _("Delete")|escapejs }}').addClass('btn-danger')
       }
     }
 
     function showDeleteGlobalModal(gid) {
       var deleteUrl = '/global/delete/' + gid + '/';
 
-      var modal = new Modax('{% trans "Delete Global" %}', deleteUrl);
+      var modal = new Modax('{{ _("Delete Global")|escapejs }}', deleteUrl);
 
       modal.setIcon('icon-global');
       modal.addClass("alert");
@@ -193,13 +193,13 @@
     function showDetailGlobalModal(gid, name) {
       var detailUrl = '/global/detail/' + gid + '/';
 
-      var modal = new Modax(name + ' ' + '{% trans "Uses" %}', detailUrl);
+      var modal = new Modax(name + ' ' + '{{ _("Uses")|escapejs }}', detailUrl);
 
       modal.setIcon('icon-global');
 
       modal.ele.find('.primary').hide();  // hide primary, because primary button onClick handler will try to submit the form
 
-      modal.ele.find('.secondary').text('{% trans "Ok" %}');
+      modal.ele.find('.secondary').text('{{ _("Ok")|escapejs }}');
 
       modal.setListeners({
         onSuccess: function() {
