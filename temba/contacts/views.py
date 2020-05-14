@@ -665,9 +665,9 @@ class ContactCRUDL(SmartCRUDL):
                             field_label = field_label[7:]
 
                         # skip fields that are not included and remove them from data
-                        column_name = re_col_name_include.match(key).groupdict().get('name')
+                        column_name = re_col_name_include.match(key).groupdict().get("name")
                         column_include = self.data.get("column_{}_include".format(column_name))
-                        if not column_include or 'on' not in column_include:
+                        if not column_include or "on" not in column_include:
                             continue
 
                         field_key = ContactField.make_key(field_label)
@@ -901,14 +901,14 @@ class ContactCRUDL(SmartCRUDL):
 
         def get(self, *args, **kwargs):
             # overwritten to unblock contacts manually when unblock param is present
-            task = self.request.GET.get('task')
+            task = self.request.GET.get("task")
             task = ImportTask.objects.filter(id=task).last()
             results = json.loads(task.import_results) if task and task.import_results else dict()
-            blocked_contacts = results.pop('blocked_contacts', [])
+            blocked_contacts = results.pop("blocked_contacts", [])
             group = ContactGroup.user_groups.filter(import_task=task).first()
-            unblock = self.request.GET.get('unblock')
-            unblock = True if unblock == 'true' else False
-            
+            unblock = self.request.GET.get("unblock")
+            unblock = True if unblock == "true" else False
+
             if unblock and blocked_contacts:
                 # unblock contact
                 contacts = Contact.objects.filter(id__in=blocked_contacts)
@@ -918,7 +918,7 @@ class ContactCRUDL(SmartCRUDL):
                 if group:
                     group.contacts.add(*contacts)
                     group.save()
-                
+
                 # update import_results because it doesn't has an blocked_contacts anymore
                 task.import_results = json.dumps(results)
                 task.save()
@@ -1154,7 +1154,12 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm("msgs.broadcast_send") and not self.object.is_blocked and not self.object.is_stopped and self.object.get_urn():
+            if (
+                self.has_org_perm("msgs.broadcast_send")
+                and not self.object.is_blocked
+                and not self.object.is_stopped
+                and self.object.get_urn()
+            ):
                 links.append(
                     dict(
                         id="send-message",
@@ -1665,7 +1670,6 @@ class ContactCRUDL(SmartCRUDL):
             obj.release(self.request.user)
             return obj
 
-
     class InviteParticipants(ContactActionMixin, ContactListView):
         title = _("Invite Participants")
         system_group = ContactGroup.TYPE_ALL
@@ -1686,19 +1690,32 @@ class ContactCRUDL(SmartCRUDL):
                 messages.error(request, _("To get started you need to add a channel to your account."))
                 result = dict(sent=False)
             elif existing_contact and flow:
-                flow.async_start(self.request.user, list([]), list([existing_contact]), restart_participants=True, include_active=True)
+                flow.async_start(
+                    self.request.user,
+                    list([]),
+                    list([existing_contact]),
+                    restart_participants=True,
+                    include_active=True,
+                )
                 result = dict(sent=True)
             else:
                 org.config.pop(org.OPTIN_FLOW, None)
                 org.save(update_fields=["config"])
-                messages.error(request, _("The current opt-in flow doesn't set or unavailable. Please, choose another one before you click 'Invite'."))
+                messages.error(
+                    request,
+                    _(
+                        "The current opt-in flow doesn't set or unavailable. Please, choose another one before you click 'Invite'."
+                    ),
+                )
                 result = dict(sent=False)
 
             return HttpResponse(json.dumps(result), content_type="application/json")
 
         def post(self, request, *args, **kwargs):
-            optin_flow_uuid = request.POST.get('optin_flow_uuid', None)
-            flow = Flow.objects.filter(org=self.org, is_active=True, is_system=False, is_archived=False, uuid=optin_flow_uuid).first()
+            optin_flow_uuid = request.POST.get("optin_flow_uuid", None)
+            flow = Flow.objects.filter(
+                org=self.org, is_active=True, is_system=False, is_archived=False, uuid=optin_flow_uuid
+            ).first()
 
             if optin_flow_uuid and flow:
                 self.org.set_optin_flow(request.user, optin_flow_uuid)
@@ -1708,7 +1725,7 @@ class ContactCRUDL(SmartCRUDL):
             else:
                 messages.error(request, _("You haven't provided any opt-in flow."))
 
-            return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
+            return HttpResponseRedirect(request.META.get("HTTP_REFERER"))
 
         def derive_group(self):
             org = self.request.user.get_org()
@@ -1748,7 +1765,7 @@ class ContactCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
             group = self.derive_group()
             view_url = reverse("contacts.contact_invite_participants")
-            
+
             counts = ContactGroup.get_system_group_counts(org)
 
             folders = [dict(count=counts[ContactGroup.TYPE_ALL], label=_("All Contacts"), url=view_url)]

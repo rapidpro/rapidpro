@@ -409,7 +409,7 @@ class Org(SmartModel):
             headers = spamreader.columns.tolist()
 
             # Removing empty columns name from CSV files imported
-            headers = [slugify(str(item).lower()).replace('-', '_') for item in headers if "Unnamed" not in item]
+            headers = [slugify(str(item).lower()).replace("-", "_") for item in headers if "Unnamed" not in item]
         finally:
             os.remove(tmp_file)
 
@@ -421,7 +421,9 @@ class Org(SmartModel):
             reserved_keywords = ["class", "for", "return", "global", "pass", "or", "raise", "def", "id", "objectid"]
 
             if not invalid_fields:
-                invalid_fields = [item for item in headers if item.replace("numeric_", "").replace("date_", "") in reserved_keywords]
+                invalid_fields = [
+                    item for item in headers if item.replace("numeric_", "").replace("date_", "") in reserved_keywords
+                ]
 
             if invalid_fields:
                 raise Exception(
@@ -1335,7 +1337,7 @@ class Org(SmartModel):
                         f"Failed creating sample flows: {str(e)}",
                         exc_info=True,
                         extra=dict(definition=json.loads(samples)),
-                )
+                    )
 
     def get_user(self):
         return self.administrators.filter(is_active=True).first()
@@ -2265,6 +2267,7 @@ class Org(SmartModel):
 
     def get_optin_flow(self):
         return self.config.get(Org.OPTIN_FLOW)
+
 
 # ===================== monkey patch User class with a few extra functions ========================
 
