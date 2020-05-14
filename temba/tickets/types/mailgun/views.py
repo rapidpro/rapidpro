@@ -43,7 +43,8 @@ class ConnectView(BaseConnectView):
     def form_valid(self, form):
         from .type import MailgunType
 
-        domain = self.org.get_branding()["ticket_email_domain"]
+        branding = self.org.get_branding()
+        domain = self.org.get_branding()["ticket_domain"]
         api_key = settings.MAILGUN_API_KEY
         verification_token = self.request.session["verification_token"]
 
@@ -63,6 +64,7 @@ class ConnectView(BaseConnectView):
             MailgunType.CONFIG_DOMAIN: domain,
             MailgunType.CONFIG_API_KEY: api_key,
             MailgunType.CONFIG_TO_ADDRESS: to_address,
+            MailgunType.CONFIG_URL_BASE: branding["link"],
         }
 
         self.object = Ticketer.create(

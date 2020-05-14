@@ -69,7 +69,13 @@ class MailgunTypeTest(TembaTest):
 
         self.assertRedirect(response, f"/ticket/filter/{ticketer.uuid}/")
         self.assertEqual(
-            {"domain": "mr.nyaruka.com", "api_key": "1234567", "to_address": "bob@acme.com"}, ticketer.config
+            {
+                "domain": "tickets.rapidpro.io",
+                "api_key": "1234567",
+                "to_address": "bob@acme.com",
+                "url_base": "https://app.rapidpro.io",
+            },
+            ticketer.config,
         )
 
     def test_delete(self):
@@ -82,6 +88,7 @@ class MailgunTypeTest(TembaTest):
                 MailgunType.CONFIG_DOMAIN: "t.nyaruka.com",
                 MailgunType.CONFIG_API_KEY: "2341",
                 MailgunType.CONFIG_TO_ADDRESS: "bob@acme.com",
+                MailgunType.CONFIG_URL_BASE: "https://app.rapidpro.io",
             },
         )
 

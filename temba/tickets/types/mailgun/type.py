@@ -13,6 +13,7 @@ class MailgunType(TicketerType):
     CONFIG_DOMAIN = "domain"
     CONFIG_API_KEY = "api_key"
     CONFIG_TO_ADDRESS = "to_address"
+    CONFIG_URL_BASE = "url_base"
 
     name = "Email"
     slug = "mailgun"
