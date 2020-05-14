@@ -399,7 +399,7 @@
 
     {% if org_perms.contacts.contact_create %}
     function showCreateContactModal() {
-      var modal = new Modax('{% trans "Create Contact" %}', '{% url "contacts.contact_create" %}')
+      var modal = new Modax('{% trans "Create Contact" as js_modal_title %}{{ js_modal_title|escapejs }}', '{% url "contacts.contact_create" %}')
       modal.setIcon('icon-user')
       modal.setListeners({
         onSuccess: function() {
@@ -412,7 +412,7 @@
 
     {% if org_perms.contacts.contactgroup_create %}
     function showCreateGroupModal() {
-      var modal = new Modax('{% trans "Create Contact Group" %}','{% url "contacts.contactgroup_create" %}')
+      var modal = new Modax('{% trans "Create Contact Group" as js_modal_title %}{{ js_modal_title|escapejs }}','{% url "contacts.contactgroup_create" %}')
       modal.setIcon('icon-users')
       modal.setListeners({
         onSuccess: function() {
@@ -436,7 +436,7 @@
         runActionOnObjectRows("delete");
         modal.dismiss();
       }}, false);
-      modal.setPrimaryButton('{% trans "Delete" %}');
+      modal.setPrimaryButton('{% trans "Delete" as js_modal_btn_text %}{{ js_modal_btn_text|escapejs }}');
       modal.show();
     });
     {% endif %}
@@ -471,7 +471,7 @@
     {% if org_perms.contacts.contactgroup_create %}
 
     $('.page-content').on('click', ".add-group", function() {
-      var modal = new Modax('{% trans "Create Contact Group" %}', '{% url "contacts.contactgroup_create"%}');
+      var modal = new Modax('{% trans "Create Contact Group" as js_modal_title %}{{ js_modal_title|escapejs }}', '{% url "contacts.contactgroup_create"%}');
       modal.setIcon('icon-users');
       modal.setListeners({
         onFormLoaded: function() { $("#active-modal form input#id_preselected_contacts").val(getCheckedIds().join()); }
@@ -482,7 +482,7 @@
 
     $('.page-content').on('click', ".add-dynamic-group", function() {
     {% if save_dynamic_search %}
-      var modal = new Modax('{% trans "Save Search as Group" %}', '{% url "contacts.contactgroup_create"%}');
+      var modal = new Modax('{% trans "Save Search as Group" as js_modal_title %}{{ js_modal_title|escapejs }}', '{% url "contacts.contactgroup_create"%}');
       modal.setIcon('icon-users');
       modal.setListeners({
         onFormLoaded: function() { $("#active-modal form input#id_group_query").val('{{ search|escapejs }}'); }
@@ -490,7 +490,7 @@
       modal.setRedirectOnSuccess(true);
       modal.show();
     {% else %}
-      var modal = new Modal('{% trans "Unable to create a dynamic group" %}','{% trans "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>." %}')
+      var modal = new Modal('{% trans "Unable to create a dynamic group" as js_modal_title %}{{ js_modal_title|escapejs }}','{% trans "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>." as js_modal_message %}{{ js_modal_message|escapejs }}')
       modal.setListeners({});
       modal.show();
     {% endif %}
@@ -501,13 +501,13 @@
 
     {% if org_perms.contacts.contact_export %}
     $(".export-contacts").live('click', function() {
-      var modal = new Modax('{% trans "Export Contacts" %}', '{{export_url}}');
+      var modal = new Modax('{% trans "Export Contacts" as js_modal_title %}{{ js_modal_title|escapejs }}', '{{export_url}}');
       modal.setListeners({
         onSuccess: function() {
           location.reload();
         }
       })
-      modal.setPrimaryButton('{% trans "Start Export" %}');
+      modal.setPrimaryButton('{% trans "Start Export" as js_modal_btn_text %}{{ js_modal_btn_text|escapejs }}');
       modal.show();
     });
     {% endif %}
