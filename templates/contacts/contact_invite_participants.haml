@@ -284,9 +284,11 @@
     /* Restore form data after the back button was clicked */
     $(document).ready(function () {
       /* need some timeout until hidden fields will be restored */
-      setTimeout(function () {
-        $('#id_opt_in_flow').trigger('change');
-      }, 1000);
+      for (var timeout in [500, 1000, 3000, 5000]) {
+        setTimeout(function () {
+          $('#id_opt_in_flow').trigger('change');
+        },  timeout);
+      }
     });
 
     $('.select-row').live('mouseover', function(){
