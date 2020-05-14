@@ -32,7 +32,7 @@
     -if org_perms.contacts.contactgroup_update
       :javascript
         $(".update-contactgroup").live('click', function(){
-          var modal = new Modax('{% trans "Update Contact Group" %}', '{% url "contacts.contactgroup_update" current_group.id %}');
+          var modal = new Modax('{{ _("Update Contact Group")|escapejs }}', '{% url "contacts.contactgroup_update" current_group.id %}');
           modal.setIcon('icon-users-2');
           modal.setListeners({
             onSuccess: function(data){ location.reload(); },
@@ -44,7 +44,7 @@
     -if org_perms.contacts.contactgroup_delete
       :javascript
         $(".delete-contactgroup").live('click', function() {    
-          var modal = new Modax('{% trans "Delete Group" %}', '{% url "contacts.contactgroup_delete" current_group.id %}');
+          var modal = new Modax('{{ _("Delete Group")|escapejs }}', '{% url "contacts.contactgroup_delete" current_group.id %}');
           modal.addClass("alert");
           modal.setRedirectOnSuccess(true);
           modal.show();

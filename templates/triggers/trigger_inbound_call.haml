@@ -8,7 +8,7 @@
   {{block.super}}
   %script
     $(document).ready(function() {
-      select2div("#id_inbound_call_flow", "520px", '{% trans "Flow to start" %}');
+      select2div("#id_inbound_call_flow", "520px", '{{ _("Flow to start")|escapejs }}');
       $('#id_inbound_call_groups').select2({
         containerCssClass: "select2-temba-field"
       });
