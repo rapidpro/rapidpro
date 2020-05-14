@@ -313,8 +313,8 @@
     });
 
     flowEditLink.mousedown(function(evt) {
-      let hrefTemplate = flowEditLink.attr('data-href-template');
-      let flowUUID = flowSelect.val();
+      var hrefTemplate = flowEditLink.attr('data-href-template');
+      var flowUUID = flowSelect.val();
       if (flowUUID) {
         flowEditLink.attr('href', hrefTemplate.replace('uuid', flowUUID));
       }
@@ -322,7 +322,7 @@
 
     inviteLinks.click(function(evt) {
       evt.preventDefault();
-      let clickedLink = $(this);
+      var clickedLink = $(this);
       if (clickedLink.attr('status') !== 'active') {
         return;
       }
