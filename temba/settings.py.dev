@@ -21,6 +21,7 @@ STORAGE_URL = "http://localhost:8000/media"
 # -----------------------------------------------------------------------------------
 
 custom = copy.deepcopy(BRANDING["rapidpro.io"])
+custom["aliases"] = ["custom-brand.org"]
 custom["name"] = "Custom Brand"
 custom["slug"] = "custom"
 custom["org"] = "Custom"
@@ -30,6 +31,15 @@ custom["email"] = "join@custom-brand.io"
 custom["support_email"] = "support@custom-brand.io"
 custom["allow_signups"] = True
 BRANDING["custom-brand.io"] = custom
+
+# make another copy as an alternate domain for custom-domain
+custom2 = copy.deepcopy(custom)
+custom2["aliases"] = ["custom-brand.io"]
+custom2["api_link"] = "http://custom-brand.org"
+custom2["domain"] = "custom-brand.org"
+custom2["email"] = "join@custom-brand.org"
+custom2["support_email"] = "support@custom-brand.org"
+BRANDING["custom-brand.org"] = custom2
 
 # set our domain on our brands to our tunnel domain if set
 localhost_domain = os.environ.get("LOCALHOST_TUNNEL_DOMAIN")

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-20 21:59+0000\n"
+"POT-Creation-Date: 2020-05-06 20:49+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -618,9 +618,10 @@ msgstr "Próximo intento"
 
 #, fuzzy
 msgid ""
-"If you are based in Kenya, Malawi, Nigeria, Rwanda or Uganda you can purchase a short\n"
-"    code from <a href=\"http://africastalking.com\">Africa's Talking</a> and connect it\n"
-"    in a few simple steps."
+"\n"
+"        You can purchase a short code from <a href=\"http://africastalking.com\">Africa's Talking</a>\n"
+"        and connect it in a few simple steps.\n"
+"        "
 msgstr ""
 "\n"
 "                  Si vive en Kenia, puede comprar un código abreviado\n"
@@ -695,19 +696,37 @@ msgstr ""
 msgid "Your short code on Africa's Talking"
 msgstr "Su código abreviado en Africa's Talking"
 
-msgid "Kenya"
+msgid "Burkina Faso"
 msgstr ""
 
-msgid "Uganda"
+msgid "Côte d'Ivoire"
+msgstr ""
+
+msgid "Ethiopia"
+msgstr ""
+
+msgid "Kenya"
 msgstr ""
 
 msgid "Malawi"
 msgstr ""
 
+msgid "Nigeria"
+msgstr ""
+
 msgid "Rwanda"
 msgstr ""
 
-msgid "Nigeria"
+msgid "Tanzania"
+msgstr ""
+
+msgid "Uganda"
+msgstr ""
+
+msgid "South Africa"
+msgstr "Sudáfrica"
+
+msgid "Zambia"
 msgstr ""
 
 #, fuzzy
@@ -1083,7 +1102,7 @@ msgstr ""
 #, fuzzy
 #| msgid "Connect your Kannel instance, we'll walk you through the steps necessary to get your SMSC connection working in a few minutes."
 msgid ""
-"Connect your <a href=\"http://clickatell.com/\" target=\"_blank\">Clickatell</a> number, we'll walk you\n"
+"Connect your <a href=\"http://clickatell.com/\">Clickatell</a> number, we'll walk you\n"
 "                           through the steps necessary to get your Clickatell connection working in a few minutes."
 msgstr "Conecte su caso Kannel, lo orientaremos para que siga los pasos necesarios para que su conexión SMSC funcione en cuestión de minutos."
 
@@ -1415,7 +1434,7 @@ msgid "The name of the Facebook page"
 msgstr "El nombre del video"
 
 msgid ""
-"Add a <a href=\"https://firebase.google.com/docs/cloud-messaging/\" target=\"_blank\"> Firebase Cloud\n"
+"Add a <a href=\"https://firebase.google.com/docs/cloud-messaging/\"> Firebase Cloud\n"
 "    Messaging Channel</a> to send and receive messages. Your users will need an App to send and receive messages."
 msgstr ""
 
@@ -1467,7 +1486,7 @@ msgstr "Notificaciones de correo electrónico"
 msgid "Check if you want this channel to send notifications to contacts."
 msgstr ""
 
-msgid "Connect your approved <a href=\"https://www.freshworks.com/live-chat-software/\" target=\"_blank\">FreshChat</a> Channel"
+msgid "Connect your approved <a href=\"https://www.freshworks.com/live-chat-software/\">FreshChat</a> Channel"
 msgstr ""
 
 #, fuzzy
@@ -1807,7 +1826,7 @@ msgstr ""
 #, fuzzy
 #| msgid "Connect your Kannel instance, we'll walk you through the steps necessary to get your SMSC connection working in a few minutes."
 msgid ""
-"Connect your <a href=\"http://www.jasminsms.com/\" target=\"_blank\">Jasmin</a> instance that you have\n"
+"Connect your <a href=\"http://www.jasminsms.com/\">Jasmin</a> instance that you have\n"
 "                       already connected to an SMSC."
 msgstr "Conecte su caso Kannel, lo orientaremos para que siga los pasos necesarios para que su conexión SMSC funcione en cuestión de minutos."
 
@@ -1894,8 +1913,10 @@ msgstr ""
 msgid "The JioChat App secret"
 msgstr ""
 
-msgid "Connect your <a href=\"https://junebug.praekelt.org/\" target=\"_blank\">Junebug</a> instance that you have already set up and configured."
-msgstr ""
+#, fuzzy
+#| msgid "Connect your Kannel instance, we'll walk you through the steps necessary to get your SMSC connection working in a few minutes."
+msgid "Connect your <a href=\"https://junebug.praekelt.org/\">Junebug</a> instance that you have already set up and configured."
+msgstr "Conecte su caso Kannel, lo orientaremos para que siga los pasos necesarios para que su conexión SMSC funcione en cuestión de minutos."
 
 #, fuzzy
 msgid ""
@@ -1942,7 +1963,7 @@ msgstr "El nombre de usuario que usará para autenticar para Kannel, si lo deja 
 #, fuzzy
 #| msgid "Connect your Kannel instance, we'll walk you through the steps necessary to get your SMSC connection working in a few minutes."
 msgid ""
-"Connect your <a href=\"http://www.kannel.org/\" target=\"_blank\">Kannel</a> instance, we'll walk you through\n"
+"Connect your <a href=\"http://www.kannel.org/\">Kannel</a> instance, we'll walk you through\n"
 "                       the steps necessary to get your SMSC connection working in a few minutes."
 msgstr "Conecte su caso Kannel, lo orientaremos para que siga los pasos necesarios para que su conexión SMSC funcione en cuestión de minutos."
 
@@ -2599,6 +2620,26 @@ msgstr ""
 #| msgid "Invalid claim code, please check and try again."
 msgid "Your authentication token is invalid, please check and try again"
 msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
+
+#, fuzzy
+msgid "If you are based in Somalia, you can integrate with Telesom to send and receive messages on your shortcode."
+msgstr ""
+"\n"
+"                  Agregar instantáneamente un número de teléfono especial en el código de área de su\n"
+"                  preferencia de su\n"
+"                "
+
+#, fuzzy
+msgid "To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery URL for incoming messages to {{ channel.address }}."
+msgstr ""
+"\n"
+"        Para terminar de configurar su conexión Vumi, tendrá que establecer los siguientes parámetros en su conversación Vumi:\n"
+"\n"
+"      "
+
+#, fuzzy
+msgid "The private key provided to use their API"
+msgstr "El nombre de usuario otorgado por el proveedor para usar su API"
 
 #, fuzzy
 msgid ""
@@ -5132,6 +5173,14 @@ msgstr "Número de teléfono"
 msgid "Phone number for testing and recording voice flows"
 msgstr "Número de teléfono para probar y grabar los flujos de voz"
 
+#, fuzzy
+#| msgid "API Secret:"
+msgid "OTP Secret"
+msgstr "Código secreto API:"
+
+msgid "Two Factor Enabled"
+msgstr ""
+
 msgid "Price Paid"
 msgstr "Precio pagado"
 
@@ -5224,6 +5273,12 @@ msgstr "créditos."
 
 #, python-format
 msgid "%(name)s Credits Alert"
+msgstr ""
+
+msgid "Settings"
+msgstr "Configuraciones"
+
+msgid "Used"
 msgstr ""
 
 msgid "Your first name"
@@ -5470,6 +5525,20 @@ msgstr "Grupo de usuarios"
 msgid "One of the emails you entered is invalid."
 msgstr "Uno de los correos electrónicos que ingresó es inválido."
 
+msgid "Enter the code from your authentication application"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid phone number, try again."
+msgid "Invalid MFA token. Please try again."
+msgstr "Número de teléfono inválido, inténtelo nuevamente."
+
+msgid "Activate"
+msgstr "Activar"
+
+msgid "Two Factor Authentication"
+msgstr ""
+
 msgid "Select your Organization"
 msgstr "Elija su Organización"
 
@@ -5672,6 +5741,9 @@ msgstr ""
 msgid "Classifier Called"
 msgstr "Evento del transmisor"
 
+msgid "Ticketing Service Called"
+msgstr ""
+
 msgid "Airtime Transferred"
 msgstr ""
 
@@ -5738,11 +5810,20 @@ msgstr "Francés"
 msgid "Spanish"
 msgstr ""
 
+msgid "Russian"
+msgstr ""
+
 #, fuzzy
 msgid "Visually build nationally scalable mobile applications from anywhere in the world."
 msgstr "Aplicaciones de mensajería visualmente interactivas en cualquier lugar del mundo."
 
 msgid "Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."
+msgstr ""
+
+msgid "Open"
+msgstr ""
+
+msgid "Closed"
 msgstr ""
 
 msgid "Keyword Trigger"
@@ -6340,9 +6421,6 @@ msgstr "Envío masivo permitido"
 
 msgid "Voice calls enabled"
 msgstr "Llamadas de voz permitidas"
-
-msgid "Settings"
-msgstr "Configuraciones"
 
 #, fuzzy
 #| msgid "Channel"
@@ -7403,13 +7481,24 @@ msgstr ""
 msgid "Verify Token"
 msgstr ""
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "        You can connect your <a href=\"http://infobip.com\">Infobip</a> number by entering your number, username and password\n"
+#| "        here.\n"
+#| "\n"
+#| "      "
 msgid ""
 "\n"
-"        You can to connect using a <a href=\"https://firebase.google.com/docs/cloud-messaging/\" target=\"_blank\">\n"
+"        You can to connect using a <a href=\"https://firebase.google.com/docs/cloud-messaging/\">\n"
 "        Firebase Cloud Messaging App</a> to your %(name)s account to automate sending notifications.\n"
 "      "
 msgstr ""
+"\n"
+"        Puede conectar su número <a href=\"http://infobip.com\">Infobip</a> si ingresa su número, usuario y contraseña\n"
+"        aquí.\n"
+"\n"
+"      "
 
 msgid ""
 "\n"
@@ -7427,7 +7516,7 @@ msgstr ""
 #| "      "
 msgid ""
 "\n"
-"        You can connect a <a href=\"https://www.freshworks.com/live-chat-software/\" target=\"_blank\">FreshChat</a> Account to your %(name)s account\n"
+"        You can connect a <a href=\"https://www.freshworks.com/live-chat-software/\">FreshChat</a> Account to your %(name)s account\n"
 "        to automate sending and receiving messages via FreshChat. This will also support Apple Business Chat if it's been configured on your FreshChat account.\n"
 "      "
 msgstr ""
@@ -7447,7 +7536,7 @@ msgid "Under Settings again, select Webhooks and copy the Public Key and paste i
 msgstr ""
 
 #, python-format
-msgid "Lastly, you'll need the UUID of the Agent that %(name)s will use when it sends FreshChat Message. This is available via the <a href=\"https://developers.freshchat.com/api/#agent\" target=\"_blank\"> FreshChat API</a>."
+msgid "Lastly, you'll need the UUID of the Agent that %(name)s will use when it sends FreshChat Message. This is available via the <a href=\"https://developers.freshchat.com/api/#agent\">FreshChat API</a>."
 msgstr ""
 
 msgid "Once you press Submit below with all the information configured, the confirmation page will give you the URL to use for the FreshChat Webhooks. Enter this URL on the Settings page, under Webhooks where the Public Key was copied from before."
@@ -7499,13 +7588,24 @@ msgstr ""
 "\n"
 "      "
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "        You can connect your <a href=\"http://infobip.com\">Infobip</a> number by entering your number, username and password\n"
+#| "        here.\n"
+#| "\n"
+#| "      "
 msgid ""
 "\n"
-"        You can connect a <a href=\"https://jiochat.com\" target=\"_blank\">JioChat Channel</a> to your %(name)s account\n"
+"        You can connect a <a href=\"https://jiochat.com\">JioChat Channel</a> to your %(name)s account\n"
 "        to automate sending and receiving JioChat messages.\n"
 "      "
 msgstr ""
+"\n"
+"        Puede conectar su número <a href=\"http://infobip.com\">Infobip</a> si ingresa su número, usuario y contraseña\n"
+"        aquí.\n"
+"\n"
+"      "
 
 msgid ""
 "\n"
@@ -7531,24 +7631,35 @@ msgstr ""
 msgid "Make sure to change the forced-smsc and default-smsc values to the appropriate values for your configuration."
 msgstr "Asegúrese de cambiar los valores de forced-smsc y default-smsc a los valores apropiados para su configuración."
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "        You can connect your <a href=\"http://infobip.com\">Infobip</a> number by entering your number, username and password\n"
+#| "        here.\n"
+#| "\n"
+#| "      "
 msgid ""
 "\n"
-"        You can connect a <a href=\"https://developers.line.me/messaging-api/overview\" target=\"_blank\">LINE Bot</a> to your %(name)s account\n"
+"        You can connect a <a href=\"https://developers.line.me/messaging-api/overview\">LINE Bot</a> to your %(name)s account\n"
 "        to automate sending and receiving LINE messages.\n"
 "      "
 msgstr ""
+"\n"
+"        Puede conectar su número <a href=\"http://infobip.com\">Infobip</a> si ingresa su número, usuario y contraseña\n"
+"        aquí.\n"
+"\n"
+"      "
 
 msgid ""
 "\n"
-"        To start creating a LINE bot, go to <a href=\"https://developers.line.me/messaging-api/getting-started\" target=\"_blank\">Getting started with the Messaging API</a>.\n"
+"        To start creating a LINE bot, go to <a href=\"https://developers.line.me/messaging-api/getting-started\">Getting started with the Messaging API</a>.\n"
 "\n"
 "      "
 msgstr ""
 
 msgid ""
 "\n"
-"            Access the <a href=\"https://developers.line.me/channels/\" target=\"_blank\">LINE Channels</a> page and add a new Channel.</li>\n"
+"            Access the <a href=\"https://developers.line.me/channels/\">LINE Channels</a> page and add a new Channel.</li>\n"
 "\n"
 "          "
 msgstr ""
@@ -7598,7 +7709,7 @@ msgstr ""
 
 msgid ""
 "\n"
-"                In <a href=\"https://business.line.me/en/\" target=\"_blank\">LINE Business Center</a>, select \"Messaging API\" in the \"Services\"\n"
+"                In <a href=\"https://business.line.me/en/\">LINE Business Center</a>, select \"Messaging API\" in the \"Services\"\n"
 "\n"
 "              "
 msgstr ""
@@ -7682,7 +7793,7 @@ msgstr ""
 
 msgid ""
 "\n"
-"                Click on the menu \"Accounts\" at the top of the page at the link <a href=\"https://business.line.me\" target=\"_blank\">https://business.line.me</a>\n"
+"                Click on the menu \"Accounts\" at the top of the page at the link <a href=\"https://business.line.me\">https://business.line.me</a>\n"
 "\n"
 "              "
 msgstr ""
@@ -7947,7 +8058,7 @@ msgstr ""
 msgid ""
 "\n"
 "          In order to receive direct messages from new followers, you'll need to update your Twitter account to enable\n"
-"          the option to <b>Receive Direct Messages from anyone</b>. You can do so from your <a href=\"https://twitter.com/settings/security\" target=\"_blank\">\n"
+"          the option to <b>Receive Direct Messages from anyone</b>. You can do so from your <a href=\"https://twitter.com/settings/security\">\n"
 "          Twitter Security Settings</a>.\n"
 "\n"
 "        "
@@ -9342,9 +9453,6 @@ msgstr ""
 msgid "Unlabel"
 msgstr "Retirar la etiqueta"
 
-msgid "Activate"
-msgstr "Activar"
-
 msgid "Add Label"
 msgstr "Agregar etiqueta"
 
@@ -9445,6 +9553,11 @@ msgstr "Haga una serie de preguntas para obtener los datos de sus contactos."
 #, fuzzy, python-format
 #| msgid "has started this flow."
 msgid "was started by %(user)s for"
+msgstr "ha iniciado en este flujo."
+
+#, fuzzy
+#| msgid "has started this flow."
+msgid "was started by Zapier for"
 msgstr "ha iniciado en este flujo."
 
 #, fuzzy
@@ -10841,6 +10954,21 @@ msgid ""
 "\n"
 "          Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?\n"
 "        "
+msgstr ""
+
+msgid "To enable two factor authentication, use a one time password application such as"
+msgstr ""
+
+msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
+msgstr ""
+
+msgid "These backup tokens can be used if you lose access to your authentication application, store them in a safe place. Any tokens you may have previously generated are invalid."
+msgstr ""
+
+msgid "Generate Backup Tokens"
+msgstr ""
+
+msgid "Disable Two Factor"
 msgstr ""
 
 #, fuzzy
@@ -15028,9 +15156,6 @@ msgstr ""
 
 #~ msgid "Netherlands"
 #~ msgstr "Países Bajos"
-
-#~ msgid "South Africa"
-#~ msgstr "Sudáfrica"
 
 #, fuzzy
 #~ msgid "South Korea"

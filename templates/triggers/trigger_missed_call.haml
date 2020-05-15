@@ -9,5 +9,5 @@
   {{block.super}}
   %script
     $(document).ready(function() {
-      select2div("#id_missed_call_flow", "520px", '{% trans "Flow to start" %}');
+      select2div("#id_missed_call_flow", "520px", '{{ _("Flow to start")|escapejs }}');
     });

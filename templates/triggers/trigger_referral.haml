@@ -8,6 +8,6 @@
   {{block.super}}
   %script
     $(document).ready(function() {
-      select2div("#id_referral_channel", "520px", '{% trans "Restrict to channel" %}');
-      select2div("#id_referral_flow", "520px", '{% trans "Flow to start" %}');
+      select2div("#id_referral_channel", "520px", '{{ _("Restrict to channel")|escapejs }}');
+      select2div("#id_referral_flow", "520px", '{{ _("Flow to start")|escapejs }}');
     });

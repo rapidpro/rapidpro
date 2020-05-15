@@ -36,7 +36,6 @@ from django.views.generic import FormView
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
-from temba.classifiers.models import Classifier
 from temba.contacts.models import FACEBOOK_SCHEME, TEL_SCHEME, WHATSAPP_SCHEME, ContactField, ContactGroup, ContactURN
 from temba.contacts.omnibox import omnibox_deserialize
 from temba.flows.legacy.expressions import get_function_listing
@@ -165,7 +164,6 @@ class FlowActionForm(BaseActionForm):
 
 
 class FlowActionMixin(SmartListView):
-    @csrf_exempt
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
@@ -1230,8 +1228,11 @@ class FlowCRUDL(SmartCRUDL):
             if flow.org.is_connected_to_dtone():
                 feature_filters.append("airtime")
 
-            if Classifier.objects.filter(org=flow.org, is_active=True):
+            if flow.org.classifiers.filter(is_active=True).exists():
                 feature_filters.append("classifier")
+
+            if flow.org.ticketers.filter(is_active=True).exists():
+                feature_filters.append("ticketer")
 
             if flow.org.get_resthooks():
                 feature_filters.append("resthook")
@@ -1452,6 +1453,8 @@ class FlowCRUDL(SmartCRUDL):
 
                 updated_defs = Flow.import_translation(self.object.org, [self.object], language, po_data)
                 self.object.save_revision(self.request.user, updated_defs[str(self.object.uuid)])
+
+                analytics.track(self.request.user.username, "temba.flow_po_imported")
 
             return HttpResponseRedirect(self.get_success_url())
 
@@ -1863,6 +1866,8 @@ class FlowCRUDL(SmartCRUDL):
                     dict(status="error", description="mailroom not configured, cannot simulate"), status=500
                 )
 
+            analytics.track(request.user.username, "temba.flow_simulated")
+
             flow = self.get_object()
             client = mailroom.get_client()
 
@@ -1891,7 +1896,6 @@ class FlowCRUDL(SmartCRUDL):
 
             # check if we are triggering a new session
             if "trigger" in json_dict:
-
                 payload["trigger"] = json_dict["trigger"]
 
                 # ivr flows need a connection in their trigger

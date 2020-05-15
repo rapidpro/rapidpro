@@ -68,13 +68,13 @@
           modal.setListeners({onPrimary: function(){
             $('#delete-form').click();
           }}, false);
-          modal.setPrimaryButton('{% trans "Remove" %}');
+          modal.setPrimaryButton('{{ _("Remove")|escapejs }}');
 
       {% else %}
           modal.setListeners({onPrimary: function(){
             modal.dismiss();
           }}, false);
-          modal.setPrimaryButton('{% trans "Ok" %}');
+          modal.setPrimaryButton('{{ _("Ok")|escapejs }}');
       {% endif %}
 
       modal.show();
@@ -83,7 +83,7 @@
 
     {% if org_perms.msgs.label_update %}
     $(".page-content").on('click', ".label-update-btn", function() {
-      var modal = new Modax('{% trans "Update Label" %}', '{% url "msgs.label_update" current_label.pk %}')
+      var modal = new Modax('{{ _("Update Label")|escapejs }}', '{% url "msgs.label_update" current_label.pk %}')
       modal.setIcon('icon-tag');
       modal.setListeners({
         onFormLoaded: function(){
@@ -101,7 +101,7 @@
     });
 
     $(".page-content").on('click', ".folder-update-btn", function() {
-      var modal = new Modax('{% trans "Update Folder" %}', '{% url "msgs.label_update" current_label.pk %}')
+      var modal = new Modax('{{ _("Update Folder")|escapejs }}', '{% url "msgs.label_update" current_label.pk %}')
       modal.setIcon('icon-folder');
       modal.setListeners({
         onSuccess: function() { location.reload(); }

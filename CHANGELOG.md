@@ -1,3 +1,97 @@
+v5.5.43
+----------
+ * Fix JS escaping on channel log page
+
+v5.5.42
+----------
+ * Remove csrf exemption for views that don't need it (all our pjax includes csrf)
+ * Escape translations in JS literals
+ * Upgrade FB graph API to 3.3
+
+v5.5.41
+----------
+ * Use branding keys when picking which orgs to show on manage
+
+v5.5.40
+----------
+ * Allow branding to have aliases
+ * Fix bug of removing URNs when updating fields looking up by URN
+
+v5.5.39
+----------
+ * Update to floweditor 1.9.6
+ * New task to track daily msgs per user for analytics
+ * Add support for Russian as a UI language
+ * Models and editor API endpoint for tickets
+ * Skip duplicate relayer call events
+
+v5.5.38
+----------
+ * Update to flow editor 1.9.5
+ * Allow custom TS send URLs
+
+v5.5.37
+----------
+ * Remove all uses of _blank frame name
+ * Strip exif data from images
+
+v5.5.36
+----------
+ * Better tracking of channel creation and triggers, track simulation
+ * Do not use font checkboxes for contact import extra fields
+
+v5.5.35
+----------
+ * Revert Segment.io identify change to stay consistent with other tools
+
+v5.5.34
+----------
+ * Identify users in Segment.io using best practice of user id, not email
+
+v5.5.33
+----------
+ * Add context processor to stuff analytics keys into request context
+ * Restrict 2FA functionality to BETA users
+
+v5.5.32
+----------
+ * Add basic 2FA support
+
+v5.5.31
+----------
+ * Update to latest smartmin
+
+v5.5.30
+----------
+ * Add new flow start type to record that flow was started by a Zapier API call
+ * Contact bulk actions endpoint should error if passed no contacts
+ * Remove mentioning the countries for AT claim section
+ * Add Telesom channel type
+
+v5.5.29
+----------
+ * Fix trimming flow starts with start counts
+
+v5.5.28
+----------
+ * Update Africa's Talking supported countries
+
+v5.5.27
+----------
+ * Remove temporary NOOP celery tasks
+ * Drop Contact.is_paused field
+ * Editor 1.9.4, better modal centering
+
+v5.5.26
+----------
+ * Add NOOP versions of renamed celery tasks to avoid problems during deploy
+
+v5.5.23
+----------
+ * Remove default value on Contact.is_paused so it can be dropped
+ * Trim completed mailroom created flow starts
+ * Update flow starts API endpoint to only show user created flow starts and add index
+
 v5.5.22
 ----------
  * Add nullable contact.is_paused field

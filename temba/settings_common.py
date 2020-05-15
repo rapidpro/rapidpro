@@ -82,7 +82,13 @@ LANGUAGE_CODE = "en-us"
 # -----------------------------------------------------------------------------------
 # Available languages for translation
 # -----------------------------------------------------------------------------------
-LANGUAGES = (("en-us", _("English")), ("pt-br", _("Portuguese")), ("fr", _("French")), ("es", _("Spanish")))
+LANGUAGES = (
+    ("en-us", _("English")),
+    ("pt-br", _("Portuguese")),
+    ("fr", _("French")),
+    ("es", _("Spanish")),
+    ("ru", _("Russian")),
+)
 
 DEFAULT_LANGUAGE = "en-us"
 DEFAULT_SMS_LANGUAGE = "en-us"
@@ -159,6 +165,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "django.template.context_processors.request",
                 "temba.context_processors.branding",
+                "temba.context_processors.analytics",
                 "temba.orgs.context_processors.user_group_perms_processor",
                 "temba.orgs.context_processors.nav_processor",
                 "temba.channels.views.channel_status_processor",
@@ -254,6 +261,7 @@ INSTALLED_APPS = (
     "temba.channels",
     "temba.msgs",
     "temba.flows",
+    "temba.tickets",
     "temba.triggers",
     "temba.utils",
     "temba.campaigns",
@@ -396,6 +404,7 @@ PERMISSIONS = {
         "trial",
         "twilio_account",
         "twilio_connect",
+        "two_factor",
         "token",
     ),
     "orgs.usersettings": ("phone",),
@@ -463,6 +472,7 @@ PERMISSIONS = {
     "orgs.topup": ("manage",),
     "policies.policy": ("admin", "history", "give_consent"),
     "templates.template": ("api",),
+    "tickets.ticketer": ("api",),
     "triggers.trigger": (
         "archived",
         "catchall",
@@ -482,7 +492,7 @@ PERMISSIONS = {
 GROUP_PERMISSIONS = {
     "Service Users": ("flows.flow_assets", "msgs.msg_create"),  # internal Temba services have limited permissions
     "Alpha": (),
-    "Beta": (),
+    "Beta": ("orgs.org_two_factor",),
     "Dashboard": ("orgs.org_dashboard",),
     "Surveyors": (
         "contacts.contact_api",
@@ -654,6 +664,7 @@ GROUP_PERMISSIONS = {
         "request_logs.httplog_list",
         "request_logs.httplog_read",
         "templates.template_api",
+        "tickets.ticketer_api",
         "triggers.trigger.*",
     ),
     "Editors": (
@@ -752,6 +763,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "templates.template_api",
+        "tickets.ticketer_api",
         "triggers.trigger.*",
     ),
     "Viewers": (
@@ -820,6 +832,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "tickets.ticketer_api",
         "triggers.trigger_archived",
         "triggers.trigger_list",
     ),
@@ -883,15 +896,15 @@ CELERYBEAT_SCHEDULE = {
     "check-elasticsearch-lag": {"task": "check_elasticsearch_lag", "schedule": timedelta(seconds=300)},
     "retry-errored-messages": {"task": "retry_errored_messages", "schedule": timedelta(seconds=60)},
     "fail-old-messages": {"task": "fail_old_messages", "schedule": crontab(hour=0, minute=0)},
+    "track-org-channel-counts": {"task": "track_org_channel_counts", "schedule": crontab(hour=4, minute=0)},
     "trim-sync-events": {"task": "trim_sync_events_task", "schedule": crontab(hour=3, minute=0)},
     "trim-channel-log": {"task": "trim_channel_log_task", "schedule": crontab(hour=3, minute=0)},
     "trim-http-logs": {"task": "trim_http_logs_task", "schedule": crontab(hour=3, minute=0)},
     "trim-webhook-event": {"task": "trim_webhook_event_task", "schedule": crontab(hour=3, minute=0)},
     "trim-event-fires": {"task": "trim_event_fires_task", "schedule": timedelta(seconds=900)},
     "trim-flow-revisions": {"task": "trim_flow_revisions", "schedule": crontab(hour=0, minute=0)},
-    "trim-flow-sessions": {"task": "trim_flow_sessions", "schedule": crontab(hour=0, minute=0)},
-    "squash-flowruncounts": {"task": "squash_flowruncounts", "schedule": timedelta(seconds=60)},
-    "squash-flowpathcounts": {"task": "squash_flowpathcounts", "schedule": timedelta(seconds=60)},
+    "trim-flow-sessions-and-starts": {"task": "trim_flow_sessions_and_starts", "schedule": crontab(hour=0, minute=0)},
+    "squash-flowcounts": {"task": "squash_flowcounts", "schedule": timedelta(seconds=60)},
     "squash-channelcounts": {"task": "squash_channelcounts", "schedule": timedelta(seconds=60)},
     "squash-msgcounts": {"task": "squash_msgcounts", "schedule": timedelta(seconds=60)},
     "squash-topupcredits": {"task": "squash_topupcredits", "schedule": timedelta(seconds=60)},
@@ -1013,6 +1026,8 @@ CLASSIFIER_TYPES = [
     "temba.classifiers.types.bothub.BothubType",
 ]
 
+TICKETER_TYPES = ["temba.tickets.types.mailgun.MailgunType"]
+
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
     "temba.channels.types.whatsapp.WhatsAppType",
@@ -1056,6 +1071,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.smscentral.SMSCentralType",
     "temba.channels.types.start.StartType",
     "temba.channels.types.telegram.TelegramType",
+    "temba.channels.types.telesom.TelesomType",
     "temba.channels.types.thinq.ThinQType",
     "temba.channels.types.twiml_api.TwimlAPIType",
     "temba.channels.types.twitter.TwitterType",
@@ -1084,10 +1100,17 @@ SESSION_CACHE_ALIAS = "default"
 TWITTER_API_KEY = os.environ.get("TWITTER_API_KEY", "MISSING_TWITTER_API_KEY")
 TWITTER_API_SECRET = os.environ.get("TWITTER_API_SECRET", "MISSING_TWITTER_API_SECRET")
 
+# Segment.io key for analytics
 SEGMENT_IO_KEY = os.environ.get("SEGMENT_IO_KEY", "")
 
+# Intercom token and app_id for support
+INTERCOM_APP_ID = os.environ.get("INTERCOM_APP_ID" "")
 INTERCOM_TOKEN = os.environ.get("INTERCOM_TOKEN", "")
 
+# Google analytics tracking ID
+GOOGLE_TRACKING_ID = os.environ.get("GOOGLE_TRACKING_ID", "")
+
+# Librato for gauge support
 LIBRATO_USER = os.environ.get("LIBRATO_USER", "")
 LIBRATO_TOKEN = os.environ.get("LIBRATO_TOKEN", "")
 

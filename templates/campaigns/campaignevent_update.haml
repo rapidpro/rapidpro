@@ -36,8 +36,8 @@
 
     }
 
-    eventTypeSelect.addEventListener('temba-selection', function(event){
-      var type = event.detail.selected.value;
+    eventTypeSelect.addEventListener('change', function(event){
+      var type = event.target.values[0].value;
       if (type == 'F') {
         flowSection.style.display = 'block';
         messageSection.style.display = 'none';
@@ -48,8 +48,9 @@
     });
 
     // whenever our units update, update the hour visibility
-    unitSelect.addEventListener('temba-selection', function(event) {
-      var selectedUnit = event.detail.selected.value;
+    unitSelect.addEventListener('change', function(event) {
+
+      var selectedUnit = event.target.values[0].value;
       if (selectedUnit == "W" || selectedUnit == "D") {
         deliveryHourOptions.style.display = 'flex';
       } else {

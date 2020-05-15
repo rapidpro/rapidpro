@@ -6,6 +6,7 @@ from decimal import Decimal
 from unittest.mock import Mock, patch
 from urllib.parse import urlencode
 
+import pyotp
 import pytz
 import stripe
 import stripe.error
@@ -47,7 +48,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
-from temba.orgs.models import Debit, UserSettings
+from temba.orgs.models import BackupToken, Debit, UserSettings
 from temba.request_logs.models import HTTPLog
 from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
@@ -159,6 +160,39 @@ class UserTest(TembaTest):
         self.assertFalse(self.admin.is_active)
         self.assertNotEqual("Administrator@nyaruka.com", self.admin.email)
         self.assertFalse(self.admin.get_user_orgs().exists())
+
+    def test_brand_aliases(self):
+        # set our brand to our custom org
+        self.org.brand = "custom-brand.io"
+        self.org.save(update_fields=["brand"])
+
+        # create a second org on the .org version
+        branded_org = Org.objects.create(
+            name="Other Brand Org",
+            timezone=pytz.timezone("Africa/Kigali"),
+            brand="custom-brand.org",
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+        branded_org.administrators.add(self.admin)
+        self.org2.administrators.add(self.admin)
+
+        # log in as admin
+        self.login(self.admin)
+
+        # check our choose page
+        response = self.client.get(reverse("orgs.org_choose"), SERVER_NAME="custom-brand.org")
+
+        # should contain both orgs
+        self.assertContains(response, "Other Brand Org")
+        self.assertContains(response, "Temba")
+        self.assertNotContains(response, "Trileet Inc")
+
+        # choose it
+        response = self.client.post(
+            reverse("orgs.org_choose"), dict(organization=self.org.id), SERVER_NAME="custom-brand.org"
+        )
+        self.assertRedirect(response, "/msg/inbox/")
 
     def test_release(self):
 
@@ -570,6 +604,66 @@ class OrgTest(TembaTest):
         org = Org.objects.get(pk=self.org.pk)
         self.assertEqual("Temba", org.name)
         self.assertEqual("nice-temba", org.slug)
+
+    def test_two_factor(self):
+        # for now only Beta members have access
+        Group.objects.get(name="Beta").user_set.add(self.admin)
+        self.login(self.admin)
+
+        # create profile
+        response = self.client.get(reverse("orgs.org_two_factor"))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(UserSettings.objects.count(), 1)
+        self.assertEqual(UserSettings.objects.first().user, self.admin)
+
+        # validate token error
+        data = dict(token="12345")
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertIn("token", response.context["form"].errors)
+        self.assertIn("Invalid MFA token. Please try again.", response.context["form"].errors["token"])
+
+        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 0)
+        data = dict(generate_backup_tokens=True)
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 10)
+
+        # disable two factor
+        data = dict(disable_two_factor_auth=True)
+        user_settings = UserSettings.objects.get(user=self.admin)
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 0)
+        self.assertFalse(user_settings.two_factor_enabled)
+
+        # get backup tokens without backup tokens
+        data = dict(get_backup_tokens=True)
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"tokens": []})
+
+        # get backup tokens with backup tokens
+        backup_token = BackupToken.objects.create(
+            settings=self.admin.get_settings(), created_by=self.admin, modified_by=self.admin
+        )
+        data = dict(get_backup_tokens=True)
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"tokens": [f"{backup_token.token}"]})
+
+        # test form is valid
+        user_settings = UserSettings.objects.get(user=self.admin)
+        user_settings.two_factor_enabled = False
+        user_settings.save()
+        totp = pyotp.TOTP(self.admin.get_settings().otp_secret)
+        data = dict(token=totp.now())
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(BackupToken.objects.count(), 10)
+        self.assertEqual(self.admin.get_settings().two_factor_enabled, True)
+
+        # check backup tokens now listed on account home page
+        response = self.client.get(reverse("orgs.org_home"))
+        self.assertContains(response, "Backup tokens can be used")
 
     def test_country(self):
         self.setUpLocations()

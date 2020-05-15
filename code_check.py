@@ -39,11 +39,10 @@ def update_po_files():
     saved_msgids = get_current_msgids()
 
     # re-extract locale files from source code
-    ignore_paths = ("env/*", "static/bower/*", "static/components/*", "node_modules/*")
+    ignore_paths = ("env/*", "fabric/*", "media/*", "sitestatic/*", "static/*", "node_modules/*")
     ignore_args = " ".join([f'--ignore="{p}"' for p in ignore_paths])
 
     cmd(f"python manage.py makemessages -a -e haml,html,txt,py --no-location --no-wrap {ignore_args}")
-    cmd(f"python manage.py makemessages -d djangojs -a --no-location --no-wrap {ignore_args}")
 
     # get the new set of msgids
     actual_msgids = get_current_msgids()
@@ -65,6 +64,8 @@ def update_po_files():
 if __name__ == "__main__":
     colorama.init()
 
+    status("Make any missing migrations")
+    cmd("python manage.py makemigrations")
     status("Running black")
     cmd("black --line-length=119 --target-version=py36 temba")
     status("Running flake8")
@@ -75,8 +76,6 @@ if __name__ == "__main__":
     update_po_files()
     status("Recompiling locale MO files")
     cmd("python manage.py compilemessages")
-    status("Make any missing migrations")
-    cmd("python manage.py makemigrations")
 
     # if any code changes were made, exit with error
     if cmd("git diff temba locale"):

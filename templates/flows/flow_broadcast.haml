@@ -141,8 +141,8 @@
 
     var modeSelect = document.querySelector("temba-select[name='recipients_mode']");
     if (modeSelect) {
-      modeSelect.addEventListener("temba-selection", function(evt) {
-        var selected = evt.detail.selected;
+      modeSelect.addEventListener("change", function(evt) {
+        var selected = evt.target.values[0];
         if (selected.value === "query") {
           removeClass(queryField, "hidden");
           addClass(recipientsField, "hidden");

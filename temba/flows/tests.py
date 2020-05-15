@@ -28,9 +28,10 @@ from temba.mailroom import FlowValidationException, MailroomException
 from temba.msgs.models import Label
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
+from temba.tickets.models import Ticketer
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.uuid import uuid4
@@ -60,13 +61,7 @@ from .models import (
     RuleSet,
     get_flow_user,
 )
-from .tasks import (
-    squash_flowpathcounts,
-    squash_flowruncounts,
-    trim_flow_revisions,
-    trim_flow_sessions,
-    update_run_expirations_task,
-)
+from .tasks import squash_flowcounts, trim_flow_revisions, trim_flow_sessions_and_starts, update_run_expirations_task
 from .views import FlowCRUDL
 
 
@@ -477,6 +472,14 @@ class FlowTest(TembaTest):
         response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
         self.assertEqual(
             ["facebook", "airtime", "classifier", "resthook"], json.loads(response.context["feature_filters"])
+        )
+
+        # add in a ticketer
+        Ticketer.create(self.org, self.user, "mailgun", "Email (bob@acme.com)", {})
+        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
+        self.assertEqual(
+            ["facebook", "airtime", "classifier", "ticketer", "resthook"],
+            json.loads(response.context["feature_filters"]),
         )
 
     def test_legacy_editor(self):
@@ -1023,8 +1026,7 @@ class FlowTest(TembaTest):
         )
 
         # check squashing doesn't change anything
-        squash_flowruncounts()
-        squash_flowpathcounts()
+        squash_flowcounts()
 
         (active, visited) = flow.get_activity()
 
@@ -1242,7 +1244,7 @@ class FlowTest(TembaTest):
             flow.get_run_stats(),
         )
 
-    def test_squash_run_counts(self):
+    def test_squash_counts(self):
         flow = self.get_flow("favorites")
         flow2 = self.get_flow("pick_a_number")
 
@@ -1252,7 +1254,7 @@ class FlowTest(TembaTest):
         FlowRunCount.objects.create(flow=flow2, count=10, exit_type="I")
         FlowRunCount.objects.create(flow=flow2, count=-1, exit_type="I")
 
-        squash_flowruncounts()
+        squash_flowcounts()
         self.assertEqual(FlowRunCount.objects.all().count(), 3)
         self.assertEqual(FlowRunCount.get_totals(flow2), {"A": 0, "C": 0, "E": 0, "I": 9})
         self.assertEqual(FlowRunCount.get_totals(flow), {"A": 3, "C": 0, "E": 3, "I": 0})
@@ -1260,7 +1262,7 @@ class FlowTest(TembaTest):
         max_id = FlowRunCount.objects.all().order_by("-id").first().id
 
         # no-op this time
-        squash_flowruncounts()
+        squash_flowcounts()
         self.assertEqual(max_id, FlowRunCount.objects.all().order_by("-id").first().id)
 
     def test_category_counts(self):
@@ -1552,7 +1554,7 @@ class FlowTest(TembaTest):
         other_recent = FlowPathRecentRun.get_recent([other_exit["uuid"]], color_other["uuid"], limit=5)
         self.assertEqual(["12", "11", "10", "9", "8"], [r["text"] for r in other_recent])
 
-        squash_flowruncounts()
+        squash_flowcounts()
 
         # now only 5 newest are stored
         other_recent = FlowPathRecentRun.objects.filter(from_uuid=other_exit["uuid"], to_uuid=color_other["uuid"])
@@ -1563,7 +1565,7 @@ class FlowTest(TembaTest):
 
         # send another message and prune again
         (session.resume(msg=self.create_incoming_msg(bob, "13")).visit(color_other).visit(color_split).wait().save())
-        squash_flowruncounts()
+        squash_flowcounts()
 
         other_recent = FlowPathRecentRun.get_recent([other_exit["uuid"]], color_other["uuid"])
         self.assertEqual(["13", "12", "11", "10", "9"], [r["text"] for r in other_recent])
@@ -4229,7 +4231,7 @@ class FlowRunTest(TembaTest):
 
 
 class FlowSessionTest(TembaTest):
-    def test_release(self):
+    def test_trim(self):
         contact = self.create_contact("Ben Haggerty", "+250788123123")
         flow = self.get_flow("color")
 
@@ -4260,7 +4262,7 @@ class FlowSessionTest(TembaTest):
         run2.session.ended_on = timezone.now()
         run2.session.save(update_fields=("ended_on",))
 
-        trim_flow_sessions()
+        trim_flow_sessions_and_starts()
 
         run1, run2, run3, run4 = FlowRun.objects.order_by("id")
 
@@ -4272,6 +4274,61 @@ class FlowSessionTest(TembaTest):
 
         # only sessions for run2 and run3 are left
         self.assertEqual(FlowSession.objects.count(), 2)
+
+
+class FlowStartTest(TembaTest):
+    def test_trim(self):
+        contact = self.create_contact("Ben Haggerty", "+250788123123")
+        group = self.create_group("Testers", contacts=[contact])
+        flow = self.get_flow("color")
+
+        def create_start(user, start_type, status, modified_on, **kwargs):
+            start = FlowStart.create(flow, user, start_type, **kwargs)
+            start.status = status
+            start.modified_on = modified_on
+            start.save(update_fields=("status", "modified_on"))
+
+            FlowStartCount.objects.create(start=start, count=1, is_squashed=False)
+
+        date1 = timezone.now() - timedelta(days=8)
+        date2 = timezone.now()
+
+        # some starts that won't be deleted because they are user created
+        create_start(self.admin, FlowStart.TYPE_API, FlowStart.STATUS_COMPLETE, date1, contacts=[contact])
+        create_start(self.admin, FlowStart.TYPE_MANUAL, FlowStart.STATUS_COMPLETE, date1, groups=[group])
+        create_start(self.admin, FlowStart.TYPE_MANUAL, FlowStart.STATUS_FAILED, date1, query="name ~ Ben")
+
+        # some starts that are mailroom created and will be deleted
+        create_start(None, FlowStart.TYPE_FLOW_ACTION, FlowStart.STATUS_COMPLETE, date1, contacts=[contact])
+        create_start(None, FlowStart.TYPE_TRIGGER, FlowStart.STATUS_FAILED, date1, groups=[group])
+
+        # some starts that are mailroom created but not completed so won't be deleted
+        create_start(None, FlowStart.TYPE_FLOW_ACTION, FlowStart.STATUS_STARTING, date1, contacts=[contact])
+        create_start(None, FlowStart.TYPE_TRIGGER, FlowStart.STATUS_PENDING, date1, groups=[group])
+        create_start(None, FlowStart.TYPE_TRIGGER, FlowStart.STATUS_PENDING, date1, groups=[group])
+
+        # some starts that are mailroom created but too new so won't be deleted
+        create_start(None, FlowStart.TYPE_FLOW_ACTION, FlowStart.STATUS_COMPLETE, date2, contacts=[contact])
+        create_start(None, FlowStart.TYPE_TRIGGER, FlowStart.STATUS_FAILED, date2, groups=[group])
+
+        trim_flow_sessions_and_starts()
+
+        # check that related objects still exist!
+        contact.refresh_from_db()
+        group.refresh_from_db()
+        flow.refresh_from_db()
+
+        # check user created starts still exist
+        self.assertEqual(3, FlowStart.objects.filter(created_by=self.admin).count())
+
+        # 5 mailroom created starts remain
+        self.assertEqual(5, FlowStart.objects.filter(created_by=None).count())
+
+        # the 3 that aren't complete...
+        self.assertEqual(3, FlowStart.objects.filter(created_by=None).exclude(status="C").exclude(status="F").count())
+
+        # and the 2 that are too new
+        self.assertEqual(2, FlowStart.objects.filter(created_by=None, modified_on=date2).count())
 
 
 class ExportFlowResultsTest(TembaTest):
@@ -6223,8 +6280,8 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
         contact = self.create_contact("Bob", number="+1234567890")
         group = self.create_group("Testers", contacts=[contact])
         start1 = FlowStart.create(flow, self.admin, contacts=[contact])
-        start2 = FlowStart.create(flow, self.admin, query="name ~ Bob", restart_participants=False)
-        start3 = FlowStart.create(flow, self.admin, groups=[group], include_active=False)
+        start2 = FlowStart.create(flow, self.admin, query="name ~ Bob", restart_participants=False, start_type="A")
+        start3 = FlowStart.create(flow, self.admin, groups=[group], include_active=False, start_type="Z")
 
         FlowStartCount.objects.create(start=start3, count=1000)
         FlowStartCount.objects.create(start=start3, count=234)
@@ -6236,6 +6293,8 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
             list_url, allow_viewers=True, allow_editors=True, context_objects=[start3, start2, start1]
         )
         self.assertContains(response, "was started by Administrator for")
+        self.assertContains(response, "was started by an API call for")
+        self.assertContains(response, "was started by Zapier for")
         self.assertContains(response, "all contacts")
         self.assertContains(response, "contacts who haven't already been through this flow")
         self.assertContains(response, "<b>1,234</b> runs")
@@ -6354,45 +6413,3 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
-
-
-class PopulateFlowStartTypeTest(MigrationTest):
-    app = "flows"
-    migrate_from = "0230_flowstart_start_type"
-    migrate_to = "0231_populate_flowstart_type"
-
-    def setUpBeforeMigration(self, apps):
-        contact = self.create_contact("Bob", twitter="bobby")
-        flow1 = self.create_flow(org=self.org)
-        flow2 = self.create_flow(org=self.org)
-
-        # starts from UI have user but not extra
-        self.start1 = FlowStart.create(flow1, self.admin, contacts=[contact])  # from UI
-
-        # only API calls can have extra
-        self.start2 = FlowStart.create(flow2, self.admin, contacts=[contact], extra={"foo": "bar"})
-
-        # starts from mailroom session_triggered event handling have no user but do have parent_summary
-        self.start3 = FlowStart.create(flow2, None, contacts=[contact])
-        self.start3.parent_summary = {"foo": "bar"}
-        self.start3.save(update_fields=("parent_summary",))
-
-        # starts from mailroom IVR/schedule trigger handling have no user and no parent_summary
-        self.start4 = FlowStart.create(flow2, None, contacts=[contact])
-
-        # clear type so migration sets it
-        FlowStart.objects.all().update(start_type=None)
-
-        # create a new one which will have type already set
-        self.start5 = FlowStart.create(flow1, self.admin, contacts=[contact])
-
-    def test_migration(self):
-        def assert_type(start, type_code):
-            start.refresh_from_db()
-            self.assertEqual(type_code, start.start_type)
-
-        assert_type(self.start1, "M")
-        assert_type(self.start2, "A")
-        assert_type(self.start3, "F")
-        assert_type(self.start4, "T")
-        assert_type(self.start5, "M")

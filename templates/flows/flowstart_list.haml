@@ -21,6 +21,8 @@
             -if obj.start_type == "M"
               -blocktrans trimmed with user=obj.created_by
                 was started by {{ user }} for
+            -elif obj.start_type == "Z"
+              -trans "was started by Zapier for"
             -else
               -trans "was started by an API call for"
 

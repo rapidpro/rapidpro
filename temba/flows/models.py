@@ -32,6 +32,7 @@ from temba.globals.models import Global
 from temba.msgs.models import Attachment, Label, Msg
 from temba.orgs.models import Org
 from temba.templates.models import Template
+from temba.tickets.models import Ticketer
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
@@ -252,6 +253,8 @@ class Flow(TembaModel):
 
     template_dependencies = models.ManyToManyField(Template, related_name="dependent_flows")
 
+    ticketer_dependencies = models.ManyToManyField(Ticketer, related_name="dependent_flows")
+
     @classmethod
     def create(
         cls,
@@ -291,7 +294,7 @@ class Flow(TembaModel):
                 },
             )
 
-        analytics.track(user.username, "nyaruka.flow_created", dict(name=name))
+        analytics.track(user.username, "temba.flow_created", dict(name=name))
         return flow
 
     @classmethod
@@ -1653,6 +1656,7 @@ class Flow(TembaModel):
             "group": ContactGroup.user_groups.filter(org=self.org, is_active=True, uuid__in=identifiers["group"]),
             "label": Label.label_objects.filter(org=self.org, uuid__in=identifiers["label"]),
             "template": self.org.templates.filter(uuid__in=identifiers["template"]),
+            "ticketer": self.org.ticketers.filter(is_active=True, uuid__in=identifiers["ticketer"]),
         }
 
         # reset the m2m for each type
@@ -1690,6 +1694,7 @@ class Flow(TembaModel):
         self.channel_dependencies.clear()
         self.label_dependencies.clear()
         self.classifier_dependencies.clear()
+        self.ticketer_dependencies.clear()
 
         # queue mailroom to interrupt sessions where contact is currently in this flow
         mailroom.queue_interrupt(self.org, flow=self)
@@ -3119,12 +3124,14 @@ class FlowStart(models.Model):
 
     TYPE_MANUAL = "M"
     TYPE_API = "A"
+    TYPE_API_ZAPIER = "Z"
     TYPE_FLOW_ACTION = "F"
     TYPE_TRIGGER = "T"
 
     TYPE_CHOICES = (
         (TYPE_MANUAL, "Manual"),
         (TYPE_API, "API"),
+        (TYPE_API_ZAPIER, "Zapier"),
         (TYPE_FLOW_ACTION, "Flow Action"),
         (TYPE_TRIGGER, "Trigger"),
     )
@@ -3244,11 +3251,18 @@ class FlowStart(models.Model):
 
     class Meta:
         indexes = [
+            # used for the flow start log page
             models.Index(
                 name="flows_flowstarts_org_created",
                 fields=["org", "-created_on"],
                 condition=Q(created_by__isnull=False),
-            )
+            ),
+            # used by the flow_starts API endpoint
+            models.Index(
+                name="flows_flowstarts_org_modified",
+                fields=["org", "-modified_on"],
+                condition=Q(created_by__isnull=False),
+            ),
         ]
 
 

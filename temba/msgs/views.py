@@ -20,7 +20,6 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import is_safe_url, urlquote_plus
 from django.utils.translation import ugettext_lazy as _
-from django.views.decorators.csrf import csrf_exempt
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel
@@ -464,7 +463,6 @@ class MsgActionForm(BaseActionForm):
 
 
 class MsgActionMixin(SmartListView):
-    @csrf_exempt
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 

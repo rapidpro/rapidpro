@@ -43,7 +43,7 @@ from temba.utils.dates import datetime_to_str, str_to_datetime
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
-from temba.utils.text import random_string
+from temba.utils.text import generate_token, random_string
 from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
@@ -2104,36 +2104,35 @@ def release(user, brand):
         user.save()
 
     # release any orgs we own on this brand
-    for org in user.get_owned_orgs(brand):
+    for org in user.get_owned_orgs([brand]):
         org.release(release_users=False)
 
     # remove us as a user on any org for our brand
-    for org in user.get_user_orgs(brand):
+    for org in user.get_user_orgs([brand]):
         org.administrators.remove(user)
         org.editors.remove(user)
         org.viewers.remove(user)
         org.surveyors.remove(user)
 
 
-def get_user_orgs(user, brand=None):
-
+def get_user_orgs(user, brands=None):
     if user.is_superuser:
         return Org.objects.all()
 
     user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
 
-    if brand:
-        user_orgs = user_orgs.filter(brand=brand)
+    if brands:
+        user_orgs = user_orgs.filter(brand__in=brands)
 
     return user_orgs.filter(is_active=True).distinct().order_by("name")
 
 
-def get_owned_orgs(user, brand=None):
+def get_owned_orgs(user, brands=None):
     """
-    Gets all the orgs where this is the only user for the currend brand
+    Gets all the orgs where this is the only user for the current brand
     """
     owned_orgs = []
-    for org in user.get_user_orgs(brand=brand):
+    for org in user.get_user_orgs(brands=brands):
         if not org.get_org_users().exclude(id=user.id).exists():
             owned_orgs.append(org)
     return owned_orgs
@@ -2349,6 +2348,8 @@ class UserSettings(models.Model):
         blank=True,
         help_text=_("Phone number for testing and recording voice flows"),
     )
+    otp_secret = models.CharField(verbose_name=_("OTP Secret"), max_length=18, null=True, blank=True)
+    two_factor_enabled = models.BooleanField(verbose_name=_("Two Factor Enabled"), default=False)
 
     def get_tel_formatted(self):
         if self.tel:
@@ -2711,3 +2712,14 @@ class CreditAlert(SmartModel):
 
         for topup in expiring_final_topups:
             CreditAlert.trigger_credit_alert(topup.org, CreditAlert.TYPE_EXPIRING)
+
+
+class BackupToken(SmartModel):
+    settings = models.ForeignKey(
+        UserSettings, verbose_name=_("Settings"), related_name="backups", on_delete=models.CASCADE
+    )
+    token = models.CharField(verbose_name=_("Token"), max_length=18, unique=True, default=generate_token)
+    used = models.BooleanField(verbose_name=_("Used"), default=False)
+
+    def __str__(self):  # pragma: no cover
+        return f"{self.token}"

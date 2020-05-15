@@ -32,6 +32,7 @@ from .views import (
     RootView,
     RunsEndpoint,
     TemplatesEndpoint,
+    TicketersEndpoint,
 )
 
 urlpatterns = [
@@ -65,6 +66,7 @@ urlpatterns = [
     url(r"^resthook_subscribers$", ResthookSubscribersEndpoint.as_view(), name="api.v2.resthook_subscribers"),
     url(r"^runs$", RunsEndpoint.as_view(), name="api.v2.runs"),
     url(r"^templates$", TemplatesEndpoint.as_view(), name="api.v2.templates"),
+    url(r"^ticketers$", TicketersEndpoint.as_view(), name="api.v2.ticketers"),
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns, allowed=["json", "api"])
