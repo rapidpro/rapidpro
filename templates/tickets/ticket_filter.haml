@@ -1,49 +1,13 @@
--extends "smartmin/list.html"
+-extends "tickets/ticket_list.html"
 -load smartmin i18n
 
 -block title
   .medium-help.float-left(class='{{ ticketer.get_type.icon }}')
-
   %h2.font_normalize.header-margin.title
     {{ ticketer.get_type.name }}
     -trans "Ticketing Service"
     .ticketer-name
       {{ ticketer.name }}
-
--block content
-  #pjax
-    -block pjax
-      .row-fluid
-        .span3.sidebox
-          #sidebar-nav
-            %ul.nav.nav-list.level1
-              %li.nav-header
-                -trans "Open Tickets"
-              -for t in ticketers
-                %li{'class': '{% if ticketer == t %}active{% endif %}' }
-                  %a(href="{% url 'tickets.ticket_filter' t.uuid %}")
-                    {{ t.name }}
-        .span9
-          %table.list-table.sms_list.object-list.table.table-condensed
-            %tbody
-              -for object in object_list
-                %tr.object-row.select-row(id="id-row-{{object.id}}" class="{% cycle row1 row2 %}" data-object-id="{{ object.id }}")
-                  %td.ticket-contact
-                    %a(href="{% url 'contacts.contact_read' object.contact.uuid %}")
-                      {{ object.contact }}
-                  %td.ticket-subject
-                    {{ object.subject }}
-                  %td.ticket-body
-                    {{ object.body }}
-
-                  %td.opened_on
-                    %span.time
-                      {% short_datetime object.opened_on %}
-
-              -empty
-                %tr.empty
-                  %td(colspan=4)
-                    -trans "No open tickets at this time."
 
 -block post-content
   -if org_perms.tickets.ticketer_delete
@@ -100,9 +64,6 @@
       font-size: 16pt;
     }
 
-    td.opened_on {
-      text-align: right;
-    }
 
 -block summary
   {{ object.get_type.name }}

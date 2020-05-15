@@ -1,0 +1,95 @@
+-extends "smartmin/list.html"
+-load smartmin i18n contacts
+
+-block page-title
+  {{ title }}
+
+-block content
+  #pjax
+    -block pjax
+      .row-fluid
+        .span3.sidebox
+          #sidebar-nav
+            %ul.nav.nav-list.level1
+              %li.nav-header
+                -trans "Tickets"
+                %li(class="{% if folder == 'open' %}active{% endif %}")
+                  %a(href="{% url 'tickets.ticket_open' %}")
+                    -trans "Open"
+                %li(class="{% if folder == 'closed' %}active{% endif %}")
+                  %a(href="{% url 'tickets.ticket_closed' %}")
+                    -trans "Closed"
+              %li.nav-header
+                -trans "Services"
+              -for t in ticketers
+                %li(class="{% if ticketer == t %}active{% endif %}")
+                  %a(href="{% url 'tickets.ticket_filter' t.uuid %}")
+                    {{ t.name }}
+        .span9
+          -block buttons
+            -block action-buttons
+              -if org_perms.tickets.ticket_close
+                .list-buttons-container
+                  .list-buttons
+                    -if 'close' in actions
+                      %span.btn-group
+                        %a.object-btn-close(href='#')
+                          %button.btn(data-toggle="tooltip" data-trigger="hover" data-delay="800" data-placement="top" data-original-title="{% trans 'Close' %}")
+                            .glyph.icon-box
+                    -if 'reopen' in actions
+                      %span.btn-group
+                        %a.object-btn-reopen(href='#')
+                          %button.btn(data-toggle="tooltip" data-trigger="hover" data-delay="800" data-placement="top" data-original-title="{% trans 'Reopen' %}")
+                            .glyph.icon-folder-open
+
+          %table.list-table.sms_list.object-list.table.table-condensed
+            %tbody
+              -for object in object_list
+                %tr.object-row.select-row.ticket(id="id-row-{{object.id}}" class="{% cycle row1 row2 %}" data-object-id="{{ object.id }}" data-contact-uuid="{{ object.contact.uuid }}")
+                  -if actions and org_perms.tickets.ticket_close
+                    %td.checkbox.object-row-checkbox
+                      .glyph.object-row-checkbox
+                  %td.ticket-contact
+                    %nobr
+                      {{ object.contact|short_name:user_org }}
+                  %td.ticket-subject
+                    {{ object.subject }}
+                  %td.ticket-body
+                    {{ object.body }}
+                  %td.opened_on
+                    %span.time
+                      {% short_datetime object.opened_on %}
+
+              -empty
+                %tr.empty
+                  %td(colspan=5)
+                    -trans "No open tickets at this time."
+
+          -block paginator
+            -if object_list.count
+              .paginator
+                -include "smartmin/sidebar_pagination.haml"
+
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    $('.select-row').live('mouseover', function(){
+      var contactPageUrl = '/contact/read/' + $(this).data('contact-uuid');
+
+      $(this).find('td').not('.checkbox').each(function(){
+        $(this).on('click', function() {
+          document.location.href = contactPageUrl;
+        });
+      });
+    });
+
+
+-block extra-style
+  {{ block.super }}
+
+  :css
+    td.opened_on {
+      text-align: right;
+    }

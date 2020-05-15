@@ -336,6 +336,13 @@ class Org(SmartModel):
         counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ALL, ContactGroup.TYPE_BLOCKED))
         return (counts[ContactGroup.TYPE_ALL] + counts[ContactGroup.TYPE_BLOCKED]) > 0
 
+    @cached_property
+    def has_ticketer(self):
+        """
+        Gets whether this org has an active ticketer configured
+        """
+        return self.ticketers.filter(is_active=True)
+
     def clear_credit_cache(self):
         """
         Clears the given cache types (currently just credits) for this org. Returns number of keys actually deleted

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-15 14:29+0000\n"
+"POT-Creation-Date: 2020-05-15 21:29+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -5587,6 +5587,16 @@ msgstr ""
 msgid "Add"
 msgstr "Adicionar"
 
+#, fuzzy
+#| msgid "Open TextIt"
+msgid "Open Tickets"
+msgstr "Abrir Textit"
+
+#, fuzzy
+#| msgid "Choose File"
+msgid "Closed Tickets"
+msgstr "Escolher arquivo"
+
 msgid "HTTP Log"
 msgstr ""
 
@@ -8203,11 +8213,6 @@ msgid "stopped"
 msgstr ""
 
 #, fuzzy
-#| msgid "Open TextIt"
-msgid "Open Tickets"
-msgstr "Abrir Textit"
-
-#, fuzzy
 #| msgid "Incoming"
 msgid "Upcoming"
 msgstr "Recebidas"
@@ -9048,6 +9053,11 @@ msgstr "campanhas"
 
 msgid "triggers"
 msgstr "disparadores"
+
+#, fuzzy
+#| msgid "Open TextIt"
+msgid "tickets"
+msgstr "Abrir Textit"
 
 #, fuzzy
 msgid "channels"
@@ -11573,13 +11583,21 @@ msgstr "O nome deste contato"
 msgid "Ticketing Service"
 msgstr ""
 
-msgid "No open tickets at this time."
-msgstr ""
-
 msgid "Warning"
 msgstr ""
 
 msgid "Unable to delete service still being used by the following flows"
+msgstr ""
+
+#, fuzzy
+#| msgid "Device"
+msgid "Services"
+msgstr "Dispositivo"
+
+msgid "Reopen"
+msgstr ""
+
+msgid "No open tickets at this time."
 msgstr ""
 
 msgid "Through"

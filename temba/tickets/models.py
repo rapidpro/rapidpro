@@ -5,6 +5,7 @@ from smartmin.models import SmartModel
 from django.conf.urls import url
 from django.contrib.postgres.fields import JSONField
 from django.db import models
+from django.db.models import Q
 from django.template import Engine
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -178,13 +179,57 @@ class Ticket(models.Model):
     # when this ticket was closed
     closed_on = models.DateTimeField(null=True)
 
+    @classmethod
+    def apply_action_close(cls, tickets):
+        changed = []
+        for ticket in tickets:
+            if ticket.status == Ticket.STATUS_OPEN:
+                ticket.close()
+                changed.append(ticket.id)
+        return changed
+
+    @classmethod
+    def apply_action_reopen(cls, tickets):
+        changed = []
+        for ticket in tickets:
+            if ticket.status == Ticket.STATUS_CLOSED:
+                ticket.reopen()
+                changed.append(ticket.id)
+        return changed
+
     def close(self):
         """
         Closes the ticket
         """
+        # TODO notify external ticket service via mailroom
+
         self.status = Ticket.STATUS_CLOSED
+        self.modified_on = timezone.now()
         self.closed_on = timezone.now()
+        self.save(update_fields=("status", "modified_on", "closed_on"))
+
+    def reopen(self):
+        """
+        Re-opens the ticket
+        """
+        # TODO notify external ticket service via mailroom
+
+        self.status = Ticket.STATUS_OPEN
+        self.modified_on = timezone.now()
+        self.closed_on = None
         self.save(update_fields=("status", "modified_on", "closed_on"))
 
     def __str__(self):
         return f"Ticket[uuid={self.uuid}, subject={self.subject}]"
+
+    class Meta:
+        indexes = [
+            # used by the open tickets view
+            models.Index(name="tickets_org_open", fields=["org", "-opened_on"], condition=Q(status="O"),),
+            # used by the closed tickets view
+            models.Index(name="tickets_org_closed", fields=["org", "-opened_on"], condition=Q(status="C"),),
+            # used by the tickets filtered by ticketer view
+            models.Index(name="tickets_org_ticketer", fields=["ticketer", "-opened_on"],),
+            # used by the list of tickets on contact page and also message handling to find open tickets for contact
+            models.Index(name="tickets_contact_open", fields=["contact", "-opened_on"], condition=Q(status="O"),),
+        ]

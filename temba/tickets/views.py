@@ -1,23 +1,14 @@
-from smartmin.views import (
-    SmartCRUDL,
-    SmartDeleteView,
-    SmartFormView,
-    SmartListView,
-    SmartReadView,
-    SmartTemplateView,
-    SmartUpdateView,
-)
+from smartmin.views import SmartCRUDL, SmartDeleteView, SmartFormView, SmartListView, SmartReadView, SmartTemplateView
 
 from django import forms
 from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils.views import PostOnlyMixin
+from temba.utils.views import BaseActionForm
 
 from .models import Ticket, Ticketer
 
@@ -60,22 +51,85 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
         return context
 
 
+class TicketActionForm(BaseActionForm):
+    allowed_actions = (
+        ("close", "Close Tickets"),
+        ("reopen", "Reopen Tickets"),
+    )
+
+    model = Ticket
+    has_is_active = False
+
+    class Meta:
+        fields = ("action", "objects")
+
+
+class TicketActionMixin(SmartListView):
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        user = self.request.user
+        org = user.get_org()
+
+        form = TicketActionForm(self.request.POST, org=org, user=user)
+        if form.is_valid():
+            form.execute()
+
+        return self.get(request, *args, **kwargs)
+
+
+class TicketListView(OrgPermsMixin, TicketActionMixin, SmartListView):
+    folder = None
+    actions = ()
+    fields = ("contact", "subject", "body", "opened_on")
+    select_related = ("ticketer", "contact")
+    default_order = ("-opened_on",)
+
+    def get_context_data(self, **kwargs):
+        org = self.get_user().get_org()
+
+        context = super().get_context_data(**kwargs)
+        context["folder"] = self.folder
+        context["actions"] = self.actions
+        context["ticketers"] = org.ticketers.filter(is_active=True).order_by("created_on")
+        return context
+
+
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("filter", "close")
+    actions = ("open", "closed", "filter")
 
-    class Filter(OrgObjPermsMixin, SmartListView):
-        fields = ("subject", "contact", "body", "opened_on")
-        select_related = ("ticketer", "contact")
+    class Open(TicketListView):
+        title = _("Open Tickets")
+        folder = "open"
+        actions = ("close",)
+
+        def get_queryset(self, **kwargs):
+            org = self.get_user().get_org()
+            return super().get_queryset(**kwargs).filter(org=org, status=Ticket.STATUS_OPEN)
+
+    class Closed(TicketListView):
+        title = _("Closed Tickets")
+        folder = "closed"
+        actions = ("reopen",)
+
+        def get_queryset(self, **kwargs):
+            org = self.get_user().get_org()
+            return super().get_queryset(**kwargs).filter(org=org, status=Ticket.STATUS_CLOSED)
+
+    class Filter(OrgObjPermsMixin, TicketListView):
+        actions = ("close", "reopen")
 
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/(?P<ticketer>[^/]+)/$" % (path, action)
 
+        def derive_title(self, *args, **kwargs):
+            return self.ticketer.name
+
         def get_queryset(self, **kwargs):
-            qs = super().get_queryset(**kwargs)
-            qs = qs.filter(ticketer=self.ticketer, status=Ticket.STATUS_OPEN)
-            return qs
+            return super().get_queryset(**kwargs).filter(ticketer=self.ticketer)
 
         def get_gear_links(self):
             links = []
@@ -94,10 +148,7 @@ class TicketCRUDL(SmartCRUDL):
             return self.ticketer.org
 
         def get_context_data(self, **kwargs):
-            org = self.request.user.get_org()
-
             context = super().get_context_data(**kwargs)
-            context["ticketers"] = org.ticketers.filter(is_active=True).order_by("created_on")
             context["ticketer"] = self.ticketer
             context["used_by_flows"] = self.ticketer.dependent_flows.all()[:5]
             return context
@@ -115,20 +166,6 @@ class TicketCRUDL(SmartCRUDL):
             if self.object.status == Ticket.STATUS_OPEN and self.has_org_perm("tickets.ticket_close"):
                 links.append(dict(title=_("Close"), js_class="close-ticket", href="#"))
             return links
-
-    class Close(PostOnlyMixin, OrgObjPermsMixin, SmartUpdateView):
-        slug_url_kwarg = "uuid"
-        fields = ()
-
-        def save(self, obj):
-            # TODO ticket should be closed on the external system too.. maybe better to let mailroom do this via a task
-
-            obj.status = Ticket.STATUS_CLOSED
-            obj.closed_on = timezone.now()
-            obj.save(update_fields=("status", "closed_on"))
-
-        def get_success_url(self):
-            return reverse("tickets.ticket_filter", args=[self.object.ticketer.uuid])
 
 
 class TicketerCRUDL(SmartCRUDL):

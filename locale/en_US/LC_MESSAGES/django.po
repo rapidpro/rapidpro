@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-15 14:29+0000\n"
+"POT-Creation-Date: 2020-05-15 21:29+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4296,6 +4296,12 @@ msgstr ""
 msgid "Add"
 msgstr ""
 
+msgid "Open Tickets"
+msgstr ""
+
+msgid "Closed Tickets"
+msgstr ""
+
 msgid "HTTP Log"
 msgstr ""
 
@@ -6185,9 +6191,6 @@ msgstr ""
 msgid "stopped"
 msgstr ""
 
-msgid "Open Tickets"
-msgstr ""
-
 msgid "Upcoming"
 msgstr ""
 
@@ -6833,6 +6836,9 @@ msgid "campaigns"
 msgstr ""
 
 msgid "triggers"
+msgstr ""
+
+msgid "tickets"
 msgstr ""
 
 msgid "channels"
@@ -8922,13 +8928,19 @@ msgstr ""
 msgid "Ticketing Service"
 msgstr ""
 
-msgid "No open tickets at this time."
-msgstr ""
-
 msgid "Warning"
 msgstr ""
 
 msgid "Unable to delete service still being used by the following flows"
+msgstr ""
+
+msgid "Services"
+msgstr ""
+
+msgid "Reopen"
+msgstr ""
+
+msgid "No open tickets at this time."
 msgstr ""
 
 msgid "Through"

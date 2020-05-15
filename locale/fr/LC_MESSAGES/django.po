@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-15 14:29+0000\n"
+"POT-Creation-Date: 2020-05-15 21:29+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -4674,6 +4674,16 @@ msgid "Add"
 msgstr "Adresse"
 
 #, fuzzy
+#| msgid "even buckets"
+msgid "Open Tickets"
+msgstr "même paniers"
+
+#, fuzzy
+#| msgid "Choose File"
+msgid "Closed Tickets"
+msgstr "Choisissez Fichier"
+
+#, fuzzy
 #| msgid "HTTP Logs"
 msgid "HTTP Log"
 msgstr "Journaux HTTP"
@@ -7048,11 +7058,6 @@ msgstr "bloqué"
 msgid "stopped"
 msgstr "arrêté"
 
-#, fuzzy
-#| msgid "even buckets"
-msgid "Open Tickets"
-msgstr "même paniers"
-
 msgid "Upcoming"
 msgstr "À venir"
 
@@ -7914,6 +7919,11 @@ msgstr "campagnes"
 
 msgid "triggers"
 msgstr "déclencheurs"
+
+#, fuzzy
+#| msgid "even buckets"
+msgid "tickets"
+msgstr "même paniers"
 
 msgid "channels"
 msgstr "canaux"
@@ -10663,17 +10673,25 @@ msgid "Ticketing Service"
 msgstr "SID du service de messagerie"
 
 #, fuzzy
-#| msgid "No synced intents at this time."
-msgid "No open tickets at this time."
-msgstr "Aucune intention synchronisée pour le moment."
-
-#, fuzzy
 #| msgid "Warning!"
 msgid "Warning"
 msgstr "Attention!"
 
 msgid "Unable to delete service still being used by the following flows"
 msgstr ""
+
+#, fuzzy
+#| msgid "Service"
+msgid "Services"
+msgstr "Service"
+
+msgid "Reopen"
+msgstr ""
+
+#, fuzzy
+#| msgid "No synced intents at this time."
+msgid "No open tickets at this time."
+msgstr "Aucune intention synchronisée pour le moment."
 
 msgid "Through"
 msgstr ""

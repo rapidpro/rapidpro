@@ -306,7 +306,7 @@ BRANDING = {
         "link": "https://app.rapidpro.io",
         "api_link": "https://api.rapidpro.io",
         "docs_link": "http://docs.rapidpro.io",
-        "domain": "app.rapidpro.io",
+        "domain": "temba.ngrok.io",
         "ticket_domain": "tickets.rapidpro.io",
         "favico": "brands/rapidpro/rapidpro.ico",
         "splash": "brands/rapidpro/splash.jpg",
@@ -472,7 +472,7 @@ PERMISSIONS = {
     "orgs.topup": ("manage",),
     "policies.policy": ("admin", "history", "give_consent"),
     "templates.template": ("api",),
-    "tickets.ticket": ("filter", "close"),
+    "tickets.ticket": ("open", "closed", "filter", "update"),
     "tickets.ticketer": ("api", "connect", "configure"),
     "triggers.trigger": (
         "archived",
@@ -768,8 +768,10 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "templates.template_api",
+        "tickets.ticket_closed",
         "tickets.ticket_filter",
-        "tickets.ticket_close",
+        "tickets.ticket_open",
+        "tickets.ticket_update",
         "tickets.ticketer_api",
         "triggers.trigger.*",
     ),
@@ -839,7 +841,9 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "tickets.ticket_closed",
         "tickets.ticket_filter",
+        "tickets.ticket_open",
         "tickets.ticketer_api",
         "triggers.trigger_archived",
         "triggers.trigger_list",
@@ -946,8 +950,8 @@ CELERY_RESULT_BACKEND = None
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 
-IS_PROD = False
-HOSTNAME = "localhost"
+IS_PROD = True
+HOSTNAME = "temba.ngrok.io"
 
 # The URL and port of the proxy server to use when needed (if any, in requests format)
 OUTGOING_PROXIES = {}
