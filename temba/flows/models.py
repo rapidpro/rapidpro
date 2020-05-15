@@ -10,6 +10,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from enum import Enum
 from io import BytesIO
+from urllib.parse import urlparse
 from urllib.request import urlopen
 from uuid import uuid4
 
@@ -2323,6 +2324,9 @@ class FlowImage(models.Model):
         return image_url
 
     def get_full_path(self):
+        url_path = urlparse(self.path)
+        if all([url_path.scheme, url_path.netloc]):
+            return self.path
         return "%s/%s" % (settings.MEDIA_ROOT, self.path)
 
     def get_permalink(self):
@@ -3977,10 +3981,16 @@ class ExportFlowImagesTask(BaseExportTask):
 
         for file in files_obj:
             fpath = file.get_full_path()
-            fdir, fname = os.path.split(fpath)
-
-            # Add file, at correct path
-            zf.write(fpath, arcname=fname)
+            url_path = urlparse(fpath)
+            if all([url_path.scheme, url_path.netloc]):
+                with NamedTemporaryFile(delete=True) as local_copy:
+                    local_copy.write(urlopen(fpath).read())
+                    local_copy.flush()
+                    zf.write(local_copy.name, arcname=os.path.basename(url_path.path))
+            else:
+                fdir, fname = os.path.split(fpath)
+                # Add file, at correct path
+                zf.write(fpath, arcname=fname)
 
         zf.close()
 
