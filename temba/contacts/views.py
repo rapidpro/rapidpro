@@ -20,7 +20,7 @@ from smartmin.views import (
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, PermissionDenied
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Count
@@ -36,7 +36,9 @@ from django.views.decorators.csrf import csrf_exempt
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel
+from temba.flows.models import Flow
 from temba.contacts.templatetags.contacts import MISSING_VALUE
+from temba.mixins import NotFoundRedirectMixin
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, languages, on_transaction_commit
@@ -546,6 +548,7 @@ class ContactCRUDL(SmartCRUDL):
         "unstop",
         "delete",
         "history",
+        "invite_participants",
     )
 
     class Export(ModalMixin, OrgPermsMixin, SmartFormView):
@@ -655,11 +658,18 @@ class ContactCRUDL(SmartCRUDL):
                 used_labels = []
                 # don't allow users to specify field keys or labels
                 re_col_name_field = regex.compile(r"column_\w+_label$", regex.V0)
+                re_col_name_include = regex.compile(r"column_(?P<name>\w+)_label$", regex.V0)
                 for key, value in self.data.items():
                     if re_col_name_field.match(key):
                         field_label = value.strip()
                         if field_label.startswith("[_NEW_]"):
                             field_label = field_label[7:]
+
+                        # skip fields that are not included and remove them from data
+                        column_name = re_col_name_include.match(key).groupdict().get("name")
+                        column_include = self.data.get("column_{}_include".format(column_name))
+                        if not column_include or "on" not in column_include:
+                            continue
 
                         field_key = ContactField.make_key(field_label)
 
@@ -890,6 +900,31 @@ class ContactCRUDL(SmartCRUDL):
         fields = ("csv_file",)
         success_message = ""
 
+        def get(self, *args, **kwargs):
+            # overwritten to unblock contacts manually when unblock param is present
+            task = self.request.GET.get("task")
+            task = ImportTask.objects.filter(id=task).last()
+            results = json.loads(task.import_results) if task and task.import_results else dict()
+            blocked_contacts = results.pop("blocked_contacts", [])
+            group = ContactGroup.user_groups.filter(import_task=task).first()
+            unblock = self.request.GET.get("unblock")
+            unblock = True if unblock == "true" else False
+
+            if unblock and blocked_contacts:
+                # unblock contact
+                contacts = Contact.objects.filter(id__in=blocked_contacts)
+                contacts.update(is_blocked=False)
+
+                # adding contact to the task group
+                if group:
+                    group.contacts.add(*contacts)
+                    group.save()
+
+                # update import_results because it doesn't has an blocked_contacts anymore
+                task.import_results = json.dumps(results)
+                task.save()
+            return super().get(*args, **kwargs)
+
         def pre_save(self, task):
             super().pre_save(task)
 
@@ -953,6 +988,9 @@ class ContactCRUDL(SmartCRUDL):
                     elif not task.status() in ["PENDING", "RUNNING", "STARTED"]:  # pragma: no cover
                         context["show_form"] = True
 
+                    blocked_contacts = "blocked_contacts" in context["results"] and task.status() == "SUCCESS"
+                    context["show_form"] = False if blocked_contacts else context["show_form"]
+
             return context
 
         def derive_refresh(self):
@@ -1013,6 +1051,8 @@ class ContactCRUDL(SmartCRUDL):
                 event__is_active=True, event__campaign__is_archived=False, scheduled__gte=timezone.now()
             ).order_by("scheduled")
 
+            scheduled_triggers = contact.get_scheduled_triggers()
+
             scheduled_messages = contact.get_scheduled_messages()
 
             merged_upcoming_events = []
@@ -1024,6 +1064,18 @@ class ContactCRUDL(SmartCRUDL):
                         flow_uuid=fire.event.flow.uuid,
                         flow_name=fire.event.flow.name,
                         scheduled=fire.scheduled,
+                    )
+                )
+
+            for sched_trigger in scheduled_triggers:
+                merged_upcoming_events.append(
+                    dict(
+                        repeat_period=sched_trigger.schedule.repeat_period,
+                        event_type="F",
+                        message=None,
+                        flow_uuid=sched_trigger.flow.uuid,
+                        flow_name=sched_trigger.flow.name,
+                        scheduled=sched_trigger.schedule.next_fire,
                     )
                 )
 
@@ -1040,7 +1092,7 @@ class ContactCRUDL(SmartCRUDL):
                 )
 
             # upcoming scheduled events
-            context["upcoming_events"] = sorted(merged_upcoming_events, key=lambda k: k["scheduled"], reverse=True)
+            context["upcoming_events"] = sorted(merged_upcoming_events, key=lambda k: k["scheduled"])
 
             # divide contact's URNs into those we can send to, and those we can't
             from temba.channels.models import Channel
@@ -1117,7 +1169,12 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm("msgs.broadcast_send") and not self.object.is_blocked and not self.object.is_stopped and self.object.get_urn():
+            if (
+                self.has_org_perm("msgs.broadcast_send")
+                and not self.object.is_blocked
+                and not self.object.is_stopped
+                and self.object.get_urn()
+            ):
                 links.append(
                     dict(
                         id="send-message",
@@ -1346,8 +1403,26 @@ class ContactCRUDL(SmartCRUDL):
             context["reply_disabled"] = True
             return context
 
-    class Filter(ContactActionMixin, ContactListView, OrgObjPermsMixin):
+    class Filter(NotFoundRedirectMixin, ContactActionMixin, ContactListView, OrgObjPermsMixin):
         template_name = "contacts/contact_filter.haml"
+
+        # fields for NotFoundRedirectMixin
+        redirect_checking_model = ContactGroup
+        redirect_url = "contacts.contact_list"
+        redirect_params = {
+            "filter_key": "uuid",
+            "filter_value": "group",
+            "model_manager": "user_groups",
+            "message": _("Contact group not found."),
+        }
+
+        def has_permission_view_objects(self):
+            group = ContactGroup.all_groups.filter(
+                org=self.request.user.get_org(), uuid=self.kwargs.get("group")
+            ).first()
+            if not group:
+                raise PermissionDenied()
+            return None
 
         def get_gear_links(self):
             links = []
@@ -1627,6 +1702,108 @@ class ContactCRUDL(SmartCRUDL):
         def save(self, obj):
             obj.release(self.request.user)
             return obj
+
+    class InviteParticipants(ContactActionMixin, ContactListView):
+        title = _("Invite Participants")
+        system_group = ContactGroup.TYPE_ALL
+
+        def get(self, request, *args, **kwargs):
+            contact_uuid = request.GET.get("contact_uuid")
+            if not contact_uuid:
+                return super().get(request, *args, **kwargs)
+
+            org = request.user.get_org()
+            flow_uuid = org.config.get(org.OPTIN_FLOW, None)
+            flow = Flow.objects.filter(org=org, is_active=True, uuid=flow_uuid).exclude(is_archived=True).first()
+            existing_contact = Contact.objects.filter(uuid=contact_uuid).first()
+
+            if existing_contact and flow:
+                flow.async_start(
+                    self.request.user,
+                    list([]),
+                    list([existing_contact]),
+                    restart_participants=True,
+                    include_active=True,
+                )
+                result = dict(sent=True)
+            else:
+                result = dict(sent=False)
+
+            return HttpResponse(json.dumps(result), content_type="application/json")
+
+        def post(self, request, *args, **kwargs):
+            optin_flow_uuid = request.POST.get("optin_flow_uuid", None)
+
+            if optin_flow_uuid:
+                self.org.set_optin_flow(request.user, optin_flow_uuid)
+                messages.success(request, _("Opt-in Flow updated"))
+
+            return HttpResponseRedirect(request.META.get("HTTP_REFERER"))
+
+        def derive_group(self):
+            group_uuid = self.request.GET.get("group", None)
+            folder = self.request.GET.get("folder", None)
+
+            if group_uuid:
+                return ContactGroup.user_groups.get(uuid=group_uuid)
+
+            if folder in ("stopped", "blocked"):
+                group_types = {"blocked": ContactGroup.TYPE_BLOCKED, "stopped": ContactGroup.TYPE_STOPPED}
+                self.system_group = group_types[folder]
+
+            return super().derive_group()
+
+        def get_gear_links(self):
+            links = []
+
+            # define save search conditions
+            valid_search_condition = self.request.GET.get("search") and not self.search_error
+            has_contactgroup_create_perm = self.has_org_perm("contacts.contactgroup_create")
+
+            if has_contactgroup_create_perm and valid_search_condition:
+                links.append(dict(title=_("Save as Group"), js_class="add-dynamic-group", href="#"))
+
+            if self.has_org_perm("contacts.contactfield_list"):
+                links.append(
+                    dict(
+                        title=_("Manage Fields"), js_class="manage-fields", href=reverse("contacts.contactfield_list")
+                    )
+                )
+
+            if self.has_org_perm("contacts.contact_export"):
+                links.append(dict(title=_("Export"), js_class="export-contacts", href="#"))
+            return links
+
+        def get_context_data(self, *args, **kwargs):
+            context = super().get_context_data(*args, **kwargs)
+            org = self.request.user.get_org()
+            group = self.derive_group()
+            view_url = reverse("contacts.contact_invite_participants")
+
+            counts = ContactGroup.get_system_group_counts(org)
+
+            folders = [
+                dict(count=counts[ContactGroup.TYPE_ALL], label=_("All Contacts"), url=view_url),
+                dict(
+                    count=counts[ContactGroup.TYPE_BLOCKED],
+                    label=_("Blocked"),
+                    url="{}?folder=blocked".format(view_url),
+                ),
+                dict(
+                    count=counts[ContactGroup.TYPE_STOPPED],
+                    label=_("Stopped"),
+                    url="{}?folder=stopped".format(view_url),
+                ),
+            ]
+
+            context["folders"] = folders
+            context["current_group"] = group
+            context["flows"] = Flow.objects.filter(org=org, is_active=True, is_system=False, is_archived=False)
+            context["optin_flow"] = org.get_optin_flow()
+            context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by("-priority", "pk")
+            context["export_url"] = self.derive_export_url()
+            context["actions"] = ("label", "block")
+            return context
 
 
 class ContactGroupCRUDL(SmartCRUDL):

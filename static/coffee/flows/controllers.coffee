@@ -1119,9 +1119,11 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   formData.webhook_action = 'GET'
   if ruleset.config
     formData.webhook = ruleset.config.webhook
+    formData.webhook_json = ruleset.config.webhook_json
     formData.webhook_action = ruleset.config.webhook_action
     formData.webhook_headers = ruleset.config.webhook_headers or []
     formData.isWebhookAdditionalOptionsVisible = formData.webhook_headers.length > 0
+    formData.isWebhookJsonBodyVisible = formData.webhook_json.length > 2
 
     formData.lookup_db = ruleset.config.lookup_db
     formData.lookup_queries = ruleset.config.lookup_queries or []
@@ -1850,6 +1852,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
         ruleset.config =
           webhook: formData.webhook
+          webhook_json: formData.webhook_json
           webhook_action: formData.webhook_action
           webhook_headers: webhook_headers
 

@@ -827,6 +827,17 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             logger.error("Error evaluating query", exc_info=True)
             raise  # reraise the exception
 
+    def get_scheduled_triggers(self):
+        from temba.triggers.models import Trigger
+
+        triggers = (
+            Trigger.objects.select_related("schedule")
+            .filter(trigger_type=Trigger.TYPE_SCHEDULE)
+            .filter(schedule__next_fire__gte=timezone.now())
+            .filter(Q(contacts=self) | Q(groups__contacts=self))
+        )
+        return triggers
+
     def get_scheduled_messages(self):
         from temba.msgs.models import SystemLabel
 
@@ -1551,10 +1562,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 org, user, name, uuid=uuid, urns=urns, language=language, force_urn_update=True
             )
 
-        # if they exist and are blocked, unblock them
-        if contact.is_blocked:
-            contact.unblock(user)
-
         # ignore any reserved fields or URN schemes
         valid_keys = (
             key
@@ -1869,6 +1876,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         )
 
         num_creates = 0
+        blocked_contacts = []
         for contact in contacts:
             # if contact has is_new attribute, then we have created a new contact rather than updated an existing one
             if getattr(contact, "is_new", False):
@@ -1877,6 +1885,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             # do not add blocked or stopped contacts
             if not contact.is_stopped and not contact.is_blocked:
                 group.contacts.add(contact)
+
+            # adding the contact to blocked list for ability to unblock
+            if contact.is_blocked:
+                blocked_contacts.append(contact.id)
 
         # group is now ready to be used in a flow starts etc
         group.status = ContactGroup.STATUS_READY
@@ -1911,6 +1923,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         # overwrite the import results for adding the counts
         import_results["creates"] = num_creates
         import_results["updates"] = len(contacts) - num_creates
+        import_results["blocked_contacts"] = blocked_contacts
         task.import_results = json.dumps(import_results)
 
         return contacts
@@ -2511,7 +2524,7 @@ class ContactGroup(TembaModel):
     """
 
     MAX_NAME_LEN = 64
-    MAX_ORG_CONTACTGROUPS = 250
+    MAX_ORG_CONTACTGROUPS = settings.MAX_ORG_CONTACTGROUPS
 
     TYPE_ALL = "A"
     TYPE_BLOCKED = "B"

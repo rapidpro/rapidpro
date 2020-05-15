@@ -82,7 +82,7 @@ class BaseExportTask(TembaModel):
             # notify user who requested this export
             send_template_email(
                 self.created_by.username,
-                self.email_subject % self.org.name,
+                self.email_subject.format(self.org.name),
                 self.email_template,
                 self.get_email_context(branding),
                 branding,

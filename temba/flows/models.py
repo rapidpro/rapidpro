@@ -1,20 +1,27 @@
+import os
 import logging
 import time
 import requests
+import zipfile
+
 from array import array
 from collections import OrderedDict, defaultdict
 from datetime import date, timedelta
 from decimal import Decimal
 from enum import Enum
+from io import BytesIO
 from urllib.request import urlopen
 from uuid import uuid4
 
 import iso8601
 import phonenumbers
 import regex
+import boto3
 from django.db.models.functions import TruncDate
 from django_redis import get_redis_connection
 from packaging.version import Version
+from PIL import Image, ExifTags
+from sorl.thumbnail import get_thumbnail
 from smartmin.models import SmartModel
 from temba_expressions.utils import tokenize
 from xlsxlite.writer import XLSXBook
@@ -25,6 +32,9 @@ from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
 from django.db.models import Max, Q, Sum
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -33,21 +43,13 @@ from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
-from temba.contacts.models import (
-    Contact,
-    ContactField,
-    ContactGroup,
-    ContactURN,
-)
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, URN
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import DELIVERED, PENDING, Broadcast, Label, Msg
-from temba.orgs.models import Language, Org
+from temba.orgs.models import Org
 from temba.links.models import Link
 from temba.classifiers.models import Classifier
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.globals.models import Global
-from temba.msgs.models import Label, Msg
-from temba.orgs.models import Org
 from temba.templates.models import Template
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
@@ -1022,34 +1024,12 @@ class Flow(TembaModel):
     def as_select2(self):
         return dict(id=self.uuid, text=self.name)
 
-    def release(self):
-        """
-        Releases this flow, marking it inactive. We interrupt all flow runs in a background process.
-        We keep FlowRevisions and FlowStarts however.
-        """
-        from .tasks import interrupt_flow_runs_task
-
-        self.is_active = False
-        self.save()
-
-        # release any campaign events that depend on this flow
-        from temba.campaigns.models import CampaignEvent
-
-        for event in CampaignEvent.objects.filter(flow=self, is_active=True):
-            event.release()
-
-        # release any triggers that depend on this flow
-        for trigger in self.triggers.all():
-            trigger.release()
-
-        self.group_dependencies.clear()
-        self.flow_dependencies.clear()
-        self.field_dependencies.clear()
-        self.channel_dependencies.clear()
-        self.label_dependencies.clear()
-
-        # interrupt our runs in the background
-        on_transaction_commit(lambda: interrupt_flow_runs_task.delay(self.id))
+    def get_trigger_params(self):
+        flow_json = self.as_json()
+        rule = r"@trigger.params.([a-zA-Z0-9_]+)"
+        matches = regex.finditer(rule, json.dumps(flow_json), regex.MULTILINE | regex.IGNORECASE)
+        params = [match.group() for match in matches]
+        return list(set(params))
 
     def get_category_counts(self):
         keys = [r["key"] for r in self.metadata["results"]]
@@ -1111,6 +1091,9 @@ class Flow(TembaModel):
         Gets the number of contacts to have taken each flow segment.
         """
         return FlowPathCount.get_totals(self)
+
+    def get_images_count(self):
+        return self.flow_images.filter(is_active=True).count()
 
     def get_activity(self):
         """
@@ -1434,7 +1417,9 @@ class Flow(TembaModel):
             "completion": int(totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED] * 100 // total_runs) if total_runs else 0,
         }
 
-    def async_start(self, user, groups, contacts, query=None, restart_participants=False, include_active=True):
+    def async_start(
+        self, user, groups, contacts, query=None, restart_participants=False, include_active=True, params=None
+    ):
         """
         Causes us to schedule a flow to start in a background thread.
         """
@@ -1446,6 +1431,7 @@ class Flow(TembaModel):
             created_by=user,
             modified_by=user,
             query=query,
+            extra=params,
         )
 
         contact_ids = [c.id for c in contacts]
@@ -2221,6 +2207,176 @@ class Flow(TembaModel):
 
     class Meta:
         ordering = ("-modified_on",)
+
+
+@receiver(post_save, sender=Flow)
+def update_related_flows(sender, instance, created, **kwargs):
+    dependent_flows = instance.dependent_flows.all()
+    if created:
+        return
+
+    def flow_dependency_filter(dependency):
+        if dependency.get("type") == "flow":
+            return dependency.get("uuid") == instance.uuid
+        return False
+
+    def flow_node_filter(node):
+        flow_types = ("enter_flow", "start_session")
+        if node["actions"] and node["actions"][0]["type"] in flow_types:
+            return node["actions"][0]["flow"]["uuid"] == instance.uuid
+        return False
+
+    def general_flow_update(flow):
+        dependencies = filter(flow_dependency_filter, flow.metadata.get("dependencies", []))
+        for dependency in dependencies:
+            dependency.update({"name": instance.name})
+        flow.save()
+
+    def legacy_flow_update(flow):
+        actionsets = flow.action_sets.filter(actions__icontains=instance.uuid)
+        for actionset in actionsets:
+            actions = actionset.actions
+            for action in actions:
+                if action.get("type") in ("flow", "trigger-flow") and action.get("flow"):
+                    action["flow"].update({"name": instance.name})
+
+        ActionSet.objects.bulk_update(actionsets, ["actions"])
+
+        rulesets = flow.rule_sets.filter(config__icontains=instance.uuid)
+        for ruleset in rulesets:
+            config = ruleset.config
+            if "flow" in config:
+                config["flow"].update({"name": instance.name})
+
+        RuleSet.objects.bulk_update(rulesets, ["config"])
+
+    def next_flow_update(flow):
+        flow_revision = flow.revisions.order_by("revision").last()
+        nodes = filter(flow_node_filter, flow_revision.definition.get("nodes", []))
+        for node in nodes:
+            action = node["actions"][0]
+            action.update({"flow": {"uuid": instance.uuid, "name": instance.name}})
+        flow_revision.save()
+
+    for flow in dependent_flows:
+        next_flow_update(flow)
+        legacy_flow_update(flow)
+        general_flow_update(flow)
+
+        
+class FlowImage(models.Model):
+    uuid = models.UUIDField(unique=True, default=uuid4)
+    org = models.ForeignKey(Org, related_name="flow_images", db_index=False, on_delete=models.CASCADE)
+    flow = models.ForeignKey(Flow, related_name="flow_images", on_delete=models.CASCADE)
+    contact = models.ForeignKey(Contact, related_name="flow_images", on_delete=models.CASCADE)
+    name = models.CharField(help_text="Image name", max_length=255)
+    path = models.CharField(help_text="Image URL", max_length=255)
+    path_thumbnail = models.CharField(help_text="Image thumbnail URL", max_length=255, null=True)
+    exif = models.TextField(blank=True, null=True, help_text=_("A JSON representation the exif"))
+    created_on = models.DateTimeField(default=timezone.now, editable=False, blank=True,
+                                      help_text="When this item was originally created")
+    modified_on = models.DateTimeField(default=timezone.now, editable=False, blank=True,
+                                       help_text="When this item was last modified")
+    is_active = models.BooleanField(default=True,
+                                    help_text="Whether this item is active, use this instead of deleting")
+
+    @classmethod
+    def apply_action_archive(cls, user, objects):
+        changed = []
+        for item in objects:
+            item.archive()
+            changed.append(item.pk)
+        return changed
+
+    @classmethod
+    def apply_action_restore(cls, user, objects):
+        changed = []
+        for item in objects:
+            item.restore()
+            changed.append(item.pk)
+        return changed
+
+    @classmethod
+    def apply_action_delete(cls, user, objects):
+        changed = []
+        for item in objects:
+            changed.append(item.pk)
+            item.delete()
+        return changed
+
+    def archive(self):
+        self.is_active = False
+        self.save(update_fields=["is_active"])
+
+    def restore(self):
+        self.is_active = True
+        self.save(update_fields=["is_active"])
+
+    def get_exif(self):
+        return json.loads(self.exif) if self.exif else dict()
+
+    def get_url(self):
+        if "s3.amazonaws.com" in self.path:
+            return self.path
+        protocol = "https" if settings.IS_PROD else "http"
+        image_url = "%s://%s/%s" % (protocol, settings.AWS_BUCKET_DOMAIN, self.path)
+        return image_url
+
+    def get_full_path(self):
+        return "%s/%s" % (settings.MEDIA_ROOT, self.path)
+
+    def get_permalink(self):
+        protocol = "https" if settings.IS_PROD else "http"
+        return "%s://%s%s" % (protocol, settings.HOSTNAME, reverse("flows.flowimage_read", args=[self.uuid]))
+
+    def set_deleted(self):
+        self.is_active = False
+        self.save(update_fields=("is_active"))
+
+    def is_playable(self):
+        extension = self.path.split('.')[-1]
+        return True if extension in ['avi', 'flv', 'wmv', 'mp4', 'mov', '3gp'] else False
+
+    def get_content_type(self):
+        if self.is_playable():
+            extension = self.path.split(".")[-1]
+            mime_types = {
+                "avi": "video/x-msvideo",
+                "flv": "video/x-flv",
+                "wmv": "video/x-ms-wmv",
+                "mp4": "video/mp4",
+                "mov": "video/quicktime",
+                "3gp": "video/3gpp",
+            }
+            return mime_types.get(extension, "video/mp4")
+        else:
+            return None
+
+    def __str__(self):
+        return self.name
+
+
+# Removing images files for Flow Images
+@receiver(models.signals.post_delete, sender=FlowImage)
+def auto_delete_file_on_delete(sender, instance, **kwargs):
+    """
+    Deletes file from filesystem
+    when corresponding `MediaFile` object is deleted.
+    """
+    s3 = (
+        boto3.resource(
+            "s3", aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+        )
+        if settings.DEFAULT_FILE_STORAGE == "storages.backends.s3boto3.S3Boto3Storage"
+        else None
+    )
+    if instance.path:
+        if os.path.isfile(instance.get_full_path()):
+            os.remove(instance.get_full_path())
+        elif s3 and "s3.amazonaws.com" in instance.path:
+            key = instance.path.replace("https://%s/" % settings.AWS_BUCKET_DOMAIN, "")
+            obj = s3.Object(settings.AWS_STORAGE_BUCKET_NAME, key)
+            obj.delete()
 
 
 class FlowSession(models.Model):
@@ -3433,7 +3589,7 @@ class ExportFlowResultsTask(BaseExportTask):
     """
 
     analytics_key = "flowresult_export"
-    email_subject = "Your results export from %s is ready"
+    email_subject = "Your results export from {} is ready"
     email_template = "flows/email/flow_export_download"
 
     INCLUDE_MSGS = "include_msgs"
@@ -3794,6 +3950,53 @@ class ResultsExportAssetStore(BaseExportAssetStore):
     directory = "results_exports"
     permission = "flows.flow_export_results"
     extensions = ("xlsx",)
+
+
+class ExportFlowImagesTask(BaseExportTask):
+    """
+    Container for managing our flow images download requests
+    """
+
+    analytics_key = "flowimages_download"
+    email_subject = "Your download file is ready"
+    email_template = "flowimages/email/flowimages_download"
+
+    files = models.TextField(help_text=_("Array as text of the files ID to download in a zip file"))
+
+    @classmethod
+    def create(cls, org, user, files):
+        dict_files = json.dumps(dict(files=files))
+        return cls.objects.create(org=org, created_by=user, modified_by=user, files=dict_files)
+
+    def write_export(self):
+        files = json.loads(self.files)
+        files_obj = FlowImage.objects.filter(id__in=files.get("files")).order_by("-created_on")
+
+        stream = BytesIO()
+        zf = zipfile.ZipFile(stream, "w")
+
+        for file in files_obj:
+            fpath = file.get_full_path()
+            fdir, fname = os.path.split(fpath)
+
+            # Add file, at correct path
+            zf.write(fpath, arcname=fname)
+
+        zf.close()
+
+        temp = NamedTemporaryFile(delete=True)
+        temp.write(stream.getvalue())
+        temp.flush()
+        return temp, "zip"
+
+
+@register_asset_store
+class FlowImagesExportAssetStore(BaseExportAssetStore):
+    model = ExportFlowImagesTask
+    key = "flowimages_download"
+    directory = "flowimages_download"
+    permission = "flows.flowimage_download"
+    extensions = ("zip",)
 
 
 class FlowStart(models.Model):
@@ -5190,6 +5393,7 @@ class Test(object):
                 NumberTest.TYPE: NumberTest,
                 OrTest.TYPE: OrTest,
                 PhoneTest.TYPE: PhoneTest,
+                PhotoTest.TYPE: PhotoTest,
                 RegexTest.TYPE: RegexTest,
                 StartsWithTest.TYPE: StartsWithTest,
                 SubflowTest.TYPE: SubflowTest,
@@ -5224,6 +5428,87 @@ class Test(object):
         raise FlowException(
             "Subclasses must implement evaluate, returning a tuple containing 1 or 0 and the value tested"
         )
+
+
+class PhotoTest(Test):
+    """
+    Test for whether a response contains a photo
+    """
+
+    TYPE = "image"
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls()
+
+    def as_json(self):  # pragma: needs cover
+        return dict(type=self.TYPE)
+
+    def evaluate(self, run, sms, context, text):
+        image_url = None
+        image = None
+        text_split = []
+        org = run.flow.org
+        has_attachment = 1 if sms.attachments and len(sms.attachments) > 0 else 0
+
+        if has_attachment:
+            text_split = sms.attachments[0].split(":", 1)
+            image = text_split[1]
+            is_image = 1 if "image" in text_split[0] or "mp4" in text_split[0] else 0
+        else:
+            is_image = 0
+
+        if is_image and not run.contact.is_test:
+            if settings.DEFAULT_FILE_STORAGE == "storages.backends.s3boto3.S3Boto3Storage":
+                media_path = image
+                image = Org.get_temporary_file_from_url(media_url=image)
+                image_path = image.file.name
+                thumbnail_path = media_path
+            else:
+                media_path = image.split("media", 1)[1]
+                image_path = "%s%s" % (settings.MEDIA_ROOT, media_path)
+                media_path = media_path.replace("/", "", 1)
+                thumbnail_path = image_path
+
+            if text_split and "image" in text_split[0]:
+                media_thumbnail = get_thumbnail(thumbnail_path, "50x50", crop="center", quality=99, format="PNG")
+                media_thumbnail_path = media_thumbnail.url
+            else:
+                media_thumbnail_path = None
+
+            try:
+                img = Image.open(image_path)
+                exif_data = img._getexif()
+            except Exception:
+                exif_data = {}
+
+            exif = {ExifTags.TAGS[k]: v for k, v in exif_data.items() if k in ExifTags.TAGS} if exif_data else {}
+
+            try:
+                exif = json.dumps(exif)
+            except Exception:
+                exif = None
+
+            file_name = media_path.split("/", -1)[-1]
+            image_args = dict(
+                org=org,
+                flow=run.flow,
+                contact=run.contact,
+                path=media_path,
+                exif=exif,
+                path_thumbnail=media_thumbnail_path,
+                name=file_name,
+            )
+            flow_image = FlowImage.objects.create(**image_args)
+            image_url = flow_image.get_url()
+        elif is_image:
+            text_split = sms.attachments[0].split(":", 1)
+            image_url = text_split[1]
+
+        return is_image, image_url
 
 
 class WebhookStatusTest(Test):

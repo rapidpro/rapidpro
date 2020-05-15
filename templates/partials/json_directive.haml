@@ -1,0 +1,17 @@
+{% verbatim %}
+.json-directive
+  %textarea{
+    ng-model:"json",
+    ng-required:"true",
+    ng-change:"textChanged()",
+    ng-keydown:"onTabBehavior($event)",
+    ng-json-validator,
+    auto-complete:"",
+    name:"json",
+    flow:"[[$parent.flowId]]",
+    class:"json-body"}
+  %button.btn.btn-primary.json-btn{"ng-click": "validateJSON()"}
+    {{ btnText }}
+  %span.json-msg
+    {{ message }}
+{% endverbatim %}

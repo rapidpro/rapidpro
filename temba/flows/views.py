@@ -5,6 +5,7 @@ from uuid import uuid4
 import iso8601
 import regex
 import requests
+
 from packaging.version import Version
 from smartmin.views import (
     SmartCreateView,
@@ -21,14 +22,16 @@ from smartmin.views import (
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, PermissionDenied
 from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Lower
+from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
 from django.utils.text import slugify
+from django.utils.timezone import get_current_timezone_name
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
@@ -37,31 +40,37 @@ from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
+from temba.contacts.fields import OmniboxField
 from temba.contacts.models import FACEBOOK_SCHEME, TEL_SCHEME, WHATSAPP_SCHEME, ContactField, ContactGroup, ContactURN
 from temba.contacts.omnibox import omnibox_deserialize
 from temba.flows import legacy
 from temba.flows.legacy.expressions import get_function_listing
-from temba.flows.models import Flow, FlowRevision, FlowRun, FlowStart, FlowRunCount, FlowSession
-from temba.flows.tasks import export_flow_results_task
+from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
+from temba.flows.tasks import export_flow_results_task, download_flow_images_task
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
 from temba.orgs.models import Org, LOOKUPS, GIFTCARDS
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.schedules.views import BaseScheduleForm
+from temba.schedules.models import Schedule
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
-from temba.utils import analytics, json, on_transaction_commit, str_to_bool
+from temba.utils import analytics, json, on_transaction_commit, str_to_bool, build_flow_parameters
 from temba.utils.fields import ContactSearchWidget, JSONField, OmniboxChoice, SelectWidget
 from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm, NonAtomicMixin
 
 from .models import (
+    ExportFlowImagesTask,
     ExportFlowResultsTask,
     FlowInvalidCycleException,
+    FlowImage,
     FlowLabel,
     FlowPathRecentRun,
     FlowUserConflictException,
     FlowVersionConflictException,
 )
+
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +90,15 @@ EXPIRES_CHOICES = (
     (60 * 24 * 7, _("After 1 week")),
     (60 * 24 * 14, _("After 2 weeks")),
     (60 * 24 * 30, _("After 30 days")),
+)
+
+LAUNCH_IMMEDIATELY = "LAUNCH_IMMEDIATELY"
+LAUNCH_ON_KEYWORD_TRIGGER = "LAUNCH_ON_KEYWORD_TRIGGER"
+LAUNCH_ON_SHEDULE_TRIGGER = "LAUNCH_ON_SHEDULE_TRIGGER"
+LAUNCH_CHOICES = (
+    (LAUNCH_IMMEDIATELY, _("Start flow immediately and send to selected groups or individual")),
+    (LAUNCH_ON_KEYWORD_TRIGGER, _("Start flow when a specified keyword is received in a message")),
+    (LAUNCH_ON_SHEDULE_TRIGGER, _("Start flow at a future date and time")),
 )
 
 
@@ -191,6 +209,36 @@ class FlowActionMixin(SmartListView):
         return response
 
 
+class FlowImageActionForm(BaseActionForm):
+    allowed_actions = (
+        ("archive", _("Archive Flow Images")),
+        ("delete", _("Delete Flow Images")),
+        ("download", _("Download Flow Images")),
+        ("restore", _("Restore Flows Images")),
+    )
+
+    model = FlowImage
+    has_is_active = False
+
+    class Meta:
+        fields = ("action", "objects", "label", "add")
+
+
+class FlowImageActionMixin(SmartListView):
+    @csrf_exempt
+    def dispatch(self, *args, **kwargs):
+        return super(FlowImageActionMixin, self).dispatch(*args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        user = self.request.user
+        org = user.get_org()
+        form = FlowImageActionForm(self.request.POST, org=org, user=user)
+        if form.is_valid():
+            form.execute()
+        response = self.get(request, *args, **kwargs)
+        return response
+
+
 class PartialTemplate(SmartTemplateView):  # pragma: no cover
     def pre_process(self, request, *args, **kwargs):
         self.template = kwargs["template"]
@@ -230,6 +278,212 @@ class FlowRunCRUDL(SmartCRUDL):
             return HttpResponse()
 
 
+class FlowImageCRUDL(SmartCRUDL):
+    actions = ("list", "read", "filter", "archived", "download")
+    model = FlowImage
+
+    class OrgQuerysetMixin(object):
+        def derive_queryset(self, *args, **kwargs):
+            queryset = super().derive_queryset(*args, **kwargs)
+            if not self.request.user.is_authenticated:  # pragma: needs cover
+                return queryset.exclude(pk__gt=0)
+            else:
+                return queryset.filter(org=self.request.user.get_org())
+
+    class BaseList(FlowImageActionMixin, OrgQuerysetMixin, OrgPermsMixin, SmartListView):
+        title = _("Flow Images")
+        refresh = 10000
+        fields = ("name", "modified_on")
+        default_template = "flowimages/flowimage_list.html"
+        default_order = ("-created_on",)
+        search_fields = ("name__icontains", "contact__name__icontains", "contact__urns__path__icontains")
+
+        def get_counter(self):
+            query = FlowImage.objects.filter(org=self.request.user.get_org())
+            return query.filter(is_active=True).count(), query.filter(is_active=False).count()
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            folders = self.get_folders()
+            context["org_has_flowimages"] = folders[0].get("count")
+            context["org_has_flowimages_archived"] = folders[1].get("count")
+            context["flows"] = (
+                Flow.objects.filter(org=self.request.user.get_org(), is_active=True)
+                .only("name", "uuid")
+                .order_by("name")
+            )
+            context["groups"] = (
+                ContactGroup.user_groups.filter(org=self.request.user.get_org(), is_active=True)
+                .only("name", "uuid")
+                .order_by("name")
+            )
+            context["folders"] = folders
+            context["request_url"] = self.request.path
+            context["actions"] = self.actions
+            context["contact_fields"] = ContactField.user_fields.filter(
+                org=self.request.user.get_org(), is_active=True
+            ).order_by("pk")
+            return context
+
+        def get_folders(self):
+            (active_count, archived_count) = self.get_counter()
+            return [
+                dict(label="Active", url=reverse("flows.flowimage_list"), count=active_count),
+                dict(label="Archived", url=reverse("flows.flowimage_archived"), count=archived_count),
+            ]
+
+        def derive_queryset(self, *args, **kwargs):
+            return super().derive_queryset(*args, **kwargs)
+
+        def get_gear_links(self):
+            links = []
+            if self.has_org_perm("contacts.contactfield_managefields"):
+                links.append(dict(title=_("Manage Fields"), js_class="manage-fields", href="#"))
+            if self.has_org_perm("flows.flowimage_download"):
+                links.append(dict(title=_("Download all images"), js_class="download-all-images", href=""))
+            return links
+
+    class List(BaseList):
+        title = _("Flow Images")
+        actions = ("download", "archive")
+
+        def derive_queryset(self, *args, **kwargs):
+            qs = super().derive_queryset(*args, **kwargs)
+            return qs.exclude(is_active=False)
+
+    class Archived(BaseList):
+        title = _("Flow Images Archived")
+        actions = ("restore", "delete")
+
+        def derive_queryset(self, *args, **kwargs):
+            qs = super().derive_queryset(*args, **kwargs)
+            return qs.exclude(is_active=True)
+
+    class Filter(BaseList):
+        actions = ("download", "archive")
+
+        def get_context_data(self, *args, **kwargs):
+            context = super().get_context_data(*args, **kwargs)
+            context["current_object"] = self.derive_object()
+            return context
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/%s/(?P<type>group|flow)/(?P<uuid>[^/]+)/$" % (path, action)
+
+        def derive_title(self, *args, **kwargs):
+            obj = self.derive_object()
+            return _('Images from "%s"' % obj.name) if obj else _("Flow Images")
+
+        def derive_object(self):
+            obj_type = self.kwargs.get("type")
+            uuid = self.kwargs.get("uuid")
+            if obj_type == "flow":
+                return Flow.objects.filter(org=self.org, uuid=uuid).first()
+            else:
+                return ContactGroup.user_groups.filter(org=self.org, uuid=uuid).first()
+
+        def get_queryset_filter(self):
+            obj = self.derive_object()
+            obj_type = self.kwargs.get("type")
+            if obj_type == "flow":
+                get_filter = dict(flow=obj)
+            else:
+                contacts_id = (
+                    obj.contacts.all().exclude(is_active=False).order_by("pk").values_list("pk", flat=True).distinct()
+                )
+                get_filter = dict(contact__id__in=contacts_id)
+            return get_filter
+
+        def get_queryset(self, **kwargs):
+            qs = super().get_queryset(**kwargs)
+            _filter = self.get_queryset_filter()
+            qs = qs.filter(**_filter).exclude(is_active=False).distinct()
+            return qs
+
+    class Read(OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = "uuid"
+
+        def get(self, request, *args, **kwargs):
+            flow_image = self.get_object()
+            with open(flow_image.get_full_path(), "r") as image:
+                return HttpResponse(image.read(), content_type="image/png")
+
+    class Download(OrgPermsMixin, SmartListView):
+        def post(self, request, *args, **kwargs):
+            user = self.request.user
+            org = user.get_org()
+
+            type_ = self.request.POST.get("type", None)
+            uuid_ = self.request.POST.get("uuid", None)
+
+            if type_ in ["list", "archived", "group", "flow"]:
+                if type_ == "list":
+                    get_filter = dict(is_active=True, org=org)
+                elif type_ == "archived":
+                    get_filter = dict(is_active=False, org=org)
+                elif (type_ == "group" or type_ == "flow") and uuid_:
+                    if type_ == "group":
+                        group = ContactGroup.user_groups.filter(org=org, uuid=uuid_).only("id").first()
+                        contacts_id = (
+                            group.contacts.all()
+                            .exclude(is_active=False)
+                            .order_by("id")
+                            .values_list("pk", flat=True)
+                            .distinct()
+                        )
+                        get_filter = dict(is_active=True, contact__id__in=contacts_id, org=org)
+                    else:
+                        flow = Flow.objects.filter(org=org, uuid=uuid_).first()
+                        get_filter = dict(is_active=True, flow=flow, org=org)
+                else:
+                    get_filter = None
+
+                if get_filter:
+                    objects_list = list(
+                        FlowImage.objects.filter(**get_filter)
+                        .only("id")
+                        .order_by("-created_on")
+                        .values_list("id", flat=True)
+                        .distinct()
+                    )
+                else:
+                    objects_list = []
+            else:
+                objects = self.request.POST.get("objects")
+                objects_list = objects.split(",")
+
+            # is there already an export taking place?
+            existing = ExportFlowImagesTask.get_recent_unfinished(org)
+            if existing:
+                messages.info(
+                    self.request,
+                    _(
+                        "There is already a download in progress, started by %s. You must wait "
+                        "for that download process to complete before starting another." % existing.created_by.username
+                    ),
+                )
+            else:
+                export = ExportFlowImagesTask.create(org, user, files=objects_list)
+                on_transaction_commit(lambda: download_flow_images_task.delay(export.pk))
+
+                if not getattr(settings, "CELERY_ALWAYS_EAGER", False):  # pragma: needs cover
+                    messages.info(
+                        self.request,
+                        _("We are preparing your download file. We will e-mail you at %s when it is ready.")
+                        % self.request.user.username,
+                    )
+                else:
+                    export = ExportFlowImagesTask.objects.get(id=export.pk)
+                    dl_url = reverse("assets.download", kwargs=dict(type="flowimages_download", pk=export.pk))
+                    messages.info(
+                        self.request,
+                        _("Download complete, you can find it here: %s (production users will get an email)") % dl_url,
+                    )
+
+            return HttpResponseRedirect(request.META.get("HTTP_REFERER"))
+
+
 class FlowCRUDL(SmartCRUDL):
     actions = (
         "list",
@@ -260,6 +514,8 @@ class FlowCRUDL(SmartCRUDL):
         "pdf_export",
         "lookups_api",
         "giftcards_api",
+        "launch",
+        "flow_parameters",
     )
 
     model = Flow
@@ -308,6 +564,14 @@ class FlowCRUDL(SmartCRUDL):
                 collection_full_name = collection_full_name.replace("-", "")
                 collections.append(dict(id=collection_full_name, text=collection))
             return JsonResponse(dict(results=collections))
+
+    class FlowParameters(OrgPermsMixin, SmartListView):
+        def get(self, request, *args, **kwargs):
+            flow_id = self.request.GET.get("flow_id", None)
+            org = self.request.user.get_org()
+            flow = Flow.objects.filter(is_active=True, org=org, id=int(flow_id)).first()
+            params = sorted(flow.get_trigger_params()) if flow else []
+            return JsonResponse(dict(results=params))
 
     class AllowOnlyActiveFlowMixin(object):
         def get_queryset(self):
@@ -928,6 +1192,16 @@ class FlowCRUDL(SmartCRUDL):
         actions = ["label"]
         campaign = None
 
+        def has_permission_view_objects(self):
+            from temba.campaigns.models import Campaign
+
+            campaign = Campaign.objects.filter(
+                org=self.request.user.get_org(), id=self.kwargs.get("campaign_id")
+            ).first()
+            if not campaign:
+                raise PermissionDenied()
+            return None
+
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/(?P<campaign_id>\d+)/$" % (path, action)
@@ -966,6 +1240,14 @@ class FlowCRUDL(SmartCRUDL):
     class Filter(BaseList, OrgObjPermsMixin):
         add_button = True
         actions = ["unlabel", "label"]
+
+        def has_permission_view_objects(self):
+            flow_label = FlowLabel.objects.filter(
+                org=self.request.user.get_org(), id=self.kwargs.get("label_id")
+            ).first()
+            if not flow_label:
+                raise PermissionDenied()
+            return None
 
         def get_gear_links(self):
             links = []
@@ -1211,9 +1493,7 @@ class FlowCRUDL(SmartCRUDL):
                 and self.has_org_perm("flows.flow_broadcast")
                 and not flow.is_archived
             ):
-                links.append(
-                    dict(title=_("Start Flow"), style="btn-primary", js_class="broadcast-rulesflow", href="#")
-                )
+                links.append(dict(title=_("Launch Flow"), style="btn-primary", js_class="launch-rulesflow", href="#"))
 
             if self.has_org_perm("flows.flow_results"):
                 links.append(
@@ -1233,6 +1513,15 @@ class FlowCRUDL(SmartCRUDL):
 
             if self.has_org_perm("flows.flow_pdf_export"):
                 links.append(dict(title=_("Export to PDF"), href="javascript:;", js_class="pdf_export_submit"))
+
+            if self.has_org_perm("flows.flow_results"):
+                links.append(
+                    dict(
+                        title=_("Download Images"),
+                        style="btn-primary",
+                        href=reverse("flows.flowimage_filter", args=["flow", flow.uuid]),
+                    )
+                )
 
             if self.has_org_perm("orgs.org_lookups") and flow.flow_type == Flow.TYPE_MESSAGE:
                 links.append(dict(title=_("Import Database"), href=reverse("orgs.org_lookups")))
@@ -1371,9 +1660,7 @@ class FlowCRUDL(SmartCRUDL):
                 and self.has_org_perm("flows.flow_broadcast")
                 and not flow.is_archived
             ):
-                links.append(
-                    dict(title=_("Start Flow"), style="btn-primary", js_class="broadcast-rulesflow", href="#")
-                )
+                links.append(dict(title=_("Launch Flow"), style="btn-primary", js_class="launch-rulesflow", href="#"))
 
             if self.has_org_perm("flows.flow_results"):
                 links.append(
@@ -1390,6 +1677,15 @@ class FlowCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_export"):
                 links.append(dict(title=_("Export"), href="%s?flow=%s" % (reverse("orgs.org_export"), flow.id)))
+
+            if self.has_org_perm("flows.flow_results"):
+                links.append(
+                    dict(
+                        title=_("Download Images"),
+                        style="btn-primary",
+                        href=reverse("flows.flowimage_filter", args=["flow", flow.uuid]),
+                    )
+                )
 
             if self.has_org_perm("orgs.org_lookups") and flow.flow_type == Flow.TYPE_MESSAGE:
                 links.append(dict(title=_("Import Database"), href=reverse("orgs.org_lookups")))
@@ -2167,6 +2463,397 @@ class FlowCRUDL(SmartCRUDL):
             else:
                 languages = org.languages.filter(is_active=True).order_by("id")
                 return JsonResponse({"results": [{"iso": l.iso_code, "name": l.name} for l in languages]})
+
+    class Launch(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+        flow_params_fields = []
+        flow_params_values = []
+
+        class LaunchForm(BaseScheduleForm, forms.ModelForm):
+            def __init__(self, *args, **kwargs):
+                self.user = kwargs.pop("user")
+                self.flow = kwargs.pop("flow")
+                FlowCRUDL.Launch.flow_params_fields = []
+                FlowCRUDL.Launch.flow_params_values = []
+
+                super().__init__(*args, **kwargs)
+                self.fields["omnibox"].set_user(self.user)
+
+                for counter, flow_param in enumerate(sorted(self.flow.get_trigger_params())):
+                    self.fields[f"flow_param_field_{counter}"] = forms.CharField(
+                        required=False,
+                        initial=flow_param,
+                        label=None,
+                        widget=forms.TextInput(attrs={"readonly": True}),
+                    )
+                    self.fields[f"flow_param_value_{counter}"] = forms.CharField(required=False)
+                    if f"flow_param_field_{counter}" not in FlowCRUDL.Launch.flow_params_fields:
+                        FlowCRUDL.Launch.flow_params_fields.append(f"flow_param_field_{counter}")
+                    if f"flow_param_value_{counter}" not in FlowCRUDL.Launch.flow_params_values:
+                        FlowCRUDL.Launch.flow_params_values.append(f"flow_param_value_{counter}")
+
+            launch_type = forms.ChoiceField(choices=LAUNCH_CHOICES, initial=LAUNCH_IMMEDIATELY)
+
+            # Fields for immediate launch
+            start_type = forms.ChoiceField(
+                choices=(
+                    ("select", _("Enter contacts and groups to start below")),
+                    ("query", _("Search for contacts to start")),
+                ),
+                initial="select",
+            )
+
+            omnibox = OmniboxField(
+                label=_("Contacts & Groups"),
+                help_text=_("These contacts will be added to the flow, sending the first message if appropriate."),
+                required=False,
+            )
+
+            contact_query = forms.CharField(
+                required=False, widget=ContactSearchWidget(attrs={"placeholder": _("Enter contact query")})
+            )
+
+            restart_participants = forms.BooleanField(
+                label=_("Restart Participants"),
+                required=False,
+                initial=False,
+                help_text=_("Restart any contacts already participating in this flow"),
+            )
+
+            include_active = forms.BooleanField(
+                label=_("Include Active Contacts"),
+                required=False,
+                initial=False,
+                help_text=_("Include contacts currently active in a flow"),
+            )
+
+            # Fields for trigger keyword launch
+            keyword_triggers = forms.CharField(
+                label=_("Keyword triggers"),
+                required=False,
+                help_text=_("When a user sends any of these keywords they will begin this flow"),
+            )
+
+            # Fields for schedule trigger
+            repeat_period = forms.ChoiceField(label=_("Repeat"), choices=Schedule.REPEAT_CHOICES)
+
+            repeat_days_of_week = forms.CharField(required=False)
+
+            start = forms.CharField(max_length=16)
+
+            start_datetime_value = forms.IntegerField(required=False)
+
+            def clean(self):
+                cleaned_data = super().clean()
+
+                def validate_flow_params():
+                    value_fields = [item for item in cleaned_data if "flow_param_value" in item]
+                    for value_field in value_fields:
+                        if not cleaned_data.get(value_field):
+                            self.add_error(
+                                value_field, ValidationError(_("You must specify the value for this field."))
+                            )
+
+                def validate_keyword_triggers():
+                    duplicates = []
+                    wrong_format = []
+                    cleaned_keywords = []
+                    keyword_triggers = cleaned_data.get("keyword_triggers", "")
+                    org = self.user.get_org()
+
+                    for keyword in keyword_triggers.split(","):
+                        keyword = keyword.strip()
+
+                        # format validation
+                        keyword_has_wrong_format = (
+                            keyword == ""
+                            or keyword
+                            and not regex.match(r"^\w+$", keyword, flags=regex.UNICODE | regex.V0)
+                            or len(keyword) > Trigger.KEYWORD_MAX_LEN
+                        )
+                        if keyword_has_wrong_format:
+                            wrong_format.append(keyword)
+                            continue
+
+                        # duplicates validation
+                        keyword_already_exist = Trigger.objects.filter(
+                            org=org, is_archived=False, is_active=True, keyword__iexact=keyword
+                        ).exists()
+                        if keyword_already_exist:
+                            duplicates.append(keyword)
+                            continue
+
+                        # if keyword valid we need add it to cleaned
+                        cleaned_keywords.append(keyword)
+
+                    if not keyword_triggers:
+                        self.add_error(
+                            "keyword_triggers",
+                            forms.ValidationError(_("You must specify at least one keyword to launch the flow.")),
+                        )
+                    elif wrong_format:
+                        self.add_error(
+                            "keyword_triggers",
+                            forms.ValidationError(
+                                _(
+                                    '"%s" must be a single word, less than %d characters, containing only letter '
+                                    "and numbers"
+                                )
+                                % (", ".join(wrong_format), Trigger.KEYWORD_MAX_LEN)
+                            ),
+                        )
+
+                    if duplicates:
+                        error_message = (
+                            _('The keywords "{}" are already used for another flow')
+                            if len(duplicates) > 1
+                            else _('The keyword "{}" is already used for another flow')
+                        ).format(", ".join(duplicates))
+                        self.add_error("keyword_triggers", forms.ValidationError(error_message))
+
+                    cleaned_data["keyword_triggers"] = ",".join(cleaned_keywords)
+
+                def validate_omnibox():
+                    starting = cleaned_data["omnibox"]
+                    start_type = cleaned_data["start_type"]
+                    if (
+                        start_type == "select" and not starting["groups"] and not starting["contacts"]
+                    ):  # pragma: needs cover
+                        self.add_error(
+                            "omnibox",
+                            ValidationError(_("You must specify at least one contact or one group to start a flow.")),
+                        )
+
+                def validate_contact_query():
+                    start_type = cleaned_data["start_type"]
+                    contact_query = cleaned_data["contact_query"]
+                    if start_type == "query":
+                        if not contact_query.strip():
+                            raise ValidationError(_("Contact query is required"))
+
+                        client = mailroom.get_client()
+
+                        try:
+                            resp = client.parse_query(self.flow.org_id, contact_query)
+                            contact_query = resp["query"]
+                        except mailroom.MailroomException as e:
+                            self.add_error("contact_query", ValidationError(e.response["error"]))
+
+                if cleaned_data["launch_type"] == LAUNCH_IMMEDIATELY:
+                    validate_flow_params()
+                    validate_omnibox()
+                elif cleaned_data["launch_type"] == LAUNCH_ON_SHEDULE_TRIGGER:
+                    validate_omnibox()
+                elif cleaned_data["launch_type"] == LAUNCH_ON_KEYWORD_TRIGGER:
+                    validate_keyword_triggers()
+
+                # only weekly gets repeat days
+                if cleaned_data["repeat_period"] != "W":
+                    cleaned_data["repeat_days_of_week"] = None
+
+                # check whether there are any flow starts that are incomplete
+                if self.flow.is_starting():
+                    raise ValidationError(
+                        _(
+                            "This flow is already being started, please wait until that process is complete before starting more contacts."
+                        )
+                    )
+
+                if self.flow.org.is_suspended():
+                    raise ValidationError(
+                        _(
+                            "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+                        )
+                    )
+
+                return cleaned_data
+
+            class Meta:
+                model = Flow
+                fields = (
+                    "launch_type",
+                    "start_type",
+                    "omnibox",
+                    "contact_query",
+                    "restart_participants",
+                    "include_active",
+                    "keyword_triggers",
+                    "repeat_period",
+                    "repeat_days_of_week",
+                    "start",
+                    "start_datetime_value",
+                )
+
+        form_class = LaunchForm
+        success_message = ""
+        submit_button_name = _("Add Contacts to Flow")
+        success_url = "uuid@flows.flow_editor"
+
+        def derive_fields(self):
+            return (
+                (
+                    "launch_type",
+                    "start_type",
+                    "omnibox",
+                    "contact_query",
+                    "restart_participants",
+                    "include_active",
+                    "keyword_triggers",
+                    "repeat_period",
+                    "repeat_days_of_week",
+                    "start",
+                    "start_datetime_value",
+                )
+                + tuple(self.flow_params_fields)
+                + tuple(self.flow_params_values)
+            )
+
+        def get_context_data(self, *args, **kwargs):
+            context = super().get_context_data(*args, **kwargs)
+            flow = self.get_object()
+            org = flow.org
+
+            warnings = []
+
+            # if we have a whatsapp channel
+            whatsapp_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=WHATSAPP_SCHEME)
+            if whatsapp_channel:
+                # check to see we are using templates
+                templates = flow.metadata.get(Flow.METADATA_DEPENDENCIES, {}).get("templates", [])
+                if not templates:
+                    warnings.append(_("This flow does not use message templates."))
+
+                # check that this template is synced and ready to go
+                for ref in templates:
+                    template = Template.objects.filter(org=org, uuid=ref["uuid"]).first()
+                    if not template:
+                        warnings.append(
+                            _(f"The message template {ref['name']} does not exist on your account and cannot be sent.")
+                        )
+                    elif not template.is_approved():
+                        warnings.append(
+                            _(f"Your message template {template.name} is not approved and cannot be sent.")
+                        )
+
+            run_stats = self.object.get_run_stats()
+
+            context["flow"] = flow
+            context["warnings"] = warnings
+            context["run_count"] = run_stats["total"]
+            context["complete_count"] = run_stats["completed"]
+            context["user_tz"] = get_current_timezone_name()
+            context["user_tz_offset"] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() // 60)
+            flow_params_fields = [
+                (self.flow_params_fields[count], self.flow_params_values[count])
+                for count in range(len(self.flow_params_values))
+            ]
+            context["flow_params_fields"] = flow_params_fields
+            return context
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            kwargs["flow"] = self.object
+            return kwargs
+
+        def save(self, *args, **kwargs):
+            form = self.form
+            flow = self.object
+
+            def process_immediately():
+                # save off our broadcast info
+                start_type = form.cleaned_data["start_type"]
+                groups = []
+                contacts = []
+                contact_query = None
+
+                flow_params = build_flow_parameters(
+                    self.request.POST, self.flow_params_fields, self.flow_params_values
+                )
+
+                if start_type == "query":
+                    contact_query = form.cleaned_data["contact_query"]
+                else:
+                    omnibox = form.cleaned_data["omnibox"]
+                    groups = list(omnibox["groups"])
+                    contacts = list(omnibox["contacts"])
+
+                analytics.track(
+                    self.request.user.username,
+                    "temba.flow_broadcast",
+                    dict(contacts=len(contacts), groups=len(groups), query=contact_query),
+                )
+
+                # activate all our contacts
+                flow.async_start(
+                    self.request.user,
+                    groups,
+                    contacts,
+                    contact_query,
+                    restart_participants=form.cleaned_data["restart_participants"],
+                    include_active=form.cleaned_data["include_active"],
+                    params=flow_params,
+                )
+
+            def process_on_keyword_trigger():
+                user = self.request.user
+                org = user.get_org()
+                keyword_triggers = form.cleaned_data["keyword_triggers"]
+
+                with transaction.atomic():
+                    triggers = []
+                    # creating of triggers
+                    for keyword in keyword_triggers.split(","):
+                        triggers.append(
+                            Trigger(
+                                flow=flow,
+                                keyword=keyword,
+                                match_type=Trigger.MATCH_FIRST_WORD,
+                                org=org,
+                                created_by=user,
+                                modified_by=user,
+                            )
+                        )
+                    Trigger.objects.bulk_create(triggers)
+
+            def process_on_schedule_trigger():
+                user = self.request.user
+                org = user.get_org()
+                start_time = form.get_start_time(org.timezone)
+                with transaction.atomic():
+                    schedule = Schedule.create_schedule(
+                        org,
+                        self.request.user,
+                        start_time,
+                        form.cleaned_data.get("repeat_period"),
+                        repeat_days_of_week=form.cleaned_data.get("repeat_days_of_week"),
+                    )
+
+                    recipients = self.form.cleaned_data["omnibox"]
+
+                    trigger = Trigger.objects.create(
+                        flow=flow,
+                        org=org,
+                        schedule=schedule,
+                        trigger_type=Trigger.TYPE_SCHEDULE,
+                        created_by=user,
+                        modified_by=user,
+                    )
+
+                    for group in recipients["groups"]:
+                        trigger.groups.add(group)
+
+                    for contact in recipients["contacts"]:
+                        trigger.contacts.add(contact)
+
+            launch_type = form.cleaned_data["launch_type"]
+            processors_mapper = {
+                LAUNCH_IMMEDIATELY: process_immediately,
+                LAUNCH_ON_KEYWORD_TRIGGER: process_on_keyword_trigger,
+                LAUNCH_ON_SHEDULE_TRIGGER: process_on_schedule_trigger,
+            }
+            processors_mapper.get(launch_type, lambda: None)()
+
+            return flow
 
 
 # this is just for adhoc testing of the preprocess url
