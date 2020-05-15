@@ -4640,6 +4640,13 @@ class StripeCreditsTest(TembaTest):
         self.assertIn("Visa", email.body)
         self.assertIn("$20", email.body)
 
+        # turn off email receipts and do it again, shouldn't get a receipt
+        with override_settings(SEND_RECEIPTS=False):
+            self.org.add_credits("2000", "stripe-token", self.admin)
+
+            # no new emails
+            self.assertEqual(1, len(mail.outbox))
+
     @patch("stripe.Customer.create")
     @patch("stripe.Charge.create")
     @override_settings(SEND_EMAILS=True)
