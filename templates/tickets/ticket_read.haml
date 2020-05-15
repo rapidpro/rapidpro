@@ -56,6 +56,6 @@
       var modal = new ConfirmationModal($('.close-modal > .title').html(), $('.close-modal > .body').html());
       modal.addClass('alert');
       modal.setListeners({onPrimary: function(){ $('#close-form').click(); }}, false);
-      modal.setPrimaryButton('{% trans "Close" %}');
+      modal.setPrimaryButton('{{ _("Close")|escapejs }}');
       modal.show();
     });
