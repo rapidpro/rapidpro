@@ -1,3 +1,7 @@
+v5.5.43
+----------
+ * Fix JS escaping on channel log page
+
 v5.5.42
 ----------
  * Remove csrf exemption for views that don't need it (all our pjax includes csrf)
