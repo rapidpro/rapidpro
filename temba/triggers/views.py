@@ -8,7 +8,6 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.timezone import get_current_timezone_name
 from django.utils.translation import ugettext_lazy as _
-from django.views.decorators.csrf import csrf_exempt
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup, ContactURN
@@ -359,7 +358,6 @@ class TriggerActionForm(BaseActionForm):
 
 
 class TriggerActionMixin(SmartListView):
-    @csrf_exempt
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 

@@ -1,3 +1,9 @@
+v5.5.42
+----------
+ * Remove csrf exemption for views that don't need it (all our pjax includes csrf)
+ * Escape translations in JS literals
+ * Upgrade FB graph API to 3.3
+
 v5.5.41
 ----------
  * Use branding keys when picking which orgs to show on manage
