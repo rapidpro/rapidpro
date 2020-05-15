@@ -161,6 +161,39 @@ class UserTest(TembaTest):
         self.assertNotEqual("Administrator@nyaruka.com", self.admin.email)
         self.assertFalse(self.admin.get_user_orgs().exists())
 
+    def test_brand_aliases(self):
+        # set our brand to our custom org
+        self.org.brand = "custom-brand.io"
+        self.org.save(update_fields=["brand"])
+
+        # create a second org on the .org version
+        branded_org = Org.objects.create(
+            name="Other Brand Org",
+            timezone=pytz.timezone("Africa/Kigali"),
+            brand="custom-brand.org",
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+        branded_org.administrators.add(self.admin)
+        self.org2.administrators.add(self.admin)
+
+        # log in as admin
+        self.login(self.admin)
+
+        # check our choose page
+        response = self.client.get(reverse("orgs.org_choose"), SERVER_NAME="custom-brand.org")
+
+        # should contain both orgs
+        self.assertContains(response, "Other Brand Org")
+        self.assertContains(response, "Temba")
+        self.assertNotContains(response, "Trileet Inc")
+
+        # choose it
+        response = self.client.post(
+            reverse("orgs.org_choose"), dict(organization=self.org.id), SERVER_NAME="custom-brand.org"
+        )
+        self.assertRedirect(response, "/msg/inbox/")
+
     def test_release(self):
 
         # admin doesn't "own" any orgs

@@ -1,3 +1,18 @@
+v5.5.42
+----------
+ * Remove csrf exemption for views that don't need it (all our pjax includes csrf)
+ * Escape translations in JS literals
+ * Upgrade FB graph API to 3.3
+
+v5.5.41
+----------
+ * Use branding keys when picking which orgs to show on manage
+
+v5.5.40
+----------
+ * Allow branding to have aliases
+ * Fix bug of removing URNs when updating fields looking up by URN
+
 v5.5.39
 ----------
  * Update to floweditor 1.9.6

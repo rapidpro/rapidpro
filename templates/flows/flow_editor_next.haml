@@ -300,7 +300,7 @@
     {% endif %}
 
     $(".export-translation").live('click', function(){
-      var modal = new Modax('{% trans "Export Translation" %}', '{% url "flows.flow_export_translation" object.id %}');
+      var modal = new Modax('{{ _("Export Translation")|escapejs }}', '{% url "flows.flow_export_translation" object.id %}');
       modal.setIcon('icon-language');
       modal.setRedirectOnSuccess(true);
       modal.show();
@@ -308,7 +308,7 @@
 
     {% if org_perms.flows.flow_delete %}
       $(".delete-flow").live('click', function() {
-        var modal = new Modax('{% trans "Delete Flow" %}', '{% url "flows.flow_delete" flow.id %}');
+        var modal = new Modax('{{ _("Delete Flow")|escapejs }}', '{% url "flows.flow_delete" flow.id %}');
         modal.addClass("alert");
         modal.setRedirectOnSuccess(true);
         modal.show();
