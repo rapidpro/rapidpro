@@ -482,6 +482,7 @@ body {
   font-family: @primary-font;
   font-weight: 200;
   text-transform: none;
+  overflow-x: hidden;
 }
 
 .container {
@@ -751,58 +752,44 @@ table.list-table {
   padding-top: 20px;
 }
 
-#top-menu {
+#menu {
   //border: 1px solid purple;
-  position: absolute;
-  width: 600px;
   z-index: 1025;
-  height: 60px;
-  top: 38px;
-  text-align: right;
-  right: 20px;
-  padding-right: 37px;
+  
+  .more {
 
-  // Main menu ring buttons
-  li {
-    border: 0px solid red;
-    display: inline-block;
     position: relative;
-    font-size: 40px;
-    margin-left: 10px;
-    z-index: 20;
-    width: 55px;
+    // border: 1px solid purple;
+    // width: 5px;
+    // margin-left: 10px;
+    // padding-left: -5px;
+    // padding-right: -5px;
 
-    &.more {
+    a {
+      // width: 0px;
+      font-size: 32px;
+      // margin: 0;
+    }
 
-      width: 5px;
-      margin-left: 10px;
-      padding-left: -5px;
-      padding-right: -5px;
-
-      a {
-        width: 5px;
+    &:hover {
+      .submenu {
+        // display:block;
+        // visibility: visible;
       }
 
-      &:hover {
-        .submenu {
-          // display:block;
-          // visibility: visible;
+      a.icon-more {
+        &:before {
+          content: "\e0be";
         }
-
-        a.icon-more {
-          &:before {
-            content: "\e0be";
-          }
-          padding-bottom: 25px;
-        }
+        padding-bottom: 25px;
       }
     }
 
     .submenu-container {
       position: absolute;
       top: 35px;
-      left: -12px;
-      width: 55px;
+      left: -30px;
+      // width: 55px;
       padding: 10px 5px;
       padding-bottom: 40px;
       z-index: 2000;
@@ -811,7 +798,7 @@ table.list-table {
       .submenu {
         position: relative;
 
-        width: 50px;
+        width: 60px;
 
         top: 10px;
         background: #fff;
@@ -823,7 +810,7 @@ table.list-table {
         &::before {
           position: absolute;
           top: -7px;
-          left: 19px;
+          left: 24px;
           display: inline-block;
           border-right: 7px solid transparent;
           border-bottom: 7px solid #CCC;
@@ -832,13 +819,13 @@ table.list-table {
           content: '';
         }
 
-        a {
+        /* a {
           font-size: 28px;
           color: @color-navlink;
           padding-top: 5px;
           display: inline-block;
-          width: 50px;
-          height: 50px;
+          // width: 50px;
+          // height: 50px;
           // border: 1px solid red;
           position: relative;
           margin-bottom: 10px;
@@ -849,17 +836,17 @@ table.list-table {
             border: 0px solid green;
             color: @color-navbar;
             padding: 0px;
-            width: 50px;
+            // width: 50px;
             margin: 0;
             margin-left: 0px;
-            margin-top: 8px;
+            // margin-top: 8px;
           }
-        }
+        }*/
 
       }
     }
 
-    .title {
+    /* .title {
       font-family: @primary-font;
       font-size: 12px;
       text-align: center;
@@ -868,7 +855,7 @@ table.list-table {
       margin-top: 5px;
       color: @color-menu;
       border: 0px solid green;
-    }
+    }*/
 
     .notification {
       position: absolute;
@@ -893,14 +880,12 @@ table.list-table {
       }
     }
 
-    a {
+    /* a {
       color: @color-menu;
       text-decoration: none;
       text-transform: lowercase;
       display: inline-block;
       border: 0px solid black;
-      height: 50px;
-      width: 60px;
       text-align: center;
 
       &.icon-nav-messages {
@@ -1097,6 +1082,7 @@ table.list-table {
       }
 
     }
+    */
   }
 
   @media all and (max-width: 767px) {
