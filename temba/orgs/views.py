@@ -646,6 +646,13 @@ class OrgCRUDL(SmartCRUDL):
                 data = self.cleaned_data["import_file"].read()
                 try:
                     json_data = json.loads(force_text(data))
+                except DjangoUnicodeDecodeError:
+                    # handling exception for ISO-8859-1 encoding
+                    try:
+                        data = data.decode('ISO-8859-1')
+                        json_data = json.loads(force_text(data))
+                    except (DjangoUnicodeDecodeError, ValueError):
+                        raise ValidationError(_("This file is not a valid flow definition file."))
                 except (DjangoUnicodeDecodeError, ValueError):
                     raise ValidationError(_("This file is not a valid flow definition file."))
 
