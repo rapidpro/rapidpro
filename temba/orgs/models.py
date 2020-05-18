@@ -1604,7 +1604,8 @@ class Org(SmartModel):
             context["branding"] = branding
             context["subject"] = subject
 
-            send_template_email(to_email, subject, template, context, branding)
+            if settings.SEND_RECEIPTS:
+                send_template_email(to_email, subject, template, context, branding)
 
             # apply our new topups
             from .tasks import apply_topups_task

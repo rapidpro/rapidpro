@@ -1019,6 +1019,9 @@ SEND_MESSAGES = False
 #         could cause emails to be sent in test environment
 SEND_EMAILS = False
 
+# Whether to send receipts on TopUp purchases
+SEND_RECEIPTS = True
+
 CLASSIFIER_TYPES = [
     "temba.classifiers.types.wit.WitType",
     "temba.classifiers.types.luis.LuisType",
