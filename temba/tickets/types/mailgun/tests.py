@@ -60,7 +60,9 @@ class MailgunTypeTest(TembaTest):
 
         # submit with wrong token
         response = self.client.post(step2_url, {"verification_token": "XYZ"})
-        self.assertFormError(response, "form", "verification_token", ["Token does not match, please check your email"])
+        self.assertFormError(
+            response, "form", "verification_token", ["Token does not match, please check your email."]
+        )
 
         # submit with correct token
         response = self.client.post(step2_url, {"verification_token": token})
@@ -76,6 +78,12 @@ class MailgunTypeTest(TembaTest):
                 "url_base": "https://app.rapidpro.io",
             },
             ticketer.config,
+        )
+
+        # submit again after token has been cleared
+        response = self.client.post(step2_url, {"verification_token": "12341"})
+        self.assertFormError(
+            response, "form", "verification_token", ["No verification token found, please start over."]
         )
 
     def test_delete(self):

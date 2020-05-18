@@ -306,7 +306,7 @@ BRANDING = {
         "link": "https://app.rapidpro.io",
         "api_link": "https://api.rapidpro.io",
         "docs_link": "http://docs.rapidpro.io",
-        "domain": "temba.ngrok.io",
+        "domain": "app.rapidpro.io",
         "ticket_domain": "tickets.rapidpro.io",
         "favico": "brands/rapidpro/rapidpro.ico",
         "splash": "brands/rapidpro/splash.jpg",

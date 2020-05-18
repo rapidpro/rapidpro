@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-18 16:18+0000\n"
+"POT-Creation-Date: 2020-05-19 01:22+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4254,10 +4254,10 @@ msgstr ""
 msgid "The verification token that was sent to your email"
 msgstr ""
 
-msgid "No verification token found, please start over"
+msgid "No verification token found, please start over."
 msgstr ""
 
-msgid "Token does not match, please check your email"
+msgid "Token does not match, please check your email."
 msgstr ""
 
 msgid "Verify your email address for tickets"
@@ -4303,9 +4303,6 @@ msgid "Closed Tickets"
 msgstr ""
 
 msgid "HTTP Log"
-msgstr ""
-
-msgid "Close"
 msgstr ""
 
 msgid "Delete Ticketing Service"
@@ -5960,11 +5957,7 @@ msgid ""
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"          Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>\n"
-"\n"
-"        "
+msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
 msgstr ""
 
 msgid "Successfully called"
@@ -8943,6 +8936,9 @@ msgstr ""
 msgid "Services"
 msgstr ""
 
+msgid "Close"
+msgstr ""
+
 msgid "Reopen"
 msgstr ""
 
@@ -8984,7 +8980,7 @@ msgstr ""
 msgid "Your verification token is %(token)s to continue adding an email-based ticketing service."
 msgstr ""
 
-msgid "This will connect your TextIt account with Zendesk."
+msgid "This will connect your account to Zendesk allowing you to open tickets in flows."
 msgstr ""
 
 msgid "To complete connecting your account here to your Zendesk account you need to complete the following steps."

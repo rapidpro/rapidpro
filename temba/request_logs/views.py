@@ -1,6 +1,5 @@
 from smartmin.views import SmartCRUDL, SmartListView, SmartReadView
 
-from django.forms import ValidationError
 from django.shortcuts import get_object_or_404
 
 from temba.classifiers.models import Classifier
@@ -34,8 +33,6 @@ class HTTPLogCRUDL(SmartCRUDL):
                 kwargs["classifier"] = self.derive_classifier()
             elif log_type == "ticketer":
                 kwargs["ticketer"] = self.derive_ticketer()
-            else:
-                raise ValidationError(f"invalid log type: {log_type}")
 
             return HTTPLog.objects.filter(**kwargs).order_by("-created_on").prefetch_related(*kwargs.keys())
 

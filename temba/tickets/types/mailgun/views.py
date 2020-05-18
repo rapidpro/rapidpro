@@ -23,11 +23,10 @@ class ConnectView(BaseConnectView):
         def clean_verification_token(self):
             value = self.cleaned_data["verification_token"]
             token = self.request.session.get("verification_token")
-            if token == "":
-                raise forms.ValidationError(_("No verification token found, please start over"))
-
+            if not token:
+                raise forms.ValidationError(_("No verification token found, please start over."))
             if token != value:
-                raise forms.ValidationError(_("Token does not match, please check your email"))
+                raise forms.ValidationError(_("Token does not match, please check your email."))
 
             return value
 
@@ -58,6 +57,9 @@ class ConnectView(BaseConnectView):
 
             self.request.session["to_address"] = to_address
             return HttpResponseRedirect(reverse("tickets.types.mailgun.connect") + "?verify=true")
+
+        # delete token so it can't be re-used
+        del self.request.session["verification_token"]
 
         to_address = self.request.session["to_address"]
         config = {

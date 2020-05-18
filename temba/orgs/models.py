@@ -2020,6 +2020,11 @@ class Org(SmartModel):
             classifier.release()
             classifier.delete()
 
+        # delete our ticketers
+        for ticketer in self.ticketers.all():
+            ticketer.release()
+            ticketer.delete()
+
         # release all archives objects and files for this org
         Archive.release_org_archives(self)
 

@@ -4,6 +4,7 @@ from django.test.utils import override_settings
 from django.urls import reverse
 
 from temba.tests import MockResponse, TembaTest
+from temba.utils import json
 
 from ...models import Ticketer
 from .client import Client, ClientError
@@ -127,3 +128,128 @@ class ZendeskTypeTest(TembaTest):
         response = self.client.get(configure_url)
         self.assertContains(response, "SECRET346")
         self.assertContains(response, "https://www.zendesk.com/apps/directory")
+
+    def test_manifest_view(self):
+        response = self.client.get(reverse("tickets.types.zendesk.manifest"))
+
+        self.assertEqual(
+            {
+                "name": "Temba",
+                "id": "app.rapidpro.io",
+                "author": "Nyaruka",
+                "version": "v0.0.1",
+                "channelback_files": False,
+                "push_client_id": "temba",
+                "urls": {
+                    "admin_ui": f"https://app.rapidpro.io/tickets/types/zendesk/admin_ui",
+                    "channelback_url": f"https://app.rapidpro.io/mr/ticket/zendesk/channelback",
+                    "event_callback_url": f"https://app.rapidpro.io/mr/ticket/zendesk/event_callback",
+                },
+            },
+            response.json(),
+        )
+
+    def test_admin_ui_view(self):
+        admin_url = reverse("tickets.types.zendesk.admin_ui")
+
+        ticketer = Ticketer.create(
+            self.org,
+            self.admin,
+            ticketer_type=ZendeskType.slug,
+            name="Existing",
+            config={"oauth_token": "236272", "secret": "SECRET346", "subdomain": "example"},
+        )
+
+        # this view can only be POST'ed to
+        response = self.client.get(admin_url)
+        self.assertEqual(405, response.status_code)
+
+        # simulate initial POST from Zendesk
+        response = self.client.post(
+            admin_url,
+            {
+                "name": "",
+                "subdomain": "example",
+                "metadata": "",
+                "state": "",
+                "return_url": "https://example.zendesk.com",
+                "locale": "en-US",
+                "instance_push_id": "push1234",
+                "zendesk_access_token": "sesame",
+            },
+            HTTP_REFERER="https://example.zendesk.com/channels",
+        )
+
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "This will connect your account to Zendesk")
+        self.assertNotContains(response, "This field is required.")
+
+        self.assertEqual(
+            ["name", "secret", "return_url", "subdomain", "locale", "instance_push_id", "zendesk_access_token", "loc"],
+            list(response.context["form"].fields.keys()),
+        )
+
+        # try submitting with blank values for the two visible fields
+        response = self.client.post(
+            admin_url,
+            {
+                "name": "",
+                "secret": "",
+                "return_url": "https://example.zendesk.com",
+                "subdomain": "example",
+                "locale": "en-US",
+                "instance_push_id": "push1234",
+                "zendesk_access_token": "sesame",
+            },
+        )
+        self.assertFormError(response, "form", "name", "This field is required.")
+        self.assertFormError(response, "form", "secret", "This field is required.")
+
+        # try submitting with incorrect secret
+        response = self.client.post(
+            admin_url,
+            {
+                "name": "My Channel",
+                "secret": "CHEF",
+                "return_url": "https://example.zendesk.com",
+                "subdomain": "example",
+                "locale": "en-US",
+                "instance_push_id": "push1234",
+                "zendesk_access_token": "sesame",
+            },
+        )
+        self.assertFormError(response, "form", "secret", "Secret is incorrect.")
+
+        # try submitting with correct secret
+        response = self.client.post(
+            admin_url,
+            {
+                "name": "My Channel",
+                "secret": "SECRET346",
+                "return_url": "https://example.zendesk.com",
+                "subdomain": "example",
+                "locale": "en-US",
+                "instance_push_id": "push1234",
+                "zendesk_access_token": "sesame",
+            },
+        )
+
+        # ticketer config should be updated with push credentials
+        ticketer.refresh_from_db()
+        self.assertEqual(
+            {
+                "oauth_token": "236272",
+                "secret": "SECRET346",
+                "subdomain": "example",
+                "push_id": "push1234",
+                "push_token": "sesame",
+            },
+            ticketer.config,
+        )
+
+        # should use the special return template to POST back to Zendesk
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("My Channel", response.context["name"])
+        self.assertEqual(
+            {"ticketer": str(ticketer.uuid), "secret": "SECRET346"}, json.loads(response.context["metadata"])
+        )

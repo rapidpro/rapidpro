@@ -1,3 +1,4 @@
+from django.contrib.auth.models import Group
 from django.test.utils import override_settings
 from django.urls import reverse
 
@@ -10,7 +11,7 @@ from .types.zendesk import ZendeskType
 
 
 class TicketTest(TembaTest):
-    def test_close_and_reopen(self):
+    def test_model(self):
         ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
 
         contact = self.create_contact("Bob", twitter="bobby")
@@ -24,6 +25,8 @@ class TicketTest(TembaTest):
             status="O",
         )
         modified_on = ticket.modified_on
+
+        self.assertEqual(f"Ticket[uuid={ticket.uuid}, subject=Need help]", str(ticket))
 
         ticket.close()
         ticket.refresh_from_db()
@@ -67,7 +70,16 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_ticket("Ticket 3", "Old ticket", "C")
         self.create_ticket("Ticket 4", "Where are my trousers?", "O", org=self.org2)
 
-        self.assertListFetch(open_url, allow_viewers=True, allow_editors=True, context_objects=[ticket2, ticket1])
+        response = self.assertListFetch(
+            open_url, allow_viewers=True, allow_editors=True, context_objects=[ticket2, ticket1]
+        )
+        self.assertEqual(("close",), response.context["actions"])
+
+        # can close tickets with an action POST
+        self.requestView(open_url, self.admin, post_data={"action": "close", "objects": [ticket2.id]})
+
+        ticket2.refresh_from_db()
+        self.assertEqual("C", ticket2.status)
 
     def test_closed(self):
         closed_url = reverse("tickets.ticket_closed")
@@ -77,7 +89,16 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_ticket("Ticket 3", "New ticket", "O")
         self.create_ticket("Ticket 4", "Where are my trousers?", "O", org=self.org2)
 
-        self.assertListFetch(closed_url, allow_viewers=True, allow_editors=True, context_objects=[ticket2, ticket1])
+        response = self.assertListFetch(
+            closed_url, allow_viewers=True, allow_editors=True, context_objects=[ticket2, ticket1]
+        )
+        self.assertEqual(("reopen",), response.context["actions"])
+
+        # can reopen tickets with an action POST
+        self.requestView(closed_url, self.admin, post_data={"action": "reopen", "objects": [ticket2.id]})
+
+        ticket2.refresh_from_db()
+        self.assertEqual("O", ticket2.status)
 
     def test_filter(self):
         filter_url = reverse("tickets.ticket_filter", args=[self.mailgun.uuid])
@@ -89,6 +110,18 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertReadFetch(filter_url, allow_viewers=True, allow_editors=True)
         self.assertEqual(self.mailgun, response.context["ticketer"])
         self.assertEqual([ticket2, ticket1], list(response.context["object_list"]))
+        self.assertEqual(("close", "reopen"), response.context["actions"])
+
+        # normal users don't see HTTP logs for ticketers
+        logs_url = reverse("request_logs.httplog_list", args=["ticketer", self.mailgun.uuid])
+        self.assertNotContains(response, logs_url)
+
+        support = Group.objects.get(name="Customer Support")
+        support.user_set.add(self.admin)
+
+        # customer support users do
+        response = self.requestView(filter_url, self.admin)
+        self.assertContains(response, logs_url)
 
 
 class TicketerTest(TembaTest):
@@ -131,6 +164,15 @@ class TicketerTest(TembaTest):
 
 
 class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_org_home(self):
+        ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
+
+        self.login(self.admin)
+        response = self.client.get(reverse("orgs.org_home"))
+
+        self.assertContains(response, "Email (bob@acme.com)")
+        self.assertContains(response, reverse("tickets.ticket_filter", args=[ticketer.uuid]))
+
     def test_connect(self):
         connect_url = reverse("tickets.ticketer_connect")
 
@@ -149,3 +191,6 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
 
             self.assertNotContains(response, "No ticketing services are available.")
             self.assertContains(response, reverse("tickets.types.mailgun.connect"))
+
+        # put them all back...
+        reload_ticketer_types()

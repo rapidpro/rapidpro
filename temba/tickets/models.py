@@ -42,7 +42,7 @@ class TicketerType(metaclass=ABCMeta):
         """
         Determines whether this ticketer type is available
         """
-        return True
+        return True  # pragma: no cover
 
     def get_connect_blurb(self):
         """

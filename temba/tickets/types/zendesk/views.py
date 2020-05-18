@@ -6,7 +6,7 @@ from smartmin.views import SmartFormView, SmartReadView
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.http import HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils import timezone, translation
@@ -253,6 +253,9 @@ class AdminUIView(SmartFormView):
             del kwargs["data"]
             del kwargs["files"]
         return kwargs
+
+    def get(self, *args, **kwargs):
+        return HttpResponse("Method Not Allowed", status=405)
 
     def post(self, request, *args, **kwargs):
         translation.activate(self.request.POST.get("locale"))

@@ -54,6 +54,8 @@ from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, Temb
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
+from temba.tickets.models import Ticketer
+from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json, languages
 from temba.utils.email import link_components
@@ -257,6 +259,9 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         # add a classifier
         self.c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {}, sync=False)
+
+        # add a ticketer
+        self.ticketer1 = Ticketer.create(self.org, self.admin, MailgunType.slug, "Email (bob)", {})
 
         # add a global
         self.global1 = Global.get_or_create(self.org, self.admin, "org_name", "Org Name", "Acme Ltd")

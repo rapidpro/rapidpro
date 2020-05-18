@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-18 16:18+0000\n"
+"POT-Creation-Date: 2020-05-19 01:22+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -5537,10 +5537,10 @@ msgstr ""
 msgid "The verification token that was sent to your email"
 msgstr ""
 
-msgid "No verification token found, please start over"
+msgid "No verification token found, please start over."
 msgstr ""
 
-msgid "Token does not match, please check your email"
+msgid "Token does not match, please check your email."
 msgstr ""
 
 #, fuzzy
@@ -5598,9 +5598,6 @@ msgid "Closed Tickets"
 msgstr "Escolher arquivo"
 
 msgid "HTTP Log"
-msgstr ""
-
-msgid "Close"
 msgstr ""
 
 msgid "Delete Ticketing Service"
@@ -7911,11 +7908,7 @@ msgstr ""
 #| "          Install the %(name)s app\n"
 #| "\n"
 #| "        "
-msgid ""
-"\n"
-"          Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>\n"
-"\n"
-"        "
+msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
 msgstr ""
 "\n"
 "Instalar o %(name)s app"
@@ -11601,6 +11594,9 @@ msgstr ""
 msgid "Services"
 msgstr "Dispositivo"
 
+msgid "Close"
+msgstr ""
+
 msgid "Reopen"
 msgstr ""
 
@@ -11650,7 +11646,7 @@ msgstr ""
 msgid "Your verification token is %(token)s to continue adding an email-based ticketing service."
 msgstr ""
 
-msgid "This will connect your TextIt account with Zendesk."
+msgid "This will connect your account to Zendesk allowing you to open tickets in flows."
 msgstr ""
 
 msgid "To complete connecting your account here to your Zendesk account you need to complete the following steps."

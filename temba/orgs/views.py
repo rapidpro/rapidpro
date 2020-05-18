@@ -50,7 +50,6 @@ from django.views.generic import View
 from temba.api.models import APIToken
 from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
-from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, get_anonymous_user, json, languages
@@ -2397,7 +2396,7 @@ class OrgCRUDL(SmartCRUDL):
                     formax.add_section("nexmo", reverse("orgs.org_nexmo_account"), icon="icon-channel-nexmo")
 
             if self.has_org_perm("classifiers.classifier_read"):
-                classifiers = Classifier.objects.filter(org=org, is_active=True).order_by("created_on")
+                classifiers = org.classifiers.filter(is_active=True).order_by("created_on")
                 for classifier in classifiers:
                     self.add_classifier_section(formax, classifier)
 
