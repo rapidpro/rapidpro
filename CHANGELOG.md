@@ -1,3 +1,9 @@
+v5.5.45
+----------
+ * Increase the template name field to accept up to 512 characters
+ * Make sending of Stripe receipts optional
+ * Add OrgActivity model that tracks contacts, active contacts, incoming and outgoing messages
+
 v5.5.43
 ----------
  * Fix JS escaping on channel log page
