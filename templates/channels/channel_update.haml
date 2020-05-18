@@ -22,7 +22,28 @@
         min-height: 100px;
     }
 
+    .welcome-message-languages a {
+      display: inline-block;
+      margin: 2px 0;
+      padding: 0 10px;
+      border-right: 1px solid #569D9B;
+    }
+
+    .ref-welcome-message-languages a:first-child {
+      padding: 0 10px 0 0;
+    }
+
+    .ref-welcome-message-languages a:last-child {
+      padding: 0 0 0 10px;
+      border-right: none;
+    }
+
+    .ref-welcome-message-languages a.active {
+      color: #000000;
+    }
+
 {% block extra-script %}
+<script src="{{ STATIC_URL }}js/jscolor.js"></script>
 :javascript
   (function($) {
     // change the value of the first option to be empty so that select2 placeholder works
@@ -36,6 +57,76 @@
 
     useFontCheckbox("#id_allow_international");
 
+    $('#id_theme').select2({
+      width: '370px',
+      containerCssClass: 'select2-temba-field',
+      placeholder: "{% trans 'Select a theme' %}"
+    });
+
+    $('#id_logo_style').select2({
+      width: '120px',
+      containerCssClass: 'select2-temba-field',
+      minimumResultsForSearch: Infinity
+    });
+
+    $('#id_auto_open').select2({
+      width: '100px',
+      containerCssClass: 'select2-temba-field',
+      minimumResultsForSearch: Infinity
+    });
+
+    // adding languages to the form
+    {% if object.channel_type == "WCH" and languages %}
+    $(document).ready(function() {
+      var allLanguages = [];
+
+      {% for lang in languages %}
+      allLanguages.push({"iso_code": "{{ lang.iso_code }}", "name": "{{ lang.name }}"});
+      {% endfor %}
+
+      var divLanguages;
+      var welcomeMessageField;
+      var allDivLanguages = [];
+
+      for (lang in allLanguages) {
+        divLanguages = document.createElement("div");
+        divLanguages.classList.add("welcome-message-languages-" + allLanguages[lang]["iso_code"]);
+        divLanguages.classList.add("ref-welcome-message-languages");
+        welcomeMessageField = document.getElementsByClassName("field_welcome_message_" + allLanguages[lang]["iso_code"]);
+        welcomeMessageField[0].appendChild(divLanguages);
+        allDivLanguages.push(divLanguages);
+      }
+
+      for (divLang in allDivLanguages) {
+        for (lang in allLanguages) {
+          var divLangItem = document.createElement("a");
+          divLangItem.href = "javascript:;";
+          divLangItem.setAttribute("data-iso-code", allLanguages[lang]["iso_code"]);
+          divLangItem.onclick = function() { changeLangField($(this)) };
+          divLangItem.text = allLanguages[lang]["name"];
+          if (lang == 0) {
+            divLangItem.classList.add("active");
+          }
+          allDivLanguages[divLang].appendChild(divLangItem);
+        }
+      }
+
+      $.each($("div[class^='control-group field_welcome_message_']"), function (index) {
+        if (index !== 0) {
+          $(this).addClass("hide");
+        }
+      });
+
+    });
+    {% endif %}
+
   })(jQuery);
+
+  function changeLangField(el) {
+    $(".ref-welcome-message-languages a").removeClass("active");
+    $("a[data-iso-code='" + el.data('iso-code') + "']").addClass("active");
+    $("div[class^='control-group field_welcome_message_']").addClass('hide');
+    $(".field_welcome_message_" + el.data('iso-code')).removeClass('hide');
+  }
 
 {% endblock %}

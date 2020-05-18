@@ -1,0 +1,31 @@
+-load i18n
+
+%h4
+  -blocktrans
+    To finish, please add this code to your HTML page before the end of the <code>&lt;body&gt;</code> tag.
+%hr
+%h4
+  -trans "Javascript Code"
+%pre.wch-channel
+  %code
+    &lt;div id="ccl-web-surveyor"&gt;&lt;/div&gt;
+    &lt;script src="{{ widget_compiled_file }}" type="text/javascript">&lt;/script>
+    &lt;script>
+      window.renderSurveyor({
+        hostApi: 'https://{{ channel.callback_domain }}',
+        channelUUID: '{{ channel.uuid }}'
+      }, 'ccl-web-surveyor');
+    &lt;/script>
+
+%a.btn-primary.btn{id:"btnCopyWCHCode", href:"javascript:;", onclick:"copyWCHCode();"}
+  -trans "Copy"
+
+%textarea#code-field
+
+%hr
+%h4
+  -blocktrans
+    Note: To make sure your website is adapted for the mobile version, please, check if it has some <code>viewport</code> meta tag like:
+%code
+  :escaped
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
