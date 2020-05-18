@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-15 21:29+0000\n"
+"POT-Creation-Date: 2020-05-18 16:18+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6823,6 +6823,12 @@ msgid ""
 "  "
 msgstr ""
 
+msgid "android"
+msgstr ""
+
+msgid "dashboard"
+msgstr ""
+
 msgid "messages"
 msgstr ""
 
@@ -6850,10 +6856,7 @@ msgstr ""
 msgid "orgs"
 msgstr ""
 
-msgid "dashboard"
-msgstr ""
-
-msgid "android"
+msgid "end"
 msgstr ""
 
 msgid "logout"
@@ -6870,6 +6873,9 @@ msgid "You have %(credits)s credit remaining, add credits to prevent interruptio
 msgid_plural "You have %(credits)s credits remaining, add credits to prevent interruption"
 msgstr[0] ""
 msgstr[1] ""
+
+msgid "Your active credits will expire soon, add credits to prevent interruption."
+msgstr ""
 
 msgid "Your phone is having difficulty relaying messages"
 msgstr ""

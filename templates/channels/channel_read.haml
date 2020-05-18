@@ -526,8 +526,8 @@
       modal.show();
       });
 
-    $(".remove-sender").live('click', function(){ removalConfirmation("remove-sender", '{{ _("Disable Bulk Sending")|escapejs }}'});
-    $(".remove-caller").live('click', function(){ removalConfirmation("remove-caller", '{{ _("Disable Voice Calling")|escapejs }}'});
+    $(".remove-sender").live('click', function(){ removalConfirmation("remove-sender", '{{ _("Disable Bulk Sending")|escapejs }}')});
+    $(".remove-caller").live('click', function(){ removalConfirmation("remove-caller", '{{ _("Disable Voice Calling")|escapejs }}')});
 
   {% endif %}
 
