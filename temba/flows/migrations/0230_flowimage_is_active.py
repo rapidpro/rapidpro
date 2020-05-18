@@ -5,14 +5,14 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0229_auto_20200511_2018'),
-    ]
+    dependencies = [("flows", "0229_auto_20200511_2018")]
 
     operations = [
         migrations.AddField(
-            model_name='flowimage',
-            name='is_active',
-            field=models.BooleanField(default=True, help_text='Whether this item is active, use this instead of deleting'),
-        ),
+            model_name="flowimage",
+            name="is_active",
+            field=models.BooleanField(
+                default=True, help_text="Whether this item is active, use this instead of deleting"
+            ),
+        )
     ]

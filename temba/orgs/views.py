@@ -649,7 +649,7 @@ class OrgCRUDL(SmartCRUDL):
                 except DjangoUnicodeDecodeError:
                     # handling exception for ISO-8859-1 encoding
                     try:
-                        data = data.decode('ISO-8859-1')
+                        data = data.decode("ISO-8859-1")
                         json_data = json.loads(force_text(data))
                     except (DjangoUnicodeDecodeError, ValueError):
                         raise ValidationError(_("This file is not a valid flow definition file."))
@@ -2602,10 +2602,19 @@ class OrgCRUDL(SmartCRUDL):
                     else:
                         types_dict[str(col_name)] = str
 
-                if file_type == "csv":
-                    spamreader = read_csv(import_file, delimiter=",", index_col=False, dtype=types_dict)
-                else:
-                    spamreader = read_excel(import_file, index_col=False, dtype=str)
+                try:
+                    if file_type == "csv":
+                        spamreader = read_csv(import_file, delimiter=",", index_col=False, dtype=types_dict)
+                    else:
+                        spamreader = read_excel(import_file, index_col=False, dtype=str)
+                except UnicodeDecodeError:
+                    import_file.seek(0)
+                    if file_type == "csv":
+                        spamreader = read_csv(
+                            import_file, delimiter=",", encoding="ISO-8859-1", index_col=False, dtype=types_dict
+                        )
+                    else:
+                        spamreader = read_excel(import_file, encoding="ISO-8859-1", index_col=False, dtype=str)
 
                 headers = spamreader.columns.tolist()
                 # Removing empty columns name from CSV files imported
