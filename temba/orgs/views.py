@@ -1111,9 +1111,9 @@ class OrgCRUDL(SmartCRUDL):
             queryset = super().derive_queryset(**kwargs)
             queryset = queryset.filter(is_active=True)
 
-            brand = self.request.branding.get("brand")
-            if brand:
-                queryset = queryset.filter(brand=brand)
+            brands = self.request.branding.get("keys")
+            if brands:
+                queryset = queryset.filter(brand__in=brands)
 
             queryset = queryset.annotate(credits=Sum("topups__credits"))
             queryset = queryset.annotate(paid=Sum("topups__price"))
@@ -1674,8 +1674,7 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Select your Organization")
 
         def get_user_orgs(self):
-            brand = self.request.branding.get("brand")
-            return self.request.user.get_user_orgs(brand)
+            return self.request.user.get_user_orgs(self.request.branding.get("keys"))
 
         def pre_process(self, request, *args, **kwargs):
             user = self.request.user

@@ -45,7 +45,7 @@ class GroupPermWrapper(object):
 def user_orgs_for_brand(request):
     if hasattr(request, "user"):
         if not request.user.is_anonymous:
-            user_orgs = request.user.get_user_orgs(request.branding.get("brand"))
+            user_orgs = request.user.get_user_orgs(request.branding.get("keys", []))
             return dict(user_orgs=user_orgs)
     return {}
 

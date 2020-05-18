@@ -166,7 +166,7 @@
   :javascript
     {% if org_perms.flows.flow_create %}
       $(".create_flow").on('click', function() {
-        var modal = new Modax('{% trans "Create a Flow" %}', '{% url "flows.flow_create" %}');
+        var modal = new Modax('{{ _("Create a Flow")|escapejs }}', '{% url "flows.flow_create" %}');
         modal.setIcon('icon-tree');
         modal.setRedirectOnSuccess(true);
         modal.show();

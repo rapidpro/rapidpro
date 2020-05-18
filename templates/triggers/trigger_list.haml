@@ -180,7 +180,7 @@
 
   :javascript
     $(document).on('click', '.update-trigger', function(e){
-       var modal = new Modax('{% trans "Update Trigger" %}', '/trigger/update/' + $(this).data("object-id") + '/');
+       var modal = new Modax('{{ _("Update Trigger")|escapejs }}', '/trigger/update/' + $(this).data("object-id") + '/');
        modal.setIcon('icon-feed');
        modal.setRedirectOnSuccess(true);
        modal.show();
