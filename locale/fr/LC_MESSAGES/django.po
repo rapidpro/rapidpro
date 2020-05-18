@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-06 20:49+0000\n"
+"POT-Creation-Date: 2020-05-16 22:11+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -7795,6 +7795,12 @@ msgstr ""
 "    Désolé, l'importation n'a pas été activée sur votre compte.\n"
 "  "
 
+msgid "android"
+msgstr "android"
+
+msgid "dashboard"
+msgstr "Tableau de bord"
+
 msgid "messages"
 msgstr "messages"
 
@@ -7819,11 +7825,10 @@ msgstr "utilisateurs"
 msgid "orgs"
 msgstr "orgs"
 
-msgid "dashboard"
-msgstr "Tableau de bord"
-
-msgid "android"
-msgstr "android"
+#, fuzzy
+#| msgid "and"
+msgid "end"
+msgstr "et"
 
 msgid "logout"
 msgstr "déconnexion"
@@ -7839,6 +7844,16 @@ msgid "You have %(credits)s credit remaining, add credits to prevent interruptio
 msgid_plural "You have %(credits)s credits remaining, add credits to prevent interruption"
 msgstr[0] "Vous avez %(credits)s crédit restant, ajoutez des crédits pour prévenir l'interruption. "
 msgstr[1] "Vous avez %(credits)s crédits restants, ajoutez des crédits pour prévenir l'interruption. "
+
+#, fuzzy
+#| msgid "You have %(credits)s credit remaining, add credits to prevent interruption"
+#| msgid_plural "You have %(credits)s credits remaining, add credits to prevent interruption"
+msgid ""
+"\n"
+"      Your active credits will expire soon, add credits to prevent interruption.\n"
+"\n"
+"    "
+msgstr "Vous avez %(credits)s crédit restant, ajoutez des crédits pour prévenir l'interruption. "
 
 msgid "Your phone is having difficulty relaying messages"
 msgstr "Votre téléphone a du mal à channel des messages"

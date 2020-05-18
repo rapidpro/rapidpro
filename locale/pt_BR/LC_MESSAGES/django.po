@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-06 20:49+0000\n"
+"POT-Creation-Date: 2020-05-16 22:11+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -8935,6 +8935,14 @@ msgid ""
 "  "
 msgstr ""
 
+#, fuzzy
+#| msgid "Android"
+msgid "android"
+msgstr "Android"
+
+msgid "dashboard"
+msgstr "Painel de controle"
+
 msgid "messages"
 msgstr "mensagens"
 
@@ -8961,13 +8969,9 @@ msgstr "usuários"
 msgid "orgs"
 msgstr "organizações"
 
-msgid "dashboard"
-msgstr "Painel de controle"
-
 #, fuzzy
-#| msgid "Android"
-msgid "android"
-msgstr "Android"
+msgid "end"
+msgstr "Enviar URL"
 
 msgid "logout"
 msgstr "sair"
@@ -8984,6 +8988,13 @@ msgid "You have %(credits)s credit remaining, add credits to prevent interruptio
 msgid_plural "You have %(credits)s credits remaining, add credits to prevent interruption"
 msgstr[0] ""
 msgstr[1] ""
+
+msgid ""
+"\n"
+"      Your active credits will expire soon, add credits to prevent interruption.\n"
+"\n"
+"    "
+msgstr ""
 
 msgid "Your phone is having difficulty relaying messages"
 msgstr ""
@@ -11759,10 +11770,6 @@ msgstr ""
 #~| msgid "Please enter at least 8 characters"
 #~ msgid "Please enter a valid contact query"
 #~ msgstr "Por favor, insira pelo menos 8 caracteres"
-
-#, fuzzy
-#~ msgid "Send"
-#~ msgstr "Enviar URL"
 
 #, fuzzy
 #~ msgid ""

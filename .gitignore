@@ -5,6 +5,7 @@
 *.pyc
 *~
 .envrc
+.direnv
 .commit
 
 rp-indexer
