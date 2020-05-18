@@ -1,4 +1,4 @@
-from smartmin.views import SmartCRUDL, SmartDeleteView, SmartFormView, SmartListView, SmartReadView, SmartTemplateView
+from smartmin.views import SmartCRUDL, SmartDeleteView, SmartFormView, SmartListView, SmartTemplateView
 
 from django import forms
 from django.contrib import messages
@@ -156,16 +156,6 @@ class TicketCRUDL(SmartCRUDL):
         @cached_property
         def ticketer(self):
             return Ticketer.objects.get(uuid=self.kwargs["ticketer"], is_active=True)
-
-    class Read(OrgObjPermsMixin, SmartReadView):
-        slug_url_kwarg = "uuid"
-        fields = ("subject", "body", "status")
-
-        def get_gear_links(self):
-            links = []
-            if self.object.status == Ticket.STATUS_OPEN and self.has_org_perm("tickets.ticket_close"):
-                links.append(dict(title=_("Close"), js_class="close-ticket", href="#"))
-            return links
 
 
 class TicketerCRUDL(SmartCRUDL):

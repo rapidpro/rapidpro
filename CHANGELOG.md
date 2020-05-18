@@ -1,3 +1,8 @@
+v5.5.46
+----------
+ * Bump black version
+ * Fix layering of menu with simulator
+
 v5.5.45
 ----------
  * Increase the template name field to accept up to 512 characters
