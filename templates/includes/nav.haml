@@ -264,7 +264,7 @@
 
 -elif user_org and user_org.has_expiring_credits and not user.is_superuser
   .nav-alert
-    -blocktrans
+    -blocktrans trimmed
       Your active credits will expire soon, add credits to prevent interruption.
 
 -elif unsent_msgs or delayed_syncevents
