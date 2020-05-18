@@ -1304,7 +1304,6 @@ class UpdateWebSocketForm(UpdateChannelForm):
             )
             self.fields["user_chat_bg"].initial = config.get("user_chat_bg", default_theme.get("user_chat_bg"))
             self.fields["user_chat_txt"].initial = config.get("user_chat_txt", default_theme.get("user_chat_txt"))
-            self.fields["chat_timeout"].initial = config.get("chat_timeout", 120)
 
             languages = self.object.org.languages.all().order_by("orgs")
 
@@ -1354,7 +1353,7 @@ class UpdateWebSocketForm(UpdateChannelForm):
 
         logo_media = config.get(Channel.CONFIG_WCH_LOGO, None)
 
-        if logo and len(logo) > 0:
+        if logo and len(logo) > 0 and not str(logo).startswith("http"):
             if logo.size > 1000000:
                 raise ValidationError(_("Too big logo for the Widget, it does not accept more than 1MB"))
 
@@ -1375,7 +1374,7 @@ class UpdateWebSocketForm(UpdateChannelForm):
             forms.FileField(
                 label=_("Logo"), required=False, help_text=_("We recommend to upload an image with 64x64px")
             ),
-            "",
+            None,
         )
 
         self.add_config_field(
@@ -1383,7 +1382,7 @@ class UpdateWebSocketForm(UpdateChannelForm):
             forms.ChoiceField(
                 label=_("Logo Style"), help_text=_("This is related to how we will display the widget when it's closed")
             ),
-            "",
+            None,
         )
 
         self.add_config_field(
@@ -1393,7 +1392,7 @@ class UpdateWebSocketForm(UpdateChannelForm):
                 help_text=_("It will appear on the header of the WebChat"),
                 widget=forms.TextInput(attrs={"required": "", "maxlength": 40}),
             ),
-            "",
+            None,
         )
 
         self.add_config_field(
@@ -1401,7 +1400,7 @@ class UpdateWebSocketForm(UpdateChannelForm):
             forms.CharField(
                 label=_("Welcome Message"), widget=forms.Textarea(attrs={"style": "height: 110px", "required": ""})
             ),
-            "",
+            None,
         )
 
         org = self.object.org
@@ -1418,7 +1417,7 @@ class UpdateWebSocketForm(UpdateChannelForm):
         self.add_config_field(
             "theme",
             forms.ChoiceField(label=_("Theme"), required=False),
-            "",
+            None,
         )
 
         self.add_config_field(
@@ -1426,7 +1425,7 @@ class UpdateWebSocketForm(UpdateChannelForm):
             forms.CharField(
                 label=_("Widget Background Color"), widget=forms.TextInput(attrs={"class": "jscolor"})
             ),
-            "",
+            None,
         )
 
         self.add_config_field(
@@ -1434,7 +1433,7 @@ class UpdateWebSocketForm(UpdateChannelForm):
             forms.CharField(
                 label=_("Chat Header Background Color"), widget=forms.TextInput(attrs={"class": "jscolor"})
             ),
-            "",
+            None,
         )
 
         self.add_config_field(
@@ -1442,7 +1441,7 @@ class UpdateWebSocketForm(UpdateChannelForm):
             forms.CharField(
                 label=_("Chat Header Text Color"), widget=forms.TextInput(attrs={"class": "jscolor"})
             ),
-            "",
+            None,
         )
 
         self.add_config_field(
@@ -1450,7 +1449,7 @@ class UpdateWebSocketForm(UpdateChannelForm):
             forms.CharField(
                 label=_("Automated Chat Background"), widget=forms.TextInput(attrs={"class": "jscolor"})
             ),
-            "",
+            None,
         )
 
         self.add_config_field(
@@ -1458,7 +1457,7 @@ class UpdateWebSocketForm(UpdateChannelForm):
             forms.CharField(
                 label=_("Automated Chat Text"), widget=forms.TextInput(attrs={"class": "jscolor"})
             ),
-            "",
+            None,
         )
 
         self.add_config_field(
@@ -1466,7 +1465,7 @@ class UpdateWebSocketForm(UpdateChannelForm):
             forms.CharField(
                 label=_("User Chat Background"), widget=forms.TextInput(attrs={"class": "jscolor"})
             ),
-            "",
+            None,
         )
 
         self.add_config_field(
@@ -1474,15 +1473,7 @@ class UpdateWebSocketForm(UpdateChannelForm):
             forms.CharField(
                 label=_("User Chat Text"), widget=forms.TextInput(attrs={"class": "jscolor"})
             ),
-            "",
-        )
-
-        self.add_config_field(
-            "chat_timeout",
-            forms.CharField(
-                label=_("Timeout (in seconds)"), widget=forms.NumberInput(attrs={"max": "10000", "min": "10"})
-            ),
-            "",
+            None,
         )
 
         self.add_config_field(
@@ -1490,7 +1481,7 @@ class UpdateWebSocketForm(UpdateChannelForm):
             forms.ChoiceField(
                 label=_("Auto Open"), help_text=_("Whether the chatbox should open when the website page is loaded")
             ),
-            "",
+            None,
         )
 
         del self.fields["country"]

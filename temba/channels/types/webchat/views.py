@@ -95,17 +95,19 @@ class ConfigurationView(SmartReadView):
             for lang in languages:
                 welcome_message[f"{lang.iso_code}"] = channel.config.get(f"welcome_message_{lang.iso_code}")
 
-            if not languages:
-                welcome_message["default"] = channel.config.get("welcome_message_default")
+            welcome_message_default = channel.config.get("welcome_message_default")
+            if len(welcome_message_default) == 0:
+                welcome_message_default = welcome_message.get(channel.org.primary_language.iso_code) if channel.org.primary_language else None
 
             response = {
                 "socketUrl": settings.WEBSOCKET_SERVER_URL,
                 "channelUUID": channel.uuid,
                 "title": channel.config.get("title"),
-                "autoOpen": False,
+                "autoOpen": channel.config.get("auto_open", "false") == "true",
                 "hostApi": f"https://{channel.callback_domain}",
                 "icon": channel.config.get("logo"),
-                "welcomeMessage": welcome_message,
+                "welcomeMessage": welcome_message_default,
+                "welcomeMessage_i18n": welcome_message,
                 "theme": {
                     "widgetBackgroundColor": f"#{channel.config.get('widget_bg_color')}",
                     "chatHeaderBackgroundColor": f"#{channel.config.get('chat_header_bg_color')}",
@@ -114,6 +116,16 @@ class ConfigurationView(SmartReadView):
                     "automatedChatTextColor": f"#{channel.config.get('automated_chat_txt')}",
                     "userChatBackgroundColor": f"#{channel.config.get('user_chat_bg')}",
                     "userChatTextColor": f"#{channel.config.get('user_chat_txt')}",
+                    "chatButtonHeight": 0,  # Needs to be added
+                    "sidePadding": 0,  # Needs to be added
+                    "bottomPadding": 0,  # Needs to be added
+                    "sideOfScreen": "right|left",  # Needs to be added
                 },
+                "meta": {  # Needs to be processed
+                    "icon": {
+                        "width": 0,
+                        "height": 0,
+                    }
+                }
             }
         return JsonResponse(response)
