@@ -1,3 +1,7 @@
+v5.5.48
+----------
+ * Defer to mailroom for ticket closing and reopening
+
 v5.5.47
 ----------
 * Beta-gated views for Mailgun and Zendesk ticketers 
