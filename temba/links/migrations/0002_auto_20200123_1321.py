@@ -6,14 +6,12 @@ import temba.utils.models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('links', '0001_initial'),
-    ]
+    dependencies = [("links", "0001_initial")]
 
     operations = [
         migrations.AlterField(
-            model_name='link',
-            name='destination',
-            field=temba.utils.models.URLTextField(help_text='The destination URL for this trackable link'),
-        ),
+            model_name="link",
+            name="destination",
+            field=temba.utils.models.URLTextField(help_text="The destination URL for this trackable link"),
+        )
     ]

@@ -228,6 +228,8 @@ INSTALLED_APPS = (
     "smartmin",
     "smartmin.csv_imports",
     "smartmin.users",
+    # sorl-thumbnail
+    "sorl.thumbnail",
     # django-timezone-field
     "timezone_field",
     # temba apps
@@ -348,6 +350,7 @@ PERMISSIONS = {
         "unstop",
         "update_fields",
         "update_fields_input",
+        "invite_participants",
     ),
     "contacts.contactfield": ("api", "json", "update_priority", "featured", "filter_by_type", "detail"),
     "contacts.contactgroup": ("api",),
@@ -387,6 +390,7 @@ PERMISSIONS = {
         "plivo_connect",
         "profile",
         "resthooks",
+        "send_invite",
         "service",
         "signup",
         "sub_orgs",
@@ -441,7 +445,10 @@ PERMISSIONS = {
         "pdf_export",
         "lookups_api",
         "giftcards_api",
+        "launch",
+        "flow_parameters",
     ),
+    "flows.flowimage": ("read", "filter", "archived", "download"),
     "flows.flowsession": ("json",),
     "links.link": ("archived", "read", "history", "export", "api"),
     "msgs.msg": (
@@ -567,6 +574,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_update",
         "contacts.contact_update_fields",
         "contacts.contact_update_fields_input",
+        "contacts.contact_invite_participants",
         "contacts.contactfield.*",
         "contacts.contactgroup.*",
         "csv_imports.importtask.*",
@@ -602,6 +610,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_plivo_connect",
         "orgs.org_profile",
         "orgs.org_resthooks",
+        "orgs.org_send_invite",
         "orgs.org_sub_orgs",
         "orgs.org_transfer_credits",
         "orgs.org_twilio_account",
@@ -634,6 +643,7 @@ GROUP_PERMISSIONS = {
         "flows.flowlabel.*",
         "flows.ruleset.*",
         "flows.flowrun_delete",
+        "flows.flowimage.*",
         "schedules.schedule.*",
         "msgs.broadcast.*",
         "msgs.broadcastschedule.*",
@@ -697,6 +707,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_update",
         "contacts.contact_update_fields",
         "contacts.contact_update_fields_input",
+        "contacts.contact_invite_participants",
         "contacts.contactfield.*",
         "contacts.contactgroup.*",
         "csv_imports.importtask.*",
@@ -738,6 +749,7 @@ GROUP_PERMISSIONS = {
         "flows.flowstart_api",
         "flows.flowlabel.*",
         "flows.ruleset.*",
+        "flows.flowimage.*",
         "schedules.schedule.*",
         "msgs.broadcast.*",
         "msgs.broadcastschedule.*",
@@ -814,6 +826,11 @@ GROUP_PERMISSIONS = {
         "flows.flow_run_table",
         "flows.flow_simulate",
         "flows.flow_pdf_export",
+        "flows.flowimage_list",
+        "flows.flowimage_read",
+        "flows.flowimage_filter",
+        "flows.flowimage_archived",
+        "flows.flowimage_download",
         "msgs.broadcast_schedule_list",
         "msgs.broadcast_schedule_read",
         "msgs.label_api",
@@ -1184,6 +1201,7 @@ ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 # Maximum active objects are org can have
 MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
 MAX_ACTIVE_GLOBALS_PER_ORG = 255
+MAX_ORG_CONTACTGROUPS = 250
 
 COURIER_DEFAULT_TPS = 1000
 
@@ -1215,3 +1233,14 @@ WIDGET_THEMES = {
         "user_chat_txt": "000000",
     }
 }
+
+# Recaptcha configuration
+RECAPTCHA_SITE_KEY = ""
+RECAPTCHA_SECRET_KEY = ""
+
+# Authy configuration
+AUTHY_API_KEY = os.environ.get("AUTHY_API_KEY", "")
+AUTHY_MAGIC_PASS = os.environ.get("AUTHY_MAGIC_PASS", "")
+
+# Credits expiration config
+CREDITS_EXPIRATION = False

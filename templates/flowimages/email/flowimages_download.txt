@@ -1,0 +1,20 @@
+{% load tz %}
+{% load i18n %}
+
+{% blocktrans with brand=branding.name %}
+
+Hi there!
+
+Your download file is ready
+
+Download your .zip file here:
+
+{{ link }}
+
+Note: The file will be removed from the server after it has been downloaded.
+
+Thanks,
+
+The {{ brand }} Team
+
+{% endblocktrans %}

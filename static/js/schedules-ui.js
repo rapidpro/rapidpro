@@ -43,6 +43,44 @@ function initializeDatetimePicker(minDate, initialDate, showButtons) {
     });
 }
 
+function initializeBootstrapDatetimePicker(minDate, initialDate, showButtons) {
+
+    if (showButtons === undefined) {
+        showButtons = true;
+    }
+
+    var hasInitial = true;
+    if (initialDate === undefined) {
+        initialDate = minDate;
+        hasInitial = false;
+    }
+
+    var dateFormat = "DD, MM d, yy";
+    var timeFormat = "h:mm tt";
+    var initial = moment(initialDate).tz(user_tz).format('dddd, MMMM D, YYYY [at] h:mm a');
+
+    setDatetimeValue(initial, null, initialDate);
+    if (hasInitial) {
+        $("#start-datetime").val(initial);
+    }
+
+    $('#start-datetime').datetimepicker({
+        inline: true,
+        sideBySide: true,
+        icons: {
+            time: "fa fa-clock-o",
+            date: "fa fa-calendar",
+            up: "fa fa-arrow-up",
+            down: "fa fa-arrow-down",
+            next: "fa fa-arrow-right",
+            previous: "fa fa-arrow-left"
+        },
+        timeZone: user_tz
+    }).on('dp.change', function(event){
+        setDatetimeValue(event.date);
+    });
+}
+
 function setDatetimeValue(datetimeText, datepickerInstance, nextStart) {
     var datetime = null;
     if (nextStart) {

@@ -5,10 +5,6 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0138_remove_broadcast_recipient_count'),
-        ('msgs', '0133_auto_20191122_0154'),
-    ]
+    dependencies = [("msgs", "0138_remove_broadcast_recipient_count"), ("msgs", "0133_auto_20191122_0154")]
 
-    operations = [
-    ]
+    operations = []

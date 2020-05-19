@@ -183,11 +183,7 @@ class ExportLinksTask(BaseExportTask):
     def write_export(self):
         fields, scheme_counts = self.get_export_fields_and_schemes()
 
-        contact_ids = (
-            self.link.contacts.all()
-            .order_by("contact__name", "contact__id")
-            .values_list("id", flat=True)
-        )
+        contact_ids = self.link.contacts.all().order_by("contact__name", "contact__id").values_list("id", flat=True)
 
         # create our exporter
         exporter = TableExporter(self, "Links", [f["label"] for f in fields])

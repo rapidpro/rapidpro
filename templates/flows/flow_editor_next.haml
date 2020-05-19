@@ -134,6 +134,34 @@
       display: block;
     }
 
+    /* Styles for PDF File on Export PDF */
+    @media print{
+      [class*="Sticky_sticky"] {
+        background: #fff9c2 !important;
+        box-shadow: 5px 5px 0 -2px rgba(255,244,143,.3) !important;
+      }
+      [class*="Sticky_title_wrapper"] {
+        background: rgba(0,0,0,.05) !important;
+      }
+      [class*="Node_flow_start_message"] {
+        color: rgba(52,152,219,.5) !important;
+      }
+      [class*="TitleBar_normal"] {
+        font-weight: 400;
+        background: #289f9b !important;
+      }
+      [class*="TitleBar_titletext"] {
+        color: #ffffff !important;
+      }
+      [class*="Exit_endpoint"] {
+        background: red !important;
+      }
+      [class*="Node_node"] {
+        background: white !important;
+        -webkit-print-color-adjust: exact !important;
+      }
+    }
+
 -block extra-script
   {{ block.super }}
 
@@ -163,6 +191,12 @@
       var modal = document.querySelector("#send-message-modal");
       modal.endpoint = endpoint + "?step_node=" + nodeUUID + "&count=" + count;
       modal.open = true;
+    }
+
+    function showPendingMessage() {
+      var message = $('#pending');
+      message.show();
+      setTimeout(function () {message.hide();}, 3000);
     }
 
     const config = {
@@ -245,15 +279,16 @@
       }
     });
 
-    // Starting the flow
+    // Launching the flow
     {% if org_perms.msgs.broadcast_send %}
-      $(".broadcast-rulesflow").live('click', function(){
-        var modal = new Modax(gettext('Start Flow'), '{% url "flows.flow_broadcast" object.pk %}');
+      $(".launch-rulesflow").live('click', function(){
+        var modal = new Modax(gettext('Launch Flow'), '{% url "flows.flow_launch" object.pk %}');
         var onActions = {
           onSuccess: function(data) {
             // trigger an update right after sending so we have 
             // and opportunity to show "starting" status
             window.triggerActivityUpdate();
+            showPendingMessage();
           },
           onFormLoaded: function() {}
         }
@@ -311,11 +346,11 @@
       -elif flow.flow_type == 'S'
         .icon-mobile
       {{ flow.name }}
-    -if is_starting
-      #pending
-        %div{class:"alert alert-info"}
-          -blocktrans
-            This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
+    
+    #pending{"{%if not is_starting%} hidden {% endif %}"}
+      %div{class:"alert alert-info"}
+        -blocktrans
+          This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
 
   #rp-flow-editor
     <rp-loading units="10" size="8"></rp-loading>
