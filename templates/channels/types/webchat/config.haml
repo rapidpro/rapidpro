@@ -1,4 +1,4 @@
--load i18n
+-load i18n channels
 
 %h4
   -blocktrans
@@ -12,8 +12,33 @@
     &lt;script src="{{ widget_compiled_file }}" type="text/javascript">&lt;/script>
     &lt;script>
       window.renderSurveyor({
-        hostApi: 'https://{{ channel.callback_domain }}',
-        channelUUID: '{{ channel.uuid }}'
+        socketUrl: '{{ channel.address }}',
+        channelUUID: '{{ channel.uuid }}',
+        title: '{{ channel.config.title|adapt_for_widget }}',
+        autoOpen: {{ channel.config.auto_open }},
+        hostApi: 'https://{{ hostname }}',
+        icon: '{{ channel.config.logo }}',
+        welcomeMessage: '{{ channel.config.welcome_message_default|adapt_for_widget }}',
+        theme: {
+          widgetBackgroundColor: '{{ "#"|add:channel.config.widget_bg_color }}',
+          chatHeaderBackgroundColor: '{{ "#"|add:channel.config.chat_header_bg_color }}',
+          chatHeaderTextColor: '{{ "#"|add:channel.config.chat_header_text_color }}',
+          automatedChatBackgroundColor: '{{ "#"|add:channel.config.automated_chat_bg }}',
+          automatedChatTextColor: '{{ "#"|add:channel.config.automated_chat_txt }}',
+          userChatBackgroundColor: '{{ "#"|add:channel.config.user_chat_bg }}',
+          userChatTextColor: '{{ "#"|add:channel.config.user_chat_txt }}',
+          logoStyle: '{{ channel.config.logo_style }}',
+          chatButtonHeight: {{ channel.config.chat_button_height }},
+          sidePadding: {{ channel.config.side_padding }},
+          bottomPadding: {{ channel.config.bottom_padding }},
+          sideOfScreen: '{{ channel.config.side_of_screen }}'
+        },
+        meta: {
+          icon: {
+            width: {{ wch_logo_size.width }},
+            height: {{ wch_logo_size.height }}
+          }
+        }
       }, 'ccl-web-surveyor');
     &lt;/script>
 

@@ -2,7 +2,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import EXTERNAL_SCHEME
 from .views import ClaimView
 from ...models import ChannelType
-from ...views import UpdateWebSocketForm
+from ...views import UpdateWebChatForm
 
 
 class WebChatType(ChannelType):
@@ -20,7 +20,7 @@ class WebChatType(ChannelType):
     show_config_page = True
     show_edit_page = True
 
-    update_form = UpdateWebSocketForm
+    update_form = UpdateWebChatForm
 
     claim_blurb = _("Use our pluggable API to create a mobile-friendly web chat widget to add to any website.")
     claim_view = ClaimView

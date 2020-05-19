@@ -5,7 +5,6 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.utils.translation import ugettext_lazy as _
-from django.urls import reverse
 from smartmin.views import SmartFormView, SmartReadView
 from ...models import Channel
 from ...views import ClaimViewMixin
@@ -57,6 +56,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             "user_chat_bg": default_theme.get("user_chat_bg"),
             "user_chat_txt": default_theme.get("user_chat_txt"),
             "chat_timeout": 120,
+            "chat_button_height": 64,
+            "side_padding": 20,
+            "bottom_padding": 20,
+            "side_of_screen": "right",
         }
         languages = org.languages.all().order_by("orgs")
         for lang in languages:

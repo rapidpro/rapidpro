@@ -55,7 +55,7 @@
   function buildWebChat() {
     var title = $("#id_title").val();
     var icon = "{{ object.config.logo }}";
-    var welcomeMessage = "{{ welcomeMessage }}";
+    var welcomeMessage = $("#id_welcome_message_default").val();
     var widgetBackgroundColor = "#" + $("#id_widget_bg_color").val();
     var chatHeaderBackgroundColor = "#" + $("#id_chat_header_bg_color").val();
     var chatHeaderTextColor = "#" + $("#id_chat_header_text_color").val();
@@ -63,17 +63,18 @@
     var automatedChatTextColor = "#" + $("#id_automated_chat_txt").val();
     var userChatBackgroundColor = "#" + $("#id_user_chat_bg").val();
     var userChatTextColor = "#" + $("#id_user_chat_txt").val();
-    var logoStyle = 'circle';
+    var logoStyle = "circle";
     var chatButtonHeight = 64;
-    var sidePadding = 30;
-    var bottomPadding = 30;
-    var sideOfScreen = 'right';
+    var sidePadding = parseInt($("#id_side_padding").val());
+    var bottomPadding = parseInt($("#id_bottom_padding").val());
+    var sideOfScreen = $("#id_side_of_screen").val();
+
     window.renderSurveyor({
       socketUrl: 'https://websocket.communityconnectlabs.com',
       channelUUID: '{{ object.uuid }}',
       title: title,
       autoOpen: true,
-      hostApi: 'https://{{ request.get_host }}',
+      hostApi: 'https://{{ hostname }}',
       icon: icon,
       welcomeMessage: welcomeMessage,
       theme: {
@@ -128,6 +129,12 @@
       minimumResultsForSearch: Infinity
     });
 
+    $('#id_side_of_screen').select2({
+      width: '100px',
+      containerCssClass: 'select2-temba-field',
+      minimumResultsForSearch: Infinity
+    });
+
     // adding languages to the form
     {% if object.channel_type == "WCH" and languages %}
     $(document).ready(function() {
@@ -138,6 +145,10 @@
         buildWebChat();
       });
       {% endfor %}
+
+      $("#id_side_of_screen").change(function() {
+        buildWebChat();
+      })
 
       var allLanguages = [];
 

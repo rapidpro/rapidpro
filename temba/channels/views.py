@@ -11,6 +11,8 @@ import phonenumbers
 import pytz
 import regex
 import requests
+from PIL import Image
+
 import twilio.base.exceptions
 from django_countries.data import COUNTRIES
 from smartmin.views import (
@@ -1263,7 +1265,7 @@ class UpdateChannelForm(forms.ModelForm):
         helps = {"address": _("The number or address of this channel")}
 
 
-class UpdateWebSocketForm(UpdateChannelForm):
+class UpdateWebChatForm(UpdateChannelForm):
     name = forms.CharField(
         label=_("Name"),
         help_text=_("Descriptive label for this channel"),
@@ -1282,6 +1284,8 @@ class UpdateWebSocketForm(UpdateChannelForm):
         self.fields["logo_style"].choices = [("circle", _("Circle")), ("rectangle", _("Rectangle"))]
 
         self.fields["auto_open"].choices = [("false", _("Disable")), ("true", _("Enable"))]
+
+        self.fields["side_of_screen"].choices = [("right", _("Right")), ("left", _("Left"))]
 
         if self.instance.config:
             config = self.instance.config
@@ -1305,8 +1309,15 @@ class UpdateWebSocketForm(UpdateChannelForm):
             self.fields["user_chat_bg"].initial = config.get("user_chat_bg", default_theme.get("user_chat_bg"))
             self.fields["user_chat_txt"].initial = config.get("user_chat_txt", default_theme.get("user_chat_txt"))
 
-            languages = self.object.org.languages.all().order_by("orgs")
+            self.fields['chat_button_height'].initial = config.get('chat_button_height', '64')
+            self.fields['side_padding'].initial = config.get('side_padding', '20')
+            self.fields['bottom_padding'].initial = config.get('bottom_padding', '20')
+            self.fields['side_of_screen'].initial = config.get('side_of_screen', 'right')
 
+            self.fields["welcome_message_default"].initial = config.get("welcome_message_default", "")
+
+            """ Code for the next sprint only
+            languages = self.object.org.languages.all().order_by("orgs")
             if not languages:
                 self.fields["welcome_message_default"].initial = config.get("welcome_message_default", "")
 
@@ -1314,6 +1325,7 @@ class UpdateWebSocketForm(UpdateChannelForm):
                 self.fields[f"welcome_message_{lang.iso_code}"].initial = config.get(
                     f"welcome_message_{lang.iso_code}", ""
                 )
+            """
 
     def clean_name(self):
         org = self.object.org
@@ -1403,6 +1415,7 @@ class UpdateWebSocketForm(UpdateChannelForm):
             None,
         )
 
+        """ Code for the next sprint only
         org = self.object.org
         languages = org.languages.all().order_by("orgs")
         for lang in languages:
@@ -1413,6 +1426,7 @@ class UpdateWebSocketForm(UpdateChannelForm):
                 ),
                 "",
             )
+        """
 
         self.add_config_field(
             "theme",
@@ -1477,6 +1491,33 @@ class UpdateWebSocketForm(UpdateChannelForm):
         )
 
         self.add_config_field(
+            "chat_button_height",
+            forms.CharField(label=_('Chat Button Height (in pixels)'), widget=forms.NumberInput()),
+            None,
+        )
+
+        self.add_config_field(
+            "side_padding",
+            forms.CharField(label=_('Side Padding (# of Pixels)'), widget=forms.NumberInput()),
+            None,
+        )
+
+        self.add_config_field(
+            "bottom_padding",
+            forms.CharField(label=_('Bottom Padding (# of Pixels)'), widget=forms.NumberInput()),
+            None,
+        )
+
+        self.add_config_field(
+            "side_of_screen",
+            forms.ChoiceField(
+                label=_("Side of Screen"),
+                help_text=_("This is related to the side of the screen that we will display the widget")
+            ),
+            None,
+        )
+
+        self.add_config_field(
             "auto_open",
             forms.ChoiceField(
                 label=_("Auto Open"), help_text=_("Whether the chatbox should open when the website page is loaded")
@@ -1488,9 +1529,12 @@ class UpdateWebSocketForm(UpdateChannelForm):
         del self.fields["address"]
 
         unlisted_fields = ["name", "alert_email"]
+
+        """ Code for the next sprint only
         if languages:
             unlisted_fields.append("welcome_message_default")
             del self.fields["welcome_message_default"]
+        """
 
         for field in list(self.fields):
             if field in unlisted_fields:
@@ -1872,9 +1916,9 @@ class ChannelCRUDL(SmartCRUDL):
             if self.object.channel_type == "WCH":
                 context["customable_fields"] = ["#id_title", "#id_widget_bg_color", "#id_chat_header_bg_color",
                                                 "#id_chat_header_text_color", "#id_automated_chat_bg",
-                                                "#id_automated_chat_txt", "#id_user_chat_bg", "#id_user_chat_txt"]
-                welcome_message_field_name = f"welcome_message_{self.org.primary_language.iso_code}" if self.org.primary_language else "welcome_message_default"
-                context["welcomeMessage"] = self.object.config.get(welcome_message_field_name)
+                                                "#id_automated_chat_txt", "#id_user_chat_bg", "#id_user_chat_txt",
+                                                "#id_welcome_message_default", "#id_side_padding", "#id_bottom_padding"]
+                context["hostname"] = settings.HOSTNAME
             return context
 
         def derive_title(self):
@@ -2088,12 +2132,34 @@ class ChannelCRUDL(SmartCRUDL):
 
             # populate with our channel type
             channel_type = Channel.get_type_from_code(self.object.channel_type)
-            context["configuration_template"] = channel_type.get_configuration_template(
-                self.object, context=context_dict
-            )
             context["configuration_blurb"] = channel_type.get_configuration_blurb(self.object)
             context["configuration_urls"] = channel_type.get_configuration_urls(self.object)
             context["show_public_addresses"] = channel_type.show_public_addresses
+
+            if self.object.channel_type == 'WCH':
+                config = self.object.config
+                logo_img = config.get('logo', None)
+                if logo_img:
+                    # if using S3 as file storage
+                    if str(logo_img).startswith("http"):
+                        media_file = Org.get_temporary_file_from_url(logo_img)
+                        im = Image.open(media_file)
+                    else:
+                        # checking if the file comes from sitestatic folder
+                        media_replace = '/sitestatic' if 'sitestatic/brands' in logo_img else '/media'
+                        static_root = settings.STATIC_ROOT.replace('sitestatic',
+                                                                   'static') if settings.DEBUG else settings.STATIC_ROOT
+                        media_root = static_root if 'sitestatic/brands' in logo_img else settings.MEDIA_ROOT
+                        logo_path = logo_img.split(settings.HOSTNAME)[-1].replace(media_replace, '', 1)
+                        logo_path = '%s%s' % (media_root, logo_path)
+                        im = Image.open(logo_path)
+                    logo_w, logo_h = im.size
+                    context_dict['wch_logo_size'] = {'width': logo_w, 'height': logo_h}
+                    context_dict['hostname'] = settings.HOSTNAME
+
+            context["configuration_template"] = channel_type.get_configuration_template(
+                self.object, context=context_dict
+            )
 
             return context
 
