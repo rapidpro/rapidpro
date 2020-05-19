@@ -128,6 +128,16 @@ class MailroomClient:
 
         return self._request("contact/parse_query", payload)
 
+    def ticket_close(self, org_id, ticket_ids):
+        payload = {"org_id": org_id, "ticket_ids": ticket_ids}
+
+        return self._request("ticket/close", payload)
+
+    def ticket_reopen(self, org_id, ticket_ids):
+        payload = {"org_id": org_id, "ticket_ids": ticket_ids}
+
+        return self._request("ticket/reopen", payload)
+
     def _request(self, endpoint, payload=None, files=None, post=True, returns_json=True):
         if logger.isEnabledFor(logging.DEBUG):  # pragma: no cover
             logger.debug("=============== %s request ===============" % endpoint)

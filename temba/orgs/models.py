@@ -1950,9 +1950,6 @@ class Org(SmartModel):
         # our system label counts
         self.system_labels.all().delete()
 
-        # any airtime transfers associate with us go away
-        self.airtime_transfers.all().delete()
-
         # delete our flow labels
         self.flow_labels.all().delete()
 
@@ -1979,8 +1976,10 @@ class Org(SmartModel):
 
             flow.delete()
 
-        # delete all sessions
+        # delete contact-related data
         self.sessions.all().delete()
+        self.tickets.all().delete()
+        self.airtime_transfers.all().delete()
 
         # delete our contacts
         for contact in self.contacts.all():

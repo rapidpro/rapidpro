@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.contrib.auth.models import Group
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -24,24 +26,18 @@ class TicketTest(TembaTest):
             body="Where are my cookies?",
             status="O",
         )
-        modified_on = ticket.modified_on
 
         self.assertEqual(f"Ticket[uuid={ticket.uuid}, subject=Need help]", str(ticket))
 
-        ticket.close()
-        ticket.refresh_from_db()
+        with patch("temba.mailroom.client.MailroomClient.ticket_close") as mock_close:
+            Ticket.bulk_close(self.org, [ticket])
 
-        self.assertEqual(Ticket.STATUS_CLOSED, ticket.status)
-        self.assertIsNotNone(ticket.closed_on)
-        self.assertGreater(ticket.modified_on, modified_on)
+        mock_close.assert_called_once_with(self.org.id, [ticket.id])
 
-        modified_on = ticket.modified_on
-        ticket.reopen()
-        ticket.refresh_from_db()
+        with patch("temba.mailroom.client.MailroomClient.ticket_reopen") as mock_reopen:
+            Ticket.bulk_reopen(self.org, [ticket])
 
-        self.assertEqual(Ticket.STATUS_OPEN, ticket.status)
-        self.assertIsNone(ticket.closed_on)
-        self.assertGreater(ticket.modified_on, modified_on)
+        mock_reopen.assert_called_once_with(self.org.id, [ticket.id])
 
 
 class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -76,10 +72,10 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(("close",), response.context["actions"])
 
         # can close tickets with an action POST
-        self.requestView(open_url, self.admin, post_data={"action": "close", "objects": [ticket2.id]})
+        with patch("temba.mailroom.client.MailroomClient.ticket_close") as mock_close:
+            self.requestView(open_url, self.admin, post_data={"action": "close", "objects": [ticket2.id]})
 
-        ticket2.refresh_from_db()
-        self.assertEqual("C", ticket2.status)
+        mock_close.assert_called_once_with(self.org.id, [ticket2.id])
 
     def test_closed(self):
         closed_url = reverse("tickets.ticket_closed")
@@ -95,10 +91,10 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(("reopen",), response.context["actions"])
 
         # can reopen tickets with an action POST
-        self.requestView(closed_url, self.admin, post_data={"action": "reopen", "objects": [ticket2.id]})
+        with patch("temba.mailroom.client.MailroomClient.ticket_reopen") as mock_reopen:
+            self.requestView(closed_url, self.admin, post_data={"action": "reopen", "objects": [ticket2.id]})
 
-        ticket2.refresh_from_db()
-        self.assertEqual("O", ticket2.status)
+        mock_reopen.assert_called_once_with(self.org.id, [ticket2.id])
 
     def test_filter(self):
         filter_url = reverse("tickets.ticket_filter", args=[self.mailgun.uuid])
@@ -139,14 +135,14 @@ class TicketerTest(TembaTest):
             status="O",
         )
 
-        # release it
-        ticketer.release()
-        ticketer.refresh_from_db()
-        self.assertFalse(ticketer.is_active)
+        with patch("temba.mailroom.client.MailroomClient.ticket_close") as mock_close:
+            # release it
+            ticketer.release()
+            ticketer.refresh_from_db()
+            self.assertFalse(ticketer.is_active)
 
-        # ticket should be closed too
-        ticket.refresh_from_db()
-        self.assertEqual("C", ticket.status)
+        # will have asked mailroom to close the ticket
+        mock_close.assert_called_once_with(self.org.id, [ticket.id])
 
         # reactivate
         ticketer.is_active = True
@@ -194,3 +190,34 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # put them all back...
         reload_ticketer_types()
+
+    def test_delete(self):
+        ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
+
+        delete_url = reverse("tickets.ticketer_delete", args=[ticketer.uuid])
+
+        # try to delete it
+        response = self.client.post(delete_url)
+        self.assertRedirect(response, "/users/login/")
+
+        self.login(self.admin)
+
+        with patch("temba.mailroom.client.MailroomClient.ticket_close"):
+            self.client.post(delete_url)
+
+        ticketer.refresh_from_db()
+        self.assertFalse(ticketer.is_active)
+
+        # reactivate
+        ticketer.is_active = True
+        ticketer.save()
+
+        # add a dependency and try again
+        flow = self.create_flow()
+        flow.ticketer_dependencies.add(ticketer)
+
+        with self.assertRaises(AssertionError):
+            self.client.post(delete_url)
+
+        ticketer.refresh_from_db()
+        self.assertTrue(ticketer.is_active)
