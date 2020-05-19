@@ -190,3 +190,34 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # put them all back...
         reload_ticketer_types()
+
+    def test_delete(self):
+        ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
+
+        delete_url = reverse("tickets.ticketer_delete", args=[ticketer.uuid])
+
+        # try to delete it
+        response = self.client.post(delete_url)
+        self.assertRedirect(response, "/users/login/")
+
+        self.login(self.admin)
+
+        with patch("temba.mailroom.client.MailroomClient.ticket_close"):
+            self.client.post(delete_url)
+
+        ticketer.refresh_from_db()
+        self.assertFalse(ticketer.is_active)
+
+        # reactivate
+        ticketer.is_active = True
+        ticketer.save()
+
+        # add a dependency and try again
+        flow = self.create_flow()
+        flow.ticketer_dependencies.add(ticketer)
+
+        with self.assertRaises(AssertionError):
+            self.client.post(delete_url)
+
+        ticketer.refresh_from_db()
+        self.assertTrue(ticketer.is_active)

@@ -126,7 +126,8 @@ class Ticketer(SmartModel):
         assert not self.dependent_flows.exists(), "can't delete ticketer currently in use by flows"
 
         open_tickets = self.tickets.filter(status=Ticket.STATUS_OPEN)
-        Ticket.bulk_close(self.org, open_tickets)
+        if open_tickets.exists():
+            Ticket.bulk_close(self.org, open_tickets)
 
         self.is_active = False
         self.save(update_fields=("is_active", "modified_on"))

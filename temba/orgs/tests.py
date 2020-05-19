@@ -54,7 +54,7 @@ from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, Temb
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
-from temba.tickets.models import Ticketer
+from temba.tickets.models import Ticket, Ticketer
 from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json, languages
@@ -260,9 +260,6 @@ class OrgDeleteTest(TembaNonAtomicTest):
         # add a classifier
         self.c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {}, sync=False)
 
-        # add a ticketer
-        self.ticketer1 = Ticketer.create(self.org, self.admin, MailgunType.slug, "Email (bob)", {})
-
         # add a global
         self.global1 = Global.get_or_create(self.org, self.admin, "org_name", "Org Name", "Acme Ltd")
 
@@ -412,6 +409,17 @@ class OrgDeleteTest(TembaNonAtomicTest):
         # extra S3 file in child archive dir
         self.mock_s3.put_jsonl(settings.ARCHIVE_BUCKET, f"{self.child_org.id}/extra_file.json", [])
 
+        # add a ticketer and ticket
+        ticketer = Ticketer.create(self.org, self.admin, MailgunType.slug, "Email (bob)", {})
+        Ticket.objects.create(
+            org=self.org,
+            ticketer=ticketer,
+            contact=self.org.contacts.first(),
+            subject="Need help",
+            body="Where are my cookies?",
+            status="O",
+        )
+
     def release_org(self, org, child_org=None, immediately=False, expected_files=3):
 
         with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
@@ -470,7 +478,8 @@ class OrgDeleteTest(TembaNonAtomicTest):
         self.release_org(self.child_org)
 
     def test_release_parent_immediately(self):
-        self.release_org(self.parent_org, self.child_org, immediately=True)
+        with patch("temba.mailroom.client.MailroomClient.ticket_close"):
+            self.release_org(self.parent_org, self.child_org, immediately=True)
 
     def test_release_child_immediately(self):
         # 300 credits were given to our child org and each used one
