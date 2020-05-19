@@ -1,3 +1,7 @@
+v5.5.47
+----------
+* Beta-gated views for Mailgun and Zendesk ticketers 
+
 v5.5.46
 ----------
  * Bump black version
