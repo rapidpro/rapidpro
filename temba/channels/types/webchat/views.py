@@ -100,7 +100,11 @@ class ConfigurationView(SmartReadView):
 
             welcome_message_default = channel.config.get("welcome_message_default")
             if len(welcome_message_default) == 0:
-                welcome_message_default = welcome_message.get(channel.org.primary_language.iso_code) if channel.org.primary_language else None
+                welcome_message_default = (
+                    welcome_message.get(channel.org.primary_language.iso_code)
+                    if channel.org.primary_language
+                    else None
+                )
 
             response = {
                 "socketUrl": settings.WEBSOCKET_SERVER_URL,
@@ -124,11 +128,6 @@ class ConfigurationView(SmartReadView):
                     "bottomPadding": 0,  # Needs to be added
                     "sideOfScreen": "right|left",  # Needs to be added
                 },
-                "meta": {  # Needs to be processed
-                    "icon": {
-                        "width": 0,
-                        "height": 0,
-                    }
-                }
+                "meta": {"icon": {"width": 0, "height": 0}},  # Needs to be processed
             }
         return JsonResponse(response)

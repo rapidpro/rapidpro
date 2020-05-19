@@ -1200,7 +1200,9 @@ PARSE_REST_KEY = ""
 PARSE_MASTER_KEY = ""
 
 # WebSocket URL server for Webchat channel
-WIDGET_COMPILED_FILE = os.environ.get("WIDGET_COMPILED_FILE", "https://ccl-web-surveyor.s3-us-west-1.amazonaws.com/latest/ccl-web-surveyor.min.js")
+WIDGET_COMPILED_FILE = os.environ.get(
+    "WIDGET_COMPILED_FILE", "https://ccl-web-surveyor.s3-us-west-1.amazonaws.com/latest/ccl-web-surveyor.min.js"
+)
 WEBSOCKET_SERVER_URL = os.environ.get("WEBSOCKET_SERVER_URL", "http://localhost:9090")
 WIDGET_DEFAULT_THEME = "ccl_standard"
 WIDGET_THEMES = {

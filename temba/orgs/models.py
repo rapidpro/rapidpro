@@ -408,7 +408,7 @@ class Org(SmartModel):
             headers = spamreader.columns.tolist()
 
             # Removing empty columns name from CSV files imported
-            headers = [slugify(str(item).lower()).replace('-', '_') for item in headers if "Unnamed" not in item]
+            headers = [slugify(str(item).lower()).replace("-", "_") for item in headers if "Unnamed" not in item]
         finally:
             os.remove(tmp_file)
 
@@ -420,7 +420,9 @@ class Org(SmartModel):
             reserved_keywords = ["class", "for", "return", "global", "pass", "or", "raise", "def", "id", "objectid"]
 
             if not invalid_fields:
-                invalid_fields = [item for item in headers if item.replace("numeric_", "").replace("date_", "") in reserved_keywords]
+                invalid_fields = [
+                    item for item in headers if item.replace("numeric_", "").replace("date_", "") in reserved_keywords
+                ]
 
             if invalid_fields:
                 raise Exception(
@@ -2034,7 +2036,7 @@ class Org(SmartModel):
                 break
             else:
                 attempts += 1
-                time.sleep(.250)
+                time.sleep(0.250)
 
         if not response:
             return response

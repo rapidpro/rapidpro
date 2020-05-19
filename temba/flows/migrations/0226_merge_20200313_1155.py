@@ -5,10 +5,6 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0207_auto_20191211_0027'),
-        ('flows', '0225_populate_template_deps'),
-    ]
+    dependencies = [("flows", "0207_auto_20191211_0027"), ("flows", "0225_populate_template_deps")]
 
-    operations = [
-    ]
+    operations = []

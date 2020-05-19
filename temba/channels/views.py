@@ -1309,10 +1309,10 @@ class UpdateWebChatForm(UpdateChannelForm):
             self.fields["user_chat_bg"].initial = config.get("user_chat_bg", default_theme.get("user_chat_bg"))
             self.fields["user_chat_txt"].initial = config.get("user_chat_txt", default_theme.get("user_chat_txt"))
 
-            self.fields['chat_button_height'].initial = config.get('chat_button_height', '64')
-            self.fields['side_padding'].initial = config.get('side_padding', '20')
-            self.fields['bottom_padding'].initial = config.get('bottom_padding', '20')
-            self.fields['side_of_screen'].initial = config.get('side_of_screen', 'right')
+            self.fields["chat_button_height"].initial = config.get("chat_button_height", "64")
+            self.fields["side_padding"].initial = config.get("side_padding", "20")
+            self.fields["bottom_padding"].initial = config.get("bottom_padding", "20")
+            self.fields["side_of_screen"].initial = config.get("side_of_screen", "right")
 
             self.fields["welcome_message_default"].initial = config.get("welcome_message_default", "")
 
@@ -1392,7 +1392,8 @@ class UpdateWebChatForm(UpdateChannelForm):
         self.add_config_field(
             "logo_style",
             forms.ChoiceField(
-                label=_("Logo Style"), help_text=_("This is related to how we will display the widget when it's closed")
+                label=_("Logo Style"),
+                help_text=_("This is related to how we will display the widget when it's closed"),
             ),
             None,
         )
@@ -1428,17 +1429,11 @@ class UpdateWebChatForm(UpdateChannelForm):
             )
         """
 
-        self.add_config_field(
-            "theme",
-            forms.ChoiceField(label=_("Theme"), required=False),
-            None,
-        )
+        self.add_config_field("theme", forms.ChoiceField(label=_("Theme"), required=False), None)
 
         self.add_config_field(
             "widget_bg_color",
-            forms.CharField(
-                label=_("Widget Background Color"), widget=forms.TextInput(attrs={"class": "jscolor"})
-            ),
+            forms.CharField(label=_("Widget Background Color"), widget=forms.TextInput(attrs={"class": "jscolor"})),
             None,
         )
 
@@ -1452,59 +1447,47 @@ class UpdateWebChatForm(UpdateChannelForm):
 
         self.add_config_field(
             "chat_header_text_color",
-            forms.CharField(
-                label=_("Chat Header Text Color"), widget=forms.TextInput(attrs={"class": "jscolor"})
-            ),
+            forms.CharField(label=_("Chat Header Text Color"), widget=forms.TextInput(attrs={"class": "jscolor"})),
             None,
         )
 
         self.add_config_field(
             "automated_chat_bg",
-            forms.CharField(
-                label=_("Automated Chat Background"), widget=forms.TextInput(attrs={"class": "jscolor"})
-            ),
+            forms.CharField(label=_("Automated Chat Background"), widget=forms.TextInput(attrs={"class": "jscolor"})),
             None,
         )
 
         self.add_config_field(
             "automated_chat_txt",
-            forms.CharField(
-                label=_("Automated Chat Text"), widget=forms.TextInput(attrs={"class": "jscolor"})
-            ),
+            forms.CharField(label=_("Automated Chat Text"), widget=forms.TextInput(attrs={"class": "jscolor"})),
             None,
         )
 
         self.add_config_field(
             "user_chat_bg",
-            forms.CharField(
-                label=_("User Chat Background"), widget=forms.TextInput(attrs={"class": "jscolor"})
-            ),
+            forms.CharField(label=_("User Chat Background"), widget=forms.TextInput(attrs={"class": "jscolor"})),
             None,
         )
 
         self.add_config_field(
             "user_chat_txt",
-            forms.CharField(
-                label=_("User Chat Text"), widget=forms.TextInput(attrs={"class": "jscolor"})
-            ),
+            forms.CharField(label=_("User Chat Text"), widget=forms.TextInput(attrs={"class": "jscolor"})),
             None,
         )
 
         self.add_config_field(
             "chat_button_height",
-            forms.CharField(label=_('Chat Button Height (in pixels)'), widget=forms.NumberInput()),
+            forms.CharField(label=_("Chat Button Height (in pixels)"), widget=forms.NumberInput()),
             None,
         )
 
         self.add_config_field(
-            "side_padding",
-            forms.CharField(label=_('Side Padding (# of Pixels)'), widget=forms.NumberInput()),
-            None,
+            "side_padding", forms.CharField(label=_("Side Padding (# of Pixels)"), widget=forms.NumberInput()), None
         )
 
         self.add_config_field(
             "bottom_padding",
-            forms.CharField(label=_('Bottom Padding (# of Pixels)'), widget=forms.NumberInput()),
+            forms.CharField(label=_("Bottom Padding (# of Pixels)"), widget=forms.NumberInput()),
             None,
         )
 
@@ -1512,7 +1495,7 @@ class UpdateWebChatForm(UpdateChannelForm):
             "side_of_screen",
             forms.ChoiceField(
                 label=_("Side of Screen"),
-                help_text=_("This is related to the side of the screen that we will display the widget")
+                help_text=_("This is related to the side of the screen that we will display the widget"),
             ),
             None,
         )
@@ -1914,10 +1897,19 @@ class ChannelCRUDL(SmartCRUDL):
                 languages = self.org.languages.all().order_by("orgs")
                 context["languages"] = languages
             if self.object.channel_type == "WCH":
-                context["customable_fields"] = ["#id_title", "#id_widget_bg_color", "#id_chat_header_bg_color",
-                                                "#id_chat_header_text_color", "#id_automated_chat_bg",
-                                                "#id_automated_chat_txt", "#id_user_chat_bg", "#id_user_chat_txt",
-                                                "#id_welcome_message_default", "#id_side_padding", "#id_bottom_padding"]
+                context["customable_fields"] = [
+                    "#id_title",
+                    "#id_widget_bg_color",
+                    "#id_chat_header_bg_color",
+                    "#id_chat_header_text_color",
+                    "#id_automated_chat_bg",
+                    "#id_automated_chat_txt",
+                    "#id_user_chat_bg",
+                    "#id_user_chat_txt",
+                    "#id_welcome_message_default",
+                    "#id_side_padding",
+                    "#id_bottom_padding",
+                ]
                 context["hostname"] = settings.HOSTNAME
             return context
 
@@ -2136,9 +2128,9 @@ class ChannelCRUDL(SmartCRUDL):
             context["configuration_urls"] = channel_type.get_configuration_urls(self.object)
             context["show_public_addresses"] = channel_type.show_public_addresses
 
-            if self.object.channel_type == 'WCH':
+            if self.object.channel_type == "WCH":
                 config = self.object.config
-                logo_img = config.get('logo', None)
+                logo_img = config.get("logo", None)
                 if logo_img:
                     # if using S3 as file storage
                     if str(logo_img).startswith("http"):
@@ -2146,16 +2138,19 @@ class ChannelCRUDL(SmartCRUDL):
                         im = Image.open(media_file)
                     else:
                         # checking if the file comes from sitestatic folder
-                        media_replace = '/sitestatic' if 'sitestatic/brands' in logo_img else '/media'
-                        static_root = settings.STATIC_ROOT.replace('sitestatic',
-                                                                   'static') if settings.DEBUG else settings.STATIC_ROOT
-                        media_root = static_root if 'sitestatic/brands' in logo_img else settings.MEDIA_ROOT
-                        logo_path = logo_img.split(settings.HOSTNAME)[-1].replace(media_replace, '', 1)
-                        logo_path = '%s%s' % (media_root, logo_path)
+                        media_replace = "/sitestatic" if "sitestatic/brands" in logo_img else "/media"
+                        static_root = (
+                            settings.STATIC_ROOT.replace("sitestatic", "static")
+                            if settings.DEBUG
+                            else settings.STATIC_ROOT
+                        )
+                        media_root = static_root if "sitestatic/brands" in logo_img else settings.MEDIA_ROOT
+                        logo_path = logo_img.split(settings.HOSTNAME)[-1].replace(media_replace, "", 1)
+                        logo_path = "%s%s" % (media_root, logo_path)
                         im = Image.open(logo_path)
                     logo_w, logo_h = im.size
-                    context_dict['wch_logo_size'] = {'width': logo_w, 'height': logo_h}
-                    context_dict['hostname'] = settings.HOSTNAME
+                    context_dict["wch_logo_size"] = {"width": logo_w, "height": logo_h}
+                    context_dict["hostname"] = settings.HOSTNAME
 
             context["configuration_template"] = channel_type.get_configuration_template(
                 self.object, context=context_dict
@@ -2169,7 +2164,7 @@ class ChannelCRUDL(SmartCRUDL):
         search_fields = ("name", "address", "org__created_by__email")
 
         def lookup_field_link(self, context, field, obj):
-            if field == 'name':
+            if field == "name":
                 return reverse("channels.channel_read", args=[obj.uuid])
             return super().lookup_field_link(context, field, obj)
 
