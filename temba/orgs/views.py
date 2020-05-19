@@ -2596,9 +2596,9 @@ class OrgCRUDL(SmartCRUDL):
                         types_dict[str(col_name)] = str
 
                 if file_type == "csv":
-                    spamreader = read_csv(import_file, delimiter=",", index_col=False, dtype=types_dict)
+                    spamreader = read_csv(import_file, delimiter=",", thousands=',', index_col=False, dtype=types_dict)
                 else:
-                    spamreader = read_excel(import_file, index_col=False, dtype=str)
+                    spamreader = read_excel(import_file, thousands=',', index_col=False, dtype=str)
 
                 headers = spamreader.columns.tolist()
                 # Removing empty columns name from CSV files imported
