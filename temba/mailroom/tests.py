@@ -174,6 +174,30 @@ class MailroomClientTest(TembaTest):
             with self.assertRaises(MailroomException):
                 get_client().contact_search(1, "2752dbbc-723f-4007-8bc5-b3720835d3a9", "age > 10", "-created_on")
 
+    def test_ticket_close(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}',)
+            response = get_client().ticket_close(1, [123, 345])
+
+            self.assertEqual({"changed_ids": [123]}, response)
+            mock_post.assert_called_once_with(
+                "http://localhost:8090/mr/ticket/close",
+                headers={"User-Agent": "Temba"},
+                json={"org_id": 1, "ticket_ids": [123, 345]},
+            )
+
+    def test_ticket_reopen(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}',)
+            response = get_client().ticket_reopen(1, [123, 345])
+
+            self.assertEqual({"changed_ids": [123]}, response)
+            mock_post.assert_called_once_with(
+                "http://localhost:8090/mr/ticket/reopen",
+                headers={"User-Agent": "Temba"},
+                json={"org_id": 1, "ticket_ids": [123, 345]},
+            )
+
     @override_settings(TESTING=False)
     def test_inspect_with_org(self):
         with patch("requests.post") as mock_post:

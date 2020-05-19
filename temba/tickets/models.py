@@ -10,6 +10,7 @@ from django.template import Engine
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
+from temba import mailroom
 from temba.contacts.models import Contact
 from temba.orgs.models import Org
 from temba.utils.uuid import uuid4
@@ -124,8 +125,8 @@ class Ticketer(SmartModel):
         """
         assert not self.dependent_flows.exists(), "can't delete ticketer currently in use by flows"
 
-        for ticket in self.tickets.all():
-            ticket.close()
+        open_tickets = self.tickets.filter(status=Ticket.STATUS_OPEN)
+        Ticket.bulk_close(self.org, open_tickets)
 
         self.is_active = False
         self.save(update_fields=("is_active", "modified_on"))
@@ -180,44 +181,20 @@ class Ticket(models.Model):
     closed_on = models.DateTimeField(null=True)
 
     @classmethod
+    def bulk_close(cls, org, tickets):
+        return mailroom.get_client().ticket_close(org.id, [t.id for t in tickets])
+
+    @classmethod
+    def bulk_reopen(cls, org, tickets):
+        return mailroom.get_client().ticket_reopen(org.id, [t.id for t in tickets])
+
+    @classmethod
     def apply_action_close(cls, tickets):
-        changed = []
-        for ticket in tickets:
-            if ticket.status == Ticket.STATUS_OPEN:
-                ticket.close()
-                changed.append(ticket.id)
-        return changed
+        return cls.bulk_close(tickets[0].org, tickets)["changed_ids"]
 
     @classmethod
     def apply_action_reopen(cls, tickets):
-        changed = []
-        for ticket in tickets:
-            if ticket.status == Ticket.STATUS_CLOSED:
-                ticket.reopen()
-                changed.append(ticket.id)
-        return changed
-
-    def close(self):
-        """
-        Closes the ticket
-        """
-        # TODO notify external ticket service via mailroom
-
-        self.status = Ticket.STATUS_CLOSED
-        self.modified_on = timezone.now()
-        self.closed_on = timezone.now()
-        self.save(update_fields=("status", "modified_on", "closed_on"))
-
-    def reopen(self):
-        """
-        Re-opens the ticket
-        """
-        # TODO notify external ticket service via mailroom
-
-        self.status = Ticket.STATUS_OPEN
-        self.modified_on = timezone.now()
-        self.closed_on = None
-        self.save(update_fields=("status", "modified_on", "closed_on"))
+        return cls.bulk_reopen(tickets[0].org, tickets)["changed_ids"]
 
     def __str__(self):
         return f"Ticket[uuid={self.uuid}, subject={self.subject}]"
