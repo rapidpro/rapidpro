@@ -1869,6 +1869,12 @@ class ChannelCRUDL(SmartCRUDL):
             if self.org:
                 languages = self.org.languages.all().order_by("orgs")
                 context["languages"] = languages
+            if self.object.channel_type == "WCH":
+                context["customable_fields"] = ["#id_title", "#id_widget_bg_color", "#id_chat_header_bg_color",
+                                                "#id_chat_header_text_color", "#id_automated_chat_bg",
+                                                "#id_automated_chat_txt", "#id_user_chat_bg", "#id_user_chat_txt"]
+                welcome_message_field_name = f"welcome_message_{self.org.primary_language.iso_code}" if self.org.primary_language else "welcome_message_default"
+                context["welcomeMessage"] = self.object.config.get(welcome_message_field_name)
             return context
 
         def derive_title(self):

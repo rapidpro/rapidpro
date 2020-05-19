@@ -12,6 +12,10 @@
     %a.btn{onclick:"javascript:history.go(-1)"}
       -trans "Cancel"
 
+  {% if object.channel_type == "WCH" %}
+  #ccl-web-surveyor
+  {% endif %}
+
 -block extra-style
   :css
     .form-group {
@@ -44,7 +48,56 @@
 
 {% block extra-script %}
 <script src="{{ STATIC_URL }}js/jscolor.js"></script>
+{% if object.channel_type == "WCH" %}
+<script src="https://ccl-web-surveyor.s3-us-west-1.amazonaws.com/latest/ccl-web-surveyor.min.js" type="text/javascript"></script>
+{% endif %}
 :javascript
+  function buildWebChat() {
+    var title = $("#id_title").val();
+    var icon = "{{ object.config.logo }}";
+    var welcomeMessage = "{{ welcomeMessage }}";
+    var widgetBackgroundColor = "#" + $("#id_widget_bg_color").val();
+    var chatHeaderBackgroundColor = "#" + $("#id_chat_header_bg_color").val();
+    var chatHeaderTextColor = "#" + $("#id_chat_header_text_color").val();
+    var automatedChatBackgroundColor = "#" + $("#id_automated_chat_bg").val();
+    var automatedChatTextColor = "#" + $("#id_automated_chat_txt").val();
+    var userChatBackgroundColor = "#" + $("#id_user_chat_bg").val();
+    var userChatTextColor = "#" + $("#id_user_chat_txt").val();
+    var logoStyle = 'circle';
+    var chatButtonHeight = 64;
+    var sidePadding = 30;
+    var bottomPadding = 30;
+    var sideOfScreen = 'right';
+    window.renderSurveyor({
+      socketUrl: 'https://websocket.communityconnectlabs.com',
+      channelUUID: '{{ object.uuid }}',
+      title: title,
+      autoOpen: true,
+      hostApi: 'https://{{ request.get_host }}',
+      icon: icon,
+      welcomeMessage: welcomeMessage,
+      theme: {
+        widgetBackgroundColor: widgetBackgroundColor,
+        chatHeaderBackgroundColor: chatHeaderBackgroundColor,
+        chatHeaderTextColor: chatHeaderTextColor,
+        automatedChatBackgroundColor: automatedChatBackgroundColor,
+        automatedChatTextColor: automatedChatTextColor,
+        userChatBackgroundColor: userChatBackgroundColor,
+        userChatTextColor: userChatTextColor,
+        logoStyle: logoStyle,
+        chatButtonHeight: chatButtonHeight,
+        sidePadding: sidePadding,
+        bottomPadding: bottomPadding,
+        sideOfScreen: sideOfScreen
+      },
+      meta: {
+        icon: {
+          width: 64,
+          height: 64
+        }
+      }
+    }, 'ccl-web-surveyor');
+  }
   (function($) {
     // change the value of the first option to be empty so that select2 placeholder works
     $('#id_country').children(":first").remove();
@@ -78,6 +131,14 @@
     // adding languages to the form
     {% if object.channel_type == "WCH" and languages %}
     $(document).ready(function() {
+      buildWebChat();
+
+      {% for item in customable_fields %}
+      $("{{ item }}").blur(function() {
+        buildWebChat();
+      });
+      {% endfor %}
+
       var allLanguages = [];
 
       {% for lang in languages %}
