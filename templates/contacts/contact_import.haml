@@ -132,6 +132,15 @@
                       %a{href:"{% url 'contacts.contact_filter' group.uuid %}"}= group.name
                       group
 
+                    - if results.blocked_contacts
+                      .import-result
+                        .glyph.icon-checkmark.success
+                        -blocktrans with blocked_count=results.blocked_contacts|length
+                          You have {{ blocked_count }} contact(s) in this import that are
+                          currently blocked.
+                        %a(href="{% url 'contacts.contact_import' %}?task={{task.id}}&unblock=true")
+                          -trans "Unblock"
+
                     - if results.errors
                       .import-result
                         .well.well-small
@@ -165,6 +174,14 @@
                           - for error_message in results.error_messages
                             Row {{ error_message.line }}: {{ error_message.error }}
                             %br
+                  - elif task.status == "SUCCESS" and results.blocked_contacts
+                      .import-result
+                        .glyph.icon-checkmark.success
+                        -blocktrans with blocked_count=results.blocked_contacts|length
+                          You have {{ blocked_count }} contact(s) in this import that are
+                          currently blocked.
+                        %a(href="{% url 'contacts.contact_import' %}?task={{task.id}}&unblock=true")
+                          -trans "Unblock"
 
                   - elif task.status == "SUCCESS" and not group.contacts.all
                     %p
@@ -190,9 +207,6 @@
                       {{ form.non_field_errors }}
                   
                   -csrf_token
-                  -if form.non_field_errors
-                    %div.alert.alert-error.form-errors
-                      {{ form.non_field_errors }}
 
                   -block fields
                     %div#csv_file_errors

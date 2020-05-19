@@ -11,7 +11,8 @@
   >
     %td
       .details.nobreak
-        .remove.icon-close{ onclick: 'deleteRun({{run.id}});' }
+        - if org_perms.flows.flowrun_delete
+          .remove.icon-close{ onclick: 'deleteRun({{run.id}});' }
         {{run.modified_on}}
 
     %td
