@@ -53,7 +53,7 @@ class ConnectView(BaseConnectView):
             subject = _("Verify your email address for tickets")
             template = "tickets/types/mailgun/verify_email"
             context = {"verification_token": verification_token}
-            send_template_email(to_address, subject, template, context, self.org.get_branding())
+            send_template_email(to_address, subject, template, context, self.request.branding)
 
             self.request.session["to_address"] = to_address
             return HttpResponseRedirect(reverse("tickets.types.mailgun.connect") + "?verify=true")
