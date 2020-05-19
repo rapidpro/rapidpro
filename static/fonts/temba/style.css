@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'temba';
-  src:  url('fonts/temba.eot?nwpt56');
-  src:  url('fonts/temba.eot?nwpt56#iefix') format('embedded-opentype'),
-    url('fonts/temba.ttf?nwpt56') format('truetype'),
-    url('fonts/temba.woff?nwpt56') format('woff'),
-    url('fonts/temba.svg?nwpt56#temba') format('svg');
+  src:  url('fonts/temba.eot?liq30m');
+  src:  url('fonts/temba.eot?liq30m#iefix') format('embedded-opentype'),
+    url('fonts/temba.ttf?liq30m') format('truetype'),
+    url('fonts/temba.woff?liq30m') format('woff'),
+    url('fonts/temba.svg?liq30m#temba') format('svg');
   font-weight: normal;
   font-style: normal;
   font-display: block;
@@ -25,8 +25,11 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-.icon-shopping-bag:before {
-  content: "\e917";
+.icon-ticket:before {
+  content: "\e939";
+}
+.icon-zendesk:before {
+  content: "\e918";
 }
 .icon-two-factor:before {
   content: "\e916";
@@ -727,4 +730,7 @@
 }
 .icon-vk:before {
   content: "\e900";
+}
+.icon-shopping-bag:before {
+  content: "\e917";
 }

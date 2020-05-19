@@ -307,6 +307,7 @@ BRANDING = {
         "api_link": "https://api.rapidpro.io",
         "docs_link": "http://docs.rapidpro.io",
         "domain": "app.rapidpro.io",
+        "ticket_domain": "tickets.rapidpro.io",
         "favico": "brands/rapidpro/rapidpro.ico",
         "splash": "brands/rapidpro/splash.jpg",
         "logo": "brands/rapidpro/logo.png",
@@ -471,7 +472,8 @@ PERMISSIONS = {
     "orgs.topup": ("manage",),
     "policies.policy": ("admin", "history", "give_consent"),
     "templates.template": ("api",),
-    "tickets.ticketer": ("api",),
+    "tickets.ticket": ("open", "closed", "filter", "update"),
+    "tickets.ticketer": ("api", "connect", "configure"),
     "triggers.trigger": (
         "archived",
         "catchall",
@@ -663,7 +665,11 @@ GROUP_PERMISSIONS = {
         "request_logs.httplog_list",
         "request_logs.httplog_read",
         "templates.template_api",
+        "tickets.ticket.*",
         "tickets.ticketer_api",
+        "tickets.ticketer_configure",
+        "tickets.ticketer_connect",
+        "tickets.ticketer_delete",
         "triggers.trigger.*",
     ),
     "Editors": (
@@ -762,6 +768,10 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "templates.template_api",
+        "tickets.ticket_closed",
+        "tickets.ticket_filter",
+        "tickets.ticket_open",
+        "tickets.ticket_update",
         "tickets.ticketer_api",
         "triggers.trigger.*",
     ),
@@ -831,6 +841,9 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "tickets.ticket_closed",
+        "tickets.ticket_filter",
+        "tickets.ticket_open",
         "tickets.ticketer_api",
         "triggers.trigger_archived",
         "triggers.trigger_list",
@@ -1028,7 +1041,7 @@ CLASSIFIER_TYPES = [
     "temba.classifiers.types.bothub.BothubType",
 ]
 
-TICKETER_TYPES = ["temba.tickets.types.mailgun.MailgunType"]
+TICKETER_TYPES = ["temba.tickets.types.mailgun.MailgunType", "temba.tickets.types.zendesk.ZendeskType"]
 
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
@@ -1115,6 +1128,11 @@ GOOGLE_TRACKING_ID = os.environ.get("GOOGLE_TRACKING_ID", "")
 # Librato for gauge support
 LIBRATO_USER = os.environ.get("LIBRATO_USER", "")
 LIBRATO_TOKEN = os.environ.get("LIBRATO_TOKEN", "")
+
+MAILGUN_API_KEY = os.environ.get("MAILGUN_API_KEY", "")
+
+ZENDESK_CLIENT_ID = os.environ.get("ZENDESK_CLIENT_ID", "")
+ZENDESK_CLIENT_SECRET = os.environ.get("ZENDESK_CLIENT_SECRET", "")
 
 # -----------------------------------------------------------------------------------
 # IP Addresses

@@ -71,7 +71,10 @@ class BaseActionForm(forms.Form):
         delete_allowed = user_permissions.filter(codename="msg_update")
         resend_allowed = user_permissions.filter(codename="broadcast_send")
 
-        if action in ("label", "unlabel", "archive", "restore", "block", "unblock", "unstop") and not update_allowed:
+        if (
+            action in ("label", "unlabel", "archive", "restore", "block", "unblock", "unstop", "close", "reopen")
+            and not update_allowed
+        ):
             raise forms.ValidationError(_("Sorry you have no permission for this action."))
 
         if action == "delete" and not delete_allowed:  # pragma: needs cover
@@ -139,6 +142,14 @@ class BaseActionForm(forms.Form):
 
         elif action == "resend":
             changed = self.model.apply_action_resend(self.user, objects)
+            return dict(changed=changed)
+
+        elif action == "close":
+            changed = self.model.apply_action_close(objects)
+            return dict(changed=changed)
+
+        elif action == "reopen":
+            changed = self.model.apply_action_reopen(objects)
             return dict(changed=changed)
 
         else:  # pragma: no cover

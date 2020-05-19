@@ -3480,6 +3480,7 @@ class TicketersEndpoint(ListAPIMixin, BaseAPIView):
     ## Listing Ticketers
 
     A **GET** returns the ticketers for your organization, most recent first.
+
      * **uuid** - the UUID of the ticketer, filterable as `uuid`.
      * **name** - the name of the ticketer
      * **type** - the type of the ticketer, e.g. 'mailgun' or 'zendesk'

@@ -38,6 +38,7 @@ from temba.channels.models import Channel
 from temba.contacts.templatetags.contacts import MISSING_VALUE
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.tickets.models import Ticket
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
@@ -1044,9 +1045,12 @@ class ContactCRUDL(SmartCRUDL):
             # upcoming scheduled events
             context["upcoming_events"] = sorted(merged_upcoming_events, key=lambda k: k["scheduled"], reverse=True)
 
-            # divide contact's URNs into those we can send to, and those we can't
-            from temba.channels.models import Channel
+            # open tickets
+            context["open_tickets"] = list(
+                contact.tickets.filter(status=Ticket.STATUS_OPEN).select_related("ticketer").order_by("-opened_on")
+            )
 
+            # divide contact's URNs into those we can send to, and those we can't
             sendable_schemes = contact.org.get_schemes(Channel.ROLE_SEND)
 
             urns = contact.get_urns()

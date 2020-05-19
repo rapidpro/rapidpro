@@ -337,6 +337,13 @@ class Org(SmartModel):
         counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ALL, ContactGroup.TYPE_BLOCKED))
         return (counts[ContactGroup.TYPE_ALL] + counts[ContactGroup.TYPE_BLOCKED]) > 0
 
+    @cached_property
+    def has_ticketer(self):
+        """
+        Gets whether this org has an active ticketer configured
+        """
+        return self.ticketers.filter(is_active=True)
+
     def clear_credit_cache(self):
         """
         Clears the given cache types (currently just credits) for this org. Returns number of keys actually deleted
@@ -2013,6 +2020,11 @@ class Org(SmartModel):
             classifier.release()
             classifier.delete()
 
+        # delete our ticketers
+        for ticketer in self.ticketers.all():
+            ticketer.release()
+            ticketer.delete()
+
         # release all archives objects and files for this org
         Archive.release_org_archives(self)
 
@@ -2145,11 +2157,15 @@ def get_org(obj):
 
 
 def is_alpha_user(user):  # pragma: needs cover
-    return user.groups.filter(name="Alpha")
+    return user.groups.filter(name="Alpha").exists()
 
 
 def is_beta_user(user):  # pragma: needs cover
-    return user.groups.filter(name="Beta")
+    return user.groups.filter(name="Beta").exists()
+
+
+def is_support_user(user):
+    return user.groups.filter(name="Customer Support").exists()
 
 
 def get_settings(user):
@@ -2205,6 +2221,7 @@ User.get_org = get_org
 User.set_org = set_org
 User.is_alpha = is_alpha_user
 User.is_beta = is_beta_user
+User.is_support = is_support_user
 User.get_settings = get_settings
 User.get_user_orgs = get_user_orgs
 User.get_org_group = get_org_group

@@ -2,8 +2,11 @@ from abc import ABCMeta
 
 from smartmin.models import SmartModel
 
+from django.conf.urls import url
 from django.contrib.postgres.fields import JSONField
 from django.db import models
+from django.db.models import Q
+from django.template import Engine
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
@@ -26,11 +29,44 @@ class TicketerType(metaclass=ABCMeta):
     # the icon to show for this ticketer type
     icon = "icon-channel-external"
 
-    def is_available(self):  # pragma: no cover
+    # the blurb to show on the main connect page
+    connect_blurb = None
+
+    # the blurb to show above the connection form
+    form_blurb = None
+
+    # the view that handles connection of a new service
+    connect_view = None
+
+    def is_available(self):
         """
         Determines whether this ticketer type is available
         """
-        return True
+        return True  # pragma: no cover
+
+    def get_connect_blurb(self):
+        """
+        Gets the blurb for use on the connect page
+        """
+        return Engine.get_default().from_string(str(self.connect_blurb))
+
+    def get_form_blurb(self):
+        """
+        Gets the blurb for use on the connect page
+        """
+        return Engine.get_default().from_string(str(self.form_blurb))
+
+    def get_urls(self):
+        """
+        Returns all the URLs this ticketer exposes to Django, the URL should be relative.
+        """
+        return [self.get_connect_url()]
+
+    def get_connect_url(self):
+        """
+        Gets the URL/view configuration for this ticketer's connect page
+        """
+        return url(r"^connect", self.connect_view.as_view(ticketer_type=self), name="connect")
 
 
 class Ticketer(SmartModel):
@@ -66,7 +102,7 @@ class Ticketer(SmartModel):
         )
 
     @classmethod
-    def get_types(cls):  # pragma: no cover
+    def get_types(cls):
         """
         Returns the possible types available for ticketers
         """
@@ -74,7 +110,7 @@ class Ticketer(SmartModel):
 
         return TYPES.values()
 
-    def get_type(self):  # pragma: no cover
+    def get_type(self):
         """
         Returns the type instance
         """
@@ -86,15 +122,16 @@ class Ticketer(SmartModel):
         """
         Releases this, closing all associated tickets in the process
         """
-        used_by = self.dependent_flows.count()
-        if used_by > 0:
-            raise ValueError(f"Cannot delete ticketer: {self.name}, used by {used_by} flows")
+        assert not self.dependent_flows.exists(), "can't delete ticketer currently in use by flows"
 
         for ticket in self.tickets.all():
             ticket.close()
 
         self.is_active = False
         self.save(update_fields=("is_active", "modified_on"))
+
+    def __str__(self):
+        return f"Ticketer[uuid={self.uuid}, name={self.name}]"
 
 
 class Ticket(models.Model):
@@ -142,10 +179,57 @@ class Ticket(models.Model):
     # when this ticket was closed
     closed_on = models.DateTimeField(null=True)
 
+    @classmethod
+    def apply_action_close(cls, tickets):
+        changed = []
+        for ticket in tickets:
+            if ticket.status == Ticket.STATUS_OPEN:
+                ticket.close()
+                changed.append(ticket.id)
+        return changed
+
+    @classmethod
+    def apply_action_reopen(cls, tickets):
+        changed = []
+        for ticket in tickets:
+            if ticket.status == Ticket.STATUS_CLOSED:
+                ticket.reopen()
+                changed.append(ticket.id)
+        return changed
+
     def close(self):
         """
         Closes the ticket
         """
+        # TODO notify external ticket service via mailroom
+
         self.status = Ticket.STATUS_CLOSED
+        self.modified_on = timezone.now()
         self.closed_on = timezone.now()
         self.save(update_fields=("status", "modified_on", "closed_on"))
+
+    def reopen(self):
+        """
+        Re-opens the ticket
+        """
+        # TODO notify external ticket service via mailroom
+
+        self.status = Ticket.STATUS_OPEN
+        self.modified_on = timezone.now()
+        self.closed_on = None
+        self.save(update_fields=("status", "modified_on", "closed_on"))
+
+    def __str__(self):
+        return f"Ticket[uuid={self.uuid}, subject={self.subject}]"
+
+    class Meta:
+        indexes = [
+            # used by the open tickets view
+            models.Index(name="tickets_org_open", fields=["org", "-opened_on"], condition=Q(status="O"),),
+            # used by the closed tickets view
+            models.Index(name="tickets_org_closed", fields=["org", "-opened_on"], condition=Q(status="C"),),
+            # used by the tickets filtered by ticketer view
+            models.Index(name="tickets_org_ticketer", fields=["ticketer", "-opened_on"],),
+            # used by the list of tickets on contact page and also message handling to find open tickets for contact
+            models.Index(name="tickets_contact_open", fields=["contact", "-opened_on"], condition=Q(status="O"),),
+        ]

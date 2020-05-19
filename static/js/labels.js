@@ -255,4 +255,12 @@ $(document).ready(function() {
     $('.page-content').on('click', '.object-btn-resend', function() {
         runActionOnObjectRows('resend');
     });
+
+    $('.page-content').on('click', '.object-btn-close', function() {
+        runActionOnObjectRows('close');
+    });
+
+    $('.page-content').on('click', '.object-btn-reopen', function() {
+        runActionOnObjectRows('reopen');
+    });
 });

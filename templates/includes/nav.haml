@@ -182,6 +182,13 @@
       .title
         -trans "triggers"
 
+  -if org_perms.tickets.ticket_open and not request.user.is_superuser and user_org and user_org.has_ticketer
+    %a{href:"{% url 'tickets.ticket_open' %}", class:"{% active request 'ticket' %}"}
+      .circle
+        .icon-ticket
+      .title
+        -trans "tickets"
+
   -if org_perms.channels.channel_list or request.user.is_superuser
     -if not has_outgoing_channel and org_perms.channels.channel_claim
       %a{href:"{% url 'channels.channel_list' %}", class:"{% active request 'channels' %}"}
