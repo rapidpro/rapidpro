@@ -10,6 +10,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from enum import Enum
 from io import BytesIO
+from urllib.parse import urlparse
 from urllib.request import urlopen
 from uuid import uuid4
 
@@ -2263,7 +2264,7 @@ def update_related_flows(sender, instance, created, **kwargs):
         legacy_flow_update(flow)
         general_flow_update(flow)
 
-        
+
 class FlowImage(models.Model):
     uuid = models.UUIDField(unique=True, default=uuid4)
     org = models.ForeignKey(Org, related_name="flow_images", db_index=False, on_delete=models.CASCADE)
@@ -2273,12 +2274,15 @@ class FlowImage(models.Model):
     path = models.CharField(help_text="Image URL", max_length=255)
     path_thumbnail = models.CharField(help_text="Image thumbnail URL", max_length=255, null=True)
     exif = models.TextField(blank=True, null=True, help_text=_("A JSON representation the exif"))
-    created_on = models.DateTimeField(default=timezone.now, editable=False, blank=True,
-                                      help_text="When this item was originally created")
-    modified_on = models.DateTimeField(default=timezone.now, editable=False, blank=True,
-                                       help_text="When this item was last modified")
-    is_active = models.BooleanField(default=True,
-                                    help_text="Whether this item is active, use this instead of deleting")
+    created_on = models.DateTimeField(
+        default=timezone.now, editable=False, blank=True, help_text="When this item was originally created"
+    )
+    modified_on = models.DateTimeField(
+        default=timezone.now, editable=False, blank=True, help_text="When this item was last modified"
+    )
+    is_active = models.BooleanField(
+        default=True, help_text="Whether this item is active, use this instead of deleting"
+    )
 
     @classmethod
     def apply_action_archive(cls, user, objects):
@@ -2323,6 +2327,9 @@ class FlowImage(models.Model):
         return image_url
 
     def get_full_path(self):
+        url_path = urlparse(self.path)
+        if all([url_path.scheme, url_path.netloc]):
+            return self.path
         return "%s/%s" % (settings.MEDIA_ROOT, self.path)
 
     def get_permalink(self):
@@ -2334,8 +2341,8 @@ class FlowImage(models.Model):
         self.save(update_fields=("is_active"))
 
     def is_playable(self):
-        extension = self.path.split('.')[-1]
-        return True if extension in ['avi', 'flv', 'wmv', 'mp4', 'mov', '3gp'] else False
+        extension = self.path.split(".")[-1]
+        return True if extension in ["avi", "flv", "wmv", "mp4", "mov", "3gp"] else False
 
     def get_content_type(self):
         if self.is_playable():
@@ -3977,10 +3984,16 @@ class ExportFlowImagesTask(BaseExportTask):
 
         for file in files_obj:
             fpath = file.get_full_path()
-            fdir, fname = os.path.split(fpath)
-
-            # Add file, at correct path
-            zf.write(fpath, arcname=fname)
+            url_path = urlparse(fpath)
+            if all([url_path.scheme, url_path.netloc]):
+                with NamedTemporaryFile(delete=True) as local_copy:
+                    local_copy.write(urlopen(fpath).read())
+                    local_copy.flush()
+                    zf.write(local_copy.name, arcname=os.path.basename(url_path.path))
+            else:
+                fdir, fname = os.path.split(fpath)
+                # Add file, at correct path
+                zf.write(fpath, arcname=fname)
 
         zf.close()
 

@@ -1650,6 +1650,12 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         try:
             headers = SmartModel.get_import_file_headers(open(tmp_file))
+        except UnicodeDecodeError:
+            import pandas as pd
+
+            df = pd.read_csv(tmp_file, encoding="ISO-8859-1")
+            df.to_csv(tmp_file, encoding="utf-8", index=False)
+            headers = SmartModel.get_import_file_headers(open(tmp_file))
         finally:
             os.remove(tmp_file)
 
@@ -1716,7 +1722,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         joined_duplicated_headers = '", "'.join([h for h in duplicated])
 
         if duplicated:
-            raise Exception(_(f'The file you provided has duplicated headers. Columns "{joined_duplicated_headers}" should be renamed.'))
+            raise Exception(
+                _(
+                    f'The file you provided has duplicated headers. Columns "{joined_duplicated_headers}" should be renamed.'
+                )
+            )
 
         if "name" not in headers:
             raise Exception(_('The file you provided is missing a required header called "Name".'))
@@ -1853,7 +1863,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         # convert the file to CSV
         csv_tmp_file = os.path.join(settings.MEDIA_ROOT, "tmp/%s.csv" % str(uuid4()))
 
-        pyexcel.save_as(file_name=out_file.name, dest_file_name=csv_tmp_file)
+        try:
+            pyexcel.save_as(file_name=out_file.name, dest_file_name=csv_tmp_file)
+        except UnicodeDecodeError:
+            import pandas as pd
+
+            df = pd.read_csv(tmp_file, encoding="ISO-8859-1")
+            df.to_csv(tmp_file, encoding="utf-8", index=False)
+            pyexcel.save_as(file_name=out_file.name, dest_file_name=csv_tmp_file)
 
         import_results = dict()
 
