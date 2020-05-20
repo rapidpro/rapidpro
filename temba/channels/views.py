@@ -1911,6 +1911,7 @@ class ChannelCRUDL(SmartCRUDL):
                     "#id_bottom_padding",
                 ]
                 context["hostname"] = settings.HOSTNAME
+                context["websocket_url"] = settings.WEBSOCKET_SERVER_URL
             return context
 
         def derive_title(self):
