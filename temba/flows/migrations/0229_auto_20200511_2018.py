@@ -5,21 +5,10 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0228_exportflowimagestask'),
-    ]
+    dependencies = [("flows", "0228_exportflowimagestask")]
 
     operations = [
-        migrations.RemoveField(
-            model_name='flowimage',
-            name='created_by',
-        ),
-        migrations.RemoveField(
-            model_name='flowimage',
-            name='is_active',
-        ),
-        migrations.RemoveField(
-            model_name='flowimage',
-            name='modified_by',
-        ),
+        migrations.RemoveField(model_name="flowimage", name="created_by"),
+        migrations.RemoveField(model_name="flowimage", name="is_active"),
+        migrations.RemoveField(model_name="flowimage", name="modified_by"),
     ]
