@@ -1119,6 +1119,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.i2sms.I2SMSType",
     "temba.channels.types.clicksend.ClickSendType",
     "temba.channels.types.android.AndroidType",
+    "temba.channels.types.webchat.WebChatType",
 ]
 
 # -----------------------------------------------------------------------------------
@@ -1215,6 +1216,25 @@ PARSE_ENDPOINT = "/parse/"
 PARSE_APP_ID = ""
 PARSE_REST_KEY = ""
 PARSE_MASTER_KEY = ""
+
+# WebSocket URL server for Webchat channel
+WIDGET_COMPILED_FILE = os.environ.get(
+    "WIDGET_COMPILED_FILE", "https://ccl-web-surveyor.s3-us-west-1.amazonaws.com/latest/ccl-web-surveyor.min.js"
+)
+WEBSOCKET_SERVER_URL = os.environ.get("WEBSOCKET_SERVER_URL", "http://localhost:9090")
+WIDGET_DEFAULT_THEME = "ccl_standard"
+WIDGET_THEMES = {
+    "ccl_standard": {
+        "name": "CCL Standard",
+        "widget_bg": "D8F3F2",
+        "header_bg": "289F9B",
+        "header_txt": "FFFFFF",
+        "automated_chat_bg": "289F9B",
+        "automated_chat_txt": "FFFFFF",
+        "user_chat_bg": "FFFFFF",
+        "user_chat_txt": "000000",
+    }
+}
 
 # Recaptcha configuration
 RECAPTCHA_SITE_KEY = ""

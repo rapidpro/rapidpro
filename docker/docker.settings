@@ -185,6 +185,10 @@ PARSE_APP_ID = os.environ.get("PARSE_APP_ID", "")
 PARSE_REST_KEY = os.environ.get("PARSE_REST_KEY", "")
 PARSE_MASTER_KEY = os.environ.get("PARSE_MASTER_KEY", "")
 
+# WebSocket URL server for Webchat channel
+WIDGET_COMPILED_FILE = os.environ.get("WIDGET_COMPILED_FILE", "https://ccl-web-surveyor.s3-us-west-1.amazonaws.com/latest/ccl-web-surveyor.min.js")
+WEBSOCKET_SERVER_URL = os.environ.get("WEBSOCKET_SERVER_URL", "http://localhost:9090")
+
 # Recaptcha configuration
 RECAPTCHA_SITE_KEY = os.environ.get("RECAPTCHA_SITE_KEY", "")
 RECAPTCHA_SECRET_KEY = os.environ.get("RECAPTCHA_SECRET_KEY", "")
@@ -194,3 +198,4 @@ AUTHY_API_KEY = os.environ.get("AUTHY_API_KEY", "")
 AUTHY_MAGIC_PASS = os.environ.get("AUTHY_MAGIC_PASS", "")
 
 MAX_ORG_CONTACTGROUPS = int(os.environ.get("MAX_ORG_CONTACTGROUPS", 250))
+

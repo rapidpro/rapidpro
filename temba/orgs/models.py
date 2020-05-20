@@ -3,6 +3,7 @@ import itertools
 import logging
 import os
 import re
+import time
 
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -2045,6 +2046,31 @@ class Org(SmartModel):
             )
 
         return self.save_media(File(temp), extension)
+
+    @classmethod
+    def get_temporary_file_from_url(cls, media_url):
+        response = None
+        attempts = 0
+        s = Session()
+
+        while attempts < 4:
+            response = s.request("GET", media_url, stream=True)
+
+            # in some cases Facebook isn't ready for us to fetch the media URL yet, if we get a 404
+            # sleep for a bit then try again up to 4 times
+            if response.status_code == 200:
+                break
+            else:
+                attempts += 1
+                time.sleep(0.250)
+
+        if not response:
+            return response
+
+        temp = NamedTemporaryFile(delete=True)
+        temp.write(response.content)
+        temp.flush()
+        return File(temp)
 
     def get_delete_date(self, *, archive_type=Archive.TYPE_MSG):
         """

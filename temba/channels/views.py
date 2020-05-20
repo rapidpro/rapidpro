@@ -9,7 +9,10 @@ from datetime import datetime, timedelta
 import nexmo
 import phonenumbers
 import pytz
+import regex
 import requests
+from PIL import Image
+
 import twilio.base.exceptions
 from django_countries.data import COUNTRIES
 from smartmin.views import (
@@ -929,7 +932,9 @@ class ClaimViewMixin(OrgPermsMixin):
         return kwargs
 
     def get_success_url(self):
-        if self.channel_type.show_config_page:
+        if self.channel_type.show_edit_page:
+            return reverse("channels.channel_update", args=[self.object.id])
+        elif self.channel_type.show_config_page:
             return reverse("channels.channel_configuration", args=[self.object.uuid])
         else:
             return reverse("channels.channel_read", args=[self.object.uuid])
@@ -1254,9 +1259,273 @@ class UpdateChannelForm(forms.ModelForm):
     class Meta:
         model = Channel
         fields = "name", "address", "country", "alert_email"
+        config_fields = []
         readonly = ("address", "country")
         labels = {"address": _("Address")}
         helps = {"address": _("The number or address of this channel")}
+
+
+class UpdateWebChatForm(UpdateChannelForm):
+    name = forms.CharField(
+        label=_("Name"),
+        help_text=_("Descriptive label for this channel"),
+        widget=forms.TextInput(attrs={"required": ""}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.add_extra_fields()
+
+        self.fields["theme"].choices = [
+            (theme, settings.WIDGET_THEMES[theme]["name"]) for theme in list(settings.WIDGET_THEMES.keys())
+        ]
+
+        self.fields["logo_style"].choices = [("circle", _("Circle")), ("rectangle", _("Rectangle"))]
+
+        self.fields["auto_open"].choices = [("false", _("Disable")), ("true", _("Enable"))]
+
+        self.fields["side_of_screen"].choices = [("right", _("Right")), ("left", _("Left"))]
+
+        if self.instance.config:
+            config = self.instance.config
+            default_theme = settings.WIDGET_THEMES.get(settings.WIDGET_DEFAULT_THEME, {})
+            self.fields["theme"].initial = config.get("theme", "")
+            self.fields["title"].initial = config.get("title", "")
+            self.fields["logo_style"].initial = config.get("logo_style", "circle")
+            self.fields["widget_bg_color"].initial = config.get("widget_bg_color", default_theme.get("widget_bg"))
+            self.fields["chat_header_bg_color"].initial = config.get(
+                "chat_header_bg_color", default_theme.get("header_bg")
+            )
+            self.fields["chat_header_text_color"].initial = config.get(
+                "chat_header_text_color", default_theme.get("header_txt")
+            )
+            self.fields["automated_chat_bg"].initial = config.get(
+                "automated_chat_bg", default_theme.get("automated_chat_bg")
+            )
+            self.fields["automated_chat_txt"].initial = config.get(
+                "automated_chat_txt", default_theme.get("automated_chat_txt")
+            )
+            self.fields["user_chat_bg"].initial = config.get("user_chat_bg", default_theme.get("user_chat_bg"))
+            self.fields["user_chat_txt"].initial = config.get("user_chat_txt", default_theme.get("user_chat_txt"))
+
+            self.fields["chat_button_height"].initial = config.get("chat_button_height", "64")
+            self.fields["side_padding"].initial = config.get("side_padding", "20")
+            self.fields["bottom_padding"].initial = config.get("bottom_padding", "20")
+            self.fields["side_of_screen"].initial = config.get("side_of_screen", "right")
+
+            self.fields["welcome_message_default"].initial = config.get("welcome_message_default", "")
+
+            """ Code for the next sprint only
+            languages = self.object.org.languages.all().order_by("orgs")
+            if not languages:
+                self.fields["welcome_message_default"].initial = config.get("welcome_message_default", "")
+
+            for lang in languages:
+                self.fields[f"welcome_message_{lang.iso_code}"].initial = config.get(
+                    f"welcome_message_{lang.iso_code}", ""
+                )
+            """
+
+    def clean_name(self):
+        org = self.object.org
+        name = self.cleaned_data["name"]
+
+        if not regex.match(r"^[A-Za-z0-9_.\-*() ]+$", name, regex.V0):
+            raise forms.ValidationError(
+                "Please make sure the WebChat name only contains "
+                "alphanumeric characters [0-9a-zA-Z], hyphens, and underscores"
+            )
+
+        # does a ws channel already exists on this account with that name
+        existing = Channel.objects.filter(
+            org=org, is_active=True, channel_type=self.object.channel_type, name=name
+        ).first()
+
+        if existing and existing != self.object:
+            raise ValidationError(_("A WebChat channel for this name already exists on your account."))
+
+        return name
+
+    def clean_title(self):
+        title = self.cleaned_data["title"]
+
+        if len(title) > 40:
+            raise ValidationError(
+                _("Oops, the maximum length for a title is only 40 characters, " "your title has %s." % len(title))
+            )
+
+        return title
+
+    def clean_logo(self):
+        channel = self.instance
+        org = channel.org
+        logo = self.cleaned_data.get("logo")
+        config = channel.config
+
+        logo_media = config.get(Channel.CONFIG_WCH_LOGO, None)
+
+        if logo and len(logo) > 0 and not str(logo).startswith("http"):
+            if logo.size > 1000000:
+                raise ValidationError(_("Too big logo for the Widget, it does not accept more than 1MB"))
+
+            extension = logo.name.split(".")[-1]
+            if extension not in ["png", "jpg", "jpeg", "gif"]:
+                raise ValidationError(
+                    _("Please, upload a logo using one of the following formats: PNG, JPG, " "JPEG or GIF")
+                )
+
+            logo_media = org.save_media(logo, extension)
+
+        return logo_media
+
+    def add_extra_fields(self):
+
+        self.add_config_field(
+            "logo",
+            forms.FileField(
+                label=_("Logo"), required=False, help_text=_("We recommend to upload an image with 64x64px")
+            ),
+            None,
+        )
+
+        self.add_config_field(
+            "logo_style",
+            forms.ChoiceField(
+                label=_("Logo Style"),
+                help_text=_("This is related to how we will display the widget when it's closed"),
+            ),
+            None,
+        )
+
+        self.add_config_field(
+            "title",
+            forms.CharField(
+                label=_("Chat Title"),
+                help_text=_("It will appear on the header of the WebChat"),
+                widget=forms.TextInput(attrs={"required": "", "maxlength": 40}),
+            ),
+            None,
+        )
+
+        self.add_config_field(
+            "welcome_message_default",
+            forms.CharField(
+                label=_("Welcome Message"), widget=forms.Textarea(attrs={"style": "height: 110px", "required": ""})
+            ),
+            None,
+        )
+
+        """ Code for the next sprint only
+        org = self.object.org
+        languages = org.languages.all().order_by("orgs")
+        for lang in languages:
+            self.add_config_field(
+                f"welcome_message_{lang.iso_code}",
+                forms.CharField(
+                    label=_("Welcome Message"), widget=forms.Textarea(attrs={"style": "height: 110px", "required": ""})
+                ),
+                "",
+            )
+        """
+
+        self.add_config_field("theme", forms.ChoiceField(label=_("Theme"), required=False), None)
+
+        self.add_config_field(
+            "widget_bg_color",
+            forms.CharField(label=_("Widget Background Color"), widget=forms.TextInput(attrs={"class": "jscolor"})),
+            None,
+        )
+
+        self.add_config_field(
+            "chat_header_bg_color",
+            forms.CharField(
+                label=_("Chat Header Background Color"), widget=forms.TextInput(attrs={"class": "jscolor"})
+            ),
+            None,
+        )
+
+        self.add_config_field(
+            "chat_header_text_color",
+            forms.CharField(label=_("Chat Header Text Color"), widget=forms.TextInput(attrs={"class": "jscolor"})),
+            None,
+        )
+
+        self.add_config_field(
+            "automated_chat_bg",
+            forms.CharField(label=_("Automated Chat Background"), widget=forms.TextInput(attrs={"class": "jscolor"})),
+            None,
+        )
+
+        self.add_config_field(
+            "automated_chat_txt",
+            forms.CharField(label=_("Automated Chat Text"), widget=forms.TextInput(attrs={"class": "jscolor"})),
+            None,
+        )
+
+        self.add_config_field(
+            "user_chat_bg",
+            forms.CharField(label=_("User Chat Background"), widget=forms.TextInput(attrs={"class": "jscolor"})),
+            None,
+        )
+
+        self.add_config_field(
+            "user_chat_txt",
+            forms.CharField(label=_("User Chat Text"), widget=forms.TextInput(attrs={"class": "jscolor"})),
+            None,
+        )
+
+        self.add_config_field(
+            "chat_button_height",
+            forms.CharField(label=_("Chat Button Height (in pixels)"), widget=forms.NumberInput()),
+            None,
+        )
+
+        self.add_config_field(
+            "side_padding", forms.CharField(label=_("Side Padding (# of Pixels)"), widget=forms.NumberInput()), None
+        )
+
+        self.add_config_field(
+            "bottom_padding",
+            forms.CharField(label=_("Bottom Padding (# of Pixels)"), widget=forms.NumberInput()),
+            None,
+        )
+
+        self.add_config_field(
+            "side_of_screen",
+            forms.ChoiceField(
+                label=_("Side of Screen"),
+                help_text=_("This is related to the side of the screen that we will display the widget"),
+            ),
+            None,
+        )
+
+        self.add_config_field(
+            "auto_open",
+            forms.ChoiceField(
+                label=_("Auto Open"), help_text=_("Whether the chatbox should open when the website page is loaded")
+            ),
+            None,
+        )
+
+        del self.fields["country"]
+        del self.fields["address"]
+
+        unlisted_fields = ["name", "alert_email"]
+
+        """ Code for the next sprint only
+        if languages:
+            unlisted_fields.append("welcome_message_default")
+            del self.fields["welcome_message_default"]
+        """
+
+        for field in list(self.fields):
+            if field in unlisted_fields:
+                continue
+            self.Meta.config_fields.append(field)
+
+    class Meta(UpdateChannelForm.Meta):
+        readonly = []
 
 
 class UpdateTelChannelForm(UpdateChannelForm):
@@ -1622,8 +1891,35 @@ class ChannelCRUDL(SmartCRUDL):
         success_message = ""
         submit_button_name = _("Save Changes")
 
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            if self.org:
+                languages = self.org.languages.all().order_by("orgs")
+                context["languages"] = languages
+            if self.object.channel_type == "WCH":
+                context["customable_fields"] = [
+                    "#id_title",
+                    "#id_widget_bg_color",
+                    "#id_chat_header_bg_color",
+                    "#id_chat_header_text_color",
+                    "#id_automated_chat_bg",
+                    "#id_automated_chat_txt",
+                    "#id_user_chat_bg",
+                    "#id_user_chat_txt",
+                    "#id_welcome_message_default",
+                    "#id_side_padding",
+                    "#id_bottom_padding",
+                ]
+                context["hostname"] = settings.HOSTNAME
+            return context
+
         def derive_title(self):
-            return _("%s Channel") % self.object.get_channel_type_display()
+            channel_type_display = (
+                self.object.get_channel_type_display()
+                if self.object.channel_type == "WCH"
+                else f"{self.object.get_channel_type_display()} Channel"
+            )
+            return _("%s") % channel_type_display
 
         def derive_readonly(self):
             return self.form.Meta.readonly if hasattr(self, "form") else []
@@ -1639,7 +1935,10 @@ class ChannelCRUDL(SmartCRUDL):
             return super().lookup_field_help(field, default=default)
 
         def get_success_url(self):
-            return reverse("channels.channel_read", args=[self.object.uuid])
+            viewname = (
+                "channels.channel_configuration" if self.object.channel_type == "WCH" else "channels.channel_read"
+            )
+            return reverse(viewname=viewname, args=[self.object.uuid])
 
         def get_form_class(self):
             return Channel.get_type_from_code(self.object.channel_type).get_update_form()
@@ -1651,7 +1950,10 @@ class ChannelCRUDL(SmartCRUDL):
 
         def pre_save(self, obj):
             for field in self.form.config_fields:
-                obj.config[field] = self.form.cleaned_data[field]
+                try:
+                    obj.config[field] = self.form.cleaned_data[field]
+                except KeyError:
+                    pass
             return obj
 
         def post_save(self, obj):
@@ -1799,6 +2101,20 @@ class ChannelCRUDL(SmartCRUDL):
     class Configuration(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
+        def get_gear_links(self):
+            links = []
+
+            if self.has_org_perm("channels.channel_update"):
+                links.append(
+                    dict(
+                        title=_("Edit"),
+                        style="btn-primary",
+                        href=reverse("channels.channel_update", args=[self.object.id]),
+                    )
+                )
+
+            return links
+
         def has_permission_view_objects(self):
             channel = Channel.objects.filter(org=self.request.user.get_org(), uuid=self.kwargs.get("uuid")).first()
             if not channel:
@@ -1810,12 +2126,41 @@ class ChannelCRUDL(SmartCRUDL):
             context["domain"] = self.object.callback_domain
             context["ip_addresses"] = settings.IP_ADDRESSES
 
+            context_dict = dict(widget_compiled_file=settings.WIDGET_COMPILED_FILE)
+
             # populate with our channel type
             channel_type = Channel.get_type_from_code(self.object.channel_type)
-            context["configuration_template"] = channel_type.get_configuration_template(self.object)
             context["configuration_blurb"] = channel_type.get_configuration_blurb(self.object)
             context["configuration_urls"] = channel_type.get_configuration_urls(self.object)
             context["show_public_addresses"] = channel_type.show_public_addresses
+
+            if self.object.channel_type == "WCH":
+                config = self.object.config
+                logo_img = config.get("logo", None)
+                if logo_img:
+                    # if using S3 as file storage
+                    if str(logo_img).startswith("http"):
+                        media_file = Org.get_temporary_file_from_url(logo_img)
+                        im = Image.open(media_file)
+                    else:
+                        # checking if the file comes from sitestatic folder
+                        media_replace = "/sitestatic" if "sitestatic/brands" in logo_img else "/media"
+                        static_root = (
+                            settings.STATIC_ROOT.replace("sitestatic", "static")
+                            if settings.DEBUG
+                            else settings.STATIC_ROOT
+                        )
+                        media_root = static_root if "sitestatic/brands" in logo_img else settings.MEDIA_ROOT
+                        logo_path = logo_img.split(settings.HOSTNAME)[-1].replace(media_replace, "", 1)
+                        logo_path = "%s%s" % (media_root, logo_path)
+                        im = Image.open(logo_path)
+                    logo_w, logo_h = im.size
+                    context_dict["wch_logo_size"] = {"width": logo_w, "height": logo_h}
+                    context_dict["hostname"] = settings.HOSTNAME
+
+            context["configuration_template"] = channel_type.get_configuration_template(
+                self.object, context=context_dict
+            )
 
             return context
 
