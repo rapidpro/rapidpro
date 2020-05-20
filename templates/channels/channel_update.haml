@@ -70,7 +70,7 @@
     var sideOfScreen = $("#id_side_of_screen").val();
 
     window.renderSurveyor({
-      socketUrl: 'https://websocket.communityconnectlabs.com',
+      socketUrl: '{{ websocket_url }}',
       channelUUID: '{{ object.uuid }}',
       title: title,
       autoOpen: true,
