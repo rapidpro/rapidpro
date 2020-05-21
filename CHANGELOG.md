@@ -1,3 +1,7 @@
+v5.5.49
+----------
+ * Store brand name in mailgun ticketer config to use in emails from mailroom
+
 v5.5.48
 ----------
  * Defer to mailroom for ticket closing and reopening
