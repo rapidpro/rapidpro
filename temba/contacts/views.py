@@ -62,6 +62,7 @@ from .models import (
 )
 from .omnibox import omnibox_query, omnibox_results_to_dict
 from .tasks import export_contacts_task, release_group_task
+from distutils.util import strtobool
 
 logger = logging.getLogger(__name__)
 
@@ -907,8 +908,8 @@ class ContactCRUDL(SmartCRUDL):
             results = json.loads(task.import_results) if task and task.import_results else dict()
             blocked_contacts = results.pop("blocked_contacts", [])
             group = ContactGroup.user_groups.filter(import_task=task).first()
-            unblock = self.request.GET.get("unblock")
-            unblock = True if unblock == "true" else False
+            unblock = self.request.GET.get("unblock", "").lower()
+            unblock = eval(unblock.capitalize()) if unblock in ("true", "false") else None
 
             if unblock and blocked_contacts:
                 # unblock contact
@@ -923,6 +924,12 @@ class ContactCRUDL(SmartCRUDL):
                 # update import_results because it doesn't has an blocked_contacts anymore
                 task.import_results = json.dumps(results)
                 task.save()
+
+            elif unblock is not None and not unblock:
+                # update import_results to remove blocked_contacts
+                task.import_results = json.dumps(results)
+                task.save()
+
             return super().get(*args, **kwargs)
 
         def pre_save(self, task):
