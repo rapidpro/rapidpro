@@ -97,6 +97,7 @@ class Test:
                 TimeoutTest.TYPE: TimeoutTest,
                 TrueTest.TYPE: TrueTest,
                 WebhookStatusTest.TYPE: WebhookStatusTest,
+                HasImage.TYPE: HasImage,
             }
 
         type = json_dict.get(cls.TYPE, None)
@@ -338,6 +339,24 @@ class HasEmailTest(Test):  # pragma: no cover
     """
 
     TYPE = "has_email"
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls()
+
+    def as_json(self):
+        return dict(type=self.TYPE)
+
+
+class HasImage(Test):  # pragma: no cover
+    """
+    { op: "image" }
+    """
+
+    TYPE = "image"
 
     def __init__(self):
         pass

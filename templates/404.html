@@ -1,0 +1,32 @@
+{% extends "frame.html" %}
+
+{% load i18n %}
+
+{% block page-title %}
+    {% blocktrans %}
+        Page not found
+    {% endblocktrans %}
+{% endblock %}
+
+{% block title %}
+    <div class="medium-help float-left icon-warning"></div>
+    <h2 class="font_normalize header-margin title">
+        Page not found
+    </h2>
+{% endblock %}
+
+{% block content %}
+    <h4>
+        {% blocktrans with email=brand.support_email name=brand.name %}
+            <p>
+                Oops! That page can't be found.
+                If you have any issues, please contact us on <a href='mailto:{{ email }}?subject=Problem%20using%20{{ name }}'>{{ email }}</a>.
+            </p>
+            <p>
+                <a href="javascript:history.back()">
+                    Go back
+                </a>
+            </p>
+        {% endblocktrans %}
+    </h4>
+{% endblock %}

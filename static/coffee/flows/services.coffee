@@ -523,6 +523,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type: 'contains_only_phrase', name:'Contains only phrase', verbose_name:'has only the phrase', operands: 1, localized:true, filter: ONLINE_TEXT }
         { type: 'not_empty', name: 'Not empty', verbose_name:'is not empty', operands: 0, localized:true, filter: ALL_TEXT }
         { type: 'starts', name: 'Starts with', verbose_name:'starts with', operands: 1, localized:true, filter: ALL }
+        { type: 'image', name: 'Has an image', verbose_name:'has an image', operands: 0, filter: ALL_TEXT }
         { type: 'number', name: 'Has a number', verbose_name:'has a number', operands: 0, filter: ALL }
         { type: 'lt', name: 'Less than', verbose_name:'has a number less than', operands: 1, filter: ALL }
         { type: 'eq', name: 'Equal to', verbose_name:'has a number equal to', operands: 1, filter: ALL }

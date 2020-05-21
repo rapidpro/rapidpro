@@ -828,6 +828,17 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             logger.error("Error evaluating query", exc_info=True)
             raise  # reraise the exception
 
+    def get_scheduled_triggers(self):
+        from temba.triggers.models import Trigger
+
+        triggers = (
+            Trigger.objects.select_related("schedule")
+            .filter(trigger_type=Trigger.TYPE_SCHEDULE)
+            .filter(schedule__next_fire__gte=timezone.now())
+            .filter(Q(contacts=self) | Q(groups__contacts=self))
+        )
+        return triggers
+
     def get_scheduled_messages(self):
         from temba.msgs.models import SystemLabel
 
@@ -1639,6 +1650,12 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         try:
             headers = SmartModel.get_import_file_headers(open(tmp_file))
+        except UnicodeDecodeError:
+            import pandas as pd
+
+            df = pd.read_csv(tmp_file, encoding="ISO-8859-1")
+            df.to_csv(tmp_file, encoding="utf-8", index=False)
+            headers = SmartModel.get_import_file_headers(open(tmp_file))
         finally:
             os.remove(tmp_file)
 
@@ -1846,7 +1863,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         # convert the file to CSV
         csv_tmp_file = os.path.join(settings.MEDIA_ROOT, "tmp/%s.csv" % str(uuid4()))
 
-        pyexcel.save_as(file_name=out_file.name, dest_file_name=csv_tmp_file)
+        try:
+            pyexcel.save_as(file_name=out_file.name, dest_file_name=csv_tmp_file)
+        except UnicodeDecodeError:
+            import pandas as pd
+
+            df = pd.read_csv(tmp_file, encoding="ISO-8859-1")
+            df.to_csv(tmp_file, encoding="utf-8", index=False)
+            pyexcel.save_as(file_name=out_file.name, dest_file_name=csv_tmp_file)
 
         import_results = dict()
 
@@ -2525,7 +2549,7 @@ class ContactGroup(TembaModel):
     """
 
     MAX_NAME_LEN = 64
-    MAX_ORG_CONTACTGROUPS = 250
+    MAX_ORG_CONTACTGROUPS = settings.MAX_ORG_CONTACTGROUPS
 
     TYPE_ALL = "A"
     TYPE_BLOCKED = "B"

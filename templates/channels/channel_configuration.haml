@@ -54,13 +54,40 @@
   {{ block.super }}
   <script src="{{ STATIC_URL }}rest_framework/js/prettify-min.js"></script>
   :javascript
+    $("pre.wch-channel code").each(function(){
+      var html = $(this).html();
+      var pattern = html.match(/\s*\n[\t\s]*/);
+      $(this).html(html.replace(new RegExp(pattern, "g"),'\n'));
+    });
+
     $(function(){
       prettyPrint();
     });
 
+    function copyWCHCode() {
+      var el = $("pre.wch-channel code");
+      var copyArea = document.getElementById("code-field");
+      copyArea.value = el[0].innerText.trim();
+      copyArea.select();
+      copyArea.setSelectionRange(0, 99999);
+      document.execCommand('copy');
+      alert("{% trans 'The code has been copied to clipboard' %}");
+    }
+
 -block extra-style
   <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}rest_framework/css/prettify.css"/>
   :css
+    textarea#code-field {
+      height: 0px;
+      width: 0px;
+      opacity: 0;
+    }
+
+    pre.wch-channel {
+      padding: 5px;
+      margin: 5px 0;
+    }
+
     .config-value {
       float: left;
       padding-top: 10px;
