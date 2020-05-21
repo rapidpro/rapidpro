@@ -1099,7 +1099,7 @@ class ContactCRUDL(SmartCRUDL):
                 )
 
             # upcoming scheduled events
-            context["upcoming_events"] = sorted(merged_upcoming_events, key=lambda k: k["scheduled"])
+            context["upcoming_events"] = sorted(merged_upcoming_events, key=lambda k: k["scheduled"], reverse=True)
 
             # divide contact's URNs into those we can send to, and those we can't
             from temba.channels.models import Channel
