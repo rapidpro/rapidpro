@@ -1705,7 +1705,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         joined_duplicated_headers = '", "'.join([h for h in duplicated])
 
         if duplicated:
-            raise Exception(_(f'The file you provided has duplicated headers. Columns "{joined_duplicated_headers}" should be renamed.'))
+            raise Exception(
+                _(
+                    f'The file you provided has duplicated headers. Columns "{joined_duplicated_headers}" should be renamed.'
+                )
+            )
 
         if "name" not in headers:
             raise Exception(_('The file you provided is missing a required header called "Name".'))

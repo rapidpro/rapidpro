@@ -60,6 +60,7 @@ from .models import (
 )
 from .omnibox import omnibox_query, omnibox_results_to_dict
 from .tasks import export_contacts_task, release_group_task
+from distutils.util import strtobool
 
 logger = logging.getLogger(__name__)
 
@@ -663,9 +664,9 @@ class ContactCRUDL(SmartCRUDL):
                             field_label = field_label[7:]
 
                         # skip fields that are not included and remove them from data
-                        column_name = re_col_name_include.match(key).groupdict().get('name')
+                        column_name = re_col_name_include.match(key).groupdict().get("name")
                         column_include = self.data.get("column_{}_include".format(column_name))
-                        if not column_include or 'on' not in column_include:
+                        if not column_include or "on" not in column_include:
                             continue
 
                         field_key = ContactField.make_key(field_label)
@@ -899,14 +900,14 @@ class ContactCRUDL(SmartCRUDL):
 
         def get(self, *args, **kwargs):
             # overwritten to unblock contacts manually when unblock param is present
-            task = self.request.GET.get('task')
+            task = self.request.GET.get("task")
             task = ImportTask.objects.filter(id=task).last()
             results = json.loads(task.import_results) if task and task.import_results else dict()
-            blocked_contacts = results.pop('blocked_contacts', [])
+            blocked_contacts = results.pop("blocked_contacts", [])
             group = ContactGroup.user_groups.filter(import_task=task).first()
-            unblock = self.request.GET.get('unblock')
-            unblock = True if unblock == 'true' else False
-            
+            unblock = self.request.GET.get("unblock", "").lower()
+            unblock = eval(unblock.capitalize()) if unblock in ("true", "false") else None
+
             if unblock and blocked_contacts:
                 # unblock contact
                 contacts = Contact.objects.filter(id__in=blocked_contacts)
@@ -916,10 +917,16 @@ class ContactCRUDL(SmartCRUDL):
                 if group:
                     group.contacts.add(*contacts)
                     group.save()
-                
+
                 # update import_results because it doesn't has an blocked_contacts anymore
                 task.import_results = json.dumps(results)
                 task.save()
+
+            elif unblock is not None and not unblock:
+                # update import_results to remove blocked_contacts
+                task.import_results = json.dumps(results)
+                task.save()
+
             return super().get(*args, **kwargs)
 
         def pre_save(self, task):
@@ -1152,7 +1159,12 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm("msgs.broadcast_send") and not self.object.is_blocked and not self.object.is_stopped and self.object.get_urn():
+            if (
+                self.has_org_perm("msgs.broadcast_send")
+                and not self.object.is_blocked
+                and not self.object.is_stopped
+                and self.object.get_urn()
+            ):
                 links.append(
                     dict(
                         id="send-message",

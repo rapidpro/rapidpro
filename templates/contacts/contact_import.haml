@@ -137,9 +137,13 @@
                         .glyph.icon-checkmark.success
                         -blocktrans with blocked_count=results.blocked_contacts|length
                           You have {{ blocked_count }} contact(s) in this import that are
-                          currently blocked.
-                        %a(href="{% url 'contacts.contact_import' %}?task={{task.id}}&unblock=true")
-                          -trans "Unblock"
+                          currently blocked. Do you want to unblock them?
+                      .unblock-buttons
+                        .container
+                          %a.btn(href="{% url 'contacts.contact_import' %}?task={{task.id}}&unblock=true")
+                            -trans "Yes"
+                          %a.btn(href="{% url 'contacts.contact_import' %}?task={{task.id}}&unblock=false")
+                            -trans "No"
 
                     - if results.errors
                       .import-result
@@ -293,6 +297,12 @@
 
   #import-message .import-result a {
     text-decoration :none;
+  }
+
+  .unblock-buttons .container {
+    margin-left: auto;
+    margin-right: auto;
+    width: 150px;
   }
 
 {% endblock %}
