@@ -66,6 +66,7 @@ class ConnectView(BaseConnectView):
             MailgunType.CONFIG_DOMAIN: domain,
             MailgunType.CONFIG_API_KEY: api_key,
             MailgunType.CONFIG_TO_ADDRESS: to_address,
+            MailgunType.CONFIG_BRAND_NAME: branding["name"],
             MailgunType.CONFIG_URL_BASE: branding["link"],
         }
 

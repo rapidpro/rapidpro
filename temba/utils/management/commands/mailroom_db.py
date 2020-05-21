@@ -206,6 +206,7 @@ ORG1 = dict(
                 domain="tickets.rapidpro.io",
                 api_key="sesame",
                 to_address="bob@acme.com",
+                brand_name="RapidPro",
                 url_base="https://app.rapidpro.io",
             ),
         ),
