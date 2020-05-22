@@ -99,6 +99,7 @@ HISTORY_INCLUDE_EVENTS = {
     "failure",
     "input_labels_added",
     "run_result_changed",
+    "ticket_opened",
 }
 
 

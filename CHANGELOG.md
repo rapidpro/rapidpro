@@ -1,3 +1,26 @@
+v5.5.49
+----------
+ * Store brand name in mailgun ticketer config to use in emails from mailroom
+
+v5.5.48
+----------
+ * Defer to mailroom for ticket closing and reopening
+
+v5.5.47
+----------
+* Beta-gated views for Mailgun and Zendesk ticketers 
+
+v5.5.46
+----------
+ * Bump black version
+ * Fix layering of menu with simulator
+
+v5.5.45
+----------
+ * Increase the template name field to accept up to 512 characters
+ * Make sending of Stripe receipts optional
+ * Add OrgActivity model that tracks contacts, active contacts, incoming and outgoing messages
+
 v5.5.43
 ----------
  * Fix JS escaping on channel log page

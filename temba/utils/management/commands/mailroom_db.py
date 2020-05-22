@@ -202,7 +202,13 @@ ORG1 = dict(
             uuid="f9c9447f-a291-4f3c-8c79-c089bbd4e713",
             name="Mailgun (IT Support)",
             ticketer_type="mailgun",
-            config=dict(domain="mr.nyaruka.com", api_key="sesame", to_address="bob@acme.com"),
+            config=dict(
+                domain="tickets.rapidpro.io",
+                api_key="sesame",
+                to_address="bob@acme.com",
+                brand_name="RapidPro",
+                url_base="https://app.rapidpro.io",
+            ),
         ),
         dict(
             uuid="4ee6d4f3-f92b-439b-9718-8da90c05490b",

@@ -308,6 +308,7 @@ BRANDING = {
         "api_link": "https://api.rapidpro.io",
         "docs_link": "http://docs.rapidpro.io",
         "domain": "app.rapidpro.io",
+        "ticket_domain": "tickets.rapidpro.io",
         "favico": "brands/rapidpro/rapidpro.ico",
         "splash": "brands/rapidpro/splash.jpg",
         "logo": "brands/rapidpro/logo.png",
@@ -472,7 +473,8 @@ PERMISSIONS = {
     "orgs.topup": ("manage",),
     "policies.policy": ("admin", "history", "give_consent"),
     "templates.template": ("api",),
-    "tickets.ticketer": ("api",),
+    "tickets.ticket": ("open", "closed", "filter", "update"),
+    "tickets.ticketer": ("api", "connect", "configure"),
     "triggers.trigger": (
         "archived",
         "catchall",
@@ -664,7 +666,11 @@ GROUP_PERMISSIONS = {
         "request_logs.httplog_list",
         "request_logs.httplog_read",
         "templates.template_api",
+        "tickets.ticket.*",
         "tickets.ticketer_api",
+        "tickets.ticketer_configure",
+        "tickets.ticketer_connect",
+        "tickets.ticketer_delete",
         "triggers.trigger.*",
     ),
     "Editors": (
@@ -763,6 +769,10 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "templates.template_api",
+        "tickets.ticket_closed",
+        "tickets.ticket_filter",
+        "tickets.ticket_open",
+        "tickets.ticket_update",
         "tickets.ticketer_api",
         "triggers.trigger.*",
     ),
@@ -832,6 +842,9 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "tickets.ticket_closed",
+        "tickets.ticket_filter",
+        "tickets.ticket_open",
         "tickets.ticketer_api",
         "triggers.trigger_archived",
         "triggers.trigger_list",
@@ -889,32 +902,32 @@ INTERNAL_IPS = iptools.IpRangeList("127.0.0.1", "192.168.0.10", "192.168.0.0/24"
 # -----------------------------------------------------------------------------------
 CELERYBEAT_SCHEDULE = {
     "check-channels": {"task": "check_channels_task", "schedule": timedelta(seconds=300)},
-    "sync-old-seen-channels": {"task": "sync_old_seen_channels_task", "schedule": timedelta(seconds=600)},
-    "sync-classifier-intents": {"task": "sync_classifier_intents", "schedule": timedelta(seconds=300)},
     "check-credits": {"task": "check_credits_task", "schedule": timedelta(seconds=900)},
-    "check-topup-expiration": {"task": "check_topup_expiration_task", "schedule": crontab(hour=2, minute=0)},
     "check-elasticsearch-lag": {"task": "check_elasticsearch_lag", "schedule": timedelta(seconds=300)},
-    "retry-errored-messages": {"task": "retry_errored_messages", "schedule": timedelta(seconds=60)},
+    "check-topup-expiration": {"task": "check_topup_expiration_task", "schedule": crontab(hour=2, minute=0)},
     "fail-old-messages": {"task": "fail_old_messages", "schedule": crontab(hour=0, minute=0)},
-    "track-org-channel-counts": {"task": "track_org_channel_counts", "schedule": crontab(hour=4, minute=0)},
-    "trim-sync-events": {"task": "trim_sync_events_task", "schedule": crontab(hour=3, minute=0)},
-    "trim-channel-log": {"task": "trim_channel_log_task", "schedule": crontab(hour=3, minute=0)},
-    "trim-http-logs": {"task": "trim_http_logs_task", "schedule": crontab(hour=3, minute=0)},
-    "trim-webhook-event": {"task": "trim_webhook_event_task", "schedule": crontab(hour=3, minute=0)},
-    "trim-event-fires": {"task": "trim_event_fires_task", "schedule": timedelta(seconds=900)},
-    "trim-flow-revisions": {"task": "trim_flow_revisions", "schedule": crontab(hour=0, minute=0)},
-    "trim-flow-sessions-and-starts": {"task": "trim_flow_sessions_and_starts", "schedule": crontab(hour=0, minute=0)},
-    "squash-flowcounts": {"task": "squash_flowcounts", "schedule": timedelta(seconds=60)},
-    "squash-channelcounts": {"task": "squash_channelcounts", "schedule": timedelta(seconds=60)},
-    "squash-msgcounts": {"task": "squash_msgcounts", "schedule": timedelta(seconds=60)},
-    "squash-topupcredits": {"task": "squash_topupcredits", "schedule": timedelta(seconds=60)},
-    "squash-contactgroupcounts": {"task": "squash_contactgroupcounts", "schedule": timedelta(seconds=60)},
     "resolve-twitter-ids-task": {"task": "resolve_twitter_ids_task", "schedule": timedelta(seconds=900)},
+    "retry-errored-messages": {"task": "retry_errored_messages", "schedule": timedelta(seconds=60)},
     "refresh-jiochat-access-tokens": {"task": "refresh_jiochat_access_tokens", "schedule": timedelta(seconds=3600)},
     "refresh-wechat-access-tokens": {"task": "refresh_wechat_access_tokens", "schedule": timedelta(seconds=3600)},
     "refresh-whatsapp-tokens": {"task": "refresh_whatsapp_tokens", "schedule": timedelta(hours=24)},
     "refresh-whatsapp-templates": {"task": "refresh_whatsapp_templates", "schedule": timedelta(seconds=900)},
-    # "resume_failed_tasks": {"task": "resume_failed_tasks", "schedule": timedelta(seconds=1800)},
+    "squash-channelcounts": {"task": "squash_channelcounts", "schedule": timedelta(seconds=60)},
+    "squash-contactgroupcounts": {"task": "squash_contactgroupcounts", "schedule": timedelta(seconds=60)},
+    "squash-flowcounts": {"task": "squash_flowcounts", "schedule": timedelta(seconds=60)},
+    "squash-msgcounts": {"task": "squash_msgcounts", "schedule": timedelta(seconds=60)},
+    "squash-topupcredits": {"task": "squash_topupcredits", "schedule": timedelta(seconds=60)},
+    "sync-classifier-intents": {"task": "sync_classifier_intents", "schedule": timedelta(seconds=300)},
+    "sync-old-seen-channels": {"task": "sync_old_seen_channels_task", "schedule": timedelta(seconds=600)},
+    "track-org-channel-counts": {"task": "track_org_channel_counts", "schedule": crontab(hour=4, minute=0)},
+    "trim-channel-log": {"task": "trim_channel_log_task", "schedule": crontab(hour=3, minute=0)},
+    "trim-event-fires": {"task": "trim_event_fires_task", "schedule": timedelta(seconds=900)},
+    "trim-flow-revisions": {"task": "trim_flow_revisions", "schedule": crontab(hour=0, minute=0)},
+    "trim-flow-sessions-and-starts": {"task": "trim_flow_sessions_and_starts", "schedule": crontab(hour=0, minute=0)},
+    "trim-http-logs": {"task": "trim_http_logs_task", "schedule": crontab(hour=3, minute=0)},
+    "trim-sync-events": {"task": "trim_sync_events_task", "schedule": crontab(hour=3, minute=0)},
+    "trim-webhook-event": {"task": "trim_webhook_event_task", "schedule": crontab(hour=3, minute=0)},
+    "update-org-activity": {"task": "update_org_activity_task", "schedule": crontab(hour=3, minute=5)},
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
@@ -1020,13 +1033,16 @@ SEND_MESSAGES = False
 #         could cause emails to be sent in test environment
 SEND_EMAILS = False
 
+# Whether to send receipts on TopUp purchases
+SEND_RECEIPTS = True
+
 CLASSIFIER_TYPES = [
     "temba.classifiers.types.wit.WitType",
     "temba.classifiers.types.luis.LuisType",
     "temba.classifiers.types.bothub.BothubType",
 ]
 
-TICKETER_TYPES = ["temba.tickets.types.mailgun.MailgunType"]
+TICKETER_TYPES = ["temba.tickets.types.mailgun.MailgunType", "temba.tickets.types.zendesk.ZendeskType"]
 
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
@@ -1113,6 +1129,11 @@ GOOGLE_TRACKING_ID = os.environ.get("GOOGLE_TRACKING_ID", "")
 # Librato for gauge support
 LIBRATO_USER = os.environ.get("LIBRATO_USER", "")
 LIBRATO_TOKEN = os.environ.get("LIBRATO_TOKEN", "")
+
+MAILGUN_API_KEY = os.environ.get("MAILGUN_API_KEY", "")
+
+ZENDESK_CLIENT_ID = os.environ.get("ZENDESK_CLIENT_ID", "")
+ZENDESK_CLIENT_SECRET = os.environ.get("ZENDESK_CLIENT_SECRET", "")
 
 # -----------------------------------------------------------------------------------
 # IP Addresses

@@ -50,7 +50,6 @@ from django.views.generic import View
 from temba.api.models import APIToken
 from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
-from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, get_anonymous_user, json, languages
@@ -1693,7 +1692,7 @@ class OrgCRUDL(SmartCRUDL):
                     return HttpResponseRedirect(self.get_success_url())  # pragma: needs cover
 
                 elif user_orgs.count() == 0:  # pragma: needs cover
-                    if user.groups.filter(name="Customer Support").first():
+                    if user.is_support():
                         return HttpResponseRedirect(reverse("orgs.org_manage"))
 
                     # for regular users, if there's no orgs, log them out with a message
@@ -2333,6 +2332,9 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("classifiers.classifier_connect"):
                 links.append(dict(title=_("Add Classifier"), href=reverse("classifiers.classifier_connect")))
 
+            if self.get_user().is_beta() and self.has_org_perm("tickets.ticketer_connect"):
+                links.append(dict(title=_("Add Ticketing Service"), href=reverse("tickets.ticketer_connect")))
+
             if self.has_org_perm("orgs.org_export"):
                 links.append(dict(title=_("Export"), href=reverse("orgs.org_export")))
 
@@ -2360,6 +2362,16 @@ class OrgCRUDL(SmartCRUDL):
                     action="link",
                 )
 
+        def add_ticketer_section(self, formax, ticketer):
+
+            if self.has_org_perm("tickets.ticket_filter"):
+                formax.add_section(
+                    "tickets",
+                    reverse("tickets.ticket_filter", args=[ticketer.uuid]),
+                    icon=ticketer.get_type().icon,
+                    action="link",
+                )
+
         def derive_formax_sections(self, formax, context):
 
             # add the channel option if we have one
@@ -2384,9 +2396,13 @@ class OrgCRUDL(SmartCRUDL):
                     formax.add_section("nexmo", reverse("orgs.org_nexmo_account"), icon="icon-channel-nexmo")
 
             if self.has_org_perm("classifiers.classifier_read"):
-                classifiers = Classifier.objects.filter(org=org, is_active=True).order_by("created_on")
+                classifiers = org.classifiers.filter(is_active=True).order_by("created_on")
                 for classifier in classifiers:
                     self.add_classifier_section(formax, classifier)
+
+            if self.has_org_perm("tickets.ticket_filter"):
+                for ticketer in org.ticketers.filter(is_active=True).order_by("created_on"):
+                    self.add_ticketer_section(formax, ticketer)
 
             if self.has_org_perm("orgs.org_profile"):
                 formax.add_section("user", reverse("orgs.user_edit"), icon="icon-user", action="redirect")

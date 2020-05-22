@@ -15,8 +15,8 @@ def register_ticketer_type(type_class):
     if not type_class.slug:
         type_class.slug = type_class.__module__.split(".")[-2]
 
-    if type_class.slug in TYPES:  # pragma: no cover
-        raise ValueError("More than one ticketer type with slug: %s" % type_class.slug)
+    assert type_class.slug not in TYPES, f"ticketer type slug {type_class.slug} already taken"
+
     TYPES[type_class.slug] = type_class()
 
 

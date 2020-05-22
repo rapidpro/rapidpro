@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-06 20:49+0000\n"
+"POT-Creation-Date: 2020-05-19 16:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4045,6 +4045,9 @@ msgstr ""
 msgid "Add Classifier"
 msgstr ""
 
+msgid "Add Ticketing Service"
+msgstr ""
+
 msgid "Login"
 msgstr ""
 
@@ -4238,6 +4241,75 @@ msgid "Open"
 msgstr ""
 
 msgid "Closed"
+msgstr ""
+
+msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
+msgstr ""
+
+msgid "New tickets and replies will be sent to the email address that you configure below. You will need to verify it by entering the token sent to you."
+msgstr ""
+
+msgid "The email address to forward tickets and replies to"
+msgstr ""
+
+msgid "The verification token that was sent to your email"
+msgstr ""
+
+msgid "No verification token found, please start over."
+msgstr ""
+
+msgid "Token does not match, please check your email."
+msgstr ""
+
+msgid "Verify your email address for tickets"
+msgstr ""
+
+msgid "<a href=\"https://www.zendesk.com/\">Zendesk</a> is one of the most popular customer service systems around. You can use it to manage all the tickets created on your account."
+msgstr ""
+
+msgid "Enter your Zendesk subdomain. You will be redirected to Zendesk where you need to grant access to this application."
+msgstr ""
+
+msgid "Your subdomain on Zendesk"
+msgstr ""
+
+msgid "Not a valid subdomain name."
+msgstr ""
+
+msgid "There is already a ticketing service configured for this subdomain."
+msgstr ""
+
+msgid "Unable to request OAuth token."
+msgstr ""
+
+msgid "Tickets"
+msgstr ""
+
+msgid "The display name of this account"
+msgstr ""
+
+msgid "The secret for the ticketer"
+msgstr ""
+
+msgid "Secret is incorrect."
+msgstr ""
+
+msgid "Add"
+msgstr ""
+
+msgid "Open Tickets"
+msgstr ""
+
+msgid "Closed Tickets"
+msgstr ""
+
+msgid "HTTP Log"
+msgstr ""
+
+msgid "Delete Ticketing Service"
+msgstr ""
+
+msgid "Your ticketing service has been deleted."
 msgstr ""
 
 msgid "Keyword Trigger"
@@ -5885,6 +5957,10 @@ msgid ""
 "        "
 msgstr ""
 
+#, python-format
+msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
+msgstr ""
+
 msgid "Successfully called"
 msgstr ""
 
@@ -6741,6 +6817,12 @@ msgid ""
 "  "
 msgstr ""
 
+msgid "android"
+msgstr ""
+
+msgid "dashboard"
+msgstr ""
+
 msgid "messages"
 msgstr ""
 
@@ -6756,6 +6838,9 @@ msgstr ""
 msgid "triggers"
 msgstr ""
 
+msgid "tickets"
+msgstr ""
+
 msgid "channels"
 msgstr ""
 
@@ -6765,10 +6850,7 @@ msgstr ""
 msgid "orgs"
 msgstr ""
 
-msgid "dashboard"
-msgstr ""
-
-msgid "android"
+msgid "end"
 msgstr ""
 
 msgid "logout"
@@ -6785,6 +6867,9 @@ msgid "You have %(credits)s credit remaining, add credits to prevent interruptio
 msgid_plural "You have %(credits)s credits remaining, add credits to prevent interruption"
 msgstr[0] ""
 msgstr[1] ""
+
+msgid "Your active credits will expire soon, add credits to prevent interruption."
+msgstr ""
 
 msgid "Your phone is having difficulty relaying messages"
 msgstr ""
@@ -8747,7 +8832,13 @@ msgstr ""
 msgid "Recent Classifier Events"
 msgstr ""
 
+msgid "Recent Ticketing Service Events"
+msgstr ""
+
 msgid "Classifier: "
+msgstr ""
+
+msgid "Ticketing Service: "
 msgstr ""
 
 msgid "Classifier Event"
@@ -8832,6 +8923,80 @@ msgid ""
 "              Are you sure you want to delete the user %(name)s?\n"
 "\n"
 "            "
+msgstr ""
+
+msgid "Ticketing Service"
+msgstr ""
+
+msgid "Warning"
+msgstr ""
+
+msgid "Unable to delete service still being used by the following flows"
+msgstr ""
+
+msgid "Services"
+msgstr ""
+
+msgid "Close"
+msgstr ""
+
+msgid "Reopen"
+msgstr ""
+
+msgid "No open tickets at this time."
+msgstr ""
+
+msgid "Through"
+msgstr ""
+
+msgid "Body"
+msgstr ""
+
+msgid "Opened On"
+msgstr ""
+
+msgid "Close Ticket"
+msgstr ""
+
+msgid "Are you sure you want to close this ticket?"
+msgstr ""
+
+msgid "Connect a Ticketing Service"
+msgstr ""
+
+msgid "Ticketing Services let a human agent take over communication for a contact. In a flow you can open a new ticket for a contact and from that point until the ticket is closed all incoming messages from the contact will be forwarded to the service and all replies from the service will be sent back to the contact."
+msgstr ""
+
+msgid "Select the ticketing service you want to connect below to get started."
+msgstr ""
+
+msgid "No ticketing services are available."
+msgstr ""
+
+#, python-format
+msgid "Your verification token is <b>%(token)s</b> to continue adding an email-based ticketing service."
+msgstr ""
+
+#, python-format
+msgid "Your verification token is %(token)s to continue adding an email-based ticketing service."
+msgstr ""
+
+msgid "This will connect your account to Zendesk allowing you to open tickets in flows."
+msgstr ""
+
+msgid "To complete connecting your account here to your Zendesk account you need to complete the following steps."
+msgstr ""
+
+#, python-format
+msgid "Install the %(brand)s app into your Zendesk account from the <a href=\"%(market_url)s\">marketplace</a>."
+msgstr ""
+
+#, python-format
+msgid "Go to <a href=\"%(channels_url)s\">channel integrations</a> where you will see a new %(brand)s channel service."
+msgstr ""
+
+#, python-format
+msgid "Add account for the channel and enter <code>%(secret)s</code> as the secret."
 msgstr ""
 
 msgid "Trigger a Flow"

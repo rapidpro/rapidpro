@@ -48,12 +48,14 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
-from temba.orgs.models import BackupToken, Debit, UserSettings
+from temba.orgs.models import BackupToken, Debit, OrgActivity, UserSettings
 from temba.request_logs.models import HTTPLog
 from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
+from temba.tickets.models import Ticket, Ticketer
+from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json, languages
 from temba.utils.email import link_components
@@ -407,6 +409,17 @@ class OrgDeleteTest(TembaNonAtomicTest):
         # extra S3 file in child archive dir
         self.mock_s3.put_jsonl(settings.ARCHIVE_BUCKET, f"{self.child_org.id}/extra_file.json", [])
 
+        # add a ticketer and ticket
+        ticketer = Ticketer.create(self.org, self.admin, MailgunType.slug, "Email (bob)", {})
+        Ticket.objects.create(
+            org=self.org,
+            ticketer=ticketer,
+            contact=self.org.contacts.first(),
+            subject="Need help",
+            body="Where are my cookies?",
+            status="O",
+        )
+
     def release_org(self, org, child_org=None, immediately=False, expected_files=3):
 
         with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
@@ -465,7 +478,8 @@ class OrgDeleteTest(TembaNonAtomicTest):
         self.release_org(self.child_org)
 
     def test_release_parent_immediately(self):
-        self.release_org(self.parent_org, self.child_org, immediately=True)
+        with patch("temba.mailroom.client.MailroomClient.ticket_close"):
+            self.release_org(self.parent_org, self.child_org, immediately=True)
 
     def test_release_child_immediately(self):
         # 300 credits were given to our child org and each used one
@@ -4640,6 +4654,13 @@ class StripeCreditsTest(TembaTest):
         self.assertIn("Visa", email.body)
         self.assertIn("$20", email.body)
 
+        # turn off email receipts and do it again, shouldn't get a receipt
+        with override_settings(SEND_RECEIPTS=False):
+            self.org.add_credits("2000", "stripe-token", self.admin)
+
+            # no new emails
+            self.assertEqual(1, len(mail.outbox))
+
     @patch("stripe.Customer.create")
     @patch("stripe.Charge.create")
     @override_settings(SEND_EMAILS=True)
@@ -4833,3 +4854,32 @@ class ParsingTest(TembaTest):
         )
 
         self.assertRaises(AssertionError, self.org.parse_datetime, timezone.now())
+
+
+class OrgActivityTest(TembaTest):
+    def test_get_dependencies(self):
+        from temba.orgs.tasks import update_org_activity
+
+        now = timezone.now()
+
+        # create a few contacts
+        self.create_contact("Marshawn", "+14255551212")
+        russell = self.create_contact("Marshawn", "+14255551313")
+
+        # create some messages for russel
+        self.create_incoming_msg(russell, "hut")
+        self.create_incoming_msg(russell, "10-2")
+        self.create_outgoing_msg(russell, "first down")
+
+        # calculate our org activity, should get nothing because we aren't tomorrow yet
+        update_org_activity(now)
+        self.assertEqual(0, OrgActivity.objects.all().count())
+
+        # ok, calculate based on a now of tomorrow, will calculate today's stats
+        update_org_activity(now + timedelta(days=1))
+
+        activity = OrgActivity.objects.get()
+        self.assertEqual(2, activity.contact_count)
+        self.assertEqual(1, activity.active_contact_count)
+        self.assertEqual(2, activity.incoming_count)
+        self.assertEqual(1, activity.outgoing_count)
