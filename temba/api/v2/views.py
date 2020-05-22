@@ -1,4 +1,5 @@
 import itertools
+import requests
 from enum import Enum
 
 from rest_framework import generics, status, views
@@ -74,6 +75,7 @@ from .serializers import (
     ResthookSubscriberReadSerializer,
     ResthookSubscriberWriteSerializer,
     TemplateReadSerializer,
+    UrlAttachmentValidationSerializer,
     WebHookEventReadSerializer,
 )
 
@@ -3462,3 +3464,80 @@ class TemplatesEndpoint(ListAPIMixin, BaseAPIView):
             "params": [],
             "example": {},
         }
+
+
+class ValidateUrlAttachmentEndpoint(BaseAPIView):
+    """
+    This url allows you validate attachment url.
+
+    POST /api/v2/validate_attachment_url
+
+    * **attachment_url** - the url of attachment
+
+    Response:
+
+        # attachment valid
+        {
+            "valid": true,
+            "type": "image",
+            "size": 9604
+        }
+
+        # attachment invalid
+        {
+            "valid": false,
+            "error": "Invalid Attachment. Attachments must be either video, audio, or an image."
+        }
+    """
+    def post(self, request, *args, **kwargs):
+        status_code = 200
+        validation_data = {}
+        serializer = UrlAttachmentValidationSerializer(data=request.data)
+
+        if serializer.is_valid():
+            url = serializer.validated_data.get("attachment_url")
+            response = requests.head(url)
+            file_type = response.headers.get("content-type", "").strip()
+            file_type = file_type.split("/")[0] if file_type else ""
+            file_size = response.headers.get("content-length")
+            file_size = int(file_size) if file_size else None
+            status_code = response.status_code
+
+            if status_code != 200:
+                validation_data.update({
+                    "valid": False,
+                    "error": _("Url of attachment is not valid.")
+                })
+
+            elif file_type not in ("image", "audio", "video"):
+                validation_data.update({
+                    "valid": False,
+                    "error": _("Invalid Attachment. Attachments must be either video, audio, or an image."),
+                })
+
+            elif file_size is None:
+                validation_data.update({
+                    "valid": False,
+                    "error": _("Can't validate the size of attachment."),
+                })
+
+            elif file_size > 26_214_400:
+                validation_data.update({
+                    "valid": False,
+                    "error": _("Attachment size exceeded. The file size should be less than 25MB."),
+                })
+
+            else:
+                validation_data.update({
+                    "valid": True,
+                    "type": file_type,
+                    "size": file_size,
+                })
+
+        else:
+            validation_data.update({
+                "valid": False,
+                "error": _("Url of attachment is not valid.")
+            })
+        
+        return Response(validation_data, status=status_code)
