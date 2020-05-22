@@ -1,3 +1,7 @@
+v5.5.50
+----------
+ * Tweak zendesk mailroom URLs
+
 v5.5.49
 ----------
  * Store brand name in mailgun ticketer config to use in emails from mailroom
