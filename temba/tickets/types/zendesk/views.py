@@ -160,8 +160,8 @@ class ManifestView(View):
                 "push_client_id": "temba",
                 "urls": {
                     "admin_ui": f"https://{domain}{reverse('tickets.types.zendesk.admin_ui')}",
-                    "channelback_url": f"https://{domain}/mr/ticket/zendesk/channelback",
-                    "event_callback_url": f"https://{domain}/mr/ticket/zendesk/event_callback",
+                    "channelback_url": f"https://{domain}/mr/tickets/types/zendesk/channelback",
+                    "event_callback_url": f"https://{domain}/mr/tickets/types/zendesk/event_callback",
                 },
             },
             json_dumps_params={"indent": 2},
