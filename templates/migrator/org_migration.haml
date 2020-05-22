@@ -1,0 +1,15 @@
+- extends 'smartmin/form.html'
+- load smartmin temba compress
+- load i18n
+
+-block page-title
+  -trans "Migration"
+  \- {{user_org.name|capfirst}}
+
+-block title-icon
+  .title-icon
+    %span{class: "glyph icon-cloud-download"}
+
+-block title-text
+  .title-text
+    %h1 Start migration
