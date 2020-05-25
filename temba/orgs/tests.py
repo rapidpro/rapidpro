@@ -3948,7 +3948,7 @@ class BulkExportTest(TembaTest):
         # create a contact and place her into our campaign
         sally = self.create_contact("Sally", "+12345")
         campaign.group.contacts.add(sally)
-        sally.set_field(self.user, "survey_start", "10-05-2020 12:30:10")
+        sally.set_field(self.user, "survey_start", "10-05-2025 12:30:10")
 
         # shoud have one event fire
         self.assertEqual(1, event.fires.all().count())
