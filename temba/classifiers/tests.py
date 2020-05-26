@@ -118,7 +118,7 @@ class ClassifierTest(TembaTest):
         self.assertContains(response, "book_car")
 
         # a link to logs
-        log_url = reverse("request_logs.httplog_list", args=["classifier", self.c1.uuid])
+        log_url = reverse("request_logs.httplog_classifier", args=[self.c1.uuid])
         self.assertContains(response, log_url)
 
         # and buttons for delete and sync
