@@ -1,0 +1,5 @@
+-r ../pip-requires.txt
+
+sentry-sdk
+django-environ
+elastic-apm
