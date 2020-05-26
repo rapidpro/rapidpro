@@ -1061,6 +1061,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.dmark.DMarkType",
     "temba.channels.types.external.ExternalType",
     "temba.channels.types.facebook.FacebookType",
+    "temba.channels.types.facebookapp.FacebookappType",
     "temba.channels.types.firebase.FirebaseCloudMessagingType",
     "temba.channels.types.freshchat.FreshChatType",
     "temba.channels.types.globe.GlobeType",
@@ -1133,6 +1134,11 @@ MAILGUN_API_KEY = os.environ.get("MAILGUN_API_KEY", "")
 
 ZENDESK_CLIENT_ID = os.environ.get("ZENDESK_CLIENT_ID", "")
 ZENDESK_CLIENT_SECRET = os.environ.get("ZENDESK_CLIENT_SECRET", "")
+
+FACEBOOK_APPLICATION_ID = os.environ.get("FACEBOOK_APPLICATION_ID", "")
+FACEBOOK_APPLICATION_SECRET = os.environ.get("FACEBOOK_APPLICATION_SECRET", "")
+FACEBOOK_WEBHOOK_SECRET = os.environ.get("FACEBOOK_WEBHOOK_SECRET", "")
+
 
 # -----------------------------------------------------------------------------------
 # IP Addresses
