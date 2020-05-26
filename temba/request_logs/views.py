@@ -67,3 +67,13 @@ class HTTPLogCRUDL(SmartCRUDL):
 
     class Read(OrgObjPermsMixin, SmartReadView):
         fields = ("description", "created_on")
+
+        @property
+        def permission(self):
+            obj = self.get_object()
+            if obj.classifier_id:
+                return "request_logs.httplog_classifier"
+            elif obj.ticketer_id:
+                return "request_logs.httplog_ticketer"
+
+            return "request_logs.httplog_read"

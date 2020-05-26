@@ -94,18 +94,18 @@ class HTTPLogTest(TembaTest):
         t2.is_active = False
         t2.save()
 
-        log_url = reverse("request_logs.httplog_ticketer", args=[t1.uuid])
-        response = self.client.get(log_url)
+        list_url = reverse("request_logs.httplog_ticketer", args=[t1.uuid])
+        response = self.client.get(list_url)
         self.assertLoginRedirect(response)
 
         # even admins can't view ticketer logs
         self.login(self.admin)
-        response = self.client.get(log_url)
+        response = self.client.get(list_url)
         self.assertLoginRedirect(response)
 
         # customer support can
         self.login(self.customer_support)
-        response = self.client.get(log_url)
+        response = self.client.get(list_url)
         self.assertEqual(200, response.status_code)
 
         # create some logs
@@ -120,18 +120,25 @@ class HTTPLogTest(TembaTest):
             org=self.org,
         )
 
-        response = self.client.get(log_url)
+        response = self.client.get(list_url)
         self.assertEqual(1, len(response.context["object_list"]))
         self.assertContains(response, "Ticketing Service Called")
 
         log_url = reverse("request_logs.httplog_read", args=[l1.id])
         self.assertContains(response, log_url)
 
+        # view the individual log item
         response = self.client.get(log_url)
         self.assertContains(response, "200")
         self.assertContains(response, "http://org1.bar/zap")
         self.assertNotContains(response, "http://org2.bar/zap")
 
+        # still need to be customer support to do that
+        self.login(self.admin)
+        response = self.client.get(log_url)
+        self.assertLoginRedirect(response)
+
+        # and can't be from other org
         self.login(self.admin2)
         response = self.client.get(log_url)
         self.assertLoginRedirect(response)
@@ -139,6 +146,6 @@ class HTTPLogTest(TembaTest):
         self.login(self.customer_support)
 
         # can't list logs for deleted ticketer
-        log_url = reverse("request_logs.httplog_ticketer", args=[t2.uuid])
-        response = self.client.get(log_url)
+        list_url = reverse("request_logs.httplog_ticketer", args=[t2.uuid])
+        response = self.client.get(list_url)
         self.assertEqual(404, response.status_code)
