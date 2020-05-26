@@ -183,11 +183,11 @@ class Ticket(models.Model):
 
     @classmethod
     def bulk_close(cls, org, tickets):
-        return mailroom.get_client().ticket_close(org.id, [t.id for t in tickets])
+        return mailroom.get_client().ticket_close(org.id, [t.id for t in tickets if t.ticketer.is_active])
 
     @classmethod
     def bulk_reopen(cls, org, tickets):
-        return mailroom.get_client().ticket_reopen(org.id, [t.id for t in tickets])
+        return mailroom.get_client().ticket_reopen(org.id, [t.id for t in tickets if t.ticketer.is_active])
 
     @classmethod
     def apply_action_close(cls, tickets):

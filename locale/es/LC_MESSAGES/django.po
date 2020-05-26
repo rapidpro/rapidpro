@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-19 16:08+0000\n"
+"POT-Creation-Date: 2020-05-26 15:09+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -12496,6 +12496,11 @@ msgid "Ticketing Service"
 msgstr ""
 
 #, fuzzy
+#| msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgid "This will close all tickets that were created with this service. Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgstr "Una vez que la borre, no la podrá recuperar. Esta operación no se puede deshacer."
+
+#, fuzzy
 #| msgid "Warning!"
 msgid "Warning"
 msgstr "¡Atención!"
@@ -12514,8 +12519,10 @@ msgstr ""
 msgid "Reopen"
 msgstr ""
 
-msgid "No open tickets at this time."
-msgstr ""
+#, fuzzy
+#| msgid "Open TextIt"
+msgid "No tickets."
+msgstr "Abrir TextIt"
 
 msgid "Through"
 msgstr ""

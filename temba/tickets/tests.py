@@ -62,7 +62,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         open_url = reverse("tickets.ticket_open")
 
         ticket1 = self.create_ticket("Ticket 1", "Where are my cookies?", "O")
-        ticket2 = self.create_ticket("Ticket 2", "Where are my shoes?", "O")
+        ticket2 = self.create_ticket("Ticket 2", "Where are my shoes?", "O", ticketer=self.zendesk)
         self.create_ticket("Ticket 3", "Old ticket", "C")
         self.create_ticket("Ticket 4", "Where are my trousers?", "O", org=self.org2)
 
@@ -70,6 +70,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             open_url, allow_viewers=True, allow_editors=True, context_objects=[ticket2, ticket1]
         )
         self.assertEqual(("close",), response.context["actions"])
+        self.assertContains(response, reverse("tickets.ticket_filter", args=[self.mailgun.uuid]))
+        self.assertContains(response, reverse("tickets.ticket_filter", args=[self.zendesk.uuid]))
 
         # can close tickets with an action POST
         with patch("temba.mailroom.client.MailroomClient.ticket_close") as mock_close:
@@ -80,8 +82,11 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_closed(self):
         closed_url = reverse("tickets.ticket_closed")
 
+        # still see closed tickets for deleted ticketers
+        self.zendesk.release()
+
         ticket1 = self.create_ticket("Ticket 1", "Where are my cookies?", "C")
-        ticket2 = self.create_ticket("Ticket 2", "Where are my shoes?", "C")
+        ticket2 = self.create_ticket("Ticket 2", "Where are my shoes?", "C", ticketer=self.zendesk)
         self.create_ticket("Ticket 3", "New ticket", "O")
         self.create_ticket("Ticket 4", "Where are my trousers?", "O", org=self.org2)
 
@@ -89,12 +94,16 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             closed_url, allow_viewers=True, allow_editors=True, context_objects=[ticket2, ticket1]
         )
         self.assertEqual(("reopen",), response.context["actions"])
+        self.assertContains(response, reverse("tickets.ticket_filter", args=[self.mailgun.uuid]))
+
+        # can't link to deleted ticketer
+        self.assertNotContains(response, reverse("tickets.ticket_filter", args=[self.zendesk.uuid]))
 
         # can reopen tickets with an action POST
         with patch("temba.mailroom.client.MailroomClient.ticket_reopen") as mock_reopen:
-            self.requestView(closed_url, self.admin, post_data={"action": "reopen", "objects": [ticket2.id]})
+            self.requestView(closed_url, self.admin, post_data={"action": "reopen", "objects": [ticket1.id]})
 
-        mock_reopen.assert_called_once_with(self.org.id, [ticket2.id])
+        mock_reopen.assert_called_once_with(self.org.id, [ticket1.id])
 
     def test_filter(self):
         filter_url = reverse("tickets.ticket_filter", args=[self.mailgun.uuid])

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-19 16:08+0000\n"
+"POT-Creation-Date: 2020-05-26 15:09+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -8927,6 +8927,9 @@ msgstr ""
 msgid "Ticketing Service"
 msgstr ""
 
+msgid "This will close all tickets that were created with this service. Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgstr ""
+
 msgid "Warning"
 msgstr ""
 
@@ -8942,7 +8945,7 @@ msgstr ""
 msgid "Reopen"
 msgstr ""
 
-msgid "No open tickets at this time."
+msgid "No tickets."
 msgstr ""
 
 msgid "Through"
