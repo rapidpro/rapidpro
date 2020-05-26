@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-19 16:08+0000\n"
+"POT-Creation-Date: 2020-05-26 15:09+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -10677,6 +10677,11 @@ msgid "Ticketing Service"
 msgstr "SID du service de messagerie"
 
 #, fuzzy
+#| msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgid "This will close all tickets that were created with this service. Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgstr "Une fois qu'il est supprimé, il sera perdu à jamais. Il est impossible d'annuler cette opération."
+
+#, fuzzy
 #| msgid "Warning!"
 msgid "Warning"
 msgstr "Attention!"
@@ -10696,9 +10701,9 @@ msgid "Reopen"
 msgstr ""
 
 #, fuzzy
-#| msgid "No synced intents at this time."
-msgid "No open tickets at this time."
-msgstr "Aucune intention synchronisée pour le moment."
+#| msgid "even buckets"
+msgid "No tickets."
+msgstr "même paniers"
 
 msgid "Through"
 msgstr ""
@@ -10914,6 +10919,11 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy
+#~| msgid "No synced intents at this time."
+#~ msgid "No open tickets at this time."
+#~ msgstr "Aucune intention synchronisée pour le moment."
 
 #, fuzzy
 #~| msgid "Start Flow"
