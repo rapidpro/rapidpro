@@ -1,3 +1,7 @@
+v5.5.52
+----------
+ * More ticket view tweaks
+
 v5.5.51
 ----------
  * Tweak zendesk manifest view
