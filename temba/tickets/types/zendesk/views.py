@@ -148,16 +148,17 @@ class ManifestView(View):
     """
 
     def get(self, request, *args, **kwargs):
-        domain = settings.BRANDING[settings.DEFAULT_BRAND]["domain"]
+        brand = self.request.branding
+        domain = brand["domain"]
 
         return JsonResponse(
             {
-                "name": "Temba",
+                "name": brand["name"],
                 "id": domain,
                 "author": "Nyaruka",
                 "version": "v0.0.1",
                 "channelback_files": False,
-                "push_client_id": "temba",
+                "push_client_id": settings.ZENDESK_CLIENT_ID,
                 "urls": {
                     "admin_ui": f"https://{domain}{reverse('tickets.types.zendesk.admin_ui')}",
                     "channelback_url": f"https://{domain}/mr/tickets/types/zendesk/channelback",
