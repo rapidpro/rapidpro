@@ -4,6 +4,7 @@ from datetime import timedelta
 from requests_toolbelt.utils import dump
 
 from django.db import models
+from django.db.models import Index
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
@@ -82,9 +83,6 @@ class HTTPLog(models.Model):
 
     # the org this log is part of
     org = models.ForeignKey(Org, related_name="http_logs", on_delete=models.PROTECT)
-
-    class Meta:
-        index_together = (("classifier", "created_on"),)
 
     def method(self):
         return self.request.split(" ")[0] if self.request else None
@@ -169,4 +167,10 @@ class HTTPLog(models.Model):
             created_on=timezone.now(),
             request_time=(timezone.now() - start).total_seconds() * 1000,
             org=org,
+        )
+
+    class Meta:
+        indexes = (
+            Index(fields=("classifier", "-created_on")),
+            Index(fields=("ticketer", "-created_on")),
         )

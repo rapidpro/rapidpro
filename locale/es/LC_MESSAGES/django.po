@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-26 15:09+0000\n"
+"POT-Creation-Date: 2020-05-26 19:42+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -5760,6 +5760,16 @@ msgstr ""
 
 msgid "WhatsApp Contacts Refreshed"
 msgstr ""
+
+#, fuzzy
+#| msgid "Recent Channel Events"
+msgid "Recent Classifier Events"
+msgstr "Eventos recientes del transmisor"
+
+#, fuzzy
+#| msgid "Recent Channel Events"
+msgid "Recent Ticketing Service Events"
+msgstr "Eventos recientes del transmisor"
 
 msgid "Never"
 msgstr "Nunca"
@@ -12362,27 +12372,13 @@ msgstr ""
 msgid "More Videos"
 msgstr "Más videos"
 
-#, fuzzy
-msgid "Classifier Events"
-msgstr "Evento del transmisor"
-
-#, fuzzy
-#| msgid "Recent Channel Events"
-msgid "Recent Classifier Events"
-msgstr "Eventos recientes del transmisor"
-
-#, fuzzy
-#| msgid "Recent Channel Events"
-msgid "Recent Ticketing Service Events"
-msgstr "Eventos recientes del transmisor"
-
-#, fuzzy
-#| msgid "Channel Event"
-msgid "Classifier: "
-msgstr "Evento del transmisor"
-
-msgid "Ticketing Service: "
+msgid "From"
 msgstr ""
+
+#, fuzzy
+#| msgid "Receive URL"
+msgid "Request time:"
+msgstr "Recibir URL"
 
 #, fuzzy
 #| msgid "Channel Event"
@@ -12767,6 +12763,15 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "Classifier Events"
+#~ msgstr "Evento del transmisor"
+
+#, fuzzy
+#~| msgid "Channel Event"
+#~ msgid "Classifier: "
+#~ msgstr "Evento del transmisor"
 
 #, fuzzy
 #~| msgid "Start Flow"
