@@ -1,3 +1,7 @@
+v5.5.51
+----------
+ * Tweak zendesk manifest view
+
 v5.5.50
 ----------
  * Tweak zendesk mailroom URLs
