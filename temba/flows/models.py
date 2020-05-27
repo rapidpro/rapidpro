@@ -2264,7 +2264,7 @@ def update_related_flows(sender, instance, created, **kwargs):
         legacy_flow_update(flow)
         general_flow_update(flow)
 
-        
+
 class FlowImage(models.Model):
     uuid = models.UUIDField(unique=True, default=uuid4)
     org = models.ForeignKey(Org, related_name="flow_images", db_index=False, on_delete=models.CASCADE)
