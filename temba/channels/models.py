@@ -829,6 +829,9 @@ class Channel(TembaModel):
         elif FACEBOOK_SCHEME in self.schemes:
             return "%s (%s)" % (self.config.get(Channel.CONFIG_PAGE_NAME, self.name), self.address)
 
+        elif self.channel_type == "WCH":
+            return self.name
+
         return self.address
 
     def build_registration_command(self):
