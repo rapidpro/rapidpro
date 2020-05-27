@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-27 08:58+0000\n"
+"POT-Creation-Date: 2020-05-27 14:25+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -1448,6 +1448,11 @@ msgstr ""
 
 msgid "Failed to get user long lived token"
 msgstr ""
+
+#, fuzzy
+#| msgid "Your app's server access token"
+msgid "Empty user access token!"
+msgstr "Token de acceso desde su repositorio"
 
 msgid "Failed to get page long lived token"
 msgstr ""

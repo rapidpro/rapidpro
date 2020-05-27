@@ -48,17 +48,20 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         response = requests.get(url, params=params)
 
-        if response.status_code != 200:
+        if response.status_code != 200:  # pragma: no cover
             raise Exception(_("Failed to get user long lived token"))
 
-        long_lived_auth_token = response.json()["access_token"]
+        long_lived_auth_token = response.json().get("access_token", "")
+
+        if long_lived_auth_token == "":  # pragma: no cover
+            raise Exception(_("Empty user access token!"))
 
         url = f"https://graph.facebook.com/v7.0/{fb_user_id}/accounts"
         params = {"access_token": long_lived_auth_token}
 
         response = requests.get(url, params=params)
 
-        if response.status_code != 200:
+        if response.status_code != 200:  # pragma: no cover
             raise Exception(_("Failed to get page long lived token"))
 
         response_json = response.json()
@@ -69,7 +72,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 page_access_token = elt["access_token"]
                 break
 
-        if page_access_token == "":
+        if page_access_token == "":  # pragma: no cover
             raise Exception(_("Empty page access token!"))
 
         config = {
