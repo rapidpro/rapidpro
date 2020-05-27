@@ -283,7 +283,7 @@ class FlowTest(TembaTest):
 
         # create a translation, but not approved
         TemplateTranslation.get_or_create(
-            self.channel, "affirmation", "eng", "good boy", 0, TemplateTranslation.STATUS_REJECTED, "id1"
+            self.channel, "affirmation", "eng", "US", "good boy", 0, TemplateTranslation.STATUS_REJECTED, "id1"
         )
 
         response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))

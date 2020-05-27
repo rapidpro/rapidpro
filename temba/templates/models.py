@@ -2,6 +2,7 @@ import uuid
 
 from django.db import models
 from django.utils import timezone
+from django_countries.fields import CountryField
 
 from temba.channels.models import Channel
 from temba.orgs.models import Org
@@ -81,6 +82,9 @@ class TemplateTranslation(models.Model):
     # the language for this template (ISO639-3 or Facebook code)
     language = models.CharField(max_length=6)
 
+    # the country code for this template
+    country = CountryField(null=True, blank=True)
+
     # the external id for this channel template
     external_id = models.CharField(null=True, max_length=64)
 
@@ -98,7 +102,7 @@ class TemplateTranslation(models.Model):
         TemplateTranslation.objects.filter(channel=channel).exclude(id__in=ids).update(is_active=False)
 
     @classmethod
-    def get_or_create(cls, channel, name, language, content, variable_count, status, external_id):
+    def get_or_create(cls, channel, name, language, country, content, variable_count, status, external_id):
         existing = TemplateTranslation.objects.filter(channel=channel, external_id=external_id).first()
 
         if not existing:
@@ -118,6 +122,7 @@ class TemplateTranslation(models.Model):
                 variable_count=variable_count,
                 status=status,
                 language=language,
+                country=country,
                 external_id=external_id,
             )
 
@@ -138,4 +143,4 @@ class TemplateTranslation(models.Model):
         return existing
 
     def __str__(self):
-        return f"{self.template.name} ({self.language}) {self.status}: {self.content}"
+        return f"{self.template.name} ({self.language} {self.country})  {self.status}: {self.content}"

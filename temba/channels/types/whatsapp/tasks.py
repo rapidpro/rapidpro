@@ -210,6 +210,7 @@ def refresh_whatsapp_templates():
                         channel=channel,
                         name=template["name"],
                         language=language,
+                        country="",
                         content=content,
                         variable_count=variable_count,
                         status=status,
