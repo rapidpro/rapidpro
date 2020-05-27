@@ -37,7 +37,7 @@ class MigrateCRUDL(SmartCRUDL):
 
         class MigrationForm(forms.Form):
             org = forms.ChoiceField(
-                label="Organization name", required=True, help_text="The organization name on live server"
+                label="Organization", required=True, help_text="Select the organization from the live server"
             )
 
             def __init__(self, *args, **kwargs):
