@@ -11,7 +11,6 @@ import phonenumbers
 import pytz
 import regex
 import requests
-from PIL import Image
 
 import twilio.base.exceptions
 from django_countries.data import COUNTRIES
@@ -46,7 +45,7 @@ from temba.msgs.models import OUTGOING, PENDING, QUEUED, WIRED, Msg, SystemLabel
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org
 from temba.orgs.views import AnonMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils import analytics, json
+from temba.utils import analytics, json, get_image_size
 from temba.utils.http import http_headers
 from temba.utils.models import patch_queryset_count
 
@@ -1316,6 +1315,8 @@ class UpdateWebChatForm(UpdateChannelForm):
 
             self.fields["welcome_message_default"].initial = config.get("welcome_message_default", "")
 
+            self.fields["action_type"].initial = "update_and_generate_code_snippet"
+
             """ Code for the next sprint only
             languages = self.object.org.languages.all().order_by("orgs")
             if not languages:
@@ -1506,6 +1507,14 @@ class UpdateWebChatForm(UpdateChannelForm):
                 label=_("Auto Open"), help_text=_("Whether the chatbox should open when the website page is loaded")
             ),
             None,
+        )
+
+        self.add_config_field(
+            "action_type",
+            forms.CharField(
+                widget=forms.HiddenInput(),
+            ),
+            "update_and_generate_code_snippet",
         )
 
         del self.fields["country"]
@@ -1891,6 +1900,9 @@ class ChannelCRUDL(SmartCRUDL):
         success_message = ""
         submit_button_name = _("Save Changes")
 
+        def set_submit_button_name(self, name):
+            self.submit_button_name = name
+
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             if self.org:
@@ -1909,17 +1921,20 @@ class ChannelCRUDL(SmartCRUDL):
                     "#id_welcome_message_default",
                     "#id_side_padding",
                     "#id_bottom_padding",
+                    "#id_chat_button_height",
                 ]
                 context["hostname"] = settings.HOSTNAME
                 context["websocket_url"] = settings.WEBSOCKET_SERVER_URL
+                logo_img = self.object.config.get("logo")
+                context["wch_logo_size"] = get_image_size(logo_img=logo_img)
             return context
 
         def derive_title(self):
-            channel_type_display = (
-                self.object.get_channel_type_display()
-                if self.object.channel_type == "WCH"
-                else f"{self.object.get_channel_type_display()} Channel"
-            )
+            if self.object.channel_type == "WCH":
+                channel_type_display = self.object.get_channel_type_display()
+                self.set_submit_button_name(_("Save and Generate Code Snippet"))
+            else:
+                channel_type_display = f"{self.object.get_channel_type_display()} Channel"
             return _("%s") % channel_type_display
 
         def derive_readonly(self):
@@ -1936,10 +1951,16 @@ class ChannelCRUDL(SmartCRUDL):
             return super().lookup_field_help(field, default=default)
 
         def get_success_url(self):
-            viewname = (
-                "channels.channel_configuration" if self.object.channel_type == "WCH" else "channels.channel_read"
-            )
-            return reverse(viewname=viewname, args=[self.object.uuid])
+            has_reload = self.request.POST.get("action_type", None) == "update_and_reload"
+            if has_reload:
+                viewname = "channels.channel_update"
+                arg = self.object.id
+            else:
+                viewname = (
+                    "channels.channel_configuration" if self.object.channel_type == "WCH" else "channels.channel_read"
+                )
+                arg = self.object.uuid
+            return reverse(viewname=viewname, args=[arg])
 
         def get_form_class(self):
             return Channel.get_type_from_code(self.object.channel_type).get_update_form()
@@ -1952,6 +1973,8 @@ class ChannelCRUDL(SmartCRUDL):
         def pre_save(self, obj):
             for field in self.form.config_fields:
                 try:
+                    if field == "action_type":
+                        continue
                     obj.config[field] = self.form.cleaned_data[field]
                 except KeyError:
                     pass
@@ -2139,25 +2162,8 @@ class ChannelCRUDL(SmartCRUDL):
                 config = self.object.config
                 logo_img = config.get("logo", None)
                 if logo_img:
-                    # if using S3 as file storage
-                    if str(logo_img).startswith("http"):
-                        media_file = Org.get_temporary_file_from_url(logo_img)
-                        im = Image.open(media_file)
-                    else:
-                        # checking if the file comes from sitestatic folder
-                        media_replace = "/sitestatic" if "sitestatic/brands" in logo_img else "/media"
-                        static_root = (
-                            settings.STATIC_ROOT.replace("sitestatic", "static")
-                            if settings.DEBUG
-                            else settings.STATIC_ROOT
-                        )
-                        media_root = static_root if "sitestatic/brands" in logo_img else settings.MEDIA_ROOT
-                        logo_path = logo_img.split(settings.HOSTNAME)[-1].replace(media_replace, "", 1)
-                        logo_path = "%s%s" % (media_root, logo_path)
-                        im = Image.open(logo_path)
-                    logo_w, logo_h = im.size
-                    context_dict["wch_logo_size"] = {"width": logo_w, "height": logo_h}
-                    context_dict["hostname"] = settings.HOSTNAME
+                    context_dict["wch_logo_size"] = get_image_size(logo_img=logo_img)
+                context_dict["hostname"] = settings.HOSTNAME
 
             context["configuration_template"] = channel_type.get_configuration_template(
                 self.object, context=context_dict

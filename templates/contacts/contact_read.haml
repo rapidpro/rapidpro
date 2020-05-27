@@ -183,10 +183,14 @@
                 -trans 'repeats daily'
               -elif evt.repeat_period == 'W'
                 -trans 'repeats weekly'
+              -elif evt.repeat_period == 'M'
+                -trans 'repeats monthly'
 
     -if upcoming_events|length > 3
       %a.pull-right.show-all.upcoming
         more
+      %a.pull-right.hide-all.upcoming
+        less
 
 
   %h5{style:"margin-top: 40px;"}
@@ -259,6 +263,27 @@
     {% lessblock %}
       :plain
         .show-all {
+          margin-top:-15px;
+          margin-right:18px;
+          color: #d1d1d1;
+
+          &.expanded {
+            .icon-arrow-down {
+              .rotate(2);
+            }
+          }
+          .icon-arrow-down {
+            margin-top:2px;
+            margin-right: 3px;
+          }
+
+          &:hover {
+            color: #c1c1c1;
+            cursor: pointer;
+          }
+        }
+
+        .hide-all {
           margin-top:-15px;
           margin-right:18px;
           color: #d1d1d1;
@@ -592,8 +617,15 @@
 
       $('.show-all.upcoming').live('click', function() {
         $(this).hide();
+        $('.hide-all.upcoming').show();
         $('table.activity.pending tbody:nth-child(1)').show();
       });
+
+      $('.hide-all.upcoming').live('click', function() {
+        $(this).hide();
+        $('.show-all.upcoming').show();
+        $('table.activity.pending tbody:nth-child(1)').hide();
+      }).hide();
 
       $('.show-all.fields').live('click', function() {
         if ($(this).hasClass('expanded')) {

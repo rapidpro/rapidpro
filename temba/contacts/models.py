@@ -836,6 +836,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             .filter(trigger_type=Trigger.TYPE_SCHEDULE)
             .filter(schedule__next_fire__gte=timezone.now())
             .filter(Q(contacts=self) | Q(groups__contacts=self))
+            .filter(is_archived=False)
         )
         return triggers
 
