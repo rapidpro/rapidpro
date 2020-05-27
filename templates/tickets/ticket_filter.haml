@@ -16,7 +16,8 @@
         -trans "Delete Ticketing Service"
       .body
         %p
-          -trans "Once it is removed, it will be gone forever. There is no way to undo this operation."
+          -blocktrans trimmed
+            This will close all tickets that were created with this service. Once it is removed, it will be gone forever. There is no way to undo this operation.
 
     %a#deletion-form.posterize(href='{% url "tickets.ticketer_delete" ticketer.uuid %}')
 

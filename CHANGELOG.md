@@ -1,3 +1,19 @@
+v5.5.52
+----------
+ * More ticket view tweaks
+
+v5.5.51
+----------
+ * Tweak zendesk manifest view
+
+v5.5.50
+----------
+ * Tweak zendesk mailroom URLs
+
+v5.5.49
+----------
+ * Store brand name in mailgun ticketer config to use in emails from mailroom
+
 v5.5.48
 ----------
  * Defer to mailroom for ticket closing and reopening

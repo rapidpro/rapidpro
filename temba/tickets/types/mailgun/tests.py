@@ -75,6 +75,7 @@ class MailgunTypeTest(TembaTest):
                 "domain": "tickets.rapidpro.io",
                 "api_key": "1234567",
                 "to_address": "bob@acme.com",
+                "brand_name": "RapidPro",
                 "url_base": "https://app.rapidpro.io",
             },
             ticketer.config,

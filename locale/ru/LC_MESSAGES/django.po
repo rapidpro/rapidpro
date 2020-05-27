@@ -8951,6 +8951,9 @@ msgstr ""
 msgid "Ticketing Service"
 msgstr ""
 
+msgid "This will close all tickets that were created with this service. Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgstr ""
+
 msgid "Warning"
 msgstr ""
 
@@ -8966,7 +8969,7 @@ msgstr ""
 msgid "Reopen"
 msgstr ""
 
-msgid "No open tickets at this time."
+msgid "No tickets."
 msgstr ""
 
 msgid "Through"

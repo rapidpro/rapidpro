@@ -11609,6 +11609,11 @@ msgstr "O nome deste contato"
 msgid "Ticketing Service"
 msgstr ""
 
+#, fuzzy
+#| msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgid "This will close all tickets that were created with this service. Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgstr "Uma vez que for removido, ele irá desaparecer para sempre. Não há maneira de desfazer esta operação."
+
 msgid "Warning"
 msgstr ""
 
@@ -11626,8 +11631,10 @@ msgstr ""
 msgid "Reopen"
 msgstr ""
 
-msgid "No open tickets at this time."
-msgstr ""
+#, fuzzy
+#| msgid "Open TextIt"
+msgid "No tickets."
+msgstr "Abrir Textit"
 
 msgid "Through"
 msgstr ""

@@ -10712,6 +10712,11 @@ msgid "Ticketing Service"
 msgstr "SID du service de messagerie"
 
 #, fuzzy
+#| msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgid "This will close all tickets that were created with this service. Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgstr "Une fois qu'il est supprimé, il sera perdu à jamais. Il est impossible d'annuler cette opération."
+
+#, fuzzy
 #| msgid "Warning!"
 msgid "Warning"
 msgstr "Attention!"
@@ -10731,9 +10736,9 @@ msgid "Reopen"
 msgstr ""
 
 #, fuzzy
-#| msgid "No synced intents at this time."
-msgid "No open tickets at this time."
-msgstr "Aucune intention synchronisée pour le moment."
+#| msgid "even buckets"
+msgid "No tickets."
+msgstr "même paniers"
 
 msgid "Through"
 msgstr ""
@@ -10949,6 +10954,11 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy
+#~| msgid "No synced intents at this time."
+#~ msgid "No open tickets at this time."
+#~ msgstr "Aucune intention synchronisée pour le moment."
 
 #, fuzzy
 #~| msgid "Start Flow"
