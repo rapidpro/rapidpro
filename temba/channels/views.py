@@ -11,7 +11,6 @@ import phonenumbers
 import pytz
 import regex
 import requests
-from PIL import Image
 
 import twilio.base.exceptions
 from django_countries.data import COUNTRIES
@@ -46,7 +45,7 @@ from temba.msgs.models import OUTGOING, PENDING, QUEUED, WIRED, Msg, SystemLabel
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org
 from temba.orgs.views import AnonMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils import analytics, json
+from temba.utils import analytics, json, get_image_size
 from temba.utils.http import http_headers
 from temba.utils.models import patch_queryset_count
 
@@ -1922,9 +1921,12 @@ class ChannelCRUDL(SmartCRUDL):
                     "#id_welcome_message_default",
                     "#id_side_padding",
                     "#id_bottom_padding",
+                    "#id_chat_button_height",
                 ]
                 context["hostname"] = settings.HOSTNAME
                 context["websocket_url"] = settings.WEBSOCKET_SERVER_URL
+                logo_img = self.object.config.get("logo")
+                context["wch_logo_size"] = get_image_size(logo_img=logo_img)
             return context
 
         def derive_title(self):
@@ -2160,25 +2162,8 @@ class ChannelCRUDL(SmartCRUDL):
                 config = self.object.config
                 logo_img = config.get("logo", None)
                 if logo_img:
-                    # if using S3 as file storage
-                    if str(logo_img).startswith("http"):
-                        media_file = Org.get_temporary_file_from_url(logo_img)
-                        im = Image.open(media_file)
-                    else:
-                        # checking if the file comes from sitestatic folder
-                        media_replace = "/sitestatic" if "sitestatic/brands" in logo_img else "/media"
-                        static_root = (
-                            settings.STATIC_ROOT.replace("sitestatic", "static")
-                            if settings.DEBUG
-                            else settings.STATIC_ROOT
-                        )
-                        media_root = static_root if "sitestatic/brands" in logo_img else settings.MEDIA_ROOT
-                        logo_path = logo_img.split(settings.HOSTNAME)[-1].replace(media_replace, "", 1)
-                        logo_path = "%s%s" % (media_root, logo_path)
-                        im = Image.open(logo_path)
-                    logo_w, logo_h = im.size
-                    context_dict["wch_logo_size"] = {"width": logo_w, "height": logo_h}
-                    context_dict["hostname"] = settings.HOSTNAME
+                    context_dict["wch_logo_size"] = get_image_size(logo_img=logo_img)
+                context_dict["hostname"] = settings.HOSTNAME
 
             context["configuration_template"] = channel_type.get_configuration_template(
                 self.object, context=context_dict
