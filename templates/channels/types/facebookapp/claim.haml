@@ -64,7 +64,7 @@
 
     window.fbAsyncInit = function() {
       FB.init({
-        appId      : '298392967836741',
+        appId      : '{{ facebook_app_id }}',
         cookie     : true,
         xfbml      : true,
         version    : 'v7.0'
@@ -91,7 +91,7 @@
           }
 
         }, 
-        {scope: 'public_profile,email,pages_messaging,pages_show_list,whatsapp_business_management,pages_manage_metadata,pages_read_engagement,pages_read_user_content,pages_manage_ads'});
+        {scope: 'public_profile,email,pages_messaging,pages_show_list,pages_manage_metadata,pages_read_engagement,pages_read_user_content,pages_manage_ads'});
 
       })
     });
