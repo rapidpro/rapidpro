@@ -1316,6 +1316,8 @@ class UpdateWebChatForm(UpdateChannelForm):
 
             self.fields["welcome_message_default"].initial = config.get("welcome_message_default", "")
 
+            self.fields["action_type"].initial = "update_and_generate_code_snippet"
+
             """ Code for the next sprint only
             languages = self.object.org.languages.all().order_by("orgs")
             if not languages:
@@ -1506,6 +1508,14 @@ class UpdateWebChatForm(UpdateChannelForm):
                 label=_("Auto Open"), help_text=_("Whether the chatbox should open when the website page is loaded")
             ),
             None,
+        )
+
+        self.add_config_field(
+            "action_type",
+            forms.CharField(
+                widget=forms.HiddenInput(),
+            ),
+            "update_and_generate_code_snippet",
         )
 
         del self.fields["country"]
@@ -1891,6 +1901,9 @@ class ChannelCRUDL(SmartCRUDL):
         success_message = ""
         submit_button_name = _("Save Changes")
 
+        def set_submit_button_name(self, name):
+            self.submit_button_name = name
+
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             if self.org:
@@ -1915,11 +1928,11 @@ class ChannelCRUDL(SmartCRUDL):
             return context
 
         def derive_title(self):
-            channel_type_display = (
-                self.object.get_channel_type_display()
-                if self.object.channel_type == "WCH"
-                else f"{self.object.get_channel_type_display()} Channel"
-            )
+            if self.object.channel_type == "WCH":
+                channel_type_display = self.object.get_channel_type_display()
+                self.set_submit_button_name(_("Save and Generate Code Snippet"))
+            else:
+                channel_type_display = f"{self.object.get_channel_type_display()} Channel"
             return _("%s") % channel_type_display
 
         def derive_readonly(self):
@@ -1936,10 +1949,16 @@ class ChannelCRUDL(SmartCRUDL):
             return super().lookup_field_help(field, default=default)
 
         def get_success_url(self):
-            viewname = (
-                "channels.channel_configuration" if self.object.channel_type == "WCH" else "channels.channel_read"
-            )
-            return reverse(viewname=viewname, args=[self.object.uuid])
+            has_reload = self.request.POST.get("action_type", None) == "update_and_reload"
+            if has_reload:
+                viewname = "channels.channel_update"
+                arg = self.object.id
+            else:
+                viewname = (
+                    "channels.channel_configuration" if self.object.channel_type == "WCH" else "channels.channel_read"
+                )
+                arg = self.object.uuid
+            return reverse(viewname=viewname, args=[arg])
 
         def get_form_class(self):
             return Channel.get_type_from_code(self.object.channel_type).get_update_form()
@@ -1952,6 +1971,8 @@ class ChannelCRUDL(SmartCRUDL):
         def pre_save(self, obj):
             for field in self.form.config_fields:
                 try:
+                    if field == "action_type":
+                        continue
                     obj.config[field] = self.form.cleaned_data[field]
                 except KeyError:
                     pass

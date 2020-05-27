@@ -135,6 +135,21 @@
       minimumResultsForSearch: Infinity
     });
 
+    function updateFormActionAndSubmit() {
+      $("#id_action_type").val("update_and_reload");
+      $(".smartmin-form").submit();
+    }
+
+    {% if object.channel_type == "WCH" %}
+      $(document).ready(function() {
+        var updateChangesBtn = document.createElement("a");
+        updateChangesBtn.className = "btn btn-primary";
+        updateChangesBtn.onclick = function() { updateFormActionAndSubmit(); };
+        updateChangesBtn.innerHTML = "{% trans 'Save and Update Widget' %}"
+        $(".form-actions").prepend(updateChangesBtn);
+      });
+    {% endif %}
+
     // adding languages to the form
     {% if object.channel_type == "WCH" and languages %}
     $(document).ready(function() {
