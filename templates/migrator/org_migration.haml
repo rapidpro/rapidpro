@@ -13,3 +13,13 @@
 -block title-text
   .title-text
     %h1 Start migration
+
+-block extra-script
+  :javascript
+    (function($) {
+      $('#id_org').select2({
+        width: '250px',
+        containerCssClass: 'select2-temba-field',
+        placeholder: "{% trans 'Select a theme' %}"
+      });
+    })(jQuery);

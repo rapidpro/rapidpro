@@ -1510,11 +1510,7 @@ class UpdateWebChatForm(UpdateChannelForm):
         )
 
         self.add_config_field(
-            "action_type",
-            forms.CharField(
-                widget=forms.HiddenInput(),
-            ),
-            "update_and_generate_code_snippet",
+            "action_type", forms.CharField(widget=forms.HiddenInput()), "update_and_generate_code_snippet"
         )
 
         del self.fields["country"]

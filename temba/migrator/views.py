@@ -11,11 +11,10 @@ from temba.orgs.models import Org
 from temba.orgs.views import InferOrgMixin, OrgPermsMixin
 from temba.utils.views import NonAtomicMixin
 
-from .models import get_org
+from .models import get_org, get_all_orgs
 
 
 class MigrationPermsMixin(OrgPermsMixin):
-
     def has_permission(self, request, *args, **kwargs):
         """
         Figures out if the current user has permissions for this view.
@@ -29,9 +28,7 @@ class MigrationPermsMixin(OrgPermsMixin):
 
 
 class MigrateCRUDL(SmartCRUDL):
-    actions = (
-        "migration",
-    )
+    actions = ("migration",)
 
     model = Org
 
@@ -39,44 +36,32 @@ class MigrateCRUDL(SmartCRUDL):
         template_name = "migrator/org_migration.haml"
 
         class MigrationForm(forms.Form):
-            org_name = forms.CharField(label="Organization name", required=True,
-                                       help_text="The organization name on live server")
-            org_id = forms.CharField(label="Organization ID", required=True, help_text="The organization ID on live server")
+            org = forms.ChoiceField(
+                label="Organization name", required=True, help_text="The organization name on live server"
+            )
 
             def __init__(self, *args, **kwargs):
                 self.org = kwargs["org"]
                 del kwargs["org"]
                 super().__init__(*args, **kwargs)
 
-            def clean_org_id(self):
-                org_id = self.cleaned_data.get("org_id")
+                self.fields["org"].choices = [(None, "---")] + [
+                    (org.get("id"), org.get("name")) for org in get_all_orgs()
+                ]
+
+            def clean_org(self):
+                org = self.cleaned_data.get("org")
 
                 try:
-                    org_id = int(org_id)
+                    org_id = int(org)
                 except Exception:
-                    raise ValidationError(
-                        _("Please type the correct organization ID, only integer is acceptable.")
-                    )
+                    raise ValidationError(_("Please type the correct organization ID, only integer is acceptable."))
 
                 org = get_org(org_id=org_id)
                 if not org:
-                    raise ValidationError(
-                        _("The organization ID was not found on live server.")
-                    )
+                    raise ValidationError(_("The organization ID was not found on live server."))
 
                 return org
-
-            def clean(self):
-                data = self.cleaned_data
-                org_name = self.cleaned_data.get("org_name")
-                org = self.cleaned_data.get("org_id")
-
-                if org and org_name != org.get("name"):
-                    raise ValidationError(
-                        _("The organization name does not match with the organization name on live server.")
-                    )
-
-                return data
 
         success_message = _("Data migration started successfully")
         form_class = MigrationForm
