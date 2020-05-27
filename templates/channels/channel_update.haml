@@ -63,17 +63,18 @@
     var automatedChatTextColor = "#" + $("#id_automated_chat_txt").val();
     var userChatBackgroundColor = "#" + $("#id_user_chat_bg").val();
     var userChatTextColor = "#" + $("#id_user_chat_txt").val();
-    var logoStyle = "circle";
-    var chatButtonHeight = 64;
+    var logoStyle = $("#id_logo_style").val();
+    var chatButtonHeight = parseInt($("#id_chat_button_height").val());
     var sidePadding = parseInt($("#id_side_padding").val());
     var bottomPadding = parseInt($("#id_bottom_padding").val());
     var sideOfScreen = $("#id_side_of_screen").val();
+    var autoOpen = $("#id_auto_open").val() === "true";
 
     window.renderSurveyor({
       socketUrl: '{{ websocket_url }}',
       channelUUID: '{{ object.uuid }}',
       title: title,
-      autoOpen: true,
+      autoOpen: autoOpen,
       hostApi: 'https://{{ hostname }}',
       icon: icon,
       welcomeMessage: welcomeMessage,
@@ -93,8 +94,8 @@
       },
       meta: {
         icon: {
-          width: 64,
-          height: 64
+          width: {{ wch_logo_size.width }},
+          height: {{ wch_logo_size.height }}
         }
       }
     }, 'ccl-web-surveyor');
@@ -135,8 +136,23 @@
       minimumResultsForSearch: Infinity
     });
 
+    function updateFormActionAndSubmit() {
+      $("#id_action_type").val("update_and_reload");
+      $(".smartmin-form").submit();
+    }
+
+    {% if object.channel_type == "WCH" %}
+      $(document).ready(function() {
+        var updateChangesBtn = document.createElement("a");
+        updateChangesBtn.className = "btn btn-primary";
+        updateChangesBtn.onclick = function() { updateFormActionAndSubmit(); };
+        updateChangesBtn.innerHTML = "{% trans 'Save and Update Widget' %}"
+        $(".form-actions").prepend(updateChangesBtn);
+      });
+    {% endif %}
+
     // adding languages to the form
-    {% if object.channel_type == "WCH" and languages %}
+    {% if object.channel_type == "WCH" %}
     $(document).ready(function() {
       buildWebChat();
 
@@ -147,6 +163,14 @@
       {% endfor %}
 
       $("#id_side_of_screen").change(function() {
+        buildWebChat();
+      });
+
+      $("#id_logo_style").change(function() {
+        buildWebChat();
+      });
+
+      $("#id_auto_open").change(function() {
         buildWebChat();
       });
 
