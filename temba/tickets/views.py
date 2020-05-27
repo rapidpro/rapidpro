@@ -135,11 +135,10 @@ class TicketCRUDL(SmartCRUDL):
             links = []
             if self.has_org_perm("tickets.ticketer_delete"):
                 links.append(dict(title=_("Delete"), js_class="delete-ticketer", href="#"))
-            if self.get_user().is_support():
+            if self.has_org_perm("request_logs.httplog_ticketer"):
                 links.append(
                     dict(
-                        title=_("HTTP Log"),
-                        href=reverse("request_logs.httplog_list", args=["ticketer", self.ticketer.uuid]),
+                        title=_("HTTP Log"), href=reverse("request_logs.httplog_ticketer", args=[self.ticketer.uuid]),
                     )
                 )
             return links
