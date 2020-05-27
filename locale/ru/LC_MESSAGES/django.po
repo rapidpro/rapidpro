@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-19 16:08+0000\n"
+"POT-Creation-Date: 2020-05-27 08:58+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -998,6 +998,26 @@ msgid "The Page Access Token for your Application"
 msgstr ""
 
 msgid "The name of the Facebook page"
+msgstr ""
+
+msgid ""
+"Add a <a href=\"http://facebook.com\">Facebook</a> bot to send and receive messages on behalf\n"
+"    of one of your Facebook pages for free. You will need to connect your page by logging into your facebook and chekcing the Facebook page to connect"
+msgstr ""
+
+msgid "The User Access Token"
+msgstr ""
+
+msgid "The Faebook User ID of the admin that connected te channe"
+msgstr ""
+
+msgid "Failed to get user long lived token"
+msgstr ""
+
+msgid "Failed to get page long lived token"
+msgstr ""
+
+msgid "Empty page access token!"
 msgstr ""
 
 msgid ""
@@ -5299,6 +5319,9 @@ msgid ""
 msgstr ""
 
 msgid "Verify Token"
+msgstr ""
+
+msgid "Click on the page to add as a channel"
 msgstr ""
 
 #, python-format

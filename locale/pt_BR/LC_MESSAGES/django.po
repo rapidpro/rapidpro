@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-19 16:08+0000\n"
+"POT-Creation-Date: 2020-05-27 08:58+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -1348,6 +1348,27 @@ msgstr ""
 #| msgid "The name of the video"
 msgid "The name of the Facebook page"
 msgstr "O nome do vídeo"
+
+msgid ""
+"Add a <a href=\"http://facebook.com\">Facebook</a> bot to send and receive messages on behalf\n"
+"    of one of your Facebook pages for free. You will need to connect your page by logging into your facebook and chekcing the Facebook page to connect"
+msgstr ""
+
+#, fuzzy
+msgid "The User Access Token"
+msgstr "Seu Token API é"
+
+msgid "The Faebook User ID of the admin that connected te channe"
+msgstr ""
+
+msgid "Failed to get user long lived token"
+msgstr ""
+
+msgid "Failed to get page long lived token"
+msgstr ""
+
+msgid "Empty page access token!"
+msgstr ""
 
 msgid ""
 "Add a <a href=\"https://firebase.google.com/docs/cloud-messaging/\"> Firebase Cloud\n"
@@ -7020,6 +7041,11 @@ msgstr ""
 
 msgid "Verify Token"
 msgstr ""
+
+#, fuzzy
+#| msgid "Click here to send a message"
+msgid "Click on the page to add as a channel"
+msgstr "Clique aqui para enviar uma mensagem"
 
 #, fuzzy, python-format
 #| msgid ""

@@ -1,11 +1,8 @@
-import requests
-
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import FACEBOOK_SCHEME
-from temba.triggers.models import Trigger
 
-from ...models import Channel, ChannelType
+from ...models import ChannelType
 from .views import ClaimView
 
 
