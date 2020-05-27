@@ -292,7 +292,7 @@ class LinkCRUDL(SmartCRUDL):
         fields = ("name", "modified_on")
         default_template = "links/link_list.html"
         default_order = "-created_on"
-        search_fields = ("name__icontains",)
+        search_fields = ("name__icontains", "destination__icontains")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
