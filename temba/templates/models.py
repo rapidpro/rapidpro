@@ -1,9 +1,9 @@
 import uuid
 
+from django_countries.fields import CountryField
+
 from django.db import models
 from django.utils import timezone
-
-from django_countries.fields import CountryField
 
 from temba.channels.models import Channel
 from temba.orgs.models import Org
