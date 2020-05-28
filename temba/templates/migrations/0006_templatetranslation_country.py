@@ -6,14 +6,12 @@ import django_countries.fields
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('templates', '0005_auto_20200518_1227'),
-    ]
+    dependencies = [("templates", "0005_auto_20200518_1227")]
 
     operations = [
         migrations.AddField(
-            model_name='templatetranslation',
-            name='country',
+            model_name="templatetranslation",
+            name="country",
             field=django_countries.fields.CountryField(blank=True, max_length=2, null=True),
-        ),
+        )
     ]
