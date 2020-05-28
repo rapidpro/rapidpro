@@ -5,15 +5,15 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('migrator', '0001_initial'),
-    ]
+    dependencies = [("migrator", "0001_initial")]
 
     operations = [
         migrations.AddField(
-            model_name='migrationtask',
-            name='migration_org',
-            field=models.PositiveIntegerField(default=1, help_text='The organization ID on live server that is being migrated', verbose_name='Org ID'),
+            model_name="migrationtask",
+            name="migration_org",
+            field=models.PositiveIntegerField(
+                default=1, help_text="The organization ID on live server that is being migrated", verbose_name="Org ID"
+            ),
             preserve_default=False,
-        ),
+        )
     ]

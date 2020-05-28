@@ -28,15 +28,10 @@ class MigrationTask(TembaModel):
     )
 
     migration_org = models.PositiveIntegerField(
-        verbose_name=_("Org ID"),
-        help_text=_("The organization ID on live server that is being migrated"),
+        verbose_name=_("Org ID"), help_text=_("The organization ID on live server that is being migrated")
     )
 
-    status = models.CharField(
-        max_length=1,
-        default=STATUS_PENDING,
-        choices=STATUS_CHOICES,
-    )
+    status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
 
     @classmethod
     def create(cls, org, user, migration_org):
@@ -73,5 +68,18 @@ class MigrationTask(TembaModel):
         self.org.is_anon = org_data.is_anon
         self.org.surveyor_password = org_data.surveyor_password
         self.org.parent_id = org_data.parent_id
-        self.org.save(update_fields=["name", "plan", "plan_start", "stripe_customer", "language", "timezone", "date_format",
-                                     "config", "is_anon", "surveyor_password", "parent_id"])
+        self.org.save(
+            update_fields=[
+                "name",
+                "plan",
+                "plan_start",
+                "stripe_customer",
+                "language",
+                "timezone",
+                "date_format",
+                "config",
+                "is_anon",
+                "surveyor_password",
+                "parent_id",
+            ]
+        )

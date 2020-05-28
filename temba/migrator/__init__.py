@@ -72,13 +72,17 @@ class Migrator(object):
 
         results = []
         for i in range(1, pages_count + 1):
-            results += self.make_query(query_string=f"{query_string} LIMIT {SELECT_LIMIT} OFFSET {(i - 1) * SELECT_LIMIT}")
+            results += self.make_query(
+                query_string=f"{query_string} LIMIT {SELECT_LIMIT} OFFSET {(i - 1) * SELECT_LIMIT}"
+            )
 
         return results
 
     def get_all_orgs(self) -> list:
         orgs_count = self.get_count("orgs_org")
-        results = self.get_results_paginated(query_string="SELECT * FROM public.orgs_org ORDER BY name ASC", count=orgs_count)
+        results = self.get_results_paginated(
+            query_string="SELECT * FROM public.orgs_org ORDER BY name ASC", count=orgs_count
+        )
         return results
 
     def get_org(self) -> MigratorObject:

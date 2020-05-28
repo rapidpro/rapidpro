@@ -49,9 +49,7 @@ class MigrateCRUDL(SmartCRUDL):
 
                 migration = Migrator()
 
-                self.fields["org"].choices = [(None, "---")] + [
-                    (org.id, org.name) for org in migration.get_all_orgs()
-                ]
+                self.fields["org"].choices = [(None, "---")] + [(org.id, org.name) for org in migration.get_all_orgs()]
 
             def clean_org(self):
                 org = self.cleaned_data.get("org")
