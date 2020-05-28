@@ -8,6 +8,9 @@ SELECT_LIMIT = 1000
 class MigratorObject:
     def __init__(self, **entries):
 
+        # Generic
+        self.count = None
+
         # Org fields
         self.name = None
         self.plan = None
