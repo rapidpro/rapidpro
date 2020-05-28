@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-27 14:25+0000\n"
+"POT-Creation-Date: 2020-05-28 17:43+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -998,6 +998,9 @@ msgid "The Page Access Token for your Application"
 msgstr ""
 
 msgid "The name of the Facebook page"
+msgstr ""
+
+msgid "Reconnect Facebook Page"
 msgstr ""
 
 msgid ""
@@ -5331,6 +5334,15 @@ msgid "Verify Token"
 msgstr ""
 
 msgid "Click on the page to add as a channel"
+msgstr ""
+
+msgid "Error with token, you need to reconnect the Facebook page by clicking the button below"
+msgstr ""
+
+msgid "Everything looks good. No need to reconnect"
+msgstr ""
+
+msgid "Error reconnecting Facebook page. Please retry"
 msgstr ""
 
 #, python-format

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-27 14:25+0000\n"
+"POT-Creation-Date: 2020-05-28 17:43+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1098,6 +1098,11 @@ msgid "The Page Access Token for your Application"
 msgstr "Le jeton d'accès à la page pour votre application"
 
 msgid "The name of the Facebook page"
+msgstr "Le nom de la page Facebook"
+
+#, fuzzy
+#| msgid "The name of the Facebook page"
+msgid "Reconnect Facebook Page"
 msgstr "Le nom de la page Facebook"
 
 #, fuzzy
@@ -5820,6 +5825,15 @@ msgstr "Vérifier le jeton"
 #| msgid "Click here to add a message"
 msgid "Click on the page to add as a channel"
 msgstr "Cliquez ici pour ajouter un message"
+
+msgid "Error with token, you need to reconnect the Facebook page by clicking the button below"
+msgstr ""
+
+msgid "Everything looks good. No need to reconnect"
+msgstr ""
+
+msgid "Error reconnecting Facebook page. Please retry"
+msgstr ""
 
 #, fuzzy, python-format
 #| msgid ""

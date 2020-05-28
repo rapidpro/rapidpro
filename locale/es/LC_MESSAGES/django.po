@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-27 14:25+0000\n"
+"POT-Creation-Date: 2020-05-28 17:43+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -1431,6 +1431,11 @@ msgstr ""
 #, fuzzy
 #| msgid "The name of the video"
 msgid "The name of the Facebook page"
+msgstr "El nombre del video"
+
+#, fuzzy
+#| msgid "The name of the video"
+msgid "Reconnect Facebook Page"
 msgstr "El nombre del video"
 
 msgid ""
@@ -7608,6 +7613,15 @@ msgstr ""
 #| msgid "Click here to send a message"
 msgid "Click on the page to add as a channel"
 msgstr "Haga clic aquí para enviar un mensaje"
+
+msgid "Error with token, you need to reconnect the Facebook page by clicking the button below"
+msgstr ""
+
+msgid "Everything looks good. No need to reconnect"
+msgstr ""
+
+msgid "Error reconnecting Facebook page. Please retry"
+msgstr ""
 
 #, fuzzy, python-format
 #| msgid ""
