@@ -95,6 +95,21 @@ class FacebookTypeTest(TembaTest):
     @patch("requests.get")
     def test_refresh_token(self, mock_get):
         token = "x" * 200
+
+        url = reverse("channels.types.facebookapp.refresh_token", args=(self.channel.uuid,))
+
+        self.login(self.admin)
+
+        mock_get.side_effect = [
+            MockResponse(400, json.dumps({"error": "token invalid"})),
+        ]
+
+        response = self.client.get(url)
+        self.assertContains(response, "Reconnect Facebook Page")
+        self.assertEqual(response.context["facebook_app_id"], "FB_APP_ID")
+        self.assertEqual(response.context["refresh_url"], url)
+        self.assertTrue(response.context["error_connect"])
+
         mock_get.side_effect = [
             MockResponse(200, json.dumps({"id": "12345"})),
             MockResponse(200, json.dumps({"access_token": f"long-life-user-{token}"})),
@@ -104,14 +119,11 @@ class FacebookTypeTest(TembaTest):
             ),
         ]
 
-        url = reverse("channels.types.facebookapp.refresh_token", args=(self.channel.uuid,))
-
-        self.login(self.admin)
-
         response = self.client.get(url)
         self.assertContains(response, "Reconnect Facebook Page")
         self.assertEqual(response.context["facebook_app_id"], "FB_APP_ID")
         self.assertEqual(response.context["refresh_url"], url)
+        self.assertFalse(response.context["error_connect"])
 
         post_data = response.context["form"].initial
         post_data["fb_user_id"] = "098765"
