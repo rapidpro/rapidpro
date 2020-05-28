@@ -5481,6 +5481,16 @@ msgstr ""
 msgid "WhatsApp Contacts Refreshed"
 msgstr ""
 
+#, fuzzy
+#| msgid "Recent Channel Events"
+msgid "Recent Classifier Events"
+msgstr "Eventos recentes do transmissor"
+
+#, fuzzy
+#| msgid "Recent Channel Events"
+msgid "Recent Ticketing Service Events"
+msgstr "Eventos recentes do transmissor"
+
 msgid "Never"
 msgstr "Nunca"
 
@@ -11479,27 +11489,13 @@ msgstr ""
 msgid "More Videos"
 msgstr "Mais vídeos"
 
-#, fuzzy
-msgid "Classifier Events"
-msgstr "Evento do transmissor"
-
-#, fuzzy
-#| msgid "Recent Channel Events"
-msgid "Recent Classifier Events"
-msgstr "Eventos recentes do transmissor"
-
-#, fuzzy
-#| msgid "Recent Channel Events"
-msgid "Recent Ticketing Service Events"
-msgstr "Eventos recentes do transmissor"
-
-#, fuzzy
-#| msgid "Channel Event"
-msgid "Classifier: "
-msgstr "Evento do transmissor"
-
-msgid "Ticketing Service: "
+msgid "From"
 msgstr ""
+
+#, fuzzy
+#| msgid "Receive URL"
+msgid "Request time:"
+msgstr "URL de recebimento"
 
 #, fuzzy
 #| msgid "Channel Event"
@@ -11865,6 +11861,15 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "Classifier Events"
+#~ msgstr "Evento do transmissor"
+
+#, fuzzy
+#~| msgid "Channel Event"
+#~ msgid "Classifier: "
+#~ msgstr "Evento do transmissor"
 
 #, fuzzy
 #~ msgid "Start Log"

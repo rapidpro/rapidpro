@@ -4581,6 +4581,14 @@ msgstr "Jetons Whatsapp synchronisés"
 msgid "WhatsApp Contacts Refreshed"
 msgstr "Actualisation des contacts Whatsapp"
 
+msgid "Recent Classifier Events"
+msgstr "Événements récents du classificateur"
+
+#, fuzzy
+#| msgid "Recent Classifier Events"
+msgid "Recent Ticketing Service Events"
+msgstr "Événements récents du classificateur"
+
 msgid "Never"
 msgstr "Jamais"
 
@@ -10600,24 +10608,13 @@ msgstr ""
 msgid "More Videos"
 msgstr "Plus de vidéos"
 
-msgid "Classifier Events"
-msgstr "Événements du classificateur"
-
-msgid "Recent Classifier Events"
-msgstr "Événements récents du classificateur"
+msgid "From"
+msgstr ""
 
 #, fuzzy
-#| msgid "Recent Classifier Events"
-msgid "Recent Ticketing Service Events"
-msgstr "Événements récents du classificateur"
-
-msgid "Classifier: "
-msgstr "Classificateur:"
-
-#, fuzzy
-#| msgid "Messaging Service SID"
-msgid "Ticketing Service: "
-msgstr "SID du service de messagerie"
+#| msgid "Request URL"
+msgid "Request time:"
+msgstr "URL de demande"
 
 msgid "Classifier Event"
 msgstr "Événement classificateur"
@@ -10959,6 +10956,17 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Classifier Events"
+#~ msgstr "Événements du classificateur"
+
+#~ msgid "Classifier: "
+#~ msgstr "Classificateur:"
+
+#, fuzzy
+#~| msgid "Messaging Service SID"
+#~ msgid "Ticketing Service: "
+#~ msgstr "SID du service de messagerie"
 
 #, fuzzy
 #~| msgid "No synced intents at this time."

@@ -118,7 +118,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(("close", "reopen"), response.context["actions"])
 
         # normal users don't see HTTP logs for ticketers
-        logs_url = reverse("request_logs.httplog_list", args=["ticketer", self.mailgun.uuid])
+        logs_url = reverse("request_logs.httplog_ticketer", args=[self.mailgun.uuid])
         self.assertNotContains(response, logs_url)
 
         support = Group.objects.get(name="Customer Support")

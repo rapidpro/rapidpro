@@ -4203,6 +4203,12 @@ msgstr ""
 msgid "WhatsApp Contacts Refreshed"
 msgstr ""
 
+msgid "Recent Classifier Events"
+msgstr ""
+
+msgid "Recent Ticketing Service Events"
+msgstr ""
+
 msgid "Never"
 msgstr ""
 
@@ -8851,19 +8857,10 @@ msgstr ""
 msgid "More Videos"
 msgstr ""
 
-msgid "Classifier Events"
+msgid "From"
 msgstr ""
 
-msgid "Recent Classifier Events"
-msgstr ""
-
-msgid "Recent Ticketing Service Events"
-msgstr ""
-
-msgid "Classifier: "
-msgstr ""
-
-msgid "Ticketing Service: "
+msgid "Request time:"
 msgstr ""
 
 msgid "Classifier Event"
