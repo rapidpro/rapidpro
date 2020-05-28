@@ -1,59 +1,77 @@
-from django.db import connections
-from django.conf import settings
+from django.db import models
+from django.utils import timezone
+from django.utils.translation import ugettext_lazy as _
+from django.utils.timesince import timesince
+
+from temba.migrator import Migrator
+from temba.utils import json
+from temba.utils.models import TembaModel
 
 
-SELECT_LIMIT = 1000
+class MigrationTask(TembaModel):
+    STATUS_PENDING = "P"
+    STATUS_PROCESSING = "O"
+    STATUS_COMPLETE = "C"
+    STATUS_FAILED = "F"
+    STATUS_CHOICES = (
+        (STATUS_PENDING, _("Pending")),
+        (STATUS_PROCESSING, _("Processing")),
+        (STATUS_COMPLETE, _("Complete")),
+        (STATUS_FAILED, _("Failed")),
+    )
 
+    org = models.ForeignKey(
+        "orgs.Org",
+        on_delete=models.PROTECT,
+        related_name="%(class)ss",
+        help_text=_("The organization of this import progress."),
+    )
 
-def dictfetchall(cursor):
-    """
-    Return all rows from a cursor as a dict
-    """
-    columns = [col[0] for col in cursor.description]
-    return [dict(zip(columns, row)) for row in cursor.fetchall()]
+    migration_org = models.PositiveIntegerField(
+        verbose_name=_("Org ID"),
+        help_text=_("The organization ID on live server that is being migrated"),
+    )
 
+    status = models.CharField(
+        max_length=1,
+        default=STATUS_PENDING,
+        choices=STATUS_CHOICES,
+    )
 
-def dictfetchone(cursor):
-    """
-    Return all rows from a cursor as a dict
-    """
-    columns = [col[0] for col in cursor.description]
-    row = cursor.fetchone()
-    return dict(zip(columns, row)) if row else None
+    @classmethod
+    def create(cls, org, user, migration_org):
+        return cls.objects.create(org=org, migration_org=migration_org, created_by=user, modified_by=user)
 
+    def update_status(self, status):
+        self.status = status
+        self.save(update_fields=("status", "modified_on"))
 
-def make_query(query_string, many=True):
-    with connections[settings.DB_MIGRATION].cursor() as cursor:
-        cursor.execute(query_string)
-        result = dictfetchall(cursor) if many else dictfetchone(cursor)
-        return result
+    def perform(self):
+        start = timezone.now()
 
+        migrator = Migrator(org_id=self.migration_org)
 
-def get_count(table_name):
-    query = make_query(query_string=f"SELECT count(*) as count FROM public.{table_name}", many=False)
-    return query.get("count")
+        # Updating organization data
+        org_data = migrator.get_org()
+        if org_data:
+            self.update_org(org_data)
 
+        # TODO show this elapsed
+        elapsed = timesince(start)
 
-def get_results_paginated(query_string, count):
-    pages = count / SELECT_LIMIT
-    pages_count = int(pages)
-    page_rest = pages - pages_count
+        self.update_status(self.STATUS_COMPLETE)
 
-    if page_rest > 0:
-        pages_count += 1
-
-    results = []
-    for i in range(1, pages_count + 1):
-        results += make_query(query_string=f"{query_string} LIMIT {SELECT_LIMIT} OFFSET {(i - 1) * SELECT_LIMIT}")
-
-    return results
-
-
-def get_all_orgs():
-    orgs_count = get_count("orgs_org")
-    results = get_results_paginated(query_string="SELECT * FROM public.orgs_org", count=orgs_count)
-    return results
-
-
-def get_org(org_id):
-    return make_query(query_string="SELECT * FROM public.orgs_org WHERE id = %s" % org_id, many=False)
+    def update_org(self, org_data):
+        self.org.name = org_data.name
+        self.org.plan = org_data.plan
+        self.org.plan_start = org_data.plan_start
+        self.org.stripe_customer = org_data.stripe_customer
+        self.org.language = org_data.language
+        self.org.timezone = org_data.timezone
+        self.org.date_format = org_data.date_format
+        self.org.config = json.loads(org_data.config) if org_data.config else dict()
+        self.org.is_anon = org_data.is_anon
+        self.org.surveyor_password = org_data.surveyor_password
+        self.org.parent_id = org_data.parent_id
+        self.org.save(update_fields=["name", "plan", "plan_start", "stripe_customer", "language", "timezone", "date_format",
+                                     "config", "is_anon", "surveyor_password", "parent_id"])

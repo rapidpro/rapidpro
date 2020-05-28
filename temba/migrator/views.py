@@ -11,7 +11,9 @@ from temba.orgs.models import Org
 from temba.orgs.views import InferOrgMixin, OrgPermsMixin
 from temba.utils.views import NonAtomicMixin
 
-from .models import get_org, get_all_orgs
+from .models import Migrator, MigrationTask
+from .tasks import start_migration
+from ..utils import on_transaction_commit
 
 
 class MigrationPermsMixin(OrgPermsMixin):
@@ -45,8 +47,10 @@ class MigrateCRUDL(SmartCRUDL):
                 del kwargs["org"]
                 super().__init__(*args, **kwargs)
 
+                migration = Migrator()
+
                 self.fields["org"].choices = [(None, "---")] + [
-                    (org.get("id"), org.get("name")) for org in get_all_orgs()
+                    (org.id, org.name) for org in migration.get_all_orgs()
                 ]
 
             def clean_org(self):
@@ -57,11 +61,12 @@ class MigrateCRUDL(SmartCRUDL):
                 except Exception:
                     raise ValidationError(_("Please type the correct organization ID, only integer is acceptable."))
 
-                org = get_org(org_id=org_id)
+                migration = Migrator(org_id=org_id)
+                org = migration.get_org()
                 if not org:
                     raise ValidationError(_("The organization ID was not found on live server."))
 
-                return org
+                return org_id
 
         success_message = _("Data migration started successfully")
         form_class = MigrationForm
@@ -77,13 +82,15 @@ class MigrateCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             try:
-                org = self.request.user.get_org()
-                # TODO call task here to star the migration of the data
+                user = self.request.user
+                org = user.get_org()
+                migration_task = MigrationTask.create(org=org, user=user, migration_org=form.cleaned_data.get("org"))
+                on_transaction_commit(lambda: start_migration.delay(migration_task.id))
             except Exception as e:
                 # this is an unexpected error, report it to sentry
                 logger = logging.getLogger(__name__)
                 logger.error("Exception on the migration: %s" % str(e), exc_info=True)
-                form._errors["org_id"] = form.error_class([_("Sorry, something went wrong on the migration.")])
+                form._errors["org"] = form.error_class([_("Sorry, something went wrong on the migration.")])
                 return self.form_invalid(form)
 
             return super().form_valid(form)
