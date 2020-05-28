@@ -102,7 +102,6 @@
         url: "https://graph.facebook.com/me/accounts?access_token=" + token,
         dataType: "json",
         success: function(response, status, xhr){
-          console.log(response);
           data = response.data;
           if (data.length > 0) {
             for (var i=0; i < data.length; i++){

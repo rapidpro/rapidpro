@@ -1,17 +1,20 @@
 import requests
 
+from django.conf.urls import url
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import FACEBOOK_SCHEME
 
 from ...models import Channel, ChannelType
-from .views import ClaimView
+from .views import ClaimView, RefreshToken
 
 
 class FacebookappType(ChannelType):
     """
     A Facebook channel
     """
+
+    extra_links = [dict(link=_("Reconnect Facebook Page"), name="channels.types.facebookapp.refresh_token")]
 
     code = "FBA"
     category = ChannelType.Category.SOCIAL_MEDIA
@@ -33,6 +36,12 @@ class FacebookappType(ChannelType):
     max_length = 320
     attachment_support = True
     free_sending = True
+
+    def get_urls(self):
+        return [
+            self.get_claim_url(),
+            url(r"^(?P<uuid>[a-z0-9\-]+)/refresh_token$", RefreshToken.as_view(), name="refresh_token"),
+        ]
 
     def is_available_to(self, user):
         return False

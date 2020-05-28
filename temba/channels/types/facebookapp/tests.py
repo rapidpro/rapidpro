@@ -90,3 +90,52 @@ class FacebookTypeTest(TembaTest):
         mock_delete.assert_called_once_with(
             "https://graph.facebook.com/v7.0/12345/subscribed_apps", params={"access_token": "09876543"}
         )
+
+    @override_settings(FACEBOOK_APPLICATION_ID="FB_APP_ID", FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET")
+    @patch("requests.get")
+    def test_refresh_token(self, mock_get):
+        token = "x" * 200
+        mock_get.side_effect = [
+            MockResponse(200, json.dumps({"id": "12345"})),
+            MockResponse(200, json.dumps({"access_token": f"long-life-user-{token}"})),
+            MockResponse(
+                200,
+                json.dumps({"data": [{"name": "Temba", "id": "12345", "access_token": f"page-long-life-{token}"}]}),
+            ),
+        ]
+
+        url = reverse("channels.types.facebookapp.refresh_token", args=(self.channel.uuid,))
+
+        self.login(self.admin)
+
+        response = self.client.get(url)
+        self.assertContains(response, "Reconnect Facebook Page")
+        self.assertEqual(response.context["facebook_app_id"], "FB_APP_ID")
+        self.assertEqual(response.context["refresh_url"], url)
+
+        post_data = response.context["form"].initial
+        post_data["fb_user_id"] = "098765"
+        post_data["user_access_token"] = token
+
+        response = self.client.post(url, post_data, follow=True)
+
+        # assert our channel got created
+        channel = Channel.objects.get(address="12345", channel_type="FBA")
+        self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], f"page-long-life-{token}")
+        self.assertEqual(channel.config[Channel.CONFIG_PAGE_NAME], "Temba")
+        self.assertEqual(channel.address, "12345")
+
+        self.assertEqual(response.request["PATH_INFO"], reverse("channels.channel_read", args=[channel.uuid]))
+
+        mock_get.assert_any_call(
+            "https://graph.facebook.com/oauth/access_token",
+            params={
+                "grant_type": "fb_exchange_token",
+                "client_id": "FB_APP_ID",
+                "client_secret": "FB_APP_SECRET",
+                "fb_exchange_token": token,
+            },
+        )
+        mock_get.assert_any_call(
+            "https://graph.facebook.com/v7.0/098765/accounts", params={"access_token": f"long-life-user-{token}"}
+        )
