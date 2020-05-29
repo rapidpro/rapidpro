@@ -1,0 +1,53 @@
+-extends "smartmin/read.haml"
+-load i18n channels
+
+-block title
+  .medium-help.float-left.icon-cloud-download
+  %h2.font_normalize.header-margin.title
+    Migration Logs: Organization ID {{ object.migration_org }}
+
+{% block content %}
+<pre class="prettyprint" id="file-logs">
+Initializing logs...
+</pre>
+{% endblock %}
+
+-block extra-script
+  {{ block.super }}
+  <script src="{{ STATIC_URL }}rest_framework/js/prettify-min.js"></script>
+  :javascript
+    $(function(){
+      prettyPrint();
+      readingFile();
+    });
+    function readingFile() {
+      var xmlhttp;
+      xmlhttp = new XMLHttpRequest();
+      xmlhttp.onreadystatechange = function() {
+        if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {
+          document.getElementById("file-logs").innerHTML = xmlhttp.responseText;
+        }
+      }
+
+      setInterval(function() {
+        xmlhttp.open("GET", "/media/migration_logs/{{ object.uuid }}.log", true);
+        xmlhttp.send();
+      }, 2000);
+    }
+
+-block extra-style
+  <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}rest_framework/css/prettify.css"/>
+  :css
+    pre.prettyprint {
+      margin-top: 0px;
+      margin-bottom: 0px;
+
+      font-family: monospace;
+      font-size: inherit;
+      white-space: pre;
+      line-height: 110%;
+
+      -webkit-border-radius: 0px;
+      -moz-border-radius: 0px;
+      border-radius: 0px;
+    }

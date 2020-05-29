@@ -2,12 +2,12 @@ import logging
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
-from smartmin.views import SmartCRUDL, SmartFormView
+from smartmin.views import SmartCRUDL, SmartFormView, SmartReadView
 
-from temba.orgs.models import Org
 from temba.orgs.views import InferOrgMixin, OrgPermsMixin
 from temba.utils.views import NonAtomicMixin
 
@@ -30,12 +30,11 @@ class MigrationPermsMixin(OrgPermsMixin):
 
 
 class MigrateCRUDL(SmartCRUDL):
-    actions = ("migration",)
+    actions = ("create", "read")
 
-    model = Org
+    model = MigrationTask
 
-    class Migration(NonAtomicMixin, InferOrgMixin, MigrationPermsMixin, SmartFormView):
-        template_name = "migrator/org_migration.haml"
+    class Create(NonAtomicMixin, InferOrgMixin, MigrationPermsMixin, SmartFormView):
 
         class MigrationForm(forms.Form):
             org = forms.ChoiceField(
@@ -70,9 +69,6 @@ class MigrateCRUDL(SmartCRUDL):
         form_class = MigrationForm
         submit_button_name = "Start migration"
 
-        def get_success_url(self):  # pragma: needs cover
-            return reverse("migrator.org_migration")
-
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["org"] = self.request.user.get_org()
@@ -91,4 +87,19 @@ class MigrateCRUDL(SmartCRUDL):
                 form._errors["org"] = form.error_class([_("Sorry, something went wrong on the migration.")])
                 return self.form_invalid(form)
 
-            return super().form_valid(form)
+            return HttpResponseRedirect(reverse("migrator.migrationtask_read", args=[migration_task.uuid]))
+
+    class Read(MigrationPermsMixin, SmartReadView):
+        slug_url_kwarg = "uuid"
+
+        def derive_title(self):
+            return self.object.uuid
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            return context
+
+        def get_gear_links(self):
+            return [
+                dict(title=_("New migration"), href=reverse("migrator.migrationtask_create"))
+            ]

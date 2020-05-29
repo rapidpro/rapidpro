@@ -1,4 +1,8 @@
+import os
+import logging
+
 from django.db import models
+from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from django.utils.timesince import timesince
@@ -6,6 +10,8 @@ from django.utils.timesince import timesince
 from temba.migrator import Migrator
 from temba.utils import json
 from temba.utils.models import TembaModel
+
+logger = logging.getLogger(__name__)
 
 
 class MigrationTask(TembaModel):
@@ -42,17 +48,27 @@ class MigrationTask(TembaModel):
         self.save(update_fields=("status", "modified_on"))
 
     def perform(self):
+        migration_folder = f"{settings.MEDIA_ROOT}/migration_logs"
+        if not os.path.exists(migration_folder):
+            os.makedirs(migration_folder)
+
+        log_handler = logging.FileHandler(filename=f"{migration_folder}/{self.uuid}.log")
+        logger.addHandler(log_handler)
+        logger.setLevel("INFO")
+
         start = timezone.now()
 
         migrator = Migrator(org_id=self.migration_org)
 
         # Updating organization data
+        logger.info("Started migrating the organization data")
+
         org_data = migrator.get_org()
         if org_data:
             self.update_org(org_data)
 
-        # TODO show this elapsed
         elapsed = timesince(start)
+        logger.info(f"This process took {elapsed}")
 
         self.update_status(self.STATUS_COMPLETE)
 
