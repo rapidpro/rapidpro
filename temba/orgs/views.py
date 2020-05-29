@@ -366,7 +366,7 @@ class GiftcardsForm(forms.ModelForm):
         new_collection = self.data.get("collection")
         is_removing = self.data.get("remove", "false") == "true"
 
-        if not is_removing and new_collection.isspace():
+        if not is_removing and (not new_collection or new_collection.isspace()):
             raise ValidationError(_("This field is required"))
 
         if not is_removing and not regex.match(r"^[A-Za-z0-9_\- ]+$", new_collection, regex.V0):
@@ -2276,7 +2276,7 @@ class OrgCRUDL(SmartCRUDL):
                 new_collection = self.data.get("collection")
                 is_removing = self.data.get("remove", "false") == "true"
 
-                if not is_removing and new_collection.isspace():
+                if not is_removing and (not new_collection or new_collection.isspace()):
                     raise ValidationError(_("This field is required"))
 
                 if not is_removing and not regex.match(r"^[A-Za-z0-9_\- ]+$", new_collection, regex.V0):
@@ -2593,7 +2593,10 @@ class OrgCRUDL(SmartCRUDL):
                             break
 
                 # Making sure that Pandas will read the data with the correct type, e.g. string, float
-                col_names = read_csv(import_file, nrows=0).columns
+                if file_type == "csv":
+                    col_names = read_csv(import_file, nrows=0).columns
+                else:
+                    col_names = read_excel(import_file, nrows=0).columns
                 import_file.seek(0)
                 types_dict = {}
                 for col_name in col_names.tolist():
