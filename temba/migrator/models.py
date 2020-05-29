@@ -8,6 +8,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.utils.timesince import timesince
 
 from temba.migrator import Migrator
+from temba.orgs.models import TopUp
 from temba.utils import json
 from temba.utils.models import TembaModel
 
@@ -60,13 +61,33 @@ class MigrationTask(TembaModel):
 
         migrator = Migrator(org_id=self.migration_org)
 
-        # Updating organization data
-        logger.info("Started migrating the organization data")
+        logger.info("---------------- Organization ----------------")
+        logger.info("[STARTED] Organization data migration")
 
         org_data = migrator.get_org()
-        if org_data:
-            self.update_org(org_data)
+        if not org_data:
+            logger.info("[ERROR] No organization data found")
+            self.update_status(self.STATUS_FAILED)
+            return
 
+        self.update_org(org_data)
+        logger.info("[COMPLETED] Organization data migration")
+
+        logger.info("")
+        logger.info("---------------- Organization TopUps ----------------")
+        logger.info("[STARTED] Organization TopUps migration")
+
+        # Inactivating all org topups before importing the ones from Live server
+        TopUp.objects.filter(is_active=True, org=self.org).update(is_active=False)
+
+        org_topups = migrator.get_org_topups()
+        for topup in org_topups:
+            logger.info(f">>> TopUp ID: {topup.id}")
+            TopUp.create(user=self.created_by, price=topup.price, credits=topup.credits, org=self.org, expires_on=topup.expires_on)
+
+        logger.info("[COMPLETED] Organization TopUps migration")
+
+        logger.info("")
         elapsed = timesince(start)
         logger.info(f"This process took {elapsed}")
 

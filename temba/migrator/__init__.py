@@ -89,7 +89,13 @@ class Migrator(object):
         return results
 
     def get_org(self) -> MigratorObject:
-        return self.make_query_one(query_string="SELECT * FROM public.orgs_org WHERE id = %s" % self.org_id)
+        return self.make_query_one(query_string=f"SELECT * FROM public.orgs_org WHERE id = {self.org_id}")
+
+    def get_org_topups(self) -> list:
+        topups_count = self.get_count("orgs_topup")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.orgs_topup WHERE org_id = {self.org_id} and is_active = true ORDER BY id ASC", count=topups_count
+        )
 
     def get_org_counts(self):
         pass
