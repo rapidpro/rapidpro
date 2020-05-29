@@ -83,7 +83,13 @@ class MigrationTask(TembaModel):
         org_topups = migrator.get_org_topups()
         for topup in org_topups:
             logger.info(f">>> TopUp ID: {topup.id}")
-            TopUp.create(user=self.created_by, price=topup.price, credits=topup.credits, org=self.org, expires_on=topup.expires_on)
+            TopUp.create(
+                user=self.created_by,
+                price=topup.price,
+                credits=topup.credits,
+                org=self.org,
+                expires_on=topup.expires_on,
+            )
 
         logger.info("[COMPLETED] Organization TopUps migration")
 

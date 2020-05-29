@@ -35,7 +35,6 @@ class MigrateCRUDL(SmartCRUDL):
     model = MigrationTask
 
     class Create(NonAtomicMixin, InferOrgMixin, MigrationPermsMixin, SmartFormView):
-
         class MigrationForm(forms.Form):
             org = forms.ChoiceField(
                 label="Organization", required=True, help_text="Select the organization from the live server"
@@ -100,6 +99,4 @@ class MigrateCRUDL(SmartCRUDL):
             return context
 
         def get_gear_links(self):
-            return [
-                dict(title=_("New migration"), href=reverse("migrator.migrationtask_create"))
-            ]
+            return [dict(title=_("New migration"), href=reverse("migrator.migrationtask_create"))]
