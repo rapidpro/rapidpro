@@ -1,32 +1,31 @@
 #!/bin/bash
 
-set -o errexit
-set -o pipefail
-set -o nounset
+#set -o errexit
+#set -o pipefail
+#set -o nounset
 
-#if [ ! -z "${BRANDING_FILES}" ]; then
-#    git clone $BRANDING_FILES $PROJECT_PATH/$BRANDING_SLUG/
-#    mv $PROJECT_PATH/$BRANDING_SLUG/$BRANDING_SLUG/ $PROJECT_PATH/static/brands/
-#fi
-
-python /app/manage.py collectstatic --noinput
-if [ "${COMPRESS_ENABLED}" = true ]; then
-    python /$PROJECT_PATH/manage.py compress --extension=.haml,.html --force
+if [ ! -z "${BRANDING_FILES}" ]; then
+    git clone $BRANDING_FILES $PROJECT_PATH/$BRANDING_SLUG/
+    mv $PROJECT_PATH/$BRANDING_SLUG/$BRANDING_SLUG/ $PROJECT_PATH/static/brands/
 fi
 
-#gunicorn --access-logfile - --workers 3 --bind unix:/run/gunicorn.sock temba.wsgi:application
+python manage.py collectstatic --noinput
+if [ "${COMPRESS_ENABLED}" = true ]; then
+    python manage.py compress --extension=.haml,.html --force
+fi
+
 
 echo "Starting NGINX service"
 service nginx start
 
-echo "Teste ========="
-tail -f /dev/null
-
+echo "Starting server..."
+#gunicorn --access-logfile - --workers 3 --bind unix:/run/gunicorn.sock temba.wsgi:application
 gunicorn temba.wsgi:application \
   --name=$PROJECT \
-  --workers=3 \
   --user=$PROJECT \
-  --bind=unix:/run/gunicorn.sock
-
-#gunicorn temba.wsgi --log-config $PROJECT_PATH/docker/gunicorn/gunicorn-logging.conf -c $PROJECT_PATH/docker/gunicorn/gunicorn.conf.py
-#python $PROJECT_PATH/manage.py runserver 0.0.0.0:8000
+  --chdir=$PROJECT_PATH \
+  --bind=unix:/run/gunicorn.sock \
+  --log-level=info \
+  --log-config=$PROJECT_PATH/docker/gunicorn/gunicorn-logging.conf \
+  --timeout=120 \
+  -c $PROJECT_PATH/docker/gunicorn/gunicorn.conf.py
