@@ -57,7 +57,6 @@ class MigrationTask(TembaModel):
         self.update_status(self.STATUS_COMPLETE)
 
     def update_org(self, org_data):
-        self.org.name = org_data.name
         self.org.plan = org_data.plan
         self.org.plan_start = org_data.plan_start
         self.org.stripe_customer = org_data.stripe_customer
@@ -70,7 +69,6 @@ class MigrationTask(TembaModel):
         self.org.parent_id = org_data.parent_id
         self.org.save(
             update_fields=[
-                "name",
                 "plan",
                 "plan_start",
                 "stripe_customer",
