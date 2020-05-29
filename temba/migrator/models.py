@@ -81,15 +81,8 @@ class MigrationTask(TembaModel):
         TopUp.objects.filter(is_active=True, org=self.org).update(is_active=False)
 
         org_topups = migrator.get_org_topups()
-        for topup in org_topups:
-            logger.info(f">>> TopUp ID: {topup.id}")
-            TopUp.create(
-                user=self.created_by,
-                price=topup.price,
-                credits=topup.credits,
-                org=self.org,
-                expires_on=topup.expires_on,
-            )
+        if org_topups:
+            self.add_topups(logger=logger, topups=org_topups)
 
         logger.info("[COMPLETED] Organization TopUps migration")
 
@@ -124,3 +117,14 @@ class MigrationTask(TembaModel):
                 "parent_id",
             ]
         )
+
+    def add_topups(self, logger, topups):
+        for topup in topups:
+            logger.info(f">>> TopUp: {topup.id} - {topup.credits}")
+            TopUp.create(
+                user=self.created_by,
+                price=topup.price,
+                credits=topup.credits,
+                org=self.org,
+                expires_on=topup.expires_on,
+            )
