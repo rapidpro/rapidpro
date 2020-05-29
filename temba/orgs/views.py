@@ -2619,7 +2619,7 @@ class OrgCRUDL(SmartCRUDL):
                     else:
                         spamreader = read_excel(import_file, encoding="ISO-8859-1", index_col=False, dtype=str)
 
-                spamreader = spamreader.loc[:, ~spamreader.columns.str.contains('^Unnamed')]
+                spamreader = spamreader.loc[:, ~spamreader.columns.str.contains("^Unnamed")]
                 headers = spamreader.columns.tolist()
                 # Removing empty columns name from CSV files imported
                 headers = [item for item in headers if "Unnamed" not in item]
