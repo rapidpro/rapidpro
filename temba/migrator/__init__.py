@@ -94,7 +94,7 @@ class Migrator(object):
     def get_org_topups(self) -> list:
         topups_count = self.get_count("orgs_topup")
         return self.get_results_paginated(
-            query_string=f"SELECT * FROM public.orgs_topup WHERE org_id = {self.org_id} and is_active = true ORDER BY id ASC",
+            query_string=f"SELECT * FROM public.orgs_topup WHERE org_id = {self.org_id} AND is_active = true ORDER BY id ASC",
             count=topups_count,
         )
 
