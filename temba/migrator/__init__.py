@@ -100,11 +100,22 @@ class Migrator(object):
         )
 
     def get_org_topups_credit(self, topup_id) -> list:
-        return self.make_query(
-            query_string=f"SELECT * FROM public.orgs_topupcredits WHERE topup_id = {topup_id} ORDER BY id ASC"
+        topupcredits_count = self.get_count("orgs_topupcredits")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.orgs_topupcredits WHERE topup_id = {topup_id} ORDER BY id ASC",
+            count=topupcredits_count,
         )
 
     def get_org_languages(self) -> list:
-        return self.make_query(
-            query_string=f"SELECT * FROM public.orgs_language WHERE org_id = {self.org_id} ORDER BY id ASC"
+        languages_count = self.get_count("orgs_language")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.orgs_language WHERE org_id = {self.org_id} ORDER BY id ASC",
+            count=languages_count,
+        )
+
+    def get_org_channels(self) -> list:
+        channels_count = self.get_count("channels_channel")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.channels_channel WHERE org_id = {self.org_id} AND is_active = true ORDER BY id ASC",
+            count=channels_count,
         )

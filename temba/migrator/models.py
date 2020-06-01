@@ -74,8 +74,8 @@ class MigrationTask(TembaModel):
         logger.info("[COMPLETED] Organization data migration")
         logger.info("")
 
-        logger.info("---------------- Organization TopUps ----------------")
-        logger.info("[STARTED] Organization TopUps migration")
+        logger.info("---------------- TopUps ----------------")
+        logger.info("[STARTED] TopUps migration")
 
         # Inactivating all org topups before importing the ones from Live server
         TopUp.objects.filter(is_active=True, org=self.org).update(is_active=False)
@@ -84,11 +84,11 @@ class MigrationTask(TembaModel):
         if org_topups:
             self.add_topups(logger=logger, topups=org_topups, migrator=migrator)
 
-        logger.info("[COMPLETED] Organization TopUps migration")
+        logger.info("[COMPLETED] TopUps migration")
         logger.info("")
 
-        logger.info("---------------- Organization Languages ----------------")
-        logger.info("[STARTED] Organization Languages migration")
+        logger.info("---------------- Languages ----------------")
+        logger.info("[STARTED] Languages migration")
 
         # Inactivating all org languages before importing the ones from Live server
         Language.objects.filter(is_active=True, org=self.org).delete()
@@ -104,8 +104,13 @@ class MigrationTask(TembaModel):
                 self.org.primary_language = org_primary_language
                 self.org.save(update_fields=["primary_language"])
 
-        logger.info("[COMPLETED] Organization Languages migration")
+        logger.info("[COMPLETED] Languages migration")
         logger.info("")
+
+        logger.info("---------------- Channels ----------------")
+        logger.info("[STARTED] Channels migration")
+
+        org_channels = migrator.get_org_channels()
 
         elapsed = timesince(start)
         logger.info(f"This process took {elapsed}")
