@@ -1,3 +1,8 @@
+v5.5.53
+----------
+ * Add indexes on HTTP log views
+ * Simplify HTTP log views for different types whilst given each type its own permission
+
 v5.5.52
 ----------
  * More ticket view tweaks
