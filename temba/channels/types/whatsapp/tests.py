@@ -373,7 +373,7 @@ class WhatsAppTypeTest(TembaTest):
             channel.release()
 
         # all our templates should be inactive now
-        self.assertEqual(5, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())
+        self.assertEqual(6, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())
 
     def test_claim_self_hosted_templates(self):
         Channel.objects.all().delete()
