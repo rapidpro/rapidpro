@@ -34,6 +34,9 @@ Initializing logs...
         xmlhttp.send();
       }, 2000);
     }
+    $(document).ready(function() {
+      $(".download-logs").attr("target", "_new");
+    });
 
 -block extra-style
   <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}rest_framework/css/prettify.css"/>

@@ -1,6 +1,7 @@
 import logging
 
 from django import forms
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.http import HttpResponseRedirect
 from django.urls import reverse
@@ -99,4 +100,8 @@ class MigrateCRUDL(SmartCRUDL):
             return context
 
         def get_gear_links(self):
-            return [dict(title=_("New migration"), href=reverse("migrator.migrationtask_create"))]
+            protocol = "http" if settings.DEBUG else "https"
+            return [
+                dict(title=_("New migration"), href=reverse("migrator.migrationtask_create")),
+                dict(title=_("Download logs"), href=f"{protocol}://{settings.HOSTNAME}/media/migration_logs/{self.object.uuid}.log", js_class="download-logs"),
+            ]
