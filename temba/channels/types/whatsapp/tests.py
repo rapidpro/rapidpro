@@ -198,6 +198,19 @@ class WhatsAppTypeTest(TembaTest):
                 "components": [
                   {
                     "type": "BODY",
+                    "text": "Hi {{1}}"
+                  }
+                ],
+                "language": "en_GB",
+                "status": "PENDING",
+                "category": "ISSUE_RESOLUTION",
+                "id": "4321"
+              },
+              {
+                "name": "hello",
+                "components": [
+                  {
+                    "type": "BODY",
                     "text": "Bonjour {{1}}"
                   }
                 ],
@@ -319,7 +332,7 @@ class WhatsAppTypeTest(TembaTest):
 
             # should have 4 templates
             self.assertEqual(4, Template.objects.filter(org=self.org).count())
-            self.assertEqual(5, TemplateTranslation.objects.filter(channel=channel).count())
+            self.assertEqual(6, TemplateTranslation.objects.filter(channel=channel).count())
 
             # hit our template page
             response = self.client.get(reverse("channels.types.whatsapp.templates", args=[channel.uuid]))

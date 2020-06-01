@@ -128,8 +128,8 @@ class TemplateTranslation(models.Model):
             )
 
         else:
-            if existing.language != language:  # pragma: no cover
-                raise Exception("updating template with different language than created with")
+            if existing.language != language or existing.country != country:  # pragma: no cover
+                raise Exception("updating template with different language or country than created with")
 
             if existing.status != status or existing.content != content:
                 existing.status = status
@@ -144,4 +144,6 @@ class TemplateTranslation(models.Model):
         return existing
 
     def __str__(self):
-        return f"{self.template.name} ({self.language} {self.country})  {self.status}: {self.content}"
+        if self.country:
+            return f"{self.template.name} ({self.language} - {self.country}) {self.status}: {self.content}"
+        return f"{self.template.name} ({self.language}) {self.status}: {self.content}"
