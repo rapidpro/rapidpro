@@ -1360,3 +1360,7 @@ class TemplateReadSerializer(ReadSerializer):
     class Meta:
         model = Template
         fields = ("uuid", "name", "translations", "created_on", "modified_on")
+
+
+class UrlAttachmentValidationSerializer(serializers.Serializer):
+    attachment_url = serializers.URLField(required=True)
