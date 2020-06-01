@@ -130,7 +130,9 @@ class MigrationTask(TembaModel):
                 org=self.org,
                 expires_on=topup.expires_on,
             )
-            MigrationAssociation.create(migration_task=self, old_id=topup.id, new_id=new_topup.id, model=MigrationAssociation.MODEL_ORG_TOPUP)
+            MigrationAssociation.create(
+                migration_task=self, old_id=topup.id, new_id=new_topup.id, model=MigrationAssociation.MODEL_ORG_TOPUP
+            )
 
     def remove_association(self):
         self.associations.all().delete()
@@ -189,15 +191,17 @@ class MigrationAssociation(models.Model):
     @classmethod
     def create(cls, migration_task, old_id, new_id, model):
         return MigrationAssociation.objects.create(
-            migration_task=migration_task,
-            old_id=old_id,
-            new_id=new_id,
-            model=model,
+            migration_task=migration_task, old_id=old_id, new_id=new_id, model=model
         )
 
     @classmethod
     def get_new_object(cls, model, old_id):
-        obj = MigrationAssociation.objects.filter(old_id=old_id, model=model).only("new_id", "migration_task__org").select_related("migration_task").first()
+        obj = (
+            MigrationAssociation.objects.filter(old_id=old_id, model=model)
+            .only("new_id", "migration_task__org")
+            .select_related("migration_task")
+            .first()
+        )
 
         if not obj:
             logger.error("No object found on get_new_object method")
