@@ -92,6 +92,8 @@ class MigrationTask(TembaModel):
 
         self.update_status(self.STATUS_COMPLETE)
 
+        self.remove_association()
+
     def update_org(self, org_data):
         self.org.plan = org_data.plan
         self.org.plan_start = org_data.plan_start
@@ -121,10 +123,121 @@ class MigrationTask(TembaModel):
     def add_topups(self, logger, topups):
         for topup in topups:
             logger.info(f">>> TopUp: {topup.id} - {topup.credits}")
-            TopUp.create(
+            new_topup = TopUp.create(
                 user=self.created_by,
                 price=topup.price,
                 credits=topup.credits,
                 org=self.org,
                 expires_on=topup.expires_on,
             )
+            MigrationAssociation.create(migration_task=self, old_id=topup.id, new_id=new_topup.id, model=MigrationAssociation.MODEL_ORG_TOPUP)
+
+    def remove_association(self):
+        self.associations.all().delete()
+
+
+class MigrationAssociation(models.Model):
+    MODEL_CAMPAIGN = "campaigns_campaign"
+    MODEL_CAMPAIGN_EVENT = "campaigns_campaignevent"
+    MODEL_CHANNEL = "channels_channel"
+    MODEL_CONTACT = "contacts_contact"
+    MODEL_CONTACT_URN = "contacts_contacturn"
+    MODEL_CONTACT_GROUP = "contacts_contactgroup"
+    MODEL_CONTACT_FIELD = "contacts_contactfield"
+    MODEL_MSG = "msgs_msg"
+    MODEL_MSG_LABEL = "msgs_label"
+    MODEL_FLOW = "flows_flow"
+    MODEL_FLOW_LABEL = "flows_flowlabel"
+    MODEL_FLOW_RUN = "flows_flowrun"
+    MODEL_FLOW_START = "flows_flowstart"
+    MODEL_LINK = "links_link"
+    MODEL_SCHEDULE = "schedules_schedule"
+    MODEL_ORG_TOPUP = "orgs_topups"
+    MODEL_TRIGGER = "triggers_trigger"
+
+    MODEL_CHOICES = (
+        (MODEL_CAMPAIGN, MODEL_CAMPAIGN),
+        (MODEL_CAMPAIGN_EVENT, MODEL_CAMPAIGN_EVENT),
+        (MODEL_CHANNEL, MODEL_CHANNEL),
+        (MODEL_CONTACT, MODEL_CONTACT),
+        (MODEL_CONTACT_URN, MODEL_CONTACT_URN),
+        (MODEL_CONTACT_GROUP, MODEL_CONTACT_GROUP),
+        (MODEL_CONTACT_FIELD, MODEL_CONTACT_FIELD),
+        (MODEL_MSG, MODEL_MSG),
+        (MODEL_MSG_LABEL, MODEL_MSG_LABEL),
+        (MODEL_FLOW, MODEL_FLOW),
+        (MODEL_FLOW_LABEL, MODEL_FLOW_LABEL),
+        (MODEL_FLOW_RUN, MODEL_FLOW_RUN),
+        (MODEL_FLOW_START, MODEL_FLOW_START),
+        (MODEL_LINK, MODEL_LINK),
+        (MODEL_SCHEDULE, MODEL_SCHEDULE),
+        (MODEL_ORG_TOPUP, MODEL_ORG_TOPUP),
+        (MODEL_TRIGGER, MODEL_TRIGGER),
+    )
+
+    migration_task = models.ForeignKey(MigrationTask, on_delete=models.CASCADE, related_name="associations")
+
+    old_id = models.PositiveIntegerField(verbose_name=_("The ID provided from live server"))
+
+    new_id = models.PositiveIntegerField(verbose_name=_("The new ID generated on app server"))
+
+    model = models.CharField(verbose_name=_("Model related to the ID"), max_length=255, choices=MODEL_CHOICES)
+
+    def __str__(self):
+        return self.model
+
+    @classmethod
+    def create(cls, migration_task, old_id, new_id, model):
+        return MigrationAssociation.objects.create(
+            migration_task=migration_task,
+            old_id=old_id,
+            new_id=new_id,
+            model=model,
+        )
+
+    @classmethod
+    def get_new_object(cls, model, old_id):
+        obj = MigrationAssociation.objects.filter(old_id=old_id, model=model).only("new_id", "migration_task__org").select_related("migration_task").first()
+
+        if not obj:
+            logger.error("No object found on get_new_object method")
+            return None
+
+        _model = obj.get_related_model()
+        if not _model:
+            logger.error("No model class found on get_new_object method")
+            return None
+
+        return _model.objects.filter(id=obj.new_id, org=obj.migration_task.org).first()
+
+    def get_related_model(self):
+        from temba.campaigns.models import Campaign, CampaignEvent
+        from temba.channels.models import Channel
+        from temba.contacts.models import Contact, ContactURN, ContactField, ContactGroup
+        from temba.msgs.models import Msg, Label
+        from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
+        from temba.links.models import Link
+        from temba.schedules.models import Schedule
+        from temba.orgs.models import TopUp
+        from temba.triggers.models import Trigger
+
+        model_class = {
+            MigrationAssociation.MODEL_CAMPAIGN: Campaign,
+            MigrationAssociation.MODEL_CAMPAIGN_EVENT: CampaignEvent,
+            MigrationAssociation.MODEL_CHANNEL: Channel,
+            MigrationAssociation.MODEL_CONTACT: Contact,
+            MigrationAssociation.MODEL_CONTACT_URN: ContactURN,
+            MigrationAssociation.MODEL_CONTACT_GROUP: ContactGroup,
+            MigrationAssociation.MODEL_CONTACT_FIELD: ContactField,
+            MigrationAssociation.MODEL_MSG: Msg,
+            MigrationAssociation.MODEL_MSG_LABEL: Label,
+            MigrationAssociation.MODEL_FLOW: Flow,
+            MigrationAssociation.MODEL_FLOW_LABEL: FlowLabel,
+            MigrationAssociation.MODEL_FLOW_RUN: FlowRun,
+            MigrationAssociation.MODEL_FLOW_START: FlowStart,
+            MigrationAssociation.MODEL_LINK: Link,
+            MigrationAssociation.MODEL_SCHEDULE: Schedule,
+            MigrationAssociation.MODEL_ORG_TOPUP: TopUp,
+            MigrationAssociation.MODEL_TRIGGER: Trigger,
+        }
+        return model_class.get(self.model, None)
