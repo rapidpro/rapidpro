@@ -196,6 +196,12 @@
       $("#file-field").val(file);
     }
 
+    var isFormSubmited = false;
+    $('#import-form').submit(function(e) {
+      if (isFormSubmited) e.preventDefault();
+      isFormSubmited = true;
+    })
+
     $(document).ready(function() {
       $('#update').on('change', function() {
         if ($(this).attr('checked')) {

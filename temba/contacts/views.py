@@ -62,7 +62,6 @@ from .models import (
 )
 from .omnibox import omnibox_query, omnibox_results_to_dict
 from .tasks import export_contacts_task, release_group_task
-from distutils.util import strtobool
 
 logger = logging.getLogger(__name__)
 
