@@ -98,5 +98,5 @@ class Migrator(object):
             count=topups_count,
         )
 
-    def get_org_counts(self):
-        pass
+    def get_org_topups_credit(self, topup_id) -> list:
+        return self.make_query(query_string=f"SELECT * FROM public.orgs_topupcredits WHERE topup_id = {topup_id}")

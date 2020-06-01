@@ -8,7 +8,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.utils.timesince import timesince
 
 from temba.migrator import Migrator
-from temba.orgs.models import TopUp
+from temba.orgs.models import TopUp, TopUpCredits
 from temba.utils import json
 from temba.utils.models import TembaModel
 
@@ -72,8 +72,8 @@ class MigrationTask(TembaModel):
 
         self.update_org(org_data)
         logger.info("[COMPLETED] Organization data migration")
-
         logger.info("")
+
         logger.info("---------------- Organization TopUps ----------------")
         logger.info("[STARTED] Organization TopUps migration")
 
@@ -82,11 +82,11 @@ class MigrationTask(TembaModel):
 
         org_topups = migrator.get_org_topups()
         if org_topups:
-            self.add_topups(logger=logger, topups=org_topups)
+            self.add_topups(logger=logger, topups=org_topups, migrator=migrator)
 
         logger.info("[COMPLETED] Organization TopUps migration")
-
         logger.info("")
+
         elapsed = timesince(start)
         logger.info(f"This process took {elapsed}")
 
@@ -120,7 +120,7 @@ class MigrationTask(TembaModel):
             ]
         )
 
-    def add_topups(self, logger, topups):
+    def add_topups(self, logger, topups, migrator):
         for topup in topups:
             logger.info(f">>> TopUp: {topup.id} - {topup.credits}")
             new_topup = TopUp.create(
@@ -130,9 +130,16 @@ class MigrationTask(TembaModel):
                 org=self.org,
                 expires_on=topup.expires_on,
             )
+
             MigrationAssociation.create(
                 migration_task=self, old_id=topup.id, new_id=new_topup.id, model=MigrationAssociation.MODEL_ORG_TOPUP
             )
+
+            org_topup_credits = migrator.get_org_topups_credit(topup_id=topup.id)
+            for topup_credit in org_topup_credits:
+                TopUpCredits.objects.create(
+                    topup=new_topup, used=topup_credit.used, is_squashed=topup_credit.is_squashed
+                )
 
     def remove_association(self):
         self.associations.all().delete()
