@@ -23,6 +23,7 @@ class MigratorObject:
         self.is_anon = None
         self.surveyor_password = None
         self.parent_id = None
+        self.primary_language_id = None
 
         self.__dict__.update(entries)
 
@@ -99,4 +100,11 @@ class Migrator(object):
         )
 
     def get_org_topups_credit(self, topup_id) -> list:
-        return self.make_query(query_string=f"SELECT * FROM public.orgs_topupcredits WHERE topup_id = {topup_id}")
+        return self.make_query(
+            query_string=f"SELECT * FROM public.orgs_topupcredits WHERE topup_id = {topup_id} ORDER BY id ASC"
+        )
+
+    def get_org_languages(self) -> list:
+        return self.make_query(
+            query_string=f"SELECT * FROM public.orgs_language WHERE org_id = {self.org_id} ORDER BY id ASC"
+        )

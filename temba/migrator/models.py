@@ -8,7 +8,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.utils.timesince import timesince
 
 from temba.migrator import Migrator
-from temba.orgs.models import TopUp, TopUpCredits
+from temba.orgs.models import TopUp, TopUpCredits, Language
 from temba.utils import json
 from temba.utils.models import TembaModel
 
@@ -87,6 +87,26 @@ class MigrationTask(TembaModel):
         logger.info("[COMPLETED] Organization TopUps migration")
         logger.info("")
 
+        logger.info("---------------- Organization Languages ----------------")
+        logger.info("[STARTED] Organization Languages migration")
+
+        # Inactivating all org languages before importing the ones from Live server
+        Language.objects.filter(is_active=True, org=self.org).delete()
+
+        org_languages = migrator.get_org_languages()
+        if org_languages:
+            self.add_languages(logger=logger, languages=org_languages)
+
+            if org_data.primary_language_id:
+                org_primary_language = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_ORG_LANGUAGE, old_id=org_data.primary_language_id
+                )
+                self.org.primary_language = org_primary_language
+                self.org.save(update_fields=["primary_language"])
+
+        logger.info("[COMPLETED] Organization Languages migration")
+        logger.info("")
+
         elapsed = timesince(start)
         logger.info(f"This process took {elapsed}")
 
@@ -141,6 +161,21 @@ class MigrationTask(TembaModel):
                     topup=new_topup, used=topup_credit.used, is_squashed=topup_credit.is_squashed
                 )
 
+    def add_languages(self, logger, languages):
+        for language in languages:
+            logger.info(f">>> Language: {language.id} - {language.name}")
+
+            new_language = Language.create(
+                org=self.org, user=self.created_by, name=language.name, iso_code=language.iso_code
+            )
+
+            MigrationAssociation.create(
+                migration_task=self,
+                old_id=language.id,
+                new_id=new_language.id,
+                model=MigrationAssociation.MODEL_ORG_LANGUAGE,
+            )
+
     def remove_association(self):
         self.associations.all().delete()
 
@@ -162,6 +197,7 @@ class MigrationAssociation(models.Model):
     MODEL_LINK = "links_link"
     MODEL_SCHEDULE = "schedules_schedule"
     MODEL_ORG_TOPUP = "orgs_topups"
+    MODEL_ORG_LANGUAGE = "orgs_language"
     MODEL_TRIGGER = "triggers_trigger"
 
     MODEL_CHOICES = (
@@ -181,6 +217,7 @@ class MigrationAssociation(models.Model):
         (MODEL_LINK, MODEL_LINK),
         (MODEL_SCHEDULE, MODEL_SCHEDULE),
         (MODEL_ORG_TOPUP, MODEL_ORG_TOPUP),
+        (MODEL_ORG_LANGUAGE, MODEL_ORG_LANGUAGE),
         (MODEL_TRIGGER, MODEL_TRIGGER),
     )
 
@@ -229,7 +266,6 @@ class MigrationAssociation(models.Model):
         from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
         from temba.links.models import Link
         from temba.schedules.models import Schedule
-        from temba.orgs.models import TopUp
         from temba.triggers.models import Trigger
 
         model_class = {
@@ -249,6 +285,7 @@ class MigrationAssociation(models.Model):
             MigrationAssociation.MODEL_LINK: Link,
             MigrationAssociation.MODEL_SCHEDULE: Schedule,
             MigrationAssociation.MODEL_ORG_TOPUP: TopUp,
+            MigrationAssociation.MODEL_ORG_LANGUAGE: Language,
             MigrationAssociation.MODEL_TRIGGER: Trigger,
         }
         return model_class.get(self.model, None)
