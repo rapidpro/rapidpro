@@ -9,9 +9,9 @@ from django.utils.timesince import timesince
 
 from temba.migrator import Migrator
 from temba.orgs.models import TopUp, TopUpCredits, Language
-from temba.channels.models import Channel, ChannelCount
+from temba.channels.models import Channel, ChannelCount, SyncEvent
 from temba.utils import json
-from temba.utils.models import TembaModel
+from temba.utils.models import TembaModel, generate_uuid
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +117,12 @@ class MigrationTask(TembaModel):
         logger.info("[STARTED] Channels migration")
 
         # Inactivating all org channels before importing the ones from Live server
-        Channel.objects.filter(is_active=True, org=self.org).delete()
+        existing_channels = Channel.objects.filter(org=self.org)
+        for channel in existing_channels:
+            channel.uuid = generate_uuid()
+            channel.secret = None
+            channel.save(update_fields=["uuid", "secret"])
+            channel.release()
 
         org_channels = migrator.get_org_channels()
         if org_channels:
@@ -253,6 +258,25 @@ class MigrationTask(TembaModel):
                     count=channel_count.count,
                     is_squashed=channel_count.is_squashed,
                 )
+
+            # If the channel is an Android channel it will migrate the sync events
+            if channel_type.code == "A":
+                channel_syncevents = migrator.get_channel_syncevents(channel_id=channel.id)
+                for channel_syncevent in channel_syncevents:
+                    SyncEvent.objects.create(
+                        created_by=self.created_by,
+                        modified_by=self.created_by,
+                        channel=new_channel,
+                        power_source=channel_syncevent.power_source,
+                        power_status=channel_syncevent.power_status,
+                        power_level=channel_syncevent.power_level,
+                        network_type=channel_syncevent.network_type,
+                        lifetime=channel_syncevent.lifetime,
+                        pending_message_count=channel_syncevent.pending_message_count,
+                        retry_message_count=channel_syncevent.retry_message_count,
+                        incoming_command_count=channel_syncevent.incoming_command_count,
+                        outgoing_command_count=channel_syncevent.outgoing_command_count,
+                    )
 
     def remove_association(self):
         self.associations.all().delete()

@@ -126,3 +126,10 @@ class Migrator(object):
             query_string=f"SELECT * FROM public.channels_channelcount WHERE channel_id = {channel_id} ORDER BY id ASC",
             count=channels_count,
         )
+
+    def get_channel_syncevents(self, channel_id) -> list:
+        syncevents_count = self.get_count("channels_syncevent")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.channels_syncevent WHERE channel_id = {channel_id} ORDER BY id ASC",
+            count=syncevents_count,
+        )
