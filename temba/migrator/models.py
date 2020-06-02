@@ -9,6 +9,7 @@ from django.utils.timesince import timesince
 
 from temba.migrator import Migrator
 from temba.orgs.models import TopUp, TopUpCredits, Language
+from temba.contacts.models import ContactField
 from temba.channels.models import Channel, ChannelCount, SyncEvent
 from temba.utils import json
 from temba.utils.models import TembaModel, generate_uuid
@@ -129,6 +130,16 @@ class MigrationTask(TembaModel):
             self.add_channels(logger=logger, channels=org_channels, migrator=migrator)
 
         logger.info("[COMPLETED] Channels migration")
+        logger.info("")
+
+        logger.info("---------------- Contact Fields ----------------")
+        logger.info("[STARTED] Contact Fields migration")
+
+        org_contact_fields = migrator.get_org_contact_fields()
+        if org_contact_fields:
+            self.add_contact_fields(logger=logger, fields=org_contact_fields)
+
+        logger.info("[COMPLETED] Contact Fields migration")
         logger.info("")
 
         elapsed = timesince(start)
@@ -277,6 +288,29 @@ class MigrationTask(TembaModel):
                         incoming_command_count=channel_syncevent.incoming_command_count,
                         outgoing_command_count=channel_syncevent.outgoing_command_count,
                     )
+
+    def add_contact_fields(self, logger, fields):
+        for field in fields:
+            logger.info(f">>> Contact Field: {field.id} - {field.label}")
+
+            new_contact_field = ContactField.get_or_create(
+                user=self.created_by,
+                org=self.org,
+                key=field.key,
+                label=field.label,
+                show_in_table=field.show_in_table,
+                value_type=field.value_type,
+            )
+            if field.uuid != new_contact_field.uuid:
+                new_contact_field.uuid = field.uuid
+                new_contact_field.save(update_fields=["uuid"])
+
+            MigrationAssociation.create(
+                migration_task=self,
+                old_id=field.id,
+                new_id=new_contact_field.id,
+                model=MigrationAssociation.MODEL_CONTACT_FIELD,
+            )
 
     def remove_association(self):
         self.associations.all().delete()
