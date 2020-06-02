@@ -1,50 +1,79 @@
-from smartmin.views import SmartCRUDL, SmartListView, SmartReadView
+from smartmin.views import SmartCRUDL, SmartListView, SmartReadView, smart_url
 
 from django.shortcuts import get_object_or_404
+from django.utils.functional import cached_property
+from django.utils.translation import ugettext_lazy as _
 
 from temba.classifiers.models import Classifier
-from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import OrgObjPermsMixin
 from temba.tickets.models import Ticketer
 
 from .models import HTTPLog
 
 
+class LogListView(OrgObjPermsMixin, SmartListView):
+    paginate_by = 50
+    default_order = ("-created_on",)
+    template_name = "request_logs/httplog_list.html"
+    source_field = None
+    source_url = None
+
+    @classmethod
+    def derive_url_pattern(cls, path, action):
+        return r"^%s/%s/(?P<uuid>[^/]+)/$" % (path, action)
+
+    def get_object_org(self):
+        return self.source.org
+
+    @cached_property
+    def source(self):
+        return get_object_or_404(self.get_source(self.kwargs["uuid"]))
+
+    def get_source(self, uuid):  # pragma: no cover
+        pass
+
+    def get_queryset(self, **kwargs):
+        return super().get_queryset(**kwargs).filter(**{self.source_field: self.source})
+
+    def derive_select_related(self):
+        return (self.source_field,)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["source"] = self.source
+        context["source_url"] = smart_url(self.source_url, self.source)
+        return context
+
+
 class HTTPLogCRUDL(SmartCRUDL):
     model = HTTPLog
-    actions = ("list", "read")
+    actions = ("classifier", "ticketer", "read")
 
-    class List(OrgPermsMixin, SmartListView):
-        paginate_by = 50
+    class Classifier(LogListView):
+        source_field = "classifier"
+        source_url = "uuid@classifiers.classifier_read"
+        title = _("Recent Classifier Events")
 
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            return r"^%s/(?P<log_type>classifier|ticketer)/(?P<uuid>[^/]+)/$" % path
+        def get_source(self, uuid):
+            return Classifier.objects.filter(uuid=uuid, is_active=True)
 
-        def derive_classifier(self):
-            return get_object_or_404(Classifier, uuid=self.kwargs["uuid"], org=self.derive_org(), is_active=True)
+    class Ticketer(LogListView):
+        source_field = "ticketer"
+        source_url = "uuid@tickets.ticket_filter"
+        title = _("Recent Ticketing Service Events")
 
-        def derive_ticketer(self):
-            return get_object_or_404(Ticketer, uuid=self.kwargs["uuid"], org=self.derive_org(), is_active=True)
-
-        def derive_queryset(self, **kwargs):
-            # will need to be customized for other types once we support them
-            log_type = self.kwargs["log_type"]
-            if log_type == "classifier":
-                kwargs["classifier"] = self.derive_classifier()
-            elif log_type == "ticketer":
-                kwargs["ticketer"] = self.derive_ticketer()
-
-            return HTTPLog.objects.filter(**kwargs).order_by("-created_on").prefetch_related(*kwargs.keys())
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            log_type = self.kwargs["log_type"]
-            if log_type == "classifier":
-                context["classifier"] = self.derive_classifier()
-            elif log_type == "ticketer":
-                context["ticketer"] = self.derive_ticketer()
-
-            return context
+        def get_source(self, uuid):
+            return Ticketer.objects.filter(uuid=uuid, is_active=True)
 
     class Read(OrgObjPermsMixin, SmartReadView):
         fields = ("description", "created_on")
+
+        @property
+        def permission(self):
+            obj = self.get_object()
+            if obj.classifier_id:
+                return "request_logs.httplog_classifier"
+            elif obj.ticketer_id:
+                return "request_logs.httplog_ticketer"
+
+            return "request_logs.httplog_read"

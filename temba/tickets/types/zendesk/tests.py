@@ -43,12 +43,12 @@ class ZendeskTypeTest(TembaTest):
     def test_is_available(self):
         with override_settings(ZENDESK_CLIENT_ID="", ZENDESK_CLIENT_SECRET=""):
             self.assertFalse(ZendeskType().is_available())
-        with override_settings(ZENDESK_CLIENT_ID="1234567", ZENDESK_CLIENT_SECRET=""):
+        with override_settings(ZENDESK_CLIENT_ID="temba", ZENDESK_CLIENT_SECRET=""):
             self.assertFalse(ZendeskType().is_available())
-        with override_settings(ZENDESK_CLIENT_ID="1234567", ZENDESK_CLIENT_SECRET="sesame"):
+        with override_settings(ZENDESK_CLIENT_ID="temba", ZENDESK_CLIENT_SECRET="sesame"):
             self.assertTrue(ZendeskType().is_available())
 
-    @override_settings(ZENDESK_CLIENT_ID="1234567", ZENDESK_CLIENT_SECRET="sesame")
+    @override_settings(ZENDESK_CLIENT_ID="temba", ZENDESK_CLIENT_SECRET="sesame")
     @patch("temba.tickets.types.zendesk.views.random_string")
     def test_connect(self, mock_random_string):
         mock_random_string.return_value = "RAND346"
@@ -108,7 +108,6 @@ class ZendeskTypeTest(TembaTest):
             self.assertEqual({"oauth_token": "236272", "secret": "RAND346", "subdomain": "temba"}, ticketer.config)
             self.assertRedirect(response, reverse("tickets.types.zendesk.configure", args=[ticketer.uuid]))
 
-    @override_settings(ZENDESK_APP_ID="temba")
     def test_configure(self):
         ticketer = Ticketer.create(
             self.org,
@@ -129,12 +128,13 @@ class ZendeskTypeTest(TembaTest):
         self.assertContains(response, "SECRET346")
         self.assertContains(response, "https://www.zendesk.com/apps/directory")
 
+    @override_settings(ZENDESK_CLIENT_ID="temba")
     def test_manifest_view(self):
         response = self.client.get(reverse("tickets.types.zendesk.manifest"))
 
         self.assertEqual(
             {
-                "name": "Temba",
+                "name": "RapidPro",
                 "id": "app.rapidpro.io",
                 "author": "Nyaruka",
                 "version": "v0.0.1",
@@ -142,8 +142,8 @@ class ZendeskTypeTest(TembaTest):
                 "push_client_id": "temba",
                 "urls": {
                     "admin_ui": f"https://app.rapidpro.io/tickets/types/zendesk/admin_ui",
-                    "channelback_url": f"https://app.rapidpro.io/mr/ticket/zendesk/channelback",
-                    "event_callback_url": f"https://app.rapidpro.io/mr/ticket/zendesk/event_callback",
+                    "channelback_url": f"https://app.rapidpro.io/mr/tickets/types/zendesk/channelback",
+                    "event_callback_url": f"https://app.rapidpro.io/mr/tickets/types/zendesk/event_callback",
                 },
             },
             response.json(),

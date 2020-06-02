@@ -1,3 +1,20 @@
+v5.5.53
+----------
+ * Add indexes on HTTP log views
+ * Simplify HTTP log views for different types whilst given each type its own permission
+
+v5.5.52
+----------
+ * More ticket view tweaks
+
+v5.5.51
+----------
+ * Tweak zendesk manifest view
+
+v5.5.50
+----------
+ * Tweak zendesk mailroom URLs
+
 v5.5.49
 ----------
  * Store brand name in mailgun ticketer config to use in emails from mailroom

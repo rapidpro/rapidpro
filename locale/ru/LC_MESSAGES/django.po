@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-19 16:08+0000\n"
+"POT-Creation-Date: 2020-05-26 19:42+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4179,6 +4179,12 @@ msgid "WhatsApp Tokens Synced"
 msgstr ""
 
 msgid "WhatsApp Contacts Refreshed"
+msgstr ""
+
+msgid "Recent Classifier Events"
+msgstr ""
+
+msgid "Recent Ticketing Service Events"
 msgstr ""
 
 msgid "Never"
@@ -8826,19 +8832,10 @@ msgstr ""
 msgid "More Videos"
 msgstr ""
 
-msgid "Classifier Events"
+msgid "From"
 msgstr ""
 
-msgid "Recent Classifier Events"
-msgstr ""
-
-msgid "Recent Ticketing Service Events"
-msgstr ""
-
-msgid "Classifier: "
-msgstr ""
-
-msgid "Ticketing Service: "
+msgid "Request time:"
 msgstr ""
 
 msgid "Classifier Event"
@@ -8928,6 +8925,9 @@ msgstr ""
 msgid "Ticketing Service"
 msgstr ""
 
+msgid "This will close all tickets that were created with this service. Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgstr ""
+
 msgid "Warning"
 msgstr ""
 
@@ -8943,7 +8943,7 @@ msgstr ""
 msgid "Reopen"
 msgstr ""
 
-msgid "No open tickets at this time."
+msgid "No tickets."
 msgstr ""
 
 msgid "Through"
