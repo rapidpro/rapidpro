@@ -2591,31 +2591,22 @@ class OrgCRUDL(SmartCRUDL):
                         if full_name == collection:
                             collection_real_name = item
                             break
-
-                # Making sure that Pandas will read the data with the correct type, e.g. string, float
-                col_names = read_csv(import_file, nrows=0).columns
-                import_file.seek(0)
-                types_dict = {}
-                for col_name in col_names.tolist():
-                    if str(col_name).startswith("numeric_"):
-                        types_dict[str(col_name)] = float
-                    else:
-                        types_dict[str(col_name)] = str
-
+                
+                # Reading file data with pandas
+                read_file = read_csv if file_type == "csv" else read_excel
                 try:
-                    if file_type == "csv":
-                        spamreader = read_csv(import_file, delimiter=",", index_col=False, dtype=types_dict)
-                    else:
-                        spamreader = read_excel(import_file, index_col=False, dtype=str)
+                    spamreader = read_file(import_file, index_col=False)
                 except UnicodeDecodeError:
                     import_file.seek(0)
-                    if file_type == "csv":
-                        spamreader = read_csv(
-                            import_file, delimiter=",", encoding="ISO-8859-1", index_col=False, dtype=types_dict
-                        )
+                    spamreader = read_file(import_file, encoding="ISO-8859-1", index_col=False)
+                
+                # Making sure that data in each column has correct type, e.g. string, float
+                for column in spamreader.columns:
+                    if str(column).startswith("numeric_"):
+                        spamreader[column] = spamreader[column].str.replace(',', '').astype(float)
                     else:
-                        spamreader = read_excel(import_file, encoding="ISO-8859-1", index_col=False, dtype=str)
-
+                        spamreader[column] = spamreader[column].astype(str)                        
+                
                 headers = spamreader.columns.tolist()
                 # Removing empty columns name from CSV files imported
                 headers = [item for item in headers if "Unnamed" not in item]
