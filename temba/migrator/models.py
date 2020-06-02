@@ -9,6 +9,7 @@ from django.utils.timesince import timesince
 
 from temba.migrator import Migrator
 from temba.orgs.models import TopUp, TopUpCredits, Language
+from temba.channels.models import Channel
 from temba.utils import json
 from temba.utils.models import TembaModel
 
@@ -49,6 +50,8 @@ class MigrationTask(TembaModel):
         self.save(update_fields=("status", "modified_on"))
 
     def perform(self):
+        self.update_status(self.STATUS_PROCESSING)
+
         migration_folder = f"{settings.MEDIA_ROOT}/migration_logs"
         if not os.path.exists(migration_folder):
             os.makedirs(migration_folder)
@@ -91,6 +94,9 @@ class MigrationTask(TembaModel):
         logger.info("[STARTED] Languages migration")
 
         # Inactivating all org languages before importing the ones from Live server
+        self.org.primary_language = None
+        self.org.save(update_fields=["primary_language"])
+
         Language.objects.filter(is_active=True, org=self.org).delete()
 
         org_languages = migrator.get_org_languages()
@@ -110,7 +116,15 @@ class MigrationTask(TembaModel):
         logger.info("---------------- Channels ----------------")
         logger.info("[STARTED] Channels migration")
 
+        # Inactivating all org channels before importing the ones from Live server
+        Channel.objects.filter(is_active=True, org=self.org).delete()
+
         org_channels = migrator.get_org_channels()
+        if org_channels:
+            self.add_channels(logger=logger, channels=org_channels)
+
+        logger.info("[COMPLETED] Channels migration")
+        logger.info("")
 
         elapsed = timesince(start)
         logger.info(f"This process took {elapsed}")
@@ -179,6 +193,55 @@ class MigrationTask(TembaModel):
                 old_id=language.id,
                 new_id=new_language.id,
                 model=MigrationAssociation.MODEL_ORG_LANGUAGE,
+            )
+
+    def add_channels(self, logger, channels):
+        for channel in channels:
+            logger.info(f">>> Channel: {channel.id} - {channel.name}")
+
+            channel_type = channel.channel_type
+
+            channel_config = json.loads(channel.config) if channel.config else dict()
+
+            if channel_type == "WS":
+                # Changing type for WebSocket channel
+                channel_type = "WCH"
+            elif channel_type == "FB" and channel.secret:
+                # Adding channel secret when it is a Facebook channel to channel config field
+                channel_config[Channel.CONFIG_SECRET] = channel.secret
+
+            if isinstance(channel_type, str):
+                channel_type = Channel.get_type_from_code(channel_type)
+
+            schemes = channel_type.schemes
+
+            new_channel = Channel.objects.create(
+                org=self.org,
+                created_by=self.created_by,
+                modified_by=self.created_by,
+                country=channel.country,
+                channel_type=channel_type.code,
+                name=channel.name or channel.address,
+                address=channel.address,
+                config=channel_config,
+                role=channel.role,
+                schemes=schemes,
+                uuid=channel.uuid,
+                claim_code=channel.claim_code,
+                secret=channel.secret,
+                last_seen=channel.last_seen,
+                device=channel.device,
+                os=channel.os,
+                alert_email=channel.alert_email,
+                bod=channel.bod,
+                tps=settings.COURIER_DEFAULT_TPS,
+            )
+
+            MigrationAssociation.create(
+                migration_task=self,
+                old_id=channel.id,
+                new_id=new_channel.id,
+                model=MigrationAssociation.MODEL_CHANNEL,
             )
 
     def remove_association(self):
@@ -265,7 +328,6 @@ class MigrationAssociation(models.Model):
 
     def get_related_model(self):
         from temba.campaigns.models import Campaign, CampaignEvent
-        from temba.channels.models import Channel
         from temba.contacts.models import Contact, ContactURN, ContactField, ContactGroup
         from temba.msgs.models import Msg, Label
         from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
