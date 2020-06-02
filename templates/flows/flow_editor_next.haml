@@ -134,6 +134,16 @@
       display: block;
     }
 
+    .select-invalid {
+      border: 1px solid tomato;
+      border-radius: 5px;
+      box-shadow: 0 0 0 3px rgba(255,196,186,.5);
+    }
+
+    [class*="SendEmailForm_url"] input {
+      margin-top: 0 !important;
+    }
+
     /* Styles for PDF File on Export PDF */
     @media print{
       [class*="Sticky_sticky"] {
@@ -159,6 +169,37 @@
       [class*="Node_node"] {
         background: white !important;
         -webkit-print-color-adjust: exact !important;
+      }
+      /* Color styling for different flow actions */
+      [class*="shared_wait_for_response"] {
+        background: #4d7dad !important;
+      }
+      [class*="shared_send_broadcast"] {
+        background: #8e5ea7 !important;
+      }
+      [class*="shared_add_input_labels"], [class*="shared_add_contact_urn"], [class*="shared_set_contact_name"] {
+        background: #01c1af !important;
+      }
+      [class*="shared_remove_contact_groups"] {
+        background: #666 !important;
+      }
+      [class*="shared_add_contact_groups"] {
+        background: #309c42 !important;
+      }
+      [class*="shared_send_email"] {
+        background: #8e5ea7 !important;
+      }
+      [class*="shared_set_run_result"] {
+        background: #1a777c !important;
+      }
+      [class*="shared_call"] {
+        background: #e68628 !important;
+      }
+      [class*="shared_enter_flow"], [class*="shared_start_session"] {
+        background: #df419f !important;
+      }
+      [class*="shared_split"] {
+        background: #aaa !important;
       }
     }
 
@@ -237,6 +278,7 @@
         revisions: '/flow/revisions/{{object.uuid}}/',
         recents: '/flow/recent_messages/{{object.uuid}}/',
         attachments: '/flow/upload_media_action/{{object.uuid}}/',
+        attachments_validation: '{% url "api.v2.attachments_validation" %}',
         languages: base + 'language',
         environment: base + 'environment',
         activity: '/flow/activity/{{object.uuid}}/',

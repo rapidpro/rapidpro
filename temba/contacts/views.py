@@ -907,8 +907,8 @@ class ContactCRUDL(SmartCRUDL):
             results = json.loads(task.import_results) if task and task.import_results else dict()
             blocked_contacts = results.pop("blocked_contacts", [])
             group = ContactGroup.user_groups.filter(import_task=task).first()
-            unblock = self.request.GET.get("unblock")
-            unblock = True if unblock == "true" else False
+            unblock = self.request.GET.get("unblock", "").lower()
+            unblock = eval(unblock.capitalize()) if unblock in ("true", "false") else None
 
             if unblock and blocked_contacts:
                 # unblock contact
@@ -923,6 +923,12 @@ class ContactCRUDL(SmartCRUDL):
                 # update import_results because it doesn't has an blocked_contacts anymore
                 task.import_results = json.dumps(results)
                 task.save()
+
+            elif unblock is not None and not unblock:
+                # update import_results to remove blocked_contacts
+                task.import_results = json.dumps(results)
+                task.save()
+
             return super().get(*args, **kwargs)
 
         def pre_save(self, task):
@@ -1092,7 +1098,7 @@ class ContactCRUDL(SmartCRUDL):
                 )
 
             # upcoming scheduled events
-            context["upcoming_events"] = sorted(merged_upcoming_events, key=lambda k: k["scheduled"])
+            context["upcoming_events"] = sorted(merged_upcoming_events, key=lambda k: k["scheduled"], reverse=True)
 
             # divide contact's URNs into those we can send to, and those we can't
             from temba.channels.models import Channel

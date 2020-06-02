@@ -366,7 +366,7 @@ class GiftcardsForm(forms.ModelForm):
         new_collection = self.data.get("collection")
         is_removing = self.data.get("remove", "false") == "true"
 
-        if not is_removing and new_collection.isspace():
+        if not is_removing and (not new_collection or new_collection.isspace()):
             raise ValidationError(_("This field is required"))
 
         if not is_removing and not regex.match(r"^[A-Za-z0-9_\- ]+$", new_collection, regex.V0):
@@ -2276,7 +2276,7 @@ class OrgCRUDL(SmartCRUDL):
                 new_collection = self.data.get("collection")
                 is_removing = self.data.get("remove", "false") == "true"
 
-                if not is_removing and new_collection.isspace():
+                if not is_removing and (not new_collection or new_collection.isspace()):
                     raise ValidationError(_("This field is required"))
 
                 if not is_removing and not regex.match(r"^[A-Za-z0-9_\- ]+$", new_collection, regex.V0):
@@ -2591,7 +2591,7 @@ class OrgCRUDL(SmartCRUDL):
                         if full_name == collection:
                             collection_real_name = item
                             break
-                
+
                 # Reading file data with pandas
                 read_file = read_csv if file_type == "csv" else read_excel
                 try:
@@ -2607,11 +2607,13 @@ class OrgCRUDL(SmartCRUDL):
                     else:
                         spamreader[column] = spamreader[column].astype(str)                        
                 
-                headers = spamreader.columns.tolist()
                 # Removing empty columns name from CSV files imported
-                headers = [item for item in headers if "Unnamed" not in item]
-                spamreader = spamreader.get_values().tolist()
-                spamreader.insert(0, headers)
+                spamreader = spamreader.loc[:, ~spamreader.columns.str.contains("^Unnamed")]
+
+                # Converting dataframe into list of rows for the next processing
+                headers = spamreader.columns.tolist()
+                rows_list = spamreader.get_values().tolist()
+                spamreader = [headers] + rows_list
 
                 if spamreader:
                     import_data_to_parse.delay(

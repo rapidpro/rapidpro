@@ -26,3 +26,8 @@ def channellog_response(context, log, *args, **kwargs):
         return log.description
 
     return log.get_response_display(context["user"], ContactURN.ANON_MASK)
+
+
+@register.filter
+def adapt_for_widget(text):
+    return text.replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r")

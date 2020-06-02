@@ -68,6 +68,7 @@ class ChannelType(metaclass=ABCMeta):
     icon = "icon-channel-external"
     schemes = None
     show_config_page = True
+    show_edit_page = False
 
     available_timezones = None
     recommended_timezones = None
@@ -179,15 +180,18 @@ class ChannelType(metaclass=ABCMeta):
         """
         return self.attachment_support
 
-    def get_configuration_context_dict(self, channel):
-        return dict(channel=channel, ip_addresses=settings.IP_ADDRESSES)
+    def get_configuration_context_dict(self, channel, context=None):
+        context_dict = dict(channel=channel, ip_addresses=settings.IP_ADDRESSES)
+        if context:
+            context_dict.update(context)
+        return context_dict
 
-    def get_configuration_template(self, channel):
+    def get_configuration_template(self, channel, context=None):
         try:
             return (
                 Engine.get_default()
                 .get_template("channels/types/%s/config.html" % self.slug)
-                .render(context=Context(self.get_configuration_context_dict(channel)))
+                .render(context=Context(self.get_configuration_context_dict(channel=channel, context=context)))
             )
         except TemplateDoesNotExist:
             return ""
@@ -288,6 +292,7 @@ class Channel(TembaModel):
     CONFIG_MESSAGING_SERVICE_SID = "messaging_service_sid"
     CONFIG_MAX_CONCURRENT_EVENTS = "max_concurrent_events"
     CONFIG_ALLOW_INTERNATIONAL = "allow_international"
+    CONFIG_WCH_LOGO = "logo"
 
     CONFIG_NEXMO_API_KEY = "nexmo_api_key"
     CONFIG_NEXMO_API_SECRET = "nexmo_api_secret"
@@ -823,6 +828,9 @@ class Channel(TembaModel):
 
         elif FACEBOOK_SCHEME in self.schemes:
             return "%s (%s)" % (self.config.get(Channel.CONFIG_PAGE_NAME, self.name), self.address)
+
+        elif self.channel_type == "WCH":
+            return self.name
 
         return self.address
 

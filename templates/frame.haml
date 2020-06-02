@@ -334,11 +334,12 @@
         {% endif %}
       {% endif %}
 
-      function removalConfirmation(removal, buttonName) {
+      function removalConfirmation(removal, buttonName, autoDismiss) {
         modal = new ConfirmationModal($('.' + removal + ' > .title').html(), $('.' + removal + ' > .body').html());
         modal.addClass('alert');
         modal.setListeners({onPrimary: function(){
           $('#' + removal + '-form').click();
+          if(autoDismiss) modal.dismiss();
         }}, false);
         modal.setPrimaryButton(buttonName);
         modal.show();
