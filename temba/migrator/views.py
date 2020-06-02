@@ -103,5 +103,9 @@ class MigrateCRUDL(SmartCRUDL):
             protocol = "http" if settings.DEBUG else "https"
             return [
                 dict(title=_("New migration"), href=reverse("migrator.migrationtask_create")),
-                dict(title=_("Download logs"), href=f"{protocol}://{settings.HOSTNAME}/media/migration_logs/{self.object.uuid}.log", js_class="download-logs"),
+                dict(
+                    title=_("Download logs"),
+                    href=f"{protocol}://{settings.HOSTNAME}/media/migration_logs/{self.object.uuid}.log",
+                    js_class="download-logs",
+                ),
             ]
