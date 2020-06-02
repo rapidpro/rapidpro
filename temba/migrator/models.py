@@ -9,7 +9,7 @@ from django.utils.timesince import timesince
 
 from temba.migrator import Migrator
 from temba.orgs.models import TopUp, TopUpCredits, Language
-from temba.contacts.models import ContactField
+from temba.contacts.models import ContactField, Contact
 from temba.channels.models import Channel, ChannelCount, SyncEvent
 from temba.utils import json
 from temba.utils.models import TembaModel, generate_uuid
@@ -123,7 +123,7 @@ class MigrationTask(TembaModel):
             channel.uuid = generate_uuid()
             channel.secret = None
             channel.save(update_fields=["uuid", "secret"])
-            channel.release()
+            channel.release(deactivate=False)
 
         org_channels = migrator.get_org_channels()
         if org_channels:
@@ -140,6 +140,16 @@ class MigrationTask(TembaModel):
             self.add_contact_fields(logger=logger, fields=org_contact_fields)
 
         logger.info("[COMPLETED] Contact Fields migration")
+        logger.info("")
+
+        logger.info("---------------- Contacts ----------------")
+        logger.info("[STARTED] Contacts migration")
+
+        org_contacts = migrator.get_org_contacts()
+        if org_contacts:
+            self.add_contacts(logger=logger, contacts=org_contacts)
+
+        logger.info("[COMPLETED] Contacts migration")
         logger.info("")
 
         elapsed = timesince(start)
@@ -312,6 +322,31 @@ class MigrationTask(TembaModel):
                 model=MigrationAssociation.MODEL_CONTACT_FIELD,
             )
 
+    def add_contacts(self, logger, contacts):
+        for contact in contacts:
+            logger.info(f">>> Contact: {contact.uuid} - {contact.name}")
+
+            existing_contact = Contact.objects.filter(uuid=contact.uuid, org=self.org).first()
+            if not existing_contact:
+                existing_contact = Contact.objects.create(
+                    org=self.org,
+                    created_by=self.created_by,
+                    modified_by=self.created_by,
+                    name=contact.name,
+                    language=contact.language,
+                    is_blocked=contact.is_blocked,
+                    is_stopped=contact.is_stopped,
+                    is_active=contact.is_active,
+                    uuid=contact.uuid,
+                )
+
+            MigrationAssociation.create(
+                migration_task=self,
+                old_id=contact.id,
+                new_id=existing_contact.id,
+                model=MigrationAssociation.MODEL_CONTACT,
+            )
+
     def remove_association(self):
         self.associations.all().delete()
 
@@ -396,7 +431,7 @@ class MigrationAssociation(models.Model):
 
     def get_related_model(self):
         from temba.campaigns.models import Campaign, CampaignEvent
-        from temba.contacts.models import Contact, ContactURN, ContactField, ContactGroup
+        from temba.contacts.models import ContactURN, ContactGroup
         from temba.msgs.models import Msg, Label
         from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
         from temba.links.models import Link

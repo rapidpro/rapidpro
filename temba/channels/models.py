@@ -955,7 +955,7 @@ class Channel(TembaModel):
 
         org.normalize_contact_tels()
 
-    def release(self, trigger_sync=True):
+    def release(self, trigger_sync=True, deactivate=True):
         """
         Releases this channel making it inactive
         """
@@ -981,7 +981,7 @@ class Channel(TembaModel):
             sync_event.release()
 
         # only call out to external aggregator services if we are on prod servers
-        if settings.IS_PROD:
+        if settings.IS_PROD and deactivate:
             try:
                 # if channel is a new style type, deactivate it
                 channel_type.deactivate(self)

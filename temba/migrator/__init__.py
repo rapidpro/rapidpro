@@ -140,3 +140,10 @@ class Migrator(object):
             query_string=f"SELECT * FROM public.contacts_contactfield WHERE org_id = {self.org_id} AND is_active = true ORDER BY id ASC",
             count=count,
         )
+
+    def get_org_contacts(self) -> list:
+        count = self.get_count("contacts_contact")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.contacts_contact WHERE org_id = {self.org_id} ORDER BY id ASC",
+            count=count,
+        )
