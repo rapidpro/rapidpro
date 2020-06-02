@@ -9,7 +9,7 @@ from django.utils.timesince import timesince
 
 from temba.migrator import Migrator
 from temba.orgs.models import TopUp, TopUpCredits, Language
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelCount
 from temba.utils import json
 from temba.utils.models import TembaModel
 
@@ -121,7 +121,7 @@ class MigrationTask(TembaModel):
 
         org_channels = migrator.get_org_channels()
         if org_channels:
-            self.add_channels(logger=logger, channels=org_channels)
+            self.add_channels(logger=logger, channels=org_channels, migrator=migrator)
 
         logger.info("[COMPLETED] Channels migration")
         logger.info("")
@@ -195,7 +195,7 @@ class MigrationTask(TembaModel):
                 model=MigrationAssociation.MODEL_ORG_LANGUAGE,
             )
 
-    def add_channels(self, logger, channels):
+    def add_channels(self, logger, channels, migrator):
         for channel in channels:
             logger.info(f">>> Channel: {channel.id} - {channel.name}")
 
@@ -243,6 +243,16 @@ class MigrationTask(TembaModel):
                 new_id=new_channel.id,
                 model=MigrationAssociation.MODEL_CHANNEL,
             )
+
+            channel_counts = migrator.get_channels_count(channel_id=channel.id)
+            for channel_count in channel_counts:
+                ChannelCount.objects.create(
+                    channel=new_channel,
+                    count_type=channel_count.count_type,
+                    day=channel_count.day,
+                    count=channel_count.count,
+                    is_squashed=channel_count.is_squashed,
+                )
 
     def remove_association(self):
         self.associations.all().delete()
