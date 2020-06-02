@@ -3206,11 +3206,24 @@ class FlowRevision(SmartModel):
         # use mailroom to get export to current spec version
         migrated_flows = []
         for flow_def in exported_json[Org.EXPORT_FLOWS]:
-            migrated_flows.append(mailroom.get_client().flow_migrate(flow_def))
+            migrated_flow = mailroom.get_client().flow_migrate(flow_def)
+            if version <= Version(Flow.FINAL_LEGACY_VERSION):
+                migrated_flow = cls.migrate_timeout(migrated_flow)
+            migrated_flows.append(migrated_flow)
 
         exported_json[Org.EXPORT_FLOWS] = migrated_flows
 
         return exported_json
+
+    @classmethod
+    def migrate_timeout(cls, flow_definition):
+        # hotfix to be able import legacy flows with correct timeout
+        for item in flow_definition.get("nodes", []):
+            timeout = item.get("router", {}).get("wait", {}).get("timeout")
+            if timeout is not None and timeout.get("seconds"):
+                timeout["seconds"] //= 60
+                item["router"]["wait"]["timeout"].update(timeout)
+        return flow_definition
 
     @classmethod
     def migrate_definition(cls, json_flow, flow, to_version=Flow.CURRENT_SPEC_VERSION):

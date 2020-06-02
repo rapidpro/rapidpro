@@ -32,6 +32,7 @@ from .views import (
     RootView,
     RunsEndpoint,
     TemplatesEndpoint,
+    ValidateUrlAttachmentEndpoint,
 )
 
 urlpatterns = [
@@ -65,6 +66,7 @@ urlpatterns = [
     url(r"^resthook_subscribers$", ResthookSubscribersEndpoint.as_view(), name="api.v2.resthook_subscribers"),
     url(r"^runs$", RunsEndpoint.as_view(), name="api.v2.runs"),
     url(r"^templates$", TemplatesEndpoint.as_view(), name="api.v2.templates"),
+    url(r"^validate_attachment_url$", ValidateUrlAttachmentEndpoint.as_view(), name="api.v2.attachments_validation"),
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns, allowed=["json", "api"])

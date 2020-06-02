@@ -366,7 +366,7 @@ class GiftcardsForm(forms.ModelForm):
         new_collection = self.data.get("collection")
         is_removing = self.data.get("remove", "false") == "true"
 
-        if not is_removing and new_collection.isspace():
+        if not is_removing and (not new_collection or new_collection.isspace()):
             raise ValidationError(_("This field is required"))
 
         if not is_removing and not regex.match(r"^[A-Za-z0-9_\- ]+$", new_collection, regex.V0):
@@ -2276,7 +2276,7 @@ class OrgCRUDL(SmartCRUDL):
                 new_collection = self.data.get("collection")
                 is_removing = self.data.get("remove", "false") == "true"
 
-                if not is_removing and new_collection.isspace():
+                if not is_removing and (not new_collection or new_collection.isspace()):
                     raise ValidationError(_("This field is required"))
 
                 if not is_removing and not regex.match(r"^[A-Za-z0-9_\- ]+$", new_collection, regex.V0):
@@ -2592,35 +2592,28 @@ class OrgCRUDL(SmartCRUDL):
                             collection_real_name = item
                             break
 
-                # Making sure that Pandas will read the data with the correct type, e.g. string, float
-                col_names = read_csv(import_file, nrows=0).columns
-                import_file.seek(0)
-                types_dict = {}
-                for col_name in col_names.tolist():
-                    if str(col_name).startswith("numeric_"):
-                        types_dict[str(col_name)] = float
-                    else:
-                        types_dict[str(col_name)] = str
-
+                # Reading file data with pandas
+                read_file = read_csv if file_type == "csv" else read_excel
                 try:
-                    if file_type == "csv":
-                        spamreader = read_csv(import_file, delimiter=",", index_col=False, dtype=types_dict)
-                    else:
-                        spamreader = read_excel(import_file, index_col=False, dtype=str)
+                    spamreader = read_file(import_file, index_col=False)
                 except UnicodeDecodeError:
                     import_file.seek(0)
-                    if file_type == "csv":
-                        spamreader = read_csv(
-                            import_file, delimiter=",", encoding="ISO-8859-1", index_col=False, dtype=types_dict
-                        )
+                    spamreader = read_file(import_file, encoding="ISO-8859-1", index_col=False)
+                
+                # Making sure that data in each column has correct type, e.g. string, float
+                for column in spamreader.columns:
+                    if str(column).startswith("numeric_"):
+                        spamreader[column] = spamreader[column].str.replace(',', '').astype(float)
                     else:
-                        spamreader = read_excel(import_file, encoding="ISO-8859-1", index_col=False, dtype=str)
-
-                headers = spamreader.columns.tolist()
+                        spamreader[column] = spamreader[column].astype(str)                        
+                
                 # Removing empty columns name from CSV files imported
-                headers = [item for item in headers if "Unnamed" not in item]
-                spamreader = spamreader.get_values().tolist()
-                spamreader.insert(0, headers)
+                spamreader = spamreader.loc[:, ~spamreader.columns.str.contains("^Unnamed")]
+
+                # Converting dataframe into list of rows for the next processing
+                headers = spamreader.columns.tolist()
+                rows_list = spamreader.get_values().tolist()
+                spamreader = [headers] + rows_list
 
                 if spamreader:
                     import_data_to_parse.delay(

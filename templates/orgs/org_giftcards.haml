@@ -61,8 +61,20 @@
   {{block.super}}
   :javascript
     function confirmRemoveCollection(name, index) {
-      removalConfirmation(name + "-" + index, "Remove");
+      removalConfirmation(name + "-" + index, "Remove", true);
     }
+
+    var isFormSubmitted = false;
+    $('form').submit(function (e) {
+      if (isFormSubmitted) e.preventDefault();
+      isFormSubmitted = true;
+    });
+
+    var deleteClicked = false;
+    $('a.posterize').click(function (e) {
+      if (deleteClicked) e.preventDefault();
+      deleteClicked = true;
+    });
 
 -block extra-style
   :css

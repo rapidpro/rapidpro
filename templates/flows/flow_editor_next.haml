@@ -134,6 +134,16 @@
       display: block;
     }
 
+    .select-invalid {
+      border: 1px solid tomato;
+      border-radius: 5px;
+      box-shadow: 0 0 0 3px rgba(255,196,186,.5);
+    }
+
+    [class*="SendEmailForm_url"] input {
+      margin-top: 0 !important;
+    }
+
     /* Styles for PDF File on Export PDF */
     @media print{
       [class*="Sticky_sticky"] {
@@ -268,6 +278,7 @@
         revisions: '/flow/revisions/{{object.uuid}}/',
         recents: '/flow/recent_messages/{{object.uuid}}/',
         attachments: '/flow/upload_media_action/{{object.uuid}}/',
+        attachments_validation: '{% url "api.v2.attachments_validation" %}',
         languages: base + 'language',
         environment: base + 'environment',
         activity: '/flow/activity/{{object.uuid}}/',
