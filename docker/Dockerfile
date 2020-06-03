@@ -29,7 +29,7 @@ COPY ./pip-freeze.txt /tmp/pip-freeze.txt
 COPY ./docker/pip-freeze.txt /tmp/dep/pip-freeze.txt
 RUN pip install --no-cache-dir -r /tmp/dep/pip-freeze.txt
 
-RUN groupadd -g $USER_GROUP_ID $PROJECT_GROUP
+RUN groupadd -g $USER_GROUP_ID $PROJECT_GROUP \
  && useradd -ms -u $USER_GROUP_ID -g $USER_GROUP_ID /bin/bash $PROJECT_USER \
  && usermod -aG adm $PROJECT_USER
 
