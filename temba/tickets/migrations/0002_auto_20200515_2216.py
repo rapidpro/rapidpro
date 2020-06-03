@@ -5,7 +5,9 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("tickets", "0001_initial")]
+    dependencies = [
+        ("tickets", "0001_initial"),
+    ]
 
     operations = [
         migrations.AddIndex(
@@ -19,7 +21,7 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AddIndex(
-            model_name="ticket", index=models.Index(fields=["ticketer", "-opened_on"], name="tickets_org_ticketer")
+            model_name="ticket", index=models.Index(fields=["ticketer", "-opened_on"], name="tickets_org_ticketer"),
         ),
         migrations.AddIndex(
             model_name="ticket",

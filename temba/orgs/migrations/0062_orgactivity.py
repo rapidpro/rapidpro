@@ -6,7 +6,9 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("orgs", "0061_auto_20200506_2038")]
+    dependencies = [
+        ("orgs", "0061_auto_20200506_2038"),
+    ]
 
     operations = [
         migrations.CreateModel(
@@ -21,10 +23,10 @@ class Migration(migrations.Migration):
                 (
                     "org",
                     models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE, related_name="contact_activity", to="orgs.Org"
+                        on_delete=django.db.models.deletion.CASCADE, related_name="contact_activity", to="orgs.Org",
                     ),
                 ),
             ],
             options={"unique_together": {("org", "day")}},
-        )
+        ),
     ]

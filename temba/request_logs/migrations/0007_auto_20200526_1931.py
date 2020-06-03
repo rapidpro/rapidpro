@@ -5,10 +5,12 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("request_logs", "0006_auto_20200423_1438")]
+    dependencies = [
+        ("request_logs", "0006_auto_20200423_1438"),
+    ]
 
     operations = [
-        migrations.AlterIndexTogether(name="httplog", index_together=set()),
+        migrations.AlterIndexTogether(name="httplog", index_together=set(),),
         migrations.AddIndex(
             model_name="httplog",
             index=models.Index(fields=["classifier", "-created_on"], name="request_log_classif_8a1320_idx"),
