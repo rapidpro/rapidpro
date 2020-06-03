@@ -10,7 +10,7 @@ from django.utils.timesince import timesince
 from temba.migrator import Migrator
 from temba.orgs.models import TopUp, TopUpCredits, Language
 from temba.contacts.models import ContactField, Contact, ContactGroup, ContactURN
-from temba.channels.models import Channel, ChannelCount, SyncEvent
+from temba.channels.models import Channel, ChannelCount, SyncEvent, ChannelEvent
 from temba.utils import json
 from temba.utils.models import TembaModel, generate_uuid
 
@@ -169,6 +169,19 @@ class MigrationTask(TembaModel):
         logger.info("[COMPLETED] Contact Groups migration")
         logger.info("")
 
+        logger.info("---------------- Channel Events ----------------")
+        logger.info("[STARTED] Channel Events migration")
+
+        # Removing all channel events before importing them from live server
+        ChannelEvent.objects.filter(org=self.org).delete()
+
+        org_channel_events = migrator.get_org_channel_events()
+        if org_channel_events:
+            self.add_channel_events(logger=logger, channel_events=org_channel_events)
+
+        logger.info("[COMPLETED] Channel Events migration")
+        logger.info("")
+
         elapsed = timesince(start)
         logger.info(f"This process took {elapsed}")
 
@@ -315,6 +328,38 @@ class MigrationTask(TembaModel):
                         incoming_command_count=channel_syncevent.incoming_command_count,
                         outgoing_command_count=channel_syncevent.outgoing_command_count,
                     )
+
+    def add_channel_events(self, logger, channel_events):
+        for event in channel_events:
+            logger.info(f">>> Channel Event: {event.id} - {event.event_type}")
+
+            new_contact_obj = MigrationAssociation.get_new_object(
+                model=MigrationAssociation.MODEL_CONTACT,
+                old_id=event.contact_id,
+            )
+
+            if not new_contact_obj:
+                continue
+
+            new_contact_urn_obj = MigrationAssociation.get_new_object(
+                model=MigrationAssociation.MODEL_CONTACT_URN,
+                old_id=event.contact_urn_id,
+            )
+
+            new_channel_obj = MigrationAssociation.get_new_object(
+                model=MigrationAssociation.MODEL_CHANNEL,
+                old_id=event.channel_id,
+            )
+
+            ChannelEvent.objects.create(
+                org=self.org,
+                channel=new_channel_obj,
+                event_type=event.event_type,
+                contact=new_contact_obj,
+                contact_urn=new_contact_urn_obj,
+                extra=json.loads(event.extra) if event.extra else dict(),
+                occurred_on=event.occurred_on,
+            )
 
     def add_contact_fields(self, logger, fields):
         for field in fields:
@@ -504,11 +549,11 @@ class MigrationAssociation(models.Model):
             MigrationAssociation.objects.filter(old_id=old_id, model=model)
             .only("new_id", "migration_task__org")
             .select_related("migration_task")
+            .order_by("-id")
             .first()
         )
 
         if not obj:
-            logger.warning(f"[WARNING] No object found on get_new_object method [table: {model}, id: {old_id}]")
             return None
 
         _model = obj.get_related_model()

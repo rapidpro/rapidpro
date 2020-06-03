@@ -175,3 +175,10 @@ class Migrator(object):
             query_string=f"SELECT * FROM public.contacts_contactgroup_contacts WHERE contactgroup_id = {contactgroup_id} ORDER BY id ASC",
             count=count,
         )
+
+    def get_org_channel_events(self) -> list:
+        count = self.get_count("channels_channelevent")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.channels_channelevent WHERE org_id = {self.org_id} ORDER BY id ASC",
+            count=count,
+        )
