@@ -49,6 +49,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             "welcome_message_default": "",
             "theme": settings.WIDGET_DEFAULT_THEME,
             "logo": f"https://{settings.HOSTNAME}{settings.STATIC_URL}{branding.get('favico')}",
+            "widget_bg_color": default_theme.get("widget_bg"),
+            "logo_style": "circle",
             "chat_header_bg_color": default_theme.get("header_bg"),
             "chat_header_text_color": default_theme.get("header_txt"),
             "automated_chat_bg": default_theme.get("automated_chat_bg"),
