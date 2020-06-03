@@ -155,6 +155,13 @@ class Migrator(object):
             count=count,
         )
 
+    def get_contact_urns(self, contact_id) -> list:
+        count = self.get_count("contacts_contacturn")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.contacts_contacturn WHERE org_id = {self.org_id} AND contact_id = {contact_id} ORDER BY id ASC",
+            count=count,
+        )
+
     def get_org_contact_groups(self) -> list:
         count = self.get_count("contacts_contactgroup")
         return self.get_results_paginated(

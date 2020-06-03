@@ -377,6 +377,32 @@ class MigrationTask(TembaModel):
                         value=item.string_value
                     )
 
+            urns = migrator.get_contact_urns(contact_id=contact.id)
+            for item in urns:
+                new_channel_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_CHANNEL,
+                    old_id=item.channel_id,
+                )
+
+                identity = str(item.identity)
+                if identity.startswith("ws:"):
+                    identity = identity.replace("ws:", "ext:")
+
+                new_urn = ContactURN.get_or_create(
+                    org=self.org,
+                    contact=existing_contact,
+                    urn_as_string=identity,
+                    channel=new_channel_obj,
+                    auth=item.auth,
+                )
+
+                MigrationAssociation.create(
+                    migration_task=self,
+                    old_id=item.id,
+                    new_id=new_urn.id,
+                    model=MigrationAssociation.MODEL_CONTACT_URN,
+                )
+
     def add_contact_groups(self, logger, groups, migrator):
         for group in groups:
             logger.info(f">>> Contact Group: {group.uuid} - {group.name}")
@@ -411,7 +437,7 @@ class MigrationTask(TembaModel):
                     contact_group.update_contacts(user=self.created_by, contacts=[new_contact_obj], add=True)
 
     def remove_association(self):
-        self.associations.all().delete()
+        return self.associations.all().delete()
 
 
 class MigrationAssociation(models.Model):
