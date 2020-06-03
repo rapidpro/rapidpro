@@ -183,11 +183,11 @@ class Ticket(models.Model):
 
     @classmethod
     def bulk_close(cls, org, tickets):
-        return mailroom.get_client().ticket_close(org.id, [t.id for t in tickets])
+        return mailroom.get_client().ticket_close(org.id, [t.id for t in tickets if t.ticketer.is_active])
 
     @classmethod
     def bulk_reopen(cls, org, tickets):
-        return mailroom.get_client().ticket_reopen(org.id, [t.id for t in tickets])
+        return mailroom.get_client().ticket_reopen(org.id, [t.id for t in tickets if t.ticketer.is_active])
 
     @classmethod
     def apply_action_close(cls, tickets):
@@ -210,4 +210,6 @@ class Ticket(models.Model):
             models.Index(name="tickets_org_ticketer", fields=["ticketer", "-opened_on"],),
             # used by the list of tickets on contact page and also message handling to find open tickets for contact
             models.Index(name="tickets_contact_open", fields=["contact", "-opened_on"], condition=Q(status="O"),),
+            # used by ticket handlers in mailroom to find tickets from their external IDs
+            models.Index(name="tickets_ticketer_external_id", fields=["ticketer", "external_id"]),
         ]

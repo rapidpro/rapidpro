@@ -1,5 +1,5 @@
 -extends "smartmin/list.html"
--load smartmin i18n contacts
+-load smartmin i18n contacts compress
 
 -block page-title
   {{ title }}
@@ -28,7 +28,7 @@
         .span9
           -block buttons
             -block action-buttons
-              -if org_perms.tickets.ticket_close
+              -if org_perms.tickets.ticket_update
                 .list-buttons-container
                   .list-buttons
                     -if 'close' in actions
@@ -46,16 +46,28 @@
             %tbody
               -for object in object_list
                 %tr.object-row.select-row.ticket(id="id-row-{{object.id}}" class="{% cycle row1 row2 %}" data-object-id="{{ object.id }}" data-contact-uuid="{{ object.contact.uuid }}")
-                  -if actions and org_perms.tickets.ticket_close
+                  -if actions and org_perms.tickets.ticket_update
                     %td.checkbox.object-row-checkbox
                       .glyph.object-row-checkbox
                   %td.ticket-contact
                     %nobr
                       {{ object.contact|short_name:user_org }}
+                  -if not ticketer
+                    %td.ticket-ticketer
+                      -if object.ticketer.is_active
+                        %a(href="{% url 'tickets.ticket_filter' object.ticketer.uuid %}")
+                          {{ object.ticketer.name }}
+                      -else
+                        %span.ticketer-inactive
+                          {{ object.ticketer.name }}
                   %td.ticket-subject
                     {{ object.subject }}
                   %td.ticket-body
                     {{ object.body }}
+                  -if not folder
+                    %td.ticket-status
+                      %span.label(class="status-{{object.status}}")
+                        {{ object.get_status_display }}
                   %td.opened_on
                     %span.time
                       {% short_datetime object.opened_on %}
@@ -63,7 +75,7 @@
               -empty
                 %tr.empty
                   %td(colspan=5)
-                    -trans "No open tickets at this time."
+                    -trans "No tickets."
 
           -block paginator
             -if object_list.count
@@ -93,3 +105,22 @@
     td.opened_on {
       text-align: right;
     }
+
+    .ticketer-inactive {
+      color: #AAA;
+    }
+
+
+-block extra-less
+  -compress css inline
+    {% lessblock %}
+      :plain
+        .label.status-O {
+          border: 1px solid @flat-mutedgreen - #333;
+          background-color: @flat-mutedgreen - #222;
+        }
+        .label.status-C {
+          border: 1px solid @flat-darkred - #111;
+          background-color: @flat-darkred;
+        }
+    {% endlessblock %}

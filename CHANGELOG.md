@@ -1,3 +1,22 @@
+v5.5.55
+----------
+ * Fix boundaries URL regex to accept more numbers
+
+v5.5.54
+----------
+ * Add index for mailroom looking up tickets by ticketer and external ID
+ * Make it easier to differentiate open and closed tickets
+ * Update to temba-components 0.1.7 for chrome textinput fix
+
+v5.5.53
+----------
+ * Add indexes on HTTP log views
+ * Simplify HTTP log views for different types whilst given each type its own permission
+
+v5.5.52
+----------
+ * More ticket view tweaks
+
 v5.5.51
 ----------
  * Tweak zendesk manifest view
