@@ -51,6 +51,8 @@ RUN envsubst < /tmp/nginx.site.conf > /etc/nginx/sites-available/$PROJECT.conf \
 # && envsubst < /tmp/nginx.site.conf > $PROJECT_CONF/$PROJECT.conf \
 # && chown -R $PROJECT_USER:$PROJECT_GROUP $PROJECT_CONF
 
+RUN echo "Sem -> $USER_GROUP_ID:$USER_GROUP_ID"
+RUN echo "Com -> ${USER_GROUP_ID}:${USER_GROUP_ID}"
 COPY --chown=${USER_GROUP_ID}:${USER_GROUP_ID} . $PROJECT_PATH
 
 #COPY --chown=$PROJECT_USER:$PROJECT_GROUP ./docker/nginx.start.sh /etc/init.d/$PROJECT
