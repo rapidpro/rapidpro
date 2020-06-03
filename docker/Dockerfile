@@ -41,7 +41,7 @@ RUN mkdir $PROJECT_PATH \
 
 RUN rm /etc/nginx/sites-enabled/default
 
-COPY ./docker/nginx.conf ./docker/nginx.site.conf  /tmp/
+COPY ./docker/nginx.site.conf  /tmp/
 RUN envsubst < /tmp/nginx.site.conf > /etc/nginx/sites-available/$PROJECT.conf \
  && ln -s /etc/nginx/sites-available/$PROJECT.conf /etc/nginx/sites-enabled/$PROJECT.conf
 
