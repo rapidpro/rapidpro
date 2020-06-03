@@ -2,7 +2,6 @@ FROM python:3.6-slim
 
 ARG COMPRESS_ENABLED
 ARG BRANDING_ENABLED
-ARG USER_GROUP_ID=1000
 
 ENV PYTHONUNBUFFERED 1
 ENV DEBIAN_FRONTEND  noninteractive
@@ -29,8 +28,8 @@ COPY ./pip-freeze.txt /tmp/pip-freeze.txt
 COPY ./docker/pip-freeze.txt /tmp/dep/pip-freeze.txt
 RUN pip install --no-cache-dir -r /tmp/dep/pip-freeze.txt
 
-RUN groupadd -g $USER_GROUP_ID $PROJECT_GROUP \
- && useradd -ms /bin/bash -u $USER_GROUP_ID -g $USER_GROUP_ID $PROJECT_USER
+RUN useradd -Ums /bin/bash $PROJECT_USER \
+ && usermod -aG adm $PROJECT_USER
 
 RUN mkdir $PROJECT_PATH \
  && mkdir $PROJECT_CONF \
@@ -50,9 +49,8 @@ RUN envsubst < /tmp/nginx.site.conf > /etc/nginx/sites-available/$PROJECT.conf \
 # && envsubst < /tmp/nginx.site.conf > $PROJECT_CONF/$PROJECT.conf \
 # && chown -R $PROJECT_USER:$PROJECT_GROUP $PROJECT_CONF
 
-RUN echo "Sem -> $USER_GROUP_ID:$USER_GROUP_ID"
-RUN echo "Com -> ${USER_GROUP_ID}:${USER_GROUP_ID}"
-COPY --chown="${USER_GROUP_ID}:${USER_GROUP_ID}" . $PROJECT_PATH
+COPY . $PROJECT_PATH
+RUN chown -R $PROJECT_USER:$PROJECT_GROUP $PROJECT_PATH
 
 #COPY --chown=$PROJECT_USER:$PROJECT_GROUP ./docker/nginx.start.sh /etc/init.d/$PROJECT
 #RUN chmod +x /etc/init.d/$PROJECT \
