@@ -157,7 +157,7 @@ class MigrationTask(TembaModel):
 
         org_contact_groups = migrator.get_org_contact_groups()
         if org_contact_groups:
-            self.add_contact_groups(logger=logger, groups=org_contact_groups)
+            self.add_contact_groups(logger=logger, groups=org_contact_groups, migrator=migrator)
 
         logger.info("[COMPLETED] Contact Groups migration")
         logger.info("")
@@ -357,7 +357,7 @@ class MigrationTask(TembaModel):
                 model=MigrationAssociation.MODEL_CONTACT,
             )
 
-    def add_contact_groups(self, logger, groups):
+    def add_contact_groups(self, logger, groups, migrator):
         for group in groups:
             logger.info(f">>> Contact Group: {group.uuid} - {group.name}")
 
@@ -380,6 +380,15 @@ class MigrationTask(TembaModel):
                 new_id=contact_group.id,
                 model=MigrationAssociation.MODEL_CONTACT_GROUP,
             )
+
+            contactgroup_contacts = migrator.get_contactgroups_contacts(contactgroup_id=group.id)
+            for item in contactgroup_contacts:
+                new_contact_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_CONTACT,
+                    old_id=item.contact_id,
+                )
+                if new_contact_obj and not contact_group.is_dynamic:
+                    contact_group.update_contacts(user=self.created_by, contacts=[new_contact_obj], add=True)
 
     def remove_association(self):
         self.associations.all().delete()
@@ -453,12 +462,12 @@ class MigrationAssociation(models.Model):
         )
 
         if not obj:
-            logger.error("No object found on get_new_object method")
+            logger.warning(f"[WARNING] No object found on get_new_object method [table: {model}, id: {old_id}]")
             return None
 
         _model = obj.get_related_model()
         if not _model:
-            logger.error("No model class found on get_new_object method")
+            logger.error("[ERROR] No model class found on get_new_object method")
             return None
 
         return _model.objects.filter(id=obj.new_id, org=obj.migration_task.org).first()
