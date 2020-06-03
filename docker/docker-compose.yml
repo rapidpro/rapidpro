@@ -39,7 +39,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-rapidpro}
       - POSTGRES_DB=${POSTGRES_DB:-rapidpro}
   varnish:
-    image: ilhasoft/varnish:6.2
+    image: ilhasoft/varnish:6.0
     build:
       context: .
       dockerfile: ./Dockerfile.varnish
