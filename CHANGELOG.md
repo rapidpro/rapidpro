@@ -1,3 +1,9 @@
+v5.5.54
+----------
+ * Add index for mailroom looking up tickets by ticketer and external ID
+ * Make it easier to differentiate open and closed tickets
+ * Update to temba-components 0.1.7 for chrome textinput fix
+
 v5.5.53
 ----------
  * Add indexes on HTTP log views
