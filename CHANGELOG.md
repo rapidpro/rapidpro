@@ -1,3 +1,7 @@
+v5.5.55
+----------
+ * Fix boundaries URL regex to accept more numbers
+
 v5.5.54
 ----------
  * Add index for mailroom looking up tickets by ticketer and external ID
