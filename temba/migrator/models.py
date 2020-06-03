@@ -9,7 +9,7 @@ from django.utils.timesince import timesince
 
 from temba.migrator import Migrator
 from temba.orgs.models import TopUp, TopUpCredits, Language
-from temba.contacts.models import ContactField, Contact
+from temba.contacts.models import ContactField, Contact, ContactGroup, ContactURN
 from temba.channels.models import Channel, ChannelCount, SyncEvent
 from temba.utils import json
 from temba.utils.models import TembaModel, generate_uuid
@@ -150,6 +150,16 @@ class MigrationTask(TembaModel):
             self.add_contacts(logger=logger, contacts=org_contacts)
 
         logger.info("[COMPLETED] Contacts migration")
+        logger.info("")
+
+        logger.info("---------------- Contact Groups ----------------")
+        logger.info("[STARTED] Contact Groups migration")
+
+        org_contact_groups = migrator.get_org_contact_groups()
+        if org_contact_groups:
+            self.add_contact_groups(logger=logger, groups=org_contact_groups)
+
+        logger.info("[COMPLETED] Contact Groups migration")
         logger.info("")
 
         elapsed = timesince(start)
@@ -347,6 +357,30 @@ class MigrationTask(TembaModel):
                 model=MigrationAssociation.MODEL_CONTACT,
             )
 
+    def add_contact_groups(self, logger, groups):
+        for group in groups:
+            logger.info(f">>> Contact Group: {group.uuid} - {group.name}")
+
+            contact_group = ContactGroup.get_or_create(
+                org=self.org,
+                user=self.created_by,
+                name=group.name,
+                query=group.query,
+                uuid=group.uuid,
+            )
+
+            # Making sure that the uuid will be the same from live server
+            if contact_group.uuid != group.uuid:
+                contact_group.uuid = group.uuid
+                contact_group.save(update_fields=["uuid"])
+
+            MigrationAssociation.create(
+                migration_task=self,
+                old_id=group.id,
+                new_id=contact_group.id,
+                model=MigrationAssociation.MODEL_CONTACT_GROUP,
+            )
+
     def remove_association(self):
         self.associations.all().delete()
 
@@ -431,7 +465,6 @@ class MigrationAssociation(models.Model):
 
     def get_related_model(self):
         from temba.campaigns.models import Campaign, CampaignEvent
-        from temba.contacts.models import ContactURN, ContactGroup
         from temba.msgs.models import Msg, Label
         from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
         from temba.links.models import Link
