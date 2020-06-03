@@ -236,6 +236,11 @@ class LocationTest(TembaTest):
         response_json = response.json()
         self.assertEqual(len(response_json.get("geometry").get("features")), 1)
 
+        long_number_ids = AdminBoundary.create(osm_id="SOME.123.12_12", name="Gatsibo", level=2, parent=self.state2)
+
+        response = self.client.get(reverse("locations.adminboundary_boundaries", args=[long_number_ids.osm_id]))
+        self.assertEqual(200, response.status_code)
+
     def test_adminboundary_create(self):
         # create a simple boundary
         boundary = AdminBoundary.create(osm_id="-1", name="Null Island", level=0)
