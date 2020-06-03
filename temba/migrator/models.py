@@ -147,13 +147,20 @@ class MigrationTask(TembaModel):
 
         org_contacts = migrator.get_org_contacts()
         if org_contacts:
-            self.add_contacts(logger=logger, contacts=org_contacts)
+            self.add_contacts(logger=logger, contacts=org_contacts, migrator=migrator)
 
         logger.info("[COMPLETED] Contacts migration")
         logger.info("")
 
         logger.info("---------------- Contact Groups ----------------")
         logger.info("[STARTED] Contact Groups migration")
+
+        # Releasing current contact groups
+        contact_groups = ContactGroup.user_groups.filter(org=self.org).only("id", "uuid").order_by("id")
+        for contact_group in contact_groups:
+            contact_group.release()
+            contact_group.uuid = generate_uuid()
+            contact_group.save(update_fields=["uuid"])
 
         org_contact_groups = migrator.get_org_contact_groups()
         if org_contact_groups:
@@ -332,7 +339,7 @@ class MigrationTask(TembaModel):
                 model=MigrationAssociation.MODEL_CONTACT_FIELD,
             )
 
-    def add_contacts(self, logger, contacts):
+    def add_contacts(self, logger, contacts, migrator):
         for contact in contacts:
             logger.info(f">>> Contact: {contact.uuid} - {contact.name}")
 
@@ -356,6 +363,19 @@ class MigrationTask(TembaModel):
                 new_id=existing_contact.id,
                 model=MigrationAssociation.MODEL_CONTACT,
             )
+
+            values = migrator.get_values_value(contact_id=contact.id)
+            for item in values:
+                new_field_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_CONTACT_FIELD,
+                    old_id=item.contact_field_id
+                )
+                if new_field_obj:
+                    existing_contact.set_field(
+                        user=self.created_by,
+                        key=new_field_obj.key,
+                        value=item.string_value
+                    )
 
     def add_contact_groups(self, logger, groups, migrator):
         for group in groups:
@@ -470,7 +490,12 @@ class MigrationAssociation(models.Model):
             logger.error("[ERROR] No model class found on get_new_object method")
             return None
 
-        return _model.objects.filter(id=obj.new_id, org=obj.migration_task.org).first()
+        try:
+            queryset = _model.objects.filter(id=obj.new_id, org=obj.migration_task.org).first()
+        except Exception:
+            queryset = _model.user_fields.filter(id=obj.new_id, org=obj.migration_task.org).first()
+
+        return queryset
 
     def get_related_model(self):
         from temba.campaigns.models import Campaign, CampaignEvent
