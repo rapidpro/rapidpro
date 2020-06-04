@@ -239,7 +239,6 @@ class MigrationTask(TembaModel):
         self.org.config = json.loads(org_data.config) if org_data.config else dict()
         self.org.is_anon = org_data.is_anon
         self.org.surveyor_password = org_data.surveyor_password
-        self.org.parent_id = org_data.parent_id
         self.org.save(
             update_fields=[
                 "plan",
@@ -251,7 +250,6 @@ class MigrationTask(TembaModel):
                 "config",
                 "is_anon",
                 "surveyor_password",
-                "parent_id",
             ]
         )
 
