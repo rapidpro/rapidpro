@@ -15,6 +15,7 @@ from temba.orgs.models import TopUp, TopUpCredits, Language
 from temba.contacts.models import ContactField, Contact, ContactGroup, ContactURN
 from temba.channels.models import Channel, ChannelCount, SyncEvent, ChannelEvent
 from temba.schedules.models import Schedule
+from temba.msgs.models import Msg, Label, Broadcast
 from temba.utils import json
 from temba.utils.models import TembaModel, generate_uuid
 
@@ -203,6 +204,16 @@ class MigrationTask(TembaModel):
                 self.add_schedules(logger=logger, schedules=org_broadcast_schedules)
 
             logger.info("[COMPLETED] Schedules migration")
+            logger.info("")
+
+            logger.info("---------------- Msg Broadcasts ----------------")
+            logger.info("[STARTED] Msg Broadcasts migration")
+
+            org_msg_broadcasts = migrator.get_org_msg_broadcasts()
+            if org_msg_broadcasts:
+                self.add_msg_broadcasts(logger=logger, msg_broadcasts=org_msg_broadcasts)
+
+            logger.info("[COMPLETED] Msg Broadcasts migration")
             logger.info("")
 
             elapsed = timesince(start)
@@ -553,6 +564,48 @@ class MigrationTask(TembaModel):
                 model=MigrationAssociation.MODEL_SCHEDULE,
             )
 
+    def add_msg_broadcasts(self, logger, msg_broadcasts):
+        for broadcast in msg_broadcasts:
+            logger.info(f">>> Msg Broadcast: {broadcast.id}")
+
+            new_channel_obj = MigrationAssociation.get_new_object(
+                model=MigrationAssociation.MODEL_CHANNEL,
+                old_id=broadcast.channel_id,
+            ) if broadcast.channel_id else None
+
+            new_schedule_obj = MigrationAssociation.get_new_object(
+                model=MigrationAssociation.MODEL_SCHEDULE,
+                old_id=broadcast.schedule_id,
+            ) if broadcast.schedule_id else None
+
+            new_broadcast_parent_obj = MigrationAssociation.get_new_object(
+                model=MigrationAssociation.MODEL_MSG_BROADCAST,
+                old_id=broadcast.parent_id,
+            ) if broadcast.parent_id else None
+
+            new_broadcast_obj = Broadcast.objects.create(
+                org=self.org,
+                channel=new_channel_obj,
+                status=broadcast.status,
+                schedule=new_schedule_obj,
+                parent=new_broadcast_parent_obj,
+                text=broadcast.text,
+                base_language=broadcast.base_language,
+                is_active=broadcast.is_active,
+                created_by=self.created_by,
+                modified_by=self.created_by,
+                media=broadcast.media,
+                send_all=broadcast.send_all,
+                metadata=json.loads(broadcast.metadata) if broadcast.metadata else dict(),
+            )
+
+            MigrationAssociation.create(
+                migration_task=self,
+                old_id=broadcast.id,
+                new_id=new_broadcast_obj.id,
+                model=MigrationAssociation.MODEL_MSG_BROADCAST,
+            )
+
     def remove_association(self):
         return self.associations.all().delete()
 
@@ -567,6 +620,7 @@ class MigrationAssociation(models.Model):
     MODEL_CONTACT_FIELD = "contacts_contactfield"
     MODEL_MSG = "msgs_msg"
     MODEL_MSG_LABEL = "msgs_label"
+    MODEL_MSG_BROADCAST = "msgs_broadcast"
     MODEL_FLOW = "flows_flow"
     MODEL_FLOW_LABEL = "flows_flowlabel"
     MODEL_FLOW_RUN = "flows_flowrun"
@@ -587,6 +641,7 @@ class MigrationAssociation(models.Model):
         (MODEL_CONTACT_FIELD, MODEL_CONTACT_FIELD),
         (MODEL_MSG, MODEL_MSG),
         (MODEL_MSG_LABEL, MODEL_MSG_LABEL),
+        (MODEL_MSG_BROADCAST, MODEL_MSG_BROADCAST),
         (MODEL_FLOW, MODEL_FLOW),
         (MODEL_FLOW_LABEL, MODEL_FLOW_LABEL),
         (MODEL_FLOW_RUN, MODEL_FLOW_RUN),
@@ -642,7 +697,6 @@ class MigrationAssociation(models.Model):
 
     def get_related_model(self):
         from temba.campaigns.models import Campaign, CampaignEvent
-        from temba.msgs.models import Msg, Label
         from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
         from temba.links.models import Link
         from temba.triggers.models import Trigger
@@ -657,6 +711,7 @@ class MigrationAssociation(models.Model):
             MigrationAssociation.MODEL_CONTACT_FIELD: ContactField,
             MigrationAssociation.MODEL_MSG: Msg,
             MigrationAssociation.MODEL_MSG_LABEL: Label,
+            MigrationAssociation.MODEL_MSG_BROADCAST: Broadcast,
             MigrationAssociation.MODEL_FLOW: Flow,
             MigrationAssociation.MODEL_FLOW_LABEL: FlowLabel,
             MigrationAssociation.MODEL_FLOW_RUN: FlowRun,

@@ -208,3 +208,10 @@ class Migrator(object):
                          f"AND mb.schedule_id IS NOT NULL",
             count=count_query.count,
         )
+
+    def get_org_msg_broadcasts(self) -> list:
+        count = self.get_count("msgs_broadcast")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.msgs_broadcast WHERE org_id = {self.org_id} ORDER BY id ASC",
+            count=count,
+        )
