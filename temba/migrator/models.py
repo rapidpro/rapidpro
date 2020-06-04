@@ -617,6 +617,15 @@ class MigrationTask(TembaModel):
                 if new_contact_obj:
                     new_broadcast_obj.contacts.add(new_contact_obj)
 
+            broadcast_groups = migrator.get_msg_broadcast_groups(broadcast_id=broadcast.id)
+            for item in broadcast_groups:
+                new_group_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_CONTACT_GROUP,
+                    old_id=item.contactgroup_id,
+                )
+                if new_group_obj:
+                    new_broadcast_obj.groups.add(new_group_obj)
+
     def remove_association(self):
         return self.associations.all().delete()
 
@@ -699,10 +708,12 @@ class MigrationAssociation(models.Model):
             logger.error("[ERROR] No model class found on get_new_object method")
             return None
 
-        try:
-            queryset = _model.objects.filter(id=obj.new_id, org=obj.migration_task.org).first()
-        except Exception:
+        if model == MigrationAssociation.MODEL_CONTACT_GROUP:
+            queryset = _model.user_groups.filter(id=obj.new_id, org=obj.migration_task.org).first()
+        elif model == MigrationAssociation.MODEL_CONTACT_FIELD:
             queryset = _model.user_fields.filter(id=obj.new_id, org=obj.migration_task.org).first()
+        else:
+            queryset = _model.objects.filter(id=obj.new_id, org=obj.migration_task.org).first()
 
         return queryset
 
