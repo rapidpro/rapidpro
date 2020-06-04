@@ -209,9 +209,11 @@ class MigrationTask(TembaModel):
             logger.info("---------------- Msg Broadcasts ----------------")
             logger.info("[STARTED] Msg Broadcasts migration")
 
+            Broadcast.objects.filter(org=self.org, is_active=True).update(is_active=False)
+
             org_msg_broadcasts = migrator.get_org_msg_broadcasts()
             if org_msg_broadcasts:
-                self.add_msg_broadcasts(logger=logger, msg_broadcasts=org_msg_broadcasts)
+                self.add_msg_broadcasts(logger=logger, msg_broadcasts=org_msg_broadcasts, migrator=migrator)
 
             logger.info("[COMPLETED] Msg Broadcasts migration")
             logger.info("")
@@ -564,7 +566,7 @@ class MigrationTask(TembaModel):
                 model=MigrationAssociation.MODEL_SCHEDULE,
             )
 
-    def add_msg_broadcasts(self, logger, msg_broadcasts):
+    def add_msg_broadcasts(self, logger, msg_broadcasts, migrator):
         for broadcast in msg_broadcasts:
             logger.info(f">>> Msg Broadcast: {broadcast.id}")
 
@@ -605,6 +607,15 @@ class MigrationTask(TembaModel):
                 new_id=new_broadcast_obj.id,
                 model=MigrationAssociation.MODEL_MSG_BROADCAST,
             )
+
+            broadcast_contacts = migrator.get_msg_broadcast_contacts(broadcast_id=broadcast.id)
+            for item in broadcast_contacts:
+                new_contact_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_CONTACT,
+                    old_id=item.contact_id,
+                )
+                if new_contact_obj:
+                    new_broadcast_obj.contacts.add(new_contact_obj)
 
     def remove_association(self):
         return self.associations.all().delete()

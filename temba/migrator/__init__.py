@@ -215,3 +215,10 @@ class Migrator(object):
             query_string=f"SELECT * FROM public.msgs_broadcast WHERE org_id = {self.org_id} ORDER BY id ASC",
             count=count,
         )
+
+    def get_msg_broadcast_contacts(self, broadcast_id) -> list:
+        count = self.get_count("msgs_broadcast_contacts")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.msgs_broadcast_contacts WHERE broadcast_id = {broadcast_id} ORDER BY id ASC",
+            count=count,
+        )
