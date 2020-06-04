@@ -1,5 +1,8 @@
 import os
 import logging
+import pytz
+
+from datetime import datetime
 
 from django.db import models
 from django.conf import settings
@@ -11,6 +14,7 @@ from temba.migrator import Migrator
 from temba.orgs.models import TopUp, TopUpCredits, Language
 from temba.contacts.models import ContactField, Contact, ContactGroup, ContactURN
 from temba.channels.models import Channel, ChannelCount, SyncEvent, ChannelEvent
+from temba.schedules.models import Schedule
 from temba.utils import json
 from temba.utils.models import TembaModel, generate_uuid
 
@@ -65,129 +69,152 @@ class MigrationTask(TembaModel):
 
         migrator = Migrator(org_id=self.migration_org)
 
-        logger.info("---------------- Organization ----------------")
-        logger.info("[STARTED] Organization data migration")
+        try:
 
-        org_data = migrator.get_org()
-        if not org_data:
-            logger.info("[ERROR] No organization data found")
+            logger.info("---------------- Organization ----------------")
+            logger.info("[STARTED] Organization data migration")
+
+            org_data = migrator.get_org()
+            if not org_data:
+                logger.info("[ERROR] No organization data found")
+                self.update_status(self.STATUS_FAILED)
+                return
+
+            self.update_org(org_data)
+            logger.info("[COMPLETED] Organization data migration")
+            logger.info("")
+
+            logger.info("---------------- TopUps ----------------")
+            logger.info("[STARTED] TopUps migration")
+
+            # Inactivating all org topups before importing the ones from Live server
+            TopUp.objects.filter(is_active=True, org=self.org).update(is_active=False)
+
+            org_topups = migrator.get_org_topups()
+            if org_topups:
+                self.add_topups(logger=logger, topups=org_topups, migrator=migrator)
+
+            logger.info("[COMPLETED] TopUps migration")
+            logger.info("")
+
+            logger.info("---------------- Languages ----------------")
+            logger.info("[STARTED] Languages migration")
+
+            # Inactivating all org languages before importing the ones from Live server
+            self.org.primary_language = None
+            self.org.save(update_fields=["primary_language"])
+
+            Language.objects.filter(is_active=True, org=self.org).delete()
+
+            org_languages = migrator.get_org_languages()
+            if org_languages:
+                self.add_languages(logger=logger, languages=org_languages)
+
+                if org_data.primary_language_id:
+                    org_primary_language = MigrationAssociation.get_new_object(
+                        model=MigrationAssociation.MODEL_ORG_LANGUAGE, old_id=org_data.primary_language_id
+                    )
+                    self.org.primary_language = org_primary_language
+                    self.org.save(update_fields=["primary_language"])
+
+            logger.info("[COMPLETED] Languages migration")
+            logger.info("")
+
+            logger.info("---------------- Channels ----------------")
+            logger.info("[STARTED] Channels migration")
+
+            # Inactivating all org channels before importing the ones from Live server
+            existing_channels = Channel.objects.filter(org=self.org)
+            for channel in existing_channels:
+                channel.uuid = generate_uuid()
+                channel.secret = None
+                channel.save(update_fields=["uuid", "secret"])
+                channel.release(deactivate=False)
+
+            org_channels = migrator.get_org_channels()
+            if org_channels:
+                self.add_channels(logger=logger, channels=org_channels, migrator=migrator)
+
+            logger.info("[COMPLETED] Channels migration")
+            logger.info("")
+
+            logger.info("---------------- Contact Fields ----------------")
+            logger.info("[STARTED] Contact Fields migration")
+
+            org_contact_fields = migrator.get_org_contact_fields()
+            if org_contact_fields:
+                self.add_contact_fields(logger=logger, fields=org_contact_fields)
+
+            logger.info("[COMPLETED] Contact Fields migration")
+            logger.info("")
+
+            logger.info("---------------- Contacts ----------------")
+            logger.info("[STARTED] Contacts migration")
+
+            org_contacts = migrator.get_org_contacts()
+            if org_contacts:
+                self.add_contacts(logger=logger, contacts=org_contacts, migrator=migrator)
+
+            logger.info("[COMPLETED] Contacts migration")
+            logger.info("")
+
+            logger.info("---------------- Contact Groups ----------------")
+            logger.info("[STARTED] Contact Groups migration")
+
+            # Releasing current contact groups
+            contact_groups = ContactGroup.user_groups.filter(org=self.org).only("id", "uuid").order_by("id")
+            for contact_group in contact_groups:
+                contact_group.release()
+                contact_group.uuid = generate_uuid()
+                contact_group.save(update_fields=["uuid"])
+
+            org_contact_groups = migrator.get_org_contact_groups()
+            if org_contact_groups:
+                self.add_contact_groups(logger=logger, groups=org_contact_groups, migrator=migrator)
+
+            logger.info("[COMPLETED] Contact Groups migration")
+            logger.info("")
+
+            logger.info("---------------- Channel Events ----------------")
+            logger.info("[STARTED] Channel Events migration")
+
+            # Removing all channel events before importing them from live server
+            ChannelEvent.objects.filter(org=self.org).delete()
+
+            org_channel_events = migrator.get_org_channel_events()
+            if org_channel_events:
+                self.add_channel_events(logger=logger, channel_events=org_channel_events)
+
+            logger.info("[COMPLETED] Channel Events migration")
+            logger.info("")
+
+            logger.info("---------------- Schedules ----------------")
+            logger.info("[STARTED] Schedules migration")
+
+            # Inactivating all schedules before the migration as we can re-run the script to re-import the schedules
+            Schedule.objects.filter(org=self.org, is_active=True).update(is_active=False)
+
+            org_trigger_schedules = migrator.get_org_trigger_schedules()
+            if org_trigger_schedules:
+                self.add_schedules(logger=logger, schedules=org_trigger_schedules)
+
+            org_broadcast_schedules = migrator.get_org_broadcast_schedules()
+            if org_broadcast_schedules:
+                self.add_schedules(logger=logger, schedules=org_broadcast_schedules)
+
+            logger.info("[COMPLETED] Schedules migration")
+            logger.info("")
+
+            elapsed = timesince(start)
+            logger.info(f"This process took {elapsed}")
+
+            self.update_status(self.STATUS_COMPLETE)
+
+        except Exception as e:
+            logger.error(f"[ERROR] {str(e)}", exc_info=True)
             self.update_status(self.STATUS_FAILED)
-            return
-
-        self.update_org(org_data)
-        logger.info("[COMPLETED] Organization data migration")
-        logger.info("")
-
-        logger.info("---------------- TopUps ----------------")
-        logger.info("[STARTED] TopUps migration")
-
-        # Inactivating all org topups before importing the ones from Live server
-        TopUp.objects.filter(is_active=True, org=self.org).update(is_active=False)
-
-        org_topups = migrator.get_org_topups()
-        if org_topups:
-            self.add_topups(logger=logger, topups=org_topups, migrator=migrator)
-
-        logger.info("[COMPLETED] TopUps migration")
-        logger.info("")
-
-        logger.info("---------------- Languages ----------------")
-        logger.info("[STARTED] Languages migration")
-
-        # Inactivating all org languages before importing the ones from Live server
-        self.org.primary_language = None
-        self.org.save(update_fields=["primary_language"])
-
-        Language.objects.filter(is_active=True, org=self.org).delete()
-
-        org_languages = migrator.get_org_languages()
-        if org_languages:
-            self.add_languages(logger=logger, languages=org_languages)
-
-            if org_data.primary_language_id:
-                org_primary_language = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_ORG_LANGUAGE, old_id=org_data.primary_language_id
-                )
-                self.org.primary_language = org_primary_language
-                self.org.save(update_fields=["primary_language"])
-
-        logger.info("[COMPLETED] Languages migration")
-        logger.info("")
-
-        logger.info("---------------- Channels ----------------")
-        logger.info("[STARTED] Channels migration")
-
-        # Inactivating all org channels before importing the ones from Live server
-        existing_channels = Channel.objects.filter(org=self.org)
-        for channel in existing_channels:
-            channel.uuid = generate_uuid()
-            channel.secret = None
-            channel.save(update_fields=["uuid", "secret"])
-            channel.release(deactivate=False)
-
-        org_channels = migrator.get_org_channels()
-        if org_channels:
-            self.add_channels(logger=logger, channels=org_channels, migrator=migrator)
-
-        logger.info("[COMPLETED] Channels migration")
-        logger.info("")
-
-        logger.info("---------------- Contact Fields ----------------")
-        logger.info("[STARTED] Contact Fields migration")
-
-        org_contact_fields = migrator.get_org_contact_fields()
-        if org_contact_fields:
-            self.add_contact_fields(logger=logger, fields=org_contact_fields)
-
-        logger.info("[COMPLETED] Contact Fields migration")
-        logger.info("")
-
-        logger.info("---------------- Contacts ----------------")
-        logger.info("[STARTED] Contacts migration")
-
-        org_contacts = migrator.get_org_contacts()
-        if org_contacts:
-            self.add_contacts(logger=logger, contacts=org_contacts, migrator=migrator)
-
-        logger.info("[COMPLETED] Contacts migration")
-        logger.info("")
-
-        logger.info("---------------- Contact Groups ----------------")
-        logger.info("[STARTED] Contact Groups migration")
-
-        # Releasing current contact groups
-        contact_groups = ContactGroup.user_groups.filter(org=self.org).only("id", "uuid").order_by("id")
-        for contact_group in contact_groups:
-            contact_group.release()
-            contact_group.uuid = generate_uuid()
-            contact_group.save(update_fields=["uuid"])
-
-        org_contact_groups = migrator.get_org_contact_groups()
-        if org_contact_groups:
-            self.add_contact_groups(logger=logger, groups=org_contact_groups, migrator=migrator)
-
-        logger.info("[COMPLETED] Contact Groups migration")
-        logger.info("")
-
-        logger.info("---------------- Channel Events ----------------")
-        logger.info("[STARTED] Channel Events migration")
-
-        # Removing all channel events before importing them from live server
-        ChannelEvent.objects.filter(org=self.org).delete()
-
-        org_channel_events = migrator.get_org_channel_events()
-        if org_channel_events:
-            self.add_channel_events(logger=logger, channel_events=org_channel_events)
-
-        logger.info("[COMPLETED] Channel Events migration")
-        logger.info("")
-
-        elapsed = timesince(start)
-        logger.info(f"This process took {elapsed}")
-
-        self.update_status(self.STATUS_COMPLETE)
-
-        self.remove_association()
+        finally:
+            self.remove_association()
 
     def update_org(self, org_data):
         self.org.plan = org_data.plan
@@ -481,6 +508,51 @@ class MigrationTask(TembaModel):
                 if new_contact_obj and not contact_group.is_dynamic:
                     contact_group.update_contacts(user=self.created_by, contacts=[new_contact_obj], add=True)
 
+    def add_schedules(self, logger, schedules):
+        WEEKDAYS = "MTWRFSU"
+
+        for schedule in schedules:
+            logger.info(f">>> Schedule: {schedule.id}")
+
+            if schedule.repeat_period == "W":
+                repeat_days_of_week = ""
+                bitmask_number = bin(schedule.repeat_days)
+                for idx in range(7):
+                    power = bin(pow(2, idx + 1))
+                    if bin(int(bitmask_number, 2) & int(power, 2)) == power:
+                        repeat_days_of_week += WEEKDAYS[idx]
+            else:
+                repeat_days_of_week = schedule.repeat_days
+
+            if schedule.repeat_period != "O":
+                now = datetime.utcnow().replace(minute=0, second=0, microsecond=0, tzinfo=pytz.utc)
+                tz = pytz.timezone(self.org.timezone)
+                hour_time = now.replace(hour=schedule.repeat_hour_of_day)
+                local_now = tz.normalize(hour_time.astimezone(tz))
+                repeat_hour_of_day = local_now.hour
+            else:
+                repeat_hour_of_day = schedule.repeat_hour_of_day
+
+            new_schedule_obj = Schedule.objects.create(
+                created_by=self.created_by,
+                modified_by=self.created_by,
+                org=self.org,
+                repeat_period=schedule.repeat_period,
+                repeat_hour_of_day=repeat_hour_of_day,
+                repeat_minute_of_hour=schedule.repeat_minute_of_hour,
+                repeat_day_of_month=schedule.repeat_day_of_month,
+                repeat_days_of_week=repeat_days_of_week,
+                next_fire=schedule.next_fire,
+                last_fire=schedule.last_fire,
+            )
+
+            MigrationAssociation.create(
+                migration_task=self,
+                old_id=schedule.id,
+                new_id=new_schedule_obj.id,
+                model=MigrationAssociation.MODEL_SCHEDULE,
+            )
+
     def remove_association(self):
         return self.associations.all().delete()
 
@@ -573,7 +645,6 @@ class MigrationAssociation(models.Model):
         from temba.msgs.models import Msg, Label
         from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
         from temba.links.models import Link
-        from temba.schedules.models import Schedule
         from temba.triggers.models import Trigger
 
         model_class = {

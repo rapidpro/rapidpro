@@ -182,3 +182,29 @@ class Migrator(object):
             query_string=f"SELECT * FROM public.channels_channelevent WHERE org_id = {self.org_id} ORDER BY id ASC",
             count=count,
         )
+
+    def get_org_trigger_schedules(self) -> list:
+        count_query = self.make_query_one(
+            query_string=f"SELECT count(ss.*) as count FROM public.schedules_schedule ss INNER JOIN "
+                         f"public.triggers_trigger tt ON (ss.id = tt.schedule_id) WHERE tt.org_id = {self.org_id} "
+                         f"AND tt.schedule_id IS NOT NULL"
+        )
+        return self.get_results_paginated(
+            query_string=f"SELECT ss.* as count FROM public.schedules_schedule ss INNER JOIN "
+                         f"public.triggers_trigger tt ON (ss.id = tt.schedule_id) WHERE tt.org_id = {self.org_id} "
+                         f"AND tt.schedule_id IS NOT NULL",
+            count=count_query.count,
+        )
+
+    def get_org_broadcast_schedules(self) -> list:
+        count_query = self.make_query_one(
+            query_string=f"SELECT count(ss.*) as count FROM public.schedules_schedule ss INNER JOIN "
+                         f"public.msgs_broadcast mb ON (ss.id = mb.schedule_id) WHERE mb.org_id = {self.org_id} "
+                         f"AND mb.schedule_id IS NOT NULL"
+        )
+        return self.get_results_paginated(
+            query_string=f"SELECT ss.* FROM public.schedules_schedule ss INNER JOIN "
+                         f"public.msgs_broadcast mb ON (ss.id = mb.schedule_id) WHERE mb.org_id = {self.org_id} "
+                         f"AND mb.schedule_id IS NOT NULL",
+            count=count_query.count,
+        )
