@@ -17,16 +17,12 @@ ENV PATH              "${NPM_CONFIG_PREFIX}/bin:${PATH}"
 RUN apt-get update \
  && apt-get install --no-install-recommends --no-install-suggests -y apt-utils \
  && apt-get install --no-install-recommends --no-install-suggests -y gcc bzip2 curl nginx libpq-dev gettext \
-    libgdal-dev python3-cffi python3-gdal
+    libgdal-dev python3-cffi python3-gdal vim
 
 RUN curl -sL https://deb.nodesource.com/setup_12.x | bash - \
  && apt-get install --no-install-recommends --no-install-suggests -y nodejs
 
 RUN rm -rf /var/lib/apt/lists/*
-
-COPY ./pip-freeze.txt /tmp/pip-freeze.txt
-COPY ./docker/pip-freeze.txt /tmp/dep/pip-freeze.txt
-RUN pip install --no-cache-dir -r /tmp/dep/pip-freeze.txt
 
 RUN useradd -Ums /bin/bash $PROJECT_USER \
  && usermod -aG adm $PROJECT_USER
@@ -41,7 +37,10 @@ RUN mkdir $PROJECT_PATH \
 
 RUN rm /etc/nginx/sites-enabled/default
 
-COPY ./docker/nginx.site.conf  /tmp/
+COPY ./pip-freeze.txt ./docker/pip-freeze.txt ./docker/nginx.site.conf /tmp/
+
+RUN pip install --no-cache-dir -r /tmp/dep/pip-freeze.txt
+
 RUN envsubst < /tmp/nginx.site.conf > /etc/nginx/sites-available/$PROJECT.conf \
  && ln -s /etc/nginx/sites-available/$PROJECT.conf /etc/nginx/sites-enabled/$PROJECT.conf
 
