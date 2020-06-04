@@ -626,6 +626,15 @@ class MigrationTask(TembaModel):
                 if new_group_obj:
                     new_broadcast_obj.groups.add(new_group_obj)
 
+            broadcast_urns = migrator.get_msg_broadcast_urns(broadcast_id=broadcast.id)
+            for item in broadcast_urns:
+                new_urn_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_CONTACT_URN,
+                    old_id=item.contacturn_id,
+                )
+                if new_urn_obj:
+                    new_broadcast_obj.urns.add(new_urn_obj)
+
     def remove_association(self):
         return self.associations.all().delete()
 
