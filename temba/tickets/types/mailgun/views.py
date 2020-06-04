@@ -2,6 +2,7 @@ from django import forms
 from django.conf import settings
 from django.http import HttpResponseRedirect
 from django.urls import reverse
+from django.utils.html import escape
 from django.utils.translation import ugettext_lazy as _
 
 from temba.utils.email import send_template_email
@@ -13,7 +14,9 @@ from ...views import BaseConnectView
 
 class ConnectView(BaseConnectView):
     class EmailForm(BaseConnectView.Form):
-        to_address = forms.EmailField(help_text=_("The email address to forward tickets and replies to"))
+        to_address = forms.EmailField(
+            label=_("Address"), help_text=_("The email address to forward tickets and replies to")
+        )
 
     class VerifyForm(BaseConnectView.Form):
         verification_token = forms.CharField(
@@ -30,14 +33,30 @@ class ConnectView(BaseConnectView):
 
             return value
 
+    def is_verify_step(self):
+        return "verify" in self.request.GET
+
     def get(self, request, *args, **kwargs):
-        if not request.GET.get("verify"):
+        if not self.is_verify_step():
             request.session["verification_token"] = random_string(6)
 
         return super().get(request, *args, **kwargs)
 
     def get_form_class(self):
-        return ConnectView.VerifyForm if self.request.GET.get("verify") else ConnectView.EmailForm
+        return ConnectView.VerifyForm if self.is_verify_step() else ConnectView.EmailForm
+
+    def get_form_blurb(self):
+        if self.is_verify_step():
+            address = escape(self.request.session["to_address"])
+            return _(
+                "A verification code was sent to <code>%(address)s</code>. Enter it below to continue adding this "
+                "ticketing service to your account."
+            ) % {"address": address}
+        else:
+            return _(
+                "New tickets and replies will be sent to the email address that you configure below. "
+                "You will need to verify it by entering the token sent to you."
+            )
 
     def form_valid(self, form):
         from .type import MailgunType

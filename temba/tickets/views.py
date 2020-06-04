@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.functional import cached_property
+from django.utils.html import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
@@ -24,6 +25,7 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
     submit_button_name = _("Connect")
     permission = "tickets.ticketer_connect"
     ticketer_type = None
+    form_blurb = ""
 
     def __init__(self, ticketer_type):
         self.ticketer_type = ticketer_type
@@ -45,9 +47,12 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
     def get_success_url(self):
         return reverse("tickets.ticket_filter", args=[self.object.uuid])
 
+    def get_form_blurb(self):
+        return self.form_blurb
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["form_blurb"] = self.ticketer_type.get_form_blurb()
+        context["form_blurb"] = mark_safe(self.get_form_blurb())
         return context
 
 

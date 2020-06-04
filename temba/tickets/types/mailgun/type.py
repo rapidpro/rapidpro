@@ -18,15 +18,12 @@ class MailgunType(TicketerType):
 
     name = "Email"
     slug = "mailgun"
-    icon = "icon-envelop"
+    icon = "icon-email-tickets"
 
     connect_view = ConnectView
     connect_blurb = _(
-        """Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."""
-    )
-
-    form_blurb = _(
-        """New tickets and replies will be sent to the email address that you configure below. You will need to verify it by entering the token sent to you."""
+        "Connecting an email address will forward all new tickets and their responses to that email address. "
+        "You will be able to respond to them directly and your replies will be sent to the contact."
     )
 
     def is_available(self):
