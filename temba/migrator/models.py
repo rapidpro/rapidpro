@@ -218,6 +218,20 @@ class MigrationTask(TembaModel):
             logger.info("[COMPLETED] Msg Broadcasts migration")
             logger.info("")
 
+            logger.info("---------------- Msg Labels ----------------")
+            logger.info("[STARTED] Msg Labels migration")
+
+            org_msg_folders = migrator.get_org_msg_labels(label_type="F")
+            if org_msg_folders:
+                self.add_msg_folders(logger=logger, folders=org_msg_folders)
+
+            org_msg_labels = migrator.get_org_msg_labels(label_type="L")
+            if org_msg_labels:
+                self.add_msg_labels(logger=logger, labels=org_msg_labels)
+
+            logger.info("[COMPLETED] Msg Labels migration")
+            logger.info("")
+
             elapsed = timesince(start)
             logger.info(f"This process took {elapsed}")
 
@@ -633,6 +647,55 @@ class MigrationTask(TembaModel):
                 if new_urn_obj:
                     new_broadcast_obj.urns.add(new_urn_obj)
 
+    def add_msg_folders(self, logger, folders):
+        for folder in folders:
+            logger.info(f">>> Msg Folder: {folder.uuid} - {folder.name}")
+
+            new_msg_folder = Label.get_or_create_folder(
+                org=self.org,
+                user=self.created_by,
+                name=folder.name,
+            )
+            if folder.uuid != new_msg_folder.uuid:
+                new_msg_folder.uuid = folder.uuid
+                new_msg_folder.save(update_fields=["uuid"])
+
+            MigrationAssociation.create(
+                migration_task=self,
+                old_id=folder.id,
+                new_id=new_msg_folder.id,
+                model=MigrationAssociation.MODEL_MSG_LABEL,
+            )
+
+    def add_msg_labels(self, logger, labels):
+        for label in labels:
+            logger.info(f">>> Msg Label: {label.uuid} - {label.name}")
+
+            new_msg_label = Label.get_or_create(
+                org=self.org,
+                user=self.created_by,
+                name=label.name,
+            )
+
+            if label.uuid != new_msg_label.uuid:
+                new_msg_label.uuid = label.uuid
+                new_msg_label.save(update_fields=["uuid"])
+
+            if label.folder_id:
+                new_folder_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_MSG_LABEL,
+                    old_id=label.folder_id,
+                )
+                new_msg_label.folder = new_folder_obj
+                new_msg_label.save(update_fields=["folder"])
+
+            MigrationAssociation.create(
+                migration_task=self,
+                old_id=label.id,
+                new_id=new_msg_label.id,
+                model=MigrationAssociation.MODEL_MSG_LABEL,
+            )
+
     def remove_association(self):
         return self.associations.all().delete()
 
@@ -719,6 +782,8 @@ class MigrationAssociation(models.Model):
             queryset = _model.user_groups.filter(id=obj.new_id, org=obj.migration_task.org).first()
         elif model == MigrationAssociation.MODEL_CONTACT_FIELD:
             queryset = _model.user_fields.filter(id=obj.new_id, org=obj.migration_task.org).first()
+        elif model == MigrationAssociation.MODEL_MSG_LABEL:
+            queryset = _model.all_objects.filter(id=obj.new_id, org=obj.migration_task.org).first()
         else:
             queryset = _model.objects.filter(id=obj.new_id, org=obj.migration_task.org).first()
 
