@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-26 19:42+0000\n"
+"POT-Creation-Date: 2020-06-04 19:49+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -5538,19 +5538,23 @@ msgstr ""
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
 msgstr ""
 
-msgid "New tickets and replies will be sent to the email address that you configure below. You will need to verify it by entering the token sent to you."
-msgstr ""
-
 msgid "The email address to forward tickets and replies to"
 msgstr ""
 
-msgid "The verification token that was sent to your email"
+msgid "The verification code that was sent to your email"
 msgstr ""
 
-msgid "No verification token found, please start over."
+msgid "No verification code found, please start over."
 msgstr ""
 
-msgid "Token does not match, please check your email."
+msgid "Code does not match, please check your email."
+msgstr ""
+
+#, python-format
+msgid "A verification code was sent to <code>%(address)s</code>. Enter it below to continue adding this ticketing service to your account."
+msgstr ""
+
+msgid "New tickets and replies will be sent to the email address that you configure below. You will need to verify it by entering the code sent to you."
 msgstr ""
 
 #, fuzzy
@@ -11642,11 +11646,11 @@ msgid "No ticketing services are available."
 msgstr ""
 
 #, python-format
-msgid "Your verification token is <b>%(token)s</b> to continue adding an email-based ticketing service."
+msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
 msgstr ""
 
 #, python-format
-msgid "Your verification token is %(token)s to continue adding an email-based ticketing service."
+msgid "Your verification code is %(code)s to continue adding an email-based ticketing service."
 msgstr ""
 
 msgid "This will connect your account to Zendesk allowing you to open tickets in flows."

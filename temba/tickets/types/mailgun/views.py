@@ -19,17 +19,17 @@ class ConnectView(BaseConnectView):
         )
 
     class VerifyForm(BaseConnectView.Form):
-        verification_token = forms.CharField(
-            max_length=6, help_text=_("The verification token that was sent to your email")
+        verification_code = forms.CharField(
+            max_length=6, help_text=_("The verification code that was sent to your email")
         )
 
-        def clean_verification_token(self):
-            value = self.cleaned_data["verification_token"]
-            token = self.request.session.get("verification_token")
-            if not token:
-                raise forms.ValidationError(_("No verification token found, please start over."))
-            if token != value:
-                raise forms.ValidationError(_("Token does not match, please check your email."))
+        def clean_verification_code(self):
+            value = self.cleaned_data["verification_code"]
+            code = self.request.session.get("verification_code")
+            if not code:
+                raise forms.ValidationError(_("No verification code found, please start over."))
+            if code != value:
+                raise forms.ValidationError(_("Code does not match, please check your email."))
 
             return value
 
@@ -38,7 +38,7 @@ class ConnectView(BaseConnectView):
 
     def get(self, request, *args, **kwargs):
         if not self.is_verify_step():
-            request.session["verification_token"] = random_string(6)
+            request.session["verification_code"] = random_string(6)
 
         return super().get(request, *args, **kwargs)
 
@@ -55,7 +55,7 @@ class ConnectView(BaseConnectView):
         else:
             return _(
                 "New tickets and replies will be sent to the email address that you configure below. "
-                "You will need to verify it by entering the token sent to you."
+                "You will need to verify it by entering the code sent to you."
             )
 
     def form_valid(self, form):
@@ -64,21 +64,21 @@ class ConnectView(BaseConnectView):
         branding = self.org.get_branding()
         domain = self.org.get_branding()["ticket_domain"]
         api_key = settings.MAILGUN_API_KEY
-        verification_token = self.request.session["verification_token"]
+        verification_code = self.request.session["verification_code"]
 
         # step 1, they entered their email, off to verify
         if isinstance(form, ConnectView.EmailForm):
             to_address = form.cleaned_data["to_address"]
             subject = _("Verify your email address for tickets")
             template = "tickets/types/mailgun/verify_email"
-            context = {"verification_token": verification_token}
+            context = {"verification_code": verification_code}
             send_template_email(to_address, subject, template, context, self.request.branding)
 
             self.request.session["to_address"] = to_address
             return HttpResponseRedirect(reverse("tickets.types.mailgun.connect") + "?verify=true")
 
-        # delete token so it can't be re-used
-        del self.request.session["verification_token"]
+        # delete code so it can't be re-used
+        del self.request.session["verification_code"]
 
         to_address = self.request.session["to_address"]
         config = {
