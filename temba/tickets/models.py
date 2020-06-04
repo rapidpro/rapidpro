@@ -33,9 +33,6 @@ class TicketerType(metaclass=ABCMeta):
     # the blurb to show on the main connect page
     connect_blurb = None
 
-    # the blurb to show above the connection form
-    form_blurb = None
-
     # the view that handles connection of a new service
     connect_view = None
 
@@ -50,12 +47,6 @@ class TicketerType(metaclass=ABCMeta):
         Gets the blurb for use on the connect page
         """
         return Engine.get_default().from_string(str(self.connect_blurb))
-
-    def get_form_blurb(self):
-        """
-        Gets the blurb for use on the connect page
-        """
-        return Engine.get_default().from_string(str(self.form_blurb))
 
     def get_urls(self):
         """
