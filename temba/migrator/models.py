@@ -233,6 +233,20 @@ class MigrationTask(TembaModel):
             logger.info("[COMPLETED] Msg Labels migration")
             logger.info("")
 
+            logger.info("---------------- Msgs ----------------")
+            logger.info("[STARTED] Msgs migration")
+
+            all_org_msgs = Msg.objects.filter(org=self.org).only("id").order_by("id")
+            for msg in all_org_msgs:
+                msg.release(delete_reason=None)
+
+            org_msgs = migrator.get_org_msgs()
+            if org_msgs:
+                self.add_msgs(logger=logger, msgs=org_msgs, migrator=migrator)
+
+            logger.info("[COMPLETED] Msgs migration")
+            logger.info("")
+
             elapsed = timesince(start)
             logger.info(f"This process took {elapsed}")
 
@@ -471,6 +485,12 @@ class MigrationTask(TembaModel):
                     is_active=contact.is_active,
                     uuid=contact.uuid,
                 )
+
+            # Making sure that the contacts will have the same created_on and modified_on from live
+            # If it is not the same from live, would affect the contact messages history
+            existing_contact.created_on = contact.created_on
+            existing_contact.modified_on = contact.modified_on
+            existing_contact.save(update_fields=["created_on", "modified_on"], handle_update=True)
 
             MigrationAssociation.create(
                 migration_task=self,
@@ -712,6 +732,95 @@ class MigrationTask(TembaModel):
                 old_id=label.id,
                 new_id=new_msg_label.id,
                 model=MigrationAssociation.MODEL_MSG_LABEL,
+            )
+
+    def add_msgs(self, logger, msgs, migrator):
+        for msg in msgs:
+            msg_text = f"{msg.text[:30]}..." if len(msg.text) > 30 else msg.text
+            msg_direction = "Incoming" if msg.direction == "I" else "Outgoing"
+
+            logger.info(f">>> Msg: {msg.uuid} - [{msg_direction}] {msg_text}")
+
+            response_to = None
+            if msg.response_to_id:
+                new_msg_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_MSG,
+                    old_id=msg.response_to_id,
+                )
+                response_to = new_msg_obj
+
+            new_channel_obj = None
+            if msg.channel_id:
+                new_channel_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_CHANNEL,
+                    old_id=msg.channel_id,
+                )
+
+            new_contact_obj = MigrationAssociation.get_new_object(
+                model=MigrationAssociation.MODEL_CONTACT,
+                old_id=msg.contact_id,
+            )
+
+            if not new_contact_obj:
+                continue
+
+            new_contact_urn_obj = None
+            if msg.contact_urn_id:
+                new_contact_urn_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_CONTACT_URN,
+                    old_id=msg.contact_urn_id,
+                )
+
+            new_broadcast_obj = None
+            if msg.broadcast_id:
+                new_broadcast_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_MSG_BROADCAST,
+                    old_id=msg.broadcast_id,
+                )
+
+            new_topup_obj = None
+            if msg.topup_id:
+                new_topup_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_ORG_TOPUP,
+                    old_id=msg.topup_id,
+                )
+
+            new_msg = Msg.objects.create(
+                uuid=msg.uuid,
+                org=self.org,
+                channel=new_channel_obj,
+                contact=new_contact_obj,
+                contact_urn=new_contact_urn_obj,
+                broadcast=new_broadcast_obj,
+                text=msg.text,
+                high_priority=msg.high_priority,
+                created_on=msg.created_on,
+                modified_on=msg.modified_on,
+                sent_on=msg.sent_on,
+                queued_on=msg.queued_on,
+                direction=msg.direction,
+                status=msg.status,
+                response_to=response_to,
+                visibility=msg.visibility,
+                msg_type=msg.msg_type,
+                msg_count=msg.msg_count,
+                error_count=msg.error_count,
+                next_attempt=msg.next_attempt,
+                external_id=msg.external_id,
+                topup=new_topup_obj,
+                attachments=msg.attachments,
+                metadata=json.loads(msg.metadata) if msg.metadata else dict(),
+            )
+
+            if new_msg.uuid != msg.uuid:
+                new_msg.uuid = msg.uuid
+                new_msg.save(update_fields=["uuid"])
+
+            MigrationAssociation.create(
+                migration_task=self,
+                old_id=msg.id,
+                new_id=new_msg.id,
+                model=MigrationAssociation.MODEL_MSG,
             )
 
     def remove_association(self):
