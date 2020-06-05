@@ -62,8 +62,11 @@ class Migrator(object):
             cursor.execute(query_string)
             return self.dictfetchone(cursor)
 
-    def get_count(self, table_name):
-        query = self.make_query_one(query_string=f"SELECT count(*) as count FROM public.{table_name}")
+    def get_count(self, table_name, condition=None):
+        if condition:
+            condition = f"WHERE {condition}"
+
+        query = self.make_query_one(query_string=f"SELECT count(*) as count FROM public.{table_name} {condition}")
         return query.count
 
     def get_results_paginated(self, query_string, count) -> list:
@@ -83,9 +86,9 @@ class Migrator(object):
         return results
 
     def get_all_orgs(self) -> list:
-        orgs_count = self.get_count("orgs_org")
+        orgs_count = self.get_count("orgs_org", condition="is_active = true")
         results = self.get_results_paginated(
-            query_string="SELECT * FROM public.orgs_org ORDER BY name ASC", count=orgs_count
+            query_string="SELECT * FROM public.orgs_org WHERE is_active = true ORDER BY name ASC", count=orgs_count
         )
         return results
 
@@ -93,91 +96,94 @@ class Migrator(object):
         return self.make_query_one(query_string=f"SELECT * FROM public.orgs_org WHERE id = {self.org_id}")
 
     def get_org_topups(self) -> list:
-        topups_count = self.get_count("orgs_topup")
+        topups_count = self.get_count("orgs_topup", condition=f"org_id = {self.org_id} AND is_active = true")
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.orgs_topup WHERE org_id = {self.org_id} AND is_active = true ORDER BY id ASC",
             count=topups_count,
         )
 
     def get_org_topups_credit(self, topup_id) -> list:
-        topupcredits_count = self.get_count("orgs_topupcredits")
+        topupcredits_count = self.get_count("orgs_topupcredits", condition=f"topup_id = {topup_id}")
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.orgs_topupcredits WHERE topup_id = {topup_id} ORDER BY id ASC",
             count=topupcredits_count,
         )
 
     def get_org_languages(self) -> list:
-        languages_count = self.get_count("orgs_language")
+        languages_count = self.get_count("orgs_language", condition=f"org_id = {self.org_id}")
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.orgs_language WHERE org_id = {self.org_id} ORDER BY id ASC",
             count=languages_count,
         )
 
     def get_org_channels(self) -> list:
-        channels_count = self.get_count("channels_channel")
+        channels_count = self.get_count("channels_channel", condition=f"org_id = {self.org_id} AND is_active = true")
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.channels_channel WHERE org_id = {self.org_id} AND is_active = true ORDER BY id ASC",
             count=channels_count,
         )
 
     def get_channels_count(self, channel_id) -> list:
-        channels_count = self.get_count("channels_channelcount")
+        channels_count = self.get_count("channels_channelcount", condition=f"channel_id = {channel_id}")
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.channels_channelcount WHERE channel_id = {channel_id} ORDER BY id ASC",
             count=channels_count,
         )
 
     def get_channel_syncevents(self, channel_id) -> list:
-        syncevents_count = self.get_count("channels_syncevent")
+        syncevents_count = self.get_count("channels_syncevent", condition=f"channel_id = {channel_id}")
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.channels_syncevent WHERE channel_id = {channel_id} ORDER BY id ASC",
             count=syncevents_count,
         )
 
     def get_org_contact_fields(self) -> list:
-        count = self.get_count("contacts_contactfield")
+        count = self.get_count("contacts_contactfield", condition=f"org_id = {self.org_id} AND is_active = true")
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.contacts_contactfield WHERE org_id = {self.org_id} AND is_active = true ORDER BY id ASC",
             count=count,
         )
 
     def get_org_contacts(self) -> list:
-        count = self.get_count("contacts_contact")
+        count = self.get_count("contacts_contact", condition=f"org_id = {self.org_id} AND is_test = false")
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.contacts_contact WHERE org_id = {self.org_id} AND is_test = false ORDER BY id ASC",
             count=count,
         )
 
     def get_values_value(self, contact_id) -> list:
-        count = self.get_count("values_value")
+        count = self.get_count(
+            "values_value",
+            condition=f"org_id = {self.org_id} AND contact_id = {contact_id} AND contact_field_id IS NOT NULL"
+        )
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.values_value WHERE org_id = {self.org_id} AND contact_id = {contact_id} AND contact_field_id IS NOT NULL ORDER BY id ASC",
             count=count,
         )
 
     def get_contact_urns(self, contact_id) -> list:
-        count = self.get_count("contacts_contacturn")
+        count = self.get_count("contacts_contacturn", condition=f"org_id = {self.org_id} AND contact_id = {contact_id}")
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.contacts_contacturn WHERE org_id = {self.org_id} AND contact_id = {contact_id} ORDER BY id ASC",
             count=count,
         )
 
     def get_org_contact_groups(self) -> list:
-        count = self.get_count("contacts_contactgroup")
+        count = self.get_count("contacts_contactgroup", condition=f"org_id = {self.org_id} AND group_type = 'U'")
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.contacts_contactgroup WHERE org_id = {self.org_id} AND group_type = 'U' ORDER BY id ASC",
             count=count,
         )
 
     def get_contactgroups_contacts(self, contactgroup_id) -> list:
-        count = self.get_count("contacts_contactgroup_contacts")
+        count = self.get_count("contacts_contactgroup_contacts", condition=f"contactgroup_id = {contactgroup_id}")
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.contacts_contactgroup_contacts WHERE contactgroup_id = {contactgroup_id} ORDER BY id ASC",
             count=count,
         )
 
     def get_org_channel_events(self) -> list:
-        count = self.get_count("channels_channelevent")
+        count = self.get_count("channels_channelevent", condition=f"org_id = {self.org_id}")
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.channels_channelevent WHERE org_id = {self.org_id} ORDER BY id ASC",
             count=count,
@@ -210,35 +216,38 @@ class Migrator(object):
         )
 
     def get_org_msg_broadcasts(self) -> list:
-        count = self.get_count("msgs_broadcast")
+        count = self.get_count("msgs_broadcast", condition=f"org_id = {self.org_id}")
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.msgs_broadcast WHERE org_id = {self.org_id} ORDER BY id ASC",
             count=count,
         )
 
     def get_msg_broadcast_contacts(self, broadcast_id) -> list:
-        count = self.get_count("msgs_broadcast_contacts")
+        count = self.get_count("msgs_broadcast_contacts", condition=f"broadcast_id = {broadcast_id}")
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.msgs_broadcast_contacts WHERE broadcast_id = {broadcast_id} ORDER BY id ASC",
             count=count,
         )
 
     def get_msg_broadcast_groups(self, broadcast_id) -> list:
-        count = self.get_count("msgs_broadcast_groups")
+        count = self.get_count("msgs_broadcast_groups", condition=f"broadcast_id = {broadcast_id}")
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.msgs_broadcast_groups WHERE broadcast_id = {broadcast_id} ORDER BY id ASC",
             count=count,
         )
 
     def get_msg_broadcast_urns(self, broadcast_id) -> list:
-        count = self.get_count("msgs_broadcast_urns")
+        count = self.get_count("msgs_broadcast_urns", condition=f"broadcast_id = {broadcast_id}")
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.msgs_broadcast_urns WHERE broadcast_id = {broadcast_id} ORDER BY id ASC",
             count=count,
         )
 
     def get_org_msg_labels(self, label_type) -> list:
-        count = self.get_count("msgs_label")
+        count = self.get_count(
+            "msgs_label",
+            condition=f"org_id = {self.org_id} AND is_active = true AND label_type = '{label_type}'"
+        )
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.msgs_label WHERE org_id = {self.org_id} AND is_active = true AND label_type = '{label_type}' ORDER BY id ASC",
             count=count,
