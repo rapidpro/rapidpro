@@ -833,6 +833,15 @@ class MigrationTask(TembaModel):
                 model=MigrationAssociation.MODEL_MSG,
             )
 
+            msg_labels = migrator.get_msg_labels(msg_id=msg.id)
+            for item in msg_labels:
+                new_label_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_MSG_LABEL,
+                    old_id=item.label_id,
+                )
+                if new_label_obj:
+                    new_msg.labels.add(new_label_obj)
+
     def remove_association(self):
         return self.associations.all().exclude(model=MigrationAssociation.MODEL_ORG).delete()
 

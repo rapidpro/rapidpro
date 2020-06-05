@@ -260,3 +260,10 @@ class Migrator(object):
             query_string=f"SELECT * FROM public.msgs_msg WHERE org_id = {self.org_id} ORDER BY id ASC",
             count=count,
         )
+
+    def get_msg_labels(self, msg_id) -> list:
+        count = self.get_count("msgs_msg_labels", condition=f"msg_id = {msg_id}")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.msgs_msg_labels WHERE msg_id = {msg_id} ORDER BY id ASC",
+            count=count,
+        )
