@@ -516,6 +516,7 @@ class FlowCRUDL(SmartCRUDL):
         "giftcards_api",
         "launch",
         "flow_parameters",
+        "export_pdf",
     )
 
     model = Flow
@@ -1577,7 +1578,6 @@ class FlowCRUDL(SmartCRUDL):
             context["pdf_export_lang"] = self.request.GET.get("pdf_export_lang", None)
 
             dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
-            getattr(settings, "EDITOR_DEV_MODE", False)
             prefix = "/dev" if dev_mode else settings.STATIC_URL
 
             # get our list of assets to incude
@@ -1709,6 +1709,58 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(divider=True))
                 links.append(dict(title=_("Previous Editor"), js_class="previous-editor", href="#"))
             return links
+
+    class ExportPdf(OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = "uuid"
+
+        def derive_title(self):
+            return self.object.name
+
+        def get_template_names(self):
+            return "flows/flow_export_pdf.haml"
+
+        def get_context_data(self, *args, **kwargs):
+            context = super().get_context_data(*args, **kwargs)
+
+            context["media_url"] = "%s://%s/" % ("http" if settings.DEBUG else "https", settings.AWS_BUCKET_DOMAIN)
+            context["pdf_export_lang"] = self.request.GET.get("pdf_export_lang", None)
+
+            dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
+            prefix = "/dev" if dev_mode else settings.STATIC_URL
+
+            # get our list of assets to incude
+            scripts = []
+            styles = []
+
+            if dev_mode:  # pragma: no cover
+                response = requests.get("http://localhost:3000/asset-manifest.json")
+                data = response.json()
+            else:
+                with open("node_modules/@greatnonprofits-nfp/flow-editor/build/asset-manifest.json") as json_file:
+                    data = json.load(json_file)
+
+            for key, filename in data.get("files").items():
+
+                # tack on our prefix for dev mode
+                filename = prefix + filename
+
+                # ignore precache manifest
+                if key.startswith("precache-manifest") or key.startswith("service-worker"):
+                    continue
+
+                # css files
+                if key.endswith(".css") and filename.endswith(".css"):
+                    styles.append(filename)
+
+                # javascript
+                if key.endswith(".js") and filename.endswith(".js"):
+                    scripts.append(filename)
+
+            context["scripts"] = scripts
+            context["styles"] = styles
+            context["dev_mode"] = dev_mode
+
+            return context
 
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
         class ExportForm(forms.Form):
