@@ -17,6 +17,7 @@ from temba.channels.models import Channel, ChannelCount, SyncEvent, ChannelEvent
 from temba.schedules.models import Schedule
 from temba.msgs.models import Msg, Label, Broadcast
 from temba.orgs.models import Org
+from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.utils import json
 from temba.utils.models import TembaModel, generate_uuid
 
@@ -254,6 +255,16 @@ class MigrationTask(TembaModel):
                 self.add_channel_logs(logger=logger, channels=org_channels, migrator=migrator)
 
             logger.info("[COMPLETED] Channel Logs migration")
+            logger.info("")
+
+            logger.info("---------------- Flow Labels ----------------")
+            logger.info("[STARTED] Flow Labels migration")
+
+            org_flow_labels = migrator.get_org_flow_labels()
+            if org_flow_labels:
+                self.add_flow_labels(logger=logger, labels=org_flow_labels)
+
+            logger.info("[COMPLETED] Flow Labels migration")
             logger.info("")
 
             elapsed = timesince(start)
@@ -894,6 +905,37 @@ class MigrationTask(TembaModel):
                 if new_label_obj:
                     new_msg.labels.add(new_label_obj)
 
+    def add_flow_labels(self, logger, labels):
+        for label in labels:
+            logger.info(f">>> Flow Label: {label.uuid} - {label.name}")
+
+            new_flow_label = FlowLabel.objects.filter(uuid=label.uuid).only("id").first()
+            if not new_flow_label:
+                new_flow_label = FlowLabel.objects.create(
+                    org=self.org,
+                    uuid=label.uuid,
+                    name=label.name,
+                )
+
+            if new_flow_label.uuid != label.uuid:
+                new_flow_label.uuid = label.uuid
+                new_flow_label.save(update_fields=["uuid"])
+
+            if label.parent_id:
+                new_flow_label_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_FLOW_LABEL,
+                    old_id=label.parent_id,
+                )
+                new_flow_label.parent = new_flow_label_obj
+                new_flow_label.save(update_fields=["parent"])
+
+            MigrationAssociation.create(
+                migration_task=self,
+                old_id=label.id,
+                new_id=new_flow_label.id,
+                model=MigrationAssociation.MODEL_FLOW_LABEL,
+            )
+
     def remove_association(self):
         return self.associations.all().exclude(model=MigrationAssociation.MODEL_ORG).delete()
 
@@ -993,7 +1035,6 @@ class MigrationAssociation(models.Model):
 
     def get_related_model(self):
         from temba.campaigns.models import Campaign, CampaignEvent
-        from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
         from temba.links.models import Link
         from temba.triggers.models import Trigger
 

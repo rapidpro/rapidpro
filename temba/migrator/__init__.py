@@ -12,6 +12,7 @@ class MigratorObject:
         self.count = None
 
         # Org fields
+        self.id = None
         self.name = None
         self.plan = None
         self.plan_start = None
@@ -271,5 +272,12 @@ class Migrator(object):
         count = self.get_count("msgs_msg_labels", condition=f"msg_id = {msg_id}")
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.msgs_msg_labels WHERE msg_id = {msg_id} ORDER BY id ASC",
+            count=count,
+        )
+
+    def get_org_flow_labels(self) -> list:
+        count = self.get_count("flows_flowlabel", condition=f"org_id = {self.org_id}")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.flows_flowlabel WHERE org_id = {self.org_id} ORDER BY id ASC",
             count=count,
         )
