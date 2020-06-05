@@ -447,6 +447,7 @@ PERMISSIONS = {
         "giftcards_api",
         "launch",
         "flow_parameters",
+        "export_pdf",
     ),
     "flows.flowimage": ("read", "filter", "archived", "download"),
     "flows.flowsession": ("json",),

@@ -256,11 +256,7 @@ def get_image_size(logo_img):
     else:
         # checking if the file comes from sitestatic folder
         media_replace = "/sitestatic" if "sitestatic/brands" in logo_img else "/media"
-        static_root = (
-            settings.STATIC_ROOT.replace("sitestatic", "static")
-            if settings.DEBUG
-            else settings.STATIC_ROOT
-        )
+        static_root = settings.STATIC_ROOT.replace("sitestatic", "static") if settings.DEBUG else settings.STATIC_ROOT
         media_root = static_root if "sitestatic/brands" in logo_img else settings.MEDIA_ROOT
         logo_path = logo_img.split(settings.HOSTNAME)[-1].replace(media_replace, "", 1)
         logo_path = "%s%s" % (media_root, logo_path)
