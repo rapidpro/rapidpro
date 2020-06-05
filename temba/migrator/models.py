@@ -309,6 +309,9 @@ class MigrationTask(TembaModel):
                 org=self.org,
                 expires_on=topup.expires_on,
             )
+            new_topup.created_on = topup.created_on
+            new_topup.modified_on = topup.modified_on
+            new_topup.save(update_fields=["created_on", "modified_on"])
 
             MigrationAssociation.create(
                 migration_task=self, old_id=topup.id, new_id=new_topup.id, model=MigrationAssociation.MODEL_ORG_TOPUP
@@ -356,6 +359,8 @@ class MigrationTask(TembaModel):
             schemes = channel_type.schemes
 
             new_channel = Channel.objects.create(
+                created_on=channel.created_on,
+                modified_on=channel.modified_on,
                 org=self.org,
                 created_by=self.created_by,
                 modified_by=self.created_by,
@@ -443,6 +448,7 @@ class MigrationTask(TembaModel):
                 contact_urn=new_contact_urn_obj,
                 extra=json.loads(event.extra) if event.extra else dict(),
                 occurred_on=event.occurred_on,
+                created_on=event.created_on,
             )
 
     def add_contact_fields(self, logger, fields):
@@ -597,6 +603,8 @@ class MigrationTask(TembaModel):
                 repeat_hour_of_day = schedule.repeat_hour_of_day
 
             new_schedule_obj = Schedule.objects.create(
+                created_on=schedule.created_on,
+                modified_on=schedule.modified_on,
                 created_by=self.created_by,
                 modified_by=self.created_by,
                 org=self.org,
@@ -646,6 +654,8 @@ class MigrationTask(TembaModel):
                 is_active=broadcast.is_active,
                 created_by=self.created_by,
                 modified_by=self.created_by,
+                created_on=broadcast.created_on,
+                modified_on=broadcast.modified_on,
                 media=broadcast.media,
                 send_all=broadcast.send_all,
                 metadata=json.loads(broadcast.metadata) if broadcast.metadata else dict(),
