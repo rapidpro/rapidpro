@@ -137,6 +137,13 @@ class Migrator(object):
             count=syncevents_count,
         )
 
+    def get_channel_logs(self, channel_id) -> list:
+        count = self.get_count("channels_channellog", condition=f"channel_id = {channel_id}")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.channels_channellog WHERE channel_id = {channel_id} ORDER BY id ASC",
+            count=count,
+        )
+
     def get_org_contact_fields(self) -> list:
         count = self.get_count("contacts_contactfield", condition=f"org_id = {self.org_id} AND is_active = true")
         return self.get_results_paginated(
@@ -255,7 +262,6 @@ class Migrator(object):
 
     def get_org_msgs(self) -> list:
         count = self.get_count("msgs_msg", condition=f"org_id = {self.org_id}")
-        print(count)
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.msgs_msg WHERE org_id = {self.org_id} ORDER BY id ASC",
             count=count,

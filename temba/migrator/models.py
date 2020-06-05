@@ -13,7 +13,7 @@ from django.utils.timesince import timesince
 from temba.migrator import Migrator
 from temba.orgs.models import TopUp, TopUpCredits, Language
 from temba.contacts.models import ContactField, Contact, ContactGroup, ContactURN
-from temba.channels.models import Channel, ChannelCount, SyncEvent, ChannelEvent
+from temba.channels.models import Channel, ChannelCount, SyncEvent, ChannelEvent, ChannelLog
 from temba.schedules.models import Schedule
 from temba.msgs.models import Msg, Label, Broadcast
 from temba.orgs.models import Org
@@ -247,6 +247,15 @@ class MigrationTask(TembaModel):
             logger.info("[COMPLETED] Msgs migration")
             logger.info("")
 
+            logger.info("---------------- Channel Logs ----------------")
+            logger.info("[STARTED] Channel Logs migration")
+
+            if org_channels:
+                self.add_channel_logs(logger=logger, channels=org_channels, migrator=migrator)
+
+            logger.info("[COMPLETED] Channel Logs migration")
+            logger.info("")
+
             elapsed = timesince(start)
             logger.info(f"This process took {elapsed}")
 
@@ -450,6 +459,49 @@ class MigrationTask(TembaModel):
                 occurred_on=event.occurred_on,
                 created_on=event.created_on,
             )
+
+    def add_channel_logs(self, logger, channels, migrator):
+        for channel in channels:
+            channel_logs = migrator.get_channel_logs(channel_id=channel.id)
+
+            new_channel_obj = MigrationAssociation.get_new_object(
+                model=MigrationAssociation.MODEL_CHANNEL,
+                old_id=channel.id,
+            )
+
+            if not new_channel_obj:
+                continue
+
+            # Removing all logs of this channel before importing the new ones to avoid duplicated
+            new_channel_obj.logs.all().delete()
+
+            for channel_log in channel_logs:
+                description = f"{channel_log.description[:30]}..." if len(channel_log.description) > 30 else \
+                    channel_log.description
+                logger.info(f">>> Channel Log: {channel_log.id} - {description}")
+
+                new_msg_obj = None
+                if channel_log.msg_id:
+                    new_msg_obj = MigrationAssociation.get_new_object(
+                        model=MigrationAssociation.MODEL_MSG,
+                        old_id=channel_log.msg_id,
+                    )
+
+                new_channel_log = ChannelLog.objects.create(
+                    channel=new_channel_obj,
+                    msg=new_msg_obj,
+                    connection=None,
+                    description=channel_log.description,
+                    is_error=channel_log.is_error,
+                    url=channel_log.url,
+                    method=channel_log.method,
+                    request=channel_log.request,
+                    response=channel_log.response,
+                    response_status=channel_log.response_status,
+                    request_time=channel_log.request_time,
+                )
+                new_channel_log.created_on = channel_log.created_on
+                new_channel_log.save(update_fields=["created_on"])
 
     def add_contact_fields(self, logger, fields):
         for field in fields:
