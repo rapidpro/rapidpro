@@ -7,13 +7,13 @@ To learn more, please visit the project site at http://rapidpro.github.io/rapidp
 
 The set of versions that make up the latest stable release are:
 
- * [RapidPro v5.2.6](https://github.com/rapidpro/rapidpro/releases/tag/v5.2.6)
- * [Mailroom v5.2.4](https://github.com/nyaruka/mailroom/releases/tag/v5.2.4)
- * [Courier v5.2.0](https://github.com/nyaruka/courier/releases/tag/v5.2.0)
- * [Archiver v5.2.0](https://github.com/nyaruka/rp-archiver/releases/tag/v5.2.0)
- * [Indexer v5.2.0](https://github.com/nyaruka/rp-indexer/releases/tag/v5.2.0)
+ * [RapidPro v5.4.13](https://github.com/rapidpro/rapidpro/releases/tag/v5.4.13)
+ * [Mailroom v5.4.4](https://github.com/nyaruka/mailroom/releases/tag/v5.4.4)
+ * [Courier v5.4.1](https://github.com/nyaruka/courier/releases/tag/v5.4.1)
+ * [Archiver v5.4.0](https://github.com/nyaruka/rp-archiver/releases/tag/v5.4.0)
+ * [Indexer v5.4.0](https://github.com/nyaruka/rp-indexer/releases/tag/v5.4.0)
  * [Android Channel v2.0.0](https://github.com/rapidpro/android-channel/releases/tag/v2.0.0)
- * [Android Surveyor v13.2.0](https://github.com/rapidpro/surveyor/releases/tag/v13.2.0)
+ * [Android Surveyor v13.4.2](https://github.com/rapidpro/surveyor/releases/tag/v13.4.2)
 
 ### Versioning in RapidPro
 
