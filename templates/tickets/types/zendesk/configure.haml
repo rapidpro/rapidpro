@@ -1,0 +1,42 @@
+-extends "smartmin/read.html"
+-load smartmin i18n
+
+-block title
+  .medium-help.float-left(class='{{ object.get_type.icon }}')
+
+  %h2.font_normalize.header-margin.title
+    {{ ticketer.get_type.name }}
+    -trans "Ticketing Service"
+    .ticketer-name
+      {{ ticketer.name }}
+
+-block content
+  -blocktrans trimmed
+    To complete connecting your account here to your Zendesk account you need to complete the following steps.
+
+  %ol.instructions
+    %li
+      -blocktrans trimmed with brand=brand.name
+        Install the {{ brand }} app into your Zendesk account from the <a href="{{ market_url }}">marketplace</a>.
+    %li
+      -blocktrans trimmed  with brand=brand.name
+        Go to <a href="{{ channels_url }}">channel integrations</a> where you will see a new {{ brand }} channel service.
+    %li
+      -blocktrans trimmed with secret=object.config.secret
+        Add account for the channel and enter <code>{{ secret }}</code> as the secret.
+
+-block extra-style
+  {{ block.super }}
+
+  :css
+    .ticketer-name {
+      font-size: 16pt;
+    }
+
+    ol.instructions {
+      padding-top: 1em;
+    }
+    ol.instructions li {
+      list-style-type: decimal;
+      margin-top: 0.3em;
+    }

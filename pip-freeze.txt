@@ -12,7 +12,7 @@ asn1crypto==0.22.0        # via cryptography
 attrs==18.1.0             # via black
 beautifulsoup4==4.7.1
 billiard==3.5.0.2         # via celery
-black==19.3b0
+black==19.10b0
 boto3==1.9.91
 botocore==1.12.91         # via boto3, s3transfer
 celery[redis]==4.2.1

@@ -18,8 +18,8 @@
 
   %script
     $(document).ready(function() {
-      select2div("#id_register_action_join_group", "520px", '{% trans "Group to join" %}', '{% trans "Add Group: " %}');
-      select2div("#id_register_flow", "520px", '{% trans "Flow to start" %}');
+      select2div("#id_register_action_join_group", "520px", '{{ _("Group to join")|escapejs }}', '{{ _("Add Group: ")|escapejs }}');
+      select2div("#id_register_flow", "520px", '{{ _("Flow to start")|escapejs }}');
     });
 
 -block summary

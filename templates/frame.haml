@@ -179,6 +179,9 @@
           font-weight: 200;
           font-family: var(--font-family);
 
+          --button-y: 8px;
+          --button-x: 14px;
+
         }
 
         temba-select:focus {
@@ -419,16 +422,16 @@
 
         });
 
-        $('#top-menu li').hoverIntent({
+        $('#menu .more').hoverIntent({
           over:function() {
             // $('.submenu').hide();
             $(this).find('.submenu-container').slideDown(250);
-            $(this).parents("#top-menu").addClass('expanded');
+            $(this).parents("#menu").addClass('expanded');
             // $(this).find('.submenu').show();
           },
           out:function() {
           $(this).find('.submenu-container').slideUp(200);
-          $(this).parents("#top-menu").removeClass('expanded');
+          $(this).parents("#menu").removeClass('expanded');
             //$(this).find('.submenu').hide();
           },
           timeout:300

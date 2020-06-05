@@ -1,43 +1,38 @@
-{% extends "smartmin/list.html" %}
+-extends "smartmin/list.html"
 -load i18n contacts smartmin humanize
 
 -block page-title
-  -trans "Classifier Events"
+  {{ title }}
 
 -block title
-  .medium-help.icon-cloud-upload{ style:'float:left;' }
+  .medium-help.icon-cloud-upload(style="float:left")
   %h2.header-margin
-    -trans "Recent Classifier Events"
+    {{ title }}
 
   %h5.header-margin
-    {{classifier.get_type.name}}
-    -trans "Classifier: "
-    %a(href="{% url 'classifiers.classifier_read' classifier.uuid %}")
-      {{ classifier.name }}
+    -trans "From"
+    %a(href="{{ source_url }}")
+      {{ source.name }}
+
 
 -block table
-
   %table.list-table.table.table-condensed
     %thead
       %tr
-        %th{ style:'width:150px' }
         %th
-        %th{ style:'width:160px;text-align:right;'}
-        %th{ style:'width:160px;text-align:right;'}
+        %th(style='width:160px;text-align:right;')
+        %th(style='width:160px;text-align:right;')
 
       -for obj in object_list
-        %tr{ class:"{% if obj.is_error %}warning{% endif %}" }
-          %td
-            {{ obj.classifier.name }}
-
+        %tr(class="{% if obj.is_error %}warning{% endif %}")
           %td.clickable
-            %a{ href:'{% url "request_logs.httplog_read" obj.id %}' }= obj.get_log_type_display
+            %a(href='{% url "request_logs.httplog_read" obj.id %}')
+              {{ obj.get_log_type_display }}
 
           %td{ style:'text-align: right', nowrap:'true' }
-            Request time:
+            -trans "Request time:"
             %span
               {{ obj.request_time|default:"0"|intcomma }}ms
 
-          %td{ style:'text-align: right', nowrap:'true' }
-            {{obj.created_on}}
-
+          %td(style='text-align: right' nowrap='true')
+            {{ obj.created_on }}

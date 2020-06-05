@@ -87,7 +87,7 @@
         $("#omnibox").val("");
         $("#omni-select2").hide();
         $("#loading").show();
-        $("#send-message .ok").text('{% trans "Loading recipients.." %}').addClass("disabled");
+        $("#send-message .ok").text('{{ _("Loading recipients..")|escapejs }}').addClass("disabled");
       } else {
         $("#omni-select2").show();
         $("#loading").hide();
@@ -100,7 +100,7 @@
         $("#omni-select2").hide();
         $("#loading").hide();
         $("#send-message .schedule").hide();
-        $("#recipients-count").html("<strong>" + formatNumber(nodeRecipientsCount) + "</strong> " + '{% trans "recipients at this point in the flow" %}' );
+        $("#recipients-count").html("<strong>" + formatNumber(nodeRecipientsCount) + "</strong> " + '{{ _("recipients at this point in the flow")|escapejs }}' );
         $("#recipients-count").show();
       }
 
@@ -134,7 +134,7 @@
 
     function hideCompose() {
       $("#send-message").modal('hide');
-      $("#send-message .ok").text('{% trans "Send Message" %}').removeClass("disabled");
+      $("#send-message .ok").text('{{ _("Send Message")|escapejs }}').removeClass("disabled");
       if(window.simulation){
 
         window.refreshSimulator();
@@ -151,7 +151,7 @@
         return;
       }
 
-      $("#send-message .ok").text('{% trans "Sending.." %}').addClass("disabled");
+      $("#send-message .ok").text('{{ _("Sending..")|escapejs }}').addClass("disabled");
 
       // its possible we might send to a different end point such as
       // when doing a normal compose
@@ -220,7 +220,7 @@
         }
 
         // re-enable our send button, so they can try again
-        $("#send-message .ok").text('{% trans "Send Message" %}').removeClass("disabled");
+        $("#send-message .ok").text('{{ _("Send Message")|escapejs }}').removeClass("disabled");
 
       });
     }

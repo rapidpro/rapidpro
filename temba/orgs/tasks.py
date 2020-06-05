@@ -14,7 +14,7 @@ from temba.msgs.models import ExportMessagesTask
 from temba.msgs.tasks import export_messages_task
 from temba.utils.celery import nonoverlapping_task
 
-from .models import CreditAlert, Invitation, Org, TopUpCredits
+from .models import CreditAlert, Invitation, Org, OrgActivity, TopUpCredits
 
 
 @task(track_started=True, name="send_invitation_email_task")
@@ -91,3 +91,9 @@ def resume_failed_tasks():
     )
     for msg_export in msg_exports:
         export_messages_task.delay(msg_export.pk)
+
+
+@nonoverlapping_task(track_started=True, name="update_org_activity_task")
+def update_org_activity(now=None):
+    now = now if now else timezone.now()
+    OrgActivity.update_day(now)

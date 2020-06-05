@@ -12,7 +12,7 @@
   {{block.super}}
   %script
     $(document).ready(function() {
-      $("#id_group").select2({ placeholder:'{% trans "Group to Join" %}', width:'520px'});
+      $("#id_group").select2({ placeholder:'{{ _("Group to Join")|escapejs }}', width:'520px'});
     });
 
 -block summary

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-06 20:49+0000\n"
+"POT-Creation-Date: 2020-06-05 15:04+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -5609,6 +5609,9 @@ msgstr "Transmisor"
 msgid "Add Classifier"
 msgstr ""
 
+msgid "Add Ticketing Service"
+msgstr ""
+
 msgid "Login"
 msgstr ""
 
@@ -5758,6 +5761,16 @@ msgstr ""
 msgid "WhatsApp Contacts Refreshed"
 msgstr ""
 
+#, fuzzy
+#| msgid "Recent Channel Events"
+msgid "Recent Classifier Events"
+msgstr "Eventos recientes del transmisor"
+
+#, fuzzy
+#| msgid "Recent Channel Events"
+msgid "Recent Ticketing Service Events"
+msgstr "Eventos recientes del transmisor"
+
 msgid "Never"
 msgstr "Nunca"
 
@@ -5825,6 +5838,103 @@ msgstr ""
 
 msgid "Closed"
 msgstr ""
+
+msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
+msgstr ""
+
+msgid "The email address to forward tickets and replies to"
+msgstr ""
+
+msgid "The verification code that was sent to your email"
+msgstr ""
+
+msgid "No verification code found, please start over."
+msgstr ""
+
+msgid "Code does not match, please check your email."
+msgstr ""
+
+#, fuzzy
+#| msgid "Alert Email"
+msgid "Verify Email"
+msgstr "Correo electrónico de alerta"
+
+#, python-format
+msgid "A verification code was sent to <code>%(address)s</code>. Enter it below to continue adding this ticketing service to your account."
+msgstr ""
+
+msgid "New tickets and replies will be sent to the email address that you configure below. You will need to verify it by entering the code sent to you."
+msgstr ""
+
+#, fuzzy
+#| msgid "Your email address"
+msgid "Verify your email address for tickets"
+msgstr "Su dirección de correo electrónico"
+
+msgid "<a href=\"https://www.zendesk.com/\">Zendesk</a> is one of the most popular customer service systems around. You can use it to manage all the tickets created on your account."
+msgstr ""
+
+msgid "Enter your Zendesk subdomain. You will be redirected to Zendesk where you need to grant access to this application."
+msgstr ""
+
+msgid "Your subdomain on Zendesk"
+msgstr ""
+
+#, fuzzy
+#| msgid "Using a Local Number"
+msgid "Not a valid subdomain name."
+msgstr "Con un número local"
+
+msgid "There is already a ticketing service configured for this subdomain."
+msgstr ""
+
+msgid "Unable to request OAuth token."
+msgstr ""
+
+msgid "Tickets"
+msgstr ""
+
+#, fuzzy
+#| msgid "The name of this contact"
+msgid "The display name of this account"
+msgstr "El nombre de este contacto"
+
+#, fuzzy
+#| msgid "The Stripe charge id for this charge"
+msgid "The secret for the ticketer"
+msgstr "Id de Stripe charge para esta recarga"
+
+msgid "Secret is incorrect."
+msgstr ""
+
+msgid "Add"
+msgstr "Agregar"
+
+#, fuzzy, python-format
+#| msgid "Connect Kannel"
+msgid "Connect %(ticketer)s"
+msgstr "Conectar Kannel"
+
+#, fuzzy
+#| msgid "Open TextIt"
+msgid "Open Tickets"
+msgstr "Abrir TextIt"
+
+#, fuzzy
+#| msgid "Choose File"
+msgid "Closed Tickets"
+msgstr "Elegir archivo"
+
+msgid "HTTP Log"
+msgstr ""
+
+msgid "Delete Ticketing Service"
+msgstr ""
+
+#, fuzzy
+#| msgid "Your flow has been removed."
+msgid "Your ticketing service has been deleted."
+msgstr "Su flujo ha sido retirado."
 
 msgid "Keyword Trigger"
 msgstr "Activador de palabra clave"
@@ -8445,6 +8555,19 @@ msgstr ""
 "\n"
 "        "
 
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          Install the %(name)s app\n"
+#| "\n"
+#| "        "
+msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
+msgstr ""
+"\n"
+"          Instalar el %(name)s app\n"
+"\n"
+"        "
+
 msgid "Successfully called"
 msgstr ""
 
@@ -9640,6 +9763,14 @@ msgid ""
 "  "
 msgstr ""
 
+#, fuzzy
+#| msgid "Android"
+msgid "android"
+msgstr "Android"
+
+msgid "dashboard"
+msgstr "Panel"
+
 msgid "messages"
 msgstr "mensajes"
 
@@ -9656,6 +9787,11 @@ msgid "triggers"
 msgstr "activadores"
 
 #, fuzzy
+#| msgid "Open TextIt"
+msgid "tickets"
+msgstr "Abrir TextIt"
+
+#, fuzzy
 msgid "channels"
 msgstr "Transmisor"
 
@@ -9665,13 +9801,9 @@ msgstr "usuarios"
 msgid "orgs"
 msgstr "organizaciones"
 
-msgid "dashboard"
-msgstr "Panel"
-
 #, fuzzy
-#| msgid "Android"
-msgid "android"
-msgstr "Android"
+msgid "end"
+msgstr "Enviar URL"
 
 msgid "logout"
 msgstr "salir"
@@ -9689,6 +9821,12 @@ msgid "You have %(credits)s credit remaining, add credits to prevent interruptio
 msgid_plural "You have %(credits)s credits remaining, add credits to prevent interruption"
 msgstr[0] "Le queda %(credits)s, obtenga más créditos para evitar la interrupción"
 msgstr[1] "Le quedan %(credits)s, obtengan más créditos para evitar la interrupción"
+
+#, fuzzy
+#| msgid "You have %(credits)s credit remaining, add credits to prevent interruption"
+#| msgid_plural "You have %(credits)s credits remaining, add credits to prevent interruption"
+msgid "Your active credits will expire soon, add credits to prevent interruption."
+msgstr "Le queda %(credits)s, obtenga más créditos para evitar la interrupción"
 
 msgid "Your phone is having difficulty relaying messages"
 msgstr "Su teléfono no puede enviar mensajes"
@@ -12248,19 +12386,13 @@ msgstr ""
 msgid "More Videos"
 msgstr "Más videos"
 
-#, fuzzy
-msgid "Classifier Events"
-msgstr "Evento del transmisor"
+msgid "From"
+msgstr ""
 
 #, fuzzy
-#| msgid "Recent Channel Events"
-msgid "Recent Classifier Events"
-msgstr "Eventos recientes del transmisor"
-
-#, fuzzy
-#| msgid "Channel Event"
-msgid "Classifier: "
-msgstr "Evento del transmisor"
+#| msgid "Receive URL"
+msgid "Request time:"
+msgstr "Recibir URL"
 
 #, fuzzy
 #| msgid "Channel Event"
@@ -12369,6 +12501,101 @@ msgid ""
 "\n"
 "            "
 msgstr "Establecer el idioma preferido para el contacto."
+
+msgid "Ticketing Service"
+msgstr ""
+
+#, fuzzy
+#| msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgid "This will close all tickets that were created with this service. Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgstr "Una vez que la borre, no la podrá recuperar. Esta operación no se puede deshacer."
+
+#, fuzzy
+#| msgid "Warning!"
+msgid "Warning"
+msgstr "¡Atención!"
+
+msgid "Unable to delete service still being used by the following flows"
+msgstr ""
+
+#, fuzzy
+#| msgid "Device"
+msgid "Services"
+msgstr "Dispositivo"
+
+msgid "Close"
+msgstr ""
+
+msgid "Reopen"
+msgstr ""
+
+#, fuzzy
+#| msgid "Open TextIt"
+msgid "No tickets."
+msgstr "Abrir TextIt"
+
+msgid "Through"
+msgstr ""
+
+#, fuzzy
+#| msgid "Contact Fields"
+msgid "Body"
+msgstr "Campos de Contactos"
+
+#, fuzzy
+#| msgid "Ended On"
+msgid "Opened On"
+msgstr "Finalizó el"
+
+#, fuzzy
+#| msgid "Choose File"
+msgid "Close Ticket"
+msgstr "Elegir archivo"
+
+#, fuzzy
+#| msgid "Are you sure you want to delete this contact?"
+msgid "Are you sure you want to close this ticket?"
+msgstr "¿Está seguro de que desea borrar este contacto?"
+
+#, fuzzy
+#| msgid "Connect Kannel Service"
+msgid "Connect a Ticketing Service"
+msgstr "Conectar con el Servicio Kannel"
+
+msgid "Ticketing Services let a human agent take over communication for a contact. In a flow you can open a new ticket for a contact and from that point until the ticket is closed all incoming messages from the contact will be forwarded to the service and all replies from the service will be sent back to the contact."
+msgstr ""
+
+msgid "Select the ticketing service you want to connect below to get started."
+msgstr ""
+
+msgid "No ticketing services are available."
+msgstr ""
+
+#, python-format
+msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
+msgstr ""
+
+#, python-format
+msgid "Your verification code is %(code)s to continue adding an email-based ticketing service."
+msgstr ""
+
+msgid "This will connect your account to Zendesk allowing you to open tickets in flows."
+msgstr ""
+
+msgid "To complete connecting your account here to your Zendesk account you need to complete the following steps."
+msgstr ""
+
+#, python-format
+msgid "Install the %(brand)s app into your Zendesk account from the <a href=\"%(market_url)s\">marketplace</a>."
+msgstr ""
+
+#, python-format
+msgid "Go to <a href=\"%(channels_url)s\">channel integrations</a> where you will see a new %(brand)s channel service."
+msgstr ""
+
+#, python-format
+msgid "Add account for the channel and enter <code>%(secret)s</code> as the secret."
+msgstr ""
 
 msgid "Trigger a Flow"
 msgstr "Activar un flujo"
@@ -12552,6 +12779,15 @@ msgid "Found ${count} for ${query}"
 msgstr ""
 
 #, fuzzy
+#~ msgid "Classifier Events"
+#~ msgstr "Evento del transmisor"
+
+#, fuzzy
+#~| msgid "Channel Event"
+#~ msgid "Classifier: "
+#~ msgstr "Evento del transmisor"
+
+#, fuzzy
 #~| msgid "Start Flow"
 #~ msgid "Start Log"
 #~ msgstr "Empezar flujo"
@@ -12707,10 +12943,6 @@ msgstr ""
 #~| msgid "Please enter at least 8 characters"
 #~ msgid "Please enter a valid contact query"
 #~ msgstr "Por favor, ingrese 8 caracteres como mínimo"
-
-#, fuzzy
-#~ msgid "Send"
-#~ msgstr "Enviar URL"
 
 #, fuzzy
 #~| msgid ""
@@ -13295,11 +13527,6 @@ msgstr ""
 #~| msgid "Infobip"
 #~ msgid "Info"
 #~ msgstr "Infobip"
-
-#, fuzzy
-#~| msgid "Warning!"
-#~ msgid "Warning"
-#~ msgstr "¡Atención!"
 
 #, fuzzy
 #~| msgid "When this flow run expired"
@@ -14752,9 +14979,6 @@ msgstr ""
 #~ msgid "Connect Public Viber Channel"
 #~ msgstr "Conectar Kannel"
 
-#~ msgid "Connect Kannel Service"
-#~ msgstr "Conectar con el Servicio Kannel"
-
 #~ msgid "Connect Infobip"
 #~ msgstr "Conectar Infobip"
 
@@ -15620,9 +15844,6 @@ msgstr ""
 #~ msgid "Once"
 #~ msgstr "Una vez"
 
-#~ msgid "Add"
-#~ msgstr "Agregar"
-
 #~ msgid "Viewer."
 #~ msgstr "Visitante."
 
@@ -16007,9 +16228,6 @@ msgstr ""
 
 #~ msgid "Search for TextIt"
 #~ msgstr "Buscar TextIt"
-
-#~ msgid "Open TextIt"
-#~ msgstr "Abrir TextIt"
 
 #~ msgid "Remove Phone Number"
 #~ msgstr "Retirar número de teléfono"
