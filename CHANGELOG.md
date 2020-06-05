@@ -1,3 +1,8 @@
+v5.5.57
+----------
+ * Restore logic for when dashboard and android nav icons should appear
+ * Add translations in ru and fr
+
 v5.5.56
 ----------
  * Improvements to ticketer connect views
