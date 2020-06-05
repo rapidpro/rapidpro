@@ -3824,6 +3824,27 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             {"description": "Your flow contains an invalid loop. Please refresh your browser.", "status": "failure"},
         )
 
+    def test_change_language(self):
+        self.org.set_languages(self.admin, ["eng", "spa", "ara"], "eng")
+
+        flow = self.get_flow("favorites_v13")
+
+        change_url = reverse("flows.flow_change_language", args=[flow.id])
+
+        self.assertUpdateSubmit(
+            change_url, {"language": ""}, form_errors={"language": "This field is required."}, object_unchanged=flow
+        )
+
+        self.assertUpdateSubmit(
+            change_url, {"language": "fra"}, form_errors={"language": "Not a valid language."}, object_unchanged=flow
+        )
+
+        self.assertUpdateSubmit(change_url, {"language": "spa"}, success_status=302)
+
+        flow_def = flow.as_json()
+        self.assertIn("eng", flow_def["localization"])
+        self.assertEqual("¿Cuál es tu color favorito?", flow_def["nodes"][0]["actions"][0]["text"])
+
     def test_export_and_download_translation(self):
         Language.create(self.org, self.admin, name="Spanish", iso_code="spa")
 
