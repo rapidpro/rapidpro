@@ -16,6 +16,7 @@ from temba.contacts.models import ContactField, Contact, ContactGroup, ContactUR
 from temba.channels.models import Channel, ChannelCount, SyncEvent, ChannelEvent
 from temba.schedules.models import Schedule
 from temba.msgs.models import Msg, Label, Broadcast
+from temba.orgs.models import Org
 from temba.utils import json
 from temba.utils.models import TembaModel, generate_uuid
 
@@ -253,6 +254,15 @@ class MigrationTask(TembaModel):
         self.org.config = json.loads(org_data.config) if org_data.config else dict()
         self.org.is_anon = org_data.is_anon
         self.org.surveyor_password = org_data.surveyor_password
+
+        if org_data.parent_id:
+            new_org_parent_obj = MigrationAssociation.get_new_object(
+                model=MigrationAssociation.MODEL_ORG,
+                old_id=org_data.parent_id,
+            )
+            if new_org_parent_obj:
+                self.org.parent = new_org_parent_obj
+
         self.org.save(
             update_fields=[
                 "plan",
@@ -264,7 +274,15 @@ class MigrationTask(TembaModel):
                 "config",
                 "is_anon",
                 "surveyor_password",
+                "parent",
             ]
+        )
+
+        MigrationAssociation.create(
+            migration_task=self,
+            old_id=org_data.id,
+            new_id=self.org.id,
+            model=MigrationAssociation.MODEL_ORG,
         )
 
     def add_topups(self, logger, topups, migrator):
@@ -697,7 +715,7 @@ class MigrationTask(TembaModel):
             )
 
     def remove_association(self):
-        return self.associations.all().delete()
+        return self.associations.all().exclude(model=MigrationAssociation.MODEL_ORG).delete()
 
 
 class MigrationAssociation(models.Model):
@@ -717,6 +735,7 @@ class MigrationAssociation(models.Model):
     MODEL_FLOW_START = "flows_flowstart"
     MODEL_LINK = "links_link"
     MODEL_SCHEDULE = "schedules_schedule"
+    MODEL_ORG = "orgs_org"
     MODEL_ORG_TOPUP = "orgs_topups"
     MODEL_ORG_LANGUAGE = "orgs_language"
     MODEL_TRIGGER = "triggers_trigger"
@@ -738,6 +757,7 @@ class MigrationAssociation(models.Model):
         (MODEL_FLOW_START, MODEL_FLOW_START),
         (MODEL_LINK, MODEL_LINK),
         (MODEL_SCHEDULE, MODEL_SCHEDULE),
+        (MODEL_ORG, MODEL_ORG),
         (MODEL_ORG_TOPUP, MODEL_ORG_TOPUP),
         (MODEL_ORG_LANGUAGE, MODEL_ORG_LANGUAGE),
         (MODEL_TRIGGER, MODEL_TRIGGER),
@@ -784,6 +804,8 @@ class MigrationAssociation(models.Model):
             queryset = _model.user_fields.filter(id=obj.new_id, org=obj.migration_task.org).first()
         elif model == MigrationAssociation.MODEL_MSG_LABEL:
             queryset = _model.all_objects.filter(id=obj.new_id, org=obj.migration_task.org).first()
+        elif model == MigrationAssociation.MODEL_ORG:
+            queryset = _model.objects.filter(id=obj.new_id).first()
         else:
             queryset = _model.objects.filter(id=obj.new_id, org=obj.migration_task.org).first()
 
@@ -812,6 +834,7 @@ class MigrationAssociation(models.Model):
             MigrationAssociation.MODEL_FLOW_START: FlowStart,
             MigrationAssociation.MODEL_LINK: Link,
             MigrationAssociation.MODEL_SCHEDULE: Schedule,
+            MigrationAssociation.MODEL_ORG: Org,
             MigrationAssociation.MODEL_ORG_TOPUP: TopUp,
             MigrationAssociation.MODEL_ORG_LANGUAGE: Language,
             MigrationAssociation.MODEL_TRIGGER: Trigger,
