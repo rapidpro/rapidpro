@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-04 19:49+0000\n"
+"POT-Creation-Date: 2020-06-05 15:04+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4263,6 +4263,9 @@ msgstr ""
 msgid "Code does not match, please check your email."
 msgstr ""
 
+msgid "Verify Email"
+msgstr ""
+
 #, python-format
 msgid "A verification code was sent to <code>%(address)s</code>. Enter it below to continue adding this ticketing service to your account."
 msgstr ""
@@ -4304,6 +4307,10 @@ msgid "Secret is incorrect."
 msgstr ""
 
 msgid "Add"
+msgstr ""
+
+#, python-format
+msgid "Connect %(ticketer)s"
 msgstr ""
 
 msgid "Open Tickets"

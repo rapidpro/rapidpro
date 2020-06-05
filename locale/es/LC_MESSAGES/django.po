@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-04 19:49+0000\n"
+"POT-Creation-Date: 2020-06-05 15:04+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -5854,6 +5854,11 @@ msgstr ""
 msgid "Code does not match, please check your email."
 msgstr ""
 
+#, fuzzy
+#| msgid "Alert Email"
+msgid "Verify Email"
+msgstr "Correo electrónico de alerta"
+
 #, python-format
 msgid "A verification code was sent to <code>%(address)s</code>. Enter it below to continue adding this ticketing service to your account."
 msgstr ""
@@ -5904,6 +5909,11 @@ msgstr ""
 
 msgid "Add"
 msgstr "Agregar"
+
+#, fuzzy, python-format
+#| msgid "Connect Kannel"
+msgid "Connect %(ticketer)s"
+msgstr "Conectar Kannel"
 
 #, fuzzy
 #| msgid "Open TextIt"

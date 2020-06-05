@@ -42,7 +42,7 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
         return ("tickets/types/%s/connect.html" % self.ticketer_type.slug, "tickets/ticketer_connect_form.html")
 
     def derive_title(self):
-        return _("Connect") + " " + self.ticketer_type.name
+        return _("Connect %(ticketer)s") % {"ticketer": self.ticketer_type.name}
 
     def get_success_url(self):
         return reverse("tickets.ticket_filter", args=[self.object.uuid])

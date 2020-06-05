@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-04 19:49+0000\n"
+"POT-Creation-Date: 2020-06-05 15:04+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -4632,6 +4632,11 @@ msgstr ""
 msgid "Code does not match, please check your email."
 msgstr ""
 
+#, fuzzy
+#| msgid "Alert Email"
+msgid "Verify Email"
+msgstr "alerte Email"
+
 #, python-format
 msgid "A verification code was sent to <code>%(address)s</code>. Enter it below to continue adding this ticketing service to your account."
 msgstr ""
@@ -4684,6 +4689,11 @@ msgstr ""
 #| msgid "Address"
 msgid "Add"
 msgstr "Adresse"
+
+#, fuzzy, python-format
+#| msgid "Connect %(channel_type)s"
+msgid "Connect %(ticketer)s"
+msgstr "Connecter %(channel_type)s"
 
 #, fuzzy
 #| msgid "even buckets"

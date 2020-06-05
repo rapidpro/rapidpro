@@ -42,6 +42,9 @@ class ConnectView(BaseConnectView):
 
         return super().get(request, *args, **kwargs)
 
+    def derive_title(self):
+        return _("Verify Email") if self.is_verify_step() else super().derive_title()
+
     def get_form_class(self):
         return ConnectView.VerifyForm if self.is_verify_step() else ConnectView.EmailForm
 

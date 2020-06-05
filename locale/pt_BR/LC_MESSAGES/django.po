@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-04 19:49+0000\n"
+"POT-Creation-Date: 2020-06-05 15:04+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -5550,6 +5550,11 @@ msgstr ""
 msgid "Code does not match, please check your email."
 msgstr ""
 
+#, fuzzy
+#| msgid "Alert Email"
+msgid "Verify Email"
+msgstr "Alerta de e-mail"
+
 #, python-format
 msgid "A verification code was sent to <code>%(address)s</code>. Enter it below to continue adding this ticketing service to your account."
 msgstr ""
@@ -5600,6 +5605,10 @@ msgstr ""
 
 msgid "Add"
 msgstr "Adicionar"
+
+#, fuzzy, python-format
+msgid "Connect %(ticketer)s"
+msgstr "Conecte a um Serviço Externo"
 
 #, fuzzy
 #| msgid "Open TextIt"
