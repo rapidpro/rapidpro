@@ -1268,7 +1268,7 @@ class UpdateWebChatForm(UpdateChannelForm):
     name = forms.CharField(
         label=_("Name"),
         help_text=_("Descriptive label for this channel"),
-        widget=forms.TextInput(attrs={"required": ""}),
+        widget=forms.TextInput(attrs={"required": "", "maxlength": "64"}),
     )
 
     def __init__(self, *args, **kwargs):
