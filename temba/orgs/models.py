@@ -2297,7 +2297,10 @@ class Org(SmartModel):
             "allowed_languages": list(self.get_language_codes()),
             "default_country": self.get_country_code(),
             "redaction_policy": "urns" if self.is_anon else "none",
-            "links": [f"{item.uuid}:{item.destination}" for item in self.links.filter(is_archived=False).only("uuid", "destination")],
+            "links": [
+                f"{item.uuid}:{item.destination}"
+                for item in self.links.filter(is_archived=False).only("uuid", "destination")
+            ],
         }
 
     def __str__(self):
