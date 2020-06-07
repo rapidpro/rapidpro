@@ -355,7 +355,11 @@ class LinkHandler(RedirectView):
         link = Link.objects.filter(uuid=self.kwargs.get("uuid")).only("id", "clicks_count").first()
         contact = Contact.objects.filter(uuid=self.request.GET.get("contact")).only("id").first()
 
-        if link and contact:
+        # Whether the contact is from the simulator
+        if not contact:
+            return link.destination
+
+        elif link and contact:
             x_forwarded_for = self.request.META.get("HTTP_X_FORWARDED_FOR")
             ip = x_forwarded_for.split(",")[0] if x_forwarded_for else self.request.META.get("REMOTE_ADDR")
 
