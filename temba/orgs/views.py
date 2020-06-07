@@ -2599,14 +2599,14 @@ class OrgCRUDL(SmartCRUDL):
                 except UnicodeDecodeError:
                     import_file.seek(0)
                     spamreader = read_file(import_file, encoding="ISO-8859-1", index_col=False)
-                
+
                 # Making sure that data in each column has correct type, e.g. string, float
                 for column in spamreader.columns:
                     if str(column).startswith("numeric_"):
-                        spamreader[column] = spamreader[column].str.replace(',', '').astype(float)
+                        spamreader[column] = spamreader[column].str.replace(",", "").astype(float)
                     else:
-                        spamreader[column] = spamreader[column].astype(str)                        
-                
+                        spamreader[column] = spamreader[column].astype(str)
+
                 # Removing empty columns name from CSV files imported
                 spamreader = spamreader.loc[:, ~spamreader.columns.str.contains("^Unnamed")]
 
