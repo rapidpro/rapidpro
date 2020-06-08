@@ -298,3 +298,10 @@ class Migrator(object):
             query_string=f"SELECT * FROM public.flows_flow_field_dependencies WHERE flow_id = {flow_id} ORDER BY id ASC",
             count=count,
         )
+
+    def get_flow_flow_dependencies(self, flow_id) -> list:
+        count = self.get_count("flows_flow_flow_dependencies", condition=f"from_flow_id = {flow_id}")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.flows_flow_flow_dependencies WHERE from_flow_id = {flow_id} ORDER BY id ASC",
+            count=count,
+        )

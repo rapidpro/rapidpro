@@ -274,6 +274,8 @@ class MigrationTask(TembaModel):
             if org_flows:
                 self.add_flows(logger=logger, flows=org_flows, migrator=migrator)
 
+                self.add_flow_flow_dependencies(flows=org_flows, migrator=migrator)
+
             logger.info("[COMPLETED] Flows migration")
             logger.info("")
 
@@ -991,6 +993,21 @@ class MigrationTask(TembaModel):
                 )
                 if new_field_obj:
                     new_flow.field_dependencies.add(new_field_obj)
+
+    def add_flow_flow_dependencies(self, flows, migrator):
+        for flow in flows:
+            new_flow_obj = MigrationAssociation.get_new_object(
+                model=MigrationAssociation.MODEL_FLOW,
+                old_id=flow.id,
+            )
+            flow_dependencies = migrator.get_flow_flow_dependencies(flow_id=flow.id)
+            for item in flow_dependencies:
+                new_to_flow_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_FLOW,
+                    old_id=item.to_flow_id,
+                )
+                if new_flow_obj and new_to_flow_obj:
+                    new_flow_obj.flow_dependencies.add(new_to_flow_obj)
 
     def remove_association(self):
         return self.associations.all().exclude(model=MigrationAssociation.MODEL_ORG).delete()
