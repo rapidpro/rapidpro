@@ -1003,6 +1003,15 @@ class MigrationTask(TembaModel):
                 if new_group_obj:
                     new_flow.group_dependencies.add(new_group_obj)
 
+            label_dependencies = migrator.get_flow_label_dependencies(flow_id=flow.id)
+            for item in label_dependencies:
+                new_label_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_FLOW_LABEL,
+                    old_id=item.flowlabel_id,
+                )
+                if new_label_obj:
+                    new_flow.labels.add(new_label_obj)
+
     def add_flow_flow_dependencies(self, flows, migrator):
         for flow in flows:
             new_flow_obj = MigrationAssociation.get_new_object(
