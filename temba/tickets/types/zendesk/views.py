@@ -26,6 +26,11 @@ from .client import Client, ClientError
 
 
 class ConnectView(BaseConnectView):
+    form_blurb = _(
+        "Enter your Zendesk subdomain. You will be redirected to Zendesk where you need to grant access to this "
+        "application."
+    )
+
     class Form(BaseConnectView.Form):
         subdomain = forms.CharField(help_text=_("Your subdomain on Zendesk"), required=True)
 
@@ -105,9 +110,6 @@ class ConnectView(BaseConnectView):
             name=f"Zendesk ({subdomain})",
             config=config,
         )
-
-        # TODO: set up trigger on Zendesk side to callback to us on ticket closures
-        # See: https://developer.zendesk.com/rest_api/docs/support/triggers
 
         return HttpResponseRedirect(self.get_success_url())
 

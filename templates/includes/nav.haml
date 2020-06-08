@@ -131,22 +131,6 @@
   {% endlessblock %}
 
 #menu
-  -if request.user.is_superuser or perms.apks.apk_list
-    -if not user_org
-      %a{href:"{% url 'apks.apk_list' %}", class:"{% active request 'apk' %}"}
-        .circle
-          .icon-channel-android
-        .title
-          -trans "android"
-
-  -if request.user.is_superuser or perms.orgs.org_dashboard
-    -if not user_org
-      %a{href:"{% url 'dashboard.dashboard_home' %}", class:"{% active request 'dashboard(?!/flows)' %}"}
-        .circle
-          .icon-bars-3.icon-1
-        .title
-          -trans "dashboard"
-
   -if org_perms.msgs.msg_inbox and not request.user.is_superuser
     %a{href:"{% url 'msgs.msg_inbox' %}", class:"{% active request 'inbox|outbox|broadcast|call|msg/filter|msg/flow|msg/archived|failed' %}"}
       .circle
@@ -212,6 +196,20 @@
           .icon-office.icon-2
         .title
           -trans "orgs"
+
+  -if request.user.is_superuser or perms.apks.apk_list
+    %a{href:"{% url 'apks.apk_list' %}", class:"{% active request 'apk' %}"}
+      .circle
+        .icon-channel-android
+      .title
+        -trans "android"
+
+  -if request.user.is_superuser or perms.orgs.org_dashboard
+    %a{href:"{% url 'dashboard.dashboard_home' %}", class:"{% active request 'dashboard(?!/flows)' %}"}
+      .circle
+        .icon-bars-3.icon-1
+      .title
+        -trans "dashboard"
 
   -if not request.user.is_anonymous
     .more

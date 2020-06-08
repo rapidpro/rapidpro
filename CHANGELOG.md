@@ -1,3 +1,13 @@
+v5.5.57
+----------
+ * Restore logic for when dashboard and android nav icons should appear
+ * Add translations in ru and fr
+
+v5.5.56
+----------
+ * Improvements to ticketer connect views
+ * Still need to allow word only OSM ids
+
 v5.5.55
 ----------
  * Fix boundaries URL regex to accept more numbers
