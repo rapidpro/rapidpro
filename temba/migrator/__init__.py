@@ -281,3 +281,13 @@ class Migrator(object):
             query_string=f"SELECT * FROM public.flows_flowlabel WHERE org_id = {self.org_id} ORDER BY id ASC",
             count=count,
         )
+
+    def get_org_flows(self) -> list:
+        count = self.get_count(
+            "flows_flow",
+            condition=f"org_id = {self.org_id} AND is_archived = false AND is_active = true"
+        )
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.flows_flow WHERE org_id = {self.org_id} AND is_archived = false AND is_active = true ORDER BY id ASC",
+            count=count,
+        )

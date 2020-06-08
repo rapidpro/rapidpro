@@ -267,6 +267,16 @@ class MigrationTask(TembaModel):
             logger.info("[COMPLETED] Flow Labels migration")
             logger.info("")
 
+            logger.info("---------------- Flows ----------------")
+            logger.info("[STARTED] Flows migration")
+
+            org_flows = migrator.get_org_flows()
+            if org_flows:
+                self.add_flows(logger=logger, flows=org_flows)
+
+            logger.info("[COMPLETED] Flows migration")
+            logger.info("")
+
             elapsed = timesince(start)
             logger.info(f"This process took {elapsed}")
 
@@ -934,6 +944,41 @@ class MigrationTask(TembaModel):
                 old_id=label.id,
                 new_id=new_flow_label.id,
                 model=MigrationAssociation.MODEL_FLOW_LABEL,
+            )
+
+    def add_flows(self, logger, flows):
+        for flow in flows:
+            logger.info(f">>> Flow: {flow.uuid} - {flow.name}")
+
+            new_flow = Flow.objects.filter(uuid=flow.uuid).only("id").first()
+            if not new_flow:
+                new_flow = Flow.create(
+                    org=self.org,
+                    user=self.created_by,
+                    name=flow.name,
+                    flow_type="M" if flow.flow_type in ["F", "M"] else flow.flow_type,
+                    expires_after_minutes=flow.expires_after_minutes,
+                    base_language=flow.base_language,
+                    create_revision=True,
+                    is_system=flow.flow_type == "M",
+                    uuid=flow.uuid,
+                    entry_uuid=flow.entry_uuid,
+                    entry_type=flow.entry_type,
+                    is_archived=flow.is_archived,
+                    metadata=json.loads(flow.metadata) if flow.metadata else dict(),
+                    ignore_triggers=flow.ignore_triggers,
+                    saved_on=flow.saved_on,
+                )
+
+            if new_flow.uuid != flow.uuid:
+                new_flow.uuid = flow.uuid
+                new_flow.save(update_fields=["uuid"])
+
+            MigrationAssociation.create(
+                migration_task=self,
+                old_id=flow.id,
+                new_id=new_flow.id,
+                model=MigrationAssociation.MODEL_FLOW,
             )
 
     def remove_association(self):
