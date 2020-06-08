@@ -17,7 +17,7 @@ from temba.channels.models import Channel, ChannelCount, SyncEvent, ChannelEvent
 from temba.schedules.models import Schedule
 from temba.msgs.models import Msg, Label, Broadcast
 from temba.orgs.models import Org
-from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
+from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart, FlowCategoryCount
 from temba.utils import json
 from temba.utils.models import TembaModel, generate_uuid
 
@@ -1003,14 +1003,25 @@ class MigrationTask(TembaModel):
                 if new_group_obj:
                     new_flow.group_dependencies.add(new_group_obj)
 
-            label_dependencies = migrator.get_flow_label_dependencies(flow_id=flow.id)
-            for item in label_dependencies:
+            flow_labels = migrator.get_flow_label_dependencies(flow_id=flow.id)
+            for item in flow_labels:
                 new_label_obj = MigrationAssociation.get_new_object(
                     model=MigrationAssociation.MODEL_FLOW_LABEL,
                     old_id=item.flowlabel_id,
                 )
                 if new_label_obj:
                     new_flow.labels.add(new_label_obj)
+
+            category_count = migrator.get_flow_category_count(flow_id=flow.id)
+            for item in category_count:
+                FlowCategoryCount.objects.create(
+                    flow=new_flow,
+                    node_uuid=item.node_uuid,
+                    result_key=item.result_key,
+                    result_name=item.result_name,
+                    category_name=item.category_name,
+                    count=item.count,
+                )
 
     def add_flow_flow_dependencies(self, flows, migrator):
         for flow in flows:
