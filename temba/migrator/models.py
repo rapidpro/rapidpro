@@ -959,7 +959,6 @@ class MigrationTask(TembaModel):
                     flow_type="M" if flow.flow_type in ["F", "M"] else flow.flow_type,
                     expires_after_minutes=flow.expires_after_minutes,
                     base_language=flow.base_language,
-                    create_revision=True,
                     is_system=flow.flow_type == "M",
                     uuid=flow.uuid,
                     entry_uuid=flow.entry_uuid,
@@ -967,8 +966,11 @@ class MigrationTask(TembaModel):
                     is_archived=flow.is_archived,
                     metadata=json.loads(flow.metadata) if flow.metadata else dict(),
                     ignore_triggers=flow.ignore_triggers,
-                    saved_on=flow.saved_on,
                 )
+                new_flow.saved_on = flow.saved_on
+                new_flow.created_on = flow.created_on
+                new_flow.modified_on = flow.modified_on
+                new_flow.save(update_fields=["saved_on", "created_on", "modified_on"])
 
             if new_flow.uuid != flow.uuid:
                 new_flow.uuid = flow.uuid
