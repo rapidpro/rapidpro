@@ -37,8 +37,8 @@ RUN mkdir $PROJECT_PATH \
 
 RUN rm /etc/nginx/sites-enabled/default
 
+COPY ./docker/pip-freeze.txt /tmp/dep/
 COPY ./pip-freeze.txt ./docker/pip-freeze.txt ./docker/nginx.site.conf /tmp/
-
 RUN pip install --no-cache-dir -r /tmp/dep/pip-freeze.txt
 
 RUN envsubst < /tmp/nginx.site.conf > /etc/nginx/sites-available/$PROJECT.conf \
