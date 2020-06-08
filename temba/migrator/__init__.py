@@ -313,7 +313,7 @@ class Migrator(object):
             count=count,
         )
 
-    def get_flow_label_dependencies(self, flow_id) -> list:
+    def get_flow_labels(self, flow_id) -> list:
         count = self.get_count("flows_flow_labels", condition=f"flow_id = {flow_id}")
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.flows_flow_labels WHERE flow_id = {flow_id} ORDER BY id ASC",
@@ -331,5 +331,12 @@ class Migrator(object):
         count = self.get_count("flows_flownodecount", condition=f"flow_id = {flow_id}")
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.flows_flownodecount WHERE flow_id = {flow_id} ORDER BY id ASC",
+            count=count,
+        )
+
+    def get_flow_path_count(self, flow_id) -> list:
+        count = self.get_count("flows_flowpathcount", condition=f"flow_id = {flow_id} AND to_uuid IS NOT NULL")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.flows_flowpathcount WHERE flow_id = {flow_id} AND to_uuid IS NOT NULL ORDER BY id ASC",
             count=count,
         )
