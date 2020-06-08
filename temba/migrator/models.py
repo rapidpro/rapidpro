@@ -994,6 +994,15 @@ class MigrationTask(TembaModel):
                 if new_field_obj:
                     new_flow.field_dependencies.add(new_field_obj)
 
+            group_dependencies = migrator.get_flow_group_dependencies(flow_id=flow.id)
+            for item in group_dependencies:
+                new_group_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_CONTACT_GROUP,
+                    old_id=item.contactgroup_id,
+                )
+                if new_group_obj:
+                    new_flow.group_dependencies.add(new_group_obj)
+
     def add_flow_flow_dependencies(self, flows, migrator):
         for flow in flows:
             new_flow_obj = MigrationAssociation.get_new_object(
