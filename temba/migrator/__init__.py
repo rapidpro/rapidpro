@@ -326,3 +326,10 @@ class Migrator(object):
             query_string=f"SELECT * FROM public.flows_flowcategorycount WHERE flow_id = {flow_id} ORDER BY id ASC",
             count=count,
         )
+
+    def get_flow_node_count(self, flow_id) -> list:
+        count = self.get_count("flows_flownodecount", condition=f"flow_id = {flow_id}")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.flows_flownodecount WHERE flow_id = {flow_id} ORDER BY id ASC",
+            count=count,
+        )

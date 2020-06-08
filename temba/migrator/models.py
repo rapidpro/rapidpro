@@ -17,7 +17,7 @@ from temba.channels.models import Channel, ChannelCount, SyncEvent, ChannelEvent
 from temba.schedules.models import Schedule
 from temba.msgs.models import Msg, Label, Broadcast
 from temba.orgs.models import Org
-from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart, FlowCategoryCount
+from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart, FlowCategoryCount, FlowNodeCount
 from temba.utils import json
 from temba.utils.models import TembaModel, generate_uuid
 
@@ -1020,6 +1020,14 @@ class MigrationTask(TembaModel):
                     result_key=item.result_key,
                     result_name=item.result_name,
                     category_name=item.category_name,
+                    count=item.count,
+                )
+
+            node_count = migrator.get_flow_node_count(flow_id=flow.id)
+            for item in node_count:
+                FlowNodeCount.objects.create(
+                    flow=new_flow,
+                    node_uuid=item.node_uuid,
                     count=item.count,
                 )
 
