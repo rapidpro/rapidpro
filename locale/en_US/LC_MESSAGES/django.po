@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-05 15:04+0000\n"
+"POT-Creation-Date: 2020-06-08 21:22+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2961,6 +2961,9 @@ msgid "Export Translation"
 msgstr ""
 
 msgid "Import Translation"
+msgstr ""
+
+msgid "Not a valid language."
 msgstr ""
 
 msgid "Include translations in this language."
@@ -6833,12 +6836,6 @@ msgid ""
 "  "
 msgstr ""
 
-msgid "android"
-msgstr ""
-
-msgid "dashboard"
-msgstr ""
-
 msgid "messages"
 msgstr ""
 
@@ -6864,6 +6861,12 @@ msgid "users"
 msgstr ""
 
 msgid "orgs"
+msgstr ""
+
+msgid "android"
+msgstr ""
+
+msgid "dashboard"
 msgstr ""
 
 msgid "end"

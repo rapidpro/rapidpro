@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-05 15:04+0000\n"
+"POT-Creation-Date: 2020-06-08 21:22+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4359,6 +4359,11 @@ msgstr "Traducciones"
 #, fuzzy
 msgid "Import Translation"
 msgstr "Traducciones"
+
+#, fuzzy
+#| msgid "Using a Local Number"
+msgid "Not a valid language."
+msgstr "Con un número local"
 
 msgid "Include translations in this language."
 msgstr ""
@@ -9763,14 +9768,6 @@ msgid ""
 "  "
 msgstr ""
 
-#, fuzzy
-#| msgid "Android"
-msgid "android"
-msgstr "Android"
-
-msgid "dashboard"
-msgstr "Panel"
-
 msgid "messages"
 msgstr "mensajes"
 
@@ -9800,6 +9797,14 @@ msgstr "usuarios"
 
 msgid "orgs"
 msgstr "organizaciones"
+
+#, fuzzy
+#| msgid "Android"
+msgid "android"
+msgstr "Android"
+
+msgid "dashboard"
+msgstr "Panel"
 
 #, fuzzy
 msgid "end"
