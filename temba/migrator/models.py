@@ -272,7 +272,7 @@ class MigrationTask(TembaModel):
 
             org_flows = migrator.get_org_flows()
             if org_flows:
-                self.add_flows(logger=logger, flows=org_flows)
+                self.add_flows(logger=logger, flows=org_flows, migrator=migrator)
 
             logger.info("[COMPLETED] Flows migration")
             logger.info("")
@@ -946,7 +946,7 @@ class MigrationTask(TembaModel):
                 model=MigrationAssociation.MODEL_FLOW_LABEL,
             )
 
-    def add_flows(self, logger, flows):
+    def add_flows(self, logger, flows, migrator):
         for flow in flows:
             logger.info(f">>> Flow: {flow.uuid} - {flow.name}")
 
@@ -982,6 +982,15 @@ class MigrationTask(TembaModel):
                 new_id=new_flow.id,
                 model=MigrationAssociation.MODEL_FLOW,
             )
+
+            field_dependencies = migrator.get_flow_fields_dependencies(flow_id=flow.id)
+            for item in field_dependencies:
+                new_field_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_CONTACT_FIELD,
+                    old_id=item.contactfield_id,
+                )
+                if new_field_obj:
+                    new_flow.field_dependencies.add(new_field_obj)
 
     def remove_association(self):
         return self.associations.all().exclude(model=MigrationAssociation.MODEL_ORG).delete()
