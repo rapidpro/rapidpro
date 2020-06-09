@@ -861,7 +861,8 @@ class MigrationTask(TembaModel):
                     [content_type, url] = item.split(":", 1)
 
                     if content_type in ["image", "audio", "video", "geo"] \
-                            or "amazonaws.com" in url:
+                            or "amazonaws.com" in url \
+                            or not settings.AWS_S3_ENABLED:
                         continue
 
                     if "demo.citizeninsights.org" in url:
@@ -1150,14 +1151,18 @@ class MigrationTask(TembaModel):
                 if not new_contact_obj:
                     continue
 
-                file_path = f"{settings.MIGRATION_FROM_URL}/media/{item.path}"
-                file_path_thumbnail = f"{settings.MIGRATION_FROM_URL}{item.path_thumbnail}"
+                if settings.AWS_S3_ENABLED:
+                    file_path = f"{settings.MIGRATION_FROM_URL}/media/{item.path}"
+                    file_path_thumbnail = f"{settings.MIGRATION_FROM_URL}{item.path_thumbnail}"
 
-                file_obj_path = self.org.get_temporary_file_from_url(media_url=file_path)
-                file_obj_path_thumbnail = self.org.get_temporary_file_from_url(media_url=file_path_thumbnail)
+                    file_obj_path = self.org.get_temporary_file_from_url(media_url=file_path)
+                    file_obj_path_thumbnail = self.org.get_temporary_file_from_url(media_url=file_path_thumbnail)
 
-                path_s3_file_url = self.org.save_media(file=file_obj_path, extension="jpg")
-                path_thumbnail_s3_file_url = self.org.save_media(file=file_obj_path_thumbnail, extension="jpg")
+                    path_s3_file_url = self.org.save_media(file=file_obj_path, extension="jpg")
+                    path_thumbnail_s3_file_url = self.org.save_media(file=file_obj_path_thumbnail, extension="jpg")
+                else:
+                    path_s3_file_url = item.path
+                    path_thumbnail_s3_file_url = item.path_thumbnail
 
                 FlowImage.objects.create(
                     uuid=item.uuid,
