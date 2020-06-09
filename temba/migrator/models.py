@@ -1067,28 +1067,42 @@ class MigrationTask(TembaModel):
             new_flow.revisions.all().delete()
 
             revisions = migrator.get_flow_revisions(flow_id=flow.id)
-            for item in revisions:
-                json_flow = dict()
-                spec_version = item.spec_version
-                if item.definition:
-                    try:
-                        json_flow = FlowRevision.migrate_definition(
-                            json_flow=json.loads(item.definition), flow=new_flow
-                        )
-                        json_flow = FlowRevision.migrate_issues(json_flow)
-                        spec_version = Flow.CURRENT_SPEC_VERSION
-                    except Exception:
-                        json_flow = json.loads(item.definition)
+            if revisions:
+                for item in revisions:
+                    json_flow = dict()
+                    spec_version = item.spec_version
+                    if item.definition:
+                        try:
+                            json_flow = FlowRevision.migrate_definition(
+                                json_flow=json.loads(item.definition), flow=new_flow
+                            )
+                            json_flow = FlowRevision.migrate_issues(json_flow)
+                            spec_version = Flow.CURRENT_SPEC_VERSION
+                        except Exception:
+                            json_flow = json.loads(item.definition)
 
-                FlowRevision.objects.create(
-                    flow=new_flow,
-                    definition=json_flow,
-                    spec_version=spec_version,
-                    revision=item.revision,
-                    created_by=self.created_by,
-                    modified_by=self.created_by,
-                    created_on=item.created_on,
-                    modified_on=item.modified_on,
+                    FlowRevision.objects.create(
+                        flow=new_flow,
+                        definition=json_flow,
+                        spec_version=spec_version,
+                        revision=item.revision,
+                        created_by=self.created_by,
+                        modified_by=self.created_by,
+                        created_on=item.created_on,
+                        modified_on=item.modified_on,
+                    )
+            else:
+                new_flow.save_revision(
+                    self.created_by,
+                    {
+                        Flow.DEFINITION_NAME: flow.name,
+                        Flow.DEFINITION_UUID: flow.uuid,
+                        Flow.DEFINITION_SPEC_VERSION: Flow.CURRENT_SPEC_VERSION,
+                        Flow.DEFINITION_LANGUAGE: new_flow.base_language,
+                        Flow.DEFINITION_TYPE: Flow.GOFLOW_TYPES[new_flow.flow_type],
+                        Flow.DEFINITION_NODES: [],
+                        Flow.DEFINITION_UI: {},
+                    },
                 )
 
     def add_flow_flow_dependencies(self, flows, migrator):
