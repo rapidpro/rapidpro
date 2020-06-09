@@ -3225,13 +3225,13 @@ class FlowRevision(SmartModel):
                 item["router"]["wait"]["timeout"].update(timeout)
 
             for action in item.get("actions", []):
-                if action.get("type") != "send_email":
-                    continue
-
-                for idx, attachment in enumerate(action.get("attachments", [])):
-                    [content_type, url] = str(attachment).split(":", 1)
-                    url = str(url).replace("https://attachments", f"https://{settings.AWS_BUCKET_DOMAIN}/attachments")
-                    action["attachments"][idx] = f"{content_type}:{url}"
+                if action.get("type") == "send_email":
+                    for idx, attachment in enumerate(action.get("attachments", [])):
+                        [content_type, url] = str(attachment).split(":", 1)
+                        url = str(url).replace("https://attachments", f"https://{settings.AWS_BUCKET_DOMAIN}/attachments")
+                        action["attachments"][idx] = f"{content_type}:{url}"
+                elif action.get("type") == "call_giftcard":
+                    action["giftcard_type"] = "GIFTCARD_ASSIGNING"
 
         return flow_definition
 
