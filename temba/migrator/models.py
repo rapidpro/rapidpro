@@ -858,11 +858,22 @@ class MigrationTask(TembaModel):
                 for idx, item in enumerate(attachments):
                     [content_type, url] = item.split(":", 1)
 
-                    if content_type in ["image", "audio", "video"]:
+                    if content_type in ["image", "audio", "video", "geo"] \
+                            or "amazonaws.com" in url:
                         continue
 
-                    url = url.replace(f"{settings.MIGRATION_FROM_URL}/media", f"https://{settings.AWS_BUCKET_DOMAIN}")
-                    attachments[idx] = f"{content_type}:{url}"
+                    if "demo.citizeninsights.org" in url:
+                        url = url.replace("https://demo.citizeninsights.org", settings.MIGRATION_FROM_URL)
+
+                    # We only migrate files that can be accessible via HTTP request
+                    try:
+                        file_obj = self.org.get_temporary_file_from_url(media_url=url)
+                        file_extension = url.split(".")[-1] if url else None
+                        s3_file_url = self.org.save_media(file=file_obj, extension=file_extension)
+                        attachments[idx] = f"{content_type}:{s3_file_url}"
+                    except Exception as e:
+                        logger.warning(f"Image was not UPLOADED to S3: {url}. Reason: {str(e)}")
+                        pass
 
             new_msg = Msg.objects.create(
                 uuid=msg.uuid,
