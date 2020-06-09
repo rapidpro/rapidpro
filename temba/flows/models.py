@@ -2320,7 +2320,7 @@ class FlowImage(models.Model):
         return json.loads(self.exif) if self.exif else dict()
 
     def get_url(self):
-        if "s3.amazonaws.com" in self.path:
+        if "amazonaws.com" in self.path:
             return self.path
         protocol = "https" if settings.IS_PROD else "http"
         image_url = "%s://%s/%s" % (protocol, settings.AWS_BUCKET_DOMAIN, self.path)
@@ -2338,7 +2338,7 @@ class FlowImage(models.Model):
 
     def set_deleted(self):
         self.is_active = False
-        self.save(update_fields=("is_active"))
+        self.save(update_fields=["is_active"])
 
     def is_playable(self):
         extension = self.path.split(".")[-1]
@@ -3225,13 +3225,13 @@ class FlowRevision(SmartModel):
                 item["router"]["wait"]["timeout"].update(timeout)
 
             for action in item.get("actions", []):
-                if action.get("type") != "send_email":
-                    continue
-
-                for idx, attachment in enumerate(action.get("attachments", [])):
-                    [content_type, url] = str(attachment).split(":", 1)
-                    url = str(url).replace("https://attachments", f"https://{settings.AWS_BUCKET_DOMAIN}/attachments")
-                    action["attachments"][idx] = f"{content_type}:{url}"
+                if action.get("type") == "send_email":
+                    for idx, attachment in enumerate(action.get("attachments", [])):
+                        [content_type, url] = str(attachment).split(":", 1)
+                        url = str(url).replace("https://attachments", f"https://{settings.AWS_BUCKET_DOMAIN}/attachments")
+                        action["attachments"][idx] = f"{content_type}:{url}"
+                elif action.get("type") == "call_giftcard":
+                    action["giftcard_type"] = "GIFTCARD_ASSIGNING"
 
         return flow_definition
 
