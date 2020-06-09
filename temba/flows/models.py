@@ -2320,7 +2320,7 @@ class FlowImage(models.Model):
         return json.loads(self.exif) if self.exif else dict()
 
     def get_url(self):
-        if "s3.amazonaws.com" in self.path:
+        if "amazonaws.com" in self.path:
             return self.path
         protocol = "https" if settings.IS_PROD else "http"
         image_url = "%s://%s/%s" % (protocol, settings.AWS_BUCKET_DOMAIN, self.path)
@@ -2338,7 +2338,7 @@ class FlowImage(models.Model):
 
     def set_deleted(self):
         self.is_active = False
-        self.save(update_fields=("is_active"))
+        self.save(update_fields=["is_active"])
 
     def is_playable(self):
         extension = self.path.split(".")[-1]
