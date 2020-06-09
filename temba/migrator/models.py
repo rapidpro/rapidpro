@@ -853,6 +853,17 @@ class MigrationTask(TembaModel):
                     model=MigrationAssociation.MODEL_ORG_TOPUP, old_id=msg.topup_id
                 )
 
+            attachments = msg.attachments
+            if attachments:
+                for idx, item in enumerate(attachments):
+                    [content_type, url] = item.split(":", 1)
+
+                    if content_type in ["image", "audio", "video"]:
+                        continue
+
+                    url = url.replace(f"{settings.MIGRATION_FROM_URL}/media", f"https://{settings.AWS_BUCKET_DOMAIN}")
+                    attachments[idx] = f"{content_type}:{url}"
+
             new_msg = Msg.objects.create(
                 uuid=msg.uuid,
                 org=self.org,
@@ -876,7 +887,7 @@ class MigrationTask(TembaModel):
                 next_attempt=msg.next_attempt,
                 external_id=msg.external_id,
                 topup=new_topup_obj,
-                attachments=msg.attachments,
+                attachments=attachments,
                 metadata=json.loads(msg.metadata) if msg.metadata else dict(),
             )
 
