@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-08 21:22+0000\n"
+"POT-Creation-Date: 2020-06-09 15:29+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6654,7 +6654,14 @@ msgstr ""
 msgid "Run flow "
 msgstr ""
 
+msgid "Change Language"
+msgstr ""
+
 msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
+msgstr ""
+
+#, python-format
+msgid "This will change the default language of the flow to <b>%(language)s</b>. Contacts who don't have a language set will use that language. Any parts of this flow which don't have a translation in <b>%(language)s</b> will continue to use their current text."
 msgstr ""
 
 msgid ""

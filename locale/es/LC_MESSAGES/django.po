@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-08 21:22+0000\n"
+"POT-Creation-Date: 2020-06-09 15:29+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -9515,7 +9515,16 @@ msgstr "Correr flujo"
 msgid "Run flow "
 msgstr "Correr flujo"
 
+#, fuzzy
+#| msgid "Language"
+msgid "Change Language"
+msgstr "Idioma"
+
 msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
+msgstr ""
+
+#, python-format
+msgid "This will change the default language of the flow to <b>%(language)s</b>. Contacts who don't have a language set will use that language. Any parts of this flow which don't have a translation in <b>%(language)s</b> will continue to use their current text."
 msgstr ""
 
 msgid ""
