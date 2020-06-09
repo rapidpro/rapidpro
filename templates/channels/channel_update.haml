@@ -68,13 +68,12 @@
     var sidePadding = parseInt($("#id_side_padding").val());
     var bottomPadding = parseInt($("#id_bottom_padding").val());
     var sideOfScreen = $("#id_side_of_screen").val();
-    var autoOpen = $("#id_auto_open").val() === "true";
 
     window.renderSurveyor({
       socketUrl: '{{ websocket_url }}',
       channelUUID: '{{ object.uuid }}',
       title: title,
-      autoOpen: autoOpen,
+      autoOpen: true,
       hostApi: 'https://{{ hostname }}',
       icon: icon,
       welcomeMessage: welcomeMessage,
@@ -167,10 +166,6 @@
       });
 
       $("#id_logo_style").change(function() {
-        buildWebChat();
-      });
-
-      $("#id_auto_open").change(function() {
         buildWebChat();
       });
 

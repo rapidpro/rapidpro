@@ -3206,11 +3206,34 @@ class FlowRevision(SmartModel):
         # use mailroom to get export to current spec version
         migrated_flows = []
         for flow_def in exported_json[Org.EXPORT_FLOWS]:
-            migrated_flows.append(mailroom.get_client().flow_migrate(flow_def))
+            migrated_flow = mailroom.get_client().flow_migrate(flow_def)
+            if version <= Version(Flow.FINAL_LEGACY_VERSION):
+                migrated_flow = cls.migrate_issues(migrated_flow)
+            migrated_flows.append(migrated_flow)
 
         exported_json[Org.EXPORT_FLOWS] = migrated_flows
 
         return exported_json
+
+    @classmethod
+    def migrate_issues(cls, flow_definition):
+        # hotfix to be able import legacy flows with correct timeout
+        for item in flow_definition.get("nodes", []):
+            timeout = item.get("router", {}).get("wait", {}).get("timeout")
+            if timeout is not None and timeout.get("seconds"):
+                timeout["seconds"] //= 60
+                item["router"]["wait"]["timeout"].update(timeout)
+
+            for action in item.get("actions", []):
+                if action.get("type") != "send_email":
+                    continue
+
+                for idx, attachment in enumerate(action.get("attachments", [])):
+                    [content_type, url] = str(attachment).split(":", 1)
+                    url = str(url).replace("https://attachments", f"https://{settings.AWS_BUCKET_DOMAIN}/attachments")
+                    action["attachments"][idx] = f"{content_type}:{url}"
+
+        return flow_definition
 
     @classmethod
     def migrate_definition(cls, json_flow, flow, to_version=Flow.CURRENT_SPEC_VERSION):

@@ -1268,7 +1268,7 @@ class UpdateWebChatForm(UpdateChannelForm):
     name = forms.CharField(
         label=_("Name"),
         help_text=_("Descriptive label for this channel"),
-        widget=forms.TextInput(attrs={"required": ""}),
+        widget=forms.TextInput(attrs={"required": "", "maxlength": "64"}),
     )
 
     def __init__(self, *args, **kwargs):
@@ -1510,11 +1510,7 @@ class UpdateWebChatForm(UpdateChannelForm):
         )
 
         self.add_config_field(
-            "action_type",
-            forms.CharField(
-                widget=forms.HiddenInput(),
-            ),
-            "update_and_generate_code_snippet",
+            "action_type", forms.CharField(widget=forms.HiddenInput()), "update_and_generate_code_snippet"
         )
 
         del self.fields["country"]
