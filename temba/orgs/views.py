@@ -2595,10 +2595,10 @@ class OrgCRUDL(SmartCRUDL):
                 # Reading file data with pandas
                 read_file = read_csv if file_type == "csv" else read_excel
                 try:
-                    spamreader = read_file(import_file, index_col=False)
+                    spamreader = read_file(import_file, index_col=False, dtype=str)
                 except UnicodeDecodeError:
                     import_file.seek(0)
-                    spamreader = read_file(import_file, encoding="ISO-8859-1", index_col=False)
+                    spamreader = read_file(import_file, encoding="ISO-8859-1", index_col=False, dtype=str)
                 
                 # Making sure that data in each column has correct type, e.g. string, float
                 for column in spamreader.columns:
