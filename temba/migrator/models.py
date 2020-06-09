@@ -3,7 +3,6 @@ import logging
 import pytz
 
 from datetime import datetime
-from packaging.version import Version
 
 from django.db import models
 from django.conf import settings
@@ -316,8 +315,7 @@ class MigrationTask(TembaModel):
 
         if org_data.parent_id:
             new_org_parent_obj = MigrationAssociation.get_new_object(
-                model=MigrationAssociation.MODEL_ORG,
-                old_id=org_data.parent_id,
+                model=MigrationAssociation.MODEL_ORG, old_id=org_data.parent_id
             )
             if new_org_parent_obj:
                 self.org.parent = new_org_parent_obj
@@ -338,10 +336,7 @@ class MigrationTask(TembaModel):
         )
 
         MigrationAssociation.create(
-            migration_task=self,
-            old_id=org_data.id,
-            new_id=self.org.id,
-            model=MigrationAssociation.MODEL_ORG,
+            migration_task=self, old_id=org_data.id, new_id=self.org.id, model=MigrationAssociation.MODEL_ORG
         )
 
     def add_topups(self, logger, topups, migrator):
@@ -428,10 +423,7 @@ class MigrationTask(TembaModel):
             )
 
             MigrationAssociation.create(
-                migration_task=self,
-                old_id=channel.id,
-                new_id=new_channel.id,
-                model=MigrationAssociation.MODEL_CHANNEL,
+                migration_task=self, old_id=channel.id, new_id=new_channel.id, model=MigrationAssociation.MODEL_CHANNEL
             )
 
             channel_counts = migrator.get_channels_count(channel_id=channel.id)
@@ -468,21 +460,18 @@ class MigrationTask(TembaModel):
             logger.info(f">>> Channel Event: {event.id} - {event.event_type}")
 
             new_contact_obj = MigrationAssociation.get_new_object(
-                model=MigrationAssociation.MODEL_CONTACT,
-                old_id=event.contact_id,
+                model=MigrationAssociation.MODEL_CONTACT, old_id=event.contact_id
             )
 
             if not new_contact_obj:
                 continue
 
             new_contact_urn_obj = MigrationAssociation.get_new_object(
-                model=MigrationAssociation.MODEL_CONTACT_URN,
-                old_id=event.contact_urn_id,
+                model=MigrationAssociation.MODEL_CONTACT_URN, old_id=event.contact_urn_id
             )
 
             new_channel_obj = MigrationAssociation.get_new_object(
-                model=MigrationAssociation.MODEL_CHANNEL,
-                old_id=event.channel_id,
+                model=MigrationAssociation.MODEL_CHANNEL, old_id=event.channel_id
             )
 
             ChannelEvent.objects.create(
@@ -501,8 +490,7 @@ class MigrationTask(TembaModel):
             channel_logs = migrator.get_channel_logs(channel_id=channel.id)
 
             new_channel_obj = MigrationAssociation.get_new_object(
-                model=MigrationAssociation.MODEL_CHANNEL,
-                old_id=channel.id,
+                model=MigrationAssociation.MODEL_CHANNEL, old_id=channel.id
             )
 
             if not new_channel_obj:
@@ -512,15 +500,17 @@ class MigrationTask(TembaModel):
             new_channel_obj.logs.all().delete()
 
             for channel_log in channel_logs:
-                description = f"{channel_log.description[:30]}..." if len(channel_log.description) > 30 else \
-                    channel_log.description
+                description = (
+                    f"{channel_log.description[:30]}..."
+                    if len(channel_log.description) > 30
+                    else channel_log.description
+                )
                 logger.info(f">>> Channel Log: {channel_log.id} - {description}")
 
                 new_msg_obj = None
                 if channel_log.msg_id:
                     new_msg_obj = MigrationAssociation.get_new_object(
-                        model=MigrationAssociation.MODEL_MSG,
-                        old_id=channel_log.msg_id,
+                        model=MigrationAssociation.MODEL_MSG, old_id=channel_log.msg_id
                     )
 
                 new_channel_log = ChannelLog.objects.create(
@@ -596,21 +586,15 @@ class MigrationTask(TembaModel):
             values = migrator.get_values_value(contact_id=contact.id)
             for item in values:
                 new_field_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT_FIELD,
-                    old_id=item.contact_field_id
+                    model=MigrationAssociation.MODEL_CONTACT_FIELD, old_id=item.contact_field_id
                 )
                 if new_field_obj:
-                    existing_contact.set_field(
-                        user=self.created_by,
-                        key=new_field_obj.key,
-                        value=item.string_value
-                    )
+                    existing_contact.set_field(user=self.created_by, key=new_field_obj.key, value=item.string_value)
 
             urns = migrator.get_contact_urns(contact_id=contact.id)
             for item in urns:
                 new_channel_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CHANNEL,
-                    old_id=item.channel_id,
+                    model=MigrationAssociation.MODEL_CHANNEL, old_id=item.channel_id
                 )
 
                 identity = str(item.identity)
@@ -637,11 +621,7 @@ class MigrationTask(TembaModel):
             logger.info(f">>> Contact Group: {group.uuid} - {group.name}")
 
             contact_group = ContactGroup.get_or_create(
-                org=self.org,
-                user=self.created_by,
-                name=group.name,
-                query=group.query,
-                uuid=group.uuid,
+                org=self.org, user=self.created_by, name=group.name, query=group.query, uuid=group.uuid
             )
 
             # Making sure that the uuid will be the same from live server
@@ -659,8 +639,7 @@ class MigrationTask(TembaModel):
             contactgroup_contacts = migrator.get_contactgroups_contacts(contactgroup_id=group.id)
             for item in contactgroup_contacts:
                 new_contact_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT,
-                    old_id=item.contact_id,
+                    model=MigrationAssociation.MODEL_CONTACT, old_id=item.contact_id
                 )
                 if new_contact_obj and not contact_group.is_dynamic:
                     contact_group.update_contacts(user=self.created_by, contacts=[new_contact_obj], add=True)
@@ -716,20 +695,29 @@ class MigrationTask(TembaModel):
         for broadcast in msg_broadcasts:
             logger.info(f">>> Msg Broadcast: {broadcast.id}")
 
-            new_channel_obj = MigrationAssociation.get_new_object(
-                model=MigrationAssociation.MODEL_CHANNEL,
-                old_id=broadcast.channel_id,
-            ) if broadcast.channel_id else None
+            new_channel_obj = (
+                MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_CHANNEL, old_id=broadcast.channel_id
+                )
+                if broadcast.channel_id
+                else None
+            )
 
-            new_schedule_obj = MigrationAssociation.get_new_object(
-                model=MigrationAssociation.MODEL_SCHEDULE,
-                old_id=broadcast.schedule_id,
-            ) if broadcast.schedule_id else None
+            new_schedule_obj = (
+                MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_SCHEDULE, old_id=broadcast.schedule_id
+                )
+                if broadcast.schedule_id
+                else None
+            )
 
-            new_broadcast_parent_obj = MigrationAssociation.get_new_object(
-                model=MigrationAssociation.MODEL_MSG_BROADCAST,
-                old_id=broadcast.parent_id,
-            ) if broadcast.parent_id else None
+            new_broadcast_parent_obj = (
+                MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_MSG_BROADCAST, old_id=broadcast.parent_id
+                )
+                if broadcast.parent_id
+                else None
+            )
 
             new_broadcast_obj = Broadcast.objects.create(
                 org=self.org,
@@ -759,8 +747,7 @@ class MigrationTask(TembaModel):
             broadcast_contacts = migrator.get_msg_broadcast_contacts(broadcast_id=broadcast.id)
             for item in broadcast_contacts:
                 new_contact_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT,
-                    old_id=item.contact_id,
+                    model=MigrationAssociation.MODEL_CONTACT, old_id=item.contact_id
                 )
                 if new_contact_obj:
                     new_broadcast_obj.contacts.add(new_contact_obj)
@@ -768,8 +755,7 @@ class MigrationTask(TembaModel):
             broadcast_groups = migrator.get_msg_broadcast_groups(broadcast_id=broadcast.id)
             for item in broadcast_groups:
                 new_group_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT_GROUP,
-                    old_id=item.contactgroup_id,
+                    model=MigrationAssociation.MODEL_CONTACT_GROUP, old_id=item.contactgroup_id
                 )
                 if new_group_obj:
                     new_broadcast_obj.groups.add(new_group_obj)
@@ -777,8 +763,7 @@ class MigrationTask(TembaModel):
             broadcast_urns = migrator.get_msg_broadcast_urns(broadcast_id=broadcast.id)
             for item in broadcast_urns:
                 new_urn_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT_URN,
-                    old_id=item.contacturn_id,
+                    model=MigrationAssociation.MODEL_CONTACT_URN, old_id=item.contacturn_id
                 )
                 if new_urn_obj:
                     new_broadcast_obj.urns.add(new_urn_obj)
@@ -787,11 +772,7 @@ class MigrationTask(TembaModel):
         for folder in folders:
             logger.info(f">>> Msg Folder: {folder.uuid} - {folder.name}")
 
-            new_msg_folder = Label.get_or_create_folder(
-                org=self.org,
-                user=self.created_by,
-                name=folder.name,
-            )
+            new_msg_folder = Label.get_or_create_folder(org=self.org, user=self.created_by, name=folder.name)
             if folder.uuid != new_msg_folder.uuid:
                 new_msg_folder.uuid = folder.uuid
                 new_msg_folder.save(update_fields=["uuid"])
@@ -807,11 +788,7 @@ class MigrationTask(TembaModel):
         for label in labels:
             logger.info(f">>> Msg Label: {label.uuid} - {label.name}")
 
-            new_msg_label = Label.get_or_create(
-                org=self.org,
-                user=self.created_by,
-                name=label.name,
-            )
+            new_msg_label = Label.get_or_create(org=self.org, user=self.created_by, name=label.name)
 
             if label.uuid != new_msg_label.uuid:
                 new_msg_label.uuid = label.uuid
@@ -819,8 +796,7 @@ class MigrationTask(TembaModel):
 
             if label.folder_id:
                 new_folder_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_MSG_LABEL,
-                    old_id=label.folder_id,
+                    model=MigrationAssociation.MODEL_MSG_LABEL, old_id=label.folder_id
                 )
                 new_msg_label.folder = new_folder_obj
                 new_msg_label.save(update_fields=["folder"])
@@ -842,21 +818,18 @@ class MigrationTask(TembaModel):
             response_to = None
             if msg.response_to_id:
                 new_msg_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_MSG,
-                    old_id=msg.response_to_id,
+                    model=MigrationAssociation.MODEL_MSG, old_id=msg.response_to_id
                 )
                 response_to = new_msg_obj
 
             new_channel_obj = None
             if msg.channel_id:
                 new_channel_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CHANNEL,
-                    old_id=msg.channel_id,
+                    model=MigrationAssociation.MODEL_CHANNEL, old_id=msg.channel_id
                 )
 
             new_contact_obj = MigrationAssociation.get_new_object(
-                model=MigrationAssociation.MODEL_CONTACT,
-                old_id=msg.contact_id,
+                model=MigrationAssociation.MODEL_CONTACT, old_id=msg.contact_id
             )
 
             if not new_contact_obj:
@@ -865,22 +838,19 @@ class MigrationTask(TembaModel):
             new_contact_urn_obj = None
             if msg.contact_urn_id:
                 new_contact_urn_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT_URN,
-                    old_id=msg.contact_urn_id,
+                    model=MigrationAssociation.MODEL_CONTACT_URN, old_id=msg.contact_urn_id
                 )
 
             new_broadcast_obj = None
             if msg.broadcast_id:
                 new_broadcast_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_MSG_BROADCAST,
-                    old_id=msg.broadcast_id,
+                    model=MigrationAssociation.MODEL_MSG_BROADCAST, old_id=msg.broadcast_id
                 )
 
             new_topup_obj = None
             if msg.topup_id:
                 new_topup_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_ORG_TOPUP,
-                    old_id=msg.topup_id,
+                    model=MigrationAssociation.MODEL_ORG_TOPUP, old_id=msg.topup_id
                 )
 
             new_msg = Msg.objects.create(
@@ -915,17 +885,13 @@ class MigrationTask(TembaModel):
                 new_msg.save(update_fields=["uuid"])
 
             MigrationAssociation.create(
-                migration_task=self,
-                old_id=msg.id,
-                new_id=new_msg.id,
-                model=MigrationAssociation.MODEL_MSG,
+                migration_task=self, old_id=msg.id, new_id=new_msg.id, model=MigrationAssociation.MODEL_MSG
             )
 
             msg_labels = migrator.get_msg_labels(msg_id=msg.id)
             for item in msg_labels:
                 new_label_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_MSG_LABEL,
-                    old_id=item.label_id,
+                    model=MigrationAssociation.MODEL_MSG_LABEL, old_id=item.label_id
                 )
                 if new_label_obj:
                     new_msg.labels.add(new_label_obj)
@@ -936,11 +902,7 @@ class MigrationTask(TembaModel):
 
             new_flow_label = FlowLabel.objects.filter(uuid=label.uuid).only("id").first()
             if not new_flow_label:
-                new_flow_label = FlowLabel.objects.create(
-                    org=self.org,
-                    uuid=label.uuid,
-                    name=label.name,
-                )
+                new_flow_label = FlowLabel.objects.create(org=self.org, uuid=label.uuid, name=label.name)
 
             if new_flow_label.uuid != label.uuid:
                 new_flow_label.uuid = label.uuid
@@ -948,8 +910,7 @@ class MigrationTask(TembaModel):
 
             if label.parent_id:
                 new_flow_label_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_FLOW_LABEL,
-                    old_id=label.parent_id,
+                    model=MigrationAssociation.MODEL_FLOW_LABEL, old_id=label.parent_id
                 )
                 new_flow_label.parent = new_flow_label_obj
                 new_flow_label.save(update_fields=["parent"])
@@ -962,8 +923,6 @@ class MigrationTask(TembaModel):
             )
 
     def add_flows(self, logger, flows, migrator):
-        mailroom_client = mailroom.get_client()
-
         for flow in flows:
             logger.info(f">>> Flow: {flow.uuid} - {flow.name}")
 
@@ -994,10 +953,7 @@ class MigrationTask(TembaModel):
                 new_flow.save(update_fields=["uuid"])
 
             MigrationAssociation.create(
-                migration_task=self,
-                old_id=flow.id,
-                new_id=new_flow.id,
-                model=MigrationAssociation.MODEL_FLOW,
+                migration_task=self, old_id=flow.id, new_id=new_flow.id, model=MigrationAssociation.MODEL_FLOW
             )
 
             # Removing field dependencies before importing again
@@ -1006,8 +962,7 @@ class MigrationTask(TembaModel):
             field_dependencies = migrator.get_flow_fields_dependencies(flow_id=flow.id)
             for item in field_dependencies:
                 new_field_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT_FIELD,
-                    old_id=item.contactfield_id,
+                    model=MigrationAssociation.MODEL_CONTACT_FIELD, old_id=item.contactfield_id
                 )
                 if new_field_obj:
                     new_flow.field_dependencies.add(new_field_obj)
@@ -1018,8 +973,7 @@ class MigrationTask(TembaModel):
             group_dependencies = migrator.get_flow_group_dependencies(flow_id=flow.id)
             for item in group_dependencies:
                 new_group_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT_GROUP,
-                    old_id=item.contactgroup_id,
+                    model=MigrationAssociation.MODEL_CONTACT_GROUP, old_id=item.contactgroup_id
                 )
                 if new_group_obj:
                     new_flow.group_dependencies.add(new_group_obj)
@@ -1027,8 +981,7 @@ class MigrationTask(TembaModel):
             flow_labels = migrator.get_flow_labels(flow_id=flow.id)
             for item in flow_labels:
                 new_label_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_FLOW_LABEL,
-                    old_id=item.flowlabel_id,
+                    model=MigrationAssociation.MODEL_FLOW_LABEL, old_id=item.flowlabel_id
                 )
                 if new_label_obj:
                     new_flow.labels.add(new_label_obj)
@@ -1052,11 +1005,7 @@ class MigrationTask(TembaModel):
 
             node_count = migrator.get_flow_node_count(flow_id=flow.id)
             for item in node_count:
-                FlowNodeCount.objects.create(
-                    flow=new_flow,
-                    node_uuid=item.node_uuid,
-                    count=item.count,
-                )
+                FlowNodeCount.objects.create(flow=new_flow, node_uuid=item.node_uuid, count=item.count)
 
             # Removing flow path count relationships before importing again
             new_flow.path_counts.all().delete()
@@ -1123,7 +1072,9 @@ class MigrationTask(TembaModel):
                 spec_version = item.spec_version
                 if item.definition:
                     try:
-                        json_flow = FlowRevision.migrate_definition(json_flow=json.loads(item.definition), flow=new_flow)
+                        json_flow = FlowRevision.migrate_definition(
+                            json_flow=json.loads(item.definition), flow=new_flow
+                        )
                         json_flow = FlowRevision.migrate_issues(json_flow)
                         spec_version = Flow.CURRENT_SPEC_VERSION
                     except Exception:
@@ -1142,15 +1093,11 @@ class MigrationTask(TembaModel):
 
     def add_flow_flow_dependencies(self, flows, migrator):
         for flow in flows:
-            new_flow_obj = MigrationAssociation.get_new_object(
-                model=MigrationAssociation.MODEL_FLOW,
-                old_id=flow.id,
-            )
+            new_flow_obj = MigrationAssociation.get_new_object(model=MigrationAssociation.MODEL_FLOW, old_id=flow.id)
             flow_dependencies = migrator.get_flow_flow_dependencies(flow_id=flow.id)
             for item in flow_dependencies:
                 new_to_flow_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_FLOW,
-                    old_id=item.to_flow_id,
+                    model=MigrationAssociation.MODEL_FLOW, old_id=item.to_flow_id
                 )
                 if new_flow_obj and new_to_flow_obj:
                     new_flow_obj.flow_dependencies.add(new_to_flow_obj)

@@ -162,7 +162,7 @@ class Migrator(object):
     def get_values_value(self, contact_id) -> list:
         count = self.get_count(
             "values_value",
-            condition=f"org_id = {self.org_id} AND contact_id = {contact_id} AND contact_field_id IS NOT NULL"
+            condition=f"org_id = {self.org_id} AND contact_id = {contact_id} AND contact_field_id IS NOT NULL",
         )
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.values_value WHERE org_id = {self.org_id} AND contact_id = {contact_id} AND contact_field_id IS NOT NULL ORDER BY id ASC",
@@ -170,7 +170,9 @@ class Migrator(object):
         )
 
     def get_contact_urns(self, contact_id) -> list:
-        count = self.get_count("contacts_contacturn", condition=f"org_id = {self.org_id} AND contact_id = {contact_id}")
+        count = self.get_count(
+            "contacts_contacturn", condition=f"org_id = {self.org_id} AND contact_id = {contact_id}"
+        )
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.contacts_contacturn WHERE org_id = {self.org_id} AND contact_id = {contact_id} ORDER BY id ASC",
             count=count,
@@ -200,26 +202,26 @@ class Migrator(object):
     def get_org_trigger_schedules(self) -> list:
         count_query = self.make_query_one(
             query_string=f"SELECT count(ss.*) as count FROM public.schedules_schedule ss INNER JOIN "
-                         f"public.triggers_trigger tt ON (ss.id = tt.schedule_id) WHERE tt.org_id = {self.org_id} "
-                         f"AND tt.schedule_id IS NOT NULL"
+            f"public.triggers_trigger tt ON (ss.id = tt.schedule_id) WHERE tt.org_id = {self.org_id} "
+            f"AND tt.schedule_id IS NOT NULL"
         )
         return self.get_results_paginated(
             query_string=f"SELECT ss.* as count FROM public.schedules_schedule ss INNER JOIN "
-                         f"public.triggers_trigger tt ON (ss.id = tt.schedule_id) WHERE tt.org_id = {self.org_id} "
-                         f"AND tt.schedule_id IS NOT NULL",
+            f"public.triggers_trigger tt ON (ss.id = tt.schedule_id) WHERE tt.org_id = {self.org_id} "
+            f"AND tt.schedule_id IS NOT NULL",
             count=count_query.count,
         )
 
     def get_org_broadcast_schedules(self) -> list:
         count_query = self.make_query_one(
             query_string=f"SELECT count(ss.*) as count FROM public.schedules_schedule ss INNER JOIN "
-                         f"public.msgs_broadcast mb ON (ss.id = mb.schedule_id) WHERE mb.org_id = {self.org_id} "
-                         f"AND mb.schedule_id IS NOT NULL"
+            f"public.msgs_broadcast mb ON (ss.id = mb.schedule_id) WHERE mb.org_id = {self.org_id} "
+            f"AND mb.schedule_id IS NOT NULL"
         )
         return self.get_results_paginated(
             query_string=f"SELECT ss.* FROM public.schedules_schedule ss INNER JOIN "
-                         f"public.msgs_broadcast mb ON (ss.id = mb.schedule_id) WHERE mb.org_id = {self.org_id} "
-                         f"AND mb.schedule_id IS NOT NULL",
+            f"public.msgs_broadcast mb ON (ss.id = mb.schedule_id) WHERE mb.org_id = {self.org_id} "
+            f"AND mb.schedule_id IS NOT NULL",
             count=count_query.count,
         )
 
@@ -253,8 +255,7 @@ class Migrator(object):
 
     def get_org_msg_labels(self, label_type) -> list:
         count = self.get_count(
-            "msgs_label",
-            condition=f"org_id = {self.org_id} AND is_active = true AND label_type = '{label_type}'"
+            "msgs_label", condition=f"org_id = {self.org_id} AND is_active = true AND label_type = '{label_type}'"
         )
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.msgs_label WHERE org_id = {self.org_id} AND is_active = true AND label_type = '{label_type}' ORDER BY id ASC",
@@ -264,15 +265,13 @@ class Migrator(object):
     def get_org_msgs(self) -> list:
         count = self.get_count("msgs_msg", condition=f"org_id = {self.org_id}")
         return self.get_results_paginated(
-            query_string=f"SELECT * FROM public.msgs_msg WHERE org_id = {self.org_id} ORDER BY id ASC",
-            count=count,
+            query_string=f"SELECT * FROM public.msgs_msg WHERE org_id = {self.org_id} ORDER BY id ASC", count=count
         )
 
     def get_msg_labels(self, msg_id) -> list:
         count = self.get_count("msgs_msg_labels", condition=f"msg_id = {msg_id}")
         return self.get_results_paginated(
-            query_string=f"SELECT * FROM public.msgs_msg_labels WHERE msg_id = {msg_id} ORDER BY id ASC",
-            count=count,
+            query_string=f"SELECT * FROM public.msgs_msg_labels WHERE msg_id = {msg_id} ORDER BY id ASC", count=count
         )
 
     def get_org_flow_labels(self) -> list:
@@ -284,8 +283,7 @@ class Migrator(object):
 
     def get_org_flows(self) -> list:
         count = self.get_count(
-            "flows_flow",
-            condition=f"org_id = {self.org_id} AND is_archived = false AND is_active = true"
+            "flows_flow", condition=f"org_id = {self.org_id} AND is_archived = false AND is_active = true"
         )
         return self.get_results_paginated(
             query_string=f"SELECT * FROM public.flows_flow WHERE org_id = {self.org_id} AND is_archived = false AND is_active = true ORDER BY id ASC",
@@ -344,15 +342,13 @@ class Migrator(object):
     def get_flow_actionsets(self, flow_id) -> list:
         count = self.get_count("flows_actionset", condition=f"flow_id = {flow_id}")
         return self.get_results_paginated(
-            query_string=f"SELECT * FROM public.flows_actionset WHERE flow_id = {flow_id} ORDER BY id ASC",
-            count=count,
+            query_string=f"SELECT * FROM public.flows_actionset WHERE flow_id = {flow_id} ORDER BY id ASC", count=count
         )
 
     def get_flow_rulesets(self, flow_id) -> list:
         count = self.get_count("flows_ruleset", condition=f"flow_id = {flow_id}")
         return self.get_results_paginated(
-            query_string=f"SELECT * FROM public.flows_ruleset WHERE flow_id = {flow_id} ORDER BY id ASC",
-            count=count,
+            query_string=f"SELECT * FROM public.flows_ruleset WHERE flow_id = {flow_id} ORDER BY id ASC", count=count
         )
 
     def get_flow_revisions(self, flow_id) -> list:
