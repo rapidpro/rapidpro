@@ -3,6 +3,7 @@ import logging
 import pytz
 
 from datetime import datetime
+from packaging.version import Version
 
 from django.db import models
 from django.conf import settings
@@ -10,6 +11,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from django.utils.timesince import timesince
 
+from temba import mailroom
 from temba.migrator import Migrator
 from temba.orgs.models import TopUp, TopUpCredits, Language
 from temba.contacts.models import ContactField, Contact, ContactGroup, ContactURN
@@ -17,7 +19,18 @@ from temba.channels.models import Channel, ChannelCount, SyncEvent, ChannelEvent
 from temba.schedules.models import Schedule
 from temba.msgs.models import Msg, Label, Broadcast
 from temba.orgs.models import Org
-from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart, FlowCategoryCount, FlowNodeCount, FlowPathCount
+from temba.flows.models import (
+    Flow,
+    FlowLabel,
+    FlowRun,
+    FlowStart,
+    FlowCategoryCount,
+    FlowNodeCount,
+    FlowPathCount,
+    FlowRevision,
+    ActionSet,
+    RuleSet,
+)
 from temba.utils import json
 from temba.utils.models import TembaModel, generate_uuid
 
@@ -949,6 +962,8 @@ class MigrationTask(TembaModel):
             )
 
     def add_flows(self, logger, flows, migrator):
+        mailroom_client = mailroom.get_client()
+
         for flow in flows:
             logger.info(f">>> Flow: {flow.uuid} - {flow.name}")
 
@@ -1055,6 +1070,74 @@ class MigrationTask(TembaModel):
                     period=item.period,
                     count=item.count,
                     is_squashed=item.is_squashed,
+                )
+
+            # Removing flow actionsets before importing again
+            new_flow.action_sets.all().delete()
+
+            action_sets = migrator.get_flow_actionsets(flow_id=flow.id)
+            for item in action_sets:
+                ActionSet.objects.create(
+                    uuid=item.uuid,
+                    flow=new_flow,
+                    destination=item.destination,
+                    destination_type=item.destination_type,
+                    exit_uuid=item.exit_uuid,
+                    actions=json.loads(item.actions) if item.actions else dict(),
+                    x=item.x,
+                    y=item.y,
+                    created_on=item.created_on,
+                    modified_on=item.modified_on,
+                )
+
+            # Removing flow rulesets before importing again
+            new_flow.rule_sets.all().delete()
+
+            rule_sets = migrator.get_flow_rulesets(flow_id=flow.id)
+            for item in rule_sets:
+                RuleSet.objects.create(
+                    uuid=item.uuid,
+                    flow=new_flow,
+                    label=item.label,
+                    operand=item.operand,
+                    webhook_url=item.webhook_url,
+                    webhook_action=item.webhook_action,
+                    rules=json.loads(item.rules) if item.rules else dict(),
+                    finished_key=item.finished_key,
+                    value_type=item.value_type,
+                    ruleset_type=item.ruleset_type,
+                    response_type=item.response_type,
+                    config=json.loads(item.config) if item.config else dict(),
+                    x=item.x,
+                    y=item.y,
+                    created_on=item.created_on,
+                    modified_on=item.modified_on,
+                )
+
+            # Removing flow revisions before importing again
+            new_flow.revisions.all().delete()
+
+            revisions = migrator.get_flow_revisions(flow_id=flow.id)
+            for item in revisions:
+                json_flow = dict()
+                spec_version = item.spec_version
+                if item.definition:
+                    try:
+                        json_flow = FlowRevision.migrate_definition(json_flow=json.loads(item.definition), flow=new_flow)
+                        json_flow = FlowRevision.migrate_issues(json_flow)
+                        spec_version = Flow.CURRENT_SPEC_VERSION
+                    except Exception:
+                        json_flow = json.loads(item.definition)
+
+                FlowRevision.objects.create(
+                    flow=new_flow,
+                    definition=json_flow,
+                    spec_version=spec_version,
+                    revision=item.revision,
+                    created_by=self.created_by,
+                    modified_by=self.created_by,
+                    created_on=item.created_on,
+                    modified_on=item.modified_on,
                 )
 
     def add_flow_flow_dependencies(self, flows, migrator):

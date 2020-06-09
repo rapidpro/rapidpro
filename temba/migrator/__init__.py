@@ -340,3 +340,24 @@ class Migrator(object):
             query_string=f"SELECT * FROM public.flows_flowpathcount WHERE flow_id = {flow_id} AND to_uuid IS NOT NULL ORDER BY id ASC",
             count=count,
         )
+
+    def get_flow_actionsets(self, flow_id) -> list:
+        count = self.get_count("flows_actionset", condition=f"flow_id = {flow_id}")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.flows_actionset WHERE flow_id = {flow_id} ORDER BY id ASC",
+            count=count,
+        )
+
+    def get_flow_rulesets(self, flow_id) -> list:
+        count = self.get_count("flows_ruleset", condition=f"flow_id = {flow_id}")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.flows_ruleset WHERE flow_id = {flow_id} ORDER BY id ASC",
+            count=count,
+        )
+
+    def get_flow_revisions(self, flow_id) -> list:
+        count = self.get_count("flows_flowrevision", condition=f"flow_id = {flow_id}")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.flows_flowrevision WHERE flow_id = {flow_id} ORDER BY id ASC",
+            count=count,
+        )
