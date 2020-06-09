@@ -10,7 +10,6 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from django.utils.timesince import timesince
 
-from temba import mailroom
 from temba.migrator import Migrator
 from temba.orgs.models import TopUp, TopUpCredits, Language
 from temba.contacts.models import ContactField, Contact, ContactGroup, ContactURN
@@ -27,6 +26,7 @@ from temba.flows.models import (
     FlowNodeCount,
     FlowPathCount,
     FlowRevision,
+    FlowImage,
     ActionSet,
     RuleSet,
 )
@@ -1037,6 +1037,8 @@ class MigrationTask(TembaModel):
 
             action_sets = migrator.get_flow_actionsets(flow_id=flow.id)
             for item in action_sets:
+                logger.info(f">>> Flow ActionSet: {item.uuid}")
+
                 ActionSet.objects.create(
                     uuid=item.uuid,
                     flow=new_flow,
@@ -1055,6 +1057,8 @@ class MigrationTask(TembaModel):
 
             rule_sets = migrator.get_flow_rulesets(flow_id=flow.id)
             for item in rule_sets:
+                logger.info(f">>> Flow RuleSet: {item.uuid}")
+
                 RuleSet.objects.create(
                     uuid=item.uuid,
                     flow=new_flow,
@@ -1080,6 +1084,8 @@ class MigrationTask(TembaModel):
             revisions = migrator.get_flow_revisions(flow_id=flow.id)
             if revisions:
                 for item in revisions:
+                    logger.info(f">>> Flow Revision: {item.revision}")
+
                     json_flow = dict()
                     spec_version = item.spec_version
                     if item.definition:
@@ -1114,6 +1120,44 @@ class MigrationTask(TembaModel):
                         Flow.DEFINITION_NODES: [],
                         Flow.DEFINITION_UI: {},
                     },
+                )
+
+            # Removing flow images before importing again
+            new_flow.flow_images.all().delete()
+
+            flow_images = migrator.get_flow_images(flow_id=flow.id)
+            for item in flow_images:
+                logger.info(f">>> Flow Image: {item.uuid}")
+
+                new_contact_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_CONTACT,
+                    old_id=item.contact_id,
+                )
+
+                if not new_contact_obj:
+                    continue
+
+                file_path = f"{settings.MIGRATION_FROM_URL}/media/{item.path}"
+                file_path_thumbnail = f"{settings.MIGRATION_FROM_URL}{item.path_thumbnail}"
+
+                file_obj_path = self.org.get_temporary_file_from_url(media_url=file_path)
+                file_obj_path_thumbnail = self.org.get_temporary_file_from_url(media_url=file_path_thumbnail)
+
+                path_s3_file_url = self.org.save_media(file=file_obj_path, extension="jpg")
+                path_thumbnail_s3_file_url = self.org.save_media(file=file_obj_path_thumbnail, extension="jpg")
+
+                FlowImage.objects.create(
+                    uuid=item.uuid,
+                    org=self.org,
+                    flow=new_flow,
+                    contact=new_contact_obj,
+                    name=item.name,
+                    path=path_s3_file_url,
+                    path_thumbnail=path_thumbnail_s3_file_url,
+                    exif=item.exif,
+                    created_on=item.created_on,
+                    modified_on=item.modified_on,
+                    is_active=item.is_active,
                 )
 
     def add_flow_flow_dependencies(self, flows, migrator):
