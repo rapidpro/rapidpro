@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from django.utils.timesince import timesince
 
+from temba import mailroom
 from temba.migrator import Migrator
 from temba.orgs.models import TopUp, TopUpCredits, Language
 from temba.contacts.models import ContactField, Contact, ContactGroup, ContactURN
@@ -299,7 +300,7 @@ class MigrationTask(TembaModel):
 
             org_campaigns = migrator.get_org_campaigns()
             if org_campaigns:
-                self.add_campaigns(logger=logger, campaigns=org_campaigns)
+                self.add_campaigns(logger=logger, campaigns=org_campaigns, migrator=migrator)
 
             logger.info("[COMPLETED] Campaigns migration")
             logger.info("")
@@ -1328,11 +1329,11 @@ class MigrationTask(TembaModel):
                 if new_flow_obj and new_to_flow_obj:
                     new_flow_obj.flow_dependencies.add(new_to_flow_obj)
 
-    def add_campaigns(self, logger, campaigns):
+    def add_campaigns(self, logger, campaigns, migrator):
         for campaign in campaigns:
             logger.info(f">>> Campaign: {campaign.uuid} - {campaign.name}")
 
-            new_campaign = Campaign.objects.filter(uuid=campaign.uuid).only("id").first()
+            new_campaign = Campaign.objects.filter(uuid=campaign.uuid, org=self.org).only("id").first()
             if not new_campaign:
                 new_group_obj = MigrationAssociation.get_new_object(
                     model=MigrationAssociation.MODEL_CONTACT_GROUP,
@@ -1364,6 +1365,45 @@ class MigrationTask(TembaModel):
                 model=MigrationAssociation.MODEL_CAMPAIGN,
             )
 
+            campaign_events = migrator.get_campaign_events(campaign_id=campaign.id)
+            for campaign_event in campaign_events:
+                new_contact_field_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_CONTACT_FIELD,
+                    old_id=campaign_event.relative_to_id,
+                )
+
+                new_flow_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_FLOW,
+                    old_id=campaign_event.flow_id,
+                )
+
+                if not new_contact_field_obj or not new_flow_obj:
+                    continue
+
+                new_campaign_event = CampaignEvent.objects.filter(uuid=campaign_event.uuid, campaign=new_campaign).only("id").first()
+                if not new_campaign_event:
+                    new_campaign_event = CampaignEvent.objects.create(
+                        uuid=campaign_event.uuid,
+                        campaign=new_campaign,
+                        event_type=campaign_event.event_type,
+                        relative_to=new_contact_field_obj,
+                        offset=campaign_event.offset,
+                        unit=campaign_event.unit,
+                        flow=new_flow_obj,
+                        message=MigrationTask.migrate_translations(campaign_event.message) if campaign_event.message else None,
+                        delivery_hour=campaign_event.delivery_hour,
+                        extra=json.loads(campaign_event.embedded_data) if campaign_event.embedded_data else dict(),
+                        modified_by=self.created_by,
+                        created_by=self.created_by,
+                        created_on=campaign_event.created_on,
+                        modified_on=campaign_event.modified_on,
+                        is_active=campaign_event.is_active,
+                    )
+
+                if new_campaign_event.uuid != campaign_event.uuid:
+                    new_campaign_event.uuid = campaign_event.uuid
+                    new_campaign_event.save(update_fields=["uuid"])
+
     def remove_association(self):
         return self.associations.all().exclude(model=MigrationAssociation.MODEL_ORG).delete()
 
@@ -1384,6 +1424,10 @@ class MigrationTask(TembaModel):
             status = FlowRun.STATUS_INTERRUPTED
 
         return status
+
+    @classmethod
+    def migrate_translations(cls, translations):  # pragma: no cover
+        return {lang: mailroom.get_client().expression_migrate(s) for lang, s in translations.items()}
 
 
 class MigrationAssociation(models.Model):
