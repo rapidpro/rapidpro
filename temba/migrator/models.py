@@ -309,7 +309,7 @@ class MigrationTask(TembaModel):
             logger.info("[STARTED] Triggers migration")
 
             # Releasing triggers before importing them from live server
-            triggers = Trigger.objects.filter(org=self.org).only("id")
+            triggers = Trigger.objects.filter(org=self.org, is_active=True)
             for t in triggers:
                 t.release()
 
@@ -1484,6 +1484,24 @@ class MigrationTask(TembaModel):
                 new_id=new_trigger.id,
                 model=MigrationAssociation.MODEL_TRIGGER,
             )
+
+            trigger_contacts = migrator.get_trigger_contacts(trigger_id=trigger.id)
+            for item in trigger_contacts:
+                new_contact_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_CONTACT,
+                    old_id=item.contact_id,
+                )
+                if new_contact_obj:
+                    new_trigger.contacts.add(new_contact_obj)
+
+            trigger_groups = migrator.get_trigger_groups(trigger_id=trigger.id)
+            for item in trigger_groups:
+                new_group_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_CONTACT_GROUP,
+                    old_id=item.contactgroup_id,
+                )
+                if new_group_obj:
+                    new_trigger.groups.add(new_group_obj)
 
     def remove_association(self):
         return self.associations.all().exclude(model=MigrationAssociation.MODEL_ORG).delete()
