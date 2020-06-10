@@ -30,7 +30,7 @@ Initializing logs...
       }
 
       setInterval(function() {
-        xmlhttp.open("GET", "/media/migration_logs/{{ object.uuid }}.log", true);
+        xmlhttp.open("GET", "{{ log_url }}", true);
         xmlhttp.send();
       }, 2000);
     }

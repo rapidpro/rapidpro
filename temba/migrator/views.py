@@ -3,11 +3,11 @@ import logging
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponse
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
-from smartmin.views import SmartCRUDL, SmartFormView, SmartReadView
+from smartmin.views import SmartCRUDL, SmartFormView, SmartReadView, SmartListView
 
 from temba.orgs.views import InferOrgMixin, OrgPermsMixin
 from temba.utils.views import NonAtomicMixin
@@ -31,7 +31,7 @@ class MigrationPermsMixin(OrgPermsMixin):
 
 
 class MigrateCRUDL(SmartCRUDL):
-    actions = ("create", "read")
+    actions = ("create", "read", "logs")
 
     model = MigrationTask
 
@@ -97,15 +97,24 @@ class MigrateCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
+            context["log_url"] = f"{reverse('migrator.migrationtask_logs')}?uuid={self.object.uuid}"
             return context
 
         def get_gear_links(self):
-            protocol = "http" if settings.DEBUG else "https"
             return [
                 dict(title=_("New migration"), href=reverse("migrator.migrationtask_create")),
                 dict(
                     title=_("Download logs"),
-                    href=f"{protocol}://{settings.HOSTNAME}/media/migration_logs/{self.object.uuid}.log",
+                    href=f"{reverse('migrator.migrationtask_logs')}?uuid={self.object.uuid}",
                     js_class="download-logs",
                 ),
             ]
+
+    class Logs(MigrationPermsMixin, SmartListView):
+        def get(self, request, *args, **kwargs):
+            file_path = f"{settings.MEDIA_ROOT}/migration_logs/{self.request.GET.get('uuid')}.log"
+            with open(file_path, "r", encoding="utf-8") as f:
+                response = HttpResponse(content=f.read())
+                response["Content-Type"] = "text/plain"
+                response["Content-Disposition"] = f"attachment; filename={self.request.GET.get('uuid')}.txt"
+                return response
