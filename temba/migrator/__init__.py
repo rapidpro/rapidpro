@@ -436,3 +436,17 @@ class Migrator(object):
             query_string=f"SELECT * FROM public.triggers_trigger_groups WHERE trigger_id = {trigger_id} ORDER BY id ASC",
             count=count,
         )
+
+    def get_org_links(self) -> list:
+        count = self.get_count("links_link", condition=f"org_id = {self.org_id} AND is_archived = false AND is_active = true")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.links_link WHERE org_id = {self.org_id} AND is_archived = false AND is_active = true ORDER BY id ASC",
+            count=count,
+        )
+
+    def get_link_contacts(self, link_id) -> list:
+        count = self.get_count("links_linkcontacts", condition=f"link_id = {link_id}")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.links_linkcontacts WHERE link_id = {link_id} ORDER BY id ASC",
+            count=count,
+        )

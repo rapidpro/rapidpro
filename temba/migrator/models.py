@@ -32,7 +32,7 @@ from temba.flows.models import (
     RuleSet,
 )
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
-from temba.links.models import Link
+from temba.links.models import Link, LinkContacts
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.models import TembaModel, generate_uuid
@@ -318,6 +318,16 @@ class MigrationTask(TembaModel):
                 self.add_triggers(logger=logger, triggers=org_triggers, migrator=migrator)
 
             logger.info("[COMPLETED] Triggers migration")
+            logger.info("")
+
+            logger.info("---------------- Trackable Links ----------------")
+            logger.info("[STARTED] Trackable Links migration")
+
+            org_links = migrator.get_org_links()
+            if org_links:
+                self.add_links(logger=logger, links=org_links, migrator=migrator)
+
+            logger.info("[COMPLETED] Trackable Links migration")
             logger.info("")
 
             elapsed = timesince(start)
@@ -1502,6 +1512,41 @@ class MigrationTask(TembaModel):
                 )
                 if new_group_obj:
                     new_trigger.groups.add(new_group_obj)
+
+    def add_links(self, logger, links, migrator):
+        for link in links:
+            logger.info(f">>> Link: {link.uuid} - {link.name}")
+
+            new_link = Link.objects.create(
+                org=self.org,
+                uuid=link.uuid,
+                name=link.name,
+                destination=link.destination,
+                clicks_count=link.clicks_count,
+                created_by=self.created_by,
+                modified_by=self.created_by,
+                created_on=link.created_on,
+                modified_on=link.modified_on,
+            )
+
+            link_contacts = migrator.get_link_contacts(link_id=link.id)
+            for item in link_contacts:
+                new_contact_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_CONTACT,
+                    old_id=item.contact_id,
+                )
+
+                if not new_contact_obj:
+                    continue
+
+                LinkContacts.objects.create(
+                    link=new_link,
+                    contact=new_contact_obj,
+                    created_by=self.created_by,
+                    modified_by=self.created_by,
+                    created_on=item.created_on,
+                    modified_on=item.modified_on,
+                )
 
     def remove_association(self):
         return self.associations.all().exclude(model=MigrationAssociation.MODEL_ORG).delete()
