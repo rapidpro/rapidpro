@@ -305,6 +305,21 @@ class MigrationTask(TembaModel):
             logger.info("[COMPLETED] Campaigns migration")
             logger.info("")
 
+            logger.info("---------------- Triggers ----------------")
+            logger.info("[STARTED] Triggers migration")
+
+            # Releasing triggers before importing them from live server
+            triggers = Trigger.objects.filter(org=self.org).only("id")
+            for t in triggers:
+                t.release()
+
+            org_triggers = migrator.get_org_triggers()
+            if org_triggers:
+                self.add_triggers(logger=logger, triggers=org_triggers, migrator=migrator)
+
+            logger.info("[COMPLETED] Triggers migration")
+            logger.info("")
+
             elapsed = timesince(start)
             logger.info(f"This process took {elapsed}")
 
@@ -1420,6 +1435,55 @@ class MigrationTask(TembaModel):
                         scheduled=event_fire.scheduled,
                         fired=event_fire.fired,
                     )
+
+    def add_triggers(self, logger, triggers, migrator):
+        for trigger in triggers:
+            logger.info(f">>> Trigger: {trigger.id}")
+
+            new_flow_obj = MigrationAssociation.get_new_object(
+                model=MigrationAssociation.MODEL_FLOW,
+                old_id=trigger.flow_id,
+            )
+
+            if not new_flow_obj:
+                continue
+
+            new_schedule_obj = None
+            if trigger.schedule_id:
+                new_schedule_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_SCHEDULE,
+                    old_id=trigger.schedule_id,
+                )
+
+            new_channel_obj = None
+            if trigger.channel_id:
+                new_channel_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_CHANNEL,
+                    old_id=trigger.channel_id,
+                )
+
+            new_trigger = Trigger.objects.create(
+                org=self.org,
+                trigger_type=trigger.trigger_type,
+                keyword=trigger.keyword,
+                referrer_id=trigger.referrer_id,
+                flow=new_flow_obj,
+                schedule=new_schedule_obj,
+                match_type=trigger.match_type,
+                channel=new_channel_obj,
+                extra=json.loads(trigger.embedded_data) if trigger.embedded_data else dict(),
+                created_by=self.created_by,
+                modified_by=self.created_by,
+                created_on=trigger.created_on,
+                modified_on=trigger.modified_on,
+            )
+
+            MigrationAssociation.create(
+                migration_task=self,
+                old_id=trigger.id,
+                new_id=new_trigger.id,
+                model=MigrationAssociation.MODEL_TRIGGER,
+            )
 
     def remove_association(self):
         return self.associations.all().exclude(model=MigrationAssociation.MODEL_ORG).delete()
