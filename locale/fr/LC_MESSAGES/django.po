@@ -4992,7 +4992,7 @@ msgid "Add Classifier"
 msgstr "Ajouter un classificateur"
 
 msgid "Add Ticketing Service"
-msgstr ""
+msgstr "Ajouter un service de billetterie"
 
 msgid "Login"
 msgstr "S'identifier"
@@ -5143,7 +5143,7 @@ msgid "Recent Classifier Events"
 msgstr "Événements récents du classificateur"
 
 msgid "Recent Ticketing Service Events"
-msgstr ""
+msgstr "Événements récents du service de billetterie"
 
 msgid "Never"
 msgstr "Jamais"
@@ -5216,92 +5216,107 @@ msgid ""
 " to that email address. You will be able to respond to them directly and "
 "your replies will be sent to the contact."
 msgstr ""
+"La connexion d'une adresse e-mail transmet tous les nouveaux tickets et "
+"leurs réponses à cette adresse e-mail. Vous pourrez y répondre directement "
+"et vos réponses seront envoyées au contact."
 
 msgid "The email address to forward tickets and replies to"
-msgstr ""
+msgstr "Adresse e-mail à laquelle envoyer les tickets et les réponses"
 
 msgid "The verification code that was sent to your email"
-msgstr ""
+msgstr "Le code de vérification qui a été envoyé à votre e-mail"
 
 msgid "No verification code found, please start over."
-msgstr ""
+msgstr "Aucun code de vérification trouvé, veuillez recommencer."
 
 msgid "Code does not match, please check your email."
-msgstr ""
+msgstr "Le code ne correspond pas, veuillez vérifier votre e-mail."
 
 msgid "Verify Email"
-msgstr ""
+msgstr "Vérifier les courriels"
 
 #, python-format
 msgid ""
 "A verification code was sent to <code>%(address)s</code>. Enter it below to "
 "continue adding this ticketing service to your account."
 msgstr ""
+"Un code de vérification a été envoyé à <code>%(address)s</code>. Saisissez-"
+"le ci-dessous pour continuer à ajouter ce service de billetterie à votre "
+"compte."
 
 msgid ""
 "New tickets and replies will be sent to the email address that you configure"
 " below. You will need to verify it by entering the code sent to you."
 msgstr ""
+"Les nouveaux tickets et réponses seront envoyés à l'adresse e-mail que vous "
+"avez configurée ci-dessous. Vous devrez le vérifier en entrant le code qui "
+"vous a été envoyé."
 
 msgid "Verify your email address for tickets"
-msgstr ""
+msgstr "Vérifiez votre adresse e-mail pour les billets"
 
 msgid ""
 "<a href=\"https://www.zendesk.com/\">Zendesk</a> is one of the most popular "
 "customer service systems around. You can use it to manage all the tickets "
 "created on your account."
 msgstr ""
+"<a href=\"https://www.zendesk.com/\">Zendesk</a> est l'un des systèmes de "
+"service client les plus populaires. Vous pouvez l'utiliser pour gérer tous "
+"les tickets créés sur votre compte."
 
 msgid ""
 "Enter your Zendesk subdomain. You will be redirected to Zendesk where you "
 "need to grant access to this application."
 msgstr ""
+"Entrez votre sous-domaine Zendesk. Vous serez redirigé vers Zendesk où vous "
+"devrez accorder l'accès à cette application."
 
 msgid "Your subdomain on Zendesk"
-msgstr ""
+msgstr "Votre sous-domaine sur Zendesk"
 
 msgid "Not a valid subdomain name."
-msgstr ""
+msgstr "Pas un nom de sous-domaine valide."
 
 msgid "There is already a ticketing service configured for this subdomain."
 msgstr ""
+"Il existe déjà un service de billetterie configuré pour ce sous-domaine."
 
 msgid "Unable to request OAuth token."
-msgstr ""
+msgstr "Impossible de demander le jeton OAuth."
 
 msgid "Tickets"
-msgstr ""
+msgstr "Billets"
 
 msgid "The display name of this account"
-msgstr ""
+msgstr "Le nom d'affichage de ce compte"
 
 msgid "The secret for the ticketer"
-msgstr ""
+msgstr "Le secret du billeteur"
 
 msgid "Secret is incorrect."
-msgstr ""
+msgstr "Le secret est incorrect."
 
 msgid "Add"
-msgstr ""
+msgstr "Ajouter"
 
 #, python-format
 msgid "Connect %(ticketer)s"
-msgstr ""
+msgstr "Connecter %(ticketer)s"
 
 msgid "Open Tickets"
-msgstr ""
+msgstr "Billets ouverts"
 
 msgid "Closed Tickets"
-msgstr ""
+msgstr "Billets fermés"
 
 msgid "HTTP Log"
-msgstr ""
+msgstr "Journal HTTP"
 
 msgid "Delete Ticketing Service"
-msgstr ""
+msgstr "Supprimer le service de billetterie"
 
 msgid "Your ticketing service has been deleted."
-msgstr ""
+msgstr "Votre service de billetterie a été supprimé."
 
 msgid "Keyword Trigger"
 msgstr "Mot-clé du declencheur"
@@ -7733,6 +7748,8 @@ msgid ""
 "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject "
 "<b>%(subject)s</b>"
 msgstr ""
+"Billet ouvert sur <a href=\"%(ticketer_url)s\">%(ticketer)s</a> avec comme "
+"sujet <b>%(subject)s</b>"
 
 msgid "Successfully called"
 msgstr "Appelé avec succès"
@@ -8873,7 +8890,7 @@ msgid "triggers"
 msgstr "déclencheurs"
 
 msgid "tickets"
-msgstr ""
+msgstr "billets"
 
 msgid "channels"
 msgstr "canaux"
@@ -8885,7 +8902,7 @@ msgid "orgs"
 msgstr "orgs"
 
 msgid "end"
-msgstr ""
+msgstr "fin"
 
 msgid "logout"
 msgstr "déconnexion"
@@ -8913,6 +8930,8 @@ msgstr[1] ""
 msgid ""
 "Your active credits will expire soon, add credits to prevent interruption."
 msgstr ""
+"Vos crédits actifs expireront bientôt, ajoutez des crédits pour éviter toute"
+" interruption."
 
 msgid "Your phone is having difficulty relaying messages"
 msgstr "Votre téléphone a du mal à channel des messages"
@@ -11596,10 +11615,10 @@ msgid "More Videos"
 msgstr "Plus de vidéos"
 
 msgid "From"
-msgstr ""
+msgstr "De"
 
 msgid "Request time:"
-msgstr ""
+msgstr "Temps de demande:"
 
 msgid "Classifier Event"
 msgstr "Événement classificateur"
@@ -11694,48 +11713,51 @@ msgstr ""
 "            "
 
 msgid "Ticketing Service"
-msgstr ""
+msgstr "Service de billetterie"
 
 msgid ""
 "This will close all tickets that were created with this service. Once it is "
 "removed, it will be gone forever. There is no way to undo this operation."
 msgstr ""
+"Cela fermera tous les tickets créés avec ce service. Une fois retiré, il "
+"disparaîtra pour toujours. Il n'y a aucun moyen d'annuler cette opération."
 
 msgid "Warning"
-msgstr ""
+msgstr "Attention"
 
 msgid "Unable to delete service still being used by the following flows"
 msgstr ""
+"Impossible de supprimer le service toujours utilisé par les flux suivants"
 
 msgid "Services"
-msgstr ""
+msgstr "Services"
 
 msgid "Close"
-msgstr ""
+msgstr "Fermer"
 
 msgid "Reopen"
-msgstr ""
+msgstr "Rouvrir"
 
 msgid "No tickets."
-msgstr ""
+msgstr "Pas de billets."
 
 msgid "Through"
-msgstr ""
+msgstr "Via"
 
 msgid "Body"
-msgstr ""
+msgstr "Corps"
 
 msgid "Opened On"
-msgstr ""
+msgstr "Ouvert le"
 
 msgid "Close Ticket"
-msgstr ""
+msgstr "Fermer le ticket"
 
 msgid "Are you sure you want to close this ticket?"
-msgstr ""
+msgstr "Voulez-vous vraiment fermer ce ticket?"
 
 msgid "Connect a Ticketing Service"
-msgstr ""
+msgstr "Connecter un service de billetterie"
 
 msgid ""
 "Ticketing Services let a human agent take over communication for a contact. "
@@ -11744,51 +11766,72 @@ msgid ""
 "forwarded to the service and all replies from the service will be sent back "
 "to the contact."
 msgstr ""
+"Les services de billetterie permettent à un agent humain de prendre en "
+"charge la communication pour un contact. Dans un flux, vous pouvez ouvrir un"
+" nouveau ticket pour un contact et à partir de ce moment jusqu'à la "
+"fermeture du ticket, tous les messages entrants du contact seront transmis "
+"au service et toutes les réponses du service seront renvoyées au contact."
 
 msgid "Select the ticketing service you want to connect below to get started."
 msgstr ""
+"Sélectionnez le service de billetterie auquel vous souhaitez vous connecter "
+"ci-dessous pour commencer."
 
 msgid "No ticketing services are available."
-msgstr ""
+msgstr "Aucun service de billetterie n'est disponible."
 
 #, python-format
 msgid ""
 "Your verification code is <b>%(code)s</b> to continue adding an email-based "
 "ticketing service."
 msgstr ""
+"Votre code de vérification est <b>%(code)s</b> pour continuer à ajouter un "
+"service de billetterie par e-mail."
 
 #, python-format
 msgid ""
 "Your verification code is %(code)s to continue adding an email-based "
 "ticketing service."
 msgstr ""
+"Votre code de vérification est %(code)s pour continuer à ajouter un service "
+"de billetterie par e-mail."
 
 msgid ""
 "This will connect your account to Zendesk allowing you to open tickets in "
 "flows."
 msgstr ""
+"Cela connectera votre compte à Zendesk vous permettant d'ouvrir des tickets "
+"en flux."
 
 msgid ""
 "To complete connecting your account here to your Zendesk account you need to"
 " complete the following steps."
 msgstr ""
+"Pour terminer la connexion de votre compte ici à votre compte Zendesk, vous "
+"devez effectuer les étapes suivantes."
 
 #, python-format
 msgid ""
 "Install the %(brand)s app into your Zendesk account from the <a "
 "href=\"%(market_url)s\">marketplace</a>."
 msgstr ""
+"Installez l'application %(brand)s dans votre compte Zendesk à partir de <a "
+"href=\"%(market_url)s\">marketplace</a>."
 
 #, python-format
 msgid ""
 "Go to <a href=\"%(channels_url)s\">channel integrations</a> where you will "
 "see a new %(brand)s channel service."
 msgstr ""
+"Accédez à <a href=\"%(channels_url)s\">channel integrations</a> où vous "
+"verrez un nouveau %(brand)s service de canal."
 
 #, python-format
 msgid ""
 "Add account for the channel and enter <code>%(secret)s</code> as the secret."
 msgstr ""
+"Ajoutez un compte pour le canal et entrez <code>%(secret)s</code> comme "
+"secret."
 
 msgid "Trigger a Flow"
 msgstr "Déclencher un flux de"
