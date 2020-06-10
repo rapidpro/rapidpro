@@ -33,6 +33,18 @@ Initializing logs...
         xmlhttp.open("GET", "{{ log_url }}", true);
         xmlhttp.send();
       }, 2000);
+
+      var scrollDownInterval = setInterval(function() {
+        window.scrollTo(0, document.body.scrollHeight);
+      }, 1000);
+
+      $(window).on("wheel", function(e) {
+        var delta = e.originalEvent.deltaY;
+        if (delta <= 0) {
+          clearInterval(scrollDownInterval);
+        }
+      });
+
     }
     $(document).ready(function() {
       $(".download-logs").attr("target", "_new");
