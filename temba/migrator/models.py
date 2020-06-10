@@ -951,6 +951,22 @@ class MigrationTask(TembaModel):
 
             new_flow = Flow.objects.filter(uuid=flow.uuid).only("id").first()
             if not new_flow:
+                metadata = dict()
+
+                if flow.metadata:
+                    metadata = json.loads(flow.metadata)
+                    dependencies = metadata.get("dependencies", {})
+                    if isinstance(dependencies, dict):
+                        new_deps = []
+                        for key, deps_for_key in dependencies.items():
+                            type_name = key[:-1]
+                            for dep in deps_for_key:
+                                dep["type"] = type_name
+                                new_deps.append(dep)
+
+                        new_deps = sorted(new_deps, key=lambda d: d["type"])
+                        metadata["dependencies"] = new_deps
+
                 new_flow = Flow.create(
                     org=self.org,
                     user=self.created_by,
@@ -963,7 +979,7 @@ class MigrationTask(TembaModel):
                     entry_uuid=flow.entry_uuid,
                     entry_type=flow.entry_type,
                     is_archived=flow.is_archived,
-                    metadata=json.loads(flow.metadata) if flow.metadata else dict(),
+                    metadata=metadata,
                     ignore_triggers=flow.ignore_triggers,
                 )
                 new_flow.saved_on = flow.saved_on
