@@ -385,3 +385,10 @@ class Migrator(object):
             query_string=f"SELECT * FROM public.flows_flowstart_groups WHERE flowstart_id = {flowstart_id} ORDER BY id ASC",
             count=count,
         )
+
+    def get_flow_runs(self, flow_id) -> list:
+        count = self.get_count("flows_flowrun", condition=f"flow_id = {flow_id}")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.flows_flowrun WHERE flow_id = {flow_id} ORDER BY id ASC",
+            count=count,
+        )

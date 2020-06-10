@@ -1224,6 +1224,69 @@ class MigrationTask(TembaModel):
                     if new_group_obj:
                         new_flow_start.groups.add(new_group_obj)
 
+            # Releasing flow runs before the migration
+            for fr in new_flow.runs.all():
+                fr.release()
+
+            logger.info(f">>> Flow Runs")
+            flow_runs = migrator.get_flow_runs(flow_id=flow.id)
+            for item in flow_runs:
+                new_contact_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_CONTACT,
+                    old_id=item.contact_id,
+                )
+
+                if not new_contact_obj:
+                    continue
+
+                new_start_obj = None
+                if item.start_id:
+                    new_start_obj = MigrationAssociation.get_new_object(
+                        model=MigrationAssociation.MODEL_FLOW_START,
+                        old_id=item.start_id,
+                    )
+
+                new_parent_obj = None
+                if item.parent_id:
+                    new_parent_obj = MigrationAssociation.get_new_object(
+                        model=MigrationAssociation.MODEL_FLOW_RUN,
+                        old_id=item.parent_id,
+                    )
+
+                run_path = dict()
+                if item.path:
+                    run_path = json.loads(item.path)
+                    for rp in run_path:
+                        rp["uuid"] = generate_uuid()
+
+                new_flow_run = FlowRun.objects.create(
+                    uuid=item.uuid,
+                    org=self.org,
+                    flow=new_flow,
+                    contact=new_contact_obj,
+                    status=MigrationTask.get_run_status(exit_type=item.exit_type, is_active=item.is_active),
+                    created_on=item.created_on,
+                    modified_on=item.modified_on,
+                    exited_on=item.exited_on,
+                    expires_on=item.expires_on,
+                    timeout_on=item.timeout_on,
+                    responded=item.responded,
+                    start=new_start_obj,
+                    submitted_by=self.created_by if item.submitted_by_id else None,
+                    parent=new_parent_obj,
+                    parent_uuid=new_parent_obj.uuid if new_parent_obj else None,
+                    results=json.loads(item.results) if item.results else dict(),
+                    path=run_path,
+                    is_active=item.is_active,
+                    exit_type=item.exit_type,
+                )
+
+                MigrationAssociation.create(
+                    migration_task=self,
+                    old_id=item.id,
+                    new_id=new_flow_run.id,
+                    model=MigrationAssociation.MODEL_FLOW_RUN,
+                )
 
     def add_flow_flow_dependencies(self, flows, migrator):
         for flow in flows:
@@ -1238,6 +1301,24 @@ class MigrationTask(TembaModel):
 
     def remove_association(self):
         return self.associations.all().exclude(model=MigrationAssociation.MODEL_ORG).delete()
+
+    @classmethod
+    def get_run_status(cls, exit_type, is_active):
+        # Based on 0214_populate_run_status migration file
+
+        exit_type_dict = {
+            FlowRun.EXIT_TYPE_COMPLETED: FlowRun.EXIT_TYPE_COMPLETED,
+            FlowRun.EXIT_TYPE_INTERRUPTED: FlowRun.EXIT_TYPE_INTERRUPTED,
+            FlowRun.STATUS_EXPIRED: FlowRun.STATUS_EXPIRED,
+        }
+        status = exit_type_dict.get(exit_type, FlowRun.STATUS_COMPLETED)
+
+        if is_active:
+            status = FlowRun.STATUS_ACTIVE
+        elif not exit_type:
+            status = FlowRun.STATUS_INTERRUPTED
+
+        return status
 
 
 class MigrationAssociation(models.Model):
@@ -1326,7 +1407,7 @@ class MigrationAssociation(models.Model):
             queryset = _model.user_fields.filter(id=obj.new_id, org=obj.migration_task.org).first()
         elif model == MigrationAssociation.MODEL_MSG_LABEL:
             queryset = _model.all_objects.filter(id=obj.new_id, org=obj.migration_task.org).first()
-        elif model == MigrationAssociation.MODEL_ORG:
+        elif model in [MigrationAssociation.MODEL_ORG, MigrationAssociation.MODEL_FLOW_START]:
             queryset = _model.objects.filter(id=obj.new_id).first()
         else:
             queryset = _model.objects.filter(id=obj.new_id, org=obj.migration_task.org).first()
