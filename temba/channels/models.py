@@ -1714,8 +1714,9 @@ class Alert(SmartModel):
 
             if (
                 not Msg.objects.filter(
-                    status__in=["Q", "P"], channel_id=alert.channel_id, created_on__lte=thirty_minutes_ago
+                    status__in=["Q", "P", "E", "F"], channel_id=alert.channel_id
                 )
+                .exclude(Q(created_on__gte=thirty_minutes_ago) & Q(status__in=["Q", "P"]))
                 .exclude(created_on__lte=day_ago)
                 .exists()
             ):
@@ -1723,11 +1724,11 @@ class Alert(SmartModel):
                     ended_on=timezone.now()
                 )
 
-        # now look for channels that have many unsent messages
+        # now look for channels that have many unsent messages or messages that ware failed
         queued_messages = (
-            Msg.objects.filter(status__in=["Q", "P"])
+            Msg.objects.filter(status__in=["Q", "P", "E", "F"])
             .order_by("channel", "created_on")
-            .exclude(created_on__gte=thirty_minutes_ago)
+            .exclude(Q(created_on__gte=thirty_minutes_ago) & Q(status__in=["Q", "P"]))
             .exclude(created_on__lte=day_ago)
             .exclude(channel=None)
             .values("channel")
