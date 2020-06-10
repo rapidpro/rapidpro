@@ -428,6 +428,11 @@ class MigrationTask(TembaModel):
             if channel_type == "WS":
                 # Changing type for WebSocket channel
                 channel_type = "WCH"
+                if "logo" in channel_config:
+                    logo = channel_config.get("logo")
+                    file_obj = self.org.get_temporary_file_from_url(media_url=logo)
+                    file_extension = logo.split(".")[-1]
+                    channel_config["logo"] = self.org.save_media(file=file_obj, extension=file_extension)
             elif channel_type == "FB" and channel.secret:
                 # Adding channel secret when it is a Facebook channel to channel config field
                 channel_config[Channel.CONFIG_SECRET] = channel.secret
@@ -1517,17 +1522,23 @@ class MigrationTask(TembaModel):
         for link in links:
             logger.info(f">>> Link: {link.uuid} - {link.name}")
 
-            new_link = Link.objects.create(
-                org=self.org,
-                uuid=link.uuid,
-                name=link.name,
-                destination=link.destination,
-                clicks_count=link.clicks_count,
-                created_by=self.created_by,
-                modified_by=self.created_by,
-                created_on=link.created_on,
-                modified_on=link.modified_on,
-            )
+            new_link = Link.objects.filter(uuid=link.uuid, org=self.org).only("id").first()
+            if not new_link:
+                new_link = Link.objects.create(
+                    org=self.org,
+                    uuid=link.uuid,
+                    name=link.name,
+                    destination=link.destination,
+                    clicks_count=link.clicks_count,
+                    created_by=self.created_by,
+                    modified_by=self.created_by,
+                    created_on=link.created_on,
+                    modified_on=link.modified_on,
+                )
+
+            if new_link.uuid != link.uuid:
+                new_link.uuid = link.uuid
+                new_link.save(update_fields=["uuid"])
 
             link_contacts = migrator.get_link_contacts(link_id=link.id)
             for item in link_contacts:
