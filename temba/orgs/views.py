@@ -2332,7 +2332,7 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("classifiers.classifier_connect"):
                 links.append(dict(title=_("Add Classifier"), href=reverse("classifiers.classifier_connect")))
 
-            if self.get_user().is_beta() and self.has_org_perm("tickets.ticketer_connect"):
+            if self.has_org_perm("tickets.ticketer_connect"):
                 links.append(dict(title=_("Add Ticketing Service"), href=reverse("tickets.ticketer_connect")))
 
             if self.has_org_perm("orgs.org_export"):
