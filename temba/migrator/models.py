@@ -1049,10 +1049,10 @@ class MigrationTask(TembaModel):
             # Removing flow actionsets before importing again
             new_flow.action_sets.all().delete()
 
+            logger.info(f">>> Flow ActionSets")
             action_sets = migrator.get_flow_actionsets(flow_id=flow.id)
-            for item in action_sets:
-                logger.info(f">>> Flow ActionSet: {item.uuid}")
 
+            for item in action_sets:
                 ActionSet.objects.create(
                     uuid=item.uuid,
                     flow=new_flow,
@@ -1069,10 +1069,10 @@ class MigrationTask(TembaModel):
             # Removing flow rulesets before importing again
             new_flow.rule_sets.all().delete()
 
+            logger.info(f">>> Flow RuleSets")
             rule_sets = migrator.get_flow_rulesets(flow_id=flow.id)
-            for item in rule_sets:
-                logger.info(f">>> Flow RuleSet: {item.uuid}")
 
+            for item in rule_sets:
                 RuleSet.objects.create(
                     uuid=item.uuid,
                     flow=new_flow,
@@ -1095,11 +1095,11 @@ class MigrationTask(TembaModel):
             # Removing flow revisions before importing again
             new_flow.revisions.all().delete()
 
+            logger.info(f">>> Flow Revisions")
             revisions = migrator.get_flow_revisions(flow_id=flow.id)
+
             if revisions:
                 for item in revisions:
-                    logger.info(f">>> Flow Revision: {item.revision}")
-
                     json_flow = dict()
                     spec_version = item.spec_version
                     if item.definition:
@@ -1140,9 +1140,9 @@ class MigrationTask(TembaModel):
             new_flow.flow_images.all().delete()
 
             flow_images = migrator.get_flow_images(flow_id=flow.id)
-            for item in flow_images:
-                logger.info(f">>> Flow Image: {item.uuid}")
+            logger.info(f">>> Flow Images")
 
+            for item in flow_images:
                 new_contact_obj = MigrationAssociation.get_new_object(
                     model=MigrationAssociation.MODEL_CONTACT,
                     old_id=item.contact_id,
@@ -1198,31 +1198,53 @@ class MigrationTask(TembaModel):
             if not new_flow_obj:
                 continue
 
+            # Releasing flow starts before the migration
+            for fs in new_flow_obj.starts.all():
+                fs.release()
+
             flow_starts = migrator.get_flow_starts(flow_id=flow.id)
-            for item in flow_starts:
-                logger.info(f">>> Flow Start: {item.uuid}")
+            for flow_start in flow_starts:
+                logger.info(f">>> Flow Start: {flow_start.uuid}")
 
                 new_flow_start = FlowStart.objects.create(
-                    uuid=item.uuid,
+                    uuid=flow_start.uuid,
                     flow=new_flow_obj,
-                    restart_participants=item.restart_participants,
-                    include_active=item.include_active,
-                    status=item.status,
-                    extra=json.loads(item.extra) if item.extra else dict(),
+                    restart_participants=flow_start.restart_participants,
+                    include_active=flow_start.include_active,
+                    status=flow_start.status,
+                    extra=json.loads(flow_start.extra) if flow_start.extra else dict(),
                     created_by=self.created_by,
-                    created_on=item.created_on,
-                    is_active=item.is_active,
+                    created_on=flow_start.created_on,
+                    is_active=flow_start.is_active,
                     modified_by=self.created_by,
-                    modified_on=item.modified_on,
-                    contact_count=item.contact_count,
+                    modified_on=flow_start.modified_on,
+                    contact_count=flow_start.contact_count,
                 )
 
                 MigrationAssociation.create(
                     migration_task=self,
-                    old_id=item.id,
+                    old_id=flow_start.id,
                     new_id=new_flow_start.id,
                     model=MigrationAssociation.MODEL_FLOW_START,
                 )
+
+                flow_start_contacts = migrator.get_flow_start_contacts(flowstart_id=flow_start.id)
+                for item in flow_start_contacts:
+                    new_contact_obj = MigrationAssociation.get_new_object(
+                        model=MigrationAssociation.MODEL_CONTACT,
+                        old_id=item.contact_id,
+                    )
+                    if new_contact_obj:
+                        new_flow_start.contacts.add(new_contact_obj)
+
+                flow_start_groups = migrator.get_flow_start_groups(flowstart_id=flow_start.id)
+                for item in flow_start_groups:
+                    new_group_obj = MigrationAssociation.get_new_object(
+                        model=MigrationAssociation.MODEL_CONTACT_GROUP,
+                        old_id=item.contactgroup_id,
+                    )
+                    if new_group_obj:
+                        new_flow_start.groups.add(new_group_obj)
 
     def remove_association(self):
         return self.associations.all().exclude(model=MigrationAssociation.MODEL_ORG).delete()
