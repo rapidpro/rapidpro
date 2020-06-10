@@ -3988,7 +3988,7 @@ class ExportFlowImagesTask(BaseExportTask):
     """
 
     analytics_key = "flowimages_download"
-    email_subject = "Your download file is ready"
+    email_subject = "Your download file from %s is ready"
     email_template = "flowimages/email/flowimages_download"
 
     files = models.TextField(help_text=_("Array as text of the files ID to download in a zip file"))
