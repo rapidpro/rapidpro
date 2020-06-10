@@ -31,7 +31,7 @@ from temba.flows.models import (
     ActionSet,
     RuleSet,
 )
-from temba.campaigns.models import Campaign, CampaignEvent
+from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.links.models import Link
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -1403,6 +1403,23 @@ class MigrationTask(TembaModel):
                 if new_campaign_event.uuid != campaign_event.uuid:
                     new_campaign_event.uuid = campaign_event.uuid
                     new_campaign_event.save(update_fields=["uuid"])
+
+                event_fires = migrator.get_event_fires(event_id=campaign_event.id)
+                for event_fire in event_fires:
+                    new_contact_obj = MigrationAssociation.get_new_object(
+                        model=MigrationAssociation.MODEL_CONTACT,
+                        old_id=event_fire.contact_id,
+                    )
+
+                    if not new_contact_obj:
+                        continue
+
+                    EventFire.objects.create(
+                        event=new_campaign_event,
+                        contact=new_contact_obj,
+                        scheduled=event_fire.scheduled,
+                        fired=event_fire.fired,
+                    )
 
     def remove_association(self):
         return self.associations.all().exclude(model=MigrationAssociation.MODEL_ORG).delete()

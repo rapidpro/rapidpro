@@ -408,3 +408,10 @@ class Migrator(object):
             query_string=f"SELECT * FROM public.campaigns_campaignevent WHERE campaign_id = {campaign_id} ORDER BY id ASC",
             count=count,
         )
+
+    def get_event_fires(self, event_id) -> list:
+        count = self.get_count("campaigns_eventfire", condition=f"event_id = {event_id}")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.campaigns_eventfire WHERE event_id = {event_id} ORDER BY id ASC",
+            count=count,
+        )
