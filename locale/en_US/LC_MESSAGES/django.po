@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-05 15:04+0000\n"
+"POT-Creation-Date: 2020-06-10 17:31+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6701,6 +6701,9 @@ msgstr ""
 msgid "Back"
 msgstr ""
 
+msgid "Webhook Call Log"
+msgstr ""
+
 msgid "Unlabel"
 msgstr ""
 
@@ -6833,12 +6836,6 @@ msgid ""
 "  "
 msgstr ""
 
-msgid "android"
-msgstr ""
-
-msgid "dashboard"
-msgstr ""
-
 msgid "messages"
 msgstr ""
 
@@ -6864,6 +6861,12 @@ msgid "users"
 msgstr ""
 
 msgid "orgs"
+msgstr ""
+
+msgid "android"
+msgstr ""
+
+msgid "dashboard"
 msgstr ""
 
 msgid "end"
@@ -7874,14 +7877,11 @@ msgstr ""
 msgid "API Docs"
 msgstr ""
 
-msgid "Webhook Log"
+msgid "API Explorer"
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
-"  "
+msgid "Your API Token is <span class=\"attn\">%(token)s</span>."
 msgstr ""
 
 msgid "Disconnect Twilio"
@@ -7934,44 +7934,6 @@ msgid ""
 "          Also, any user accounts will be deleted if they don't belong to another organization.\n"
 "\n"
 "        "
-msgstr ""
-
-msgid "Webhook"
-msgstr ""
-
-msgid "Additional options"
-msgstr ""
-
-msgid "Header key"
-msgstr ""
-
-msgid "Header value"
-msgstr ""
-
-msgid "Subscribed Events"
-msgstr ""
-
-msgid "Incoming Messages"
-msgstr ""
-
-msgid "Outgoing Messages"
-msgstr ""
-
-msgid "Incoming Calls"
-msgstr ""
-
-msgid "Outgoing Calls"
-msgstr ""
-
-msgid "Channel Alarms (low battery, loss of connectivity)"
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
-"\n"
-"  "
 msgstr ""
 
 msgid "Top Ups"
@@ -8116,6 +8078,9 @@ msgid ""
 "          database and use it in this flow.\n"
 "          Enter the URL to call out to at this point in the flow.\n"
 "        "
+msgstr ""
+
+msgid "Additional options"
 msgstr ""
 
 msgid "Header Name"

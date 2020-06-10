@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-05 15:04+0000\n"
+"POT-Creation-Date: 2020-06-10 17:31+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -8885,6 +8885,11 @@ msgstr ""
 msgid "Back"
 msgstr ""
 
+#, fuzzy
+#| msgid "Webhook URL"
+msgid "Webhook Call Log"
+msgstr "URL do Webhook"
+
 msgid "Unlabel"
 msgstr "Remover rótulo"
 
@@ -9054,14 +9059,6 @@ msgid ""
 "  "
 msgstr ""
 
-#, fuzzy
-#| msgid "Android"
-msgid "android"
-msgstr "Android"
-
-msgid "dashboard"
-msgstr "Painel de controle"
-
 msgid "messages"
 msgstr "mensagens"
 
@@ -9092,6 +9089,14 @@ msgstr "usuários"
 
 msgid "orgs"
 msgstr "organizações"
+
+#, fuzzy
+#| msgid "Android"
+msgid "android"
+msgstr "Android"
+
+msgid "dashboard"
+msgstr "Painel de controle"
 
 #, fuzzy
 msgid "end"
@@ -10279,16 +10284,11 @@ msgstr ""
 msgid "API Docs"
 msgstr "Documentos da API"
 
-#, fuzzy
-#| msgid "Webhook URL"
-msgid "Webhook Log"
-msgstr "URL do Webhook"
+msgid "API Explorer"
+msgstr ""
 
 #, fuzzy, python-format
-msgid ""
-"\n"
-"    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
-"  "
+msgid "Your API Token is <span class=\"attn\">%(token)s</span>."
 msgstr ""
 "\n"
 "Não <span class='attn'>repetirá</span>."
@@ -10348,51 +10348,6 @@ msgid ""
 "\n"
 "        "
 msgstr ""
-
-msgid "Webhook"
-msgstr "Webhook"
-
-msgid "Additional options"
-msgstr ""
-
-#, fuzzy
-msgid "Header key"
-msgstr "Alarmes do transmissor"
-
-#, fuzzy
-#| msgid "Numeric Value:"
-msgid "Header value"
-msgstr "Valor numérico:"
-
-msgid "Subscribed Events"
-msgstr "Eventos inscritos"
-
-#, fuzzy
-msgid "Incoming Messages"
-msgstr "Mensagens SMS recebidas"
-
-#, fuzzy
-msgid "Outgoing Messages"
-msgstr "Mensagens SMS enviadas"
-
-msgid "Incoming Calls"
-msgstr "Ligações recebidas."
-
-msgid "Outgoing Calls"
-msgstr "Ligações realizadas"
-
-msgid "Channel Alarms (low battery, loss of connectivity)"
-msgstr "Alarmes do Transmissor (bateria fraca, perda de conexão)"
-
-#, fuzzy, python-format
-msgid ""
-"\n"
-"    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
-"\n"
-"  "
-msgstr ""
-"\n"
-"Não <span class='attn'>repetirá</span>."
 
 msgid "Top Ups"
 msgstr "Recargas"
@@ -10570,6 +10525,9 @@ msgid ""
 msgstr ""
 "\n"
 "Usando um Webhook você pode buscar os dados de um banco de dados externo e usá-lo neste fluxo. Digite a URL para a qual postar neste ponto no fluxo. "
+
+msgid "Additional options"
+msgstr ""
 
 #, fuzzy
 msgid "Header Name"
@@ -11844,6 +11802,48 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Webhook"
+#~ msgstr "Webhook"
+
+#, fuzzy
+#~ msgid "Header key"
+#~ msgstr "Alarmes do transmissor"
+
+#, fuzzy
+#~| msgid "Numeric Value:"
+#~ msgid "Header value"
+#~ msgstr "Valor numérico:"
+
+#~ msgid "Subscribed Events"
+#~ msgstr "Eventos inscritos"
+
+#, fuzzy
+#~ msgid "Incoming Messages"
+#~ msgstr "Mensagens SMS recebidas"
+
+#, fuzzy
+#~ msgid "Outgoing Messages"
+#~ msgstr "Mensagens SMS enviadas"
+
+#~ msgid "Incoming Calls"
+#~ msgstr "Ligações recebidas."
+
+#~ msgid "Outgoing Calls"
+#~ msgstr "Ligações realizadas"
+
+#~ msgid "Channel Alarms (low battery, loss of connectivity)"
+#~ msgstr "Alarmes do Transmissor (bateria fraca, perda de conexão)"
+
+#, fuzzy, python-format
+#~ msgid ""
+#~ "\n"
+#~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
+#~ "\n"
+#~ "  "
+#~ msgstr ""
+#~ "\n"
+#~ "Não <span class='attn'>repetirá</span>."
 
 #, fuzzy
 #~ msgid "Classifier Events"
