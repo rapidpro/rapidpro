@@ -30,6 +30,9 @@ from temba.flows.models import (
     ActionSet,
     RuleSet,
 )
+from temba.campaigns.models import Campaign, CampaignEvent
+from temba.links.models import Link
+from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.models import TembaModel, generate_uuid
 
@@ -289,6 +292,16 @@ class MigrationTask(TembaModel):
                 self.add_flow_flow_dependencies(flows=org_flows, migrator=migrator)
 
             logger.info("[COMPLETED] Flows migration")
+            logger.info("")
+
+            logger.info("---------------- Campaigns ----------------")
+            logger.info("[STARTED] Campaigns migration")
+
+            org_campaigns = migrator.get_org_campaigns()
+            if org_campaigns:
+                self.add_campaigns(logger=logger, campaigns=org_campaigns)
+
+            logger.info("[COMPLETED] Campaigns migration")
             logger.info("")
 
             elapsed = timesince(start)
@@ -1315,6 +1328,42 @@ class MigrationTask(TembaModel):
                 if new_flow_obj and new_to_flow_obj:
                     new_flow_obj.flow_dependencies.add(new_to_flow_obj)
 
+    def add_campaigns(self, logger, campaigns):
+        for campaign in campaigns:
+            logger.info(f">>> Campaign: {campaign.uuid} - {campaign.name}")
+
+            new_campaign = Campaign.objects.filter(uuid=campaign.uuid).only("id").first()
+            if not new_campaign:
+                new_group_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_CONTACT_GROUP,
+                    old_id=campaign.group_id,
+                )
+
+                if not new_group_obj:
+                    continue
+
+                new_campaign = Campaign.objects.create(
+                    org=self.org,
+                    uuid=campaign.uuid,
+                    name=campaign.name,
+                    group=new_group_obj,
+                    created_on=campaign.created_on,
+                    modified_on=campaign.modified_on,
+                    created_by=self.created_by,
+                    modified_by=self.created_by,
+                )
+
+            if new_campaign.uuid != campaign.uuid:
+                new_campaign.uuid = campaign.uuid
+                new_campaign.save(update_fields=["uuid"])
+
+            MigrationAssociation.create(
+                migration_task=self,
+                old_id=campaign.id,
+                new_id=new_campaign.id,
+                model=MigrationAssociation.MODEL_CAMPAIGN,
+            )
+
     def remove_association(self):
         return self.associations.all().exclude(model=MigrationAssociation.MODEL_ORG).delete()
 
@@ -1431,10 +1480,6 @@ class MigrationAssociation(models.Model):
         return queryset
 
     def get_related_model(self):
-        from temba.campaigns.models import Campaign, CampaignEvent
-        from temba.links.models import Link
-        from temba.triggers.models import Trigger
-
         model_class = {
             MigrationAssociation.MODEL_CAMPAIGN: Campaign,
             MigrationAssociation.MODEL_CAMPAIGN_EVENT: CampaignEvent,
