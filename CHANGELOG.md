@@ -1,3 +1,8 @@
+v5.5.58
+----------
+ * Update to floweditor 1.9.7
+ * Remove BETA gating for tickets
+
 v5.5.57
 ----------
  * Restore logic for when dashboard and android nav icons should appear
