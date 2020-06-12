@@ -1017,6 +1017,8 @@ class MigrationTask(TembaModel):
 
                         new_deps = sorted(new_deps, key=lambda d: d["type"])
                         metadata["dependencies"] = new_deps
+                    if "results" not in metadata:
+                        metadata["results"] = []
 
                 new_flow = Flow.create(
                     org=self.org,
@@ -1041,6 +1043,10 @@ class MigrationTask(TembaModel):
             if new_flow.uuid != flow.uuid:
                 new_flow.uuid = flow.uuid
                 new_flow.save(update_fields=["uuid"])
+
+            if new_flow.metadata and "results" not in new_flow.metadata:
+                new_flow.metadata["results"] = []
+                new_flow.save(update_fields=["metadata"])
 
             MigrationAssociation.create(
                 migration_task=self, old_id=flow.id, new_id=new_flow.id, model=MigrationAssociation.MODEL_FLOW
