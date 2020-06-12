@@ -353,7 +353,6 @@ class MigrationTask(TembaModel):
         self.org.plan_start = org_data.plan_start
         self.org.stripe_customer = org_data.stripe_customer
         self.org.language = org_data.language
-        self.org.timezone = org_data.timezone
         self.org.date_format = org_data.date_format
         self.org.config = json.loads(org_data.config) if org_data.config else dict()
         self.org.is_anon = org_data.is_anon
@@ -372,7 +371,6 @@ class MigrationTask(TembaModel):
                 "plan_start",
                 "stripe_customer",
                 "language",
-                "timezone",
                 "date_format",
                 "config",
                 "is_anon",
@@ -713,7 +711,7 @@ class MigrationTask(TembaModel):
 
             if schedule.repeat_period != "O":
                 now = datetime.utcnow().replace(minute=0, second=0, microsecond=0, tzinfo=pytz.utc)
-                tz = pytz.timezone(self.org.timezone)
+                tz = self.org.timezone
                 hour_time = now.replace(hour=schedule.repeat_hour_of_day)
                 local_now = tz.normalize(hour_time.astimezone(tz))
                 repeat_hour_of_day = local_now.hour
