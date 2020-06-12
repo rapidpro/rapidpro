@@ -1,0 +1,25 @@
+- extends 'smartmin/form.html'
+- load smartmin temba compress
+- load i18n
+
+-block page-title
+  -trans "Migration"
+  \- {{user_org.name|capfirst}}
+
+-block title-icon
+  .title-icon
+    %span{class: "glyph icon-cloud-download"}
+
+-block title-text
+  .title-text
+    %h1 Start migration
+
+-block extra-script
+  :javascript
+    (function($) {
+      $("#id_org").select2({
+        width: "350px",
+        containerCssClass: "select2-temba-field",
+        placeholder: "{% trans 'Select an organization' %}"
+      });
+    })(jQuery);
