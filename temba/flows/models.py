@@ -2223,7 +2223,7 @@ def update_related_flows(sender, instance, created, **kwargs):
 
     def flow_node_filter(node):
         flow_types = ("enter_flow", "start_session")
-        if node["actions"] and node["actions"][0]["type"] in flow_types:
+        if "actions" in node and len(node["actions"]) > 0 and node["actions"][0]["type"] in flow_types:
             return node["actions"][0]["flow"]["uuid"] == instance.uuid
         return False
 
