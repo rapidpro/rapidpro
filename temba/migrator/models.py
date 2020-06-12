@@ -1019,6 +1019,8 @@ class MigrationTask(TembaModel):
                         metadata["dependencies"] = new_deps
                     if "results" not in metadata:
                         metadata["results"] = []
+                    if "waiting_exit_uuids" not in metadata:
+                        metadata["waiting_exit_uuids"] = []
 
                 new_flow = Flow.create(
                     org=self.org,
@@ -1044,8 +1046,13 @@ class MigrationTask(TembaModel):
                 new_flow.uuid = flow.uuid
                 new_flow.save(update_fields=["uuid"])
 
-            if new_flow.metadata and "results" not in new_flow.metadata:
-                new_flow.metadata["results"] = []
+            if new_flow.metadata:
+                if "results" not in new_flow.metadata:
+                    new_flow.metadata["results"] = []
+
+                if "waiting_exit_uuids" not in new_flow.metadata:
+                    new_flow.metadata["waiting_exit_uuids"] = []
+
                 new_flow.save(update_fields=["metadata"])
 
             MigrationAssociation.create(
