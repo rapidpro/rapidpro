@@ -1086,16 +1086,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         # set all the other fields that have a non-zero value
         if dt_value is not None:
-            try:
-                field_dict[Value.KEY_DATETIME] = timezone.localtime(dt_value, self.org.timezone).isoformat()
-            except Exception:
-                pass
+            field_dict[Value.KEY_DATETIME] = timezone.localtime(dt_value, self.org.timezone).isoformat()
 
         if num_value is not None:
-            try:
-                field_dict[Value.KEY_NUMBER] = format_number(num_value)
-            except Exception:
-                pass
+            field_dict[Value.KEY_NUMBER] = format_number(num_value)
 
         if loc_value:
             if loc_value.level == AdminBoundary.LEVEL_STATE:
