@@ -189,7 +189,9 @@ class MigrationTask(TembaModel):
 
             org_contact_groups, contact_groups_count = migrator.get_org_contact_groups()
             if org_contact_groups:
-                self.add_contact_groups(logger=logger, groups=org_contact_groups, migrator=migrator, count=contact_groups_count)
+                self.add_contact_groups(
+                    logger=logger, groups=org_contact_groups, migrator=migrator, count=contact_groups_count
+                )
 
             logger.info("[COMPLETED] Contact Groups migration")
             logger.info("")
@@ -234,7 +236,9 @@ class MigrationTask(TembaModel):
 
             org_msg_broadcasts, msg_broadcast_count = migrator.get_org_msg_broadcasts()
             if org_msg_broadcasts:
-                self.add_msg_broadcasts(logger=logger, msg_broadcasts=org_msg_broadcasts, migrator=migrator, count=msg_broadcast_count)
+                self.add_msg_broadcasts(
+                    logger=logger, msg_broadcasts=org_msg_broadcasts, migrator=migrator, count=msg_broadcast_count
+                )
 
             logger.info("[COMPLETED] Msg Broadcasts migration")
             logger.info("")
@@ -905,9 +909,11 @@ class MigrationTask(TembaModel):
                 for idx, item in enumerate(attachments):
                     [content_type, url] = item.split(":", 1)
 
-                    if content_type in ["image", "audio", "video", "geo"] \
-                            or "amazonaws.com" in url \
-                            or not settings.AWS_S3_ENABLED:
+                    if (
+                        content_type in ["image", "audio", "video", "geo"]
+                        or "amazonaws.com" in url
+                        or not settings.AWS_S3_ENABLED
+                    ):
                         continue
 
                     if "demo.citizeninsights.org" in url:
@@ -1205,8 +1211,7 @@ class MigrationTask(TembaModel):
 
             for item in flow_images:
                 new_contact_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT,
-                    old_id=item.contact_id,
+                    model=MigrationAssociation.MODEL_CONTACT, old_id=item.contact_id
                 )
 
                 if not new_contact_obj:
@@ -1272,8 +1277,7 @@ class MigrationTask(TembaModel):
                 flow_start_contacts = migrator.get_flow_start_contacts(flowstart_id=item.id)
                 for fsc in flow_start_contacts:
                     new_contact_obj = MigrationAssociation.get_new_object(
-                        model=MigrationAssociation.MODEL_CONTACT,
-                        old_id=fsc.contact_id,
+                        model=MigrationAssociation.MODEL_CONTACT, old_id=fsc.contact_id
                     )
                     if new_contact_obj:
                         new_flow_start.contacts.add(new_contact_obj)
@@ -1281,8 +1285,7 @@ class MigrationTask(TembaModel):
                 flow_start_groups = migrator.get_flow_start_groups(flowstart_id=item.id)
                 for fsg in flow_start_groups:
                     new_group_obj = MigrationAssociation.get_new_object(
-                        model=MigrationAssociation.MODEL_CONTACT_GROUP,
-                        old_id=fsg.contactgroup_id,
+                        model=MigrationAssociation.MODEL_CONTACT_GROUP, old_id=fsg.contactgroup_id
                     )
                     if new_group_obj:
                         new_flow_start.groups.add(new_group_obj)
@@ -1295,8 +1298,7 @@ class MigrationTask(TembaModel):
             flow_runs = migrator.get_flow_runs(flow_id=flow.id)
             for item in flow_runs:
                 new_contact_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT,
-                    old_id=item.contact_id,
+                    model=MigrationAssociation.MODEL_CONTACT, old_id=item.contact_id
                 )
 
                 if not new_contact_obj:
@@ -1305,15 +1307,13 @@ class MigrationTask(TembaModel):
                 new_start_obj = None
                 if item.start_id:
                     new_start_obj = MigrationAssociation.get_new_object(
-                        model=MigrationAssociation.MODEL_FLOW_START,
-                        old_id=item.start_id,
+                        model=MigrationAssociation.MODEL_FLOW_START, old_id=item.start_id
                     )
 
                 new_parent_obj = None
                 if item.parent_id:
                     new_parent_obj = MigrationAssociation.get_new_object(
-                        model=MigrationAssociation.MODEL_FLOW_RUN,
-                        old_id=item.parent_id,
+                        model=MigrationAssociation.MODEL_FLOW_RUN, old_id=item.parent_id
                     )
 
                 run_path = dict()
@@ -1369,8 +1369,7 @@ class MigrationTask(TembaModel):
             new_campaign = Campaign.objects.filter(uuid=campaign.uuid, org=self.org).only("id").first()
             if not new_campaign:
                 new_group_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT_GROUP,
-                    old_id=campaign.group_id,
+                    model=MigrationAssociation.MODEL_CONTACT_GROUP, old_id=campaign.group_id
                 )
 
                 if not new_group_obj:
@@ -1401,19 +1400,19 @@ class MigrationTask(TembaModel):
             campaign_events = migrator.get_campaign_events(campaign_id=campaign.id)
             for campaign_event in campaign_events:
                 new_contact_field_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT_FIELD,
-                    old_id=campaign_event.relative_to_id,
+                    model=MigrationAssociation.MODEL_CONTACT_FIELD, old_id=campaign_event.relative_to_id
                 )
 
                 new_flow_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_FLOW,
-                    old_id=campaign_event.flow_id,
+                    model=MigrationAssociation.MODEL_FLOW, old_id=campaign_event.flow_id
                 )
 
                 if not new_contact_field_obj or not new_flow_obj:
                     continue
 
-                new_campaign_event = CampaignEvent.objects.filter(uuid=campaign_event.uuid, campaign=new_campaign).only("id").first()
+                new_campaign_event = (
+                    CampaignEvent.objects.filter(uuid=campaign_event.uuid, campaign=new_campaign).only("id").first()
+                )
                 if not new_campaign_event:
                     new_campaign_event = CampaignEvent.objects.create(
                         uuid=campaign_event.uuid,
@@ -1423,7 +1422,9 @@ class MigrationTask(TembaModel):
                         offset=campaign_event.offset,
                         unit=campaign_event.unit,
                         flow=new_flow_obj,
-                        message=MigrationTask.migrate_translations(campaign_event.message) if campaign_event.message else None,
+                        message=MigrationTask.migrate_translations(campaign_event.message)
+                        if campaign_event.message
+                        else None,
                         delivery_hour=campaign_event.delivery_hour,
                         extra=json.loads(campaign_event.embedded_data) if campaign_event.embedded_data else dict(),
                         modified_by=self.created_by,
@@ -1440,8 +1441,7 @@ class MigrationTask(TembaModel):
                 event_fires = migrator.get_event_fires(event_id=campaign_event.id)
                 for event_fire in event_fires:
                     new_contact_obj = MigrationAssociation.get_new_object(
-                        model=MigrationAssociation.MODEL_CONTACT,
-                        old_id=event_fire.contact_id,
+                        model=MigrationAssociation.MODEL_CONTACT, old_id=event_fire.contact_id
                     )
 
                     if not new_contact_obj:
@@ -1459,8 +1459,7 @@ class MigrationTask(TembaModel):
             logger.info(f">>> [{idx}/{count}] Trigger: {trigger.id}")
 
             new_flow_obj = MigrationAssociation.get_new_object(
-                model=MigrationAssociation.MODEL_FLOW,
-                old_id=trigger.flow_id,
+                model=MigrationAssociation.MODEL_FLOW, old_id=trigger.flow_id
             )
 
             if not new_flow_obj:
@@ -1469,15 +1468,13 @@ class MigrationTask(TembaModel):
             new_schedule_obj = None
             if trigger.schedule_id:
                 new_schedule_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_SCHEDULE,
-                    old_id=trigger.schedule_id,
+                    model=MigrationAssociation.MODEL_SCHEDULE, old_id=trigger.schedule_id
                 )
 
             new_channel_obj = None
             if trigger.channel_id:
                 new_channel_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CHANNEL,
-                    old_id=trigger.channel_id,
+                    model=MigrationAssociation.MODEL_CHANNEL, old_id=trigger.channel_id
                 )
 
             new_trigger = Trigger.objects.create(
@@ -1497,17 +1494,13 @@ class MigrationTask(TembaModel):
             )
 
             MigrationAssociation.create(
-                migration_task=self,
-                old_id=trigger.id,
-                new_id=new_trigger.id,
-                model=MigrationAssociation.MODEL_TRIGGER,
+                migration_task=self, old_id=trigger.id, new_id=new_trigger.id, model=MigrationAssociation.MODEL_TRIGGER
             )
 
             trigger_contacts = migrator.get_trigger_contacts(trigger_id=trigger.id)
             for item in trigger_contacts:
                 new_contact_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT,
-                    old_id=item.contact_id,
+                    model=MigrationAssociation.MODEL_CONTACT, old_id=item.contact_id
                 )
                 if new_contact_obj:
                     new_trigger.contacts.add(new_contact_obj)
@@ -1515,8 +1508,7 @@ class MigrationTask(TembaModel):
             trigger_groups = migrator.get_trigger_groups(trigger_id=trigger.id)
             for item in trigger_groups:
                 new_group_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT_GROUP,
-                    old_id=item.contactgroup_id,
+                    model=MigrationAssociation.MODEL_CONTACT_GROUP, old_id=item.contactgroup_id
                 )
                 if new_group_obj:
                     new_trigger.groups.add(new_group_obj)
@@ -1546,8 +1538,7 @@ class MigrationTask(TembaModel):
             link_contacts = migrator.get_link_contacts(link_id=link.id)
             for item in link_contacts:
                 new_contact_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT,
-                    old_id=item.contact_id,
+                    model=MigrationAssociation.MODEL_CONTACT, old_id=item.contact_id
                 )
 
                 if not new_contact_obj:
