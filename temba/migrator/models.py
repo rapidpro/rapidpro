@@ -1047,7 +1047,7 @@ class MigrationTask(TembaModel):
             )
 
             # Removing field dependencies before importing again
-            new_flow.field_dependencies.all().delete()
+            new_flow.field_dependencies.clear()
 
             field_dependencies = migrator.get_flow_fields_dependencies(flow_id=flow.id)
             for item in field_dependencies:
@@ -1058,7 +1058,7 @@ class MigrationTask(TembaModel):
                     new_flow.field_dependencies.add(new_field_obj)
 
             # Removing group dependencies before importing again
-            new_flow.group_dependencies.all().delete()
+            new_flow.group_dependencies.clear()
 
             group_dependencies = migrator.get_flow_group_dependencies(flow_id=flow.id)
             for item in group_dependencies:
