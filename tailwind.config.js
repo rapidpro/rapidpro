@@ -8,6 +8,39 @@ module.exports = {
             black: '#37383c',
             white: '#fff',
 
+            primary: 'rgb(var(--primary-rgb))',
+            secondary: 'rgb(var(--secondary-rgb))',
+
+            'dark-alpha': {
+                20: 'rgba(0, 0, 0, .02)',
+                50: 'rgba(0, 0, 0, .05)',
+                70: 'rgba(0, 0, 0, .07)',
+                100: 'rgba(0, 0, 0, .1)',
+                200: 'rgba(0, 0, 0, .2)',
+                300: 'rgba(0, 0, 0, .3)',
+                400: 'rgba(0, 0, 0, .4)',
+                500: 'rgba(0, 0, 0, .5)',
+                600: 'rgba(0, 0, 0, .6)',
+                700: 'rgba(0, 0, 0, .7)',
+                800: 'rgba(0, 0, 0, .8)',
+                900: 'rgba(0, 0, 0, .9)',
+            },
+
+            'light-alpha': {
+                20: 'rgba(255, 255, 255, .02)',
+                50: 'rgba(255, 255, 255, .05)',
+                70: 'rgba(255, 255, 255, .07)',
+                100: 'rgba(255, 255, 255, .1)',
+                200: 'rgba(255, 255, 255, .2)',
+                300: 'rgba(255, 255, 255, .3)',
+                400: 'rgba(255, 255, 255, .4)',
+                500: 'rgba(255, 255, 255, .5)',
+                600: 'rgba(255, 255, 255, .6)',
+                700: 'rgba(255, 255, 255, .7)',
+                800: 'rgba(255, 255, 255, .8)',
+                900: 'rgba(255, 255, 255, .9)',
+            },
+
             gray: {
                 100: '#f7f7f7',
                 200: '#ededed',
@@ -78,6 +111,8 @@ module.exports = {
             '4xl': '2.25rem',
             '5xl': '3rem',
             '6xl': '4rem',
+            '8xl': '6rem',
+            '10xl': '10rem',
         },
         fontWeight: {
             light: '300',
@@ -238,10 +273,15 @@ module.exports = {
                 '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
             xl:
                 '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-            '2xl': '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            '2xl':
+                '0 8px 20px 4px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+            '3xl':
+                '0 30px 50px 20px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
             inner: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)',
             outline: '0 0 0 3px rgba(66, 153, 225, 0.5)',
             none: 'none',
+            upper:
+                '0 -22px 16px -16px rgba(0, 0, 0, 0.15), 0 -17px 12px 11px rgba(0, 0, 0, 0.02)',
         },
         zIndex: {
             auto: 'auto',
@@ -360,6 +400,7 @@ module.exports = {
         skew: ['responsive', 'group-hover'],
         stroke: ['responsive'],
         tableLayout: ['responsive'],
+        translate: ['responsive', 'hover'],
         textAlign: ['responsive', 'direction'],
         textColor: ['responsive', 'hover', 'focus'],
         fontSize: ['responsive'],

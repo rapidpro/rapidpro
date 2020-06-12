@@ -35,7 +35,7 @@
     "karma-ng-html2js-preprocessor": "0.1.1",
     "karma-phantomjs-launcher": "1.0.4",
     "phantomjs-prebuilt": "2.1.16",
-    "postcss-cli": "^7.1.0",
+    "postcss-cli": "7.1.1",
     "postcss-nested": "^4.2.1",
     "postcss-scss": "^2.0.0",
     "postcss-simple-vars": "^5.0.2",

@@ -10,36 +10,8 @@
   background: rgba(0, 0, 0, .2);
 }
 
-.bg-primary {
-  background: var(--color-primary-dark);
-}
-
-.bg-secondary {
-  background: rgb(var(--secondary-rgb));
-}
-
-.bg-tertiary {
-  background: rgb(var(--tertiary-rgb));
-}
-
-.text-primary {
-  color: var(--color-primary-dark);
-}
-
-.text-secondary {
-  color: rgb(var(--secondary-rgb));
-}
-
 .text-tertiary {
   color: rgb(var(--tertiary-rgb));
-}
-
-.text-dark-alpha {
-  color: rgba(0, 0, 0, .4);
-}
-
-.text-light-alpha {
-  color: rgba(255, 255, 255, .4);
 }
 
 .max-h-0 {
@@ -60,218 +32,43 @@
   animation-name: bounceInUp;
 }
 
-.phone {
-  height: 391px;
-  width: 201px;
-  min-width: 201px;
-  border-radius: 32px;
-  background-image: url("../images/landing/phone.png");
-  overflow: hidden;
-  transform: rotate(0deg);
-  transition: all 450ms ease-in-out;
-  opacity: 1;
+.button {
+  @apply px-6 py-2 text-lg shadow rounded-lg transition duration-300 text-center;
 
-  .screen {
-    height: 358px;
-    width: 185px;
-    top: 19px;
-    left: 7px;
-    border-radius: 21px;
-
-    overflow-y: auto;
-    scroll-behavior: smooth;
-    -ms-overflow-style: none;
-
-    &::-webkit-scrollbar {
-      display: none;
-    }
-
-    .messages {
-      display: flex;
-      flex-direction: column;
-
-      .imsg {
-        max-width: 255px;
-        word-wrap: break-word;
-        margin-bottom: 12px;
-        position: relative;
-        border-radius: 15px;
-        opacity: 1;
-
-        &.waiting {
-          opacity: 0;
-        }
-
-        &:before,
-        &:after {
-          content: "";
-          position: absolute;
-          bottom: -2px;
-          height: 15px;
-        }
-
-        &.mt {
-          background: #E5E5EA;
-
-          &:before {
-            left: -10px;
-            border-left: 20px solid #E5E5EA;
-            border-bottom-right-radius: 16px 14px;
-            transform: translate(0, -2px);
-          }
-
-          &:after {
-            left: 4px;
-            width: 26px;
-            background: white;
-            clip: rect(0px, 40px, 20px, 16px);
-            border-bottom-right-radius: 10px;
-            transform: translate(-30px, -2px);
-          }
-        }
-
-        &.mo {
-          color: white;
-          background: #0B93F6;
-          align-self: flex-end;
-          padding-right: 15px;
-
-          &:before {
-            right: -7px;
-            border-right: 20px solid #0B93F6;
-            border-bottom-left-radius: 16px 14px;
-            transform: translate(0, -2px);
-          }
-
-          &:after {
-            right: -56px;
-            width: 26px;
-            background: white;
-            clip: rect(0px, 12px, 40px, 0px);
-            border-bottom-left-radius: 10px;
-            transform: translate(-30px, -3px);
-          }
-        }
-      }
-    }
+  &:hover {
+    @apply shadow-lg;
+    transform: translateY(-1px);
+    cursor: pointer;
   }
 }
 
-.top-trans-to-alpha-dark {
-  position: relative;
-  margin-top: 6rem;
+.button-secondary {
+  @apply button text-white bg-secondary;
+}
 
-  &::before {
-    height: 6rem;
-    width: 100%;
-    background: linear-gradient(180deg, rgba(247, 247, 247, 0) 0%, rgba(100, 100, 100, 0.1) 100%);
-    content: '';
-    position: absolute;
-    margin-top: -6rem;
-    z-index: 20;
+.button-primary {
+  @apply button text-white bg-primary;
+}
+
+.button-white {
+  @apply button text-primary bg-white;
+}
+
+.button-dark-alpha {
+  @apply button text-white bg-dark-alpha-200;
+}
+
+.button-sm {
+  @apply button-dark-alpha text-sm px-4 py-1 tracking-wider shadow-none text-light-alpha-900;
+
+  &:hover {
+    @apply shadow;
+    transform: none;
+    cursor: pointer;
+    box-shadow: inset 0 0 20px 10px rgba(0, 0, 0, .1);
   }
 }
 
-.bottom-alpha-dark-to-trans {
-  &::after {
-    height: 6rem;
-    width: 100%;
-    background: linear-gradient(0deg, rgba(247, 247, 247, 0) 0%, rgba(100, 100, 100, 0.1) 100%);
-    content: '';
-    position: absolute;
-    bottom: 0;
-    margin-bottom: -6rem;
-  }
-}
-
-.razor-bottom {
-  position: relative;
-
-  &::after {
-    width: 100%;
-    height: 100%;
-    z-index: 0;
-    content: '';
-    background: inherit;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    transform-origin: top right;
-    transform: skewY(-3deg);
-    position: absolute;
-    overflow: hidden;
-  }
-}
-
-
-.razor-bottom-gradient {
-  width: 100%;
-  height: 100%;
-  z-index: 10;
-  position: absolute;
-
-  &::after {
-    width: 100%;
-    height: 100%;
-    z-index: 20;
-    content: '';
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, .2) 90%);
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    transform-origin: top right;
-    transform: skewY(-3deg);
-    position: absolute;
-    overflow: hidden;
-  }
-}
-
-.razor-top {
-  position: relative;
-
-  &::before {
-    width: 100%;
-    height: 100%;
-    z-index: 10;
-    content: '';
-    background: inherit;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    transform-origin: bottom right;
-    transform: skewY(2deg);
-    position: absolute;
-    overflow: hidden;
-  }
-}
-
-.bottom-gradient {
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, .12) 90%);
-  width: 100%;
-  height: 100%;
-  z-index: 10;
-}
-
-
-.razor-right {
-  &::after {
-    width: 100%;
-    height: 100%;
-    z-index: 0;
-    content: '';
-    background: inherit;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    transform-origin: bottom left;
-    transform: skewX(-12deg);
-    position: absolute
-  }
-}
 
 .pop {
   animation: pulse 0.3s;

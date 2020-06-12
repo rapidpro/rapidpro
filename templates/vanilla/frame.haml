@@ -16,6 +16,7 @@
     %meta{name:"description", content:"{% block page-description %}{{brand.name}} lets you visually build interactive SMS applications and launch them anywhere in the world.{% endblock %}"}
     %meta{name:"author", content:"Nyaruka Ltd"}
     %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
+    %input{type:"hidden", id:"csrf_token", value:"{{csrf_token}}"}
 
     -load compress
     :javascript
@@ -63,6 +64,7 @@
 
     -for incl in brand.head_includes
       -include incl
+    -block extra-head
 
 -block body
   %body.flex.flex-col.items-stretch.min-h-screen
