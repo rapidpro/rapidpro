@@ -1318,7 +1318,12 @@ class MigrationTask(TembaModel):
                 if item.path:
                     run_path = json.loads(item.path)
                     for rp in run_path:
-                        rp["uuid"] = generate_uuid()
+                        if "uuid" not in rp:
+                            rp["uuid"] = generate_uuid()
+                        if "exit_uuid" not in rp:
+                            rp["exit_uuid"] = generate_uuid()
+                        if "node_uuid" not in rp:
+                            rp["node_uuid"] = generate_uuid()
 
                 new_flow_run = FlowRun.objects.create(
                     uuid=item.uuid,
