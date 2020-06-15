@@ -523,6 +523,9 @@ class MigrationTask(TembaModel):
                 model=MigrationAssociation.MODEL_CHANNEL, old_id=event.channel_id
             )
 
+            if not new_channel_obj:
+                continue
+
             ChannelEvent.objects.create(
                 org=self.org,
                 channel=new_channel_obj,
