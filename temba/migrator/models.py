@@ -1007,6 +1007,10 @@ class MigrationTask(TembaModel):
         for idx, flow in enumerate(flows, start=1):
             logger.info(f">>> [{idx}/{count}] Flow: {flow.uuid} - {flow.name}")
 
+            if flow.flow_type == "U":
+                logger.info(f">>> This flow was skipped because it is an USSD flow type: {flow.name}")
+                continue
+
             new_flow = Flow.objects.filter(uuid=flow.uuid).only("id").first()
             if not new_flow:
                 metadata = dict()
