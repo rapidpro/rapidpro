@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-15 18:25+0000\n"
+"POT-Creation-Date: 2020-06-15 18:57+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -7493,6 +7493,11 @@ msgstr "Télécharger"
 msgid "Back"
 msgstr "Retour"
 
+#, fuzzy
+#| msgid "Webhook Log"
+msgid "Webhook Call Log"
+msgstr "Journal Webhook"
+
 msgid "Unlabel"
 msgstr "Sans étiquette"
 
@@ -9031,14 +9036,15 @@ msgstr ""
 msgid "API Docs"
 msgstr "API Docs"
 
-msgid "Webhook Log"
-msgstr "Journal Webhook"
+msgid "API Explorer"
+msgstr ""
 
-#, python-format
-msgid ""
-"\n"
-"    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
-"  "
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
+#| "  "
+msgid "Your API Token is <span class=\"attn\">%(token)s</span>."
 msgstr ""
 "\n"
 "    Votre jeton API est <span class=\"attn\">%(token)s</span>.\n"
@@ -9107,48 +9113,6 @@ msgstr ""
 "          En outre, tous les comptes d'utilisateurs seront supprimés s'ils n'appartiennent pas à une autre organisation.\n"
 "\n"
 "        "
-
-msgid "Webhook"
-msgstr "Webhook"
-
-msgid "Additional options"
-msgstr "Options additionelles"
-
-msgid "Header key"
-msgstr "Clé d'en-tête"
-
-msgid "Header value"
-msgstr "Valeur d'en-tête"
-
-msgid "Subscribed Events"
-msgstr "événements abonnés"
-
-msgid "Incoming Messages"
-msgstr "Messages entrants"
-
-msgid "Outgoing Messages"
-msgstr "Messages sortants"
-
-msgid "Incoming Calls"
-msgstr "appels entrants"
-
-msgid "Outgoing Calls"
-msgstr "Appels sortants"
-
-msgid "Channel Alarms (low battery, loss of connectivity)"
-msgstr "Channel alarmes (batterie faible, perte de connectivité)"
-
-#, python-format
-msgid ""
-"\n"
-"    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
-"\n"
-"  "
-msgstr ""
-"\n"
-"    Votre jeton API est <span class=\"attn\">%(token)s</span>.\n"
-"\n"
-"  "
 
 msgid "Top Ups"
 msgstr "Top Ups"
@@ -9344,6 +9308,9 @@ msgstr ""
 "          base de données externe et les utiliser dans ce flux.\n"
 "          Entrez l'URL à appeler à ce stade du flux.\n"
 "        "
+
+msgid "Additional options"
+msgstr "Options additionelles"
 
 msgid "Header Name"
 msgstr "Nom d'en-tête"
@@ -10620,3 +10587,42 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Webhook"
+#~ msgstr "Webhook"
+
+#~ msgid "Header key"
+#~ msgstr "Clé d'en-tête"
+
+#~ msgid "Header value"
+#~ msgstr "Valeur d'en-tête"
+
+#~ msgid "Subscribed Events"
+#~ msgstr "événements abonnés"
+
+#~ msgid "Incoming Messages"
+#~ msgstr "Messages entrants"
+
+#~ msgid "Outgoing Messages"
+#~ msgstr "Messages sortants"
+
+#~ msgid "Incoming Calls"
+#~ msgstr "appels entrants"
+
+#~ msgid "Outgoing Calls"
+#~ msgstr "Appels sortants"
+
+#~ msgid "Channel Alarms (low battery, loss of connectivity)"
+#~ msgstr "Channel alarmes (batterie faible, perte de connectivité)"
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
+#~ "\n"
+#~ "  "
+#~ msgstr ""
+#~ "\n"
+#~ "    Votre jeton API est <span class=\"attn\">%(token)s</span>.\n"
+#~ "\n"
+#~ "  "

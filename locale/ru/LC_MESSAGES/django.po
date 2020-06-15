@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-15 18:25+0000\n"
+"POT-Creation-Date: 2020-06-15 18:57+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -7540,6 +7540,11 @@ msgstr "Загрузить"
 msgid "Back"
 msgstr "Вернуться"
 
+#, fuzzy
+#| msgid "Webhook Log"
+msgid "Webhook Call Log"
+msgstr "Журнал Вебхука"
+
 msgid "Unlabel"
 msgstr "Снять метку"
 
@@ -9179,14 +9184,15 @@ msgstr ""
 msgid "API Docs"
 msgstr "Документы API"
 
-msgid "Webhook Log"
-msgstr "Журнал Вебхука"
+msgid "API Explorer"
+msgstr ""
 
-#, python-format
-msgid ""
-"\n"
-"    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
-"  "
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
+#| "  "
+msgid "Your API Token is <span class=\"attn\">%(token)s</span>."
 msgstr ""
 "\n"
 "    Ваш токен API - <span class=\"attn\">%(token)s</span>.\n"
@@ -9254,46 +9260,6 @@ msgstr ""
 "          Также, любые учетные записи пользователей будут удалены, если они не принадлежат другой организации.\n"
 "\n"
 "        "
-
-msgid "Webhook"
-msgstr "Вебхук"
-
-msgid "Additional options"
-msgstr "Дополнительные параметры"
-
-msgid "Header key"
-msgstr "Ключ Заголовка"
-
-msgid "Header value"
-msgstr "Значение Заголовка"
-
-msgid "Subscribed Events"
-msgstr "Подписанные события"
-
-msgid "Incoming Messages"
-msgstr "Входящие сообщения"
-
-msgid "Outgoing Messages"
-msgstr "Исходящие сообщения"
-
-msgid "Incoming Calls"
-msgstr "Входящие звонки"
-
-msgid "Outgoing Calls"
-msgstr "Исходящие звонки"
-
-msgid "Channel Alarms (low battery, loss of connectivity)"
-msgstr "Оповещения Канала (низкий заряд батареи, потеря связи)"
-
-#, python-format
-msgid ""
-"\n"
-"    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
-"\n"
-"  "
-msgstr ""
-"\n"
-"    Ваш токен API - <span class=\"attn\">%(token)s</span>."
 
 msgid "Top Ups"
 msgstr "Пополнения"
@@ -9485,6 +9451,9 @@ msgstr ""
 "          базы данных и использовать ее в этом потоке.\n"
 "          Введите адрес URL для вызова в данной точке в потоке.\n"
 "        "
+
+msgid "Additional options"
+msgstr "Дополнительные параметры"
 
 msgid "Header Name"
 msgstr "Название заголовка"
@@ -10804,3 +10773,40 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Webhook"
+#~ msgstr "Вебхук"
+
+#~ msgid "Header key"
+#~ msgstr "Ключ Заголовка"
+
+#~ msgid "Header value"
+#~ msgstr "Значение Заголовка"
+
+#~ msgid "Subscribed Events"
+#~ msgstr "Подписанные события"
+
+#~ msgid "Incoming Messages"
+#~ msgstr "Входящие сообщения"
+
+#~ msgid "Outgoing Messages"
+#~ msgstr "Исходящие сообщения"
+
+#~ msgid "Incoming Calls"
+#~ msgstr "Входящие звонки"
+
+#~ msgid "Outgoing Calls"
+#~ msgstr "Исходящие звонки"
+
+#~ msgid "Channel Alarms (low battery, loss of connectivity)"
+#~ msgstr "Оповещения Канала (низкий заряд батареи, потеря связи)"
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
+#~ "\n"
+#~ "  "
+#~ msgstr ""
+#~ "\n"
+#~ "    Ваш токен API - <span class=\"attn\">%(token)s</span>."

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-15 18:25+0000\n"
+"POT-Creation-Date: 2020-06-15 18:57+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -9587,6 +9587,11 @@ msgstr ""
 msgid "Back"
 msgstr ""
 
+#, fuzzy
+#| msgid "Webhook URL"
+msgid "Webhook Call Log"
+msgstr "URL de Webhook"
+
 msgid "Unlabel"
 msgstr "Retirar la etiqueta"
 
@@ -11078,10 +11083,8 @@ msgstr ""
 msgid "API Docs"
 msgstr "Docs API"
 
-#, fuzzy
-#| msgid "Webhook URL"
-msgid "Webhook Log"
-msgstr "URL de Webhook"
+msgid "API Explorer"
+msgstr ""
 
 #, fuzzy, python-format
 #| msgid ""
@@ -11089,10 +11092,7 @@ msgstr "URL de Webhook"
 #| "    Your email address is <span class='attn'>%(email)s</span>.\n"
 #| "\n"
 #| "  "
-msgid ""
-"\n"
-"    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
-"  "
+msgid "Your API Token is <span class=\"attn\">%(token)s</span>."
 msgstr ""
 "\n"
 "    Su dirección de correo electrónico es <span class='attn'>%(email)s</span>.\n"
@@ -11154,60 +11154,6 @@ msgid ""
 "\n"
 "        "
 msgstr ""
-
-msgid "Webhook"
-msgstr "Webhook"
-
-#, fuzzy
-#| msgid "Additional Languages"
-msgid "Additional options"
-msgstr "Idiomas adicionales"
-
-#, fuzzy
-msgid "Header key"
-msgstr "Alarmas del transmisor"
-
-#, fuzzy
-#| msgid "Numeric Value:"
-msgid "Header value"
-msgstr "Valor numérico:"
-
-msgid "Subscribed Events"
-msgstr "Eventos registrados"
-
-#, fuzzy
-msgid "Incoming Messages"
-msgstr "Mensajes de texto entrantes"
-
-#, fuzzy
-msgid "Outgoing Messages"
-msgstr "Mensajes de texto salientes"
-
-msgid "Incoming Calls"
-msgstr "Llamadas entrantes"
-
-msgid "Outgoing Calls"
-msgstr "Llamadas salientes"
-
-msgid "Channel Alarms (low battery, loss of connectivity)"
-msgstr "Alarmas transmitidas (baja batería, pérdida de conexión)"
-
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "    Your email address is <span class='attn'>%(email)s</span>.\n"
-#| "\n"
-#| "  "
-msgid ""
-"\n"
-"    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
-"\n"
-"  "
-msgstr ""
-"\n"
-"    Su dirección de correo electrónico es <span class='attn'>%(email)s</span>.\n"
-"\n"
-"  "
 
 msgid "Top Ups"
 msgstr "Recargas"
@@ -11390,6 +11336,11 @@ msgid ""
 "          Enter the URL to call out to at this point in the flow.\n"
 "        "
 msgstr ""
+
+#, fuzzy
+#| msgid "Additional Languages"
+msgid "Additional options"
+msgstr "Idiomas adicionales"
 
 #, fuzzy
 msgid "Header Name"
@@ -12791,6 +12742,55 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Webhook"
+#~ msgstr "Webhook"
+
+#, fuzzy
+#~ msgid "Header key"
+#~ msgstr "Alarmas del transmisor"
+
+#, fuzzy
+#~| msgid "Numeric Value:"
+#~ msgid "Header value"
+#~ msgstr "Valor numérico:"
+
+#~ msgid "Subscribed Events"
+#~ msgstr "Eventos registrados"
+
+#, fuzzy
+#~ msgid "Incoming Messages"
+#~ msgstr "Mensajes de texto entrantes"
+
+#, fuzzy
+#~ msgid "Outgoing Messages"
+#~ msgstr "Mensajes de texto salientes"
+
+#~ msgid "Incoming Calls"
+#~ msgstr "Llamadas entrantes"
+
+#~ msgid "Outgoing Calls"
+#~ msgstr "Llamadas salientes"
+
+#~ msgid "Channel Alarms (low battery, loss of connectivity)"
+#~ msgstr "Alarmas transmitidas (baja batería, pérdida de conexión)"
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "    Your email address is <span class='attn'>%(email)s</span>.\n"
+#~| "\n"
+#~| "  "
+#~ msgid ""
+#~ "\n"
+#~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
+#~ "\n"
+#~ "  "
+#~ msgstr ""
+#~ "\n"
+#~ "    Su dirección de correo electrónico es <span class='attn'>%(email)s</span>.\n"
+#~ "\n"
+#~ "  "
 
 #, fuzzy
 #~ msgid "Classifier Events"
