@@ -8,7 +8,6 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
-from django.utils.timesince import timesince
 
 from temba import mailroom
 from temba.migrator import Migrator
@@ -337,12 +336,10 @@ class MigrationTask(TembaModel):
             logger.info("[COMPLETED] Trackable Links migration")
             logger.info("")
 
-            elapsed = timesince(start)
             end = timezone.now()
 
             logger.info(f"Started: {start}")
             logger.info(f"Finished: {end}")
-            logger.info(f"This process took {elapsed}")
 
             self.update_status(self.STATUS_COMPLETE)
 
