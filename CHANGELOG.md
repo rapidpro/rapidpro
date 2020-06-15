@@ -1,3 +1,8 @@
+v5.5.60
+----------
+ * Move webhook log button to flow list page
+ * Add confirmation dialog to handle flow language change
+
 v5.5.59
 ----------
  * Update to floweditor v1.9.8
