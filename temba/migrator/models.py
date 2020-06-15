@@ -1406,6 +1406,10 @@ class MigrationTask(TembaModel):
                 new_campaign.uuid = campaign.uuid
                 new_campaign.save(update_fields=["uuid"])
 
+            if not new_campaign.is_active:
+                new_campaign.is_active = True
+                new_campaign.save(update_fields=["is_active"])
+
             MigrationAssociation.create(
                 migration_task=self,
                 old_id=campaign.id,
