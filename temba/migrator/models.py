@@ -1236,12 +1236,17 @@ class MigrationTask(TembaModel):
                     file_path = f"{settings.MIGRATION_FROM_URL}/media/{item.path}"
                     file_path_thumbnail = f"{settings.MIGRATION_FROM_URL}{item.path_thumbnail}"
 
-                    file_obj_path = self.org.get_temporary_file_from_url(media_url=file_path)
-                    path_s3_file_url = self.org.save_media(file=file_obj_path, extension="jpg")
+                    try:
+                        file_obj_path = self.org.get_temporary_file_from_url(media_url=file_path)
+                        path_s3_file_url = self.org.save_media(file=file_obj_path, extension="jpg")
 
-                    if item.path_thumbnail:
-                        file_obj_path_thumbnail = self.org.get_temporary_file_from_url(media_url=file_path_thumbnail)
-                        path_thumbnail_s3_file_url = self.org.save_media(file=file_obj_path_thumbnail, extension="jpg")
+                        if item.path_thumbnail:
+                            file_obj_path_thumbnail = self.org.get_temporary_file_from_url(media_url=file_path_thumbnail)
+                            path_thumbnail_s3_file_url = self.org.save_media(file=file_obj_path_thumbnail, extension="jpg")
+
+                    except Exception as e:
+                        path_s3_file_url = file_path
+                        logger.warning(f"Image was not UPLOADED to S3: {file_path_thumbnail}. Reason: {str(e)}")
 
                 else:
                     path_s3_file_url = item.path
