@@ -433,6 +433,7 @@ PERMISSIONS = {
         "broadcast",
         "campaign",
         "category_counts",
+        "change_language",
         "completion",
         "copy",
         "editor",

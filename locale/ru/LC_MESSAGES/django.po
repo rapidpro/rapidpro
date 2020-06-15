@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-10 17:31+0000\n"
+"POT-Creation-Date: 2020-06-15 18:57+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3203,6 +3203,11 @@ msgstr "Экспортировать Перевод"
 
 msgid "Import Translation"
 msgstr "Импортировать Перевод"
+
+#, fuzzy
+#| msgid "Isn't a valid name"
+msgid "Not a valid language."
+msgstr "Не является допустимым именем"
 
 msgid "Include translations in this language."
 msgstr "Включить переводы в этот язык"
@@ -7471,8 +7476,17 @@ msgstr "Запустить Поток"
 msgid "Run flow "
 msgstr "Запустить поток"
 
+#, fuzzy
+#| msgid "Base Language"
+msgid "Change Language"
+msgstr "Основной язык"
+
 msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
 msgstr "Этот поток находится в процессе осуществления отправки, это сообщение исчезнет после того, ​​как все контакты будут добавлены в поток."
+
+#, python-format
+msgid "This will change the default language of the flow to <b>%(language)s</b>. This means that by default the flow will be appear in that language and can be translated into other languages. Also if a contact is in this flow and no translation exists for their language or the default language of the organization, communication with that contact will default to <b>%(language)s</b>."
+msgstr ""
 
 msgid ""
 "\n"

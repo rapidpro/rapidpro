@@ -7488,7 +7488,6 @@ class ESIntegrationTest(TembaNonAtomicTest):
             self.assertEqual(q("0188382011"), 0)
             self.assertRaises(SearchException, q, "tel is +250188382011")
             self.assertRaises(SearchException, q, "twitter has tweep")
-            self.assertRaises(SearchException, q, 'twitter = ""')
 
             # anon orgs can search by id, with or without zero padding
             self.assertEqual(q("%d" % contact.pk), 1)
