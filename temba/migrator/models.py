@@ -1579,7 +1579,6 @@ class MigrationTask(TembaModel):
             if not new_link:
                 new_link = Link.objects.create(
                     org=self.org,
-                    uuid=link.uuid,
                     name=link.name,
                     destination=link.destination,
                     clicks_count=link.clicks_count,
@@ -1588,10 +1587,6 @@ class MigrationTask(TembaModel):
                     created_on=link.created_on,
                     modified_on=link.modified_on,
                 )
-
-            if new_link.uuid != link.uuid:
-                new_link.uuid = link.uuid
-                new_link.save(update_fields=["uuid"])
 
             link_contacts = migrator.get_link_contacts(link_id=link.id)
             for item in link_contacts:
