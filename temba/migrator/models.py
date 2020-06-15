@@ -338,6 +338,10 @@ class MigrationTask(TembaModel):
             logger.info("")
 
             elapsed = timesince(start)
+            end = timezone.now()
+
+            logger.info(f"Started: {start}")
+            logger.info(f"Finished: {end}")
             logger.info(f"This process took {elapsed}")
 
             self.update_status(self.STATUS_COMPLETE)
