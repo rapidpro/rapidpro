@@ -1410,6 +1410,10 @@ class MigrationTask(TembaModel):
                 new_campaign.is_active = True
                 new_campaign.save(update_fields=["is_active"])
 
+            if new_campaign.is_archived:
+                new_campaign.is_archived = False
+                new_campaign.save(update_fields=["is_archived"])
+
             MigrationAssociation.create(
                 migration_task=self,
                 old_id=campaign.id,
