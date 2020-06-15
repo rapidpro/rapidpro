@@ -1,3 +1,7 @@
+v5.5.59
+----------
+ * Update to floweditor v1.9.8
+
 v5.5.58
 ----------
  * Update to floweditor 1.9.7
