@@ -317,6 +317,14 @@
       });
     {% endif %}
 
+    {% if immutable_alert %}
+      var modal = new ConfirmationModal(gettext("You can't edit this flow"), "{{ immutable_alert }}");
+      modal.setListeners({ onSecondary: ()=>{
+        window.history.back();
+      }});
+      modal.show();
+    {% endif %}
+
 -block page-container
 
   -include "msgs/msg_send_modal.html"
