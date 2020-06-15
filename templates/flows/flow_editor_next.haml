@@ -369,9 +369,10 @@
     %a#change-language-form.posterize(href='{% url "flows.flow_change_language" object.id %}')
       .body
         -blocktrans trimmed with language="%LANG%"
-          This will change the default language of the flow to <b>{{ language }}</b>. Contacts who don't have a language
-          set will use that language. Any parts of this flow which don't have a translation in <b>{{ language }}</b>
-          will continue to use their current text.
+          This will change the default language of the flow to <b>{{ language }}</b>. This means that by default the
+          flow will be appear in that language and can be translated into other languages. Also if a contact is
+          in this flow and no translation exists for their language or the default language of the organization,
+          communication with that contact will default to <b>{{ language }}</b>.
 
   #grid
     <temba-loading units="10" size="8"></temba-loading>

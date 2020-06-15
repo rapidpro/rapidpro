@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-09 15:29+0000\n"
+"POT-Creation-Date: 2020-06-15 18:25+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -8840,7 +8840,7 @@ msgstr ""
 "Este fluxo está em processo de envio, esta mensagem irá desaparecer assim que todos os contatos tenham sido adicionados ao fluxo."
 
 #, python-format
-msgid "This will change the default language of the flow to <b>%(language)s</b>. Contacts who don't have a language set will use that language. Any parts of this flow which don't have a translation in <b>%(language)s</b> will continue to use their current text."
+msgid "This will change the default language of the flow to <b>%(language)s</b>. This means that by default the flow will be appear in that language and can be translated into other languages. Also if a contact is in this flow and no translation exists for their language or the default language of the organization, communication with that contact will default to <b>%(language)s</b>."
 msgstr ""
 
 msgid ""
