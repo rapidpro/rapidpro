@@ -1179,6 +1179,16 @@ class MigrationTask(TembaModel):
             logger.info(f">>> Flow Revisions")
             revisions = migrator.get_flow_revisions(flow_id=flow.id)
 
+            revision_json_dict = {
+                Flow.DEFINITION_NAME: flow.name,
+                Flow.DEFINITION_UUID: flow.uuid,
+                Flow.DEFINITION_SPEC_VERSION: Flow.CURRENT_SPEC_VERSION,
+                Flow.DEFINITION_LANGUAGE: flow.base_language,
+                Flow.DEFINITION_TYPE: Flow.GOFLOW_TYPES["M" if flow.flow_type in ["F", "M"] else flow.flow_type],
+                Flow.DEFINITION_NODES: [],
+                Flow.DEFINITION_UI: {},
+            }
+
             if revisions:
                 for item in revisions:
                     json_flow = dict()
@@ -1203,19 +1213,24 @@ class MigrationTask(TembaModel):
                         created_on=item.created_on,
                         modified_on=item.modified_on,
                     )
+                    revision_json_dict = json_flow
             else:
                 new_flow.save_revision(
                     self.created_by,
-                    {
-                        Flow.DEFINITION_NAME: flow.name,
-                        Flow.DEFINITION_UUID: flow.uuid,
-                        Flow.DEFINITION_SPEC_VERSION: Flow.CURRENT_SPEC_VERSION,
-                        Flow.DEFINITION_LANGUAGE: new_flow.base_language,
-                        Flow.DEFINITION_TYPE: Flow.GOFLOW_TYPES[new_flow.flow_type],
-                        Flow.DEFINITION_NODES: [],
-                        Flow.DEFINITION_UI: {},
-                    },
+                    revision_json_dict,
                 )
+
+            # Updating metadata and dependencies
+            try:
+                flow_info = mailroom.get_client().flow_inspect(self.org.id, revision_json_dict)
+                dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
+
+                new_flow.metadata = Flow.get_metadata(flow_info)
+                new_flow.save(update_fields=["metadata"])
+
+                new_flow.update_dependencies(dependencies)
+            except Exception as e:
+                pass
 
             # Removing flow images before importing again
             new_flow.flow_images.all().delete()
