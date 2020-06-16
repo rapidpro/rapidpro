@@ -4889,9 +4889,11 @@ class PopulateNewOrgFieldsMigrationTest(MigrationTest):
 
     def setUpBeforeMigration(self, apps):
         self.org.config["status"] = "whitelisted"
+        self.org.config["foo"] = "bar"
         self.org.save()
 
         self.org2.config["status"] = "suspended"
+        self.org2.config["other"] = "thing"
         self.org2.save()
 
         # put org values back to the way they were
@@ -4907,9 +4909,9 @@ class PopulateNewOrgFieldsMigrationTest(MigrationTest):
         self.assertTrue(self.org.uses_topups)
         self.assertTrue(self.org2.uses_topups)
 
-        # org1 has new whitelisted config value
-        self.assertTrue(self.org.config["whitelisted"])
-        self.assertFalse(self.org2.config["whitelisted"])
+        # org1 has new verified config value as it was whitelisted
+        self.assertTrue(self.org.config["verified"])
+        self.assertFalse(self.org2.config["verified"])
 
         # org2 flagged as it was suspended
         self.assertFalse(self.org.is_flagged)
@@ -4918,3 +4920,7 @@ class PopulateNewOrgFieldsMigrationTest(MigrationTest):
         # neither org suspended
         self.assertFalse(self.org.is_suspended)
         self.assertFalse(self.org2.is_suspended)
+
+        # and still have their other config values
+        self.assertEqual("bar", self.org.config["foo"])
+        self.assertEqual("thing", self.org2.config["other"])
