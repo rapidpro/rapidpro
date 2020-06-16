@@ -1185,13 +1185,13 @@ class OrgCRUDL(SmartCRUDL):
                         )
                     )
 
-                if not org.is_whitelisted():
+                if not org.is_verified():
                     links.append(
                         dict(
-                            title=_("Whitelist"),
+                            title=_("Verify"),
                             style="btn-secondary",
                             posterize=True,
-                            href="%s?action=whitelist" % reverse("orgs.org_update", args=[org.pk]),
+                            href="%s?action=verify" % reverse("orgs.org_update", args=[org.pk]),
                         )
                     )
 
@@ -1204,8 +1204,8 @@ class OrgCRUDL(SmartCRUDL):
                 action = request.POST["action"]
                 if action == "flag":
                     self.get_object().flag()
-                elif action == "whitelist":
-                    self.get_object().whitelist()
+                elif action == "verify":
+                    self.get_object().verify()
                 elif action == "unflag":
                     self.get_object().unflag()
                 elif action == "delete":

@@ -5224,8 +5224,8 @@ class ContactTest(TembaTest):
         org.refresh_from_db()
         self.assertTrue(org.is_flagged)
 
-        # now whitelist the account
-        self.org.whitelist()
+        # now verify the account
+        self.org.verify()
         self.do_import(self.user, "sample_contacts_sequential.xls")
         org.refresh_from_db()
         self.assertFalse(org.is_flagged)

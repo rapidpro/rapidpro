@@ -16,9 +16,9 @@
       .alert.alert-error
         -trans "This organization has been flagged for possible spamming"
 
-    -if org.is_whitelisted
+    -if org.is_verified
       .alert.alert-info
-        -trans "This organization has been whitelisted against flagging"
+        -trans "This organization has been verified"
   -else
     .alert.alert-error
       -trans "This organization has been scheduled for deletion"

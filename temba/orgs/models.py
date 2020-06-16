@@ -95,7 +95,7 @@ class Org(SmartModel):
     DATE_FORMAT_MONTH_FIRST = "M"
     DATE_FORMATS = ((DATE_FORMAT_DAY_FIRST, "DD-MM-YYYY"), (DATE_FORMAT_MONTH_FIRST, "MM-DD-YYYY"))
 
-    CONFIG_WHITELISTED = "whitelisted"
+    CONFIG_VERIFIED = "verified"
     CONFIG_SMTP_SERVER = "smtp_server"
     CONFIG_TWILIO_SID = "ACCOUNT_SID"
     CONFIG_TWILIO_TOKEN = "ACCOUNT_TOKEN"
@@ -345,13 +345,19 @@ class Org(SmartModel):
         self.is_flagged = False
         self.save(update_fields=("is_flagged", "modified_on"))
 
-    def whitelist(self):
+    def verify(self):
+        """
+        Unflags org and marks as verified so it won't be flagged automatically in future
+        """
         self.is_flagged = False
-        self.config[Org.CONFIG_WHITELISTED] = True
+        self.config[Org.CONFIG_VERIFIED] = True
         self.save(update_fields=("is_flagged", "config", "modified_on"))
 
-    def is_whitelisted(self):
-        return self.config.get(Org.CONFIG_WHITELISTED, False)
+    def is_verified(self):
+        """
+        A verified org is not subject to automatic flagging for suspicious activity
+        """
+        return self.config.get(Org.CONFIG_VERIFIED, False)
 
     def import_app(self, export_json, user, site=None, legacy=False):
         """

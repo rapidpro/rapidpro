@@ -913,11 +913,11 @@ class OrgTest(TembaTest):
         self.assertFalse(self.org.is_flagged)
         self.assertEqual(parent, self.org.parent)
 
-        # white list
-        post_data["action"] = "whitelist"
+        # verify
+        post_data["action"] = "verify"
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
-        self.assertTrue(self.org.is_whitelisted())
+        self.assertTrue(self.org.is_verified())
 
         # flag org
         post_data["action"] = "flag"
