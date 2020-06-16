@@ -1,4 +1,3 @@
-import calendar
 import itertools
 import logging
 import os
@@ -13,7 +12,6 @@ import pytz
 import regex
 import stripe
 import stripe.error
-from dateutil.relativedelta import relativedelta
 from django_redis import get_redis_connection
 from packaging.version import Version
 from requests import Session
@@ -97,27 +95,6 @@ class Org(SmartModel):
     DATE_FORMAT_MONTH_FIRST = "M"
     DATE_FORMATS = ((DATE_FORMAT_DAY_FIRST, "DD-MM-YYYY"), (DATE_FORMAT_MONTH_FIRST, "MM-DD-YYYY"))
 
-    PLAN_FREE = "FREE"
-    PLAN_TRIAL = "TRIAL"
-    PLAN_TIER1 = "TIER1"
-    PLAN_TIER2 = "TIER2"
-    PLAN_TIER3 = "TIER3"
-    PLAN_TIER_39 = "TIER_39"
-    PLAN_TIER_249 = "TIER_249"
-    PLAN_TIER_449 = "TIER_449"
-    PLANS = (
-        (PLAN_FREE, _("Free Plan")),
-        (PLAN_TRIAL, _("Trial")),
-        (PLAN_TIER_39, _("Bronze")),
-        (PLAN_TIER1, _("Silver")),
-        (PLAN_TIER2, _("Gold (Legacy)")),
-        (PLAN_TIER3, _("Platinum (Legacy)")),
-        (PLAN_TIER_249, _("Gold")),
-        (PLAN_TIER_449, _("Platinum")),
-    )
-
-    STATUS_SUSPENDED = "suspended"
-    STATUS_RESTORED = "restored"
     STATUS_WHITELISTED = "whitelisted"
 
     CONFIG_STATUS = "STATUS"
@@ -151,12 +128,8 @@ class Org(SmartModel):
     plan = models.CharField(
         verbose_name=_("Plan"),
         max_length=16,
-        choices=PLANS,
-        default=PLAN_FREE,
+        default=settings.DEFAULT_PLAN,
         help_text=_("What plan your organization is on"),
-    )
-    plan_start = models.DateTimeField(
-        verbose_name=_("Plan Start"), auto_now_add=True, help_text=_("When the user switched to this plan")
     )
 
     stripe_customer = models.CharField(
@@ -234,6 +207,14 @@ class Org(SmartModel):
 
     is_anon = models.BooleanField(
         default=False, help_text=_("Whether this organization anonymizes the phone numbers of contacts within it")
+    )
+
+    is_flagged = models.BooleanField(
+        null=True, default=False, help_text=_("Whether this organization is currently flagged.")
+    )
+
+    is_suspended = models.BooleanField(
+        null=True, default=False, help_text=_("Whether this organization is currently suspended.")
     )
 
     primary_language = models.ForeignKey(
@@ -360,21 +341,23 @@ class Org(SmartModel):
             *active_topup_keys,
         )
 
-    def set_status(self, status):
-        self.config[Org.CONFIG_STATUS] = status
-        self.save(update_fields=("config", "modified_on"))
+    def flag(self):
+        self.is_flagged = True
+        self.config[Org.CONFIG_STATUS] = "suspended"  # TODO remove
+        self.save(update_fields=("is_flagged", "config", "modified_on"))
 
-    def set_suspended(self):
-        self.set_status(Org.STATUS_SUSPENDED)
+    def unflag(self):
+        self.is_flagged = False
+        self.config[Org.CONFIG_STATUS] = "restored"  # TODO remove
+        self.save(update_fields=("is_flagged", "config", "modified_on"))
+
+    def is_legacy_suspended(self):
+        # TODO this will become simply self.is_flagged once that field is migrated
+        return self.config.get(Org.CONFIG_STATUS) == "suspended"
 
     def set_whitelisted(self):
-        self.set_status(Org.STATUS_WHITELISTED)
-
-    def set_restored(self):
-        self.set_status(Org.STATUS_RESTORED)
-
-    def is_suspended(self):
-        return self.config.get(Org.CONFIG_STATUS) == Org.STATUS_SUSPENDED
+        self.config[Org.CONFIG_STATUS] = Org.STATUS_WHITELISTED
+        self.save(update_fields=("config", "modified_on"))
 
     def is_whitelisted(self):
         return self.config.get(Org.CONFIG_STATUS) == Org.STATUS_WHITELISTED
@@ -1075,9 +1058,6 @@ class Org(SmartModel):
 
         return admin
 
-    def is_free_plan(self):  # pragma: needs cover
-        return self.plan == Org.PLAN_FREE or self.plan == Org.PLAN_TRIAL
-
     def is_import_flows_tier(self):
         return self.get_purchased_credits() >= self.get_branding().get("tiers", {}).get("import_flows", 0)
 
@@ -1490,22 +1470,6 @@ class Org(SmartModel):
 
         # any time we've reapplied topups, lets invalidate our credit cache too
         self.clear_credit_cache()
-
-    def current_plan_start(self):
-        today = timezone.now().date()
-
-        # move it to the same day our plan started (taking into account short months)
-        plan_start = today.replace(day=min(self.plan_start.day, calendar.monthrange(today.year, today.month)[1]))
-
-        if plan_start > today:  # pragma: needs cover
-            plan_start -= relativedelta(months=1)
-
-        return plan_start
-
-    def current_plan_end(self):
-        plan_start = self.current_plan_start()
-        plan_end = plan_start + relativedelta(months=1)
-        return plan_end
 
     def get_stripe_customer(self):  # pragma: no cover
         # We can't test stripe in unit tests since it requires javascript tokens to be generated

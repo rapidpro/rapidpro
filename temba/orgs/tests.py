@@ -722,37 +722,6 @@ class OrgTest(TembaTest):
         # now really don't have a clue of our country code
         self.assertIsNone(org.get_country_code())
 
-    def test_plans(self):
-        self.contact = self.create_contact("Joe", "+250788123123")
-
-        self.create_incoming_msg(self.contact, "Orange")
-
-        # check start and end date for this plan
-        self.assertEqual(timezone.now().date(), self.org.current_plan_start())
-        self.assertEqual(timezone.now().date() + relativedelta(months=1), self.org.current_plan_end())
-
-        # check our credits
-        self.login(self.admin)
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "<span class='attn'>999</span>")
-
-        # view our topups
-        response = self.client.get(reverse("orgs.topup_list"))
-
-        # and that we have 999 credits left on our topup
-        self.assertContains(response, "999\n")
-
-        # should say we have a 1,000 credits too
-        self.assertContains(response, "1 of 1,000 Credits Used")
-
-        # our receipt should show that the topup was free
-        with patch("stripe.Charge.retrieve") as stripe:
-            stripe.return_value = ""
-            response = self.client.get(
-                reverse("orgs.topup_read", args=[TopUp.objects.filter(org=self.org).first().pk])
-            )
-            self.assertContains(response, "1000 Credits")
-
     def test_user_update(self):
         update_url = reverse("orgs.user_edit")
         login_url = reverse("users.user_login")
@@ -790,15 +759,16 @@ class OrgTest(TembaTest):
         self.assertEqual(response.context["form"].errors["tel"][0], "Invalid phone number, try again.")
 
     @patch("temba.flows.models.FlowStart.async_start")
-    def test_org_suspension(self, mock_async_start):
+    def test_org_flagging(self, mock_async_start):
         self.login(self.admin)
 
-        self.org.set_suspended()
+        self.org.flag()
         self.org.refresh_from_db()
 
-        self.assertTrue(self.org.is_suspended())
+        self.assertTrue(self.org.is_flagged)
+        self.assertTrue(self.org.is_legacy_suspended())
 
-        # while we are suspended, we can't send broadcasts
+        # while we are flagged, we can't send broadcasts
         send_url = reverse("msgs.broadcast_send")
         mark = self.create_contact("Mark", number="+12065551212")
 
@@ -807,7 +777,7 @@ class OrgTest(TembaTest):
         response = self.client.post(send_url, post_data, follow=True)
 
         self.assertEqual(
-            "Sorry, your account is currently suspended. To enable sending messages, please contact support.",
+            "Sorry, your account is currently flagged. To enable sending messages, please contact support.",
             response.context["form"].errors["__all__"][0],
         )
 
@@ -821,7 +791,7 @@ class OrgTest(TembaTest):
         )
 
         self.assertEqual(
-            "Sorry, your account is currently suspended. To enable sending messages, please contact support.",
+            "Sorry, your account is currently flagged. To enable sending messages, please contact support.",
             response.context["form"].errors["__all__"][0],
         )
 
@@ -838,7 +808,7 @@ class OrgTest(TembaTest):
         response = postAPI(url, dict(contacts=[mark.uuid], text="You are a distant cousin to a wealthy person."))
         self.assertContains(
             response,
-            "Sorry, your account is currently suspended. To enable sending messages, please contact support.",
+            "Sorry, your account is currently flagged. To enable sending messages, please contact support.",
             status_code=400,
         )
 
@@ -846,7 +816,7 @@ class OrgTest(TembaTest):
         response = postAPI(url, dict(flow=flow.uuid, urns=["tel:+250788123123"]))
         self.assertContains(
             response,
-            "Sorry, your account is currently suspended. To enable sending messages, please contact support.",
+            "Sorry, your account is currently flagged. To enable sending messages, please contact support.",
             status_code=400,
         )
 
@@ -854,8 +824,8 @@ class OrgTest(TembaTest):
         self.assertEqual(Msg.objects.all().count(), 0)
         mock_async_start.assert_not_called()
 
-        # unsuspend our org and start a flow
-        self.org.set_restored()
+        # unflag our org and start a flow
+        self.org.unflag()
 
         self.client.post(
             reverse("flows.flow_broadcast", args=[flow.id]),
@@ -893,11 +863,11 @@ class OrgTest(TembaTest):
 
         response = self.client.get(manage_url)
         self.assertEqual(200, response.status_code)
-        self.assertNotContains(response, "(Suspended)")
+        self.assertNotContains(response, "(Flagged)")
 
-        self.org.set_suspended()
+        self.org.flag()
         response = self.client.get(manage_url)
-        self.assertContains(response, "(Suspended)")
+        self.assertContains(response, "(Flagged)")
 
         # should contain our test org
         self.assertContains(response, "Temba")
@@ -937,11 +907,11 @@ class OrgTest(TembaTest):
         response = self.client.post(update_url, post_data)
         self.assertEqual(302, response.status_code)
 
-        # restore
-        post_data["status"] = Org.STATUS_RESTORED
+        # unflag org
+        post_data["status"] = "unflag"
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
-        self.assertFalse(self.org.is_suspended())
+        self.assertFalse(self.org.is_legacy_suspended())
         self.assertEqual(parent, self.org.parent)
 
         # white list
@@ -950,11 +920,11 @@ class OrgTest(TembaTest):
         self.org.refresh_from_db()
         self.assertTrue(self.org.is_whitelisted())
 
-        # suspend
-        post_data["status"] = Org.STATUS_SUSPENDED
+        # flag org
+        post_data["status"] = "flag"
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
-        self.assertTrue(self.org.is_suspended())
+        self.assertTrue(self.org.is_legacy_suspended())
 
         # deactivate
         post_data["status"] = "delete"
@@ -1583,6 +1553,33 @@ class OrgTest(TembaTest):
         self.create_incoming_msgs(contact, 2200)
 
         self.assertEqual(300, self.org.get_low_credits_threshold())
+
+    def test_topup_decrementing(self):
+        self.contact = self.create_contact("Joe", "+250788123123")
+
+        self.create_incoming_msg(self.contact, "Orange")
+
+        # check our credits
+        self.login(self.admin)
+        response = self.client.get(reverse("orgs.org_home"))
+        self.assertContains(response, "<span class='attn'>999</span>")
+
+        # view our topups
+        response = self.client.get(reverse("orgs.topup_list"))
+
+        # and that we have 999 credits left on our topup
+        self.assertContains(response, "999\n")
+
+        # should say we have a 1,000 credits too
+        self.assertContains(response, "1 of 1,000 Credits Used")
+
+        # our receipt should show that the topup was free
+        with patch("stripe.Charge.retrieve") as stripe:
+            stripe.return_value = ""
+            response = self.client.get(
+                reverse("orgs.topup_read", args=[TopUp.objects.filter(org=self.org).first().pk])
+            )
+            self.assertContains(response, "1000 Credits")
 
     def test_topups(self):
 
