@@ -21,11 +21,16 @@ class Migration(migrations.Migration):
             name="is_suspended",
             field=models.BooleanField(help_text="Whether this organization is currently suspended.", null=True),
         ),
+        migrations.AddField(
+            model_name="org",
+            name="uses_topups",
+            field=models.BooleanField(help_text="Whether this organization uses topups.", null=True),
+        ),
         migrations.AlterField(
             model_name="org",
             name="plan",
             field=models.CharField(
-                default="trial", help_text="What plan your organization is on", max_length=16, verbose_name="Plan"
+                default="topups", help_text="What plan your organization is on", max_length=16, verbose_name="Plan"
             ),
         ),
         migrations.AlterField(
@@ -41,5 +46,10 @@ class Migration(migrations.Migration):
             field=models.BooleanField(
                 default=False, help_text="Whether this organization is currently suspended.", null=True
             ),
+        ),
+        migrations.AlterField(
+            model_name="org",
+            name="uses_topups",
+            field=models.BooleanField(default=True, help_text="Whether this organization uses topups.", null=True),
         ),
     ]

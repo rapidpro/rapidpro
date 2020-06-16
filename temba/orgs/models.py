@@ -217,6 +217,8 @@ class Org(SmartModel):
         null=True, default=False, help_text=_("Whether this organization is currently suspended.")
     )
 
+    uses_topups = models.BooleanField(null=True, default=True, help_text=_("Whether this organization uses topups."))
+
     primary_language = models.ForeignKey(
         "orgs.Language",
         null=True,

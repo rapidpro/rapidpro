@@ -1192,7 +1192,7 @@ MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 
 # Default plan for new orgs
-DEFAULT_PLAN = "trial"
+DEFAULT_PLAN = "topups"
 
 # Maximum active objects are org can have
 MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
