@@ -329,6 +329,9 @@ class MigrationTask(TembaModel):
             logger.info("---------------- Trackable Links ----------------")
             logger.info("[STARTED] Trackable Links migration")
 
+            # Releasing links from this org before importing them from live server
+            Link.objects.filter(org=self.org).delete()
+
             org_links, links_count = migrator.get_org_links()
             if org_links:
                 self.add_links(logger=logger, links=org_links, migrator=migrator, count=links_count)
@@ -1575,21 +1578,16 @@ class MigrationTask(TembaModel):
         for idx, link in enumerate(links, start=1):
             logger.info(f">>> [{idx}/{count}] Link: {link.uuid} - {link.name}")
 
-            new_link = Link.objects.filter(uuid=link.uuid, org=self.org).only("id").first()
-            if not new_link:
-                new_link = Link.objects.create(
-                    org=self.org,
-                    name=link.name,
-                    destination=link.destination,
-                    clicks_count=link.clicks_count,
-                    created_by=self.created_by,
-                    modified_by=self.created_by,
-                    created_on=link.created_on,
-                    modified_on=link.modified_on,
-                )
-
-            # Removing the contacts that clicked on before migrating them
-            new_link.contacts.all().delete()
+            new_link = Link.objects.create(
+                org=self.org,
+                name=link.name,
+                destination=link.destination,
+                clicks_count=link.clicks_count,
+                created_by=self.created_by,
+                modified_by=self.created_by,
+                created_on=link.created_on,
+                modified_on=link.modified_on,
+            )
 
             link_contacts = migrator.get_link_contacts(link_id=link.id)
             for item in link_contacts:
