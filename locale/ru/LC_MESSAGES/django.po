@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-16 16:44+0000\n"
+"POT-Creation-Date: 2020-06-16 18:20+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3827,6 +3827,11 @@ msgstr "Для какой организации предназначена эт
 #, fuzzy
 #| msgid "This organization has been suspended"
 msgid "Whether this organization is currently suspended."
+msgstr "Данная организация была заблокирована."
+
+#, fuzzy
+#| msgid "This organization has been suspended"
+msgid "Whether this organization uses topups."
 msgstr "Данная организация была заблокирована."
 
 msgid "The primary language will be used for contacts with no language preference."
