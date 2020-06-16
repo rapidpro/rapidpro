@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-16 18:20+0000\n"
+"POT-Creation-Date: 2020-06-16 21:49+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -9067,7 +9067,14 @@ msgstr "Désactiver deux facteurs"
 msgid "This organization has been suspended"
 msgstr "Cette organisation a été suspendue"
 
-msgid "This organization has been whitelisted against spaminess"
+#, fuzzy
+#| msgid "This organization has been scheduled for deletion"
+msgid "This organization has been flagged for possible spamming"
+msgstr "La suppression de cette organisation est prévue"
+
+#, fuzzy
+#| msgid "This organization has been whitelisted against spaminess"
+msgid "This organization has been whitelisted against flagging"
 msgstr "Cette organisation a été ajoutée à la liste blanche contre le spam"
 
 msgid "This organization has been scheduled for deletion"
