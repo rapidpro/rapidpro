@@ -230,13 +230,17 @@
           allowTaint: true,
           foreignObjectRendering: true,
           imageTimeout: 30000,
-          logging: true,
+          logging: false,
           useCORS: true,
           onclone: prepareDataForImageExport,
           ignoreElements: (elem) => {
-            return false;
             let style = $(elem).attr('class') || '';
-            if (style.includes('components_printButton') || style.includes('Simulator_simulator') || style.includes('PopTab_tab')) {
+            if (
+              style.includes('components_printButton') ||
+              style.includes('Simulator_simulator') ||
+              style.includes('PopTab_tab') ||
+              style.includes('LanguageSelector_language')
+            ) {
               return true;
             }
             return false;
