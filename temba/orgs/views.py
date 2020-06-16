@@ -1098,7 +1098,7 @@ class OrgCRUDL(SmartCRUDL):
             )
 
         def get_name(self, obj):
-            flagged = '<span class="flagged">(Flagged)</span>' if obj.is_legacy_suspended() else ""
+            flagged = '<span class="flagged">(Flagged)</span>' if obj.is_flagged else ""
 
             return mark_safe(
                 f"<div class='org-name'>{flagged} {escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div>"
@@ -1166,7 +1166,7 @@ class OrgCRUDL(SmartCRUDL):
                     )
                 )
 
-                if org.is_legacy_suspended():
+                if org.is_flagged:
                     links.append(
                         dict(
                             title=_("Unflag"),

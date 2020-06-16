@@ -766,7 +766,6 @@ class OrgTest(TembaTest):
         self.org.refresh_from_db()
 
         self.assertTrue(self.org.is_flagged)
-        self.assertTrue(self.org.is_legacy_suspended())
 
         # while we are flagged, we can't send broadcasts
         send_url = reverse("msgs.broadcast_send")
@@ -911,7 +910,7 @@ class OrgTest(TembaTest):
         post_data["status"] = "unflag"
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
-        self.assertFalse(self.org.is_legacy_suspended())
+        self.assertFalse(self.org.is_flagged)
         self.assertEqual(parent, self.org.parent)
 
         # white list
@@ -924,7 +923,7 @@ class OrgTest(TembaTest):
         post_data["status"] = "flag"
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
-        self.assertTrue(self.org.is_legacy_suspended())
+        self.assertTrue(self.org.is_flagged)
 
         # deactivate
         post_data["status"] = "delete"
