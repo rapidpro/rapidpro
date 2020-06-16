@@ -38,6 +38,19 @@ class MailroomClientTest(TembaTest):
             json={"flow": {"nodes": []}, "to_version": "13.1.0"},
         )
 
+    def test_flow_change_language(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"language": "spa"}')
+            migrated = get_client().flow_change_language({"nodes": []}, language="spa")
+
+            self.assertEqual({"language": "spa"}, migrated)
+
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/flow/change_language",
+            headers={"User-Agent": "Temba"},
+            json={"flow": {"nodes": []}, "language": "spa"},
+        )
+
     def test_contact_modify(self):
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(

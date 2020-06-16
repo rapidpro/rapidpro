@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-28 17:43+0000\n"
+"POT-Creation-Date: 2020-06-15 18:57+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4392,6 +4392,11 @@ msgstr "Traducciones"
 msgid "Import Translation"
 msgstr "Traducciones"
 
+#, fuzzy
+#| msgid "Using a Local Number"
+msgid "Not a valid language."
+msgstr "Con un número local"
+
 msgid "Include translations in this language."
 msgstr ""
 
@@ -5874,19 +5879,28 @@ msgstr ""
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
 msgstr ""
 
-msgid "New tickets and replies will be sent to the email address that you configure below. You will need to verify it by entering the token sent to you."
-msgstr ""
-
 msgid "The email address to forward tickets and replies to"
 msgstr ""
 
-msgid "The verification token that was sent to your email"
+msgid "The verification code that was sent to your email"
 msgstr ""
 
-msgid "No verification token found, please start over."
+msgid "No verification code found, please start over."
 msgstr ""
 
-msgid "Token does not match, please check your email."
+msgid "Code does not match, please check your email."
+msgstr ""
+
+#, fuzzy
+#| msgid "Alert Email"
+msgid "Verify Email"
+msgstr "Correo electrónico de alerta"
+
+#, python-format
+msgid "A verification code was sent to <code>%(address)s</code>. Enter it below to continue adding this ticketing service to your account."
+msgstr ""
+
+msgid "New tickets and replies will be sent to the email address that you configure below. You will need to verify it by entering the code sent to you."
 msgstr ""
 
 #, fuzzy
@@ -5932,6 +5946,11 @@ msgstr ""
 
 msgid "Add"
 msgstr "Agregar"
+
+#, fuzzy, python-format
+#| msgid "Connect Kannel"
+msgid "Connect %(ticketer)s"
+msgstr "Conectar Kannel"
 
 #, fuzzy
 #| msgid "Open TextIt"
@@ -9542,7 +9561,16 @@ msgstr "Correr flujo"
 msgid "Run flow "
 msgstr "Correr flujo"
 
+#, fuzzy
+#| msgid "Language"
+msgid "Change Language"
+msgstr "Idioma"
+
 msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
+msgstr ""
+
+#, python-format
+msgid "This will change the default language of the flow to <b>%(language)s</b>. This means that by default the flow will be appear in that language and can be translated into other languages. Also if a contact is in this flow and no translation exists for their language or the default language of the organization, communication with that contact will default to <b>%(language)s</b>."
 msgstr ""
 
 msgid ""
@@ -9604,6 +9632,11 @@ msgstr ""
 
 msgid "Back"
 msgstr ""
+
+#, fuzzy
+#| msgid "Webhook URL"
+msgid "Webhook Call Log"
+msgstr "URL de Webhook"
 
 msgid "Unlabel"
 msgstr "Retirar la etiqueta"
@@ -9795,14 +9828,6 @@ msgid ""
 "  "
 msgstr ""
 
-#, fuzzy
-#| msgid "Android"
-msgid "android"
-msgstr "Android"
-
-msgid "dashboard"
-msgstr "Panel"
-
 msgid "messages"
 msgstr "mensajes"
 
@@ -9832,6 +9857,14 @@ msgstr "usuarios"
 
 msgid "orgs"
 msgstr "organizaciones"
+
+#, fuzzy
+#| msgid "Android"
+msgid "android"
+msgstr "Android"
+
+msgid "dashboard"
+msgstr "Panel"
 
 #, fuzzy
 msgid "end"
@@ -11096,10 +11129,8 @@ msgstr ""
 msgid "API Docs"
 msgstr "Docs API"
 
-#, fuzzy
-#| msgid "Webhook URL"
-msgid "Webhook Log"
-msgstr "URL de Webhook"
+msgid "API Explorer"
+msgstr ""
 
 #, fuzzy, python-format
 #| msgid ""
@@ -11107,10 +11138,7 @@ msgstr "URL de Webhook"
 #| "    Your email address is <span class='attn'>%(email)s</span>.\n"
 #| "\n"
 #| "  "
-msgid ""
-"\n"
-"    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
-"  "
+msgid "Your API Token is <span class=\"attn\">%(token)s</span>."
 msgstr ""
 "\n"
 "    Su dirección de correo electrónico es <span class='attn'>%(email)s</span>.\n"
@@ -11172,60 +11200,6 @@ msgid ""
 "\n"
 "        "
 msgstr ""
-
-msgid "Webhook"
-msgstr "Webhook"
-
-#, fuzzy
-#| msgid "Additional Languages"
-msgid "Additional options"
-msgstr "Idiomas adicionales"
-
-#, fuzzy
-msgid "Header key"
-msgstr "Alarmas del transmisor"
-
-#, fuzzy
-#| msgid "Numeric Value:"
-msgid "Header value"
-msgstr "Valor numérico:"
-
-msgid "Subscribed Events"
-msgstr "Eventos registrados"
-
-#, fuzzy
-msgid "Incoming Messages"
-msgstr "Mensajes de texto entrantes"
-
-#, fuzzy
-msgid "Outgoing Messages"
-msgstr "Mensajes de texto salientes"
-
-msgid "Incoming Calls"
-msgstr "Llamadas entrantes"
-
-msgid "Outgoing Calls"
-msgstr "Llamadas salientes"
-
-msgid "Channel Alarms (low battery, loss of connectivity)"
-msgstr "Alarmas transmitidas (baja batería, pérdida de conexión)"
-
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "    Your email address is <span class='attn'>%(email)s</span>.\n"
-#| "\n"
-#| "  "
-msgid ""
-"\n"
-"    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
-"\n"
-"  "
-msgstr ""
-"\n"
-"    Su dirección de correo electrónico es <span class='attn'>%(email)s</span>.\n"
-"\n"
-"  "
 
 msgid "Top Ups"
 msgstr "Recargas"
@@ -11408,6 +11382,11 @@ msgid ""
 "          Enter the URL to call out to at this point in the flow.\n"
 "        "
 msgstr ""
+
+#, fuzzy
+#| msgid "Additional Languages"
+msgid "Additional options"
+msgstr "Idiomas adicionales"
 
 #, fuzzy
 msgid "Header Name"
@@ -12604,11 +12583,11 @@ msgid "No ticketing services are available."
 msgstr ""
 
 #, python-format
-msgid "Your verification token is <b>%(token)s</b> to continue adding an email-based ticketing service."
+msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
 msgstr ""
 
 #, python-format
-msgid "Your verification token is %(token)s to continue adding an email-based ticketing service."
+msgid "Your verification code is %(code)s to continue adding an email-based ticketing service."
 msgstr ""
 
 msgid "This will connect your account to Zendesk allowing you to open tickets in flows."
@@ -12809,6 +12788,55 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Webhook"
+#~ msgstr "Webhook"
+
+#, fuzzy
+#~ msgid "Header key"
+#~ msgstr "Alarmas del transmisor"
+
+#, fuzzy
+#~| msgid "Numeric Value:"
+#~ msgid "Header value"
+#~ msgstr "Valor numérico:"
+
+#~ msgid "Subscribed Events"
+#~ msgstr "Eventos registrados"
+
+#, fuzzy
+#~ msgid "Incoming Messages"
+#~ msgstr "Mensajes de texto entrantes"
+
+#, fuzzy
+#~ msgid "Outgoing Messages"
+#~ msgstr "Mensajes de texto salientes"
+
+#~ msgid "Incoming Calls"
+#~ msgstr "Llamadas entrantes"
+
+#~ msgid "Outgoing Calls"
+#~ msgstr "Llamadas salientes"
+
+#~ msgid "Channel Alarms (low battery, loss of connectivity)"
+#~ msgstr "Alarmas transmitidas (baja batería, pérdida de conexión)"
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "    Your email address is <span class='attn'>%(email)s</span>.\n"
+#~| "\n"
+#~| "  "
+#~ msgid ""
+#~ "\n"
+#~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
+#~ "\n"
+#~ "  "
+#~ msgstr ""
+#~ "\n"
+#~ "    Su dirección de correo electrónico es <span class='attn'>%(email)s</span>.\n"
+#~ "\n"
+#~ "  "
 
 #, fuzzy
 #~ msgid "Classifier Events"

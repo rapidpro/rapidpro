@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-05-28 17:43+0000\n"
+"POT-Creation-Date: 2020-06-15 18:57+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2989,6 +2989,9 @@ msgstr ""
 msgid "Import Translation"
 msgstr ""
 
+msgid "Not a valid language."
+msgstr ""
+
 msgid "Include translations in this language."
 msgstr ""
 
@@ -4277,19 +4280,26 @@ msgstr ""
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
 msgstr ""
 
-msgid "New tickets and replies will be sent to the email address that you configure below. You will need to verify it by entering the token sent to you."
-msgstr ""
-
 msgid "The email address to forward tickets and replies to"
 msgstr ""
 
-msgid "The verification token that was sent to your email"
+msgid "The verification code that was sent to your email"
 msgstr ""
 
-msgid "No verification token found, please start over."
+msgid "No verification code found, please start over."
 msgstr ""
 
-msgid "Token does not match, please check your email."
+msgid "Code does not match, please check your email."
+msgstr ""
+
+msgid "Verify Email"
+msgstr ""
+
+#, python-format
+msgid "A verification code was sent to <code>%(address)s</code>. Enter it below to continue adding this ticketing service to your account."
+msgstr ""
+
+msgid "New tickets and replies will be sent to the email address that you configure below. You will need to verify it by entering the code sent to you."
 msgstr ""
 
 msgid "Verify your email address for tickets"
@@ -4326,6 +4336,10 @@ msgid "Secret is incorrect."
 msgstr ""
 
 msgid "Add"
+msgstr ""
+
+#, python-format
+msgid "Connect %(ticketer)s"
 msgstr ""
 
 msgid "Open Tickets"
@@ -6678,7 +6692,14 @@ msgstr ""
 msgid "Run flow "
 msgstr ""
 
+msgid "Change Language"
+msgstr ""
+
 msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
+msgstr ""
+
+#, python-format
+msgid "This will change the default language of the flow to <b>%(language)s</b>. This means that by default the flow will be appear in that language and can be translated into other languages. Also if a contact is in this flow and no translation exists for their language or the default language of the organization, communication with that contact will default to <b>%(language)s</b>."
 msgstr ""
 
 msgid ""
@@ -6726,6 +6747,9 @@ msgid "Upload"
 msgstr ""
 
 msgid "Back"
+msgstr ""
+
+msgid "Webhook Call Log"
 msgstr ""
 
 msgid "Unlabel"
@@ -6860,12 +6884,6 @@ msgid ""
 "  "
 msgstr ""
 
-msgid "android"
-msgstr ""
-
-msgid "dashboard"
-msgstr ""
-
 msgid "messages"
 msgstr ""
 
@@ -6891,6 +6909,12 @@ msgid "users"
 msgstr ""
 
 msgid "orgs"
+msgstr ""
+
+msgid "android"
+msgstr ""
+
+msgid "dashboard"
 msgstr ""
 
 msgid "end"
@@ -7901,14 +7925,11 @@ msgstr ""
 msgid "API Docs"
 msgstr ""
 
-msgid "Webhook Log"
+msgid "API Explorer"
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
-"  "
+msgid "Your API Token is <span class=\"attn\">%(token)s</span>."
 msgstr ""
 
 msgid "Disconnect Twilio"
@@ -7961,44 +7982,6 @@ msgid ""
 "          Also, any user accounts will be deleted if they don't belong to another organization.\n"
 "\n"
 "        "
-msgstr ""
-
-msgid "Webhook"
-msgstr ""
-
-msgid "Additional options"
-msgstr ""
-
-msgid "Header key"
-msgstr ""
-
-msgid "Header value"
-msgstr ""
-
-msgid "Subscribed Events"
-msgstr ""
-
-msgid "Incoming Messages"
-msgstr ""
-
-msgid "Outgoing Messages"
-msgstr ""
-
-msgid "Incoming Calls"
-msgstr ""
-
-msgid "Outgoing Calls"
-msgstr ""
-
-msgid "Channel Alarms (low battery, loss of connectivity)"
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
-"\n"
-"  "
 msgstr ""
 
 msgid "Top Ups"
@@ -8143,6 +8126,9 @@ msgid ""
 "          database and use it in this flow.\n"
 "          Enter the URL to call out to at this point in the flow.\n"
 "        "
+msgstr ""
+
+msgid "Additional options"
 msgstr ""
 
 msgid "Header Name"
@@ -9011,11 +8997,11 @@ msgid "No ticketing services are available."
 msgstr ""
 
 #, python-format
-msgid "Your verification token is <b>%(token)s</b> to continue adding an email-based ticketing service."
+msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
 msgstr ""
 
 #, python-format
-msgid "Your verification token is %(token)s to continue adding an email-based ticketing service."
+msgid "Your verification code is %(code)s to continue adding an email-based ticketing service."
 msgstr ""
 
 msgid "This will connect your account to Zendesk allowing you to open tickets in flows."

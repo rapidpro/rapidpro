@@ -23,11 +23,8 @@ class ZendeskType(TicketerType):
 
     connect_view = ConnectView
     connect_blurb = _(
-        """<a href="https://www.zendesk.com/">Zendesk</a> is one of the most popular customer service systems around. You can use it to manage all the tickets created on your account."""
-    )
-
-    form_blurb = _(
-        """Enter your Zendesk subdomain. You will be redirected to Zendesk where you need to grant access to this application."""
+        '<a href="https://www.zendesk.com/">Zendesk</a> is one of the most popular customer service systems around. '
+        "You can use it to manage all the tickets created on your account."
     )
 
     def is_available(self):

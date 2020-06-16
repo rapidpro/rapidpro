@@ -1,5 +1,5 @@
 -extends "smartmin/list.html"
--load smartmin i18n contacts
+-load smartmin i18n contacts compress
 
 -block page-title
   {{ title }}
@@ -66,7 +66,8 @@
                     {{ object.body }}
                   -if not folder
                     %td.ticket-status
-                      {{ object.get_status_display }}
+                      %span.label(class="status-{{object.status}}")
+                        {{ object.get_status_display }}
                   %td.opened_on
                     %span.time
                       {% short_datetime object.opened_on %}
@@ -108,3 +109,18 @@
     .ticketer-inactive {
       color: #AAA;
     }
+
+
+-block extra-less
+  -compress css inline
+    {% lessblock %}
+      :plain
+        .label.status-O {
+          border: 1px solid @flat-mutedgreen - #333;
+          background-color: @flat-mutedgreen - #222;
+        }
+        .label.status-C {
+          border: 1px solid @flat-darkred - #111;
+          background-color: @flat-darkred;
+        }
+    {% endlessblock %}

@@ -7,6 +7,7 @@ import colorama
 import polib
 
 parser = argparse.ArgumentParser(description="Code checks")
+parser.add_argument("--skip-compilemessages", action="store_true")
 parser.add_argument("--debug", action="store_true")
 args = parser.parse_args()
 
@@ -66,16 +67,22 @@ if __name__ == "__main__":
 
     status("Make any missing migrations")
     cmd("python manage.py makemigrations")
+
     status("Running black")
     cmd("black --line-length=119 --target-version=py36 temba")
+
     status("Running flake8")
     cmd("flake8")
+
     status("Running isort")
     cmd("isort -rc temba")
+
     status("Updating locale PO files")
     update_po_files()
-    status("Recompiling locale MO files")
-    cmd("python manage.py compilemessages")
+
+    if not args.skip_compilemessages:
+        status("Recompiling locale MO files")
+        cmd("python manage.py compilemessages")
 
     # if any code changes were made, exit with error
     if cmd("git diff temba locale"):
