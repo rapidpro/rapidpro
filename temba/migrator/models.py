@@ -1234,7 +1234,7 @@ class MigrationTask(TembaModel):
                 new_flow.save(update_fields=["metadata"])
 
                 new_flow.update_dependencies(dependencies)
-            except Exception as e:
+            except Exception:
                 pass
 
             # Removing flow images before importing again
@@ -1413,15 +1413,15 @@ class MigrationTask(TembaModel):
         for idx, campaign in enumerate(campaigns, start=1):
             logger.info(f">>> [{idx}/{count}] Campaign: {campaign.uuid} - {campaign.name}")
 
+            new_group_obj = MigrationAssociation.get_new_object(
+                model=MigrationAssociation.MODEL_CONTACT_GROUP, old_id=campaign.group_id
+            )
+
+            if not new_group_obj:
+                continue
+
             new_campaign = Campaign.objects.filter(uuid=campaign.uuid, org=self.org).only("id").first()
             if not new_campaign:
-                new_group_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT_GROUP, old_id=campaign.group_id
-                )
-
-                if not new_group_obj:
-                    continue
-
                 new_campaign = Campaign.objects.create(
                     org=self.org,
                     uuid=campaign.uuid,
@@ -1432,6 +1432,9 @@ class MigrationTask(TembaModel):
                     created_by=self.created_by,
                     modified_by=self.created_by,
                 )
+
+            new_campaign.group = new_group_obj
+            new_campaign.save(update_fields=["group"])
 
             if new_campaign.uuid != campaign.uuid:
                 new_campaign.uuid = campaign.uuid
@@ -1584,6 +1587,9 @@ class MigrationTask(TembaModel):
                     created_on=link.created_on,
                     modified_on=link.modified_on,
                 )
+
+            # Removing the contacts that clicked on before migrating them
+            new_link.contacts.all().delete()
 
             link_contacts = migrator.get_link_contacts(link_id=link.id)
             for item in link_contacts:
