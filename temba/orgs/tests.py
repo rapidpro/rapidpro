@@ -4888,6 +4888,9 @@ class PopulateNewOrgFieldsMigrationTest(MigrationTest):
     migrate_to = "0064_populate_new_org_fields"
 
     def setUpBeforeMigration(self, apps):
+        self.org.config["status"] = "whitelisted"
+        self.org.save()
+
         self.org2.config["status"] = "suspended"
         self.org2.save()
 
@@ -4903,6 +4906,10 @@ class PopulateNewOrgFieldsMigrationTest(MigrationTest):
         self.assertEqual("topups", self.org2.plan)
         self.assertTrue(self.org.uses_topups)
         self.assertTrue(self.org2.uses_topups)
+
+        # org1 has new whitelisted config value
+        self.assertTrue(self.org.config["whitelisted"])
+        self.assertFalse(self.org2.config["whitelisted"])
 
         # org2 flagged as it was suspended
         self.assertFalse(self.org.is_flagged)
