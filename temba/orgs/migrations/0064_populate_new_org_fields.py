@@ -5,7 +5,7 @@ from django.db import migrations, transaction
 BATCH_SIZE = 5000
 
 
-def populate_org_suspended_and_flagged(apps, schema_editor):
+def populate_new_org_fields(apps, schema_editor):
     Org = apps.get_model("orgs", "Org")
     orgs = Org.objects.all()
 
@@ -19,9 +19,10 @@ def populate_org_suspended_and_flagged(apps, schema_editor):
         with transaction.atomic():
             for org in batch:
                 org.plan = "topups"
+                org.uses_topups = True
                 org.is_suspended = False
                 org.is_flagged = org.config.get("status") == "suspended"
-                org.save(update_fields=("plan", "is_suspended", "is_flagged"))
+                org.save(update_fields=("plan", "uses_topups", "is_suspended", "is_flagged"))
 
         num_updated += len(batch)
         print(f" > Updated {num_updated} orgs")
@@ -36,7 +37,7 @@ def reverse(apps, schema_editor):  # pragma: no cover
 def apply_manual():  # pragma: no cover
     from django.apps import apps
 
-    populate_org_suspended_and_flagged(apps, None)
+    populate_new_org_fields(apps, None)
 
 
 class Migration(migrations.Migration):
@@ -45,4 +46,4 @@ class Migration(migrations.Migration):
         ("orgs", "0063_auto_20200616_1624"),
     ]
 
-    operations = [migrations.RunPython(populate_org_suspended_and_flagged, reverse)]
+    operations = [migrations.RunPython(populate_new_org_fields, reverse)]
