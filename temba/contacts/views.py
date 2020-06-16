@@ -1470,7 +1470,15 @@ class ContactCRUDL(SmartCRUDL):
             return super().get_form()
 
         def save(self, obj):
-            obj.update(self.request.user, obj.name, obj.language)
+            # since mailroom will be making the actual changes, get a copy of the contact from the database
+            # without the changes already set by using model form
+            contact = Contact.objects.get(id=obj.id)
+            data = self.form.cleaned_data
+
+            try:
+                contact.update(self.request.user, data.get("name"), data.get("language"))
+            except Exception:
+                raise ValidationError(_("An error occurred updating your contact. Please try again later."))
 
             new_groups = self.form.cleaned_data.get("groups")
             if new_groups is not None:

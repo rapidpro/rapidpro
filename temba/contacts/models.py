@@ -1234,26 +1234,24 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             EventFire.update_events_for_contact_groups(self, changed_groups)
 
     def update(self, user, name, language):
-        org = self.org
-        existing = Contact.objects.filter(id=self.id, org=self.org).first()
+        modifiers = []
+        if (self.name or "") != (name or ""):
+            modifiers.append({"type": "name", "name": name or ""})
 
+        if (self.language or "") != (language or ""):
+            modifiers.append({"type": "language", "language": language or ""})
+
+        if modifiers:
+            Contact.bulk_modify(self.org, user, [self], modifiers)
+
+    @classmethod
+    def bulk_modify(cls, org, user, contacts, modifiers):
+        client = mailroom.get_client()
         try:
-            modifiers = []
-            if (existing.name or "") != (name or ""):
-                modifiers.append({"type": "name", "name": name or ""})
-
-            if (existing.language or "") != (language or ""):
-                modifiers.append({"type": "language", "language": language or ""})
-
-            client = mailroom.get_client()
-            contact_ids = [self.id]
-
-            if modifiers:
-                client.contact_modify(org.id, user.id, contact_ids, modifiers)
-
+            client.contact_modify(org.id, user.id, [c.id for c in contacts], modifiers)
         except mailroom.MailroomException as e:
             logger.error(f"Contact update failed: {str(e)}", exc_info=True)
-            raise ValidationError(_("An error occurred updating your contact. Please try again later."))
+            raise e
 
     @classmethod
     def from_urn(cls, org, urn_as_string, country=None):
