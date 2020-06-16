@@ -22,7 +22,8 @@ def populate_new_org_fields(apps, schema_editor):
                 org.uses_topups = True
                 org.is_suspended = False
                 org.is_flagged = org.config.get("status") == "suspended"
-                org.save(update_fields=("plan", "uses_topups", "is_suspended", "is_flagged"))
+                org.config["whitelisted"] = org.config.get("status") == "whitelisted"
+                org.save(update_fields=("plan", "uses_topups", "is_suspended", "is_flagged", "config"))
 
         num_updated += len(batch)
         print(f" > Updated {num_updated} orgs")

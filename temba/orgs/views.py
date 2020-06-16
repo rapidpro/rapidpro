@@ -1172,7 +1172,7 @@ class OrgCRUDL(SmartCRUDL):
                             title=_("Unflag"),
                             style="btn-secondary",
                             posterize=True,
-                            href="%s?status=unflag" % reverse("orgs.org_update", args=[org.pk]),
+                            href="%s?action=unflag" % reverse("orgs.org_update", args=[org.pk]),
                         )
                     )
                 else:  # pragma: needs cover
@@ -1181,7 +1181,7 @@ class OrgCRUDL(SmartCRUDL):
                             title=_("Flag"),
                             style="btn-secondary",
                             posterize=True,
-                            href="%s?status=flag" % reverse("orgs.org_update", args=[org.pk]),
+                            href="%s?action=flag" % reverse("orgs.org_update", args=[org.pk]),
                         )
                     )
 
@@ -1191,7 +1191,7 @@ class OrgCRUDL(SmartCRUDL):
                             title=_("Whitelist"),
                             style="btn-secondary",
                             posterize=True,
-                            href="%s?status=whitelisted" % reverse("orgs.org_update", args=[org.pk]),
+                            href="%s?action=whitelist" % reverse("orgs.org_update", args=[org.pk]),
                         )
                     )
 
@@ -1200,14 +1200,15 @@ class OrgCRUDL(SmartCRUDL):
             return links
 
         def post(self, request, *args, **kwargs):
-            if "status" in request.POST:
-                if request.POST.get("status", None) == "flag":
+            if "action" in request.POST:
+                action = request.POST["action"]
+                if action == "flag":
                     self.get_object().flag()
-                elif request.POST.get("status", None) == Org.STATUS_WHITELISTED:
+                elif action == "whitelist":
                     self.get_object().whitelist()
-                elif request.POST.get("status", None) == "unflag":
+                elif action == "unflag":
                     self.get_object().unflag()
-                elif request.POST.get("status", None) == "delete":
+                elif action == "delete":
                     self.get_object().release()
                 return HttpResponseRedirect(self.get_success_url())
             return super().post(request, *args, **kwargs)

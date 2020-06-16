@@ -95,9 +95,7 @@ class Org(SmartModel):
     DATE_FORMAT_MONTH_FIRST = "M"
     DATE_FORMATS = ((DATE_FORMAT_DAY_FIRST, "DD-MM-YYYY"), (DATE_FORMAT_MONTH_FIRST, "MM-DD-YYYY"))
 
-    STATUS_WHITELISTED = "whitelisted"
-
-    CONFIG_STATUS = "STATUS"
+    CONFIG_WHITELISTED = "whitelisted"
     CONFIG_SMTP_SERVER = "smtp_server"
     CONFIG_TWILIO_SID = "ACCOUNT_SID"
     CONFIG_TWILIO_TOKEN = "ACCOUNT_TOKEN"
@@ -345,16 +343,15 @@ class Org(SmartModel):
 
     def unflag(self):
         self.is_flagged = False
-        self.config[Org.CONFIG_STATUS] = "restored"
         self.save(update_fields=("is_flagged", "modified_on"))
 
     def whitelist(self):
         self.is_flagged = False
-        self.config[Org.CONFIG_STATUS] = Org.STATUS_WHITELISTED
+        self.config[Org.CONFIG_WHITELISTED] = True
         self.save(update_fields=("is_flagged", "config", "modified_on"))
 
     def is_whitelisted(self):
-        return self.config.get(Org.CONFIG_STATUS) == Org.STATUS_WHITELISTED
+        return self.config.get(Org.CONFIG_WHITELISTED, False)
 
     def import_app(self, export_json, user, site=None, legacy=False):
         """
