@@ -348,9 +348,10 @@ class Org(SmartModel):
         self.config[Org.CONFIG_STATUS] = "restored"
         self.save(update_fields=("is_flagged", "modified_on"))
 
-    def set_whitelisted(self):
+    def whitelist(self):
+        self.is_flagged = False
         self.config[Org.CONFIG_STATUS] = Org.STATUS_WHITELISTED
-        self.save(update_fields=("config", "modified_on"))
+        self.save(update_fields=("is_flagged", "config", "modified_on"))
 
     def is_whitelisted(self):
         return self.config.get(Org.CONFIG_STATUS) == Org.STATUS_WHITELISTED

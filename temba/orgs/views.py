@@ -1204,7 +1204,7 @@ class OrgCRUDL(SmartCRUDL):
                 if request.POST.get("status", None) == "flag":
                     self.get_object().flag()
                 elif request.POST.get("status", None) == Org.STATUS_WHITELISTED:
-                    self.get_object().set_whitelisted()
+                    self.get_object().whitelist()
                 elif request.POST.get("status", None) == "unflag":
                     self.get_object().unflag()
                 elif request.POST.get("status", None) == "delete":
