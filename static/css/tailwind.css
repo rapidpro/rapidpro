@@ -904,6 +904,18 @@ video {
   font-family: var(--font-family);
 }
 
+.linked {
+  color: #4a4a4a;
+}
+
+.linked.active {
+    @apply: text-primary;
+  }
+
+.linked:hover {
+    color: rgb(var(--primary-rgb));
+  }
+
 .bounce {
   -webkit-animation-duration: 1s;
           animation-duration: 1s;
@@ -916,14 +928,16 @@ video {
 .button {
   padding-left: 1.5rem;
   padding-right: 1.5rem;
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  line-height: 1;
   font-size: 1.125rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   border-radius: 0.5rem;
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-duration: 300ms;
   text-align: center;
+  margin-top: 1px;
 }
 
 .button:hover {
@@ -935,14 +949,16 @@ video {
 .button-secondary {
   padding-left: 1.5rem;
   padding-right: 1.5rem;
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  line-height: 1;
   font-size: 1.125rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   border-radius: 0.5rem;
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-duration: 300ms;
   text-align: center;
+  margin-top: 1px;
   color: #fff;
   background-color: rgb(var(--secondary-rgb));
 }
@@ -956,14 +972,16 @@ video {
 .button-primary {
   padding-left: 1.5rem;
   padding-right: 1.5rem;
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  line-height: 1;
   font-size: 1.125rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   border-radius: 0.5rem;
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-duration: 300ms;
   text-align: center;
+  margin-top: 1px;
   color: #fff;
   background-color: rgb(var(--primary-rgb));
 }
@@ -977,14 +995,16 @@ video {
 .button-white {
   padding-left: 1.5rem;
   padding-right: 1.5rem;
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  line-height: 1;
   font-size: 1.125rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   border-radius: 0.5rem;
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-duration: 300ms;
   text-align: center;
+  margin-top: 1px;
   color: rgb(var(--primary-rgb));
   background-color: #fff;
 }
@@ -998,14 +1018,16 @@ video {
 .button-dark-alpha {
   padding-left: 1.5rem;
   padding-right: 1.5rem;
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  line-height: 1;
   font-size: 1.125rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   border-radius: 0.5rem;
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-duration: 300ms;
   text-align: center;
+  margin-top: 1px;
   color: #fff;
   background-color: rgba(0, 0, 0, .2);
 }
@@ -1019,14 +1041,16 @@ video {
 .button-sm {
   padding-left: 1.5rem;
   padding-right: 1.5rem;
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  line-height: 1;
   font-size: 1.125rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   border-radius: 0.5rem;
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-duration: 300ms;
   text-align: center;
+  margin-top: 1px;
   color: #fff;
   background-color: rgba(0, 0, 0, .2);
   font-size: 0.875rem;
@@ -1242,174 +1266,6 @@ video {
     transform: scale(1);
   }
 }
-
-.icon-nav-messages.active:before {
-    content: "\e085";
-  }
-
-.icon-nav-messages:hover:before {
-    content: "\e085";
-  }
-
-.icon-nav-learn.active:before {
-    content: "\e0b9";
-  }
-
-.icon-nav-learn:hover:before {
-    content: "\e0b9";
-  }
-
-.icon-nav-docs.active:before {
-    content: "\f15c";
-  }
-
-.icon-nav-docs:hover:before {
-    content: "\f15c";
-  }
-
-.icon-nav-analytics.active:before {
-    content: "\e087";
-  }
-
-.icon-nav-analytics:hover:before {
-    content: "\e087";
-  }
-
-.icon-more.active:before {
-    content: "\e0be";
-  }
-
-.icon-more:hover:before {
-    content: "\e0be";
-  }
-
-.icon-nav-orgs.active:before {
-    content: "\e0ad";
-  }
-
-.icon-nav-orgs:hover:before {
-    content: "\e0ad";
-  }
-
-.icon-nav-flows.active:before {
-    content: "\e08c";
-  }
-
-.icon-nav-flows:hover:before {
-    content: "\e08c";
-  }
-
-.icon-nav-contacts.active:before {
-    content: "\e081";
-  }
-
-.icon-nav-contacts:hover:before {
-    content: "\e081";
-  }
-
-.icon-nav-channels.active:before {
-    content: "\e098";
-  }
-
-.icon-nav-channels:hover:before {
-    content: "\e098";
-  }
-
-.icon-nav-home.active:before {
-    content: "\e083";
-  }
-
-.icon-nav-home:hover:before {
-    content: "\e083";
-  }
-
-.icon-nav-login:hover:before {
-    content: "\e090";
-  }
-
-.icon-nav-login.active:before {
-    content: "\e090";
-  }
-
-.icon-nav-channels:hover:before {
-    content: "\e098";
-  }
-
-.icon-nav-channels.active:before {
-    content: "\e098";
-  }
-
-.icon-nav-pricing:hover:before {
-    content: "\e09e";
-  }
-
-.icon-nav-pricing.active:before {
-    content: "\e09e";
-  }
-
-.icon-nav-groups.active:before {
-    content: "\e08e";
-  }
-
-.icon-nav-groups:hover:before {
-    content: "\e08e";
-  }
-
-.icon-nav-dashboard.active:before {
-    content: "\e0a3";
-  }
-
-.icon-nav-dashboard:hover:before {
-    content: "\e0a3";
-  }
-
-.icon-nav-android.active:before {
-    content: "\e089";
-  }
-
-.icon-nav-android:hover:before {
-    content: "\e089";
-  }
-
-.icon-nav-triggers.active:before {
-    content: "\e0a5";
-  }
-
-.icon-nav-triggers:hover:before {
-    content: "\e0a5";
-  }
-
-.icon-nav-locations.active:before {
-    content: "\e601";
-  }
-
-.icon-nav-locations:hover:before {
-    content: "\e601";
-  }
-
-.icon-nav-campaigns:hover:before {
-    content: "\e0bc";
-  }
-
-.icon-nav-campaigns.active:before {
-    content: "\e0bc";
-  }
-
-.icon-nav-blog.active:before {
-    content: "\e0b7";
-  }
-
-.icon-nav-blog:hover:before {
-    content: "\e0b7";
-  }
-
-.icon-nav-logout.active:before {
-    content: "\e0c8";
-  }
-
-.icon-nav-logout:hover:before {
-    content: "\e0c8";
-  }
 
 .space-y-0 > :not(template) ~ :not(template) {
   --space-y-reverse: 0;

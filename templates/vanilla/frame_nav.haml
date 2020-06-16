@@ -2,47 +2,134 @@
 -compress css
   {% lessblock %}
   :plain
-    .more {
-      &:hover {
-        .submenu-container {
-          visibility: visible;
-          max-height: 500px;
-          .nav-item {
-            opacity: 1;
+    #nav {
+      display: flex;
+      position: absolute;
+      top: 40px;
+      right: 20px;
+
+      .submenu {
+        display: flex;
+        flex-direction: column;
+        padding-top: 15px;
+
+        a {
+          width: 28px;
+          margin: auto;
+          .circle {
+            color: var(--color-primary-dark);
+            border-color: var(--color-primary-dark);
+            height: 28px;
+            width: 28px;
+            border-width: 2px;
+
+            div {
+              height: 14px;
+              width: 14px;
+              font-size: 14px;
+            }
+          }
+
+          .title {
+            color: var(--color-primary-dark);
+            margin-bottom: 10px;
+            font-size: 11px;
+            
+          }
+
+          &:hover {
+            .circle {
+              background: var(--color-primary-dark);
+              color: #fff;
+            }
           }
         }
       }
-    }
 
-    .submenu-container {     
-       
-      .nav-item {
-        transition: all 100ms ease-in-out;
-        opacity: 0;
-        font-size: 28px;
-        margin-bottom: 20px;
-        .title {
-          margin-top: -3px;
+      .more {
+        .icon-menu-4 {
+          width: 15px;
+          margin-left: 0px;
+          margin-right: 20px;
+          font-size: 36px;
+          color: #fff;
         }
       }
+    
+      a {
+        width: 75px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-decoration: none;
+        border: 0px solid red;
+        text-align: center;
 
-      /** The arrow caret at the top of the submenu */
-      .submenu::before {
-        position: absolute;
-        top: -7px;
-        left: 22px;
-        display: inline-block;
-        border-right: 7px solid transparent;
-        border-bottom: 7px solid #CCC;
-        border-left: 7px solid transparent;
-        border-bottom-color: #ffffff;
-        content: '';
+        &:hover, &.active{
+          text-decoration: none;
+          .circle {
+            background: #ffff;
+            color: var(--color-primary-dark);
+          }
+        }
+
+        .title {
+          font-size: 12px;
+          font-family: 'Helvetica Neue', sans-serif;
+          letter-spacing: 0.05em;
+          margin-top: 3px;
+          font-weight: 400;
+          color: rgba(255,255,255,.9);
+
+        }
+
+        .circle {
+
+          div {
+            border: 0px solid red;
+            width: 18px;
+            height: 20px;
+            text-align: center;
+            margin: 0;
+          }
+
+          .icon-3 {
+            font-size: 17px;
+            width: 16px;
+            height: 20px;
+          }
+
+          .icon-2 {
+            font-size: 15px;
+            width: 14px;
+            height: 12px;
+          }
+
+          .icon-1 {
+            font-size: 14px;
+            width: 14px;
+            height: 14px;
+          }
+
+          width: 32px;
+          height: 32px;
+          display: flex;
+          flex-direction: row;
+          justify-content: center;
+          align-items: center;
+          font-size:19px;
+          background: transparent;
+          color: #fff;
+          border-radius: 50%;
+          border: 3px solid #fff;
+          transition: all 150ms linear;
+        }
       }
     }
-    {% endlessblock %}
+  {% endlessblock %}
 
 
-#nav.flex.flex-row.items-stretch.px-6.py-12
+#nav.flex.flex-row.items-stretch.px-6.py-12.bg-primary
   .nav-item.flex-grow
 
   -for nav_item in nav

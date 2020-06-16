@@ -43,9 +43,26 @@
       %link{rel:"stylesheet", href:"{{ STATIC_URL }}css/temba-components.css", type:"text/css"}
       %link{rel:"stylesheet", href:"{{ STATIC_URL }}css/tailwind.css", type:"text/css"}
 
+      %style{"text/css"}
+        :plain
+          html {
+            --curvature: 6px;
+            --curvature-widget: 6px;
+            --color-focus: transparent;
+            --color-widget-bg: #fff;
+            --color-widget-bg-focused: #fff;
+            --color-widget-border: rgb(224, 224, 224);
+            --widget-box-shadow-focused: 0px 0px 0px 2px rgba(var(--primary-rgb), 0.4);
+          }
+
+          .active > .submenu {
+            display: block;
+          }
+
       -block extra-style
       -compress css
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
+        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/icons/style.css", media:'all'}
 
         {% lessblock %}
           :plain
@@ -67,20 +84,35 @@
     -block extra-head
 
 -block body
-  %body.flex.flex-col.items-stretch.min-h-screen
+  %body
     -include "components-body.html"
 
-    #frame-header
-      -block frame-header
-        -include "vanilla/frame_header.haml"
+    #frame-body.min-h-screen
+      .flex
+        .left.py-2.pl-6.bg-white.w-64.shadow-lg
+          %a#big-logo.text-primary.text-6xl.logo.icon-logo{href:"/", title:"{{brand.name}}"}
+          .nav.text-gray-700.mt-4
+            -for nav_item in nav
+              .nav-item.pt-3{class:'{{nav_item.tag}}'}
+                .flex.flex-col{class:"{% active request nav_item.active %}"}
+                  %a{href:"{% ssl_brand_url nav_item.href %}"}
+                    .flex.items-center
+                      .icon.text-xl.text-primary{class:"icn-{{nav_item.icon}}"}
+                      .title.ml-3.font-normal.text-lg.text-gray-700.linked
+                        {{nav_item.title}}
+                  .hidden.submenu.py-5.pr-4.-ml-6.pl-6.mt-4.mb-4.bg-gray-100
+                    -block submenu
+                    
+        .right.flex-grow.bg-dark-alpha-50
 
-    #frame-body.flex-grow
-      -block frame-body
-        -include "vanilla/frame_body.haml"
+          .flex.flex-col.min-h-screen
+            .px-6.flex-grow
+              -block frame-body
 
-    #frame-footer
-      -block frame-footer
-        -include "vanilla/frame_footer.html"
+            #frame-footer
+              -block frame-footer
+                .bg-gray-100.text-gray-400.py-12.border-t.self-center.text-center.min-h-full.mt-8
+                  #copyright {{ request.branding.credits|safe }}
 
   -block extra-body
 
