@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-15 18:57+0000\n"
+"POT-Creation-Date: 2020-06-16 18:20+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3099,7 +3099,7 @@ msgstr ""
 msgid "This flow is already being started, please wait until that process is complete before starting more contacts."
 msgstr ""
 
-msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
 msgstr ""
 
 msgid "Add Contacts to Flow"
@@ -3511,40 +3511,10 @@ msgstr ""
 msgid "Update Label"
 msgstr ""
 
-msgid "Free Plan"
-msgstr ""
-
-msgid "Trial"
-msgstr ""
-
-msgid "Bronze"
-msgstr ""
-
-msgid "Silver"
-msgstr ""
-
-msgid "Gold (Legacy)"
-msgstr ""
-
-msgid "Platinum (Legacy)"
-msgstr ""
-
-msgid "Gold"
-msgstr ""
-
-msgid "Platinum"
-msgstr ""
-
 msgid "Plan"
 msgstr ""
 
 msgid "What plan your organization is on"
-msgstr ""
-
-msgid "Plan Start"
-msgstr ""
-
-msgid "When the user switched to this plan"
 msgstr ""
 
 msgid "Stripe Customer"
@@ -3602,6 +3572,15 @@ msgid "This slug is not available"
 msgstr ""
 
 msgid "Whether this organization anonymizes the phone numbers of contacts within it"
+msgstr ""
+
+msgid "Whether this organization is currently flagged."
+msgstr ""
+
+msgid "Whether this organization is currently suspended."
+msgstr ""
+
+msgid "Whether this organization uses topups."
 msgstr ""
 
 msgid "The primary language will be used for contacts with no language preference."
@@ -3956,10 +3935,10 @@ msgstr ""
 msgid "Topups"
 msgstr ""
 
-msgid "Restore"
+msgid "Unflag"
 msgstr ""
 
-msgid "Suspend"
+msgid "Flag"
 msgstr ""
 
 msgid "Whitelist"

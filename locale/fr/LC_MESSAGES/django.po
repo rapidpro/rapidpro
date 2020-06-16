@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-15 18:57+0000\n"
+"POT-Creation-Date: 2020-06-16 18:20+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3380,7 +3380,9 @@ msgstr "Vous devez spécifier au moins un contact ou un groupe pour démarrer un
 msgid "This flow is already being started, please wait until that process is complete before starting more contacts."
 msgstr "Ce flux est déjà en cours de démarrage. Veuillez patienter jusqu'à la fin du processus avant de démarrer d'autres contacts."
 
-msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+#, fuzzy
+#| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
 msgstr "Désolé, votre compte est actuellement suspendu. Pour activer l'envoi de messages, veuillez contacter le support."
 
 msgid "Add Contacts to Flow"
@@ -3792,41 +3794,11 @@ msgstr "Mettre à jour le dossier"
 msgid "Update Label"
 msgstr "Mise à jour du libellé"
 
-msgid "Free Plan"
-msgstr "Plan Free"
-
-msgid "Trial"
-msgstr "Test"
-
-msgid "Bronze"
-msgstr "Bronze"
-
-msgid "Silver"
-msgstr "Argent"
-
-msgid "Gold (Legacy)"
-msgstr "Or(Legacy)"
-
-msgid "Platinum (Legacy)"
-msgstr "Platinum(Legacy)"
-
-msgid "Gold"
-msgstr "Or"
-
-msgid "Platinum"
-msgstr "Platinum"
-
 msgid "Plan"
 msgstr "Plan"
 
 msgid "What plan your organization is on"
 msgstr "Sur quel plan votre organisation est"
-
-msgid "Plan Start"
-msgstr "Démarrer le plan"
-
-msgid "When the user switched to this plan"
-msgstr "Lorsque l'utilisateur passe à ce plan"
 
 msgid "Stripe Customer"
 msgstr "Bande consommateur"
@@ -3884,6 +3856,21 @@ msgstr "Ce bloc n'est pas disponible"
 
 msgid "Whether this organization anonymizes the phone numbers of contacts within it"
 msgstr "Si cette organisation anonymise les numéros de téléphone de contacts en son sein"
+
+#, fuzzy
+#| msgid "What organization is this account for?"
+msgid "Whether this organization is currently flagged."
+msgstr "Quel est l'organisme appartient ce compte?"
+
+#, fuzzy
+#| msgid "This organization has been suspended"
+msgid "Whether this organization is currently suspended."
+msgstr "Cette organisation a été suspendue"
+
+#, fuzzy
+#| msgid "This organization has been suspended"
+msgid "Whether this organization uses topups."
+msgstr "Cette organisation a été suspendue"
 
 msgid "The primary language will be used for contacts with no language preference."
 msgstr "La langue principale sera utilisée pour les contacts sans préférence linguistique."
@@ -4237,11 +4224,11 @@ msgstr "Impossible d'envoyer un e-mail avec la configuration du serveur STMP"
 msgid "Topups"
 msgstr "Les recharges"
 
-msgid "Restore"
-msgstr "Restaurer"
+msgid "Unflag"
+msgstr ""
 
-msgid "Suspend"
-msgstr "Suspendre"
+msgid "Flag"
+msgstr ""
 
 msgid "Whitelist"
 msgstr "Liste blanche"
@@ -10587,6 +10574,42 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Restore"
+#~ msgstr "Restaurer"
+
+#~ msgid "Suspend"
+#~ msgstr "Suspendre"
+
+#~ msgid "Free Plan"
+#~ msgstr "Plan Free"
+
+#~ msgid "Trial"
+#~ msgstr "Test"
+
+#~ msgid "Bronze"
+#~ msgstr "Bronze"
+
+#~ msgid "Silver"
+#~ msgstr "Argent"
+
+#~ msgid "Gold (Legacy)"
+#~ msgstr "Or(Legacy)"
+
+#~ msgid "Platinum (Legacy)"
+#~ msgstr "Platinum(Legacy)"
+
+#~ msgid "Gold"
+#~ msgstr "Or"
+
+#~ msgid "Platinum"
+#~ msgstr "Platinum"
+
+#~ msgid "Plan Start"
+#~ msgstr "Démarrer le plan"
+
+#~ msgid "When the user switched to this plan"
+#~ msgstr "Lorsque l'utilisateur passe à ce plan"
 
 #~ msgid "Webhook"
 #~ msgstr "Webhook"

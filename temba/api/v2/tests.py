@@ -763,13 +763,13 @@ class APITest(TembaTest):
         broadcast = Broadcast.objects.get(id=response.json()["id"])
         self.assertEqual({"base": "You are @fields.age"}, broadcast.text)
 
-        # try sending as a suspended org
-        self.org.set_suspended()
+        # try sending as a flagged org
+        self.org.flag()
         response = self.postJSON(url, None, {"text": "Hello", "urns": ["twitter:franky"]})
         self.assertResponseError(
             response,
             "non_field_errors",
-            "Sorry, your account is currently suspended. To enable " "sending messages, please contact support.",
+            "Sorry, your account is currently flagged. To enable " "sending messages, please contact support.",
         )
 
     def test_archives(self):

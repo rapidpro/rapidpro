@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-15 18:57+0000\n"
+"POT-Creation-Date: 2020-06-16 18:20+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4520,7 +4520,7 @@ msgstr ""
 msgid "This flow is already being started, please wait until that process is complete before starting more contacts."
 msgstr ""
 
-msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
 msgstr ""
 
 msgid "Add Contacts to Flow"
@@ -5009,41 +5009,11 @@ msgstr "Actualizar campos"
 msgid "Update Label"
 msgstr "Actualizar etiqueta"
 
-msgid "Free Plan"
-msgstr "Plan libre"
-
-msgid "Trial"
-msgstr "Prueba"
-
-msgid "Bronze"
-msgstr "Bronce"
-
-msgid "Silver"
-msgstr "Plata"
-
-msgid "Gold (Legacy)"
-msgstr "Oro (Legado)"
-
-msgid "Platinum (Legacy)"
-msgstr "Platino (Legado)"
-
-msgid "Gold"
-msgstr "Oro"
-
-msgid "Platinum"
-msgstr "Platino"
-
 msgid "Plan"
 msgstr "Plan"
 
 msgid "What plan your organization is on"
 msgstr "En qué plan está su organización"
-
-msgid "Plan Start"
-msgstr "Inicio de plan"
-
-msgid "When the user switched to this plan"
-msgstr "Cuándo el usuario se cambió a este plan"
 
 msgid "Stripe Customer"
 msgstr "Stripe Customer"
@@ -5103,6 +5073,21 @@ msgstr "Este slug no está disponible"
 
 msgid "Whether this organization anonymizes the phone numbers of contacts within it"
 msgstr "Si esta organización anonimiza los números de teléfonos de sus contactos "
+
+#, fuzzy
+#| msgid "Whether this report is currently published"
+msgid "Whether this organization is currently flagged."
+msgstr "Si este informe está publicado actualmente"
+
+#, fuzzy
+#| msgid "Whether this report is currently published"
+msgid "Whether this organization is currently suspended."
+msgstr "Si este informe está publicado actualmente"
+
+#, fuzzy
+#| msgid "Whether this report is currently published"
+msgid "Whether this organization uses topups."
+msgstr "Si este informe está publicado actualmente"
 
 msgid "The primary language will be used for contacts with no language preference."
 msgstr "Para los contactos sin preferencia de idioma, se usará el idioma principal"
@@ -5506,12 +5491,10 @@ msgstr ""
 msgid "Topups"
 msgstr ""
 
-#, fuzzy
-#| msgid "Restore Flows"
-msgid "Restore"
-msgstr "Restaurar flujos"
+msgid "Unflag"
+msgstr ""
 
-msgid "Suspend"
+msgid "Flag"
 msgstr ""
 
 msgid "Whitelist"
@@ -12743,6 +12726,41 @@ msgstr "Ingrese el código de pedido"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
+#, fuzzy
+#~| msgid "Restore Flows"
+#~ msgid "Restore"
+#~ msgstr "Restaurar flujos"
+
+#~ msgid "Free Plan"
+#~ msgstr "Plan libre"
+
+#~ msgid "Trial"
+#~ msgstr "Prueba"
+
+#~ msgid "Bronze"
+#~ msgstr "Bronce"
+
+#~ msgid "Silver"
+#~ msgstr "Plata"
+
+#~ msgid "Gold (Legacy)"
+#~ msgstr "Oro (Legado)"
+
+#~ msgid "Platinum (Legacy)"
+#~ msgstr "Platino (Legado)"
+
+#~ msgid "Gold"
+#~ msgstr "Oro"
+
+#~ msgid "Platinum"
+#~ msgstr "Platino"
+
+#~ msgid "Plan Start"
+#~ msgstr "Inicio de plan"
+
+#~ msgid "When the user switched to this plan"
+#~ msgstr "Cuándo el usuario se cambió a este plan"
+
 #~ msgid "Webhook"
 #~ msgstr "Webhook"
 
@@ -14254,9 +14272,6 @@ msgstr ""
 
 #~ msgid "The JSON encoded configurations for this report"
 #~ msgstr "Configuraciones codificadas JSON para este informe"
-
-#~ msgid "Whether this report is currently published"
-#~ msgstr "Si este informe está publicado actualmente"
 
 #, fuzzy
 #~ msgid "Numeric"

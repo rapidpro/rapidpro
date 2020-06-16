@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-15 18:57+0000\n"
+"POT-Creation-Date: 2020-06-16 18:20+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3342,7 +3342,9 @@ msgstr "Вы должны указать по меньшей мере один �
 msgid "This flow is already being started, please wait until that process is complete before starting more contacts."
 msgstr "Данный поток уже был запущен, пожалуйста, дождитесь окончания процесса до запуска большего количества контактов."
 
-msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+#, fuzzy
+#| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
 msgstr "Извините, Ваша учетная запись в настоящее время заблокирована. Чтобы получить возможность отправки сообщений, обратитесь в службу поддержки."
 
 msgid "Add Contacts to Flow"
@@ -3754,41 +3756,11 @@ msgstr "Обновить Папку"
 msgid "Update Label"
 msgstr "Обновить Метку"
 
-msgid "Free Plan"
-msgstr "Свободный План"
-
-msgid "Trial"
-msgstr "Пробный"
-
-msgid "Bronze"
-msgstr "Бронзовый"
-
-msgid "Silver"
-msgstr "Серебряный "
-
-msgid "Gold (Legacy)"
-msgstr "Золотой (прежний)"
-
-msgid "Platinum (Legacy)"
-msgstr "Платиновый (прежний)"
-
-msgid "Gold"
-msgstr "Золотой"
-
-msgid "Platinum"
-msgstr "Платиновый "
-
 msgid "Plan"
 msgstr "План"
 
 msgid "What plan your organization is on"
 msgstr "На каком плане находится Ваша организация"
-
-msgid "Plan Start"
-msgstr "Запуск Плана"
-
-msgid "When the user switched to this plan"
-msgstr "Когда пользователь переключился на этот план"
 
 msgid "Stripe Customer"
 msgstr "Клиент Stripe "
@@ -3846,6 +3818,21 @@ msgstr "Этот slug не доступен."
 
 msgid "Whether this organization anonymizes the phone numbers of contacts within it"
 msgstr "Осуществляет ли эта организация анонимизацию телефонных номеров внутренних контактов "
+
+#, fuzzy
+#| msgid "What organization is this account for?"
+msgid "Whether this organization is currently flagged."
+msgstr "Для какой организации предназначена эта учетная запись?"
+
+#, fuzzy
+#| msgid "This organization has been suspended"
+msgid "Whether this organization is currently suspended."
+msgstr "Данная организация была заблокирована."
+
+#, fuzzy
+#| msgid "This organization has been suspended"
+msgid "Whether this organization uses topups."
+msgstr "Данная организация была заблокирована."
 
 msgid "The primary language will be used for contacts with no language preference."
 msgstr "Основной язык, который будет использоваться для контактов без языковых предпочтений."
@@ -4199,11 +4186,11 @@ msgstr "Не удалось отправить электронное письм
 msgid "Topups"
 msgstr "Пополнения"
 
-msgid "Restore"
-msgstr "Восстановить"
+msgid "Unflag"
+msgstr ""
 
-msgid "Suspend"
-msgstr "Приостановить "
+msgid "Flag"
+msgstr ""
 
 msgid "Whitelist"
 msgstr "Белый список"
@@ -10773,6 +10760,42 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Restore"
+#~ msgstr "Восстановить"
+
+#~ msgid "Suspend"
+#~ msgstr "Приостановить "
+
+#~ msgid "Free Plan"
+#~ msgstr "Свободный План"
+
+#~ msgid "Trial"
+#~ msgstr "Пробный"
+
+#~ msgid "Bronze"
+#~ msgstr "Бронзовый"
+
+#~ msgid "Silver"
+#~ msgstr "Серебряный "
+
+#~ msgid "Gold (Legacy)"
+#~ msgstr "Золотой (прежний)"
+
+#~ msgid "Platinum (Legacy)"
+#~ msgstr "Платиновый (прежний)"
+
+#~ msgid "Gold"
+#~ msgstr "Золотой"
+
+#~ msgid "Platinum"
+#~ msgstr "Платиновый "
+
+#~ msgid "Plan Start"
+#~ msgstr "Запуск Плана"
+
+#~ msgid "When the user switched to this plan"
+#~ msgstr "Когда пользователь переключился на этот план"
 
 #~ msgid "Webhook"
 #~ msgstr "Вебхук"
