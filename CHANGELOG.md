@@ -1,3 +1,7 @@
+v5.5.61
+----------
+ * Add new boolean fields to org for suspended, flagged and uses_topups and remove no longer used plan stuff
+
 v5.5.60
 ----------
  * Move webhook log button to flow list page
