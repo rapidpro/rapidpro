@@ -50,7 +50,7 @@ from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
 from temba.orgs.models import BackupToken, Debit, OrgActivity, UserSettings
 from temba.request_logs.models import HTTPLog
-from temba.tests import ESMockWithScroll, MigrationTest, MockResponse, TembaNonAtomicTest, TembaTest, matchers
+from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
@@ -4879,34 +4879,3 @@ class OrgActivityTest(TembaTest):
         self.assertEqual(1, activity.active_contact_count)
         self.assertEqual(2, activity.incoming_count)
         self.assertEqual(1, activity.outgoing_count)
-
-
-class PopulateNewOrgFieldsMigrationTest(MigrationTest):
-    app = "orgs"
-    migrate_from = "0063_auto_20200616_1624"
-    migrate_to = "0064_populate_new_org_fields"
-
-    def setUpBeforeMigration(self, apps):
-        self.org2.config["status"] = "suspended"
-        self.org2.save()
-
-        # put org values back to the way they were
-        Org.objects.all().update(plan="FREE", is_flagged=None, is_suspended=None, uses_topups=None)
-
-    def test_migration(self):
-        self.org.refresh_from_db()
-        self.org2.refresh_from_db()
-
-        # everybody on the topup plan
-        self.assertEqual("topups", self.org.plan)
-        self.assertEqual("topups", self.org2.plan)
-        self.assertTrue(self.org.uses_topups)
-        self.assertTrue(self.org2.uses_topups)
-
-        # org2 flagged as it was suspended
-        self.assertFalse(self.org.is_flagged)
-        self.assertTrue(self.org2.is_flagged)
-
-        # neither org suspended
-        self.assertFalse(self.org.is_suspended)
-        self.assertFalse(self.org2.is_suspended)
