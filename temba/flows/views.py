@@ -5,8 +5,8 @@ from uuid import uuid4
 import iso8601
 import regex
 import requests
-import redis
 
+from django_redis import get_redis_connection
 from packaging.version import Version
 from smartmin.views import (
     SmartCreateView,
@@ -1650,27 +1650,21 @@ class FlowCRUDL(SmartCRUDL):
 
             # check if there is no other users that edititing current flow
             # then make this user as main editor and set expiration time of editing to this user
-            password = getattr(settings, "REDIS_PW", None)
-            flow_editors_cache = redis.Redis(
-                host=settings.REDIS_HOST,
-                port=settings.REDIS_PORT,
-                db=settings.REDIS_DB,
-                password=password,
-            )
+            r = get_redis_connection()
             flow_key = f"active-flow-editor-{flow.uuid}"
-            active_flow_editor = flow_editors_cache.get(flow_key)
+            active_flow_editor = r.get(flow_key)
             if active_flow_editor is not None:
                 active_editor_email = active_flow_editor.decode()
                 if active_editor_email == self.request.user.username:
                     return context
-                
+
                 context["mutable"] = False
-                context["immutable_alert"] = _(
-                    "%s is currently editing this Flow. "
-                    "You can open this flow only in view mode."
-                ) % active_editor_email
+                context["immutable_alert"] = (
+                    _("%s is currently editing this Flow. You can open this flow only in view mode.")
+                    % active_editor_email
+                )
             else:
-                flow_editors_cache.set(flow_key, self.request.user.username, ex=30)
+                r.set(flow_key, self.request.user.username, ex=30)
             return context
 
         def get_gear_links(self):
@@ -2152,18 +2146,12 @@ class FlowCRUDL(SmartCRUDL):
             (active, visited) = flow.get_activity()
 
             # update expiration time of editing for active editor
-            password = getattr(settings, "REDIS_PW", None)
-            flow_editors_cache = redis.Redis(
-                host=settings.REDIS_HOST,
-                port=settings.REDIS_PORT,
-                db=settings.REDIS_DB,
-                password=password,
-            )
+            r = get_redis_connection()
             flow_key = f"active-flow-editor-{flow.uuid}"
-            active_editor = flow_editors_cache.get(flow_key)
+            active_editor = r.get(flow_key)
             if active_editor is not None:
                 if self.request.user.username == active_editor.decode():
-                    flow_editors_cache.expire(flow_key, 30)
+                    r.expire(flow_key, 30)
 
             return JsonResponse(dict(nodes=active, segments=visited, is_starting=flow.is_starting()))
 
