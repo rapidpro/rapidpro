@@ -31,7 +31,7 @@ We've noticed that the {{ channel_type }} for {{ org_name }} is having trouble s
 {% endblocktrans %}
 
 {% blocktrans with channel_type=channel.get_channel_type_name %}
-Please check on your {{ channel_type }} to make sure it has sufficient credit and can send text messages. Currently your {{ channel_type }} has {{ unsent_count }} messages which haven't sent in over an hour.
+Please check on your {{ channel_type }} to make sure it has sufficient credit and can send text messages. There are messages that have failed to send in your account.
 {% endblocktrans %}
 {% endif %}
 

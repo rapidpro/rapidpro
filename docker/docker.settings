@@ -198,3 +198,24 @@ AUTHY_API_KEY = os.environ.get("AUTHY_API_KEY", "")
 AUTHY_MAGIC_PASS = os.environ.get("AUTHY_MAGIC_PASS", "")
 
 MAX_ORG_CONTACTGROUPS = int(os.environ.get("MAX_ORG_CONTACTGROUPS", 250))
+
+# Migration config
+_ccl_v1_database_config = {
+    "ENGINE": "django.contrib.gis.db.backends.postgis",
+    "NAME": os.environ.get("MIGRATION_DB_NAME", ""),
+    "USER": os.environ.get("MIGRATION_DB_USER", ""),
+    "PASSWORD": os.environ.get("MIGRATION_DB_PASSWORD", ""),
+    "HOST": os.environ.get("MIGRATION_DB_HOST", ""),
+    "PORT": int(os.environ.get("MIGRATION_DB_PORT", "5432")),
+    "ATOMIC_REQUESTS": os.environ.get("MIGRATION_DB_ATOMIC_REQUESTS", "true") == "true",
+    "CONN_MAX_AGE": int(os.environ.get("MIGRATION_DB_CONN_MAX_AGE", 60)),
+    "OPTIONS": json.loads(os.environ.get("MIGRATION_DB_OPTIONS", "{}")),
+}
+_ccl_v1_direct_database_config = _ccl_v1_database_config.copy()
+_ccl_v1_direct_database_config["DISABLE_SERVER_SIDE_CURSORS"] = True
+
+DB_MIGRATION = os.environ.get("MIGRATION_CONNECTION_NAME", "live_server")
+
+DATABASES[DB_MIGRATION] = _ccl_v1_direct_database_config
+
+MIGRATION_FROM_URL = os.environ.get("MIGRATION_SERVER_URL", "https://live.communityconnectlabs.com")

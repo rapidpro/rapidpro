@@ -2754,6 +2754,9 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_import"):
                 links.append(dict(title=_("Import"), href=reverse("orgs.org_import")))
 
+            if self.request.user.is_superuser:
+                links.append(dict(title=_("Migrate data"), href=reverse("migrator.migrationtask_create")))
+
             return links
 
         def add_channel_section(self, formax, channel):

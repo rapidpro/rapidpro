@@ -955,7 +955,7 @@ class Channel(TembaModel):
 
         org.normalize_contact_tels()
 
-    def release(self, trigger_sync=True):
+    def release(self, trigger_sync=True, deactivate=True):
         """
         Releases this channel making it inactive
         """
@@ -981,7 +981,7 @@ class Channel(TembaModel):
             sync_event.release()
 
         # only call out to external aggregator services if we are on prod servers
-        if settings.IS_PROD:
+        if settings.IS_PROD and deactivate:
             try:
                 # if channel is a new style type, deactivate it
                 channel_type.deactivate(self)
@@ -1710,10 +1710,9 @@ class Alert(SmartModel):
 
         # end any sms alerts that are open and no longer seem valid
         for alert in Alert.objects.filter(alert_type=cls.TYPE_SMS, ended_on=None).distinct("channel_id"):
-            # are there still queued messages?
-
+            # are there still queued or errored messages?
             if (
-                not Msg.objects.filter(status__in=["Q", "P", "E", "F"], channel_id=alert.channel_id)
+                not Msg.objects.filter(status__in=["Q", "P", "E"], channel_id=alert.channel_id)
                 .exclude(Q(created_on__gte=thirty_minutes_ago) & Q(status__in=["Q", "P"]))
                 .exclude(created_on__lte=day_ago)
                 .exists()
@@ -1724,7 +1723,7 @@ class Alert(SmartModel):
 
         # now look for channels that have many unsent messages or messages that ware failed
         queued_messages = (
-            Msg.objects.filter(status__in=["Q", "P", "E", "F"])
+            Msg.objects.filter(status__in=["Q", "P", "E"])
             .order_by("channel", "created_on")
             .exclude(Q(created_on__gte=thirty_minutes_ago) & Q(status__in=["Q", "P"]))
             .exclude(created_on__lte=day_ago)
@@ -1816,7 +1815,12 @@ class Alert(SmartModel):
             last_seen=self.channel.last_seen,
             sync=self.sync_event,
         )
-        context["unsent_count"] = Msg.objects.filter(channel=self.channel, status__in=["Q", "P"]).count()
+        six_hours_ago = timezone.now() - timedelta(hours=6)
+        context["unsent_count"] = (
+            Msg.objects.filter(channel=self.channel)
+            .filter(Q(status__in=["Q", "P"]) | (Q(status="E") & Q(created_on__gt=six_hours_ago)))
+            .count()
+        )
         context["subject"] = subject
 
         send_template_email(self.channel.alert_email, subject, template, context, self.channel.org.get_branding())

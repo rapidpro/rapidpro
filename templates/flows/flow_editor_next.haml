@@ -148,6 +148,7 @@
 -block extra-script
   {{ block.super }}
 
+  %script{type:'text/javascript', src:'{{ STATIC_URL }}js/html2canvas.min.js'}
   -for script in scripts
     %script{type:'text/javascript', src:'{{script}}'}
 
@@ -169,11 +170,87 @@
       $('#rp-flow-editor > div').css('opacity', '1')
       $('[class*="components_printButton"]').click((e) => {
         e.stopPropagation(); // Prevent print to PDF call on this page.
-        Object.assign(document.createElement('a'), {
-          target: '_blank',
-          href: '{% url "flows.flow_export_pdf" object.uuid %}'
-        }).click();
+        if ($.browser.mozilla) {
+          // For Mozilla Firefox we use a different way of exporting because it correctly exports to PDF only the first page.
+          let modal = new ConfirmationModal(gettext("Flow Export"), gettext("The current flow will be exported as an image."));
+          modal.ele.find(".primary").click(() => {
+            modal.setMessage(gettext("Exporting in progress..."));
+            modal.ele.find('.loader').show();
+            modal.ele.find('.modal-footer').hide();
+            exportFlowAsImage(() => modal.dismiss());
+          });
+          modal.show();
+        } else {
+          // In all other case we use normal exporting.
+          Object.assign(document.createElement('a'), {
+            target: '_blank',
+            href: '{% url "flows.flow_export_pdf" object.uuid %}'
+          }).click();
+        }
       })
+    }
+
+    function prepareDataForImageExport(documentCopy) {
+
+      function replaceContent(element, content) {
+        let newElement = documentCopy.createElement('span');
+        newElement.innerHTML = content;
+        element.parentNode.replaceChild(newElement, element);
+      }
+
+      documentCopy.querySelectorAll('[class*="fe-"]').forEach((el) => {
+        if (el.className.includes('fe-paperclip')) {
+          replaceContent(el, "📎");
+        } else if (el.className.includes('fe-group')) {
+          replaceContent(el, "👥");
+        } else if (el.className.includes('fe-label')) {
+          replaceContent(el, "🏷️");
+        } else {
+          replaceContent(el, "");
+        }
+      });
+      documentCopy.querySelectorAll('[class*="Pill_pill"], [class*="Exit_name"]').forEach((el) => {
+        el.style.fontSize = (parseFloat(window.getComputedStyle(el).fontSize) - 1) + 'px';
+      });
+    }
+
+    function exportFlowAsImage(callback) {
+      setTimeout(() => {
+        let body = document.body;
+        let html = document.documentElement;
+        let width = Math.max( body.scrollWidth, body.offsetWidth, html.clientWidth, html.scrollWidth, html.offsetWidth );
+        let container = $("#editor-container");
+        let config = {
+          x: 0,
+          y: 0,
+          scrollX: 0,
+          scrollY: 0,
+          width: width,
+          height: container.height(),
+          allowTaint: true,
+          foreignObjectRendering: true,
+          imageTimeout: 30000,
+          logging: true,
+          useCORS: true,
+          onclone: prepareDataForImageExport,
+          ignoreElements: (elem) => {
+            return false;
+            let style = $(elem).attr('class') || '';
+            if (style.includes('components_printButton') || style.includes('Simulator_simulator') || style.includes('PopTab_tab')) {
+              return true;
+            }
+            return false;
+          }
+        };
+        html2canvas(container[0], config).then (canvas => {
+          Object.assign(document.createElement('a'), {
+            download: "{{title}}.jpg",
+            href: canvas.toDataURL('jpeg', 1.0),
+          })
+          .click();
+          callback();
+        });
+      }, 1000)
     }
 
     function handleActivityClicked(nodeUUID, count) {

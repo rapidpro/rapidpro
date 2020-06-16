@@ -37,6 +37,7 @@ urlpatterns = [
     url(r"^", include("temba.request_logs.urls")),
     url(r"^", include("temba.schedules.urls")),
     url(r"^", include("temba.triggers.urls")),
+    url(r"^", include("temba.migrator.urls")),
     url(r"^relayers/relayer/sync/(\d+)/$", sync, {}, "sync"),
     url(r"^relayers/relayer/register/$", register, {}, "register"),
     url(r"^users/", include("smartmin.users.urls")),
