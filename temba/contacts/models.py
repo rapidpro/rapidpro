@@ -1923,7 +1923,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                     last_path = path
 
                     if sequential > SEQUENTIAL_CONTACTS_THRESHOLD:
-                        group_org.set_suspended()
+                        group_org.flag()
                         break
 
             except Exception:  # pragma: no cover

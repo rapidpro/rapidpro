@@ -1098,12 +1098,10 @@ class OrgCRUDL(SmartCRUDL):
             )
 
         def get_name(self, obj):
-            suspended = ""
-            if obj.is_suspended():
-                suspended = '<span class="suspended">(Suspended)</span>'
+            flagged = '<span class="flagged">(Flagged)</span>' if obj.is_legacy_suspended() else ""
 
             return mark_safe(
-                f"<div class='org-name'>{suspended} {escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div>"
+                f"<div class='org-name'>{flagged} {escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div>"
             )
 
         def derive_queryset(self, **kwargs):
@@ -1168,22 +1166,22 @@ class OrgCRUDL(SmartCRUDL):
                     )
                 )
 
-                if org.is_suspended():
+                if org.is_legacy_suspended():
                     links.append(
                         dict(
-                            title=_("Restore"),
+                            title=_("Unflag"),
                             style="btn-secondary",
                             posterize=True,
-                            href="%s?status=restored" % reverse("orgs.org_update", args=[org.pk]),
+                            href="%s?status=unflag" % reverse("orgs.org_update", args=[org.pk]),
                         )
                     )
                 else:  # pragma: needs cover
                     links.append(
                         dict(
-                            title=_("Suspend"),
+                            title=_("Flag"),
                             style="btn-secondary",
                             posterize=True,
-                            href="%s?status=suspended" % reverse("orgs.org_update", args=[org.pk]),
+                            href="%s?status=flag" % reverse("orgs.org_update", args=[org.pk]),
                         )
                     )
 
@@ -1203,12 +1201,12 @@ class OrgCRUDL(SmartCRUDL):
 
         def post(self, request, *args, **kwargs):
             if "status" in request.POST:
-                if request.POST.get("status", None) == Org.STATUS_SUSPENDED:
-                    self.get_object().set_suspended()
+                if request.POST.get("status", None) == "flag":
+                    self.get_object().flag()
                 elif request.POST.get("status", None) == Org.STATUS_WHITELISTED:
                     self.get_object().set_whitelisted()
-                elif request.POST.get("status", None) == Org.STATUS_RESTORED:
-                    self.get_object().set_restored()
+                elif request.POST.get("status", None) == "unflag":
+                    self.get_object().unflag()
                 elif request.POST.get("status", None) == "delete":
                     self.get_object().release()
                 return HttpResponseRedirect(self.get_success_url())

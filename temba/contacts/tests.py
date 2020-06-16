@@ -5034,9 +5034,10 @@ class ContactTest(TembaTest):
             "'Lang' contact field has 'language' key which is reserved name. " "Column cannot be imported",
         )
 
-        # we shouldn't be suspended
+        # we shouldn't be flagged
         self.org.refresh_from_db()
-        self.assertFalse(self.org.is_suspended())
+        self.assertFalse(self.org.is_flagged)
+        self.assertFalse(self.org.is_legacy_suspended())
 
         # invalid import params
         with self.assertRaises(Exception):
@@ -5217,18 +5218,18 @@ class ContactTest(TembaTest):
     def test_import_sequential_numbers(self):
 
         org = self.user.get_org()
-        self.assertFalse(org.is_suspended())
+        self.assertFalse(org.is_legacy_suspended())
 
         # importing sequential numbers should automatically suspend our org
         self.do_import(self.user, "sample_contacts_sequential.xls")
         org.refresh_from_db()
-        self.assertTrue(org.is_suspended())
+        self.assertTrue(org.is_legacy_suspended())
 
         # now whitelist the account
         self.org.set_whitelisted()
         self.do_import(self.user, "sample_contacts_sequential.xls")
         org.refresh_from_db()
-        self.assertFalse(org.is_suspended())
+        self.assertFalse(org.is_legacy_suspended())
 
     def test_import_methods(self):
         user = self.user
@@ -7488,7 +7489,6 @@ class ESIntegrationTest(TembaNonAtomicTest):
             self.assertEqual(q("0188382011"), 0)
             self.assertRaises(SearchException, q, "tel is +250188382011")
             self.assertRaises(SearchException, q, "twitter has tweep")
-            self.assertRaises(SearchException, q, 'twitter = ""')
 
             # anon orgs can search by id, with or without zero padding
             self.assertEqual(q("%d" % contact.pk), 1)

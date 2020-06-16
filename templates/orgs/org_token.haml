@@ -6,18 +6,21 @@
   span8
 
 -block fields
-  .field.api-token{ style:"padding-bottom: 10px" }
+  .field.api-token(style="padding-bottom: 10px")
     API Token: <span id="api_token">{{user.api_token}}</span>
     <a href="javascript:refreshToken()" class='api-token-refresh'><div class="icon-loop"></div></a>
-- block form-buttons
-    %a.btn{ href: '{% url "api" %}', style:'width: 100px;'}
-      -trans "API Docs"
 
-    %a.btn{ href: '{% url "api.webhookresult_list" %}', style:'width: 100px;', class: '{% if failed_webhooks %} btn-danger{% endif %}'}
-      -trans "Webhook Log"
+-block form-buttons
+  %a.btn(href="{% url 'api.v2' %}" style="width: 100px;")
+    -trans "API Docs"
+
+  %a.btn(href="{% url 'api.v2.explorer' %}" style="width: 100px;")
+    -trans "API Explorer"
+
 -block summary
-  -blocktrans with token=user.api_token
+  -blocktrans trimmed with token=user.api_token
     Your API Token is <span class="attn">{{ token }}</span>.
+
 -block extra-script
   {{block.super}}
     :javascript

@@ -249,6 +249,7 @@ class FlowCRUDL(SmartCRUDL):
         "delete",
         "update",
         "simulate",
+        "change_language",
         "export_translation",
         "download_translation",
         "import_translation",
@@ -1293,6 +1294,37 @@ class FlowCRUDL(SmartCRUDL):
 
             return links
 
+    class ChangeLanguage(OrgObjPermsMixin, SmartUpdateView):
+        class Form(forms.Form):
+            language = forms.CharField(required=True)
+
+            def __init__(self, user, instance, *args, **kwargs):
+                self.user = user
+
+                super().__init__(*args, **kwargs)
+
+            def clean_language(self):
+                data = self.cleaned_data["language"]
+                if data and data not in self.user.get_org().get_language_codes():
+                    raise ValidationError(_("Not a valid language."))
+
+                return data
+
+        form_class = Form
+        success_url = "uuid@flows.flow_editor"
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            return kwargs
+
+        def form_valid(self, form):
+            flow_def = mailroom.get_client().flow_change_language(self.object.as_json(), form.cleaned_data["language"])
+
+            self.object.save_revision(self.get_user(), flow_def)
+
+            return HttpResponseRedirect(self.success_url)
+
     class ExportTranslation(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
         class Form(forms.Form):
             language = forms.ChoiceField(
@@ -2096,10 +2128,10 @@ class FlowCRUDL(SmartCRUDL):
                         )
                     )
 
-                if self.flow.org.is_suspended():
+                if self.flow.org.is_legacy_suspended():
                     raise ValidationError(
                         _(
-                            "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+                            "Sorry, your account is currently flagged. To enable sending messages, please contact support."
                         )
                     )
 

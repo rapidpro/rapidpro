@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-05 15:04+0000\n"
+"POT-Creation-Date: 2020-06-16 18:20+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4360,6 +4360,11 @@ msgstr "Traducciones"
 msgid "Import Translation"
 msgstr "Traducciones"
 
+#, fuzzy
+#| msgid "Using a Local Number"
+msgid "Not a valid language."
+msgstr "Con un número local"
+
 msgid "Include translations in this language."
 msgstr ""
 
@@ -4515,7 +4520,7 @@ msgstr ""
 msgid "This flow is already being started, please wait until that process is complete before starting more contacts."
 msgstr ""
 
-msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
 msgstr ""
 
 msgid "Add Contacts to Flow"
@@ -5004,41 +5009,11 @@ msgstr "Actualizar campos"
 msgid "Update Label"
 msgstr "Actualizar etiqueta"
 
-msgid "Free Plan"
-msgstr "Plan libre"
-
-msgid "Trial"
-msgstr "Prueba"
-
-msgid "Bronze"
-msgstr "Bronce"
-
-msgid "Silver"
-msgstr "Plata"
-
-msgid "Gold (Legacy)"
-msgstr "Oro (Legado)"
-
-msgid "Platinum (Legacy)"
-msgstr "Platino (Legado)"
-
-msgid "Gold"
-msgstr "Oro"
-
-msgid "Platinum"
-msgstr "Platino"
-
 msgid "Plan"
 msgstr "Plan"
 
 msgid "What plan your organization is on"
 msgstr "En qué plan está su organización"
-
-msgid "Plan Start"
-msgstr "Inicio de plan"
-
-msgid "When the user switched to this plan"
-msgstr "Cuándo el usuario se cambió a este plan"
 
 msgid "Stripe Customer"
 msgstr "Stripe Customer"
@@ -5098,6 +5073,21 @@ msgstr "Este slug no está disponible"
 
 msgid "Whether this organization anonymizes the phone numbers of contacts within it"
 msgstr "Si esta organización anonimiza los números de teléfonos de sus contactos "
+
+#, fuzzy
+#| msgid "Whether this report is currently published"
+msgid "Whether this organization is currently flagged."
+msgstr "Si este informe está publicado actualmente"
+
+#, fuzzy
+#| msgid "Whether this report is currently published"
+msgid "Whether this organization is currently suspended."
+msgstr "Si este informe está publicado actualmente"
+
+#, fuzzy
+#| msgid "Whether this report is currently published"
+msgid "Whether this organization uses topups."
+msgstr "Si este informe está publicado actualmente"
 
 msgid "The primary language will be used for contacts with no language preference."
 msgstr "Para los contactos sin preferencia de idioma, se usará el idioma principal"
@@ -5501,12 +5491,10 @@ msgstr ""
 msgid "Topups"
 msgstr ""
 
-#, fuzzy
-#| msgid "Restore Flows"
-msgid "Restore"
-msgstr "Restaurar flujos"
+msgid "Unflag"
+msgstr ""
 
-msgid "Suspend"
+msgid "Flag"
 msgstr ""
 
 msgid "Whitelist"
@@ -9510,7 +9498,16 @@ msgstr "Correr flujo"
 msgid "Run flow "
 msgstr "Correr flujo"
 
+#, fuzzy
+#| msgid "Language"
+msgid "Change Language"
+msgstr "Idioma"
+
 msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
+msgstr ""
+
+#, python-format
+msgid "This will change the default language of the flow to <b>%(language)s</b>. This means that by default the flow will be appear in that language and can be translated into other languages. Also if a contact is in this flow and no translation exists for their language or the default language of the organization, communication with that contact will default to <b>%(language)s</b>."
 msgstr ""
 
 msgid ""
@@ -9572,6 +9569,11 @@ msgstr ""
 
 msgid "Back"
 msgstr ""
+
+#, fuzzy
+#| msgid "Webhook URL"
+msgid "Webhook Call Log"
+msgstr "URL de Webhook"
 
 msgid "Unlabel"
 msgstr "Retirar la etiqueta"
@@ -9763,14 +9765,6 @@ msgid ""
 "  "
 msgstr ""
 
-#, fuzzy
-#| msgid "Android"
-msgid "android"
-msgstr "Android"
-
-msgid "dashboard"
-msgstr "Panel"
-
 msgid "messages"
 msgstr "mensajes"
 
@@ -9800,6 +9794,14 @@ msgstr "usuarios"
 
 msgid "orgs"
 msgstr "organizaciones"
+
+#, fuzzy
+#| msgid "Android"
+msgid "android"
+msgstr "Android"
+
+msgid "dashboard"
+msgstr "Panel"
 
 #, fuzzy
 msgid "end"
@@ -11064,10 +11066,8 @@ msgstr ""
 msgid "API Docs"
 msgstr "Docs API"
 
-#, fuzzy
-#| msgid "Webhook URL"
-msgid "Webhook Log"
-msgstr "URL de Webhook"
+msgid "API Explorer"
+msgstr ""
 
 #, fuzzy, python-format
 #| msgid ""
@@ -11075,10 +11075,7 @@ msgstr "URL de Webhook"
 #| "    Your email address is <span class='attn'>%(email)s</span>.\n"
 #| "\n"
 #| "  "
-msgid ""
-"\n"
-"    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
-"  "
+msgid "Your API Token is <span class=\"attn\">%(token)s</span>."
 msgstr ""
 "\n"
 "    Su dirección de correo electrónico es <span class='attn'>%(email)s</span>.\n"
@@ -11140,60 +11137,6 @@ msgid ""
 "\n"
 "        "
 msgstr ""
-
-msgid "Webhook"
-msgstr "Webhook"
-
-#, fuzzy
-#| msgid "Additional Languages"
-msgid "Additional options"
-msgstr "Idiomas adicionales"
-
-#, fuzzy
-msgid "Header key"
-msgstr "Alarmas del transmisor"
-
-#, fuzzy
-#| msgid "Numeric Value:"
-msgid "Header value"
-msgstr "Valor numérico:"
-
-msgid "Subscribed Events"
-msgstr "Eventos registrados"
-
-#, fuzzy
-msgid "Incoming Messages"
-msgstr "Mensajes de texto entrantes"
-
-#, fuzzy
-msgid "Outgoing Messages"
-msgstr "Mensajes de texto salientes"
-
-msgid "Incoming Calls"
-msgstr "Llamadas entrantes"
-
-msgid "Outgoing Calls"
-msgstr "Llamadas salientes"
-
-msgid "Channel Alarms (low battery, loss of connectivity)"
-msgstr "Alarmas transmitidas (baja batería, pérdida de conexión)"
-
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "    Your email address is <span class='attn'>%(email)s</span>.\n"
-#| "\n"
-#| "  "
-msgid ""
-"\n"
-"    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
-"\n"
-"  "
-msgstr ""
-"\n"
-"    Su dirección de correo electrónico es <span class='attn'>%(email)s</span>.\n"
-"\n"
-"  "
 
 msgid "Top Ups"
 msgstr "Recargas"
@@ -11376,6 +11319,11 @@ msgid ""
 "          Enter the URL to call out to at this point in the flow.\n"
 "        "
 msgstr ""
+
+#, fuzzy
+#| msgid "Additional Languages"
+msgid "Additional options"
+msgstr "Idiomas adicionales"
 
 #, fuzzy
 msgid "Header Name"
@@ -12777,6 +12725,90 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Restore Flows"
+#~ msgid "Restore"
+#~ msgstr "Restaurar flujos"
+
+#~ msgid "Free Plan"
+#~ msgstr "Plan libre"
+
+#~ msgid "Trial"
+#~ msgstr "Prueba"
+
+#~ msgid "Bronze"
+#~ msgstr "Bronce"
+
+#~ msgid "Silver"
+#~ msgstr "Plata"
+
+#~ msgid "Gold (Legacy)"
+#~ msgstr "Oro (Legado)"
+
+#~ msgid "Platinum (Legacy)"
+#~ msgstr "Platino (Legado)"
+
+#~ msgid "Gold"
+#~ msgstr "Oro"
+
+#~ msgid "Platinum"
+#~ msgstr "Platino"
+
+#~ msgid "Plan Start"
+#~ msgstr "Inicio de plan"
+
+#~ msgid "When the user switched to this plan"
+#~ msgstr "Cuándo el usuario se cambió a este plan"
+
+#~ msgid "Webhook"
+#~ msgstr "Webhook"
+
+#, fuzzy
+#~ msgid "Header key"
+#~ msgstr "Alarmas del transmisor"
+
+#, fuzzy
+#~| msgid "Numeric Value:"
+#~ msgid "Header value"
+#~ msgstr "Valor numérico:"
+
+#~ msgid "Subscribed Events"
+#~ msgstr "Eventos registrados"
+
+#, fuzzy
+#~ msgid "Incoming Messages"
+#~ msgstr "Mensajes de texto entrantes"
+
+#, fuzzy
+#~ msgid "Outgoing Messages"
+#~ msgstr "Mensajes de texto salientes"
+
+#~ msgid "Incoming Calls"
+#~ msgstr "Llamadas entrantes"
+
+#~ msgid "Outgoing Calls"
+#~ msgstr "Llamadas salientes"
+
+#~ msgid "Channel Alarms (low battery, loss of connectivity)"
+#~ msgstr "Alarmas transmitidas (baja batería, pérdida de conexión)"
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "    Your email address is <span class='attn'>%(email)s</span>.\n"
+#~| "\n"
+#~| "  "
+#~ msgid ""
+#~ "\n"
+#~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
+#~ "\n"
+#~ "  "
+#~ msgstr ""
+#~ "\n"
+#~ "    Su dirección de correo electrónico es <span class='attn'>%(email)s</span>.\n"
+#~ "\n"
+#~ "  "
 
 #, fuzzy
 #~ msgid "Classifier Events"
@@ -14240,9 +14272,6 @@ msgstr ""
 
 #~ msgid "The JSON encoded configurations for this report"
 #~ msgstr "Configuraciones codificadas JSON para este informe"
-
-#~ msgid "Whether this report is currently published"
-#~ msgstr "Si este informe está publicado actualmente"
 
 #, fuzzy
 #~ msgid "Numeric"
