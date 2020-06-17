@@ -1713,9 +1713,7 @@ class Alert(SmartModel):
             # are there still queued messages?
 
             if (
-                not Msg.objects.filter(
-                    status__in=["Q", "P", "E", "F"], channel_id=alert.channel_id
-                )
+                not Msg.objects.filter(status__in=["Q", "P", "E", "F"], channel_id=alert.channel_id)
                 .exclude(Q(created_on__gte=thirty_minutes_ago) & Q(status__in=["Q", "P"]))
                 .exclude(created_on__lte=day_ago)
                 .exists()

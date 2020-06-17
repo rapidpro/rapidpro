@@ -1223,10 +1223,7 @@ class MigrationTask(TembaModel):
                     )
                     revision_json_dict = json_flow
             else:
-                new_flow.save_revision(
-                    self.created_by,
-                    revision_json_dict,
-                )
+                new_flow.save_revision(self.created_by, revision_json_dict)
 
             # Updating metadata and dependencies
             try:
@@ -1264,8 +1261,12 @@ class MigrationTask(TembaModel):
                         path_s3_file_url = self.org.save_media(file=file_obj_path, extension="jpg")
 
                         if item.path_thumbnail:
-                            file_obj_path_thumbnail = self.org.get_temporary_file_from_url(media_url=file_path_thumbnail)
-                            path_thumbnail_s3_file_url = self.org.save_media(file=file_obj_path_thumbnail, extension="jpg")
+                            file_obj_path_thumbnail = self.org.get_temporary_file_from_url(
+                                media_url=file_path_thumbnail
+                            )
+                            path_thumbnail_s3_file_url = self.org.save_media(
+                                file=file_obj_path_thumbnail, extension="jpg"
+                            )
 
                     except Exception as e:
                         path_s3_file_url = file_path

@@ -323,9 +323,12 @@ class FlowImageCRUDL(SmartCRUDL):
             context["contact_fields"] = ContactField.user_fields.filter(
                 org=self.request.user.get_org(), is_active=True
             ).order_by("pk")
+
+            # make actions unavailable for viewers
             org = self.request.user.get_org()
-            user_is_viewer =  org in self.request.user.org_viewers.all()
-            context["actions"] =  [] if user_is_viewer else self.actions
+            user_is_viewer = org in self.request.user.org_viewers.all()
+            context["actions"] = [] if user_is_viewer else self.actions
+
             return context
 
         def get_folders(self):

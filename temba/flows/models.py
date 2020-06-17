@@ -3228,7 +3228,9 @@ class FlowRevision(SmartModel):
                 if action.get("type") == "send_email":
                     for idx, attachment in enumerate(action.get("attachments", [])):
                         [content_type, url] = str(attachment).split(":", 1)
-                        url = str(url).replace("https://attachments", f"https://{settings.AWS_BUCKET_DOMAIN}/attachments")
+                        url = str(url).replace(
+                            "https://attachments", f"https://{settings.AWS_BUCKET_DOMAIN}/attachments"
+                        )
                         action["attachments"][idx] = f"{content_type}:{url}"
                 elif action.get("type") == "call_giftcard":
                     action["giftcard_type"] = "GIFTCARD_ASSIGNING"
