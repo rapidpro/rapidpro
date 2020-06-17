@@ -110,7 +110,7 @@ class WriteSerializer(serializers.Serializer):
                 detail={"non_field_errors": ["Request body should be a single JSON object"]}
             )
 
-        if self.context["org"].is_legacy_suspended():
+        if self.context["org"].is_flagged:
             raise serializers.ValidationError(
                 detail={
                     "non_field_errors": [

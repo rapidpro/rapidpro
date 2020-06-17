@@ -5,7 +5,7 @@ from django.db import migrations, transaction
 BATCH_SIZE = 5000
 
 
-def populate_new_org_fields(apps, schema_editor):
+def populate_new_org_fields(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
     orgs = Org.objects.all()
 

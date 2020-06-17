@@ -50,7 +50,7 @@ from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
 from temba.orgs.models import BackupToken, Debit, OrgActivity, UserSettings
 from temba.request_logs.models import HTTPLog
-from temba.tests import ESMockWithScroll, MigrationTest, MockResponse, TembaNonAtomicTest, TembaTest, matchers
+from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
@@ -766,7 +766,6 @@ class OrgTest(TembaTest):
         self.org.refresh_from_db()
 
         self.assertTrue(self.org.is_flagged)
-        self.assertTrue(self.org.is_legacy_suspended())
 
         # while we are flagged, we can't send broadcasts
         send_url = reverse("msgs.broadcast_send")
@@ -908,26 +907,26 @@ class OrgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # unflag org
-        post_data["status"] = "unflag"
+        post_data["action"] = "unflag"
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
-        self.assertFalse(self.org.is_legacy_suspended())
+        self.assertFalse(self.org.is_flagged)
         self.assertEqual(parent, self.org.parent)
 
-        # white list
-        post_data["status"] = Org.STATUS_WHITELISTED
+        # verify
+        post_data["action"] = "verify"
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
-        self.assertTrue(self.org.is_whitelisted())
+        self.assertTrue(self.org.is_verified())
 
         # flag org
-        post_data["status"] = "flag"
+        post_data["action"] = "flag"
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
-        self.assertTrue(self.org.is_legacy_suspended())
+        self.assertTrue(self.org.is_flagged)
 
         # deactivate
-        post_data["status"] = "delete"
+        post_data["action"] = "delete"
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_active)
@@ -4880,47 +4879,3 @@ class OrgActivityTest(TembaTest):
         self.assertEqual(1, activity.active_contact_count)
         self.assertEqual(2, activity.incoming_count)
         self.assertEqual(1, activity.outgoing_count)
-
-
-class PopulateNewOrgFieldsMigrationTest(MigrationTest):
-    app = "orgs"
-    migrate_from = "0063_auto_20200616_1624"
-    migrate_to = "0064_populate_new_org_fields"
-
-    def setUpBeforeMigration(self, apps):
-        self.org.config["status"] = "whitelisted"
-        self.org.config["foo"] = "bar"
-        self.org.save()
-
-        self.org2.config["status"] = "suspended"
-        self.org2.config["other"] = "thing"
-        self.org2.save()
-
-        # put org values back to the way they were
-        Org.objects.all().update(plan="FREE", is_flagged=None, is_suspended=None, uses_topups=None)
-
-    def test_migration(self):
-        self.org.refresh_from_db()
-        self.org2.refresh_from_db()
-
-        # everybody on the topup plan
-        self.assertEqual("topups", self.org.plan)
-        self.assertEqual("topups", self.org2.plan)
-        self.assertTrue(self.org.uses_topups)
-        self.assertTrue(self.org2.uses_topups)
-
-        # org1 has new verified config value as it was whitelisted
-        self.assertTrue(self.org.config["verified"])
-        self.assertFalse(self.org2.config["verified"])
-
-        # org2 flagged as it was suspended
-        self.assertFalse(self.org.is_flagged)
-        self.assertTrue(self.org2.is_flagged)
-
-        # neither org suspended
-        self.assertFalse(self.org.is_suspended)
-        self.assertFalse(self.org2.is_suspended)
-
-        # and still have their other config values
-        self.assertEqual("bar", self.org.config["foo"])
-        self.assertEqual("thing", self.org2.config["other"])

@@ -95,9 +95,7 @@ class Org(SmartModel):
     DATE_FORMAT_MONTH_FIRST = "M"
     DATE_FORMATS = ((DATE_FORMAT_DAY_FIRST, "DD-MM-YYYY"), (DATE_FORMAT_MONTH_FIRST, "MM-DD-YYYY"))
 
-    STATUS_WHITELISTED = "whitelisted"
-
-    CONFIG_STATUS = "STATUS"
+    CONFIG_VERIFIED = "verified"
     CONFIG_SMTP_SERVER = "smtp_server"
     CONFIG_TWILIO_SID = "ACCOUNT_SID"
     CONFIG_TWILIO_TOKEN = "ACCOUNT_TOKEN"
@@ -209,15 +207,11 @@ class Org(SmartModel):
         default=False, help_text=_("Whether this organization anonymizes the phone numbers of contacts within it")
     )
 
-    is_flagged = models.BooleanField(
-        null=True, default=False, help_text=_("Whether this organization is currently flagged.")
-    )
+    is_flagged = models.BooleanField(default=False, help_text=_("Whether this organization is currently flagged."))
 
-    is_suspended = models.BooleanField(
-        null=True, default=False, help_text=_("Whether this organization is currently suspended.")
-    )
+    is_suspended = models.BooleanField(default=False, help_text=_("Whether this organization is currently suspended."))
 
-    uses_topups = models.BooleanField(null=True, default=True, help_text=_("Whether this organization uses topups."))
+    uses_topups = models.BooleanField(default=True, help_text=_("Whether this organization uses topups."))
 
     primary_language = models.ForeignKey(
         "orgs.Language",
@@ -345,24 +339,25 @@ class Org(SmartModel):
 
     def flag(self):
         self.is_flagged = True
-        self.config[Org.CONFIG_STATUS] = "suspended"  # TODO remove
-        self.save(update_fields=("is_flagged", "config", "modified_on"))
+        self.save(update_fields=("is_flagged", "modified_on"))
 
     def unflag(self):
         self.is_flagged = False
-        self.config[Org.CONFIG_STATUS] = "restored"  # TODO remove
+        self.save(update_fields=("is_flagged", "modified_on"))
+
+    def verify(self):
+        """
+        Unflags org and marks as verified so it won't be flagged automatically in future
+        """
+        self.is_flagged = False
+        self.config[Org.CONFIG_VERIFIED] = True
         self.save(update_fields=("is_flagged", "config", "modified_on"))
 
-    def is_legacy_suspended(self):
-        # TODO this will become simply self.is_flagged once that field is migrated
-        return self.config.get(Org.CONFIG_STATUS) == "suspended"
-
-    def set_whitelisted(self):
-        self.config[Org.CONFIG_STATUS] = Org.STATUS_WHITELISTED
-        self.save(update_fields=("config", "modified_on"))
-
-    def is_whitelisted(self):
-        return self.config.get(Org.CONFIG_STATUS) == Org.STATUS_WHITELISTED
+    def is_verified(self):
+        """
+        A verified org is not subject to automatic flagging for suspicious activity
+        """
+        return self.config.get(Org.CONFIG_VERIFIED, False)
 
     def import_app(self, export_json, user, site=None, legacy=False):
         """
