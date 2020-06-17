@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-16 21:49+0000\n"
+"POT-Creation-Date: 2020-06-17 14:49+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -5497,8 +5497,10 @@ msgstr ""
 msgid "Flag"
 msgstr ""
 
-msgid "Whitelist"
-msgstr ""
+#, fuzzy
+#| msgid "Alert Email"
+msgid "Verify"
+msgstr "Correo electrónico de alerta"
 
 #, fuzzy
 msgid "This password is not valid. Choose a new password and try again."
@@ -11116,7 +11118,7 @@ msgid "This organization has been flagged for possible spamming"
 msgstr "La organización a la que pertenece este activador"
 
 #, fuzzy
-msgid "This organization has been whitelisted against flagging"
+msgid "This organization has been verified"
 msgstr "La Organización del usuario."
 
 #, fuzzy
@@ -12730,6 +12732,10 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "This organization has been whitelisted against flagging"
+#~ msgstr "La Organización del usuario."
 
 #, fuzzy
 #~| msgid "Restore Flows"
