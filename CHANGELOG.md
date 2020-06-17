@@ -1,3 +1,8 @@
+v5.5.62
+----------
+ * Rename whitelisted to verified
+ * Add migration to populate new org fields
+
 v5.5.61
 ----------
  * Add new boolean fields to org for suspended, flagged and uses_topups and remove no longer used plan stuff
