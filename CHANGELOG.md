@@ -1,3 +1,7 @@
+v5.5.63
+----------
+ * Make new org fields non-null and remove no longer needed legacy method
+
 v5.5.62
 ----------
  * Rename whitelisted to verified
