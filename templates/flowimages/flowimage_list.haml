@@ -102,9 +102,9 @@
                     =search_error
                 -elif search
                   -blocktrans count results_count=paginator.count
-                    Found {{ results_count }} contact matching <i>{{search}}</i>.
+                    Found {{ results_count }} flow image matching <i>{{search}}</i>.
                     -plural
-                      Found {{ results_count }} contacts matching <i>{{search}}</i>.
+                      Found {{ results_count }} flow images matching <i>{{search}}</i>.
               .list-container
                 %table.list-table.flowimage_list.table.object-list.table.table-condensed{style: '{% if not org_perms.flows.flowimage_list %}margin-top:10px{% endif %}'}
                   %tr.flowimages
@@ -257,6 +257,34 @@
       $(this).animate({ width: '600px'}, 200);
     });
 
+    $('th.object-row-checkbox').click(function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      $(".list-buttons-container").addClass('visible');
+      let btnCheck = $(this);
+      if (btnCheck.hasClass("checked")) {
+        btnCheck.removeClass("checked");
+        btnCheck.find('.flowimage-checkbox').removeClass("checked");
+        $('td.object-row-checkbox').each(function() {
+          let row = $(this).parent('tr');
+          row.removeClass("checked");
+          let checks = $(".object-row.checked");
+          if (checks.length == 0) {
+            $('.list-buttons-container').removeClass('visible');
+          }
+        });
+        $('th.select-all-items-text').html('Select all items')
+      } else {
+        btnCheck.addClass("checked");
+        btnCheck.find('.flowimage-checkbox').addClass("checked");
+        $('td.object-row-checkbox').each(function() {
+          let row = $(this).parent('tr');
+            row.addClass("checked");
+          });
+          $('th.select-all-items-text').html('Deselect all items')
+      }
+      updateLabelMenu();
+    });
 
     // keeps track if we are on a link or not
     var onLink = false;

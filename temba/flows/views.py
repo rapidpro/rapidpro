@@ -309,6 +309,7 @@ class FlowImageCRUDL(SmartCRUDL):
             context["org_has_flowimages_archived"] = folders[1].get("count")
             context["flows"] = (
                 Flow.objects.filter(org=self.request.user.get_org(), is_active=True)
+                .exclude(is_system=True)
                 .only("name", "uuid")
                 .order_by("name")
             )
@@ -319,10 +320,12 @@ class FlowImageCRUDL(SmartCRUDL):
             )
             context["folders"] = folders
             context["request_url"] = self.request.path
-            context["actions"] = self.actions
             context["contact_fields"] = ContactField.user_fields.filter(
                 org=self.request.user.get_org(), is_active=True
             ).order_by("pk")
+            org = self.request.user.get_org()
+            user_is_viewer =  org in self.request.user.org_viewers.all()
+            context["actions"] =  [] if user_is_viewer else self.actions
             return context
 
         def get_folders(self):
