@@ -72,17 +72,17 @@
                         %a.object-btn-download{href:'#', onclick:'submitDownloadImages()'}
                           %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Download" %}'}
                             .glyph.icon-cloud-download
-                    - if 'restore' in actions
+                    - if 'restore' in actions and org_perms.flows.flowimage_action_restore
                       %span.btn-group
                         %a.object-btn-restore{href:'#'}
                           %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Activate" %}'}
                             .glyph.icon-photo
-                    - if 'archive' in actions
+                    - if 'archive' in actions and org_perms.flows.flowimage_action_archive
                       %span.btn-group
                         %a.object-btn-archive{href:'#'}
                           %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Archive" %}'}
                             .glyph.icon-box
-                    - if 'delete' in actions
+                    - if 'delete' in actions and org_perms.flows.flowimage_action_delete
                       %span.btn-group
                         %a{href:'javascript:confirmRemoveItems("remove-items")'}
                           %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Delete" %}'}
