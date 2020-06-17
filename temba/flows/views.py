@@ -6,6 +6,7 @@ import iso8601
 import regex
 import requests
 
+from django_redis import get_redis_connection
 from packaging.version import Version
 from smartmin.views import (
     SmartCreateView,
@@ -1653,6 +1654,23 @@ class FlowCRUDL(SmartCRUDL):
 
             context["feature_filters"] = json.dumps(feature_filters)
 
+            # check if there is no other users that edititing current flow
+            # then make this user as main editor and set expiration time of editing to this user
+            r = get_redis_connection()
+            flow_key = f"active-flow-editor-{flow.uuid}"
+            active_flow_editor = r.get(flow_key)
+            if active_flow_editor is not None:
+                active_editor_email = active_flow_editor.decode()
+                if active_editor_email == self.request.user.username:
+                    return context
+
+                context["mutable"] = False
+                context["immutable_alert"] = (
+                    _("%s is currently editing this Flow. You can open this flow only in view mode.")
+                    % active_editor_email
+                )
+            else:
+                r.set(flow_key, self.request.user.username, ex=30)
             return context
 
         def get_gear_links(self):
@@ -2132,6 +2150,14 @@ class FlowCRUDL(SmartCRUDL):
         def get(self, request, *args, **kwargs):
             flow = self.get_object(self.get_queryset())
             (active, visited) = flow.get_activity()
+
+            # update expiration time of editing for active editor
+            r = get_redis_connection()
+            flow_key = f"active-flow-editor-{flow.uuid}"
+            active_editor = r.get(flow_key)
+            if active_editor is not None:
+                if self.request.user.username == active_editor.decode():
+                    r.expire(flow_key, 30)
 
             return JsonResponse(dict(nodes=active, segments=visited, is_starting=flow.is_starting()))
 

@@ -8,7 +8,6 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
-from django.utils.timesince import timesince
 
 from temba import mailroom
 from temba.migrator import Migrator
@@ -330,6 +329,9 @@ class MigrationTask(TembaModel):
             logger.info("---------------- Trackable Links ----------------")
             logger.info("[STARTED] Trackable Links migration")
 
+            # Releasing links from this org before importing them from live server
+            Link.objects.filter(org=self.org).delete()
+
             org_links, links_count = migrator.get_org_links()
             if org_links:
                 self.add_links(logger=logger, links=org_links, migrator=migrator, count=links_count)
@@ -337,12 +339,10 @@ class MigrationTask(TembaModel):
             logger.info("[COMPLETED] Trackable Links migration")
             logger.info("")
 
-            elapsed = timesince(start)
             end = timezone.now()
 
             logger.info(f"Started: {start}")
             logger.info(f"Finished: {end}")
-            logger.info(f"This process took {elapsed}")
 
             self.update_status(self.STATUS_COMPLETE)
 
@@ -1234,7 +1234,7 @@ class MigrationTask(TembaModel):
                 new_flow.save(update_fields=["metadata"])
 
                 new_flow.update_dependencies(dependencies)
-            except Exception as e:
+            except Exception:
                 pass
 
             # Removing flow images before importing again
@@ -1417,15 +1417,15 @@ class MigrationTask(TembaModel):
         for idx, campaign in enumerate(campaigns, start=1):
             logger.info(f">>> [{idx}/{count}] Campaign: {campaign.uuid} - {campaign.name}")
 
+            new_group_obj = MigrationAssociation.get_new_object(
+                model=MigrationAssociation.MODEL_CONTACT_GROUP, old_id=campaign.group_id
+            )
+
+            if not new_group_obj:
+                continue
+
             new_campaign = Campaign.objects.filter(uuid=campaign.uuid, org=self.org).only("id").first()
             if not new_campaign:
-                new_group_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT_GROUP, old_id=campaign.group_id
-                )
-
-                if not new_group_obj:
-                    continue
-
                 new_campaign = Campaign.objects.create(
                     org=self.org,
                     uuid=campaign.uuid,
@@ -1436,6 +1436,9 @@ class MigrationTask(TembaModel):
                     created_by=self.created_by,
                     modified_by=self.created_by,
                 )
+
+            new_campaign.group = new_group_obj
+            new_campaign.save(update_fields=["group"])
 
             if new_campaign.uuid != campaign.uuid:
                 new_campaign.uuid = campaign.uuid
@@ -1576,18 +1579,16 @@ class MigrationTask(TembaModel):
         for idx, link in enumerate(links, start=1):
             logger.info(f">>> [{idx}/{count}] Link: {link.uuid} - {link.name}")
 
-            new_link = Link.objects.filter(uuid=link.uuid, org=self.org).only("id").first()
-            if not new_link:
-                new_link = Link.objects.create(
-                    org=self.org,
-                    name=link.name,
-                    destination=link.destination,
-                    clicks_count=link.clicks_count,
-                    created_by=self.created_by,
-                    modified_by=self.created_by,
-                    created_on=link.created_on,
-                    modified_on=link.modified_on,
-                )
+            new_link = Link.objects.create(
+                org=self.org,
+                name=link.name,
+                destination=link.destination,
+                clicks_count=link.clicks_count,
+                created_by=self.created_by,
+                modified_by=self.created_by,
+                created_on=link.created_on,
+                modified_on=link.modified_on,
+            )
 
             link_contacts = migrator.get_link_contacts(link_id=link.id)
             for item in link_contacts:

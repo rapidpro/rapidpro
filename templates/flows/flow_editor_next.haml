@@ -230,13 +230,17 @@
           allowTaint: true,
           foreignObjectRendering: true,
           imageTimeout: 30000,
-          logging: true,
+          logging: false,
           useCORS: true,
           onclone: prepareDataForImageExport,
           ignoreElements: (elem) => {
-            return false;
             let style = $(elem).attr('class') || '';
-            if (style.includes('components_printButton') || style.includes('Simulator_simulator') || style.includes('PopTab_tab')) {
+            if (
+              style.includes('components_printButton') ||
+              style.includes('Simulator_simulator') ||
+              style.includes('PopTab_tab') ||
+              style.includes('LanguageSelector_language')
+            ) {
               return true;
             }
             return false;
@@ -392,6 +396,14 @@
 
         modal.show();
       });
+    {% endif %}
+
+    {% if immutable_alert %}
+      var modal = new ConfirmationModal(gettext("You can't edit this flow"), "{{ immutable_alert }}");
+      modal.setListeners({ onSecondary: ()=>{
+        window.history.back();
+      }});
+      modal.show();
     {% endif %}
 
 -block page-container
