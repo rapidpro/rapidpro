@@ -766,7 +766,6 @@ class OrgTest(TembaTest):
         self.org.refresh_from_db()
 
         self.assertTrue(self.org.is_flagged)
-        self.assertTrue(self.org.is_legacy_suspended())
 
         # while we are flagged, we can't send broadcasts
         send_url = reverse("msgs.broadcast_send")
@@ -908,26 +907,26 @@ class OrgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # unflag org
-        post_data["status"] = "unflag"
+        post_data["action"] = "unflag"
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
-        self.assertFalse(self.org.is_legacy_suspended())
+        self.assertFalse(self.org.is_flagged)
         self.assertEqual(parent, self.org.parent)
 
-        # white list
-        post_data["status"] = Org.STATUS_WHITELISTED
+        # verify
+        post_data["action"] = "verify"
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
-        self.assertTrue(self.org.is_whitelisted())
+        self.assertTrue(self.org.is_verified())
 
         # flag org
-        post_data["status"] = "flag"
+        post_data["action"] = "flag"
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
-        self.assertTrue(self.org.is_legacy_suspended())
+        self.assertTrue(self.org.is_flagged)
 
         # deactivate
-        post_data["status"] = "delete"
+        post_data["action"] = "delete"
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_active)
