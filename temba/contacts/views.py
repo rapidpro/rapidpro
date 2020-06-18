@@ -1597,7 +1597,7 @@ class ContactCRUDL(SmartCRUDL):
         success_message = _("Contact unblocked")
 
         def save(self, obj):
-            obj.unblock(self.request.user)
+            obj.reactivate(self.request.user)
             return obj
 
     class Unstop(OrgObjPermsMixin, SmartUpdateView):
@@ -1610,7 +1610,7 @@ class ContactCRUDL(SmartCRUDL):
         success_message = _("Contact unstopped")
 
         def save(self, obj):
-            obj.unstop(self.request.user)
+            obj.reactivate(self.request.user)
             return obj
 
     class Delete(OrgObjPermsMixin, SmartUpdateView):

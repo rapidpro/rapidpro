@@ -755,6 +755,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     # the import headers which map to contact attributes or URNs rather than custom fields
     ATTRIBUTE_AND_URN_IMPORT_HEADERS = RESERVED_ATTRIBUTES.union(URN.IMPORT_HEADERS)
 
+    STATUS_ACTIVE = "active"
+    STATUS_BLOCKED = "blocked"
+    STATUS_STOPPED = "stopped"
+
     @property
     def anon_identifier(self):
         """
@@ -1242,16 +1246,22 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             modifiers.append({"type": "language", "language": language or ""})
 
         if modifiers:
-            Contact.bulk_modify(self.org, user, [self], modifiers)
+            Contact.bulk_modify(user, [self], modifiers)
 
     @classmethod
-    def bulk_modify(cls, org, user, contacts, modifiers):
+    def bulk_modify(cls, user, contacts, modifiers):
+        if not contacts:
+            return
+
+        org = contacts[0].org
         client = mailroom.get_client()
         try:
             client.contact_modify(org.id, user.id, [c.id for c in contacts], modifiers)
         except mailroom.MailroomException as e:
             logger.error(f"Contact update failed: {str(e)}", exc_info=True)
             raise e
+
+        return [c.id for c in contacts]
 
     @classmethod
     def from_urn(cls, org, urn_as_string, country=None):
@@ -1574,9 +1584,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 org, user, name, uuid=uuid, urns=urns, language=language, force_urn_update=True
             )
 
-        # if they exist and are blocked, unblock them
+        # if they exist and are blocked, reactivate them
         if contact.is_blocked:
-            contact.unblock(user)
+            contact.reactivate(user)
 
         # ignore any reserved fields or URN schemes
         valid_keys = (
@@ -1936,26 +1946,24 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return contacts
 
     @classmethod
-    def apply_action_label(cls, user, contacts, group, add):
-        return group.update_contacts(user, contacts, add)
+    def bulk_change_status(cls, user, contacts, status):
+        return cls.bulk_modify(user, contacts, modifiers=[{"type": "status", "status": status}])
 
     @classmethod
     def apply_action_block(cls, user, contacts):
-        changed = []
-
-        for contact in contacts:
-            contact.block(user)
-            changed.append(contact.pk)
-        return changed
+        return cls.bulk_change_status(user, contacts, Contact.STATUS_BLOCKED)
 
     @classmethod
     def apply_action_unblock(cls, user, contacts):
-        changed = []
+        return cls.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
 
-        for contact in contacts:
-            contact.unblock(user)
-            changed.append(contact.pk)
-        return changed
+    @classmethod
+    def apply_action_unstop(cls, user, contacts):
+        return cls.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
+
+    @classmethod
+    def apply_action_label(cls, user, contacts, group, add):
+        return group.update_contacts(user, contacts, add)
 
     @classmethod
     def apply_action_delete(cls, user, contacts):
@@ -1966,59 +1974,29 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             changed.append(contact.pk)
         return changed
 
-    @classmethod
-    def apply_action_unstop(cls, user, contacts):
-        changed = []
-
-        for contact in contacts:
-            contact.unstop(user)
-            changed.append(contact.pk)
-        return changed
-
     def block(self, user):
         """
         Blocks this contact removing it from all non-dynamic groups
         """
-        from temba.triggers.models import Trigger
 
-        self.clear_all_groups(user)
-        Trigger.archive_triggers_for_contact(self, user)
-
-        self.is_blocked = True
-        self.save(update_fields=("is_blocked", "modified_on"), handle_update=False)
-
-    def unblock(self, user):
-        """
-        Unlocks this contact and marking it as not archived
-        """
-        self.is_blocked = False
-        self.save(update_fields=("is_blocked", "modified_on"), handle_update=False)
-
-        self.reevaluate_dynamic_groups()
+        Contact.bulk_change_status(user, [self], Contact.STATUS_BLOCKED)
+        self.refresh_from_db()
 
     def stop(self, user):
         """
         Marks this contact has stopped, removing them from all groups.
         """
-        from temba.triggers.models import Trigger
 
-        self.is_stopped = True
-        self.save(update_fields=["is_stopped", "modified_on"], handle_update=False)
+        Contact.bulk_change_status(user, [self], Contact.STATUS_STOPPED)
+        self.refresh_from_db()
 
-        self.clear_all_groups(user)
-
-        Trigger.archive_triggers_for_contact(self, user)
-
-    def unstop(self, user):
+    def reactivate(self, user):
         """
-        Unstops this contact, re-adding them to any dynamic groups they belong to
+        Reactivates a stopped or blocked contact, re-adding them to any dynamic groups they belong to
         """
-        self.is_stopped = False
-        self.modified_by = user
-        self.save(update_fields=("is_stopped", "modified_by", "modified_on"), handle_update=False)
 
-        # re-add them to any dynamic groups they would belong to
-        self.reevaluate_dynamic_groups()
+        Contact.bulk_change_status(user, [self], Contact.STATUS_ACTIVE)
+        self.refresh_from_db()
 
     def release(self, user, *, full=True, immediately=False):
         """

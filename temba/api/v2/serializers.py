@@ -831,7 +831,7 @@ class ContactBulkActionSerializer(WriteSerializer):
                 if action == self.BLOCK:
                     contact.block(user)
                 elif action == self.UNBLOCK:
-                    contact.unblock(user)
+                    contact.reactivate(user)
                 elif action == self.DELETE:
                     contact.release(user)
 
