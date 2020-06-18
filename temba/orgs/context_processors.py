@@ -79,7 +79,7 @@ def user_group_perms_processor(request):
     return context
 
 
-def nav_processor(request):
+def nav_processor(request):  # pragma: needs cover
     context = dict()
     org_perms = []
     if hasattr(request, "user"):
@@ -94,7 +94,7 @@ def nav_processor(request):
     return context
 
 
-def get_nav(request, org_perms):
+def get_nav(request, org_perms):  # pragma: needs cover
     nav = []
     nav_overflow = []
 

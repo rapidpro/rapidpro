@@ -167,7 +167,6 @@ TEMPLATES = [
                 "temba.context_processors.branding",
                 "temba.context_processors.analytics",
                 "temba.orgs.context_processors.user_group_perms_processor",
-                "temba.orgs.context_processors.nav_processor",
                 "temba.channels.views.channel_status_processor",
                 "temba.msgs.views.send_message_auto_complete_processor",
                 "temba.orgs.context_processors.settings_includer",
