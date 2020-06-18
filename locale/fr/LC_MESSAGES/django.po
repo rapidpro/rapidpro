@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-17 14:49+0000\n"
+"POT-Creation-Date: 2020-06-18 17:55+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3794,6 +3794,39 @@ msgstr "Mettre à jour le dossier"
 msgid "Update Label"
 msgstr "Mise à jour du libellé"
 
+msgid "Messages"
+msgstr "Messages"
+
+msgid "Campaigns"
+msgstr "Campagnes"
+
+msgid "Triggers"
+msgstr "Déclencheurs"
+
+#, fuzzy
+#| msgid "users"
+msgid "Users"
+msgstr "utilisateurs"
+
+msgid "Orgs"
+msgstr ""
+
+msgid "Dashboard"
+msgstr "Tableau de bord"
+
+#, fuzzy
+#| msgid "android"
+msgid "Android"
+msgstr "android"
+
+msgid "Sign in"
+msgstr "Connectez-vous"
+
+#, fuzzy
+#| msgid "Sign Up"
+msgid "Sign out"
+msgstr "Inscrivez-vous"
+
 msgid "Plan"
 msgstr "Plan"
 
@@ -4723,9 +4756,6 @@ msgstr "Créer des declencheurs"
 msgid "Active"
 msgstr "Actif"
 
-msgid "Triggers"
-msgstr "Déclencheurs"
-
 msgid "Join Keyword"
 msgstr "Joindre un mot clé"
 
@@ -4916,9 +4946,6 @@ msgstr "Votre téléchargement devrait démarrer automatiquement. S'il ne démar
 msgid "Download Now"
 msgstr "Télécharger maintenant"
 
-msgid "Campaigns"
-msgstr "Campagnes"
-
 msgid "(Archived)"
 msgstr "(Archivé)"
 
@@ -5065,9 +5092,6 @@ msgstr "CHARGÉ"
 
 msgid "ON"
 msgstr "ON"
-
-msgid "Messages"
-msgstr "Messages"
 
 msgid "IVR Messages"
 msgstr "Messages SVI"
@@ -7078,9 +7102,6 @@ msgstr ""
 "      à partir d'un fichier créé dans Excel.\n"
 "    "
 
-msgid "Dashboard"
-msgstr "Tableau de bord"
-
 msgid "Are you sure you want to remove"
 msgstr "Etes-vous sûr que vous voulez supprimer"
 
@@ -8555,9 +8576,6 @@ msgstr "Modifier les alias"
 
 msgid "Create new account"
 msgstr "Créer un nouveau compte"
-
-msgid "Sign in"
-msgstr "Connectez-vous"
 
 msgid "Add Credits"
 msgstr "Ajouter Crédits"

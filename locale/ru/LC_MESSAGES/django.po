@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-17 14:49+0000\n"
+"POT-Creation-Date: 2020-06-18 17:55+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3756,6 +3756,39 @@ msgstr "Обновить Папку"
 msgid "Update Label"
 msgstr "Обновить Метку"
 
+msgid "Messages"
+msgstr "Сообщения "
+
+msgid "Campaigns"
+msgstr "Кампании"
+
+msgid "Triggers"
+msgstr "Триггеры"
+
+#, fuzzy
+#| msgid "users"
+msgid "Users"
+msgstr "пользователи"
+
+msgid "Orgs"
+msgstr ""
+
+msgid "Dashboard"
+msgstr "Информационная панель"
+
+#, fuzzy
+#| msgid "android"
+msgid "Android"
+msgstr "android"
+
+msgid "Sign in"
+msgstr "Войти"
+
+#, fuzzy
+#| msgid "Sign Up"
+msgid "Sign out"
+msgstr "Зарегистрироваться"
+
 msgid "Plan"
 msgstr "План"
 
@@ -4687,9 +4720,6 @@ msgstr "Создать Триггер"
 msgid "Active"
 msgstr "Активный"
 
-msgid "Triggers"
-msgstr "Триггеры"
-
 msgid "Join Keyword"
 msgstr "Присоединить ключевое слово"
 
@@ -4898,9 +4928,6 @@ msgstr "Ваша загрузка должна начаться автомати
 msgid "Download Now"
 msgstr "Скачать сейчас"
 
-msgid "Campaigns"
-msgstr "Кампании"
-
 msgid "(Archived)"
 msgstr "(Архивировано)"
 
@@ -5051,9 +5078,6 @@ msgstr "ПОЛНОСТЬЮ ЗАРЯЖЕН"
 
 msgid "ON"
 msgstr "ВКЛ"
-
-msgid "Messages"
-msgstr "Сообщения "
 
 msgid "IVR Messages"
 msgstr "Сообщения ИРВ"
@@ -7107,9 +7131,6 @@ msgstr ""
 "      из файла, который Вы создали в Excel.\n"
 "    "
 
-msgid "Dashboard"
-msgstr "Информационная панель"
-
 msgid "Are you sure you want to remove"
 msgstr "Вы действительно хотите удалить "
 
@@ -8697,9 +8718,6 @@ msgstr "Редактировать Псевдонимы "
 
 msgid "Create new account"
 msgstr "Создать новую учетную запись"
-
-msgid "Sign in"
-msgstr "Войти"
 
 msgid "Add Credits"
 msgstr "Добавить Кредиты"

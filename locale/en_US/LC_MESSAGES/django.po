@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-17 14:49+0000\n"
+"POT-Creation-Date: 2020-06-18 17:55+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3511,6 +3511,33 @@ msgstr ""
 msgid "Update Label"
 msgstr ""
 
+msgid "Messages"
+msgstr ""
+
+msgid "Campaigns"
+msgstr ""
+
+msgid "Triggers"
+msgstr ""
+
+msgid "Users"
+msgstr ""
+
+msgid "Orgs"
+msgstr ""
+
+msgid "Dashboard"
+msgstr ""
+
+msgid "Android"
+msgstr ""
+
+msgid "Sign in"
+msgstr ""
+
+msgid "Sign out"
+msgstr ""
+
 msgid "Plan"
 msgstr ""
 
@@ -4432,9 +4459,6 @@ msgstr ""
 msgid "Active"
 msgstr ""
 
-msgid "Triggers"
-msgstr ""
-
 msgid "Join Keyword"
 msgstr ""
 
@@ -4625,9 +4649,6 @@ msgstr ""
 msgid "Download Now"
 msgstr ""
 
-msgid "Campaigns"
-msgstr ""
-
 msgid "(Archived)"
 msgstr ""
 
@@ -4773,9 +4794,6 @@ msgid "FULLY CHARGED"
 msgstr ""
 
 msgid "ON"
-msgstr ""
-
-msgid "Messages"
 msgstr ""
 
 msgid "IVR Messages"
@@ -6362,9 +6380,6 @@ msgid ""
 "    "
 msgstr ""
 
-msgid "Dashboard"
-msgstr ""
-
 msgid "Are you sure you want to remove"
 msgstr ""
 
@@ -7475,9 +7490,6 @@ msgid "Edit Aliases"
 msgstr ""
 
 msgid "Create new account"
-msgstr ""
-
-msgid "Sign in"
 msgstr ""
 
 msgid "Add Credits"

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-17 14:49+0000\n"
+"POT-Creation-Date: 2020-06-18 17:55+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4706,6 +4706,44 @@ msgstr "Atualizar campos"
 msgid "Update Label"
 msgstr "Atualizar rótulo"
 
+#, fuzzy
+msgid "Messages"
+msgstr "Mensagem"
+
+#, fuzzy
+#| msgid "campaigns"
+msgid "Campaigns"
+msgstr "campanhas"
+
+msgid "Triggers"
+msgstr "Disparadores"
+
+#, fuzzy
+#| msgid "users"
+msgid "Users"
+msgstr "usuários"
+
+msgid "Orgs"
+msgstr ""
+
+#, fuzzy
+#| msgid "dashboard"
+msgid "Dashboard"
+msgstr "Painel de controle"
+
+#, fuzzy
+#| msgid "Android"
+msgid "Android"
+msgstr "Android"
+
+msgid "Sign in"
+msgstr "Entrar"
+
+#, fuzzy
+#| msgid "Sign Up"
+msgid "Sign out"
+msgstr "Cadastrar-se"
+
 msgid "Plan"
 msgstr "Plano"
 
@@ -5761,9 +5799,6 @@ msgstr "Criar disparador"
 msgid "Active"
 msgstr "Ativo"
 
-msgid "Triggers"
-msgstr "Disparadores"
-
 msgid "Join Keyword"
 msgstr "Juntar palavra-chave"
 
@@ -5981,11 +6016,6 @@ msgstr ""
 #, fuzzy
 msgid "Download Now"
 msgstr "Resultados ao vivo"
-
-#, fuzzy
-#| msgid "campaigns"
-msgid "Campaigns"
-msgstr "campanhas"
 
 #, fuzzy
 #| msgid "Archived"
@@ -6241,10 +6271,6 @@ msgstr "TOTALMENTE CARREGADO"
 
 msgid "ON"
 msgstr "LIGADO"
-
-#, fuzzy
-msgid "Messages"
-msgstr "Mensagem"
 
 #, fuzzy
 msgid "IVR Messages"
@@ -8460,11 +8486,6 @@ msgstr ""
 "Para começar, você pode  <a href='%(contact_import_url)s'> importar contatos</ a> \n"
 "a partir de um arquivo Excel."
 
-#, fuzzy
-#| msgid "dashboard"
-msgid "Dashboard"
-msgstr "Painel de controle"
-
 msgid "Are you sure you want to remove"
 msgstr "Você tem certeza que deseja excluir"
 
@@ -9824,9 +9845,6 @@ msgstr "Editar nome"
 
 msgid "Create new account"
 msgstr "Criar nova conta"
-
-msgid "Sign in"
-msgstr "Entrar"
 
 msgid "Add Credits"
 msgstr "Adicionar créditos"

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-17 14:49+0000\n"
+"POT-Creation-Date: 2020-06-18 17:55+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -5009,6 +5009,43 @@ msgstr "Actualizar campos"
 msgid "Update Label"
 msgstr "Actualizar etiqueta"
 
+msgid "Messages"
+msgstr "Mensajes"
+
+#, fuzzy
+#| msgid "campaigns"
+msgid "Campaigns"
+msgstr "campañas"
+
+msgid "Triggers"
+msgstr "Activadores"
+
+#, fuzzy
+#| msgid "users"
+msgid "Users"
+msgstr "usuarios"
+
+msgid "Orgs"
+msgstr ""
+
+#, fuzzy
+#| msgid "dashboard"
+msgid "Dashboard"
+msgstr "Panel"
+
+#, fuzzy
+#| msgid "Android"
+msgid "Android"
+msgstr "Android"
+
+msgid "Sign in"
+msgstr "Registrarse"
+
+#, fuzzy
+#| msgid "Sign Up"
+msgid "Sign out"
+msgstr "Registrarse"
+
 msgid "Plan"
 msgstr "Plan"
 
@@ -6068,9 +6105,6 @@ msgstr "Crear activadores"
 msgid "Active"
 msgstr "Activar"
 
-msgid "Triggers"
-msgstr "Activadores"
-
 msgid "Join Keyword"
 msgstr "Palabra clave para participar"
 
@@ -6296,11 +6330,6 @@ msgstr ""
 #| msgid "Download Results"
 msgid "Download Now"
 msgstr "Descargar Resultados"
-
-#, fuzzy
-#| msgid "campaigns"
-msgid "Campaigns"
-msgstr "campañas"
 
 #, fuzzy
 #| msgid "Archived"
@@ -6576,9 +6605,6 @@ msgstr "TOTALMENTE CARGADO"
 
 msgid "ON"
 msgstr "ENCENDIDO"
-
-msgid "Messages"
-msgstr "Mensajes"
 
 #, fuzzy
 #| msgid "Messages"
@@ -9138,11 +9164,6 @@ msgstr ""
 "\n"
 "    "
 
-#, fuzzy
-#| msgid "dashboard"
-msgid "Dashboard"
-msgstr "Panel"
-
 msgid "Are you sure you want to remove"
 msgstr "¿Está seguro de que desea retirarlo?"
 
@@ -10575,9 +10596,6 @@ msgstr "Editar apelativos"
 
 msgid "Create new account"
 msgstr "Crear cuenta nueva"
-
-msgid "Sign in"
-msgstr "Registrarse"
 
 msgid "Add Credits"
 msgstr "Agregar créditos"
