@@ -4896,7 +4896,6 @@ class ContactTest(TembaTest):
         # we shouldn't be flagged
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_flagged)
-        self.assertFalse(self.org.is_legacy_suspended())
 
         # invalid import params
         with self.assertRaises(Exception):
@@ -5077,18 +5076,18 @@ class ContactTest(TembaTest):
     def test_import_sequential_numbers(self):
 
         org = self.user.get_org()
-        self.assertFalse(org.is_legacy_suspended())
+        self.assertFalse(org.is_flagged)
 
         # importing sequential numbers should automatically suspend our org
         self.do_import(self.user, "sample_contacts_sequential.xls")
         org.refresh_from_db()
-        self.assertTrue(org.is_legacy_suspended())
+        self.assertTrue(org.is_flagged)
 
-        # now whitelist the account
-        self.org.set_whitelisted()
+        # now verify the account
+        self.org.verify()
         self.do_import(self.user, "sample_contacts_sequential.xls")
         org.refresh_from_db()
-        self.assertFalse(org.is_legacy_suspended())
+        self.assertFalse(org.is_flagged)
 
     @mock_contact_modify
     def test_import_methods(self):

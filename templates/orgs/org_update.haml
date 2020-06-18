@@ -12,9 +12,13 @@
       .alert.alert-error
         -trans "This organization has been suspended"
 
-    -if org.is_whitelisted
+    -if org.is_flagged
+      .alert.alert-error
+        -trans "This organization has been flagged for possible spamming"
+
+    -if org.is_verified
       .alert.alert-info
-        -trans "This organization has been whitelisted against spaminess"
+        -trans "This organization has been verified"
   -else
     .alert.alert-error
       -trans "This organization has been scheduled for deletion"
@@ -79,7 +83,7 @@
         -blocktrans
           Also, any user accounts will be deleted if they don't belong to another organization.
 
-    %a#delete-form.posterize{href:'{% url "orgs.org_update" org.id %}?status=delete'}
+    %a#delete-form.posterize{href:'{% url "orgs.org_update" org.id %}?action=delete'}
 
 -block extra-script
   <script>

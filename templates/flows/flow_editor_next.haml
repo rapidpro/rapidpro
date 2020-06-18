@@ -365,7 +365,7 @@
           -blocktrans trimmed
             This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
 
-  .hidden
+  .hide
     %a#change-language-form.posterize(href='{% url "flows.flow_change_language" object.id %}')
       .body
         -blocktrans trimmed with language="%LANG%"
