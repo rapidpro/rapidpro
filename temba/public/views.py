@@ -13,10 +13,9 @@ from temba.apks.models import Apk
 from temba.public.models import Lead, Video
 from temba.utils import analytics, get_anonymous_user, json
 from temba.utils.text import random_string
-from temba.views import VanillaMixin
 
 
-class IndexView(VanillaMixin, SmartTemplateView):
+class IndexView(SmartTemplateView):
     template_name = "public/public_index.haml"
 
     def pre_process(self, request, *args, **kwargs):

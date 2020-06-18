@@ -20,8 +20,8 @@
   },
   "scripts": {
     "preinstall": "npx npm-force-resolutions",
-    "build": "postcss static/scss/tailwind.scss -o static/css/tailwind.css",
-    "watch": "watch 'npm run build' ./static/scss"
+    "tw-build": "postcss static/scss/tailwind.scss -o static/css/tailwind.css",
+    "tw-watch": "watch 'npm run build' ./static/scss"
   },
   "devDependencies": {
     "bower": "1.8.8",

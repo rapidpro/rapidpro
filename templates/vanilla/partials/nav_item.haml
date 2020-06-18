@@ -1,7 +1,4 @@
 -load smartmin i18n temba
 .nav-item{class:'{{nav_item.tag}}'}
   %a{href:"{% ssl_brand_url nav_item.href %}", class:" {% active request nav_item.active %}"}
-    // .circle
-    // .icon{class:"icon-{{nav_item.icon}}"}
-    // .title
     {{nav_item.title}}

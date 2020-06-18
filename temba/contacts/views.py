@@ -46,7 +46,6 @@ from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.text import slugify_with
 from temba.utils.views import BaseActionForm
 from temba.values.constants import Value
-from temba.views import VanillaMixin
 
 from .models import (
     TEL_SCHEME,
@@ -149,7 +148,7 @@ class ContactGroupForm(forms.ModelForm):
         model = ContactGroup
 
 
-class ContactListView(VanillaMixin, OrgPermsMixin, SmartListView):
+class ContactListView(OrgPermsMixin, SmartListView):
     """
     Base class for contact list views with contact folders and groups listed by the side
     """

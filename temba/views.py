@@ -1,7 +1,7 @@
-class VanillaMixin:
+# this mixin allows us to take a peacemeal approach to reskinning
+class VanillaMixin:  # pragma: needs cover
     def get_template_names(self):
         templates = super().get_template_names()
-
         vanilla = self.request.GET.get("vanilla", self.request.session.get("vanilla", "O")) == "1"
         if vanilla:
             original = templates[0].split(".")
