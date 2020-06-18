@@ -6,7 +6,11 @@ from django.utils import timezone
 from temba.contacts.models import Contact
 
 
-def local_modify(org_id, user_id, contact_ids, modifiers):
+def local_contact_modify(org_id, user_id, contact_ids, modifiers):
+    """
+    A simplified version of calling mailroom's contact_modify endpoint for testing.
+    Doesn't do dynamic group re-evaluation.
+    """
     user = User.objects.get(id=user_id)
     contacts = Contact.objects.filter(org_id=org_id, id__in=contact_ids)
 
@@ -32,9 +36,13 @@ def local_modify(org_id, user_id, contact_ids, modifiers):
 
 
 def mock_contact_modify(f):
+    """
+    Convenience decorator to make a test method use a mocked version of contact_modify
+    """
+
     def wrapped(*args, **kwargs):
         with patch("temba.mailroom.client.MailroomClient.contact_modify") as cm:
-            cm.side_effect = local_modify
+            cm.side_effect = local_contact_modify
             return f(*args, **kwargs)
 
     return wrapped

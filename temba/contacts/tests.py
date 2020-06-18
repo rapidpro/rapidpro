@@ -3692,6 +3692,21 @@ class ContactTest(TembaTest):
         self.assertFalse(ChannelEvent.objects.filter(contact=self.frank))
         self.assertFalse(ChannelEvent.objects.filter(id=event.id))
 
+    @patch("temba.mailroom.client.MailroomClient.contact_modify")
+    def test_update_with_mailroom_error(self, mock_modify):
+        mock_modify.side_effect = MailroomException("", "", {"error": "Error updating contact"})
+
+        self.login(self.admin)
+
+        response = self.client.post(
+            reverse("contacts.contact_update", args=[self.joe.id]),
+            dict(language="fra", name="Muller Awesome", urn__tel__0="+250781111111", urn__twitter__1="blow80"),
+        )
+
+        self.assertFormError(
+            response, "form", None, "An error occurred updating your contact. Please try again later."
+        )
+
     def test_contact_read_with_contactfields(self):
         self.login(self.admin)
 
@@ -3729,90 +3744,45 @@ class ContactTest(TembaTest):
         self.assertEqual(len(response.context_data["all_contact_fields"]), 2)
 
     @patch("temba.mailroom.client.MailroomClient.contact_modify")
-    def test_contact_update_name_language(self, mock_contact_modify):
-        self.login(self.admin)
-
-        self.client.post(reverse("orgs.org_languages"), dict(primary_lang="eng", languages="fra"))
-        self.assertIsNone(self.joe.language)
-
+    def test_update(self, mock_contact_modify):
         mock_contact_modify.return_value = {"1": {"contact": {}, "events": []}}
 
-        # no change, should not call mailroom contact modify
-        self.client.post(
-            reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(language="", name="Joe Blow", urn__tel__0="+250781111111", urn__twitter__1="blow80"),
-        )
+        # if new values don't differ from current values.. mailroom not called
+        self.joe.update(self.admin, name="Joe Blow", language="")
+
         mock_contact_modify.assert_not_called()
-        mock_contact_modify.reset_mock()
 
-        # set language, calls mailroom contact modify with language modifier only
-        self.client.post(
-            reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(language="eng", name="Joe Blow", urn__tel__0="+250781111111", urn__twitter__1="blow80"),
-        )
+        # change language
+        self.joe.update(self.admin, name="Joe Blow", language="eng")
 
+        # should send only a language modifier
         mock_contact_modify.assert_called_once_with(
             self.joe.org.id, self.admin.id, [self.joe.id], [{"type": "language", "language": "eng"}]
         )
         mock_contact_modify.reset_mock()
 
-        self.joe.refresh_from_db()
         self.joe.language = "eng"
         self.joe.save(update_fields=("language",), handle_update=False)
 
-        # set different name, calls mailroom contact modify with name modify only
-        self.client.post(
-            reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(language="eng", name="Muller Awesome", urn__tel__0="+250781111111", urn__twitter__1="blow80"),
-        )
+        # change name
+        self.joe.update(self.admin, name="Joseph Blow", language="eng")
 
+        # should send only a name modifier
         mock_contact_modify.assert_called_once_with(
-            self.joe.org.id, self.admin.id, [self.joe.id], [{"type": "name", "name": "Muller Awesome"}]
+            self.joe.org.id, self.admin.id, [self.joe.id], [{"type": "name", "name": "Joseph Blow"}]
         )
         mock_contact_modify.reset_mock()
 
-        self.client.post(
-            reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(language="fra", name="Muller Awesome", urn__tel__0="+250781111111", urn__twitter__1="blow80"),
-        )
+        # change both name and language
+        self.joe.update(self.admin, name="Joseph Blower", language="spa")
 
         mock_contact_modify.assert_called_once_with(
             self.joe.org.id,
             self.admin.id,
             [self.joe.id],
-            [{"type": "name", "name": "Muller Awesome"}, {"type": "language", "language": "fra"}],
+            [{"type": "name", "name": "Joseph Blower"}, {"type": "language", "language": "spa"}],
         )
-
-        mock_contact_modify.side_effect = MailroomException("", "", {"error": "Error updating contact"})
-
-        # set different name and language with an error from mailroom, should display some error message to user
-        response = self.client.post(
-            reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(language="fra", name="Muller Awesome", urn__tel__0="+250781111111", urn__twitter__1="blow80"),
-        )
-
-        self.assertFormError(
-            response, "form", None, "An error occurred updating your contact. Please try again later."
-        )
-
-    def test_contact_model_update(self):
-        self.login(self.admin)
-
-        self.client.post(reverse("orgs.org_languages"), dict(primary_lang="eng", languages="fra"))
-        self.assertIsNone(self.joe.language)
-
-        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-            instance = mock_mr.return_value
-            instance.contact_modify.return_value = {"1": {"contact": {}, "events": []}}
-
-            self.joe.update(self.admin, "Muller", "eng")
-
-            instance.contact_modify.assert_called_once_with(
-                self.joe.org.id,
-                self.admin.id,
-                [self.joe.id],
-                [{"type": "name", "name": "Muller"}, {"type": "language", "language": "eng"}],
-            )
+        mock_contact_modify.reset_mock()
 
     def test_number_normalized(self):
         self.org.country = None
@@ -3827,8 +3797,8 @@ class ContactTest(TembaTest):
         contact = Contact.from_urn(self.org, "tel:+447531669965")
         self.assertEqual("Ryan Lewis", contact.name)
 
-        with patch("temba.mailroom.client.MailroomClient.contact_modify") as mock_contact_modify:
-            mock_contact_modify.return_value = {"1": {"contact": {}, "events": []}}
+        with patch("temba.mailroom.client.MailroomClient.contact_modify") as mock_modify:
+            mock_modify.return_value = {"1": {"contact": {}, "events": []}}
 
             # try the update case
             response = self.client.post(
@@ -3837,7 +3807,7 @@ class ContactTest(TembaTest):
             )
             self.assertEqual(302, response.status_code)
 
-            mock_contact_modify.assert_called_once_with(
+            mock_modify.assert_called_once_with(
                 self.org.id, self.admin.id, [contact.id], [{"type": "name", "name": "Marshal Mathers"}]
             )
 

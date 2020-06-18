@@ -1466,31 +1466,18 @@ class ContactCRUDL(SmartCRUDL):
             form_kwargs["user"] = self.request.user
             return form_kwargs
 
-        def get_form(self):
-            return super().get_form()
-
-        def save(self, obj):
-            # since mailroom will be making the actual changes, get a copy of the contact from the database
-            # without the changes already set by using model form
-            contact = Contact.objects.get(id=obj.id)
-            data = self.form.cleaned_data
-
-            try:
-                contact.update(self.request.user, data.get("name"), data.get("language"))
-            except Exception:
-                raise ValidationError(_("An error occurred updating your contact. Please try again later."))
-
-            new_groups = self.form.cleaned_data.get("groups")
-            if new_groups is not None:
-                obj.update_static_groups(self.request.user, new_groups)
-
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["schemes"] = ContactURN.SCHEME_CHOICES
             return context
 
-        def post_save(self, obj):
-            obj = super().post_save(obj)
+        def form_valid(self, form):
+            obj = self.get_object()
+            data = form.cleaned_data
+
+            new_groups = self.form.cleaned_data.get("groups")
+            if new_groups is not None:
+                obj.update_static_groups(self.request.user, new_groups)
 
             if not self.org.is_anon:
                 urns = []
@@ -1503,8 +1490,8 @@ class ContactCRUDL(SmartCRUDL):
                         order = int(self.form.data.get("order__" + field_key, "0"))
                         urns.append((order, URN.from_parts(scheme, value)))
 
-                new_scheme = self.form.cleaned_data.get("new_scheme", None)
-                new_path = self.form.cleaned_data.get("new_path", None)
+                new_scheme = data.get("new_scheme", None)
+                new_path = data.get("new_path", None)
 
                 if new_scheme and new_path:
                     urns.append((len(urns), URN.from_parts(new_scheme, new_path)))
@@ -1513,7 +1500,16 @@ class ContactCRUDL(SmartCRUDL):
                 urns = [urn[1] for urn in sorted(urns, key=lambda x: x[0])]
                 obj.update_urns(self.request.user, urns)
 
-            return obj
+            # eventually mailroom will do groups and URNs as well, but for now just do the mailroom parts
+            # last so that group re-evaluation happens after the groups and URNs have been set
+            try:
+                obj.update(self.request.user, data.get("name"), data.get("language"))
+            except Exception:
+                errors = form._errors.setdefault(forms.forms.NON_FIELD_ERRORS, forms.utils.ErrorList())
+                errors.append(_("An error occurred updating your contact. Please try again later."))
+                return self.render_to_response(self.get_context_data(form=form))
+
+            return HttpResponseRedirect(self.get_success_url())
 
     class UpdateFields(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = ContactFieldForm
