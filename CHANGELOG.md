@@ -1,3 +1,7 @@
+v5.5.64
+----------
+ * Fix editor
+
 v5.5.63
 ----------
  * Make new org fields non-null and remove no longer needed legacy method
