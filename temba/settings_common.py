@@ -450,7 +450,7 @@ PERMISSIONS = {
         "flow_parameters",
         "export_pdf",
     ),
-    "flows.flowimage": ("read", "filter", "archived", "download"),
+    "flows.flowimage": ("read", "filter", "archived", "download", "action_delete", "action_archive", "action_restore"),
     "flows.flowsession": ("json",),
     "links.link": ("archived", "read", "history", "export", "api"),
     "msgs.msg": (

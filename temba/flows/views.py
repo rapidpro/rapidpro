@@ -310,6 +310,7 @@ class FlowImageCRUDL(SmartCRUDL):
             context["org_has_flowimages_archived"] = folders[1].get("count")
             context["flows"] = (
                 Flow.objects.filter(org=self.request.user.get_org(), is_active=True)
+                .exclude(is_system=True)
                 .only("name", "uuid")
                 .order_by("name")
             )
