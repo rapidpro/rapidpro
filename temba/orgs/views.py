@@ -1098,12 +1098,10 @@ class OrgCRUDL(SmartCRUDL):
             )
 
         def get_name(self, obj):
-            suspended = ""
-            if obj.is_suspended():
-                suspended = '<span class="suspended">(Suspended)</span>'
+            flagged = '<span class="flagged">(Flagged)</span>' if obj.is_flagged else ""
 
             return mark_safe(
-                f"<div class='org-name'>{suspended} {escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div>"
+                f"<div class='org-name'>{flagged} {escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div>"
             )
 
         def derive_queryset(self, **kwargs):
@@ -1168,32 +1166,32 @@ class OrgCRUDL(SmartCRUDL):
                     )
                 )
 
-                if org.is_suspended():
+                if org.is_flagged:
                     links.append(
                         dict(
-                            title=_("Restore"),
+                            title=_("Unflag"),
                             style="btn-secondary",
                             posterize=True,
-                            href="%s?status=restored" % reverse("orgs.org_update", args=[org.pk]),
+                            href="%s?action=unflag" % reverse("orgs.org_update", args=[org.pk]),
                         )
                     )
                 else:  # pragma: needs cover
                     links.append(
                         dict(
-                            title=_("Suspend"),
+                            title=_("Flag"),
                             style="btn-secondary",
                             posterize=True,
-                            href="%s?status=suspended" % reverse("orgs.org_update", args=[org.pk]),
+                            href="%s?action=flag" % reverse("orgs.org_update", args=[org.pk]),
                         )
                     )
 
-                if not org.is_whitelisted():
+                if not org.is_verified():
                     links.append(
                         dict(
-                            title=_("Whitelist"),
+                            title=_("Verify"),
                             style="btn-secondary",
                             posterize=True,
-                            href="%s?status=whitelisted" % reverse("orgs.org_update", args=[org.pk]),
+                            href="%s?action=verify" % reverse("orgs.org_update", args=[org.pk]),
                         )
                     )
 
@@ -1202,14 +1200,15 @@ class OrgCRUDL(SmartCRUDL):
             return links
 
         def post(self, request, *args, **kwargs):
-            if "status" in request.POST:
-                if request.POST.get("status", None) == Org.STATUS_SUSPENDED:
-                    self.get_object().set_suspended()
-                elif request.POST.get("status", None) == Org.STATUS_WHITELISTED:
-                    self.get_object().set_whitelisted()
-                elif request.POST.get("status", None) == Org.STATUS_RESTORED:
-                    self.get_object().set_restored()
-                elif request.POST.get("status", None) == "delete":
+            if "action" in request.POST:
+                action = request.POST["action"]
+                if action == "flag":
+                    self.get_object().flag()
+                elif action == "verify":
+                    self.get_object().verify()
+                elif action == "unflag":
+                    self.get_object().unflag()
+                elif action == "delete":
                     self.get_object().release()
                 return HttpResponseRedirect(self.get_success_url())
             return super().post(request, *args, **kwargs)

@@ -2124,14 +2124,16 @@ class FlowCRUDL(SmartCRUDL):
                 if self.flow.is_starting():
                     raise ValidationError(
                         _(
-                            "This flow is already being started, please wait until that process is complete before starting more contacts."
+                            "This flow is already being started, please wait until that process is complete before "
+                            "starting more contacts."
                         )
                     )
 
-                if self.flow.org.is_suspended():
+                if self.flow.org.is_flagged:
                     raise ValidationError(
                         _(
-                            "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+                            "Sorry, your account is currently flagged. "
+                            "To enable sending messages, please contact support."
                         )
                     )
 

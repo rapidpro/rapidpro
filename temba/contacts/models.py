@@ -1904,8 +1904,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         group.status = ContactGroup.STATUS_READY
         group.save(update_fields=("status",))
 
-        # if we aren't whitelisted, check for sequential phone numbers
-        if not group_org.is_whitelisted():
+        # if we aren't verified, check for sequential phone numbers
+        if not group_org.is_verified():
             try:
                 # get all of our phone numbers for the imported contacts
                 paths = [
@@ -1923,7 +1923,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                     last_path = path
 
                     if sequential > SEQUENTIAL_CONTACTS_THRESHOLD:
-                        group_org.set_suspended()
+                        group_org.flag()
                         break
 
             except Exception:  # pragma: no cover
