@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-17 14:49+0000\n"
+"POT-Creation-Date: 2020-06-19 16:30+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2341,7 +2341,9 @@ msgstr "Connecter %(channel_type)s"
 msgid "You can connect your number by entering your credentials here."
 msgstr "Vous pouvez connecter votre numéro en entrant vos identifiants ici."
 
-msgid "Sorry, you need to have an organization to add numbers. You can still test things out for free using an Android phone."
+#, fuzzy
+#| msgid "Sorry, you need to have an organization to add numbers. You can still test things out for free using an Android phone."
+msgid "Sorry, you need to have a workspace to add numbers. You can still test things out for free using an Android phone."
 msgstr "Désolé, vous devez avoir une organisation pour ajouter des numéros. Vous pouvez toujours tester les choses gratuitement en utilisant un téléphone Android."
 
 msgid "Sorry, the number you chose is not supported. You can still deploy in any country using your own SIM card and an Android phone."
@@ -3435,7 +3437,9 @@ msgstr "Après  3 minutes"
 msgid "After 4 minutes"
 msgstr "Après 4 minutes"
 
-msgid "You must select a country for your organization."
+#, fuzzy
+#| msgid "You must select a country for your organization."
+msgid "You must select a country for your workspace."
 msgstr "Vous devez sélectionner un pays pour votre organisation."
 
 msgid "Queued"
@@ -4037,17 +4041,21 @@ msgstr "Votre nom"
 msgid "Your email address"
 msgstr "Votre adresse mail"
 
-msgid "The timezone your organization is in"
+#, fuzzy
+#| msgid "The timezone your organization is in"
+msgid "The timezone for your workspace"
 msgstr "Le fuseau horaire de votre organisation"
 
 msgid "Your password, at least eight letters please"
 msgstr "Votre mot de passe, au moins huit lettres s'il vous plait "
 
-msgid "Organization"
-msgstr "Organisation"
+msgid "Workspace"
+msgstr ""
 
-msgid "The name of your organization"
-msgstr "Le nom de votre organisation"
+#, fuzzy
+#| msgid "The name of your bot"
+msgid "The name of your workspace"
+msgstr "Le nom de votre bot"
 
 msgid "That email address is already used"
 msgstr "Cette adresse email est déjà utilisée"
@@ -4055,25 +4063,38 @@ msgstr "Cette adresse email est déjà utilisée"
 msgid "Passwords must contain at least 8 letters."
 msgstr "Les mots de passe doivent contenir au moins 8 caractères."
 
-msgid "The first name of the organization administrator"
+#, fuzzy
+#| msgid "The first name of the organization administrator"
+msgid "The first name of the workspace administrator"
 msgstr "Le prénom de l'administrateur de l'organisation"
 
-msgid "Your last name of the organization administrator"
+#, fuzzy
+#| msgid "Your last name of the organization administrator"
+msgid "Your last name of the workspace administrator"
 msgstr "Le nom de famille de l'administrateur de l'organisation"
 
 msgid "Their email address"
 msgstr "Leurs adresses email"
 
-msgid "The timezone the organization is in"
+#, fuzzy
+#| msgid "The timezone the organization is in"
+msgid "The timezone for the workspace"
 msgstr "Le fuseau horaire de l'organisation est"
 
 msgid "Their password, at least eight letters please. (leave blank for existing users)"
 msgstr "Leur mot de passe, au moins huit lettres s'il vous plaît. (laissez vide pour les utilisateurs existants)"
 
-msgid "The name of the new organization"
-msgstr "Le nom de la nouvelle organisation"
+msgid "Organization"
+msgstr "Organisation"
 
-msgid "The initial number of credits granted to this organization."
+#, fuzzy
+#| msgid "The name of the Facebook page"
+msgid "The name of the new workspace"
+msgstr "Le nom de la page Facebook"
+
+#, fuzzy
+#| msgid "The initial number of credits granted to this organization."
+msgid "The initial number of credits granted to this workspace"
 msgstr "Le nombre initial de crédits accordés à cette organisation."
 
 msgid "User already exists, please do not include password."
@@ -4238,7 +4259,9 @@ msgstr "Vérification SSL"
 msgid "This password is not valid. Choose a new password and try again."
 msgstr "Ce mot de passe n'est pas valide. Choisissez un nouveau mot de passe et réessayez."
 
-msgid "Invite people to your organization"
+#, fuzzy
+#| msgid "Invite people to your organization"
+msgid "Invite people to your workspace"
 msgstr "Invitez les gens à votre organisation"
 
 msgid "User group"
@@ -4259,13 +4282,17 @@ msgstr "activer"
 msgid "Two Factor Authentication"
 msgstr "Authentification à deux facteurs"
 
-msgid "Select your Organization"
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Select your Workspace"
 msgstr "Choisissez votre Organisation"
 
 msgid "No organizations for this account, please contact your administrator."
 msgstr "Aucune organisation pour ce compte, veuillez contacter votre administrateur."
 
-msgid "Your invitation link is invalid. Please contact your organization administrator."
+#, fuzzy
+#| msgid "Your invitation link is invalid. Please contact your organization administrator."
+msgid "Your invitation link is invalid. Please contact your workspace administrator."
 msgstr "Le lien d'invitation n'est pas valide. S'il vous plaît contactez votre administrateur de l'organisation."
 
 #, python-format
@@ -4275,7 +4302,9 @@ msgstr "Rejoignez %(name)s"
 msgid "Join"
 msgstr "Rejoignez"
 
-msgid "Your invitation link has expired. Please contact your organization administrator."
+#, fuzzy
+#| msgid "Your invitation link has expired. Please contact your organization administrator."
+msgid "Your invitation link has expired. Please contact your workspace administrator."
 msgstr "Le lien d'invitation a expiré. S'il vous plaît contactez votre administrateur de l'organisation."
 
 msgid "Invalid surveyor password, please check with your project leader and try again."
@@ -4339,29 +4368,33 @@ msgstr "Compte SID"
 msgid "Account Token"
 msgstr "Jeton de compte"
 
-msgid "Your organization's timezone"
-msgstr "Le fuseau horaire de votre organisation"
-
-msgid "The slug, or short name for your organization"
+#, fuzzy
+#| msgid "The slug, or short name for your organization"
+msgid "The slug, or short name for your workspace"
 msgstr "Le slogan, ou le nom abrégé de votre organisation"
 
 msgid "From Organization"
 msgstr "De l'organisation"
 
-msgid "Select which organization to take credits from"
+#, fuzzy
+#| msgid "Select which organization to take credits from"
+msgid "Select which workspace to take credits from"
 msgstr "Sélectionnez l'organisation auprès de laquelle prendre des crédits"
 
 msgid "To Organization"
 msgstr "À l'organisation"
 
-msgid "Select which organization to receive the credits"
+#, fuzzy
+#| msgid "Select which organization to receive the credits"
+msgid "Select which workspace to receive the credits"
 msgstr "Sélectionnez l'organisation devant recevoir les crédits"
 
 msgid "How many credits to transfer"
 msgstr "Combien de crédits à transférer"
 
-#, python-format
-msgid "Sorry, %(org_name)s doesn't have enough credits for this transfer. Pick a different organization to transfer from or reduce the transfer amount."
+#, fuzzy, python-format
+#| msgid "Sorry, %(org_name)s doesn't have enough credits for this transfer. Pick a different organization to transfer from or reduce the transfer amount."
+msgid "Sorry, %(org_name)s doesn't have enough credits for this transfer. Pick a different workspace to transfer from or reduce the transfer amount."
 msgstr "Désolé, %(org_name)s ne dispose pas de suffisamment de crédits pour ce transfert. Choisissez une organisation différente à partir de laquelle transférer ou réduisez le montant du transfert."
 
 msgid "The country used for location values. (optional)"
@@ -4383,8 +4416,9 @@ msgstr "et"
 msgid "%(lang1)s and %(lang2)s"
 msgstr "%(lang1)s et %(lang2)s"
 
-#, python-format
-msgid "Cleared %(name)s cache for this organization (%(count)d keys)"
+#, fuzzy, python-format
+#| msgid "Cleared %(name)s cache for this organization (%(count)d keys)"
+msgid "Cleared %(name)s cache for this workspace (%(count)d keys)"
 msgstr "Cache %(name)s effacé pour cette organisation (%(count)d clés)"
 
 msgid "Privacy Policy"
@@ -7429,7 +7463,7 @@ msgid "This flow is in the process of being sent, this message will disappear on
 msgstr "Ce flux est en cours d'envoi, ce message disparaîtra une fois que tous les contacts auront été ajoutés au flux."
 
 #, python-format
-msgid "This will change the default language of the flow to <b>%(language)s</b>. This means that by default the flow will be appear in that language and can be translated into other languages. Also if a contact is in this flow and no translation exists for their language or the default language of the organization, communication with that contact will default to <b>%(language)s</b>."
+msgid "This will change the default language of the flow to <b>%(language)s</b>. This means that by default the flow will be appear in that language and can be translated into other languages. Also if a contact is in this flow and no translation exists for their language or the default language of the workspace, communication with that contact will default to <b>%(language)s</b>."
 msgstr ""
 
 msgid ""
@@ -8371,10 +8405,17 @@ msgstr ""
 "Carte de crédit: %(cc_type)s X%(cc_last4)s\n"
 "\n"
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "    Your organization can have user accounts with various roles. You can use the Manage Accounts page\n"
+#| "    to view all existing accounts or to invite new users to your organization.\n"
+#| "\n"
+#| "  "
 msgid ""
 "\n"
-"    Your organization can have user accounts with various roles. You can use the Manage Accounts page\n"
-"    to view all existing accounts or to invite new users to your organization.\n"
+"    Your workspace can have logins with various roles. You can use the Manage Logins page\n"
+"    to view all existing logins or to add new logins to your workspace.\n"
 "\n"
 "  "
 msgstr ""
@@ -8532,7 +8573,9 @@ msgstr ""
 "          Cela déconnectera votre compte Chatbase. Êtes-vous sur de vouloir continuer?\n"
 "        "
 
-msgid "Your account is not associated with any organization. Please contact your administrator to receive an invitation to an organization."
+#, fuzzy
+#| msgid "Your account is not associated with any organization. Please contact your administrator to receive an invitation to an organization."
+msgid "Your account is not associated with any workspace. Please contact your administrator to receive an invitation to a workspace."
 msgstr "Votre compte n'est associé à aucune organisation. Veuillez contacter votre administrateur pour recevoir une invitation auprès d'une organisation."
 
 #, python-format
@@ -8637,10 +8680,15 @@ msgstr "Vous pouvez trouver votre jeton d’API en cliquant sur"
 msgid " on the DT One site."
 msgstr "sur le site DT One."
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "    Your organization is <span class='attn'>%(org)s</span>\n"
+#| "\n"
+#| "  "
 msgid ""
 "\n"
-"    Your organization is <span class='attn'>%(org)s</span>\n"
+"    Your workspace is <span class='attn'>%(org)s</span>\n"
 "\n"
 "  "
 msgstr ""
@@ -8661,14 +8709,22 @@ msgstr ""
 "\n"
 "  "
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "      You have <span class='attn'>%(org_count)s</span> child organization.\n"
+#| "      "
+#| msgid_plural ""
+#| "\n"
+#| "      You have <span class='attn'>%(org_count)s</span> child organizations.\n"
+#| "    "
 msgid ""
 "\n"
-"      You have <span class='attn'>%(org_count)s</span> child organization.\n"
+"      You have <span class='attn'>%(org_count)s</span> child workspaces.\n"
 "      "
 msgid_plural ""
 "\n"
-"      You have <span class='attn'>%(org_count)s</span> child organizations.\n"
+"      You have <span class='attn'>%(org_count)s</span> child workspaces.\n"
 "    "
 msgstr[0] ""
 "\n"
@@ -8763,7 +8819,9 @@ msgstr ""
 "        Les traductions sont fournies en <span class='attn'>%(lang)s</span>.\n"
 "      "
 
-msgid "Your organization is configured to use a single language."
+#, fuzzy
+#| msgid "Your organization is configured to use a single language."
+msgid "Your workspace is configured to use a single language."
 msgstr "Votre organisation est configurée pour utiliser une seule langue."
 
 msgid "Organizations"
@@ -8835,8 +8893,9 @@ msgstr "Pour connecter votre compte Plivo, vous devez nous fournir votre ID AUTH
 msgid "Plivo Dashboard"
 msgstr "Tableau de bord Plivo"
 
-#, python-format
-msgid "You can monitor contact group counts and channel message counts on your organization using your %(prometheus)s endpoint. This will let you monitor usage over time using graphs and alerts in a dashboard such as %(grafana)s."
+#, fuzzy, python-format
+#| msgid "You can monitor contact group counts and channel message counts on your organization using your %(prometheus)s endpoint. This will let you monitor usage over time using graphs and alerts in a dashboard such as %(grafana)s."
+msgid "You can monitor contact group counts and channel message counts on your workspace using your %(prometheus)s endpoint. This will let you monitor usage over time using graphs and alerts in a dashboard such as %(grafana)s."
 msgstr "Vous pouvez surveiller le nombre de groupes de contacts et le nombre de messages sur votre organisation à l'aide du point de terminaison %(prometheus)s . Cela vous permettra de surveiller l'utilisation au fil du temps à l'aide de graphiques et d'alertes dans un tableau de bord tel que %(grafana)s."
 
 msgid "Endpoint"
@@ -8848,12 +8907,14 @@ msgstr "Désactiver Prometheus"
 msgid "Enable Prometheus"
 msgstr "Activer Prometheus"
 
-#, python-format
-msgid "You are monitoring your organization using %(prometheus)s."
+#, fuzzy, python-format
+#| msgid "You are monitoring your organization using %(prometheus)s."
+msgid "You are monitoring your workspace using %(prometheus)s."
 msgstr "Vous surveillez votre organisation à l'aide de %(prometheus)s."
 
-#, python-format
-msgid "You have not enabled %(prometheus)s monitoring on your organization."
+#, fuzzy, python-format
+#| msgid "You have not enabled %(prometheus)s monitoring on your organization."
+msgid "You have not enabled %(prometheus)s monitoring on your workspace."
 msgstr "Vous n'avez pas activé la surveillance de %(prometheus)s sur votre organisation."
 
 msgid ""
@@ -8908,7 +8969,9 @@ msgstr "Ben"
 msgid "Haggerty"
 msgstr "Haggerty"
 
-msgid "What organization is this account for?"
+#, fuzzy
+#| msgid "What organization is this account for?"
+msgid "What workspace is this login for?"
 msgstr "Quel est l'organisme appartient ce compte?"
 
 msgid "name@domain.com"
@@ -9066,20 +9129,24 @@ msgstr "Générer des jetons de sauvegarde"
 msgid "Disable Two Factor"
 msgstr "Désactiver deux facteurs"
 
-msgid "This organization has been suspended"
+#, fuzzy
+#| msgid "This organization has been suspended"
+msgid "This workspace has been suspended"
 msgstr "Cette organisation a été suspendue"
 
 #, fuzzy
 #| msgid "This organization has been scheduled for deletion"
-msgid "This organization has been flagged for possible spamming"
+msgid "This workspace has been flagged for possible spamming"
 msgstr "La suppression de cette organisation est prévue"
 
 #, fuzzy
 #| msgid "This organization has been suspended"
-msgid "This organization has been verified"
+msgid "This workspace has been verified"
 msgstr "Cette organisation a été suspendue"
 
-msgid "This organization has been scheduled for deletion"
+#, fuzzy
+#| msgid "This organization has been scheduled for deletion"
+msgid "This workspace has been scheduled for deletion"
 msgstr "La suppression de cette organisation est prévue"
 
 msgid "Whoa, whoa, whoa!"
@@ -9099,9 +9166,15 @@ msgstr ""
 "\n"
 "      "
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "          Also, any user accounts will be deleted if they don't belong to another organization.\n"
+#| "\n"
+#| "        "
 msgid ""
 "\n"
-"          Also, any user accounts will be deleted if they don't belong to another organization.\n"
+"          Also, any user accounts will be deleted if they don't belong to another workspace.\n"
 "\n"
 "        "
 msgstr ""
@@ -10330,9 +10403,15 @@ msgstr "Supprimer l'utilisateur"
 msgid "By deleting this user,"
 msgstr "En supprimant cet utilisateur,"
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "                  will also be deleted. All organization data will be deleted and there is no\n"
+#| "                  going back. This includes all flows, contacts, messages, etc.\n"
+#| "                "
 msgid ""
 "\n"
-"                  will also be deleted. All organization data will be deleted and there is no\n"
+"                  will also be deleted. All workspace data will be deleted and there is no\n"
 "                  going back. This includes all flows, contacts, messages, etc.\n"
 "                "
 msgstr ""
@@ -10583,6 +10662,15 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "The name of your organization"
+#~ msgstr "Le nom de votre organisation"
+
+#~ msgid "The name of the new organization"
+#~ msgstr "Le nom de la nouvelle organisation"
+
+#~ msgid "Your organization's timezone"
+#~ msgstr "Le fuseau horaire de votre organisation"
 
 #~ msgid "Whitelist"
 #~ msgstr "Liste blanche"

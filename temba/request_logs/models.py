@@ -170,7 +170,4 @@ class HTTPLog(models.Model):
         )
 
     class Meta:
-        indexes = (
-            Index(fields=("classifier", "-created_on")),
-            Index(fields=("ticketer", "-created_on")),
-        )
+        indexes = (Index(fields=("classifier", "-created_on")), Index(fields=("ticketer", "-created_on")))

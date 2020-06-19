@@ -189,7 +189,7 @@ class MailroomClientTest(TembaTest):
 
     def test_ticket_close(self):
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}',)
+            mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
             response = get_client().ticket_close(1, [123, 345])
 
             self.assertEqual({"changed_ids": [123]}, response)
@@ -201,7 +201,7 @@ class MailroomClientTest(TembaTest):
 
     def test_ticket_reopen(self):
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}',)
+            mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
             response = get_client().ticket_reopen(1, [123, 345])
 
             self.assertEqual({"changed_ids": [123]}, response)

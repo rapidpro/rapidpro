@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-17 14:49+0000\n"
+"POT-Creation-Date: 2020-06-19 16:30+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2062,7 +2062,7 @@ msgstr ""
 msgid "You can connect your number by entering your credentials here."
 msgstr ""
 
-msgid "Sorry, you need to have an organization to add numbers. You can still test things out for free using an Android phone."
+msgid "Sorry, you need to have a workspace to add numbers. You can still test things out for free using an Android phone."
 msgstr ""
 
 msgid "Sorry, the number you chose is not supported. You can still deploy in any country using your own SIM card and an Android phone."
@@ -3152,7 +3152,7 @@ msgstr ""
 msgid "After 4 minutes"
 msgstr ""
 
-msgid "You must select a country for your organization."
+msgid "You must select a country for your workspace."
 msgstr ""
 
 msgid "Queued"
@@ -3748,16 +3748,16 @@ msgstr ""
 msgid "Your email address"
 msgstr ""
 
-msgid "The timezone your organization is in"
+msgid "The timezone for your workspace"
 msgstr ""
 
 msgid "Your password, at least eight letters please"
 msgstr ""
 
-msgid "Organization"
+msgid "Workspace"
 msgstr ""
 
-msgid "The name of your organization"
+msgid "The name of your workspace"
 msgstr ""
 
 msgid "That email address is already used"
@@ -3766,25 +3766,28 @@ msgstr ""
 msgid "Passwords must contain at least 8 letters."
 msgstr ""
 
-msgid "The first name of the organization administrator"
+msgid "The first name of the workspace administrator"
 msgstr ""
 
-msgid "Your last name of the organization administrator"
+msgid "Your last name of the workspace administrator"
 msgstr ""
 
 msgid "Their email address"
 msgstr ""
 
-msgid "The timezone the organization is in"
+msgid "The timezone for the workspace"
 msgstr ""
 
 msgid "Their password, at least eight letters please. (leave blank for existing users)"
 msgstr ""
 
-msgid "The name of the new organization"
+msgid "Organization"
 msgstr ""
 
-msgid "The initial number of credits granted to this organization."
+msgid "The name of the new workspace"
+msgstr ""
+
+msgid "The initial number of credits granted to this workspace"
 msgstr ""
 
 msgid "User already exists, please do not include password."
@@ -3947,7 +3950,7 @@ msgstr ""
 msgid "This password is not valid. Choose a new password and try again."
 msgstr ""
 
-msgid "Invite people to your organization"
+msgid "Invite people to your workspace"
 msgstr ""
 
 msgid "User group"
@@ -3968,13 +3971,13 @@ msgstr ""
 msgid "Two Factor Authentication"
 msgstr ""
 
-msgid "Select your Organization"
+msgid "Select your Workspace"
 msgstr ""
 
 msgid "No organizations for this account, please contact your administrator."
 msgstr ""
 
-msgid "Your invitation link is invalid. Please contact your organization administrator."
+msgid "Your invitation link is invalid. Please contact your workspace administrator."
 msgstr ""
 
 #, python-format
@@ -3984,7 +3987,7 @@ msgstr ""
 msgid "Join"
 msgstr ""
 
-msgid "Your invitation link has expired. Please contact your organization administrator."
+msgid "Your invitation link has expired. Please contact your workspace administrator."
 msgstr ""
 
 msgid "Invalid surveyor password, please check with your project leader and try again."
@@ -4048,29 +4051,26 @@ msgstr ""
 msgid "Account Token"
 msgstr ""
 
-msgid "Your organization's timezone"
-msgstr ""
-
-msgid "The slug, or short name for your organization"
+msgid "The slug, or short name for your workspace"
 msgstr ""
 
 msgid "From Organization"
 msgstr ""
 
-msgid "Select which organization to take credits from"
+msgid "Select which workspace to take credits from"
 msgstr ""
 
 msgid "To Organization"
 msgstr ""
 
-msgid "Select which organization to receive the credits"
+msgid "Select which workspace to receive the credits"
 msgstr ""
 
 msgid "How many credits to transfer"
 msgstr ""
 
 #, python-format
-msgid "Sorry, %(org_name)s doesn't have enough credits for this transfer. Pick a different organization to transfer from or reduce the transfer amount."
+msgid "Sorry, %(org_name)s doesn't have enough credits for this transfer. Pick a different workspace to transfer from or reduce the transfer amount."
 msgstr ""
 
 msgid "The country used for location values. (optional)"
@@ -4093,7 +4093,7 @@ msgid "%(lang1)s and %(lang2)s"
 msgstr ""
 
 #, python-format
-msgid "Cleared %(name)s cache for this organization (%(count)d keys)"
+msgid "Cleared %(name)s cache for this workspace (%(count)d keys)"
 msgstr ""
 
 msgid "Privacy Policy"
@@ -6640,7 +6640,7 @@ msgid "This flow is in the process of being sent, this message will disappear on
 msgstr ""
 
 #, python-format
-msgid "This will change the default language of the flow to <b>%(language)s</b>. This means that by default the flow will be appear in that language and can be translated into other languages. Also if a contact is in this flow and no translation exists for their language or the default language of the organization, communication with that contact will default to <b>%(language)s</b>."
+msgid "This will change the default language of the flow to <b>%(language)s</b>. This means that by default the flow will be appear in that language and can be translated into other languages. Also if a contact is in this flow and no translation exists for their language or the default language of the workspace, communication with that contact will default to <b>%(language)s</b>."
 msgstr ""
 
 msgid ""
@@ -7346,8 +7346,8 @@ msgstr ""
 
 msgid ""
 "\n"
-"    Your organization can have user accounts with various roles. You can use the Manage Accounts page\n"
-"    to view all existing accounts or to invite new users to your organization.\n"
+"    Your workspace can have logins with various roles. You can use the Manage Logins page\n"
+"    to view all existing logins or to add new logins to your workspace.\n"
 "\n"
 "  "
 msgstr ""
@@ -7457,7 +7457,7 @@ msgid ""
 "        "
 msgstr ""
 
-msgid "Your account is not associated with any organization. Please contact your administrator to receive an invitation to an organization."
+msgid "Your account is not associated with any workspace. Please contact your administrator to receive an invitation to a workspace."
 msgstr ""
 
 #, python-format
@@ -7548,7 +7548,7 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"    Your organization is <span class='attn'>%(org)s</span>\n"
+"    Your workspace is <span class='attn'>%(org)s</span>\n"
 "\n"
 "  "
 msgstr ""
@@ -7564,11 +7564,11 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"      You have <span class='attn'>%(org_count)s</span> child organization.\n"
+"      You have <span class='attn'>%(org_count)s</span> child workspaces.\n"
 "      "
 msgid_plural ""
 "\n"
-"      You have <span class='attn'>%(org_count)s</span> child organizations.\n"
+"      You have <span class='attn'>%(org_count)s</span> child workspaces.\n"
 "    "
 msgstr[0] ""
 msgstr[1] ""
@@ -7647,7 +7647,7 @@ msgid ""
 "      "
 msgstr ""
 
-msgid "Your organization is configured to use a single language."
+msgid "Your workspace is configured to use a single language."
 msgstr ""
 
 msgid "Organizations"
@@ -7717,7 +7717,7 @@ msgid "Plivo Dashboard"
 msgstr ""
 
 #, python-format
-msgid "You can monitor contact group counts and channel message counts on your organization using your %(prometheus)s endpoint. This will let you monitor usage over time using graphs and alerts in a dashboard such as %(grafana)s."
+msgid "You can monitor contact group counts and channel message counts on your workspace using your %(prometheus)s endpoint. This will let you monitor usage over time using graphs and alerts in a dashboard such as %(grafana)s."
 msgstr ""
 
 msgid "Endpoint"
@@ -7730,11 +7730,11 @@ msgid "Enable Prometheus"
 msgstr ""
 
 #, python-format
-msgid "You are monitoring your organization using %(prometheus)s."
+msgid "You are monitoring your workspace using %(prometheus)s."
 msgstr ""
 
 #, python-format
-msgid "You have not enabled %(prometheus)s monitoring on your organization."
+msgid "You have not enabled %(prometheus)s monitoring on your workspace."
 msgstr ""
 
 msgid ""
@@ -7784,7 +7784,7 @@ msgstr ""
 msgid "Haggerty"
 msgstr ""
 
-msgid "What organization is this account for?"
+msgid "What workspace is this login for?"
 msgstr ""
 
 msgid "name@domain.com"
@@ -7897,16 +7897,16 @@ msgstr ""
 msgid "Disable Two Factor"
 msgstr ""
 
-msgid "This organization has been suspended"
+msgid "This workspace has been suspended"
 msgstr ""
 
-msgid "This organization has been flagged for possible spamming"
+msgid "This workspace has been flagged for possible spamming"
 msgstr ""
 
-msgid "This organization has been verified"
+msgid "This workspace has been verified"
 msgstr ""
 
-msgid "This organization has been scheduled for deletion"
+msgid "This workspace has been scheduled for deletion"
 msgstr ""
 
 msgid "Whoa, whoa, whoa!"
@@ -7923,7 +7923,7 @@ msgstr ""
 
 msgid ""
 "\n"
-"          Also, any user accounts will be deleted if they don't belong to another organization.\n"
+"          Also, any user accounts will be deleted if they don't belong to another workspace.\n"
 "\n"
 "        "
 msgstr ""
@@ -8876,7 +8876,7 @@ msgstr ""
 
 msgid ""
 "\n"
-"                  will also be deleted. All organization data will be deleted and there is no\n"
+"                  will also be deleted. All workspace data will be deleted and there is no\n"
 "                  going back. This includes all flows, contacts, messages, etc.\n"
 "                "
 msgstr ""
