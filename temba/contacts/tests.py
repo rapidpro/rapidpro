@@ -3784,6 +3784,11 @@ class ContactTest(TembaTest):
         )
         mock_contact_modify.reset_mock()
 
+    @patch("temba.mailroom.client.MailroomClient.contact_modify")
+    def test_bulk_modify_with_no_contacts(self, mock_contact_modify):
+        # just a NOOP
+        Contact.bulk_modify(self.admin, [], modifiers=[{"type": "language", "language": "spa"}])
+
     def test_number_normalized(self):
         self.org.country = None
         self.org.save(update_fields=("country",))
