@@ -1452,7 +1452,7 @@ class OrgTest(TembaTest):
         # superuser gets redirected to user management page
         self.login(self.superuser)
         response = self.client.get(choose_url, follow=True)
-        self.assertContains(response, "Organizations")
+        self.assertContains(response, "Workspaces")
 
     def test_topup_admin(self):
         self.login(self.admin)
@@ -2691,7 +2691,7 @@ class OrgTest(TembaTest):
         session.save()
 
         response = self.client.get(reverse("orgs.org_home"))
-        self.assertNotContains(response, "Manage Organizations")
+        self.assertNotContains(response, "Manage Workspaces")
 
         # attempting to manage orgs should redirect
         response = self.client.get(reverse("orgs.org_sub_orgs"))
@@ -2718,12 +2718,12 @@ class OrgTest(TembaTest):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
         self.assertTrue(self.org.is_multi_org_tier())
         response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "Manage Organizations")
+        self.assertContains(response, "Manage Workspaces")
 
         # now we can manage our orgs
         response = self.client.get(reverse("orgs.org_sub_orgs"))
         self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Organizations")
+        self.assertContains(response, "Workspaces")
 
         # add a sub org
         response = self.client.post(reverse("orgs.org_create_sub_org"), new_org)
@@ -3079,7 +3079,7 @@ class OrgCRUDLTest(TembaTest):
             password="dukenukem",
         )
         response = self.client.post(grant_url, post_data)
-        self.assertFormError(response, "form", None, "User already exists, please do not include password.")
+        self.assertFormError(response, "form", None, "Login already exists, please do not include password.")
 
         # try to create a new user with invalid password
         post_data = dict(

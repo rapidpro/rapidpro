@@ -21,7 +21,7 @@
   -if object.is_multi_org_tier
     %p.pull-right
       %a.sub-orgs.btn.btn-secondary{url:'{% url "orgs.org_sub_orgs" %}'}
-        Manage Organizations
+        Manage Workspaces
 
   -blocktrans with org=object.name
     Your workspace is <span class='attn'>{{org}}</span>

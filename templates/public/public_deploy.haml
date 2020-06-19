@@ -133,9 +133,9 @@
       %p
         -blocktrans with name=brand.name
           The easiest and most popular way to deploy {{name}} is by using a cheap Android phone along with a local sim card. It's quite
-          simple in principal. When your {{name}} account sends a message, it notifies your Android phone. The phone will then
+          simple in principal. When your {{name}} workspace sends a message, it notifies your Android phone. The phone will then
           send the message out from your local number on your behalf. If somebody responds to that message, the phone will then
-          relay that message to your {{name}} account.
+          relay that message to your {{name}} workspace.
 
       %h5
         -trans "Buy an Android phone"
@@ -175,7 +175,7 @@
       -trans "Once the app is installed it will give you a 6 digit claim code that you then"
       <a href='{% url "channels.channel_list" %}'>enter on the website</a>.
       -blocktrans with name=brand.name
-        And that's all there is to it. From then on, that phone will handle sending all the messages for your {{name}} account.
+        And that's all there is to it. From then on, that phone will handle sending all the messages for your {{name}} workspace.
 
       %h5
         -trans "Give the phone a good home"
@@ -198,7 +198,7 @@
         -blocktrans with name=brand.name
           We encourage people to validate their ideas and experiment before focusing on scaling. Starting with Android
           phones is a logical starting point for most projects and you'll have no problem sending up to around 1,000 messages per hour.
-          If you do outgrow that, we can help you connect your {{name}} account
+          If you do outgrow that, we can help you connect your {{name}} workspace
           with a local aggregator or even a direct connection with the carriers themselves.
 
       .question
@@ -247,7 +247,7 @@
     %p
       -blocktrans with name=brand.name
         For projects that need to send more than a few thousand messages an hour, it may be worth looking
-        into a direct connection with the local carriers. When your project is ready for it, your {{name}} account can be
+        into a direct connection with the local carriers. When your project is ready for it, your {{name}} workspace can be
         coverted over to an SMPP connection. Integrating with each carrier is generally expensive and time consuming,
         so it's not something that should be considered until it is absolutely necessary.
 

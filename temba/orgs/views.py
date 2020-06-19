@@ -281,7 +281,7 @@ class OrgGrantForm(forms.ModelForm):
         required=False,
         help_text=_("Their password, at least eight letters please. (leave blank for existing users)"),
     )
-    name = forms.CharField(label=_("Organization"), help_text=_("The name of the new workspace"))
+    name = forms.CharField(label=_("Workspace"), help_text=_("The name of the new workspace"))
     credits = forms.ChoiceField(choices=(), help_text=_("The initial number of credits granted to this workspace"))
 
     def __init__(self, *args, **kwargs):
@@ -1059,7 +1059,7 @@ class OrgCRUDL(SmartCRUDL):
         default_order = ("-credits", "-created_on")
         search_fields = ("name__icontains", "created_by__email__iexact", "config__icontains")
         link_fields = ("name", "owner")
-        title = "Organizations"
+        title = "Workspaces"
 
         def get_used(self, obj):
             if not obj.credits:  # pragma: needs cover
@@ -1558,7 +1558,7 @@ class OrgCRUDL(SmartCRUDL):
 
         fields = ("credits", "name", "manage", "created_on")
         link_fields = ()
-        title = "Organizations"
+        title = "Workspaces"
 
         def get_gear_links(self):
             links = []
@@ -1567,13 +1567,10 @@ class OrgCRUDL(SmartCRUDL):
                 links.append(dict(title="Dashboard", href=reverse("dashboard.dashboard_home")))
 
             if self.has_org_perm("orgs.org_create_sub_org"):
-                links.append(dict(title="New", js_class="add-sub-org", href="#"))
+                links.append(dict(title="New Workspace", js_class="add-sub-org", href="#"))
 
             if self.has_org_perm("orgs.org_transfer_credits"):
                 links.append(dict(title="Transfer Credits", js_class="transfer-credits", href="#"))
-
-            if self.has_org_perm("orgs.org_home"):
-                links.append(dict(title="Manage Account", href=reverse("orgs.org_home")))
 
             return links
 
@@ -2022,10 +2019,10 @@ class OrgCRUDL(SmartCRUDL):
                 return super().get_template_names()
 
     class Grant(NonAtomicMixin, SmartCreateView):
-        title = _("Create Organization Account")
+        title = _("Create Workspace Login")
         form_class = OrgGrantForm
         fields = ("first_name", "last_name", "email", "password", "name", "timezone", "credits")
-        success_message = "Organization successfully created."
+        success_message = "Workspace successfully created."
         submit_button_name = _("Create")
         permission = "orgs.org_grant"
         success_url = "@orgs.org_grant"
@@ -2670,14 +2667,14 @@ class OrgCRUDL(SmartCRUDL):
             from_org = OrgChoiceField(
                 None,
                 required=True,
-                label=_("From Organization"),
+                label=_("From Workspace"),
                 help_text=_("Select which workspace to take credits from"),
             )
 
             to_org = OrgChoiceField(
                 None,
                 required=True,
-                label=_("To Organization"),
+                label=_("To Workspace"),
                 help_text=_("Select which workspace to receive the credits"),
             )
 
