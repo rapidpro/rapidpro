@@ -31,7 +31,7 @@ from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
-from temba.mailroom import MailroomException
+from temba.mailroom import MailroomException, modifiers
 from temba.msgs.models import Broadcast, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
@@ -1193,21 +1193,21 @@ class ContactTest(TembaTest):
         self.joe.block(self.admin)
 
         mock_contact_modify.assert_called_once_with(
-            self.org.id, self.admin.id, [self.joe.id], [{"type": "status", "status": "blocked"}]
+            self.org.id, self.admin.id, [self.joe.id], [modifiers.Status(status="blocked")]
         )
         mock_contact_modify.reset_mock()
 
         self.joe.stop(self.admin)
 
         mock_contact_modify.assert_called_once_with(
-            self.org.id, self.admin.id, [self.joe.id], [{"type": "status", "status": "stopped"}]
+            self.org.id, self.admin.id, [self.joe.id], [modifiers.Status(status="stopped")]
         )
         mock_contact_modify.reset_mock()
 
         self.joe.reactivate(self.admin)
 
         mock_contact_modify.assert_called_once_with(
-            self.org.id, self.admin.id, [self.joe.id], [{"type": "status", "status": "active"}]
+            self.org.id, self.admin.id, [self.joe.id], [modifiers.Status(status="active")]
         )
         mock_contact_modify.reset_mock()
 
@@ -3757,7 +3757,7 @@ class ContactTest(TembaTest):
 
         # should send only a language modifier
         mock_contact_modify.assert_called_once_with(
-            self.joe.org.id, self.admin.id, [self.joe.id], [{"type": "language", "language": "eng"}]
+            self.joe.org.id, self.admin.id, [self.joe.id], [modifiers.Language(language="eng")]
         )
         mock_contact_modify.reset_mock()
 
@@ -3769,7 +3769,7 @@ class ContactTest(TembaTest):
 
         # should send only a name modifier
         mock_contact_modify.assert_called_once_with(
-            self.joe.org.id, self.admin.id, [self.joe.id], [{"type": "name", "name": "Joseph Blow"}]
+            self.joe.org.id, self.admin.id, [self.joe.id], [modifiers.Name(name="Joseph Blow")]
         )
         mock_contact_modify.reset_mock()
 
@@ -3780,14 +3780,16 @@ class ContactTest(TembaTest):
             self.joe.org.id,
             self.admin.id,
             [self.joe.id],
-            [{"type": "name", "name": "Joseph Blower"}, {"type": "language", "language": "spa"}],
+            [modifiers.Name(name="Joseph Blower"), modifiers.Language(language="spa")],
         )
         mock_contact_modify.reset_mock()
 
     @patch("temba.mailroom.client.MailroomClient.contact_modify")
     def test_bulk_modify_with_no_contacts(self, mock_contact_modify):
+        mock_contact_modify.return_value = {}
+
         # just a NOOP
-        Contact.bulk_modify(self.admin, [], modifiers=[{"type": "language", "language": "spa"}])
+        Contact.bulk_modify(self.admin, [], mods=[modifiers.Language(language="spa")])
 
     def test_number_normalized(self):
         self.org.country = None
@@ -3813,7 +3815,7 @@ class ContactTest(TembaTest):
             self.assertEqual(302, response.status_code)
 
             mock_modify.assert_called_once_with(
-                self.org.id, self.admin.id, [contact.id], [{"type": "name", "name": "Marshal Mathers"}]
+                self.org.id, self.admin.id, [contact.id], [modifiers.Name(name="Marshal Mathers")]
             )
 
             contact_updated = Contact.from_urn(self.org, "tel:+447531669966")

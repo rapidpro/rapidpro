@@ -5,6 +5,7 @@ import time
 import uuid
 from decimal import Decimal
 from itertools import chain
+from typing import List
 
 import iso8601
 import phonenumbers
@@ -25,7 +26,7 @@ from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
-from temba.mailroom import queue_populate_dynamic_group
+from temba.mailroom import modifiers, queue_populate_dynamic_group
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, chunk_list, es, format_number, get_anonymous_user, json, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
@@ -1238,30 +1239,33 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             EventFire.update_events_for_contact_groups(self, changed_groups)
 
     def update(self, user, name, language):
-        modifiers = []
+        mods = []
         if (self.name or "") != (name or ""):
-            modifiers.append({"type": "name", "name": name or ""})
+            mods.append(modifiers.Name(name or ""))
 
         if (self.language or "") != (language or ""):
-            modifiers.append({"type": "language", "language": language or ""})
+            mods.append(modifiers.Language(language or ""))
 
-        if modifiers:
-            Contact.bulk_modify(user, [self], modifiers)
+        if mods:
+            Contact.bulk_modify(user, [self], mods)
 
     @classmethod
-    def bulk_modify(cls, user, contacts, modifiers):
+    def bulk_modify(cls, user, contacts, mods: List[modifiers.Modifier]):
         if not contacts:
             return
 
         org = contacts[0].org
         client = mailroom.get_client()
         try:
-            client.contact_modify(org.id, user.id, [c.id for c in contacts], modifiers)
+            response = client.contact_modify(org.id, user.id, [c.id for c in contacts], mods)
         except mailroom.MailroomException as e:
             logger.error(f"Contact update failed: {str(e)}", exc_info=True)
             raise e
 
-        return [c.id for c in contacts]
+        def modified(contact):
+            return len(response.get(contact.id, {}).get("events", [])) > 0
+
+        return [c.id for c in contacts if modified(c)]
 
     @classmethod
     def from_urn(cls, org, urn_as_string, country=None):
@@ -1947,7 +1951,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def bulk_change_status(cls, user, contacts, status):
-        return cls.bulk_modify(user, contacts, modifiers=[{"type": "status", "status": status}])
+        return cls.bulk_modify(user, contacts, mods=[modifiers.Status(status=status)])
 
     @classmethod
     def apply_action_block(cls, user, contacts):

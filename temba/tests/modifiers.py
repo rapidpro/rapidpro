@@ -17,13 +17,13 @@ def local_contact_modify(org_id, user_id, contact_ids, modifiers):
     for mod in modifiers:
         fields = dict()
         clear_groups = False
-        if mod["type"] == "name":
-            fields = dict(name=mod["name"])
-        elif mod["type"] == "status":
-            if mod["status"] == "blocked":
+        if mod.type == "name":
+            fields = dict(name=mod.name)
+        elif mod.type == "status":
+            if mod.status == "blocked":
                 fields = dict(is_blocked=True, is_stopped=False)
                 clear_groups = True
-            elif mod["status"] == "stopped":
+            elif mod.status == "stopped":
                 fields = dict(is_blocked=False, is_stopped=True)
                 clear_groups = True
             else:
@@ -33,6 +33,8 @@ def local_contact_modify(org_id, user_id, contact_ids, modifiers):
         if clear_groups:
             for cid in contact_ids:
                 Contact.objects.get(id=cid).clear_all_groups(user)
+
+    return {c.id: {"contact": {}, "events": []} for c in contacts}
 
 
 def mock_contact_modify(f):
