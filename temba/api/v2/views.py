@@ -104,7 +104,6 @@ class RootView(views.APIView):
      * [/api/v2/labels](/api/v2/labels) - to list, create, update or delete message labels
      * [/api/v2/messages](/api/v2/messages) - to list messages
      * [/api/v2/message_actions](/api/v2/message_actions) - to perform bulk message actions
-     * [/api/v2/org](/api/v2/org) - to view your org (deprecated, use /api/v2/workspace)
      * [/api/v2/runs](/api/v2/runs) - to list flow runs
      * [/api/v2/resthooks](/api/v2/resthooks) - to list resthooks
      * [/api/v2/resthook_events](/api/v2/resthook_events) - to list resthook events
@@ -263,7 +262,6 @@ class ExplorerView(SmartTemplateView):
             LabelsEndpoint.get_delete_explorer(),
             MessagesEndpoint.get_read_explorer(),
             MessageActionsEndpoint.get_write_explorer(),
-            OrgEndpoint.get_read_explorer(),
             ResthooksEndpoint.get_read_explorer(),
             ResthookEventsEndpoint.get_read_explorer(),
             ResthookSubscribersEndpoint.get_read_explorer(),
@@ -272,6 +270,7 @@ class ExplorerView(SmartTemplateView):
             RunsEndpoint.get_read_explorer(),
             TemplatesEndpoint.get_read_explorer(),
             TicketersEndpoint.get_read_explorer(),
+            OrgEndpoint.get_read_explorer(),
         ]
         return context
 
