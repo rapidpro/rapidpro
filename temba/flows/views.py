@@ -351,6 +351,7 @@ class FlowImageCRUDL(SmartCRUDL):
 
         def derive_queryset(self, *args, **kwargs):
             qs = super().derive_queryset(*args, **kwargs)
+            qs = qs.distinct()
             return qs.exclude(is_active=False)
 
     class Archived(BaseList):
@@ -359,6 +360,7 @@ class FlowImageCRUDL(SmartCRUDL):
 
         def derive_queryset(self, *args, **kwargs):
             qs = super().derive_queryset(*args, **kwargs)
+            qs = qs.distinct()
             return qs.exclude(is_active=True)
 
     class Filter(BaseList):
@@ -401,6 +403,11 @@ class FlowImageCRUDL(SmartCRUDL):
             qs = super().get_queryset(**kwargs)
             _filter = self.get_queryset_filter()
             qs = qs.filter(**_filter).exclude(is_active=False).distinct()
+            return qs
+
+        def derive_queryset(self, *args, **kwargs):
+            qs = super().derive_queryset(*args, **kwargs)
+            qs = qs.distinct()
             return qs
 
     class Read(OrgObjPermsMixin, SmartReadView):

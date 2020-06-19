@@ -207,6 +207,37 @@ function updateLabelMenu() {
     }
 }
 
+$(document).on('click', 'th.object-row-checkbox', function (e) {
+    e.stopPropagation();
+    e.preventDefault();
+
+    $(".list-buttons-container").addClass('visible');
+    var btnCheck = $(this);
+    if (btnCheck.hasClass("checked")) {
+        btnCheck.removeClass("checked");
+        btnCheck.find('.flowimage-checkbox').removeClass("checked");
+        $('td.object-row-checkbox').each(function() {
+            var row = $(this).parent('tr');
+            row.removeClass("checked");
+            var checks = $(".object-row.checked");
+            if (checks.length == 0) {
+                $('.list-buttons-container').removeClass('visible');
+            }
+        });
+        $('th.select-all-items-text').html('Select all items')
+    } else {
+        btnCheck.addClass("checked");
+        btnCheck.find('.flowimage-checkbox').addClass("checked");
+        $('td.object-row-checkbox').each(function() {
+            var row = $(this).parent('tr');
+            row.addClass("checked");
+        });
+        $('th.select-all-items-text').html('Deselect all items')
+    }
+    updateLabelMenu();
+    return false;
+});
+
 $(document).on('click', 'td.object-row-checkbox', function(e) {
     e.stopPropagation();
     e.preventDefault();
