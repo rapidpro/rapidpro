@@ -2749,7 +2749,7 @@ class OrgTest(TembaTest):
         # try to transfer more than we have
         post_data = dict(from_org=self.org.id, to_org=sub_org.id, amount=1500)
         response = self.client.post(reverse("orgs.org_transfer_credits"), post_data)
-        self.assertContains(response, "Pick a different organization to transfer from")
+        self.assertContains(response, "Pick a different workspace to transfer from")
 
         # now transfer some creditos
         post_data = dict(from_org=self.org.id, to_org=sub_org.id, amount=600)

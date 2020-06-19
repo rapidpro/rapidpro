@@ -2762,7 +2762,12 @@ class OrgEndpoint(BaseAPIView):
 
     @classmethod
     def get_read_explorer(cls):
-        return {"method": "GET", "title": "View Workspace", "url": reverse("api.v2.org"), "slug": "org-read"}
+        return {
+            "method": "GET",
+            "title": "View Workspace",
+            "url": reverse("api.v2.workspace"),
+            "slug": "workspace-read",
+        }
 
 
 class ResthooksEndpoint(ListAPIMixin, BaseAPIView):
