@@ -1151,7 +1151,7 @@ class BaseClaimNumberMixin(ClaimViewMixin):
             form._errors["phone_number"] = form.error_class(
                 [
                     _(
-                        "Sorry, you need to have an organization to add numbers. "
+                        "Sorry, you need to have a workspace to add numbers. "
                         "You can still test things out for free using an Android phone."
                     )
                 ]

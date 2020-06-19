@@ -233,9 +233,9 @@ class OrgSignupForm(forms.ModelForm):
     )
     last_name = forms.CharField(help_text=_("Your last name"), max_length=User._meta.get_field("last_name").max_length)
     email = forms.EmailField(help_text=_("Your email address"), max_length=User._meta.get_field("username").max_length)
-    timezone = TimeZoneFormField(help_text=_("The timezone your organization is in"))
+    timezone = TimeZoneFormField(help_text=_("The timezone for your workspace"))
     password = forms.CharField(widget=forms.PasswordInput, help_text=_("Your password, at least eight letters please"))
-    name = forms.CharField(label=_("Organization"), help_text=_("The name of your organization"))
+    name = forms.CharField(label=_("Workspace"), help_text=_("The name of your workspace"))
 
     def __init__(self, *args, **kwargs):
         if "branding" in kwargs:
@@ -265,24 +265,24 @@ class OrgSignupForm(forms.ModelForm):
 
 class OrgGrantForm(forms.ModelForm):
     first_name = forms.CharField(
-        help_text=_("The first name of the organization administrator"),
+        help_text=_("The first name of the workspace administrator"),
         max_length=User._meta.get_field("first_name").max_length,
     )
     last_name = forms.CharField(
-        help_text=_("Your last name of the organization administrator"),
+        help_text=_("Your last name of the workspace administrator"),
         max_length=User._meta.get_field("last_name").max_length,
     )
     email = forms.EmailField(
         help_text=_("Their email address"), max_length=User._meta.get_field("username").max_length
     )
-    timezone = TimeZoneFormField(help_text=_("The timezone the organization is in"))
+    timezone = TimeZoneFormField(help_text=_("The timezone for the workspace"))
     password = forms.CharField(
         widget=forms.PasswordInput,
         required=False,
         help_text=_("Their password, at least eight letters please. (leave blank for existing users)"),
     )
-    name = forms.CharField(label=_("Organization"), help_text=_("The name of the new organization"))
-    credits = forms.ChoiceField(choices=(), help_text=_("The initial number of credits granted to this organization."))
+    name = forms.CharField(label=_("Organization"), help_text=_("The name of the new workspace"))
+    credits = forms.ChoiceField(choices=(), help_text=_("The initial number of credits granted to this workspace"))
 
     def __init__(self, *args, **kwargs):
         branding = kwargs["branding"]
@@ -1237,7 +1237,7 @@ class OrgCRUDL(SmartCRUDL):
 
     class ManageAccounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class AccountsForm(forms.ModelForm):
-            invite_emails = forms.CharField(label=_("Invite people to your organization"), required=False)
+            invite_emails = forms.CharField(label=_("Invite people to your workspace"), required=False)
             invite_group = forms.ChoiceField(
                 choices=(("A", _("Administrators")), ("E", _("Editors")), ("V", _("Viewers")), ("S", _("Surveyors"))),
                 required=True,
@@ -1625,9 +1625,9 @@ class OrgCRUDL(SmartCRUDL):
 
     class CreateSubOrg(NonAtomicMixin, MultiOrgMixin, ModalMixin, InferOrgMixin, SmartCreateView):
         class CreateOrgForm(forms.ModelForm):
-            name = forms.CharField(label=_("Organization"), help_text=_("The name of your organization"))
+            name = forms.CharField(label=_("Workspace"), help_text=_("The name of your workspace"))
 
-            timezone = TimeZoneFormField(help_text=_("The timezone your organization is in"))
+            timezone = TimeZoneFormField(help_text=_("The timezone for your workspace"))
 
             class Meta:
                 model = Org
@@ -1669,7 +1669,7 @@ class OrgCRUDL(SmartCRUDL):
         form_class = ChooseForm
         success_url = "@msgs.msg_inbox"
         fields = ("organization",)
-        title = _("Select your Organization")
+        title = _("Select your Workspace")
 
         def get_user_orgs(self):
             return self.request.user.get_user_orgs(self.request.branding.get("keys"))
@@ -1739,7 +1739,7 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
             if not org:  # pragma: needs cover
                 messages.info(
-                    request, _("Your invitation link is invalid. Please contact your organization administrator.")
+                    request, _("Your invitation link is invalid. Please contact your workspace administrator.")
                 )
                 return HttpResponseRedirect(reverse("public.public_index"))
             return None
@@ -1826,7 +1826,7 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
             if not org:
                 messages.info(
-                    request, _("Your invitation link has expired. Please contact your organization administrator.")
+                    request, _("Your invitation link has expired. Please contact your workspace administrator.")
                 )
                 return HttpResponseRedirect(reverse("public.public_index"))
 
@@ -2631,11 +2631,9 @@ class OrgCRUDL(SmartCRUDL):
 
     class Edit(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class OrgForm(forms.ModelForm):
-            name = forms.CharField(max_length=128, label=_("The name of your organization"), help_text="")
-            timezone = TimeZoneFormField(label=_("Your organization's timezone"), help_text="")
-            slug = forms.SlugField(
-                max_length=255, label=_("The slug, or short name for your organization"), help_text=""
-            )
+            name = forms.CharField(max_length=128, label=_("The name of your workspace"), help_text="")
+            timezone = TimeZoneFormField(label=_("The timezone for your workspace"), help_text="")
+            slug = forms.SlugField(max_length=255, label=_("The slug, or short name for your workspace"), help_text="")
 
             class Meta:
                 model = Org
@@ -2673,14 +2671,14 @@ class OrgCRUDL(SmartCRUDL):
                 None,
                 required=True,
                 label=_("From Organization"),
-                help_text=_("Select which organization to take credits from"),
+                help_text=_("Select which workspace to take credits from"),
             )
 
             to_org = OrgChoiceField(
                 None,
                 required=True,
                 label=_("To Organization"),
-                help_text=_("Select which organization to receive the credits"),
+                help_text=_("Select which workspace to receive the credits"),
             )
 
             amount = forms.IntegerField(required=True, label=_("Credits"), help_text=_("How many credits to transfer"))
@@ -2707,7 +2705,7 @@ class OrgCRUDL(SmartCRUDL):
                     if cleaned_data["amount"] > from_org.get_credits_remaining():
                         raise ValidationError(
                             _(
-                                "Sorry, %(org_name)s doesn't have enough credits for this transfer. Pick a different organization to transfer from or reduce the transfer amount."
+                                "Sorry, %(org_name)s doesn't have enough credits for this transfer. Pick a different workspace to transfer from or reduce the transfer amount."
                             )
                             % dict(org_name=from_org.name)
                         )
@@ -2867,7 +2865,7 @@ class OrgCRUDL(SmartCRUDL):
         def pre_process(self, request, *args, **kwargs):
             cache = OrgCache(int(request.POST["cache"]))
             num_deleted = self.get_object().clear_caches([cache])
-            self.success_message = _("Cleared %(name)s cache for this organization (%(count)d keys)") % dict(
+            self.success_message = _("Cleared %(name)s cache for this workspace (%(count)d keys)") % dict(
                 name=cache.name, count=num_deleted
             )
 

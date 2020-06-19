@@ -104,13 +104,14 @@ class RootView(views.APIView):
      * [/api/v2/labels](/api/v2/labels) - to list, create, update or delete message labels
      * [/api/v2/messages](/api/v2/messages) - to list messages
      * [/api/v2/message_actions](/api/v2/message_actions) - to perform bulk message actions
-     * [/api/v2/org](/api/v2/org) - to view your org
+     * [/api/v2/org](/api/v2/org) - to view your org (deprecated, use /api/v2/workspace)
      * [/api/v2/runs](/api/v2/runs) - to list flow runs
      * [/api/v2/resthooks](/api/v2/resthooks) - to list resthooks
      * [/api/v2/resthook_events](/api/v2/resthook_events) - to list resthook events
      * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list, create or delete subscribers on your resthooks
      * [/api/v2/templates](/api/v2/templates) - to list current WhatsApp templates on your account
      * [/api/v2/ticketers](/api/v2/ticketers) - to list ticketing services
+     * [/api/v2/workspace](/api/v2/workspace) - to view your workspace
 
     To use the endpoint simply append _.json_ to the URL. For example [/api/v2/flows](/api/v2/flows) will return the
     documentation for that endpoint but a request to [/api/v2/flows.json](/api/v2/flows.json) will return a JSON list of
@@ -215,6 +216,7 @@ class RootView(views.APIView):
                 "runs": reverse("api.v2.runs", request=request),
                 "templates": reverse("api.v2.templates", request=request),
                 "ticketers": reverse("api.v2.ticketers", request=request),
+                "workspace": reverse("api.v2.org", request=request),
             }
         )
 
@@ -2714,17 +2716,17 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
 
 class OrgEndpoint(BaseAPIView):
     """
-    This endpoint allows you to view details about your account.
+    This endpoint allows you to view details about your workspace.
 
-    ## Viewing Current Organization
+    ## Viewing Current Workspace
 
-    A **GET** returns the details of your organization. There are no parameters.
+    A **GET** returns the details of your workspace. There are no parameters.
 
     Example:
 
-        GET /api/v2/org.json
+        GET /api/v2/workspace.json
 
-    Response containing your organization:
+    Response containing your workspace details:
 
         {
             "uuid": "6a44ca78-a4c2-4862-a7d3-2932f9b3a7c3",
@@ -2760,7 +2762,7 @@ class OrgEndpoint(BaseAPIView):
 
     @classmethod
     def get_read_explorer(cls):
-        return {"method": "GET", "title": "View Current Org", "url": reverse("api.v2.org"), "slug": "org-read"}
+        return {"method": "GET", "title": "View Workspace", "url": reverse("api.v2.org"), "slug": "org-read"}
 
 
 class ResthooksEndpoint(ListAPIMixin, BaseAPIView):

@@ -3239,64 +3239,63 @@ class APITest(TembaTest):
             self.assertIsNone(response.json()["results"][0]["urn"])
 
     def test_org(self):
-        url = reverse("api.v2.org")
+        for url in ("/api/v2/org", "/api/v2/workspace"):
+            self.assertEndpointAccess(url)
 
-        self.assertEndpointAccess(url)
+            # fetch as JSON
+            response = self.fetchJSON(url)
+            self.assertEqual(200, response.status_code)
+            self.assertEqual(
+                response.json(),
+                {
+                    "uuid": str(self.org.uuid),
+                    "name": "Temba",
+                    "country": "RW",
+                    "languages": [],
+                    "primary_language": None,
+                    "timezone": "Africa/Kigali",
+                    "date_style": "day_first",
+                    "credits": {"used": 0, "remaining": 1000},
+                    "anon": False,
+                },
+            )
 
-        # fetch as JSON
-        response = self.fetchJSON(url)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(
-            response.json(),
-            {
-                "uuid": str(self.org.uuid),
-                "name": "Temba",
-                "country": "RW",
-                "languages": [],
-                "primary_language": None,
-                "timezone": "Africa/Kigali",
-                "date_style": "day_first",
-                "credits": {"used": 0, "remaining": 1000},
-                "anon": False,
-            },
-        )
+            self.org.set_languages(self.admin, ["eng", "fra"], "eng")
 
-        self.org.set_languages(self.admin, ["eng", "fra"], "eng")
+            response = self.fetchJSON(url)
+            self.assertEqual(
+                response.json(),
+                {
+                    "uuid": str(self.org.uuid),
+                    "name": "Temba",
+                    "country": "RW",
+                    "languages": ["eng", "fra"],
+                    "primary_language": "eng",
+                    "timezone": "Africa/Kigali",
+                    "date_style": "day_first",
+                    "credits": {"used": 0, "remaining": 1000},
+                    "anon": False,
+                },
+            )
 
-        response = self.fetchJSON(url)
-        self.assertEqual(
-            response.json(),
-            {
-                "uuid": str(self.org.uuid),
-                "name": "Temba",
-                "country": "RW",
-                "languages": ["eng", "fra"],
-                "primary_language": "eng",
-                "timezone": "Africa/Kigali",
-                "date_style": "day_first",
-                "credits": {"used": 0, "remaining": 1000},
-                "anon": False,
-            },
-        )
+            # try to set languages which do not exist in iso639-3
+            self.org.set_languages(self.admin, ["fra", "123", "eng"], "eng")
 
-        # try to set languages which do not exist in iso639-3
-        self.org.set_languages(self.admin, ["fra", "123", "eng"], "eng")
-
-        response = self.fetchJSON(url)
-        self.assertEqual(
-            response.json(),
-            {
-                "uuid": str(self.org.uuid),
-                "name": "Temba",
-                "country": "RW",
-                "languages": ["eng", "fra"],
-                "primary_language": "eng",
-                "timezone": "Africa/Kigali",
-                "date_style": "day_first",
-                "credits": {"used": 0, "remaining": 1000},
-                "anon": False,
-            },
-        )
+            response = self.fetchJSON(url)
+            self.assertEqual(
+                response.json(),
+                {
+                    "uuid": str(self.org.uuid),
+                    "name": "Temba",
+                    "country": "RW",
+                    "languages": ["eng", "fra"],
+                    "primary_language": "eng",
+                    "timezone": "Africa/Kigali",
+                    "date_style": "day_first",
+                    "credits": {"used": 0, "remaining": 1000},
+                    "anon": False,
+                },
+            )
 
     def test_media(self):
         url = reverse("api.v2.media") + ".json"
