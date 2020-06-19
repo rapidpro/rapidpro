@@ -351,7 +351,7 @@ class FlowImageCRUDL(SmartCRUDL):
 
         def derive_queryset(self, *args, **kwargs):
             qs = super().derive_queryset(*args, **kwargs)
-            return qs.exclude(is_active=False)
+            return qs.exclude(is_active=False).distinct()
 
     class Archived(BaseList):
         title = _("Flow Images Archived")
@@ -359,7 +359,7 @@ class FlowImageCRUDL(SmartCRUDL):
 
         def derive_queryset(self, *args, **kwargs):
             qs = super().derive_queryset(*args, **kwargs)
-            return qs.exclude(is_active=True)
+            return qs.exclude(is_active=True).distinct()
 
     class Filter(BaseList):
         actions = ("download", "archive")
