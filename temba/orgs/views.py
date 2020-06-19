@@ -1232,7 +1232,7 @@ class OrgCRUDL(SmartCRUDL):
         success_url = "@orgs.org_home"
         success_message = ""
         submit_button_name = _("Save Changes")
-        title = "User Accounts"
+        title = "Logins"
         fields = ("surveyor_password",)
 
     class ManageAccounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
@@ -1295,7 +1295,7 @@ class OrgCRUDL(SmartCRUDL):
         success_message = ""
         submit_button_name = _("Save Changes")
         ORG_GROUPS = ("Administrators", "Editors", "Viewers", "Surveyors")
-        title = "Manage User Accounts"
+        title = "Manage Logins"
 
         @staticmethod
         def org_group_set(org, group_name):
@@ -1577,7 +1577,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_manage(self, obj):
             if obj.parent:  # pragma: needs cover
                 return mark_safe(
-                    '<a href="%s?org=%s"><div class="btn btn-tiny">Manage Accounts</div></a>'
+                    '<a href="%s?org=%s"><div class="btn btn-tiny">Manage Logins</div></a>'
                     % (reverse("orgs.org_manage_accounts_sub_org"), obj.id)
                 )
             return ""
