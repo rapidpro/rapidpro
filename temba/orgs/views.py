@@ -310,7 +310,7 @@ class OrgGrantForm(forms.ModelForm):
             user = User.objects.filter(username__iexact=email).first()
             if user:
                 if password:
-                    raise ValidationError(_("User already exists, please do not include password."))
+                    raise ValidationError(_("Login already exists, please do not include password."))
 
             elif not password or len(password) < 8:
                 raise ValidationError(_("Password must be at least 8 characters long"))

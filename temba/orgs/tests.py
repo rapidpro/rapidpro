@@ -1353,14 +1353,14 @@ class OrgTest(TembaTest):
         # now lets try again
         post_data = dict(surveyor_password="nyaruka")
         response = self.client.post(url, post_data)
-        self.assertContains(response, "Enter your details below to create your account.")
+        self.assertContains(response, "Enter your details below to create your login.")
 
         # now try creating an account on the second step without and surveyor_password
         post_data = dict(
             first_name="Marshawn", last_name="Lynch", password="beastmode24", email="beastmode@seahawks.com"
         )
         response = self.client.post(url, post_data)
-        self.assertContains(response, "Enter your details below to create your account.")
+        self.assertContains(response, "Enter your details below to create your login.")
 
         # now do the same but with a valid surveyor_password
         post_data = dict(
@@ -4431,7 +4431,7 @@ class CreditAlertTest(TembaTest):
         # email sent
         sent_email = mail.outbox[0]
         self.assertEqual(1, len(sent_email.to))
-        self.assertIn("RapidPro account for Temba", sent_email.body)
+        self.assertIn("RapidPro workspace for Temba", sent_email.body)
         self.assertIn("expiring credits in less than one month.", sent_email.body)
 
         # check topup expiration, it should no create a new one, because last one is still active
@@ -4470,7 +4470,7 @@ class CreditAlertTest(TembaTest):
             self.assertEqual(len(mail.outbox), 1)
 
             sent_email = mail.outbox[0]
-            self.assertIn("RapidPro account for Temba", sent_email.body)
+            self.assertIn("RapidPro workspace for Temba", sent_email.body)
 
             # this email has been sent to multiple recipients
             self.assertListEqual(
@@ -4513,7 +4513,7 @@ class CreditAlertTest(TembaTest):
                 # alert email is for out of credits type
                 sent_email = mail.outbox[0]
                 self.assertEqual(len(sent_email.to), 1)
-                self.assertIn("RapidPro account for Temba", sent_email.body)
+                self.assertIn("RapidPro workspace for Temba", sent_email.body)
                 self.assertIn("is out of credit.", sent_email.body)
 
                 # no new alert if one is sent and no new email
@@ -4557,7 +4557,7 @@ class CreditAlertTest(TembaTest):
                     # email sent
                     sent_email = mail.outbox[2]
                     self.assertEqual(len(sent_email.to), 1)
-                    self.assertIn("RapidPro account for Temba", sent_email.body)
+                    self.assertIn("RapidPro workspace for Temba", sent_email.body)
                     self.assertIn("is running low on credits", sent_email.body)
 
                     # no new alert if one is sent and no new email
