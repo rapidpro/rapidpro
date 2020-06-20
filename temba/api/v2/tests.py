@@ -35,7 +35,7 @@ from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import TemplateTranslation
-from temba.tests import AnonymousOrg, TembaTest, matchers
+from temba.tests import AnonymousOrg, TembaTest, matchers, mock_contact_modify
 from temba.tests.engine import MockSessionWriter
 from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
@@ -1578,6 +1578,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "after=%s" % format_datetime(call2.created_on))
         self.assertResultsById(response, [call4, call3, call2])
 
+    @mock_contact_modify
     def test_contacts(self):
         url = reverse("api.v2.contacts")
 
@@ -2122,6 +2123,7 @@ class APITest(TembaTest):
             self.assertEqual(response.status_code, 400)
             self.assertResponseError(response, None, "URN lookups not allowed for anonymous organizations")
 
+    @mock_contact_modify
     def test_contact_actions(self):
         url = reverse("api.v2.contact_actions")
 
