@@ -826,14 +826,13 @@ class ContactBulkActionSerializer(WriteSerializer):
             mailroom.queue_interrupt(self.context["org"], contacts=contacts)
         elif action == self.ARCHIVE:
             Msg.archive_all_for_contacts(contacts)
-        else:
+        elif action == self.BLOCK:
+            Contact.bulk_change_status(user, contacts, Contact.STATUS_BLOCKED)
+        elif action == self.UNBLOCK:
+            Contact.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
+        elif action == self.DELETE:
             for contact in contacts:
-                if action == self.BLOCK:
-                    contact.block(user)
-                elif action == self.UNBLOCK:
-                    contact.unblock(user)
-                elif action == self.DELETE:
-                    contact.release(user)
+                contact.release(user)
 
 
 class FlowReadSerializer(ReadSerializer):
