@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-19 17:00+0000\n"
+"POT-Creation-Date: 2020-06-21 16:55+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3596,11 +3596,6 @@ msgstr "El nombre de este contacto"
 msgid "The preferred language for this contact"
 msgstr "El idioma preferido para este contacto"
 
-#, fuzzy
-#| msgid "We encountered an error removing your channel, please try again later."
-msgid "An error occurred updating your contact. Please try again later."
-msgstr "Encontramos un error para retirar su transmisor, por favor, inténtelo nuevamente más tarde."
-
 msgid "Provided URNs belong to different existing contacts"
 msgstr ""
 
@@ -3903,6 +3898,11 @@ msgstr "Borrar grupo"
 
 msgid "Create"
 msgstr "Crear"
+
+#, fuzzy
+#| msgid "We encountered an error removing your channel, please try again later."
+msgid "An error occurred updating your contact. Please try again later."
+msgstr "Encontramos un error para retirar su transmisor, por favor, inténtelo nuevamente más tarde."
 
 #, fuzzy
 msgid "Contact blocked"
@@ -5333,7 +5333,7 @@ msgstr "El nombre del video"
 msgid "The initial number of credits granted to this workspace"
 msgstr "El número de créditos comprados en esta recarga"
 
-msgid "User already exists, please do not include password."
+msgid "Login already exists, please do not include password."
 msgstr ""
 
 #, fuzzy

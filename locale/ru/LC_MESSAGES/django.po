@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-19 17:00+0000\n"
+"POT-Creation-Date: 2020-06-21 16:55+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2548,9 +2548,6 @@ msgstr "Название данного контакта"
 msgid "The preferred language for this contact"
 msgstr "Предпочитаемый язык для этого контакта"
 
-msgid "An error occurred updating your contact. Please try again later."
-msgstr "При обновлении Вашего контакта произошла ошибка. Пожалуйста, попробуйте позже."
-
 msgid "Provided URNs belong to different existing contacts"
 msgstr "Предоставленные URN принадлежат различным существующим контактам"
 
@@ -2822,6 +2819,9 @@ msgstr "Удалить Группу"
 
 msgid "Create"
 msgstr "Создать"
+
+msgid "An error occurred updating your contact. Please try again later."
+msgstr "При обновлении Вашего контакта произошла ошибка. Пожалуйста, попробуйте позже."
 
 msgid "Contact blocked"
 msgstr "Контакт заблокирован"
@@ -4056,7 +4056,9 @@ msgstr "Имя на странице Facebook "
 msgid "The initial number of credits granted to this workspace"
 msgstr "Первоначальное количество кредитов, предоставленных этой организации"
 
-msgid "User already exists, please do not include password."
+#, fuzzy
+#| msgid "User already exists, please do not include password."
+msgid "Login already exists, please do not include password."
 msgstr "Пользователь уже существует, пожалуйста, не указывайте пароль."
 
 msgid "Password must be at least 8 characters long"

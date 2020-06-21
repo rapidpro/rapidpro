@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-19 17:00+0000\n"
+"POT-Creation-Date: 2020-06-21 16:55+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2586,9 +2586,6 @@ msgstr "Le nom de ce contact"
 msgid "The preferred language for this contact"
 msgstr "La langue préférée pour ce contact"
 
-msgid "An error occurred updating your contact. Please try again later."
-msgstr "Une erreur s'est produite lors de la mise à jour de votre contact. Veuillez réessayer plus tard."
-
 msgid "Provided URNs belong to different existing contacts"
 msgstr "Les URNs fournis appartiennent à différents contacts existants"
 
@@ -2860,6 +2857,9 @@ msgstr "Supprimer le groupe"
 
 msgid "Create"
 msgstr "Créer"
+
+msgid "An error occurred updating your contact. Please try again later."
+msgstr "Une erreur s'est produite lors de la mise à jour de votre contact. Veuillez réessayer plus tard."
 
 msgid "Contact blocked"
 msgstr "Contact bloqué"
@@ -4094,7 +4094,9 @@ msgstr "Le nom de la page Facebook"
 msgid "The initial number of credits granted to this workspace"
 msgstr "Le nombre initial de crédits accordés à cette organisation."
 
-msgid "User already exists, please do not include password."
+#, fuzzy
+#| msgid "User already exists, please do not include password."
+msgid "Login already exists, please do not include password."
 msgstr "L'utilisateur existe déjà, veuillez ne pas inclure le mot de passe."
 
 msgid "Password must be at least 8 characters long"

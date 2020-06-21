@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-19 17:00+0000\n"
+"POT-Creation-Date: 2020-06-21 16:55+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2305,9 +2305,6 @@ msgstr ""
 msgid "The preferred language for this contact"
 msgstr ""
 
-msgid "An error occurred updating your contact. Please try again later."
-msgstr ""
-
 msgid "Provided URNs belong to different existing contacts"
 msgstr ""
 
@@ -2578,6 +2575,9 @@ msgid "Delete Group"
 msgstr ""
 
 msgid "Create"
+msgstr ""
+
+msgid "An error occurred updating your contact. Please try again later."
 msgstr ""
 
 msgid "Contact blocked"
@@ -3787,7 +3787,7 @@ msgstr ""
 msgid "The initial number of credits granted to this workspace"
 msgstr ""
 
-msgid "User already exists, please do not include password."
+msgid "Login already exists, please do not include password."
 msgstr ""
 
 msgid "Password must be at least 8 characters long"
