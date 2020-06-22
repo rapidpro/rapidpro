@@ -11,6 +11,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
 from temba.migrator import Migrator
+from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent, WebHookResult
 from temba.orgs.models import TopUp, TopUpCredits, Language
 from temba.contacts.models import ContactField, Contact, ContactGroup, ContactURN
 from temba.channels.models import Channel, ChannelCount, SyncEvent, ChannelEvent, ChannelLog
@@ -299,6 +300,28 @@ class MigrationTask(TembaModel):
                 self.add_flow_flow_dependencies(flows=org_flows, migrator=migrator)
 
             logger.info("[COMPLETED] Flows migration")
+            logger.info("")
+
+            logger.info("---------------- Resthooks ----------------")
+            logger.info("[STARTED] Resthooks migration")
+
+            all_org_resthooks = Resthook.objects.filter(org=self.org).only("id").order_by("id")
+            for rh in all_org_resthooks:
+                rh.release(user=self.created_by)
+
+            org_resthooks, resthooks_count = migrator.get_org_resthooks()
+            if org_resthooks:
+                self.add_resthooks(logger=logger, resthooks=org_resthooks, migrator=migrator, count=resthooks_count)
+
+            logger.info("[COMPLETED] Resthooks migration")
+            logger.info("")
+
+            logger.info("---------------- Webhooks ----------------")
+            logger.info("[STARTED] Webhooks migration")
+
+            # TODO Webhooks
+
+            logger.info("[COMPLETED] Webhooks migration")
             logger.info("")
 
             logger.info("---------------- Campaigns ----------------")
@@ -1608,6 +1631,36 @@ class MigrationTask(TembaModel):
                     modified_on=item.modified_on,
                 )
 
+    def add_resthooks(self, logger, resthooks, migrator, count):
+        for idx, resthook in enumerate(resthooks, start=1):
+            logger.info(f">>>[{idx}/{count}] Resthook: {resthook.id} - {resthook.slug}")
+            new_resthook = Resthook.objects.create(
+                created_by=self.created_by,
+                modified_by=self.created_by,
+                slug=resthook.slug,
+                org=self.org,
+                created_on=resthook.created_on,
+                modified_on=resthook.modified_on,
+            )
+
+            MigrationAssociation.create(
+                migration_task=self,
+                old_id=resthook.id,
+                new_id=new_resthook.id,
+                model=MigrationAssociation.MODEL_RESTHOOK,
+            )
+
+            resthook_subscribers = migrator.get_resthook_subscribers(resthook_id=new_resthook.id)
+            for item in resthook_subscribers:
+                ResthookSubscriber.objects.create(
+                    created_by=self.created_by,
+                    modified_by=self.created_by,
+                    resthook=new_resthook,
+                    target_url=item.target_url,
+                    created_on=item.created_on,
+                    modified_on=item.modified_on,
+                )
+
     def remove_association(self):
         return self.associations.all().exclude(model=MigrationAssociation.MODEL_ORG).delete()
 
@@ -1655,6 +1708,8 @@ class MigrationAssociation(models.Model):
     MODEL_ORG_TOPUP = "orgs_topups"
     MODEL_ORG_LANGUAGE = "orgs_language"
     MODEL_TRIGGER = "triggers_trigger"
+    MODEL_RESTHOOK = "api_resthook"
+    MODEL_WEBHOOK_EVENT = "api_webhookevent"
 
     MODEL_CHOICES = (
         (MODEL_CAMPAIGN, MODEL_CAMPAIGN),
@@ -1677,6 +1732,8 @@ class MigrationAssociation(models.Model):
         (MODEL_ORG_TOPUP, MODEL_ORG_TOPUP),
         (MODEL_ORG_LANGUAGE, MODEL_ORG_LANGUAGE),
         (MODEL_TRIGGER, MODEL_TRIGGER),
+        (MODEL_RESTHOOK, MODEL_RESTHOOK),
+        (MODEL_WEBHOOK_EVENT, MODEL_WEBHOOK_EVENT),
     )
 
     migration_task = models.ForeignKey(MigrationTask, on_delete=models.CASCADE, related_name="associations")
@@ -1749,5 +1806,7 @@ class MigrationAssociation(models.Model):
             MigrationAssociation.MODEL_ORG_TOPUP: TopUp,
             MigrationAssociation.MODEL_ORG_LANGUAGE: Language,
             MigrationAssociation.MODEL_TRIGGER: Trigger,
+            MigrationAssociation.MODEL_RESTHOOK: Resthook,
+            MigrationAssociation.MODEL_WEBHOOK_EVENT: WebHookEvent,
         }
         return model_class.get(self.model, None)

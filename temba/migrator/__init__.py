@@ -437,6 +437,23 @@ class Migrator(object):
             query_string=f"SELECT * FROM public.flows_flowrun WHERE flow_id = {flow_id} ORDER BY id ASC", count=count
         )
 
+    def get_org_resthooks(self) -> (list, int):
+        count = self.get_count("api_resthook", condition=f"org_id = {self.org_id} AND is_active = true")
+        return (
+            self.get_results_paginated(
+                query_string=f"SELECT * FROM public.api_resthook WHERE org_id = {self.org_id} AND is_active = true ORDER BY id ASC",
+                count=count,
+            ),
+            count,
+        )
+
+    def get_resthook_subscribers(self, resthook_id) -> list:
+        count = self.get_count("api_resthooksubscriber", condition=f"resthook_id = {resthook_id} AND is_active = true")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.api_resthook WHERE resthook_id = {resthook_id} AND is_active = true ORDER BY id ASC",
+            count=count,
+        )
+
     def get_org_campaigns(self) -> (list, int):
         count = self.get_count(
             "campaigns_campaign", condition=f"org_id = {self.org_id} AND is_archived = false AND is_active = true"
