@@ -33,7 +33,7 @@ class FacebookappType(ChannelType):
     claim_view = ClaimView
 
     schemes = [FACEBOOK_SCHEME]
-    max_length = 320
+    max_length = 2000
     attachment_support = True
     free_sending = True
 
