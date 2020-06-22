@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-17 14:49+0000\n"
+"POT-Creation-Date: 2020-06-22 19:34+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2546,9 +2546,6 @@ msgstr "Название данного контакта"
 msgid "The preferred language for this contact"
 msgstr "Предпочитаемый язык для этого контакта"
 
-msgid "An error occurred updating your contact. Please try again later."
-msgstr "При обновлении Вашего контакта произошла ошибка. Пожалуйста, попробуйте позже."
-
 msgid "Provided URNs belong to different existing contacts"
 msgstr "Предоставленные URN принадлежат различным существующим контактам"
 
@@ -2820,6 +2817,9 @@ msgstr "Удалить Группу"
 
 msgid "Create"
 msgstr "Создать"
+
+msgid "An error occurred updating your contact. Please try again later."
+msgstr "При обновлении Вашего контакта произошла ошибка. Пожалуйста, попробуйте позже."
 
 msgid "Contact blocked"
 msgstr "Контакт заблокирован"
@@ -3834,6 +3834,16 @@ msgstr "Данная организация была заблокирована.
 msgid "Whether this organization uses topups."
 msgstr "Данная организация была заблокирована."
 
+#, fuzzy
+#| msgid "This organization has been suspended"
+msgid "Whether this organization can have child workspaces"
+msgstr "Данная организация была заблокирована."
+
+#, fuzzy
+#| msgid "This organization has been suspended"
+msgid "Whether this organization can have multiple logins"
+msgstr "Данная организация была заблокирована."
+
 msgid "The primary language will be used for contacts with no language preference."
 msgstr "Основной язык, который будет использоваться для контактов без языковых предпочтений."
 
@@ -4080,9 +4090,6 @@ msgstr "Импортированный файл"
 
 msgid "Update all flows and campaigns"
 msgstr "Обновить все потоки и кампании"
-
-msgid "Sorry, import is a premium feature"
-msgstr "Извините, импорт предусмотрен только на премиум-плане"
 
 msgid "This file is not a valid flow definition file."
 msgstr "Этот файл не является допустимым файлом определения потока."
@@ -10769,6 +10776,9 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Sorry, import is a premium feature"
+#~ msgstr "Извините, импорт предусмотрен только на премиум-плане"
 
 #~ msgid "Whitelist"
 #~ msgstr "Белый список"

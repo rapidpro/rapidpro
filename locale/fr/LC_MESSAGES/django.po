@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-17 14:49+0000\n"
+"POT-Creation-Date: 2020-06-22 19:34+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2584,9 +2584,6 @@ msgstr "Le nom de ce contact"
 msgid "The preferred language for this contact"
 msgstr "La langue préférée pour ce contact"
 
-msgid "An error occurred updating your contact. Please try again later."
-msgstr "Une erreur s'est produite lors de la mise à jour de votre contact. Veuillez réessayer plus tard."
-
 msgid "Provided URNs belong to different existing contacts"
 msgstr "Les URNs fournis appartiennent à différents contacts existants"
 
@@ -2858,6 +2855,9 @@ msgstr "Supprimer le groupe"
 
 msgid "Create"
 msgstr "Créer"
+
+msgid "An error occurred updating your contact. Please try again later."
+msgstr "Une erreur s'est produite lors de la mise à jour de votre contact. Veuillez réessayer plus tard."
 
 msgid "Contact blocked"
 msgstr "Contact bloqué"
@@ -3872,6 +3872,16 @@ msgstr "Cette organisation a été suspendue"
 msgid "Whether this organization uses topups."
 msgstr "Cette organisation a été suspendue"
 
+#, fuzzy
+#| msgid "This organization has been suspended"
+msgid "Whether this organization can have child workspaces"
+msgstr "Cette organisation a été suspendue"
+
+#, fuzzy
+#| msgid "This organization has been suspended"
+msgid "Whether this organization can have multiple logins"
+msgstr "Cette organisation a été suspendue"
+
 msgid "The primary language will be used for contacts with no language preference."
 msgstr "La langue principale sera utilisée pour les contacts sans préférence linguistique."
 
@@ -4118,9 +4128,6 @@ msgstr "Le fichier d'importation"
 
 msgid "Update all flows and campaigns"
 msgstr "Mettre à jour tous les flux et les campagnes"
-
-msgid "Sorry, import is a premium feature"
-msgstr "Désolé, l'importation est une fonctionnalité de la version premium"
 
 msgid "This file is not a valid flow definition file."
 msgstr "Ce fichier n'est pas un fichier de définition de flux valide."
@@ -10583,6 +10590,9 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Sorry, import is a premium feature"
+#~ msgstr "Désolé, l'importation est une fonctionnalité de la version premium"
 
 #~ msgid "Whitelist"
 #~ msgstr "Liste blanche"

@@ -57,10 +57,7 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
 
 
 class TicketActionForm(BaseActionForm):
-    allowed_actions = (
-        ("close", "Close Tickets"),
-        ("reopen", "Reopen Tickets"),
-    )
+    allowed_actions = (("close", "Close Tickets"), ("reopen", "Reopen Tickets"))
 
     model = Ticket
     has_is_active = False
@@ -142,9 +139,7 @@ class TicketCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Delete"), js_class="delete-ticketer", href="#"))
             if self.has_org_perm("request_logs.httplog_ticketer"):
                 links.append(
-                    dict(
-                        title=_("HTTP Log"), href=reverse("request_logs.httplog_ticketer", args=[self.ticketer.uuid]),
-                    )
+                    dict(title=_("HTTP Log"), href=reverse("request_logs.httplog_ticketer", args=[self.ticketer.uuid]))
                 )
             return links
 
