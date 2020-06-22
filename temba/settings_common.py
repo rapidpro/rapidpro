@@ -933,6 +933,10 @@ CELERYBEAT_SCHEDULE = {
     "refresh-whatsapp-tokens": {"task": "refresh_whatsapp_tokens", "schedule": timedelta(hours=24)},
     "refresh-whatsapp-templates": {"task": "refresh_whatsapp_templates", "schedule": timedelta(seconds=900)},
     # "resume_failed_tasks": {"task": "resume_failed_tasks", "schedule": timedelta(seconds=1800)},
+    "delete-flowimage-downloaded-files": {
+        "task": "delete_flowimage_downloaded_files",
+        "schedule": crontab(hour=4, minute=0),
+    },
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
