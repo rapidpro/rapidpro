@@ -13,7 +13,7 @@ from temba.contacts.search.tests import MockParseQuery
 from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, Org
-from temba.tests import TembaTest, matchers
+from temba.tests import TembaTest, matchers, mock_contact_modify
 from temba.utils import json
 from temba.values.constants import Value
 
@@ -385,6 +385,7 @@ class CampaignTest(TembaTest):
         # our single message flow should be released and take its dependencies with it
         self.assertEqual(event.flow.field_dependencies.count(), 0)
 
+    @mock_contact_modify
     def test_views(self):
         # update the planting date for our contacts
         self.farmer1.set_field(self.user, "planting_date", "1/10/2020")
