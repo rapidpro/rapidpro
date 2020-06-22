@@ -7,29 +7,42 @@ class GroupRef(NamedTuple):
 
 
 class Modifier:
+    type: str
+
     def as_def(self) -> Dict:
-        return self._asdict()
+        return {"type": self.type, **self.__dict__}
+
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
 
 
-class Name(NamedTuple, Modifier):
-    name: str
-    type: str = "name"
+class Name(Modifier):
+    type = "name"
+
+    def __init__(self, name: str):
+        self.name = name
 
 
-class Language(NamedTuple, Modifier):
-    language: str
-    type: str = "language"
+class Language(Modifier):
+    type = "language"
+
+    def __init__(self, language: str):
+        self.language = language
 
 
-class Status(NamedTuple, Modifier):
-    status: str
-    type: str = "status"
+class Status(Modifier):
+    type = "status"
+
+    def __init__(self, status: str):
+        self.status = status
 
 
-class Groups(NamedTuple, Modifier):
-    modification: str
-    groups: List[GroupRef]
-    type: str = "groups"
+class Groups(Modifier):
+    type = "groups"
+
+    def __init__(self, modification: str, groups: List[GroupRef]):
+        self.modification = modification
+        self.groups = groups
 
     def as_def(self) -> Dict:
         return {"type": self.type, "modification": self.modification, "groups": [g._asdict() for g in self.groups]}

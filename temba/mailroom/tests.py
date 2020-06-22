@@ -86,10 +86,13 @@ class MailroomClientTest(TembaTest):
                 1,
                 [1],
                 [
+                    modifiers.Name(name="Bob"),
+                    modifiers.Language(language="fra"),
+                    modifiers.Status(status="blocked"),
                     modifiers.Groups(
                         modification="add",
                         groups=[modifiers.GroupRef(uuid="c153e265-f7c9-4539-9dbc-9b358714b638", name="Doctors")],
-                    )
+                    ),
                 ],
             )
             self.assertEqual("6393abc0-283d-4c9b-a1b3-641a035c34bf", response["1"]["contact"]["uuid"])
@@ -101,6 +104,9 @@ class MailroomClientTest(TembaTest):
                     "user_id": 1,
                     "contact_ids": [1],
                     "modifiers": [
+                        {"type": "name", "name": "Bob"},
+                        {"type": "language", "language": "fra"},
+                        {"type": "status", "status": "blocked"},
                         {
                             "type": "groups",
                             "modification": "add",
