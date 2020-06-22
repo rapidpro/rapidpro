@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-21 16:55+0000\n"
+"POT-Creation-Date: 2020-06-22 23:12+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -10205,7 +10205,7 @@ msgstr "Haggerty"
 
 #, fuzzy
 #| msgid "What organization is this account for?"
-msgid "What workspace is this login for?"
+msgid "Which workspace is this login for?"
 msgstr "Esta conta é para qual Organização?"
 
 msgid "name@domain.com"

@@ -208,14 +208,13 @@ class RootView(views.APIView):
                 "labels": reverse("api.v2.labels", request=request),
                 "messages": reverse("api.v2.messages", request=request),
                 "message_actions": reverse("api.v2.message_actions", request=request),
-                "org": reverse("api.v2.org", request=request),
                 "resthooks": reverse("api.v2.resthooks", request=request),
                 "resthook_events": reverse("api.v2.resthook_events", request=request),
                 "resthook_subscribers": reverse("api.v2.resthook_subscribers", request=request),
                 "runs": reverse("api.v2.runs", request=request),
                 "templates": reverse("api.v2.templates", request=request),
                 "ticketers": reverse("api.v2.ticketers", request=request),
-                "workspace": reverse("api.v2.org", request=request),
+                "workspace": reverse("api.v2.workspaces", request=request),
             }
         )
 
