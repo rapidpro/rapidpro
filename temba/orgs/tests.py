@@ -1583,6 +1583,9 @@ class OrgTest(TembaTest):
     def test_topups(self):
 
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_user=100_000, multi_org=1_000_000)
+        self.org.is_multi_org = False
+        self.org.is_multi_user = False
+        self.org.save(update_fields=["is_multi_user", "is_multi_org"])
 
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
         welcome_topup = self.org.topups.get()
@@ -1719,7 +1722,7 @@ class OrgTest(TembaTest):
         gift_topup.save(update_fields=["expires_on"])
         self.org.apply_topups()
 
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(3):
             self.assertEqual(15, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
@@ -1732,7 +1735,7 @@ class OrgTest(TembaTest):
         later_active_topup.save(update_fields=["expires_on"])
         self.org.apply_topups()
 
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(4):
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
@@ -1772,12 +1775,14 @@ class OrgTest(TembaTest):
         # now buy some credits to make us multi user
         TopUp.create(self.admin, price=100, credits=100_000)
         self.org.clear_credit_cache()
+        self.org.update_capabilities()
         self.assertTrue(self.org.is_multi_user)
         self.assertFalse(self.org.is_multi_org)
 
         # good deal!
         TopUp.create(self.admin, price=100, credits=1_000_000)
         self.org.clear_credit_cache()
+        self.org.update_capabilities()
         self.assertTrue(self.org.is_multi_user)
         self.assertTrue(self.org.is_multi_org)
 
@@ -2526,12 +2531,18 @@ class OrgTest(TembaTest):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(
             import_flows=1, multi_user=100_000, multi_org=1_000_000
         )
+        self.org.is_multi_user = False
+        self.org.is_multi_org = False
+        self.org.update_capabilities()
         self.assertIsNone(self.org.create_sub_org("Sub Org A"))
         self.assertFalse(self.org.is_multi_user)
         self.assertFalse(self.org.is_multi_org)
 
         # not enough credits, but tiers disabled
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(import_flows=0, multi_user=0, multi_org=0)
+        self.org.is_multi_user = False
+        self.org.is_multi_org = False
+        self.org.update_capabilities()
         self.assertIsNotNone(self.org.create_sub_org("Sub Org A"))
         self.assertTrue(self.org.is_multi_user)
         self.assertTrue(self.org.is_multi_org)
