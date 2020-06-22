@@ -26,10 +26,10 @@ def populate_multi_fields(apps, schema_editor):  # pragma: no cover
 
                 brand = BrandingMiddleware.get_branding_for_host(org.brand)
 
-                # flip on multi-org for any org with > 1M credits
+                # flip on multi-org based on brand tiers
                 org.is_multi_org = c >= brand.get("tiers", {}).get("multi_org", 0)
 
-                # flip on multi-user for any org with > 100k credits
+                # flip on multi-user based on brand tiers
                 org.is_multi_user = c >= brand.get("tiers", {}).get("multi_user", 0)
 
                 if not org.is_multi_org and not org.is_multi_user:
