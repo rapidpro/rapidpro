@@ -3995,6 +3995,10 @@ class ExportFlowImagesTask(BaseExportTask):
 
     files = models.TextField(help_text=_("Array as text of the files ID to download in a zip file"))
 
+    file_path = models.CharField(null=True, help_text=_("Path to downloadable file"), max_length=255)
+    file_downloaded = models.NullBooleanField(default=False, help_text=_("If the file was downloaded"))
+    cleaned = models.NullBooleanField(default=False, help_text=_("If the file was removed after downloaded"))
+
     @classmethod
     def create(cls, org, user, files):
         dict_files = json.dumps(dict(files=files))
