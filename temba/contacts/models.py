@@ -1238,7 +1238,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             # ensure our campaigns are up to date
             EventFire.update_events_for_contact_groups(self, changed_groups)
 
-    def update(self, user, name, language):
+    def update(self, name: str, language: str) -> List[modifiers.Modifier]:
+        """
+        Updates attributes of this contact
+        """
         mods = []
         if (self.name or "") != (name or ""):
             mods.append(modifiers.Name(name or ""))
@@ -1246,18 +1249,42 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if (self.language or "") != (language or ""):
             mods.append(modifiers.Language(language or ""))
 
-        if mods:
-            Contact.bulk_modify(user, [self], mods)
+        return mods
+
+    def update_static_groups(self, groups) -> List[modifiers.Modifier]:
+        """
+        Updates the static groups for this contact to match the provided list
+        """
+        current = self.user_groups.filter(query=None)
+
+        # figure out our diffs, what groups need to be added or removed
+        to_remove = [g for g in current if g not in groups]
+        to_add = [g for g in groups if g not in current]
+
+        def refs(gs):
+            return [modifiers.GroupRef(uuid=str(g.uuid), name=g.name) for g in gs]
+
+        mods = []
+
+        if to_remove:
+            mods.append(modifiers.Groups(modification="remove", groups=refs(to_remove)))
+        if to_add:
+            mods.append(modifiers.Groups(modification="add", groups=refs(to_add)))
+
+        return mods
+
+    def modify(self, user, *mods: modifiers.Modifier):
+        self.bulk_modify(user, [self], *mods)
 
     @classmethod
-    def bulk_modify(cls, user, contacts, mods: List[modifiers.Modifier]):
+    def bulk_modify(cls, user, contacts, *mods: modifiers.Modifier):
         if not contacts:
             return
 
         org = contacts[0].org
         client = mailroom.get_client()
         try:
-            response = client.contact_modify(org.id, user.id, [c.id for c in contacts], mods)
+            response = client.contact_modify(org.id, user.id, [c.id for c in contacts], list(mods))
         except mailroom.MailroomException as e:
             logger.error(f"Contact update failed: {str(e)}", exc_info=True)
             raise e
@@ -1951,7 +1978,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def bulk_change_status(cls, user, contacts, status):
-        return cls.bulk_modify(user, contacts, mods=[modifiers.Status(status=status)])
+        return cls.bulk_modify(user, contacts, modifiers.Status(status=status))
 
     @classmethod
     def apply_action_block(cls, user, contacts):
@@ -2196,22 +2223,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         # update modified on any other modified contacts
         if modified_contacts:
             Contact.objects.filter(id__in=modified_contacts).update(modified_on=timezone.now())
-
-    def update_static_groups(self, user, groups):
-        """
-        Updates the static groups for this contact to match the provided list, i.e. leaves any existing not included
-        """
-        current_static_groups = self.user_groups.filter(query=None)
-
-        # figure out our diffs, what groups need to be added or removed
-        remove_groups = [g for g in current_static_groups if g not in groups]
-        add_groups = [g for g in groups if g not in current_static_groups]
-
-        for group in remove_groups:
-            group.update_contacts(user, [self], add=False)
-
-        for group in add_groups:
-            group.update_contacts(user, [self], add=True)
 
     def reevaluate_dynamic_groups(self, for_fields=None, urns=()):
         """

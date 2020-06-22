@@ -1475,10 +1475,6 @@ class ContactCRUDL(SmartCRUDL):
             obj = self.get_object()
             data = form.cleaned_data
 
-            new_groups = self.form.cleaned_data.get("groups")
-            if new_groups is not None:
-                obj.update_static_groups(self.request.user, new_groups)
-
             if not self.org.is_anon:
                 urns = []
 
@@ -1500,10 +1496,16 @@ class ContactCRUDL(SmartCRUDL):
                 urns = [urn[1] for urn in sorted(urns, key=lambda x: x[0])]
                 obj.update_urns(self.request.user, urns)
 
-            # eventually mailroom will do groups and URNs as well, but for now just do the mailroom parts
-            # last so that group re-evaluation happens after the groups and URNs have been set
+            # eventually mailroom will do URNs as well, but for now just do the mailroom parts
+            # last so that group re-evaluation happens after the URNs have been set
+            mods = obj.update(data.get("name"), data.get("language"))
+
+            new_groups = self.form.cleaned_data.get("groups")
+            if new_groups is not None:
+                mods += obj.update_static_groups(new_groups)
+
             try:
-                obj.update(self.request.user, data.get("name"), data.get("language"))
+                obj.modify(self.request.user, *mods)
             except Exception:
                 errors = form._errors.setdefault(forms.forms.NON_FIELD_ERRORS, forms.utils.ErrorList())
                 errors.append(_("An error occurred updating your contact. Please try again later."))

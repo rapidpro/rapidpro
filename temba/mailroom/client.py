@@ -122,9 +122,12 @@ class MailroomClient:
         return self._request("sim/resume", payload)
 
     def contact_modify(self, org_id, user_id, contact_ids, modifiers: List[Modifier]):
-        mod_defs = [m.as_def() for m in modifiers]
-
-        payload = {"org_id": org_id, "user_id": user_id, "contact_ids": contact_ids, "modifiers": mod_defs}
+        payload = {
+            "org_id": org_id,
+            "user_id": user_id,
+            "contact_ids": contact_ids,
+            "modifiers": [m.as_def() for m in modifiers],
+        }
 
         return self._request("contact/modify", payload)
 
