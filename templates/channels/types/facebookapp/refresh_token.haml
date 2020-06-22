@@ -22,7 +22,7 @@
 
   #fb-app-connect
     .btn.btn-primary.connect-facebook
-      Reconnect Facebook page
+      -trans "Reconnect Facebook page"
   
   #throbber{ style: "display:none;" }
     %img{ src: "{{ STATIC_URL }}/images/loader-circles.gif" }
@@ -82,8 +82,8 @@
               $("#fb-channel-error").show();
           }
 
-        }, 
-        {scope: 'public_profile,email,pages_messaging,whatsapp_business_management,pages_show_list,pages_manage_metadata,pages_read_engagement,pages_read_user_content,pages_manage_ads'});
+        },
+        {scope: 'public_profile,email,pages_messaging,pages_show_list,pages_manage_metadata,pages_read_engagement'});
 
       })
     });

@@ -16,7 +16,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
         user_access_token = forms.CharField(min_length=32, required=True, help_text=_("The User Access Token"))
         fb_user_id = forms.CharField(
-            required=True, help_text=_("The Faebook User ID of the admin that connected te channe")
+            required=True, help_text=_("The Facebook User ID of the admin that connected the channel")
         )
         page_name = forms.CharField(required=True, help_text=_("The name of the Facebook page"))
         page_id = forms.IntegerField(required=True, help_text="The Facebook Page ID")
@@ -51,7 +51,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         response = requests.get(url, params=params)
 
         if response.status_code != 200:  # pragma: no cover
-            raise Exception(_("Failed to get user long lived token"))
+            raise Exception(_("Failed to get a user long lived token"))
 
         long_lived_auth_token = response.json().get("access_token", "")
 
@@ -64,7 +64,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         response = requests.get(url, params=params)
 
         if response.status_code != 200:  # pragma: no cover
-            raise Exception(_("Failed to get page long lived token"))
+            raise Exception(_("Failed to get a page long lived token"))
 
         response_json = response.json()
 
@@ -93,7 +93,7 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
     class Form(forms.Form):
         user_access_token = forms.CharField(min_length=32, required=True, help_text=_("The User Access Token"))
         fb_user_id = forms.CharField(
-            required=True, help_text=_("The Faebook User ID of the admin that connected te channe")
+            required=True, help_text=_("The Facebook User ID of the admin that connected the channel")
         )
 
     slug_url_kwarg = "uuid"
@@ -150,7 +150,7 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
         response = requests.get(url, params=params)
 
         if response.status_code != 200:  # pragma: no cover
-            raise Exception(_("Failed to get user long lived token"))
+            raise Exception(_("Failed to get a user long lived token"))
 
         long_lived_auth_token = response.json().get("access_token", "")
 
@@ -163,7 +163,7 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
         response = requests.get(url, params=params)
 
         if response.status_code != 200:  # pragma: no cover
-            raise Exception(_("Failed to get page long lived token"))
+            raise Exception(_("Failed to get a page long lived token"))
 
         response_json = response.json()
 

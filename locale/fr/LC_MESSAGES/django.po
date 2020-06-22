@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-17 14:49+0000\n"
+"POT-Creation-Date: 2020-06-22 16:10+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1102,7 +1102,7 @@ msgstr "Le nom de la page Facebook"
 #| "    <a href=\"http://developers.facebook.com\">developers</a> site first."
 msgid ""
 "Add a <a href=\"http://facebook.com\">Facebook</a> bot to send and receive messages on behalf\n"
-"    of one of your Facebook pages for free. You will need to connect your page by logging into your facebook and chekcing the Facebook page to connect"
+"    of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect"
 msgstr ""
 "Ajoutez un bot <a href=\"http://facebook.com\">Facebook</a> pour envoyer et recevoir gratuitement des messages au nom\n"
 "    de l’une de vos pages Facebook. Vous devrez d'abord créer une application Facebook sur le site de leurs\n"
@@ -1113,10 +1113,12 @@ msgstr ""
 msgid "The User Access Token"
 msgstr "Jeton d'accès"
 
-msgid "The Faebook User ID of the admin that connected te channe"
-msgstr ""
+#, fuzzy
+#| msgid "The number of commands that we gave the channel"
+msgid "The Facebook User ID of the admin that connected the channel"
+msgstr "Le nombre de commandes que nous avons donné le channel"
 
-msgid "Failed to get user long lived token"
+msgid "Failed to get a user long lived token"
 msgstr ""
 
 #, fuzzy
@@ -1124,7 +1126,7 @@ msgstr ""
 msgid "Empty user access token!"
 msgstr "Jeton d'accès au serveur de votre application"
 
-msgid "Failed to get page long lived token"
+msgid "Failed to get a page long lived token"
 msgstr ""
 
 msgid "Empty page access token!"
@@ -5723,6 +5725,11 @@ msgid "Verify Token"
 msgstr "Vérifier le jeton"
 
 #, fuzzy
+#| msgid "The name of the Facebook page"
+msgid "Connect Facebook page"
+msgstr "Le nom de la page Facebook"
+
+#, fuzzy
 #| msgid "Click here to add a message"
 msgid "Click on the page to add as a channel"
 msgstr "Cliquez ici pour ajouter un message"
@@ -5735,6 +5742,11 @@ msgstr ""
 
 msgid "Error reconnecting Facebook page. Please retry"
 msgstr ""
+
+#, fuzzy
+#| msgid "The name of the Facebook page"
+msgid "Reconnect Facebook page"
+msgstr "Le nom de la page Facebook"
 
 #, fuzzy, python-format
 #| msgid ""

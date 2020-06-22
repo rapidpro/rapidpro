@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-17 14:49+0000\n"
+"POT-Creation-Date: 2020-06-22 16:10+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -1440,7 +1440,7 @@ msgstr "El nombre del video"
 
 msgid ""
 "Add a <a href=\"http://facebook.com\">Facebook</a> bot to send and receive messages on behalf\n"
-"    of one of your Facebook pages for free. You will need to connect your page by logging into your facebook and chekcing the Facebook page to connect"
+"    of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect"
 msgstr ""
 
 #, fuzzy
@@ -1448,10 +1448,12 @@ msgstr ""
 msgid "The User Access Token"
 msgstr "Token API"
 
-msgid "The Faebook User ID of the admin that connected te channe"
-msgstr ""
+#, fuzzy
+#| msgid "The number of commands that we gave the channel"
+msgid "The Facebook User ID of the admin that connected the channel"
+msgstr "El número de comandos que nos dio el transmisor"
 
-msgid "Failed to get user long lived token"
+msgid "Failed to get a user long lived token"
 msgstr ""
 
 #, fuzzy
@@ -1459,7 +1461,7 @@ msgstr ""
 msgid "Empty user access token!"
 msgstr "Token de acceso desde su repositorio"
 
-msgid "Failed to get page long lived token"
+msgid "Failed to get a page long lived token"
 msgstr ""
 
 msgid "Empty page access token!"
@@ -7614,6 +7616,11 @@ msgid "Verify Token"
 msgstr ""
 
 #, fuzzy
+#| msgid "The name of the video"
+msgid "Connect Facebook page"
+msgstr "El nombre del video"
+
+#, fuzzy
 #| msgid "Click here to send a message"
 msgid "Click on the page to add as a channel"
 msgstr "Haga clic aquí para enviar un mensaje"
@@ -7626,6 +7633,11 @@ msgstr ""
 
 msgid "Error reconnecting Facebook page. Please retry"
 msgstr ""
+
+#, fuzzy
+#| msgid "The name of the video"
+msgid "Reconnect Facebook page"
+msgstr "El nombre del video"
 
 #, fuzzy, python-format
 #| msgid ""

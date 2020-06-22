@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-17 14:49+0000\n"
+"POT-Creation-Date: 2020-06-22 16:10+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1004,22 +1004,22 @@ msgstr ""
 
 msgid ""
 "Add a <a href=\"http://facebook.com\">Facebook</a> bot to send and receive messages on behalf\n"
-"    of one of your Facebook pages for free. You will need to connect your page by logging into your facebook and chekcing the Facebook page to connect"
+"    of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect"
 msgstr ""
 
 msgid "The User Access Token"
 msgstr ""
 
-msgid "The Faebook User ID of the admin that connected te channe"
+msgid "The Facebook User ID of the admin that connected the channel"
 msgstr ""
 
-msgid "Failed to get user long lived token"
+msgid "Failed to get a user long lived token"
 msgstr ""
 
 msgid "Empty user access token!"
 msgstr ""
 
-msgid "Failed to get page long lived token"
+msgid "Failed to get a page long lived token"
 msgstr ""
 
 msgid "Empty page access token!"
@@ -5325,6 +5325,9 @@ msgstr ""
 msgid "Verify Token"
 msgstr ""
 
+msgid "Connect Facebook page"
+msgstr ""
+
 msgid "Click on the page to add as a channel"
 msgstr ""
 
@@ -5335,6 +5338,9 @@ msgid "Everything looks good. No need to reconnect"
 msgstr ""
 
 msgid "Error reconnecting Facebook page. Please retry"
+msgstr ""
+
+msgid "Reconnect Facebook page"
 msgstr ""
 
 #, python-format
