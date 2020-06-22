@@ -1255,6 +1255,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Updates the static groups for this contact to match the provided list
         """
+        assert not [g for g in groups if g.is_dynamic], "can't update membership of a dynamic group"
+
         current = self.user_groups.filter(query=None)
 
         # figure out our diffs, what groups need to be added or removed
