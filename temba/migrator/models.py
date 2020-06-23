@@ -319,6 +319,15 @@ class MigrationTask(TembaModel):
             logger.info("---------------- Webhook Events ----------------")
             logger.info("[STARTED] Webhooks migration")
 
+            # Releasing webhook logs before migrate them
+            all_org_webhook_events = WebHookEvent.objects.filter(org=self.org).only("id").order_by("id")
+            for we in all_org_webhook_events:
+                we.release()
+
+            all_webhook_event_results = WebHookResult.objects.filter(org=self.org).only("id").order_by("id")
+            for wer in all_webhook_event_results:
+                wer.release()
+
             org_webhook_events, webhook_events_count = migrator.get_org_webhook_events()
             if org_webhook_events:
                 self.add_webhook_events(logger=logger, webhook_events=org_webhook_events, migrator=migrator, count=webhook_events_count)
