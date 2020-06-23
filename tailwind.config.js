@@ -10,6 +10,7 @@ module.exports = {
 
             primary: 'rgb(var(--primary-rgb))',
             secondary: 'rgb(var(--secondary-rgb))',
+            tertiary: 'rgb(var(--tertiary-rgb))',
 
             'dark-alpha': {
                 20: 'rgba(0, 0, 0, .02)',

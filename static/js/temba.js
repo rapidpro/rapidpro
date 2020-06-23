@@ -1,6 +1,6 @@
 // handle lack of console on IE
 if (typeof console == 'undefined') {
-    this.console = { log: function(msg) {} };
+    this.console = { log: function (msg) {} };
 }
 
 function getCookie(name) {
@@ -28,15 +28,15 @@ function csrfSafeMethod(method) {
 }
 $.ajaxSetup({
     crossDomain: false, // obviates need for sameOrigin test
-    beforeSend: function(xhr, settings) {
+    beforeSend: function (xhr, settings) {
         if (!csrfSafeMethod(settings.type)) {
             xhr.setRequestHeader('X-CSRFToken', csrftoken);
         }
-    }
+    },
 });
 
-$(document).ready(function() {
-    $('iframe').each(function() {
+$(document).ready(function () {
+    $('iframe').each(function () {
         /*fix youtube z-index*/
         var url = $(this).attr('src');
         if (url.indexOf('youtube.com') >= 0) {
@@ -49,14 +49,10 @@ $(document).ready(function() {
     });
 
     $('ul.nav li.dropdown').hover(
-        function() {
-            $(this)
-                .find('.dropdown-menu')
-                .stop(true, true)
-                .delay(200)
-                .fadeIn();
+        function () {
+            $(this).find('.dropdown-menu').stop(true, true).delay(200).fadeIn();
         },
-        function() {
+        function () {
             $(this)
                 .find('.dropdown-menu')
                 .stop(true, true)
@@ -86,12 +82,12 @@ bindRefreshBlock();
 var dropDownOpen = false;
 
 function bindRefreshBlock() {
-    $('[data-toggle=dropdown]').on('focus', function() {
+    $('[data-toggle=dropdown]').on('focus', function () {
         dropDownOpen = true;
         hideTooltip();
     });
 
-    $('[data-toggle=dropdown]').on('blur', function() {
+    $('[data-toggle=dropdown]').on('blur', function () {
         // defer to if we have checked items to block refresh
         dropDownOpen = false;
         hideTooltip();
@@ -101,7 +97,8 @@ function bindRefreshBlock() {
 /**
  * Listen for thes start of pjax refreshes and block them if appropriate
  */
-document.addEventListener('rp-refresh-begin', function() {
+document.addEventListener('rp-refresh-begin', function () {
+    console.log('refreshing beginning');
     var checkedIds = getCheckedIds().length > 0;
     let openedModals = false;
     var modals = document.querySelectorAll('temba-modax');
@@ -114,6 +111,8 @@ document.addEventListener('rp-refresh-begin', function() {
     }
 
     var pjaxElement = document.querySelector('#pjax');
+
+    console.log(pjaxElement, dropDownOpen, checkedIds, openedModals);
     if (pjaxElement) {
         pjaxElement.setAttribute(
             'data-no-pjax',
@@ -146,7 +145,7 @@ function update_schedule() {}
 
 function updateDailySelection() {
     var selected = 0;
-    $('.btn-group > .btn').each(function() {
+    $('.btn-group > .btn').each(function () {
         if ($(this).hasClass('active')) {
             selected += parseInt($(this).attr('value'));
         }
@@ -251,7 +250,7 @@ function initMessageLengthCounter(textarea, counter) {
 
 function toggle_section() {
     var shrink;
-    $('.form-section').each(function() {
+    $('.form-section').each(function () {
         var visible = $(this);
         if (visible.find('.expanded').is(':visible')) {
             hide_section(visible);
@@ -285,7 +284,7 @@ function hide_section(section) {
         .animate(
             { 'font-size': '35px', width: '40px', height: '40px' },
             200,
-            function() {
+            function () {
                 // section.removeClass('expanded');
             }
         );
@@ -300,7 +299,7 @@ function expand_section(section) {
         .animate(
             { 'font-size': '80px', width: '100px', height: '100px' },
             200,
-            function() {
+            function () {
                 // section.addClass('expanded');
             }
         );
@@ -345,9 +344,9 @@ function initializeVideoPlayer(element) {
             vjsdownload: {
                 beforeElement: 'playbackRateMenuButton',
                 textControl: 'Download',
-                name: 'downloadButton'
-            }
-        }
+                name: 'downloadButton',
+            },
+        },
     });
 }
 

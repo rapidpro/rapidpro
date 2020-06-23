@@ -71,6 +71,18 @@ class SelectWidget(forms.Select):
         return super().render(name, value, attrs)
 
 
+class SelectMultipleWidget(SelectWidget):
+    template_name = "utils/forms/select.haml"
+    is_annotated = True
+    allow_multiple_selected = True
+
+    def __init__(self, attrs=None):
+        default_attrs = {"multi": True}
+        if attrs:
+            default_attrs.update(attrs)
+        super().__init__(default_attrs)
+
+
 class ContactSearchWidget(forms.Widget):
     template_name = "utils/forms/contact_search.haml"
 

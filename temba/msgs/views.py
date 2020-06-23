@@ -30,7 +30,15 @@ from temba.flows.legacy.expressions import get_function_listing
 from temba.formax import FormaxMixin
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, on_transaction_commit
-from temba.utils.fields import CheckboxWidget, CompletionTextarea, JSONField, OmniboxChoice
+from temba.utils.fields import (
+    CheckboxWidget,
+    CompletionTextarea,
+    InputWidget,
+    JSONField,
+    OmniboxChoice,
+    SelectMultipleWidget,
+    SelectWidget,
+)
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BaseActionForm
 
@@ -220,7 +228,11 @@ class InboxView(OrgPermsMixin, SmartListView):
     def get_gear_links(self):
         links = []
         if self.allow_export and self.has_org_perm("msgs.msg_export"):
-            links.append(dict(title=_("Export"), href="#", js_class="msg-export-btn"))
+            links.append(
+                dict(
+                    id="export-messages", title=_("Export"), href=self.derive_export_url(), modax=_("Export Messages")
+                )
+            )
         return links
 
 
@@ -499,20 +511,32 @@ class TestMessageForm(forms.Form):
 
 class ExportForm(Form):
     LABEL_CHOICES = ((0, _("Just this label")), (1, _("All messages")))
+
     SYSTEM_LABEL_CHOICES = ((0, _("Just this folder")), (1, _("All messages")))
 
-    export_all = forms.ChoiceField(choices=(), label=_("Selection"), initial=0)
-
-    groups = forms.ModelMultipleChoiceField(
-        queryset=ContactGroup.user_groups.none(), required=False, label=_("Groups")
+    export_all = forms.ChoiceField(
+        choices=(), label=_("Selection"), initial=0, widget=SelectWidget(attrs={"widget_only": True})
     )
+
     start_date = forms.DateField(
         required=False,
-        help_text=_("The date for the oldest message to export. " "(Leave blank to export from the oldest message)."),
+        help_text=_("Leave blank for the oldest message"),
+        widget=InputWidget(attrs={"datepicker": True, "hide_label": True, "placeholder": _("Start Date")}),
     )
+
     end_date = forms.DateField(
         required=False,
-        help_text=_("The date for the latest message to export. " "(Leave blank to export up to the latest message)."),
+        help_text=_("Leave blank for the latest message"),
+        widget=InputWidget(attrs={"datepicker": True, "hide_label": True, "placeholder": _("End Date")}),
+    )
+
+    groups = forms.ModelMultipleChoiceField(
+        queryset=ContactGroup.user_groups.none(),
+        required=False,
+        label=_("Groups"),
+        widget=SelectMultipleWidget(
+            attrs={"widget_only": True, "placeholder": _("Optional: Choose groups to show in your export")}
+        ),
     )
 
     def __init__(self, user, label, *args, **kwargs):
@@ -745,7 +769,7 @@ class MsgCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Edit"), href="#", js_class=edit_btn_cls))
 
             if self.has_org_perm("msgs.msg_export"):
-                links.append(dict(title=_("Export"), href="#", js_class="msg-export-btn"))
+                links.append(dict(title=_("Export"), href=reverse("msgs.msg_export"), modax=_("Export Messages")))
 
             if self.has_org_perm("msgs.broadcast_send"):
                 links.append(
@@ -797,10 +821,17 @@ class BaseLabelForm(forms.ModelForm):
     class Meta:
         model = Label
         fields = "__all__"
+        widgets = {"name": InputWidget(attrs={"widget_only": False})}
 
 
 class LabelForm(BaseLabelForm):
-    folder = forms.ModelChoiceField(Label.folder_objects.none(), required=False, label=_("Folder"))
+    folder = forms.ModelChoiceField(
+        Label.folder_objects.none(),
+        required=False,
+        label=_("Folder"),
+        widget=SelectWidget(attrs={"placeholder": _("Optional: Parent Folder"), "widget_only": True}),
+    )
+
     messages = forms.CharField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, *args, **kwargs):
@@ -809,11 +840,13 @@ class LabelForm(BaseLabelForm):
 
         super().__init__(*args, **kwargs)
 
-        self.fields["folder"].queryset = Label.folder_objects.filter(org=self.org)
+        self.fields["folder"].queryset = Label.folder_objects.filter(org=self.org, is_active=True)
 
 
 class FolderForm(BaseLabelForm):
-    name = forms.CharField(label=_("Name"), help_text=_("The name of this folder"))
+    name = forms.CharField(
+        label=_("Name"), help_text=_("Choose a name for your folder"), widget=InputWidget(attrs={"widget_only": False})
+    )
 
     def __init__(self, *args, **kwargs):
         self.org = kwargs.pop("org")
@@ -839,7 +872,7 @@ class LabelCRUDL(SmartCRUDL):
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "folder", "messages")
-        success_url = "@msgs.msg_inbox"
+        success_url = "hide"
         form_class = LabelForm
         success_message = ""
         submit_button_name = _("Create")
@@ -855,7 +888,6 @@ class LabelCRUDL(SmartCRUDL):
 
         def post_save(self, obj, *args, **kwargs):
             obj = super().post_save(obj, *args, **kwargs)
-
             if self.form.cleaned_data["messages"]:  # pragma: needs cover
                 msg_ids = [int(m) for m in self.form.cleaned_data["messages"].split(",") if m.isdigit()]
                 messages = Msg.objects.filter(org=obj.org, pk__in=msg_ids)

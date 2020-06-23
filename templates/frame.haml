@@ -107,16 +107,10 @@
 
     -block styles
 
-      :css
-        temba-select:focus {
-          outline: none;
-          box-shadow: none;
-        }
-
       -compress css
-        %link{rel:"stylesheet", href:"{{ STATIC_URL }}css/temba-components.css", type:"text/css"}
         %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/bootstrap-css/css/bootstrap.css',  media:'all' }
         %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/animate.css/animate.css',  media:'all' }
+
 
       -compress css
         %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/bootstrap-css/css/bootstrap-responsive.css',
@@ -134,6 +128,7 @@
 
       -compress css
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
+        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/icons/style.css", media:'all'}
         %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/print.less', media:'print'}
 
       -compress css
@@ -155,6 +150,11 @@
             %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}{{style}}', media:'all'}
           -else
             %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}{{style}}", media:'all'}
+
+      -compress css
+        %link{rel:"stylesheet", href:"{{ STATIC_URL }}css/temba-components.css", type:"text/css"}
+        %link{rel:"stylesheet", href:"{{ STATIC_URL }}css/tailwind.css", type:"text/css"}
+        %link{rel:"stylesheet", href:"{{ STATIC_URL }}less/refresh.less", type:"text/less"}
 
       -block extra-less
       -block extra-style

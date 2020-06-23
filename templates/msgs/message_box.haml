@@ -50,7 +50,8 @@
           %div{style:"margin-bottom: 10px"}
             - if org_perms.msgs.broadcast_send
               %temba-modax#send-message-modal{ header:'{% trans "Send Message" %}', endpoint:"{% url 'msgs.broadcast_send' %}" }
-                %temba-button#send-message-button{ name:'{% trans "Send Message"%}', primary: 'true'}
+                .button-primary{ onclick:"handleSendMessage()"}
+                  -trans "Send Message"
 
           #sidebar-nav
             %ul.nav.nav-list.level1
@@ -87,11 +88,14 @@
 
           %div{style:"margin-top: 10px; margin-bottom:10px;"}
             - if org_perms.msgs.label_create
-              %a.btn.btn-block.add-label
-                - trans "Create Label"
+              %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'msgs.label_create' %}", onloaded: "handleLabelLoaded", onsubmitted: "handleLabelSubmitted"}
+                .button-light.mb-2
+                  - trans "Create Label"
+                
             - if org_perms.msgs.label_create_folder
-              %a.btn.btn-block.add-folder
-                - trans "Create Folder"
+              %temba-modax{ header:'{% trans "Create Folder" %}', endpoint:"{% url 'msgs.label_create_folder' %}", on-temba-loaded:"labelOnLoad", onsubmit: "function(e) { labelOnSubmit(e) }" }
+                .button-light
+                  -trans "Create Folder"
 
         -if has_messages
           .span9
@@ -237,28 +241,53 @@
   :javascript
     {% if org_perms.msgs.msg_update %}
 
-  
-    // wire our send button on load and on refresh
-    wireSendButton();
-    document.addEventListener('rp-refresh-complete', function() {
-      wireSendButton();
-    });
-
-    function wireSendButton() {
-      // when we click send, include any clicked messages in our modax request
-      var sendEndpoint = "{% url 'msgs.broadcast_send' %}";
-      var sendButton = document.querySelector("#send-message-button");
-      var sendModal = document.querySelector("#send-message-modal");
-      sendButton.addEventListener('click', function(){
-        var msgIds = getCheckedIds();
-        if (msgIds.length > 0) {
-          sendModal.setAttribute("endpoint", sendEndpoint + '?m=' + msgIds);
-        } else {
-          sendModal.setAttribute("endpoint", sendEndpoint);
-        }
-      });
+    function handleLabelLoaded(event) {
+      lastChecked = getCheckedIds();
+      var body = event.detail.body;
+      body.querySelector("#id_messages").value = lastChecked.join();
+      /* 
+      $("#active-modal form input#id_messages").val(lastChecked.join());
+      if ($('#id_folder').find('option').length > 1) {
+        select2div('#id_folder');
+      } else {
+        $('#id_folder').parents('.control-group').hide();
+      }*/
     }
 
+    function handleLabelSubmitted(event) {
+      refresh(function() { recheckIds(); }, true);
+    }
+
+
+    // document.addEventListener("DOMContentLoaded", function(){
+      // document.querySelector("#create-label-modal").loadHandler = labelOnLoad;
+    // });
+
+
+    /* function wireLabelButton() {
+      var labelModal = document.querySelector("#create-label-modal");
+      labelModal.addEventListener("load", function(){
+          lastChecked = getCheckedIds();
+          $("#active-modal form input#id_messages").val(lastChecked.join());
+          if ($('#id_folder').find('option').length > 1) {
+            select2div('#id_folder');
+          } else {
+            $('#id_folder').parents('.control-group').hide();
+          }
+      );
+    }*/
+
+    function handleSendMessage() {
+      var sendEndpoint = "{% url 'msgs.broadcast_send' %}";
+      var sendModal = document.querySelector("#send-message-modal");
+      var msgIds = getCheckedIds();
+      if (msgIds.length > 0) {
+        sendModal.setAttribute("endpoint", sendEndpoint + '?m=' + msgIds);
+      } else {
+        sendModal.setAttribute("endpoint", sendEndpoint);
+      }
+    }
+  
     function postLabelChanges(smsIds, labelId, addLabel, number, onError) {
          fetchPJAXContent("", "#pjax", { postData: { objects: smsIds, label: labelId, add: addLabel, action: 'label', pjax: 'true', number:number },
          forceReload: true, onSuccess: function(data, textStatus) {
@@ -277,7 +306,10 @@
     {% endif %}
 
     $('.page-content').on('click', ".add-label", function() {
-      lastChecked = getCheckedIds();
+
+      document.getElementById("create-label-modal").open = true;
+
+      /* lastChecked = getCheckedIds();
       var modal = new Modax('{{ _("Create Label")|escapejs }}', '{% url "msgs.label_create" %}');
       modal.setIcon('icon-tag');
       modal.setListeners({
@@ -289,18 +321,9 @@
             $('#id_folder').parents('.control-group').hide();
           }
         }, onCompleted: function() { refresh(function() { recheckIds(); }, true);}
-      });
+      });*/
 
-      modal.show();
-    });
-
-    $('.page-content').on('click', ".add-folder", function() {
-      var modal = new Modax('{{ _("Create Folder")|escapejs }}', '{% url "msgs.label_create_folder" %}');
-      modal.setIcon('icon-folder');
-      modal.setListeners({
-        onCompleted: function() { refresh(null, true);}
-      });
-      modal.show();
+      // modal.show();
     });
 
     $(".page-content").on('pjax:complete', function() {

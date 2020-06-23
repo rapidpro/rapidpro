@@ -1274,7 +1274,9 @@ class Label(TembaModel):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs_labels")
 
-    name = models.CharField(max_length=MAX_NAME_LEN, verbose_name=_("Name"), help_text=_("The name of this label"))
+    name = models.CharField(
+        max_length=MAX_NAME_LEN, verbose_name=_("Name"), help_text=_("Choose a name for your label")
+    )
 
     folder = models.ForeignKey(
         "Label", on_delete=models.PROTECT, verbose_name=_("Folder"), null=True, related_name="children"

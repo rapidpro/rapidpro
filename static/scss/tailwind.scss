@@ -46,14 +46,25 @@
 }
 
 .button {
-  @apply px-6 py-3 leading-none text-lg shadow rounded-lg transition duration-300 text-center;
+  @apply px-6 py-3 leading-none text-lg shadow transition duration-300 text-center rounded-lg;
   margin-top: 1px;
 
   &:hover {
-    @apply shadow-lg;
-    transform: translateY(-1px);
     cursor: pointer;
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, .05);
   }
+
+}
+
+.button-light {
+  @apply button text-gray-600 bg-gray-200;
+}
+
+.button-tertiary {
+  @apply button text-white bg-tertiary;
 }
 
 .button-secondary {
@@ -83,6 +94,12 @@
   }
 }
 
+.lift {
+  &:hover {
+    @apply shadow-lg;
+    transform: translateY(-1px);
+  }
+}
 
 .pop {
   animation: pulse 0.3s;

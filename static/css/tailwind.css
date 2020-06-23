@@ -933,17 +933,69 @@ video {
   line-height: 1;
   font-size: 1.125rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  border-radius: 0.5rem;
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-duration: 300ms;
   text-align: center;
+  border-radius: 0.5rem;
   margin-top: 1px;
 }
 
 .button:hover {
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    transform: translateY(-1px);
     cursor: pointer;
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, .05);
+  }
+
+.button-light {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  line-height: 1;
+  font-size: 1.125rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+  transition-duration: 300ms;
+  text-align: center;
+  border-radius: 0.5rem;
+  margin-top: 1px;
+  color: #717171;
+  background-color: #ededed;
+}
+
+.button-light:hover {
+    cursor: pointer;
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, .05);
+  }
+
+.button-tertiary {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  line-height: 1;
+  font-size: 1.125rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+  transition-duration: 300ms;
+  text-align: center;
+  border-radius: 0.5rem;
+  margin-top: 1px;
+  color: #fff;
+  background-color: rgb(var(--tertiary-rgb));
+}
+
+.button-tertiary:hover {
+    cursor: pointer;
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, .05);
   }
 
 .button-secondary {
@@ -954,19 +1006,21 @@ video {
   line-height: 1;
   font-size: 1.125rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  border-radius: 0.5rem;
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-duration: 300ms;
   text-align: center;
+  border-radius: 0.5rem;
   margin-top: 1px;
   color: #fff;
   background-color: rgb(var(--secondary-rgb));
 }
 
 .button-secondary:hover {
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    transform: translateY(-1px);
     cursor: pointer;
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, .05);
   }
 
 .button-primary {
@@ -977,19 +1031,21 @@ video {
   line-height: 1;
   font-size: 1.125rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  border-radius: 0.5rem;
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-duration: 300ms;
   text-align: center;
+  border-radius: 0.5rem;
   margin-top: 1px;
   color: #fff;
   background-color: rgb(var(--primary-rgb));
 }
 
 .button-primary:hover {
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    transform: translateY(-1px);
     cursor: pointer;
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, .05);
   }
 
 .button-white {
@@ -1000,19 +1056,21 @@ video {
   line-height: 1;
   font-size: 1.125rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  border-radius: 0.5rem;
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-duration: 300ms;
   text-align: center;
+  border-radius: 0.5rem;
   margin-top: 1px;
   color: rgb(var(--primary-rgb));
   background-color: #fff;
 }
 
 .button-white:hover {
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    transform: translateY(-1px);
     cursor: pointer;
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, .05);
   }
 
 .button-dark-alpha {
@@ -1023,19 +1081,21 @@ video {
   line-height: 1;
   font-size: 1.125rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  border-radius: 0.5rem;
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-duration: 300ms;
   text-align: center;
+  border-radius: 0.5rem;
   margin-top: 1px;
   color: #fff;
   background-color: rgba(0, 0, 0, .2);
 }
 
 .button-dark-alpha:hover {
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    transform: translateY(-1px);
     cursor: pointer;
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, .05);
   }
 
 .button-sm {
@@ -1046,10 +1106,10 @@ video {
   line-height: 1;
   font-size: 1.125rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  border-radius: 0.5rem;
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-duration: 300ms;
   text-align: center;
+  border-radius: 0.5rem;
   margin-top: 1px;
   color: #fff;
   background-color: rgba(0, 0, 0, .2);
@@ -1064,9 +1124,11 @@ video {
 }
 
 .button-sm:hover {
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    transform: translateY(-1px);
     cursor: pointer;
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, .05);
   }
 
 .button-sm:hover {
@@ -1074,6 +1136,11 @@ video {
     transform: none;
     cursor: pointer;
     box-shadow: inset 0 0 20px 10px rgba(0, 0, 0, .1);
+  }
+
+.lift:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    transform: translateY(-1px);
   }
 
 .pop {
@@ -1855,6 +1922,10 @@ video {
   border-color: rgb(var(--secondary-rgb));
 }
 
+.divide-tertiary > :not(template) ~ :not(template) {
+  border-color: rgb(var(--tertiary-rgb));
+}
+
 .divide-dark-alpha-20 > :not(template) ~ :not(template) {
   border-color: rgba(0, 0, 0, .02);
 }
@@ -2075,6 +2146,10 @@ video {
   background-color: rgb(var(--secondary-rgb));
 }
 
+.bg-tertiary {
+  background-color: rgb(var(--tertiary-rgb));
+}
+
 .bg-dark-alpha-20 {
   background-color: rgba(0, 0, 0, .02);
 }
@@ -2231,6 +2306,10 @@ video {
   background-color: rgb(var(--secondary-rgb));
 }
 
+.hover\:bg-tertiary:hover {
+  background-color: rgb(var(--tertiary-rgb));
+}
+
 .hover\:bg-dark-alpha-20:hover {
   background-color: rgba(0, 0, 0, .02);
 }
@@ -2385,6 +2464,10 @@ video {
 
 .focus\:bg-secondary:focus {
   background-color: rgb(var(--secondary-rgb));
+}
+
+.focus\:bg-tertiary:focus {
+  background-color: rgb(var(--tertiary-rgb));
 }
 
 .focus\:bg-dark-alpha-20:focus {
@@ -2623,6 +2706,10 @@ video {
   border-color: rgb(var(--secondary-rgb));
 }
 
+.border-tertiary {
+  border-color: rgb(var(--tertiary-rgb));
+}
+
 .border-dark-alpha-20 {
   border-color: rgba(0, 0, 0, .02);
 }
@@ -2779,6 +2866,10 @@ video {
   border-color: rgb(var(--secondary-rgb));
 }
 
+.hover\:border-tertiary:hover {
+  border-color: rgb(var(--tertiary-rgb));
+}
+
 .hover\:border-dark-alpha-20:hover {
   border-color: rgba(0, 0, 0, .02);
 }
@@ -2933,6 +3024,10 @@ video {
 
 .focus\:border-secondary:focus {
   border-color: rgb(var(--secondary-rgb));
+}
+
+.focus\:border-tertiary:focus {
+  border-color: rgb(var(--tertiary-rgb));
 }
 
 .focus\:border-dark-alpha-20:focus {
@@ -10349,6 +10444,26 @@ video {
   color: rgb(var(--secondary-rgb));
 }
 
+.placeholder-tertiary::-webkit-input-placeholder {
+  color: rgb(var(--tertiary-rgb));
+}
+
+.placeholder-tertiary::-moz-placeholder {
+  color: rgb(var(--tertiary-rgb));
+}
+
+.placeholder-tertiary:-ms-input-placeholder {
+  color: rgb(var(--tertiary-rgb));
+}
+
+.placeholder-tertiary::-ms-input-placeholder {
+  color: rgb(var(--tertiary-rgb));
+}
+
+.placeholder-tertiary::placeholder {
+  color: rgb(var(--tertiary-rgb));
+}
+
 .placeholder-dark-alpha-20::-webkit-input-placeholder {
   color: rgba(0, 0, 0, .02);
 }
@@ -11127,6 +11242,26 @@ video {
 
 .focus\:placeholder-secondary:focus::placeholder {
   color: rgb(var(--secondary-rgb));
+}
+
+.focus\:placeholder-tertiary:focus::-webkit-input-placeholder {
+  color: rgb(var(--tertiary-rgb));
+}
+
+.focus\:placeholder-tertiary:focus::-moz-placeholder {
+  color: rgb(var(--tertiary-rgb));
+}
+
+.focus\:placeholder-tertiary:focus:-ms-input-placeholder {
+  color: rgb(var(--tertiary-rgb));
+}
+
+.focus\:placeholder-tertiary:focus::-ms-input-placeholder {
+  color: rgb(var(--tertiary-rgb));
+}
+
+.focus\:placeholder-tertiary:focus::placeholder {
+  color: rgb(var(--tertiary-rgb));
 }
 
 .focus\:placeholder-dark-alpha-20:focus::-webkit-input-placeholder {
@@ -12148,6 +12283,10 @@ video {
   color: rgb(var(--secondary-rgb));
 }
 
+.text-tertiary {
+  color: rgb(var(--tertiary-rgb));
+}
+
 .text-dark-alpha-20 {
   color: rgba(0, 0, 0, .02);
 }
@@ -12304,6 +12443,10 @@ video {
   color: rgb(var(--secondary-rgb));
 }
 
+.hover\:text-tertiary:hover {
+  color: rgb(var(--tertiary-rgb));
+}
+
 .hover\:text-dark-alpha-20:hover {
   color: rgba(0, 0, 0, .02);
 }
@@ -12458,6 +12601,10 @@ video {
 
 .focus\:text-secondary:focus {
   color: rgb(var(--secondary-rgb));
+}
+
+.focus\:text-tertiary:focus {
+  color: rgb(var(--tertiary-rgb));
 }
 
 .focus\:text-dark-alpha-20:focus {
@@ -15747,6 +15894,10 @@ video {
     border-color: rgb(var(--secondary-rgb));
   }
 
+  .md\:divide-tertiary > :not(template) ~ :not(template) {
+    border-color: rgb(var(--tertiary-rgb));
+  }
+
   .md\:divide-dark-alpha-20 > :not(template) ~ :not(template) {
     border-color: rgba(0, 0, 0, .02);
   }
@@ -15967,6 +16118,10 @@ video {
     background-color: rgb(var(--secondary-rgb));
   }
 
+  .md\:bg-tertiary {
+    background-color: rgb(var(--tertiary-rgb));
+  }
+
   .md\:bg-dark-alpha-20 {
     background-color: rgba(0, 0, 0, .02);
   }
@@ -16123,6 +16278,10 @@ video {
     background-color: rgb(var(--secondary-rgb));
   }
 
+  .md\:hover\:bg-tertiary:hover {
+    background-color: rgb(var(--tertiary-rgb));
+  }
+
   .md\:hover\:bg-dark-alpha-20:hover {
     background-color: rgba(0, 0, 0, .02);
   }
@@ -16277,6 +16436,10 @@ video {
 
   .md\:focus\:bg-secondary:focus {
     background-color: rgb(var(--secondary-rgb));
+  }
+
+  .md\:focus\:bg-tertiary:focus {
+    background-color: rgb(var(--tertiary-rgb));
   }
 
   .md\:focus\:bg-dark-alpha-20:focus {
@@ -16515,6 +16678,10 @@ video {
     border-color: rgb(var(--secondary-rgb));
   }
 
+  .md\:border-tertiary {
+    border-color: rgb(var(--tertiary-rgb));
+  }
+
   .md\:border-dark-alpha-20 {
     border-color: rgba(0, 0, 0, .02);
   }
@@ -16671,6 +16838,10 @@ video {
     border-color: rgb(var(--secondary-rgb));
   }
 
+  .md\:hover\:border-tertiary:hover {
+    border-color: rgb(var(--tertiary-rgb));
+  }
+
   .md\:hover\:border-dark-alpha-20:hover {
     border-color: rgba(0, 0, 0, .02);
   }
@@ -16825,6 +16996,10 @@ video {
 
   .md\:focus\:border-secondary:focus {
     border-color: rgb(var(--secondary-rgb));
+  }
+
+  .md\:focus\:border-tertiary:focus {
+    border-color: rgb(var(--tertiary-rgb));
   }
 
   .md\:focus\:border-dark-alpha-20:focus {
@@ -24241,6 +24416,26 @@ video {
     color: rgb(var(--secondary-rgb));
   }
 
+  .md\:placeholder-tertiary::-webkit-input-placeholder {
+    color: rgb(var(--tertiary-rgb));
+  }
+
+  .md\:placeholder-tertiary::-moz-placeholder {
+    color: rgb(var(--tertiary-rgb));
+  }
+
+  .md\:placeholder-tertiary:-ms-input-placeholder {
+    color: rgb(var(--tertiary-rgb));
+  }
+
+  .md\:placeholder-tertiary::-ms-input-placeholder {
+    color: rgb(var(--tertiary-rgb));
+  }
+
+  .md\:placeholder-tertiary::placeholder {
+    color: rgb(var(--tertiary-rgb));
+  }
+
   .md\:placeholder-dark-alpha-20::-webkit-input-placeholder {
     color: rgba(0, 0, 0, .02);
   }
@@ -25019,6 +25214,26 @@ video {
 
   .md\:focus\:placeholder-secondary:focus::placeholder {
     color: rgb(var(--secondary-rgb));
+  }
+
+  .md\:focus\:placeholder-tertiary:focus::-webkit-input-placeholder {
+    color: rgb(var(--tertiary-rgb));
+  }
+
+  .md\:focus\:placeholder-tertiary:focus::-moz-placeholder {
+    color: rgb(var(--tertiary-rgb));
+  }
+
+  .md\:focus\:placeholder-tertiary:focus:-ms-input-placeholder {
+    color: rgb(var(--tertiary-rgb));
+  }
+
+  .md\:focus\:placeholder-tertiary:focus::-ms-input-placeholder {
+    color: rgb(var(--tertiary-rgb));
+  }
+
+  .md\:focus\:placeholder-tertiary:focus::placeholder {
+    color: rgb(var(--tertiary-rgb));
   }
 
   .md\:focus\:placeholder-dark-alpha-20:focus::-webkit-input-placeholder {
@@ -26040,6 +26255,10 @@ video {
     color: rgb(var(--secondary-rgb));
   }
 
+  .md\:text-tertiary {
+    color: rgb(var(--tertiary-rgb));
+  }
+
   .md\:text-dark-alpha-20 {
     color: rgba(0, 0, 0, .02);
   }
@@ -26196,6 +26415,10 @@ video {
     color: rgb(var(--secondary-rgb));
   }
 
+  .md\:hover\:text-tertiary:hover {
+    color: rgb(var(--tertiary-rgb));
+  }
+
   .md\:hover\:text-dark-alpha-20:hover {
     color: rgba(0, 0, 0, .02);
   }
@@ -26350,6 +26573,10 @@ video {
 
   .md\:focus\:text-secondary:focus {
     color: rgb(var(--secondary-rgb));
+  }
+
+  .md\:focus\:text-tertiary:focus {
+    color: rgb(var(--tertiary-rgb));
   }
 
   .md\:focus\:text-dark-alpha-20:focus {

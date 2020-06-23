@@ -9,9 +9,9 @@
     ]
   },
   "dependencies": {
-    "@tailwindcss/ui": "0.2.2",
     "@nyaruka/flow-editor": "1.9.8",
     "@nyaruka/temba-components": "0.1.7",
+    "@tailwindcss/ui": "0.2.2",
     "coffeescript": "1.12.7",
     "fa-icons": "0.2.0",
     "less": "2.7.1",
@@ -45,5 +45,8 @@
   },
   "resolutions": {
     "minimist": "1.2.5"
+  },
+  "vaadin": {
+    "disableUsageStatistics": true
   }
 }

@@ -752,6 +752,9 @@ class CampaignEventCRUDL(SmartCRUDL):
             initial["unit"] = "D"
             initial["offset"] = "15"
             initial["direction"] = "A"
+            initial["event_type"] = "M"
+            initial["message_start_mode"] = "I"
+            initial["delivery_hour"] = "-1"
 
             # default to our first date field
             initial["relative_to"] = ContactField.all_fields.filter(

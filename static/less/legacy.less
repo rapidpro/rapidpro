@@ -728,7 +728,7 @@ h5 {
 
 a.logo {
   color: #fff;
-  font-size: 96px;
+  font-size: 60px;
   margin-top: -2px;
   text-decoration: none;
 
@@ -1094,14 +1094,12 @@ a.org-choose {
 
 #header {
 
-  background-color: @color-navbar;
-  padding-top: 32px;
-  padding-bottom: 20px;
-  margin-bottom: 30px;
+  background-color: rgb(var(--primary-rgb));
+  margin-bottom: 3rem;
   border: 0px solid pink;
   z-index: 0;
   position: relative;
-  height: 80px;
+  height: 7rem;
 
   @media all and (max-width: 940px) and (min-width: 767px) {
     min-width: 940px;
@@ -1186,7 +1184,7 @@ form.smartmin-form {
     margin: 0;
 
     li {
-      color: @color-alert-error;
+      color: purple; // @color-alert-error;
     }
   }
 
@@ -1567,8 +1565,6 @@ tr.checked {
 input:focus:invalid,
 textarea:focus:invalid,
 select:focus:invalid {
-  // border-color: var(--color-error)!important;
-  // color: var(--color-error) !important;
   color: var(--color-text) !important;
   border-color: var(--color-focus) !important;
   box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(var(--focus-rgb), 0.6) !important;
@@ -1606,7 +1602,7 @@ select:focus:invalid {
 form.smartmin-form .alert-error {
   background: rgba(255, 181, 181, .17);
   border: none;
-  border-left: 6px solid var(--color-error);
+  border-left: 0px solid var(--color-error);
   color: var(--color-error);
   padding: 10px;
   margin-bottom: 10px;

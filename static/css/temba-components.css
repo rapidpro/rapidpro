@@ -1,83 +1,93 @@
+html input {
+  font-weight: 300;
+}
+
 html {
-    --font-family: Helvetica, Arial, sans-serif;
+  --font-family: Helvetica, Arial, sans-serif;
 
-    --primary-rgb: 35, 135, 202;
-    --secondary-rgb: 140, 51, 140;
-    --tertiary-rgb: 135, 202, 35;
+  --primary-rgb: 35, 135, 202;
+  --secondary-rgb: 140, 51, 140;
+  --tertiary-rgb: 135, 202, 35;
 
-    --focus-rgb: 82, 168, 236;
-    --error-rgb: 255, 99, 71;
+  --focus-rgb: 82, 168, 236;
+  --error-rgb: 255, 99, 71;
 
-    /* Old style matching, squared off, borded inputs, select2 colors */
-    --curvature: 0px;
-    --curvature-widget: 0px;
-    --color-focus: rgba(var(--focus-rgb), 0.8);
-    --color-widget-bg: #fff;
-    --color-widget-bg-focused: #fff;
-    --color-widget-border: rgb(204, 204, 204);
+  /* Old style matching, squared off, borded inputs, select2 colors */
+  --curvature: 6px;
+  --curvature-widget: 6px;
+  --color-focus: #a4cafe;
+  --color-widget-bg: #fff;
+  --color-widget-bg-focused: #fff;
+  --color-widget-border: rgb(235, 235, 235);
 
-    /* primary colors, should be dark */
-    --color-selection: rgb(var(--primary-rgb));
+  /* primary colors, should be dark */
+  --color-selection: #f0f6ff;
 
-    --widget-box-shadow-focused: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(var(--focus-rgb), 0.6);
-    --widget-box-shadow-focused-error: inset 0 1px 1px rgba(var(--error-rgb), 0.075), 0 0 8px rgba(var(--error-rgb), 0.6);
+  --widget-box-shadow-focused: 0 0 0 3px rgba(164, 202, 254, .45);
+  --widget-box-shadow-focused-error: inset 0 1px 1px rgba(var(--error-rgb), 0.075),
+    0 0 8px rgba(var(--error-rgb), 0.6);
 
-    /* page text, borders, widgets */
-    --color-text: #555;
-    --color-widget-text: #555;
-    --color-borders: rgba(0, 0, 0, .07);
-    --color-placeholder: #ccc;
+  /* page text, borders, widgets */
+  --color-text: #555;
+  --color-widget-text: #555;
+  --color-borders: rgba(0, 0, 0, 0.07);
+  --color-placeholder: #ccc;
 
-    /* light colors, panel backgrounds, selection, etc */
-    --color-primary-light: #eee;
-    --color-secondary-light: #ccc;
+  /* light colors, panel backgrounds, selection, etc */
+  --color-primary-light: #eee;
+  --color-secondary-light: #ccc;
 
-    /* dark colors, nav bar, buttons, etc */
-    --color-primary-dark: rgb(var(--primary-rgb));
-    --color-secondary-dark: rgb(var(--secondary-rgb));
+  /* dark colors, nav bar, buttons, etc */
+  --color-primary-dark: rgb(var(--primary-rgb));
+  --color-secondary-dark: rgb(var(--secondary-rgb));
 
-    /* light text goes over dark, dark over lights */
-    --color-text-light: rgba(255, 255, 255, 1);
-    --color-text-dark: rgba(0, 0, 0, .5);
-    --color-text-dark-secondary: rgba(0, 0, 0, .25);
-    --color-text-help: rgba(0, 0, 0, .45);
+  /* light text goes over dark, dark over lights */
+  --color-text-light: rgba(255, 255, 255, 1);
+  --color-text-dark: rgba(0, 0, 0, 0.5);
+  --color-text-dark-secondary: rgba(0, 0, 0, 0.25);
+  --color-text-help: rgba(0, 0, 0, 0.25);
 
-    /* solid overlays with text */
-    --color-overlay-dark: rgba(0, 0, 0, .2);
-    --color-overlay-dark-text: rgba(255, 255, 255, .9);
-    --color-overlay-light: rgba(0, 0, 0, .05);
-    --color-overlay-light-text: rgba(0, 0, 0, .6);
+  /* solid overlays with text */
+  --color-overlay-dark: rgba(0, 0, 0, 0.2);
+  --color-overlay-dark-text: rgba(255, 255, 255, 0.9);
+  --color-overlay-light: rgba(0, 0, 0, 0.05);
+  --color-overlay-light-text: rgba(0, 0, 0, 0.6);
 
-    /* links, buttons, and label badges */
-    --color-link-primary: rgba(var(--primary-rgb), .8);
-    --color-link-primary-hover: rgba(var(--primary-rgb), .9);
-    --color-link-secondary: rgba(var(--secondary-rgb), .8);
-    --color-link-secondary-hover: rgba(var(--secondary-rgb), .9);
-    --color-button-primary: var(--color-primary-dark);
-    --color-button-primary-text: var(--color-text-light);
-    --color-button-secondary: var(--color-secondary-light);
-    --color-button-secondary-text: var(--color-text-dark);
-    --color-button-attention: #2ecc71;
+  /* links, buttons, and label badges */
+  --color-link-primary: rgba(var(--primary-rgb), 0.8);
+  --color-link-primary-hover: rgba(var(--primary-rgb), 0.9);
+  --color-link-secondary: rgba(var(--secondary-rgb), 0.8);
+  --color-link-secondary-hover: rgba(var(--secondary-rgb), 0.9);
+  --color-button-primary: var(--color-primary-dark);
+  --color-button-primary-text: var(--color-text-light);
+  --color-button-secondary: var(--color-secondary-light);
+  --color-button-secondary-text: var(--color-text-dark);
+  --color-button-attention: #2ecc71;
 
-    --color-label-primary: var(--color-primary-dark);
-    --color-label-primary-text: var(--color-text-light);
-    --color-label-secondary: rgba(0, 0, 0, .2);
-    --color-label-secondary-text: rgba(255, 255, 255, .9);
+  --color-label-primary: var(--color-primary-dark);
+  --color-label-primary-text: var(--color-text-light);
+  --color-label-secondary: rgba(0, 0, 0, 0.2);
+  --color-label-secondary-text: rgba(255, 255, 255, 0.9);
 
-    --color-info: #c0d9eb;
-    --color-warning: #fff6c0;
-    --color-error: rgb(var(--error-rgb));
+  --color-info: #c0d9eb;
+  --color-warning: #fff6c0;
+  --color-error: rgb(var(--error-rgb));
 
-    font-size: 13px;
-    font-weight: 200;
-    font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 300;
+  font-family: var(--font-family);
 
-    --button-y: 8px;
-    --button-x: 14px;
-
+  --button-y: 6px;
+  --button-x: 14px;
 }
 
 temba-select:focus {
-    outline: none;
-    box-shadow: none;
+  outline: none;
+  box-shadow: none;
+}
+
+.flatpickr-calendar {
+  margin-top: 32px;
+  margin-bottom: 32px;
+  margin-left: -13px;
 }
