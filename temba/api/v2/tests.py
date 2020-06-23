@@ -3231,7 +3231,6 @@ class APITest(TembaTest):
 
     def test_org(self):
         url = reverse("api.v2.org")
-
         self.assertEndpointAccess(url)
 
         # fetch as JSON
@@ -3273,21 +3272,22 @@ class APITest(TembaTest):
         # try to set languages which do not exist in iso639-3
         self.org.set_languages(self.admin, ["fra", "123", "eng"], "eng")
 
-        response = self.fetchJSON(url)
-        self.assertEqual(
-            response.json(),
-            {
-                "uuid": str(self.org.uuid),
-                "name": "Temba",
-                "country": "RW",
-                "languages": ["eng", "fra"],
-                "primary_language": "eng",
-                "timezone": "Africa/Kigali",
-                "date_style": "day_first",
-                "credits": {"used": 0, "remaining": 1000},
-                "anon": False,
-            },
-        )
+        for urn in ("/api/v2/org", "/api/v2/workspace"):
+            response = self.fetchJSON(url)
+            self.assertEqual(
+                response.json(),
+                {
+                    "uuid": str(self.org.uuid),
+                    "name": "Temba",
+                    "country": "RW",
+                    "languages": ["eng", "fra"],
+                    "primary_language": "eng",
+                    "timezone": "Africa/Kigali",
+                    "date_style": "day_first",
+                    "credits": {"used": 0, "remaining": 1000},
+                    "anon": False,
+                },
+            )
 
     def test_media(self):
         url = reverse("api.v2.media") + ".json"

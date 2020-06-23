@@ -43,8 +43,6 @@ def apply_manual():  # pragma: no cover
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("orgs", "0063_auto_20200616_1624"),
-    ]
+    dependencies = [("orgs", "0063_auto_20200616_1624")]
 
     operations = [migrations.RunPython(populate_new_org_fields, reverse)]

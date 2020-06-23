@@ -15,7 +15,7 @@ Thanks again for your support!
 Invoice Details
 Id: {{ charge_id }}
 Date: {{ charge_date }}
-Organization: {{ org }}
+Workspace: {{ org }}
 Description: {{ description }}
 Credits: {{ credits }}
 Amount: USD ${{ amount }}

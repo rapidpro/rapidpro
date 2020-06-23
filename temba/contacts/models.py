@@ -1584,7 +1584,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
             # if this is an anonymous org, don't allow updating
             if org.is_anon and search_contact and not is_admin:
-                raise SmartImportRowError("Other existing contact on anonymous organization")
+                raise SmartImportRowError("Other existing contact in anonymous workspace")
 
             urns.append(urn)
 

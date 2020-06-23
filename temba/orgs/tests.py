@@ -1353,14 +1353,14 @@ class OrgTest(TembaTest):
         # now lets try again
         post_data = dict(surveyor_password="nyaruka")
         response = self.client.post(url, post_data)
-        self.assertContains(response, "Enter your details below to create your account.")
+        self.assertContains(response, "Enter your details below to create your login.")
 
         # now try creating an account on the second step without and surveyor_password
         post_data = dict(
             first_name="Marshawn", last_name="Lynch", password="beastmode24", email="beastmode@seahawks.com"
         )
         response = self.client.post(url, post_data)
-        self.assertContains(response, "Enter your details below to create your account.")
+        self.assertContains(response, "Enter your details below to create your login.")
 
         # now do the same but with a valid surveyor_password
         post_data = dict(
@@ -1452,7 +1452,7 @@ class OrgTest(TembaTest):
         # superuser gets redirected to user management page
         self.login(self.superuser)
         response = self.client.get(choose_url, follow=True)
-        self.assertContains(response, "Organizations")
+        self.assertContains(response, "Workspaces")
 
     def test_topup_admin(self):
         self.login(self.admin)
@@ -2691,7 +2691,7 @@ class OrgTest(TembaTest):
         session.save()
 
         response = self.client.get(reverse("orgs.org_home"))
-        self.assertNotContains(response, "Manage Organizations")
+        self.assertNotContains(response, "Manage Workspaces")
 
         # attempting to manage orgs should redirect
         response = self.client.get(reverse("orgs.org_sub_orgs"))
@@ -2718,12 +2718,12 @@ class OrgTest(TembaTest):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
         self.assertTrue(self.org.is_multi_org_tier())
         response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "Manage Organizations")
+        self.assertContains(response, "Manage Workspaces")
 
         # now we can manage our orgs
         response = self.client.get(reverse("orgs.org_sub_orgs"))
         self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Organizations")
+        self.assertContains(response, "Workspaces")
 
         # add a sub org
         response = self.client.post(reverse("orgs.org_create_sub_org"), new_org)
@@ -2749,7 +2749,7 @@ class OrgTest(TembaTest):
         # try to transfer more than we have
         post_data = dict(from_org=self.org.id, to_org=sub_org.id, amount=1500)
         response = self.client.post(reverse("orgs.org_transfer_credits"), post_data)
-        self.assertContains(response, "Pick a different organization to transfer from")
+        self.assertContains(response, "Pick a different workspace to transfer from")
 
         # now transfer some creditos
         post_data = dict(from_org=self.org.id, to_org=sub_org.id, amount=600)
@@ -3079,7 +3079,7 @@ class OrgCRUDLTest(TembaTest):
             password="dukenukem",
         )
         response = self.client.post(grant_url, post_data)
-        self.assertFormError(response, "form", None, "User already exists, please do not include password.")
+        self.assertFormError(response, "form", None, "Login already exists, please do not include password.")
 
         # try to create a new user with invalid password
         post_data = dict(
@@ -4431,7 +4431,7 @@ class CreditAlertTest(TembaTest):
         # email sent
         sent_email = mail.outbox[0]
         self.assertEqual(1, len(sent_email.to))
-        self.assertIn("RapidPro account for Temba", sent_email.body)
+        self.assertIn("RapidPro workspace for Temba", sent_email.body)
         self.assertIn("expiring credits in less than one month.", sent_email.body)
 
         # check topup expiration, it should no create a new one, because last one is still active
@@ -4470,7 +4470,7 @@ class CreditAlertTest(TembaTest):
             self.assertEqual(len(mail.outbox), 1)
 
             sent_email = mail.outbox[0]
-            self.assertIn("RapidPro account for Temba", sent_email.body)
+            self.assertIn("RapidPro workspace for Temba", sent_email.body)
 
             # this email has been sent to multiple recipients
             self.assertListEqual(
@@ -4513,7 +4513,7 @@ class CreditAlertTest(TembaTest):
                 # alert email is for out of credits type
                 sent_email = mail.outbox[0]
                 self.assertEqual(len(sent_email.to), 1)
-                self.assertIn("RapidPro account for Temba", sent_email.body)
+                self.assertIn("RapidPro workspace for Temba", sent_email.body)
                 self.assertIn("is out of credit.", sent_email.body)
 
                 # no new alert if one is sent and no new email
@@ -4557,7 +4557,7 @@ class CreditAlertTest(TembaTest):
                     # email sent
                     sent_email = mail.outbox[2]
                     self.assertEqual(len(sent_email.to), 1)
-                    self.assertIn("RapidPro account for Temba", sent_email.body)
+                    self.assertIn("RapidPro workspace for Temba", sent_email.body)
                     self.assertIn("is running low on credits", sent_email.body)
 
                     # no new alert if one is sent and no new email
