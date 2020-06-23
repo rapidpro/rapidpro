@@ -3755,7 +3755,7 @@ class ContactTest(TembaTest):
                 reverse("contacts.contact_update", args=[contact.id]),
                 dict(name="Marshal Mathers", urn__tel__0="07531669966"),
             )
-            self.assertEqual(302, response.status_code)
+            self.assertEqual(200, response.status_code)
 
             mock_modify.assert_called_once_with(
                 self.org.id, self.admin.id, [contact.id], [modifiers.Name(name="Marshal Mathers")]
