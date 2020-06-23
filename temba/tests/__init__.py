@@ -1,5 +1,5 @@
 from .base import *  # noqa
 from .crudl import CRUDLTestMixin  # noqa
 from .es import *  # noqa
-from .modifiers import mock_contact_modify  # noqa
+from .mailroom import mock_mailroom  # noqa
 from .requests import *  # noqa

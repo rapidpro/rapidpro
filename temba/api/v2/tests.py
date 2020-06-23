@@ -28,14 +28,13 @@ from temba.classifiers.models import Classifier
 from temba.classifiers.types.luis import LuisType
 from temba.classifiers.types.wit import WitType
 from temba.contacts.models import Contact, ContactField, ContactGroup
-from temba.contacts.search.tests import MockParseQuery
 from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import TemplateTranslation
-from temba.tests import AnonymousOrg, TembaTest, matchers, mock_contact_modify
+from temba.tests import AnonymousOrg, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
@@ -1578,8 +1577,8 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "after=%s" % format_datetime(call2.created_on))
         self.assertResultsById(response, [call4, call3, call2])
 
-    @mock_contact_modify
-    def test_contacts(self):
+    @mock_mailroom
+    def test_contacts(self, mr_mocks):
         url = reverse("api.v2.contacts")
 
         self.assertEndpointAccess(url)
@@ -1722,9 +1721,8 @@ class APITest(TembaTest):
         self.assertIsNone(jaqen.fields)
 
         # create a dynamic group
-        with MockParseQuery('name = "Frank"', ["name"]):
-            dyn_group = self.create_group("Dynamic Group", query="name = Frank")
-            ContactGroup.user_groups.filter(id=dyn_group.id).update(status=ContactGroup.STATUS_READY)
+        dyn_group = self.create_group("Dynamic Group", query="name = Frank")
+        ContactGroup.user_groups.filter(id=dyn_group.id).update(status=ContactGroup.STATUS_READY)
 
         # create with all fields
         response = self.postJSON(
@@ -2059,8 +2057,8 @@ class APITest(TembaTest):
 
         self.assertIsNone(resp_json["fields"]["tag_activated_at"])
 
-    @mock_contact_modify
-    def test_contact_actions_if_org_is_anonymous(self):
+    @mock_mailroom
+    def test_contact_actions_if_org_is_anonymous(self, mr_mocks):
         url = reverse("api.v2.contacts")
         self.assertEndpointAccess(url)
 
@@ -2112,8 +2110,8 @@ class APITest(TembaTest):
             self.assertEqual(response.status_code, 400)
             self.assertResponseError(response, None, "URN lookups not allowed for anonymous organizations")
 
-    @mock_contact_modify
-    def test_contact_actions(self):
+    @mock_mailroom
+    def test_contact_actions(self, mr_mocks):
         url = reverse("api.v2.contact_actions")
 
         self.assertEndpointAccess(url, fetch_returns=405)
@@ -2130,9 +2128,7 @@ class APITest(TembaTest):
 
         group = self.create_group("Testers")
         self.create_field("isdeveloper", "Is developer")
-
-        with MockParseQuery('isdeveloper = "YES"', ["developers"]):
-            self.create_group("Developers", query="isdeveloper = YES")
+        self.create_group("Developers", query="isdeveloper = YES")
 
         # create some "active" runs for some of the contacts
         flow = self.get_flow("favorites_v13")
@@ -2743,21 +2739,19 @@ class APITest(TembaTest):
         )
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
-    def test_groups(self):
+    @mock_mailroom
+    def test_groups(self, mr_mocks):
         url = reverse("api.v2.groups")
 
         self.assertEndpointAccess(url)
 
         self.create_field("isdeveloper", "Is developer")
         customers = self.create_group("Customers", [self.frank])
-        with MockParseQuery('isdeveloper = "YES"', ["isdeveloper"]):
-            developers = self.create_group("Developers", query="isdeveloper = YES")
-            ContactGroup.user_groups.filter(id=developers.id).update(status=ContactGroup.STATUS_READY)
+        developers = self.create_group("Developers", query='isdeveloper = "YES"')
+        ContactGroup.user_groups.filter(id=developers.id).update(status=ContactGroup.STATUS_READY)
 
-        with MockParseQuery('isdeveloper = "NO"', ["isdeveloper"]):
-            # a group which is being re-evaluated
-            dynamic = self.create_group("Big Group", query="isdeveloper=NO")
-            ContactGroup.user_groups.filter(id=dynamic.id).update(status=ContactGroup.STATUS_EVALUATING)
+        dynamic = self.create_group("Big Group", query='isdeveloper = "NO"')
+        ContactGroup.user_groups.filter(id=dynamic.id).update(status=ContactGroup.STATUS_EVALUATING)
 
         # an initializing group
         ContactGroup.create_static(self.org, self.admin, "Initializing", status=ContactGroup.STATUS_INITIALIZING)
