@@ -951,7 +951,8 @@ class Flow(TembaModel):
                 run.save(update_fields=("child_context",))
 
         # find a matching rule
-        result_rule, result_value, result_input = ruleset.find_matching_rule(run, msg_in)
+        result_rule, result_value, result_input, *value_corrected = ruleset.find_matching_rule(run, msg_in)
+        value_corrected = value_corrected[0] if value_corrected and type(value_corrected) in (list, tuple) else None
 
         flow = ruleset.flow
 
@@ -964,7 +965,7 @@ class Flow(TembaModel):
             # store the media path as the value
             result_value = msg_in.attachments[0].split(":", 1)[1]
 
-        ruleset.save_run_value(run, result_rule, result_value, result_input, org=flow.org)
+        ruleset.save_run_value(run, result_rule, result_value, result_input, org=flow.org, value_corrected=value_corrected)
 
         # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
         if not result_rule.destination:
@@ -2488,6 +2489,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     RESULT_CATEGORY = "category"
     RESULT_CATEGORY_LOCALIZED = "category_localized"
     RESULT_VALUE = "value"
+    RESULT_CORRECTED = 'corrected'
     RESULT_INPUT = "input"
     RESULT_CREATED_ON = "created_on"
 
@@ -3046,7 +3048,7 @@ class RuleSet(models.Model):
 
         return None, None, None  # pragma: no cover
 
-    def save_run_value(self, run, rule, raw_value, raw_input, org=None):
+    def save_run_value(self, run, rule, raw_value, raw_input, org=None, value_corrected=None):
         org = org or self.flow.org
         contact_language = run.contact.language if run.contact.language in org.get_language_codes() else None
 
@@ -3057,6 +3059,7 @@ class RuleSet(models.Model):
             category_localized=rule.get_category_name(run.flow.base_language, contact_language),
             raw_value=raw_value,
             raw_input=raw_input,
+            text_corrected=value_corrected,
         )
 
     def get_step_type(self):
