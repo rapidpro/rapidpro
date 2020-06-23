@@ -990,6 +990,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   formData.resthook = ""
   formData.shorten_url = ""
   formData.giftcard_db = ""
+  formData.spell_checker = false
+  formData.spelling_correction_sensitivity = 70
 
   if options.nodeType == 'rules' or options.nodeType == 'ivr'
 
@@ -1139,6 +1141,11 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       $scope.lookup_queries_rule[item_lookup_counter] = item.rule
       $scope.lookup_queries_value[item_lookup_counter] = item.value
       item_lookup_counter++
+
+    if ruleset.config.spell_checker
+      formData.spell_checker = ruleset.config.spell_checker
+    if ruleset.config.spelling_correction_sensitivity
+      formData.spelling_correction_sensitivity = ruleset.config.spelling_correction_sensitivity
 
     formData.giftcard_type = ruleset.config.giftcard_type
 
@@ -1883,6 +1890,13 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       # or just want to evaluate against a message
       else if rulesetConfig.type == 'wait_message'
         ruleset.operand = '@step.value'
+        if formData.spell_checker
+          ruleset.config =
+            spell_checker: formData.spell_checker
+            spelling_correction_sensitivity: formData.spelling_correction_sensitivity
+        else
+          delete ruleset.config.spell_checker
+          delete ruleset.config.spelling_correction_sensitivity
 
       # update our rules accordingly
       $scope.updateRules(ruleset, rulesetConfig, splitEditor)
