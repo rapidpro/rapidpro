@@ -1288,14 +1288,16 @@ class MigrationTask(TembaModel):
 
                     try:
                         file_obj_path = self.org.get_temporary_file_from_url(media_url=file_path)
-                        path_s3_file_url = self.org.save_media(file=file_obj_path, extension="jpg")
+                        extension = file_path.split(".")[-1]
+                        path_s3_file_url = self.org.save_media(file=file_obj_path, extension=extension)
 
                         if item.path_thumbnail:
                             file_obj_path_thumbnail = self.org.get_temporary_file_from_url(
                                 media_url=file_path_thumbnail
                             )
+                            extension = file_path_thumbnail.split(".")[-1]
                             path_thumbnail_s3_file_url = self.org.save_media(
-                                file=file_obj_path_thumbnail, extension="jpg"
+                                file=file_obj_path_thumbnail, extension=extension
                             )
 
                     except Exception as e:
