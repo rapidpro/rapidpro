@@ -316,12 +316,14 @@ class MigrationTask(TembaModel):
             logger.info("[COMPLETED] Resthooks migration")
             logger.info("")
 
-            logger.info("---------------- Webhooks ----------------")
+            logger.info("---------------- Webhook Events ----------------")
             logger.info("[STARTED] Webhooks migration")
 
-            # TODO Webhooks
+            org_webhook_events, webhook_events_count = migrator.get_org_webhook_events()
+            if org_webhook_events:
+                self.add_webhook_events(logger=logger, webhook_events=org_webhook_events, migrator=migrator, count=webhook_events_count)
 
-            logger.info("[COMPLETED] Webhooks migration")
+            logger.info("[COMPLETED] Webhook Events migration")
             logger.info("")
 
             logger.info("---------------- Campaigns ----------------")
@@ -1659,6 +1661,47 @@ class MigrationTask(TembaModel):
                     target_url=item.target_url,
                     created_on=item.created_on,
                     modified_on=item.modified_on,
+                )
+
+    def add_webhook_events(self, logger, webhook_events, migrator, count):
+        for idx, event in enumerate(webhook_events, start=1):
+            logger.info(f">>>[{idx}/{count}] Webhook Event: {event.id} - {event.event}")
+
+            new_resthook_obj = None
+            if event.resthook_id:
+                new_resthook_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_RESTHOOK,
+                    old_id=event.resthook_id,
+                )
+
+            if not new_resthook_obj:
+                continue
+
+            WebHookEvent.objects.create(
+                resthook=new_resthook_obj,
+                data=json.loads(event.data) if event.data else dict(),
+                action=event.action,
+                org=self.org,
+                created_on=event.created_on,
+            )
+
+            webhook_results = migrator.get_webhook_event_results(event_id=event.id)
+            for item in webhook_results:
+                new_contact_obj = None
+                if item.contact_id:
+                    new_contact_obj = MigrationAssociation.get_new_object(
+                        model=MigrationAssociation.MODEL_CONTACT,
+                        old_id=item.contact_id,
+                    )
+                WebHookResult.objects.create(
+                    org=self.org,
+                    url=item.url,
+                    request=item.request,
+                    status_code=item.status_code,
+                    response=item.body,
+                    request_time=item.request_time,
+                    contact=new_contact_obj,
+                    created_on=item.created_on,
                 )
 
     def remove_association(self):

@@ -454,6 +454,23 @@ class Migrator(object):
             count=count,
         )
 
+    def get_org_webhook_events(self) -> (list, int):
+        count = self.get_count("api_webhookevent", condition=f"org_id = {self.org_id} AND is_active = true")
+        return (
+            self.get_results_paginated(
+                query_string=f"SELECT * FROM public.api_webhookevent WHERE org_id = {self.org_id} AND is_active = true ORDER BY id ASC",
+                count=count,
+            ),
+            count,
+        )
+
+    def get_webhook_event_results(self, event_id) -> list:
+        count = self.get_count("api_webhookresult", condition=f"event_id = {event_id} AND is_active = true")
+        return self.get_results_paginated(
+            query_string=f"SELECT * FROM public.api_webhookresult WHERE event_id = {event_id} AND is_active = true ORDER BY id ASC",
+            count=count,
+        )
+
     def get_org_campaigns(self) -> (list, int):
         count = self.get_count(
             "campaigns_campaign", condition=f"org_id = {self.org_id} AND is_archived = false AND is_active = true"
