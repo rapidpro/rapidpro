@@ -1,3 +1,8 @@
+v5.5.66
+----------
+ * Implement Contact.update_static_groups using modifiers
+ * Consistent use of account/login/workspace
+
 v5.5.64
 ----------
  * Fix editor
