@@ -31,7 +31,7 @@ from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
-from temba.mailroom import MailroomException
+from temba.mailroom import MailroomException, modifiers
 from temba.msgs.models import Broadcast, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
@@ -1193,21 +1193,21 @@ class ContactTest(TembaTest):
         self.joe.block(self.admin)
 
         mock_contact_modify.assert_called_once_with(
-            self.org.id, self.admin.id, [self.joe.id], [{"type": "status", "status": "blocked"}]
+            self.org.id, self.admin.id, [self.joe.id], [modifiers.Status(status="blocked")]
         )
         mock_contact_modify.reset_mock()
 
         self.joe.stop(self.admin)
 
         mock_contact_modify.assert_called_once_with(
-            self.org.id, self.admin.id, [self.joe.id], [{"type": "status", "status": "stopped"}]
+            self.org.id, self.admin.id, [self.joe.id], [modifiers.Status(status="stopped")]
         )
         mock_contact_modify.reset_mock()
 
         self.joe.reactivate(self.admin)
 
         mock_contact_modify.assert_called_once_with(
-            self.org.id, self.admin.id, [self.joe.id], [{"type": "status", "status": "active"}]
+            self.org.id, self.admin.id, [self.joe.id], [modifiers.Status(status="active")]
         )
         mock_contact_modify.reset_mock()
 
@@ -1428,68 +1428,6 @@ class ContactTest(TembaTest):
         self.assertEqual(
             contact_counts, {ContactGroup.TYPE_ALL: 3, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_STOPPED: 1}
         )
-
-    def test_user_groups(self):
-        # create some static groups
-        spammers = self.create_group("Spammers", [])
-        testers = self.create_group("Testers", [])
-
-        # create some dynamic groups
-        ContactField.get_or_create(self.org, self.admin, "gender", "Gender")
-        ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type=Value.TYPE_NUMBER)
-
-        with MockParseQuery('twitter != ""', ["twitter"]):
-            has_twitter = self.create_group("Has twitter", query='twitter != ""')
-
-        with MockParseQuery('gender = ""', ["gender"]):
-            no_gender = self.create_group("No gender", query='gender is ""')
-
-        with MockParseQuery('gender = "m" or gender = "male"', ["gender"]):
-            males = self.create_group("Male", query="gender is M or gender is Male")
-
-        with MockParseQuery("age > 18 or age < 30", ["age"]):
-            youth = self.create_group("Male", query="age > 18 or age < 30")
-
-        with MockParseQuery('twitter = "blow80"', ["twitter"]):
-            joes = self.create_group("Joes", query='twitter = "blow80"')
-
-        # manually reevaluate all these contacts
-        for c in [self.joe, self.frank, self.billy, self.voldemort]:
-            c.handle_update(is_new=True)
-
-        self.assertEqual(set(has_twitter.contacts.all()), {self.joe})
-        self.assertEqual(set(no_gender.contacts.all()), {self.joe, self.frank, self.billy, self.voldemort})
-        self.assertEqual(set(males.contacts.all()), set())
-        self.assertEqual(set(youth.contacts.all()), set())
-        self.assertEqual(set(joes.contacts.all()), {self.joe})
-
-        self.joe.update_urns(self.admin, ["tel:+250781111111"])
-        self.joe.set_field(self.admin, "gender", "M")
-        self.joe.set_field(self.admin, "age", "28")
-
-        self.assertEqual(set(has_twitter.contacts.all()), set())
-        self.assertEqual(set(no_gender.contacts.all()), {self.frank, self.billy, self.voldemort})
-        self.assertEqual(set(males.contacts.all()), {self.joe})
-        self.assertEqual(set(youth.contacts.all()), {self.joe})
-
-        # add joe's twitter account, dynamic group
-        self.joe.update_urns(self.admin, ["twitter:blow80"])
-
-        self.joe.update_static_groups(self.user, [spammers, testers])
-        self.assertEqual(set(self.joe.user_groups.all()), {spammers, has_twitter, testers, males, youth, joes})
-
-        self.joe.update_static_groups(self.user, [])
-        self.assertEqual(set(self.joe.user_groups.all()), {males, youth, joes, has_twitter})
-
-        self.joe.update_static_groups(self.user, [testers])
-        self.assertEqual(set(self.joe.user_groups.all()), {testers, males, youth, joes, has_twitter})
-
-        # releasing removes contacts from all groups
-        self.joe.release(self.user)
-        self.assertEqual(set(self.joe.user_groups.all()), set())
-
-        # can't add deleted contacts to a group
-        self.assertRaises(ValueError, self.joe.update_static_groups, self.user, [spammers])
 
     def test_contact_display(self):
         mr_long_name = self.create_contact(name="Wolfeschlegelsteinhausenbergerdorff", number="8877")
@@ -3743,51 +3681,74 @@ class ContactTest(TembaTest):
         # there should be one 'normal' field and one 'featured' contact field
         self.assertEqual(len(response.context_data["all_contact_fields"]), 2)
 
-    @patch("temba.mailroom.client.MailroomClient.contact_modify")
-    def test_update(self, mock_contact_modify):
-        mock_contact_modify.return_value = {"1": {"contact": {}, "events": []}}
-
-        # if new values don't differ from current values.. mailroom not called
-        self.joe.update(self.admin, name="Joe Blow", language="")
-
-        mock_contact_modify.assert_not_called()
+    def test_update(self):
+        # if new values don't differ from current values.. no modifications
+        self.assertEqual([], self.joe.update(name="Joe Blow", language=""))
 
         # change language
-        self.joe.update(self.admin, name="Joe Blow", language="eng")
-
-        # should send only a language modifier
-        mock_contact_modify.assert_called_once_with(
-            self.joe.org.id, self.admin.id, [self.joe.id], [{"type": "language", "language": "eng"}]
-        )
-        mock_contact_modify.reset_mock()
+        self.assertEqual([modifiers.Language(language="eng")], self.joe.update(name="Joe Blow", language="eng"))
 
         self.joe.language = "eng"
         self.joe.save(update_fields=("language",), handle_update=False)
 
         # change name
-        self.joe.update(self.admin, name="Joseph Blow", language="eng")
-
-        # should send only a name modifier
-        mock_contact_modify.assert_called_once_with(
-            self.joe.org.id, self.admin.id, [self.joe.id], [{"type": "name", "name": "Joseph Blow"}]
-        )
-        mock_contact_modify.reset_mock()
+        self.assertEqual([modifiers.Name(name="Joseph Blow")], self.joe.update(name="Joseph Blow", language="eng"))
 
         # change both name and language
-        self.joe.update(self.admin, name="Joseph Blower", language="spa")
-
-        mock_contact_modify.assert_called_once_with(
-            self.joe.org.id,
-            self.admin.id,
-            [self.joe.id],
-            [{"type": "name", "name": "Joseph Blower"}, {"type": "language", "language": "spa"}],
+        self.assertEqual(
+            [modifiers.Name(name="Joseph Blower"), modifiers.Language(language="spa")],
+            self.joe.update(name="Joseph Blower", language="spa"),
         )
-        mock_contact_modify.reset_mock()
+
+    @mock_contact_modify
+    def test_update_static_groups(self):
+        # create some static groups
+        spammers = self.create_group("Spammers", [])
+        testers = self.create_group("Testers", [])
+        customers = self.create_group("Customers", [])
+
+        self.assertEqual(set(spammers.contacts.all()), set())
+        self.assertEqual(set(testers.contacts.all()), set())
+        self.assertEqual(set(customers.contacts.all()), set())
+
+        # add to 2 static groups
+        mods = self.joe.update_static_groups([spammers, testers])
+        self.assertEqual(
+            [
+                modifiers.Groups(
+                    modification="add",
+                    groups=[
+                        modifiers.GroupRef(uuid=spammers.uuid, name="Spammers"),
+                        modifiers.GroupRef(uuid=testers.uuid, name="Testers"),
+                    ],
+                ),
+            ],
+            mods,
+        )
+
+        self.joe.modify(self.admin, *mods)
+
+        # remove from one and add to another
+        mods = self.joe.update_static_groups([testers, customers])
+
+        self.assertEqual(
+            [
+                modifiers.Groups(
+                    modification="remove", groups=[modifiers.GroupRef(uuid=spammers.uuid, name="Spammers")]
+                ),
+                modifiers.Groups(
+                    modification="add", groups=[modifiers.GroupRef(uuid=customers.uuid, name="Customers")]
+                ),
+            ],
+            mods,
+        )
 
     @patch("temba.mailroom.client.MailroomClient.contact_modify")
     def test_bulk_modify_with_no_contacts(self, mock_contact_modify):
+        mock_contact_modify.return_value = {}
+
         # just a NOOP
-        Contact.bulk_modify(self.admin, [], modifiers=[{"type": "language", "language": "spa"}])
+        Contact.bulk_modify(self.admin, [], modifiers.Language(language="spa"))
 
     def test_number_normalized(self):
         self.org.country = None
@@ -3813,7 +3774,7 @@ class ContactTest(TembaTest):
             self.assertEqual(302, response.status_code)
 
             mock_modify.assert_called_once_with(
-                self.org.id, self.admin.id, [contact.id], [{"type": "name", "name": "Marshal Mathers"}]
+                self.org.id, self.admin.id, [contact.id], [modifiers.Name(name="Marshal Mathers")]
             )
 
             contact_updated = Contact.from_urn(self.org, "tel:+447531669966")
@@ -5539,6 +5500,7 @@ class ContactTest(TembaTest):
         # it'll come back as the highest priority
         self.assertEqual("bob@marley.com", urns[0].path)
 
+    @mock_contact_modify
     def test_update_handling(self):
         bob = self.create_contact("Bob", "111222")
         bob.name = "Bob Marley"
@@ -5551,7 +5513,8 @@ class ContactTest(TembaTest):
         self.assertTrue(bob.modified_on > old_modified_on)
 
         old_modified_on = bob.modified_on
-        bob.update_static_groups(self.user, [group])
+        mods = bob.update_static_groups([group])
+        bob.modify(self.admin, *mods)
 
         bob.refresh_from_db()
         self.assertTrue(bob.modified_on > old_modified_on)
