@@ -1775,14 +1775,14 @@ class OrgTest(TembaTest):
         # now buy some credits to make us multi user
         TopUp.create(self.admin, price=100, credits=100_000)
         self.org.clear_credit_cache()
-        self.org.update_capabilities()
+        self.org.reset_capabilities()
         self.assertTrue(self.org.is_multi_user)
         self.assertFalse(self.org.is_multi_org)
 
         # good deal!
         TopUp.create(self.admin, price=100, credits=1_000_000)
         self.org.clear_credit_cache()
-        self.org.update_capabilities()
+        self.org.reset_capabilities()
         self.assertTrue(self.org.is_multi_user)
         self.assertTrue(self.org.is_multi_org)
 
@@ -2517,13 +2517,12 @@ class OrgTest(TembaTest):
             self.assertRedirect(response, reverse("channels.types.plivo.claim"))
 
     def test_tiers(self):
-
         # default is no tiers, everything is allowed, go crazy!
         self.assertTrue(self.org.is_multi_user)
         self.assertTrue(self.org.is_multi_org)
 
-        # same when tiers are missing completely
         del settings.BRANDING[settings.DEFAULT_BRAND]["tiers"]
+        self.org.reset_capabilities()
         self.assertTrue(self.org.is_multi_user)
         self.assertTrue(self.org.is_multi_org)
 
@@ -2531,18 +2530,14 @@ class OrgTest(TembaTest):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(
             import_flows=1, multi_user=100_000, multi_org=1_000_000
         )
-        self.org.is_multi_user = False
-        self.org.is_multi_org = False
-        self.org.update_capabilities()
+        self.org.reset_capabilities()
         self.assertIsNone(self.org.create_sub_org("Sub Org A"))
         self.assertFalse(self.org.is_multi_user)
         self.assertFalse(self.org.is_multi_org)
 
         # not enough credits, but tiers disabled
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(import_flows=0, multi_user=0, multi_org=0)
-        self.org.is_multi_user = False
-        self.org.is_multi_org = False
-        self.org.update_capabilities()
+        self.org.reset_capabilities()
         self.assertIsNotNone(self.org.create_sub_org("Sub Org A"))
         self.assertTrue(self.org.is_multi_user)
         self.assertTrue(self.org.is_multi_org)
@@ -2559,7 +2554,7 @@ class OrgTest(TembaTest):
 
     def test_sub_orgs_management(self):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
-        self.org.update_capabilities()
+        self.org.reset_capabilities()
 
         sub_org = self.org.create_sub_org("Sub Org")
 
@@ -2568,7 +2563,7 @@ class OrgTest(TembaTest):
 
         # lower the tier and try again
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
-        self.org.update_capabilities()
+        self.org.reset_capabilities()
         sub_org = self.org.create_sub_org("Sub Org")
 
         # suborg has been created
@@ -2691,10 +2686,7 @@ class OrgTest(TembaTest):
         self.login(self.admin)
 
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
-        self.org.is_multi_user = False
-        self.org.is_multi_org = False
-        self.org.save(update_fields=("is_multi_user", "is_multi_org"))
-        self.org.update_capabilities()
+        self.org.reset_capabilities()
 
         # set our org on the session
         session = self.client.session
@@ -2727,7 +2719,7 @@ class OrgTest(TembaTest):
 
         # zero out our tier
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
-        self.org.update_capabilities()
+        self.org.reset_capabilities()
         self.assertTrue(self.org.is_multi_org)
         response = self.client.get(reverse("orgs.org_home"))
         self.assertContains(response, "Manage Organizations")

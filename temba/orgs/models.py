@@ -1341,7 +1341,6 @@ class Org(SmartModel):
         # if we have an active topup cache, we need to decrement the amount remaining
         active_topup_id = self.get_active_topup_id()
         if active_topup_id:
-
             remaining = r.decr(ORG_ACTIVE_TOPUP_REMAINING % (self.id, active_topup_id), AMOUNT)
 
             # near the edge, clear out our cache and calculate from the db
@@ -1354,7 +1353,6 @@ class Org(SmartModel):
             active_topup = self.get_active_topup(force_dirty=True)
             if active_topup:
                 active_topup_id = active_topup.id
-
                 r.decr(ORG_ACTIVE_TOPUP_REMAINING % (self.id, active_topup.id), AMOUNT)
 
         if active_topup_id:
@@ -1466,6 +1464,14 @@ class Org(SmartModel):
         self.clear_credit_cache()
 
         # update our capabilities based on topups
+        self.update_capabilities()
+
+    def reset_capabilities(self):
+        """
+        Resets our capabilities based on the current tiers, mostly used in unit tests
+        """
+        self.is_multi_user = False
+        self.is_multi_org = False
         self.update_capabilities()
 
     def update_capabilities(self):
