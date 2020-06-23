@@ -2980,8 +2980,19 @@ class RuleSet(models.Model):
             elif msg:
                 operand = str(msg)
 
+            corrected_text = None
             try:
-                config = self.config_json()
+                default_spell_checker_lang = 'en-US'
+                spell_checker_langs = {
+                    'spa': 'es-US',
+                    'vie': 'vi',
+                    'kor': 'ko-KR',
+                    'chi': 'zh-hans',
+                    'por': 'pt-BR'
+                }
+                spell_checker_lang_code = spell_checker_langs.get(run.contact.language, default_spell_checker_lang)
+
+                config = self.config
                 spell_checker_enabled = config.get(RuleSet.CONFIG_SPELL_CHECKER, False) if RuleSet.CONFIG_SPELL_CHECKER in config else False
 
                 if spell_checker_enabled:
@@ -2992,16 +3003,16 @@ class RuleSet(models.Model):
                         raise Exception
 
                     data = {'text': text}
-                    params = {'mkt': 'en-us', 'mode': settings.SPELL_CHECKER_MODE}
+                    params = {'mkt': spell_checker_lang_code, 'mode': settings.SPELL_CHECKER_MODE}
                     headers = {
                         'Content-Type': 'application/x-www-form-urlencoded',
                         'Ocp-Apim-Subscription-Key': settings.BING_SPELL_CHECKER_API_KEY,
                     }
-                    spell_check_response = requests.post(settings.BING_SPELL_CHECKER_ENDPOINT, headers=headers,
-                                                         params=params, data=data)
+                    spell_check_response = requests.post(settings.BING_SPELL_CHECKER_ENDPOINT, headers=headers, params=params, data=data)
                     if spell_check_response.status_code != 200:
                         raise Exception
-
+                    
+                    corrected_text = text
                     response = spell_check_response.json()
                     for correction in response.get('flaggedTokens', []):
                         for suggestion in correction.get('suggestions', []):
