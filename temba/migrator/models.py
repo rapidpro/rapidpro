@@ -1259,15 +1259,11 @@ class MigrationTask(TembaModel):
             else:
                 new_flow.save_revision(self.created_by, revision_json_dict)
 
-            # Updating metadata and dependencies
+            # Updating metadata
             try:
                 flow_info = mailroom.get_client().flow_inspect(self.org.id, revision_json_dict)
-                dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
-
                 new_flow.metadata = Flow.get_metadata(flow_info)
                 new_flow.save(update_fields=["metadata"])
-
-                new_flow.update_dependencies(dependencies)
             except Exception:
                 pass
 
