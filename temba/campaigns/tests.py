@@ -13,7 +13,7 @@ from temba.contacts.search.tests import MockParseQuery
 from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, Org
-from temba.tests import TembaTest, matchers, mock_contact_modify
+from temba.tests import TembaTest, matchers, mock_mailroom
 from temba.utils import json
 from temba.values.constants import Value
 
@@ -385,8 +385,8 @@ class CampaignTest(TembaTest):
         # our single message flow should be released and take its dependencies with it
         self.assertEqual(event.flow.field_dependencies.count(), 0)
 
-    @mock_contact_modify
-    def test_views(self):
+    @mock_mailroom
+    def test_views(self, mr_mocks):
         # update the planting date for our contacts
         self.farmer1.set_field(self.user, "planting_date", "1/10/2020")
 
@@ -1438,13 +1438,13 @@ class CampaignTest(TembaTest):
         self.assertFalse(campaign.is_archived)
         self.assertFalse(Flow.objects.filter(is_archived=True))
 
-    def test_with_dynamic_group(self):
+    @mock_mailroom
+    def test_with_dynamic_group(self, mr_mocks):
         # create a campaign on a dynamic group
         self.create_field("gender", "Gender")
 
-        with MockParseQuery('gender = "F"', ["gender"]):
-            women = self.create_group("Women", query='gender="F"')
-            ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
+        women = self.create_group("Women", query='gender="F"')
+        ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
 
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders for Women", women)
         event = CampaignEvent.create_message_event(
