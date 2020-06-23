@@ -100,9 +100,9 @@
           %label.title
             -trans "Correction Sensitivity"
             %a.icon-nav-help-inverted
-          -trans "High"
-          %input{type:'range', id:'start', name:'correction-sensitivity', min:'70', max:'99', ng-model:'formData.spelling_correction_sensitivity'}
           -trans "Low"
+          %input{type:'range', id:'start', name:'correction-sensitivity', min:'70', max:'99', ng-model:'formData.spelling_correction_sensitivity'}
+          -trans "High"
           %label
             -trans "[[formData.spelling_correction_sensitivity]]% confidence in corrections"
 
