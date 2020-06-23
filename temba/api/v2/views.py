@@ -214,7 +214,7 @@ class RootView(views.APIView):
                 "runs": reverse("api.v2.runs", request=request),
                 "templates": reverse("api.v2.templates", request=request),
                 "ticketers": reverse("api.v2.ticketers", request=request),
-                "workspace": reverse("api.v2.workspaces", request=request),
+                "workspace": reverse("api.v2.workspace", request=request),
             }
         )
 
@@ -269,7 +269,7 @@ class ExplorerView(SmartTemplateView):
             RunsEndpoint.get_read_explorer(),
             TemplatesEndpoint.get_read_explorer(),
             TicketersEndpoint.get_read_explorer(),
-            OrgEndpoint.get_read_explorer(),
+            WorkspaceEndpoint.get_read_explorer(),
         ]
         return context
 
@@ -2712,62 +2712,6 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
         }
 
 
-class OrgEndpoint(BaseAPIView):
-    """
-    This endpoint allows you to view details about your workspace.
-
-    ## Viewing Current Workspace
-
-    A **GET** returns the details of your workspace. There are no parameters.
-
-    Example:
-
-        GET /api/v2/workspace.json
-
-    Response containing your workspace details:
-
-        {
-            "uuid": "6a44ca78-a4c2-4862-a7d3-2932f9b3a7c3",
-            "name": "Nyaruka",
-            "country": "RW",
-            "languages": ["eng", "fra"],
-            "primary_language": "eng",
-            "timezone": "Africa/Kigali",
-            "date_style": "day_first",
-            "credits": {"used": 121433, "remaining": 3452},
-            "anon": false
-        }
-    """
-
-    permission = "orgs.org_api"
-
-    def get(self, request, *args, **kwargs):
-        org = request.user.get_org()
-
-        data = {
-            "uuid": str(org.uuid),
-            "name": org.name,
-            "country": org.get_country_code(),
-            "languages": [l.iso_code for l in org.languages.order_by("iso_code")],
-            "primary_language": org.primary_language.iso_code if org.primary_language else None,
-            "timezone": str(org.timezone),
-            "date_style": ("day_first" if org.get_dayfirst() else "month_first"),
-            "credits": {"used": org.get_credits_used(), "remaining": org.get_credits_remaining()},
-            "anon": org.is_anon,
-        }
-
-        return Response(data, status=status.HTTP_200_OK)
-
-    @classmethod
-    def get_read_explorer(cls):
-        return {
-            "method": "GET",
-            "title": "View Workspace",
-            "url": reverse("api.v2.workspace"),
-            "slug": "workspace-read",
-        }
-
-
 class ResthooksEndpoint(ListAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list configured resthooks in your account.
@@ -3550,4 +3494,60 @@ class TicketersEndpoint(ListAPIMixin, BaseAPIView):
                     "help": "Only return ticketers created after this date, ex: 2015-01-28T18:00:00.000",
                 },
             ],
+        }
+
+
+class WorkspaceEndpoint(BaseAPIView):
+    """
+    This endpoint allows you to view details about your workspace.
+
+    ## Viewing Current Workspace
+
+    A **GET** returns the details of your workspace. There are no parameters.
+
+    Example:
+
+        GET /api/v2/workspace.json
+
+    Response containing your workspace details:
+
+        {
+            "uuid": "6a44ca78-a4c2-4862-a7d3-2932f9b3a7c3",
+            "name": "Nyaruka",
+            "country": "RW",
+            "languages": ["eng", "fra"],
+            "primary_language": "eng",
+            "timezone": "Africa/Kigali",
+            "date_style": "day_first",
+            "credits": {"used": 121433, "remaining": 3452},
+            "anon": false
+        }
+    """
+
+    permission = "orgs.org_api"
+
+    def get(self, request, *args, **kwargs):
+        org = request.user.get_org()
+
+        data = {
+            "uuid": str(org.uuid),
+            "name": org.name,
+            "country": org.get_country_code(),
+            "languages": [l.iso_code for l in org.languages.order_by("iso_code")],
+            "primary_language": org.primary_language.iso_code if org.primary_language else None,
+            "timezone": str(org.timezone),
+            "date_style": ("day_first" if org.get_dayfirst() else "month_first"),
+            "credits": {"used": org.get_credits_used(), "remaining": org.get_credits_remaining()},
+            "anon": org.is_anon,
+        }
+
+        return Response(data, status=status.HTTP_200_OK)
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            "method": "GET",
+            "title": "View Workspace",
+            "url": reverse("api.v2.workspace"),
+            "slug": "workspace-read",
         }
