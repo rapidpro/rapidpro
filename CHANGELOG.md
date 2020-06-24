@@ -1,3 +1,8 @@
+v5.5.69
+----------
+ * Refresh contact after letting mailroom make changes
+ * Contact API endpoint can't call mailroom from within a transaction
+
 v5.5.68
 ----------
  * Fix contact update view
