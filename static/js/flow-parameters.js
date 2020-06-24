@@ -14,6 +14,7 @@ function buildTriggerFlowParams(params = [], values = [], category = 'keyword') 
             embedFieldInput.type = 'text';
             embedFieldInput.name = 'flow_parameter_field_' + param;
             embedFieldInput.readOnly = true;
+            embedFieldInput.title = params[param];
             embedFieldInput.value = params[param];
 
             var embedValue = document.createElement('div');
