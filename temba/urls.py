@@ -1,5 +1,3 @@
-import importlib
-
 from django.conf import settings
 from django.conf.urls import include, url
 from django.conf.urls.static import static
@@ -50,7 +48,7 @@ if settings.DEBUG:
 
 # import any additional urls
 for app in settings.APP_URLS:  # pragma: needs cover
-    importlib.import_module(app)
+    urlpatterns.append(url(r"^", include(app)))
 
 # initialize our analytics (the signal below will initialize each worker)
 init_analytics()
