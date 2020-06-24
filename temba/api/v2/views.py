@@ -104,13 +104,13 @@ class RootView(views.APIView):
      * [/api/v2/labels](/api/v2/labels) - to list, create, update or delete message labels
      * [/api/v2/messages](/api/v2/messages) - to list messages
      * [/api/v2/message_actions](/api/v2/message_actions) - to perform bulk message actions
-     * [/api/v2/org](/api/v2/org) - to view your org
      * [/api/v2/runs](/api/v2/runs) - to list flow runs
      * [/api/v2/resthooks](/api/v2/resthooks) - to list resthooks
      * [/api/v2/resthook_events](/api/v2/resthook_events) - to list resthook events
      * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list, create or delete subscribers on your resthooks
      * [/api/v2/templates](/api/v2/templates) - to list current WhatsApp templates on your account
      * [/api/v2/ticketers](/api/v2/ticketers) - to list ticketing services
+     * [/api/v2/workspace](/api/v2/workspace) - to view your workspace
 
     To use the endpoint simply append _.json_ to the URL. For example [/api/v2/flows](/api/v2/flows) will return the
     documentation for that endpoint but a request to [/api/v2/flows.json](/api/v2/flows.json) will return a JSON list of
@@ -208,13 +208,13 @@ class RootView(views.APIView):
                 "labels": reverse("api.v2.labels", request=request),
                 "messages": reverse("api.v2.messages", request=request),
                 "message_actions": reverse("api.v2.message_actions", request=request),
-                "org": reverse("api.v2.org", request=request),
                 "resthooks": reverse("api.v2.resthooks", request=request),
                 "resthook_events": reverse("api.v2.resthook_events", request=request),
                 "resthook_subscribers": reverse("api.v2.resthook_subscribers", request=request),
                 "runs": reverse("api.v2.runs", request=request),
                 "templates": reverse("api.v2.templates", request=request),
                 "ticketers": reverse("api.v2.ticketers", request=request),
+                "workspace": reverse("api.v2.workspace", request=request),
             }
         )
 
@@ -261,7 +261,6 @@ class ExplorerView(SmartTemplateView):
             LabelsEndpoint.get_delete_explorer(),
             MessagesEndpoint.get_read_explorer(),
             MessageActionsEndpoint.get_write_explorer(),
-            OrgEndpoint.get_read_explorer(),
             ResthooksEndpoint.get_read_explorer(),
             ResthookEventsEndpoint.get_read_explorer(),
             ResthookSubscribersEndpoint.get_read_explorer(),
@@ -270,6 +269,7 @@ class ExplorerView(SmartTemplateView):
             RunsEndpoint.get_read_explorer(),
             TemplatesEndpoint.get_read_explorer(),
             TicketersEndpoint.get_read_explorer(),
+            WorkspaceEndpoint.get_read_explorer(),
         ]
         return context
 
@@ -2712,57 +2712,6 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
         }
 
 
-class OrgEndpoint(BaseAPIView):
-    """
-    This endpoint allows you to view details about your account.
-
-    ## Viewing Current Organization
-
-    A **GET** returns the details of your organization. There are no parameters.
-
-    Example:
-
-        GET /api/v2/org.json
-
-    Response containing your organization:
-
-        {
-            "uuid": "6a44ca78-a4c2-4862-a7d3-2932f9b3a7c3",
-            "name": "Nyaruka",
-            "country": "RW",
-            "languages": ["eng", "fra"],
-            "primary_language": "eng",
-            "timezone": "Africa/Kigali",
-            "date_style": "day_first",
-            "credits": {"used": 121433, "remaining": 3452},
-            "anon": false
-        }
-    """
-
-    permission = "orgs.org_api"
-
-    def get(self, request, *args, **kwargs):
-        org = request.user.get_org()
-
-        data = {
-            "uuid": str(org.uuid),
-            "name": org.name,
-            "country": org.get_country_code(),
-            "languages": [l.iso_code for l in org.languages.order_by("iso_code")],
-            "primary_language": org.primary_language.iso_code if org.primary_language else None,
-            "timezone": str(org.timezone),
-            "date_style": ("day_first" if org.get_dayfirst() else "month_first"),
-            "credits": {"used": org.get_credits_used(), "remaining": org.get_credits_remaining()},
-            "anon": org.is_anon,
-        }
-
-        return Response(data, status=status.HTTP_200_OK)
-
-    @classmethod
-    def get_read_explorer(cls):
-        return {"method": "GET", "title": "View Current Org", "url": reverse("api.v2.org"), "slug": "org-read"}
-
-
 class ResthooksEndpoint(ListAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list configured resthooks in your account.
@@ -3545,4 +3494,60 @@ class TicketersEndpoint(ListAPIMixin, BaseAPIView):
                     "help": "Only return ticketers created after this date, ex: 2015-01-28T18:00:00.000",
                 },
             ],
+        }
+
+
+class WorkspaceEndpoint(BaseAPIView):
+    """
+    This endpoint allows you to view details about your workspace.
+
+    ## Viewing Current Workspace
+
+    A **GET** returns the details of your workspace. There are no parameters.
+
+    Example:
+
+        GET /api/v2/workspace.json
+
+    Response containing your workspace details:
+
+        {
+            "uuid": "6a44ca78-a4c2-4862-a7d3-2932f9b3a7c3",
+            "name": "Nyaruka",
+            "country": "RW",
+            "languages": ["eng", "fra"],
+            "primary_language": "eng",
+            "timezone": "Africa/Kigali",
+            "date_style": "day_first",
+            "credits": {"used": 121433, "remaining": 3452},
+            "anon": false
+        }
+    """
+
+    permission = "orgs.org_api"
+
+    def get(self, request, *args, **kwargs):
+        org = request.user.get_org()
+
+        data = {
+            "uuid": str(org.uuid),
+            "name": org.name,
+            "country": org.get_country_code(),
+            "languages": [l.iso_code for l in org.languages.order_by("iso_code")],
+            "primary_language": org.primary_language.iso_code if org.primary_language else None,
+            "timezone": str(org.timezone),
+            "date_style": ("day_first" if org.get_dayfirst() else "month_first"),
+            "credits": {"used": org.get_credits_used(), "remaining": org.get_credits_remaining()},
+            "anon": org.is_anon,
+        }
+
+        return Response(data, status=status.HTTP_200_OK)
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            "method": "GET",
+            "title": "View Workspace",
+            "url": reverse("api.v2.workspace"),
+            "slug": "workspace-read",
         }

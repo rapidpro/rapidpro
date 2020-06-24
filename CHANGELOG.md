@@ -1,3 +1,50 @@
+v5.5.68
+----------
+ * Fix contact update view
+ * Allow multi-user / multi-org to be set on each org
+ * Fix additional urls import
+
+v5.5.66
+----------
+ * Implement Contact.update_static_groups using modifiers
+ * Consistent use of account/login/workspace
+
+v5.5.64
+----------
+ * Fix editor
+
+v5.5.63
+----------
+ * Make new org fields non-null and remove no longer needed legacy method
+
+v5.5.62
+----------
+ * Rename whitelisted to verified
+ * Add migration to populate new org fields
+
+v5.5.61
+----------
+ * Add new boolean fields to org for suspended, flagged and uses_topups and remove no longer used plan stuff
+
+v5.5.60
+----------
+ * Move webhook log button to flow list page
+ * Add confirmation dialog to handle flow language change
+
+v5.5.59
+----------
+ * Update to floweditor v1.9.8
+
+v5.5.58
+----------
+ * Update to floweditor 1.9.7
+ * Remove BETA gating for tickets
+
+v5.5.57
+----------
+ * Restore logic for when dashboard and android nav icons should appear
+ * Add translations in ru and fr
+
 v5.5.56
 ----------
  * Improvements to ticketer connect views

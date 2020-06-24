@@ -16,7 +16,7 @@
       .row{style:"height:250px;"}
         .span9
           %p
-            -trans "If you have an export file with flows and or campaigns, select it below to import it into your account."
+            -trans "If you have an export file with flows and or campaigns, select it below to import it into your workspace."
 
           - block import-status
             %form#import-form.smartmin-form.horizontal-form{method:"post", action:"{% url 'orgs.org_import' %}", enctype:"multipart/form-data"}

@@ -44,7 +44,7 @@ from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
 from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.text import slugify_with
-from temba.utils.views import BaseActionForm
+from temba.utils.views import BaseActionForm, NonAtomicMixin
 from temba.values.constants import Value
 
 from .models import (
@@ -1442,7 +1442,7 @@ class ContactCRUDL(SmartCRUDL):
 
             Contact.get_or_create_by_urns(obj.org, self.request.user, obj.name, urns)
 
-    class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
         success_url = "uuid@contacts.contact_read"
         success_message = ""
@@ -1466,23 +1466,14 @@ class ContactCRUDL(SmartCRUDL):
             form_kwargs["user"] = self.request.user
             return form_kwargs
 
-        def get_form(self):
-            return super().get_form()
-
-        def save(self, obj):
-            obj.update(self.request.user, obj.name, obj.language)
-
-            new_groups = self.form.cleaned_data.get("groups")
-            if new_groups is not None:
-                obj.update_static_groups(self.request.user, new_groups)
-
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["schemes"] = ContactURN.SCHEME_CHOICES
             return context
 
-        def post_save(self, obj):
-            obj = super().post_save(obj)
+        def form_valid(self, form):
+            obj = self.get_object()
+            data = form.cleaned_data
 
             if not self.org.is_anon:
                 urns = []
@@ -1495,8 +1486,8 @@ class ContactCRUDL(SmartCRUDL):
                         order = int(self.form.data.get("order__" + field_key, "0"))
                         urns.append((order, URN.from_parts(scheme, value)))
 
-                new_scheme = self.form.cleaned_data.get("new_scheme", None)
-                new_path = self.form.cleaned_data.get("new_path", None)
+                new_scheme = data.get("new_scheme", None)
+                new_path = data.get("new_path", None)
 
                 if new_scheme and new_path:
                     urns.append((len(urns), URN.from_parts(new_scheme, new_path)))
@@ -1505,7 +1496,32 @@ class ContactCRUDL(SmartCRUDL):
                 urns = [urn[1] for urn in sorted(urns, key=lambda x: x[0])]
                 obj.update_urns(self.request.user, urns)
 
-            return obj
+            # eventually mailroom will do URNs as well, but for now just do the mailroom parts
+            # last so that group re-evaluation happens after the URNs have been set
+            mods = obj.update(data.get("name"), data.get("language"))
+
+            new_groups = self.form.cleaned_data.get("groups")
+            if new_groups is not None:
+                mods += obj.update_static_groups(new_groups)
+
+            try:
+                obj.modify(self.request.user, *mods)
+            except Exception:
+                errors = form._errors.setdefault(forms.forms.NON_FIELD_ERRORS, forms.utils.ErrorList())
+                errors.append(_("An error occurred updating your contact. Please try again later."))
+                return self.render_to_response(self.get_context_data(form=form))
+
+            messages.success(self.request, self.derive_success_message())
+
+            response = self.render_to_response(
+                self.get_context_data(
+                    form=form,
+                    success_url=self.get_success_url(),
+                    success_script=getattr(self, "success_script", None),
+                )
+            )
+            response["Temba-Success"] = self.get_success_url()
+            return response
 
     class UpdateFields(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = ContactFieldForm
@@ -1589,7 +1605,7 @@ class ContactCRUDL(SmartCRUDL):
         success_message = _("Contact unblocked")
 
         def save(self, obj):
-            obj.unblock(self.request.user)
+            obj.reactivate(self.request.user)
             return obj
 
     class Unstop(OrgObjPermsMixin, SmartUpdateView):
@@ -1602,7 +1618,7 @@ class ContactCRUDL(SmartCRUDL):
         success_message = _("Contact unstopped")
 
         def save(self, obj):
-            obj.unstop(self.request.user)
+            obj.reactivate(self.request.user)
             return obj
 
     class Delete(OrgObjPermsMixin, SmartUpdateView):

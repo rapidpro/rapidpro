@@ -313,7 +313,7 @@ BRANDING = {
         "logo": "brands/rapidpro/logo.png",
         "allow_signups": True,
         "flow_types": ["M", "V", "S"],  # see Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY
-        "tiers": dict(import_flows=0, multi_user=0, multi_org=0),
+        "tiers": dict(multi_user=0, multi_org=0),
         "bundles": [],
         "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
@@ -433,6 +433,7 @@ PERMISSIONS = {
         "broadcast",
         "campaign",
         "category_counts",
+        "change_language",
         "completion",
         "copy",
         "editor",
@@ -1189,6 +1190,9 @@ MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
 
 # ElasticSearch configuration (URL RFC-1738)
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
+
+# Default plan for new orgs
+DEFAULT_PLAN = "topups"
 
 # Maximum active objects are org can have
 MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
