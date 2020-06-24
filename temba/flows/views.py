@@ -1371,7 +1371,7 @@ class FlowCRUDL(SmartCRUDL):
                     flow_variables.append(dict(name="flow.%s" % key, display=label))
                     flow_variables.append(dict(name="flow.%s.category" % key, display="%s Category" % label))
                     flow_variables.append(dict(name="flow.%s.text" % key, display="%s Text" % label))
-                    flow_variables.append(dict(name='flow.%s.corrected' % key, display='%s Text Corrected' % label))
+                    flow_variables.append(dict(name="flow.%s.corrected" % key, display="%s Text Corrected" % label))
                     flow_variables.append(dict(name="flow.%s.time" % key, display="%s Time" % label))
 
             function_completions = get_function_listing()

@@ -951,8 +951,7 @@ class Flow(TembaModel):
                 run.save(update_fields=("child_context",))
 
         # find a matching rule
-        result_rule, result_value, result_input, *value_corrected = ruleset.find_matching_rule(run, msg_in)
-        value_corrected = value_corrected[0] if value_corrected and type(value_corrected) in (list, tuple) else None
+        result_rule, result_value, result_input = ruleset.find_matching_rule(run, msg_in)
 
         flow = ruleset.flow
 
@@ -965,7 +964,7 @@ class Flow(TembaModel):
             # store the media path as the value
             result_value = msg_in.attachments[0].split(":", 1)[1]
 
-        ruleset.save_run_value(run, result_rule, result_value, result_input, org=flow.org, value_corrected=value_corrected)
+        ruleset.save_run_value(run, result_rule, result_value, result_input, org=flow.org)
 
         # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
         if not result_rule.destination:
@@ -2489,7 +2488,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     RESULT_CATEGORY = "category"
     RESULT_CATEGORY_LOCALIZED = "category_localized"
     RESULT_VALUE = "value"
-    RESULT_CORRECTED = 'corrected'
     RESULT_INPUT = "input"
     RESULT_CREATED_ON = "created_on"
 
@@ -2722,9 +2720,6 @@ class RuleSet(models.Model):
     CONFIG_WEBHOOK_ACTION = "webhook_action"
     CONFIG_WEBHOOK_HEADERS = "webhook_headers"
     CONFIG_RESTHOOK = "resthook"
-
-    CONFIG_SPELL_CHECKER = 'spell_checker'
-    CONFIG_SPELLING_CORRECTION_SENSITIVITY = 'spelling_correction_sensitivity'
 
     TYPE_MEDIA = (TYPE_WAIT_PHOTO, TYPE_WAIT_GPS, TYPE_WAIT_VIDEO, TYPE_WAIT_AUDIO, TYPE_WAIT_RECORDING)
 
@@ -2980,49 +2975,6 @@ class RuleSet(models.Model):
             elif msg:
                 operand = str(msg)
 
-            corrected_text = None
-            try:
-                default_spell_checker_lang = 'en-US'
-                spell_checker_langs = {
-                    'spa': 'es-US',
-                    'vie': 'vi',
-                    'kor': 'ko-KR',
-                    'chi': 'zh-hans',
-                    'por': 'pt-BR'
-                }
-                spell_checker_lang_code = spell_checker_langs.get(run.contact.language, default_spell_checker_lang)
-
-                config = self.config
-                spell_checker_enabled = config.get(RuleSet.CONFIG_SPELL_CHECKER, False) if RuleSet.CONFIG_SPELL_CHECKER in config else False
-
-                if spell_checker_enabled:
-                    # Calculating percentage of sensitivity
-                    spelling_correction_sensitivity = float(config.get(RuleSet.CONFIG_SPELLING_CORRECTION_SENSITIVITY, settings.SPELL_CHECKER_DEFAULT_SENSITIVITY)) / 100
-
-                    if len(text) <= settings.SPELL_CHECKER_TEXT_MIN_LENGTH:
-                        raise Exception
-
-                    data = {'text': text}
-                    params = {'mkt': spell_checker_lang_code, 'mode': settings.SPELL_CHECKER_MODE}
-                    headers = {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'Ocp-Apim-Subscription-Key': settings.BING_SPELL_CHECKER_API_KEY,
-                    }
-                    spell_check_response = requests.post(settings.BING_SPELL_CHECKER_ENDPOINT, headers=headers, params=params, data=data)
-                    if spell_check_response.status_code != 200:
-                        raise Exception
-                    
-                    corrected_text = text
-                    response = spell_check_response.json()
-                    for correction in response.get('flaggedTokens', []):
-                        for suggestion in correction.get('suggestions', []):
-                            if suggestion.get('score') >= spelling_correction_sensitivity:
-                                text = text.replace(correction.get('token'), suggestion.get('suggestion'))
-
-            except Exception:
-                # Passing this because the flow needs to continue
-                pass
-
             if self.ruleset_type == RuleSet.TYPE_AIRTIME:
 
                 airtime = AirtimeTransfer.trigger_airtime_event(self.flow.org, self, run.contact, msg)
@@ -3059,7 +3011,7 @@ class RuleSet(models.Model):
 
         return None, None, None  # pragma: no cover
 
-    def save_run_value(self, run, rule, raw_value, raw_input, org=None, value_corrected=None):
+    def save_run_value(self, run, rule, raw_value, raw_input, org=None):
         org = org or self.flow.org
         contact_language = run.contact.language if run.contact.language in org.get_language_codes() else None
 
@@ -3070,7 +3022,6 @@ class RuleSet(models.Model):
             category_localized=rule.get_category_name(run.flow.base_language, contact_language),
             raw_value=raw_value,
             raw_input=raw_input,
-            text_corrected=value_corrected,
         )
 
     def get_step_type(self):
