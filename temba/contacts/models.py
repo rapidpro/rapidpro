@@ -1269,11 +1269,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         mods = []
 
         if to_remove:
-            mods.append(modifiers.Groups(modification="remove", groups=refs(to_remove)))
+            mods.append(modifiers.Groups(groups=refs(to_remove), modification="remove"))
         if to_add:
-            mods.append(modifiers.Groups(modification="add", groups=refs(to_add)))
+            mods.append(modifiers.Groups(groups=refs(to_add), modification="add"))
 
         return mods
+
+    def update_urns(self, urns: List[str]) -> List[modifiers.Modifier]:
+        return [modifiers.URNs(urns=urns, modification="set")]
 
     def modify(self, user, *mods: modifiers.Modifier):
         self.bulk_modify(user, [self], *mods)
@@ -2161,70 +2164,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         else:
             # otherwise return highest priority of any scheme
             return urns[0] if urns else None
-
-    def update_urns(self, user, urns):
-        """
-        Updates the URNs on this contact to match the provided list, i.e. detaches any existing not included.
-        The URNs are supplied in order of priority, most preferred URN first.
-        """
-        country = self.org.get_country_code()
-
-        urns_created = []  # new URNs created
-        urns_attached = []  # existing orphan URNs attached
-        urns_retained = []  # existing URNs retained
-
-        # perform everything in a org-level lock to prevent duplication by different instances. Org-level is required
-        # to prevent conflicts with get_or_create which uses an org-level lock.
-
-        # list of other contacts that were modified
-        modified_contacts = set()
-
-        with self.org.lock_on(OrgLock.contacts):
-
-            # urns are submitted in order of priority
-            priority = ContactURN.PRIORITY_HIGHEST
-
-            for urn_as_string in urns:
-                normalized = URN.normalize(urn_as_string, country)
-                urn = ContactURN.lookup(self.org, normalized)
-
-                if not urn:
-                    urn = ContactURN.create(self.org, self, normalized, priority=priority)
-                    urns_created.append(urn)
-
-                # unassigned URN or different contact
-                elif not urn.contact or urn.contact != self:
-                    if urn.contact:
-                        modified_contacts.add(urn.contact.id)
-
-                    urn.contact = self
-                    urn.priority = priority
-                    urn.save()
-                    urns_attached.append(urn)
-
-                else:
-                    if urn.priority != priority:
-                        urn.priority = priority
-                        urn.save()
-                    urns_retained.append(urn)
-
-                # step down our priority
-                priority -= 1
-
-        # detach any existing URNs that weren't included
-        urn_ids = [u.pk for u in (urns_created + urns_attached + urns_retained)]
-        urns_detached_qs = ContactURN.objects.filter(contact=self).exclude(pk__in=urn_ids)
-        urns_detached = list(urns_detached_qs)
-        urns_detached_qs.update(contact=None)
-
-        self.save(update_fields=("modified_on",), handle_update=False)
-
-        # trigger updates based all urns created or detached
-        self.handle_update(urns=[str(u) for u in (urns_created + urns_attached + urns_detached)])
-
-        # update modified on any other modified contacts
-        if modified_contacts:
-            Contact.objects.filter(id__in=modified_contacts).update(modified_on=timezone.now())
 
     def reevaluate_dynamic_groups(self, for_fields=None, urns=()):
         """

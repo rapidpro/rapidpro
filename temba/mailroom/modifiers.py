@@ -40,9 +40,17 @@ class Status(Modifier):
 class Groups(Modifier):
     type = "groups"
 
-    def __init__(self, modification: str, groups: List[GroupRef]):
-        self.modification = modification
+    def __init__(self, groups: List[GroupRef], modification: str):
         self.groups = groups
+        self.modification = modification
 
     def as_def(self) -> Dict:
-        return {"type": self.type, "modification": self.modification, "groups": [g._asdict() for g in self.groups]}
+        return {"type": self.type, "groups": [g._asdict() for g in self.groups], "modification": self.modification}
+
+
+class URNs(Modifier):
+    type = "urns"
+
+    def __init__(self, urns: List[str], modification: str):
+        self.urns = urns
+        self.modification = modification

@@ -1475,6 +1475,12 @@ class ContactCRUDL(SmartCRUDL):
             obj = self.get_object()
             data = form.cleaned_data
 
+            mods = obj.update(data.get("name"), data.get("language"))
+
+            new_groups = self.form.cleaned_data.get("groups")
+            if new_groups is not None:
+                mods += obj.update_static_groups(new_groups)
+
             if not self.org.is_anon:
                 urns = []
 
@@ -1494,15 +1500,7 @@ class ContactCRUDL(SmartCRUDL):
 
                 # sort our urns by the supplied order
                 urns = [urn[1] for urn in sorted(urns, key=lambda x: x[0])]
-                obj.update_urns(self.request.user, urns)
-
-            # eventually mailroom will do URNs as well, but for now just do the mailroom parts
-            # last so that group re-evaluation happens after the URNs have been set
-            mods = obj.update(data.get("name"), data.get("language"))
-
-            new_groups = self.form.cleaned_data.get("groups")
-            if new_groups is not None:
-                mods += obj.update_static_groups(new_groups)
+                mods += obj.update_urns(urns)
 
             try:
                 obj.modify(self.request.user, *mods)
