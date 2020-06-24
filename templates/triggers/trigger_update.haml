@@ -187,21 +187,32 @@
 
       $('#id_flow').on('change', function (e) {
         var flowId = (e.added.id !== '' ? parseInt(e.added.id) : null);
-        if (flowId) {
-          var api_url = "{% url 'flows.flow_flow_parameters' %}?flow_id=" + flowId;
-          $.getJSON(api_url).done(function(data) {
-            buildTriggerFlowParams(data.results, [], 'update');
-          });
-        } else {
-          buildTriggerFlowParams([], [], 'update');
-        }
+        _requestAndBuildFlowParams(flowId);
       });
+
+      var idFlowVal = $('#id_flow').val();
 
       {% if flow_parameters_fields and flow_parameters_values %}
         var flowParamsFields = "{{ flow_parameters_fields }}".split(",");
         var flowParamsValues = "{{ flow_parameters_values }}".split(",");
-        buildTriggerFlowParams(flowParamsFields, flowParamsValues, 'update');
+        _requestAndBuildFlowParams(idFlowVal, flowParamsFields, flowParamsValues);
+      {% else %}
+        _requestAndBuildFlowParams(idFlowVal);
       {% endif %}
-
     });
+
+    function _requestAndBuildFlowParams(flowId, fields, values) {
+      if (flowId) {
+        var api_url = "{% url 'flows.flow_flow_parameters' %}?flow_id=" + flowId;
+        $.getJSON(api_url).done(function(data) {
+          if (fields && values) {
+            buildTriggerFlowParams(data.results, values, 'update');
+          } else {
+            buildTriggerFlowParams(data.results, [], 'update');
+          }
+        });
+      } else {
+        buildTriggerFlowParams([], [], 'update');
+      }
+    }
 
