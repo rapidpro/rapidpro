@@ -811,7 +811,7 @@ class LabelForm(BaseLabelForm):
 
         super().__init__(*args, **kwargs)
 
-        self.fields["folder"].queryset = Label.folder_objects.filter(org=self.org)
+        self.fields["folder"].queryset = Label.folder_objects.filter(org=self.org, is_active=True)
 
 
 class FolderForm(BaseLabelForm):
