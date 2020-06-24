@@ -7,6 +7,7 @@ import regex
 from rest_framework import serializers
 
 from django.conf import settings
+from django.db import transaction
 
 from temba import mailroom
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
@@ -630,27 +631,28 @@ class ContactWriteSerializer(WriteSerializer):
 
         mods = []
 
-        if self.instance:
-            # update our name and language
-            if "name" in self.validated_data and name != self.instance.name:
-                mods.append(modifiers.Name(name=name))
-            if "language" in self.validated_data and language != self.instance.language:
-                mods.append(modifiers.Language(language=language))
+        with transaction.atomic():
+            if self.instance:
+                # update our name and language
+                if "name" in self.validated_data and name != self.instance.name:
+                    mods.append(modifiers.Name(name=name))
+                if "language" in self.validated_data and language != self.instance.language:
+                    mods.append(modifiers.Language(language=language))
 
-            if "urns" in self.validated_data and urns is not None:
-                self.instance.update_urns(self.context["user"], urns)
-        else:
-            self.instance = Contact.get_or_create_by_urns(
-                self.context["org"], self.context["user"], name, urns=urns, language=language
-            )
+                if "urns" in self.validated_data and urns is not None:
+                    self.instance.update_urns(self.context["user"], urns)
+            else:
+                self.instance = Contact.get_or_create_by_urns(
+                    self.context["org"], self.context["user"], name, urns=urns, language=language
+                )
 
-        # update our fields
-        if custom_fields is not None:
-            self.instance.set_fields(user=self.context["user"], fields=custom_fields)
+            # update our fields
+            if custom_fields is not None:
+                self.instance.set_fields(user=self.context["user"], fields=custom_fields)
 
-        # update our groups
-        if groups is not None:
-            mods += self.instance.update_static_groups(groups)
+            # update our groups
+            if groups is not None:
+                mods += self.instance.update_static_groups(groups)
 
         if mods:
             self.instance.modify(self.context["user"], *mods)
