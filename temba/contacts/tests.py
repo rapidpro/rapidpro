@@ -31,19 +31,11 @@ from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
-from temba.mailroom import MailroomException
+from temba.mailroom import MailroomException, modifiers
 from temba.msgs.models import Broadcast, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import (
-    AnonymousOrg,
-    CRUDLTestMixin,
-    ESMockWithScroll,
-    MockPost,
-    TembaNonAtomicTest,
-    TembaTest,
-    mock_contact_modify,
-)
+from temba.tests import AnonymousOrg, CRUDLTestMixin, ESMockWithScroll, TembaNonAtomicTest, TembaTest, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -231,8 +223,8 @@ class ContactCRUDLTest(TembaTest):
             self.assertEqual(list(response.context["object_list"]), [])
             self.assertEqual(response.context["search_error"], "Search query contains an error")
 
-    @mock_contact_modify
-    def test_read(self):
+    @mock_mailroom
+    def test_read(self, mr_mocks):
         self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe")
         other_org_contact = self.create_contact("Hans", number="+593979123456", org=self.org2)
 
@@ -323,8 +315,8 @@ class ContactCRUDLTest(TembaTest):
         response = self.client.get(reverse("contacts.contact_read", args=["invalid-uuid"]))
         self.assertEqual(response.status_code, 404)
 
-    @mock_contact_modify
-    def test_unstop(self):
+    @mock_mailroom
+    def test_unstop(self, mr_mocks):
         contact = self.create_contact("Joe", number="+593979000111")
         contact.stop(self.admin)
         other_org_contact = self.create_contact("Hans", number="+593979123456", org=self.org2)
@@ -487,16 +479,16 @@ class ContactGroupTest(TembaTest):
         group.refresh_from_db()
         self.assertEqual(group.name, "first")
 
-    def test_get_user_groups(self):
+    @mock_mailroom
+    def test_get_user_groups(self, mr_mocks):
         self.create_field("gender", "Gender")
         static = ContactGroup.create_static(self.org, self.admin, "Static")
         deleted = ContactGroup.create_static(self.org, self.admin, "Deleted")
         deleted.is_active = False
         deleted.save()
 
-        with MockParseQuery('gender = "M"', ["gender"]):
-            dynamic = ContactGroup.create_dynamic(self.org, self.admin, "Dynamic", "gender=M")
-            ContactGroup.user_groups.filter(id=dynamic.id).update(status=ContactGroup.STATUS_READY)
+        dynamic = ContactGroup.create_dynamic(self.org, self.admin, "Dynamic", "gender=M")
+        ContactGroup.user_groups.filter(id=dynamic.id).update(status=ContactGroup.STATUS_READY)
 
         self.assertEqual(set(ContactGroup.get_user_groups(self.org)), {static, dynamic})
         self.assertEqual(set(ContactGroup.get_user_groups(self.org, dynamic=False)), {static})
@@ -513,8 +505,8 @@ class ContactGroupTest(TembaTest):
         self.assertFalse(ContactGroup.is_valid_name("@x"))
         self.assertFalse(ContactGroup.is_valid_name("x" * 65))
 
-    @mock_contact_modify
-    def test_member_count(self):
+    @mock_mailroom
+    def test_member_count(self, mr_mocks):
         group = self.create_group("Cool kids")
 
         # add contacts via the related field
@@ -549,8 +541,8 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(group.get_member_count(), 0)
         self.assertEqual(set(group.contacts.all()), set())
 
-    @mock_contact_modify
-    def test_system_group_counts(self):
+    @mock_mailroom
+    def test_system_group_counts(self, mr_mocks):
         # start with none
         self.releaseContacts(delete=True)
 
@@ -795,7 +787,8 @@ class ContactGroupCRUDLTest(TembaTest):
         self.other_org_group = self.create_group("Customers", contacts=[], org=self.org2)
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
-    def test_create(self):
+    @mock_mailroom
+    def test_create(self, mr_mocks):
         url = reverse("contacts.contactgroup_create")
 
         # can't create group as viewer
@@ -828,8 +821,7 @@ class ContactGroupCRUDLTest(TembaTest):
         self.assertEqual(set(group.contacts.all()), {self.joe, self.frank})
 
         # create a dynamic group using a query
-        with MockParseQuery("tel = 1234", ["tel"]):
-            self.client.post(url, dict(name="Frank", group_query="tel = 1234"))
+        self.client.post(url, dict(name="Frank", group_query="tel = 1234"))
 
         ContactGroup.user_groups.get(org=self.org, name="Frank", query="tel = 1234")
 
@@ -877,7 +869,8 @@ class ContactGroupCRUDLTest(TembaTest):
         )
         self.assertFormError(response, "form", "name", "Name is used by another group")
 
-    def test_update(self):
+    @mock_mailroom
+    def test_update(self, mr_mocks):
         url = reverse("contacts.contactgroup_update", args=[self.joe_and_frank.id])
 
         # can't create group as viewer
@@ -909,24 +902,20 @@ class ContactGroupCRUDLTest(TembaTest):
         ContactGroup.user_groups.filter(id=self.dynamic_group.pk).update(status=ContactGroup.STATUS_READY)
 
         # update both name and query, form should fail, because query is not parsable
-        with MockParseQuery(error="error at !"):
-            response = self.client.post(url, dict(name="Frank", query="(!))!)"))
-            self.assertFormError(response, "form", "query", "error at !")
+        mr_mocks.parse_query("(!))!)", error="error at !")
+        response = self.client.post(url, dict(name="Frank", query="(!))!)"))
+        self.assertFormError(response, "form", "query", "error at !")
 
         # try to update a group with an invalid query
-        with MockPost({"error": "error at >"}, status=400):
-            response = self.client.post(url, dict(name="Frank", query="name <> some_name"))
-            self.assertFormError(response, "form", "query", "error at >")
+        mr_mocks.parse_query("name <> some_name", error="error at >")
+        response = self.client.post(url, dict(name="Frank", query="name <> some_name"))
+        self.assertFormError(response, "form", "query", "error at >")
 
         # dependent on id
-        with MockParseQuery("id = 123", ["id"], allow_as_group=False):
-            response = self.client.post(url, dict(name="Frank", query="id = 123"))
-            self.assertFormError(
-                response, "form", "query", 'You cannot create a dynamic group based on "id" or "group".'
-            )
+        response = self.client.post(url, dict(name="Frank", query="id = 123"))
+        self.assertFormError(response, "form", "query", 'You cannot create a dynamic group based on "id" or "group".')
 
-        with MockParseQuery('twitter = "hola"', ["twitter"]):
-            response = self.client.post(url, dict(name="Frank", query='twitter is "hola"'))
+        response = self.client.post(url, dict(name="Frank", query='twitter = "hola"'))
 
         self.assertNoFormErrors(response)
 
@@ -938,16 +927,12 @@ class ContactGroupCRUDLTest(TembaTest):
         self.dynamic_group.save(update_fields=("status",))
 
         # and check we can't change the query while that is the case
-        with MockParseQuery('twitter = "hello"', ["twitter"]):
-            response = self.client.post(url, dict(name="Frank", query='twitter = "hello"'))
-            self.assertFormError(
-                response, "form", "query", "You cannot update the query of a group that is evaluating."
-            )
+        response = self.client.post(url, dict(name="Frank", query='twitter = "hello"'))
+        self.assertFormError(response, "form", "query", "You cannot update the query of a group that is evaluating.")
 
         # but can change the name
-        with MockParseQuery('twitter = "hola"', ["twitter"]):
-            response = self.client.post(url, dict(name="Frank2", query='twitter is "hola"'))
-            self.assertNoFormErrors(response)
+        response = self.client.post(url, dict(name="Frank2", query='twitter = "hola"'))
+        self.assertNoFormErrors(response)
 
         self.dynamic_group.refresh_from_db()
         self.assertEqual(self.dynamic_group.name, "Frank2")
@@ -1193,21 +1178,21 @@ class ContactTest(TembaTest):
         self.joe.block(self.admin)
 
         mock_contact_modify.assert_called_once_with(
-            self.org.id, self.admin.id, [self.joe.id], [{"type": "status", "status": "blocked"}]
+            self.org.id, self.admin.id, [self.joe.id], [modifiers.Status(status="blocked")]
         )
         mock_contact_modify.reset_mock()
 
         self.joe.stop(self.admin)
 
         mock_contact_modify.assert_called_once_with(
-            self.org.id, self.admin.id, [self.joe.id], [{"type": "status", "status": "stopped"}]
+            self.org.id, self.admin.id, [self.joe.id], [modifiers.Status(status="stopped")]
         )
         mock_contact_modify.reset_mock()
 
         self.joe.reactivate(self.admin)
 
         mock_contact_modify.assert_called_once_with(
-            self.org.id, self.admin.id, [self.joe.id], [{"type": "status", "status": "active"}]
+            self.org.id, self.admin.id, [self.joe.id], [modifiers.Status(status="active")]
         )
         mock_contact_modify.reset_mock()
 
@@ -1304,8 +1289,8 @@ class ContactTest(TembaTest):
         Flow.objects.get(id=msg_flow.id)
         Flow.objects.get(id=ivr_flow.id)
 
-    @mock_contact_modify
-    def test_fail_and_block_and_release(self):
+    @mock_mailroom
+    def test_fail_and_block_and_release(self, mr_mocks):
         msg1 = self.create_incoming_msg(self.joe, "Test 1", msg_type="I")
         msg2 = self.create_incoming_msg(self.joe, "Test 2", msg_type="F")
         msg3 = self.create_incoming_msg(self.joe, "Test 3", msg_type="I", visibility="A")
@@ -1428,68 +1413,6 @@ class ContactTest(TembaTest):
         self.assertEqual(
             contact_counts, {ContactGroup.TYPE_ALL: 3, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_STOPPED: 1}
         )
-
-    def test_user_groups(self):
-        # create some static groups
-        spammers = self.create_group("Spammers", [])
-        testers = self.create_group("Testers", [])
-
-        # create some dynamic groups
-        ContactField.get_or_create(self.org, self.admin, "gender", "Gender")
-        ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type=Value.TYPE_NUMBER)
-
-        with MockParseQuery('twitter != ""', ["twitter"]):
-            has_twitter = self.create_group("Has twitter", query='twitter != ""')
-
-        with MockParseQuery('gender = ""', ["gender"]):
-            no_gender = self.create_group("No gender", query='gender is ""')
-
-        with MockParseQuery('gender = "m" or gender = "male"', ["gender"]):
-            males = self.create_group("Male", query="gender is M or gender is Male")
-
-        with MockParseQuery("age > 18 or age < 30", ["age"]):
-            youth = self.create_group("Male", query="age > 18 or age < 30")
-
-        with MockParseQuery('twitter = "blow80"', ["twitter"]):
-            joes = self.create_group("Joes", query='twitter = "blow80"')
-
-        # manually reevaluate all these contacts
-        for c in [self.joe, self.frank, self.billy, self.voldemort]:
-            c.handle_update(is_new=True)
-
-        self.assertEqual(set(has_twitter.contacts.all()), {self.joe})
-        self.assertEqual(set(no_gender.contacts.all()), {self.joe, self.frank, self.billy, self.voldemort})
-        self.assertEqual(set(males.contacts.all()), set())
-        self.assertEqual(set(youth.contacts.all()), set())
-        self.assertEqual(set(joes.contacts.all()), {self.joe})
-
-        self.joe.update_urns(self.admin, ["tel:+250781111111"])
-        self.joe.set_field(self.admin, "gender", "M")
-        self.joe.set_field(self.admin, "age", "28")
-
-        self.assertEqual(set(has_twitter.contacts.all()), set())
-        self.assertEqual(set(no_gender.contacts.all()), {self.frank, self.billy, self.voldemort})
-        self.assertEqual(set(males.contacts.all()), {self.joe})
-        self.assertEqual(set(youth.contacts.all()), {self.joe})
-
-        # add joe's twitter account, dynamic group
-        self.joe.update_urns(self.admin, ["twitter:blow80"])
-
-        self.joe.update_static_groups(self.user, [spammers, testers])
-        self.assertEqual(set(self.joe.user_groups.all()), {spammers, has_twitter, testers, males, youth, joes})
-
-        self.joe.update_static_groups(self.user, [])
-        self.assertEqual(set(self.joe.user_groups.all()), {males, youth, joes, has_twitter})
-
-        self.joe.update_static_groups(self.user, [testers])
-        self.assertEqual(set(self.joe.user_groups.all()), {testers, males, youth, joes, has_twitter})
-
-        # releasing removes contacts from all groups
-        self.joe.release(self.user)
-        self.assertEqual(set(self.joe.user_groups.all()), set())
-
-        # can't add deleted contacts to a group
-        self.assertRaises(ValueError, self.joe.update_static_groups, self.user, [spammers])
 
     def test_contact_display(self):
         mr_long_name = self.create_contact(name="Wolfeschlegelsteinhausenbergerdorff", number="8877")
@@ -2188,8 +2111,8 @@ class ContactTest(TembaTest):
             ["cannon fodder", "urn group", "Age field is set"],
         )
 
-    @mock_contact_modify
-    def test_omnibox(self):
+    @mock_mailroom
+    def test_omnibox(self, mr_mocks):
         # add a group with members and an empty group
         self.create_field("gender", "Gender")
         joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
@@ -3268,8 +3191,8 @@ class ContactTest(TembaTest):
             results = response.json()
             self.assertEqual("Age", results["fields"][str(age.uuid)]["label"])
 
-    @mock_contact_modify
-    def test_update_and_list(self):
+    @mock_mailroom
+    def test_update_and_list(self, mr_mocks):
         self.setUpLocations()
 
         list_url = reverse("contacts.contact_list")
@@ -3653,8 +3576,7 @@ class ContactTest(TembaTest):
 
         # try to push into a dynamic group
         self.login(self.admin)
-        with MockParseQuery("tel = 325423", ["tel"]):
-            group = self.create_group("Dynamo", query="tel = 325423")
+        group = self.create_group("Dynamo", query="tel = 325423")
 
         with self.assertRaises(ValueError):
             post_data = dict()
@@ -3743,51 +3665,74 @@ class ContactTest(TembaTest):
         # there should be one 'normal' field and one 'featured' contact field
         self.assertEqual(len(response.context_data["all_contact_fields"]), 2)
 
-    @patch("temba.mailroom.client.MailroomClient.contact_modify")
-    def test_update(self, mock_contact_modify):
-        mock_contact_modify.return_value = {"1": {"contact": {}, "events": []}}
-
-        # if new values don't differ from current values.. mailroom not called
-        self.joe.update(self.admin, name="Joe Blow", language="")
-
-        mock_contact_modify.assert_not_called()
+    def test_update(self):
+        # if new values don't differ from current values.. no modifications
+        self.assertEqual([], self.joe.update(name="Joe Blow", language=""))
 
         # change language
-        self.joe.update(self.admin, name="Joe Blow", language="eng")
-
-        # should send only a language modifier
-        mock_contact_modify.assert_called_once_with(
-            self.joe.org.id, self.admin.id, [self.joe.id], [{"type": "language", "language": "eng"}]
-        )
-        mock_contact_modify.reset_mock()
+        self.assertEqual([modifiers.Language(language="eng")], self.joe.update(name="Joe Blow", language="eng"))
 
         self.joe.language = "eng"
         self.joe.save(update_fields=("language",), handle_update=False)
 
         # change name
-        self.joe.update(self.admin, name="Joseph Blow", language="eng")
-
-        # should send only a name modifier
-        mock_contact_modify.assert_called_once_with(
-            self.joe.org.id, self.admin.id, [self.joe.id], [{"type": "name", "name": "Joseph Blow"}]
-        )
-        mock_contact_modify.reset_mock()
+        self.assertEqual([modifiers.Name(name="Joseph Blow")], self.joe.update(name="Joseph Blow", language="eng"))
 
         # change both name and language
-        self.joe.update(self.admin, name="Joseph Blower", language="spa")
-
-        mock_contact_modify.assert_called_once_with(
-            self.joe.org.id,
-            self.admin.id,
-            [self.joe.id],
-            [{"type": "name", "name": "Joseph Blower"}, {"type": "language", "language": "spa"}],
+        self.assertEqual(
+            [modifiers.Name(name="Joseph Blower"), modifiers.Language(language="spa")],
+            self.joe.update(name="Joseph Blower", language="spa"),
         )
-        mock_contact_modify.reset_mock()
+
+    @mock_mailroom
+    def test_update_static_groups(self, mr_mocks):
+        # create some static groups
+        spammers = self.create_group("Spammers", [])
+        testers = self.create_group("Testers", [])
+        customers = self.create_group("Customers", [])
+
+        self.assertEqual(set(spammers.contacts.all()), set())
+        self.assertEqual(set(testers.contacts.all()), set())
+        self.assertEqual(set(customers.contacts.all()), set())
+
+        # add to 2 static groups
+        mods = self.joe.update_static_groups([spammers, testers])
+        self.assertEqual(
+            [
+                modifiers.Groups(
+                    modification="add",
+                    groups=[
+                        modifiers.GroupRef(uuid=spammers.uuid, name="Spammers"),
+                        modifiers.GroupRef(uuid=testers.uuid, name="Testers"),
+                    ],
+                ),
+            ],
+            mods,
+        )
+
+        self.joe.modify(self.admin, *mods)
+
+        # remove from one and add to another
+        mods = self.joe.update_static_groups([testers, customers])
+
+        self.assertEqual(
+            [
+                modifiers.Groups(
+                    modification="remove", groups=[modifiers.GroupRef(uuid=spammers.uuid, name="Spammers")]
+                ),
+                modifiers.Groups(
+                    modification="add", groups=[modifiers.GroupRef(uuid=customers.uuid, name="Customers")]
+                ),
+            ],
+            mods,
+        )
 
     @patch("temba.mailroom.client.MailroomClient.contact_modify")
     def test_bulk_modify_with_no_contacts(self, mock_contact_modify):
+        mock_contact_modify.return_value = {}
+
         # just a NOOP
-        Contact.bulk_modify(self.admin, [], modifiers=[{"type": "language", "language": "spa"}])
+        Contact.bulk_modify(self.admin, [], modifiers.Language(language="spa"))
 
     def test_number_normalized(self):
         self.org.country = None
@@ -3810,10 +3755,10 @@ class ContactTest(TembaTest):
                 reverse("contacts.contact_update", args=[contact.id]),
                 dict(name="Marshal Mathers", urn__tel__0="07531669966"),
             )
-            self.assertEqual(302, response.status_code)
+            self.assertEqual(200, response.status_code)
 
             mock_modify.assert_called_once_with(
-                self.org.id, self.admin.id, [contact.id], [{"type": "name", "name": "Marshal Mathers"}]
+                self.org.id, self.admin.id, [contact.id], [modifiers.Name(name="Marshal Mathers")]
             )
 
             contact_updated = Contact.from_urn(self.org, "tel:+447531669966")
@@ -4029,8 +3974,8 @@ class ContactTest(TembaTest):
         return response
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
-    @mock_contact_modify
-    def test_contact_import(self):
+    @mock_mailroom
+    def test_contact_import(self, mr_mocks):
         self.releaseContacts(delete=True)
         self.bulk_release(ContactGroup.user_groups.all())
         Channel.create(self.org, self.admin, None, "TT", "Twitter", "nyaruka", schemes=["twitter", "twitterid"])
@@ -5094,8 +5039,8 @@ class ContactTest(TembaTest):
         org.refresh_from_db()
         self.assertFalse(org.is_flagged)
 
-    @mock_contact_modify
-    def test_import_methods(self):
+    @mock_mailroom
+    def test_import_methods(self, mr_mocks):
         user = self.user
         c1 = self.create_contact(name=None, number="0788382382")
         c2 = self.create_contact(name=None, number="0788382382")
@@ -5539,7 +5484,8 @@ class ContactTest(TembaTest):
         # it'll come back as the highest priority
         self.assertEqual("bob@marley.com", urns[0].path)
 
-    def test_update_handling(self):
+    @mock_mailroom
+    def test_update_handling(self, mr_mocks):
         bob = self.create_contact("Bob", "111222")
         bob.name = "Bob Marley"
         bob.save(update_fields=("name",), handle_update=False)
@@ -5551,7 +5497,8 @@ class ContactTest(TembaTest):
         self.assertTrue(bob.modified_on > old_modified_on)
 
         old_modified_on = bob.modified_on
-        bob.update_static_groups(self.user, [group])
+        mods = bob.update_static_groups([group])
+        bob.modify(self.admin, *mods)
 
         bob.refresh_from_db()
         self.assertTrue(bob.modified_on > old_modified_on)
@@ -5569,11 +5516,8 @@ class ContactTest(TembaTest):
             joined_field = ContactField.get_or_create(self.org, self.admin, "joined", "Join Date", value_type="D")
 
             # create groups based on name or URN (checks that contacts are added correctly on contact create)
-            with MockParseQuery('twitter = "blow80"', ["twitter"]):
-                joes_group = self.create_group("People called Joe", query='twitter = "blow80"')
-
-            with MockParseQuery('tel ~ "078"', ["tel"]):
-                mtn_group = self.create_group("People with number containing '078'", query='tel has "078"')
+            joes_group = self.create_group("People called Joe", query='twitter = "blow80"')
+            mtn_group = self.create_group("People with number containing '078'", query='tel has "078"')
 
             self.mary = self.create_contact("Mary", "+250783333333")
             self.mary.set_field(self.user, "gender", "Female")
@@ -5590,11 +5534,8 @@ class ContactTest(TembaTest):
             self.frank.set_field(self.user, "age", "50")
             self.frank.set_field(self.user, "joined", "1/1/2014")
 
-            with MockParseQuery('gender = "male" AND age >= 18', ["gender", "age"]):
-                men_group = self.create_group("Boys", query='gender = "male" AND age >= 18')
-
-            with MockParseQuery('gender = "female" AND age >= 18', ["gender", "age"]):
-                women_group = self.create_group("Girls", query='gender = "female" AND age >= 18')
+            men_group = self.create_group("Boys", query='gender = "male" AND age >= 18')
+            women_group = self.create_group("Girls", query='gender = "female" AND age >= 18')
 
             for c in [self.frank, self.joe, self.mary]:
                 c.handle_update(is_new=True)
@@ -5826,7 +5767,8 @@ class ContactFieldTest(TembaTest):
         self.assertFalse(ContactField.is_valid_label("Age_Now"))  # can't have punctuation
         self.assertFalse(ContactField.is_valid_label("âge"))  # a-z only
 
-    def test_contact_export(self):
+    @mock_mailroom
+    def test_contact_export(self, mr_mocks):
         self.clear_storage()
 
         self.login(self.admin)
@@ -5866,8 +5808,7 @@ class ContactFieldTest(TembaTest):
         contact2.update_urns(self.admin, urns)
 
         group = self.create_group("Poppin Tags", [contact, contact2])
-        with MockParseQuery("tel = 1234", ["tel"]):
-            group2 = self.create_group("Dynamic", query="tel is 1234")
+        group2 = self.create_group("Dynamic", query="tel is 1234")
         group2.status = ContactGroup.STATUS_EVALUATING
         group2.save()
 

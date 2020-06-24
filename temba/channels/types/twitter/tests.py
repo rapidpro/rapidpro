@@ -6,7 +6,7 @@ from django.test import override_settings
 from django.urls import reverse
 
 from temba.contacts.models import URN
-from temba.tests import TembaTest, mock_contact_modify
+from temba.tests import TembaTest, mock_mailroom
 
 from ...models import Channel
 from .client import TwitterClient
@@ -147,8 +147,8 @@ class TwitterTypeTest(TembaTest):
         mock_delete_webhook.assert_called_once_with("beta", "1234567")
 
     @patch("twython.Twython.lookup_user")
-    @mock_contact_modify
-    def test_resolve(self, mock_lookup_user):
+    @mock_mailroom
+    def test_resolve(self, mr_mocks, mock_lookup_user):
         self.joe = self.create_contact("joe", twitter="therealjoe")
 
         urn = self.joe.get_urns()[0]

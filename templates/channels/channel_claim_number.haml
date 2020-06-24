@@ -15,7 +15,7 @@
     .span9
       - block claim-numbers-description
         -blocktrans trimmed
-          Once you claim a number you will immediately be able to send and receive messages. Users who send messages
+          Once you claim a number you will immediately be able to send and receive messages. Contacts who send messages
           to your number will be charged according to their plan.
 
       - block account-trial-warning
@@ -60,7 +60,7 @@
       -if account_numbers
         #account-numbers
           .numbers-title
-            Add an existing supported number to your account
+            Add an existing supported number to your workspace
           -for number in account_numbers
             .{class:"{% if number.country in supported_country_iso_codes or number.number|length <= 6 %}phone-number{% else %}unsupported-phone-number{% endif %}", data-number:"{{ number.number}}", data-country:"{{ number.country}}" }
               %span.number

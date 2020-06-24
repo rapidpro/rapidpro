@@ -44,7 +44,7 @@ from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
 from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.text import slugify_with
-from temba.utils.views import BaseActionForm
+from temba.utils.views import BaseActionForm, NonAtomicMixin
 from temba.values.constants import Value
 
 from .models import (
@@ -1442,7 +1442,7 @@ class ContactCRUDL(SmartCRUDL):
 
             Contact.get_or_create_by_urns(obj.org, self.request.user, obj.name, urns)
 
-    class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
         success_url = "uuid@contacts.contact_read"
         success_message = ""
@@ -1475,10 +1475,6 @@ class ContactCRUDL(SmartCRUDL):
             obj = self.get_object()
             data = form.cleaned_data
 
-            new_groups = self.form.cleaned_data.get("groups")
-            if new_groups is not None:
-                obj.update_static_groups(self.request.user, new_groups)
-
             if not self.org.is_anon:
                 urns = []
 
@@ -1500,16 +1496,32 @@ class ContactCRUDL(SmartCRUDL):
                 urns = [urn[1] for urn in sorted(urns, key=lambda x: x[0])]
                 obj.update_urns(self.request.user, urns)
 
-            # eventually mailroom will do groups and URNs as well, but for now just do the mailroom parts
-            # last so that group re-evaluation happens after the groups and URNs have been set
+            # eventually mailroom will do URNs as well, but for now just do the mailroom parts
+            # last so that group re-evaluation happens after the URNs have been set
+            mods = obj.update(data.get("name"), data.get("language"))
+
+            new_groups = self.form.cleaned_data.get("groups")
+            if new_groups is not None:
+                mods += obj.update_static_groups(new_groups)
+
             try:
-                obj.update(self.request.user, data.get("name"), data.get("language"))
+                obj.modify(self.request.user, *mods)
             except Exception:
                 errors = form._errors.setdefault(forms.forms.NON_FIELD_ERRORS, forms.utils.ErrorList())
                 errors.append(_("An error occurred updating your contact. Please try again later."))
                 return self.render_to_response(self.get_context_data(form=form))
 
-            return HttpResponseRedirect(self.get_success_url())
+            messages.success(self.request, self.derive_success_message())
+
+            response = self.render_to_response(
+                self.get_context_data(
+                    form=form,
+                    success_url=self.get_success_url(),
+                    success_script=getattr(self, "success_script", None),
+                )
+            )
+            response["Temba-Success"] = self.get_success_url()
+            return response
 
     class UpdateFields(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = ContactFieldForm
