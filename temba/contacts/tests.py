@@ -1526,7 +1526,8 @@ class ContactTest(TembaTest):
             evaluate_query(self.org, f'created_on <= "{query_created_on}"', contact_json=self.joe.as_search_json())
         )
 
-    def test_contact_search_evaluation(self):
+    @mock_mailroom
+    def test_contact_search_evaluation(self, mr_mocks):
         self.setUpLocations()
 
         ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type=Value.TYPE_TEXT)
@@ -1771,7 +1772,8 @@ class ContactTest(TembaTest):
         self.assertTrue(evaluate_query(self.org, 'twitter = ""', contact_json=self.billy.as_search_json()))
 
         # add another tel URN
-        self.joe.update_urns(self.admin, urns=["tel:+250781111999", "tel:+250781111111", "twitter:blow80"])
+        mods = self.joe.update_urns(["tel:+250781111999", "tel:+250781111111", "twitter:blow80"])
+        self.joe.modify(self.user, *mods)
 
         self.assertTrue(evaluate_query(self.org, "+250781111111", contact_json=self.joe.as_search_json()))
         self.assertTrue(evaluate_query(self.org, "tel = +250781111999", contact_json=self.joe.as_search_json()))
@@ -3734,37 +3736,8 @@ class ContactTest(TembaTest):
         # just a NOOP
         Contact.bulk_modify(self.admin, [], modifiers.Language(language="spa"))
 
-    def test_number_normalized(self):
-        self.org.country = None
-        self.org.save(update_fields=("country",))
-
-        self.channel.country = "GB"
-        self.channel.save(update_fields=("country",))
-
-        self.login(self.admin)
-
-        self.client.post(reverse("contacts.contact_create"), dict(name="Ryan Lewis", urn__tel__0="07531669965"))
-        contact = Contact.from_urn(self.org, "tel:+447531669965")
-        self.assertEqual("Ryan Lewis", contact.name)
-
-        with patch("temba.mailroom.client.MailroomClient.contact_modify") as mock_modify:
-            mock_modify.return_value = {"1": {"contact": {}, "events": []}}
-
-            # try the update case
-            response = self.client.post(
-                reverse("contacts.contact_update", args=[contact.id]),
-                dict(name="Marshal Mathers", urn__tel__0="07531669966"),
-            )
-            self.assertEqual(200, response.status_code)
-
-            mock_modify.assert_called_once_with(
-                self.org.id, self.admin.id, [contact.id], [modifiers.Name(name="Marshal Mathers")]
-            )
-
-            contact_updated = Contact.from_urn(self.org, "tel:+447531669966")
-            self.assertEqual(contact_updated.id, contact.id)
-
-    def test_contact_model(self):
+    @mock_mailroom
+    def test_contact_model(self, mr_mocks):
         contact1 = self.create_contact(name="Ludacris", number="123456")
 
         first_modified_on = contact1.modified_on
@@ -3792,7 +3765,10 @@ class ContactTest(TembaTest):
         contact6 = self.create_contact(name="James", number="0788333555")
         self.assertEqual(contact5.pk, contact6.pk)
 
-        contact5.update_urns(self.user, ["twitter:jimmy_woot", "tel:0788333666"])
+        mods = contact5.update_urns(["twitter:jimmy_woot", "tel:0788333666"])
+        contact5.modify(self.user, *mods)
+
+        contact5.refresh_from_db()
 
         # check old phone URN still existing but was detached
         self.assertIsNone(ContactURN.objects.get(identity="tel:+250788333555").contact)
@@ -3807,16 +3783,6 @@ class ContactTest(TembaTest):
         self.assertEqual("tel:+250788333666", str(contact5.get_urn(schemes=[TEL_SCHEME])))
         self.assertIsNone(contact5.get_urn(schemes=["email"]))
         self.assertIsNone(contact5.get_urn(schemes=["facebook"]))
-
-        # check that we can steal other contact's URNs
-        now = timezone.now()
-        contact5.update_urns(self.user, ["tel:0788333444"])
-        self.assertEqual(contact5, ContactURN.objects.get(identity="tel:+250788333444").contact)
-
-        # assert contact 4 no longer has the URN and had its modified_on updated
-        self.assertFalse(contact4.urns.all())
-        contact4.refresh_from_db()
-        self.assertTrue(contact4.modified_on > now)
 
     def test_from_urn(self):
         self.assertEqual(Contact.from_urn(self.org, "tel:+250781111111"), self.joe)  # URN with contact
@@ -5456,34 +5422,6 @@ class ContactTest(TembaTest):
         jemila.set_field(user1, "ward", "bichi")
         self.assertEqual(jemila.get_field_serialized(ward), "Rwanda > Kano > Bichi > Bichi")
 
-    def test_urn_priority(self):
-        bob = self.create_contact("Bob")
-
-        bob.update_urns(self.user, ["tel:456", "tel:789"])
-        urns = bob.urns.all().order_by("-priority")
-        self.assertEqual(2, len(urns))
-        self.assertEqual("456", urns[0].path)
-        self.assertEqual("789", urns[1].path)
-        self.assertEqual(99, urns[0].priority)
-        self.assertEqual(98, urns[1].priority)
-
-        bob.update_urns(self.user, ["tel:789", "tel:456"])
-        urns = bob.urns.all().order_by("-priority")
-        self.assertEqual(2, len(urns))
-        self.assertEqual("789", urns[0].path)
-        self.assertEqual("456", urns[1].path)
-
-        # add an email urn
-        bob.update_urns(self.user, ["mailto:bob@marley.com", "tel:789", "tel:456"])
-        urns = bob.urns.all().order_by("-priority")
-        self.assertEqual(3, len(urns))
-        self.assertEqual(99, urns[0].priority)
-        self.assertEqual(98, urns[1].priority)
-        self.assertEqual(97, urns[2].priority)
-
-        # it'll come back as the highest priority
-        self.assertEqual("bob@marley.com", urns[0].path)
-
     @mock_mailroom
     def test_update_handling(self, mr_mocks):
         bob = self.create_contact("Bob", "111222")
@@ -5491,10 +5429,6 @@ class ContactTest(TembaTest):
         bob.save(update_fields=("name",), handle_update=False)
 
         group = self.create_group("Customers", [])
-
-        old_modified_on = bob.modified_on
-        bob.update_urns(self.user, ["tel:111333"])
-        self.assertTrue(bob.modified_on > old_modified_on)
 
         old_modified_on = bob.modified_on
         mods = bob.update_static_groups([group])
@@ -5569,18 +5503,6 @@ class ContactTest(TembaTest):
             self.frank.set_field(self.user, "gender", "Female")
             self.assertEqual([self.joe], list(men_group.contacts.order_by("name")))
             self.assertEqual([self.frank, self.mary], list(women_group.contacts.order_by("name")))
-
-            # Mary changes her twitter handle
-            self.mary.update_urns(self.user, ["twitter:blow80"])
-            self.assertEqual([self.joe, self.mary], list(joes_group.contacts.order_by("name")))
-
-            # Mary should also have an event fire now
-            joe_fires = EventFire.objects.filter(event=joes_event)
-            self.assertEqual(2, joe_fires.count())
-
-            # change Mary's URNs
-            self.mary.update_urns(self.user, ["tel:54321", "twitter:mary_mary"])
-            self.assertEqual([self.frank, self.joe], list(mtn_group.contacts.order_by("name")))
 
 
 class ContactURNTest(TembaTest):
@@ -5805,7 +5727,7 @@ class ContactFieldTest(TembaTest):
         urns = [str(urn) for urn in contact2.get_urns()]
         urns.append("mailto:adam@sumner.com")
         urns.append("telegram:1234")
-        contact2.update_urns(self.admin, urns)
+        contact2.modify(self.admin, *contact2.update_urns(urns))
 
         group = self.create_group("Poppin Tags", [contact, contact2])
         group2 = self.create_group("Dynamic", query="tel is 1234")
