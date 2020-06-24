@@ -1782,7 +1782,7 @@ class APITest(TembaTest):
         self.assertEqual(jean.get_field_value(nickname), "Jado")
 
         # update by UUID and change all fields
-        with self.assertNumQueries(45):
+        with self.assertNumQueries(46):
             response = self.postJSON(
                 url,
                 "uuid=%s" % jean.uuid,
