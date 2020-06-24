@@ -1,3 +1,9 @@
+v5.5.68
+----------
+ * Fix contact update view
+ * Allow multi-user / multi-org to be set on each org
+ * Fix additional urls import
+
 v5.5.66
 ----------
  * Implement Contact.update_static_groups using modifiers
