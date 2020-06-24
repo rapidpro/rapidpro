@@ -31,7 +31,7 @@ class BoundaryCRUDL(SmartCRUDL):
             if not response:
                 org = request.user.get_org()
                 if not org.country:
-                    messages.warning(request, _("You must select a country for your organization."))
+                    messages.warning(request, _("You must select a country for your workspace."))
                     return HttpResponseRedirect(reverse("orgs.org_home"))
 
             return None

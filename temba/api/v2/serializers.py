@@ -18,6 +18,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
+from temba.mailroom import modifiers
 from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticketer
@@ -627,23 +628,17 @@ class ContactWriteSerializer(WriteSerializer):
         groups = self.validated_data.get("groups")
         custom_fields = self.validated_data.get("fields")
 
-        changed = []
+        mods = []
 
         if self.instance:
             # update our name and language
             if "name" in self.validated_data and name != self.instance.name:
-                self.instance.name = name
-                changed.append("name")
+                mods.append(modifiers.Name(name=name))
             if "language" in self.validated_data and language != self.instance.language:
-                self.instance.language = language
-                changed.append("language")
-
-            if changed:
-                self.instance.save(update_fields=changed, handle_update=True)
+                mods.append(modifiers.Language(language=language))
 
             if "urns" in self.validated_data and urns is not None:
                 self.instance.update_urns(self.context["user"], urns)
-
         else:
             self.instance = Contact.get_or_create_by_urns(
                 self.context["org"], self.context["user"], name, urns=urns, language=language
@@ -655,7 +650,10 @@ class ContactWriteSerializer(WriteSerializer):
 
         # update our groups
         if groups is not None:
-            self.instance.update_static_groups(self.context["user"], groups)
+            mods += self.instance.update_static_groups(groups)
+
+        if mods:
+            self.instance.modify(self.context["user"], *mods)
 
         return self.instance
 
@@ -826,14 +824,13 @@ class ContactBulkActionSerializer(WriteSerializer):
             mailroom.queue_interrupt(self.context["org"], contacts=contacts)
         elif action == self.ARCHIVE:
             Msg.archive_all_for_contacts(contacts)
-        else:
+        elif action == self.BLOCK:
+            Contact.bulk_change_status(user, contacts, Contact.STATUS_BLOCKED)
+        elif action == self.UNBLOCK:
+            Contact.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
+        elif action == self.DELETE:
             for contact in contacts:
-                if action == self.BLOCK:
-                    contact.block(user)
-                elif action == self.UNBLOCK:
-                    contact.unblock(user)
-                elif action == self.DELETE:
-                    contact.release(user)
+                contact.release(user)
 
 
 class FlowReadSerializer(ReadSerializer):

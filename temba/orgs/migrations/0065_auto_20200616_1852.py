@@ -5,9 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("orgs", "0064_populate_new_org_fields"),
-    ]
+    dependencies = [("orgs", "0064_populate_new_org_fields")]
 
     operations = [
         migrations.AlterField(

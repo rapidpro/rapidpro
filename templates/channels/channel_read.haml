@@ -350,7 +350,7 @@
       .body
         %p
           {% if object.dependent_flows.count == 0 %}
-          -trans "Are you sure you want to remove this channel from your account?"
+          -trans "Are you sure you want to remove this channel from your workspace?"
           .number.text-center
             {{ object.get_channel_type_display }} {{ object.get_address_display|default:'' }}
           {% else %}

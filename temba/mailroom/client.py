@@ -1,10 +1,13 @@
 import logging
+from typing import List
 
 import requests
 
 from django.conf import settings
 
 from temba.utils import json
+
+from .modifiers import Modifier
 
 logger = logging.getLogger(__name__)
 
@@ -118,8 +121,13 @@ class MailroomClient:
     def sim_resume(self, payload):
         return self._request("sim/resume", payload)
 
-    def contact_modify(self, org_id, user_id, contact_ids, modifiers):
-        payload = {"org_id": org_id, "user_id": user_id, "contact_ids": contact_ids, "modifiers": modifiers}
+    def contact_modify(self, org_id, user_id, contact_ids, modifiers: List[Modifier]):
+        payload = {
+            "org_id": org_id,
+            "user_id": user_id,
+            "contact_ids": contact_ids,
+            "modifiers": [m.as_def() for m in modifiers],
+        }
 
         return self._request("contact/modify", payload)
 
@@ -174,5 +182,5 @@ class MailroomClient:
         return return_val
 
 
-def get_client():
+def get_client() -> MailroomClient:
     return MailroomClient(settings.MAILROOM_URL, settings.MAILROOM_AUTH_TOKEN)

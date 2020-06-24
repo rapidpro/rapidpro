@@ -1121,11 +1121,11 @@ class MiddlewareTest(TembaTest):
             self.assertRedirect(self.client.get(reverse("public.public_index")), "/redirect")
 
     def test_activate_language(self):
-        self.assertContains(self.client.get(reverse("public.public_index")), "Create Account")
+        self.assertContains(self.client.get(reverse("public.public_index")), "Sign Up")
 
         self.login(self.admin)
 
-        self.assertContains(self.client.get(reverse("public.public_index")), "Create Account")
+        self.assertContains(self.client.get(reverse("public.public_index")), "Sign Up")
         self.assertContains(self.client.get(reverse("contacts.contact_list")), "Import Contacts")
 
         UserSettings.objects.filter(user=self.admin).update(language="fr")
