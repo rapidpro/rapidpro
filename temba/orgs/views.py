@@ -570,10 +570,6 @@ class OrgCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
 
             def clean_import_file(self):
-                # make sure they are in the proper tier
-                if not self.org.is_import_flows_tier():
-                    raise ValidationError(_("Sorry, import is a premium feature"))
-
                 # check that it isn't too old
                 data = self.cleaned_data["import_file"].read()
                 try:
@@ -1132,7 +1128,7 @@ class OrgCRUDL(SmartCRUDL):
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
     class Update(SmartUpdateView):
-        fields = ("name", "brand", "parent", "is_anon")
+        fields = ("name", "brand", "parent", "is_anon", "is_multi_user", "is_multi_org")
 
         class OrgUpdateForm(forms.ModelForm):
             parent = forms.IntegerField(required=False)
@@ -1144,7 +1140,17 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Org
-                fields = ("name", "slug", "stripe_customer", "is_active", "is_anon", "brand", "parent")
+                fields = (
+                    "name",
+                    "slug",
+                    "stripe_customer",
+                    "is_active",
+                    "is_anon",
+                    "is_multi_user",
+                    "is_multi_org",
+                    "brand",
+                    "parent",
+                )
 
         form_class = OrgUpdateForm
 
@@ -1408,7 +1414,7 @@ class OrgCRUDL(SmartCRUDL):
         # if we don't support multi orgs, go home
         def pre_process(self, request, *args, **kwargs):
             response = super().pre_process(request, *args, **kwargs)
-            if not response and not request.user.get_org().is_multi_org_tier():
+            if not response and not request.user.get_org().is_multi_org:
                 return HttpResponseRedirect(reverse("orgs.org_home"))
             return response
 
@@ -2404,7 +2410,7 @@ class OrgCRUDL(SmartCRUDL):
                 formax.add_section("user", reverse("orgs.user_edit"), icon="icon-user", action="redirect")
 
             # only pro orgs get multiple users
-            if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user_tier():
+            if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user:
                 formax.add_section("accounts", reverse("orgs.org_accounts"), icon="icon-users", action="redirect")
 
             if self.has_org_perm("orgs.org_two_factor"):

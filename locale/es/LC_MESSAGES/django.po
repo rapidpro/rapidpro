@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-22 23:12+0000\n"
+"POT-Creation-Date: 2020-06-24 14:31+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -5091,6 +5091,16 @@ msgstr "Si este informe está publicado actualmente"
 msgid "Whether this organization uses topups."
 msgstr "Si este informe está publicado actualmente"
 
+#, fuzzy
+#| msgid "Whether this report is currently published"
+msgid "Whether this organization can have child workspaces"
+msgstr "Si este informe está publicado actualmente"
+
+#, fuzzy
+#| msgid "Whether this report is currently published"
+msgid "Whether this organization can have multiple logins"
+msgstr "Si este informe está publicado actualmente"
+
 msgid "The primary language will be used for contacts with no language preference."
 msgstr "Para los contactos sin preferencia de idioma, se usará el idioma principal"
 
@@ -5376,9 +5386,6 @@ msgstr "El archivo de importación"
 
 msgid "Update all flows and campaigns"
 msgstr "Actualizar todos los flujos y campañas"
-
-msgid "Sorry, import is a premium feature"
-msgstr "Lo sentimos, la importación es una función premium"
 
 msgid "This file is not a valid flow definition file."
 msgstr ""
@@ -12781,6 +12788,9 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Sorry, import is a premium feature"
+#~ msgstr "Lo sentimos, la importación es una función premium"
 
 #, fuzzy
 #~| msgid "Manage %(name)s Accounts"

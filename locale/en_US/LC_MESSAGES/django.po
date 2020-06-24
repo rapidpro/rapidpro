@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-22 23:12+0000\n"
+"POT-Creation-Date: 2020-06-24 14:31+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3583,6 +3583,12 @@ msgstr ""
 msgid "Whether this organization uses topups."
 msgstr ""
 
+msgid "Whether this organization can have child workspaces"
+msgstr ""
+
+msgid "Whether this organization can have multiple logins"
+msgstr ""
+
 msgid "The primary language will be used for contacts with no language preference."
 msgstr ""
 
@@ -3828,9 +3834,6 @@ msgid "The import file"
 msgstr ""
 
 msgid "Update all flows and campaigns"
-msgstr ""
-
-msgid "Sorry, import is a premium feature"
 msgstr ""
 
 msgid "This file is not a valid flow definition file."

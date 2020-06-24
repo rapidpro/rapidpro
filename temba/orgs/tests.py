@@ -1583,6 +1583,9 @@ class OrgTest(TembaTest):
     def test_topups(self):
 
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_user=100_000, multi_org=1_000_000)
+        self.org.is_multi_org = False
+        self.org.is_multi_user = False
+        self.org.save(update_fields=["is_multi_user", "is_multi_org"])
 
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
         welcome_topup = self.org.topups.get()
@@ -1666,8 +1669,8 @@ class OrgTest(TembaTest):
         self.assertEqual(-5, self.org.get_credits_remaining())
 
         # test special status
-        self.assertFalse(self.org.is_multi_user_tier())
-        self.assertFalse(self.org.is_multi_org_tier())
+        self.assertFalse(self.org.is_multi_user)
+        self.assertFalse(self.org.is_multi_org)
 
         # add new topup with lots of credits
         mega_topup = TopUp.create(self.admin, price=0, credits=100_000)
@@ -1679,7 +1682,7 @@ class OrgTest(TembaTest):
 
         # we aren't yet multi user since this topup was free
         self.assertEqual(0, self.org.get_purchased_credits())
-        self.assertFalse(self.org.is_multi_user_tier())
+        self.assertFalse(self.org.is_multi_user)
 
         self.assertEqual(100_025, self.org.get_credits_total())
         self.assertEqual(99995, self.org.get_credits_remaining())
@@ -1719,7 +1722,7 @@ class OrgTest(TembaTest):
         gift_topup.save(update_fields=["expires_on"])
         self.org.apply_topups()
 
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(3):
             self.assertEqual(15, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
@@ -1732,7 +1735,7 @@ class OrgTest(TembaTest):
         later_active_topup.save(update_fields=["expires_on"])
         self.org.apply_topups()
 
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(4):
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
@@ -1772,14 +1775,16 @@ class OrgTest(TembaTest):
         # now buy some credits to make us multi user
         TopUp.create(self.admin, price=100, credits=100_000)
         self.org.clear_credit_cache()
-        self.assertTrue(self.org.is_multi_user_tier())
-        self.assertFalse(self.org.is_multi_org_tier())
+        self.org.reset_capabilities()
+        self.assertTrue(self.org.is_multi_user)
+        self.assertFalse(self.org.is_multi_org)
 
         # good deal!
         TopUp.create(self.admin, price=100, credits=1_000_000)
         self.org.clear_credit_cache()
-        self.assertTrue(self.org.is_multi_user_tier())
-        self.assertTrue(self.org.is_multi_org_tier())
+        self.org.reset_capabilities()
+        self.assertTrue(self.org.is_multi_user)
+        self.assertTrue(self.org.is_multi_org)
 
     @patch("temba.orgs.views.Client", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
@@ -2512,33 +2517,30 @@ class OrgTest(TembaTest):
             self.assertRedirect(response, reverse("channels.types.plivo.claim"))
 
     def test_tiers(self):
-
         # default is no tiers, everything is allowed, go crazy!
-        self.assertTrue(self.org.is_import_flows_tier())
-        self.assertTrue(self.org.is_multi_user_tier())
-        self.assertTrue(self.org.is_multi_org_tier())
+        self.assertTrue(self.org.is_multi_user)
+        self.assertTrue(self.org.is_multi_org)
 
-        # same when tiers are missing completely
         del settings.BRANDING[settings.DEFAULT_BRAND]["tiers"]
-        self.assertTrue(self.org.is_import_flows_tier())
-        self.assertTrue(self.org.is_multi_user_tier())
-        self.assertTrue(self.org.is_multi_org_tier())
+        self.org.reset_capabilities()
+        self.assertTrue(self.org.is_multi_user)
+        self.assertTrue(self.org.is_multi_org)
 
         # not enough credits with tiers enabled
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(
             import_flows=1, multi_user=100_000, multi_org=1_000_000
         )
+        self.org.reset_capabilities()
         self.assertIsNone(self.org.create_sub_org("Sub Org A"))
-        self.assertFalse(self.org.is_import_flows_tier())
-        self.assertFalse(self.org.is_multi_user_tier())
-        self.assertFalse(self.org.is_multi_org_tier())
+        self.assertFalse(self.org.is_multi_user)
+        self.assertFalse(self.org.is_multi_org)
 
         # not enough credits, but tiers disabled
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(import_flows=0, multi_user=0, multi_org=0)
+        self.org.reset_capabilities()
         self.assertIsNotNone(self.org.create_sub_org("Sub Org A"))
-        self.assertTrue(self.org.is_import_flows_tier())
-        self.assertTrue(self.org.is_multi_user_tier())
-        self.assertTrue(self.org.is_multi_org_tier())
+        self.assertTrue(self.org.is_multi_user)
+        self.assertTrue(self.org.is_multi_org)
 
         # tiers enabled, but enough credits
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(
@@ -2547,12 +2549,12 @@ class OrgTest(TembaTest):
         TopUp.create(self.admin, price=100, credits=1_000_000)
         self.org.clear_credit_cache()
         self.assertIsNotNone(self.org.create_sub_org("Sub Org B"))
-        self.assertTrue(self.org.is_import_flows_tier())
-        self.assertTrue(self.org.is_multi_user_tier())
-        self.assertTrue(self.org.is_multi_org_tier())
+        self.assertTrue(self.org.is_multi_user)
+        self.assertTrue(self.org.is_multi_org)
 
     def test_sub_orgs_management(self):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
+        self.org.reset_capabilities()
 
         sub_org = self.org.create_sub_org("Sub Org")
 
@@ -2561,13 +2563,14 @@ class OrgTest(TembaTest):
 
         # lower the tier and try again
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
+        self.org.reset_capabilities()
         sub_org = self.org.create_sub_org("Sub Org")
 
         # suborg has been created
         self.assertIsNotNone(sub_org)
 
-        # suborgs can't create suborgs
-        self.assertIsNone(sub_org.create_sub_org("Grandchild Org"))
+        # suborgs can create suborgs
+        self.assertIsNotNone(sub_org.create_sub_org("Grandchild Org"))
 
         # we should be linked to our parent with the same brand
         self.assertEqual(self.org, sub_org.parent)
@@ -2680,10 +2683,10 @@ class OrgTest(TembaTest):
         self.assertEqual(0, self.org.get_credits_remaining())
 
     def test_sub_org_ui(self):
-
         self.login(self.admin)
 
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
+        self.org.reset_capabilities()
 
         # set our org on the session
         session = self.client.session
@@ -2716,7 +2719,8 @@ class OrgTest(TembaTest):
 
         # zero out our tier
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
-        self.assertTrue(self.org.is_multi_org_tier())
+        self.org.reset_capabilities()
+        self.assertTrue(self.org.is_multi_org)
         response = self.client.get(reverse("orgs.org_home"))
         self.assertContains(response, "Manage Workspaces")
 
@@ -3856,30 +3860,6 @@ class BulkExportTest(TembaTest):
 
         self.login(self.admin)
 
-        # try importing without having purchased credits
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(
-            import_flows=1, multi_user=100_000, multi_org=1_000_000
-        )
-        post_data = dict(import_file=open("%s/test_flows/new_mother.json" % settings.MEDIA_ROOT, "rb"))
-        response = self.client.post(reverse("orgs.org_import"), post_data)
-        self.assertFormError(response, "form", "import_file", "Sorry, import is a premium feature")
-
-        # now purchase some credits and try again
-        TopUp.objects.create(
-            org=self.org,
-            price=1,
-            credits=10000,
-            expires_on=timezone.now() + timedelta(days=30),
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-
-        # force our cache to reload
-        self.org.get_credits_total(force_dirty=True)
-        self.org.clear_credit_cache()
-        self.assertTrue(self.org.get_purchased_credits() > 0)
-
-        # now try again with purchased credits, but our file is too old
         post_data = dict(import_file=open("%s/test_flows/too_old.json" % settings.MEDIA_ROOT, "rb"))
         response = self.client.post(reverse("orgs.org_import"), post_data)
         self.assertFormError(
