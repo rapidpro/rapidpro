@@ -2569,7 +2569,7 @@ class FlowCRUDL(SmartCRUDL):
                         required=False,
                         initial=flow_param,
                         label=None,
-                        widget=forms.TextInput(attrs={"readonly": True}),
+                        widget=forms.TextInput(attrs={"readonly": True, "title": flow_param}),
                     )
                     self.fields[f"flow_param_value_{counter}"] = forms.CharField(required=False)
                     if f"flow_param_field_{counter}" not in FlowCRUDL.Launch.flow_params_fields:
