@@ -1371,6 +1371,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
     model = Contact
     serializer_class = ContactReadSerializer
     write_serializer_class = ContactWriteSerializer
+    write_with_transaction = False
     pagination_class = ModifiedOnCursorPagination
     throttle_scope = "v2.contacts"
     lookup_params = {"uuid": "uuid", "urn": "urns__identity"}
