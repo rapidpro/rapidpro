@@ -656,6 +656,7 @@ class ContactWriteSerializer(WriteSerializer):
 
         if mods:
             self.instance.modify(self.context["user"], *mods)
+            self.instance.refresh_from_db()
 
         return self.instance
 
