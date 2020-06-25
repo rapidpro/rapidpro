@@ -655,8 +655,7 @@ class ContactWriteSerializer(WriteSerializer):
                 mods += self.instance.update_static_groups(groups)
 
         if mods:
-            self.instance.modify(self.context["user"], *mods)
-            self.instance.refresh_from_db()
+            self.instance.modify(self.context["user"], mods)
 
         return self.instance
 

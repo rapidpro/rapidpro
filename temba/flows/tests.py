@@ -4409,7 +4409,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         mods = self.contact.update_urns(["tel:+250788382382", "twitter:erictweets"])
-        self.contact.modify(self.admin, *mods)
+        self.contact.modify(self.admin, mods)
         devs = self.create_group("Devs", [self.contact])
 
         # contact name with an illegal character

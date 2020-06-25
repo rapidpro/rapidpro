@@ -1773,7 +1773,7 @@ class ContactTest(TembaTest):
 
         # add another tel URN
         mods = self.joe.update_urns(["tel:+250781111999", "tel:+250781111111", "twitter:blow80"])
-        self.joe.modify(self.user, *mods)
+        self.joe.modify(self.user, mods)
 
         self.assertTrue(evaluate_query(self.org, "+250781111111", contact_json=self.joe.as_search_json()))
         self.assertTrue(evaluate_query(self.org, "tel = +250781111999", contact_json=self.joe.as_search_json()))
@@ -1836,6 +1836,7 @@ class ContactTest(TembaTest):
         )
 
         with AnonymousOrg(self.org):
+            self.joe.refresh_from_db()
 
             self.assertTrue(evaluate_query(self.org, "gender = male", contact_json=self.joe.as_search_json()))
             self.assertTrue(evaluate_query(self.org, "gender != female", contact_json=self.joe.as_search_json()))
@@ -3712,7 +3713,7 @@ class ContactTest(TembaTest):
             mods,
         )
 
-        self.joe.modify(self.admin, *mods)
+        self.joe.modify(self.admin, mods)
 
         # remove from one and add to another
         mods = self.joe.update_static_groups([testers, customers])
@@ -3734,7 +3735,7 @@ class ContactTest(TembaTest):
         mock_contact_modify.return_value = {}
 
         # just a NOOP
-        Contact.bulk_modify(self.admin, [], modifiers.Language(language="spa"))
+        Contact.bulk_modify(self.admin, [], [modifiers.Language(language="spa")])
 
     @mock_mailroom
     def test_contact_model(self, mr_mocks):
@@ -3766,9 +3767,7 @@ class ContactTest(TembaTest):
         self.assertEqual(contact5.pk, contact6.pk)
 
         mods = contact5.update_urns(["twitter:jimmy_woot", "tel:0788333666"])
-        contact5.modify(self.user, *mods)
-
-        contact5.refresh_from_db()
+        contact5.modify(self.user, mods)
 
         # check old phone URN still existing but was detached
         self.assertIsNone(ContactURN.objects.get(identity="tel:+250788333555").contact)
@@ -5432,9 +5431,8 @@ class ContactTest(TembaTest):
 
         old_modified_on = bob.modified_on
         mods = bob.update_static_groups([group])
-        bob.modify(self.admin, *mods)
+        bob.modify(self.admin, mods)
 
-        bob.refresh_from_db()
         self.assertTrue(bob.modified_on > old_modified_on)
 
         old_modified_on = bob.modified_on
@@ -5727,7 +5725,7 @@ class ContactFieldTest(TembaTest):
         urns = [str(urn) for urn in contact2.get_urns()]
         urns.append("mailto:adam@sumner.com")
         urns.append("telegram:1234")
-        contact2.modify(self.admin, *contact2.update_urns(urns))
+        contact2.modify(self.admin, contact2.update_urns(urns))
 
         group = self.create_group("Poppin Tags", [contact, contact2])
         group2 = self.create_group("Dynamic", query="tel is 1234")

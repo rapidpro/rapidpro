@@ -1503,7 +1503,7 @@ class ContactCRUDL(SmartCRUDL):
                 mods += obj.update_urns(urns)
 
             try:
-                obj.modify(self.request.user, *mods)
+                obj.modify(self.request.user, mods)
             except Exception:
                 errors = form._errors.setdefault(forms.forms.NON_FIELD_ERRORS, forms.utils.ErrorList())
                 errors.append(_("An error occurred updating your contact. Please try again later."))

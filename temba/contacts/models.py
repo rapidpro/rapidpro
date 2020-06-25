@@ -1278,18 +1278,20 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     def update_urns(self, urns: List[str]) -> List[modifiers.Modifier]:
         return [modifiers.URNs(urns=urns, modification="set")]
 
-    def modify(self, user, *mods: modifiers.Modifier):
-        self.bulk_modify(user, [self], *mods)
+    def modify(self, user, mods: List[modifiers.Modifier], refresh=True):
+        self.bulk_modify(user, [self], mods)
+        if refresh:
+            self.refresh_from_db()
 
     @classmethod
-    def bulk_modify(cls, user, contacts, *mods: modifiers.Modifier):
+    def bulk_modify(cls, user, contacts, mods: List[modifiers.Modifier]):
         if not contacts:
             return
 
         org = contacts[0].org
         client = mailroom.get_client()
         try:
-            response = client.contact_modify(org.id, user.id, [c.id for c in contacts], list(mods))
+            response = client.contact_modify(org.id, user.id, [c.id for c in contacts], mods)
         except mailroom.MailroomException as e:
             logger.error(f"Contact update failed: {str(e)}", exc_info=True)
             raise e
@@ -1983,7 +1985,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def bulk_change_status(cls, user, contacts, status):
-        return cls.bulk_modify(user, contacts, modifiers.Status(status=status))
+        return cls.bulk_modify(user, contacts, [modifiers.Status(status=status)])
 
     @classmethod
     def apply_action_block(cls, user, contacts):
