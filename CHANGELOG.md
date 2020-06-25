@@ -1,3 +1,7 @@
+v5.5.70
+----------
+ * Use modifiers and mailroom to update contact URNs
+
 v5.5.69
 ----------
  * Refresh contact after letting mailroom make changes
