@@ -1120,6 +1120,7 @@ class ChannelTest(TembaTest):
     def test_quota_exceeded(self):
         # reduce out credits to 10
         self.org.topups.all().update(credits=10)
+        self.org.clear_credit_cache()
 
         self.assertEqual(10, self.org.get_credits_remaining())
         self.assertEqual(0, self.org.get_credits_used())

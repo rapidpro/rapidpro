@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-24 07:20+0000\n"
+"POT-Creation-Date: 2020-06-24 14:31+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3922,6 +3922,16 @@ msgstr "Cette organisation a été suspendue"
 msgid "Whether this organization uses topups."
 msgstr "Cette organisation a été suspendue"
 
+#, fuzzy
+#| msgid "This organization has been suspended"
+msgid "Whether this organization can have child workspaces"
+msgstr "Cette organisation a été suspendue"
+
+#, fuzzy
+#| msgid "This organization has been suspended"
+msgid "Whether this organization can have multiple logins"
+msgstr "Cette organisation a été suspendue"
+
 msgid "The primary language will be used for contacts with no language preference."
 msgstr "La langue principale sera utilisée pour les contacts sans préférence linguistique."
 
@@ -4184,9 +4194,6 @@ msgstr "Le fichier d'importation"
 
 msgid "Update all flows and campaigns"
 msgstr "Mettre à jour tous les flux et les campagnes"
-
-msgid "Sorry, import is a premium feature"
-msgstr "Désolé, l'importation est une fonctionnalité de la version premium"
 
 msgid "This file is not a valid flow definition file."
 msgstr "Ce fichier n'est pas un fichier de définition de flux valide."
@@ -10978,6 +10985,9 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Sorry, import is a premium feature"
+#~ msgstr "Désolé, l'importation est une fonctionnalité de la version premium"
 
 #~ msgid "Manage Accounts"
 #~ msgstr "Gérer les comptes"

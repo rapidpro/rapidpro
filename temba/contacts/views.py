@@ -44,7 +44,7 @@ from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
 from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.text import slugify_with
-from temba.utils.views import BaseActionForm
+from temba.utils.views import BaseActionForm, NonAtomicMixin
 from temba.values.constants import Value
 
 from .models import (
@@ -1442,7 +1442,7 @@ class ContactCRUDL(SmartCRUDL):
 
             Contact.get_or_create_by_urns(obj.org, self.request.user, obj.name, urns)
 
-    class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
         success_url = "uuid@contacts.contact_read"
         success_message = ""
@@ -1511,7 +1511,17 @@ class ContactCRUDL(SmartCRUDL):
                 errors.append(_("An error occurred updating your contact. Please try again later."))
                 return self.render_to_response(self.get_context_data(form=form))
 
-            return HttpResponseRedirect(self.get_success_url())
+            messages.success(self.request, self.derive_success_message())
+
+            response = self.render_to_response(
+                self.get_context_data(
+                    form=form,
+                    success_url=self.get_success_url(),
+                    success_script=getattr(self, "success_script", None),
+                )
+            )
+            response["Temba-Success"] = self.get_success_url()
+            return response
 
     class UpdateFields(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = ContactFieldForm
