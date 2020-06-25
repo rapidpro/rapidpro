@@ -640,7 +640,7 @@ class ContactWriteSerializer(WriteSerializer):
                     mods.append(modifiers.Language(language=language))
 
                 if "urns" in self.validated_data and urns is not None:
-                    self.instance.update_urns(self.context["user"], urns)
+                    mods += self.instance.update_urns(urns)
             else:
                 self.instance = Contact.get_or_create_by_urns(
                     self.context["org"], self.context["user"], name, urns=urns, language=language
@@ -655,8 +655,7 @@ class ContactWriteSerializer(WriteSerializer):
                 mods += self.instance.update_static_groups(groups)
 
         if mods:
-            self.instance.modify(self.context["user"], *mods)
-            self.instance.refresh_from_db()
+            self.instance.modify(self.context["user"], mods)
 
         return self.instance
 

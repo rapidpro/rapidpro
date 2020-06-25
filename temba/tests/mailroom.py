@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.utils import timezone
 
-from temba.contacts.models import Contact, ContactField, ContactGroup
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.mailroom.client import MailroomClient, MailroomException
 from temba.mailroom.modifiers import Modifier
 
@@ -109,7 +109,51 @@ def apply_modifiers(user, contacts, modifiers: List):
             for group in groups:
                 group.update_contacts(user, contacts, add=add)
 
+        elif mod.type == "urns":
+            assert len(contacts) == 1, "should never be trying to bulk update contact URNs"
+            assert mod.modification == "set", "should only be setting URNs from here"
+
+            update_urns_locally(contacts[0], mod.urns)
+
         contacts.update(modified_by=user, modified_on=timezone.now(), **fields)
         if clear_groups:
             for c in contacts:
                 Contact.objects.get(id=c.id).clear_all_groups(user)
+
+
+def update_urns_locally(contact, urns: List[str]):
+    country = contact.org.get_country_code()
+    priority = ContactURN.PRIORITY_HIGHEST
+
+    urns_created = []  # new URNs created
+    urns_attached = []  # existing orphan URNs attached
+    urns_retained = []  # existing URNs retained
+
+    for urn_as_string in urns:
+        normalized = URN.normalize(urn_as_string, country)
+        urn = ContactURN.lookup(contact.org, normalized)
+
+        if not urn:
+            urn = ContactURN.create(contact.org, contact, normalized, priority=priority)
+            urns_created.append(urn)
+
+        # unassigned URN or different contact
+        elif not urn.contact or urn.contact != contact:
+            urn.contact = contact
+            urn.priority = priority
+            urn.save()
+            urns_attached.append(urn)
+
+        else:
+            if urn.priority != priority:
+                urn.priority = priority
+                urn.save()
+            urns_retained.append(urn)
+
+        # step down our priority
+        priority -= 1
+
+    # detach any existing URNs that weren't included
+    urn_ids = [u.pk for u in (urns_created + urns_attached + urns_retained)]
+    urns_detached = ContactURN.objects.filter(contact=contact).exclude(id__in=urn_ids)
+    urns_detached.update(contact=None)
