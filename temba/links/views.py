@@ -20,6 +20,7 @@ from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.views import BaseActionForm
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.contacts.models import Contact
+from temba.flows.models import Flow
 
 from .models import Link, ExportLinksTask
 from .tasks import export_link_task
@@ -76,13 +77,18 @@ class LinkCRUDL(SmartCRUDL):
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         class LinkCreateForm(BaseFlowForm):
+            related_flow = forms.ModelChoiceField(required=False, queryset=Flow.objects.none())
+
             def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.user = user
+                self.fields["related_flow"].queryset = Flow.objects.filter(
+                    org=self.user.get_org(), is_active=True
+                ).order_by("name")
 
             class Meta:
                 model = Link
-                fields = ("name", "destination")
+                fields = ("name", "related_flow", "destination")
                 widgets = {
                     "destination": forms.URLInput(
                         attrs={"placeholder": "E.g. http://example.com, https://example.com"}
@@ -202,13 +208,18 @@ class LinkCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class LinkUpdateForm(BaseFlowForm):
+            related_flow = forms.ModelChoiceField(required=False, queryset=Flow.objects.none())
+
             def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.user = user
+                self.fields["related_flow"].queryset = Flow.objects.filter(
+                    org=self.user.get_org(), is_active=True
+                ).order_by("name")
 
             class Meta:
                 model = Link
-                fields = ("name", "destination")
+                fields = ("name", "related_flow", "destination")
                 widgets = {
                     "destination": forms.URLInput(
                         attrs={"placeholder": "E.g. http://example.com, https://example.com"}
@@ -217,7 +228,7 @@ class LinkCRUDL(SmartCRUDL):
 
         success_message = ""
         success_url = "uuid@links.link_read"
-        fields = ("name", "destination")
+        fields = ("name", "related_flow", "destination")
         form_class = LinkUpdateForm
 
         def derive_fields(self):
