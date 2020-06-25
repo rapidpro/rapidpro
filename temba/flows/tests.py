@@ -28,7 +28,7 @@ from temba.mailroom import FlowValidationException, MailroomException
 from temba.msgs.models import Label
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticketer
@@ -4389,7 +4389,8 @@ class ExportFlowResultsTest(TembaTest):
         filename = "%s/test_orgs/%d/results_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
         return load_workbook(filename=os.path.join(settings.MEDIA_ROOT, filename))
 
-    def test_export_results(self):
+    @mock_mailroom
+    def test_export_results(self, mr_mocks):
         flow = self.get_flow("color_v13")
         flow_nodes = flow.as_json()["nodes"]
         color_prompt = flow_nodes[0]
@@ -4407,7 +4408,8 @@ class ExportFlowResultsTest(TembaTest):
             }
         )
 
-        self.contact.update_urns(self.admin, ["tel:+250788382382", "twitter:erictweets"])
+        mods = self.contact.update_urns(["tel:+250788382382", "twitter:erictweets"])
+        self.contact.modify(self.admin, mods)
         devs = self.create_group("Devs", [self.contact])
 
         # contact name with an illegal character
