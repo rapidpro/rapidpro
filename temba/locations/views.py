@@ -31,7 +31,7 @@ class BoundaryCRUDL(SmartCRUDL):
             if not response:
                 org = request.user.get_org()
                 if not org.country:
-                    messages.warning(request, _("You must select a country for your organization."))
+                    messages.warning(request, _("You must select a country for your workspace."))
                     return HttpResponseRedirect(reverse("orgs.org_home"))
 
             return None
@@ -64,7 +64,7 @@ class BoundaryCRUDL(SmartCRUDL):
         def derive_url_pattern(cls, path, action):
             # though we are a read view, we don't actually need an id passed
             # in, that is derived
-            return r"^%s/%s/(?P<osmId>\w+\.?\d+\.?\d?\_?\d?)/$" % (path, action)
+            return r"^%s/%s/(?P<osmId>[\w\.]+)/$" % (path, action)
 
         def get_object(self):
             return AdminBoundary.geometries.get(osm_id=self.kwargs["osmId"])

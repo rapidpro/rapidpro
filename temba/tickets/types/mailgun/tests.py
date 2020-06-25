@@ -41,8 +41,8 @@ class MailgunTypeTest(TembaTest):
             email_args = mock_send_email.call_args[0]
             self.assertEqual(email_args[0], "Verify your email address for tickets")
 
-            # extract token from email body
-            token = re.search(r"token is (\w+)", email_args[1]).group(1)
+            # extract code from email body
+            code = re.search(r"code is (\w+)", email_args[1]).group(1)
 
             self.assertEqual("/tickets/types/mailgun/connect?verify=true", response.url)
 
@@ -52,20 +52,18 @@ class MailgunTypeTest(TembaTest):
         step2_url = response.url
 
         response = self.client.get(step2_url)
-        self.assertEqual(["verification_token", "loc"], list(response.context["form"].fields.keys()))
+        self.assertEqual(["verification_code", "loc"], list(response.context["form"].fields.keys()))
 
-        # submit without token...
+        # submit without code...
         response = self.client.post(step2_url, {})
-        self.assertFormError(response, "form", "verification_token", ["This field is required."])
+        self.assertFormError(response, "form", "verification_code", ["This field is required."])
 
-        # submit with wrong token
-        response = self.client.post(step2_url, {"verification_token": "XYZ"})
-        self.assertFormError(
-            response, "form", "verification_token", ["Token does not match, please check your email."]
-        )
+        # submit with wrong code
+        response = self.client.post(step2_url, {"verification_code": "XYZ"})
+        self.assertFormError(response, "form", "verification_code", ["Code does not match, please check your email."])
 
-        # submit with correct token
-        response = self.client.post(step2_url, {"verification_token": token})
+        # submit with correct code
+        response = self.client.post(step2_url, {"verification_code": code})
 
         ticketer = Ticketer.objects.get()
 
@@ -81,8 +79,6 @@ class MailgunTypeTest(TembaTest):
             ticketer.config,
         )
 
-        # submit again after token has been cleared
-        response = self.client.post(step2_url, {"verification_token": "12341"})
-        self.assertFormError(
-            response, "form", "verification_token", ["No verification token found, please start over."]
-        )
+        # submit again after code has been cleared
+        response = self.client.post(step2_url, {"verification_code": "12341"})
+        self.assertFormError(response, "form", "verification_code", ["No verification code found, please start over."])

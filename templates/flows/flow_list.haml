@@ -81,6 +81,9 @@
               -if org_perms.flows.flowstart_list
                 %a.btn.btn-default.btn-block(href="{% url 'flows.flowstart_list' %}")
                   -trans "Flow Start Log"
+              -if org_perms.api.webhookresult_list
+                %a.btn.btn-default.btn-block(href="{% url 'api.webhookresult_list' %}")
+                  -trans "Webhook Call Log"
 
           -block flow-list
             .span9

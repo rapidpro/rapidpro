@@ -26,6 +26,11 @@ from .client import Client, ClientError
 
 
 class ConnectView(BaseConnectView):
+    form_blurb = _(
+        "Enter your Zendesk subdomain. You will be redirected to Zendesk where you need to grant access to this "
+        "application."
+    )
+
     class Form(BaseConnectView.Form):
         subdomain = forms.CharField(help_text=_("Your subdomain on Zendesk"), required=True)
 
@@ -86,7 +91,7 @@ class ConnectView(BaseConnectView):
         client = Client(subdomain)
         try:
             access_token = client.get_oauth_token(
-                settings.ZENDESK_CLIENT_ID, settings.ZENDESK_CLIENT_SECRET, code, self.get_absolute_url(),
+                settings.ZENDESK_CLIENT_ID, settings.ZENDESK_CLIENT_SECRET, code, self.get_absolute_url()
             )
         except ClientError:
             messages.error(request, _("Unable to request OAuth token."))
@@ -105,9 +110,6 @@ class ConnectView(BaseConnectView):
             name=f"Zendesk ({subdomain})",
             config=config,
         )
-
-        # TODO: set up trigger on Zendesk side to callback to us on ticket closures
-        # See: https://developer.zendesk.com/rest_api/docs/support/triggers
 
         return HttpResponseRedirect(self.get_success_url())
 
@@ -203,7 +205,7 @@ class AdminUIView(SmartFormView):
             data = self.cleaned_data["secret"]
 
             ticketers = Ticketer.objects.filter(
-                ticketer_type=ZendeskType.slug, config__subdomain=self.subdomain, config__secret=data, is_active=True,
+                ticketer_type=ZendeskType.slug, config__subdomain=self.subdomain, config__secret=data, is_active=True
             )
             if not ticketers.exists():
                 raise forms.ValidationError(_("Secret is incorrect."))
@@ -274,7 +276,7 @@ class AdminUIView(SmartFormView):
         secret = form.cleaned_data["secret"]
 
         ticketer = Ticketer.objects.get(
-            ticketer_type=ZendeskType.slug, config__subdomain=subdomain, config__secret=secret, is_active=True,
+            ticketer_type=ZendeskType.slug, config__subdomain=subdomain, config__secret=secret, is_active=True
         )
 
         # update ticketer config with push credentials we've been given

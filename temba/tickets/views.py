@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.functional import cached_property
+from django.utils.html import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
@@ -24,6 +25,7 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
     submit_button_name = _("Connect")
     permission = "tickets.ticketer_connect"
     ticketer_type = None
+    form_blurb = ""
 
     def __init__(self, ticketer_type):
         self.ticketer_type = ticketer_type
@@ -40,22 +42,22 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
         return ("tickets/types/%s/connect.html" % self.ticketer_type.slug, "tickets/ticketer_connect_form.html")
 
     def derive_title(self):
-        return _("Connect") + " " + self.ticketer_type.name
+        return _("Connect %(ticketer)s") % {"ticketer": self.ticketer_type.name}
 
     def get_success_url(self):
         return reverse("tickets.ticket_filter", args=[self.object.uuid])
 
+    def get_form_blurb(self):
+        return self.form_blurb
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["form_blurb"] = self.ticketer_type.get_form_blurb()
+        context["form_blurb"] = mark_safe(self.get_form_blurb())
         return context
 
 
 class TicketActionForm(BaseActionForm):
-    allowed_actions = (
-        ("close", "Close Tickets"),
-        ("reopen", "Reopen Tickets"),
-    )
+    allowed_actions = (("close", "Close Tickets"), ("reopen", "Reopen Tickets"))
 
     model = Ticket
     has_is_active = False
@@ -137,9 +139,7 @@ class TicketCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Delete"), js_class="delete-ticketer", href="#"))
             if self.has_org_perm("request_logs.httplog_ticketer"):
                 links.append(
-                    dict(
-                        title=_("HTTP Log"), href=reverse("request_logs.httplog_ticketer", args=[self.ticketer.uuid]),
-                    )
+                    dict(title=_("HTTP Log"), href=reverse("request_logs.httplog_ticketer", args=[self.ticketer.uuid]))
                 )
             return links
 

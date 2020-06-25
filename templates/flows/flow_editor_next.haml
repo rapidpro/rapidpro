@@ -206,6 +206,19 @@
       modal.open = true;
     }
 
+    function handleChangeLanguage(code, name) {
+      var form = $('#change-language-form');
+      var url = $.url(form.attr("href"));
+      var body = form.find('.body').html().replace(/%LANG%/g, name);
+
+      form.attr("href", url.attr("path") + "?language=" + code);
+      var modal = new ConfirmationModal('{{ _("Change Language")|escapejs }}', body);
+      modal.addClass('alert');
+      modal.setListeners({onPrimary: function(){ form.click(); }}, false);
+      modal.setPrimaryButton('{{ _("Ok")|escapejs }}');
+      modal.show();
+    }
+
     const config = {
       
       // TODO: Remove once legacy editor is gone
@@ -218,6 +231,7 @@
       showTemplates: "{{has_whatsapp_channel}}" == "True",
       onLoad: handleEditorLoaded,
       onActivityClicked: handleActivityClicked,
+      onChangeLanguage: handleChangeLanguage,
       mutable: {{mutable|lower}},
       filters: {{feature_filters|to_json}},
 
@@ -351,6 +365,14 @@
           -blocktrans trimmed
             This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
 
+  .hide
+    %a#change-language-form.posterize(href='{% url "flows.flow_change_language" object.id %}')
+      .body
+        -blocktrans trimmed with language="%LANG%"
+          This will change the default language of the flow to <b>{{ language }}</b>. This means that by default the
+          flow will be appear in that language and can be translated into other languages. Also if a contact is
+          in this flow and no translation exists for their language or the default language of the workspace,
+          communication with that contact will default to <b>{{ language }}</b>.
 
   #grid
     <temba-loading units="10" size="8"></temba-loading>
