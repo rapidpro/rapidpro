@@ -580,13 +580,17 @@ class ContactWriteSerializer(WriteSerializer):
         return value
 
     def validate_fields(self, value):
-        valid_keys = {f.key for f in self.context["contact_fields"]}
+        fields_by_key = {f.key: f for f in self.context["contact_fields"]}
+        values_by_field = {}
 
         for field_key, field_val in value.items():
-            if field_key not in valid_keys:
+            field_obj = fields_by_key.get(field_key)
+            if not field_obj:
                 raise serializers.ValidationError(f"Invalid contact field key: {field_key}")
 
-        return value
+            values_by_field[field_obj] = field_val
+
+        return values_by_field
 
     def validate_urns(self, value):
         org = self.context["org"]
@@ -648,7 +652,7 @@ class ContactWriteSerializer(WriteSerializer):
 
             # update our fields
             if custom_fields is not None:
-                self.instance.set_fields(user=self.context["user"], fields=custom_fields)
+                mods += self.instance.update_fields(values=custom_fields)
 
             # update our groups
             if groups is not None:

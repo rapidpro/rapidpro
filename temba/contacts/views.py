@@ -1557,11 +1557,14 @@ class ContactCRUDL(SmartCRUDL):
 
         def post_save(self, obj):
             obj = super().post_save(obj)
-            contact_field = obj.org.contactfields(manager="user_fields").get(
-                id=self.form.cleaned_data.get("contact_field")
-            )
-            if contact_field:
-                obj.set_field(self.request.user, contact_field.key, self.form.cleaned_data.get("field_value", ""))
+
+            field_id = self.form.cleaned_data.get("contact_field")
+            field_obj = obj.org.contactfields(manager="user_fields").get(id=field_id)
+            value = self.form.cleaned_data.get("field_value", "")
+
+            mods = obj.update_fields({field_obj: value})
+            obj.modify(self.request.user, mods)
+
             return obj
 
     class UpdateFieldsInput(OrgObjPermsMixin, SmartReadView):

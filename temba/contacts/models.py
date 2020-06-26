@@ -5,7 +5,7 @@ import time
 import uuid
 from decimal import Decimal
 from itertools import chain
-from typing import List
+from typing import Dict, List
 
 import iso8601
 import phonenumbers
@@ -1248,6 +1248,18 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         if (self.language or "") != (language or ""):
             mods.append(modifiers.Language(language or ""))
+
+        return mods
+
+    def update_fields(self, values: Dict[ContactField, str]) -> List[modifiers.Modifier]:
+        """
+        Updates custom field values of this contact
+        """
+        mods = []
+
+        for field, value in values.items():
+            field_ref = modifiers.FieldRef(key=field.key, name=field.label)
+            mods.append(modifiers.Field(field=field_ref, value=value))
 
         return mods
 

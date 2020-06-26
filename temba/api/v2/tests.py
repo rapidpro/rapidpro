@@ -1782,18 +1782,17 @@ class APITest(TembaTest):
         self.assertEqual(jean.get_field_value(nickname), "Jado")
 
         # update by UUID and change all fields
-        with self.assertNumQueries(43):
-            response = self.postJSON(
-                url,
-                "uuid=%s" % jean.uuid,
-                {
-                    "name": "Jason Undead",
-                    "language": "ita",
-                    "urns": ["tel:+250784444444"],
-                    "groups": [],
-                    "fields": {"nickname": "Žan", "gender": "frog"},
-                },
-            )
+        response = self.postJSON(
+            url,
+            "uuid=%s" % jean.uuid,
+            {
+                "name": "Jason Undead",
+                "language": "ita",
+                "urns": ["tel:+250784444444"],
+                "groups": [],
+                "fields": {"nickname": "Žan", "gender": "frog"},
+            },
+        )
         self.assertEqual(response.status_code, 200)
 
         jean = Contact.objects.get(pk=jean.pk)
@@ -1819,18 +1818,17 @@ class APITest(TembaTest):
         self.assertEqual(jean.get_field_value(nickname), "Žan")
 
         # update by uuid and remove all fields
-        with self.assertNumQueries(31):
-            response = self.postJSON(
-                url,
-                "uuid=%s" % jean.uuid,
-                {
-                    "name": "Jean II",
-                    "language": "eng",
-                    "urns": ["tel:+250784444444"],
-                    "groups": [],
-                    "fields": {"nickname": "", "gender": ""},
-                },
-            )
+        response = self.postJSON(
+            url,
+            "uuid=%s" % jean.uuid,
+            {
+                "name": "Jean II",
+                "language": "eng",
+                "urns": ["tel:+250784444444"],
+                "groups": [],
+                "fields": {"nickname": "", "gender": ""},
+            },
+        )
         self.assertEqual(response.status_code, 200)
 
         jean = Contact.objects.get(pk=jean.pk)
@@ -1838,18 +1836,17 @@ class APITest(TembaTest):
         self.assertEqual(jean.get_field_value(gender), None)
 
         # update by uuid and update/remove fields
-        with self.assertNumQueries(31):
-            response = self.postJSON(
-                url,
-                "uuid=%s" % jean.uuid,
-                {
-                    "name": "Jean II",
-                    "language": "eng",
-                    "urns": ["tel:+250784444444"],
-                    "groups": [],
-                    "fields": {"nickname": "Jado", "gender": ""},
-                },
-            )
+        response = self.postJSON(
+            url,
+            "uuid=%s" % jean.uuid,
+            {
+                "name": "Jean II",
+                "language": "eng",
+                "urns": ["tel:+250784444444"],
+                "groups": [],
+                "fields": {"nickname": "Jado", "gender": ""},
+            },
+        )
         self.assertEqual(response.status_code, 200)
 
         jean = Contact.objects.get(pk=jean.pk)
