@@ -141,9 +141,6 @@
           modal.setListeners({
             onPrimary: function() {
               var form = modal.ele.find('form');
-              if (form.find('#id_event_type').val() != "F") {
-                modal.submit();
-              }
               var error = validateFlowParams(form);
               if (error) {
                 modal.focusFirstInput();
