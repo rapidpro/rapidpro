@@ -1,3 +1,7 @@
+v5.5.71
+----------
+ * Fix to allow all orgs to import flows
+
 v5.5.70
 ----------
  * Use modifiers and mailroom to update contact URNs
