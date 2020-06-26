@@ -24,7 +24,7 @@ from temba.utils import json
 from temba.utils.uuid import UUID, uuid4
 from temba.values.constants import Value
 
-from .mailroom import update_fields_locally
+from .mailroom import update_field_locally, update_fields_locally
 
 
 def add_testing_flag_to_context(*args):
@@ -461,6 +461,12 @@ class TembaTestMixin:
             description="Looks good",
         )
         return call
+
+    def set_contact_field(self, contact, key, value, legacy_handle=False):
+        update_field_locally(self.admin, contact, key, value)
+
+        if legacy_handle:
+            contact.handle_update(fields=[key])
 
     def bulk_release(self, objs, delete=False, user=None):
         for obj in objs:

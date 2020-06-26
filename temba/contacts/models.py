@@ -1099,61 +1099,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         return field_dict
 
-    def set_field(self, user, key, value, label=None):
-        # make sure this field exists
-        field = ContactField.get_or_create(self.org, user, key, label)
-
-        has_changed = False
-
-        field_uuid = str(field.uuid)
-        if self.fields is None:
-            self.fields = {}
-
-        # parse into the appropriate value types
-        if value is None or value == "":
-            # setting a blank value is equivalent to removing the value
-            value = None
-
-            # value being cleared, remove our key
-            if field_uuid in self.fields:
-                del self.fields[field_uuid]
-                has_changed = True
-
-        else:
-            field_dict = self.serialize_field(field, value)
-
-            # update our field if it is different
-            if self.fields.get(field_uuid) != field_dict:
-                self.fields[field_uuid] = field_dict
-                has_changed = True
-
-        # if there was a change, update our JSONB on our contact
-        if has_changed:
-            self.modified_on = timezone.now()
-
-            with connection.cursor() as cursor:
-                if value is None:
-                    # delete the field
-                    (
-                        cursor.execute(
-                            "UPDATE contacts_contact SET fields = fields - %s, modified_on = %s WHERE id = %s",
-                            [field_uuid, self.modified_on, self.id],
-                        )
-                    )
-                else:
-                    # update the field
-                    (
-                        cursor.execute(
-                            "UPDATE contacts_contact SET fields = COALESCE(fields,'{}'::jsonb) || %s::jsonb, modified_on = %s WHERE id = %s",
-                            [json.dumps({field_uuid: self.fields[field_uuid]}), self.modified_on, self.id],
-                        )
-                    )
-
-        # update any groups or campaigns for this contact
-        if has_changed:
-            self.handle_update(fields=[field.key])
-
     def set_fields(self, user, fields):
+        """
+        Sets multiple field values on a contact - used by imports
+        """
         if self.fields is None:
             self.fields = {}
 
