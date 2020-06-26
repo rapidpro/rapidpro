@@ -734,18 +734,6 @@ class CampaignTest(TembaTest):
         )
         self.assertRedirect(response, reverse("contacts.contact_read", args=[self.farmer1.uuid]))
 
-        fires = EventFire.objects.all()
-        self.assertEqual(len(fires), 2)
-
-        fire = fires[0]
-        self.assertEqual(fire.scheduled.day, 5)
-        self.assertEqual(fire.scheduled.month, 8)
-        self.assertEqual(fire.scheduled.year, 2020)
-        self.assertEqual(
-            str(fire),
-            f"EventFire[event={fire.event.uuid}, contact={fire.contact.uuid}, scheduled=2020-08-05 13:00:00+00:00]",
-        )
-
         event = CampaignEvent.objects.filter(is_active=True).first()
 
         # get the detail page of the event

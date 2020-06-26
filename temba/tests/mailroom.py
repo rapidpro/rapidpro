@@ -98,9 +98,8 @@ def apply_modifiers(org, user, contacts, modifiers: List):
             fields = dict(language=mod.language)
 
         if mod.type == "field":
-            field = ContactField.get_or_create(org, user, mod.field.key, label=mod.field.name)
             for c in contacts:
-                update_field_locally(c, field, mod.value)
+                update_field_locally(user, c, mod.field.key, mod.value, label=mod.field.name)
 
         elif mod.type == "status":
             if mod.status == "blocked":
@@ -130,7 +129,14 @@ def apply_modifiers(org, user, contacts, modifiers: List):
                 Contact.objects.get(id=c.id).clear_all_groups(user)
 
 
-def update_field_locally(contact, field, value):
+def update_fields_locally(user, contact, fields):
+    for key, val in fields.items():
+        update_field_locally(user, contact, key, val)
+
+
+def update_field_locally(user, contact, key, value, label=None):
+    field = ContactField.get_or_create(contact.org, user, key, label=label)
+
     field_uuid = str(field.uuid)
     if contact.fields is None:
         contact.fields = {}

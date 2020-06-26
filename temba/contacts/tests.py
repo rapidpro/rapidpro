@@ -77,11 +77,8 @@ class ContactCRUDLTest(TembaTest):
         self.login(self.user)
         list_url = reverse("contacts.contact_list")
 
-        self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe")
-        self.joe.set_field(self.user, "age", "20")
-        self.joe.set_field(self.user, "home", "Kigali")
-        self.frank, urn_obj = Contact.get_or_create(self.org, "tel:124", user=self.user, name="Frank")
-        self.frank.set_field(self.user, "age", "18")
+        self.joe = self.create_contact("Joe", urn="tel:123", fields={"age": "20", "home": "Kigali"})
+        self.frank = self.create_contact("Frank", urn="tel:124", fields={"age": "18"})
 
         creating = ContactGroup.create_static(
             self.org, self.user, "Group being created", status=ContactGroup.STATUS_INITIALIZING
@@ -389,9 +386,9 @@ class ContactGroupTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.admin, name="Joe Blow")
-        self.frank, urn_obj = Contact.get_or_create(self.org, "tel:1234", user=self.admin, name="Frank Smith")
-        self.mary, urn_obj = Contact.get_or_create(self.org, "tel:345", user=self.admin, name="Mary Mo")
+        self.joe = self.create_contact("Joe Blow", urn="tel:123")
+        self.frank = self.create_contact("Frank Smith", urn="tel:1234")
+        self.mary = self.create_contact("Mary Mo", urn="tel:345")
 
     def test_create_static(self):
         group = ContactGroup.create_static(self.org, self.admin, " group one ")
@@ -5696,15 +5693,14 @@ class ContactFieldTest(TembaTest):
         # archive all our current contacts
         Contact.objects.filter(org=self.org).update(is_blocked=True)
 
-        # start one of our contacts down it
-        contact = self.create_contact("Be\02n Haggerty", "+12067799294")
-        contact.set_field(self.user, "First", "On\02e")
-
         # make third a datetime
         self.contactfield_3.value_type = Value.TYPE_DATETIME
         self.contactfield_3.save()
 
-        contact.set_field(self.user, "Third", "20/12/2015 08:30")
+        # start one of our contacts down it
+        contact = self.create_contact(
+            "Be\02n Haggerty", urn="tel:+12067799294", fields={"First": "On\02e", "Third": "20/12/2015 08:30"}
+        )
 
         flow = self.get_flow("color_v13")
         nodes = flow.as_json()["nodes"]
@@ -7076,21 +7072,23 @@ class ESIntegrationTest(TembaNonAtomicTest):
 
             number = "0188382%s" % str(i).zfill(3)
             twitter = ("tweep_%d" % (i + 1)) if (i % 3 == 0) else None  # 1 in 3 have twitter URN
-            contact = self.create_contact(name=name, number=number, twitter=twitter)
             join_date = datetime_to_str(date(2014, 1, 1) + timezone.timedelta(days=i), date_format, tz=pytz.utc)
 
-            # some field data so we can do some querying
-            contact.set_field(self.admin, "age", str(i + 10))
-            contact.set_field(self.admin, "join_date", str(join_date))
-            contact.set_field(self.admin, "state", "Eastern Province")
-            contact.set_field(self.admin, "home", districts[i % len(districts)])
-            contact.set_field(self.admin, "ward", wards[i % len(wards)])
-
-            contact.set_field(self.admin, "isureporter", "yes" if i % 2 == 0 else "no" if i % 3 == 0 else None)
-            contact.set_field(self.admin, "hasbirth", "no")
+            # create contact with some field data so we can do some querying
+            fields = {
+                "age": str(i + 10),
+                "join_date": str(join_date),
+                "state": "Eastern Province",
+                "home": districts[i % len(districts)],
+                "ward": wards[i % len(wards)],
+                "isureporter": "yes" if i % 2 == 0 else "no" if i % 3 == 0 else None,
+                "hasbirth": "no",
+            }
 
             if i % 3 == 0:
-                contact.set_field(self.admin, "profession", "Farmer")  # only some contacts have any value for this
+                fields["profession"] = "Farmer"  # only some contacts have any value for this
+
+            contact = self.create_contact(name=name, number=number, twitter=twitter, fields=fields)
 
         def q(query):
             results = search_contacts(self.org.id, self.org.cached_all_contacts_group.uuid, query, None)
