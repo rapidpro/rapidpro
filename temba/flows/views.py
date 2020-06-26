@@ -49,6 +49,7 @@ from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
 from temba.flows.tasks import export_flow_results_task, download_flow_images_task
 from temba.ivr.models import IVRCall
+from temba.links.models import LinkContacts
 from temba.mailroom import FlowValidationException
 from temba.orgs.models import Org, LOOKUPS, GIFTCARDS
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
@@ -2144,6 +2145,7 @@ class FlowCRUDL(SmartCRUDL):
 
             context["categories"] = flow.get_category_counts()["counts"]
             context["utcoffset"] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() // 60)
+            context["trackable_links"] = LinkContacts.objects.filter(link__related_flow=flow)
             return context
 
     class Activity(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):

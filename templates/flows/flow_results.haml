@@ -592,6 +592,10 @@
       %a{href: '#runs', data-toggle:'tab'}
         -trans "Runs"
 
+    %li
+      %a{href: '#links', data-toggle:'tab'}
+        -trans "Links"
+
   .tab-content
     #overview.tab-pane.active
       .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
@@ -648,6 +652,34 @@
 
           %tbody{id:"results_run_table"}
             %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#results_run_table", ic-indicator:"#indicator"}
+        
+    #links.tab-pane
+      - if trackable_links
+        %table
+            %tr
+              %td.header
+                .details
+                  .text
+                    -trans "Contact"
+              %td.header
+                .details
+                  .text
+                    -trans "Link"
+              %td.header
+
+            %tbody{id:"results_run_table"}
+              - for link in trackable_links
+                %tr
+                  %td
+                    =link.contact
+                  %td
+                    =link.link
+                  %td
+                    =link.created_on
+      - else
+        .text-center
+          -trans "No clicked links yet"
+
 
   #indicator{style:"display:none"}
     .loader
