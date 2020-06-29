@@ -3922,13 +3922,8 @@ class BulkExportTest(TembaTest):
         event = campaign.events.filter(is_active=True).last()
 
         # create a contact and place her into our campaign
-        sally = self.create_contact("Sally", "+12345")
+        sally = self.create_contact("Sally", urn="tel:+12345", fields={"survey_start": "10-05-2025 12:30:10"})
         campaign.group.contacts.add(sally)
-        sally.set_field(self.user, "survey_start", "10-05-2025 12:30:10")
-
-        # shoud have one event fire
-        self.assertEqual(1, event.fires.all().count())
-        original_fire = event.fires.all().first()
 
         # importing it again shouldn't result in failures
         self.import_file("survey_campaign")
@@ -3940,10 +3935,6 @@ class BulkExportTest(TembaTest):
         # same campaign, but new event
         self.assertEqual(campaign.id, new_campaign.id)
         self.assertNotEqual(event.id, new_event.id)
-
-        # should still have one fire, but it's been recreated
-        self.assertEqual(1, new_event.fires.all().count())
-        self.assertNotEqual(original_fire.id, new_event.fires.all().first().id)
 
     def test_import_mixed_flow_versions(self):
         self.import_file("mixed_versions", legacy=True)

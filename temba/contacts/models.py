@@ -5,7 +5,7 @@ import time
 import uuid
 from decimal import Decimal
 from itertools import chain
-from typing import List
+from typing import Dict, List
 
 import iso8601
 import phonenumbers
@@ -1099,61 +1099,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         return field_dict
 
-    def set_field(self, user, key, value, label=None):
-        # make sure this field exists
-        field = ContactField.get_or_create(self.org, user, key, label)
-
-        has_changed = False
-
-        field_uuid = str(field.uuid)
-        if self.fields is None:
-            self.fields = {}
-
-        # parse into the appropriate value types
-        if value is None or value == "":
-            # setting a blank value is equivalent to removing the value
-            value = None
-
-            # value being cleared, remove our key
-            if field_uuid in self.fields:
-                del self.fields[field_uuid]
-                has_changed = True
-
-        else:
-            field_dict = self.serialize_field(field, value)
-
-            # update our field if it is different
-            if self.fields.get(field_uuid) != field_dict:
-                self.fields[field_uuid] = field_dict
-                has_changed = True
-
-        # if there was a change, update our JSONB on our contact
-        if has_changed:
-            self.modified_on = timezone.now()
-
-            with connection.cursor() as cursor:
-                if value is None:
-                    # delete the field
-                    (
-                        cursor.execute(
-                            "UPDATE contacts_contact SET fields = fields - %s, modified_on = %s WHERE id = %s",
-                            [field_uuid, self.modified_on, self.id],
-                        )
-                    )
-                else:
-                    # update the field
-                    (
-                        cursor.execute(
-                            "UPDATE contacts_contact SET fields = COALESCE(fields,'{}'::jsonb) || %s::jsonb, modified_on = %s WHERE id = %s",
-                            [json.dumps({field_uuid: self.fields[field_uuid]}), self.modified_on, self.id],
-                        )
-                    )
-
-        # update any groups or campaigns for this contact
-        if has_changed:
-            self.handle_update(fields=[field.key])
-
     def set_fields(self, user, fields):
+        """
+        Sets multiple field values on a contact - used by imports
+        """
         if self.fields is None:
             self.fields = {}
 
@@ -1170,7 +1119,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             # parse into the appropriate value types
             if value is None or value == "":
                 # value being cleared, remove our key
-                if field_uuid in self.fields:
+                if field_uuid in self.fields:  # pragma: no cover
                     fields_for_delete.add(field_uuid)
 
                     changed_field_keys.add(key)
@@ -1188,7 +1137,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         modified_on = timezone.now()
 
         # if there was a change, update our JSONB on our contact
-        if fields_for_delete:
+        if fields_for_delete:  # pragma: no cover
             with connection.cursor() as cursor:
                 # prepare expression for multiple field delete
                 remove_fields = " - ".join(f"%s" for _ in range(len(fields_for_delete)))
@@ -1208,7 +1157,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         self.fields.update(all_fields)
 
         # remove deleted fields
-        for field_uuid in fields_for_delete:
+        for field_uuid in fields_for_delete:  # pragma: no cover
             self.fields.pop(field_uuid, None)
 
         self.modified_on = modified_on
@@ -1248,6 +1197,18 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         if (self.language or "") != (language or ""):
             mods.append(modifiers.Language(language or ""))
+
+        return mods
+
+    def update_fields(self, values: Dict[ContactField, str]) -> List[modifiers.Modifier]:
+        """
+        Updates custom field values of this contact
+        """
+        mods = []
+
+        for field, value in values.items():
+            field_ref = modifiers.FieldRef(key=field.key, name=field.label)
+            mods.append(modifiers.Field(field=field_ref, value=value))
 
         return mods
 

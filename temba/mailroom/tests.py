@@ -88,6 +88,7 @@ class MailroomClientTest(TembaTest):
                 [
                     modifiers.Name(name="Bob"),
                     modifiers.Language(language="fra"),
+                    modifiers.Field(field=modifiers.FieldRef(key="age", name="Age"), value="43"),
                     modifiers.Status(status="blocked"),
                     modifiers.Groups(
                         groups=[modifiers.GroupRef(uuid="c153e265-f7c9-4539-9dbc-9b358714b638", name="Doctors")],
@@ -107,6 +108,7 @@ class MailroomClientTest(TembaTest):
                     "modifiers": [
                         {"type": "name", "name": "Bob"},
                         {"type": "language", "language": "fra"},
+                        {"type": "field", "field": {"key": "age", "name": "Age"}, "value": "43"},
                         {"type": "status", "status": "blocked"},
                         {
                             "type": "groups",

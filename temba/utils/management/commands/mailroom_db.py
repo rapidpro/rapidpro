@@ -382,7 +382,7 @@ class Command(BaseCommand):
         self.create_labels(spec, org, superuser)
         self.create_groups(spec, org, superuser)
         self.create_flows(spec, org, superuser)
-        self.create_contacts(spec, org, locations, superuser)
+        self.create_contacts(spec, org, superuser)
         self.create_group_contacts(spec, org, superuser)
         self.create_campaigns(spec, org, superuser)
         self.create_templates(spec, org, superuser)
@@ -574,8 +574,10 @@ class Command(BaseCommand):
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
-    def create_contacts(self, spec, org, locations, user):
+    def create_contacts(self, spec, org, user):
         self._log(f"Creating {len(spec['contacts'])} contacts... ")
+
+        fields_by_key = {f.key: f for f in ContactField.user_fields.all()}
 
         for c in spec["contacts"]:
             contact = Contact.get_or_create_by_urns(org, user, c["name"], c["urns"])
@@ -583,13 +585,14 @@ class Command(BaseCommand):
             contact.save(update_fields=["uuid"], handle_update=False)
 
             # add to any groups we belong to
-            for g in c.get("groups", []):
-                group = ContactGroup.user_groups.get(org=org, name=g)
-                group.update_contacts(user, [contact], True)
+            groups = list(ContactGroup.user_groups.filter(org=org, name__in=c.get("groups", [])))
+            mods = contact.update_static_groups(groups)
 
             # set any fields we have
-            for key, value in c.get("fields", {}).items():
-                contact.set_field(user, key, value)
+            values = {fields_by_key[key]: val for key, val in c.get("fields", {}).items()}
+            mods += contact.update_fields(values)
+
+            contact.modify(user, mods)
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
