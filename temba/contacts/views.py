@@ -370,19 +370,6 @@ class ContactActionMixin(SmartListView):
         return self.get(request, *args, **kwargs)
 
 
-class ContactFieldForm(forms.ModelForm):
-
-    contact_field = Select2Field()
-    field_value = forms.CharField(required=False)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    class Meta:
-        model = Contact
-        fields = "__all__"
-
-
 class ContactForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.user = kwargs["user"]
@@ -1521,28 +1508,18 @@ class ContactCRUDL(SmartCRUDL):
             response["Temba-Success"] = self.get_success_url()
             return response
 
-    class UpdateFields(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        form_class = ContactFieldForm
-        exclude = (
-            "is_active",
-            "uuid",
-            "org",
-            "fields",
-            "is_blocked",
-            "is_stopped",
-            "created_by",
-            "modified_by",
-            "is_test",
-            "channel",
-            "name",
-            "language",
-        )
+    class UpdateFields(NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+        class Form(forms.Form):
+            contact_field = Select2Field()
+            field_value = forms.CharField(required=False)
+
+            def __init__(self, instance, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+        form_class = Form
         success_url = "uuid@contacts.contact_read"
         success_message = ""
         submit_button_name = _("Save Changes")
-
-        def get_form_kwargs(self, *args, **kwargs):
-            return super().get_form_kwargs(*args, **kwargs)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
