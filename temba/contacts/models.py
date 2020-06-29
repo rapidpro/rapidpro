@@ -1119,7 +1119,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             # parse into the appropriate value types
             if value is None or value == "":
                 # value being cleared, remove our key
-                if field_uuid in self.fields:
+                if field_uuid in self.fields:  # pragma: no cover
                     fields_for_delete.add(field_uuid)
 
                     changed_field_keys.add(key)
@@ -1137,7 +1137,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         modified_on = timezone.now()
 
         # if there was a change, update our JSONB on our contact
-        if fields_for_delete:
+        if fields_for_delete:  # pragma: no cover
             with connection.cursor() as cursor:
                 # prepare expression for multiple field delete
                 remove_fields = " - ".join(f"%s" for _ in range(len(fields_for_delete)))
@@ -1157,7 +1157,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         self.fields.update(all_fields)
 
         # remove deleted fields
-        for field_uuid in fields_for_delete:
+        for field_uuid in fields_for_delete:  # pragma: no cover
             self.fields.pop(field_uuid, None)
 
         self.modified_on = modified_on
