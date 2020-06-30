@@ -249,6 +249,9 @@ class Condition(QueryNode):
                 raise SearchException(_(f"Unrecognized contact field type '{field.value_type}'"))
 
         elif prop_type == ContactQuery.PROP_SCHEME:
+            if org.is_anon:
+                raise SearchException("Cannot query on redacted URNs")
+
             for urn in contact_json.get("urns"):
                 if urn.get("scheme") == field:
                     contact_value = urn.get("path").upper()
@@ -325,6 +328,9 @@ class Condition(QueryNode):
                     raise SearchException(_(f"Unknown name comparator: '{self.comparator}'"))
 
             elif field_key == "urn":
+                if org.is_anon:
+                    raise SearchException("Cannot query on redacted URNs")
+
                 query_value = self.value.lower()
                 if self.comparator == "=":
                     for urn in contact_json.get("urns"):

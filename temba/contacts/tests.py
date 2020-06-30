@@ -1870,14 +1870,33 @@ class ContactTest(TembaTest):
             self.assertTrue(evaluate_query(self.org, "age >= 15", contact_json=self.joe.as_search_json()))
 
             # do not evaluate URN queries if org is anonymous
-            self.assertFalse(evaluate_query(self.org, "tel = +250781111111", contact_json=self.joe.as_search_json()))
-            self.assertFalse(evaluate_query(self.org, 'tel != ""', contact_json=self.joe.as_search_json()))
-
-            self.assertFalse(
-                evaluate_query(
-                    self.org, "joined = 01-03-2018 AND tel = +250781111111", contact_json=self.joe.as_search_json()
-                )
+            self.assertRaises(
+                SearchException,
+                evaluate_query,
+                self.org,
+                "tel = +250781111111",
+                contact_json=self.joe.as_search_json(),
             )
+            self.assertRaises(
+                SearchException,
+                evaluate_query,
+                self.org,
+                "urn = +250781111111",
+                contact_json=self.joe.as_search_json(),
+            )
+            self.assertRaises(
+                SearchException,
+                evaluate_query,
+                self.org,
+                "joined = 01-03-2018 AND tel = +250781111111",
+                contact_json=self.joe.as_search_json(),
+            )
+
+            # URN existence checks allowed
+            self.assertFalse(evaluate_query(self.org, 'tel = ""', contact_json=self.joe.as_search_json()))
+            self.assertTrue(evaluate_query(self.org, 'tel != ""', contact_json=self.joe.as_search_json()))
+            self.assertFalse(evaluate_query(self.org, 'urn = ""', contact_json=self.joe.as_search_json()))
+            self.assertTrue(evaluate_query(self.org, 'urn != ""', contact_json=self.joe.as_search_json()))
 
             # this will be parsed as search for contact id
             self.assertRaises(
