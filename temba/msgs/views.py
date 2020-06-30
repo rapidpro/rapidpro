@@ -781,7 +781,7 @@ class BaseLabelForm(forms.ModelForm):
             raise forms.ValidationError(_("Name must not be blank or begin with punctuation"))
 
         existing_id = self.existing.pk if self.existing else None
-        if Label.all_objects.filter(org=self.org, name__iexact=name).exclude(pk=existing_id).exists():
+        if Label.all_objects.filter(org=self.org, name__iexact=name, is_active=True).exclude(pk=existing_id).exists():
             raise forms.ValidationError(_("Name must be unique"))
 
         labels_count = Label.all_objects.filter(org=self.org, is_active=True).count()
