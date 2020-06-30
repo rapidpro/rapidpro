@@ -70,8 +70,6 @@ class ContactQuery(object):
         prop_map = {p: None for p in all_props}
 
         all_contact_fields = ContactField.all_fields.filter(org=org, key__in=all_props, is_active=True)
-        if not org.is_anon:
-            all_contact_fields.exclude(key="id")
 
         user_contactfields = (cf for cf in all_contact_fields if cf.field_type == ContactField.FIELD_TYPE_USER)
         for field in user_contactfields:
@@ -82,6 +80,7 @@ class ContactQuery(object):
             prop_map[attr.key] = (self.PROP_ATTRIBUTE, attr)
 
         prop_map["uuid"] = (self.PROP_ATTRIBUTE, ContactField(key="uuid"))
+        prop_map["urn"] = (self.PROP_ATTRIBUTE, ContactField(key="urn"))
 
         for scheme in self.SEARCHABLE_SCHEMES:
             if scheme in prop_map.keys():
@@ -325,6 +324,26 @@ class Condition(QueryNode):
                 else:  # pragma: no cover
                     raise SearchException(_(f"Unknown name comparator: '{self.comparator}'"))
 
+            elif field_key == "urn":
+                query_value = self.value.lower()
+                if self.comparator == "=":
+                    for urn in contact_json.get("urns"):
+                        if urn.get("path").lower() == query_value:
+                            return True
+                    return False
+                if self.comparator == "!=":
+                    for urn in contact_json.get("urns"):
+                        if urn.get("path").lower() == query_value:
+                            return False
+                    return True
+                elif self.comparator == "~":
+                    for urn in contact_json.get("urns"):
+                        if query_value in urn.get("path").lower():
+                            return True
+                    return False
+                else:
+                    raise SearchException(_(f"Unknown urn comparator: '{self.comparator}'"))
+
             elif field_key == "uuid":
                 query_value = self.value.lower()
                 contact_value = contact_json["uuid"]
@@ -515,18 +534,11 @@ class IsSetCondition(Condition):
                     else:
                         return True
 
-            elif field_key == "uuid":
-                contact_value = contact_json["uuid"]
+            elif field_key == "urn":
                 if is_set:
-                    if contact_value is not None:
-                        return True
-                    else:
-                        return False
+                    return contact_json["urns"]
                 else:
-                    if contact_value is not None:
-                        return False
-                    else:
-                        return True
+                    return not contact_json["urns"]
 
             else:  # pragma: no cover
                 raise SearchException(_(f"No support for attribute field: '{field}'"))
