@@ -541,9 +541,9 @@ class IsSetCondition(Condition):
 
             elif field_key == "urn":
                 if is_set:
-                    return contact_json["urns"]
+                    return bool(contact_json["urns"])
                 else:
-                    return not contact_json["urns"]
+                    return not bool(contact_json["urns"])
 
             else:  # pragma: no cover
                 raise SearchException(f"No support for attribute field: '{field}'")
