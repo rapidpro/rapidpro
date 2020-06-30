@@ -797,20 +797,20 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return obj
 
     def as_search_json(self):
-        obj = dict()
+        def urn_as_json(urn):
+            if self.org.is_anon:
+                return {"scheme": urn.scheme, "path": ContactURN.ANON_MASK}
+            return {"scheme": urn.scheme, "path": urn.path}
 
-        if self.org.is_anon:
-            obj["urns"] = []
-        else:
-            obj["urns"] = [dict(scheme=urn.scheme, path=urn.path) for urn in self.urns.all()]
-
-        obj["fields"] = self.fields if self.fields else {}
-        obj["language"] = self.language
-        obj["created_on"] = self.created_on.isoformat()
-        obj["name"] = self.name
-        obj["id"] = self.id
-
-        return obj
+        return {
+            "id": self.id,
+            "uuid": self.uuid,
+            "name": self.name,
+            "language": self.language,
+            "urns": [urn_as_json(u) for u in self.urns.all()],
+            "fields": self.fields if self.fields else {},
+            "created_on": self.created_on.isoformat(),
+        }
 
     @classmethod
     def query_elasticsearch_for_ids(cls, org, query, group=None):

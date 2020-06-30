@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-26 13:12+0000\n"
+"POT-Creation-Date: 2020-06-30 19:56+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2635,69 +2635,6 @@ msgstr "Le groupe unique à exporter"
 
 msgid "The search query"
 msgstr "La requête de recherche"
-
-#, python-brace-format
-msgid "Unrecognized field: '{prop}'"
-msgstr "Champ non reconnu: '{prop}'"
-
-#, python-brace-format
-msgid "f'{val}' isn't a valid number"
-msgstr "f'{val}' n'est pas un numéro valide"
-
-#, python-brace-format
-msgid "Unknown text comparator: '{self.comparator}'"
-msgstr "Comparateur de texte inconnu: '{self.comparator}'"
-
-#, python-brace-format
-msgid "Unknown number comparator: '{self.comparator}'"
-msgstr "Comparateur de nombre inconnu: '{self.comparator}'"
-
-#, python-brace-format
-msgid "Unable to parse the date '{self.value}'"
-msgstr "Impossible d'analyser la date '{self.value}'"
-
-#, python-brace-format
-msgid "Unknown datetime comparator: '{self.comparator}'"
-msgstr "Comparateur de date/heure inconnu: '{self.comparator}'"
-
-#, python-brace-format
-msgid "Unknown location type: '{field.value_type}'"
-msgstr "Type d'emplacement inconnu: '{field.value_type}'"
-
-#, python-brace-format
-msgid "Unsupported comparator '{self.comparator}' for location field"
-msgstr "Comparateur non pris en charge '{self.comparator}' pour le champ de localisation"
-
-#, python-brace-format
-msgid "Unrecognized contact field type '{field.value_type}'"
-msgstr "Type de champ de contact non reconnu '{field.value_type}'"
-
-#, python-brace-format
-msgid "Unknown urn scheme comparator: '{self.comparator}'"
-msgstr "Comparateur de schéma URN inconnu: '{self.comparator}'"
-
-#, python-brace-format
-msgid "Unknown language comparator: '{self.comparator}'"
-msgstr "Comparateur de langue inconnu: '{self.comparator}'"
-
-#, python-brace-format
-msgid "Unknown created_on comparator: '{self.comparator}'"
-msgstr "Comparateur created_on inconnu: '{self.comparator}'"
-
-#, python-brace-format
-msgid "Unknown name comparator: '{self.comparator}'"
-msgstr "Comparateur de nom inconnu: '{self.comparator}'"
-
-#, python-brace-format
-msgid "No support for attribute field: '{field}'"
-msgstr "Pas de support pour le champ d'attribut: '{field}'"
-
-#, python-brace-format
-msgid "Unrecognized contact field type '{prop_type}'"
-msgstr "Type de champ de contact non reconnu '{prop_type}'"
-
-msgid "Invalid operator for empty string comparison"
-msgstr "Opérateur non valide pour la comparaison de chaîne vide"
 
 msgid "day"
 msgstr "jour"
@@ -10901,6 +10838,69 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, python-brace-format
+#~ msgid "Unrecognized field: '{prop}'"
+#~ msgstr "Champ non reconnu: '{prop}'"
+
+#, python-brace-format
+#~ msgid "f'{val}' isn't a valid number"
+#~ msgstr "f'{val}' n'est pas un numéro valide"
+
+#, python-brace-format
+#~ msgid "Unknown text comparator: '{self.comparator}'"
+#~ msgstr "Comparateur de texte inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unknown number comparator: '{self.comparator}'"
+#~ msgstr "Comparateur de nombre inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unable to parse the date '{self.value}'"
+#~ msgstr "Impossible d'analyser la date '{self.value}'"
+
+#, python-brace-format
+#~ msgid "Unknown datetime comparator: '{self.comparator}'"
+#~ msgstr "Comparateur de date/heure inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unknown location type: '{field.value_type}'"
+#~ msgstr "Type d'emplacement inconnu: '{field.value_type}'"
+
+#, python-brace-format
+#~ msgid "Unsupported comparator '{self.comparator}' for location field"
+#~ msgstr "Comparateur non pris en charge '{self.comparator}' pour le champ de localisation"
+
+#, python-brace-format
+#~ msgid "Unrecognized contact field type '{field.value_type}'"
+#~ msgstr "Type de champ de contact non reconnu '{field.value_type}'"
+
+#, python-brace-format
+#~ msgid "Unknown urn scheme comparator: '{self.comparator}'"
+#~ msgstr "Comparateur de schéma URN inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unknown language comparator: '{self.comparator}'"
+#~ msgstr "Comparateur de langue inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unknown created_on comparator: '{self.comparator}'"
+#~ msgstr "Comparateur created_on inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unknown name comparator: '{self.comparator}'"
+#~ msgstr "Comparateur de nom inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "No support for attribute field: '{field}'"
+#~ msgstr "Pas de support pour le champ d'attribut: '{field}'"
+
+#, python-brace-format
+#~ msgid "Unrecognized contact field type '{prop_type}'"
+#~ msgstr "Type de champ de contact non reconnu '{prop_type}'"
+
+#~ msgid "Invalid operator for empty string comparison"
+#~ msgstr "Opérateur non valide pour la comparaison de chaîne vide"
 
 #, fuzzy
 #~| msgid ""
