@@ -8,13 +8,6 @@
       display: block;
     }
 
--block page-top
-  {% render as page_top %}
-    {{block.super}}
-  {% endrender %}
-  -if has_messages
-    {{page_top}}
-
 -block page-title
   {{title}}
 
@@ -22,19 +15,9 @@
   %span.title-icon
     .glyph.icon-inbox
 
--block above-bar
-  -block top-form
-    %form{method:"get"}
-      %input.input-medium.search-query{type:'text', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
+-block page-top
 
 -block content
-
-  // Needed for table wrapping on IE 9
-  <!--[if IE]>
-  <style>
-    table.sms_list { table-layout: fixed; }
-  </style>
-  <![endif]-->
 
   #numeric-form.hide
     %form
@@ -43,167 +26,195 @@
       %input#number{type:"text"}
     .error
 
+  .flex.mx-6.mt-6
+    -if org_perms.msgs.broadcast_send
+      .w-64.mr-5
+        %temba-modax#send-message-modal{ header:'{% trans "Send Message" %}', endpoint:"{% url 'msgs.broadcast_send' %}" }
+          .button-primary{ onclick:"handleSendMessageClicked()"}
+            -trans "Send Message"
+    .flex-grow
+      %form#search-form{method:"get"}
+        %temba-textinput.w-full{onsubmit:'document.querySelector("#search-form").submit();', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
+
   #pjax
     -block pjax
-      .row-fluid
-        .span3.sidebox
-          %div{style:"margin-bottom: 10px"}
-            - if org_perms.msgs.broadcast_send
-              %temba-modax#send-message-modal{ header:'{% trans "Send Message" %}', endpoint:"{% url 'msgs.broadcast_send' %}" }
-                .button-primary{ onclick:"handleSendMessage()"}
-                  -trans "Send Message"
-
-          #sidebar-nav
-            %ul.nav.nav-list.level1
-              %li.nav-header
-                -trans "Messages"
+      .flex.mx-6.mt-1.page-content
+        .w-64.mr-5
+          .flex.flex-col
+            .p-3.pr-4.w-64.mt-2
               - for folder in folders
-                %li{'class': '{% if request.path == folder.url %}active{% endif %}' }
-                  %a{'href':'{{folder.url}}'}
-                    {{folder.label}} ({{ folder.count | intcomma }})
-
-              - if labels
-                %li.nav-header
+                .px-2.mt-1{'class': '{% if request.path == folder.url %}font-normal{% endif %}' }
+                  .flex.linked
+                    .text{onclick:"goto(event)", href:'{{folder.url}}'}
+                      {{folder.label}}
+                    .text-right.flex-grow{onclick:"goto(event)", href:'{{folder.url}}'}
+                      {{ folder.count | intcomma }}
+            -if labels
+              .rounded-lg.p-3.pr-4.w-64.mt-4.bg-gray-100
+                .font-normal.uppercase.text-xs.text-gray-500.pb-1
                   - trans "Labels"
-                - for node in labels
-                  - if node.obj.is_folder
-                    %li{ class:'{% if current_label.id == node.obj.id %}active{% endif %} lbl-parent {% if current_label.id == node.obj.id or current_label.folder_id == node.obj.id %}expanded{% endif %}' }
-                      %a{'href':'{% url "msgs.msg_filter" node.obj.uuid %}'}
-                        {{ node.obj.name }}
-                        - if node.children
-                          - if current_label.id == node.obj.id or current_label.folder_id == node.obj.id
-                            .glyph.icon-arrow-down-2
-                          -else
-                            .glyph.icon-arrow-right-8
+                .overflow-y-scroll.max-h-128.pr-2.-mr-2
+                  -for node in labels
+                    -if node.obj.is_folder
+                      .px-2.mt-1{ class:'{% if current_label.id == node.obj.id %}font-normal{% endif %} lbl-parent {% if current_label.id == node.obj.id or current_label.folder_id == node.obj.id %}expanded{% endif %}' }
+                        .flex.linked
+                          .text{onclick:"goto(event)", 'href':'{% url "msgs.msg_filter" node.obj.uuid %}'}
+                            {{ node.obj.name }}
+                          -if node.children
+                            .text-right.flex-grow.-mr-1.text-gray-400
+                              -if current_label.id == node.obj.id or current_label.folder_id == node.obj.id
+                                .glyph.icon-arrow-down-2{onclick:"goto(event)", 'href':'{% url "msgs.msg_filter" node.obj.uuid %}'}
+                              -else
+                                .glyph.icon-arrow-right-8{onclick:"goto(event)", 'href':'{% url "msgs.msg_filter" node.obj.uuid %}'}
 
-                      %ul.nav.nav-list.level2
-                        - for child in node.children
-                          %li{ class:'{% if current_label.id == child.obj.id %}active{% endif %}' }
-                            %a{ href:"{% url 'msgs.msg_filter' child.obj.uuid %}" }
-                              {{ child.obj.name }} ({{ child.count | intcomma }})
-                  - else
-                    %li{ class:'{% if current_label.id == node.obj.id %}active{% endif %}' }
-                      %a{ href:"{% url 'msgs.msg_filter' node.obj.uuid %}", class:'{% if current_label.id == node.obj.id %}active{% endif %}' }
-                        {{ node.obj.name }} ({{ node.count | intcomma }})
+                        -if current_label.id == node.obj.id or current_label.folder_id == node.obj.id
+                          .pl-2.mt-1.level2.font-light
+                            - for child in node.children
+                              .flex.linked{ class:'{% if current_label.id == child.obj.id %}font-normal{% endif %}' }
+                                .text{onclick:"goto(event)",  href:"{% url 'msgs.msg_filter' child.obj.uuid %}" }
+                                  {{ child.obj.name }}
+                                .text-right.flex-grow{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' child.obj.uuid %}" }
+                                  {{ child.count | intcomma }}
+                  -for node in labels
+                    -if not node.obj.is_folder
+                      .px-2.mt-1{ class:'{% if current_label.id == node.obj.id %}font-normal{% endif %}' }
+                        .flex.linked
+                          .text{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' node.obj.uuid %}", class:'{% if current_label.id == node.obj.id %}font-normal active{% endif %}' }
+                            {{ node.obj.name }} 
+                          .text-right.flex-grow{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' node.obj.uuid %}", class:'{% if current_label.id == node.obj.id %}font-normal active{% endif %}' }
+                            {{ node.count | intcomma }}
 
-          %div{style:"margin-top: 10px; margin-bottom:10px;"}
-            - if org_perms.msgs.label_create
-              %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'msgs.label_create' %}", onloaded: "handleLabelLoaded", onsubmitted: "handleLabelSubmitted"}
-                .button-light.mb-2
-                  - trans "Create Label"
-                
-            - if org_perms.msgs.label_create_folder
-              %temba-modax{ header:'{% trans "Create Folder" %}', endpoint:"{% url 'msgs.label_create_folder' %}", on-temba-loaded:"labelOnLoad", onsubmit: "function(e) { labelOnSubmit(e) }" }
-                .button-light
-                  -trans "Create Folder"
+                          
+
+            %div{style:"margin-top: 10px; margin-bottom:10px;flex-grow:1"}
+              - if org_perms.msgs.label_create
+                %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'msgs.label_create' %}", onloaded: "handleCreateLabelModalLoaded", onsubmitted: "handleCreateLabelModalSubmitted"}
+                  .button-light.mb-2
+                    - trans "Create Label"
+                  
+              - if org_perms.msgs.label_create_folder
+                %temba-modax{ header:'{% trans "Create Folder" %}', endpoint:"{% url 'msgs.label_create_folder' %}", on-temba-loaded:"labelOnLoad", onsubmit: "function(e) { labelOnSubmit(e) }" }
+                  .button-light
+                    -trans "Create Folder"
 
         -if has_messages
-          .span9
-            -block buttons
-              .pull-right
-                -block buttons-right
-                  -block gear-menu
-                    -include "gear_links_include.haml"
-
-              -block search-details
-                .search-details
-                  -if search
-                    -blocktrans trimmed with results_count=paginator.count|intcomma count cc=paginator.count
-                      Found {{ results_count }} message in last 90 days matching <i>{{search}}</i>.
-                      -plural
-                        Found {{ results_count }} messages in last 90 days matching <i>{{search}}</i>.
-                  -else
-                    -if start_date
-                      -blocktrans trimmed with results_count=paginator.count|intcomma count cc=paginator.count
-                        {{ results_count }} message since {{ start_date}}.
-                        -plural
-                          {{ results_count }} messages since {{ start_date}}.
-
+          .flex-grow
+            .flex.w-full.mb-1
               -block action-buttons
                 -if org_perms.msgs.msg_update
-                  .list-buttons-container
-                    .list-buttons
+                  .action-buttons.list-buttons-container.h-full.mt-2
+                    .list-buttons.flex.items-center.-mx-2.h-full
                       - if 'unlabel' in actions
-                        %span.btn-group
+                        .btn-group.mx-2
                           %a.object-btn-unlabel{href:'#'}
-                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Unlabel" %}'}
-                              .glyph.icon-box
+                            .button-light.text-gray-600.p-icon{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Unlabel" %}'}
+                              .glyph.icon-box{style:"width:16px"}
 
                       - if 'archive' in actions
-                        %span.btn-group
-                          %a.object-btn-archive{href:'#'}
-                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Archive" %}'}
-                              .glyph.icon-box
+                        .btn-group.mx-2
+                          .object-btn-archive
+                            .button-light.text-gray-500.p-icon{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Archive" %}'}
+                              .flex.items-center
+                                .-mt-1.mr-2.glyph.icon-box{style:"width:16px"}
+                                .text-gray-600
+                                  Archive
 
                       - if 'restore' in actions
-                        %span.btn-group
+                        .btn-group.mx-2
                           %a.object-btn-restore{href:'#'}
-                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Unarchive" %}'}
+                            .button-light.text-gray-600.p-icon{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Unarchive" %}'}
                               .glyph.icon-download
 
                       - if 'delete' in actions
-                        %span.btn-group
+                        .btn-group.mx-2
                           %a.object-btn-delete{href:'#'}
-                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Delete" %}'}
+                            .button-light.text-gray-600.p-icon{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Delete" %}'}
                               .glyph.icon-remove
 
                       - if 'resend' in actions
-                        %span.btn-group
+                        .btn-group.mx-2
                           %a.object-btn-resend{href:'#'}
-                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Resend" %}'}
-                              .glyph.icon-upload
+                            .button-light.text-gray-600.p-icon{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Resend" %}'}
+                              .glyph.icon-loop
 
                       - if 'label' in actions
-                        %span.btn-group
-                          %button.btn.dropdown-toggle{data-toggle:"dropdown", data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Labels" %}'}
-                            .glyph.icon-tag
-                            %span.caret
-                          %ul.dropdown-menu.label-menu{role:'menu', aria-labelledby:'dlabel'}
-                            - for node in labels
-                              - if node.obj.is_folder and node.children
+                        .btn-group.mx-2
+                          .button-light.text-gray-500.p-icon.dropdown-toggle{data-toggle:"dropdown", data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Labels" %}'}
+                            .flex.items-center
+                              .-mt-1.mr-2.glyph.icon-tag{style:"width:16px"}
+                              .text-gray-600
+                                -trans "Label"
+
+
+                          %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
+                            -for node in labels
+                              -if node.obj.is_folder and node.children
                                 %li.dropdown-submenu
-                                  %a.lbl-menu.object-btn-label{href:'#', tabindex:'-1', data-id:'{{node.obj.id}}'}
-                                    {{ node.obj.name }}
-                                  %ul.dropdown-menu.label-menu
+                                  .lbl-menu.object-btn-label.cursor-pointer{data-id:'{{node.obj.id}}'}
+                                    .flex.items-center.py-1.linked
+                                      .icon-arrow-right-8.text-2xl.-ml-1.-mt-1.mr-1
+                                      .name.px-2
+                                        {{ node.obj.name }}
+                                  %ul.dropdown-menu.label-menu.border-none
                                     - for child in node.children
                                       %li
-                                        %a.lbl-menu.object-btn-label{href:'#', tabindex:'-1', data-id:'{{child.obj.id}}'}
+                                        .lbl-menu.object-btn-label.px-4.py-1{data-id:'{{child.obj.id}}'}
+                                          .flex.items-center.py-1.linked
+                                            .glyph.message-label.label-checkbox
+                                            .name.px-1
+                                              {{ node.obj.name }}
+
                                           .glyph.message-label.label-checkbox
-                                          {{ child.obj.name }}
-                              - elif not node.obj.is_folder
+                                          .linked
+                                            {{ child.obj.name }}
+                            -for node in labels
+                              -if not node.obj.is_folder
                                 %li
-                                  %a.lbl-menu.object-btn-label{href:'#', tabindex:'-1', data-id:'{{node.obj.id}}'}
-                                    .glyph.message-label.label-checkbox
-                                    {{ node.obj.name }}
+                                  .lbl-menu.object-btn-label{data-id:'{{node.obj.id}}'}
+                                    .flex.items-center.py-1.linked
+                                      .glyph.message-label.label-checkbox
+                                      .name.px-1
+                                        {{ node.obj.name }}
 
                             - if org_perms.msgs.label_create
                               - if labels
                                 %li.divider
                               %li
-                                %a.lbl-menu.add-label{href:'#'}
+                                .lbl-menu.add-label.linked{onclick:"handleAddLabelClicked()"}
                                   -trans "New Label..."
+              .flex-grow.page-title.text-3xl.text-gray-700.mt-2.ml-4
+                {{title}}
+              .ml-4
+                -include "gear_links_include.haml"
 
             -block message-list
-              %table.list-table.sms_list.object-list.table.table-condensed{style: '{% if not org_perms.msgs.msg_update %}margin-top:10px{% endif %}'}
+              %table.object-list{style: '{% if not org_perms.msgs.msg_update %}margin-top:10px{% endif %}'}
+                // %thead.text-gray-500
+                  %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider{colspan:"3"}
+                  %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
+                    Sent
+
+
                 %tbody
                   -for object in object_list
-                    %tr.sms.object-row.select-row{id: 'id-row-{{object.id}}', class:'{% cycle row1 row2 %}', data-object-id:'{{ object.id }}',
+                    %tr.sms.object-row{id: 'id-row-{{object.id}}', class:'{% cycle row1 row2 %}', data-object-id:'{{ object.id }}',
                                    data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', data-sender-select2:'{{object.contact|short_name:user_org}}'}
-                      - if actions
+                      -if actions
                         - if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send
-                          %td.checkbox.sms.object-row-checkbox
-                            .glyph.object-row-checkbox
-                      %td.value-phone.field_phone
-                        %nobr
-                          {{ object.contact|short_name:user_org }}
-                      %td.value-text.field_text.wrapped
-                        {% get_value object 'text' %}
-
-                        - if 'label' in actions
-                          .value-labels
-                            - for label in object.labels.all
-                              %span.label.label-info.lbl{ data-id: '{{label.id}}' }
-                                %a{href:"{% url 'msgs.msg_filter' label.uuid %}"}
+                          %td.checkbox.sms.object-row-check{onclick:"handleRowSelection(this);"}                            
+                            .glyph.object-row-checkbox.py-2.pl-3.w-4.cursor-pointer
+                      %td.whitespace-no-wrap
+                        .pl-4.py-2
+                          .linked{onclick:"goto(event)", href:"/contact/read/{{object.contact.uuid}}/"}
+                            {{ object.contact|short_name:user_org }}
+                      %td.w-full{onclick:"handleRowSelection(this)", class:"{% if actions %}cursor-pointer{%endif%}"}
+                        .flex.flex-wrap.flex-end.items-center.px-4.py-2.justify-end
+                          .flex-grow.inline
+                            {% get_value object 'text' %}
+                          .labels.flex.items-center.flex-wrap
+                            -if 'label' in actions
+                              -for label in object.labels.all
+                                .lbl.cursor-pointer{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' label.uuid %}", data-id: '{{label.id}}'}                                
                                   {{label.name}}
 
                         -if object.attachments
@@ -211,73 +222,71 @@
                             - for attachment in object.attachments
                               {% attachment_button attachment %}
 
-                      %td.created_on
-                        %span.time
-                          {% short_datetime object.created_on %}
+                      %td{onclick:"handleRowSelection(this)", class:"{% if actions %}cursor-pointer{%endif%}"}
+                        .flex.w-full.items-end.justify-end.pr-4
+                          .time.whitespace-no-wrap
+                            {% short_datetime object.created_on %}
 
-                        .log-icon
                           -if show_channel_logs and not user_org.is_anon or perms.contacts.contact_break_anon
-                            {% channel_log_link object %}
+                            .log-icon.ml-3.text-gray-400
+                              {% channel_log_link object %}
 
-                    -empty
-                      %tr
-                        %td{colspan:3}
-                          -trans "No matching messages."
-
+                  -if not object_list
+                    .text-lg.text-gray-700.px-4
+                      -trans "No messages"
               - block paginator
                 -if object_list.count
-                  .paginator
-                    -include "smartmin/sidebar_pagination.haml"
-          -else
-            -include "msgs/empty_include.html"
+                  -block search-details
+                    .flex.mx-4.mt-3.mb-16
+                      .text-gray-700
+                        -if not paginator or paginator.num_pages <= 1                        
+                          -if search
+                            -blocktrans trimmed with results_count=paginator.count|intcomma count cc=paginator.count
+                              Found {{ results_count }} message in last 90 days matching <i>{{search}}</i>.
+                              -plural
+                                Found {{ results_count }} messages in last 90 days matching <i>{{search}}</i>.
+                          -else
+                            -if start_date
+                              -blocktrans trimmed with results_count=paginator.count|intcomma count cc=paginator.count
+                                {{ results_count }} message since {{ start_date}}.
+                                -plural
+                                  {{ results_count }} messages since {{ start_date}}.
 
--block post-content
-  - if org_perms.msgs.broadcast_send
-    -include "msgs/msg_send_modal.haml"
+                        - else
 
+                          -if search
+                            -blocktrans trimmed with results_count=paginator.count|intcomma start=page_obj.start_index|intcomma end=page_obj.end_index|intcomma count cc=paginator.count 
+                              Found {{ results_count }} message in last 90 days matching <i>{{search}}</i>.
+                              -plural
+                                {{ start }} - {{ end }} of {{ results_count }} results for <i>{{search}}</i> since {{start_date}}.
+                          -else
+                            -if start_date
+                              -blocktrans trimmed with results_count=paginator.count|intcomma start=page_obj.start_index|intcomma end=page_obj.end_index|intcomma count cc=paginator.count 
+                                {{ results_count }} message since {{ start_date}}.
+                                -plural
+                                  {{ start }} - {{ end }} of {{ results_count }} messages since {{ start_date}}.
+                                    
+                      .flex-grow
+                        -include "includes/pages.html"
+        -else
+          -include "msgs/empty_include.html"
 
 -block extra-script
   {{ block.super }}
   :javascript
     {% if org_perms.msgs.msg_update %}
 
-    function handleLabelLoaded(event) {
+    function handleCreateLabelModalLoaded(event) {
       lastChecked = getCheckedIds();
       var body = event.detail.body;
       body.querySelector("#id_messages").value = lastChecked.join();
-      /* 
-      $("#active-modal form input#id_messages").val(lastChecked.join());
-      if ($('#id_folder').find('option').length > 1) {
-        select2div('#id_folder');
-      } else {
-        $('#id_folder').parents('.control-group').hide();
-      }*/
     }
 
-    function handleLabelSubmitted(event) {
+    function handleCreateLabelModalSubmitted(event) {
       refresh(function() { recheckIds(); }, true);
     }
 
-
-    // document.addEventListener("DOMContentLoaded", function(){
-      // document.querySelector("#create-label-modal").loadHandler = labelOnLoad;
-    // });
-
-
-    /* function wireLabelButton() {
-      var labelModal = document.querySelector("#create-label-modal");
-      labelModal.addEventListener("load", function(){
-          lastChecked = getCheckedIds();
-          $("#active-modal form input#id_messages").val(lastChecked.join());
-          if ($('#id_folder').find('option').length > 1) {
-            select2div('#id_folder');
-          } else {
-            $('#id_folder').parents('.control-group').hide();
-          }
-      );
-    }*/
-
-    function handleSendMessage() {
+    function handleSendMessageClicked() {
       var sendEndpoint = "{% url 'msgs.broadcast_send' %}";
       var sendModal = document.querySelector("#send-message-modal");
       var msgIds = getCheckedIds();
@@ -305,55 +314,12 @@
 
     {% endif %}
 
-    $('.page-content').on('click', ".add-label", function() {
-
+    function handleAddLabelClicked() {
       document.getElementById("create-label-modal").open = true;
+    }
 
-      /* lastChecked = getCheckedIds();
-      var modal = new Modax('{{ _("Create Label")|escapejs }}', '{% url "msgs.label_create" %}');
-      modal.setIcon('icon-tag');
-      modal.setListeners({
-        onFormLoaded: function(){
-          $("#active-modal form input#id_messages").val(lastChecked.join());
-          if ($('#id_folder').find('option').length > 1) {
-            select2div('#id_folder');
-          } else {
-            $('#id_folder').parents('.control-group').hide();
-          }
-        }, onCompleted: function() { refresh(function() { recheckIds(); }, true);}
-      });*/
-
-      // modal.show();
-    });
-
-    $(".page-content").on('pjax:complete', function() {
+    document.addEventListener('rp-refresh-complete', function() {
       $(".btn").tooltip();
       bindRefreshBlock();
+      wireActionHandlers();
     });
-
-    // since message table rows are refreshed dynamically, we can't bind all our events at document load time
-    $('.select-row').live('mouseover', function(){
-      var contactPageUrl = '/contact/read/' + $(this).data('sender-uuid');
-
-      $(this).find('td').not(':first-child').each(function(){
-        $(this).on('click', function(event) {
-          if (!$(event.target).is('.attachment a')) {
-            document.location.href = contactPageUrl;
-          }
-        });
-      });
-    });
-
-    $(document).on('click', 'td.object-row-checkbox', function() {
-      $('.search-details').hide();
-    });
-
-    {% if org_perms.msgs.msg_export %}
-    $('.page-content').on('click', ".msg-export-btn", function() {
-      lastChecked = getCheckedIds();
-      var modal = new Modax('{{ _("Export Messages")|escapejs }}', '{{ export_url }}');
-      modal.setIcon('icon-excel');
-      modal.setRedirectOnSuccess(true);
-      modal.show();
-    });
-    {% endif %}

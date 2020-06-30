@@ -27,7 +27,7 @@
 }
 
 .linked {
-  @apply text-gray-700;
+  @apply text-gray-700 cursor-pointer;
 
   &.active {
     @apply: text-primary;
@@ -60,7 +60,19 @@
 }
 
 .button-light {
-  @apply button text-gray-600 bg-gray-200;
+  @apply button text-gray-500 bg-gray-100;
+
+  &:hover {
+    cursor: pointer;
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(255, 255, 255, .6);
+  }
+}
+
+.p-icon {
+  padding: 8px 12px;
 }
 
 .button-tertiary {
@@ -101,10 +113,34 @@
   }
 }
 
+.lbl {
+  @apply no-underline ml-1 px-2 text-xs font-normal rounded-full bg-dark-alpha-50 text-dark-alpha-300 tracking-wide whitespace-no-wrap;
+
+  &:hover {
+    @apply no-underline bg-primary text-white;
+  }
+}
+
+.max-h-128 {
+  max-height: 24rem;
+}
+
 .pop {
   animation: pulse 0.3s;
   animation-delay: 0.1s;
 }
+
+.alert-text {
+  @apply text-light-alpha-900 p-4 rounded shadow;
+
+  color: rgba(var(--error-rgb, 1));
+  background: rgba(255, 181, 181, .17);
+
+  .title {
+    @apply font-normal
+  }
+}
+
 
 @responsive {
   .text-shadow {

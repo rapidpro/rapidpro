@@ -23,9 +23,7 @@ function getLabeledIds(labelId) {
     var labeled = $(".lbl[data-id='" + labelId + "']");
     for (var i = 0; i < labeled.length; i++) {
         var id = parseInt(
-            $(labeled[i])
-                .parents('.object-row')
-                .data('object-id')
+            $(labeled[i]).parents('.object-row').data('object-id')
         );
         objectRowsIds.push(id);
     }
@@ -50,7 +48,7 @@ function runActionOnObjectRows(action) {
     jQuery.ajaxSettings.traditional = true;
     fetchPJAXContent('', '#pjax', {
         postData: { objects: objectIds, action: action, pjax: 'true' },
-        forceReload: true
+        forceReload: true,
     });
 }
 
@@ -65,9 +63,9 @@ function unlabelObjectRows(labelId) {
             label: labelId,
             add: addLabel,
             action: 'unlabel',
-            pjax: 'true'
+            pjax: 'true',
         },
-        forceReload: true
+        forceReload: true,
     });
 }
 
@@ -207,13 +205,17 @@ function updateLabelMenu() {
     }
 }
 
-$(document).on('click', 'td.object-row-checkbox', function(e) {
-    e.stopPropagation();
-    e.preventDefault();
-
+function handleRowSelection(row) {
     $('.list-buttons-container').addClass('visible');
 
-    var row = $(this).parent('tr');
+    var row = $(row).parent('tr');
+
+    // noop if the row doesn't have a checkbox
+    var checks = row.find('.object-row-checkbox');
+    if (checks.length == 0) {
+        return;
+    }
+
     if (row.hasClass('checked')) {
         row.removeClass('checked');
         var checks = $('.object-row.checked');
@@ -224,43 +226,53 @@ $(document).on('click', 'td.object-row-checkbox', function(e) {
         row.addClass('checked');
     }
     updateLabelMenu();
+}
+
+$(document).on('click', 'td.object-row-checkbox', function (e) {
+    e.stopPropagation();
+    e.preventDefault();
+    handleRowSelection(this);
     return false;
 });
 
-$(document).ready(function() {
-    $('.page-content').on('click', '.object-btn-label', function() {
+function wireActionHandlers() {
+    $('.page-content').on('click', '.object-btn-label', function () {
         labelObjectRows($(this).data('id'));
     });
 
     if ($('.object-btn-unlabel').length > 0) {
         if (current_label_id) {
-            $('.page-content').on('click', '.object-btn-unlabel', function() {
+            $('.page-content').on('click', '.object-btn-unlabel', function () {
                 labelObjectRows(current_label_id, true);
             });
         }
     }
 
-    $('.page-content').on('click', '.object-btn-restore', function() {
+    $('.page-content').on('click', '.object-btn-restore', function () {
         runActionOnObjectRows('restore');
     });
 
-    $('.page-content').on('click', '.object-btn-archive', function() {
+    $('.page-content').on('click', '.object-btn-archive', function () {
         runActionOnObjectRows('archive');
     });
 
-    $('.page-content').on('click', '.object-btn-delete', function() {
+    $('.page-content').on('click', '.object-btn-delete', function () {
         runActionOnObjectRows('delete');
     });
 
-    $('.page-content').on('click', '.object-btn-resend', function() {
+    $('.page-content').on('click', '.object-btn-resend', function () {
         runActionOnObjectRows('resend');
     });
 
-    $('.page-content').on('click', '.object-btn-close', function() {
+    $('.page-content').on('click', '.object-btn-close', function () {
         runActionOnObjectRows('close');
     });
 
-    $('.page-content').on('click', '.object-btn-reopen', function() {
+    $('.page-content').on('click', '.object-btn-reopen', function () {
         runActionOnObjectRows('reopen');
     });
+}
+
+$(document).ready(function () {
+    wireActionHandlers();
 });

@@ -728,7 +728,7 @@ h5 {
 
 a.logo {
   color: #fff;
-  font-size: 60px;
+  font-size: 84px;
   margin-top: -2px;
   text-decoration: none;
 
@@ -1095,11 +1095,9 @@ a.org-choose {
 #header {
 
   background-color: rgb(var(--primary-rgb));
-  margin-bottom: 3rem;
   border: 0px solid pink;
   z-index: 0;
   position: relative;
-  height: 7rem;
 
   @media all and (max-width: 940px) and (min-width: 767px) {
     min-width: 940px;
@@ -2273,122 +2271,124 @@ input[type='radio'] {
   }
 }
 
-.span9 {
 
-  .table {
-    td {
-      border-top: 0;
-      border-bottom: 1px solid #ddd;
-    }
-
-    tr:first-child {
-      border-top: 1px solid #ddd;
-    }
+.table {
+  td {
+    border-top: 0;
+    border-bottom: 1px solid #ddd;
   }
 
-  .object-list {
-    margin-top: 14px;
+  tr:first-child {
+    border-top: 1px solid #ddd;
+  }
+}
 
-    tbody {
+.object-list {
+  margin-top: 14px;
 
-      tr.new {
-        td {
-          font-weight: bold;
-        }
-      }
+  tbody {
 
+    tr.new {
       td {
-
-        &.checkbox {
-          padding-left: 6px;
-          color: #777;
-          width: 10px;
-
-          &:hover {
-            color: #6885c7;
-          }
-
-          .glyph {
-            margin-top: 3px;
-          }
-        }
-
-        &.field_name {
-          white-space: nowrap;
-        }
-
-        &.value-text {
-          width: 75%;
-
-          .value-labels {
-            float: right;
-            white-space: nowrap;
-          }
-        }
-
-        &.value-name {
-          width: 90%;
-
-          .icon-phone {
-            color: @color-font-lightgrey;
-            font-size: 16px;
-            margin-right: 5px;
-            margin-top: -1px;
-          }
-
-          .icon-mobile {
-            color: @color-font-lightgrey;
-            font-size: 16px;
-            margin-right: 5px;
-          }
-        }
-
-        &.value-status {
-          white-space: nowrap;
-          text-align: right;
-        }
-
-        &.value-phone {
-          a {
-            &:hover {
-              text-decoration: none;
-            }
-
-          }
-        }
-
-        &.value-received {
-          text-align: right;
-        }
-
-        .last-triggered {
-          font-size: 13px;
-        }
-
-        .count {
-          font-size: 11px;
-          margin-left: 5px;
-        }
+        font-weight: bold;
       }
     }
-  }
 
-  .list-buttons-container {
-    height: 35px;
-    visibility: hidden;
+    td {
 
-    .list-buttons {
+      &.checkbox {
+        padding-left: 6px;
+        color: #777;
+        width: 10px;
 
-      button {
-        min-width: 70px;
+        &:hover {
+          color: #6885c7;
+        }
 
         .glyph {
-          margin-right: 3px;
+          margin-top: 3px;
+        }
+      }
+
+      &.field_name {
+        white-space: nowrap;
+      }
+
+      &.value-text {
+        width: 75%;
+
+        .value-labels {
+          float: right;
+          white-space: nowrap;
+        }
+      }
+
+      &.value-name {
+        width: 90%;
+
+        .icon-phone {
+          color: @color-font-lightgrey;
+          font-size: 16px;
+          margin-right: 5px;
+          margin-top: -1px;
         }
 
-        .glyph.icon-excel {
-          margin-left: -2px;
+        .icon-mobile {
+          color: @color-font-lightgrey;
+          font-size: 16px;
+          margin-right: 5px;
         }
+      }
+
+      &.value-status {
+        white-space: nowrap;
+        text-align: right;
+      }
+
+      &.value-phone {
+        a {
+          &:hover {
+            text-decoration: none;
+          }
+
+        }
+      }
+
+      &.value-received {
+        text-align: right;
+      }
+
+      .last-triggered {
+        font-size: 13px;
+      }
+
+      .count {
+        font-size: 11px;
+        margin-left: 5px;
+      }
+    }
+  }
+}
+
+.list-buttons-container {
+  height: 35px;
+  display: none;
+
+  &.visible {
+    display: block;
+  }
+
+  .list-buttons {
+
+    button {
+      min-width: 70px;
+
+      .glyph {
+        margin-right: 3px;
+      }
+
+      .glyph.icon-excel {
+        margin-left: -2px;
       }
     }
   }

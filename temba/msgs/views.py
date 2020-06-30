@@ -755,7 +755,7 @@ class MsgCRUDL(SmartCRUDL):
 
     class Filter(MsgActionMixin, InboxView):
         template_name = "msgs/msg_filter.haml"
-        actions = ["unlabel", "label"]
+        actions = ["archive", "label"]
 
         def derive_title(self, *args, **kwargs):
             return self.derive_label().name
@@ -763,13 +763,36 @@ class MsgCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            edit_btn_cls = "folder-update-btn" if self.derive_label().is_folder() else "label-update-btn"
-
+            label = self.derive_label()
             if self.has_org_perm("msgs.msg_update"):
-                links.append(dict(title=_("Edit"), href="#", js_class=edit_btn_cls))
+                if label.is_folder():
+                    links.append(
+                        dict(
+                            id="update-label",
+                            title=_("Edit Folder"),
+                            href=reverse("msgs.label_update", args=[label.pk]),
+                            modax=_("Edit Folder"),
+                        )
+                    )
+                else:
+                    links.append(
+                        dict(
+                            id="update-label",
+                            title=_("Edit Label"),
+                            href=reverse("msgs.label_update", args=[label.pk]),
+                            modax=_("Edit Label"),
+                        )
+                    )
 
             if self.has_org_perm("msgs.msg_export"):
-                links.append(dict(title=_("Export"), href=reverse("msgs.msg_export"), modax=_("Export Messages")))
+                links.append(
+                    dict(
+                        id="export-messages",
+                        title=_("Export"),
+                        href=self.derive_export_url(),
+                        modax=_("Export Messages"),
+                    )
+                )
 
             if self.has_org_perm("msgs.broadcast_send"):
                 links.append(
@@ -777,7 +800,17 @@ class MsgCRUDL(SmartCRUDL):
                 )
 
             if self.has_org_perm("msgs.label_delete"):
-                links.append(dict(title=_("Remove"), href="#", js_class="remove-label"))
+
+                links.append(
+                    dict(
+                        id="delete-label",
+                        title=_("Delete Label"),
+                        href=reverse("msgs.label_delete", args=[label.pk]),
+                        modax=_("Delete Label"),
+                    )
+                )
+
+                # links.append(dict(title=_("Remove"), href="#", js_class="remove-label"))
 
             return links
 
@@ -803,7 +836,7 @@ class BaseLabelForm(forms.ModelForm):
             raise forms.ValidationError(_("Name must not be blank or begin with punctuation"))
 
         existing_id = self.existing.pk if self.existing else None
-        if Label.all_objects.filter(org=self.org, name__iexact=name).exclude(pk=existing_id).exists():
+        if Label.all_objects.filter(org=self.org, name__iexact=name, is_active=True).exclude(pk=existing_id).exists():
             raise forms.ValidationError(_("Name must be unique"))
 
         labels_count = Label.all_objects.filter(org=self.org, is_active=True).count()
@@ -931,13 +964,23 @@ class LabelCRUDL(SmartCRUDL):
         def derive_fields(self):
             return ("name",) if self.get_object().is_folder() else ("name", "folder")
 
-    class Delete(OrgObjPermsMixin, SmartDeleteView):
+    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+        success_url = "@msgs.msg_inbox"
         redirect_url = "@msgs.msg_inbox"
         cancel_url = "@msgs.msg_inbox"
         success_message = ""
+        fields = ("uuid",)
+        submit_button_name = _("Delete Label")
 
         def post(self, request, *args, **kwargs):
-            label = self.get_object()
-            label.release(self.request.user)
+            self.object = self.get_object()
 
-            return HttpResponseRedirect(self.get_redirect_url())
+            try:
+                self.object.release(self.request.user)
+                response = HttpResponse()
+                response["Temba-Success"] = self.get_success_url()
+                return response
+            except ValueError as e:
+                context = self.get_context_data(error=str(e))
+                del context["form"]
+                return self.render_to_response(context)

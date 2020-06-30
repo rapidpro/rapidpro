@@ -3,7 +3,7 @@ html input {
 }
 
 html {
-  --font-family: Helvetica, Arial, sans-serif;
+  --font-family: 'Roboto', Helvetica, Arial, sans-serif;
 
   --primary-rgb: 35, 135, 202;
   --secondary-rgb: 140, 51, 140;
@@ -12,13 +12,16 @@ html {
   --focus-rgb: 82, 168, 236;
   --error-rgb: 255, 99, 71;
 
+  --selection-light-rgb: 240, 240, 240;
+  --selection-dark-rgb: 180, 180, 180;
+
   /* Old style matching, squared off, borded inputs, select2 colors */
   --curvature: 6px;
   --curvature-widget: 6px;
   --color-focus: #a4cafe;
   --color-widget-bg: #fff;
   --color-widget-bg-focused: #fff;
-  --color-widget-border: rgb(235, 235, 235);
+  --color-widget-border: rgb(225, 225, 225);
 
   /* primary colors, should be dark */
   --color-selection: #f0f6ff;
@@ -62,6 +65,10 @@ html {
   --color-button-primary-text: var(--color-text-light);
   --color-button-secondary: var(--color-secondary-light);
   --color-button-secondary-text: var(--color-text-dark);
+
+  --color-button-destructive: rgb(var(--error-rgb));
+  --color-button-destructive-text: var(--color-text-light);
+
   --color-button-attention: #2ecc71;
 
   --color-label-primary: var(--color-primary-dark);
@@ -87,7 +94,7 @@ temba-select:focus {
 }
 
 .flatpickr-calendar {
-  margin-top: 32px;
-  margin-bottom: 32px;
+  margin-top: 28px;
+  margin-bottom: 28px;
   margin-left: -13px;
 }

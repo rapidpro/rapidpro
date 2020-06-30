@@ -7,7 +7,7 @@ module.exports = {
             transparent: 'transparent',
             black: '#37383c',
             white: '#fff',
-
+            error: 'rgb(var(--error-rgb))',
             primary: 'rgb(var(--primary-rgb))',
             secondary: 'rgb(var(--secondary-rgb))',
             tertiary: 'rgb(var(--tertiary-rgb))',

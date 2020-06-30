@@ -10,7 +10,6 @@
         {{ brand.name }} - Visually build interactive SMS Applications
       {% endblock %}
 
-    %link{href:'{{STATIC_URL}}fonts/roboto/stylesheet.css', rel:'stylesheet', type:'text/css'}
     %meta{charset:"utf-8"}
     %meta{name:"viewport", content:"width=device-width, initial-scale=1.0"}
     %meta{name:"description", content:"{% block page-description %}{{brand.name}} lets you visually build interactive SMS applications and launch them anywhere in the world.{% endblock %}"}
@@ -106,6 +105,7 @@
     -load i18n
 
     -block styles
+      %link{rel:'stylesheet', href:'https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:200,300,400,500'}
 
       -compress css
         %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/bootstrap-css/css/bootstrap.css',  media:'all' }
@@ -171,8 +171,7 @@
 
 %body#pageBody
   -include "components-body.html"
-  .page-wrap
-
+  .flex.flex-col.h-full
     <!-- Header -->
     #print-header
       %span.logo.icon-logo
@@ -206,45 +205,38 @@
     -block post-header
     <!-- Content -->
     -block page-container
-      #page-container.container-fluid
-        .page-content
-          -block page-top
-            .row-fluid
-              .span9
-                -block title
-                  -block title-icon
-                  -block title-text
-                    .title-text
-                      %h1
-                        {{title}}
+      .content.flex-grow
+        -block page-top
+          .flex.mx-4
+            .mr-5
+              -block title
+                -block title-icon
+                -block title-text
+                  .text-4xl.text-gray-600.ml-24
+                    {{title}}
 
-              .span3.top-form
-                .pull-right
+            .flex-grow
+              -block above-bar
+                -block gear-menu
+                  -include "gear_links_include.haml"
+                -block top-form
 
-                  -block above-bar
-                    -block gear-menu
-                      -include "gear_links_include.haml"
-                    -block top-form
+          -block top-bar
+            %hr.top-bar
 
-            -block top-bar
-              %hr.top-bar
+        -if messages
+          -block messages
+            -if messages
+              -for msg in messages
+                %div{class:"alert alert-{{ message.tags }}"}
+                  {{ msg }}
 
-          - if messages
-            .row-fluid
-              .span12
-                - block messages
-                  - if messages
-                    -for msg in messages
-                      %div{class:"alert alert-{{ message.tags }}"}
-                        {{ msg }}
+        -block content
+        -block post-content
 
-          -block content
-          -block post-content
+    .text-center.py-16.bg-gray-100.text-gray-500
+      {{ request.branding.credits|safe }}
 
-    #footerInnerSeperator
-    #footerOuterSeparator
-
-  -include "includes/frame_bottom.html"
 
   // media associated with any form we are displaying
   -if form

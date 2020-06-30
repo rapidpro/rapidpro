@@ -3,6 +3,14 @@ if (typeof console == 'undefined') {
     this.console = { log: function (msg) {} };
 }
 
+function goto(event) {
+    event.stopPropagation();
+    var href = event.target.getAttribute('href');
+    if (href) {
+        document.location.href = href;
+    }
+}
+
 function getCookie(name) {
     var cookieValue = null;
     if (document.cookie && document.cookie != '') {
@@ -98,10 +106,13 @@ function bindRefreshBlock() {
  * Listen for thes start of pjax refreshes and block them if appropriate
  */
 document.addEventListener('rp-refresh-begin', function () {
-    console.log('refreshing beginning');
     var checkedIds = getCheckedIds().length > 0;
     let openedModals = false;
     var modals = document.querySelectorAll('temba-modax');
+    var activeElement = document.activeElement.tagName;
+    var openMenu = !!document.querySelector('.gear-menu.open');
+
+    var focused = activeElement == 'TEMBA-TEXTINPUT';
 
     for (var modal of modals) {
         if (modal.open) {
@@ -112,11 +123,10 @@ document.addEventListener('rp-refresh-begin', function () {
 
     var pjaxElement = document.querySelector('#pjax');
 
-    console.log(pjaxElement, dropDownOpen, checkedIds, openedModals);
     if (pjaxElement) {
         pjaxElement.setAttribute(
             'data-no-pjax',
-            dropDownOpen || checkedIds || openedModals
+            dropDownOpen || checkedIds || openedModals || focused || openMenu
         );
     }
 });

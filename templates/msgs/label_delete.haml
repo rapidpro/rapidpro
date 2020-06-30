@@ -1,0 +1,21 @@
+-extends 'includes/modal.haml'
+
+-load i18n
+
+-block fields
+  
+  -if error
+    .alert-text.mb-4
+      .title
+        -blocktrans with name=object.name
+          Uh oh, we couldn't delete {{name}}.
+      .message
+        {{error}}
+
+  .flex
+    .confirm
+      -trans "Are you sure you want to delete"
+    .name.font-normal.pl-1
+      {{object.name}}?
+
+    

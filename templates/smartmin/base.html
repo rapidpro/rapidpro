@@ -64,10 +64,9 @@
                 }
             }
 
-            var noPJAX = $(container).data('no-pjax');
+            var noPJAX = eval(document.querySelector(container).dataset.noPjax);            
             if (options) {
                 if(!('forceReload' in options) || ('forceReload' in options && !options['forceReload'])) {
-
                     if (noPJAX || ('shouldIgnore' in options && options['shouldIgnore'](data))) {
                         if ('onIgnore' in options) {
                            options['onIgnore'](jqXHR);

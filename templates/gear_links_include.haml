@@ -16,7 +16,7 @@
       -if link.modax
         %temba-modax{ header:'{{link.modax}}', endpoint:"{{link.href}}", id:"{{link.id}}"}
 
-    #gear-container
+    #gear-container.flex.items-center
       -if gear_links|length == 1
         -with link=gear_links|first
           -if link.modax
@@ -32,20 +32,19 @@
       - else
         -with link=gear_links|first
           -if link.modax
-            %a.btn.btn-primary{href:'javascript:showModax("{{link.id}}")', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
-                {{link.title}}
+            .button-light{onclick:'javascript:showModax("{{link.id}}")', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
+              {{link.title}}
                 %span{class:'gear-flag'}
                   {{link.flag}}
 
           -else
-            %a.btn{href:'{{link.href}}', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
+            .button-light{onclick:'document.location.href="{{link.href}}', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
               {{link.title}}
 
-        %span.btn-group.gear-menu
-          %button.btn.dropdown-toggle{ data-toggle:"dropdown" }
-            .glyph.icon-cog
-            %span.caret
-          %ul.dropdown-menu.label-menu{'role':'menu', 'aria-labelledby':'dlabel'}
+        .btn-group.gear-menu.ml-3
+          .button-light.p-icon.dropdown-toggle{ data-toggle:"dropdown" }
+            .glyph.icon-menu-3.text-gray-500
+          %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3{'role':'menu', 'aria-labelledby':'dlabel'}
 
             // If we are inside an angular controller, let it insert options
             %li.dynamic-item.hide{ ng-repeat:'link in $root.gearLinks', ng-class:'{divider:link.id=="divider"}'}
@@ -57,21 +56,20 @@
                 -if link.divider
                   %li.divider
                 -else
-                  %li
+                  %li.py-1
                     -if link.ngClick
                       %a{href:'{{link.href}}', ng-click:'{{link.ngClick}}', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
                         {{link.title}}
                         .gear-flag
                           {{link.flag}}
                     -elif link.modax
-
-                      %a{href:'javascript:showModax("{{link.href}}")', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
-                          {{link.title}}
-                          %span{class:'gear-flag'}
-                            {{link.flag}}
+                      .linked{onclick:'javascript:showModax("{{link.id}}")', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
+                        {{link.title}}
+                        %span{class:'gear-flag'}
+                          {{link.flag}}
 
                     -else
-                      %a{href:'{{link.href}}', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
+                      .linked{onclick:"goto(event);", href:'{{link.href}}', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
                         {{link.title}}
                         %span{class:'gear-flag'}
                           {{link.flag}}
@@ -79,9 +77,9 @@
 
       :javascript
         function showModax(endpoint) {
-          console.log("clicked", endpoint);
+          console.log("clicking " +endpoint)
           const modax = document.querySelector("temba-modax[id='" + endpoint + "']");
-
+          console.log("modax", modax);
           if(modax) {
             modax.setAttribute("open", "true");
           }
