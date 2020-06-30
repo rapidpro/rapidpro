@@ -1809,6 +1809,10 @@ class ContactTest(TembaTest):
         self.assertTrue(evaluate_query(self.org, 'urn != ""', contact_json=self.joe.as_search_json()))
         self.assertFalse(evaluate_query(self.org, 'urn = ""', contact_json=self.joe.as_search_json()))
 
+        self.assertRaises(
+            SearchException, evaluate_query, self.org, 'urn > "x"', contact_json=self.joe.as_search_json()
+        )
+
         self.assertTrue(
             evaluate_query(self.org, "joined = 01-03-2018 AND age < 19", contact_json=self.joe.as_search_json())
         )
