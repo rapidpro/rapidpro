@@ -8,6 +8,7 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
+from packaging.version import Version
 
 from temba import mailroom
 from temba.migrator import Migrator
@@ -1218,7 +1219,7 @@ class MigrationTask(TembaModel):
                 )
 
             # Removing flow revisions before importing again
-            new_flow.revisions.all().delete()
+            FlowRevision.objects.filter(flow=new_flow).delete()
 
             logger.info(f">>> Flow Revisions")
             revisions = migrator.get_flow_revisions(flow_id=flow.id)
@@ -1237,15 +1238,20 @@ class MigrationTask(TembaModel):
                 for item in revisions:
                     json_flow = dict()
                     spec_version = item.spec_version
-                    if item.definition:
-                        try:
+                    try:
+                        export_json = {"version": spec_version, "flows": [json.loads(item.definition)]}
+                        export_version = Version(str(spec_version))
+                        exported_json = FlowRevision.migrate_export(self.org, export_json, False, export_version)
+                        if Org.EXPORT_FLOWS in exported_json and len(export_json[Org.EXPORT_FLOWS]) > 0:
                             json_flow = FlowRevision.migrate_definition(
-                                json_flow=json.loads(item.definition), flow=new_flow
+                                json_flow=exported_json[Org.EXPORT_FLOWS][0], flow=new_flow
                             )
                             json_flow = FlowRevision.migrate_issues(json_flow)
-                            spec_version = Flow.CURRENT_SPEC_VERSION
-                        except Exception:
-                            json_flow = json.loads(item.definition)
+                        spec_version = Flow.CURRENT_SPEC_VERSION
+                    except Exception as e:
+                        if not new_flow.is_system:
+                            logger.error(str(e), exc_info=True)
+                        json_flow = json.loads(item.definition)
 
                     FlowRevision.objects.create(
                         flow=new_flow,
