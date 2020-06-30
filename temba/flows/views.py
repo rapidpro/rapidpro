@@ -509,6 +509,7 @@ class FlowCRUDL(SmartCRUDL):
         "editor_next",
         "results",
         "run_table",
+        "links_table",
         "category_counts",
         "json",
         "broadcast",
@@ -2105,6 +2106,36 @@ class FlowCRUDL(SmartCRUDL):
             context["paginate_by"] = self.paginate_by
             return context
 
+    class LinksTable(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+        """
+        Intercooler helper which renders rows of trackable links to be embedded in an existing table with infinite scrolling
+        """
+
+        paginate_by = 50
+
+        def get_context_data(self, *args, **kwargs):
+            context = super().get_context_data(*args, **kwargs)
+            flow = self.get_object()
+            links = LinkContacts.objects.filter(link__related_flow=flow, is_active=True)
+
+            # paginate
+            modified_on = self.request.GET.get("modified_on", None)
+            if modified_on:
+                id = self.request.GET["id"]
+
+                modified_on = iso8601.parse_date(modified_on)
+                links = links.filter(modified_on__lte=modified_on).exclude(id=id)
+
+            # we grab one more than our page to denote whether there's more to get
+            links = list(links.order_by("-modified_on")[: self.paginate_by + 1])
+            context["more"] = len(links) > self.paginate_by
+            links = links[: self.paginate_by]
+
+            context["trackable_links"] = links
+            context["start_date"] = flow.org.get_delete_date(archive_type=Archive.TYPE_FLOWRUN)
+            context["paginate_by"] = self.paginate_by
+            return context
+
     class CategoryCounts(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
@@ -2145,7 +2176,6 @@ class FlowCRUDL(SmartCRUDL):
 
             context["categories"] = flow.get_category_counts()["counts"]
             context["utcoffset"] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() // 60)
-            context["trackable_links"] = LinkContacts.objects.filter(link__related_flow=flow)
             return context
 
     class Activity(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):

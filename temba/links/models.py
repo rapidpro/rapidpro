@@ -38,7 +38,7 @@ class Link(TembaModel):
 
     related_flow = models.ForeignKey(
         "flows.Flow",
-        related_name="realated_links",
+        related_name="related_links",
         on_delete=models.CASCADE,
         null=True,
         default=None,

@@ -576,6 +576,16 @@
           $(this).addClass("active");
         });
       });
+    
+    $(document).ready(function() {
+      $('.time').live('mouseover', function() {
+        $(this).children('.long').show();
+        $(this).children('.short').hide();
+      }).live('mouseleave', function() {
+        $(this).children('.short').show();
+        $(this).children('.long').hide();
+      });
+    });
 
 -block content
 
@@ -667,15 +677,8 @@
                     -trans "Link"
               %td.header
 
-            %tbody{id:"results_run_table"}
-              - for link in trackable_links
-                %tr
-                  %td
-                    =link.contact
-                  %td
-                    =link.link
-                  %td
-                    =link.created_on
+            %tbody{id:"trackable_links_table"}
+              %tr{ic-append-from:"/flow/links_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#trackable_links_table", ic-indicator:"#indicator"}
       - else
         .text-center
           -trans "No clicked links yet"
