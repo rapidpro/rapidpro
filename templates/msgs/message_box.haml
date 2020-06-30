@@ -102,7 +102,7 @@
             .flex.w-full.mb-1
               -block action-buttons
                 -if org_perms.msgs.msg_update
-                  .action-buttons.list-buttons-container.h-full.mt-2
+                  .action-buttons.list-buttons-container.h-full.mt-2.mr-2
                     .list-buttons.flex.items-center.-mx-2.h-full
                       - if 'unlabel' in actions
                         .btn-group.mx-2
@@ -182,7 +182,7 @@
                               %li
                                 .lbl-menu.add-label.linked{onclick:"handleAddLabelClicked()"}
                                   -trans "New Label..."
-              .flex-grow.page-title.text-3xl.text-gray-700.mt-2.ml-4
+              .flex-grow.page-title.text-3xl.text-gray-700.mt-2.ml-2
                 {{title}}
               .ml-4
                 -include "gear_links_include.haml"

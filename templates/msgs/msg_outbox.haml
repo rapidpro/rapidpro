@@ -6,7 +6,7 @@
   .search-details
 
 -block message-list
-  %table.list-table.sms_list.object-list.table.table-condensed{style: '{% if not org_perms.msgs.msg_update %}margin-top:10px{% endif %}'}
+  %table.mt-4.mx-4.table
     %tbody
       -for broadcast in pending_broadcasts
         %tr.broadcast
