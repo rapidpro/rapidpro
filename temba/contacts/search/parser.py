@@ -81,6 +81,8 @@ class ContactQuery(object):
         for attr in system_contactfields:
             prop_map[attr.key] = (self.PROP_ATTRIBUTE, attr)
 
+        prop_map["uuid"] = (self.PROP_ATTRIBUTE, ContactField(key="uuid"))
+
         for scheme in self.SEARCHABLE_SCHEMES:
             if scheme in prop_map.keys():
                 prop_map[scheme] = (self.PROP_SCHEME, scheme)
@@ -322,6 +324,18 @@ class Condition(QueryNode):
                     return contact_value != query_value
                 else:  # pragma: no cover
                     raise SearchException(_(f"Unknown name comparator: '{self.comparator}'"))
+
+            elif field_key == "uuid":
+                query_value = self.value.lower()
+                contact_value = contact_json["uuid"]
+
+                if self.comparator == "=":
+                    return contact_value == query_value
+                elif self.comparator == "!=":
+                    return contact_value != query_value
+                else:
+                    raise SearchException(_(f"Unknown UUID comparator: '{self.comparator}'"))
+
             else:
                 raise SearchException(_(f"No support for attribute field: '{field}'"))
         else:  # pragma: no cover
@@ -490,6 +504,19 @@ class IsSetCondition(Condition):
 
             elif field_key == "name":
                 contact_value = contact_json.get("name")
+                if is_set:
+                    if contact_value is not None:
+                        return True
+                    else:
+                        return False
+                else:
+                    if contact_value is not None:
+                        return False
+                    else:
+                        return True
+
+            elif field_key == "uuid":
+                contact_value = contact_json["uuid"]
                 if is_set:
                     if contact_value is not None:
                         return True

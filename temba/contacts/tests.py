@@ -1571,6 +1571,22 @@ class ContactTest(TembaTest):
         self.assertTrue(evaluate_query(self.org, 'language = ""', contact_json=self.joe.as_search_json()))
         self.assertFalse(evaluate_query(self.org, 'language != ""', contact_json=self.joe.as_search_json()))
 
+        # test 'uuid' attribute
+        self.assertTrue(evaluate_query(self.org, f'uuid = "{self.joe.uuid}"', contact_json=self.joe.as_search_json()))
+
+        self.assertFalse(
+            evaluate_query(self.org, f'uuid != "{self.joe.uuid}"', contact_json=self.joe.as_search_json())
+        )
+        self.assertTrue(evaluate_query(self.org, 'uuid != "123456"', contact_json=self.joe.as_search_json()))
+
+        self.assertFalse(evaluate_query(self.org, 'uuid = ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'uuid != ""', contact_json=self.joe.as_search_json()))
+
+        # uuid does not support `has` operator
+        self.assertRaises(
+            SearchException, evaluate_query, self.org, 'uuid ~ "123"', contact_json=self.joe.as_search_json()
+        )
+
         # test 'created_on' attribute
         self.assertRaises(
             SearchException,

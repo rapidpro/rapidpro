@@ -797,18 +797,19 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return obj
 
     def as_search_json(self):
-        obj = dict()
+        obj = {
+            "id": self.id,
+            "uuid": self.uuid,
+            "name": self.name,
+            "language": self.language,
+            "fields": self.fields if self.fields else {},
+            "created_on": self.created_on.isoformat(),
+        }
 
         if self.org.is_anon:
             obj["urns"] = []
         else:
             obj["urns"] = [dict(scheme=urn.scheme, path=urn.path) for urn in self.urns.all()]
-
-        obj["fields"] = self.fields if self.fields else {}
-        obj["language"] = self.language
-        obj["created_on"] = self.created_on.isoformat()
-        obj["name"] = self.name
-        obj["id"] = self.id
 
         return obj
 
