@@ -1,3 +1,15 @@
+v5.5.72
+----------
+ * Use modifiers for field value updates
+
+v5.5.71
+----------
+ * Fix to allow all orgs to import flows
+
+v5.5.70
+----------
+ * Use modifiers and mailroom to update contact URNs
+
 v5.5.69
 ----------
  * Refresh contact after letting mailroom make changes

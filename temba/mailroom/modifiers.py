@@ -1,6 +1,11 @@
 from typing import Dict, List, NamedTuple
 
 
+class FieldRef(NamedTuple):
+    key: str
+    name: str
+
+
 class GroupRef(NamedTuple):
     uuid: str
     name: str
@@ -28,6 +33,17 @@ class Language(Modifier):
 
     def __init__(self, language: str):
         self.language = language
+
+
+class Field(Modifier):
+    type = "field"
+
+    def __init__(self, field: FieldRef, value: str):
+        self.field = field
+        self.value = value
+
+    def as_def(self) -> Dict:
+        return {"type": self.type, "field": self.field._asdict(), "value": self.value}
 
 
 class Status(Modifier):
