@@ -330,7 +330,9 @@ class MigrationTask(TembaModel):
 
             org_webhook_events, webhook_events_count = migrator.get_org_webhook_events()
             if org_webhook_events:
-                self.add_webhook_events(logger=logger, webhook_events=org_webhook_events, migrator=migrator, count=webhook_events_count)
+                self.add_webhook_events(
+                    logger=logger, webhook_events=org_webhook_events, migrator=migrator, count=webhook_events_count
+                )
 
             logger.info("[COMPLETED] Webhook Events migration")
             logger.info("")
@@ -1677,8 +1679,7 @@ class MigrationTask(TembaModel):
             new_resthook_obj = None
             if event.resthook_id:
                 new_resthook_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_RESTHOOK,
-                    old_id=event.resthook_id,
+                    model=MigrationAssociation.MODEL_RESTHOOK, old_id=event.resthook_id
                 )
 
             if not new_resthook_obj:
@@ -1697,8 +1698,7 @@ class MigrationTask(TembaModel):
                 new_contact_obj = None
                 if item.contact_id:
                     new_contact_obj = MigrationAssociation.get_new_object(
-                        model=MigrationAssociation.MODEL_CONTACT,
-                        old_id=item.contact_id,
+                        model=MigrationAssociation.MODEL_CONTACT, old_id=item.contact_id
                     )
                 WebHookResult.objects.create(
                     org=self.org,

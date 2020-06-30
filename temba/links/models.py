@@ -36,6 +36,15 @@ class Link(TembaModel):
 
     org = models.ForeignKey(Org, related_name="links", on_delete=models.CASCADE)
 
+    related_flow = models.ForeignKey(
+        "flows.Flow",
+        related_name="related_links",
+        on_delete=models.CASCADE,
+        null=True,
+        default=None,
+        help_text=_("Make this link related to a specific flow. (leave empty to make related to all flows)"),
+    )
+
     is_archived = models.BooleanField(default=False, help_text=_("Whether this trackable link is archived"))
 
     clicks_count = models.PositiveIntegerField(default=0, help_text="Clicks count for this trackable link")
