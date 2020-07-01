@@ -144,6 +144,4 @@ class TemplateTranslation(models.Model):
         return existing
 
     def __str__(self):
-        if self.country:
-            return f"{self.template.name} ({self.language} - {self.country}) {self.status}: {self.content}"
-        return f"{self.template.name} ({self.language}) {self.status}: {self.content}"
+        return f"{self.template.name} ({self.language} [{self.country}]) {self.status}: {self.content}"
