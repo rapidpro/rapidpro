@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-30 19:56+0000\n"
+"POT-Creation-Date: 2020-07-01 20:11+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -9744,8 +9744,10 @@ msgstr "Transmisor"
 msgid "users"
 msgstr "usuarios"
 
-msgid "orgs"
-msgstr "organizaciones"
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "workspaces"
+msgstr "Elija su Organización"
 
 #, fuzzy
 #| msgid "Android"
@@ -9754,6 +9756,9 @@ msgstr "Android"
 
 msgid "dashboard"
 msgstr "Panel"
+
+msgid "orgs"
+msgstr "organizaciones"
 
 #, fuzzy
 msgid "end"
