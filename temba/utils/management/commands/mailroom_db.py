@@ -180,6 +180,7 @@ ORG1 = dict(
             translations=(
                 dict(
                     channel_uuid="0f661e8b-ea9d-4bd3-9953-d368340acf91",
+                    country="US",
                     language="eng",
                     content="Hi {{1}}, are you still experiencing problems with {{2}}?",
                     variable_count=2,
@@ -188,10 +189,26 @@ ORG1 = dict(
                 ),
                 dict(
                     channel_uuid="0f661e8b-ea9d-4bd3-9953-d368340acf91",
+                    country=None,
                     language="fra",
                     content="Bonjour {{1}}, a tu des problems avec {{2}}?",
                     variable_count=2,
                     status="P",
+                    external_id="fra1",
+                ),
+            ),
+        ),
+        dict(
+            name="goodbye",
+            uuid="3b8dd151-1a91-411f-90cb-dd9065bb7a71",
+            translations=(
+                dict(
+                    channel_uuid="0f661e8b-ea9d-4bd3-9953-d368340acf91",
+                    country="",
+                    language="fra",
+                    content="Salut!",
+                    variable_count=0,
+                    status="A",
                     external_id="fra1",
                 ),
             ),

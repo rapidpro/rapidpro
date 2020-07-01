@@ -347,7 +347,7 @@ class WhatsAppTypeTest(TembaTest):
             self.assertEqual("Goodbye {{1}}, see you on {{2}}. See you later {{1}}", ct.content)
             self.assertEqual("eng", ct.language)
             self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
-            self.assertEqual("goodbye (eng) P: Goodbye {{1}}, see you on {{2}}. See you later {{1}}", str(ct))
+            self.assertEqual("goodbye (eng []) P: Goodbye {{1}}, see you on {{2}}. See you later {{1}}", str(ct))
 
             ct = TemplateTranslation.objects.get(template__name="workout_activity", is_active=True)
             self.assertEqual(3, ct.variable_count)
