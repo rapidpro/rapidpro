@@ -1,3 +1,10 @@
+v5.5.73
+----------
+ * Add support for urn property in search queries
+ * Add support for uuid in search queries
+ * Set country on WhatsApp templates syncing and add more supported languages
+ * Add country on TemplateTranslation
+
 v5.5.72
 ----------
  * Use modifiers for field value updates
