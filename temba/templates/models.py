@@ -128,15 +128,16 @@ class TemplateTranslation(models.Model):
             )
 
         else:
-            if existing.language != language or existing.country != country:  # pragma: no cover
-                raise Exception("updating template with different language or country than created with")
+            if existing.language != language:  # pragma: no cover
+                raise Exception("updating template with different language than created with")
 
-            if existing.status != status or existing.content != content:
+            if existing.status != status or existing.content != content or existing.country != country:
                 existing.status = status
                 existing.content = content
                 existing.variable_count = variable_count
                 existing.is_active = True
-                existing.save(update_fields=["status", "content", "is_active", "variable_count"])
+                existing.country = country
+                existing.save(update_fields=["status", "content", "country", "is_active", "variable_count"])
 
                 existing.template.modified_on = timezone.now()
                 existing.template.save(update_fields=["modified_on"])
