@@ -566,6 +566,7 @@ class Command(BaseCommand):
                     channel,
                     t["name"],
                     tt["language"],
+                    tt["country"],
                     tt["content"],
                     tt["variable_count"],
                     tt["status"],
