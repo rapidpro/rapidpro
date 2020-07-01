@@ -1,3 +1,7 @@
+v5.5.75
+----------
+ * always update both language and country if different
+
 v5.5.74
 ----------
  * allow augmentation of templates with new country
