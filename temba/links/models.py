@@ -50,8 +50,10 @@ class Link(TembaModel):
     clicks_count = models.PositiveIntegerField(default=0, help_text="Clicks count for this trackable link")
 
     @classmethod
-    def create(cls, org, user, name, destination):
-        links_arg = dict(org=org, name=name, destination=destination, created_by=user, modified_by=user)
+    def create(cls, org, user, name, destination, related_flow=None):
+        links_arg = dict(
+            org=org, name=name, destination=destination, related_flow=related_flow, created_by=user, modified_by=user
+        )
         return Link.objects.create(**links_arg)
 
     def as_select2(self):

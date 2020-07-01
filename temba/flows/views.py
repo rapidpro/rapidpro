@@ -2176,6 +2176,7 @@ class FlowCRUDL(SmartCRUDL):
 
             context["categories"] = flow.get_category_counts()["counts"]
             context["utcoffset"] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() // 60)
+            context["trackable_links"] = LinkContacts.objects.filter(link__related_flow=flow).exists()
             return context
 
     class Activity(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):

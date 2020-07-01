@@ -83,7 +83,7 @@ class LinkCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
                 self.user = user
                 self.fields["related_flow"].queryset = Flow.objects.filter(
-                    org=self.user.get_org(), is_active=True
+                    org=self.user.get_org(), is_active=True, is_archived=False
                 ).order_by("name")
 
             class Meta:
@@ -113,7 +113,13 @@ class LinkCRUDL(SmartCRUDL):
         def save(self, obj):
             analytics.track(self.request.user.username, "temba.link_created", dict(name=obj.name))
             org = self.request.user.get_org()
-            self.object = Link.create(org=org, user=self.request.user, name=obj.name, destination=obj.destination)
+            self.object = Link.create(
+                org=org,
+                user=self.request.user,
+                name=obj.name,
+                related_flow=obj.related_flow,
+                destination=obj.destination,
+            )
 
         def post_save(self, obj):
             return obj
@@ -214,7 +220,7 @@ class LinkCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
                 self.user = user
                 self.fields["related_flow"].queryset = Flow.objects.filter(
-                    org=self.user.get_org(), is_active=True
+                    org=self.user.get_org(), is_active=True, is_archived=False
                 ).order_by("name")
 
             class Meta:
