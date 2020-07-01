@@ -1,3 +1,7 @@
+v5.5.74
+----------
+ * allow augmentation of templates with new country
+
 v5.5.73
 ----------
  * Add support for urn property in search queries
