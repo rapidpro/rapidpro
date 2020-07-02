@@ -13,10 +13,16 @@
   %h2.header-margin
     {{ link.name }}
 
-  %h5.header-margin{style:"margin-bottom: 10px"}
+  %h5.header-margin{style: "margin-bottom: 10px"}
     .link-destination
       %span.link-destination
         {{ link.destination }}
+  
+   %div.header-margin{style: "margin-left: 0"}
+      -if link.related_flow
+        %span.realated-flow{id:"id_flow_{{ link.related_flow.id }}"}
+          %a.btn.btn-primary.btn-mini{href:"{% url 'flows.flow_editor_next' link.related_flow.uuid %}"}
+            = link.related_flow.name
 
 -block above-bar
   -block top-form

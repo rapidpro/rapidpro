@@ -8,9 +8,11 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
+from packaging.version import Version
 
 from temba import mailroom
 from temba.migrator import Migrator
+from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent, WebHookResult
 from temba.orgs.models import TopUp, TopUpCredits, Language
 from temba.contacts.models import ContactField, Contact, ContactGroup, ContactURN
 from temba.channels.models import Channel, ChannelCount, SyncEvent, ChannelEvent, ChannelLog
@@ -299,6 +301,41 @@ class MigrationTask(TembaModel):
                 self.add_flow_flow_dependencies(flows=org_flows, migrator=migrator)
 
             logger.info("[COMPLETED] Flows migration")
+            logger.info("")
+
+            logger.info("---------------- Resthooks ----------------")
+            logger.info("[STARTED] Resthooks migration")
+
+            all_org_resthooks = Resthook.objects.filter(org=self.org).only("id").order_by("id")
+            for rh in all_org_resthooks:
+                rh.release(user=self.created_by)
+
+            org_resthooks, resthooks_count = migrator.get_org_resthooks()
+            if org_resthooks:
+                self.add_resthooks(logger=logger, resthooks=org_resthooks, migrator=migrator, count=resthooks_count)
+
+            logger.info("[COMPLETED] Resthooks migration")
+            logger.info("")
+
+            logger.info("---------------- Webhook Events ----------------")
+            logger.info("[STARTED] Webhooks migration")
+
+            # Releasing webhook logs before migrate them
+            all_org_webhook_events = WebHookEvent.objects.filter(org=self.org).only("id").order_by("id")
+            for we in all_org_webhook_events:
+                we.release()
+
+            all_webhook_event_results = WebHookResult.objects.filter(org=self.org).only("id").order_by("id")
+            for wer in all_webhook_event_results:
+                wer.release()
+
+            org_webhook_events, webhook_events_count = migrator.get_org_webhook_events()
+            if org_webhook_events:
+                self.add_webhook_events(
+                    logger=logger, webhook_events=org_webhook_events, migrator=migrator, count=webhook_events_count
+                )
+
+            logger.info("[COMPLETED] Webhook Events migration")
             logger.info("")
 
             logger.info("---------------- Campaigns ----------------")
@@ -1182,7 +1219,7 @@ class MigrationTask(TembaModel):
                 )
 
             # Removing flow revisions before importing again
-            new_flow.revisions.all().delete()
+            FlowRevision.objects.filter(flow=new_flow).delete()
 
             logger.info(f">>> Flow Revisions")
             revisions = migrator.get_flow_revisions(flow_id=flow.id)
@@ -1201,15 +1238,20 @@ class MigrationTask(TembaModel):
                 for item in revisions:
                     json_flow = dict()
                     spec_version = item.spec_version
-                    if item.definition:
-                        try:
+                    try:
+                        export_json = {"version": spec_version, "flows": [json.loads(item.definition)]}
+                        export_version = Version(str(spec_version))
+                        exported_json = FlowRevision.migrate_export(self.org, export_json, False, export_version)
+                        if Org.EXPORT_FLOWS in exported_json and len(export_json[Org.EXPORT_FLOWS]) > 0:
                             json_flow = FlowRevision.migrate_definition(
-                                json_flow=json.loads(item.definition), flow=new_flow
+                                json_flow=exported_json[Org.EXPORT_FLOWS][0], flow=new_flow
                             )
                             json_flow = FlowRevision.migrate_issues(json_flow)
-                            spec_version = Flow.CURRENT_SPEC_VERSION
-                        except Exception:
-                            json_flow = json.loads(item.definition)
+                        spec_version = Flow.CURRENT_SPEC_VERSION
+                    except Exception as e:
+                        if not new_flow.is_system:
+                            logger.error(str(e), exc_info=True)
+                        json_flow = json.loads(item.definition)
 
                     FlowRevision.objects.create(
                         flow=new_flow,
@@ -1225,15 +1267,11 @@ class MigrationTask(TembaModel):
             else:
                 new_flow.save_revision(self.created_by, revision_json_dict)
 
-            # Updating metadata and dependencies
+            # Updating metadata
             try:
                 flow_info = mailroom.get_client().flow_inspect(self.org.id, revision_json_dict)
-                dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
-
                 new_flow.metadata = Flow.get_metadata(flow_info)
                 new_flow.save(update_fields=["metadata"])
-
-                new_flow.update_dependencies(dependencies)
             except Exception:
                 pass
 
@@ -1258,14 +1296,16 @@ class MigrationTask(TembaModel):
 
                     try:
                         file_obj_path = self.org.get_temporary_file_from_url(media_url=file_path)
-                        path_s3_file_url = self.org.save_media(file=file_obj_path, extension="jpg")
+                        extension = file_path.split(".")[-1]
+                        path_s3_file_url = self.org.save_media(file=file_obj_path, extension=extension)
 
                         if item.path_thumbnail:
                             file_obj_path_thumbnail = self.org.get_temporary_file_from_url(
                                 media_url=file_path_thumbnail
                             )
+                            extension = file_path_thumbnail.split(".")[-1]
                             path_thumbnail_s3_file_url = self.org.save_media(
-                                file=file_obj_path_thumbnail, extension="jpg"
+                                file=file_obj_path_thumbnail, extension=extension
                             )
 
                     except Exception as e:
@@ -1608,6 +1648,75 @@ class MigrationTask(TembaModel):
                     modified_on=item.modified_on,
                 )
 
+    def add_resthooks(self, logger, resthooks, migrator, count):
+        for idx, resthook in enumerate(resthooks, start=1):
+            logger.info(f">>>[{idx}/{count}] Resthook: {resthook.id} - {resthook.slug}")
+            new_resthook = Resthook.objects.create(
+                created_by=self.created_by,
+                modified_by=self.created_by,
+                slug=resthook.slug,
+                org=self.org,
+                created_on=resthook.created_on,
+                modified_on=resthook.modified_on,
+            )
+
+            MigrationAssociation.create(
+                migration_task=self,
+                old_id=resthook.id,
+                new_id=new_resthook.id,
+                model=MigrationAssociation.MODEL_RESTHOOK,
+            )
+
+            resthook_subscribers = migrator.get_resthook_subscribers(resthook_id=new_resthook.id)
+            for item in resthook_subscribers:
+                ResthookSubscriber.objects.create(
+                    created_by=self.created_by,
+                    modified_by=self.created_by,
+                    resthook=new_resthook,
+                    target_url=item.target_url,
+                    created_on=item.created_on,
+                    modified_on=item.modified_on,
+                )
+
+    def add_webhook_events(self, logger, webhook_events, migrator, count):
+        for idx, event in enumerate(webhook_events, start=1):
+            logger.info(f">>>[{idx}/{count}] Webhook Event: {event.id} - {event.event}")
+
+            new_resthook_obj = None
+            if event.resthook_id:
+                new_resthook_obj = MigrationAssociation.get_new_object(
+                    model=MigrationAssociation.MODEL_RESTHOOK, old_id=event.resthook_id
+                )
+
+            if not new_resthook_obj:
+                continue
+
+            WebHookEvent.objects.create(
+                resthook=new_resthook_obj,
+                data=json.loads(event.data) if event.data else dict(),
+                action=event.action,
+                org=self.org,
+                created_on=event.created_on,
+            )
+
+            webhook_results = migrator.get_webhook_event_results(event_id=event.id)
+            for item in webhook_results:
+                new_contact_obj = None
+                if item.contact_id:
+                    new_contact_obj = MigrationAssociation.get_new_object(
+                        model=MigrationAssociation.MODEL_CONTACT, old_id=item.contact_id
+                    )
+                WebHookResult.objects.create(
+                    org=self.org,
+                    url=item.url,
+                    request=item.request,
+                    status_code=item.status_code,
+                    response=item.body,
+                    request_time=item.request_time,
+                    contact=new_contact_obj,
+                    created_on=item.created_on,
+                )
+
     def remove_association(self):
         return self.associations.all().exclude(model=MigrationAssociation.MODEL_ORG).delete()
 
@@ -1655,6 +1764,8 @@ class MigrationAssociation(models.Model):
     MODEL_ORG_TOPUP = "orgs_topups"
     MODEL_ORG_LANGUAGE = "orgs_language"
     MODEL_TRIGGER = "triggers_trigger"
+    MODEL_RESTHOOK = "api_resthook"
+    MODEL_WEBHOOK_EVENT = "api_webhookevent"
 
     MODEL_CHOICES = (
         (MODEL_CAMPAIGN, MODEL_CAMPAIGN),
@@ -1677,6 +1788,8 @@ class MigrationAssociation(models.Model):
         (MODEL_ORG_TOPUP, MODEL_ORG_TOPUP),
         (MODEL_ORG_LANGUAGE, MODEL_ORG_LANGUAGE),
         (MODEL_TRIGGER, MODEL_TRIGGER),
+        (MODEL_RESTHOOK, MODEL_RESTHOOK),
+        (MODEL_WEBHOOK_EVENT, MODEL_WEBHOOK_EVENT),
     )
 
     migration_task = models.ForeignKey(MigrationTask, on_delete=models.CASCADE, related_name="associations")
@@ -1749,5 +1862,7 @@ class MigrationAssociation(models.Model):
             MigrationAssociation.MODEL_ORG_TOPUP: TopUp,
             MigrationAssociation.MODEL_ORG_LANGUAGE: Language,
             MigrationAssociation.MODEL_TRIGGER: Trigger,
+            MigrationAssociation.MODEL_RESTHOOK: Resthook,
+            MigrationAssociation.MODEL_WEBHOOK_EVENT: WebHookEvent,
         }
         return model_class.get(self.model, None)

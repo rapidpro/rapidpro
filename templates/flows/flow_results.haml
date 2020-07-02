@@ -576,6 +576,16 @@
           $(this).addClass("active");
         });
       });
+    
+    $(document).ready(function() {
+      $('.time').live('mouseover', function() {
+        $(this).children('.long').show();
+        $(this).children('.short').hide();
+      }).live('mouseleave', function() {
+        $(this).children('.short').show();
+        $(this).children('.long').hide();
+      });
+    });
 
 -block content
 
@@ -591,6 +601,10 @@
     %li
       %a{href: '#runs', data-toggle:'tab'}
         -trans "Runs"
+
+    %li
+      %a{href: '#links', data-toggle:'tab'}
+        -trans "Links"
 
   .tab-content
     #overview.tab-pane.active
@@ -648,6 +662,27 @@
 
           %tbody{id:"results_run_table"}
             %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#results_run_table", ic-indicator:"#indicator"}
+        
+    #links.tab-pane
+      - if trackable_links
+        %table
+            %tr
+              %td.header
+                .details
+                  .text
+                    -trans "Contact"
+              %td.header
+                .details
+                  .text
+                    -trans "Link"
+              %td.header
+
+            %tbody{id:"trackable_links_table"}
+              %tr{ic-append-from:"/flow/links_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#trackable_links_table", ic-indicator:"#indicator"}
+      - else
+        .text-center
+          -trans "No clicked links yet"
+
 
   #indicator{style:"display:none"}
     .loader
