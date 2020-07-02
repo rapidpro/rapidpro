@@ -70,6 +70,17 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 if page_access_token == "":  # pragma: no cover
                     raise Exception("Empty page access token!")
 
+                url = f"https://graph.facebook.com/v7.0/{page_id}/subscribed_apps"
+                params = {"access_token": page_access_token}
+                data = {
+                    "subscribed_fields": "messages,message_deliveries,messaging_optins,messaging_optouts,messaging_postbacks,message_reads,messaging_referrals,messaging_handovers"
+                }
+
+                response = requests.post(url, data=data, params=params)
+
+                if response.status_code != 200:  # pragma: no cover
+                    raise Exception("Failed to subscribe to app for webhook events")
+
                 self.cleaned_data["page_access_token"] = page_access_token
                 self.cleaned_data["name"] = name
 
@@ -192,6 +203,17 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
 
         if page_access_token == "":  # pragma: no cover
             raise Exception("Empty page access token!")
+
+        url = f"https://graph.facebook.com/v7.0/{page_id}/subscribed_apps"
+        params = {"access_token": page_access_token}
+        data = {
+            "subscribed_fields": "messages,message_deliveries,messaging_optins,messaging_optouts,messaging_postbacks,message_reads,messaging_referrals,messaging_handovers"
+        }
+
+        response = requests.post(url, data=data, params=params)
+
+        if response.status_code != 200:  # pragma: no cover
+            raise Exception("Failed to subscribe to app for webhook events")
 
         channel.config[Channel.CONFIG_AUTH_TOKEN] = page_access_token
         channel.config[Channel.CONFIG_PAGE_NAME] = name
