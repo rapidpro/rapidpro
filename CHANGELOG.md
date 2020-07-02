@@ -1,3 +1,7 @@
+v5.5.77
+----------
+ * Subscribe to the Facebook app for webhook events
+
 v5.5.76
 ----------
  * Add Facebook App channel type
