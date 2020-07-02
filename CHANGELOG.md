@@ -1,3 +1,7 @@
+v5.5.76
+----------
+ * Add Facebook App channel type
+
 v5.5.75
 ----------
  * always update both language and country if different
