@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-01 20:11+0000\n"
+"POT-Creation-Date: 2020-07-02 11:04+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1078,6 +1078,33 @@ msgstr "Токен Доступа к странице для Вашего При
 
 msgid "The name of the Facebook page"
 msgstr "Имя на странице Facebook "
+
+msgid "Reconnect Facebook Page"
+msgstr ""
+
+#, fuzzy
+#| msgid ""
+#| "Add a <a href=\"http://facebook.com\">Facebook</a> bot to send and receive messages on behalf\n"
+#| "    of one of your Facebook pages for free. You will need to create a Facebook application on their\n"
+#| "    <a href=\"http://developers.facebook.com\">developers</a> site first."
+msgid ""
+"Add a <a href=\"http://facebook.com\">Facebook</a> bot to send and receive messages on behalf\n"
+"    of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect"
+msgstr ""
+"Добавьте бота <a href=\"http://facebook.com\">Facebook</a> для бесплатной отправки и получения сообщений от имени \n"
+"    одной из Ваших страниц на Facebook. Вам сначала потребуется создать приложение Facebook на их \n"
+"    сайте для <a href=\"http://developers.facebook.com\">разработчиков</a> ."
+
+msgid "The User Access Token"
+msgstr ""
+
+#, fuzzy
+#| msgid "The number of commands that we gave the channel"
+msgid "The Facebook User ID of the admin that connected the channel"
+msgstr "Количество команд, которые мы отдали каналу"
+
+msgid "Sorry your Facebook channel could not be connected. Please try again"
+msgstr ""
 
 msgid ""
 "Add a <a href=\"https://firebase.google.com/docs/cloud-messaging/\"> Firebase Cloud\n"
@@ -5647,6 +5674,28 @@ msgstr ""
 
 msgid "Verify Token"
 msgstr "Проверить Токен"
+
+#, fuzzy
+#| msgid "The name of the Facebook page"
+msgid "Connect Facebook page"
+msgstr "Имя на странице Facebook "
+
+msgid "Click on the page to add as a channel"
+msgstr ""
+
+msgid "Error with token, you need to reconnect the Facebook page by clicking the button below"
+msgstr ""
+
+msgid "Everything looks good. No need to reconnect"
+msgstr ""
+
+msgid "Error reconnecting Facebook page. Please retry"
+msgstr ""
+
+#, fuzzy
+#| msgid "The name of the Facebook page"
+msgid "Reconnect Facebook page"
+msgstr "Имя на странице Facebook "
 
 #, fuzzy, python-format
 #| msgid ""

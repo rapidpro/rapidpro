@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-01 20:11+0000\n"
+"POT-Creation-Date: 2020-07-02 11:04+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -1432,6 +1432,31 @@ msgstr ""
 #| msgid "The name of the video"
 msgid "The name of the Facebook page"
 msgstr "El nombre del video"
+
+#, fuzzy
+#| msgid "The name of the video"
+msgid "Reconnect Facebook Page"
+msgstr "El nombre del video"
+
+msgid ""
+"Add a <a href=\"http://facebook.com\">Facebook</a> bot to send and receive messages on behalf\n"
+"    of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect"
+msgstr ""
+
+#, fuzzy
+#| msgid "API Token"
+msgid "The User Access Token"
+msgstr "Token API"
+
+#, fuzzy
+#| msgid "The number of commands that we gave the channel"
+msgid "The Facebook User ID of the admin that connected the channel"
+msgstr "El número de comandos que nos dio el transmisor"
+
+#, fuzzy
+#| msgid "Your changes could not be saved. Please reload the page and try again."
+msgid "Sorry your Facebook channel could not be connected. Please try again"
+msgstr "No se pudieron guardar sus cambios. Por favor, actualice la página e inténtelo nuevamente."
 
 msgid ""
 "Add a <a href=\"https://firebase.google.com/docs/cloud-messaging/\"> Firebase Cloud\n"
@@ -7537,6 +7562,30 @@ msgstr ""
 msgid "Verify Token"
 msgstr ""
 
+#, fuzzy
+#| msgid "The name of the video"
+msgid "Connect Facebook page"
+msgstr "El nombre del video"
+
+#, fuzzy
+#| msgid "Click here to send a message"
+msgid "Click on the page to add as a channel"
+msgstr "Haga clic aquí para enviar un mensaje"
+
+msgid "Error with token, you need to reconnect the Facebook page by clicking the button below"
+msgstr ""
+
+msgid "Everything looks good. No need to reconnect"
+msgstr ""
+
+msgid "Error reconnecting Facebook page. Please retry"
+msgstr ""
+
+#, fuzzy
+#| msgid "The name of the video"
+msgid "Reconnect Facebook page"
+msgstr "El nombre del video"
+
 #, fuzzy, python-format
 #| msgid ""
 #| "\n"
@@ -12722,6 +12771,11 @@ msgstr "Ingrese el código de pedido"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
+#, fuzzy
+#~| msgid "Your app's server access token"
+#~ msgid "Empty user access token!"
+#~ msgstr "Token de acceso desde su repositorio"
+
 #, fuzzy, python-brace-format
 #~| msgid "Using a Local Number"
 #~ msgid "f'{val}' isn't a valid number"
@@ -13444,9 +13498,6 @@ msgstr ""
 
 #~ msgid "Alias names must be unique, try again."
 #~ msgstr "Los apelativos deben ser únicos, inténtelo de nuevo."
-
-#~ msgid "Your changes could not be saved. Please reload the page and try again."
-#~ msgstr "No se pudieron guardar sus cambios. Por favor, actualice la página e inténtelo nuevamente."
 
 #, fuzzy
 #~| msgid "Channel Event"
