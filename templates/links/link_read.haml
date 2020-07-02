@@ -19,7 +19,7 @@
         {{ link.destination }}
   
    %div.header-margin{style: "margin-left: 0"}
-      -if link.related_flow
+      -if link.related_flow and link.related_flow.is_active and not link.related_flow.is_archived
         %span.realated-flow{id:"id_flow_{{ link.related_flow.id }}"}
           %a.btn.btn-primary.btn-mini{href:"{% url 'flows.flow_editor_next' link.related_flow.uuid %}"}
             = link.related_flow.name
