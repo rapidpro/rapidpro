@@ -1,0 +1,24 @@
+-load humanize smartmin temba i18n tz
+
+-for link in trackable_links
+  <tr
+    {% if forloop.last and more %}
+      ic-append-from="/flow/links_table/{{object.id}}/?modified_on={{link.modified_on|utc|date:'Y-m-d\TH:i:s.u'|urlencode}}&id={{link.id}}"
+      ic-trigger-on="scrolled-into-view"
+      ic-target="#trackable_links_table"
+      ic-indicator="#indicator"
+    {% endif %}
+  >
+    %td
+      %a{href: '{% url "contacts.contact_read" link.contact.uuid %}'}
+        = link.contact.name
+    %td
+      %a{href: '{% url "links.link_read" link.link.uuid %}'}
+        = link.link
+    %td.created_on
+      %span.time
+        %span.short
+          = link.created_on|gmail_time
+        %span.long.hide
+          = link.created_on
+  </tr>

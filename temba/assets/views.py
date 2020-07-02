@@ -6,6 +6,8 @@ from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFoun
 from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
 
+from temba.flows.models import ExportFlowImagesTask
+
 from .models import AssetAccessDenied, AssetEntityNotFound, AssetFileNotFound, get_asset_store
 
 
@@ -47,11 +49,17 @@ class AssetDownloadView(SmartTemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        asset_store = get_asset_store(kwargs.pop("type"))
+        type_ = kwargs.pop("type")
+        asset_store = get_asset_store(type_)
         pk = kwargs.pop("pk")
 
         try:
             asset_org, location, filename = asset_store.resolve(self.request.user, pk)
+            if type_ == "flowimages_download":
+                task = ExportFlowImagesTask.objects.filter(pk=pk).first()
+                task.file_path = location
+                task.file_downloaded = True
+                task.save(update_fields=["file_path", "file_downloaded"])
         except (AssetEntityNotFound, AssetFileNotFound):
             file_error = _("File not found")
         except AssetAccessDenied:  # pragma: needs cover

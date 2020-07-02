@@ -1,4 +1,8 @@
+import os
 import logging
+import time
+import boto3
+
 from datetime import datetime, timedelta
 
 import iso8601
@@ -138,3 +142,38 @@ def trim_flow_sessions():
 
     elapsed = timesince(start)
     print(f"Deleted {num_deleted} flow sessions which ended before {threshold.isoformat()} in {elapsed}")
+
+
+@task(track_started=True, name="delete_flowimage_downloaded_files")
+def delete_flowimage_downloaded_files():
+    print("> Running garbage collector for Flow Images zip files")
+    counter_files = 0
+    start = time.time()
+
+    s3 = (
+        boto3.resource(
+            "s3", aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+        )
+        if settings.DEFAULT_FILE_STORAGE == "storages.backends.s3boto3.S3Boto3Storage"
+        else None
+    )
+    download_tasks = (
+        ExportFlowImagesTask.objects.filter(cleaned=False, file_downloaded=True).only("id").order_by("created_on")
+    )
+    for item in download_tasks:
+        try:
+            file_path = item.file_path
+            if s3 and settings.AWS_BUCKET_DOMAIN in file_path:
+                key = file_path.replace("https://%s/" % settings.AWS_BUCKET_DOMAIN, "")
+                obj = s3.Object(settings.AWS_STORAGE_BUCKET_NAME, key)
+                obj.delete()
+            else:
+                expected_fpath = file_path.replace(settings.MEDIA_URL, "")
+                file_path = os.path.join(settings.MEDIA_ROOT, expected_fpath)
+                os.remove(file_path)
+            item.cleaned = True
+            item.save(update_fields=["cleaned"])
+            counter_files += 1
+        except Exception:
+            pass
+    print("> Garbage collection finished in %0.3fs for %s file(s)" % (time.time() - start, counter_files))

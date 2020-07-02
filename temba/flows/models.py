@@ -2320,7 +2320,7 @@ class FlowImage(models.Model):
         return json.loads(self.exif) if self.exif else dict()
 
     def get_url(self):
-        if "amazonaws.com" in self.path:
+        if "amazonaws.com" in self.path or self.path.startswith("http"):
             return self.path
         protocol = "https" if settings.IS_PROD else "http"
         image_url = "%s://%s/%s" % (protocol, settings.AWS_BUCKET_DOMAIN, self.path)
@@ -3994,6 +3994,10 @@ class ExportFlowImagesTask(BaseExportTask):
     email_template = "flowimages/email/flowimages_download"
 
     files = models.TextField(help_text=_("Array as text of the files ID to download in a zip file"))
+
+    file_path = models.CharField(null=True, help_text=_("Path to downloadable file"), max_length=255)
+    file_downloaded = models.NullBooleanField(default=False, help_text=_("If the file was downloaded"))
+    cleaned = models.NullBooleanField(default=False, help_text=_("If the file was removed after downloaded"))
 
     @classmethod
     def create(cls, org, user, files):
