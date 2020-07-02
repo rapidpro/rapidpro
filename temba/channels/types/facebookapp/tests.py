@@ -98,7 +98,10 @@ class FacebookTypeTest(TembaTest):
         post_data["page_name"] = "Temba"
 
         response = self.client.post(url, post_data, follow=True)
-        self.assertEqual(response.context["form"].errors["__all__"][0], "Sorry your Facebook channel could not be connected. Please try again")
+        self.assertEqual(
+            response.context["form"].errors["__all__"][0],
+            "Sorry your Facebook channel could not be connected. Please try again",
+        )
 
     @override_settings(IS_PROD=True)
     @patch("requests.delete")
