@@ -7,7 +7,11 @@ function goto(event) {
     event.stopPropagation();
     var href = event.target.getAttribute('href');
     if (href) {
-        document.location.href = href;
+        if (event.metaKey) {
+            window.open(href, '_blank');
+        } else {
+            document.location.href = href;
+        }
     }
 }
 

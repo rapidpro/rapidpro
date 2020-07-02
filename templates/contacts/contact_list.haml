@@ -16,6 +16,12 @@
 
 -block content
 
+  -trans 'Delete Contacts' as confirm_title
+  -trans 'Delete' as confirm_button
+  %temba-dialog#delete-confirmation{header:"{{confirm_title|escapejs}}", primaryButtonName:"{{confirm_button|escapejs}}", destructive: "true"}
+    .p-6
+      -trans "Are you sure you want to delete these contacts? This cannot be undone."
+
   #pjax.page-content
     -block pjax
       .lp-frame
@@ -64,11 +70,11 @@
 
             -if has_contacts
               -block contacts-list
-                .flex.w-full.mb-1.py-2
+                .flex.w-full.mb-1.py-4.items-end
 
                   -block action-buttons
                     -if org_perms.contacts.contact_update
-                      .list-buttons-container.h-full.mt-2.mr-2.flex-grow
+                      .list-buttons-container.h-full.mr-2.flex-grow
                         .list-buttons.flex.items-center.-mx-2.h-full
                           -if 'block' in actions
                             .btn-group.mx-2
@@ -99,7 +105,7 @@
 
                           - if 'delete' in actions
                             .btn-group.mx-2
-                              .object-btn-delete
+                              .contacts-btn-delete
                                 .button-light.text-gray-500.p-icon
                                   .flex.items-center
                                     .-mt-1.mr-2.glyph.icon-user-delete{style:"width:16px"}
@@ -146,9 +152,9 @@
                                       .text-gray-600
                                         -trans "Send Message"
 
-                    .flex-grow.page-title.text-3xl.text-gray-700.mt-2.ml-2.leading-none.self-center
+                    .flex-grow.page-title.text-3xl.text-gray-700.ml-2.self-end.items-end
                       .flex.flex-col
-                        .title
+                        .title.leading-tight
                           -if current_group
                             {{current_group.name}}
                           -else
@@ -167,7 +173,6 @@
 
                     .ml-4
                       -include "gear_links_include.haml"
-
 
                 %table.object-list
                   %tr.contacts
@@ -222,21 +227,22 @@
                           %td.contact.checkbox.object-row-checkbox
                             .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox.h-4.pl-3.w-4.cursor-pointer
 
-                        %td.value-text.field_name
-                          .px-4.py-2.whitespace-no-wrap
-                            {{ object|name:user_org }}
+                        %td
+                          .pl-4.pr-8.py-2.whitespace-no-wrap
+                            .linked{onclick:"goto(event)", href:"/contact/read/{{object.uuid}}/"}
+                              {{ object|name:user_org }}
 
-                        %td.value-phone.field_phone
+                        %td.w-full{onclick:"handleRowSelection(this)"}
                           .px-4.py-2.whitespace-no-wrap
                             {{ object|urn:user_org }}
 
                         -for field in contact_fields
                           -if field.show_in_table
-                            %td.field
+                            %td.field{onclick:"handleRowSelection(this)"}
                               .px-4.py-2
                                 {{ object|contact_field:field.key }}
 
-                        %td.value-received.field_received
+                        %td.value-received.field_received{onclick:"handleRowSelection(this)"}
                           .px-4.py-2.whitespace-no-wrap
                             {% format_datetime object.created_on %}
 
@@ -261,7 +267,7 @@
 
 
               .flex.flex-col.mx-4.mt-3.mb-16
-                .flex
+                .flex.flex-wrap
                   .text-gray-700
                     -include "includes/results_count.html"
                   .flex-grow
@@ -270,7 +276,7 @@
                 -if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages and paginator.count > 10000
                   .text-gray-400.text-sm.self-end.mt-2
                     -trans "To view more than 10,000 search results, save it as a group."
-              
+                
           - else
             - include "contacts/empty_include.haml"
 
@@ -291,6 +297,54 @@
 
 -block extra-style
   :css
+    @media only screen and (max-width: 1500px) {
+      th:nth-child(n+10), td:nth-child(n+10) {
+        display:none;
+      }
+    }
+
+    @media only screen and (max-width: 1600px) {
+      th:nth-child(n+9), td:nth-child(n+9) {
+        display:none;
+      }
+    }
+
+    @media only screen and (max-width: 1450px) {
+      th:nth-child(n+9), td:nth-child(n+9) {
+        display:none;
+      }
+    }
+
+    @media only screen and (max-width: 1300px) {
+      th:nth-child(n+8), td:nth-child(n+8) {
+        display:none;
+      }
+    }
+
+    @media only screen and (max-width: 1150px) {
+      th:nth-child(n+7), td:nth-child(n+7) {
+        display:none;
+      }
+    }
+
+    @media only screen and (max-width: 1000px) {
+      th:nth-child(n+6), td:nth-child(n+6) {
+        display:none;
+      }
+    }
+
+    @media only screen and (max-width: 850px) {
+      th:nth-child(n+5), td:nth-child(n+5) {
+        display:none;
+      }
+    }
+
+    @media only screen and (max-width: 700px) {
+      th:nth-child(n+0), td:nth-child(n+4) {
+        display:none;
+      }
+    }
+
     tr.contacts th a span.icon {
       visibility: hidden;
       text-decoration: none;
@@ -354,7 +408,6 @@
   :javascript
 
     function handleSendMessageClicked() {
-      console.log("send message");
       // when we click send, include any clicked messages in our modax request
       var sendEndpoint = "{% url 'msgs.broadcast_send' %}";
       var sendButton = document.querySelector(".send-button");
@@ -367,31 +420,10 @@
       }
     }
 
-    function wireSendButton() {
-    }
-
-    $(document).on('click', '.search-query', function() {
-      $(this).animate({ width: '600px'}, 200);
-    });
-
-    {% if org_perms.contacts.contact_create %}
-    if($(location).attr('hash') == '#contact') {
-      showCreateContactModal();
-    }
-    {% endif %}
-
-    {% if org_perms.contacts.contactgroup_create %}
-    if($(location).attr('hash') == '#group') {
-      showCreateGroupModal();
-    }
-    {% endif %}
-
-
     // keeps track if we are on a link or not
     var onLink = false;
 
     {% if org_perms.contacts.contact_update %}
-
     function addContactToGroup(groupId){
       var contactIds = getCheckedIds();
       var groupedIds = getLabeledIds(groupId);
@@ -408,70 +440,41 @@
       jQuery.ajaxSettings.traditional = true;
       fetchPJAXContent("", "#pjax", { postData: {objects: contactIds, label: groupId, add: addGroup, action: 'label', pjax: 'true'}, forceReload: true, onSucces: function(){console.log("you did it") }});
     }
-
-    {% endif %}
-
-    {% if org_perms.contacts.contact_create %}
-    function showCreateContactModal() {
-      var modal = new Modax('{{ _("Create Contact")|escapejs }}', '{% url "contacts.contact_create" %}')
-      modal.setIcon('icon-user')
-      modal.setListeners({
-        onSuccess: function() {
-          location.reload();
-        }
-      })
-      modal.show()
-    }
-    {% endif %}
-
-    {% if org_perms.contacts.contactgroup_create %}
-    function showCreateGroupModal() {
-      var modal = new Modax('{{ _("Create Contact Group")|escapejs }}','{% url "contacts.contactgroup_create" %}')
-      modal.setIcon('icon-users')
-      modal.setListeners({
-        onSuccess: function() {
-          location.reload();
-        }
-      })
-      modal.show()
-    }
     {% endif %}
 
     {% if org_perms.contacts.contact_delete %}
     $(".contacts-btn-delete").live('click', function() {
-      modal = new ConfirmationModal($('.contact-deletion > .title').html(), $('.contact-deletion > .body').html());
-      modal.addClass('alert');
-      modal.setListeners({onPrimary: function(){
-        runActionOnObjectRows("delete");
-        modal.dismiss();
-      }}, false);
-      modal.setPrimaryButton('{{ _("Delete")|escapejs }}');
-      modal.show();
+      var confirm = document.querySelector('#delete-confirmation');
+      confirm.open = true;
     });
     {% endif %}
 
     {% if org_perms.contacts.contact_unblock %}
       $(".page-content").on('click', ".object-btn-unblock", function() {
-	    runActionOnObjectRows("unblock");
+	      runActionOnObjectRows("unblock");
       });
       $(".page-content").on('click', ".object-btn-block", function() {
-	    runActionOnObjectRows("block");
+	      runActionOnObjectRows("block");
       });
     {% endif %}
 
     {% if org_perms.contacts.contact_unstop %}
       $(".page-content").on('click', ".object-btn-unstop", function() {
-	    runActionOnObjectRows("unstop");
+	      runActionOnObjectRows("unstop");
       });
     {% endif %}
 
-    $('.select-row').live('mouseover', function(){
-      url = '/contact/read/' + $(this).data('uuid');
-
-      $(this).find('td').not(':first-child').each(function(){
-        $(this).attr('onClick', "document.location.href=url;");
-      });
+    {% if org_perms.contacts.contact_delete %}
+    window.addEventListener('DOMContentLoaded', (event) => {
+      var confirmation = document.querySelector("#delete-confirmation");
+      confirmation.addEventListener("temba-button-clicked", function(event){
+        if(!event.detail.button.secondary) {
+          runActionOnObjectRows("delete");
+        }
+        confirmation.open = false;
+      })
     });
+    {% endif %}
 
     function handleCreateGroupModalLoaded(event) {
       lastChecked = getCheckedIds();

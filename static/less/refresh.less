@@ -48,6 +48,12 @@ form.smartmin-form {
       border: none;
     }
 
+    tr:hover {
+      td {
+        background-color: rgba(var(--selection-light-rgb), .3);
+      }
+    }
+
     td {
       border-top: 0px;
       border-bottom: 1px solid #f1f1f1;
@@ -79,7 +85,7 @@ form.smartmin-form {
 
   tr.checked td {
     color: rgba(0, 0, 0, .65) !important;
-    background-color: rgba(var(--selection-light-rgb), .5);
+    background-color: rgba(var(--selection-light-rgb), .5) !important;
     border-color: rgba(var(--selection-light-rgb), 1);
 
     &:hover {
@@ -105,6 +111,7 @@ form.smartmin-form {
 
 #gear-container {
   display: flex;
+  height: inherit;
 
   .gear-menu {
     .glyph {

@@ -95,10 +95,10 @@
               %form#search-form{method:"get"}
                 %temba-textinput.w-full{onsubmit:'document.querySelector("#search-form").submit();', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
 
-              .flex.w-full.mb-1.py-2
+              .flex.w-full.mb-1.py-4.items-end
                 -block action-buttons
                   -if org_perms.msgs.msg_update
-                    .action-buttons.list-buttons-container.h-full.mt-2.mr-2.flex-grow
+                    .action-buttons.list-buttons-container.h-full.mr-2.flex-grow
                       .list-buttons.flex.items-center.-mx-2.h-full
                         - if 'unlabel' in actions
                           .btn-group.mx-2
@@ -173,8 +173,9 @@
                                 %li
                                   .lbl-menu.add-label.linked{onclick:"handleAddLabelClicked()"}
                                     -trans "New Label..."
-                .flex-grow.page-title.text-3xl.text-gray-700.mt-2.ml-2
-                  {{title}}
+                .flex-grow.page-title.text-3xl.text-gray-700.ml-2.items-end
+                  .title.leading-tight
+                    {{title}}
                 .ml-4
                   -include "gear_links_include.haml"
 
@@ -193,7 +194,7 @@
                           .pl-4.py-2
                             .linked{onclick:"goto(event)", href:"/contact/read/{{object.contact.uuid}}/"}
                               {{ object.contact|short_name:user_org }}
-                        %td.w-full{onclick:"handleRowSelection(this)", class:"{% if actions %}cursor-pointer{%endif%}"}
+                        %td.w-full{onclick:"handleRowSelection(this)"}
                           .flex.flex-wrap.flex-end.items-center.px-4.py-2.justify-end
                             .flex-grow.inline
                               {% get_value object 'text' %}
@@ -208,7 +209,7 @@
                               - for attachment in object.attachments
                                 {% attachment_button attachment %}
 
-                        %td{onclick:"handleRowSelection(this)", class:"{% if actions %}cursor-pointer{%endif%}"}
+                        %td{onclick:"handleRowSelection(this)"}
                           .flex.w-full.items-end.justify-end.pr-4
                             .time.whitespace-no-wrap
                               {% short_datetime object.created_on %}
