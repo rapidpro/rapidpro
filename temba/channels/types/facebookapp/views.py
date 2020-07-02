@@ -21,6 +21,63 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         page_name = forms.CharField(required=True, help_text=_("The name of the Facebook page"))
         page_id = forms.IntegerField(required=True, help_text="The Facebook Page ID")
 
+        def clean(self):
+            try:
+                auth_token = self.cleaned_data["user_access_token"]
+                name = self.cleaned_data["page_name"]
+                page_id = self.cleaned_data["page_id"]
+                fb_user_id = self.cleaned_data["fb_user_id"]
+
+                app_id = settings.FACEBOOK_APPLICATION_ID
+                app_secret = settings.FACEBOOK_APPLICATION_SECRET
+
+                # get user long lived access token
+                url = "https://graph.facebook.com/oauth/access_token"
+                params = {
+                    "grant_type": "fb_exchange_token",
+                    "client_id": app_id,
+                    "client_secret": app_secret,
+                    "fb_exchange_token": auth_token,
+                }
+
+                response = requests.get(url, params=params)
+
+                if response.status_code != 200:  # pragma: no cover
+                    raise Exception("Failed to get a user long lived token")
+
+                long_lived_auth_token = response.json().get("access_token", "")
+
+                if long_lived_auth_token == "":  # pragma: no cover
+                    raise Exception("Empty user access token!")
+
+                url = f"https://graph.facebook.com/v7.0/{fb_user_id}/accounts"
+                params = {"access_token": long_lived_auth_token}
+
+                response = requests.get(url, params=params)
+
+                if response.status_code != 200:  # pragma: no cover
+                    raise Exception("Failed to get a page long lived token")
+
+                response_json = response.json()
+
+                page_access_token = ""
+                for elt in response_json["data"]:
+                    if elt["id"] == str(page_id):
+                        page_access_token = elt["access_token"]
+                        name = elt["name"]
+                        break
+
+                if page_access_token == "":  # pragma: no cover
+                    raise Exception("Empty page access token!")
+
+                self.cleaned_data["page_access_token"] = page_access_token
+
+            except Exception:
+                raise forms.ValidationError(_("Sorry your Facebook channel could not be connected. Please try again"))
+
+            return self.cleaned_data
+
+
     form_class = Form
 
     def get_context_data(self, **kwargs):
@@ -31,52 +88,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
     def form_valid(self, form):
         org = self.request.user.get_org()
-        auth_token = form.cleaned_data["user_access_token"]
+
         name = form.cleaned_data["page_name"]
         page_id = form.cleaned_data["page_id"]
-        fb_user_id = form.cleaned_data["fb_user_id"]
-
-        app_id = settings.FACEBOOK_APPLICATION_ID
-        app_secret = settings.FACEBOOK_APPLICATION_SECRET
-
-        # get user long lived access token
-        url = "https://graph.facebook.com/oauth/access_token"
-        params = {
-            "grant_type": "fb_exchange_token",
-            "client_id": app_id,
-            "client_secret": app_secret,
-            "fb_exchange_token": auth_token,
-        }
-
-        response = requests.get(url, params=params)
-
-        if response.status_code != 200:  # pragma: no cover
-            raise Exception(_("Failed to get a user long lived token"))
-
-        long_lived_auth_token = response.json().get("access_token", "")
-
-        if long_lived_auth_token == "":  # pragma: no cover
-            raise Exception(_("Empty user access token!"))
-
-        url = f"https://graph.facebook.com/v7.0/{fb_user_id}/accounts"
-        params = {"access_token": long_lived_auth_token}
-
-        response = requests.get(url, params=params)
-
-        if response.status_code != 200:  # pragma: no cover
-            raise Exception(_("Failed to get a page long lived token"))
-
-        response_json = response.json()
-
-        page_access_token = ""
-        for elt in response_json["data"]:
-            if elt["id"] == str(page_id):
-                page_access_token = elt["access_token"]
-                name = elt["name"]
-                break
-
-        if page_access_token == "":  # pragma: no cover
-            raise Exception(_("Empty page access token!"))
+        page_access_token = form.cleaned_data["page_access_token"]
 
         config = {
             Channel.CONFIG_AUTH_TOKEN: page_access_token,
@@ -150,12 +165,12 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
         response = requests.get(url, params=params)
 
         if response.status_code != 200:  # pragma: no cover
-            raise Exception(_("Failed to get a user long lived token"))
+            raise Exception("Failed to get a user long lived token")
 
         long_lived_auth_token = response.json().get("access_token", "")
 
         if long_lived_auth_token == "":  # pragma: no cover
-            raise Exception(_("Empty user access token!"))
+            raise Exception("Empty user access token!")
 
         url = f"https://graph.facebook.com/v7.0/{fb_user_id}/accounts"
         params = {"access_token": long_lived_auth_token}
@@ -163,7 +178,7 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
         response = requests.get(url, params=params)
 
         if response.status_code != 200:  # pragma: no cover
-            raise Exception(_("Failed to get a page long lived token"))
+            raise Exception("Failed to get a page long lived token")
 
         response_json = response.json()
 
@@ -175,7 +190,7 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
                 break
 
         if page_access_token == "":  # pragma: no cover
-            raise Exception(_("Empty page access token!"))
+            raise Exception("Empty page access token!")
 
         channel.config[Channel.CONFIG_AUTH_TOKEN] = page_access_token
         channel.config[Channel.CONFIG_PAGE_NAME] = name
