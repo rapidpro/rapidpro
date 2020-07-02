@@ -81,6 +81,25 @@ class FacebookTypeTest(TembaTest):
             "https://graph.facebook.com/v7.0/098765/accounts", params={"access_token": f"long-life-user-{token}"}
         )
 
+        mock_get.side_effect = [
+            MockResponse(200, json.dumps({"access_token": f"long-life-user-{token}"})),
+            Exception("blah"),
+        ]
+
+        response = self.client.get(url)
+        self.assertContains(response, "Connect Facebook")
+        self.assertEqual(response.context["facebook_app_id"], "FB_APP_ID")
+        self.assertEqual(response.context["claim_url"], url)
+
+        post_data = response.context["form"].initial
+        post_data["fb_user_id"] = "098765"
+        post_data["user_access_token"] = token
+        post_data["page_id"] = "123456"
+        post_data["page_name"] = "Temba"
+
+        response = self.client.post(url, post_data, follow=True)
+        self.assertEqual(response.context["form"].errors["__all__"][0], "Sorry your Facebook channel could not be connected. Please try again")
+
     @override_settings(IS_PROD=True)
     @patch("requests.delete")
     def test_release(self, mock_delete):
