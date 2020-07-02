@@ -1529,6 +1529,27 @@ class ContactTest(TembaTest):
         ContactField.get_or_create(self.org, self.admin, "district", "District", value_type=Value.TYPE_DISTRICT)
         ContactField.get_or_create(self.org, self.admin, "state", "State", value_type=Value.TYPE_STATE)
 
+        # test 'uuid' attribute
+        self.assertTrue(evaluate_query(self.org, f'uuid = "{self.joe.uuid}"', contact_json=self.joe.as_search_json()))
+        self.assertFalse(
+            evaluate_query(self.org, f'uuid = "{self.frank.uuid}"', contact_json=self.joe.as_search_json())
+        )
+        self.assertFalse(
+            evaluate_query(self.org, f'uuid != "{self.joe.uuid}"', contact_json=self.joe.as_search_json())
+        )
+        self.assertTrue(evaluate_query(self.org, 'uuid != "123456"', contact_json=self.joe.as_search_json()))
+
+        # uuid does not support `has` operator or set checks
+        self.assertRaises(
+            SearchException, evaluate_query, self.org, 'uuid ~ "123"', contact_json=self.joe.as_search_json()
+        )
+        self.assertRaises(
+            SearchException, evaluate_query, self.org, 'uuid = ""', contact_json=self.joe.as_search_json()
+        )
+        self.assertRaises(
+            SearchException, evaluate_query, self.org, 'uuid != ""', contact_json=self.joe.as_search_json()
+        )
+
         # test 'name' attribute
         self.assertTrue(evaluate_query(self.org, 'name = "Joe Blow"', contact_json=self.joe.as_search_json()))
         self.assertFalse(evaluate_query(self.org, "name = Joe", contact_json=self.joe.as_search_json()))
@@ -1774,6 +1795,24 @@ class ContactTest(TembaTest):
         self.assertTrue(evaluate_query(self.org, 'twitter has "blow"', contact_json=self.joe.as_search_json()))
         self.assertFalse(evaluate_query(self.org, 'twitter has "joe"', contact_json=self.joe.as_search_json()))
 
+        # test 'urn' attribute
+        self.assertTrue(evaluate_query(self.org, "urn = +250781111111", contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, "urn = +250781111999", contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, "urn = blow80", contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, "urn = +250781111222", contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, "urn != +250781111111", contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, "urn != +250781111222", contact_json=self.joe.as_search_json()))
+
+        self.assertTrue(evaluate_query(self.org, "urn ~ 999", contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, "urn ~ 8888", contact_json=self.joe.as_search_json()))
+
+        self.assertTrue(evaluate_query(self.org, 'urn != ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'urn = ""', contact_json=self.joe.as_search_json()))
+
+        self.assertRaises(
+            SearchException, evaluate_query, self.org, 'urn > "x"', contact_json=self.joe.as_search_json()
+        )
+
         self.assertTrue(
             evaluate_query(self.org, "joined = 01-03-2018 AND age < 19", contact_json=self.joe.as_search_json())
         )
@@ -1835,14 +1874,33 @@ class ContactTest(TembaTest):
             self.assertTrue(evaluate_query(self.org, "age >= 15", contact_json=self.joe.as_search_json()))
 
             # do not evaluate URN queries if org is anonymous
-            self.assertFalse(evaluate_query(self.org, "tel = +250781111111", contact_json=self.joe.as_search_json()))
-            self.assertFalse(evaluate_query(self.org, 'tel != ""', contact_json=self.joe.as_search_json()))
-
-            self.assertFalse(
-                evaluate_query(
-                    self.org, "joined = 01-03-2018 AND tel = +250781111111", contact_json=self.joe.as_search_json()
-                )
+            self.assertRaises(
+                SearchException,
+                evaluate_query,
+                self.org,
+                "tel = +250781111111",
+                contact_json=self.joe.as_search_json(),
             )
+            self.assertRaises(
+                SearchException,
+                evaluate_query,
+                self.org,
+                "urn = +250781111111",
+                contact_json=self.joe.as_search_json(),
+            )
+            self.assertRaises(
+                SearchException,
+                evaluate_query,
+                self.org,
+                "joined = 01-03-2018 AND tel = +250781111111",
+                contact_json=self.joe.as_search_json(),
+            )
+
+            # URN existence checks allowed
+            self.assertFalse(evaluate_query(self.org, 'tel = ""', contact_json=self.joe.as_search_json()))
+            self.assertTrue(evaluate_query(self.org, 'tel != ""', contact_json=self.joe.as_search_json()))
+            self.assertFalse(evaluate_query(self.org, 'urn = ""', contact_json=self.joe.as_search_json()))
+            self.assertTrue(evaluate_query(self.org, 'urn != ""', contact_json=self.joe.as_search_json()))
 
             # this will be parsed as search for contact id
             self.assertRaises(

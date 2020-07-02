@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-26 13:12+0000\n"
+"POT-Creation-Date: 2020-07-01 20:11+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2633,69 +2633,6 @@ msgstr "Уникальная группа для экспорта"
 
 msgid "The search query"
 msgstr "Поисковый запрос"
-
-#, python-brace-format
-msgid "Unrecognized field: '{prop}'"
-msgstr "Нераспознанное поле: '{prop}'"
-
-#, python-brace-format
-msgid "f'{val}' isn't a valid number"
-msgstr "f'{val}' не является действительным номером"
-
-#, python-brace-format
-msgid "Unknown text comparator: '{self.comparator}'"
-msgstr "Неизвестный компаратор текста: '{self.comparator}'"
-
-#, python-brace-format
-msgid "Unknown number comparator: '{self.comparator}'"
-msgstr "Неизвестный компаратор номера: '{self.comparator}'"
-
-#, python-brace-format
-msgid "Unable to parse the date '{self.value}'"
-msgstr "Невозможно разобрать дату '{self.value}'"
-
-#, python-brace-format
-msgid "Unknown datetime comparator: '{self.comparator}'"
-msgstr "Неизвестный компаратор даты и времени: '{self.comparator}'"
-
-#, python-brace-format
-msgid "Unknown location type: '{field.value_type}'"
-msgstr "Неизвестный тип местоположения: '{field.value_type}'"
-
-#, python-brace-format
-msgid "Unsupported comparator '{self.comparator}' for location field"
-msgstr "Неподдерживаемый компаратор '{self.comparator}' для поля местоположения"
-
-#, python-brace-format
-msgid "Unrecognized contact field type '{field.value_type}'"
-msgstr "Нераспознаваемый тип поля контактов '{field.value_type}'"
-
-#, python-brace-format
-msgid "Unknown urn scheme comparator: '{self.comparator}'"
-msgstr "Неизвестный компаратор схемы urn: '{self.comparator}'"
-
-#, python-brace-format
-msgid "Unknown language comparator: '{self.comparator}'"
-msgstr "Неизвестный компаратор языка: '{self.comparator}'"
-
-#, python-brace-format
-msgid "Unknown created_on comparator: '{self.comparator}'"
-msgstr "Неизвестный компаратор created_on: '{self.comparator}'"
-
-#, python-brace-format
-msgid "Unknown name comparator: '{self.comparator}'"
-msgstr "Неизвестный компаратор названия: '{self.comparator}'"
-
-#, python-brace-format
-msgid "No support for attribute field: '{field}'"
-msgstr "Не поддерживается поле атрибутов: '{field}'"
-
-#, python-brace-format
-msgid "Unrecognized contact field type '{prop_type}'"
-msgstr "Нераспознаваемый тип поля контактов '{prop_type}'"
-
-msgid "Invalid operator for empty string comparison"
-msgstr "Недействительный оператор для сравнения пустой строки"
 
 msgid "day"
 msgstr "день"
@@ -7852,14 +7789,19 @@ msgstr "каналы"
 msgid "users"
 msgstr "пользователи"
 
-msgid "orgs"
-msgstr "организации"
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "workspaces"
+msgstr "Выберите свою Организацию"
 
 msgid "android"
 msgstr "android"
 
 msgid "dashboard"
 msgstr "информационная панель"
+
+msgid "orgs"
+msgstr "организации"
 
 msgid "end"
 msgstr ""
@@ -11145,6 +11087,69 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#, python-brace-format
+#~ msgid "Unrecognized field: '{prop}'"
+#~ msgstr "Нераспознанное поле: '{prop}'"
+
+#, python-brace-format
+#~ msgid "f'{val}' isn't a valid number"
+#~ msgstr "f'{val}' не является действительным номером"
+
+#, python-brace-format
+#~ msgid "Unknown text comparator: '{self.comparator}'"
+#~ msgstr "Неизвестный компаратор текста: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unknown number comparator: '{self.comparator}'"
+#~ msgstr "Неизвестный компаратор номера: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unable to parse the date '{self.value}'"
+#~ msgstr "Невозможно разобрать дату '{self.value}'"
+
+#, python-brace-format
+#~ msgid "Unknown datetime comparator: '{self.comparator}'"
+#~ msgstr "Неизвестный компаратор даты и времени: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unknown location type: '{field.value_type}'"
+#~ msgstr "Неизвестный тип местоположения: '{field.value_type}'"
+
+#, python-brace-format
+#~ msgid "Unsupported comparator '{self.comparator}' for location field"
+#~ msgstr "Неподдерживаемый компаратор '{self.comparator}' для поля местоположения"
+
+#, python-brace-format
+#~ msgid "Unrecognized contact field type '{field.value_type}'"
+#~ msgstr "Нераспознаваемый тип поля контактов '{field.value_type}'"
+
+#, python-brace-format
+#~ msgid "Unknown urn scheme comparator: '{self.comparator}'"
+#~ msgstr "Неизвестный компаратор схемы urn: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unknown language comparator: '{self.comparator}'"
+#~ msgstr "Неизвестный компаратор языка: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unknown created_on comparator: '{self.comparator}'"
+#~ msgstr "Неизвестный компаратор created_on: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unknown name comparator: '{self.comparator}'"
+#~ msgstr "Неизвестный компаратор названия: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "No support for attribute field: '{field}'"
+#~ msgstr "Не поддерживается поле атрибутов: '{field}'"
+
+#, python-brace-format
+#~ msgid "Unrecognized contact field type '{prop_type}'"
+#~ msgstr "Нераспознаваемый тип поля контактов '{prop_type}'"
+
+#~ msgid "Invalid operator for empty string comparison"
+#~ msgstr "Недействительный оператор для сравнения пустой строки"
 
 #, fuzzy
 #~| msgid ""

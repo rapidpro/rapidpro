@@ -1,3 +1,18 @@
+v5.5.75
+----------
+ * always update both language and country if different
+
+v5.5.74
+----------
+ * allow augmentation of templates with new country
+
+v5.5.73
+----------
+ * Add support for urn property in search queries
+ * Add support for uuid in search queries
+ * Set country on WhatsApp templates syncing and add more supported languages
+ * Add country on TemplateTranslation
+
 v5.5.72
 ----------
  * Use modifiers for field value updates
