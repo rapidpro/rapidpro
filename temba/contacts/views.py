@@ -41,7 +41,7 @@ from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
-from temba.utils.fields import Select2Field
+from temba.utils.fields import InputWidget, Select2Field, SelectMultipleWidget
 from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.text import slugify_with
 from temba.utils.views import BaseActionForm
@@ -146,6 +146,7 @@ class ContactGroupForm(forms.ModelForm):
     class Meta:
         fields = ("name", "query")
         model = ContactGroup
+        widgets = {"name": InputWidget(), "query": InputWidget}
 
 
 class ContactListView(OrgPermsMixin, SmartListView):
@@ -423,7 +424,9 @@ class ContactForm(forms.ModelForm):
                     help_text = _(f"{label} for this contact") + f" (@urns.{scheme})"
 
                 # get all the urns for this scheme
-                ctrl = forms.CharField(required=False, label=label, initial=urn.path, help_text=help_text)
+                ctrl = forms.CharField(
+                    required=False, label=label, initial=urn.path, help_text=help_text, widget=InputWidget(),
+                )
                 extra_fields.append(("urn__%s__%d" % (scheme, idx), ctrl))
                 idx += 1
 
@@ -473,6 +476,7 @@ class ContactForm(forms.ModelForm):
     class Meta:
         model = Contact
         fields = ("name",)
+        widgets = {"name": InputWidget(attrs={"widget_only": False})}
 
 
 class UpdateContactForm(ContactForm):
@@ -511,7 +515,12 @@ class UpdateContactForm(ContactForm):
 
 class ExportForm(Form):
     group_memberships = forms.ModelMultipleChoiceField(
-        queryset=ContactGroup.user_groups.none(), required=False, label=_("Group Memberships for")
+        queryset=ContactGroup.user_groups.none(),
+        required=False,
+        label=_("Group Memberships for",),
+        widget=SelectMultipleWidget(
+            attrs={"widget_only": True, "placeholder": _("Optional: Choose groups to show in your export")}
+        ),
     )
 
     def __init__(self, user, *args, **kwargs):
@@ -1301,22 +1310,36 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
+            search = self.request.GET.get("search")
+
             # define save search conditions
-            valid_search_condition = self.request.GET.get("search") and not self.search_error
+            valid_search_condition = search and not self.search_error
             has_contactgroup_create_perm = self.has_org_perm("contacts.contactgroup_create")
 
             if has_contactgroup_create_perm and valid_search_condition:
-                links.append(dict(title=_("Save as Group"), js_class="add-dynamic-group", href="#"))
+                # links.append(dict(title=_("Save as Group"), js_class="add-dynamic-group", href="#"))
 
-            if self.has_org_perm("contacts.contactfield_list"):
                 links.append(
                     dict(
-                        title=_("Manage Fields"), js_class="manage-fields", href=reverse("contacts.contactfield_list")
+                        id="create-dynamic",
+                        title=_("Save as Group"),
+                        modax=_("Save as Group"),
+                        href=f"{reverse('contacts.contactgroup_create')}?search={search}",
                     )
                 )
 
+            if self.has_org_perm("contacts.contactfield_list"):
+                links.append(dict(title=_("Manage Fields"), href=reverse("contacts.contactfield_list")))
+
             if self.has_org_perm("contacts.contact_export"):
-                links.append(dict(title=_("Export"), js_class="export-contacts", href="#"))
+                links.append(
+                    dict(
+                        id="export-contacts",
+                        title=_("Export"),
+                        modax=_("Export Contacts"),
+                        href=self.derive_export_url(),
+                    )
+                )
             return links
 
         def get_context_data(self, *args, **kwargs):
@@ -1325,7 +1348,6 @@ class ContactCRUDL(SmartCRUDL):
 
             context["actions"] = ("label", "block")
             context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by("-priority", "pk")
-            context["export_url"] = self.derive_export_url()
             return context
 
     class Blocked(ContactActionMixin, ContactListView):
@@ -1357,6 +1379,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_gear_links(self):
             links = []
+            pk = self.derive_group().pk
 
             if self.has_org_perm("contacts.contactfield_list"):
                 links.append(
@@ -1366,13 +1389,35 @@ class ContactCRUDL(SmartCRUDL):
                 )
 
             if self.has_org_perm("contacts.contactgroup_update"):
-                links.append(dict(title=_("Edit Group"), js_class="update-contactgroup", href="#"))
+                links.append(
+                    dict(
+                        id="edit-group",
+                        title=_("Edit Group"),
+                        modax=_("Edit Group"),
+                        href=reverse("contacts.contactgroup_update", args=[pk]),
+                    )
+                )
 
             if self.has_org_perm("contacts.contact_export"):
-                links.append(dict(title=_("Export"), js_class="export-contacts", href="#"))
+                links.append(
+                    dict(
+                        id="export-contacts",
+                        title=_("Export"),
+                        modax=_("Export Contacts"),
+                        href=self.derive_export_url(),
+                    )
+                )
 
             if self.has_org_perm("contacts.contactgroup_delete"):
-                links.append(dict(title=_("Delete Group"), js_class="delete-contactgroup", href="#"))
+                links.append(
+                    dict(
+                        id="delete-group",
+                        title=_("Delete Group"),
+                        modax=_("Delete Group"),
+                        href=reverse("contacts.contactgroup_delete", args=[pk]),
+                    )
+                )
+                # links.append(dict(title=_("Delete Group"), js_class="delete-contactgroup", href="#"))
             return links
 
         def get_context_data(self, *args, **kwargs):
@@ -1381,15 +1426,10 @@ class ContactCRUDL(SmartCRUDL):
             group = self.derive_group()
             org = self.request.user.get_org()
 
-            if group.is_dynamic:
-                actions = ("block", "label")
-            else:
-                actions = ("block", "label", "unlabel")
-
+            actions = ("block", "label")
             context["actions"] = actions
             context["current_group"] = group
             context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by("-priority", "pk")
-            context["export_url"] = self.derive_export_url()
             return context
 
         @classmethod
@@ -1648,6 +1688,11 @@ class ContactGroupCRUDL(SmartCRUDL):
 
                     self.object.update_contacts(user, contacts, add=True)
 
+        def derive_initial(self):
+            initial = super().derive_initial()
+            initial["group_query"] = self.request.GET.get("search", "")
+            return initial
+
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["user"] = self.request.user
@@ -1683,7 +1728,8 @@ class ContactGroupCRUDL(SmartCRUDL):
         cancel_url = "uuid@contacts.contact_filter"
         redirect_url = "@contacts.contact_list"
         success_message = ""
-        fields = ("id",)
+        fields = ("uuid",)
+        submit_button_name = _("Delete Group")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)

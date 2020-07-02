@@ -105,7 +105,7 @@ function bindRefreshBlock() {
 /**
  * Listen for thes start of pjax refreshes and block them if appropriate
  */
-document.addEventListener('rp-refresh-begin', function () {
+document.addEventListener('temba-refresh-begin', function () {
     var checkedIds = getCheckedIds().length > 0;
     let openedModals = false;
     var modals = document.querySelectorAll('temba-modax');

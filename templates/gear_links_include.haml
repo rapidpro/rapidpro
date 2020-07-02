@@ -38,7 +38,7 @@
                   {{link.flag}}
 
           -else
-            .button-light{onclick:'document.location.href="{{link.href}}', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
+            .button-light{onclick:'document.location.href="{{link.href}}"', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
               {{link.title}}
 
         .btn-group.gear-menu.ml-3
@@ -77,9 +77,7 @@
 
       :javascript
         function showModax(endpoint) {
-          console.log("clicking " +endpoint)
           const modax = document.querySelector("temba-modax[id='" + endpoint + "']");
-          console.log("modax", modax);
           if(modax) {
             modax.setAttribute("open", "true");
           }

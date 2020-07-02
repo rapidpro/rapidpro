@@ -904,6 +904,23 @@ video {
   font-family: var(--font-family);
 }
 
+.named {
+  font-weight: 400;
+}
+
+a {
+  color: rgb(var(--primary-rgb));
+  cursor: pointer;
+}
+
+a.active {
+    text-decoration: underline;
+  }
+
+a:hover {
+    text-decoration: underline;
+  }
+
 .linked {
   color: #4a4a4a;
   cursor: pointer;
@@ -938,8 +955,20 @@ video {
   transition-duration: 300ms;
   text-align: center;
   border-radius: 0.5rem;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+          user-select: none;
+  white-space: nowrap;
   margin-top: 1px;
 }
+
+.button:active {
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, .15) !important;
+  }
 
 .button:hover {
     cursor: pointer;
@@ -961,10 +990,22 @@ video {
   transition-duration: 300ms;
   text-align: center;
   border-radius: 0.5rem;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+          user-select: none;
+  white-space: nowrap;
   margin-top: 1px;
   color: #a0a0a0;
   background-color: #f7f7f7;
 }
+
+.button-light:active {
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, .15) !important;
+  }
 
 .button-light:hover {
     cursor: pointer;
@@ -998,10 +1039,22 @@ video {
   transition-duration: 300ms;
   text-align: center;
   border-radius: 0.5rem;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+          user-select: none;
+  white-space: nowrap;
   margin-top: 1px;
   color: #fff;
   background-color: rgb(var(--tertiary-rgb));
 }
+
+.button-tertiary:active {
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, .15) !important;
+  }
 
 .button-tertiary:hover {
     cursor: pointer;
@@ -1023,10 +1076,22 @@ video {
   transition-duration: 300ms;
   text-align: center;
   border-radius: 0.5rem;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+          user-select: none;
+  white-space: nowrap;
   margin-top: 1px;
   color: #fff;
   background-color: rgb(var(--secondary-rgb));
 }
+
+.button-secondary:active {
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, .15) !important;
+  }
 
 .button-secondary:hover {
     cursor: pointer;
@@ -1048,10 +1113,22 @@ video {
   transition-duration: 300ms;
   text-align: center;
   border-radius: 0.5rem;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+          user-select: none;
+  white-space: nowrap;
   margin-top: 1px;
   color: #fff;
   background-color: rgb(var(--primary-rgb));
 }
+
+.button-primary:active {
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, .15) !important;
+  }
 
 .button-primary:hover {
     cursor: pointer;
@@ -1073,10 +1150,22 @@ video {
   transition-duration: 300ms;
   text-align: center;
   border-radius: 0.5rem;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+          user-select: none;
+  white-space: nowrap;
   margin-top: 1px;
   color: rgb(var(--primary-rgb));
   background-color: #fff;
 }
+
+.button-white:active {
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, .15) !important;
+  }
 
 .button-white:hover {
     cursor: pointer;
@@ -1098,10 +1187,22 @@ video {
   transition-duration: 300ms;
   text-align: center;
   border-radius: 0.5rem;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+          user-select: none;
+  white-space: nowrap;
   margin-top: 1px;
   color: #fff;
   background-color: rgba(0, 0, 0, .2);
 }
+
+.button-dark-alpha:active {
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, .15) !important;
+  }
 
 .button-dark-alpha:hover {
     cursor: pointer;
@@ -1123,6 +1224,11 @@ video {
   transition-duration: 300ms;
   text-align: center;
   border-radius: 0.5rem;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+          user-select: none;
+  white-space: nowrap;
   margin-top: 1px;
   color: #fff;
   background-color: rgba(0, 0, 0, .2);
@@ -1135,6 +1241,13 @@ video {
   box-shadow: none;
   color: rgba(255, 255, 255, .9);
 }
+
+.button-sm:active {
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, .15) !important;
+  }
 
 .button-sm:hover {
     cursor: pointer;
@@ -1198,6 +1311,74 @@ video {
 
 .alert-text .title {
     font-weight: 400
+  }
+
+.lp-frame {
+  display: flex;
+  margin-left: 1.5rem;
+  margin-right: 1.5rem;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.lp-frame .left {
+    width: 16rem;
+    margin-right: 1.25rem;
+  }
+
+.lp-frame .left .lp-nav.upper {
+        padding: 0.75rem;
+        padding-right: 1rem;
+        width: 16rem;
+        margin-top: 0.5rem;
+      }
+
+.lp-frame .left .lp-nav.lower {
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+        padding-right: 1rem;
+        width: 16rem;
+        margin-top: 1rem;
+        background-color: #f7f7f7;
+      }
+
+.lp-frame .left .lp-nav .inner-scroll {
+        overflow-y: scroll;
+        max-height: 24rem;
+        padding-right: 0.5rem;
+        margin-right: -0.5rem;
+      }
+
+.lp-frame .left .lp-nav .lp-nav-item {
+        display: flex;
+        color: #4a4a4a;
+        cursor: pointer;
+        align-items: center;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+        margin-top: 0.25rem;
+      }
+
+.lp-frame .left .lp-nav .lp-nav-item.active {
+          @apply: text-primary;
+        }
+
+.lp-frame .left .lp-nav .lp-nav-item:hover {
+          color: rgb(var(--primary-rgb));
+        }
+
+.lp-frame .left .lp-nav .lp-nav-item .name {
+          line-height: 1;
+        }
+
+.lp-frame .left .lp-nav .lp-nav-item .count {
+          text-align: right;
+          flex-grow: 1;
+          margin-left: 0.5rem;
+        }
+
+.lp-frame .right {
+    flex-grow: 1
   }
 
 .text-shadow {

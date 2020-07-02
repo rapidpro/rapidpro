@@ -48,7 +48,6 @@ function runActionOnObjectRows(action) {
     jQuery.ajaxSettings.traditional = true;
     fetchPJAXContent('', '#pjax', {
         postData: { objects: objectIds, action: action, pjax: 'true' },
-        forceReload: true,
     });
 }
 
@@ -65,7 +64,23 @@ function unlabelObjectRows(labelId) {
             action: 'unlabel',
             pjax: 'true',
         },
-        forceReload: true,
+    });
+}
+
+function postLabelChanges(smsIds, labelId, addLabel, number, onError) {
+    fetchPJAXContent('', '#pjax', {
+        postData: {
+            objects: smsIds,
+            label: labelId,
+            add: addLabel,
+            action: 'label',
+            pjax: 'true',
+            number: number,
+        },
+        onSuccess: function (data, textStatus) {
+            recheckIds();
+        },
+        onError: onError,
     });
 }
 
@@ -132,10 +147,12 @@ function recheckIds() {
         }
         $('.search-details').hide();
         $('.list-buttons-container').addClass('visible');
+        $('.page-title').hide();
         updateLabelMenu();
     } else {
         $('.search-details').show();
         $('.list-buttons-container').removeClass('visible');
+        $('.page-title').show();
     }
 }
 
@@ -207,7 +224,6 @@ function updateLabelMenu() {
 
 function handleRowSelection(row) {
     $('.list-buttons-container').addClass('visible');
-
     var row = $(row).parent('tr');
 
     // noop if the row doesn't have a checkbox
@@ -221,9 +237,11 @@ function handleRowSelection(row) {
         var checks = $('.object-row.checked');
         if (checks.length == 0) {
             $('.list-buttons-container').removeClass('visible');
+            $('.page-title').show();
         }
     } else {
         row.addClass('checked');
+        $('.page-title').hide();
     }
     updateLabelMenu();
 }

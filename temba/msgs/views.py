@@ -810,8 +810,6 @@ class MsgCRUDL(SmartCRUDL):
                     )
                 )
 
-                # links.append(dict(title=_("Remove"), href="#", js_class="remove-label"))
-
             return links
 
         @classmethod
@@ -854,7 +852,7 @@ class BaseLabelForm(forms.ModelForm):
     class Meta:
         model = Label
         fields = "__all__"
-        widgets = {"name": InputWidget(attrs={"widget_only": False})}
+        widgets = {"name": InputWidget()}
 
 
 class LabelForm(BaseLabelForm):

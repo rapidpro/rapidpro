@@ -22,10 +22,5 @@
 
     {{ pjax }}
 
-    {% if refresh > 0 %}
-    <script>
-    refreshTimeout = {{ refresh }};
-    window.setTimeout(refresh, {{ refresh }});
-    </script>
-    {% endif %}
+
 {% endif %}
