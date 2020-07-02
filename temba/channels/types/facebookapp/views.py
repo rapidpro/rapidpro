@@ -71,12 +71,12 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                     raise Exception("Empty page access token!")
 
                 self.cleaned_data["page_access_token"] = page_access_token
+                self.cleaned_data["name"] = name
 
             except Exception:
                 raise forms.ValidationError(_("Sorry your Facebook channel could not be connected. Please try again"))
 
             return self.cleaned_data
-
 
     form_class = Form
 
@@ -92,6 +92,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         name = form.cleaned_data["page_name"]
         page_id = form.cleaned_data["page_id"]
         page_access_token = form.cleaned_data["page_access_token"]
+        name = form.cleaned_data["name"]
 
         config = {
             Channel.CONFIG_AUTH_TOKEN: page_access_token,
