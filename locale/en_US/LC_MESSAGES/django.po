@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-01 20:11+0000\n"
+"POT-Creation-Date: 2020-07-02 11:04+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1013,16 +1013,7 @@ msgstr ""
 msgid "The Facebook User ID of the admin that connected the channel"
 msgstr ""
 
-msgid "Failed to get a user long lived token"
-msgstr ""
-
-msgid "Empty user access token!"
-msgstr ""
-
-msgid "Failed to get a page long lived token"
-msgstr ""
-
-msgid "Empty page access token!"
+msgid "Sorry your Facebook channel could not be connected. Please try again"
 msgstr ""
 
 msgid ""

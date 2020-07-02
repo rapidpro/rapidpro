@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-01 20:11+0000\n"
+"POT-Creation-Date: 2020-07-02 11:04+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -1368,17 +1368,7 @@ msgstr "Seu Token API é"
 msgid "The Facebook User ID of the admin that connected the channel"
 msgstr "O número de comandos enviados ao transmissor"
 
-msgid "Failed to get a user long lived token"
-msgstr ""
-
-#, fuzzy
-msgid "Empty user access token!"
-msgstr "Seu Token API é"
-
-msgid "Failed to get a page long lived token"
-msgstr ""
-
-msgid "Empty page access token!"
+msgid "Sorry your Facebook channel could not be connected. Please try again"
 msgstr ""
 
 msgid ""
@@ -11844,6 +11834,10 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "Empty user access token!"
+#~ msgstr "Seu Token API é"
 
 #, fuzzy, python-brace-format
 #~| msgid "Using a Local Number"

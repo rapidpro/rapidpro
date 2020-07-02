@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-01 20:11+0000\n"
+"POT-Creation-Date: 2020-07-02 11:04+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -1453,19 +1453,10 @@ msgstr "Token API"
 msgid "The Facebook User ID of the admin that connected the channel"
 msgstr "El número de comandos que nos dio el transmisor"
 
-msgid "Failed to get a user long lived token"
-msgstr ""
-
 #, fuzzy
-#| msgid "Your app's server access token"
-msgid "Empty user access token!"
-msgstr "Token de acceso desde su repositorio"
-
-msgid "Failed to get a page long lived token"
-msgstr ""
-
-msgid "Empty page access token!"
-msgstr ""
+#| msgid "Your changes could not be saved. Please reload the page and try again."
+msgid "Sorry your Facebook channel could not be connected. Please try again"
+msgstr "No se pudieron guardar sus cambios. Por favor, actualice la página e inténtelo nuevamente."
 
 msgid ""
 "Add a <a href=\"https://firebase.google.com/docs/cloud-messaging/\"> Firebase Cloud\n"
@@ -12780,6 +12771,11 @@ msgstr "Ingrese el código de pedido"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
+#, fuzzy
+#~| msgid "Your app's server access token"
+#~ msgid "Empty user access token!"
+#~ msgstr "Token de acceso desde su repositorio"
+
 #, fuzzy, python-brace-format
 #~| msgid "Using a Local Number"
 #~ msgid "f'{val}' isn't a valid number"
@@ -13502,9 +13498,6 @@ msgstr ""
 
 #~ msgid "Alias names must be unique, try again."
 #~ msgstr "Los apelativos deben ser únicos, inténtelo de nuevo."
-
-#~ msgid "Your changes could not be saved. Please reload the page and try again."
-#~ msgstr "No se pudieron guardar sus cambios. Por favor, actualice la página e inténtelo nuevamente."
 
 #, fuzzy
 #~| msgid "Channel Event"

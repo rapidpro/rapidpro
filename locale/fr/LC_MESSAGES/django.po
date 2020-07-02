@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-01 20:11+0000\n"
+"POT-Creation-Date: 2020-07-02 11:04+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1118,18 +1118,7 @@ msgstr "Jeton d'accès"
 msgid "The Facebook User ID of the admin that connected the channel"
 msgstr "Le nombre de commandes que nous avons donné le channel"
 
-msgid "Failed to get a user long lived token"
-msgstr ""
-
-#, fuzzy
-#| msgid "Your app's server access token"
-msgid "Empty user access token!"
-msgstr "Jeton d'accès au serveur de votre application"
-
-msgid "Failed to get a page long lived token"
-msgstr ""
-
-msgid "Empty page access token!"
+msgid "Sorry your Facebook channel could not be connected. Please try again"
 msgstr ""
 
 #, fuzzy
@@ -10913,6 +10902,11 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy
+#~| msgid "Your app's server access token"
+#~ msgid "Empty user access token!"
+#~ msgstr "Jeton d'accès au serveur de votre application"
 
 #, python-brace-format
 #~ msgid "Unrecognized field: '{prop}'"

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-01 20:11+0000\n"
+"POT-Creation-Date: 2020-07-02 11:04+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1103,16 +1103,7 @@ msgstr ""
 msgid "The Facebook User ID of the admin that connected the channel"
 msgstr "Количество команд, которые мы отдали каналу"
 
-msgid "Failed to get a user long lived token"
-msgstr ""
-
-msgid "Empty user access token!"
-msgstr ""
-
-msgid "Failed to get a page long lived token"
-msgstr ""
-
-msgid "Empty page access token!"
+msgid "Sorry your Facebook channel could not be connected. Please try again"
 msgstr ""
 
 msgid ""
