@@ -1,1 +1,1 @@
-from .type import FacebookappType  # noqa
+from .type import FacebookAppType  # noqa

@@ -1066,7 +1066,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.dmark.DMarkType",
     "temba.channels.types.external.ExternalType",
     "temba.channels.types.facebook.FacebookType",
-    "temba.channels.types.facebookapp.FacebookappType",
+    "temba.channels.types.facebookapp.FacebookAppType",
     "temba.channels.types.firebase.FirebaseCloudMessagingType",
     "temba.channels.types.freshchat.FreshChatType",
     "temba.channels.types.globe.GlobeType",

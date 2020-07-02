@@ -9,7 +9,7 @@ from ...models import Channel, ChannelType
 from .views import ClaimView, RefreshToken
 
 
-class FacebookappType(ChannelType):
+class FacebookAppType(ChannelType):
     """
     A Facebook channel
     """
