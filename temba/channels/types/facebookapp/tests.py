@@ -26,8 +26,9 @@ class FacebookTypeTest(TembaTest):
         )
 
     @override_settings(FACEBOOK_APPLICATION_ID="FB_APP_ID", FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET")
+    @patch("requests.post")
     @patch("requests.get")
-    def test_claim(self, mock_get):
+    def test_claim(self, mock_get, mock_post):
         token = "x" * 200
         mock_get.side_effect = [
             MockResponse(200, json.dumps({"access_token": f"long-life-user-{token}"})),
@@ -36,6 +37,8 @@ class FacebookTypeTest(TembaTest):
                 json.dumps({"data": [{"name": "Temba", "id": "123456", "access_token": f"page-long-life-{token}"}]}),
             ),
         ]
+
+        mock_post.return_value = MockResponse(200, json.dumps({"success": True}))
 
         url = reverse("channels.types.facebookapp.claim")
 
@@ -81,6 +84,14 @@ class FacebookTypeTest(TembaTest):
             "https://graph.facebook.com/v7.0/098765/accounts", params={"access_token": f"long-life-user-{token}"}
         )
 
+        mock_post.assert_any_call(
+            "https://graph.facebook.com/v7.0/123456/subscribed_apps",
+            data={
+                "subscribed_fields": "messages,message_deliveries,messaging_optins,messaging_optouts,messaging_postbacks,message_reads,messaging_referrals,messaging_handovers"
+            },
+            params={"access_token": f"page-long-life-{token}"},
+        )
+
         mock_get.side_effect = [
             MockResponse(200, json.dumps({"access_token": f"long-life-user-{token}"})),
             Exception("blah"),
@@ -114,13 +125,16 @@ class FacebookTypeTest(TembaTest):
         )
 
     @override_settings(FACEBOOK_APPLICATION_ID="FB_APP_ID", FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET")
+    @patch("requests.post")
     @patch("requests.get")
-    def test_refresh_token(self, mock_get):
+    def test_refresh_token(self, mock_get, mock_post):
         token = "x" * 200
 
         url = reverse("channels.types.facebookapp.refresh_token", args=(self.channel.uuid,))
 
         self.login(self.admin)
+
+        mock_post.return_value = MockResponse(200, json.dumps({"success": True}))
 
         mock_get.side_effect = [
             MockResponse(400, json.dumps({"error": "token invalid"})),
@@ -172,4 +186,12 @@ class FacebookTypeTest(TembaTest):
         )
         mock_get.assert_any_call(
             "https://graph.facebook.com/v7.0/098765/accounts", params={"access_token": f"long-life-user-{token}"}
+        )
+
+        mock_post.assert_any_call(
+            "https://graph.facebook.com/v7.0/12345/subscribed_apps",
+            data={
+                "subscribed_fields": "messages,message_deliveries,messaging_optins,messaging_optouts,messaging_postbacks,message_reads,messaging_referrals,messaging_handovers"
+            },
+            params={"access_token": f"page-long-life-{token}"},
         )
