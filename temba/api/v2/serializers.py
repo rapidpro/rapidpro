@@ -913,6 +913,7 @@ class FlowRunReadSerializer(ReadSerializer):
             created_on = iso8601.parse_date(result[FlowRun.RESULT_CREATED_ON])
             return {
                 "value": result[FlowRun.RESULT_VALUE],
+                "input_corrected": result.get(FlowRun.RESULT_CORRECTED),
                 "category": result.get(FlowRun.RESULT_CATEGORY),
                 "node": result[FlowRun.RESULT_NODE_UUID],
                 "time": format_datetime(created_on),
