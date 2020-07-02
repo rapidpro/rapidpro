@@ -2490,6 +2490,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     RESULT_VALUE = "value"
     RESULT_INPUT = "input"
     RESULT_CREATED_ON = "created_on"
+    RESULT_CORRECTED = "corrected"
 
     PATH_STEP_UUID = "uuid"
     PATH_NODE_UUID = "node_uuid"
