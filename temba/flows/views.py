@@ -2117,7 +2117,10 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
             flow = self.get_object()
-            links = LinkContacts.objects.filter(link__related_flow=flow, is_active=True)
+            additional_filters = {}
+            if flow.is_archived:
+                additional_filters["created_on__lt"] = flow.modified_on
+            links = LinkContacts.objects.filter(link__related_flow=flow, is_active=True, **additional_filters)
 
             # paginate
             modified_on = self.request.GET.get("modified_on", None)

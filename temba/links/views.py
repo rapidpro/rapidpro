@@ -83,7 +83,7 @@ class LinkCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
                 self.user = user
                 self.fields["related_flow"].queryset = Flow.objects.filter(
-                    org=self.user.get_org(), is_active=True, is_archived=False
+                    org=self.user.get_org(), is_active=True, is_archived=False, is_system=False
                 ).order_by("name")
 
             class Meta:
@@ -220,7 +220,7 @@ class LinkCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
                 self.user = user
                 self.fields["related_flow"].queryset = Flow.objects.filter(
-                    org=self.user.get_org(), is_active=True, is_archived=False
+                    org=self.user.get_org(), is_active=True, is_archived=False, is_system=False
                 ).order_by("name")
 
             class Meta:
