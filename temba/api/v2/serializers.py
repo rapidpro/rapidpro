@@ -112,15 +112,10 @@ class WriteSerializer(serializers.Serializer):
                 detail={"non_field_errors": ["Request body should be a single JSON object"]}
             )
 
-        if self.context["org"].is_flagged:
-            raise serializers.ValidationError(
-                detail={
-                    "non_field_errors": [
-                        "Sorry, your account is currently flagged. "
-                        "To enable sending messages, please contact support."
-                    ]
-                }
-            )
+        if self.context["org"].is_flagged or self.context["org"].is_suspended:
+            state = "flagged" if self.context["org"].is_flagged else "suspended"
+            msg = f"Sorry, your account is currently {state}. To enable sending messages, please contact support."
+            raise serializers.ValidationError(detail={"non_field_errors": [msg]})
 
         return super().run_validation(data)
 
