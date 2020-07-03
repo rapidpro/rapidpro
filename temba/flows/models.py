@@ -2665,6 +2665,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 "input": result.get(FlowRun.RESULT_INPUT),
                 "value": result[FlowRun.RESULT_VALUE],
                 "category": result.get(FlowRun.RESULT_CATEGORY),
+                "corrected": result.get(FlowRun.RESULT_CORRECTED),
             }
 
         return {
@@ -3689,6 +3690,7 @@ class ExportFlowResultsTask(BaseExportTask):
             columns.append(f"{field_name} (Category) - {flow_name}")
             columns.append(f"{field_name} (Value) - {flow_name}")
             columns.append(f"{field_name} (Text) - {flow_name}")
+            columns.append(f"{field_name} (Corrected) - {flow_name}")
 
         return columns
 
@@ -3912,7 +3914,8 @@ class ExportFlowResultsTask(BaseExportTask):
                 node_category = node_result.get("category", "")
                 node_value = node_result.get("value", "")
                 node_input = node_result.get("input", "")
-                result_values += [node_category, node_value, node_input]
+                node_corrected = node_result.get("corrected", "")
+                result_values += [node_category, node_value, node_input, node_corrected]
 
             if book.current_runs_sheet.num_rows >= self.MAX_EXCEL_ROWS:  # pragma: no cover
                 book.current_runs_sheet = self._add_runs_sheet(book, runs_columns)
