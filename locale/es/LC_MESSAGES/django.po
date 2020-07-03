@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-03 16:29+0000\n"
+"POT-Creation-Date: 2020-07-03 18:23+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -7571,14 +7571,35 @@ msgstr ""
 msgid "Verify Token"
 msgstr ""
 
+msgid "You can connect your Facebook page in just a few simple steps."
+msgstr ""
+
+msgid "Click on the button below to get started."
+msgstr ""
+
+msgid "Select the user you want to log in as."
+msgstr ""
+
+msgid "Select all the pages you want to grant us permissions for."
+msgstr ""
+
+#, fuzzy
+msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
+msgstr "TextIt usa su teléfono Android para enviar y recibir mensajes."
+
+#, fuzzy
+#| msgid "Click here to send a message"
+msgid "Finally, select the page you want to add as a channel."
+msgstr "Haga clic aquí para enviar un mensaje"
+
 #, fuzzy
 #| msgid "The name of the video"
-msgid "Connect Facebook page"
+msgid "Add Facebook Page"
 msgstr "El nombre del video"
 
 #, fuzzy
 #| msgid "Click here to send a message"
-msgid "Click on the page to add as a channel"
+msgid "Select the page you want to add as a channel:"
 msgstr "Haga clic aquí para enviar un mensaje"
 
 msgid "Error with token, you need to reconnect the Facebook page by clicking the button below"
@@ -12779,6 +12800,11 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "The name of the video"
+#~ msgid "Connect Facebook page"
+#~ msgstr "El nombre del video"
 
 #, fuzzy
 #~| msgid "Your app's server access token"

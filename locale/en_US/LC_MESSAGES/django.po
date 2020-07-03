@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-03 16:29+0000\n"
+"POT-Creation-Date: 2020-07-03 18:23+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -5262,10 +5262,28 @@ msgstr ""
 msgid "Verify Token"
 msgstr ""
 
-msgid "Connect Facebook page"
+msgid "You can connect your Facebook page in just a few simple steps."
 msgstr ""
 
-msgid "Click on the page to add as a channel"
+msgid "Click on the button below to get started."
+msgstr ""
+
+msgid "Select the user you want to log in as."
+msgstr ""
+
+msgid "Select all the pages you want to grant us permissions for."
+msgstr ""
+
+msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
+msgstr ""
+
+msgid "Finally, select the page you want to add as a channel."
+msgstr ""
+
+msgid "Add Facebook Page"
+msgstr ""
+
+msgid "Select the page you want to add as a channel:"
 msgstr ""
 
 msgid "Error with token, you need to reconnect the Facebook page by clicking the button below"
