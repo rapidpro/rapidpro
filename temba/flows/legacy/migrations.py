@@ -738,6 +738,9 @@ def migrate_export_to_version_11_0(json_export, org, same_site=True):
             if rs["label"] is None:
                 continue
 
+            if "config" in rs and "spelling_correction_sensitivity" in rs["config"]:
+                rs["config"]["spelling_correction_sensitivity"] = str(rs["config"]["spelling_correction_sensitivity"])
+
             key = Flow.label_to_slug(rs["label"])
 
             # any reference to this result value's time property needs wrapped in format_date
