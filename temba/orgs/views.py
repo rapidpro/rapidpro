@@ -1128,9 +1128,7 @@ class OrgCRUDL(SmartCRUDL):
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
     class Update(SmartUpdateView):
-        fields = ("name", "brand", "parent", "is_anon", "is_multi_user", "is_multi_org")
-
-        class OrgUpdateForm(forms.ModelForm):
+        class Form(forms.ModelForm):
             parent = forms.IntegerField(required=False)
 
             def clean_parent(self):
@@ -1142,17 +1140,15 @@ class OrgCRUDL(SmartCRUDL):
                 model = Org
                 fields = (
                     "name",
-                    "slug",
-                    "stripe_customer",
-                    "is_active",
+                    "brand",
+                    "parent",
                     "is_anon",
                     "is_multi_user",
                     "is_multi_org",
-                    "brand",
-                    "parent",
+                    "is_suspended",
                 )
 
-        form_class = OrgUpdateForm
+        form_class = Form
 
         def get_success_url(self):
             return reverse("orgs.org_update", args=[self.get_object().pk])

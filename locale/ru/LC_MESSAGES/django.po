@@ -3310,7 +3310,12 @@ msgstr "Данный поток уже был запущен, пожалуйст
 
 #, fuzzy
 #| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
-msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently suspended. To enable starting flows, please contact support."
+msgstr "Извините, Ваша учетная запись в настоящее время заблокирована. Чтобы получить возможность отправки сообщений, обратитесь в службу поддержки."
+
+#, fuzzy
+#| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently flagged. To enable starting flows, please contact support."
 msgstr "Извините, Ваша учетная запись в настоящее время заблокирована. Чтобы получить возможность отправки сообщений, обратитесь в службу поддержки."
 
 msgid "Add Contacts to Flow"
@@ -3620,6 +3625,16 @@ msgstr "Расписание на потом"
 
 msgid "At least one recipient is required"
 msgstr "Требуется хотя бы один получатель"
+
+#, fuzzy
+#| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgstr "Извините, Ваша учетная запись в настоящее время заблокирована. Чтобы получить возможность отправки сообщений, обратитесь в службу поддержки."
+
+#, fuzzy
+#| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
+msgstr "Извините, Ваша учетная запись в настоящее время заблокирована. Чтобы получить возможность отправки сообщений, обратитесь в службу поддержки."
 
 msgid "Inbox"
 msgstr "Входящие"

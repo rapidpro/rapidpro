@@ -3053,7 +3053,10 @@ msgstr ""
 msgid "This flow is already being started, please wait until that process is complete before starting more contacts."
 msgstr ""
 
-msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently suspended. To enable starting flows, please contact support."
+msgstr ""
+
+msgid "Sorry, your account is currently flagged. To enable starting flows, please contact support."
 msgstr ""
 
 msgid "Add Contacts to Flow"
@@ -3360,6 +3363,12 @@ msgid "Schedule for later"
 msgstr ""
 
 msgid "At least one recipient is required"
+msgstr ""
+
+msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgstr ""
+
+msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
 msgstr ""
 
 msgid "Inbox"

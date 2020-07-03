@@ -121,7 +121,13 @@ class SendMessageForm(Form):
 
     def clean(self):
         cleaned = super().clean()
-        if self.user.get_org().is_flagged:
+        org = self.user.get_org()
+
+        if org.is_suspended:
+            raise ValidationError(
+                _("Sorry, your account is currently suspended. To enable sending messages, please contact support.")
+            )
+        if org.is_flagged:
             raise ValidationError(
                 _("Sorry, your account is currently flagged. To enable sending messages, please contact support.")
             )

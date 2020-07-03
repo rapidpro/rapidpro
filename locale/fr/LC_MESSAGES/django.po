@@ -3356,7 +3356,12 @@ msgstr "Ce flux est déjà en cours de démarrage. Veuillez patienter jusqu'à l
 
 #, fuzzy
 #| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
-msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently suspended. To enable starting flows, please contact support."
+msgstr "Désolé, votre compte est actuellement suspendu. Pour activer l'envoi de messages, veuillez contacter le support."
+
+#, fuzzy
+#| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently flagged. To enable starting flows, please contact support."
 msgstr "Désolé, votre compte est actuellement suspendu. Pour activer l'envoi de messages, veuillez contacter le support."
 
 msgid "Add Contacts to Flow"
@@ -3666,6 +3671,16 @@ msgstr "Planifier pour plus tard"
 
 msgid "At least one recipient is required"
 msgstr "Au moins un bénéficiaire est requis"
+
+#, fuzzy
+#| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgstr "Désolé, votre compte est actuellement suspendu. Pour activer l'envoi de messages, veuillez contacter le support."
+
+#, fuzzy
+#| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
+msgstr "Désolé, votre compte est actuellement suspendu. Pour activer l'envoi de messages, veuillez contacter le support."
 
 msgid "Inbox"
 msgstr "Boîte de Réception"
