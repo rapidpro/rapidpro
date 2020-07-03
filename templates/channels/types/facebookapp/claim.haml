@@ -8,6 +8,18 @@
     {{ title }}
 
 -block modal
+    #fb-guide
+      .
+        -trans "* Click on the button below to login to your Facebook account"
+      .
+        -trans '* Login with your Facebook credentials or click the button "Continue as [LOGGED_IN_ACCOUNT]"'
+      .
+        -trans '* Select the page you want to connect or "Edit Settings" and select the page  , then click Next'
+      .
+        -trans '* Make sure all the permissions are allowed'
+      .
+        -trans '* You will see buttons below of the pages you allowed the app to access and choose the one to connect.'
+
     #fb-app-connect
       .btn.btn-primary.connect-facebook
         -trans "Connect Facebook page"
@@ -15,7 +27,7 @@
     #throbber(style="display:none;")
       %img(src="{{ STATIC_URL }}/images/loader-circles.gif")
     #fb-channel-options(style="display:none;")
-      %p
+      %p(style="font-size:1rem;")
         -trans "Click on the page to add as a channel"
 
 
@@ -32,15 +44,26 @@
   -compress css inline
     {% lessblock %}
       :plain
+        #fb-guide {
+          margin: 2rem 0;
+
+          div {
+            padding: 0.25rem;
+          }
+        }
+
         #fb-channel-options {
           margin-top: 2rem;
 
           .fb-page-channel-option {
-            margin: 2rem 0rem;
+            margin: 1rem 1rem 1rem 0rem;
             padding: 2rem 1rem;
             display: inline-block;
-            border: 1px solid #eee;
+            border: 5px solid #eee;
             cursor: pointer;
+            text-align: center;
+            width: 20%;
+            font-size: 1.25rem;
 
             &:hover {
               background-color: #eee;
@@ -91,7 +114,7 @@
           }
 
         }, 
-        {scope: 'public_profile,email,pages_messaging,pages_show_list,pages_manage_metadata,pages_read_engagement'});
+        {scope: 'pages_messaging,pages_show_list,pages_manage_metadata'});
 
       })
     });
@@ -105,7 +128,7 @@
           data = response.data;
           if (data.length > 0) {
             for (var i=0; i < data.length; i++){
-              $("#fb-channel-options").append("<div class='fb-page-channel-option' data-fb-id='" + data[i].id + "' data-fb-name='" + data[i].name + "' data-fb-access-token='" + data[i].access_token +"' >" + data[i].name + " (" + data[i].id + ") </div>");
+              $("#fb-channel-options").append("<div class='fb-page-channel-option' data-fb-id='" + data[i].id + "' data-fb-name='" + data[i].name + "' data-fb-access-token='" + data[i].access_token +"' >" + data[i].name + " </div>");
             }
           }
           $("#fb-channel-options").show();
