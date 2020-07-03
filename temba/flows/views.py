@@ -1656,6 +1656,9 @@ class FlowCRUDL(SmartCRUDL):
 
             if flow.org.get_resthooks():
                 feature_filters.append("resthook")
+            
+            if flow.flow_type != Flow.TYPE_MESSAGE:
+                feature_filters.append("spell_checker")
 
             context["feature_filters"] = json.dumps(feature_filters)
 
