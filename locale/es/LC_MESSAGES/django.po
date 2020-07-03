@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-03 18:09+0000\n"
+"POT-Creation-Date: 2020-07-03 18:23+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -7599,7 +7599,7 @@ msgstr "El nombre del video"
 
 #, fuzzy
 #| msgid "Click here to send a message"
-msgid "Select the page you want to add as a channel"
+msgid "Select the page you want to add as a channel:"
 msgstr "Haga clic aquí para enviar un mensaje"
 
 msgid "Error with token, you need to reconnect the Facebook page by clicking the button below"
