@@ -1,3 +1,9 @@
+v5.5.78
+----------
+ * Improve the visuals and guides on the FBA claim page
+ * Block flow starts and broadcasts for suspended orgs
+ * Add a way to suspend orgs from org manage page
+
 v5.5.77
 ----------
  * Subscribe to the Facebook app for webhook events
