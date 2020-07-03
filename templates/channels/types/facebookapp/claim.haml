@@ -36,7 +36,7 @@
 
     #fb-channel-options(style="display:none;")
       %p(style="font-size:1rem;")
-        -trans "Select the page you want to add as a channel"
+        -trans "Select the page you want to add as a channel:"
 
 
   %form#claim-form(style="display:none;" method="POST" action="{{ claim_url }}")
@@ -63,13 +63,13 @@
 
           .fb-page-channel-option {
             margin: 1rem 1rem 1rem 0rem;
-            padding: 2rem 1rem;
-            display: inline-block;
+            padding: 1rem 0.5rem;
+            display: block;
             border: 5px solid #eee;
             cursor: pointer;
             text-align: center;
             width: 20%;
-            font-size: 1.25rem;
+            font-size: 1.1rem;
 
             &:hover {
               background-color: #eee;
