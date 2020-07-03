@@ -43,9 +43,6 @@ class FacebookAppType(ChannelType):
             url(r"^(?P<uuid>[a-z0-9\-]+)/refresh_token$", RefreshToken.as_view(), name="refresh_token"),
         ]
 
-    def is_available_to(self, user):
-        return False
-
     def deactivate(self, channel):
         config = channel.config
         requests.delete(
