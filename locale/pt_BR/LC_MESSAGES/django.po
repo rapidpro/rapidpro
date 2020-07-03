@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-02 11:04+0000\n"
+"POT-Creation-Date: 2020-07-03 17:09+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -7006,6 +7006,21 @@ msgid ""
 msgstr ""
 
 msgid "Verify Token"
+msgstr ""
+
+msgid "* Click on the button below to login to your Facebook account"
+msgstr ""
+
+msgid "* Login with your Facebook credentials or click the button \"Continue as [LOGGED_IN_ACCOUNT]\""
+msgstr ""
+
+msgid "* Select the page you want to connect or \"Edit Settings\" and select the page  , then click Next"
+msgstr ""
+
+msgid "* Make sure all the permissions are allowed"
+msgstr ""
+
+msgid "* You will see buttons below of the pages you allowed the app to access and choose the one to connect."
 msgstr ""
 
 #, fuzzy
