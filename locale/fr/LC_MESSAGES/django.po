@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-03 17:09+0000\n"
+"POT-Creation-Date: 2020-07-03 18:09+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -5716,29 +5716,36 @@ msgstr ""
 msgid "Verify Token"
 msgstr "Vérifier le jeton"
 
-msgid "* Click on the button below to login to your Facebook account"
+msgid "You can connect your Facebook page in just a few simple steps."
 msgstr ""
 
-msgid "* Login with your Facebook credentials or click the button \"Continue as [LOGGED_IN_ACCOUNT]\""
+msgid "Click on the button below to get started."
 msgstr ""
 
-msgid "* Select the page you want to connect or \"Edit Settings\" and select the page  , then click Next"
+msgid "Select the user you want to log in as."
 msgstr ""
 
-msgid "* Make sure all the permissions are allowed"
-msgstr ""
-
-msgid "* You will see buttons below of the pages you allowed the app to access and choose the one to connect."
+msgid "Select all the pages you want to grant us permissions for."
 msgstr ""
 
 #, fuzzy
+#| msgid "%(brand)s uses your Android phone to send and receive messages on your behalf."
+msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
+msgstr "%(brand)s utilise votre téléphone Android pour envoyer et recevoir des messages en votre nom."
+
+#, fuzzy
+#| msgid "Click here to add a message"
+msgid "Finally, select the page you want to add as a channel."
+msgstr "Cliquez ici pour ajouter un message"
+
+#, fuzzy
 #| msgid "The name of the Facebook page"
-msgid "Connect Facebook page"
+msgid "Add Facebook Page"
 msgstr "Le nom de la page Facebook"
 
 #, fuzzy
 #| msgid "Click here to add a message"
-msgid "Click on the page to add as a channel"
+msgid "Select the page you want to add as a channel"
 msgstr "Cliquez ici pour ajouter un message"
 
 msgid "Error with token, you need to reconnect the Facebook page by clicking the button below"
@@ -10932,6 +10939,11 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy
+#~| msgid "The name of the Facebook page"
+#~ msgid "Connect Facebook page"
+#~ msgstr "Le nom de la page Facebook"
 
 #, fuzzy
 #~| msgid "Your app's server access token"

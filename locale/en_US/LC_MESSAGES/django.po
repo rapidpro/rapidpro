@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-03 17:09+0000\n"
+"POT-Creation-Date: 2020-07-03 18:09+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -5262,25 +5262,28 @@ msgstr ""
 msgid "Verify Token"
 msgstr ""
 
-msgid "* Click on the button below to login to your Facebook account"
+msgid "You can connect your Facebook page in just a few simple steps."
 msgstr ""
 
-msgid "* Login with your Facebook credentials or click the button \"Continue as [LOGGED_IN_ACCOUNT]\""
+msgid "Click on the button below to get started."
 msgstr ""
 
-msgid "* Select the page you want to connect or \"Edit Settings\" and select the page  , then click Next"
+msgid "Select the user you want to log in as."
 msgstr ""
 
-msgid "* Make sure all the permissions are allowed"
+msgid "Select all the pages you want to grant us permissions for."
 msgstr ""
 
-msgid "* You will see buttons below of the pages you allowed the app to access and choose the one to connect."
+msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
 msgstr ""
 
-msgid "Connect Facebook page"
+msgid "Finally, select the page you want to add as a channel."
 msgstr ""
 
-msgid "Click on the page to add as a channel"
+msgid "Add Facebook Page"
+msgstr ""
+
+msgid "Select the page you want to add as a channel"
 msgstr ""
 
 msgid "Error with token, you need to reconnect the Facebook page by clicking the button below"
