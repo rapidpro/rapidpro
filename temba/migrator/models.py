@@ -1236,6 +1236,8 @@ class MigrationTask(TembaModel):
 
             if revisions:
                 for item in revisions:
+                    logger.info(f">>> Revision: {item.id}")
+
                     json_flow = dict()
                     spec_version = item.spec_version
                     try:
@@ -1250,7 +1252,7 @@ class MigrationTask(TembaModel):
                         spec_version = Flow.CURRENT_SPEC_VERSION
                     except Exception as e:
                         if not new_flow.is_system:
-                            logger.error(str(e), exc_info=True)
+                            logger.warning(str(e), exc_info=True)
                         json_flow = json.loads(item.definition)
 
                     FlowRevision.objects.create(
