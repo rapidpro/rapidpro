@@ -153,7 +153,7 @@ def migrate_export_to_version_11_10(exported_json, org, same_site=True):
 
     # need to provide the types of all flows in this export to migrate_to_version_11_10 which
     # otherwise can only find types of flows in the database
-    flow_types = {f["metadata"]["uuid"]: f["flow_type"] for f in exported_json.get("flows", [])}
+    flow_types = {f["metadata"]["uuid"]: f.get("flow_type", Flow.TYPE_MESSAGE) for f in exported_json.get("flows", [])}
 
     migrated_flows = []
     for flow in exported_json.get("flows", []):
