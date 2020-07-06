@@ -153,7 +153,7 @@ def migrate_export_to_version_11_10(exported_json, org, same_site=True):
 
     # need to provide the types of all flows in this export to migrate_to_version_11_10 which
     # otherwise can only find types of flows in the database
-    flow_types = {f["metadata"]["uuid"]: f["flow_type"] for f in exported_json.get("flows", [])}
+    flow_types = {f["metadata"]["uuid"]: f.get("flow_type", Flow.TYPE_MESSAGE) for f in exported_json.get("flows", [])}
 
     migrated_flows = []
     for flow in exported_json.get("flows", []):
@@ -738,8 +738,16 @@ def migrate_export_to_version_11_0(json_export, org, same_site=True):
             if rs["label"] is None:
                 continue
 
-            if "config" in rs and "spelling_correction_sensitivity" in rs["config"]:
-                rs["config"]["spelling_correction_sensitivity"] = str(rs["config"]["spelling_correction_sensitivity"])
+            if "config" in rs:
+                if "spelling_correction_sensitivity" in rs["config"]:
+                    rs["config"]["spelling_correction_sensitivity"] = str(rs["config"]["spelling_correction_sensitivity"])
+
+                if "lookup_queries" in rs["config"]:
+                    for query in rs["config"].get("lookup_queries", []):
+                        if query["field"] == "":
+                            query["field"] = dict(id="", text="", type="String")
+                        if query["rule"] == "":
+                            query["rule"] = dict(type="contains", verbose_name="contains")
 
             key = Flow.label_to_slug(rs["label"])
 
