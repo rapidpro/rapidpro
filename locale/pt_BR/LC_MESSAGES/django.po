@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-24 14:31+0000\n"
+"POT-Creation-Date: 2020-07-03 18:23+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -1348,6 +1348,28 @@ msgstr ""
 #| msgid "The name of the video"
 msgid "The name of the Facebook page"
 msgstr "O nome do vídeo"
+
+#, fuzzy
+#| msgid "The name of the video"
+msgid "Reconnect Facebook Page"
+msgstr "O nome do vídeo"
+
+msgid ""
+"Add a <a href=\"http://facebook.com\">Facebook</a> bot to send and receive messages on behalf\n"
+"    of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect"
+msgstr ""
+
+#, fuzzy
+msgid "The User Access Token"
+msgstr "Seu Token API é"
+
+#, fuzzy
+#| msgid "The number of commands that we gave the channel"
+msgid "The Facebook User ID of the admin that connected the channel"
+msgstr "O número de comandos enviados ao transmissor"
+
+msgid "Sorry your Facebook channel could not be connected. Please try again"
+msgstr ""
 
 msgid ""
 "Add a <a href=\"https://firebase.google.com/docs/cloud-messaging/\"> Firebase Cloud\n"
@@ -3360,72 +3382,6 @@ msgstr "Os fluxos para exportar"
 msgid "The search query"
 msgstr ""
 
-#, python-brace-format
-msgid "Unrecognized field: '{prop}'"
-msgstr ""
-
-#, fuzzy, python-brace-format
-#| msgid "Using a Local Number"
-msgid "f'{val}' isn't a valid number"
-msgstr "Use um número local"
-
-#, python-brace-format
-msgid "Unknown text comparator: '{self.comparator}'"
-msgstr ""
-
-#, python-brace-format
-msgid "Unknown number comparator: '{self.comparator}'"
-msgstr ""
-
-#, fuzzy, python-brace-format
-#| msgid "Invalid group or contact id"
-msgid "Unable to parse the date '{self.value}'"
-msgstr "Grupo ou id do contato inválido"
-
-#, python-brace-format
-msgid "Unknown datetime comparator: '{self.comparator}'"
-msgstr ""
-
-#, fuzzy, python-brace-format
-#| msgid "Unknown alert type: %(alert)s"
-msgid "Unknown location type: '{field.value_type}'"
-msgstr "Tipo de alerta desconhecido: %(alert)s"
-
-#, python-brace-format
-msgid "Unsupported comparator '{self.comparator}' for location field"
-msgstr ""
-
-#, python-brace-format
-msgid "Unrecognized contact field type '{field.value_type}'"
-msgstr ""
-
-#, python-brace-format
-msgid "Unknown urn scheme comparator: '{self.comparator}'"
-msgstr ""
-
-#, python-brace-format
-msgid "Unknown language comparator: '{self.comparator}'"
-msgstr ""
-
-#, python-brace-format
-msgid "Unknown created_on comparator: '{self.comparator}'"
-msgstr ""
-
-#, python-brace-format
-msgid "Unknown name comparator: '{self.comparator}'"
-msgstr ""
-
-#, python-brace-format
-msgid "No support for attribute field: '{field}'"
-msgstr ""
-
-#, python-brace-format
-msgid "Unrecognized contact field type '{prop_type}'"
-msgstr ""
-
-msgid "Invalid operator for empty string comparison"
-msgstr ""
-
 #, fuzzy
 #| msgid "days"
 msgid "day"
@@ -4222,7 +4178,10 @@ msgstr ""
 msgid "This flow is already being started, please wait until that process is complete before starting more contacts."
 msgstr ""
 
-msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently suspended. To enable starting flows, please contact support."
+msgstr ""
+
+msgid "Sorry, your account is currently flagged. To enable starting flows, please contact support."
 msgstr ""
 
 #, fuzzy
@@ -4585,6 +4544,12 @@ msgstr "Disparador agendamento"
 
 msgid "At least one recipient is required"
 msgstr "Pelo menos um destinatário é necessário"
+
+msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgstr ""
+
+msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
+msgstr ""
 
 msgid "Inbox"
 msgstr "Caixa de entrada"
@@ -7052,6 +7017,51 @@ msgstr ""
 msgid "Verify Token"
 msgstr ""
 
+msgid "You can connect your Facebook page in just a few simple steps."
+msgstr ""
+
+msgid "Click on the button below to get started."
+msgstr ""
+
+msgid "Select the user you want to log in as."
+msgstr ""
+
+msgid "Select all the pages you want to grant us permissions for."
+msgstr ""
+
+#, fuzzy
+msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
+msgstr "Textit usa o seu telefone Android para enviar e receber mensagens."
+
+#, fuzzy
+#| msgid "Click here to send a message"
+msgid "Finally, select the page you want to add as a channel."
+msgstr "Clique aqui para enviar uma mensagem"
+
+#, fuzzy
+#| msgid "The name of the video"
+msgid "Add Facebook Page"
+msgstr "O nome do vídeo"
+
+#, fuzzy
+#| msgid "Click here to send a message"
+msgid "Select the page you want to add as a channel:"
+msgstr "Clique aqui para enviar uma mensagem"
+
+msgid "Error with token, you need to reconnect the Facebook page by clicking the button below"
+msgstr ""
+
+msgid "Everything looks good. No need to reconnect"
+msgstr ""
+
+msgid "Error reconnecting Facebook page. Please retry"
+msgstr ""
+
+#, fuzzy
+#| msgid "The name of the video"
+msgid "Reconnect Facebook page"
+msgstr "O nome do vídeo"
+
 #, fuzzy, python-format
 #| msgid ""
 #| "\n"
@@ -9070,12 +9080,6 @@ msgstr "Atualizar rótulo"
 msgid "Delete Global"
 msgstr "Criar fluxo"
 
-msgid ""
-"\n"
-"    Sorry, importing has not been enabled on your workspace.\n"
-"  "
-msgstr ""
-
 msgid "messages"
 msgstr "mensagens"
 
@@ -9104,8 +9108,9 @@ msgstr "Transmissor"
 msgid "users"
 msgstr "usuários"
 
-msgid "orgs"
-msgstr "organizações"
+#, fuzzy
+msgid "workspaces"
+msgstr "Crie sua Organização"
 
 #, fuzzy
 #| msgid "Android"
@@ -9114,6 +9119,9 @@ msgstr "Android"
 
 msgid "dashboard"
 msgstr "Painel de controle"
+
+msgid "orgs"
+msgstr "organizações"
 
 #, fuzzy
 msgid "end"
@@ -11856,6 +11864,30 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "The name of the video"
+#~ msgid "Connect Facebook page"
+#~ msgstr "O nome do vídeo"
+
+#, fuzzy
+#~ msgid "Empty user access token!"
+#~ msgstr "Seu Token API é"
+
+#, fuzzy, python-brace-format
+#~| msgid "Using a Local Number"
+#~ msgid "f'{val}' isn't a valid number"
+#~ msgstr "Use um número local"
+
+#, fuzzy, python-brace-format
+#~| msgid "Invalid group or contact id"
+#~ msgid "Unable to parse the date '{self.value}'"
+#~ msgstr "Grupo ou id do contato inválido"
+
+#, fuzzy, python-brace-format
+#~| msgid "Unknown alert type: %(alert)s"
+#~ msgid "Unknown location type: '{field.value_type}'"
+#~ msgstr "Tipo de alerta desconhecido: %(alert)s"
 
 #, fuzzy
 #~| msgid "Manage %(name)s Accounts"

@@ -28,7 +28,7 @@ from temba.mailroom import FlowValidationException, MailroomException
 from temba.msgs.models import Label
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticketer
@@ -283,7 +283,7 @@ class FlowTest(TembaTest):
 
         # create a translation, but not approved
         TemplateTranslation.get_or_create(
-            self.channel, "affirmation", "eng", "good boy", 0, TemplateTranslation.STATUS_REJECTED, "id1"
+            self.channel, "affirmation", "eng", "US", "good boy", 0, TemplateTranslation.STATUS_REJECTED, "id1"
         )
 
         response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
@@ -4389,7 +4389,8 @@ class ExportFlowResultsTest(TembaTest):
         filename = "%s/test_orgs/%d/results_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
         return load_workbook(filename=os.path.join(settings.MEDIA_ROOT, filename))
 
-    def test_export_results(self):
+    @mock_mailroom
+    def test_export_results(self, mr_mocks):
         flow = self.get_flow("color_v13")
         flow_nodes = flow.as_json()["nodes"]
         color_prompt = flow_nodes[0]
@@ -4407,8 +4408,12 @@ class ExportFlowResultsTest(TembaTest):
             }
         )
 
-        self.contact.update_urns(self.admin, ["tel:+250788382382", "twitter:erictweets"])
+        age = self.create_field("age", "Age")
         devs = self.create_group("Devs", [self.contact])
+
+        mods = self.contact.update_fields({age: "36"})
+        mods += self.contact.update_urns(["tel:+250788382382", "twitter:erictweets"])
+        self.contact.modify(self.admin, mods)
 
         # contact name with an illegal character
         self.contact3.name = "Nor\02bert"
@@ -4823,9 +4828,6 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test export with a contact field
-        age = ContactField.get_or_create(self.org, self.admin, "age", "Age")
-        self.contact.set_field(self.admin, "age", "36")
-
         with self.assertNumQueries(43):
             workbook = self._export(
                 flow,
@@ -4835,9 +4837,6 @@ class ExportFlowResultsTest(TembaTest):
                 extra_urns=["twitter", "line"],
                 group_memberships=[devs],
             )
-
-        # try setting the field again
-        self.contact.set_field(self.admin, "age", "36")
 
         tz = self.org.timezone
         (sheet_runs,) = workbook.worksheets

@@ -759,63 +759,110 @@ class OrgTest(TembaTest):
         self.assertEqual(response.context["form"].errors["tel"][0], "Invalid phone number, try again.")
 
     @patch("temba.flows.models.FlowStart.async_start")
-    def test_org_flagging(self, mock_async_start):
+    def test_org_flagging_and_suspending(self, mock_async_start):
         self.login(self.admin)
+
+        mark = self.create_contact("Mark", number="+12065551212")
+        flow = self.create_flow()
+
+        def send_broadcast():
+            send_url = reverse("msgs.broadcast_send")
+            omnibox = omnibox_serialize(self.org, [], [mark], True)
+            return self.client.post(
+                send_url, {"text": "send me ur bank account login im ur friend.", "omnibox": omnibox}, follow=True
+            )
+
+        def start_flow():
+            omni_mark = json.dumps({"id": mark.uuid, "name": mark.name, "type": "contact"})
+            return self.client.post(
+                reverse("flows.flow_broadcast", args=[flow.id]),
+                {"recipients_mode": "select", "omnibox": omni_mark, "restart_participants": "on"},
+                follow=True,
+            )
+
+        def send_broadcast_via_api():
+            url = reverse("api.v2.broadcasts")
+            data = dict(contacts=[mark.uuid], text="You are a distant cousin to a wealthy person.")
+            return self.client.post(
+                url + ".json", json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS="https"
+            )
+
+        def start_flow_via_api():
+            url = reverse("api.v2.flow_starts")
+            data = dict(flow=flow.uuid, urns=["tel:+250788123123"])
+            return self.client.post(
+                url + ".json", json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS="https"
+            )
 
         self.org.flag()
         self.org.refresh_from_db()
-
         self.assertTrue(self.org.is_flagged)
 
         # while we are flagged, we can't send broadcasts
-        send_url = reverse("msgs.broadcast_send")
-        mark = self.create_contact("Mark", number="+12065551212")
-
-        omnibox = omnibox_serialize(self.org, [], [mark], True)
-        post_data = dict(text="send me ur bank account login im ur friend.", omnibox=omnibox)
-        response = self.client.post(send_url, post_data, follow=True)
-
-        self.assertEqual(
+        response = send_broadcast()
+        self.assertFormError(
+            response,
+            "form",
+            "__all__",
             "Sorry, your account is currently flagged. To enable sending messages, please contact support.",
-            response.context["form"].errors["__all__"][0],
         )
 
         # we also can't start flows
-        flow = self.create_flow()
-        omni_mark = json.dumps({"id": mark.uuid, "name": mark.name, "type": "contact"})
-        self.client.post(
-            reverse("flows.flow_broadcast", args=[flow.id]),
-            {"recipients_mode": "select", "omnibox": omni_mark, "restart_participants": "on"},
-            follow=True,
+        response = start_flow()
+        self.assertFormError(
+            response,
+            "form",
+            "__all__",
+            "Sorry, your account is currently flagged. To enable starting flows, please contact support.",
         )
 
-        self.assertEqual(
-            "Sorry, your account is currently flagged. To enable sending messages, please contact support.",
-            response.context["form"].errors["__all__"][0],
-        )
-
-        # or use the api to do either
-        def postAPI(url, data):
-            response = self.client.post(
-                url + ".json", json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS="https"
-            )
-            if response.content:
-                response.json = response.json()
-            return response
-
-        url = reverse("api.v2.broadcasts")
-        response = postAPI(url, dict(contacts=[mark.uuid], text="You are a distant cousin to a wealthy person."))
+        response = send_broadcast_via_api()
         self.assertContains(
             response,
             "Sorry, your account is currently flagged. To enable sending messages, please contact support.",
             status_code=400,
         )
 
-        url = reverse("api.v2.flow_starts")
-        response = postAPI(url, dict(flow=flow.uuid, urns=["tel:+250788123123"]))
+        response = start_flow_via_api()
         self.assertContains(
             response,
             "Sorry, your account is currently flagged. To enable sending messages, please contact support.",
+            status_code=400,
+        )
+
+        # unflag org and suspend it instead
+        self.org.unflag()
+        self.org.is_suspended = True
+        self.org.save(update_fields=("is_suspended",))
+
+        response = send_broadcast()
+        self.assertFormError(
+            response,
+            "form",
+            "__all__",
+            "Sorry, your account is currently suspended. To enable sending messages, please contact support.",
+        )
+
+        # we also can't start flows
+        response = start_flow()
+        self.assertFormError(
+            response,
+            "form",
+            "__all__",
+            "Sorry, your account is currently suspended. To enable starting flows, please contact support.",
+        )
+
+        response = send_broadcast_via_api()
+        self.assertContains(
+            response,
+            "Sorry, your account is currently suspended. To enable sending messages, please contact support.",
+            status_code=400,
+        )
+
+        response = start_flow_via_api()
+        self.assertContains(
+            response,
+            "Sorry, your account is currently suspended. To enable sending messages, please contact support.",
             status_code=400,
         )
 
@@ -823,14 +870,11 @@ class OrgTest(TembaTest):
         self.assertEqual(Msg.objects.all().count(), 0)
         mock_async_start.assert_not_called()
 
-        # unflag our org and start a flow
-        self.org.unflag()
+        # unsuspend our org and start a flow
+        self.org.is_suspended = False
+        self.org.save(update_fields=("is_suspended",))
 
-        self.client.post(
-            reverse("flows.flow_broadcast", args=[flow.id]),
-            {"recipients_mode": "select", "omnibox": omni_mark, "restart_participants": "on"},
-            follow=True,
-        )
+        start_flow()
 
         mock_async_start.assert_called_once()
 
@@ -3922,13 +3966,8 @@ class BulkExportTest(TembaTest):
         event = campaign.events.filter(is_active=True).last()
 
         # create a contact and place her into our campaign
-        sally = self.create_contact("Sally", "+12345")
+        sally = self.create_contact("Sally", urn="tel:+12345", fields={"survey_start": "10-05-2025 12:30:10"})
         campaign.group.contacts.add(sally)
-        sally.set_field(self.user, "survey_start", "10-05-2025 12:30:10")
-
-        # shoud have one event fire
-        self.assertEqual(1, event.fires.all().count())
-        original_fire = event.fires.all().first()
 
         # importing it again shouldn't result in failures
         self.import_file("survey_campaign")
@@ -3940,10 +3979,6 @@ class BulkExportTest(TembaTest):
         # same campaign, but new event
         self.assertEqual(campaign.id, new_campaign.id)
         self.assertNotEqual(event.id, new_event.id)
-
-        # should still have one fire, but it's been recreated
-        self.assertEqual(1, new_event.fires.all().count())
-        self.assertNotEqual(original_fire.id, new_event.fires.all().first().id)
 
     def test_import_mixed_flow_versions(self):
         self.import_file("mixed_versions", legacy=True)

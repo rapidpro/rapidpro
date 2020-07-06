@@ -1,0 +1,85 @@
+-extends "channels/channel_claim_form.html"
+-load i18n compress temba
+
+-block title
+  .medium-help.float-left.icon-facebook-official
+
+  %h2.font_normalize.header-margin
+    {{ title }}
+
+-block modal
+  
+  %p#fb-status
+    -if error_connect
+      - trans "Error with token, you need to reconnect the Facebook page by clicking the button below"
+    -else
+      - trans "Everything looks good. No need to reconnect"
+  
+  
+  #fb-channel-error(style="display:none;")
+    %p
+      -trans "Error reconnecting Facebook page. Please retry"
+
+  #fb-app-connect
+    .btn.btn-primary.connect-facebook
+      -trans "Reconnect Facebook page"
+  
+  #throbber(style="display:none;")
+    %img(src="{{ STATIC_URL }}/images/loader-circles.gif")
+  %form#refresh-token-form(style="display:none;" method="POST" action="{{ refresh_url }}")
+    {% csrf_token %}
+    %input#fb-user-id(type="text" name="fb_user_id")
+    %input#user-access-token(type="text" name="user_access_token")
+
+-block extra-less
+  -compress css inline
+    {% lessblock %}
+      :plain
+        #fb-app-connect {
+          margin-top: 2rem;
+        }
+    {% endlessblock %}
+
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    window.fbAsyncInit = function() {
+      FB.init({
+        appId      : '{{ facebook_app_id }}',
+        cookie     : true,
+        xfbml      : true,
+        version    : 'v7.0'
+      });
+    };
+
+    
+    (function(d, s, id) {
+      var js, fjs = d.getElementsByTagName(s)[0];
+      if (d.getElementById(id)) return;
+      js = d.createElement(s); js.id = id;
+      js.src = "https://connect.facebook.net/en_US/sdk.js";
+      fjs.parentNode.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));
+
+
+    $(document).ready(function(){
+      $(".connect-facebook").click(function(evt){
+        $("#throbber").show();
+        FB.login(function(response) {
+          if (response.status === 'connected') {
+            $("#fb-user-id").val(response.authResponse.userID);
+            $("#user-access-token").val(response.authResponse.accessToken);
+            $("#refresh-token-form").submit();
+          } else {
+              $("#throbber").hide();
+              $("#fb-status").hide();
+              $("#fb-channel-error").show();
+          }
+
+        },
+        {scope: 'pages_messaging,pages_show_list,pages_manage_metadata'});
+
+      })
+    });

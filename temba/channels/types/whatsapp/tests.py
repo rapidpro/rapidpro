@@ -198,6 +198,19 @@ class WhatsAppTypeTest(TembaTest):
                 "components": [
                   {
                     "type": "BODY",
+                    "text": "Hi {{1}}"
+                  }
+                ],
+                "language": "en_GB",
+                "status": "PENDING",
+                "category": "ISSUE_RESOLUTION",
+                "id": "4321"
+              },
+              {
+                "name": "hello",
+                "components": [
+                  {
+                    "type": "BODY",
                     "text": "Bonjour {{1}}"
                   }
                 ],
@@ -319,7 +332,7 @@ class WhatsAppTypeTest(TembaTest):
 
             # should have 4 templates
             self.assertEqual(4, Template.objects.filter(org=self.org).count())
-            self.assertEqual(5, TemplateTranslation.objects.filter(channel=channel).count())
+            self.assertEqual(6, TemplateTranslation.objects.filter(channel=channel).count())
 
             # hit our template page
             response = self.client.get(reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
@@ -334,7 +347,7 @@ class WhatsAppTypeTest(TembaTest):
             self.assertEqual("Goodbye {{1}}, see you on {{2}}. See you later {{1}}", ct.content)
             self.assertEqual("eng", ct.language)
             self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
-            self.assertEqual("goodbye (eng) P: Goodbye {{1}}, see you on {{2}}. See you later {{1}}", str(ct))
+            self.assertEqual("goodbye (eng []) P: Goodbye {{1}}, see you on {{2}}. See you later {{1}}", str(ct))
 
             ct = TemplateTranslation.objects.get(template__name="workout_activity", is_active=True)
             self.assertEqual(3, ct.variable_count)
@@ -360,7 +373,7 @@ class WhatsAppTypeTest(TembaTest):
             channel.release()
 
         # all our templates should be inactive now
-        self.assertEqual(5, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())
+        self.assertEqual(6, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())
 
     def test_claim_self_hosted_templates(self):
         Channel.objects.all().delete()

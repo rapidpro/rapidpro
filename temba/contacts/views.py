@@ -370,19 +370,6 @@ class ContactActionMixin(SmartListView):
         return self.get(request, *args, **kwargs)
 
 
-class ContactFieldForm(forms.ModelForm):
-
-    contact_field = Select2Field()
-    field_value = forms.CharField(required=False)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    class Meta:
-        model = Contact
-        fields = "__all__"
-
-
 class ContactForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.user = kwargs["user"]
@@ -1475,6 +1462,12 @@ class ContactCRUDL(SmartCRUDL):
             obj = self.get_object()
             data = form.cleaned_data
 
+            mods = obj.update(data.get("name"), data.get("language"))
+
+            new_groups = self.form.cleaned_data.get("groups")
+            if new_groups is not None:
+                mods += obj.update_static_groups(new_groups)
+
             if not self.org.is_anon:
                 urns = []
 
@@ -1494,18 +1487,10 @@ class ContactCRUDL(SmartCRUDL):
 
                 # sort our urns by the supplied order
                 urns = [urn[1] for urn in sorted(urns, key=lambda x: x[0])]
-                obj.update_urns(self.request.user, urns)
-
-            # eventually mailroom will do URNs as well, but for now just do the mailroom parts
-            # last so that group re-evaluation happens after the URNs have been set
-            mods = obj.update(data.get("name"), data.get("language"))
-
-            new_groups = self.form.cleaned_data.get("groups")
-            if new_groups is not None:
-                mods += obj.update_static_groups(new_groups)
+                mods += obj.update_urns(urns)
 
             try:
-                obj.modify(self.request.user, *mods)
+                obj.modify(self.request.user, mods)
             except Exception:
                 errors = form._errors.setdefault(forms.forms.NON_FIELD_ERRORS, forms.utils.ErrorList())
                 errors.append(_("An error occurred updating your contact. Please try again later."))
@@ -1523,28 +1508,18 @@ class ContactCRUDL(SmartCRUDL):
             response["Temba-Success"] = self.get_success_url()
             return response
 
-    class UpdateFields(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        form_class = ContactFieldForm
-        exclude = (
-            "is_active",
-            "uuid",
-            "org",
-            "fields",
-            "is_blocked",
-            "is_stopped",
-            "created_by",
-            "modified_by",
-            "is_test",
-            "channel",
-            "name",
-            "language",
-        )
+    class UpdateFields(NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+        class Form(forms.Form):
+            contact_field = Select2Field()
+            field_value = forms.CharField(required=False)
+
+            def __init__(self, instance, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+        form_class = Form
         success_url = "uuid@contacts.contact_read"
         success_message = ""
         submit_button_name = _("Save Changes")
-
-        def get_form_kwargs(self, *args, **kwargs):
-            return super().get_form_kwargs(*args, **kwargs)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -1559,11 +1534,14 @@ class ContactCRUDL(SmartCRUDL):
 
         def post_save(self, obj):
             obj = super().post_save(obj)
-            contact_field = obj.org.contactfields(manager="user_fields").get(
-                id=self.form.cleaned_data.get("contact_field")
-            )
-            if contact_field:
-                obj.set_field(self.request.user, contact_field.key, self.form.cleaned_data.get("field_value", ""))
+
+            field_id = self.form.cleaned_data.get("contact_field")
+            field_obj = obj.org.contactfields(manager="user_fields").get(id=field_id)
+            value = self.form.cleaned_data.get("field_value", "")
+
+            mods = obj.update_fields({field_obj: value})
+            obj.modify(self.request.user, mods)
+
             return obj
 
     class UpdateFieldsInput(OrgObjPermsMixin, SmartReadView):

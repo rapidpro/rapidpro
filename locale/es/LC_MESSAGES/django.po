@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-24 14:31+0000\n"
+"POT-Creation-Date: 2020-07-03 18:23+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -1432,6 +1432,31 @@ msgstr ""
 #| msgid "The name of the video"
 msgid "The name of the Facebook page"
 msgstr "El nombre del video"
+
+#, fuzzy
+#| msgid "The name of the video"
+msgid "Reconnect Facebook Page"
+msgstr "El nombre del video"
+
+msgid ""
+"Add a <a href=\"http://facebook.com\">Facebook</a> bot to send and receive messages on behalf\n"
+"    of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect"
+msgstr ""
+
+#, fuzzy
+#| msgid "API Token"
+msgid "The User Access Token"
+msgstr "Token API"
+
+#, fuzzy
+#| msgid "The number of commands that we gave the channel"
+msgid "The Facebook User ID of the admin that connected the channel"
+msgstr "El número de comandos que nos dio el transmisor"
+
+#, fuzzy
+#| msgid "Your changes could not be saved. Please reload the page and try again."
+msgid "Sorry your Facebook channel could not be connected. Please try again"
+msgstr "No se pudieron guardar sus cambios. Por favor, actualice la página e inténtelo nuevamente."
 
 msgid ""
 "Add a <a href=\"https://firebase.google.com/docs/cloud-messaging/\"> Firebase Cloud\n"
@@ -3649,72 +3674,6 @@ msgstr "El grupo único para exportar"
 msgid "The search query"
 msgstr ""
 
-#, python-brace-format
-msgid "Unrecognized field: '{prop}'"
-msgstr ""
-
-#, fuzzy, python-brace-format
-#| msgid "Using a Local Number"
-msgid "f'{val}' isn't a valid number"
-msgstr "Con un número local"
-
-#, python-brace-format
-msgid "Unknown text comparator: '{self.comparator}'"
-msgstr ""
-
-#, python-brace-format
-msgid "Unknown number comparator: '{self.comparator}'"
-msgstr ""
-
-#, fuzzy, python-brace-format
-#| msgid "Invalid group or contact id"
-msgid "Unable to parse the date '{self.value}'"
-msgstr "ID del grupo o contacto inválido "
-
-#, python-brace-format
-msgid "Unknown datetime comparator: '{self.comparator}'"
-msgstr ""
-
-#, fuzzy, python-brace-format
-#| msgid "Unknown alert type: %(alert)s"
-msgid "Unknown location type: '{field.value_type}'"
-msgstr "Tipo de alerta desconocido: %(alert)s"
-
-#, python-brace-format
-msgid "Unsupported comparator '{self.comparator}' for location field"
-msgstr ""
-
-#, python-brace-format
-msgid "Unrecognized contact field type '{field.value_type}'"
-msgstr ""
-
-#, python-brace-format
-msgid "Unknown urn scheme comparator: '{self.comparator}'"
-msgstr ""
-
-#, python-brace-format
-msgid "Unknown language comparator: '{self.comparator}'"
-msgstr ""
-
-#, python-brace-format
-msgid "Unknown created_on comparator: '{self.comparator}'"
-msgstr ""
-
-#, python-brace-format
-msgid "Unknown name comparator: '{self.comparator}'"
-msgstr ""
-
-#, python-brace-format
-msgid "No support for attribute field: '{field}'"
-msgstr ""
-
-#, python-brace-format
-msgid "Unrecognized contact field type '{prop_type}'"
-msgstr ""
-
-msgid "Invalid operator for empty string comparison"
-msgstr ""
-
 #, fuzzy
 #| msgid "days"
 msgid "day"
@@ -4520,7 +4479,10 @@ msgstr ""
 msgid "This flow is already being started, please wait until that process is complete before starting more contacts."
 msgstr ""
 
-msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently suspended. To enable starting flows, please contact support."
+msgstr ""
+
+msgid "Sorry, your account is currently flagged. To enable starting flows, please contact support."
 msgstr ""
 
 msgid "Add Contacts to Flow"
@@ -4888,6 +4850,12 @@ msgstr "Activador de programa"
 
 msgid "At least one recipient is required"
 msgstr "Se requiere un destinatario como mínimo"
+
+msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgstr ""
+
+msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
+msgstr ""
 
 msgid "Inbox"
 msgstr "Bandeja de entrada"
@@ -7603,6 +7571,51 @@ msgstr ""
 msgid "Verify Token"
 msgstr ""
 
+msgid "You can connect your Facebook page in just a few simple steps."
+msgstr ""
+
+msgid "Click on the button below to get started."
+msgstr ""
+
+msgid "Select the user you want to log in as."
+msgstr ""
+
+msgid "Select all the pages you want to grant us permissions for."
+msgstr ""
+
+#, fuzzy
+msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
+msgstr "TextIt usa su teléfono Android para enviar y recibir mensajes."
+
+#, fuzzy
+#| msgid "Click here to send a message"
+msgid "Finally, select the page you want to add as a channel."
+msgstr "Haga clic aquí para enviar un mensaje"
+
+#, fuzzy
+#| msgid "The name of the video"
+msgid "Add Facebook Page"
+msgstr "El nombre del video"
+
+#, fuzzy
+#| msgid "Click here to send a message"
+msgid "Select the page you want to add as a channel:"
+msgstr "Haga clic aquí para enviar un mensaje"
+
+msgid "Error with token, you need to reconnect the Facebook page by clicking the button below"
+msgstr ""
+
+msgid "Everything looks good. No need to reconnect"
+msgstr ""
+
+msgid "Error reconnecting Facebook page. Please retry"
+msgstr ""
+
+#, fuzzy
+#| msgid "The name of the video"
+msgid "Reconnect Facebook page"
+msgstr "El nombre del video"
+
 #, fuzzy, python-format
 #| msgid ""
 #| "\n"
@@ -9783,12 +9796,6 @@ msgstr "Actualizar etiqueta"
 msgid "Delete Global"
 msgstr "Crear Flujos"
 
-msgid ""
-"\n"
-"    Sorry, importing has not been enabled on your workspace.\n"
-"  "
-msgstr ""
-
 msgid "messages"
 msgstr "mensajes"
 
@@ -9816,8 +9823,10 @@ msgstr "Transmisor"
 msgid "users"
 msgstr "usuarios"
 
-msgid "orgs"
-msgstr "organizaciones"
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "workspaces"
+msgstr "Elija su Organización"
 
 #, fuzzy
 #| msgid "Android"
@@ -9826,6 +9835,9 @@ msgstr "Android"
 
 msgid "dashboard"
 msgstr "Panel"
+
+msgid "orgs"
+msgstr "organizaciones"
 
 #, fuzzy
 msgid "end"
@@ -12789,6 +12801,31 @@ msgstr "Ingrese el código de pedido"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
+#, fuzzy
+#~| msgid "The name of the video"
+#~ msgid "Connect Facebook page"
+#~ msgstr "El nombre del video"
+
+#, fuzzy
+#~| msgid "Your app's server access token"
+#~ msgid "Empty user access token!"
+#~ msgstr "Token de acceso desde su repositorio"
+
+#, fuzzy, python-brace-format
+#~| msgid "Using a Local Number"
+#~ msgid "f'{val}' isn't a valid number"
+#~ msgstr "Con un número local"
+
+#, fuzzy, python-brace-format
+#~| msgid "Invalid group or contact id"
+#~ msgid "Unable to parse the date '{self.value}'"
+#~ msgstr "ID del grupo o contacto inválido "
+
+#, fuzzy, python-brace-format
+#~| msgid "Unknown alert type: %(alert)s"
+#~ msgid "Unknown location type: '{field.value_type}'"
+#~ msgstr "Tipo de alerta desconocido: %(alert)s"
+
 #~ msgid "Sorry, import is a premium feature"
 #~ msgstr "Lo sentimos, la importación es una función premium"
 
@@ -13496,9 +13533,6 @@ msgstr ""
 
 #~ msgid "Alias names must be unique, try again."
 #~ msgstr "Los apelativos deben ser únicos, inténtelo de nuevo."
-
-#~ msgid "Your changes could not be saved. Please reload the page and try again."
-#~ msgstr "No se pudieron guardar sus cambios. Por favor, actualice la página e inténtelo nuevamente."
 
 #, fuzzy
 #~| msgid "Channel Event"

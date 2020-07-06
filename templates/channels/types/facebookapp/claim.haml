@@ -1,0 +1,148 @@
+-extends "channels/channel_claim_form.html"
+-load i18n compress temba
+
+-block title
+  .medium-help.float-left(class="{{ view.channel_type.icon }}")
+
+  %h2.font_normalize.header-margin
+    {{ title }}
+
+-block modal
+    #fb-guide
+      %h4
+        -trans "You can connect your Facebook page in just a few simple steps."
+      %ol
+        %li
+          -trans "Click on the button below to get started."
+
+        %li
+          -trans "Select the user you want to log in as."
+
+        %li
+          -trans "Select all the pages you want to grant us permissions for."
+
+        %li
+          -trans "Approve the permissions, these are required for us to send and receive messages on your behalf."
+
+        %li
+          -trans "Finally, select the page you want to add as a channel."
+
+    #fb-app-connect
+      .btn.btn-primary.connect-facebook
+        -trans "Add Facebook Page"
+    
+    #throbber(style="display:none;")
+      %img(src="{{ STATIC_URL }}/images/loader-circles.gif")
+
+    #fb-channel-options(style="display:none;")
+      %p(style="font-size:1rem;")
+        -trans "Select the page you want to add as a channel:"
+
+
+  %form#claim-form(style="display:none;" method="POST" action="{{ claim_url }}")
+    {% csrf_token %}
+    %input#fb-user-id(type="text" name="fb_user_id")
+    %input#user-access-token(type="text" name="user_access_token")
+    %input#page-id(type="text" name="page_id")
+    %input#page-name(type="text" name="page_name")
+
+
+
+-block extra-less
+  -compress css inline
+    {% lessblock %}
+      :plain
+        #fb-guide {
+          li {
+            list-style-type: circle;
+          }
+        }
+
+        #fb-channel-options {
+          margin-top: 2rem;
+
+          .fb-page-channel-option {
+            margin: 1rem 1rem 1rem 0rem;
+            padding: 1rem 0.5rem;
+            display: block;
+            border: 5px solid #eee;
+            cursor: pointer;
+            text-align: center;
+            width: 20%;
+            font-size: 1.1rem;
+
+            &:hover {
+              background-color: #eee;
+            }
+          }
+
+        }
+    {% endlessblock %}
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    $("#fb-channel-options").on('click', ".fb-page-channel-option", function(e){
+        $("#user-access-token").val($(this).data("fb-access-token"));
+        $("#page-id").val($(this).data("fb-id"));
+        $("#page-name").val($(this).data("fb-name"));
+        $("#claim-form").submit();
+    });
+
+
+    window.fbAsyncInit = function() {
+      FB.init({
+        appId      : '{{ facebook_app_id }}',
+        cookie     : true,
+        xfbml      : true,
+        version    : 'v7.0'
+      });
+    };
+
+    
+    (function(d, s, id) {
+      var js, fjs = d.getElementsByTagName(s)[0];
+      if (d.getElementById(id)) return;
+      js = d.createElement(s); js.id = id;
+      js.src = "https://connect.facebook.net/en_US/sdk.js";
+      fjs.parentNode.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));
+
+
+    $(document).ready(function(){
+      $(".connect-facebook").click(function(evt){
+        $("#throbber").show();
+        FB.login(function(response) {
+          if (response.status === 'connected') {
+            $("#fb-user-id").val(response.authResponse.userID);
+            getFBPages(response.authResponse.accessToken);
+          }
+
+        }, 
+        {scope: 'pages_messaging,pages_show_list,pages_manage_metadata'});
+
+      })
+    });
+
+    function getFBPages(token) {
+      $.ajax({
+        type: "GET",
+        url: "https://graph.facebook.com/me/accounts?access_token=" + token,
+        dataType: "json",
+        success: function(response, status, xhr){
+          data = response.data;
+          if (data.length > 0) {
+            for (var i=0; i < data.length; i++){
+              $("#fb-channel-options").append("<div class='fb-page-channel-option' data-fb-id='" + data[i].id + "' data-fb-name='" + data[i].name + "' data-fb-access-token='" + data[i].access_token +"' >" + data[i].name + " </div>");
+            }
+          }
+          $("#fb-channel-options").show();
+          $("#fb-app-connect").hide();
+          $("#throbber").hide();
+
+        },
+        failure: function(req){
+        }
+      });
+    }

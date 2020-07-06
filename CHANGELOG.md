@@ -1,3 +1,53 @@
+v5.6.0
+----------
+ * 5.6.0 Release Candidate
+
+v5.5.78 
+----------
+ * Improve the visuals and guides on the FBA claim page
+ * Block flow starts and broadcasts for suspended orgs
+ * Add a way to suspend orgs from org manage page
+
+v5.5.77
+----------
+ * Subscribe to the Facebook app for webhook events
+
+v5.5.76
+----------
+ * Add Facebook App channel type
+
+v5.5.75
+----------
+ * always update both language and country if different
+
+v5.5.74
+----------
+ * allow augmentation of templates with new country
+
+v5.5.73
+----------
+ * Add support for urn property in search queries
+ * Add support for uuid in search queries
+ * Set country on WhatsApp templates syncing and add more supported languages
+ * Add country on TemplateTranslation
+
+v5.5.72
+----------
+ * Use modifiers for field value updates
+
+v5.5.71
+----------
+ * Fix to allow all orgs to import flows
+
+v5.5.70
+----------
+ * Use modifiers and mailroom to update contact URNs
+
+v5.5.69
+----------
+ * Refresh contact after letting mailroom make changes
+ * Contact API endpoint can't call mailroom from within a transaction
+
 v5.5.68
 ----------
  * Fix contact update view

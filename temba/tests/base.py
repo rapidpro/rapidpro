@@ -24,6 +24,8 @@ from temba.utils import json
 from temba.utils.uuid import UUID, uuid4
 from temba.values.constants import Value
 
+from .mailroom import update_field_locally, update_fields_locally
+
 
 def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
@@ -180,32 +182,33 @@ class TembaTestMixin:
         data = self.get_import_json(filename, substitutions=substitutions)
         return data["flows"][0]
 
-    def create_contact(self, name=None, number=None, twitter=None, twitterid=None, urn=None, **kwargs):
+    def create_contact(self, name=None, number=None, twitter=None, urn=None, fields=None, **kwargs):
         """
         Create a contact in the master test org
         """
+
+        org = kwargs.pop("org", None) or self.org
+        user = kwargs.pop("user", None) or self.user
+
         urns = []
         if number:
             urns.append(URN.from_tel(number))
         if twitter:
             urns.append(URN.from_twitter(twitter))
-        if twitterid:
-            urns.append(URN.from_twitterid(twitterid))
         if urn:
             urns.append(urn)
 
-        if not name and not urns:  # pragma: no cover
-            raise ValueError("Need a name or URN to create a contact")
+        assert name or urns, "contact should have a name or a contact"
 
         kwargs["name"] = name
         kwargs["urns"] = urns
 
-        if "org" not in kwargs:
-            kwargs["org"] = self.org
-        if "user" not in kwargs:
-            kwargs["user"] = self.user
+        contact = Contact.get_or_create_by_urns(org, user, **kwargs)
 
-        return Contact.get_or_create_by_urns(**kwargs)
+        if fields:
+            update_fields_locally(user, contact, fields)
+
+        return contact
 
     def create_group(self, name, contacts=(), query=None, org=None):
         assert not (contacts and query), "can't provide contact list for a dynamic group"
@@ -458,6 +461,12 @@ class TembaTestMixin:
             description="Looks good",
         )
         return call
+
+    def set_contact_field(self, contact, key, value, legacy_handle=False):
+        update_field_locally(self.admin, contact, key, value)
+
+        if legacy_handle:
+            contact.handle_update(fields=[key])
 
     def bulk_release(self, objs, delete=False, user=None):
         for obj in objs:

@@ -112,15 +112,10 @@ class WriteSerializer(serializers.Serializer):
                 detail={"non_field_errors": ["Request body should be a single JSON object"]}
             )
 
-        if self.context["org"].is_flagged:
-            raise serializers.ValidationError(
-                detail={
-                    "non_field_errors": [
-                        "Sorry, your account is currently flagged. "
-                        "To enable sending messages, please contact support."
-                    ]
-                }
-            )
+        if self.context["org"].is_flagged or self.context["org"].is_suspended:
+            state = "flagged" if self.context["org"].is_flagged else "suspended"
+            msg = f"Sorry, your account is currently {state}. To enable sending messages, please contact support."
+            raise serializers.ValidationError(detail={"non_field_errors": [msg]})
 
         return super().run_validation(data)
 
@@ -580,13 +575,17 @@ class ContactWriteSerializer(WriteSerializer):
         return value
 
     def validate_fields(self, value):
-        valid_keys = {f.key for f in self.context["contact_fields"]}
+        fields_by_key = {f.key: f for f in self.context["contact_fields"]}
+        values_by_field = {}
 
         for field_key, field_val in value.items():
-            if field_key not in valid_keys:
+            field_obj = fields_by_key.get(field_key)
+            if not field_obj:
                 raise serializers.ValidationError(f"Invalid contact field key: {field_key}")
 
-        return value
+            values_by_field[field_obj] = field_val
+
+        return values_by_field
 
     def validate_urns(self, value):
         org = self.context["org"]
@@ -640,7 +639,7 @@ class ContactWriteSerializer(WriteSerializer):
                     mods.append(modifiers.Language(language=language))
 
                 if "urns" in self.validated_data and urns is not None:
-                    self.instance.update_urns(self.context["user"], urns)
+                    mods += self.instance.update_urns(urns)
             else:
                 self.instance = Contact.get_or_create_by_urns(
                     self.context["org"], self.context["user"], name, urns=urns, language=language
@@ -648,15 +647,14 @@ class ContactWriteSerializer(WriteSerializer):
 
             # update our fields
             if custom_fields is not None:
-                self.instance.set_fields(user=self.context["user"], fields=custom_fields)
+                mods += self.instance.update_fields(values=custom_fields)
 
             # update our groups
             if groups is not None:
                 mods += self.instance.update_static_groups(groups)
 
         if mods:
-            self.instance.modify(self.context["user"], *mods)
-            self.instance.refresh_from_db()
+            self.instance.modify(self.context["user"], mods)
 
         return self.instance
 

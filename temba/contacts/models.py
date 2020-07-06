@@ -5,7 +5,7 @@ import time
 import uuid
 from decimal import Decimal
 from itertools import chain
-from typing import List
+from typing import Dict, List
 
 import iso8601
 import phonenumbers
@@ -797,20 +797,20 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return obj
 
     def as_search_json(self):
-        obj = dict()
+        def urn_as_json(urn):
+            if self.org.is_anon:
+                return {"scheme": urn.scheme, "path": ContactURN.ANON_MASK}
+            return {"scheme": urn.scheme, "path": urn.path}
 
-        if self.org.is_anon:
-            obj["urns"] = []
-        else:
-            obj["urns"] = [dict(scheme=urn.scheme, path=urn.path) for urn in self.urns.all()]
-
-        obj["fields"] = self.fields if self.fields else {}
-        obj["language"] = self.language
-        obj["created_on"] = self.created_on.isoformat()
-        obj["name"] = self.name
-        obj["id"] = self.id
-
-        return obj
+        return {
+            "id": self.id,
+            "uuid": self.uuid,
+            "name": self.name,
+            "language": self.language,
+            "urns": [urn_as_json(u) for u in self.urns.all()],
+            "fields": self.fields if self.fields else {},
+            "created_on": self.created_on.isoformat(),
+        }
 
     @classmethod
     def query_elasticsearch_for_ids(cls, org, query, group=None):
@@ -1099,61 +1099,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         return field_dict
 
-    def set_field(self, user, key, value, label=None):
-        # make sure this field exists
-        field = ContactField.get_or_create(self.org, user, key, label)
-
-        has_changed = False
-
-        field_uuid = str(field.uuid)
-        if self.fields is None:
-            self.fields = {}
-
-        # parse into the appropriate value types
-        if value is None or value == "":
-            # setting a blank value is equivalent to removing the value
-            value = None
-
-            # value being cleared, remove our key
-            if field_uuid in self.fields:
-                del self.fields[field_uuid]
-                has_changed = True
-
-        else:
-            field_dict = self.serialize_field(field, value)
-
-            # update our field if it is different
-            if self.fields.get(field_uuid) != field_dict:
-                self.fields[field_uuid] = field_dict
-                has_changed = True
-
-        # if there was a change, update our JSONB on our contact
-        if has_changed:
-            self.modified_on = timezone.now()
-
-            with connection.cursor() as cursor:
-                if value is None:
-                    # delete the field
-                    (
-                        cursor.execute(
-                            "UPDATE contacts_contact SET fields = fields - %s, modified_on = %s WHERE id = %s",
-                            [field_uuid, self.modified_on, self.id],
-                        )
-                    )
-                else:
-                    # update the field
-                    (
-                        cursor.execute(
-                            "UPDATE contacts_contact SET fields = COALESCE(fields,'{}'::jsonb) || %s::jsonb, modified_on = %s WHERE id = %s",
-                            [json.dumps({field_uuid: self.fields[field_uuid]}), self.modified_on, self.id],
-                        )
-                    )
-
-        # update any groups or campaigns for this contact
-        if has_changed:
-            self.handle_update(fields=[field.key])
-
     def set_fields(self, user, fields):
+        """
+        Sets multiple field values on a contact - used by imports
+        """
         if self.fields is None:
             self.fields = {}
 
@@ -1170,7 +1119,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             # parse into the appropriate value types
             if value is None or value == "":
                 # value being cleared, remove our key
-                if field_uuid in self.fields:
+                if field_uuid in self.fields:  # pragma: no cover
                     fields_for_delete.add(field_uuid)
 
                     changed_field_keys.add(key)
@@ -1188,7 +1137,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         modified_on = timezone.now()
 
         # if there was a change, update our JSONB on our contact
-        if fields_for_delete:
+        if fields_for_delete:  # pragma: no cover
             with connection.cursor() as cursor:
                 # prepare expression for multiple field delete
                 remove_fields = " - ".join(f"%s" for _ in range(len(fields_for_delete)))
@@ -1208,7 +1157,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         self.fields.update(all_fields)
 
         # remove deleted fields
-        for field_uuid in fields_for_delete:
+        for field_uuid in fields_for_delete:  # pragma: no cover
             self.fields.pop(field_uuid, None)
 
         self.modified_on = modified_on
@@ -1251,6 +1200,18 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         return mods
 
+    def update_fields(self, values: Dict[ContactField, str]) -> List[modifiers.Modifier]:
+        """
+        Updates custom field values of this contact
+        """
+        mods = []
+
+        for field, value in values.items():
+            field_ref = modifiers.FieldRef(key=field.key, name=field.label)
+            mods.append(modifiers.Field(field=field_ref, value=value))
+
+        return mods
+
     def update_static_groups(self, groups) -> List[modifiers.Modifier]:
         """
         Updates the static groups for this contact to match the provided list
@@ -1269,24 +1230,29 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         mods = []
 
         if to_remove:
-            mods.append(modifiers.Groups(modification="remove", groups=refs(to_remove)))
+            mods.append(modifiers.Groups(groups=refs(to_remove), modification="remove"))
         if to_add:
-            mods.append(modifiers.Groups(modification="add", groups=refs(to_add)))
+            mods.append(modifiers.Groups(groups=refs(to_add), modification="add"))
 
         return mods
 
-    def modify(self, user, *mods: modifiers.Modifier):
-        self.bulk_modify(user, [self], *mods)
+    def update_urns(self, urns: List[str]) -> List[modifiers.Modifier]:
+        return [modifiers.URNs(urns=urns, modification="set")]
+
+    def modify(self, user, mods: List[modifiers.Modifier], refresh=True):
+        self.bulk_modify(user, [self], mods)
+        if refresh:
+            self.refresh_from_db()
 
     @classmethod
-    def bulk_modify(cls, user, contacts, *mods: modifiers.Modifier):
+    def bulk_modify(cls, user, contacts, mods: List[modifiers.Modifier]):
         if not contacts:
             return
 
         org = contacts[0].org
         client = mailroom.get_client()
         try:
-            response = client.contact_modify(org.id, user.id, [c.id for c in contacts], list(mods))
+            response = client.contact_modify(org.id, user.id, [c.id for c in contacts], mods)
         except mailroom.MailroomException as e:
             logger.error(f"Contact update failed: {str(e)}", exc_info=True)
             raise e
@@ -1980,7 +1946,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def bulk_change_status(cls, user, contacts, status):
-        return cls.bulk_modify(user, contacts, modifiers.Status(status=status))
+        return cls.bulk_modify(user, contacts, [modifiers.Status(status=status)])
 
     @classmethod
     def apply_action_block(cls, user, contacts):
@@ -2161,70 +2127,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         else:
             # otherwise return highest priority of any scheme
             return urns[0] if urns else None
-
-    def update_urns(self, user, urns):
-        """
-        Updates the URNs on this contact to match the provided list, i.e. detaches any existing not included.
-        The URNs are supplied in order of priority, most preferred URN first.
-        """
-        country = self.org.get_country_code()
-
-        urns_created = []  # new URNs created
-        urns_attached = []  # existing orphan URNs attached
-        urns_retained = []  # existing URNs retained
-
-        # perform everything in a org-level lock to prevent duplication by different instances. Org-level is required
-        # to prevent conflicts with get_or_create which uses an org-level lock.
-
-        # list of other contacts that were modified
-        modified_contacts = set()
-
-        with self.org.lock_on(OrgLock.contacts):
-
-            # urns are submitted in order of priority
-            priority = ContactURN.PRIORITY_HIGHEST
-
-            for urn_as_string in urns:
-                normalized = URN.normalize(urn_as_string, country)
-                urn = ContactURN.lookup(self.org, normalized)
-
-                if not urn:
-                    urn = ContactURN.create(self.org, self, normalized, priority=priority)
-                    urns_created.append(urn)
-
-                # unassigned URN or different contact
-                elif not urn.contact or urn.contact != self:
-                    if urn.contact:
-                        modified_contacts.add(urn.contact.id)
-
-                    urn.contact = self
-                    urn.priority = priority
-                    urn.save()
-                    urns_attached.append(urn)
-
-                else:
-                    if urn.priority != priority:
-                        urn.priority = priority
-                        urn.save()
-                    urns_retained.append(urn)
-
-                # step down our priority
-                priority -= 1
-
-        # detach any existing URNs that weren't included
-        urn_ids = [u.pk for u in (urns_created + urns_attached + urns_retained)]
-        urns_detached_qs = ContactURN.objects.filter(contact=self).exclude(pk__in=urn_ids)
-        urns_detached = list(urns_detached_qs)
-        urns_detached_qs.update(contact=None)
-
-        self.save(update_fields=("modified_on",), handle_update=False)
-
-        # trigger updates based all urns created or detached
-        self.handle_update(urns=[str(u) for u in (urns_created + urns_attached + urns_detached)])
-
-        # update modified on any other modified contacts
-        if modified_contacts:
-            Contact.objects.filter(id__in=modified_contacts).update(modified_on=timezone.now())
 
     def reevaluate_dynamic_groups(self, for_fields=None, urns=()):
         """

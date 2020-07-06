@@ -4,11 +4,14 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.db import connection
 from django.utils import timezone
 
-from temba.contacts.models import Contact, ContactField, ContactGroup
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.mailroom.client import MailroomClient, MailroomException
 from temba.mailroom.modifiers import Modifier
+from temba.orgs.models import Org
+from temba.utils import json
 
 
 class Mocks:
@@ -39,10 +42,11 @@ class TestClient(MailroomClient):
         super().__init__(settings.MAILROOM_URL, settings.MAILROOM_AUTH_TOKEN)
 
     def contact_modify(self, org_id, user_id, contact_ids, modifiers: List[Modifier]):
+        org = Org.objects.get(id=org_id)
         user = User.objects.get(id=user_id)
-        contacts = Contact.objects.filter(org_id=org_id, id__in=contact_ids)
+        contacts = org.contacts.filter(id__in=contact_ids)
 
-        apply_modifiers(user, contacts, modifiers)
+        apply_modifiers(org, user, contacts, modifiers)
 
         return {c.id: {"contact": {}, "events": []} for c in contacts}
 
@@ -78,7 +82,7 @@ def mock_mailroom(f):
     return wrapped
 
 
-def apply_modifiers(user, contacts, modifiers: List):
+def apply_modifiers(org, user, contacts, modifiers: List):
     """
     Approximates mailroom applying modifiers but doesn't do dynamic group re-evaluation.
     """
@@ -92,6 +96,10 @@ def apply_modifiers(user, contacts, modifiers: List):
 
         if mod.type == "language":
             fields = dict(language=mod.language)
+
+        if mod.type == "field":
+            for c in contacts:
+                update_field_locally(user, c, mod.field.key, mod.value, label=mod.field.name)
 
         elif mod.type == "status":
             if mod.status == "blocked":
@@ -109,7 +117,87 @@ def apply_modifiers(user, contacts, modifiers: List):
             for group in groups:
                 group.update_contacts(user, contacts, add=add)
 
+        elif mod.type == "urns":
+            assert len(contacts) == 1, "should never be trying to bulk update contact URNs"
+            assert mod.modification == "set", "should only be setting URNs from here"
+
+            update_urns_locally(contacts[0], mod.urns)
+
         contacts.update(modified_by=user, modified_on=timezone.now(), **fields)
         if clear_groups:
             for c in contacts:
                 Contact.objects.get(id=c.id).clear_all_groups(user)
+
+
+def update_fields_locally(user, contact, fields):
+    for key, val in fields.items():
+        update_field_locally(user, contact, key, val)
+
+
+def update_field_locally(user, contact, key, value, label=None):
+    field = ContactField.get_or_create(contact.org, user, key, label=label)
+
+    field_uuid = str(field.uuid)
+    if contact.fields is None:
+        contact.fields = {}
+
+    if not value:
+        value = None
+        if field_uuid in contact.fields:
+            del contact.fields[field_uuid]
+
+    else:
+        field_dict = contact.serialize_field(field, value)
+
+        if contact.fields.get(field_uuid) != field_dict:
+            contact.fields[field_uuid] = field_dict
+
+    # update our JSONB on our contact
+    with connection.cursor() as cursor:
+        if value is None:
+            # delete the field
+            cursor.execute("UPDATE contacts_contact SET fields = fields - %s WHERE id = %s", [field_uuid, contact.id])
+        else:
+            # update the field
+            cursor.execute(
+                "UPDATE contacts_contact SET fields = COALESCE(fields,'{}'::jsonb) || %s::jsonb WHERE id = %s",
+                [json.dumps({field_uuid: contact.fields[field_uuid]}), contact.id],
+            )
+
+
+def update_urns_locally(contact, urns: List[str]):
+    country = contact.org.get_country_code()
+    priority = ContactURN.PRIORITY_HIGHEST
+
+    urns_created = []  # new URNs created
+    urns_attached = []  # existing orphan URNs attached
+    urns_retained = []  # existing URNs retained
+
+    for urn_as_string in urns:
+        normalized = URN.normalize(urn_as_string, country)
+        urn = ContactURN.lookup(contact.org, normalized)
+
+        if not urn:
+            urn = ContactURN.create(contact.org, contact, normalized, priority=priority)
+            urns_created.append(urn)
+
+        # unassigned URN or different contact
+        elif not urn.contact or urn.contact != contact:
+            urn.contact = contact
+            urn.priority = priority
+            urn.save()
+            urns_attached.append(urn)
+
+        else:
+            if urn.priority != priority:
+                urn.priority = priority
+                urn.save()
+            urns_retained.append(urn)
+
+        # step down our priority
+        priority -= 1
+
+    # detach any existing URNs that weren't included
+    urn_ids = [u.pk for u in (urns_created + urns_attached + urns_retained)]
+    urns_detached = ContactURN.objects.filter(contact=contact).exclude(id__in=urn_ids)
+    urns_detached.update(contact=None)

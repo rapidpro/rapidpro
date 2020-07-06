@@ -1016,9 +1016,10 @@ class APITest(TembaTest):
         field_created_on = self.org.contactfields.get(key="created_on")
 
         # create our contact and set a registration date
-        contact = self.create_contact("Joe", "+12065551515")
+        contact = self.create_contact(
+            "Joe", "+12065551515", fields={"registration": self.org.format_datetime(timezone.now())}
+        )
         reporters.contacts.add(contact)
-        contact.set_field(self.admin, "registration", self.org.format_datetime(timezone.now()))
 
         campaign1 = Campaign.create(self.org, self.admin, "Reminders", reporters)
         event1 = CampaignEvent.create_message_event(
@@ -1584,15 +1585,14 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         # create some more contacts (in addition to Joe and Frank)
-        contact1 = self.create_contact("Ann", "0788000001", language="fra")
+        contact1 = self.create_contact(
+            "Ann", "0788000001", language="fra", fields={"nickname": "Annie", "gender": "female"}
+        )
         contact2 = self.create_contact("Bob", "0788000002")
         contact3 = self.create_contact("Cat", "0788000003")
-        contact4 = self.create_contact("Don", "0788000004", language="fra")
-
-        contact1.set_field(self.user, "nickname", "Annie", label="Nick name")
-        contact1.set_field(self.user, "gender", "female", label="Gender")
-        contact4.set_field(self.user, "nickname", "Donnie", label="Nick name")
-        contact4.set_field(self.user, "gender", "male", label="Gender")
+        contact4 = self.create_contact(
+            "Don", "0788000004", language="fra", fields={"nickname": "Donnie", "gender": "male"}
+        )
 
         contact1.stop(self.user)
         contact2.block(self.user)
@@ -1782,18 +1782,17 @@ class APITest(TembaTest):
         self.assertEqual(jean.get_field_value(nickname), "Jado")
 
         # update by UUID and change all fields
-        with self.assertNumQueries(46):
-            response = self.postJSON(
-                url,
-                "uuid=%s" % jean.uuid,
-                {
-                    "name": "Jason Undead",
-                    "language": "ita",
-                    "urns": ["tel:+250784444444"],
-                    "groups": [],
-                    "fields": {"nickname": "Žan", "gender": "frog"},
-                },
-            )
+        response = self.postJSON(
+            url,
+            "uuid=%s" % jean.uuid,
+            {
+                "name": "Jason Undead",
+                "language": "ita",
+                "urns": ["tel:+250784444444"],
+                "groups": [],
+                "fields": {"nickname": "Žan", "gender": "frog"},
+            },
+        )
         self.assertEqual(response.status_code, 200)
 
         jean = Contact.objects.get(pk=jean.pk)
@@ -1819,18 +1818,17 @@ class APITest(TembaTest):
         self.assertEqual(jean.get_field_value(nickname), "Žan")
 
         # update by uuid and remove all fields
-        with self.assertNumQueries(27):
-            response = self.postJSON(
-                url,
-                "uuid=%s" % jean.uuid,
-                {
-                    "name": "Jean II",
-                    "language": "eng",
-                    "urns": ["tel:+250784444444"],
-                    "groups": [],
-                    "fields": {"nickname": "", "gender": ""},
-                },
-            )
+        response = self.postJSON(
+            url,
+            "uuid=%s" % jean.uuid,
+            {
+                "name": "Jean II",
+                "language": "eng",
+                "urns": ["tel:+250784444444"],
+                "groups": [],
+                "fields": {"nickname": "", "gender": ""},
+            },
+        )
         self.assertEqual(response.status_code, 200)
 
         jean = Contact.objects.get(pk=jean.pk)
@@ -1838,18 +1836,17 @@ class APITest(TembaTest):
         self.assertEqual(jean.get_field_value(gender), None)
 
         # update by uuid and update/remove fields
-        with self.assertNumQueries(27):
-            response = self.postJSON(
-                url,
-                "uuid=%s" % jean.uuid,
-                {
-                    "name": "Jean II",
-                    "language": "eng",
-                    "urns": ["tel:+250784444444"],
-                    "groups": [],
-                    "fields": {"nickname": "Jado", "gender": ""},
-                },
-            )
+        response = self.postJSON(
+            url,
+            "uuid=%s" % jean.uuid,
+            {
+                "name": "Jean II",
+                "language": "eng",
+                "urns": ["tel:+250784444444"],
+                "groups": [],
+                "fields": {"nickname": "Jado", "gender": ""},
+            },
+        )
         self.assertEqual(response.status_code, 200)
 
         jean = Contact.objects.get(pk=jean.pk)
@@ -2002,7 +1999,8 @@ class APITest(TembaTest):
         self.assertTrue("number_field" in response_json["fields"])
         self.assertEqual(response_json["fields"]["number_field"], ["Null characters are not allowed."])
 
-    def test_contact_action_update_datetime_field(self):
+    @mock_mailroom
+    def test_contact_action_update_datetime_field(self, mr_mocks):
         url = reverse("api.v2.contacts")
 
         self.assertEndpointAccess(url)
@@ -4085,15 +4083,16 @@ class APITest(TembaTest):
 
         # create some templates
         TemplateTranslation.get_or_create(
-            self.channel, "hello", "eng", "Hi {{1}}", 1, TemplateTranslation.STATUS_APPROVED, "1234"
+            self.channel, "hello", "eng", "US", "Hi {{1}}", 1, TemplateTranslation.STATUS_APPROVED, "1234"
         )
         TemplateTranslation.get_or_create(
-            self.channel, "hello", "fra", "Bonjour {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
+            self.channel, "hello", "fra", "FR", "Bonjour {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
         )
         tt = TemplateTranslation.get_or_create(
             self.channel,
             "hello",
             "afr",
+            "ZA",
             "This is a template translation for a deleted channel {{1}}",
             1,
             TemplateTranslation.STATUS_APPROVED,
@@ -4104,10 +4103,10 @@ class APITest(TembaTest):
 
         # templates on other org to test filtering
         TemplateTranslation.get_or_create(
-            self.org2channel, "goodbye", "eng", "Goodbye {{1}}", 1, TemplateTranslation.STATUS_APPROVED, "1234"
+            self.org2channel, "goodbye", "eng", "US", "Goodbye {{1}}", 1, TemplateTranslation.STATUS_APPROVED, "1234"
         )
         TemplateTranslation.get_or_create(
-            self.org2channel, "goodbye", "fra", "Salut {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
+            self.org2channel, "goodbye", "fra", "FR", "Salut {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
         )
 
         # no filtering

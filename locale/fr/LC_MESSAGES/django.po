@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-24 14:31+0000\n"
+"POT-Creation-Date: 2020-07-03 18:23+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1090,6 +1090,41 @@ msgstr "Le jeton d'accès à la page pour votre application"
 msgid "The name of the Facebook page"
 msgstr "Le nom de la page Facebook"
 
+#, fuzzy
+#| msgid "The name of the Facebook page"
+msgid "Reconnect Facebook Page"
+msgstr "Le nom de la page Facebook"
+
+#, fuzzy
+#| msgid ""
+#| "Add a <a href=\"http://facebook.com\">Facebook</a> bot to send and receive messages on behalf\n"
+#| "    of one of your Facebook pages for free. You will need to create a Facebook application on their\n"
+#| "    <a href=\"http://developers.facebook.com\">developers</a> site first."
+msgid ""
+"Add a <a href=\"http://facebook.com\">Facebook</a> bot to send and receive messages on behalf\n"
+"    of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect"
+msgstr ""
+"Ajoutez un bot <a href=\"http://facebook.com\">Facebook</a> pour envoyer et recevoir gratuitement des messages au nom\n"
+"    de l’une de vos pages Facebook. Vous devrez d'abord créer une application Facebook sur le site de leurs\n"
+"    <a href=\"http://developers.facebook.com\">développeurs</a> ."
+
+#, fuzzy
+#| msgid "Access Token"
+msgid "The User Access Token"
+msgstr "Jeton d'accès"
+
+#, fuzzy
+#| msgid "The number of commands that we gave the channel"
+msgid "The Facebook User ID of the admin that connected the channel"
+msgstr "Le nombre de commandes que nous avons donné le channel"
+
+msgid "Sorry your Facebook channel could not be connected. Please try again"
+msgstr ""
+
+#, fuzzy
+#| msgid ""
+#| "Add a <a href=\"https://firebase.google.com/docs/cloud-messaging/\" target=\"_blank\"> Firebase Cloud\n"
+#| "    Messaging Channel</a> to send and receive messages. Your users will need an App to send and receive messages."
 msgid ""
 "Add a <a href=\"https://firebase.google.com/docs/cloud-messaging/\"> Firebase Cloud\n"
 "    Messaging Channel</a> to send and receive messages. Your users will need an App to send and receive messages."
@@ -2636,69 +2671,6 @@ msgstr "Le groupe unique à exporter"
 msgid "The search query"
 msgstr "La requête de recherche"
 
-#, python-brace-format
-msgid "Unrecognized field: '{prop}'"
-msgstr "Champ non reconnu: '{prop}'"
-
-#, python-brace-format
-msgid "f'{val}' isn't a valid number"
-msgstr "f'{val}' n'est pas un numéro valide"
-
-#, python-brace-format
-msgid "Unknown text comparator: '{self.comparator}'"
-msgstr "Comparateur de texte inconnu: '{self.comparator}'"
-
-#, python-brace-format
-msgid "Unknown number comparator: '{self.comparator}'"
-msgstr "Comparateur de nombre inconnu: '{self.comparator}'"
-
-#, python-brace-format
-msgid "Unable to parse the date '{self.value}'"
-msgstr "Impossible d'analyser la date '{self.value}'"
-
-#, python-brace-format
-msgid "Unknown datetime comparator: '{self.comparator}'"
-msgstr "Comparateur de date/heure inconnu: '{self.comparator}'"
-
-#, python-brace-format
-msgid "Unknown location type: '{field.value_type}'"
-msgstr "Type d'emplacement inconnu: '{field.value_type}'"
-
-#, python-brace-format
-msgid "Unsupported comparator '{self.comparator}' for location field"
-msgstr "Comparateur non pris en charge '{self.comparator}' pour le champ de localisation"
-
-#, python-brace-format
-msgid "Unrecognized contact field type '{field.value_type}'"
-msgstr "Type de champ de contact non reconnu '{field.value_type}'"
-
-#, python-brace-format
-msgid "Unknown urn scheme comparator: '{self.comparator}'"
-msgstr "Comparateur de schéma URN inconnu: '{self.comparator}'"
-
-#, python-brace-format
-msgid "Unknown language comparator: '{self.comparator}'"
-msgstr "Comparateur de langue inconnu: '{self.comparator}'"
-
-#, python-brace-format
-msgid "Unknown created_on comparator: '{self.comparator}'"
-msgstr "Comparateur created_on inconnu: '{self.comparator}'"
-
-#, python-brace-format
-msgid "Unknown name comparator: '{self.comparator}'"
-msgstr "Comparateur de nom inconnu: '{self.comparator}'"
-
-#, python-brace-format
-msgid "No support for attribute field: '{field}'"
-msgstr "Pas de support pour le champ d'attribut: '{field}'"
-
-#, python-brace-format
-msgid "Unrecognized contact field type '{prop_type}'"
-msgstr "Type de champ de contact non reconnu '{prop_type}'"
-
-msgid "Invalid operator for empty string comparison"
-msgstr "Opérateur non valide pour la comparaison de chaîne vide"
-
 msgid "day"
 msgstr "jour"
 
@@ -3384,7 +3356,12 @@ msgstr "Ce flux est déjà en cours de démarrage. Veuillez patienter jusqu'à l
 
 #, fuzzy
 #| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
-msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently suspended. To enable starting flows, please contact support."
+msgstr "Désolé, votre compte est actuellement suspendu. Pour activer l'envoi de messages, veuillez contacter le support."
+
+#, fuzzy
+#| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently flagged. To enable starting flows, please contact support."
 msgstr "Désolé, votre compte est actuellement suspendu. Pour activer l'envoi de messages, veuillez contacter le support."
 
 msgid "Add Contacts to Flow"
@@ -3694,6 +3671,16 @@ msgstr "Planifier pour plus tard"
 
 msgid "At least one recipient is required"
 msgstr "Au moins un bénéficiaire est requis"
+
+#, fuzzy
+#| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgstr "Désolé, votre compte est actuellement suspendu. Pour activer l'envoi de messages, veuillez contacter le support."
+
+#, fuzzy
+#| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
+msgstr "Désolé, votre compte est actuellement suspendu. Pour activer l'envoi de messages, veuillez contacter le support."
 
 msgid "Inbox"
 msgstr "Boîte de Réception"
@@ -5729,6 +5716,52 @@ msgstr ""
 msgid "Verify Token"
 msgstr "Vérifier le jeton"
 
+msgid "You can connect your Facebook page in just a few simple steps."
+msgstr ""
+
+msgid "Click on the button below to get started."
+msgstr ""
+
+msgid "Select the user you want to log in as."
+msgstr ""
+
+msgid "Select all the pages you want to grant us permissions for."
+msgstr ""
+
+#, fuzzy
+#| msgid "%(brand)s uses your Android phone to send and receive messages on your behalf."
+msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
+msgstr "%(brand)s utilise votre téléphone Android pour envoyer et recevoir des messages en votre nom."
+
+#, fuzzy
+#| msgid "Click here to add a message"
+msgid "Finally, select the page you want to add as a channel."
+msgstr "Cliquez ici pour ajouter un message"
+
+#, fuzzy
+#| msgid "The name of the Facebook page"
+msgid "Add Facebook Page"
+msgstr "Le nom de la page Facebook"
+
+#, fuzzy
+#| msgid "Click here to add a message"
+msgid "Select the page you want to add as a channel:"
+msgstr "Cliquez ici pour ajouter un message"
+
+msgid "Error with token, you need to reconnect the Facebook page by clicking the button below"
+msgstr ""
+
+msgid "Everything looks good. No need to reconnect"
+msgstr ""
+
+msgid "Error reconnecting Facebook page. Please retry"
+msgstr ""
+
+#, fuzzy
+#| msgid "The name of the Facebook page"
+msgid "Reconnect Facebook page"
+msgstr "Le nom de la page Facebook"
+
 #, fuzzy, python-format
 #| msgid ""
 #| "\n"
@@ -7712,20 +7745,6 @@ msgstr "Mettre à jour la variable globale"
 msgid "Delete Global"
 msgstr "Supprimer la variable globale"
 
-#, fuzzy
-#| msgid ""
-#| "\n"
-#| "    Sorry, importing has not been enabled on your account.\n"
-#| "  "
-msgid ""
-"\n"
-"    Sorry, importing has not been enabled on your workspace.\n"
-"  "
-msgstr ""
-"\n"
-"    Désolé, l'importation n'a pas été activée sur votre compte.\n"
-"  "
-
 msgid "messages"
 msgstr "messages"
 
@@ -7750,14 +7769,19 @@ msgstr "canaux"
 msgid "users"
 msgstr "utilisateurs"
 
-msgid "orgs"
-msgstr "orgs"
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "workspaces"
+msgstr "Choisissez votre Organisation"
 
 msgid "android"
 msgstr "android"
 
 msgid "dashboard"
 msgstr "Tableau de bord"
+
+msgid "orgs"
+msgstr "orgs"
 
 msgid "end"
 msgstr ""
@@ -10915,6 +10939,93 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy
+#~| msgid "The name of the Facebook page"
+#~ msgid "Connect Facebook page"
+#~ msgstr "Le nom de la page Facebook"
+
+#, fuzzy
+#~| msgid "Your app's server access token"
+#~ msgid "Empty user access token!"
+#~ msgstr "Jeton d'accès au serveur de votre application"
+
+#, python-brace-format
+#~ msgid "Unrecognized field: '{prop}'"
+#~ msgstr "Champ non reconnu: '{prop}'"
+
+#, python-brace-format
+#~ msgid "f'{val}' isn't a valid number"
+#~ msgstr "f'{val}' n'est pas un numéro valide"
+
+#, python-brace-format
+#~ msgid "Unknown text comparator: '{self.comparator}'"
+#~ msgstr "Comparateur de texte inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unknown number comparator: '{self.comparator}'"
+#~ msgstr "Comparateur de nombre inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unable to parse the date '{self.value}'"
+#~ msgstr "Impossible d'analyser la date '{self.value}'"
+
+#, python-brace-format
+#~ msgid "Unknown datetime comparator: '{self.comparator}'"
+#~ msgstr "Comparateur de date/heure inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unknown location type: '{field.value_type}'"
+#~ msgstr "Type d'emplacement inconnu: '{field.value_type}'"
+
+#, python-brace-format
+#~ msgid "Unsupported comparator '{self.comparator}' for location field"
+#~ msgstr "Comparateur non pris en charge '{self.comparator}' pour le champ de localisation"
+
+#, python-brace-format
+#~ msgid "Unrecognized contact field type '{field.value_type}'"
+#~ msgstr "Type de champ de contact non reconnu '{field.value_type}'"
+
+#, python-brace-format
+#~ msgid "Unknown urn scheme comparator: '{self.comparator}'"
+#~ msgstr "Comparateur de schéma URN inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unknown language comparator: '{self.comparator}'"
+#~ msgstr "Comparateur de langue inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unknown created_on comparator: '{self.comparator}'"
+#~ msgstr "Comparateur created_on inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unknown name comparator: '{self.comparator}'"
+#~ msgstr "Comparateur de nom inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "No support for attribute field: '{field}'"
+#~ msgstr "Pas de support pour le champ d'attribut: '{field}'"
+
+#, python-brace-format
+#~ msgid "Unrecognized contact field type '{prop_type}'"
+#~ msgstr "Type de champ de contact non reconnu '{prop_type}'"
+
+#~ msgid "Invalid operator for empty string comparison"
+#~ msgstr "Opérateur non valide pour la comparaison de chaîne vide"
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "    Sorry, importing has not been enabled on your account.\n"
+#~| "  "
+#~ msgid ""
+#~ "\n"
+#~ "    Sorry, importing has not been enabled on your workspace.\n"
+#~ "  "
+#~ msgstr ""
+#~ "\n"
+#~ "    Désolé, l'importation n'a pas été activée sur votre compte.\n"
+#~ "  "
 
 #~ msgid "Sorry, import is a premium feature"
 #~ msgstr "Désolé, l'importation est une fonctionnalité de la version premium"
