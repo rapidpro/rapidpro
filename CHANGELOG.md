@@ -1,3 +1,7 @@
+v5.6.0
+----------
+ * 5.6.0 Release Candidate
+
 v5.5.78 
 ----------
  * Improve the visuals and guides on the FBA claim page
