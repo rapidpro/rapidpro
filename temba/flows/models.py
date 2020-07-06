@@ -46,6 +46,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, URN
 from temba.locations.models import AdminBoundary
+from temba.links.models import LinkContacts
 from temba.msgs.models import DELIVERED, PENDING, Broadcast, Label, Msg
 from temba.orgs.models import Org
 from temba.links.models import Link
@@ -53,7 +54,7 @@ from temba.classifiers.models import Classifier
 from temba.globals.models import Global
 from temba.templates.models import Template
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
-from temba.utils.dates import str_to_datetime
+from temba.utils.dates import str_to_datetime, datetime_to_str
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.models import (
@@ -3704,11 +3705,22 @@ class ExportFlowResultsTask(BaseExportTask):
 
     def _add_msgs_sheet(self, book):
         name = "Messages (%d)" % (book.num_msgs_sheets + 1) if book.num_msgs_sheets > 0 else "Messages"
-        index = book.num_runs_sheets + book.num_msgs_sheets
+        index = book.num_runs_sheets + book.num_msgs_sheets + book.num_links_sheets
         sheet = book.add_sheet(name, index)
         book.num_msgs_sheets += 1
 
         headers = ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"]
+
+        self.append_row(sheet, headers)
+        return sheet
+
+    def _add_links_sheet(self, book):
+        name = "Links (%d)" % (book.num_links_sheets + 1) if book.num_links_sheets > 0 else "Links"
+        index = book.num_runs_sheets + book.num_msgs_sheets + book.num_links_sheets
+        sheet = book.add_sheet(name, index)
+        book.num_msgs_sheets += 1
+
+        headers = ["Contact UUID", "Name", "Date", "Destination Link"]
 
         self.append_row(sheet, headers)
         return sheet
@@ -3755,10 +3767,12 @@ class ExportFlowResultsTask(BaseExportTask):
         book = XLSXBook()
         book.num_runs_sheets = 0
         book.num_msgs_sheets = 0
+        book.num_links_sheets = 0
 
         # the current sheets
         book.current_runs_sheet = self._add_runs_sheet(book, runs_columns)
         book.current_msgs_sheet = None
+        book.current_links_sheet = None
 
         # for tracking performance
         total_runs_exported = 0
@@ -3790,6 +3804,9 @@ class ExportFlowResultsTask(BaseExportTask):
 
                 self.modified_on = timezone.now()
                 self.save(update_fields=["modified_on"])
+
+        for flow in flows:
+            self._write_related_trackable_links(book, flow)
 
         temp = NamedTemporaryFile(delete=True)
         book.finalize(to_file=temp)
@@ -3975,6 +3992,34 @@ class ExportFlowResultsTask(BaseExportTask):
                     msg_direction,
                     msg_text,
                     msg_channel["name"] if msg_channel else "",
+                ],
+            )
+
+    def _write_related_trackable_links(self, book, flow):
+        additional_filters = {}
+        if flow.is_archived:
+            additional_filters["created_on__lt"] = flow.modified_on
+
+        links = LinkContacts.objects.filter(
+            link__related_flow=flow, is_active=True, **additional_filters
+        ).select_related("contact", "link")
+
+        if not links:
+            return
+
+        if not book.current_links_sheet or book.current_links_sheet.num_rows >= self.MAX_EXCEL_ROWS:
+            book.current_links_sheet = self._add_links_sheet(book)
+
+        for clicked_link in links:
+            self.append_row(
+                book.current_links_sheet,
+                [
+                    str(clicked_link.contact.uuid),
+                    clicked_link.contact.get_display(),
+                    datetime_to_str(
+                        clicked_link.created_on, format="%m-%d-%Y %H:%M:%S", tz=clicked_link.link.org.timezone
+                    ),
+                    clicked_link.link.destination,
                 ],
             )
 
