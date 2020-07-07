@@ -1,3 +1,7 @@
+v5.6.1
+----------
+ * instead of dates, keep track of seen runs when excluding archived runs from exports
+
 v5.6.0
 ----------
  * 5.6.0 Release Candidate
