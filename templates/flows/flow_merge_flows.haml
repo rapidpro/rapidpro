@@ -1,0 +1,93 @@
+-extends "smartmin/form.html"
+
+-load smartmin
+-load i18n
+
+- block pjax
+  #pjax
+    .row{style:"height:250px;"}
+      .span3
+        #big-help.glyph.icon-tree
+
+      .span9
+        %p
+          -blocktrans with source=source target=target
+            You are merging "{{ source }}" into "{{ target }}".
+        %p
+          -trans "If there are some issues you need to resolve them."
+
+{% block extra-style %}
+:css
+  .form-buttons {
+    margin-top: 10px;
+  }
+
+  #example {
+    margin-top: 20px;
+    background: #f8f8f8;
+  }
+
+  #file-upload {
+    position:relative;
+  }
+
+  #csv_file_errors {
+    font-size: 20px;
+  }
+
+  #real-button {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    z-index: 1;
+    height:35px;
+    width:340px;
+  }
+
+  #file-field {
+    width:255px;
+    height:25px;
+    font-size:16px;
+    border:solid 1px #000;
+    margin-bottom: 0px;
+  }
+
+  #csv_file {
+    position:absolute;
+    width:385px;
+    height:40px;
+    top: 0px;
+    left: 0px;
+    text-align: right;
+    -moz-opacity:0 ;
+    filter:alpha(opacity: 0);
+    opacity: 0;
+    z-index: 2;
+  }
+
+  #import-message .import-result {
+    padding-bottom: 10px;
+    font-size: 20px;
+  }
+
+  #import-message .import-result .glyph {
+    font-size: 28px;
+    margin: 0px 20px;
+    line-height: 22px;
+  }
+
+  #import-message .import-result .well {
+    font-size: 14px;
+  }
+
+  #import-message .import-result a {
+    text-decoration :none;
+  }
+
+  .unblock-buttons .container {
+    margin-left: auto;
+    margin-right: auto;
+    width: 150px;
+  }
+
+{% endblock %}

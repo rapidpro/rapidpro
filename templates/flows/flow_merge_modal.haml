@@ -1,0 +1,29 @@
+-load i18n temba
+
+#select-source-flow.modal.hide.notice{data-dismiss:'modal'}
+  .modal-header
+    %button.pull-right.close{type:'button', data-dismiss:'modal', aria-hidden:'true'}
+      &times;
+    %h3
+      .glyph.icon-bubble-3
+      %span.title
+        - trans "Merge Flows"
+  .modal-body
+    %form#select-source-form{action: "{% url 'flows.flow_merge_flows' %}"}
+      %label
+        - trans "Source Flow"
+      %select.select2{name: "source"}
+        - for flow in mergeable_flows
+          %option{value: "{{ flow.uuid }}"}
+            = flow
+      
+      %label
+        - trans "Target Flow"
+      %select.select2{name: "target"}
+        %option{value: "{{ object.uuid }}", selected}
+          = object.name
+  .modal-footer
+    %a.btn.cancel{tabindex:4}
+      -trans "Cancel"
+    %a.btn.btn-primary.ok{tabindex:3}
+      -trans "OK"

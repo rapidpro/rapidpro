@@ -72,6 +72,7 @@ from .models import (
     FlowUserConflictException,
     FlowVersionConflictException,
 )
+from django.http.response import Http404
 
 
 logger = logging.getLogger(__name__)
@@ -528,6 +529,7 @@ class FlowCRUDL(SmartCRUDL):
         "launch",
         "flow_parameters",
         "export_pdf",
+        "merge_flows",
     )
 
     model = Flow
@@ -1662,6 +1664,8 @@ class FlowCRUDL(SmartCRUDL):
 
             context["feature_filters"] = json.dumps(feature_filters)
 
+            context["mergeable_flows"] = self.get_mergeable_flows()
+
             # check if there is no other users that edititing current flow
             # then make this user as main editor and set expiration time of editing to this user
             r = get_redis_connection()
@@ -1722,6 +1726,9 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_lookups") and flow.flow_type == Flow.TYPE_MESSAGE:
                 links.append(dict(title=_("Import Database"), href=reverse("orgs.org_lookups")))
 
+            if self.has_org_perm("flows.flow_merge_flows") and self.get_mergeable_flows():
+                links.append(dict(title=_("Merge With"), js_class="merge-flows-trigger", href="#"))
+
             if self.has_org_perm("flows.flow_delete"):
                 links.append(dict(divider=True)),
                 links.append(dict(title=_("Delete"), js_class="delete-flow", href="#"))
@@ -1741,6 +1748,11 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(divider=True))
                 links.append(dict(title=_("Previous Editor"), js_class="previous-editor", href="#"))
             return links
+
+        def get_mergeable_flows(self):
+            queryset = Flow.objects.filter(org=self.object.org, is_active=True, is_archived=False, is_system=False)
+            queryset = queryset.exclude(uuid=self.object.uuid).order_by("name")
+            return queryset
 
     class ExportPdf(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
@@ -2981,6 +2993,20 @@ class FlowCRUDL(SmartCRUDL):
 
             return flow
 
+    class MergeFlows(OrgPermsMixin, SmartTemplateView):
+        title = _("Flow Merging")
+
+        def derive_org(self):
+            self.org = self.request.user.get_org()
+            return self.org
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            queryset = Flow.objects.filter(org=self.org, is_active=True, is_archived=False, is_system=False)
+            context["target"] = queryset.filter(uuid=self.request.GET.get("target")).first()
+            context["source"] = queryset.filter(uuid=self.request.GET.get("source")).first()
+            return context
+        
 
 # this is just for adhoc testing of the preprocess url
 class PreprocessTest(FormView):  # pragma: no cover
