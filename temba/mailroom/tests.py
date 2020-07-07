@@ -14,7 +14,7 @@ from temba.tests import MockResponse, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.utils import json
 
-from . import queue_interrupt
+from . import modifiers, queue_interrupt
 
 
 class MailroomClientTest(TembaTest):
@@ -85,11 +85,17 @@ class MailroomClientTest(TembaTest):
                 1,
                 1,
                 [1],
-                {
-                    "type": "groups",
-                    "modification": "add",
-                    "groups": [{"uuid": "c153e265-f7c9-4539-9dbc-9b358714b638", "name": "Doctors"}],
-                },
+                [
+                    modifiers.Name(name="Bob"),
+                    modifiers.Language(language="fra"),
+                    modifiers.Field(field=modifiers.FieldRef(key="age", name="Age"), value="43"),
+                    modifiers.Status(status="blocked"),
+                    modifiers.Groups(
+                        groups=[modifiers.GroupRef(uuid="c153e265-f7c9-4539-9dbc-9b358714b638", name="Doctors")],
+                        modification="add",
+                    ),
+                    modifiers.URNs(urns=["+tel+1234567890"], modification="append"),
+                ],
             )
             self.assertEqual("6393abc0-283d-4c9b-a1b3-641a035c34bf", response["1"]["contact"]["uuid"])
             mock_post.assert_called_once_with(
@@ -99,11 +105,18 @@ class MailroomClientTest(TembaTest):
                     "org_id": 1,
                     "user_id": 1,
                     "contact_ids": [1],
-                    "modifiers": {
-                        "type": "groups",
-                        "modification": "add",
-                        "groups": [{"uuid": "c153e265-f7c9-4539-9dbc-9b358714b638", "name": "Doctors"}],
-                    },
+                    "modifiers": [
+                        {"type": "name", "name": "Bob"},
+                        {"type": "language", "language": "fra"},
+                        {"type": "field", "field": {"key": "age", "name": "Age"}, "value": "43"},
+                        {"type": "status", "status": "blocked"},
+                        {
+                            "type": "groups",
+                            "groups": [{"uuid": "c153e265-f7c9-4539-9dbc-9b358714b638", "name": "Doctors"}],
+                            "modification": "add",
+                        },
+                        {"type": "urns", "urns": ["+tel+1234567890"], "modification": "append"},
+                    ],
                 },
             )
 
@@ -189,7 +202,7 @@ class MailroomClientTest(TembaTest):
 
     def test_ticket_close(self):
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}',)
+            mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
             response = get_client().ticket_close(1, [123, 345])
 
             self.assertEqual({"changed_ids": [123]}, response)
@@ -201,7 +214,7 @@ class MailroomClientTest(TembaTest):
 
     def test_ticket_reopen(self):
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}',)
+            mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
             response = get_client().ticket_reopen(1, [123, 345])
 
             self.assertEqual({"changed_ids": [123]}, response)

@@ -42,7 +42,7 @@ class Command(BaseCommand):  # pragma: no cover
             action="store",
             dest="org",
             default=DEFAULT_ORG,
-            help="The id or name of the organization to send messages to",
+            help="The id or name of the workspace to send messages to",
         )
 
         parser.add_argument(

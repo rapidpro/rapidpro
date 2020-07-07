@@ -5,12 +5,10 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("orgs", "0062_orgactivity"),
-    ]
+    dependencies = [("orgs", "0062_orgactivity")]
 
     operations = [
-        migrations.RemoveField(model_name="org", name="plan_start",),
+        migrations.RemoveField(model_name="org", name="plan_start"),
         migrations.AddField(
             model_name="org",
             name="is_flagged",

@@ -28,14 +28,13 @@ from temba.classifiers.models import Classifier
 from temba.classifiers.types.luis import LuisType
 from temba.classifiers.types.wit import WitType
 from temba.contacts.models import Contact, ContactField, ContactGroup
-from temba.contacts.search.tests import MockParseQuery
 from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import TemplateTranslation
-from temba.tests import AnonymousOrg, TembaTest, matchers
+from temba.tests import AnonymousOrg, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
@@ -1017,9 +1016,10 @@ class APITest(TembaTest):
         field_created_on = self.org.contactfields.get(key="created_on")
 
         # create our contact and set a registration date
-        contact = self.create_contact("Joe", "+12065551515")
+        contact = self.create_contact(
+            "Joe", "+12065551515", fields={"registration": self.org.format_datetime(timezone.now())}
+        )
         reporters.contacts.add(contact)
-        contact.set_field(self.admin, "registration", self.org.format_datetime(timezone.now()))
 
         campaign1 = Campaign.create(self.org, self.admin, "Reminders", reporters)
         event1 = CampaignEvent.create_message_event(
@@ -1578,21 +1578,21 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "after=%s" % format_datetime(call2.created_on))
         self.assertResultsById(response, [call4, call3, call2])
 
-    def test_contacts(self):
+    @mock_mailroom
+    def test_contacts(self, mr_mocks):
         url = reverse("api.v2.contacts")
 
         self.assertEndpointAccess(url)
 
         # create some more contacts (in addition to Joe and Frank)
-        contact1 = self.create_contact("Ann", "0788000001", language="fra")
+        contact1 = self.create_contact(
+            "Ann", "0788000001", language="fra", fields={"nickname": "Annie", "gender": "female"}
+        )
         contact2 = self.create_contact("Bob", "0788000002")
         contact3 = self.create_contact("Cat", "0788000003")
-        contact4 = self.create_contact("Don", "0788000004", language="fra")
-
-        contact1.set_field(self.user, "nickname", "Annie", label="Nick name")
-        contact1.set_field(self.user, "gender", "female", label="Gender")
-        contact4.set_field(self.user, "nickname", "Donnie", label="Nick name")
-        contact4.set_field(self.user, "gender", "male", label="Gender")
+        contact4 = self.create_contact(
+            "Don", "0788000004", language="fra", fields={"nickname": "Donnie", "gender": "male"}
+        )
 
         contact1.stop(self.user)
         contact2.block(self.user)
@@ -1720,21 +1720,9 @@ class APITest(TembaTest):
         self.assertEqual(set(jaqen.user_groups.all()), set())
         self.assertIsNone(jaqen.fields)
 
-        with MockParseQuery('nickname = "jado"', ["nickname"]):
-            dyn_group = self.create_group("Dynamic Group", query="nickname is jado")
-            ContactGroup.user_groups.filter(id=dyn_group.id).update(status=ContactGroup.STATUS_READY)
-
-        with MockParseQuery('language = "fra"', ["language"]):
-            lang_group = self.create_group("Language Group", query="language = fra")
-            ContactGroup.user_groups.filter(id=lang_group.id).update(status=ContactGroup.STATUS_READY)
-
-        with MockParseQuery('language = "eng"', ["language"]):
-            eng_lang_group = self.create_group("Language Group English", query="language = eng")
-            ContactGroup.user_groups.filter(id=eng_lang_group.id).update(status=ContactGroup.STATUS_READY)
-
-        with MockParseQuery('name ~ "Jason"', ["name"]):
-            jason_group = self.create_group("Jason Group", query="name has Jason")
-            ContactGroup.user_groups.filter(id=jason_group.id).update(status=ContactGroup.STATUS_READY)
+        # create a dynamic group
+        dyn_group = self.create_group("Dynamic Group", query="name = Frank")
+        ContactGroup.user_groups.filter(id=dyn_group.id).update(status=ContactGroup.STATUS_READY)
 
         # create with all fields
         response = self.postJSON(
@@ -1758,10 +1746,10 @@ class APITest(TembaTest):
         gender = ContactField.get_by_key(self.org, "gender")
         jean = Contact.objects.filter(name="Jean", language="fra").order_by("-pk").first()
         self.assertEqual(set(jean.urns.values_list("identity", flat=True)), {"tel:+250783333333", "twitter:jean"})
-        self.assertEqual(set(jean.user_groups.all()), {group, dyn_group, lang_group})
+        self.assertEqual(set(jean.user_groups.all()), {group})
         self.assertEqual(jean.get_field_value(nickname), "Jado")
 
-        # create with invalid fields
+        # try to create with invalid fields
         response = self.postJSON(
             url,
             None,
@@ -1790,29 +1778,28 @@ class APITest(TembaTest):
         self.assertEqual(jean.name, "Jean")
         self.assertEqual(jean.language, "fra")
         self.assertEqual(set(jean.urns.values_list("identity", flat=True)), {"tel:+250783333333", "twitter:jean"})
-        self.assertEqual(set(jean.user_groups.all()), {group, dyn_group, lang_group})
+        self.assertEqual(set(jean.user_groups.all()), {group})
         self.assertEqual(jean.get_field_value(nickname), "Jado")
 
         # update by UUID and change all fields
-        with self.assertNumQueries(67):
-            response = self.postJSON(
-                url,
-                "uuid=%s" % jean.uuid,
-                {
-                    "name": "Jason Undead",
-                    "language": "ita",
-                    "urns": ["tel:+250784444444"],
-                    "groups": [],
-                    "fields": {"nickname": "Žan", "gender": "frog"},
-                },
-            )
+        response = self.postJSON(
+            url,
+            "uuid=%s" % jean.uuid,
+            {
+                "name": "Jason Undead",
+                "language": "ita",
+                "urns": ["tel:+250784444444"],
+                "groups": [],
+                "fields": {"nickname": "Žan", "gender": "frog"},
+            },
+        )
         self.assertEqual(response.status_code, 200)
 
         jean = Contact.objects.get(pk=jean.pk)
         self.assertEqual(jean.name, "Jason Undead")
         self.assertEqual(jean.language, "ita")
         self.assertEqual(set(jean.urns.values_list("identity", flat=True)), {"tel:+250784444444"})
-        self.assertEqual(set(jean.user_groups.all()), {jason_group})
+        self.assertEqual(set(jean.user_groups.all()), set())
         self.assertEqual(jean.get_field_value(nickname), "Žan")
         self.assertEqual(jean.get_field_value(gender), "frog")
 
@@ -1827,22 +1814,21 @@ class APITest(TembaTest):
         self.assertEqual(jean.name, "Jean II")
         self.assertEqual(jean.language, "eng")
         self.assertEqual(set(jean.urns.values_list("identity", flat=True)), {"tel:+250784444444"})
-        self.assertEqual(set(jean.user_groups.all()), {eng_lang_group})
+        self.assertEqual(set(jean.user_groups.all()), set())
         self.assertEqual(jean.get_field_value(nickname), "Žan")
 
         # update by uuid and remove all fields
-        with self.assertNumQueries(29):
-            response = self.postJSON(
-                url,
-                "uuid=%s" % jean.uuid,
-                {
-                    "name": "Jean II",
-                    "language": "eng",
-                    "urns": ["tel:+250784444444"],
-                    "groups": [],
-                    "fields": {"nickname": "", "gender": ""},
-                },
-            )
+        response = self.postJSON(
+            url,
+            "uuid=%s" % jean.uuid,
+            {
+                "name": "Jean II",
+                "language": "eng",
+                "urns": ["tel:+250784444444"],
+                "groups": [],
+                "fields": {"nickname": "", "gender": ""},
+            },
+        )
         self.assertEqual(response.status_code, 200)
 
         jean = Contact.objects.get(pk=jean.pk)
@@ -1850,24 +1836,22 @@ class APITest(TembaTest):
         self.assertEqual(jean.get_field_value(gender), None)
 
         # update by uuid and update/remove fields
-        with self.assertNumQueries(34):
-            response = self.postJSON(
-                url,
-                "uuid=%s" % jean.uuid,
-                {
-                    "name": "Jean II",
-                    "language": "eng",
-                    "urns": ["tel:+250784444444"],
-                    "groups": [],
-                    "fields": {"nickname": "Jado", "gender": ""},
-                },
-            )
+        response = self.postJSON(
+            url,
+            "uuid=%s" % jean.uuid,
+            {
+                "name": "Jean II",
+                "language": "eng",
+                "urns": ["tel:+250784444444"],
+                "groups": [],
+                "fields": {"nickname": "Jado", "gender": ""},
+            },
+        )
         self.assertEqual(response.status_code, 200)
 
         jean = Contact.objects.get(pk=jean.pk)
         self.assertEqual(jean.get_field_value(nickname), "Jado")
         self.assertEqual(jean.get_field_value(gender), None)
-        self.assertEqual(set(jean.user_groups.all()), {eng_lang_group, dyn_group})
 
         # update by URN (which should be normalized)
         response = self.postJSON(url, "urn=%s" % quote_plus("tel:+250-78-4444444"), {"name": "Jean III"})
@@ -2015,7 +1999,8 @@ class APITest(TembaTest):
         self.assertTrue("number_field" in response_json["fields"])
         self.assertEqual(response_json["fields"]["number_field"], ["Null characters are not allowed."])
 
-    def test_contact_action_update_datetime_field(self):
+    @mock_mailroom
+    def test_contact_action_update_datetime_field(self, mr_mocks):
         url = reverse("api.v2.contacts")
 
         self.assertEndpointAccess(url)
@@ -2070,7 +2055,8 @@ class APITest(TembaTest):
 
         self.assertIsNone(resp_json["fields"]["tag_activated_at"])
 
-    def test_contact_actions_if_org_is_anonymous(self):
+    @mock_mailroom
+    def test_contact_actions_if_org_is_anonymous(self, mr_mocks):
         url = reverse("api.v2.contacts")
         self.assertEndpointAccess(url)
 
@@ -2122,7 +2108,8 @@ class APITest(TembaTest):
             self.assertEqual(response.status_code, 400)
             self.assertResponseError(response, None, "URN lookups not allowed for anonymous organizations")
 
-    def test_contact_actions(self):
+    @mock_mailroom
+    def test_contact_actions(self, mr_mocks):
         url = reverse("api.v2.contact_actions")
 
         self.assertEndpointAccess(url, fetch_returns=405)
@@ -2139,9 +2126,7 @@ class APITest(TembaTest):
 
         group = self.create_group("Testers")
         self.create_field("isdeveloper", "Is developer")
-
-        with MockParseQuery('isdeveloper = "YES"', ["developers"]):
-            self.create_group("Developers", query="isdeveloper = YES")
+        self.create_group("Developers", query="isdeveloper = YES")
 
         # create some "active" runs for some of the contacts
         flow = self.get_flow("favorites_v13")
@@ -2752,21 +2737,19 @@ class APITest(TembaTest):
         )
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
-    def test_groups(self):
+    @mock_mailroom
+    def test_groups(self, mr_mocks):
         url = reverse("api.v2.groups")
 
         self.assertEndpointAccess(url)
 
         self.create_field("isdeveloper", "Is developer")
         customers = self.create_group("Customers", [self.frank])
-        with MockParseQuery('isdeveloper = "YES"', ["isdeveloper"]):
-            developers = self.create_group("Developers", query="isdeveloper = YES")
-            ContactGroup.user_groups.filter(id=developers.id).update(status=ContactGroup.STATUS_READY)
+        developers = self.create_group("Developers", query='isdeveloper = "YES"')
+        ContactGroup.user_groups.filter(id=developers.id).update(status=ContactGroup.STATUS_READY)
 
-        with MockParseQuery('isdeveloper = "NO"', ["isdeveloper"]):
-            # a group which is being re-evaluated
-            dynamic = self.create_group("Big Group", query="isdeveloper=NO")
-            ContactGroup.user_groups.filter(id=dynamic.id).update(status=ContactGroup.STATUS_EVALUATING)
+        dynamic = self.create_group("Big Group", query='isdeveloper = "NO"')
+        ContactGroup.user_groups.filter(id=dynamic.id).update(status=ContactGroup.STATUS_EVALUATING)
 
         # an initializing group
         ContactGroup.create_static(self.org, self.admin, "Initializing", status=ContactGroup.STATUS_INITIALIZING)
@@ -3240,7 +3223,6 @@ class APITest(TembaTest):
 
     def test_org(self):
         url = reverse("api.v2.org")
-
         self.assertEndpointAccess(url)
 
         # fetch as JSON
@@ -3282,21 +3264,22 @@ class APITest(TembaTest):
         # try to set languages which do not exist in iso639-3
         self.org.set_languages(self.admin, ["fra", "123", "eng"], "eng")
 
-        response = self.fetchJSON(url)
-        self.assertEqual(
-            response.json(),
-            {
-                "uuid": str(self.org.uuid),
-                "name": "Temba",
-                "country": "RW",
-                "languages": ["eng", "fra"],
-                "primary_language": "eng",
-                "timezone": "Africa/Kigali",
-                "date_style": "day_first",
-                "credits": {"used": 0, "remaining": 1000},
-                "anon": False,
-            },
-        )
+        for urn in ("/api/v2/org", "/api/v2/workspace"):
+            response = self.fetchJSON(url)
+            self.assertEqual(
+                response.json(),
+                {
+                    "uuid": str(self.org.uuid),
+                    "name": "Temba",
+                    "country": "RW",
+                    "languages": ["eng", "fra"],
+                    "primary_language": "eng",
+                    "timezone": "Africa/Kigali",
+                    "date_style": "day_first",
+                    "credits": {"used": 0, "remaining": 1000},
+                    "anon": False,
+                },
+            )
 
     def test_media(self):
         url = reverse("api.v2.media") + ".json"
@@ -4100,15 +4083,16 @@ class APITest(TembaTest):
 
         # create some templates
         TemplateTranslation.get_or_create(
-            self.channel, "hello", "eng", "Hi {{1}}", 1, TemplateTranslation.STATUS_APPROVED, "1234"
+            self.channel, "hello", "eng", "US", "Hi {{1}}", 1, TemplateTranslation.STATUS_APPROVED, "1234"
         )
         TemplateTranslation.get_or_create(
-            self.channel, "hello", "fra", "Bonjour {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
+            self.channel, "hello", "fra", "FR", "Bonjour {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
         )
         tt = TemplateTranslation.get_or_create(
             self.channel,
             "hello",
             "afr",
+            "ZA",
             "This is a template translation for a deleted channel {{1}}",
             1,
             TemplateTranslation.STATUS_APPROVED,
@@ -4119,10 +4103,10 @@ class APITest(TembaTest):
 
         # templates on other org to test filtering
         TemplateTranslation.get_or_create(
-            self.org2channel, "goodbye", "eng", "Goodbye {{1}}", 1, TemplateTranslation.STATUS_APPROVED, "1234"
+            self.org2channel, "goodbye", "eng", "US", "Goodbye {{1}}", 1, TemplateTranslation.STATUS_APPROVED, "1234"
         )
         TemplateTranslation.get_or_create(
-            self.org2channel, "goodbye", "fra", "Salut {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
+            self.org2channel, "goodbye", "fra", "FR", "Salut {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
         )
 
         # no filtering

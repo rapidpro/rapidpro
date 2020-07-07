@@ -759,63 +759,110 @@ class OrgTest(TembaTest):
         self.assertEqual(response.context["form"].errors["tel"][0], "Invalid phone number, try again.")
 
     @patch("temba.flows.models.FlowStart.async_start")
-    def test_org_flagging(self, mock_async_start):
+    def test_org_flagging_and_suspending(self, mock_async_start):
         self.login(self.admin)
+
+        mark = self.create_contact("Mark", number="+12065551212")
+        flow = self.create_flow()
+
+        def send_broadcast():
+            send_url = reverse("msgs.broadcast_send")
+            omnibox = omnibox_serialize(self.org, [], [mark], True)
+            return self.client.post(
+                send_url, {"text": "send me ur bank account login im ur friend.", "omnibox": omnibox}, follow=True
+            )
+
+        def start_flow():
+            omni_mark = json.dumps({"id": mark.uuid, "name": mark.name, "type": "contact"})
+            return self.client.post(
+                reverse("flows.flow_broadcast", args=[flow.id]),
+                {"recipients_mode": "select", "omnibox": omni_mark, "restart_participants": "on"},
+                follow=True,
+            )
+
+        def send_broadcast_via_api():
+            url = reverse("api.v2.broadcasts")
+            data = dict(contacts=[mark.uuid], text="You are a distant cousin to a wealthy person.")
+            return self.client.post(
+                url + ".json", json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS="https"
+            )
+
+        def start_flow_via_api():
+            url = reverse("api.v2.flow_starts")
+            data = dict(flow=flow.uuid, urns=["tel:+250788123123"])
+            return self.client.post(
+                url + ".json", json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS="https"
+            )
 
         self.org.flag()
         self.org.refresh_from_db()
-
         self.assertTrue(self.org.is_flagged)
 
         # while we are flagged, we can't send broadcasts
-        send_url = reverse("msgs.broadcast_send")
-        mark = self.create_contact("Mark", number="+12065551212")
-
-        omnibox = omnibox_serialize(self.org, [], [mark], True)
-        post_data = dict(text="send me ur bank account login im ur friend.", omnibox=omnibox)
-        response = self.client.post(send_url, post_data, follow=True)
-
-        self.assertEqual(
+        response = send_broadcast()
+        self.assertFormError(
+            response,
+            "form",
+            "__all__",
             "Sorry, your account is currently flagged. To enable sending messages, please contact support.",
-            response.context["form"].errors["__all__"][0],
         )
 
         # we also can't start flows
-        flow = self.create_flow()
-        omni_mark = json.dumps({"id": mark.uuid, "name": mark.name, "type": "contact"})
-        self.client.post(
-            reverse("flows.flow_broadcast", args=[flow.id]),
-            {"recipients_mode": "select", "omnibox": omni_mark, "restart_participants": "on"},
-            follow=True,
+        response = start_flow()
+        self.assertFormError(
+            response,
+            "form",
+            "__all__",
+            "Sorry, your account is currently flagged. To enable starting flows, please contact support.",
         )
 
-        self.assertEqual(
-            "Sorry, your account is currently flagged. To enable sending messages, please contact support.",
-            response.context["form"].errors["__all__"][0],
-        )
-
-        # or use the api to do either
-        def postAPI(url, data):
-            response = self.client.post(
-                url + ".json", json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS="https"
-            )
-            if response.content:
-                response.json = response.json()
-            return response
-
-        url = reverse("api.v2.broadcasts")
-        response = postAPI(url, dict(contacts=[mark.uuid], text="You are a distant cousin to a wealthy person."))
+        response = send_broadcast_via_api()
         self.assertContains(
             response,
             "Sorry, your account is currently flagged. To enable sending messages, please contact support.",
             status_code=400,
         )
 
-        url = reverse("api.v2.flow_starts")
-        response = postAPI(url, dict(flow=flow.uuid, urns=["tel:+250788123123"]))
+        response = start_flow_via_api()
         self.assertContains(
             response,
             "Sorry, your account is currently flagged. To enable sending messages, please contact support.",
+            status_code=400,
+        )
+
+        # unflag org and suspend it instead
+        self.org.unflag()
+        self.org.is_suspended = True
+        self.org.save(update_fields=("is_suspended",))
+
+        response = send_broadcast()
+        self.assertFormError(
+            response,
+            "form",
+            "__all__",
+            "Sorry, your account is currently suspended. To enable sending messages, please contact support.",
+        )
+
+        # we also can't start flows
+        response = start_flow()
+        self.assertFormError(
+            response,
+            "form",
+            "__all__",
+            "Sorry, your account is currently suspended. To enable starting flows, please contact support.",
+        )
+
+        response = send_broadcast_via_api()
+        self.assertContains(
+            response,
+            "Sorry, your account is currently suspended. To enable sending messages, please contact support.",
+            status_code=400,
+        )
+
+        response = start_flow_via_api()
+        self.assertContains(
+            response,
+            "Sorry, your account is currently suspended. To enable sending messages, please contact support.",
             status_code=400,
         )
 
@@ -823,14 +870,11 @@ class OrgTest(TembaTest):
         self.assertEqual(Msg.objects.all().count(), 0)
         mock_async_start.assert_not_called()
 
-        # unflag our org and start a flow
-        self.org.unflag()
+        # unsuspend our org and start a flow
+        self.org.is_suspended = False
+        self.org.save(update_fields=("is_suspended",))
 
-        self.client.post(
-            reverse("flows.flow_broadcast", args=[flow.id]),
-            {"recipients_mode": "select", "omnibox": omni_mark, "restart_participants": "on"},
-            follow=True,
-        )
+        start_flow()
 
         mock_async_start.assert_called_once()
 
@@ -1353,14 +1397,14 @@ class OrgTest(TembaTest):
         # now lets try again
         post_data = dict(surveyor_password="nyaruka")
         response = self.client.post(url, post_data)
-        self.assertContains(response, "Enter your details below to create your account.")
+        self.assertContains(response, "Enter your details below to create your login.")
 
         # now try creating an account on the second step without and surveyor_password
         post_data = dict(
             first_name="Marshawn", last_name="Lynch", password="beastmode24", email="beastmode@seahawks.com"
         )
         response = self.client.post(url, post_data)
-        self.assertContains(response, "Enter your details below to create your account.")
+        self.assertContains(response, "Enter your details below to create your login.")
 
         # now do the same but with a valid surveyor_password
         post_data = dict(
@@ -1452,7 +1496,7 @@ class OrgTest(TembaTest):
         # superuser gets redirected to user management page
         self.login(self.superuser)
         response = self.client.get(choose_url, follow=True)
-        self.assertContains(response, "Organizations")
+        self.assertContains(response, "Workspaces")
 
     def test_topup_admin(self):
         self.login(self.admin)
@@ -1583,6 +1627,9 @@ class OrgTest(TembaTest):
     def test_topups(self):
 
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_user=100_000, multi_org=1_000_000)
+        self.org.is_multi_org = False
+        self.org.is_multi_user = False
+        self.org.save(update_fields=["is_multi_user", "is_multi_org"])
 
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
         welcome_topup = self.org.topups.get()
@@ -1666,8 +1713,8 @@ class OrgTest(TembaTest):
         self.assertEqual(-5, self.org.get_credits_remaining())
 
         # test special status
-        self.assertFalse(self.org.is_multi_user_tier())
-        self.assertFalse(self.org.is_multi_org_tier())
+        self.assertFalse(self.org.is_multi_user)
+        self.assertFalse(self.org.is_multi_org)
 
         # add new topup with lots of credits
         mega_topup = TopUp.create(self.admin, price=0, credits=100_000)
@@ -1679,7 +1726,7 @@ class OrgTest(TembaTest):
 
         # we aren't yet multi user since this topup was free
         self.assertEqual(0, self.org.get_purchased_credits())
-        self.assertFalse(self.org.is_multi_user_tier())
+        self.assertFalse(self.org.is_multi_user)
 
         self.assertEqual(100_025, self.org.get_credits_total())
         self.assertEqual(99995, self.org.get_credits_remaining())
@@ -1719,7 +1766,7 @@ class OrgTest(TembaTest):
         gift_topup.save(update_fields=["expires_on"])
         self.org.apply_topups()
 
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(3):
             self.assertEqual(15, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
@@ -1732,7 +1779,7 @@ class OrgTest(TembaTest):
         later_active_topup.save(update_fields=["expires_on"])
         self.org.apply_topups()
 
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(4):
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
@@ -1772,14 +1819,16 @@ class OrgTest(TembaTest):
         # now buy some credits to make us multi user
         TopUp.create(self.admin, price=100, credits=100_000)
         self.org.clear_credit_cache()
-        self.assertTrue(self.org.is_multi_user_tier())
-        self.assertFalse(self.org.is_multi_org_tier())
+        self.org.reset_capabilities()
+        self.assertTrue(self.org.is_multi_user)
+        self.assertFalse(self.org.is_multi_org)
 
         # good deal!
         TopUp.create(self.admin, price=100, credits=1_000_000)
         self.org.clear_credit_cache()
-        self.assertTrue(self.org.is_multi_user_tier())
-        self.assertTrue(self.org.is_multi_org_tier())
+        self.org.reset_capabilities()
+        self.assertTrue(self.org.is_multi_user)
+        self.assertTrue(self.org.is_multi_org)
 
     @patch("temba.orgs.views.Client", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
@@ -2512,33 +2561,30 @@ class OrgTest(TembaTest):
             self.assertRedirect(response, reverse("channels.types.plivo.claim"))
 
     def test_tiers(self):
-
         # default is no tiers, everything is allowed, go crazy!
-        self.assertTrue(self.org.is_import_flows_tier())
-        self.assertTrue(self.org.is_multi_user_tier())
-        self.assertTrue(self.org.is_multi_org_tier())
+        self.assertTrue(self.org.is_multi_user)
+        self.assertTrue(self.org.is_multi_org)
 
-        # same when tiers are missing completely
         del settings.BRANDING[settings.DEFAULT_BRAND]["tiers"]
-        self.assertTrue(self.org.is_import_flows_tier())
-        self.assertTrue(self.org.is_multi_user_tier())
-        self.assertTrue(self.org.is_multi_org_tier())
+        self.org.reset_capabilities()
+        self.assertTrue(self.org.is_multi_user)
+        self.assertTrue(self.org.is_multi_org)
 
         # not enough credits with tiers enabled
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(
             import_flows=1, multi_user=100_000, multi_org=1_000_000
         )
+        self.org.reset_capabilities()
         self.assertIsNone(self.org.create_sub_org("Sub Org A"))
-        self.assertFalse(self.org.is_import_flows_tier())
-        self.assertFalse(self.org.is_multi_user_tier())
-        self.assertFalse(self.org.is_multi_org_tier())
+        self.assertFalse(self.org.is_multi_user)
+        self.assertFalse(self.org.is_multi_org)
 
         # not enough credits, but tiers disabled
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(import_flows=0, multi_user=0, multi_org=0)
+        self.org.reset_capabilities()
         self.assertIsNotNone(self.org.create_sub_org("Sub Org A"))
-        self.assertTrue(self.org.is_import_flows_tier())
-        self.assertTrue(self.org.is_multi_user_tier())
-        self.assertTrue(self.org.is_multi_org_tier())
+        self.assertTrue(self.org.is_multi_user)
+        self.assertTrue(self.org.is_multi_org)
 
         # tiers enabled, but enough credits
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(
@@ -2547,12 +2593,12 @@ class OrgTest(TembaTest):
         TopUp.create(self.admin, price=100, credits=1_000_000)
         self.org.clear_credit_cache()
         self.assertIsNotNone(self.org.create_sub_org("Sub Org B"))
-        self.assertTrue(self.org.is_import_flows_tier())
-        self.assertTrue(self.org.is_multi_user_tier())
-        self.assertTrue(self.org.is_multi_org_tier())
+        self.assertTrue(self.org.is_multi_user)
+        self.assertTrue(self.org.is_multi_org)
 
     def test_sub_orgs_management(self):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
+        self.org.reset_capabilities()
 
         sub_org = self.org.create_sub_org("Sub Org")
 
@@ -2561,13 +2607,14 @@ class OrgTest(TembaTest):
 
         # lower the tier and try again
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
+        self.org.reset_capabilities()
         sub_org = self.org.create_sub_org("Sub Org")
 
         # suborg has been created
         self.assertIsNotNone(sub_org)
 
-        # suborgs can't create suborgs
-        self.assertIsNone(sub_org.create_sub_org("Grandchild Org"))
+        # suborgs can create suborgs
+        self.assertIsNotNone(sub_org.create_sub_org("Grandchild Org"))
 
         # we should be linked to our parent with the same brand
         self.assertEqual(self.org, sub_org.parent)
@@ -2680,10 +2727,10 @@ class OrgTest(TembaTest):
         self.assertEqual(0, self.org.get_credits_remaining())
 
     def test_sub_org_ui(self):
-
         self.login(self.admin)
 
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
+        self.org.reset_capabilities()
 
         # set our org on the session
         session = self.client.session
@@ -2691,7 +2738,7 @@ class OrgTest(TembaTest):
         session.save()
 
         response = self.client.get(reverse("orgs.org_home"))
-        self.assertNotContains(response, "Manage Organizations")
+        self.assertNotContains(response, "Manage Workspaces")
 
         # attempting to manage orgs should redirect
         response = self.client.get(reverse("orgs.org_sub_orgs"))
@@ -2716,14 +2763,15 @@ class OrgTest(TembaTest):
 
         # zero out our tier
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
-        self.assertTrue(self.org.is_multi_org_tier())
+        self.org.reset_capabilities()
+        self.assertTrue(self.org.is_multi_org)
         response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "Manage Organizations")
+        self.assertContains(response, "Manage Workspaces")
 
         # now we can manage our orgs
         response = self.client.get(reverse("orgs.org_sub_orgs"))
         self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Organizations")
+        self.assertContains(response, "Workspaces")
 
         # add a sub org
         response = self.client.post(reverse("orgs.org_create_sub_org"), new_org)
@@ -2749,7 +2797,7 @@ class OrgTest(TembaTest):
         # try to transfer more than we have
         post_data = dict(from_org=self.org.id, to_org=sub_org.id, amount=1500)
         response = self.client.post(reverse("orgs.org_transfer_credits"), post_data)
-        self.assertContains(response, "Pick a different organization to transfer from")
+        self.assertContains(response, "Pick a different workspace to transfer from")
 
         # now transfer some creditos
         post_data = dict(from_org=self.org.id, to_org=sub_org.id, amount=600)
@@ -3079,7 +3127,7 @@ class OrgCRUDLTest(TembaTest):
             password="dukenukem",
         )
         response = self.client.post(grant_url, post_data)
-        self.assertFormError(response, "form", None, "User already exists, please do not include password.")
+        self.assertFormError(response, "form", None, "Login already exists, please do not include password.")
 
         # try to create a new user with invalid password
         post_data = dict(
@@ -3856,30 +3904,6 @@ class BulkExportTest(TembaTest):
 
         self.login(self.admin)
 
-        # try importing without having purchased credits
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(
-            import_flows=1, multi_user=100_000, multi_org=1_000_000
-        )
-        post_data = dict(import_file=open("%s/test_flows/new_mother.json" % settings.MEDIA_ROOT, "rb"))
-        response = self.client.post(reverse("orgs.org_import"), post_data)
-        self.assertFormError(response, "form", "import_file", "Sorry, import is a premium feature")
-
-        # now purchase some credits and try again
-        TopUp.objects.create(
-            org=self.org,
-            price=1,
-            credits=10000,
-            expires_on=timezone.now() + timedelta(days=30),
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-
-        # force our cache to reload
-        self.org.get_credits_total(force_dirty=True)
-        self.org.clear_credit_cache()
-        self.assertTrue(self.org.get_purchased_credits() > 0)
-
-        # now try again with purchased credits, but our file is too old
         post_data = dict(import_file=open("%s/test_flows/too_old.json" % settings.MEDIA_ROOT, "rb"))
         response = self.client.post(reverse("orgs.org_import"), post_data)
         self.assertFormError(
@@ -3942,13 +3966,8 @@ class BulkExportTest(TembaTest):
         event = campaign.events.filter(is_active=True).last()
 
         # create a contact and place her into our campaign
-        sally = self.create_contact("Sally", "+12345")
+        sally = self.create_contact("Sally", urn="tel:+12345", fields={"survey_start": "10-05-2025 12:30:10"})
         campaign.group.contacts.add(sally)
-        sally.set_field(self.user, "survey_start", "10-05-2025 12:30:10")
-
-        # shoud have one event fire
-        self.assertEqual(1, event.fires.all().count())
-        original_fire = event.fires.all().first()
 
         # importing it again shouldn't result in failures
         self.import_file("survey_campaign")
@@ -3960,10 +3979,6 @@ class BulkExportTest(TembaTest):
         # same campaign, but new event
         self.assertEqual(campaign.id, new_campaign.id)
         self.assertNotEqual(event.id, new_event.id)
-
-        # should still have one fire, but it's been recreated
-        self.assertEqual(1, new_event.fires.all().count())
-        self.assertNotEqual(original_fire.id, new_event.fires.all().first().id)
 
     def test_import_mixed_flow_versions(self):
         self.import_file("mixed_versions", legacy=True)
@@ -4431,7 +4446,7 @@ class CreditAlertTest(TembaTest):
         # email sent
         sent_email = mail.outbox[0]
         self.assertEqual(1, len(sent_email.to))
-        self.assertIn("RapidPro account for Temba", sent_email.body)
+        self.assertIn("RapidPro workspace for Temba", sent_email.body)
         self.assertIn("expiring credits in less than one month.", sent_email.body)
 
         # check topup expiration, it should no create a new one, because last one is still active
@@ -4470,7 +4485,7 @@ class CreditAlertTest(TembaTest):
             self.assertEqual(len(mail.outbox), 1)
 
             sent_email = mail.outbox[0]
-            self.assertIn("RapidPro account for Temba", sent_email.body)
+            self.assertIn("RapidPro workspace for Temba", sent_email.body)
 
             # this email has been sent to multiple recipients
             self.assertListEqual(
@@ -4513,7 +4528,7 @@ class CreditAlertTest(TembaTest):
                 # alert email is for out of credits type
                 sent_email = mail.outbox[0]
                 self.assertEqual(len(sent_email.to), 1)
-                self.assertIn("RapidPro account for Temba", sent_email.body)
+                self.assertIn("RapidPro workspace for Temba", sent_email.body)
                 self.assertIn("is out of credit.", sent_email.body)
 
                 # no new alert if one is sent and no new email
@@ -4557,7 +4572,7 @@ class CreditAlertTest(TembaTest):
                     # email sent
                     sent_email = mail.outbox[2]
                     self.assertEqual(len(sent_email.to), 1)
-                    self.assertIn("RapidPro account for Temba", sent_email.body)
+                    self.assertIn("RapidPro workspace for Temba", sent_email.body)
                     self.assertIn("is running low on credits", sent_email.body)
 
                     # no new alert if one is sent and no new email

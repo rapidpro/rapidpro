@@ -18,23 +18,23 @@
 -block post-form
 
 -block summary
-  -if object.is_multi_org_tier
+  -if object.is_multi_org
     %p.pull-right
       %a.sub-orgs.btn.btn-secondary{url:'{% url "orgs.org_sub_orgs" %}'}
-        Manage Organizations
+        Manage Workspaces
 
   -blocktrans with org=object.name
-    Your organization is <span class='attn'>{{org}}</span>
+    Your workspace is <span class='attn'>{{org}}</span>
 
   -blocktrans with timezone=object.timezone
     which is in the <span class='attn'>{{timezone}}</span> timezone.
 
-  -if object.is_multi_org_tier and sub_orgs
+  -if object.is_multi_org and sub_orgs
     %br
     {% blocktrans count sub_orgs|length as org_count%}
-      You have <span class='attn'>{{org_count}}</span> child organization.
+      You have <span class='attn'>{{org_count}}</span> child workspaces.
       {% plural %}
-      You have <span class='attn'>{{org_count}}</span> child organizations.
+      You have <span class='attn'>{{org_count}}</span> child workspaces.
     {% endblocktrans%}
 
 -block extra-script

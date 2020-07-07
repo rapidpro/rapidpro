@@ -195,7 +195,7 @@
         .circle
           .icon-office.icon-2
         .title
-          -trans "orgs"
+          -trans "workspaces"
 
   -if request.user.is_superuser or perms.apks.apk_list
     %a{href:"{% url 'apks.apk_list' %}", class:"{% active request 'apk' %}"}

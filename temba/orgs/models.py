@@ -213,6 +213,14 @@ class Org(SmartModel):
 
     uses_topups = models.BooleanField(default=True, help_text=_("Whether this organization uses topups."))
 
+    is_multi_org = models.BooleanField(
+        default=False, help_text=_("Whether this organization can have child workspaces")
+    )
+
+    is_multi_user = models.BooleanField(
+        default=False, help_text=_("Whether this organization can have multiple logins")
+    )
+
     primary_language = models.ForeignKey(
         "orgs.Language",
         null=True,
@@ -257,9 +265,7 @@ class Org(SmartModel):
             return unique_slug
 
     def create_sub_org(self, name, timezone=None, created_by=None):
-
-        if self.is_multi_org_tier() and not self.parent:
-
+        if self.is_multi_org:
             if not timezone:
                 timezone = self.timezone
 
@@ -277,6 +283,8 @@ class Org(SmartModel):
                 slug=slug,
                 created_by=created_by,
                 modified_by=created_by,
+                is_multi_user=self.is_multi_user,
+                is_multi_org=self.is_multi_org,
             )
 
             org.administrators.add(created_by)
@@ -1055,17 +1063,6 @@ class Org(SmartModel):
 
         return admin
 
-    def is_import_flows_tier(self):
-        return self.get_purchased_credits() >= self.get_branding().get("tiers", {}).get("import_flows", 0)
-
-    def is_multi_user_tier(self):
-        return self.get_purchased_credits() >= self.get_branding().get("tiers", {}).get("multi_user", 0)
-
-    def is_multi_org_tier(self):
-        return not self.parent and self.get_purchased_credits() >= self.get_branding().get("tiers", {}).get(
-            "multi_org", 0
-        )
-
     def get_user_org_group(self, user):
         if user in self.get_org_admins():
             user._org_group = Group.objects.get(name="Administrators")
@@ -1344,7 +1341,6 @@ class Org(SmartModel):
         # if we have an active topup cache, we need to decrement the amount remaining
         active_topup_id = self.get_active_topup_id()
         if active_topup_id:
-
             remaining = r.decr(ORG_ACTIVE_TOPUP_REMAINING % (self.id, active_topup_id), AMOUNT)
 
             # near the edge, clear out our cache and calculate from the db
@@ -1357,7 +1353,6 @@ class Org(SmartModel):
             active_topup = self.get_active_topup(force_dirty=True)
             if active_topup:
                 active_topup_id = active_topup.id
-
                 r.decr(ORG_ACTIVE_TOPUP_REMAINING % (self.id, active_topup.id), AMOUNT)
 
         if active_topup_id:
@@ -1467,6 +1462,30 @@ class Org(SmartModel):
 
         # any time we've reapplied topups, lets invalidate our credit cache too
         self.clear_credit_cache()
+
+        # update our capabilities based on topups
+        self.update_capabilities()
+
+    def reset_capabilities(self):
+        """
+        Resets our capabilities based on the current tiers, mostly used in unit tests
+        """
+        self.is_multi_user = False
+        self.is_multi_org = False
+        self.update_capabilities()
+
+    def update_capabilities(self):
+        """
+        Using our topups and brand settings, figures out whether this org should be multi-user and multi-org. We never
+        disable one of these capabilities, but will turn it on for those that qualify via credits
+        """
+        if self.get_purchased_credits() >= self.get_branding().get("tiers", {}).get("multi_org", 0):
+            self.is_multi_org = True
+
+        if self.get_purchased_credits() >= self.get_branding().get("tiers", {}).get("multi_user", 0):
+            self.is_multi_user = True
+
+        self.save(update_fields=("is_multi_user", "is_multi_org"))
 
     def get_stripe_customer(self):  # pragma: no cover
         # We can't test stripe in unit tests since it requires javascript tokens to be generated
@@ -1792,6 +1811,7 @@ class Org(SmartModel):
             self.create_system_groups()
             self.create_system_contact_fields()
             self.create_welcome_topup(topup_size)
+            self.update_capabilities()
 
         # outside of the transaction as it's going to call out to mailroom for flow validation
         self.create_sample_flows(branding.get("api_link", ""))

@@ -313,7 +313,7 @@ BRANDING = {
         "logo": "brands/rapidpro/logo.png",
         "allow_signups": True,
         "flow_types": ["M", "V", "S"],  # see Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY
-        "tiers": dict(import_flows=0, multi_user=0, multi_org=0),
+        "tiers": dict(multi_user=0, multi_org=0),
         "bundles": [],
         "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
@@ -1066,6 +1066,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.dmark.DMarkType",
     "temba.channels.types.external.ExternalType",
     "temba.channels.types.facebook.FacebookType",
+    "temba.channels.types.facebookapp.FacebookAppType",
     "temba.channels.types.firebase.FirebaseCloudMessagingType",
     "temba.channels.types.freshchat.FreshChatType",
     "temba.channels.types.globe.GlobeType",
@@ -1138,6 +1139,24 @@ MAILGUN_API_KEY = os.environ.get("MAILGUN_API_KEY", "")
 
 ZENDESK_CLIENT_ID = os.environ.get("ZENDESK_CLIENT_ID", "")
 ZENDESK_CLIENT_SECRET = os.environ.get("ZENDESK_CLIENT_SECRET", "")
+
+
+# -----------------------------------------------------------------------------------
+#
+#    1. Create an Facebook app on https://developers.facebook.com/apps/
+#
+#    2. Copy the Facebook Application ID
+#
+#    3. From Settings > Basic, show and copy the Facebook Application Secret
+#
+#    4. Generate a Random Secret to use as Facebook Webhook Secret as described
+#       on https://developers.facebook.com/docs/messenger-platform/webhook#setup
+#
+# -----------------------------------------------------------------------------------
+FACEBOOK_APPLICATION_ID = os.environ.get("FACEBOOK_APPLICATION_ID", "")
+FACEBOOK_APPLICATION_SECRET = os.environ.get("FACEBOOK_APPLICATION_SECRET", "")
+FACEBOOK_WEBHOOK_SECRET = os.environ.get("FACEBOOK_WEBHOOK_SECRET", "")
+
 
 # -----------------------------------------------------------------------------------
 # IP Addresses

@@ -199,7 +199,7 @@ def refresh_whatsapp_templates():
                     content = "\n\n".join(content_parts)
                     variable_count = _calculate_variable_count(content)
 
-                    language = LANGUAGE_MAPPING.get(template["language"])
+                    language, country = LANGUAGE_MAPPING.get(template["language"], (None, None))
 
                     # its a (non fatal) error if we see a language we don't know
                     if language is None:
@@ -210,6 +210,7 @@ def refresh_whatsapp_templates():
                         channel=channel,
                         name=template["name"],
                         language=language,
+                        country=country,
                         content=content,
                         variable_count=variable_count,
                         status=status,
