@@ -2947,7 +2947,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 matching = []
                 for record in record_batch:
                     if record["flow"]["uuid"] in flow_uuids and (not responded_only or record["responded"]):
-                        seen.add(matching["id"])
+                        seen.add(record["id"])
                         matching.append(record)
 
                 yield matching
