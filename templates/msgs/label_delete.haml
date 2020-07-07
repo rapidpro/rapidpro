@@ -1,8 +1,8 @@
--extends 'includes/modal.haml'
+-extends 'includes/modal.html'
 
 -load i18n
 
--block fields
+-block modal
   
   -if error
     .alert-text.mb-4
@@ -18,4 +18,6 @@
     .name.font-normal.pl-1
       {{object.name}}?
 
-    
+  .hidden
+    %form(method="POST")
+      %input(type="submit" value="{{submit_button_name}}")

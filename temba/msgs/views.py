@@ -974,7 +974,7 @@ class LabelCRUDL(SmartCRUDL):
         cancel_url = "@msgs.msg_inbox"
         success_message = ""
         fields = ("uuid",)
-        submit_button_name = _("Delete Label")
+        submit_button_name = _("Delete")
 
         def post(self, request, *args, **kwargs):
             self.object = self.get_object()
