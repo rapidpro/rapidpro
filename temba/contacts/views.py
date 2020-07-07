@@ -41,7 +41,7 @@ from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
-from temba.utils.fields import InputWidget, Select2Field, SelectMultipleWidget
+from temba.utils.fields import CheckboxWidget, InputWidget, Select2Field, SelectMultipleWidget, SelectWidget
 from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.text import slugify_with
 from temba.utils.views import BaseActionForm
@@ -1729,7 +1729,7 @@ class ContactGroupCRUDL(SmartCRUDL):
         redirect_url = "@contacts.contact_list"
         success_message = ""
         fields = ("uuid",)
-        submit_button_name = _("Delete Group")
+        submit_button_name = _("Delete")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -1798,10 +1798,6 @@ class ContactFieldFormMixin:
 
 
 class CreateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
-    class Meta:
-        model = ContactField
-        fields = ("label", "value_type", "show_in_table")
-
     def __init__(self, *args, **kwargs):
         self.org = kwargs["org"]
         del kwargs["org"]
@@ -1818,17 +1814,31 @@ class CreateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
                 params={"limit": settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG},
             )
 
-
-class UpdateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
     class Meta:
         model = ContactField
         fields = ("label", "value_type", "show_in_table")
+        widgets = {
+            "label": InputWidget(attrs={"name": _("Field Name"), "widget_only": False}),
+            "value_type": SelectWidget(attrs={"widget_only": False}),
+            "show_in_table": CheckboxWidget(attrs={"widget_only": False}),
+        }
 
+
+class UpdateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.org = kwargs["org"]
         del kwargs["org"]
 
         super().__init__(*args, **kwargs)
+
+    class Meta:
+        model = ContactField
+        fields = ("label", "value_type", "show_in_table")
+        widgets = {
+            "label": InputWidget(attrs={"name": _("Field Name"), "widget_only": False}),
+            "value_type": SelectWidget(attrs={"widget_only": False}),
+            "show_in_table": CheckboxWidget(attrs={"widget_only": False}),
+        }
 
 
 class ContactFieldListView(OrgPermsMixin, SmartListView):
@@ -1954,11 +1964,13 @@ class ContactFieldCRUDL(SmartCRUDL):
             response["Temba-Success"] = self.get_success_url()
             return response
 
-    class Delete(OrgObjPermsMixin, SmartUpdateView):
+    class Delete(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         queryset = ContactField.user_fields
         success_url = "@contacts.contactfield_list"
         success_message = ""
+        submit_button_name = _("Delete")
         http_method_names = ["get", "post"]
+        fields = ("id",)
 
         def _has_uses(self):
             return any([self.object.flow_count, self.object.campaign_count, self.object.contactgroup_count])
@@ -1990,8 +2002,8 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             else:
                 self.object.hide_field(org=self.request.user.get_org(), user=self.request.user, key=self.object.key)
-
                 response = self.render_to_response(self.get_context_data())
+                response["Temba-Success"] = self.get_success_url()
                 return response
 
     class UpdatePriority(OrgPermsMixin, SmartView, View):

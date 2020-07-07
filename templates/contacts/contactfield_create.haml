@@ -1,0 +1,17 @@
+-extends 'includes/modal.html'
+-load i18n
+-load smartmin
+
+-block modal
+  %form{method:"POST"}
+
+    .flex.items-start.flex-col
+      .w-full
+        -render_field 'label'
+      .w-full
+        -render_field 'value_type'
+      
+      -render_field 'show_in_table'
+
+    .hidden
+      %input(type="submit" value="{{submit_button_name}}")

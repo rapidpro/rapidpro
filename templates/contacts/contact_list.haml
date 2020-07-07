@@ -65,68 +65,46 @@
                     - trans "Create Group"
 
           .right
-            %form#search-form{method:"get"}
-              %temba-textinput.w-full{onsubmit:'document.querySelector("#search-form").submit();', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
 
             -if has_contacts
               -block contacts-list
-                .flex.w-full.mb-1.py-4.items-end
+                .flex.w-full.mb-4.items-end.flex-wrap.justify-end.-mt-2{style:"min-height:41px"}
 
                   -block action-buttons
                     -if org_perms.contacts.contact_update
-                      .list-buttons-container.h-full.mr-2.flex-grow
+                      .list-buttons-container.h-full.mr-2.mt-2.flex-grow
                         .list-buttons.flex.items-center.-mx-2.h-full
                           -if 'block' in actions
-                            .btn-group.mx-2
-                              .object-btn-block
-                                .button-light.text-gray-500.p-icon
-                                  .flex.items-center
-                                    .-mt-1.mr-2.glyph.icon-user-block{style:"width:16px"}
-                                    .text-gray-600
-                                      -trans "Block"
+                            .button-action.object-btn-block
+                              .-mt-1.mr-2.glyph.icon-user-block
+                              -trans "Block"
 
                           - if 'unblock' in actions
-                            .btn-group.mx-2
-                              .object-btn-unblock
-                                .button-light.text-gray-500.p-icon
-                                  .flex.items-center
-                                    .-mt-1.mr-2.glyph.icon-user-block{style:"width:16px"}
-                                    .text-gray-600
-                                      -trans "Unblock"
+                            .button-action.object-btn-unblock
+                              .-mt-1.mr-2.glyph.icon-user-block
+                              -trans "Unblock"
 
                           - if 'unstop' in actions
-                            .btn-group.mx-2
-                              .object-btn-unstop
-                                .button-light.text-gray-500.p-icon
-                                  .flex.items-center
-                                    .-mt-1.mr-2.glyph.icon-user{style:"width:16px"}
-                                    .text-gray-600
-                                      -trans "Unstop"
+                            .button-action.object-btn-unstop
+                              .-mt-1.mr-2.glyph.icon-user
+                              -trans "Unstop"
 
                           - if 'delete' in actions
-                            .btn-group.mx-2
-                              .contacts-btn-delete
-                                .button-light.text-gray-500.p-icon
-                                  .flex.items-center
-                                    .-mt-1.mr-2.glyph.icon-user-delete{style:"width:16px"}
-                                    .text-gray-600
-                                      -trans "Delete"
+                            .button-action.contacts-btn-delete
+                              .-mt-1.mr-2.glyph.icon-user-delete
+                              -trans "Delete"
 
                           - if 'unlabel' in actions
-                            .btn-group.mx-2
-                              .button-light.text-gray-500.p-icon{onclick:'unlabelObjectRows({{current_group.pk}});'}
-                                .flex.items-center
-                                  .-mt-1.mr-2.glyph.icon-user-remove{style:"width:16px"}
-                                  .text-gray-600
-                                    -trans "Remove From Group"
+                            .button-action{onclick:'unlabelObjectRows({{current_group.pk}});'}
+                              .-mt-1.mr-2.glyph.icon-user-remove
+                              -trans "Remove From Group"
 
                           - if 'label' in actions
-                            .btn-group.mx-2
-                              .button-light.text-gray-500.p-icon.dropdown-toggle{data-toggle:"dropdown", data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Labels" %}'}
-                                .flex.items-center
-                                  .-mt-1.mr-2.glyph.icon-users-2{style:"width:16px"}
-                                  .text-gray-600
-                                    -trans "Groups"
+                            .btn-group
+                              .button-action.dropdown-toggle{data-toggle:"dropdown", data-delay:"800"}
+                                .-mt-1.mr-2.glyph.icon-users-2{style:"width:16px"}
+                                -trans "Groups"
+
                               %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
                                 -for group in groups
                                   -if not group.is_dynamic
@@ -144,39 +122,42 @@
                                       - trans "New Group..."
 
                           - if org_perms.msgs.broadcast_send and not reply_disabled
-                              %temba-modax#send-message-modal{ header:'{% trans "Send Message" %}', endpoint:"{% url 'msgs.broadcast_send' %}" }
-                                .btn-group.mx-2
-                                  .button-light.text-gray-500.p-icon{onclick:"handleSendMessageClicked()"}
-                                    .flex.items-center
-                                      .-mt-1.mr-2.glyph.icon-bubble-3{style:"width:16px"}
-                                      .text-gray-600
-                                        -trans "Send Message"
+                            -trans 'Send Message' as button_title
+                              %temba-modax#send-message-modal{ header:'{{title|escapejs}}', endpoint:"{% url 'msgs.broadcast_send' %}" }
+                                .button-action{onclick:"handleSendMessageClicked()"}
+                                  .mr-2.glyph.icon-bubble-3{style:"font-size:14px"}
+                                  {{button_title}}
 
-                    .flex-grow.page-title.text-3xl.text-gray-700.ml-2.self-end.items-end
-                      .flex.flex-col
-                        .title.leading-tight
-                          -if current_group
-                            {{current_group.name}}
-                          -else
-                            {{title}}
+                    .flex-grow.page-title.text-3xl.text-gray-700.ml-1.self-end.items-end
+                      .flex.flex-col.pr-12
+                        -block title-text
+                          .title.leading-tight.-mb-1
+                            -if current_group
+                              {{current_group.name}}
+                            -else
+                              {{title}}
 
-                        -if search_error
-                          .search-details
-                            %span.search-error
-                              =search_error
-                        -elif search
-                          .search-details.text-base.leading-relaxed
-                            -blocktrans with results_count=paginator.count|intcomma count cc=paginator.count
-                              Found {{ results_count }} contact matching <i>{{search}}</i>.
-                              -plural
-                                Found {{ results_count }} contacts matching <i>{{search}}</i>.
 
-                    .ml-4
+                    .buttons.mt-2
                       -include "gear_links_include.haml"
 
-                %table.object-list
+                %form#search-form.mb-4{method:"get"}
+                  %temba-textinput.w-full{onsubmit:'document.querySelector("#search-form").submit();', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
+
+                -if search_error
+                  .mb-4.ml-2
+                    %span.search-error
+                      =search_error
+                -elif search
+                  .mb-4.ml-1.text-base.leading-relaxed
+                    -blocktrans with results_count=paginator.count|intcomma count cc=paginator.count
+                      Found {{ results_count }} contact matching <i>{{search}}</i>.
+                      -plural
+                        Found {{ results_count }} contacts matching <i>{{search}}</i>.
+
+                %table.object-list{class:"{% if org_perms.contacts.contact_update %}selectable{%endif%}"}
                   %tr.contacts
-                    - if org_perms.contacts.contact_update
+                    -if org_perms.contacts.contact_update
                       %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
 
                     %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
@@ -258,8 +239,11 @@
 
                     -empty
                       %tr
-                        %td{colspan:3}
-                          -trans "No matching contacts."
+                        %td
+                        %td.w-full
+                          .p-6.text-xl.w-full
+                            -trans "No matching contacts."
+
                         -for field in contact_fields
                           -if field.show_in_table
                             %td.field
@@ -279,21 +263,6 @@
                 
           - else
             - include "contacts/empty_include.haml"
-
--block post-content
-  - if org_perms.msgs.broadcast_send and not reply_disabled
-    - include "msgs/msg_send_modal.haml"
-
-  -if org_perms.contacts.contact_delete
-    .contact-deletion.hide
-      .title
-        -trans "Delete Contacts"
-
-      .body
-        %p
-          -trans "Are you sure you want to delete these contacts?"
-        %p
-          -trans "Once they are deleted, they will be gone forever. There is no way to undo this operation."
 
 -block extra-style
   :css

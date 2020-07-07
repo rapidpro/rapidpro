@@ -1,7 +1,7 @@
 -extends 'includes/modal.haml'
 -load i18n temba
 
--block fields
+-block modal
 
   -with flows=object.dependent_flows.all
 
@@ -57,10 +57,6 @@
         }
 
     -else
-      // :javascript
-        $(".modal-footer .btn.primary").show();
-        $(".modal-footer .btn.secondary").text("Cancel");
-
       -blocktrans trimmed
         .mb-2
           You are about to delete
@@ -68,3 +64,7 @@
             {{object}}.
 
         No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?
+
+      .hidden
+        %form(method="POST")
+          %input(type="submit" value="{{submit_button_name}}")

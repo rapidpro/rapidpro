@@ -193,8 +193,6 @@ class ModalMixin(SmartFormView):
         if isinstance(form, forms.ModelForm):
             self.object = form.save(commit=False)
 
-        print("success url:", self.get_success_url())
-
         try:
             if isinstance(self, SmartModelFormView):
                 self.object = self.pre_save(self.object)

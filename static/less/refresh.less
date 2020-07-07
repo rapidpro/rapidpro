@@ -2,7 +2,7 @@
 
 body {
   font-weight: 300;
-  line-height: inherit;
+  line-height: 1.5;
 }
 
 .btn-group>.btn:last-child,
@@ -36,6 +36,16 @@ form.smartmin-form {
   line-height: inherit;
 }
 
+.object-list.selectable {
+  tbody {
+    tr:hover {
+      td {
+        background-color: rgba(var(--selection-light-rgb), .3);
+      }
+    }
+  }
+}
+
 .object-list {
   margin-top: 0px;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), 0 -2px 15px 0 rgba(0, 0, 0, 0.04);
@@ -46,12 +56,6 @@ form.smartmin-form {
   tbody {
     tr:first-child {
       border: none;
-    }
-
-    tr:hover {
-      td {
-        background-color: rgba(var(--selection-light-rgb), .3);
-      }
     }
 
     td {

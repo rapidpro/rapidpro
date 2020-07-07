@@ -92,54 +92,41 @@
 
           -if has_messages
             .right
-              %form#search-form{method:"get"}
-                %temba-textinput.w-full{onsubmit:'document.querySelector("#search-form").submit();', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
-
-              .flex.w-full.mb-1.py-4.items-end
+              .flex.w-full.items-end.mb-4
                 -block action-buttons
                   -if org_perms.msgs.msg_update
                     .action-buttons.list-buttons-container.h-full.mr-2.flex-grow
                       .list-buttons.flex.items-center.-mx-2.h-full
                         - if 'unlabel' in actions
-                          .btn-group.mx-2
-                            .object-btn-unlabel
-                              .button-light.text-gray-600.p-icon{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Unlabel" %}'}
-                                .glyph.icon-box{style:"width:16px"}
+                          .button-action.object-btn-unlabel
+                            .glyph.icon-box
+                            -trans "Remove Label"
 
                         - if 'archive' in actions
-                          .btn-group.mx-2
-                            .object-btn-archive
-                              .button-light.text-gray-500.p-icon{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Archive" %}'}
-                                .flex.items-center
-                                  .-mt-1.mr-2.glyph.icon-box{style:"width:16px"}
-                                  .text-gray-600
-                                    Archive
+                          .button-action.object-btn-archive
+                            .-mt-1.mr-2.glyph.icon-box
+                            -trans "Archive"
 
                         - if 'restore' in actions
-                          .btn-group.mx-2
-                            .object-btn-restore
-                              .button-light.text-gray-600.p-icon{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Unarchive" %}'}
-                                .glyph.icon-download
+                          .button-action.object-btn-restore
+                            .glyph.icon-download
+                            -trans "Restore"
 
                         - if 'delete' in actions
-                          .btn-group.mx-2
-                            .object-btn-delete
-                              .button-light.text-gray-600.p-icon{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Delete" %}'}
-                                .glyph.icon-remove
+                          .button-action.object-btn-delete
+                            .glyph.icon-remove
+                            -trans "Delete"
 
                         - if 'resend' in actions
-                          .btn-group.mx-2
-                            .object-btn-resend
-                              .button-light.text-gray-600.p-icon{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Resend" %}'}
-                                .glyph.icon-loop
+                          .button-action.object-btn-resend
+                            .mt-1.mr-2.glyph.icon-loop.text-sm
+                            -trans "Resend"
 
                         - if 'label' in actions
-                          .btn-group.mx-2
-                            .button-light.text-gray-500.p-icon.dropdown-toggle{data-toggle:"dropdown", data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Labels" %}'}
-                              .flex.items-center
-                                .-mt-1.mr-2.glyph.icon-tag{style:"width:16px"}
-                                .text-gray-600
-                                  -trans "Label"
+                          .btn-group
+                            .button-action.dropdown-toggle{data-toggle:"dropdown"}
+                              .-mt-1.mr-2.glyph.icon-tag{style:"width:16px"}
+                              -trans "Label"
 
                             %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
                               -for node in labels
@@ -173,11 +160,15 @@
                                 %li
                                   .lbl-menu.add-label.linked{onclick:"handleAddLabelClicked()"}
                                     -trans "New Label..."
-                .flex-grow.page-title.text-3xl.text-gray-700.ml-2.items-end
-                  .title.leading-tight
-                    {{title}}
+                .flex-grow.page-title.text-3xl.text-gray-700.ml-2.items-center
+                  -block title-text
+                    .title.leading-tight
+                      {{title}}
                 .ml-4
                   -include "gear_links_include.haml"
+
+              %form#search-form.mb-4{method:"get"}
+                %temba-textinput.w-full{onsubmit:'document.querySelector("#search-form").submit();', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
 
               -block message-list
                 %table.object-list{style: '{% if not org_perms.msgs.msg_update %}margin-top:10px{% endif %}'}
@@ -185,7 +176,7 @@
                   %tbody
                     -for object in object_list
                       %tr.sms.object-row{id: 'id-row-{{object.id}}', data-object-id:'{{ object.id }}',
-                                    data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', data-sender-select2:'{{object.contact|short_name:user_org}}'}
+                                    data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', data-sender-select2:'{{object.contact|short_name:user_org}}', class:"{% if actions and org_perms.msgs.msg_update or org_perms.msgs.broadcast_send%}selectable{%endif%}"}
                         -if actions
                           - if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send
                             %td.checkbox.sms.object-row-check{onclick:"handleRowSelection(this);"}                            
@@ -215,7 +206,7 @@
                               {% short_datetime object.created_on %}
 
                             -if show_channel_logs and not user_org.is_anon or perms.contacts.contact_break_anon
-                              .log-icon.ml-3.text-gray-400
+                              .log-icon.ml-3.text-gray-400.linked
                                 {% channel_log_link object %}
 
                     -if not object_list

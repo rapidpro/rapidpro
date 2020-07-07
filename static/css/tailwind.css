@@ -960,6 +960,7 @@ a:hover {
       -ms-user-select: none;
           user-select: none;
   white-space: nowrap;
+  font-weight: 400;
   margin-top: 1px;
 }
 
@@ -995,8 +996,9 @@ a:hover {
       -ms-user-select: none;
           user-select: none;
   white-space: nowrap;
+  font-weight: 400;
   margin-top: 1px;
-  color: #a0a0a0;
+  color: #717171;
   background-color: #f7f7f7;
 }
 
@@ -1016,6 +1018,57 @@ a:hover {
   }
 
 .button-light:hover {
+    cursor: pointer;
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(255, 255, 255, .6);
+  }
+
+.button-action {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  line-height: 1;
+  font-size: 1.125rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+  transition-duration: 300ms;
+  text-align: center;
+  border-radius: 0.5rem;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+          user-select: none;
+  white-space: nowrap;
+  font-weight: 400;
+  margin-top: 1px;
+  color: #717171;
+  background-color: #f7f7f7;
+  padding: 8px 12px;
+  margin-left: 0.5rem;
+  margin-right: 0.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.button-action:active {
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, .15) !important;
+  }
+
+.button-action:hover {
+    cursor: pointer;
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, .05);
+  }
+
+.button-action:hover {
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -1044,6 +1097,7 @@ a:hover {
       -ms-user-select: none;
           user-select: none;
   white-space: nowrap;
+  font-weight: 400;
   margin-top: 1px;
   color: #fff;
   background-color: rgb(var(--tertiary-rgb));
@@ -1081,6 +1135,7 @@ a:hover {
       -ms-user-select: none;
           user-select: none;
   white-space: nowrap;
+  font-weight: 400;
   margin-top: 1px;
   color: #fff;
   background-color: rgb(var(--secondary-rgb));
@@ -1118,6 +1173,7 @@ a:hover {
       -ms-user-select: none;
           user-select: none;
   white-space: nowrap;
+  font-weight: 400;
   margin-top: 1px;
   color: #fff;
   background-color: rgb(var(--primary-rgb));
@@ -1155,6 +1211,7 @@ a:hover {
       -ms-user-select: none;
           user-select: none;
   white-space: nowrap;
+  font-weight: 400;
   margin-top: 1px;
   color: rgb(var(--primary-rgb));
   background-color: #fff;
@@ -1192,6 +1249,7 @@ a:hover {
       -ms-user-select: none;
           user-select: none;
   white-space: nowrap;
+  font-weight: 400;
   margin-top: 1px;
   color: #fff;
   background-color: rgba(0, 0, 0, .2);
@@ -1229,6 +1287,7 @@ a:hover {
       -ms-user-select: none;
           user-select: none;
   white-space: nowrap;
+  font-weight: 400;
   margin-top: 1px;
   color: #fff;
   background-color: rgba(0, 0, 0, .2);
@@ -1274,13 +1333,15 @@ a:hover {
   margin-left: 0.25rem;
   padding-left: 0.5rem;
   padding-right: 0.5rem;
+  display: inline-block;
   font-size: 0.75rem;
   font-weight: 400;
   border-radius: 9999px;
   background-color: rgba(0, 0, 0, .05);
-  color: rgba(0, 0, 0, .3);
+  color: rgba(0, 0, 0, .5);
   letter-spacing: 0.025em;
   white-space: nowrap;
+  text-align: center;
 }
 
 .lbl:hover {

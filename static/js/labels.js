@@ -223,7 +223,6 @@ function updateLabelMenu() {
 }
 
 function handleRowSelection(row) {
-    $('.list-buttons-container').addClass('visible');
     var row = $(row).parent('tr');
 
     // noop if the row doesn't have a checkbox
@@ -238,8 +237,11 @@ function handleRowSelection(row) {
         if (checks.length == 0) {
             $('.list-buttons-container').removeClass('visible');
             $('.page-title').show();
+        } else {
+            $('.list-buttons-container').addClass('visible');
         }
     } else {
+        $('.list-buttons-container').addClass('visible');
         row.addClass('checked');
         $('.page-title').hide();
     }

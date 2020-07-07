@@ -62,7 +62,7 @@ a {
 }
 
 .button {
-  @apply px-6 py-3 leading-none text-lg shadow transition duration-300 text-center rounded-lg select-none whitespace-no-wrap;
+  @apply px-6 py-3 leading-none text-lg shadow transition duration-300 text-center rounded-lg select-none whitespace-no-wrap font-normal;
   margin-top: 1px;
 
   &:active {
@@ -83,7 +83,7 @@ a {
 }
 
 .button-light {
-  @apply button text-gray-500 bg-gray-100;
+  @apply button text-gray-600 bg-gray-100;
 
   &:hover {
     cursor: pointer;
@@ -92,6 +92,10 @@ a {
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
       inset 0 0 20px 20px rgba(255, 255, 255, .6);
   }
+}
+
+.button-action {
+  @apply button-light p-icon mx-2 flex items-center;
 }
 
 .p-icon {
@@ -137,7 +141,7 @@ a {
 }
 
 .lbl {
-  @apply no-underline ml-1 px-2 text-xs font-normal rounded-full bg-dark-alpha-50 text-dark-alpha-300 tracking-wide whitespace-no-wrap;
+  @apply no-underline ml-1 px-2 inline-block text-xs font-normal rounded-full bg-dark-alpha-50 text-dark-alpha-500 tracking-wide whitespace-no-wrap text-center;
 
   &:hover {
     @apply no-underline bg-primary text-white;
