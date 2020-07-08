@@ -1,14 +1,25 @@
--extends 'flows/flow_update.haml'
+-extends 'includes/modax.haml'
 
+-load smartmin i18n
 
 -block fields
 
-  :css
-    .modal .modal-body {
-        max-height: 450px;
-    }
+  .flex.items-start
 
-  {{block.super}}
+    .flex-grow
+      -render_field 'name'
+    .ml-3
+      -render_field 'flow_type'
+
+  -render_field 'keyword_triggers'
+  
+  -if form.base_language
+    .flex.flex-col
+      -render_field 'base_language'
+      .help-text
+        -trans "The authoring language, additional languages can be added later"
+
+
 
 -block modal-script
   {{block.super}}

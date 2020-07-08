@@ -210,7 +210,13 @@ a {
 
 }
 
-
+.help-text {
+  font-size: 11px;
+  line-height: inherit;
+  color: var(--color-text-help);
+  margin-left: 4px;
+  margin-top: -5px;
+}
 
 @responsive {
   .text-shadow {

@@ -53,15 +53,15 @@
                       -if not group.is_ready
                         %i.spin.icon-loop
 
-            .mt-2.flex-grow
+            .flex-grow
               -if org_perms.contacts.contact_create
                 %temba-modax#create-label-modal{ header:'{% trans "Create Contact" %}', endpoint:"{% url 'contacts.contact_create' %}"}
-                  .button-light.mb-3
+                  .button-light.mt-3
                     - trans "Create Contact"
 
               -if org_perms.contacts.contactgroup_create
                 %temba-modax#create-group-modal{ header:'{% trans "Create Group" %}', endpoint:"{% url 'contacts.contactgroup_create' %}", onloaded: "handleCreateGroupModalLoaded", onsubmitted: "handleCreateGroupModalSubmitted"}
-                  .button-light.mb-3
+                  .button-light.mt-3
                     - trans "Create Group"
 
           .right

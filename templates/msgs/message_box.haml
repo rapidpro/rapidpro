@@ -79,15 +79,15 @@
                           .count{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' node.obj.uuid %}", class:'{% if current_label.id == node.obj.id %}font-normal active{% endif %}' }
                             {{ node.count | intcomma }}
 
-              .mt-2.flex-grow
-                - if org_perms.msgs.label_create
+              .flex-grow
+                -if org_perms.msgs.label_create
                   %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'msgs.label_create' %}", onloaded: "handleCreateLabelModalLoaded", onsubmitted: "handleCreateLabelModalSubmitted"}
-                    .button-light.mb-3
+                    .button-light.mt-3
                       - trans "Create Label"
                     
-                - if org_perms.msgs.label_create_folder
+                -if org_perms.msgs.label_create_folder
                   %temba-modax{ header:'{% trans "Create Folder" %}', endpoint:"{% url 'msgs.label_create_folder' %}", on-temba-loaded:"labelOnLoad", onsubmit: "function(e) { labelOnSubmit(e) }" }
-                    .button-light
+                    .button-light.mt-3
                       -trans "Create Folder"
 
           -if has_messages

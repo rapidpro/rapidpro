@@ -48,7 +48,7 @@ from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, on_transaction_commit, str_to_bool
-from temba.utils.fields import ContactSearchWidget, JSONField, OmniboxChoice, SelectWidget
+from temba.utils.fields import ContactSearchWidget, InputWidget, JSONField, OmniboxChoice, SelectWidget
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
 from temba.utils.uuid import uuid4
@@ -420,16 +420,20 @@ class FlowCRUDL(SmartCRUDL):
                 required=False,
                 label=_("Global keyword triggers"),
                 help_text=_("When a user sends any of these keywords they will begin this flow"),
+                widget=SelectWidget(
+                    attrs={"widget_only": False, "multi": True, "searchable": True, "tags": True, "space_select": True}
+                ),
             )
 
             flow_type = forms.ChoiceField(
-                label=_("Run flow over"),
+                label=_("Type"),
                 help_text=_("Choose the method for your flow"),
                 choices=(
                     (Flow.TYPE_MESSAGE, "Messaging"),
                     (Flow.TYPE_VOICE, "Phone Call"),
                     (Flow.TYPE_SURVEY, "Surveyor"),
                 ),
+                widget=SelectWidget(attrs={"widget_only": False}),
             )
 
             def __init__(self, user, branding, *args, **kwargs):
@@ -449,12 +453,16 @@ class FlowCRUDL(SmartCRUDL):
                 self.fields["flow_type"].choices = choices
 
                 self.fields["base_language"] = forms.ChoiceField(
-                    label=_("Language"), initial=self.user.get_org().primary_language, choices=language_choices
+                    label=_("Language"),
+                    initial=self.user.get_org().primary_language,
+                    choices=language_choices,
+                    widget=SelectWidget(attrs={"widget_only": False}),
                 )
 
             class Meta:
                 model = Flow
                 fields = ("name", "keyword_triggers", "flow_type", "base_language")
+                widgets = {"name": InputWidget()}
 
         form_class = FlowCreateForm
         success_url = "uuid@flows.flow_editor"
@@ -927,7 +935,7 @@ class FlowCRUDL(SmartCRUDL):
 
     class Filter(BaseList, OrgObjPermsMixin):
         add_button = True
-        actions = ["unlabel", "label"]
+        actions = ("label",)
 
         def get_gear_links(self):
             links = []

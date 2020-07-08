@@ -2,19 +2,7 @@
 -load smartmin sms temba compress
 -load i18n humanize
 
--block title-icon
-  .title-icon
-    %span.glyph.icon-tree
-
--block page-title
-  -trans "Flows"
-
 -block page-top
-  {% render as page_top %}
-    {{block.super}}
-  {% endrender %}
-  -if org_has_flows
-    {{page_top}}
 
 -block top-form
   - if view.search_fields
@@ -29,167 +17,214 @@
   -if not org_has_flows
     -include "flows/empty_include.html"
   -else
-    #pjax
-      -block pjax
-        .row-fluid
-          .span3.sidebox
-            %div{style:"margin-bottom: 10px"}
-              - if org_perms.flows.flow_create
-                %a.btn.btn-primary.btn-block.create_flow.new-flow{href:"#"}
-                  -trans "Create Flow"
+    .page-content
+      #pjax
+        -block pjax
+          .lp-frame
+            .left
+              .flex.flex-col
+                -if org_perms.flows.flow_create
+                  .w-64.mr-5
+                    %temba-modax#send-message-modal{ header:'{% trans "Create Flow" %}', endpoint:"{% url 'flows.flow_create' %}" }
+                      .button-primary
+                        -trans "Create Flow"
+              
+              .lp-nav.upper
+                -for folder in folders
+                  .lp-nav-item{'class': '{% if folder.url == request_url %}font-normal{% endif %}' }
+                    .name{onclick:"goto(event)", href:'{{folder.url}}'}
+                      {{folder.label}}
+                    .count{onclick:"goto(event)", href:'{{folder.url}}'}
+                      {{ folder.count | intcomma }}
 
-            #sidebar-nav
-              %ul.nav.nav-list.level1
-                %li.nav-header
-                  -trans "Flows"
-                - for folder in folders
-                  %li{'class':"{% if folder.url == request_url %}active{% endif %}" }
-                    %a{'href':'{{folder.url}}'}
-                      {{ folder.label }} ({{ folder.count }})
-
-                -if labels
-                  %li.nav-header
-                    -trans "Labels"
-                  - for label in labels
-                    - with label.children as children
-                      %li{'class': '{% if current_label.id == label.pk %}active{% endif %} {% if children %}lbl-parent{%else%}lbl-not-parent{% endif %} {% if current_label in children or current_label.id == label.pk %}expanded{%endif %}'}
-                        %a{'href':'{% url "flows.flow_filter" label.pk %}'}
-                          {{ label.label }} ({{ label.count }})
-                          - if children
-                            - if current_label in children or current_label.id == label.pk
-                              .glyph.icon-arrow-down-2
-                            -else
-                              .glyph.icon-arrow-right-8
-
-                        - if children
-                          - if current_label in children or current_label.id == label.pk
-                            %ul.nav.nav-list.level2
-                              - for sub_label in children
-                                %li{'class':'{% if current_label.pk == sub_label.pk %}active{% endif %}'}
-                                  %a{'href':'{% url "flows.flow_filter" sub_label.pk %}'}
-                                    {{ sub_label.name }} ({{ sub_label.get_flows_count }})
-
-                -if campaigns
-                  %li.nav-header
+              -if campaigns
+                .lp-nav.lower
+                  .font-normal.uppercase.text-xs.text-gray-500.pb-1
                     -trans "Campaigns"
                   -for campaign in campaigns
-                    %li{'class': '{% if current_campaign.id == campaign.campaign__id %}active{% endif %}'}
-                      %a{'href':'{% url "flows.flow_campaign" campaign.campaign__id %}'}
-                        {{ campaign.campaign__name }} ({{campaign.count}})
+                    .lp-nav-item{'class': '{%if current_campaign.id == campaign.campaign__id %}font-normal{% endif %}' }
+                      .name{onclick:"goto(event)", href:'{% url "flows.flow_campaign" campaign.campaign__id %}'}
+                        {{campaign.campaign__name}}
+                      .count{onclick:"goto(event)", href:'{% url "flows.flow_campaign" campaign.campaign__id %}'}
+                        {{ campaign.count | intcomma }}
 
-            .(style="margin-top: 10px; margin-bottom:10px;")
-              -if org_perms.flows.flowstart_list
-                %a.btn.btn-default.btn-block(href="{% url 'flows.flowstart_list' %}")
-                  -trans "Flow Start Log"
-              -if org_perms.api.webhookresult_list
-                %a.btn.btn-default.btn-block(href="{% url 'api.webhookresult_list' %}")
-                  -trans "Webhook Call Log"
+              -if labels
+                .lp-nav.lower
 
-          -block flow-list
-            .span9
-              - block buttons
-                .pull-right
-                  -block buttons-right
+                  .inner-scroll
+                    .font-normal.uppercase.text-xs.text-gray-500.pb-1
+                      - trans "Labels"
 
-                .list-buttons-container
-                  .list-buttons
-                    - if 'unlabel' in actions and org_perms.flows.flow_update
-                      %span.btn-group
-                        %a.object-btn-unlabel{href:'#'}
-                          %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Unlabel" %}'}
+                    -for label in labels
+                      -if label.children
+                        .lp-nav-item{ class:'{% if current_label.pk == label.pk %}font-normal{% endif %}' }
+                          .name{onclick:"goto(event)", 'href':'{% url "flows.flow_filter" label.pk %}'}
+                            {{ label.label }}
+                          .count.-mr-1.text-gray-400
+                            -if current_label.pk == label.pk or current_label.parent_id == label.pk
+                              .glyph.icon-arrow-down-2{onclick:"goto(event)", 'href':'{% url "flows.flow_filter" label.pk %}'}
+                            -else
+                              .glyph.icon-arrow-right-8{onclick:"goto(event)", 'href':'{% url "flows.flow_filter" label.pk %}'}
+
+                        -if current_label.pk == label.pk or current_label.parent_id == label.pk
+                          .pl-2.mt-1.level2.font-light
+                            -for child in label.children
+                              .lp-nav-item{ class:'{% if current_label.pk == child.pk %}font-normal{% endif %}' }
+                                .name{onclick:"goto(event)",  href:"{% url 'flows.flow_filter' child.pk %}" }
+                                  {{ child.name }}
+                                .count{onclick:"goto(event)", href:"{% url 'flows.flow_filter' child.pk %}" }
+                                  {{ child.get_flows_count | intcomma }}
+                    
+                    -for label in labels
+                      -if not label.children
+                        .lp-nav-item{ class:'{% if current_label.pk == label.pk %}font-normal{% endif %}' }
+                          .name{onclick:"goto(event)", href:"{% url 'flows.flow_filter' label.pk %}", class:'{% if current_label.pk == label.pk %}font-normal active{% endif %}' }
+                            {{ label.label }} 
+                          .count{onclick:"goto(event)", href:"{% url 'flows.flow_filter' label.pk %}", class:'{% if current_label.pk == label.pk %}font-normal active{% endif %}' }
+                            {{ label.count | intcomma }}
+
+              .flex-grow
+                -if org_perms.flows.flowstart_list
+                  .button-light.mt-3(onclick="goto(event)" href="{% url 'flows.flowstart_list' %}")
+                    -trans "Flow Start Log"
+
+                -if org_perms.api.webhookresult_list
+                  .mt-3.button-light.mt-3(onclick="goto(event)" href="{% url 'api.webhookresult_list' %}")
+                    -trans "Webhook Call Log"
+
+            .right
+
+              .flex.w-full.items-end.mb-4
+                -block action-buttons
+                  .action-buttons.list-buttons-container.h-full.mr-2.flex-grow
+                    .list-buttons.flex.items-center.-mx-2.h-full
+                      - if 'unlabel' in actions and org_perms.flows.flow_update
+                        - if 'unlabel' in actions
+                          .button-action.object-btn-unlabel
                             .glyph.icon-box
+                            -trans "Remove Label"
 
-                    - if 'restore' in actions and org_perms.flows.flow_update
-                      %span.btn-group
-                        %a.object-btn-restore{href:'#'}
-                          %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Activate" %}'}
-                            .glyph.icon-tree
+                      - if 'restore' in actions and org_perms.flows.flow_update
+                          .button-action.object-btn-restore
+                            .-mt-1.mr-2.glyph.icon-checkmark
+                            -trans "Activate"
 
-                    - if 'archive' in actions and org_perms.flows.flow_update
-                      %span.btn-group
-                        %a.object-btn-archive{href:'#'}
-                          %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Archive" %}'}
-                            .glyph.icon-box
+                      - if 'archive' in actions and org_perms.flows.flow_update
+                          .button-action.object-btn-archive
+                            .-mt-1.mr-2.glyph.icon-box
+                            -trans "Archive"
 
-                    - if 'label' in actions and org_perms.flows.flow_update
-                      %span.btn-group
-                        %button.btn.dropdown-toggle{data-toggle:"dropdown", data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Labels" %}'}
-                          .glyph.icon-tag
-                          %span.caret
-                        %ul.dropdown-menu.label-menu{'role':'menu', 'aria-labelledby':'dlabel'}
-                          - for label in labels
-                            -with label.children as children
-                              %li{'class':'{% if children %}dropdown-submenu{% endif %}'}
-                                %a.lbl-menu.object-btn-label{href:'#', 'tabindex':'-1', data-id:'{{label.pk}}'}
-                                  .glyph.message-label
-                                  = label.label
-                                %ul.dropdown-menu.label-menu
-                                  - for child in children
-                                    %li
-                                      %a.lbl-menu.object-btn-label{'href':'#', 'tabindex':'-1', data-id:'{{child.pk}}'}
+                      - if 'label' in actions and org_perms.flows.flow_update
+                        %span.btn-group
+                          .button-action.dropdown-toggle{data-toggle:"dropdown"}
+                            .-mt-1.mr-2.glyph.icon-tag
+                            -trans "Label"
+                          
+                          %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
+                            -for label in labels
+                              -with label.children as children
+                                -if children
+                                  %li.dropdown-submenu
+                                    .lbl-menu.object-btn-label{data-id:'{{label.pk}}'}
+                                      .flex.items-center.py-1.linked
                                         .glyph.message-label
-                                        = child.name
-                          -if org_perms.flows.flowlabel_create
-                            %li
-                              %a.lbl-menu.add-label
-                                -trans "Add Label"
+                                        .name
+                                          = label.label
+                                        .flex-grow.text-right
+                                          .icon-arrow-right-8.text-2xl.-mt-1
 
-                    %span.btn-group
-                      %a.object-btn-export{'href':'#', onclick:'exportFlows()'}
-                        %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Download Results" %}'}
-                          .glyph.icon-excel
+                                    %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
+                                      -for child in children
+                                        %li
+                                          .lbl-menu.object-btn-label{data-id:'{{child.pk}}'}
+                                            .flex.items-center.py-1.linked
+                                              .glyph.message-label
+                                              = child.name
+                            
+                            -for label in labels
+                              -if not label.children
+                                %li
+                                  .lbl-menu.object-btn-label{data-id:'{{label.pk}}'}
+                                    .flex.items-center.py-1.linked
+                                      .glyph.message-label
+                                      = label.label
 
-              %table.list-table.flow-list.object-list.table.table-condensed{style: '{% if not org_perms.flows.flow_update %}margin-top:10px{% endif %}'}
-                %tbody
-                  -for object in object_list
-                    %tr.flow.object-row.select-row{ data-object-uuid: "{{object.uuid}}", data-object-id: "{{ object.id }}" }
-                      %td.flow.checkbox.object-row-checkbox
-                        .glyph.icon-checkbox-unchecked.flow-checkbox.object-row-checkbox
+                            -if org_perms.flows.flowlabel_create
+                              -if labels
+                                %li.separator.-mx-4.border-b.my-3
+                              %li
+                                .lbl-menu.add-label.linked
+                                  -trans "Add Label"
 
-                      %td.value-name
-                        -if object.flow_type == 'V'
-                          .icon-phone
-                        -elif object.flow_type == 'S'
-                          .icon-mobile
+                      .button-action.object-btn-export{onclick:'exportFlows()'}
+                        .-mt-1.mr-2.glyph.icon-excel
+                        -trans "Export Results"
 
-                        {{ object.name }}
+                .flex-grow.page-title.text-3xl.text-gray-700.ml-2.items-center
+                  -block title-text
+                    .title.leading-tight
+                      {{title}}
+                .ml-4
+                  -include "gear_links_include.haml"
 
-                        -if not object.is_archived
-                          .value-labels
-                            %nobr
-                              - for label in object.labels.all
-                                %span.label.label-info.lbl{ data-id: '{{label.id}}' }
-                                  %a{href:"{% url 'flows.flow_filter' label.pk%}"}
+              %form#search-form.mb-4{method:"get"}
+                %temba-textinput.w-full{onsubmit:'document.querySelector("#search-form").submit();', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
+
+
+              -block flow-list
+                %table.object-list{style: '{% if not org_perms.flows.flow_update %}margin-top:10px{% endif %}'}
+                  %tbody
+                    -for object in object_list
+                      %tr.flow.object-row.select-row{ data-object-uuid: "{{object.uuid}}", data-object-id: "{{ object.id }}" }
+                        %td.flow.checkbox.object-row-checkbox
+                          .glyph.icon-checkbox-unchecked.flow-checkbox.object-row-checkbox.pl-3.w-4.py-1.cursor-pointer
+
+                        %td
+                          .flex.flex-wrap.flex-end.items-center.px-4.py-2.justify-end
+                            .flex-grow.inline
+                              .flex.linked
+                                -if object.flow_type == 'V'
+                                  .icon-phone.mr-2.leading-snug.text-gray-600
+                                -elif object.flow_type == 'S'
+                                  .icon-mobile.mr-2.leading-snug.text-gray-600
+                                .name
+                                  {{ object.name }}
+
+                            -if not object.is_archived
+                              .whitespace-no-break.flex.items-center.flex-wrap
+                                
+                                -for label in object.labels.all
+                                  .lbl.cursor-pointer{ onclick:"goto(event)", data-id: '{{label.pk}}', href:"{% url 'flows.flow_filter' label.pk%}"}
                                     {{label.name}}
 
-                      -if not object.run_stats.total
-                        %td.value-status
-                        %td.value-status
-                          -trans "No runs"
+                        -if not object.run_stats.total
+                          %td.value-status
+                          %td.value-status.pr-4
+                            -trans "No runs"
 
-                      -else
-                        %td.value-status
-                          %a.href{href:'{% url "flows.flow_results" object.uuid %}'}
-                            {% blocktrans with run_count=object.run_stats.total|intcomma count cc=object.run_stats.total %}
-                              {{ run_count }} run
-                            {% plural %}
-                              {{run_count}} runs
+                        -else
+                          %td.value-status.px-4
+                            %a.href{href:'{% url "flows.flow_results" object.uuid %}'}
+                              {% blocktrans with run_count=object.run_stats.total|intcomma count cc=object.run_stats.total %}
+                                {{ run_count }} run
+                              {% plural %}
+                                {{run_count}} runs
+                              {% endblocktrans %}
+
+                          %td.value-status.pr-4
+                            {% blocktrans with completed_percentage=object.run_stats.completion %}
+                              {{ completed_percentage }}% completion
                             {% endblocktrans %}
 
-                        %td.value-status
-                          {% blocktrans with completed_percentage=object.run_stats.completion %}
-                            {{ completed_percentage }}% completion
-                          {% endblocktrans %}
+                    -empty
+                      %tr.flow
+                        %td.flow
+                          -trans "No matching flows."
 
-                  -empty
-                    %tr.flow
-                      %td.flow
-                        -trans "No matching flows."
-
-              - block paginator
-                - if object_list.count
-                  .paginator
-                    - include "smartmin/sidebar_pagination.haml"
+                - block paginator
+                  // - if object_list.count
+                    .paginator
+                      - include "smartmin/sidebar_pagination.haml"
 
 -block extra-script
   {{ block.super }}
