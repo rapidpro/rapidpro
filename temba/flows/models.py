@@ -3223,7 +3223,9 @@ class FlowRevision(SmartModel):
         for item in flow_definition.get("nodes", []):
             timeout = item.get("router", {}).get("wait", {}).get("timeout")
             if timeout is not None and timeout.get("seconds"):
-                timeout["seconds"] //= 60
+                timeout_seconds = timeout["seconds"]
+                timeout_seconds //= 60
+                timeout["seconds"] = timeout_seconds or 10
                 item["router"]["wait"]["timeout"].update(timeout)
 
             for action in item.get("actions", []):
