@@ -298,8 +298,6 @@ class MigrationTask(TembaModel):
             if org_flows:
                 self.add_flows(logger=logger, flows=org_flows, migrator=migrator, count=flows_count)
 
-                self.add_flow_flow_dependencies(flows=org_flows, migrator=migrator)
-
             logger.info("[COMPLETED] Flows migration")
             logger.info("")
 
