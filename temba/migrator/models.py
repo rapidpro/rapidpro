@@ -686,8 +686,10 @@ class MigrationTask(TembaModel):
             # If it is not the same from live, would affect the contact messages history
             existing_contact.created_on = contact.created_on
             existing_contact.modified_on = contact.modified_on
-            existing_contact.save(update_fields=["created_on", "modified_on", "is_blocked", "is_stopped", "is_active", "name"],
-                                  handle_update=True)
+            existing_contact.save(
+                update_fields=["created_on", "modified_on", "is_blocked", "is_stopped", "is_active", "name"],
+                handle_update=True,
+            )
 
             MigrationAssociation.create(
                 migration_task=self,
@@ -1120,7 +1122,17 @@ class MigrationTask(TembaModel):
                 new_flow.ignore_triggers = flow.ignore_triggers
                 new_flow.expires_after_minutes = flow.expires_after_minutes
                 new_flow.base_language = flow.base_language
-                new_flow.save(update_fields=["name", "is_archived", "entry_uuid", "entry_type", "ignore_triggers", "expires_after_minutes", "base_language"])
+                new_flow.save(
+                    update_fields=[
+                        "name",
+                        "is_archived",
+                        "entry_uuid",
+                        "entry_type",
+                        "ignore_triggers",
+                        "expires_after_minutes",
+                        "base_language",
+                    ]
+                )
 
             if new_flow.uuid != flow.uuid:
                 new_flow.uuid = flow.uuid
