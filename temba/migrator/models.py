@@ -395,7 +395,23 @@ class MigrationTask(TembaModel):
         self.org.stripe_customer = org_data.stripe_customer
         self.org.language = org_data.language
         self.org.date_format = org_data.date_format
-        self.org.config = json.loads(org_data.config) if org_data.config else dict()
+        org_config = json.loads(org_data.config) if org_data.config else dict()
+        if org_config.get("SMTP_FROM_EMAIL", None):
+            self.org.add_smtp_config(
+                from_email=org_config.get("SMTP_FROM_EMAIL"),
+                host=org_config.get("SMTP_HOST"),
+                username=org_config.get("SMTP_USERNAME"),
+                password=org_config.get("SMTP_PASSWORD"),
+                port=org_config.get("SMTP_PORT"),
+                user=self.created_by,
+            )
+            org_config.pop("SMTP_FROM_EMAIL")
+            org_config.pop("SMTP_HOST")
+            org_config.pop("SMTP_USERNAME")
+            org_config.pop("SMTP_PASSWORD")
+            org_config.pop("SMTP_PORT")
+            org_config.pop("SMTP_ENCRYPTION")
+        self.org.config.update(org_config)
         self.org.is_anon = org_data.is_anon
         self.org.surveyor_password = org_data.surveyor_password
 
