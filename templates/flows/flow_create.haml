@@ -11,7 +11,8 @@
     .ml-3
       -render_field 'flow_type'
 
-  -render_field 'keyword_triggers'
+  .keywords{class:"{%if form.flow_type.value == 'S'%}hidden{%endif%}"}
+    -render_field 'keyword_triggers'
   
   -if form.base_language
     .flex.flex-col
@@ -25,16 +26,16 @@
   {{block.super}}
 
   :javascript
-    $(document).ready(function() {
-      // Don't show keywords when Surveyor is selected
-      $('#id_flow_type').on('change', function() {
-        var is_surveyor = $(this).attr('value') == 'S';
-        var triggers = $('#id_keyword_triggers').parents('.control-group')
 
-        if (is_surveyor) {
-          triggers.hide()
+    var modalBody = document.querySelector("#create-flow-modal").shadowRoot
+    var typeSelect = modalBody.querySelector("temba-select[name='flow_type']");
+    var keywords = modalBody.querySelector(".keywords");
+    
+    typeSelect.addEventListener("change", function(evt) {
+        var selected = evt.target.values[0];
+        if (selected.value === "S") {
+          keywords.classList.add("hidden");
         } else {
-          triggers.show()
+          keywords.classList.remove("hidden");
         }
-      });
     });

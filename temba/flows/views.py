@@ -48,7 +48,15 @@ from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, on_transaction_commit, str_to_bool
-from temba.utils.fields import ContactSearchWidget, InputWidget, JSONField, OmniboxChoice, SelectWidget
+from temba.utils.fields import (
+    CheckboxWidget,
+    ContactSearchWidget,
+    InputWidget,
+    JSONField,
+    OmniboxChoice,
+    SelectMultipleWidget,
+    SelectWidget,
+)
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
 from temba.utils.uuid import uuid4
@@ -1119,7 +1127,12 @@ class FlowCRUDL(SmartCRUDL):
                 and not flow.is_archived
             ):
                 links.append(
-                    dict(title=_("Start Flow"), style="btn-primary", js_class="broadcast-rulesflow", href="#")
+                    dict(
+                        id="start-flow",
+                        title=_("Start Flow"),
+                        href=f"{reverse('flows.flow_broadcast')}",
+                        modax=_("Start Flow"),
+                    )
                 )
 
             if self.has_org_perm("flows.flow_results"):
@@ -1253,14 +1266,19 @@ class FlowCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
             flow = self.object
-
             if (
                 flow.flow_type != Flow.TYPE_SURVEY
                 and self.has_org_perm("flows.flow_broadcast")
                 and not flow.is_archived
             ):
                 links.append(
-                    dict(title=_("Start Flow"), style="btn-primary", js_class="broadcast-rulesflow", href="#")
+                    dict(
+                        id="start-flow",
+                        title=_("Start Flow"),
+                        style="button-primary",
+                        href=f"{reverse('flows.flow_broadcast', args=[self.object.pk])}",
+                        modax=_("Start Flow"),
+                    )
                 )
 
             if self.has_org_perm("flows.flow_results"):
@@ -1529,20 +1547,24 @@ class FlowCRUDL(SmartCRUDL):
             group_memberships = forms.ModelMultipleChoiceField(
                 queryset=ContactGroup.user_groups.none(),
                 required=False,
-                label=_("Which group memberships, if any, to include in the export"),
+                label=_("Groups"),
+                widget=SelectMultipleWidget(attrs={"placeholder": _("Optional: Group memberships")}),
             )
 
             contact_fields = forms.ModelMultipleChoiceField(
                 ContactField.user_fields.filter(id__lt=0),
                 required=False,
-                help_text=_("Which contact fields, if any, to include " "in the export"),
+                label=("Fields"),
+                widget=SelectMultipleWidget(attrs={"placeholder": _("Optional: Fields to include")}),
             )
 
             extra_urns = forms.MultipleChoiceField(
                 required=False,
-                label=_("Extra URNs"),
+                label=_("URNs"),
                 choices=ContactURN.EXPORT_SCHEME_HEADERS,
-                help_text=_("Extra URNs to include in the export in addition to " "the URN used in the flow"),
+                widget=SelectMultipleWidget(
+                    attrs={"placeholder": _("Optional: URNs in addition to the one used in the flow")}
+                ),
             )
 
             responded_only = forms.BooleanField(
@@ -1550,11 +1572,13 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Responded Only"),
                 initial=True,
                 help_text=_("Only export results for contacts which responded"),
+                widget=CheckboxWidget(),
             )
             include_msgs = forms.BooleanField(
                 required=False,
                 label=_("Include Messages"),
                 help_text=_("Export all messages sent and received in this flow"),
+                widget=CheckboxWidget(),
             )
 
             def __init__(self, user, *args, **kwargs):
@@ -2073,6 +2097,7 @@ class FlowCRUDL(SmartCRUDL):
                 required=False,
                 initial=False,
                 help_text=_("Restart any contacts already participating in this flow"),
+                widget=CheckboxWidget(),
             )
 
             include_active = forms.BooleanField(
@@ -2080,6 +2105,7 @@ class FlowCRUDL(SmartCRUDL):
                 required=False,
                 initial=False,
                 help_text=_("Include contacts currently active in a flow"),
+                widget=CheckboxWidget(),
             )
 
             recipients_mode = forms.ChoiceField(
@@ -2094,7 +2120,8 @@ class FlowCRUDL(SmartCRUDL):
             )
 
             contact_query = forms.CharField(
-                required=False, widget=ContactSearchWidget(attrs={"placeholder": _("Enter contact query")})
+                required=False,
+                widget=ContactSearchWidget(attrs={"widget_only": True, "placeholder": _("Enter contact query")}),
             )
 
             def clean_contact_query(self):

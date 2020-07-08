@@ -20,7 +20,7 @@
       -if gear_links|length == 1
         -with link=gear_links|first
           -if link.modax
-            .button-light{onclick:'showModax("{{link.id}}")'}
+            .button-light{onclick:'showModax("{{link.id}}")', class:'{{ link|gear_link_classes:True }}'}
               {{link.title}}
               %span{class:'gear-flag'}
                 {{link.flag}}
@@ -32,7 +32,7 @@
       - else
         -with link=gear_links|first
           -if link.modax
-            .button-light{onclick:'javascript:showModax("{{link.id}}")', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
+            .button-light{onclick:'javascript:showModax("{{link.id}}")', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
               {{link.title}}
                 %span{class:'gear-flag'}
                   {{link.flag}}
@@ -54,7 +54,7 @@
             -for link in gear_links
               -if not forloop.first
                 -if link.divider
-                  %li.divider
+                  %li.separator.-mx-4.border-b.my-3.border-gray-200
                 -else
                   %li.py-1
                     -if link.ngClick

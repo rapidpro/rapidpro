@@ -85,6 +85,7 @@ class SelectMultipleWidget(SelectWidget):
 
 class ContactSearchWidget(forms.Widget):
     template_name = "utils/forms/contact_search.haml"
+    is_annotated = True
 
 
 class CompletionTextarea(forms.Widget):

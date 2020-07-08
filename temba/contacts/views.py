@@ -1814,7 +1814,7 @@ class CreateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
         widgets = {
             "label": InputWidget(attrs={"name": _("Field Name"), "widget_only": False}),
             "value_type": SelectWidget(attrs={"widget_only": False}),
-            "show_in_table": CheckboxWidget(attrs={"widget_only": False}),
+            "show_in_table": CheckboxWidget(attrs={"widget_only": True}),
         }
 
 
@@ -1831,7 +1831,7 @@ class UpdateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
         widgets = {
             "label": InputWidget(attrs={"name": _("Field Name"), "widget_only": False}),
             "value_type": SelectWidget(attrs={"widget_only": False}),
-            "show_in_table": CheckboxWidget(attrs={"widget_only": False}),
+            "show_in_table": CheckboxWidget(attrs={"widget_only": True}),
         }
 
 

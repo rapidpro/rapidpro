@@ -6,7 +6,7 @@
   .search-details
 
 -block message-list
-  %table.mt-4.mx-4.table
+  %table.mt-4.mx-4.object-list
     %tbody
       -for broadcast in pending_broadcasts
         %tr.broadcast
@@ -32,20 +32,20 @@
               {% short_datetime broadcast.created_on %}
 
       -for object in object_list
-        %tr.sms.object-row.select-row{id: 'id-row-{{object.id}}', class:'{% cycle row1 row2 %}', data-object-id:'{{ object.id }}',
-                       data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', data-sender-select2:'{{object.contact|short_name:user_org}}'}
-          %td.value-phone.field_phone
-            %nobr
-              {{ object.contact|short_name:user_org }}
-          %td.value-text.field_text.wrapped
-            {% get_value object 'text' %}
+        %tr
+          %td.whitespace-no-wrap
+            .px-6.py-3
+              .linked{onclick:"goto(event)", href:"/contact/read/{{object.contact.uuid}}/"}
+                {{ object.contact|short_name:user_org }}
+          %td.w-full
+              {% get_value object 'text' %}
 
-            - if 'label' in actions
-              .value-labels
-                - for label in object.labels.all
-                  %span.label.label-info.lbl{ data-id: '{{label.id}}' }
-                    %a{href:"{% url 'msgs.msg_filter' label.uuid %}"}
-                      {{label.name}}
+              - if 'label' in actions
+                .value-labels
+                  - for label in object.labels.all
+                    %span.label.label-info.lbl{ data-id: '{{label.id}}' }
+                      %a{href:"{% url 'msgs.msg_filter' label.uuid %}"}
+                        {{label.name}}
 
             -if object.attachments
               .value-attachments{ style:"margin-top: 5px" }

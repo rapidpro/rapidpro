@@ -4,15 +4,10 @@
 
 -block page-top
 
--block top-form
-  - if view.search_fields
-    - block search-form
-      %form
-        %input.input-medium.search-query{type:'text', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
-        -if request.REQUEST.status
-          %input{type:'hidden', name:'status', value:'{{request.REQUEST.status}}'}
-
 -block content
+
+  -if org_perms.flows.flow_update
+    %temba-modax#export-results{ header:'{% trans "Export Flow Results" %}' }
 
   -if not org_has_flows
     -include "flows/empty_include.html"
@@ -25,7 +20,7 @@
               .flex.flex-col
                 -if org_perms.flows.flow_create
                   .w-64.mr-5
-                    %temba-modax#send-message-modal{ header:'{% trans "Create Flow" %}', endpoint:"{% url 'flows.flow_create' %}" }
+                    %temba-modax#create-flow-modal{ header:'{% trans "Create Flow" %}', endpoint:"{% url 'flows.flow_create' %}" }
                       .button-primary
                         -trans "Create Flow"
               
@@ -167,9 +162,11 @@
                 .ml-4
                   -include "gear_links_include.haml"
 
-              %form#search-form.mb-4{method:"get"}
-                %temba-textinput.w-full{onsubmit:'document.querySelector("#search-form").submit();', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
-
+              -if view.search_fields
+                %form#search-form.mb-4{method:"get"}
+                  %temba-textinput{onsubmit:'document.querySelector("#search-form").submit();', type:'text', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
+                  -if request.REQUEST.status
+                    %input{type:'hidden', name:'status', value:'{{request.REQUEST.status}}'}
 
               -block flow-list
                 %table.object-list{style: '{% if not org_perms.flows.flow_update %}margin-top:10px{% endif %}'}
@@ -233,12 +230,13 @@
 
     {% if org_perms.flows.flow_update %}
     function exportFlows(){
-      var flowIds = getCheckedIds();
-      var modal = new Modax('{{ _("Export Flow Results")|escapejs }}', '{% url "flows.flow_export_results" %}?ids=' + flowIds.join());
-      modal.setIcon('icon-excel');
-      modal.setRedirectOnSuccess(true);
-      modal.show();
-    }
+      var endpoint = '{% url "flows.flow_export_results" %}';
+      var modal = document.querySelector("#export-results");
+      var ids = getCheckedIds();
+      if (ids.length > 0) {
+        modal.setAttribute("endpoint", endpoint + '?ids=' + ids);
+      }
+      modal.open = true;
     {% endif %}
 
     {% if org_perms.flows.flow_update %}
