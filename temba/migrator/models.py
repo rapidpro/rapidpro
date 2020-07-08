@@ -678,12 +678,18 @@ class MigrationTask(TembaModel):
                     is_active=contact.is_active,
                     uuid=contact.uuid,
                 )
+            else:
+                existing_contact.name = contact.name
+                existing_contact.is_blocked = contact.is_blocked
+                existing_contact.is_stopped = contact.is_stopped
+                existing_contact.is_active = contact.is_active
 
             # Making sure that the contacts will have the same created_on and modified_on from live
             # If it is not the same from live, would affect the contact messages history
             existing_contact.created_on = contact.created_on
             existing_contact.modified_on = contact.modified_on
-            existing_contact.save(update_fields=["created_on", "modified_on"], handle_update=True)
+            existing_contact.save(update_fields=["created_on", "modified_on", "is_blocked", "is_stopped", "is_active", "name"],
+                                  handle_update=True)
 
             MigrationAssociation.create(
                 migration_task=self,
