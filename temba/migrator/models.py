@@ -1512,9 +1512,11 @@ class MigrationTask(TembaModel):
                     created_by=self.created_by,
                     modified_by=self.created_by,
                 )
+            else:
+                new_campaign.name = campaign.name
 
             new_campaign.group = new_group_obj
-            new_campaign.save(update_fields=["group"])
+            new_campaign.save(update_fields=["group", "name"])
 
             if new_campaign.uuid != campaign.uuid:
                 new_campaign.uuid = campaign.uuid
