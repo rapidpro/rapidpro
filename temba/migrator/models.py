@@ -1043,6 +1043,9 @@ class MigrationTask(TembaModel):
             new_flow_label = FlowLabel.objects.filter(uuid=label.uuid).only("id").first()
             if not new_flow_label:
                 new_flow_label = FlowLabel.objects.create(org=self.org, uuid=label.uuid, name=label.name)
+            else:
+                new_flow_label.name = label.name
+                new_flow_label.save(update_fields=["name"])
 
             if new_flow_label.uuid != label.uuid:
                 new_flow_label.uuid = label.uuid
@@ -1111,6 +1114,15 @@ class MigrationTask(TembaModel):
                 new_flow.created_on = flow.created_on
                 new_flow.modified_on = flow.modified_on
                 new_flow.save(update_fields=["saved_on", "created_on", "modified_on"])
+            else:
+                new_flow.name = flow.name
+                new_flow.is_archived = flow.is_archived
+                new_flow.entry_uuid = flow.entry_uuid
+                new_flow.entry_type = flow.entry_type
+                new_flow.ignore_triggers = flow.ignore_triggers
+                new_flow.expires_after_minutes = flow.expires_after_minutes
+                new_flow.base_language = flow.base_language
+                new_flow.save(update_fields=["name", "is_archived", "entry_uuid", "entry_type", "ignore_triggers", "expires_after_minutes", "base_language"])
 
             if new_flow.uuid != flow.uuid:
                 new_flow.uuid = flow.uuid
@@ -1294,8 +1306,10 @@ class MigrationTask(TembaModel):
             # Updating metadata
             try:
                 flow_info = mailroom.get_client().flow_inspect(self.org.id, revision_json_dict)
+                dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
                 new_flow.metadata = Flow.get_metadata(flow_info)
                 new_flow.save(update_fields=["metadata"])
+                new_flow.update_dependencies(dependencies)
             except Exception:
                 pass
 
