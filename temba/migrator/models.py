@@ -298,8 +298,6 @@ class MigrationTask(TembaModel):
             if org_flows:
                 self.add_flows(logger=logger, flows=org_flows, migrator=migrator, count=flows_count)
 
-                self.add_flow_flow_dependencies(flows=org_flows, migrator=migrator)
-
             logger.info("[COMPLETED] Flows migration")
             logger.info("")
 
@@ -395,7 +393,23 @@ class MigrationTask(TembaModel):
         self.org.stripe_customer = org_data.stripe_customer
         self.org.language = org_data.language
         self.org.date_format = org_data.date_format
-        self.org.config = json.loads(org_data.config) if org_data.config else dict()
+        org_config = json.loads(org_data.config) if org_data.config else dict()
+        if org_config.get("SMTP_FROM_EMAIL", None):
+            self.org.add_smtp_config(
+                from_email=org_config.get("SMTP_FROM_EMAIL"),
+                host=org_config.get("SMTP_HOST"),
+                username=org_config.get("SMTP_USERNAME"),
+                password=org_config.get("SMTP_PASSWORD"),
+                port=org_config.get("SMTP_PORT"),
+                user=self.created_by,
+            )
+            org_config.pop("SMTP_FROM_EMAIL")
+            org_config.pop("SMTP_HOST")
+            org_config.pop("SMTP_USERNAME")
+            org_config.pop("SMTP_PASSWORD")
+            org_config.pop("SMTP_PORT")
+            org_config.pop("SMTP_ENCRYPTION")
+        self.org.config.update(org_config)
         self.org.is_anon = org_data.is_anon
         self.org.surveyor_password = org_data.surveyor_password
 
@@ -516,15 +530,11 @@ class MigrationTask(TembaModel):
                 migration_task=self, old_id=channel.id, new_id=new_channel.id, model=MigrationAssociation.MODEL_CHANNEL
             )
 
-            channel_counts = migrator.get_channels_count(channel_id=channel.id)
-            for channel_count in channel_counts:
-                ChannelCount.objects.create(
-                    channel=new_channel,
-                    count_type=channel_count.count_type,
-                    day=channel_count.day,
-                    count=channel_count.count,
-                    is_squashed=channel_count.is_squashed,
-                )
+            # Trying to remove channel counting to avoid discrepancy on messages number on org dashboard page
+            # We do not need to migrate ChannelCount because it is triggered automatically when a msg is inserted
+            old_channels = Channel.objects.filter(org=self.org, address=channel.address, channel_type=channel_type.code)
+            for old_channel in old_channels:
+                ChannelCount.objects.filter(channel=old_channel).delete()
 
             # If the channel is an Android channel it will migrate the sync events
             if channel_type.code == "A":
@@ -662,12 +672,20 @@ class MigrationTask(TembaModel):
                     is_active=contact.is_active,
                     uuid=contact.uuid,
                 )
+            else:
+                existing_contact.name = contact.name
+                existing_contact.is_blocked = contact.is_blocked
+                existing_contact.is_stopped = contact.is_stopped
+                existing_contact.is_active = contact.is_active
 
             # Making sure that the contacts will have the same created_on and modified_on from live
             # If it is not the same from live, would affect the contact messages history
             existing_contact.created_on = contact.created_on
             existing_contact.modified_on = contact.modified_on
-            existing_contact.save(update_fields=["created_on", "modified_on"], handle_update=True)
+            existing_contact.save(
+                update_fields=["created_on", "modified_on", "is_blocked", "is_stopped", "is_active", "name"],
+                handle_update=True,
+            )
 
             MigrationAssociation.create(
                 migration_task=self,
@@ -1021,6 +1039,9 @@ class MigrationTask(TembaModel):
             new_flow_label = FlowLabel.objects.filter(uuid=label.uuid).only("id").first()
             if not new_flow_label:
                 new_flow_label = FlowLabel.objects.create(org=self.org, uuid=label.uuid, name=label.name)
+            else:
+                new_flow_label.name = label.name
+                new_flow_label.save(update_fields=["name"])
 
             if new_flow_label.uuid != label.uuid:
                 new_flow_label.uuid = label.uuid
@@ -1089,6 +1110,25 @@ class MigrationTask(TembaModel):
                 new_flow.created_on = flow.created_on
                 new_flow.modified_on = flow.modified_on
                 new_flow.save(update_fields=["saved_on", "created_on", "modified_on"])
+            else:
+                new_flow.name = flow.name
+                new_flow.is_archived = flow.is_archived
+                new_flow.entry_uuid = flow.entry_uuid
+                new_flow.entry_type = flow.entry_type
+                new_flow.ignore_triggers = flow.ignore_triggers
+                new_flow.expires_after_minutes = flow.expires_after_minutes
+                new_flow.base_language = flow.base_language
+                new_flow.save(
+                    update_fields=[
+                        "name",
+                        "is_archived",
+                        "entry_uuid",
+                        "entry_type",
+                        "ignore_triggers",
+                        "expires_after_minutes",
+                        "base_language",
+                    ]
+                )
 
             if new_flow.uuid != flow.uuid:
                 new_flow.uuid = flow.uuid
@@ -1272,8 +1312,10 @@ class MigrationTask(TembaModel):
             # Updating metadata
             try:
                 flow_info = mailroom.get_client().flow_inspect(self.org.id, revision_json_dict)
+                dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
                 new_flow.metadata = Flow.get_metadata(flow_info)
                 new_flow.save(update_fields=["metadata"])
+                new_flow.update_dependencies(dependencies)
             except Exception:
                 pass
 
@@ -1478,9 +1520,11 @@ class MigrationTask(TembaModel):
                     created_by=self.created_by,
                     modified_by=self.created_by,
                 )
+            else:
+                new_campaign.name = campaign.name
 
             new_campaign.group = new_group_obj
-            new_campaign.save(update_fields=["group"])
+            new_campaign.save(update_fields=["group", "name"])
 
             if new_campaign.uuid != campaign.uuid:
                 new_campaign.uuid = campaign.uuid
