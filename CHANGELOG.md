@@ -1,3 +1,7 @@
+v5.6.3
+----------
+ * Add variables for nav colors
+
 v5.6.2
 ----------
  * Fix failing to manage logins when the we are logged in the same org
