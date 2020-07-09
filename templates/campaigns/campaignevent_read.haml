@@ -131,7 +131,7 @@
     :javascript
       {% if org_perms.campaigns.campaignevent_update %}
         $(".update-event").live('click', function(){
-          var modal = new Modax('Update Event', '{% url "campaigns.campaignevent_update" object.pk %}');
+          var modal = new Modax('{{_("Update Event")|escapejs }}', '{% url "campaigns.campaignevent_update" object.pk %}');
           modal.setIcon('icon-instant');
           modal.setRedirectOnSuccess(true);
           modal.show();

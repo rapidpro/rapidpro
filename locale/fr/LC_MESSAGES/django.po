@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-03 18:23+0000\n"
+"POT-Creation-Date: 2020-07-09 14:24+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -4277,6 +4277,24 @@ msgstr "Authentification à deux facteurs"
 
 #, fuzzy
 #| msgid "Select your Organization"
+msgid "Workspaces"
+msgstr "Choisissez votre Organisation"
+
+msgid "Dashboard"
+msgstr "Tableau de bord"
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "New Workspace"
+msgstr "Choisissez votre Organisation"
+
+#, fuzzy
+#| msgid "Purchased Credits"
+msgid "Transfer Credits"
+msgstr "Crédits achetés"
+
+#, fuzzy
+#| msgid "Select your Organization"
 msgid "Select your Workspace"
 msgstr "Choisissez votre Organisation"
 
@@ -7184,9 +7202,6 @@ msgstr ""
 "      à partir d'un fichier créé dans Excel.\n"
 "    "
 
-msgid "Dashboard"
-msgstr "Tableau de bord"
-
 msgid "Are you sure you want to remove"
 msgstr "Etes-vous sûr que vous voulez supprimer"
 
@@ -7391,6 +7406,11 @@ msgstr ""
 
 msgid "Delete Flow"
 msgstr "Supprimer le flux"
+
+#, fuzzy
+#| msgid "Update Folder"
+msgid "Update Flow"
+msgstr "Mettre à jour le dossier"
 
 msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
 msgstr "Le nouvel éditeur fournit de nouvelles fonctionnalités puissantes et de meilleures performances, mais veuillez noter que cela ne peut pas être annulé."
@@ -9038,11 +9058,6 @@ msgid "Your workspace is configured to use a single language."
 msgstr "Votre organisation est configurée pour utiliser une seule langue."
 
 #, fuzzy
-#| msgid "Select your Organization"
-msgid "Workspaces"
-msgstr "Choisissez votre Organisation"
-
-#, fuzzy
 #| msgid "Login"
 msgid "Logins"
 msgstr "S'identifier"
@@ -9251,6 +9266,11 @@ msgstr ""
 #, fuzzy
 #| msgid "Select your Organization"
 msgid "Manage Workspaces"
+msgstr "Choisissez votre Organisation"
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Add Workspace"
 msgstr "Choisissez votre Organisation"
 
 #, fuzzy, python-format
