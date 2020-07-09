@@ -530,6 +530,11 @@ class MigrationTask(TembaModel):
                 migration_task=self, old_id=channel.id, new_id=new_channel.id, model=MigrationAssociation.MODEL_CHANNEL
             )
 
+            # Trying to remove channel counting to avoid discrepancy on messages number on org dashboard page
+            old_channels = Channel.objects.filter(org=self.org, address=channel.address, channel_type=channel_type.code)
+            for old_channel in old_channels:
+                ChannelCount.objects.filter(channel=old_channel).delete()
+
             channel_counts = migrator.get_channels_count(channel_id=channel.id)
             for channel_count in channel_counts:
                 ChannelCount.objects.create(
