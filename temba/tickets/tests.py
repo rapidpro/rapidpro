@@ -75,7 +75,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # can close tickets with an action POST
         with patch("temba.mailroom.client.MailroomClient.ticket_close") as mock_close:
-            self.requestView(open_url, self.admin, post_data={"action": "close", "objects": [ticket2.id]})
+            response = self.requestView(open_url, self.admin, post_data={"action": "close", "objects": [ticket2.id]})
+            self.assertEqual(200, response.status_code)
 
         mock_close.assert_called_once_with(self.org.id, [ticket2.id])
 

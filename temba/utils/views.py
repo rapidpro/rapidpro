@@ -2,7 +2,7 @@ import logging
 
 from django import forms
 from django.db import transaction
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -27,6 +27,71 @@ class NonAtomicMixin(View):
     @transaction.non_atomic_requests
     def dispatch(self, request, *args, **kwargs):
         return super().dispatch(request, *args, **kwargs)
+
+
+class BulkActionMixin:
+    action_choices = ()
+    action_permissions = {}
+
+    class Form(forms.Form):
+        def __init__(self, actions, queryset, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+            self.fields["action"] = forms.ChoiceField(choices=actions)
+            self.fields["objects"] = forms.ModelMultipleChoiceField(queryset=queryset, required=True)
+
+        class Meta:
+            fields = ("action", "objects")
+
+    def dispatch(self, *args, **kwargs):
+        """
+        Need to allow posts which are otherwise not allowed on list views
+        """
+        return super().dispatch(*args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        """
+        Handles a POSTed action form and returns the default GET response
+        """
+        user = self.get_user()
+        org = user.get_org()
+        form = BulkActionMixin.Form(self.action_choices, self.get_queryset(), data=self.request.POST)
+
+        if form.is_valid():
+            action = form.cleaned_data["action"]
+            objects = form.cleaned_data["objects"]
+
+            # check we have the required permission for this action
+            permission = self.get_bulk_action_permission(action)
+            if not user.has_perm(permission) and not user.has_org_perm(org, permission):
+                return HttpResponseForbidden()
+
+            try:
+                self.apply_bulk_action(user, action, objects)
+            except Exception:
+                msg = f"unable to apply {action} to {len(objects)} {self.model.__name__} objects"
+                logger.exception(msg)
+                return HttpResponseBadRequest(msg)
+
+        return self.get(request, *args, **kwargs)
+
+    def get_bulk_action_permission(self, action):
+        """
+        Gets the required permission for the given action (defaults to the update permission for the model class)
+        """
+        default = f"{self.model._meta.app_label}.{self.model.__name__.lower()}_update"
+
+        return self.action_permissions.get(action, default)
+
+    def apply_bulk_action(self, user, action, objects):
+        """
+        Applies the given action to the given objects
+        """
+        func_name = f"apply_action_{action}"
+        model_func = getattr(self.model, func_name)
+        assert model_func, f"{self.model.__name__} has no method called {func_name}"
+
+        model_func(user, objects)
 
 
 class BaseActionForm(forms.Form):

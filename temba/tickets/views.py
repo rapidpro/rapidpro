@@ -9,7 +9,7 @@ from django.utils.html import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils.views import BaseActionForm
+from temba.utils.views import BulkActionMixin
 
 from .models import Ticket, Ticketer
 
@@ -56,33 +56,9 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
         return context
 
 
-class TicketActionForm(BaseActionForm):
-    allowed_actions = (("close", "Close Tickets"), ("reopen", "Reopen Tickets"))
-
-    model = Ticket
-    has_is_active = False
-
-    class Meta:
-        fields = ("action", "objects")
-
-
-class TicketActionMixin(SmartListView):
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        user = self.request.user
-        org = user.get_org()
-
-        form = TicketActionForm(self.request.POST, org=org, user=user)
-        if form.is_valid():
-            form.execute()
-
-        return self.get(request, *args, **kwargs)
-
-
-class TicketListView(OrgPermsMixin, TicketActionMixin, SmartListView):
+class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
     folder = None
+    action_choices = (("close", "Close Tickets"), ("reopen", "Reopen Tickets"))
     actions = ()
     fields = ("contact", "subject", "body", "opened_on")
     select_related = ("ticketer", "contact")
