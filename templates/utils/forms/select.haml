@@ -1,13 +1,19 @@
 <temba-select name="{{ widget.name }}" {% include "django/forms/widgets/attrs.html" %}>
+  {% if widget.attrs.tags %}
+    {% for selected_value in widget.value %}
+      <temba-option value="{{selected_value}}" name="{{selected_value}}" selected></temba-option>
+    {% endfor %}
+  {% endif %}
 
-{% for group_name, group_choices, group_index in widget.optgroups %}
-  {% if group_name %}<optgroup label="{{ group_name }}">{% endif %}
-  {% for option in group_choices %}
-    {% if option.label != '---------' %}
-    <temba-option name="{{ option.label }}" value="{{ option.value|stringformat:'s' }}" {%if option.selected%}selected{%endif%}></temba-option>
-    {% endif %}
+  {% for group_name, group_choices, group_index in widget.optgroups %}
+    {% if group_name %}<optgroup label="{{ group_name }}">{% endif %}
+    {% for option in group_choices %}
+      {% if option.label != '---------' %}
+        <temba-option name="{{ option.label }}" value="{{ option.value|stringformat:'s' }}" {%if option.selected%}selected{%endif%}></temba-option>
+      {% endif %}
+    {% endfor %}
+
+    {% if group_name %}</optgroup>{% endif %}
   {% endfor %}
-
-  {% if group_name %}</optgroup>{% endif %}{% endfor %}
 </temba-select>
 

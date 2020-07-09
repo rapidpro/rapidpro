@@ -367,21 +367,11 @@
       .menu
         -include "gear_links_include.haml"
 
-    -if is_starting or True
+    -if is_starting
       .p-3.bg-gray-100.w-full.text-center
         -blocktrans trimmed
           This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
 
-
-  #toolbar.hidden
-    .actions.pull-right
-      
-    %h2
-      -if flow.flow_type == 'V'
-        .icon-phone
-      -elif flow.flow_type == 'S'
-        .icon-mobile
-      {{ flow.name }}
   .hide
     %a#change-language-form.posterize(href='{% url "flows.flow_change_language" object.id %}')
       .body

@@ -238,21 +238,24 @@
     -include "flows/simulator.html"
 
     #toolbar
-      .actions.pull-right
-        -include "gear_links_include.haml"
+      .flex.flex-col.pt-4.-mt-8
+        .flex.px-8.pb-2
+          .title.flex-grow
+            .flex
+              -if flow.flow_type == 'V'
+                .icon-phone.text-4xl.mt-2.mr-8
+              -elif flow.flow_type == 'S'
+                .icon-mobile.text-4xl.mt-2.mr-8
+              .text-4xl.text-gray-600
+                {{title}}
+          .menu
+            -include "gear_links_include.haml"
 
-      %h2
-        -if flow.flow_type == 'V'
-          .icon-phone
-        -elif flow.flow_type == 'S'
-          .icon-mobile
-        {{ flow.name }}
-
-      -if messages
-        #messages
-          -for msg in messages
-            %div{class:"alert alert-{{ message.tags }}"}
-              {{ msg }}
+        -if messages
+          #messages
+            -for msg in messages
+              %div{class:"alert alert-{{ message.tags }}"}
+                {{ msg }}
 
       #pending{ng-show:'is_starting'}
         %div{class:"alert alert-info"}

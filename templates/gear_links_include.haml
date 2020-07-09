@@ -58,7 +58,7 @@
                 -else
                   %li.py-1
                     -if link.ngClick
-                      %a{href:'{{link.href}}', ng-click:'{{link.ngClick}}', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
+                      .linked{onclick:"goto(event);", href:'{{link.href}}', ng-click:'{{link.ngClick}}', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
                         {{link.title}}
                         .gear-flag
                           {{link.flag}}
