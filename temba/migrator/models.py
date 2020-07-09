@@ -638,14 +638,21 @@ class MigrationTask(TembaModel):
         for idx, field in enumerate(fields, start=1):
             logger.info(f">>> [{idx}/{count}] Contact Field: {field.id} - {field.label}")
 
-            new_contact_field = ContactField.get_or_create(
-                user=self.created_by,
-                org=self.org,
-                key=field.key,
-                label=field.label,
-                show_in_table=field.show_in_table,
-                value_type=field.value_type,
-            )
+            new_contact_field = ContactField.all_fields.filter(uuid=field.uuid, org=self.org).first()
+            if not new_contact_field:
+                new_contact_field = ContactField.get_or_create(
+                    user=self.created_by,
+                    org=self.org,
+                    key=field.key,
+                    label=field.label,
+                    show_in_table=field.show_in_table,
+                    value_type=field.value_type,
+                )
+            else:
+                new_contact_field.key = field.key
+                new_contact_field.label = field.label
+                new_contact_field.save(update_fields=["key", "label"])
+
             if field.uuid != new_contact_field.uuid:
                 new_contact_field.uuid = field.uuid
                 new_contact_field.save(update_fields=["uuid"])
