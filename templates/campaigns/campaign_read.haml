@@ -204,7 +204,7 @@
 
     {% if org_perms.campaigns.campaignevent_create %}
       $(".add-event").live('click', function(){
-        var modal = new Modax('Add Event','{% url "campaigns.campaignevent_create" %}?campaign={{ object.id }}');
+        var modal = new Modax('{{_("Add Event")|escapejs }}','{% url "campaigns.campaignevent_create" %}?campaign={{ object.id }}');
         modal.setIcon('icon-instant');
         modal.setListeners({ onFormLoaded: function() { $('#id_message').focus() }});
         modal.setRedirectOnSuccess(true);
