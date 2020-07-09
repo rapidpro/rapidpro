@@ -1,3 +1,7 @@
+v5.6.2
+----------
+ * Fix failing to manage logins when the we are logged in the same org
+
 v5.6.1
 ----------
  * instead of dates, keep track of seen runs when excluding archived runs from exports
