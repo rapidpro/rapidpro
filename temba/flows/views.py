@@ -538,6 +538,7 @@ class FlowCRUDL(SmartCRUDL):
         fields = ("id",)
         cancel_url = "uuid@flows.flow_editor"
         success_message = ""
+        submit_button_name = _("Delete")
 
         def get_success_url(self):
             return reverse("flows.flow_list")
@@ -1413,6 +1414,7 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Include Arguments"),
                 initial=True,
                 help_text=_("Include arguments to tests on splits"),
+                widget=CheckboxWidget(),
             )
 
             def __init__(self, user, instance, *args, **kwargs):
