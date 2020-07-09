@@ -531,19 +531,10 @@ class MigrationTask(TembaModel):
             )
 
             # Trying to remove channel counting to avoid discrepancy on messages number on org dashboard page
+            # We do not need to migrate ChannelCount because it is triggered automatically when a msg is inserted
             old_channels = Channel.objects.filter(org=self.org, address=channel.address, channel_type=channel_type.code)
             for old_channel in old_channels:
                 ChannelCount.objects.filter(channel=old_channel).delete()
-
-            channel_counts = migrator.get_channels_count(channel_id=channel.id)
-            for channel_count in channel_counts:
-                ChannelCount.objects.create(
-                    channel=new_channel,
-                    count_type=channel_count.count_type,
-                    day=channel_count.day,
-                    count=channel_count.count,
-                    is_squashed=channel_count.is_squashed,
-                )
 
             # If the channel is an Android channel it will migrate the sync events
             if channel_type.code == "A":
