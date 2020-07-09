@@ -532,7 +532,9 @@ class MigrationTask(TembaModel):
 
             # Trying to remove channel counting to avoid discrepancy on messages number on org dashboard page
             # We do not need to migrate ChannelCount because it is triggered automatically when a msg is inserted
-            old_channels = Channel.objects.filter(org=self.org, address=channel.address, channel_type=channel_type.code)
+            old_channels = Channel.objects.filter(
+                org=self.org, address=channel.address, channel_type=channel_type.code
+            )
             for old_channel in old_channels:
                 ChannelCount.objects.filter(channel=old_channel).delete()
 
