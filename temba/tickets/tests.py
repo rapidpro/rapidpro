@@ -70,7 +70,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertListFetch(
             open_url, allow_viewers=True, allow_editors=True, context_objects=[ticket2, ticket1]
         )
-        self.assertEqual(("close",), response.context["bulk_actions"])
+        self.assertEqual(("close",), response.context["actions"])
         self.assertContains(response, reverse("tickets.ticket_filter", args=[self.mailgun.uuid]))
         self.assertContains(response, reverse("tickets.ticket_filter", args=[self.zendesk.uuid]))
 
@@ -110,7 +110,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertListFetch(
             closed_url, allow_viewers=True, allow_editors=True, context_objects=[ticket2, ticket1]
         )
-        self.assertEqual(("reopen",), response.context["bulk_actions"])
+        self.assertEqual(("reopen",), response.context["actions"])
         self.assertContains(response, reverse("tickets.ticket_filter", args=[self.mailgun.uuid]))
 
         # can't link to deleted ticketer
@@ -140,7 +140,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertReadFetch(filter_url, allow_viewers=True, allow_editors=True)
         self.assertEqual(self.mailgun, response.context["ticketer"])
         self.assertEqual([ticket2, ticket1], list(response.context["object_list"]))
-        self.assertEqual(("close", "reopen"), response.context["bulk_actions"])
+        self.assertEqual(("close", "reopen"), response.context["actions"])
 
         # normal users don't see HTTP logs for ticketers
         logs_url = reverse("request_logs.httplog_ticketer", args=[self.mailgun.uuid])

@@ -47,13 +47,13 @@
                 - if org_perms.campaigns.campaign_update
                   .list-buttons-container
                     .list-buttons
-                      -if 'restore' in bulk_actions
+                      -if 'restore' in actions
                         %span.btn-group
                           %a.object-btn-restore{'href':'#'}
                             %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'Activate'}
                               .glyph.icon-instant
 
-                      -if 'archive' in bulk_actions
+                      -if 'archive' in actions
                         %span.btn-group
                           %a.object-btn-archive{'href':'#'}
                             %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'Archive'}

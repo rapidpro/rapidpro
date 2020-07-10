@@ -41,9 +41,6 @@ class BulkActionMixin:
         def __init__(self, actions, queryset, *args, **kwargs):
             super().__init__(*args, **kwargs)
 
-            # from temba.campaigns.models import Campaign
-            # queryset = Campaign.objects.all()
-
             self.fields["action"] = forms.ChoiceField(choices=[(a, a) for a in actions])
             self.fields["objects"] = forms.ModelMultipleChoiceField(queryset=queryset, required=True)
 
@@ -87,15 +84,13 @@ class BulkActionMixin:
 
         response = self.get(request, *args, **kwargs)
         if action_error:
-            print(action_error)
-
             response["Temba-Toast"] = action_error
 
         return response
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["bulk_actions"] = self.bulk_actions
+        context["actions"] = self.bulk_actions
         return context
 
     def get_bulk_action_permission(self, action):
