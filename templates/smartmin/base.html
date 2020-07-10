@@ -86,6 +86,12 @@
                     options['onSuccess']();
                 }
             }
+          },
+          error: function(jqXHR, textStatus, error) {
+              if (jqXHR.responseJSON && "error" in jqXHR.responseJSON) {
+                  // TODO display this to user in an alert
+                  console.log(jqXHR.responseJSON["error"]);
+              }
           }
       });
   }

@@ -2,7 +2,7 @@ import logging
 
 from django import forms
 from django.db import transaction
-from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -69,9 +69,10 @@ class BulkActionMixin:
             try:
                 self.apply_bulk_action(user, action, objects)
             except Exception:
-                msg = f"unable to apply {action} to {len(objects)} {self.model.__name__} objects"
-                logger.exception(msg)
-                return HttpResponseBadRequest(msg)
+                logger.exception(f"error applying '{action}' to {self.model.__name__} objects")
+
+                # return generic message to display to user
+                return JsonResponse({"error": _("Sorry something went wrong.")}, status=400)
 
         return self.get(request, *args, **kwargs)
 
@@ -136,10 +137,7 @@ class BaseActionForm(forms.Form):
         delete_allowed = user_permissions.filter(codename="msg_update")
         resend_allowed = user_permissions.filter(codename="broadcast_send")
 
-        if (
-            action in ("label", "unlabel", "archive", "restore", "block", "unblock", "unstop", "close", "reopen")
-            and not update_allowed
-        ):
+        if action in ("label", "unlabel", "archive", "restore", "block", "unblock", "unstop") and not update_allowed:
             raise forms.ValidationError(_("Sorry you have no permission for this action."))
 
         if action == "delete" and not delete_allowed:  # pragma: needs cover
@@ -207,14 +205,6 @@ class BaseActionForm(forms.Form):
 
         elif action == "resend":
             changed = self.model.apply_action_resend(self.user, objects)
-            return dict(changed=changed)
-
-        elif action == "close":
-            changed = self.model.apply_action_close(objects)
-            return dict(changed=changed)
-
-        elif action == "reopen":
-            changed = self.model.apply_action_reopen(objects)
             return dict(changed=changed)
 
         else:  # pragma: no cover
