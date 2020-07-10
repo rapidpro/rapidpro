@@ -11,12 +11,14 @@ from temba.contacts.models import URN, Contact, ContactField, ContactGroup, Cont
 from temba.mailroom.client import MailroomClient, MailroomException
 from temba.mailroom.modifiers import Modifier
 from temba.orgs.models import Org
+from temba.tickets.models import Ticket
 from temba.utils import json
 
 
 class Mocks:
     def __init__(self):
         self._parse_query = {}
+        self._errors = []
 
     def parse_query(self, query, *, fields=None, allow_as_group=True, elastic_query=None, error: str = None):
         assert not (fields and error), "can't mock with both fields and error"
@@ -34,6 +36,13 @@ class Mocks:
 
         self._parse_query[query] = mock
 
+    def error(self, msg: str):
+        self._errors.append(msg)
+
+    def _check_error(self, endpoint: str):
+        if self._errors:
+            raise MailroomException(endpoint, None, {"error": self._errors.pop(0)})
+
 
 class TestClient(MailroomClient):
     def __init__(self, mocks: Mocks):
@@ -42,6 +51,8 @@ class TestClient(MailroomClient):
         super().__init__(settings.MAILROOM_URL, settings.MAILROOM_AUTH_TOKEN)
 
     def contact_modify(self, org_id, user_id, contact_ids, modifiers: List[Modifier]):
+        self.mocks._check_error("contact_modify")
+
         org = Org.objects.get(id=org_id)
         user = User.objects.get(id=user_id)
         contacts = org.contacts.filter(id__in=contact_ids)
@@ -51,6 +62,8 @@ class TestClient(MailroomClient):
         return {c.id: {"contact": {}, "events": []} for c in contacts}
 
     def parse_query(self, org_id, query, group_uuid=""):
+        self.mocks._check_error("parse_query")
+
         # if there's a mock for this query we use that
         mock = self.mocks._parse_query.get(query)
         if mock:
@@ -66,6 +79,22 @@ class TestClient(MailroomClient):
             "allow_as_group": "id" not in tokens and "group" not in tokens,
             "elastic_query": {"term": {"is_active": True}},
         }
+
+    def ticket_close(self, org_id, ticket_ids):
+        self.mocks._check_error("ticket_close")
+
+        tickets = Ticket.objects.filter(org_id=org_id, status=Ticket.STATUS_OPEN, id__in=ticket_ids)
+        tickets.update(status=Ticket.STATUS_CLOSED)
+
+        return {"changed_ids": [t.id for t in tickets]}
+
+    def ticket_reopen(self, org_id, ticket_ids):
+        self.mocks._check_error("ticket_reopen")
+
+        tickets = Ticket.objects.filter(org_id=org_id, status=Ticket.STATUS_CLOSED, id__in=ticket_ids)
+        tickets.update(status=Ticket.STATUS_OPEN)
+
+        return {"changed_ids": [t.id for t in tickets]}
 
 
 def mock_mailroom(f):
