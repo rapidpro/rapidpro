@@ -58,11 +58,10 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
 
 class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
     folder = None
-    actions = ()
     fields = ("contact", "subject", "body", "opened_on")
     select_related = ("ticketer", "contact")
     default_order = ("-opened_on",)
-    bulk_actions = ("close", "reopen")
+    bulk_actions = ()
 
     def get_context_data(self, **kwargs):
         org = self.get_user().get_org()

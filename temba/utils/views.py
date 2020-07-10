@@ -72,7 +72,7 @@ class BulkActionMixin:
                 logger.exception(f"error applying '{action}' to {self.model.__name__} objects")
 
                 # return generic message to display to user
-                return JsonResponse({"error": _("Sorry something went wrong.")}, status=400)
+                return JsonResponse({"error": _("Oops, so sorry. Something went wrong!")}, status=400)
 
         return self.get(request, *args, **kwargs)
 

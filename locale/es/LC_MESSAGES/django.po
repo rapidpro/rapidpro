@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-09 14:24+0000\n"
+"POT-Creation-Date: 2020-07-10 16:04+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -6064,12 +6064,6 @@ msgstr ""
 msgid "The referrer id that will trigger us"
 msgstr "El tipo de este activador"
 
-msgid "Archive Triggers"
-msgstr "Archivar activadores"
-
-msgid "Restore Triggers"
-msgstr "Restaurar activadores"
-
 msgid "Create Trigger"
 msgstr "Crear activadores"
 
@@ -6181,6 +6175,9 @@ msgstr ""
 msgid ", "
 msgstr ","
 
+msgid "Oops, so sorry. Something went wrong!"
+msgstr "Lo sentimos. ¡Algo no funcionó!"
+
 msgid "Sorry you have no permission for this action."
 msgstr "Lo sentimos, no tiene permiso para esta acción."
 
@@ -6189,9 +6186,6 @@ msgstr "Debe especificar una etiqueta"
 
 msgid "Missing label"
 msgstr "Etiqueta faltante"
-
-msgid "Oops, so sorry. Something went wrong!"
-msgstr "Lo sentimos. ¡Algo no funcionó!"
 
 #, fuzzy
 #| msgid "Current Date and Time"
@@ -12820,6 +12814,12 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Archive Triggers"
+#~ msgstr "Archivar activadores"
+
+#~ msgid "Restore Triggers"
+#~ msgstr "Restaurar activadores"
 
 #, fuzzy
 #~| msgid "The name of the video"

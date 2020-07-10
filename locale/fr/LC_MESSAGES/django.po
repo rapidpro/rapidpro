@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-09 14:24+0000\n"
+"POT-Creation-Date: 2020-07-10 16:04+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -4760,12 +4760,6 @@ msgstr "Le canal auquel appliquer ce déclencheur, laissez vide pour tous les ca
 msgid "The referrer id that will trigger us"
 msgstr "L'identifiant de référence qui nous déclenchera"
 
-msgid "Archive Triggers"
-msgstr "Archiver Déclencheurs"
-
-msgid "Restore Triggers"
-msgstr "Restaurer les Déclencheurs"
-
 msgid "Create Trigger"
 msgstr "Créer des declencheurs"
 
@@ -4865,6 +4859,9 @@ msgstr "0 secondes"
 msgid ", "
 msgstr ","
 
+msgid "Oops, so sorry. Something went wrong!"
+msgstr "Oups, désolé. Quelque chose s'est mal passé!"
+
 msgid "Sorry you have no permission for this action."
 msgstr "Désolé vous n'avez pas la permission pour cette action."
 
@@ -4873,9 +4870,6 @@ msgstr "Vous devez spécifier une étiquette"
 
 msgid "Missing label"
 msgstr "Étiquette manquant"
-
-msgid "Oops, so sorry. Something went wrong!"
-msgstr "Oups, désolé. Quelque chose s'est mal passé!"
 
 msgid "Date & Time"
 msgstr "Date & Heure"
@@ -10959,6 +10953,12 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Archive Triggers"
+#~ msgstr "Archiver Déclencheurs"
+
+#~ msgid "Restore Triggers"
+#~ msgstr "Restaurer les Déclencheurs"
 
 #, fuzzy
 #~| msgid "The name of the Facebook page"
