@@ -171,12 +171,11 @@
                 %temba-textinput.w-full{onsubmit:'document.querySelector("#search-form").submit();', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
 
               -block message-list
-                %table.object-list{style: '{% if not org_perms.msgs.msg_update %}margin-top:10px{% endif %}'}
-
+                %table.object-list{class: '{% if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send %}selectable{% endif %}'}
                   %tbody
                     -for object in object_list
                       %tr.sms.object-row{id: 'id-row-{{object.id}}', data-object-id:'{{ object.id }}',
-                                    data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', data-sender-select2:'{{object.contact|short_name:user_org}}', class:"{% if actions and org_perms.msgs.msg_update or org_perms.msgs.broadcast_send%}selectable{%endif%}"}
+                                    data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', data-sender-select2:'{{object.contact|short_name:user_org}}'}
                         -if actions
                           - if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send
                             %td.checkbox.sms.object-row-check{onclick:"handleRowSelection(this);"}                            

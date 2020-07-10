@@ -2376,8 +2376,13 @@ class PreprocessTest(FormView):  # pragma: no cover
 
 
 class FlowLabelForm(forms.ModelForm):
-    name = forms.CharField(required=True)
-    parent = forms.ModelChoiceField(FlowLabel.objects.all(), required=False, label=_("Parent"))
+    name = forms.CharField(required=True, widget=InputWidget())
+    parent = forms.ModelChoiceField(
+        FlowLabel.objects.all(),
+        required=False,
+        label=_("Parent"),
+        widget=SelectWidget(attrs={"widget_only": True, "placeholder": _("Optional: Select parent label")}),
+    )
     flows = forms.CharField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, *args, **kwargs):

@@ -1,7 +1,9 @@
 <temba-select name="{{ widget.name }}" {% include "django/forms/widgets/attrs.html" %}>
   {% if widget.attrs.tags %}
     {% for selected_value in widget.value %}
-      <temba-option value="{{selected_value}}" name="{{selected_value}}" selected></temba-option>
+      {% if selected_value %}
+        <temba-option value="{{selected_value}}" name="{{selected_value}}" selected></temba-option>
+      {% endif %}
     {% endfor %}
   {% endif %}
 

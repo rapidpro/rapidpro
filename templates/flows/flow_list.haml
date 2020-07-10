@@ -8,6 +8,7 @@
 
   -if org_perms.flows.flow_update
     %temba-modax#export-results{ header:'{% trans "Export Flow Results" %}' }
+    %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'flows.flowlabel_create' %}", onloaded: "handleCreateLabelModalLoaded", onsubmitted: "handleCreateLabelModalSubmitted"}
 
   -if not org_has_flows
     -include "flows/empty_include.html"
@@ -148,8 +149,8 @@
                               -if labels
                                 %li.separator.-mx-4.border-b.my-3
                               %li
-                                .lbl-menu.add-label.linked
-                                  -trans "Add Label"
+                                .lbl-menu.add-label.linked{onclick:"handleAddLabelClicked()"}
+                                  -trans "New Label"
 
                       .button-action.object-btn-export{onclick:'exportFlows()'}
                         .-mt-1.mr-2.glyph.icon-excel
@@ -169,38 +170,39 @@
                     %input{type:'hidden', name:'status', value:'{{request.REQUEST.status}}'}
 
               -block flow-list
-                %table.object-list{style: '{% if not org_perms.flows.flow_update %}margin-top:10px{% endif %}'}
+                %table.object-list{class: '{% if org_perms.flows.flow_update %}selectable{% endif %}'}
                   %tbody
                     -for object in object_list
                       %tr.flow.object-row.select-row{ data-object-uuid: "{{object.uuid}}", data-object-id: "{{ object.id }}" }
                         %td.flow.checkbox.object-row-checkbox
-                          .glyph.icon-checkbox-unchecked.flow-checkbox.object-row-checkbox.pl-3.w-4.py-1.cursor-pointer
+                          .glyph.icon-checkbox-unchecked.flow-checkbox.object-row-checkbox.pl-3.w-4.py-1.cursor-pointer{style:"height:16px"}
 
-                        %td
-                          .flex.flex-wrap.flex-end.items-center.px-4.py-2.justify-end
-                            .flex-grow.inline
-                              .flex.linked
+                        %td.w-full{onclick:"handleRowSelection(this)"}
+                          .flex.flex-wrap.flex-end.items-center.px-4.py-2
+                            .flex.flex-col
+                              .flex.linked.inline
                                 -if object.flow_type == 'V'
-                                  .icon-phone.mr-2.leading-snug.text-gray-600
+                                  .icon-phone.mr-2.leading-snug
                                 -elif object.flow_type == 'S'
-                                  .icon-mobile.mr-2.leading-snug.text-gray-600
-                                .name
+                                  .icon-mobile.mr-2.leading-snug
+                                .name{onclick:"goto(event)", href:"{% url 'flows.flow_editor' object.uuid%}"}
                                   {{ object.name }}
 
-                            -if not object.is_archived
-                              .whitespace-no-break.flex.items-center.flex-wrap
-                                
-                                -for label in object.labels.all
-                                  .lbl.cursor-pointer{ onclick:"goto(event)", data-id: '{{label.pk}}', href:"{% url 'flows.flow_filter' label.pk%}"}
-                                    {{label.name}}
+                        %td{onclick:"handleRowSelection(this)"}
+                          -if not object.is_archived
+                            .whitespace-no-break.flex.items-center.px-4.flex-wrap
+                              
+                              -for label in object.labels.all
+                                .lbl.cursor-pointer.m-1{ onclick:"goto(event)", data-id: '{{label.pk}}', href:"{% url 'flows.flow_filter' label.pk%}"}
+                                  {{label.name}}
 
                         -if not object.run_stats.total
-                          %td.value-status
-                          %td.value-status.pr-4
+                          %td.value-status{onclick:"handleRowSelection(this)"}
+                          %td.value-status.pr-4{onclick:"handleRowSelection(this)"}
                             -trans "No runs"
 
                         -else
-                          %td.value-status.px-4
+                          %td.value-status.px-4{onclick:"handleRowSelection(this)"}
                             %a.href{href:'{% url "flows.flow_results" object.uuid %}'}
                               {% blocktrans with run_count=object.run_stats.total|intcomma count cc=object.run_stats.total %}
                                 {{ run_count }} run
@@ -208,7 +210,7 @@
                                 {{run_count}} runs
                               {% endblocktrans %}
 
-                          %td.value-status.pr-4
+                          %td.value-status.pr-4{onclick:"handleRowSelection(this)"}
                             {% blocktrans with completed_percentage=object.run_stats.completion %}
                               {{ completed_percentage }}% completion
                             {% endblocktrans %}
@@ -229,66 +231,28 @@
   :javascript
 
     {% if org_perms.flows.flow_update %}
-    function exportFlows(){
-      var endpoint = '{% url "flows.flow_export_results" %}';
-      var modal = document.querySelector("#export-results");
-      var ids = getCheckedIds();
-      if (ids.length > 0) {
-        modal.setAttribute("endpoint", endpoint + '?ids=' + ids);
+
+      function handleAddLabelClicked() {
+        document.getElementById("create-label-modal").open = true;
       }
-      modal.open = true;
-    }
-    {% endif %}
 
-    {% if org_perms.flows.flow_update %}
-
-    function postLabelChanges(flowsIds, labelId, addLabel, number, onError) {
-
-         fetchPJAXContent("", "#pjax", { postData: { objects: flowsIds, label: labelId, add: addLabel, action: 'label', pjax: 'true', number:number },
-
-         forceReload: true, onSuccess: function(data, textStatus) {
-
-           // if there is a live modal, hide it
-           var modal = $("#active-modal");
-           if ((modal).is(":visible")) {
-             modal.data('object').dismiss();
-           }
-
-           $("#pjax").html(data);
-           recheckIds();
-         }, onError: onError});
-    }
-
-    {% endif %}
-
-    $(document).ready( function() {
-
-      $(document).on('click', 'tr.flow td:nth-child(n+2)', function(e){
-         document.location = '/flow/editor/' + $(this).parent().data("object-uuid");
-      });
-
-      {% if org_perms.flows.flow_create %}
-      $(".create_flow").live('click', function() {
-        var modal = new Modax('{{ _("Create Flow")|escapejs }}', '{% url "flows.flow_create" %}');
-        modal.setIcon('icon-tree');
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      });
-      {% endif %}
-
-      {% if org_perms.flows.flowlabel_create %}
-      $('.page-content').on('click', ".add-label", function() {
+      function handleCreateLabelModalLoaded(event) {
         lastChecked = getCheckedIds();
-        var modal = new Modax('{{ _("Create Label")|escapejs }}', '{% url "flows.flowlabel_create" %}')
-        modal.setListeners({
-          onFormLoaded: function(){
-            $("#active-modal form input#id_flows").val(lastChecked.join());
-          },
-          onCompleted: function() { refresh(function() { recheckIds(); }, true);}
-        });
+        var body = event.detail.body;
+        body.querySelector("#id_flows").value = lastChecked.join();
+      }
 
-        modal.show();
-      });
-      {% endif %}
+      function handleCreateLabelModalSubmitted(event) {
+        refresh(function() { recheckIds(); }, true);
+      }
 
-    });
+      function exportFlows(){
+        var endpoint = '{% url "flows.flow_export_results" %}';
+        var modal = document.querySelector("#export-results");
+        var ids = getCheckedIds();
+        if (ids.length > 0) {
+          modal.setAttribute("endpoint", endpoint + '?ids=' + ids);
+        }
+        modal.open = true;
+      }
+    {% endif %}
