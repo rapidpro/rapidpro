@@ -58,6 +58,7 @@ python-intercom
 pysocks
 pip-tools
 packaging
+jellyfish
 
 ########################## testing ##########################
 black
