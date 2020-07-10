@@ -30,14 +30,14 @@ class NonAtomicMixin(View):
 
 
 class BulkActionMixin:
-    action_choices = ()
-    action_permissions = {}
+    bulk_actions = ()
+    bulk_action_permissions = {}
 
     class Form(forms.Form):
         def __init__(self, actions, queryset, *args, **kwargs):
             super().__init__(*args, **kwargs)
 
-            self.fields["action"] = forms.ChoiceField(choices=actions)
+            self.fields["action"] = forms.ChoiceField(choices=[(a, a) for a in actions])
             self.fields["objects"] = forms.ModelMultipleChoiceField(queryset=queryset, required=True)
 
         class Meta:
@@ -55,7 +55,7 @@ class BulkActionMixin:
         """
         user = self.get_user()
         org = user.get_org()
-        form = BulkActionMixin.Form(self.action_choices, self.get_queryset(), data=self.request.POST)
+        form = BulkActionMixin.Form(self.bulk_actions, self.get_queryset(), data=self.request.POST)
 
         if form.is_valid():
             action = form.cleaned_data["action"]
@@ -76,13 +76,18 @@ class BulkActionMixin:
 
         return self.get(request, *args, **kwargs)
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["bulk_actions"] = self.bulk_actions
+        return context
+
     def get_bulk_action_permission(self, action):
         """
         Gets the required permission for the given action (defaults to the update permission for the model class)
         """
         default = f"{self.model._meta.app_label}.{self.model.__name__.lower()}_update"
 
-        return self.action_permissions.get(action, default)
+        return self.bulk_action_permissions.get(action, default)
 
     def apply_bulk_action(self, user, action, objects):
         """

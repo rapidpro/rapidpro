@@ -31,12 +31,12 @@
               -if org_perms.tickets.ticket_update
                 .list-buttons-container
                   .list-buttons
-                    -if 'close' in actions
+                    -if 'close' in bulk_actions
                       %span.btn-group
                         %a.object-btn-close(href='#')
                           %button.btn(data-toggle="tooltip" data-trigger="hover" data-delay="800" data-placement="top" data-original-title="{% trans 'Close' %}")
                             .glyph.icon-box
-                    -if 'reopen' in actions
+                    -if 'reopen' in bulk_actions
                       %span.btn-group
                         %a.object-btn-reopen(href='#')
                           %button.btn(data-toggle="tooltip" data-trigger="hover" data-delay="800" data-placement="top" data-original-title="{% trans 'Reopen' %}")
@@ -46,7 +46,7 @@
             %tbody
               -for object in object_list
                 %tr.object-row.select-row.ticket(id="id-row-{{object.id}}" class="{% cycle row1 row2 %}" data-object-id="{{ object.id }}" data-contact-uuid="{{ object.contact.uuid }}")
-                  -if actions and org_perms.tickets.ticket_update
+                  -if bulk_actions and org_perms.tickets.ticket_update
                     %td.checkbox.object-row-checkbox
                       .glyph.object-row-checkbox
                   %td.ticket-contact

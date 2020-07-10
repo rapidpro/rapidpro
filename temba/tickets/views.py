@@ -58,18 +58,17 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
 
 class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
     folder = None
-    action_choices = (("close", "Close Tickets"), ("reopen", "Reopen Tickets"))
     actions = ()
     fields = ("contact", "subject", "body", "opened_on")
     select_related = ("ticketer", "contact")
     default_order = ("-opened_on",)
+    bulk_actions = ("close", "reopen")
 
     def get_context_data(self, **kwargs):
         org = self.get_user().get_org()
 
         context = super().get_context_data(**kwargs)
         context["folder"] = self.folder
-        context["actions"] = self.actions
         context["ticketers"] = org.ticketers.filter(is_active=True).order_by("created_on")
         return context
 
@@ -81,7 +80,7 @@ class TicketCRUDL(SmartCRUDL):
     class Open(TicketListView):
         title = _("Open Tickets")
         folder = "open"
-        actions = ("close",)
+        bulk_actions = ("close",)
 
         def get_queryset(self, **kwargs):
             org = self.get_user().get_org()
@@ -90,14 +89,14 @@ class TicketCRUDL(SmartCRUDL):
     class Closed(TicketListView):
         title = _("Closed Tickets")
         folder = "closed"
-        actions = ("reopen",)
+        bulk_actions = ("reopen",)
 
         def get_queryset(self, **kwargs):
             org = self.get_user().get_org()
             return super().get_queryset(**kwargs).filter(org=org, status=Ticket.STATUS_CLOSED)
 
     class Filter(OrgObjPermsMixin, TicketListView):
-        actions = ("close", "reopen")
+        bulk_actions = ("close", "reopen")
 
         @classmethod
         def derive_url_pattern(cls, path, action):
