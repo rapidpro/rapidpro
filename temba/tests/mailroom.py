@@ -37,6 +37,9 @@ class Mocks:
         self._parse_query[query] = mock
 
     def error(self, msg: str):
+        """
+        Queues an error which will become a mailroom exception at the next client call
+        """
         self._errors.append(msg)
 
     def _check_error(self, endpoint: str):

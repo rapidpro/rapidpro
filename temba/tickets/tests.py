@@ -88,12 +88,12 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.requestView(open_url, self.user, post_data={"action": "close", "objects": [ticket1.id]})
         self.assertEqual(403, response.status_code)
 
-        # return generic error if mailroom blows up (mailroom error will be logged to sentry)
+        # return generic error as a toast if mailroom blows up (actual mailroom error will be logged to sentry)
         mr_mocks.error("boom!")
 
         response = self.requestView(open_url, self.admin, post_data={"action": "close", "objects": [ticket1.id]})
-        self.assertEqual(400, response.status_code)
-        self.assertEqual({"error": "Oops, so sorry. Something went wrong!"}, response.json())
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("Oops, so sorry. Something went wrong!", response["Temba-Toast"])
 
     @mock_mailroom
     def test_closed(self, mr_mocks):

@@ -2,7 +2,7 @@ import logging
 
 from django import forms
 from django.db import transaction
-from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
+from django.http import HttpResponse, HttpResponseForbidden
 from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -30,12 +30,19 @@ class NonAtomicMixin(View):
 
 
 class BulkActionMixin:
+    """
+    Mixin for list views which have bulk actions
+    """
+
     bulk_actions = ()
     bulk_action_permissions = {}
 
     class Form(forms.Form):
         def __init__(self, actions, queryset, *args, **kwargs):
             super().__init__(*args, **kwargs)
+
+            # from temba.campaigns.models import Campaign
+            # queryset = Campaign.objects.all()
 
             self.fields["action"] = forms.ChoiceField(choices=[(a, a) for a in actions])
             self.fields["objects"] = forms.ModelMultipleChoiceField(queryset=queryset, required=True)
@@ -56,10 +63,14 @@ class BulkActionMixin:
         user = self.get_user()
         org = user.get_org()
         form = BulkActionMixin.Form(self.bulk_actions, self.get_queryset(), data=self.request.POST)
+        action_error = None
 
         if form.is_valid():
             action = form.cleaned_data["action"]
             objects = form.cleaned_data["objects"]
+
+            # convert objects queryset to one based only on id
+            objects = self.model._default_manager.filter(id__in=[o.id for o in objects])
 
             # check we have the required permission for this action
             permission = self.get_bulk_action_permission(action)
@@ -68,13 +79,19 @@ class BulkActionMixin:
 
             try:
                 self.apply_bulk_action(user, action, objects)
+            except forms.ValidationError as e:
+                action_error = e.message
             except Exception:
                 logger.exception(f"error applying '{action}' to {self.model.__name__} objects")
+                action_error = _("Oops, so sorry. Something went wrong!")
 
-                # return generic message to display to user
-                return JsonResponse({"error": _("Oops, so sorry. Something went wrong!")}, status=400)
+        response = self.get(request, *args, **kwargs)
+        if action_error:
+            print(action_error)
 
-        return self.get(request, *args, **kwargs)
+            response["Temba-Toast"] = action_error
+
+        return response
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -93,6 +110,7 @@ class BulkActionMixin:
         """
         Applies the given action to the given objects
         """
+
         func_name = f"apply_action_{action}"
         model_func = getattr(self.model, func_name)
         assert model_func, f"{self.model.__name__} has no method called {func_name}"
