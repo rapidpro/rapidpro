@@ -345,7 +345,7 @@ class CampaignEventForm(forms.ModelForm):
             (CampaignEvent.MODE_SKIP, _("Skip this event")),
         ),
         required=False,
-        widget=SelectWidget(attrs={"placeholder": _("Flow starting rules"), "widget_only": True}),
+        widget=SelectWidget(attrs={"widget_only": True}),
     )
 
     message_start_mode = forms.ChoiceField(
@@ -380,7 +380,7 @@ class CampaignEventForm(forms.ModelForm):
         if self.data["event_type"] == CampaignEvent.TYPE_FLOW:
             if "flow_to_start" not in self.data or not self.data["flow_to_start"]:
                 raise ValidationError("Please select a flow")
-        return self.data["flow_to_start"]
+            return self.data["flow_to_start"]
 
     def pre_save(self, request, obj):
         org = self.user.get_org()
