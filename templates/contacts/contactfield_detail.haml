@@ -26,7 +26,7 @@
     
         -for campaign_event in dep_campaignevents
           .inline<
-            %a{href:"{{% url 'campaigns.campaignevent_read' campaign_event.id %}"}
+            %a{href:"{% url 'campaigns.campaignevent_read' campaign_event.id %}"}
               {{ campaign_event.campaign.name }} - 
             
               -if campaign_event.offset < 0

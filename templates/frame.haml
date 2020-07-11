@@ -202,36 +202,38 @@
                 %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
                   {{ org.name }}
 
+    -if messages
+      -block messages
+        -if messages
+          -for msg in messages
+            %div{class:"alert alert-{{ message.tags }}"}
+              {{ msg }}
+
+
     -block post-header
     <!-- Content -->
     -block page-container
-      .content.flex-grow
+      .page-content.flex-grow
         -block page-top
-          .flex.mx-4
-            .mr-5
-              -block title
-                -block title-icon
-                -block title-text
-                  .text-4xl.text-gray-600.ml-24
-                    {{title}}
+          .flex.items-center
+            .flex.flex-col.mr-5.leading-tight
+              .text-title
+                -block title
+                  {{title}}
+              .text-subtitle
+                -block subtitle
 
             .flex-grow
-              -block above-bar
+              .flex.justify-end.w-full
                 -block gear-menu
                   -include "gear_links_include.haml"
-                -block top-form
 
-          -block top-bar
-            %hr.top-bar
+          -block post-title
 
-        -if messages
-          -block messages
-            -if messages
-              -for msg in messages
-                %div{class:"alert alert-{{ message.tags }}"}
-                  {{ msg }}
 
-        -block content
+        .mt-6
+          -block content
+        
         -block post-content
 
     .text-center.py-16.bg-gray-100.text-gray-500
@@ -354,7 +356,8 @@
           timeout:300
         });
 
-        $("a.posterize").click(function(event){
+        $(".posterize").click(function(event){
+          console.log("clicked on a posterize..")
           event.preventDefault();
           event.stopPropagation();
 

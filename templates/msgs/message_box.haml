@@ -26,227 +26,226 @@
       %input#number{type:"text"}
     .error
 
-  .page-content
-    #pjax
-      -block pjax
-        .lp-frame
-          .left
-            .flex.flex-col
-              -if org_perms.msgs.broadcast_send
-                .w-64.mr-5
-                  %temba-modax#send-message-modal{ header:'{% trans "Send Message" %}', endpoint:"{% url 'msgs.broadcast_send' %}" }
-                    .button-primary{ onclick:"handleSendMessageClicked()"}
-                      -trans "Send Message"
+  #pjax
+    -block pjax
+      .lp-frame
+        .left
+          .flex.flex-col
+            -if org_perms.msgs.broadcast_send
+              .w-64.mr-5
+                %temba-modax#send-message-modal{ header:'{% trans "Send Message" %}', endpoint:"{% url 'msgs.broadcast_send' %}" }
+                  .button-primary{ onclick:"handleSendMessageClicked()"}
+                    -trans "Send Message"
 
-              .lp-nav.upper
-                - for folder in folders
-                  .lp-nav-item{'class': '{% if request.path == folder.url %}font-normal{% endif %}' }
-                    .name{onclick:"goto(event)", href:'{{folder.url}}'}
-                      {{folder.label}}
-                    .count{onclick:"goto(event)", href:'{{folder.url}}'}
-                      {{ folder.count | intcomma }}
+            .lp-nav.upper
+              - for folder in folders
+                .lp-nav-item{'class': '{% if request.path == folder.url %}font-normal{% endif %}' }
+                  .name{onclick:"goto(event)", href:'{{folder.url}}'}
+                    {{folder.label}}
+                  .count{onclick:"goto(event)", href:'{{folder.url}}'}
+                    {{ folder.count | intcomma }}
 
-              -if labels
-                .lp-nav.lower
-                  .font-normal.uppercase.text-xs.text-gray-500.pb-1
-                    - trans "Labels"
-                  .inner-scroll
-                    -for node in labels
-                      -if node.obj.is_folder
-                        .lp-nav-item{ class:'{% if current_label.id == node.obj.id %}font-normal{% endif %}' }
-                          .name{onclick:"goto(event)", 'href':'{% url "msgs.msg_filter" node.obj.uuid %}'}
-                            {{ node.obj.name }}
-                          -if node.children
-                            .count.-mr-1.text-gray-400
-                              -if current_label.id == node.obj.id or current_label.folder_id == node.obj.id
-                                .glyph.icon-arrow-down-2{onclick:"goto(event)", 'href':'{% url "msgs.msg_filter" node.obj.uuid %}'}
-                              -else
-                                .glyph.icon-arrow-right-8{onclick:"goto(event)", 'href':'{% url "msgs.msg_filter" node.obj.uuid %}'}
+            -if labels
+              .lp-nav.lower
+                .font-normal.uppercase.text-xs.text-gray-500.pb-1
+                  - trans "Labels"
+                .inner-scroll
+                  -for node in labels
+                    -if node.obj.is_folder
+                      .lp-nav-item{ class:'{% if current_label.id == node.obj.id %}font-normal{% endif %}' }
+                        .name{onclick:"goto(event)", 'href':'{% url "msgs.msg_filter" node.obj.uuid %}'}
+                          {{ node.obj.name }}
+                        -if node.children
+                          .count.-mr-1.text-gray-400
+                            -if current_label.id == node.obj.id or current_label.folder_id == node.obj.id
+                              .glyph.icon-arrow-down-2{onclick:"goto(event)", 'href':'{% url "msgs.msg_filter" node.obj.uuid %}'}
+                            -else
+                              .glyph.icon-arrow-right-8{onclick:"goto(event)", 'href':'{% url "msgs.msg_filter" node.obj.uuid %}'}
 
-                        -if current_label.id == node.obj.id or current_label.folder_id == node.obj.id
-                          .pl-2.mt-1.level2.font-light
-                            -for child in node.children
-                              .lp-nav-item{ class:'{% if current_label.id == child.obj.id %}font-normal{% endif %}' }
-                                .name{onclick:"goto(event)",  href:"{% url 'msgs.msg_filter' child.obj.uuid %}" }
-                                  {{ child.obj.name }}
-                                .count{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' child.obj.uuid %}" }
-                                  {{ child.count | intcomma }}
-                    -for node in labels
-                      -if not node.obj.is_folder
-                        .lp-nav-item{ class:'{% if current_label.id == node.obj.id %}font-normal{% endif %}' }
-                          .name{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' node.obj.uuid %}", class:'{% if current_label.id == node.obj.id %}font-normal active{% endif %}' }
-                            {{ node.obj.name }} 
-                          .count{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' node.obj.uuid %}", class:'{% if current_label.id == node.obj.id %}font-normal active{% endif %}' }
-                            {{ node.count | intcomma }}
+                      -if current_label.id == node.obj.id or current_label.folder_id == node.obj.id
+                        .pl-2.mt-1.level2.font-light
+                          -for child in node.children
+                            .lp-nav-item{ class:'{% if current_label.id == child.obj.id %}font-normal{% endif %}' }
+                              .name{onclick:"goto(event)",  href:"{% url 'msgs.msg_filter' child.obj.uuid %}" }
+                                {{ child.obj.name }}
+                              .count{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' child.obj.uuid %}" }
+                                {{ child.count | intcomma }}
+                  -for node in labels
+                    -if not node.obj.is_folder
+                      .lp-nav-item{ class:'{% if current_label.id == node.obj.id %}font-normal{% endif %}' }
+                        .name{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' node.obj.uuid %}", class:'{% if current_label.id == node.obj.id %}font-normal active{% endif %}' }
+                          {{ node.obj.name }} 
+                        .count{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' node.obj.uuid %}", class:'{% if current_label.id == node.obj.id %}font-normal active{% endif %}' }
+                          {{ node.count | intcomma }}
 
-              .flex-grow
-                -if org_perms.msgs.label_create
-                  %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'msgs.label_create' %}", onloaded: "handleCreateLabelModalLoaded", onsubmitted: "handleCreateLabelModalSubmitted"}
-                    .button-light.mt-3
-                      - trans "Create Label"
-                    
-                -if org_perms.msgs.label_create_folder
-                  %temba-modax{ header:'{% trans "Create Folder" %}', endpoint:"{% url 'msgs.label_create_folder' %}", on-temba-loaded:"labelOnLoad", onsubmit: "function(e) { labelOnSubmit(e) }" }
-                    .button-light.mt-3
-                      -trans "Create Folder"
+            .flex-grow
+              -if org_perms.msgs.label_create
+                %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'msgs.label_create' %}", onloaded: "handleCreateLabelModalLoaded", onsubmitted: "handleCreateLabelModalSubmitted"}
+                  .button-light.mt-3
+                    - trans "Create Label"
+                  
+              -if org_perms.msgs.label_create_folder
+                %temba-modax{ header:'{% trans "Create Folder" %}', endpoint:"{% url 'msgs.label_create_folder' %}", on-temba-loaded:"labelOnLoad", onsubmit: "function(e) { labelOnSubmit(e) }" }
+                  .button-light.mt-3
+                    -trans "Create Folder"
 
-          -if has_messages
-            .right
-              .flex.w-full.items-end.mb-4
-                -block action-buttons
-                  -if org_perms.msgs.msg_update
-                    .action-buttons.list-buttons-container.h-full.mr-2.flex-grow
-                      .list-buttons.flex.items-center.-mx-2.h-full
-                        - if 'unlabel' in actions
-                          .button-action.object-btn-unlabel
-                            .glyph.icon-box
-                            -trans "Remove Label"
+        -if has_messages
+          .right
+            .flex.w-full.items-end.mb-4
+              -block action-buttons
+                -if org_perms.msgs.msg_update
+                  .action-buttons.list-buttons-container.h-full.mr-2.flex-grow
+                    .list-buttons.flex.items-center.-mx-2.h-full
+                      - if 'unlabel' in actions
+                        .button-action.object-btn-unlabel
+                          .glyph.icon-box
+                          -trans "Remove Label"
 
-                        - if 'archive' in actions
-                          .button-action.object-btn-archive
-                            .-mt-1.mr-2.glyph.icon-box
-                            -trans "Archive"
+                      - if 'archive' in actions
+                        .button-action.object-btn-archive
+                          .-mt-1.mr-2.glyph.icon-box
+                          -trans "Archive"
 
-                        - if 'restore' in actions
-                          .button-action.object-btn-restore
-                            .glyph.icon-download
-                            -trans "Restore"
+                      - if 'restore' in actions
+                        .button-action.object-btn-restore
+                          .glyph.icon-download
+                          -trans "Restore"
 
-                        - if 'delete' in actions
-                          .button-action.object-btn-delete
-                            .glyph.icon-remove
-                            -trans "Delete"
+                      - if 'delete' in actions
+                        .button-action.object-btn-delete
+                          .glyph.icon-remove
+                          -trans "Delete"
 
-                        - if 'resend' in actions
-                          .button-action.object-btn-resend
-                            .mt-1.mr-2.glyph.icon-loop.text-sm
-                            -trans "Resend"
+                      - if 'resend' in actions
+                        .button-action.object-btn-resend
+                          .mt-1.mr-2.glyph.icon-loop.text-sm
+                          -trans "Resend"
 
-                        - if 'label' in actions
-                          .btn-group
-                            .button-action.dropdown-toggle{data-toggle:"dropdown"}
-                              .-mt-1.mr-2.glyph.icon-tag{style:"width:16px"}
-                              -trans "Label"
+                      - if 'label' in actions
+                        .btn-group
+                          .button-action.dropdown-toggle{data-toggle:"dropdown"}
+                            .-mt-1.mr-2.glyph.icon-tag{style:"width:16px"}
+                            -trans "Label"
 
-                            %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
-                              -for node in labels
-                                -if node.obj.is_folder and node.children
-                                  %li.dropdown-submenu
-                                    .lbl-menu.object-btn-label.cursor-pointer{data-id:'{{node.obj.id}}'}
-                                      .flex.items-center.py-1.linked
-                                        .icon-arrow-right-8.text-2xl.-ml-1.-mt-1.mr-1
-                                        .name.px-2
-                                          {{ node.obj.name }}
-                                    %ul.dropdown-menu.label-menu.border-none
-                                      - for child in node.children
-                                        %li
-                                          .lbl-menu.object-btn-label.px-4{data-id:'{{child.obj.id}}'}
-                                            .flex.items-center.py-1.linked
-                                              .glyph.message-label.label-checkbox
-                                              .name.px-1
-                                                {{ child.obj.name }}
-                              -for node in labels
-                                -if not node.obj.is_folder
-                                  %li
-                                    .lbl-menu.object-btn-label{data-id:'{{node.obj.id}}'}
-                                      .flex.items-center.py-1.linked
-                                        .glyph.message-label.label-checkbox
-                                        .name.px-1
-                                          {{ node.obj.name }}
-
-                              - if org_perms.msgs.label_create
-                                - if labels
-                                  %li.separator.-mx-4.border-b.my-3
+                          %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
+                            -for node in labels
+                              -if node.obj.is_folder and node.children
+                                %li.dropdown-submenu
+                                  .lbl-menu.object-btn-label.cursor-pointer{data-id:'{{node.obj.id}}'}
+                                    .flex.items-center.py-1.linked
+                                      .icon-arrow-right-8.text-2xl.-ml-1.-mt-1.mr-1
+                                      .name.px-2
+                                        {{ node.obj.name }}
+                                  %ul.dropdown-menu.label-menu.border-none
+                                    - for child in node.children
+                                      %li
+                                        .lbl-menu.object-btn-label.px-4{data-id:'{{child.obj.id}}'}
+                                          .flex.items-center.py-1.linked
+                                            .glyph.message-label.label-checkbox
+                                            .name.px-1
+                                              {{ child.obj.name }}
+                            -for node in labels
+                              -if not node.obj.is_folder
                                 %li
-                                  .lbl-menu.add-label.linked{onclick:"handleAddLabelClicked()"}
-                                    -trans "New Label..."
-                .flex-grow.page-title.text-3xl.text-gray-700.ml-2.items-center
-                  -block title-text
-                    .title.leading-tight
-                      {{title}}
-                .ml-4
-                  -include "gear_links_include.haml"
+                                  .lbl-menu.object-btn-label{data-id:'{{node.obj.id}}'}
+                                    .flex.items-center.py-1.linked
+                                      .glyph.message-label.label-checkbox
+                                      .name.px-1
+                                        {{ node.obj.name }}
 
-              %form#search-form.mb-4{method:"get"}
-                %temba-textinput.w-full{onsubmit:'document.querySelector("#search-form").submit();', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
+                            - if org_perms.msgs.label_create
+                              - if labels
+                                %li.separator.-mx-4.border-b.my-3
+                              %li
+                                .lbl-menu.add-label.linked{onclick:"handleAddLabelClicked()"}
+                                  -trans "New Label..."
+              .flex-grow.page-title.text-3xl.text-gray-700.ml-2.items-center
+                -block title-text
+                  .title.leading-tight
+                    {{title}}
+              .ml-4
+                -include "gear_links_include.haml"
 
-              -block message-list
-                %table.object-list{class: '{% if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send %}selectable{% endif %}'}
-                  %tbody
-                    -for object in object_list
-                      %tr.sms.object-row{id: 'id-row-{{object.id}}', data-object-id:'{{ object.id }}',
-                                    data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', data-sender-select2:'{{object.contact|short_name:user_org}}'}
-                        -if actions
-                          - if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send
-                            %td.checkbox.sms.object-row-check{onclick:"handleRowSelection(this);"}                            
-                              .glyph.object-row-checkbox.py-2.pl-3.w-4.cursor-pointer
-                        %td.whitespace-no-wrap
-                          .pl-4.py-2
-                            .linked{onclick:"goto(event)", href:"/contact/read/{{object.contact.uuid}}/"}
-                              {{ object.contact|short_name:user_org }}
-                        %td.w-full{onclick:"handleRowSelection(this)"}
-                          .flex.flex-wrap.flex-end.items-center.px-4.py-2.justify-end
-                            .flex-grow.inline
-                              {% get_value object 'text' %}
-                            .labels.flex.items-center.flex-wrap
-                              -if 'label' in actions
-                                -for label in object.labels.all
-                                  .lbl.cursor-pointer{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' label.uuid %}", data-id: '{{label.id}}'}                                
-                                    {{label.name}}
+            %form#search-form.mb-4{method:"get"}
+              %temba-textinput.w-full{onsubmit:'document.querySelector("#search-form").submit();', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
 
-                          -if object.attachments
-                            .value-attachments{ style:"margin-top: 5px" }
-                              - for attachment in object.attachments
-                                {% attachment_button attachment %}
+            -block message-list
+              %table.object-list{class: '{% if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send %}selectable{% endif %}'}
+                %tbody
+                  -for object in object_list
+                    %tr.sms.object-row{id: 'id-row-{{object.id}}', data-object-id:'{{ object.id }}',
+                                  data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', data-sender-select2:'{{object.contact|short_name:user_org}}'}
+                      -if actions
+                        - if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send
+                          %td.checkbox.sms.object-row-check{onclick:"handleRowSelection(this);"}                            
+                            .glyph.object-row-checkbox.py-2.pl-3.w-4.cursor-pointer
+                      %td.whitespace-no-wrap
+                        .pl-4.py-2
+                          .linked{onclick:"goto(event)", href:"/contact/read/{{object.contact.uuid}}/"}
+                            {{ object.contact|short_name:user_org }}
+                      %td.w-full{onclick:"handleRowSelection(this)"}
+                        .flex.flex-wrap.flex-end.items-center.px-4.py-2.justify-end
+                          .flex-grow.inline
+                            {% get_value object 'text' %}
+                          .labels.flex.items-center.flex-wrap
+                            -if 'label' in actions
+                              -for label in object.labels.all
+                                .lbl.linked{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' label.uuid %}", data-id: '{{label.id}}'}                                
+                                  {{label.name}}
 
-                        %td{onclick:"handleRowSelection(this)"}
-                          .flex.w-full.items-end.justify-end.pr-4
-                            .time.whitespace-no-wrap
-                              {% short_datetime object.created_on %}
+                        -if object.attachments
+                          .value-attachments{ style:"margin-top: 5px" }
+                            - for attachment in object.attachments
+                              {% attachment_button attachment %}
 
-                            -if show_channel_logs and not user_org.is_anon or perms.contacts.contact_break_anon
-                              .log-icon.ml-3.text-gray-400.linked
-                                {% channel_log_link object %}
+                      %td{onclick:"handleRowSelection(this)"}
+                        .flex.w-full.items-end.justify-end.pr-4
+                          .time.whitespace-no-wrap
+                            {% short_datetime object.created_on %}
 
-                    -if not object_list
-                      .text-lg.text-gray-700.px-4
-                        -trans "No messages"
-                - block paginator
-                  -if object_list.count
-                    -block search-details
-                      .flex.mx-4.mt-3.mb-16
-                        .text-gray-700
-                          -if not paginator or paginator.num_pages <= 1                        
-                            -if search
+                          -if show_channel_logs and not user_org.is_anon or perms.contacts.contact_break_anon
+                            .log-icon.ml-3.text-gray-400.linked
+                              {% channel_log_link object %}
+
+                  -if not object_list
+                    .text-lg.text-gray-700.px-4
+                      -trans "No messages"
+              - block paginator
+                -if object_list.count
+                  -block search-details
+                    .flex.mx-4.mt-3.mb-16
+                      .text-gray-700
+                        -if not paginator or paginator.num_pages <= 1                        
+                          -if search
+                            -blocktrans trimmed with results_count=paginator.count|intcomma count cc=paginator.count
+                              Found {{ results_count }} message in last 90 days matching <i>{{search}}</i>.
+                              -plural
+                                Found {{ results_count }} messages in last 90 days matching <i>{{search}}</i>.
+                          -else
+                            -if start_date
                               -blocktrans trimmed with results_count=paginator.count|intcomma count cc=paginator.count
-                                Found {{ results_count }} message in last 90 days matching <i>{{search}}</i>.
+                                {{ results_count }} message since {{ start_date}}.
                                 -plural
-                                  Found {{ results_count }} messages in last 90 days matching <i>{{search}}</i>.
-                            -else
-                              -if start_date
-                                -blocktrans trimmed with results_count=paginator.count|intcomma count cc=paginator.count
-                                  {{ results_count }} message since {{ start_date}}.
-                                  -plural
-                                    {{ results_count }} messages since {{ start_date}}.
+                                  {{ results_count }} messages since {{ start_date}}.
 
-                          - else
+                        - else
 
-                            -if search
+                          -if search
+                            -blocktrans trimmed with results_count=paginator.count|intcomma start=page_obj.start_index|intcomma end=page_obj.end_index|intcomma count cc=paginator.count 
+                              Found {{ results_count }} message in last 90 days matching <i>{{search}}</i>.
+                              -plural
+                                {{ start }} - {{ end }} of {{ results_count }} results for <i>{{search}}</i> since {{start_date}}.
+                          -else
+                            -if start_date
                               -blocktrans trimmed with results_count=paginator.count|intcomma start=page_obj.start_index|intcomma end=page_obj.end_index|intcomma count cc=paginator.count 
-                                Found {{ results_count }} message in last 90 days matching <i>{{search}}</i>.
+                                {{ results_count }} message since {{ start_date}}.
                                 -plural
-                                  {{ start }} - {{ end }} of {{ results_count }} results for <i>{{search}}</i> since {{start_date}}.
-                            -else
-                              -if start_date
-                                -blocktrans trimmed with results_count=paginator.count|intcomma start=page_obj.start_index|intcomma end=page_obj.end_index|intcomma count cc=paginator.count 
-                                  {{ results_count }} message since {{ start_date}}.
-                                  -plural
-                                    {{ start }} - {{ end }} of {{ results_count }} messages since {{ start_date}}.
-                                      
-                        .flex-grow
-                          -include "includes/pages.html"
-          -else
-            -include "msgs/empty_include.html"
+                                  {{ start }} - {{ end }} of {{ results_count }} messages since {{ start_date}}.
+                                    
+                      .flex-grow
+                        -include "includes/pages.html"
+        -else
+          -include "msgs/empty_include.html"
 
 -block extra-script
   {{ block.super }}

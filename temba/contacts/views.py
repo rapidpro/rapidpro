@@ -41,7 +41,7 @@ from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
-from temba.utils.fields import CheckboxWidget, InputWidget, Select2Field, SelectMultipleWidget, SelectWidget
+from temba.utils.fields import CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.text import slugify_with
 from temba.utils.views import BaseActionForm, NonAtomicMixin
@@ -472,6 +472,7 @@ class UpdateContactForm(ContactForm):
         required=False,
         label=_("Groups"),
         help_text=_("Add or remove groups this contact belongs to"),
+        widget=SelectMultipleWidget(),
     )
 
     def __init__(self, *args, **kwargs):
@@ -488,7 +489,7 @@ class UpdateContactForm(ContactForm):
         choices += [(l.iso_code, l.name) for l in self.instance.org.languages.all().order_by("orgs", "name")]
 
         self.fields["language"] = forms.ChoiceField(
-            required=False, label=_("Language"), initial=self.instance.language, choices=choices
+            required=False, label=_("Language"), initial=self.instance.language, choices=choices, widget=SelectWidget()
         )
 
         self.fields["groups"].initial = self.instance.user_groups.all()
@@ -498,6 +499,9 @@ class UpdateContactForm(ContactForm):
     class Meta:
         model = Contact
         fields = ("name", "language", "groups")
+        widgets = {
+            "name": InputWidget(),
+        }
 
 
 class ExportForm(Form):
@@ -1131,10 +1135,24 @@ class ContactCRUDL(SmartCRUDL):
 
             if self.has_org_perm("contacts.contact_update"):
 
-                links.append(dict(title=_("Edit"), style="btn-primary", js_class="update-contact", href="#"))
+                # links.append(dict(title=_("Edit"), style="btn-primary", js_class="update-contact", href="#"))
 
                 links.append(
-                    dict(title=_("Custom Fields"), style="btn-primary", js_class="update-contact-fields", href="#")
+                    dict(
+                        id="edit-contact",
+                        title=_("Edit"),
+                        modax=_("Edit Contact"),
+                        href=f"{reverse('contacts.contact_update', args=[self.object.pk])}",
+                    )
+                )
+
+                links.append(
+                    dict(
+                        id="update-custom-fields",
+                        title=_("Custom Fields"),
+                        modax=_("Custom Fields"),
+                        href=f"{reverse('contacts.contact_update_fields', args=[self.object.pk])}",
+                    )
                 )
 
                 if self.has_org_perm("contacts.contact_block") and not self.object.is_blocked:
@@ -1169,7 +1187,12 @@ class ContactCRUDL(SmartCRUDL):
 
                 if self.has_org_perm("contacts.contact_delete"):
                     links.append(
-                        dict(title=_("Delete"), style="btn-primary", js_class="contact-delete-button", href="#")
+                        dict(
+                            id="delete-contact",
+                            title=_("Delete"),
+                            modax=_("Delete Contact"),
+                            href=reverse("contacts.contact_delete", args=[self.object.pk]),
+                        )
                     )
 
             user = self.get_user()
@@ -1404,7 +1427,6 @@ class ContactCRUDL(SmartCRUDL):
                         href=reverse("contacts.contactgroup_delete", args=[pk]),
                     )
                 )
-                # links.append(dict(title=_("Delete Group"), js_class="delete-contactgroup", href="#"))
             return links
 
         def get_context_data(self, *args, **kwargs):
@@ -1550,16 +1572,27 @@ class ContactCRUDL(SmartCRUDL):
 
     class UpdateFields(NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.Form):
-            contact_field = Select2Field()
+            contact_field = forms.ModelChoiceField(
+                ContactField.user_fields.all(),
+                widget=SelectWidget(attrs={"widget_only": True, "placeholder": _("Select a field to update")}),
+            )
             field_value = forms.CharField(required=False)
 
-            def __init__(self, instance, *args, **kwargs):
+            def __init__(self, user, instance, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+                org = user.get_org()
+                self.fields["contact_field"].queryset = org.contactfields(manager="user_fields").filter(is_active=True)
+                print(list(self.fields["contact_field"].queryset))
 
         form_class = Form
         success_url = "uuid@contacts.contact_read"
         success_message = ""
         submit_button_name = _("Save Changes")
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            return kwargs
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -1575,11 +1608,10 @@ class ContactCRUDL(SmartCRUDL):
         def post_save(self, obj):
             obj = super().post_save(obj)
 
-            field_id = self.form.cleaned_data.get("contact_field")
-            field_obj = obj.org.contactfields(manager="user_fields").get(id=field_id)
+            field = self.form.cleaned_data.get("contact_field")
             value = self.form.cleaned_data.get("field_value", "")
 
-            mods = obj.update_fields({field_obj: value})
+            mods = obj.update_fields({field: value})
             obj.modify(self.request.user, mods)
 
             return obj
@@ -1639,7 +1671,7 @@ class ContactCRUDL(SmartCRUDL):
             obj.reactivate(self.request.user)
             return obj
 
-    class Delete(OrgObjPermsMixin, SmartUpdateView):
+    class Delete(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         """
         Delete this contact (can't be undone)
         """
@@ -1647,6 +1679,7 @@ class ContactCRUDL(SmartCRUDL):
         fields = ()
         success_url = "@contacts.contact_list"
         success_message = ""
+        submit_button_name = _("Delete")
 
         def save(self, obj):
             obj.release(self.request.user)

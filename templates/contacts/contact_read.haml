@@ -86,7 +86,7 @@
   </style>
   <![endif]-->
 
-  .contact-fields
+  .contact-fields.rounded-lg.shadow.p-3.bg-gray-100
     .featured
       .contact-field
         .contact-field-label
@@ -221,29 +221,6 @@
 
   #indicator{style:"display:none"}
     .loader
-
-
--block post-content
-  -include "msgs/msg_send_modal.haml"
-
-  -if org_perms.contacts.contact_delete
-    .deletion.hide
-      .title
-        -trans "Delete Contact"
-
-      .body
-        %p
-          -trans "Are you sure you want to delete this contact?"
-        %p
-          %b
-            -if contact.name
-              {{contact.name}}
-            -else
-              {{contact|format_contact:user_org}}
-          %p
-            -trans "Once they are deleted, they will be gone forever. There is no way to undo this operation."
-
-      %a#delete-form.posterize{href:'{% url "contacts.contact_delete" contact.pk %}'}
 
 -block extra-less
   -compress css
@@ -595,26 +572,15 @@
   %script
 
     {% if org_perms.contacts.contact_update %}
-    $(".update-contact").live('click', function(){
-      var modal = new Modax('{{ _("Update Contact")|escapejs }}','{% url "contacts.contact_update" object.pk %}');
-      modal.setIcon('icon-user');
-      modal.setRedirectOnSuccess(true);
-      modal.show();
-    });
-
-    $(".update-contact-fields").live('click', function(){
-      var modal = new Modax('{{ _("Custom Fields")|escapejs }}','{% url "contacts.contact_update_fields" object.pk %}');
-      modal.setIcon('icon-user');
-      modal.setRedirectOnSuccess(true);
-      modal.show();
-    });
-
     $('.contact-field-value.editable').live('click', function(evt) {
+      var endpoint = '{% url "contacts.contact_update_fields" object.pk %}';
       var field_id = $(this).parent().data('id');
-      var modal = new Modax('{{ _("Custom Fields")|escapejs }}','{% url "contacts.contact_update_fields" object.pk %}?field=' + field_id);
-      modal.setIcon('icon-user');
-      modal.setRedirectOnSuccess(true);
-      modal.show();
+      var modax = document.querySelector("#update-custom-fields");
+      modax.endpoint = endpoint + '?field=' + field_id;
+      modax.open = true;
+
+      // reset our modal
+      window.setTimeout(function(){ modax.endpoint = endpoint;}, 1000);
     });
 
     {% endif %}

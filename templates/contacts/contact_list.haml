@@ -22,7 +22,7 @@
     .p-6
       -trans "Are you sure you want to delete these contacts? This cannot be undone."
 
-  #pjax.page-content
+  #pjax
     -block pjax
       .lp-frame
         -if org_perms.contacts.contact_import
@@ -407,7 +407,7 @@
         addGroup = false;
       }
       jQuery.ajaxSettings.traditional = true;
-      fetchPJAXContent("", "#pjax", { postData: {objects: contactIds, label: groupId, add: addGroup, action: 'label', pjax: 'true'}, forceReload: true, onSucces: function(){console.log("you did it") }});
+      fetchPJAXContent("", "#pjax", { postData: {objects: contactIds, label: groupId, add: addGroup, action: 'label', pjax: 'true'}, forceReload: true});
     }
     {% endif %}
 

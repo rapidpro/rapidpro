@@ -934,6 +934,16 @@ a:hover {
     color: rgb(var(--primary-rgb));
   }
 
+.text-title {
+  font-size: 1.875rem;
+  color: #4a4a4a;
+}
+
+.text-subtitle {
+  font-size: 1.25rem;
+  color: #717171;
+}
+
 .bounce {
   -webkit-animation-duration: 1s;
           animation-duration: 1s;
@@ -1330,6 +1340,7 @@ a:hover {
 
 .lbl {
   text-decoration: none;
+  cursor: default;
   margin-left: 0.25rem;
   padding-left: 0.5rem;
   padding-right: 0.5rem;
@@ -1344,11 +1355,32 @@ a:hover {
   text-align: center;
 }
 
-.lbl:hover {
+.lbl.linked:hover {
     text-decoration: none;
     background-color: rgb(var(--primary-rgb));
     color: #fff;
+    cursor: pointer;
   }
+
+.alert {
+  border-radius: 0.5rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.alert-error {
+  border-radius: 0.5rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  color: rgb(var(--error-rgb));
+  background: rgba(255, 181, 181, .17);
+}
 
 .max-h-128 {
   max-height: 24rem;
@@ -1374,12 +1406,75 @@ a:hover {
     font-weight: 400
   }
 
+.cap-label {
+  text-transform: uppercase;
+  font-weight: 400;
+  font-size: 0.875rem;
+  color: #717171;
+  letter-spacing: 0.025em;
+}
+
+.page-content {
+  display: flex;
+  flex-direction: column;
+  margin-left: 3rem;
+  margin-right: 3rem;
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+}
+
+.table-header {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  padding-top: 1rem;
+  border-bottom-width: 1px;
+  border-color: #ededed;
+  background-color: #f7f7f7;
+  text-align: left;
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em
+}
+
+table.list {
+  width: 100%;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+table.list th {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    padding-top: 1rem;
+    border-bottom-width: 1px;
+    border-color: #ededed;
+    background-color: #f7f7f7;
+    text-align: left;
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+  }
+
+table.list td {
+    border-bottom-width: 1px;
+    border-color: #ededed;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
 .lp-frame {
   display: flex;
-  margin-left: 1.5rem;
-  margin-right: 1.5rem;
-  margin-top: 1.5rem;
-  margin-bottom: 1.5rem;
+  width: 100%;
+  margin-top: -2rem;
 }
 
 .lp-frame .left {

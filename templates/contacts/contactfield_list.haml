@@ -85,7 +85,7 @@
                       %td{width:"20px"}
                         .text-center.px-2
                           -if obj.show_in_table
-                            .lbl.cursor-pointer{onclick:"showUpdateContactFieldModal({{obj.id}})"}
+                            .lbl
                               -trans "Featured"
 
                       %td{width:"20px"}
@@ -93,7 +93,7 @@
 
                           -if obj.flow_count or obj.campaign_count or obj.contactgroup_count
                             .uses{onclick:"event.stopPropagation(); showDetailContactFieldModal({{ obj.id }}, \"{{ obj.label }}\");"}
-                              .lbl.cursor-pointer
+                              .lbl.linked
                                 {% blocktrans trimmed count counter=obj.flow_count|add:obj.campaign_count|add:obj.contactgroup_count %}
                                   {{counter}} Use
                                 {% plural %}
@@ -179,21 +179,6 @@
     var modax = document.querySelector('#update-' + id);
     modax.open = true;
   }
-
-  function _updateModalButtonsStyle(modal) {
-    var has_related_flows = !!$(modal.ele.find('.has-related-flows')).length;
-
-    if (has_related_flows) {
-      // hide the secondary button
-      modal.hideSecondaryButton();
-      // rename the primary button
-      modal.ele.find('.primary').text('Ok').on('click', function () { modal.dismiss()} );
-
-      modal.submit = function () {};
-    } else {
-      modal.ele.find('.primary').text('{{ _("Delete")|escapejs }}').addClass('btn-danger')
-    }
-  };
 
   function showDeleteContactFieldModal(id) {
     var modax = document.querySelector('#delete-' + id);

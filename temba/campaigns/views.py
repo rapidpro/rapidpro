@@ -118,6 +118,9 @@ class CampaignCRUDL(SmartCRUDL):
             return response
 
     class Read(OrgObjPermsMixin, SmartReadView):
+        def derive_title(self):
+            return self.object.name
+
         def get_gear_links(self):
             links = []
 
