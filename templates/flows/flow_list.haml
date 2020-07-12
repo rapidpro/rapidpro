@@ -159,7 +159,7 @@
                 -block title-text
                   .title.leading-tight
                     {{title}}
-              .ml-4
+              .gear-links
                 -include "gear_links_include.haml"
 
             -if view.search_fields
@@ -178,41 +178,35 @@
 
                       %td.w-full{onclick:"handleRowSelection(this)"}
                         .flex.flex-wrap.flex-end.items-center.px-4.py-2
-                          .flex.flex-col
-                            .flex.linked.inline
-                              -if object.flow_type == 'V'
-                                .icon-phone.mr-2.leading-snug
-                              -elif object.flow_type == 'S'
-                                .icon-mobile.mr-2.leading-snug
-                              .name{onclick:"goto(event)", href:"{% url 'flows.flow_editor' object.uuid%}"}
-                                {{ object.name }}
+                          .flex.linked.inline.whitespace-no-wrap
+                            -if object.flow_type == 'V'
+                              .icon-phone.mr-2.leading-snug
+                            -elif object.flow_type == 'S'
+                              .icon-mobile.mr-2.leading-snug
+                            .name{onclick:"goto(event)", href:"{% url 'flows.flow_editor' object.uuid%}"}
+                              {{ object.name }}
+                          .whitespace-no-break.flex.items-center.ml-2
+                            -for label in object.labels.all
+                              .lbl.cursor-pointer.m-1.py-0{ onclick:"goto(event)", data-id: '{{label.pk}}', href:"{% url 'flows.flow_filter' label.pk%}"}
+                                {{label.name}}
+
+
 
                       %td{onclick:"handleRowSelection(this)"}
                         -if not object.is_archived
-                          .whitespace-no-break.flex.items-center.px-4.flex-wrap
-                            
-                            -for label in object.labels.all
-                              .lbl.cursor-pointer.m-1{ onclick:"goto(event)", data-id: '{{label.pk}}', href:"{% url 'flows.flow_filter' label.pk%}"}
-                                {{label.name}}
+                          .whitespace-no-break.flex.items-center.justify-end
 
-                      -if not object.run_stats.total
-                        %td.value-status{onclick:"handleRowSelection(this)"}
-                        %td.value-status.pr-4{onclick:"handleRowSelection(this)"}
-                          -trans "No runs"
-
-                      -else
-                        %td.value-status.px-4{onclick:"handleRowSelection(this)"}
-                          %a.href{href:'{% url "flows.flow_results" object.uuid %}'}
-                            {% blocktrans with run_count=object.run_stats.total|intcomma count cc=object.run_stats.total %}
-                              {{ run_count }} run
-                            {% plural %}
-                              {{run_count}} runs
-                            {% endblocktrans %}
-
-                        %td.value-status.pr-4{onclick:"handleRowSelection(this)"}
-                          {% blocktrans with completed_percentage=object.run_stats.completion %}
-                            {{ completed_percentage }}% completion
-                          {% endblocktrans %}
+                            -if object.run_stats.total
+                              %a.href.mr-2.whitespace-no-wrap{href:'{% url "flows.flow_results" object.uuid %}'}
+                                {% blocktrans with run_count=object.run_stats.total|intcomma count cc=object.run_stats.total %}
+                                  {{ run_count }} run
+                                {% plural %}
+                                  {{run_count}} runs
+                                {% endblocktrans %}
+                              %a.href.mr-2.whitespace-no-wrap{href:'{% url "flows.flow_results" object.uuid %}'}
+                                {% blocktrans with completed_percentage=object.run_stats.completion %}
+                                  {{ completed_percentage }}% completion
+                                {% endblocktrans %}
 
                   -empty
                     %tr.flow

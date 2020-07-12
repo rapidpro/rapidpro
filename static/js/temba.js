@@ -5,6 +5,9 @@ if (typeof console == 'undefined') {
 
 function goto(event) {
     event.stopPropagation();
+    if (event.target.setActive) {
+        event.target.setActive();
+    }
     var href = event.target.getAttribute('href');
     if (href) {
         if (event.metaKey) {

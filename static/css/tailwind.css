@@ -922,7 +922,6 @@ a:hover {
   }
 
 .linked {
-  color: #4a4a4a;
   cursor: pointer;
 }
 
@@ -986,7 +985,7 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .05);
+      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-light {
@@ -1024,7 +1023,7 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .05);
+      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-light:hover {
@@ -1075,7 +1074,7 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .05);
+      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-action:hover {
@@ -1125,7 +1124,7 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .05);
+      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-secondary {
@@ -1163,7 +1162,7 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .05);
+      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-primary {
@@ -1201,7 +1200,7 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .05);
+      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-white {
@@ -1239,7 +1238,7 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .05);
+      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-dark-alpha {
@@ -1277,7 +1276,7 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .05);
+      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-sm {
@@ -1323,14 +1322,14 @@ a:hover {
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      inset 0 0 20px 20px rgba(0, 0, 0, .05);
+      inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .button-sm:hover {
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
     transform: none;
     cursor: pointer;
-    box-shadow: inset 0 0 20px 10px rgba(0, 0, 0, .1);
+    box-shadow: inset 0 0 20px 10px rgba(255, 255, 255, .2);
   }
 
 .lift:hover {
@@ -1339,11 +1338,16 @@ a:hover {
   }
 
 .lbl {
+  border-width: 1px;
+  border-color: transparent;
+  line-height: 1.25;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   text-decoration: none;
   cursor: default;
-  margin-left: 0.25rem;
   padding-left: 0.5rem;
   padding-right: 0.5rem;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
   display: inline-block;
   font-size: 0.75rem;
   font-weight: 400;
@@ -1357,9 +1361,59 @@ a:hover {
 
 .lbl.linked:hover {
     text-decoration: none;
-    background-color: rgb(var(--primary-rgb));
+    cursor: pointer;
+    color: rgba(0, 0, 0, .5);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(255, 255, 255, .3);
+  }
+
+.lbl:active {
+    box-shadow: none;
+  }
+
+.lbl-secondary {
+  border-width: 1px;
+  border-color: transparent;
+  line-height: 1.25;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  text-decoration: none;
+  cursor: default;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 400;
+  border-radius: 9999px;
+  background-color: rgba(0, 0, 0, .05);
+  color: rgba(0, 0, 0, .5);
+  letter-spacing: 0.025em;
+  white-space: nowrap;
+  text-align: center;
+  border-color: rgb(var(--secondary-rgb));
+  color: #fff;
+  background-color: #fff;
+  color: rgb(var(--secondary-rgb));
+  border-width: 1px;
+}
+
+.lbl-secondary.linked:hover {
+    text-decoration: none;
+    cursor: pointer;
+    color: rgba(0, 0, 0, .5);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(255, 255, 255, .3);
+  }
+
+.lbl-secondary:active {
+    box-shadow: none;
+  }
+
+.lbl-secondary.linked:hover {
+    text-decoration: none;
+    background-color: rgb(var(--secondary-rgb));
     color: #fff;
     cursor: pointer;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(255, 255, 255, .1);
   }
 
 .alert {
@@ -1471,10 +1525,16 @@ table.list td {
     padding-bottom: 0.5rem;
   }
 
+.gear-links {
+  margin-left: 1rem;
+  min-height: 34.5px;
+}
+
 .lp-frame {
   display: flex;
   width: 100%;
   margin-top: -2rem;
+  border-radius: 0.5rem;
 }
 
 .lp-frame .left {
@@ -1507,12 +1567,13 @@ table.list td {
 
 .lp-frame .left .lp-nav .lp-nav-item {
         display: flex;
-        color: #4a4a4a;
         cursor: pointer;
         align-items: center;
         padding-left: 0.5rem;
         padding-right: 0.5rem;
-        margin-top: 0.25rem;
+        padding-top: 0.25rem;
+        padding-bottom: 0.25rem;
+        border-color: #f7f7f7;
       }
 
 .lp-frame .left .lp-nav .lp-nav-item.active {
@@ -1525,12 +1586,14 @@ table.list td {
 
 .lp-frame .left .lp-nav .lp-nav-item .name {
           line-height: 1;
+          padding-right: 1rem;
         }
 
 .lp-frame .left .lp-nav .lp-nav-item .count {
           text-align: right;
           flex-grow: 1;
           margin-left: 0.5rem;
+          font-size: 0.875rem;
         }
 
 .lp-frame .right {

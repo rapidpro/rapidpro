@@ -79,8 +79,10 @@ html {
   --color-info: #c0d9eb;
   --color-warning: #fff6c0;
   --color-error: rgb(var(--error-rgb));
+  --font-size: 13px;
+  --button-font-size: 1.125rem;
 
-  font-size: 13px;
+  font-size: var(--font-size);
   font-weight: 300;
   font-family: var(--font-family);
 

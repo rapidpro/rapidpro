@@ -163,7 +163,7 @@
                 -block title-text
                   .title.leading-tight
                     {{title}}
-              .ml-4
+              .gear-links
                 -include "gear_links_include.haml"
 
             %form#search-form.mb-4{method:"get"}
@@ -190,7 +190,7 @@
                           .labels.flex.items-center.flex-wrap
                             -if 'label' in actions
                               -for label in object.labels.all
-                                .lbl.linked{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' label.uuid %}", data-id: '{{label.id}}'}                                
+                                .lbl.linked.ml-2{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' label.uuid %}", data-id: '{{label.id}}'}                                
                                   {{label.name}}
 
                         -if object.attachments

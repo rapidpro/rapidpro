@@ -38,20 +38,30 @@
                   .count{onclick:"goto(event)", href:'{{folder.url}}'}
                     {{ folder.count | intcomma }}
 
+            .lp-nav.upper
+              .font-normal.uppercase.text-xs.pb-1.text-gray-500
+                - trans "Smart Groups"
+              .inner-scroll
+                -for group in groups
+                  -if group.is_dynamic
+                    .lp-nav-item{'class': '{% if current_group.id == group.pk %}font-normal{% endif %}' }
+                      .name{onclick:"goto(event)", href:'{% url "contacts.contact_filter" group.uuid %}'}
+                        {{group.label}}
+                      .count{onclick:"goto(event)", href:'{% url "contacts.contact_filter" group.uuid %}'}
+                        {{ group.count | intcomma }}
+
             .lp-nav.lower
+
               .font-normal.uppercase.text-xs.text-gray-500.pb-1
                 - trans "Groups"
               .inner-scroll
                 -for group in groups
-
-                  .px-2.mt-1{'class': '{% if current_group.id == group.pk %}font-normal{% endif %}' }
-                    .flex.linked
-                      .text{onclick:"goto(event)", href:'{% url "contacts.contact_filter" group.uuid %}'}
+                  -if not group.is_dynamic
+                    .lp-nav-item{'class': '{% if current_group.id == group.pk %}font-normal{% endif %}' }
+                      .name{onclick:"goto(event)", href:'{% url "contacts.contact_filter" group.uuid %}'}
                         {{group.label}}
-                      .text-right.flex-grow{onclick:"goto(event)", href:'{% url "contacts.contact_filter" group.uuid %}'}
+                      .count{onclick:"goto(event)", href:'{% url "contacts.contact_filter" group.uuid %}'}
                         {{ group.count | intcomma }}
-                      -if not group.is_ready
-                        %i.spin.icon-loop
 
             .flex-grow
               -if org_perms.contacts.contact_create
@@ -130,15 +140,15 @@
 
                     .flex-grow.page-title.text-3xl.text-gray-700.ml-1.self-end.items-end
                       .flex.flex-col.pr-12
-                        -block title-text
-                          .title.leading-tight.-mb-1
+                        .title.leading-tight
+                          -block title
                             -if current_group
                               {{current_group.name}}
                             -else
                               {{title}}
-
-
-                    .buttons.mt-2
+                        .subtitle
+                          -block subtitle
+                    .gear-links
                       -include "gear_links_include.haml"
 
                 %form#search-form.mb-4{method:"get"}

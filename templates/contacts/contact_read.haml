@@ -10,15 +10,11 @@
 
 -block title
   -if contact.is_blocked
-    <div class="medium-help icon-user-block" style="float:left" title="{% trans "blocked" %}"></div>
   -elif contact.is_stopped
-    <div class="medium-help icon-user-delete" style="float:left" title="{% trans "stopped" %}"></div>
   -else
-    .medium-help.icon-user{style:"float:left"}
-  %h2.header-margin
-    {{contact|name_or_urn:user_org|default:"Contact Details"}}
+  {{contact|name_or_urn:user_org|default:"Contact Details"}}
 
-  %h5.header-margin{style:"margin-bottom: 5px"}
+-block subtitle
     -if user_org.is_anon
       .contact-urn
         .glyph.icon-vcard
@@ -63,17 +59,15 @@
           -else
             {{urn|format_urn:user_org}}
 
-  -block contact-groups
-    %div.header-margin
-      -for group in contact_groups
-        %span.group-membership{id:"group_{{group.id}}_{{contact.id}}"}
-          -if org_perms.contacts.contact_update and not group.is_dynamic
-            %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.uuid %}"}
-              = group.name
-              %a.btn.btn-primary.btn-mini{href:"#", onclick:'removeContactFromGroup({{group.id}}, {{contact.id}})'} x
-          -else
-            %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.uuid %}"}
-              = group.name
+  .flex.flex-wrap
+    -for group in contact_groups
+      -if group.is_dynamic
+        .lbl-secondary.mt-2.mr-2.linked{onclick:"goto(event)", href:"{% url 'contacts.contact_filter' group.uuid %}"}
+          = group.name
+    -for group in contact_groups
+      -if not group.is_dynamic
+        .lbl.mt-2.mr-2.linked{onclick:"goto(event)", href:"{% url 'contacts.contact_filter' group.uuid %}"}
+          = group.name
 
 -block read-buttons
 
