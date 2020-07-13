@@ -4063,9 +4063,29 @@ class MergeFlowsTask(TembaModel):
             target.name = self.merge_name
             target.save()
 
-            # TODO: move campaigns from source to target
-            # TODO: move triggers from source to target
-            # TODO: move all results from source to target
+            # move campaigns from source to target
+            from temba.campaigns.models import CampaignEvent
+            campaigns = CampaignEvent.objects.filter(
+                is_active=True, flow=self.source, campaign__org=self.created_by.get_org(), campaign__is_archived=False
+            )
+            backup_metadata["moved_campaign_events"] = campaigns.values_list("uuid", flat=True)
+            campaigns.update(flow=self.target)
+
+            # move triggers from source to target
+            from temba.triggers.models import Trigger
+            triggers = Trigger.objects.filter(flow=source)
+            backup_metadata["moved_triggers"] = triggers.values_list("uuid", flat=True)
+            triggers.update(flow=self.target)
+
+            # move runs from source to target
+            runs = self.source.runs.filter(is_active=True).exclude(is_archived=True)
+            backup_metadata["moved_flow_runs"] = runs.values_list("uuid", flat=True)
+            runs.update(flow=self.target)
+
+            # move trackable links
+            links = self.source.related_links.all()
+            backup_metadata["moved_links"] = links.values_list("uuid", flat=True)
+            links.update(related_flow=self.target)
 
             # archive source
             self.source.archive()
