@@ -30,6 +30,7 @@ from .models import (
     FlowRunCount,
     FlowSession,
     FlowStartCount,
+    MergeFlowsTask,
 )
 
 FLOW_TIMEOUT_KEY = "flow_timeouts_%y_%m_%d"
@@ -177,3 +178,10 @@ def delete_flowimage_downloaded_files():
         except Exception:
             pass
     print("> Garbage collection finished in %0.3fs for %s file(s)" % (time.time() - start, counter_files))
+
+
+@task(track_started=True, name="merge_flows")
+def merge_flows_task(uuid):
+    task = MergeFlowsTask.objects.filter(uuid=uuid).first()
+    if task:
+        task.process_merging()

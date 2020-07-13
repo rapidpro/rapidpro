@@ -14,9 +14,12 @@
           -blocktrans with source=source.name target=target.name
             You are merging "{{ source }}" into "{{ target }}".
         %p
-          -trans "If there are some issues you need to resolve them."
+          -trans "All data will be moved from source to target flow. After merging source flow will be archived."
+        %p
+          -trans "Merging process will take some time."
+          -trans "If you don't want to perform this action, click 'Cancel' button."
 
-    %form#import-form.smartmin-form.horizontal-form{method:"post", enctype:"multipart/form-data"}
+        %form#import-form.smartmin-form.horizontal-form{method:"post", enctype:"multipart/form-data"}
                   - if form.non_field_errors
                     %div.alert.alert-error.form-errors
                       {{ form.non_field_errors }}

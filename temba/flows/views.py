@@ -72,6 +72,7 @@ from .models import (
     FlowPathRecentRun,
     FlowUserConflictException,
     FlowVersionConflictException,
+    MergeFlowsTask,
 )
 from django.http.response import Http404
 
@@ -3019,14 +3020,23 @@ class FlowCRUDL(SmartCRUDL):
             difference_map = GraphDifferenceMap(source_graph, target_graph)
             difference_map.compare_graphs()
             definition = difference_map.definition
-            new_flow_name = request.POST.get("flow_name")
 
-            new_flow = Flow.copy(target, self.get_user())
-            new_flow.name = new_flow_name
-            new_flow.import_definition(self.get_user(), definition, {})
-            new_flow.save()
+            merging_task = MergeFlowsTask.objects.create(
+                source=source,
+                target=target,
+                merge_name=request.POST.get("flow_name"),
+                definition=definition,
+                created_by=self.get_user(),
+                modified_by=self.get_user(),
+            )
+            merging_task.run()
 
-            return HttpResponseRedirect(reverse("flows.flow_editor", args=[new_flow.uuid]))
+            messages.info(
+                self.request,
+                _("Merging process has been successfully run. You will be informed with email when it gets done."),
+            )
+
+            return HttpResponseRedirect(reverse("flows.flow_list"))
 
 
 # this is just for adhoc testing of the preprocess url

@@ -4045,6 +4045,38 @@ class FlowImagesExportAssetStore(BaseExportAssetStore):
     extensions = ("zip",)
 
 
+class MergeFlowsTask(TembaModel):
+    source = models.ForeignKey("Flow", on_delete=models.CASCADE, related_name="merge_targets")
+    target = models.ForeignKey("Flow", on_delete=models.CASCADE, related_name="merge_sources")
+    merge_name = models.CharField(max_length=256, help_text=_("New name for target flow that contain erged data."))
+    merging_metadata = JSONField(null=True)
+    definition = JSONField()
+
+    def process_merging(self):
+        with transaction.atomic():
+            backup_metadata = {}
+    
+            # import merge changes
+            backup_metadata["target_name"] = target.name
+            backup_metadata["terget_backup"] = target.as_json()
+            target.import_definition(self.created_by, self.definition, {})
+            target.name = self.merge_name
+            target.save()
+
+            # TODO: move campaigns from source to target
+            # TODO: move triggers from source to target
+            # TODO: move all results from source to target
+
+            # archive source
+            self.source.archive()
+            self.merging_metadata = backup_metadata
+            self.save()
+
+    def run(self):
+        from .tasks import merge_flows_task
+        merge_flows_task.delay(self.uuid)
+
+
 class FlowStart(models.Model):
     STATUS_PENDING = "P"
     STATUS_STARTING = "S"
