@@ -16,7 +16,7 @@
         %p
           -trans "If there are some issues you need to resolve them."
 
-    %form#import-form.smartmin-form.horizontal-form{method:"post", action:"#", enctype:"multipart/form-data"}
+    %form#import-form.smartmin-form.horizontal-form{method:"post", enctype:"multipart/form-data"}
                   - if form.non_field_errors
                     %div.alert.alert-error.form-errors
                       {{ form.non_field_errors }}
@@ -24,13 +24,11 @@
                   -csrf_token
 
                   -block fields
-                    %div#csv_file_errors
-                      {{ form.csv_file.errors }}
+                    %label{for: "flow_name"}
+                        -trans "Name for merging result flow."
                     %input{type:"text", name:"flow_name", id:"flow_name", value:"Merge of {{ source.name }} with {{ target.name }}"}
                     
                   .form-buttons
-                    %label
-                      -trans "Name for mergin"
                     %input.btn.btn-primary{type:"submit", value:'{% trans "Merge" %}'}
                     %a.btn{onclick:"javascript:history.go(-1)"}
                       -trans "Cancel"

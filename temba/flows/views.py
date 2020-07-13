@@ -62,6 +62,7 @@ from temba.utils.fields import ContactSearchWidget, JSONField, OmniboxChoice, Se
 from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm, NonAtomicMixin
 
+from .merging import Graph, GraphDifferenceMap
 from .models import (
     ExportFlowImagesTask,
     ExportFlowResultsTask,
@@ -3003,10 +3004,30 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             queryset = Flow.objects.filter(org=self.org, is_active=True, is_archived=False, is_system=False)
-            context["target"] = queryset.filter(uuid=self.request.GET.get("target")).first()
-            context["source"] = queryset.filter(uuid=self.request.GET.get("source")).first()
+            context["source"]  = queryset.filter(uuid=self.request.GET.get("source")).first().as_json()
+            context["target"] = queryset.filter(uuid=self.request.GET.get("target")).first().as_json()
             return context
         
+
+        def post(self, request, *args, **kwargs):
+            queryset = Flow.objects.filter(org=self.org, is_active=True, is_archived=False, is_system=False)
+            source = queryset.filter(uuid=self.request.GET.get("source")).first()
+            target = queryset.filter(uuid=self.request.GET.get("target")).first()
+
+            source_graph = Graph(source.as_json())
+            target_graph = Graph(target.as_json())
+            difference_map = GraphDifferenceMap(source_graph, target_graph)
+            difference_map.compare_graphs()
+            definition = difference_map.definition
+            new_flow_name = request.POST.get("flow_name")
+
+            new_flow = Flow.copy(target, self.get_user())
+            new_flow.name = new_flow_name
+            new_flow.import_definition(self.get_user(), definition, {})
+            new_flow.save()
+
+            return HttpResponseRedirect(reverse("flows.flow_editor", args=[new_flow.uuid]))
+
 
 # this is just for adhoc testing of the preprocess url
 class PreprocessTest(FormView):  # pragma: no cover
