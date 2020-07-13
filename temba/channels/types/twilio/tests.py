@@ -113,6 +113,7 @@ class TwilioTypeTest(TembaTest):
                 self.assertEqual(
                     channel.role, Channel.ROLE_CALL + Channel.ROLE_ANSWER + Channel.ROLE_SEND + Channel.ROLE_RECEIVE
                 )
+                self.assertEqual(channel.tps, 1)
 
                 channel_config = channel.config
                 self.assertEqual(channel_config[Channel.CONFIG_ACCOUNT_SID], "account-sid")
