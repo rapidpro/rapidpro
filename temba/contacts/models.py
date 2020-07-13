@@ -1961,8 +1961,12 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return cls.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
 
     @classmethod
-    def apply_action_label(cls, user, contacts, group, add):
-        return group.update_contacts(user, contacts, add)
+    def apply_action_label(cls, user, contacts, group):
+        return group.update_contacts(user, contacts, add=True)
+
+    @classmethod
+    def apply_action_unlabel(cls, user, contacts, group):
+        return group.update_contacts(user, contacts, add=False)
 
     @classmethod
     def apply_action_delete(cls, user, contacts):

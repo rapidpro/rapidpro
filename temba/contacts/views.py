@@ -44,7 +44,7 @@ from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
 from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.text import slugify_with
-from temba.utils.views import BaseActionForm, NonAtomicMixin
+from temba.utils.views import BulkActionMixin, NonAtomicMixin
 from temba.values.constants import Value
 
 from .models import (
@@ -148,7 +148,7 @@ class ContactGroupForm(forms.ModelForm):
         model = ContactGroup
 
 
-class ContactListView(OrgPermsMixin, SmartListView):
+class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
     """
     Base class for contact list views with contact folders and groups listed by the side
     """
@@ -282,6 +282,9 @@ class ContactListView(OrgPermsMixin, SmartListView):
             patch_queryset_count(qs, group.get_member_count)
             return qs
 
+    def get_bulk_action_labels(self):
+        return ContactGroup.get_user_groups(org=self.get_user().get_org(), dynamic=False)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
@@ -333,41 +336,6 @@ class ContactListView(OrgPermsMixin, SmartListView):
             )
 
         return rendered
-
-
-class ContactActionForm(BaseActionForm):
-    allowed_actions = (
-        ("label", _("Add to Group")),
-        ("unlabel", _("Remove from Group")),
-        ("unblock", _("Unblock Contacts")),
-        ("block", _("Block Contacts")),
-        ("delete", _("Delete Contacts")),
-        ("unstop", _("Unstop Contacts")),
-    )
-
-    model = Contact
-    label_model = ContactGroup
-    label_model_manager = "user_groups"
-    has_is_active = True
-
-    class Meta:
-        fields = ("action", "label", "objects", "add")
-
-
-class ContactActionMixin(SmartListView):
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        user = self.request.user
-        org = user.get_org()
-
-        form = ContactActionForm(self.request.POST, org=org, user=user)
-
-        if form.is_valid():
-            form.execute()
-
-        return self.get(request, *args, **kwargs)
 
 
 class ContactForm(forms.ModelForm):
@@ -1281,9 +1249,10 @@ class ContactCRUDL(SmartCRUDL):
             }
             return JsonResponse(summary)
 
-    class List(ContactActionMixin, ContactListView):
+    class List(ContactListView):
         title = _("Contacts")
         system_group = ContactGroup.TYPE_ALL
+        bulk_actions = ("label", "block")
 
         def get_gear_links(self):
             links = []
@@ -1310,36 +1279,35 @@ class ContactCRUDL(SmartCRUDL):
             context = super().get_context_data(*args, **kwargs)
             org = self.request.user.get_org()
 
-            context["actions"] = ("label", "block")
             context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by("-priority", "pk")
             context["export_url"] = self.derive_export_url()
             return context
 
-    class Blocked(ContactActionMixin, ContactListView):
+    class Blocked(ContactListView):
         title = _("Blocked Contacts")
         template_name = "contacts/contact_list.haml"
         system_group = ContactGroup.TYPE_BLOCKED
 
+        def get_bulk_actions(self):
+            return ("unblock", "delete") if self.has_org_perm("contacts.contact_delete") else ("unblock",)
+
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
-            context["actions"] = (
-                ("unblock", "delete") if self.has_org_perm("contacts.contact_delete") else ("unblock",)
-            )
             context["reply_disabled"] = True
             return context
 
-    class Stopped(ContactActionMixin, ContactListView):
+    class Stopped(ContactListView):
         title = _("Stopped Contacts")
         template_name = "contacts/contact_stopped.haml"
         system_group = ContactGroup.TYPE_STOPPED
+        bulk_actions = ("block", "unstop")
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
-            context["actions"] = ["block", "unstop"]
             context["reply_disabled"] = True
             return context
 
-    class Filter(ContactActionMixin, ContactListView, OrgObjPermsMixin):
+    class Filter(ContactListView, OrgObjPermsMixin):
         template_name = "contacts/contact_filter.haml"
 
         def get_gear_links(self):
@@ -1362,18 +1330,15 @@ class ContactCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Delete Group"), js_class="delete-contactgroup", href="#"))
             return links
 
+        def get_bulk_actions(self):
+            return ("block", "label") if self.derive_group().is_dynamic else ("block", "label", "unlabel")
+
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
 
             group = self.derive_group()
             org = self.request.user.get_org()
 
-            if group.is_dynamic:
-                actions = ("block", "label")
-            else:
-                actions = ("block", "label", "unlabel")
-
-            context["actions"] = actions
             context["current_group"] = group
             context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by("-priority", "pk")
             context["export_url"] = self.derive_export_url()

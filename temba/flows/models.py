@@ -526,8 +526,12 @@ class Flow(TembaModel):
         return name
 
     @classmethod
-    def apply_action_label(cls, user, flows, label, add):  # pragma: needs cover
-        return label.toggle_label(flows, add)
+    def apply_action_label(cls, user, flows, label):
+        return label.toggle_label(flows, add=True)
+
+    @classmethod
+    def apply_action_unlabel(cls, user, flows, label):
+        return label.toggle_label(flows, add=False)
 
     @classmethod
     def apply_action_archive(cls, user, flows):

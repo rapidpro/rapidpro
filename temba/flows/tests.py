@@ -1866,22 +1866,25 @@ class FlowTest(TembaTest):
         # can not label
         post_data = dict()
         post_data["action"] = "label"
-        post_data["objects"] = flow.pk
-        post_data["label"] = flow_label.pk
+        post_data["objects"] = flow.id
+        post_data["label"] = flow_label.id
         post_data["add"] = True
 
         response = self.client.post(flow_list_url, post_data, follow=True)
-        self.assertEqual(1, response.context["object_list"].count())
-        self.assertFalse(response.context["object_list"][0].labels.all())
+        self.assertEqual(403, response.status_code)
+
+        flow.refresh_from_db()
+        self.assertEqual(0, flow.labels.count())
 
         # can not archive
         post_data = dict()
         post_data["action"] = "archive"
         post_data["objects"] = flow.pk
         response = self.client.post(flow_list_url, post_data, follow=True)
-        self.assertEqual(1, response.context["object_list"].count())
-        self.assertEqual(response.context["object_list"][0].pk, flow.pk)
-        self.assertFalse(response.context["object_list"][0].is_archived)
+        self.assertEqual(403, response.status_code)
+
+        flow.refresh_from_db()
+        self.assertFalse(flow.is_archived)
 
         # inactive list shouldn't have any flows
         response = self.client.get(flow_archived_url)
@@ -1905,14 +1908,15 @@ class FlowTest(TembaTest):
         response = self.client.get(flow_list_url)
         self.assertEqual(0, len(response.context["object_list"]))
 
-        # can not restore
+        # cannot restore
         post_data = dict()
-        post_data["action"] = "archive"
-        post_data["objects"] = flow.pk
+        post_data["action"] = "restore"
+        post_data["objects"] = flow.id
         response = self.client.post(flow_archived_url, post_data, follow=True)
-        self.assertEqual(1, response.context["object_list"].count())
-        self.assertEqual(response.context["object_list"][0].pk, flow.pk)
-        self.assertTrue(response.context["object_list"][0].is_archived)
+        self.assertEqual(403, response.status_code)
+
+        flow.refresh_from_db()
+        self.assertTrue(flow.is_archived)
 
         response = self.client.get(flow_archived_url)
         self.assertEqual(1, len(response.context["object_list"]))
