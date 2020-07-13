@@ -54,7 +54,7 @@ from temba.globals.models import Global
 from temba.templates.models import Template
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
-from temba.utils.email import is_valid_address
+from temba.utils.email import is_valid_address, send_template_email
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.models import (
     JSONAsTextField,
@@ -4052,6 +4052,9 @@ class MergeFlowsTask(TembaModel):
     merging_metadata = JSONField(null=True)
     definition = JSONField()
 
+    email_subject = "Flow Merging Finished"
+    email_template = "flows/email/flow_merging_result"
+
     def process_merging(self):
         with transaction.atomic():
             backup_metadata = {}
@@ -4091,6 +4094,16 @@ class MergeFlowsTask(TembaModel):
             self.source.archive()
             self.merging_metadata = backup_metadata
             self.save()
+
+        org = self.created_by.get_org()
+        branding = org.get_branding()
+        send_template_email(
+            self.created_by.username,
+            self.email_subject % org,
+            self.email_template,
+            {"flow": self.target},
+            branding,
+        )
 
     def run(self):
         from .tasks import merge_flows_task

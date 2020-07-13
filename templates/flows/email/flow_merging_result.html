@@ -1,0 +1,13 @@
+{% load tz %}
+{% load i18n %}
+
+<p>{% trans "Hi there!" %}</p>
+
+<p>{% trans "Your merging process has finished." %}</p>
+    <ul>
+        <li>{{ flow.name }}</li>
+    </ul>
+
+<p>{% trans "Thanks," %}</p>
+
+<p>{% blocktrans with brand=branding.name %}The {{ brand }} Team{% endblocktrans %}</p>
