@@ -4059,7 +4059,6 @@ class MergeFlowsTask(TembaModel):
         with transaction.atomic():
             backup_metadata = {}
             target = self.target
-            target = Flow.copy(target, self.created_by) # this line only for debug and need to be deleted.
     
             # import merge changes
             backup_metadata["target_name"] = target.name

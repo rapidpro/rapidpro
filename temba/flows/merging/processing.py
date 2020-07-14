@@ -12,14 +12,19 @@ class Node:
     node_types: set = None
     parent = None
     children: list = None
+    has_router: bool = None
+    routing_categories: dict = None
+    parent_routind_data: dict = None
     data: OrderedDict = None
 
     def __init__(self, _uuid):
         self.uuid = _uuid
         self.children = []
+        self.routing_categories = {}
+        self.parent_routind_data = {}
     
     def __str__(self):
-        return f"Node: {self.node_types + '_' + self.uuid}"
+        return f"Node: {str(self.node_types) + '_' + self.uuid}"
 
     def __repr__(self):
         return self.uuid
@@ -32,18 +37,41 @@ class Node:
         if isinstance(other, Node):
             # TODO: Need to add set of instructions to chack if one node match with another by different metrics
             common_types = self.node_types.intersection(other.node_types)
-            # if "send_msg" in common_types:
-            #     for self_action in self.data.get("actions"):
-            #         for other_action in other.data.get("actions"):
-            #             if self_action["type"] == other_action["type"] and self_action["type"] == "send_msg":
-            #                 if jaro_distance(self_action["text"], other_action["text"]) >= 0.8:
-            #                     return True
-            #     return False
-            return bool(common_types)
+            both_routers = self.has_router == other.has_router
+            if not (bool(common_types) and both_routers):
+                return False
+
+            if "send_msg" in common_types:
+                for self_action in self.data.get("actions"):
+                    for other_action in other.data.get("actions"):
+                        if self_action["type"] == other_action["type"] and self_action["type"] == "send_msg":
+                            if jaro_distance(self_action["text"], other_action["text"]) >= 0.8:
+                                return True
+                return False
+            return True
     
     def set_parent(self, parent):
+        # if node already has parent we don't set new parent,
+        # but add current node as child to the new parent
+        if self.parent:
+            parent.children.apppend(self)
+            return
+
         self.parent = parent
         parent.children.append(self)
+
+    def get_routing_categories(self):
+        if self.routing_categories or not self.has_router:
+            return self.routing_categories
+        
+        categories = self.data["router"]["categories"]
+        exits = {item["uuid"]: item.get("destination_uuid") for item in self.data["exits"]}
+        for category in categories:
+            name = category["name"]
+            destination = exits.get(category["exit_uuid"])
+            self.routing_categories[name] = destination
+        
+        return self.routing_categories
 
 
 class Graph:
@@ -69,6 +97,7 @@ class Graph:
             if node_data.get("router"):
                 node.node_types.add(node_data["router"]["type"])
             node.data = OrderedDict(**node_data)
+            node.has_router = "router" in node_data
             self.nodes_map[node.uuid] = node
 
             destinations = {node_exit["destination_uuid"] for node_exit in node_data["exits"] if node_exit.get("destination_uuid")}
@@ -78,8 +107,16 @@ class Graph:
         # create childrens and parents
         for parent, children in self.edges_map.items():
             parent = self.nodes_map.get(parent)
-            for child in children:
-                self.nodes_map.get(child).set_parent(parent)
+            if parent.has_router:
+                categories = parent.get_routing_categories()
+                categories_uuid = {uuid: name for name, uuid in categories.items()}
+                for child in children:
+                    child = self.nodes_map.get(child)
+                    child.set_parent(parent)
+                    child.parent_routind_data[parent.uuid] = categories_uuid[child.uuid]
+            else:
+                for child in children:
+                    self.nodes_map.get(child).set_parent(parent)
 
 
 class GraphDifferenceNode(Node):
@@ -95,8 +132,17 @@ class GraphDifferenceNode(Node):
         self.parent = parent
         self.conflicts = conflicts if conflicts else []
         self.data = OrderedDict(uuid=self.uuid)
+
+    def __str__(self):
+        return self.uuid
     
     def set_parent(self, parent):
+        # if node already has parent we don't set new parent,
+        # but add current node as child to the new parent
+        if self.parent:
+            parent.children.append(self)
+            return
+
         self.parent = parent
         self.parent.children.append(self)
 
@@ -117,7 +163,61 @@ class GraphDifferenceNode(Node):
             dest_uuid = destination.get("destination_uuid")
             if dest_uuid:
                 child = self.get_child(dest_uuid)
-                destination["destination_uuid"] = child.uuid
+                destination["destination_uuid"] = getattr(child, "uuid", None)
+
+    def check_categories(self):
+        if not (self.left_origin_node or self.right_origin_node).has_router:
+            return
+
+        left = {**self.left_origin_node.routing_categories}
+        right = {**self.right_origin_node.routing_categories}
+        all_categories = set({*left.keys(), *right.keys()})
+        default_category = None
+        categories = []
+        exits = []
+
+        def append_category(category):
+            categories.append(category["category"])
+            exits.append(category["exit"])
+            if category["category"]["name"].lower() in ("other", "all_responses"):
+                default_category = category["category"]["uuid"]
+
+        def get_category_exits_dict(source):
+            _categories = {}
+            _exits = {exit_item["uuid"]: exit_item for exit_item in source["exits"]}
+            for category in source["router"]["categories"]:
+                _categories[category["name"]] = {
+                    "category": category,
+                    "exit": _exits[category["exit_uuid"]]
+                }
+            return _categories
+
+
+        left_categories = get_category_exits_dict(self.left_origin_node.data)
+        right_categories = get_category_exits_dict(self.right_origin_node.data)
+
+        if "All Responses" in all_categories and len(all_categories) > 1:
+            all_categories.remove("All Responses")
+            for categories_dict in (left, right, left_categories, right_categories):
+                if "All Responses" in categories_dict:
+                    data = categories_dict["All Responses"]
+                    if "category" in data:
+                        data["category"]["name"] = "Other"
+                    categories_dict["Other"] = data
+
+        for category in all_categories:
+            if category in left and left.get(category) != None:
+                append_category(left_categories[category])
+            elif category in right and right.get(category) != None:
+                append_category(right_categories[category])
+            elif category in left:
+                append_category(left_categories[category])
+            else:
+                append_category(right_categories[category])
+
+        self.data["router"]["categories"] = categories
+        self.data["router"]["default_category_uuid"] = default_category
+        self.data["exits"] = exits
 
     def check_routers(self):
         left = (self.left_origin_node or {}).data.get("router")
@@ -189,6 +289,7 @@ class GraphDifferenceNode(Node):
             return
         
         self.check_routers()
+        self.check_categories()
         self.check_actions()
         self.correct_uuids()
 
@@ -223,7 +324,7 @@ class GraphDifferenceMap:
         while matched_pair:
             had_parents = matched_pair[0].parent and matched_pair[1].parent
             parents_match = had_parents and matched_pair[0].parent == matched_pair[1].parent
-            children_pairs, had_children = self.find_matching_children(*matched_pair)
+            children_pairs, had_children = self.find_matching_children(*matched_pair, ignored_pairs)
 
             if had_parents and parents_match:
                 parents_pair = (matched_pair[0].parent, matched_pair[1].parent)
@@ -235,18 +336,18 @@ class GraphDifferenceMap:
             
             if had_children and children_pairs:
                 node = self.create_diff_node_for_matched_nodes_pair(matched_pair)
-                self.mark_nodes_as_matched(matched_pair, matched_pairs)
+                self.mark_nodes_as_matched(matched_pair, matched_pairs, ignored_pairs)
                 for children_pair in children_pairs:
                     child = self.create_diff_node_for_matched_nodes_pair(children_pair, parent=node)
                     node.children.append(child)
                     self.create_diff_nodes_edge(node.uuid, child.uuid)
-                    self.mark_nodes_as_matched(children_pair, matched_pairs)
+                    self.mark_nodes_as_matched(children_pair, matched_pairs, ignored_pairs)
                     if children_pair in matched_pairs:
                         matched_pairs.remove(children_pair)
     
             if not had_children and not had_parents:
                 node = self.create_diff_node_for_matched_nodes_pair(matched_pair)
-                self.mark_nodes_as_matched(matched_pair, matched_pairs)
+                self.mark_nodes_as_matched(matched_pair, matched_pairs, ignored_pairs)
             else:
                 ignored_pairs.append(matched_pair)
             matched_pair = matched_pairs.pop(0) if matched_pairs else None
@@ -316,7 +417,7 @@ class GraphDifferenceMap:
     def create_diff_nodes_edge(self, from_node, to_node):
         self.diff_nodes_edges[from_node] = {*self.diff_nodes_edges.get(from_node, set()), to_node}
 
-    def mark_nodes_as_matched(self, matched_pair, matched_pairs=None):
+    def mark_nodes_as_matched(self, matched_pair, matched_pairs=None, ignored_pairs=None):
         left, right = matched_pair
         need_to_remove_from_matched_pairs = []
         if left:
@@ -326,6 +427,7 @@ class GraphDifferenceMap:
             self.unmatched_nodes_in_right.remove(right.uuid)
             need_to_remove_from_matched_pairs += filter(lambda node_pair: node_pair[1].uuid==right.uuid, matched_pairs or [])
 
+        ignored_pairs.extend(need_to_remove_from_matched_pairs)
         for item in set(need_to_remove_from_matched_pairs):
             matched_pairs.remove(item)
 
@@ -343,12 +445,13 @@ class GraphDifferenceMap:
         return pairs
 
 
-    def find_matching_children(self, node_a: Node, node_b: Node):
+    def find_matching_children(self, node_a: Node, node_b: Node, ignored_pairs=None):
         pairs = []
         for sub_node_a in node_a.children:
             for sub_node_b in node_b.children:
                 if sub_node_a == sub_node_b:
-                    pairs.append((sub_node_a, sub_node_b))
+                    if (ignored_pairs and (sub_node_a, sub_node_b) not in ignored_pairs) or (not ignored_pairs):
+                        pairs.append((sub_node_a, sub_node_b))
         return pairs, bool(node_a.children and node_b.children)
 
     def check_differences(self):
@@ -361,7 +464,20 @@ class GraphDifferenceMap:
             nodes.append(node.data)
         self.definition["nodes"] = nodes
 
+    def order_nodes(self):
+        left_order = {node["uuid"]: index for index, node in enumerate(self.left_graph.resource["nodes"])}
+        right_order = {node["uuid"]: index for index, node in enumerate(self.right_graph.resource["nodes"])}
+        ordering = {**left_order, **right_order}
+        self.definition["nodes"].sort(key=lambda node: ordering[node["uuid"]])
+    
+    def merge_ui_definition(self):
+        origin_ui = {**self.left_graph.resource["_ui"]["nodes"], **self.right_graph.resource["_ui"]["nodes"]}
+        merged_ui = {flow_uuid: origin_ui[flow_uuid] for flow_uuid in self.diff_nodes_map.keys()}
+        self.definition["_ui"]["nodes"] = merged_ui
+
     def compare_graphs(self):
         self.match_flow_steps()
         self.check_differences()
+        self.order_nodes()
+        self.merge_ui_definition()
 
