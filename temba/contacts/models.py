@@ -1946,36 +1946,32 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def bulk_change_status(cls, user, contacts, status):
-        return cls.bulk_modify(user, contacts, [modifiers.Status(status=status)])
+        cls.bulk_modify(user, contacts, [modifiers.Status(status=status)])
 
     @classmethod
     def apply_action_block(cls, user, contacts):
-        return cls.bulk_change_status(user, contacts, Contact.STATUS_BLOCKED)
+        cls.bulk_change_status(user, contacts, Contact.STATUS_BLOCKED)
 
     @classmethod
     def apply_action_unblock(cls, user, contacts):
-        return cls.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
+        cls.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
 
     @classmethod
     def apply_action_unstop(cls, user, contacts):
-        return cls.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
+        cls.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
 
     @classmethod
     def apply_action_label(cls, user, contacts, group):
-        return group.update_contacts(user, contacts, add=True)
+        group.update_contacts(user, contacts, add=True)
 
     @classmethod
     def apply_action_unlabel(cls, user, contacts, group):
-        return group.update_contacts(user, contacts, add=False)
+        group.update_contacts(user, contacts, add=False)
 
     @classmethod
     def apply_action_delete(cls, user, contacts):
-        changed = []
-
         for contact in contacts:
             contact.release(user)
-            changed.append(contact.pk)
-        return changed
 
     def block(self, user):
         """

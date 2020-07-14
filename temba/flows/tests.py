@@ -308,8 +308,7 @@ class FlowTest(TembaTest):
         self.assertIsNotNone(campaign_event)
 
         # do not archive if the campaign is active
-        changed = Flow.apply_action_archive(self.admin, Flow.objects.filter(pk=flow.pk))
-        self.assertFalse(changed)
+        Flow.apply_action_archive(self.admin, Flow.objects.filter(pk=flow.pk))
 
         flow.refresh_from_db()
         self.assertFalse(flow.is_archived)
@@ -318,9 +317,7 @@ class FlowTest(TembaTest):
         campaign.save()
 
         # can archive if the campaign is archived
-        changed = Flow.apply_action_archive(self.admin, Flow.objects.filter(pk=flow.pk))
-        self.assertTrue(changed)
-        self.assertEqual(changed, [flow.pk])
+        Flow.apply_action_archive(self.admin, Flow.objects.filter(pk=flow.pk))
 
         flow.refresh_from_db()
         self.assertTrue(flow.is_archived)
@@ -335,9 +332,7 @@ class FlowTest(TembaTest):
         campaign_event.save()
 
         # can archive if the campaign is not archived with no active event
-        changed = Flow.apply_action_archive(self.admin, Flow.objects.filter(pk=flow.pk))
-        self.assertTrue(changed)
-        self.assertEqual(changed, [flow.pk])
+        Flow.apply_action_archive(self.admin, Flow.objects.filter(pk=flow.pk))
 
         flow.refresh_from_db()
         self.assertTrue(flow.is_archived)
