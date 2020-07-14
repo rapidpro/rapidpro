@@ -95,7 +95,7 @@ class BulkActionMixin:
             try:
                 self.apply_bulk_action(user, action, objects, label)
             except forms.ValidationError as e:
-                action_error = e.message
+                action_error = ", ".join(e.messages)
             except Exception:
                 logger.exception(f"error applying '{action}' to {self.model.__name__} objects")
                 action_error = _("Oops, so sorry. Something went wrong!")
@@ -133,7 +133,8 @@ class BulkActionMixin:
 
     def apply_bulk_action(self, user, action, objects, label):
         """
-        Applies the given action to the given objects
+        Applies the given action to the given objects. If this method throws a validation error, that will become the
+        error message sent back to the user.
         """
         func_name = f"apply_action_{action}"
         model_func = getattr(self.model, func_name)

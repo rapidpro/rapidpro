@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-14 15:03+0000\n"
+"POT-Creation-Date: 2020-07-14 16:46+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3869,11 +3869,11 @@ msgid "Flows"
 msgstr "Fluxos"
 
 #, python-format
-msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
+msgid "%(flow)s is used inside a campaign. To archive it, first remove it from your campaigns."
 msgstr ""
 
 #, python-format
-msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
+msgid "%(flows)s are used inside a campaign. To archive them, first remove them from your campaigns."
 msgstr ""
 
 msgid "Contact Name"

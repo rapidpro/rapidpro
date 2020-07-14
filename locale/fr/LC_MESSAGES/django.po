@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-14 15:03+0000\n"
+"POT-Creation-Date: 2020-07-14 16:46+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3093,13 +3093,15 @@ msgstr "Relance l'appel trois fois pour l'intervalle choisi"
 msgid "Flows"
 msgstr "flux"
 
-#, python-format
-msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
-msgstr "%s sont utilisés dans une campagne. Pour les archiver, commencez par les supprimer de vos campagnes."
-
-#, python-format
-msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
+#, fuzzy, python-format
+#| msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
+msgid "%(flow)s is used inside a campaign. To archive it, first remove it from your campaigns."
 msgstr "%s est utilisé dans une campagne. Pour l'archiver, commencez par le supprimer de vos campagnes."
+
+#, fuzzy, python-format
+#| msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
+msgid "%(flows)s are used inside a campaign. To archive them, first remove them from your campaigns."
+msgstr "%s sont utilisés dans une campagne. Pour les archiver, commencez par les supprimer de vos campagnes."
 
 msgid "Contact Name"
 msgstr " Nom du Contact"

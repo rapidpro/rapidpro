@@ -785,21 +785,23 @@ class FlowCRUDL(SmartCRUDL):
 
             if action == "archive":
                 ignored = objects.filter(is_archived=False)
+                if ignored:
+                    flow_names = " and ".join([f.name for f in ignored])
 
-                if len(ignored) > 1:
-                    raise forms.ValidationError(
-                        _(
-                            "%s are used inside a campaign. To archive them, first remove them from your campaigns."
-                            % " and ".join(ignored)
+                    if len(ignored) == 1:
+                        raise forms.ValidationError(
+                            _(
+                                "%(flow)s is used inside a campaign. To archive it, first remove it from your campaigns."
+                            ),
+                            params={"flow": flow_names},
                         )
-                    )
-                elif len(ignored) == 1:
-                    forms.ValidationError(
-                        _(
-                            "%s is used inside a campaign. To archive it, first remove it from your campaigns."
-                            % ignored[0]
+                    else:
+                        raise forms.ValidationError(
+                            _(
+                                "%(flows)s are used inside a campaign. To archive them, first remove them from your campaigns."
+                            ),
+                            params={"flows": flow_names},
                         )
-                    )
 
         def get_bulk_action_labels(self):
             return self.get_user().get_org().flow_labels.all()
