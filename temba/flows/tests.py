@@ -2806,13 +2806,13 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor_next", args=[language_flow.uuid]))
         self.assertEqual(language_flow.base_language, language.iso_code)
 
-    def test_lists(self):
+    def test_list_views(self):
         flow1 = self.get_flow("color_v13")
         flow2 = self.get_flow("no_ruleset_flow")
 
         # archive second flow
         flow2.is_archived = True
-        flow2.save()
+        flow2.save(update_fields=("is_archived",))
 
         flow3 = Flow.create(self.org, self.admin, "Flow 3", base_language="base")
 
@@ -2826,15 +2826,18 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, response.context["folders"][1]["count"])
 
         # archive it
-        post_data = dict(action="archive", objects=flow1.id)
-        self.client.post(reverse("flows.flow_list"), post_data)
+        response = self.client.post(reverse("flows.flow_list"), {"action": "archive", "objects": flow1.id})
+        self.assertEqual(200, response.status_code)
+
+        # flow should no longer appear in list
         response = self.client.get(reverse("flows.flow_list"))
         self.assertNotContains(response, flow1.name)
         self.assertContains(response, flow3.name)
         self.assertEqual(1, response.context["folders"][0]["count"])
         self.assertEqual(2, response.context["folders"][1]["count"])
 
-        response = self.client.get(reverse("flows.flow_archived"), post_data)
+        # but does appear in archived list
+        response = self.client.get(reverse("flows.flow_archived"))
         self.assertContains(response, flow1.name)
 
         # flow2 should appear before flow since it was created later
@@ -2842,15 +2845,39 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(flow1, response.context["object_list"][1])
 
         # unarchive it
-        post_data = dict(action="restore", objects=flow1.id)
-        self.client.post(reverse("flows.flow_archived"), post_data)
-        response = self.client.get(reverse("flows.flow_archived"), post_data)
+        response = self.client.post(reverse("flows.flow_archived"), {"action": "restore", "objects": flow1.id})
+        self.assertEqual(200, response.status_code)
+
+        # flow should no longer appear in archived list
+        response = self.client.get(reverse("flows.flow_archived"))
         self.assertNotContains(response, flow1.name)
-        response = self.client.get(reverse("flows.flow_list"), post_data)
+
+        # but does appear in normal list
+        response = self.client.get(reverse("flows.flow_list"))
         self.assertContains(response, flow1.name)
         self.assertContains(response, flow3.name)
         self.assertEqual(2, response.context["folders"][0]["count"])
         self.assertEqual(1, response.context["folders"][1]["count"])
+
+        # can label flows
+        label1 = FlowLabel.create(self.org, "Important")
+        response = self.client.post(
+            reverse("flows.flow_list"), {"action": "label", "objects": flow1.id, "label": label1.id}
+        )
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual({label1}, set(flow1.labels.all()))
+        self.assertEqual({flow1}, set(label1.flows.all()))
+
+        # and unlabel
+        response = self.client.post(
+            reverse("flows.flow_list"), {"action": "label", "objects": flow1.id, "label": label1.id, "add": False}
+        )
+
+        self.assertEqual(200, response.status_code)
+
+        flow1.refresh_from_db()
+        self.assertEqual(set(), set(flow1.labels.all()))
 
         # voice flows should be included in the count
         Flow.objects.filter(id=flow1.id).update(flow_type=Flow.TYPE_VOICE)
