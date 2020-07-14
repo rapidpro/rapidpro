@@ -1,0 +1,13 @@
+{% load tz %}
+{% load i18n %}
+
+{% blocktrans with org_name=org.name brand=branding.name %}
+Hi there!
+
+Your merging process has finished.
+{% endblocktrans %}
+{% url "flows.flow_editor_next" flow.uuid %}
+
+{% trans "Thanks," %}
+
+{% blocktrans with brand=branding.name %}The {{ brand }} Team{% endblocktrans %}

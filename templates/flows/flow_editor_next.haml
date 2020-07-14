@@ -421,7 +421,7 @@
     {% endif %}
 
     {% if org_perms.flows.flow_merge_flows %}
-      $(".select2").select2({minimumResultsForSearch: -1, placeholder: "No Flow Selected"});
+      $(".select2").select2({placeholder: "No Flow Selected"});
       $("a.merge-flows-trigger").click(function(event) {
         event.preventDefault();
         var modal = new ConfirmationModal();
