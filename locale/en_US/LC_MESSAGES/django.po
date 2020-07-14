@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-10 16:04+0000\n"
+"POT-Creation-Date: 2020-07-14 15:03+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2415,24 +2415,6 @@ msgstr ""
 msgid "Stopped"
 msgstr ""
 
-msgid "Add to Group"
-msgstr ""
-
-msgid "Remove from Group"
-msgstr ""
-
-msgid "Unblock Contacts"
-msgstr ""
-
-msgid "Block Contacts"
-msgstr ""
-
-msgid "Delete Contacts"
-msgstr ""
-
-msgid "Unstop Contacts"
-msgstr ""
-
 #, python-brace-format
 msgid "{label} for this contact"
 msgstr ""
@@ -2754,23 +2736,6 @@ msgstr ""
 msgid "The keyword \"%s\" is already used for another flow"
 msgstr ""
 
-msgid "Archive Flows"
-msgstr ""
-
-msgid "Label Messages"
-msgstr ""
-
-msgid "Restore Flows"
-msgstr ""
-
-#, python-format
-msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
-msgstr ""
-
-#, python-format
-msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
-msgstr ""
-
 msgid "You don't have permission to edit this flow"
 msgstr ""
 
@@ -2827,6 +2792,14 @@ msgid "Retries call three times for the chosen interval"
 msgstr ""
 
 msgid "Flows"
+msgstr ""
+
+#, python-format
+msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
+msgstr ""
+
+#, python-format
+msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
 msgstr ""
 
 msgid "Contact Name"
@@ -3390,18 +3363,6 @@ msgid "Scheduled Messages"
 msgstr ""
 
 msgid "You must add a phone number before sending messages"
-msgstr ""
-
-msgid "Archive Messages"
-msgstr ""
-
-msgid "Move to Inbox"
-msgstr ""
-
-msgid "Resend Messages"
-msgstr ""
-
-msgid "Delete Messages"
 msgstr ""
 
 msgid "Which channel will deliver the message"
@@ -4495,15 +4456,6 @@ msgid ", "
 msgstr ""
 
 msgid "Oops, so sorry. Something went wrong!"
-msgstr ""
-
-msgid "Sorry you have no permission for this action."
-msgstr ""
-
-msgid "Must specify a label"
-msgstr ""
-
-msgid "Missing label"
 msgstr ""
 
 msgid "Date & Time"
@@ -6136,6 +6088,9 @@ msgstr ""
 msgid "Create Group"
 msgstr ""
 
+msgid "Remove from Group"
+msgstr ""
+
 msgid "New Group..."
 msgstr ""
 
@@ -6156,6 +6111,9 @@ msgid "No matching contacts."
 msgstr ""
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
+msgstr ""
+
+msgid "Delete Contacts"
 msgstr ""
 
 msgid "Are you sure you want to delete these contacts?"

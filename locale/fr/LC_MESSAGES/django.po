@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-10 16:04+0000\n"
+"POT-Creation-Date: 2020-07-14 15:03+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2714,24 +2714,6 @@ msgstr "Bloqué"
 msgid "Stopped"
 msgstr "Stoppé"
 
-msgid "Add to Group"
-msgstr "Ajouter au groupe"
-
-msgid "Remove from Group"
-msgstr "Supprimer du groupe"
-
-msgid "Unblock Contacts"
-msgstr "Autoriser les contacts"
-
-msgid "Block Contacts"
-msgstr "Bloquer les contacts"
-
-msgid "Delete Contacts"
-msgstr "Supprimer des contacts"
-
-msgid "Unstop Contacts"
-msgstr "Débloquer les contacts"
-
 #, python-brace-format
 msgid "{label} for this contact"
 msgstr "{label} pour ce contact"
@@ -3053,23 +3035,6 @@ msgstr "Les mot-clés \"%s\"  sont également utilisés par un autre flux"
 msgid "The keyword \"%s\" is already used for another flow"
 msgstr "Le mot-clé \"%s\" est également utilisé par un autre flux"
 
-msgid "Archive Flows"
-msgstr "Archiver les Flux"
-
-msgid "Label Messages"
-msgstr "Etiquette Messages"
-
-msgid "Restore Flows"
-msgstr "Restaurer les Flux"
-
-#, python-format
-msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
-msgstr "%s sont utilisés dans une campagne. Pour les archiver, commencez par les supprimer de vos campagnes."
-
-#, python-format
-msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
-msgstr "%s est utilisé dans une campagne. Pour l'archiver, commencez par le supprimer de vos campagnes."
-
 msgid "You don't have permission to edit this flow"
 msgstr "Vous n'êtes pas autorisé à modifier ce flux"
 
@@ -3127,6 +3092,14 @@ msgstr "Relance l'appel trois fois pour l'intervalle choisi"
 
 msgid "Flows"
 msgstr "flux"
+
+#, python-format
+msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
+msgstr "%s sont utilisés dans une campagne. Pour les archiver, commencez par les supprimer de vos campagnes."
+
+#, python-format
+msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
+msgstr "%s est utilisé dans une campagne. Pour l'archiver, commencez par le supprimer de vos campagnes."
 
 msgid "Contact Name"
 msgstr " Nom du Contact"
@@ -3702,18 +3675,6 @@ msgstr "Messages planifiés"
 
 msgid "You must add a phone number before sending messages"
 msgstr "Vous devez ajouter un numéro de téléphone avant d'envoyer des messages"
-
-msgid "Archive Messages"
-msgstr "Messages Archivés"
-
-msgid "Move to Inbox"
-msgstr "Déplacer vers la Boîte de Réception"
-
-msgid "Resend Messages"
-msgstr "Renvoyer Messages"
-
-msgid "Delete Messages"
-msgstr "Messages Supprimés"
 
 msgid "Which channel will deliver the message"
 msgstr "Quel channel livrera le message"
@@ -4861,15 +4822,6 @@ msgstr ","
 
 msgid "Oops, so sorry. Something went wrong!"
 msgstr "Oups, désolé. Quelque chose s'est mal passé!"
-
-msgid "Sorry you have no permission for this action."
-msgstr "Désolé vous n'avez pas la permission pour cette action."
-
-msgid "Must specify a label"
-msgstr "Vous devez spécifier une étiquette"
-
-msgid "Missing label"
-msgstr "Étiquette manquant"
 
 msgid "Date & Time"
 msgstr "Date & Heure"
@@ -6944,6 +6896,9 @@ msgstr "Créer un contact"
 msgid "Create Group"
 msgstr "Créer un groupe"
 
+msgid "Remove from Group"
+msgstr "Supprimer du groupe"
+
 msgid "New Group..."
 msgstr "Nouveau groupe..."
 
@@ -6972,6 +6927,9 @@ msgstr "Pas de contacts correspondants."
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr "La navigation dans les recherches est limitée à 10 000 résultats. Si vous souhaitez parcourir tous les résultats, veuillez enregistrer cette recherche en tant que groupe."
+
+msgid "Delete Contacts"
+msgstr "Supprimer des contacts"
 
 msgid "Are you sure you want to delete these contacts?"
 msgstr "Êtes-vous sûr de vouloir supprimer ces contacts?"
@@ -10953,6 +10911,48 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Add to Group"
+#~ msgstr "Ajouter au groupe"
+
+#~ msgid "Unblock Contacts"
+#~ msgstr "Autoriser les contacts"
+
+#~ msgid "Block Contacts"
+#~ msgstr "Bloquer les contacts"
+
+#~ msgid "Unstop Contacts"
+#~ msgstr "Débloquer les contacts"
+
+#~ msgid "Archive Flows"
+#~ msgstr "Archiver les Flux"
+
+#~ msgid "Label Messages"
+#~ msgstr "Etiquette Messages"
+
+#~ msgid "Restore Flows"
+#~ msgstr "Restaurer les Flux"
+
+#~ msgid "Archive Messages"
+#~ msgstr "Messages Archivés"
+
+#~ msgid "Move to Inbox"
+#~ msgstr "Déplacer vers la Boîte de Réception"
+
+#~ msgid "Resend Messages"
+#~ msgstr "Renvoyer Messages"
+
+#~ msgid "Delete Messages"
+#~ msgstr "Messages Supprimés"
+
+#~ msgid "Sorry you have no permission for this action."
+#~ msgstr "Désolé vous n'avez pas la permission pour cette action."
+
+#~ msgid "Must specify a label"
+#~ msgstr "Vous devez spécifier une étiquette"
+
+#~ msgid "Missing label"
+#~ msgstr "Étiquette manquant"
 
 #~ msgid "Archive Triggers"
 #~ msgstr "Archiver Déclencheurs"
