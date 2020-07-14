@@ -1284,13 +1284,16 @@ class MigrationTask(TembaModel):
             }
 
             if revisions:
-                for item in revisions:
+                for idx, item in enumerate(revisions, 1):
                     logger.info(f">>> Revision: {item.id}")
 
                     json_flow = dict()
                     spec_version = item.spec_version
                     try:
-                        export_json = {"version": spec_version, "flows": [json.loads(item.definition)]}
+                        definition = json.loads(item.definition)
+                        if "metadata" not in definition:
+                            definition["metadata"] = {"uuid": flow.uuid, "revision": item.revision, "name": flow.name}
+                        export_json = {"version": spec_version, "flows": [definition]}
                         export_version = Version(str(spec_version))
                         exported_json = FlowRevision.migrate_export(self.org, export_json, False, export_version)
                         if Org.EXPORT_FLOWS in exported_json and len(export_json[Org.EXPORT_FLOWS]) > 0:
@@ -1300,7 +1303,7 @@ class MigrationTask(TembaModel):
                             json_flow = FlowRevision.migrate_issues(json_flow)
                         spec_version = Flow.CURRENT_SPEC_VERSION
                     except Exception as e:
-                        if not new_flow.is_system:
+                        if not new_flow.is_system and (idx == len(revisions)):
                             logger.warning(str(e), exc_info=True)
                         json_flow = json.loads(item.definition)
 
