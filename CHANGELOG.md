@@ -1,3 +1,8 @@
+v5.6.5
+----------
+ * Set the tps options for Twilio based on country and number type
+ * Fix wit.ai classifiers and double logging of errors on all classifier types
+
 v5.6.3
 ----------
  * Add variables for nav colors
