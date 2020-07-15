@@ -42,12 +42,20 @@ class Node:
                 return False
 
             if self.has_router and other.has_router:
+                self_router = self.data.get("router")
+                other_router = other.data.get("router")
                 self_actions = self.data.get("actions")
                 other_actions = other.data.get("actions")
                 if len(self_actions) != len(other_actions):
                     return False
                 
                 if len(self_actions) > 1:
+                    return False
+
+                if self_router["type"] == other_router["type"]:
+                    if self_router["type"] == "switch" and self_router["operand"] != other_router["operand"]:
+                        return False
+                else:
                     return False
                 
                 if self_actions and other_actions and self_actions[0]["type"] != other_actions[0]["type"]:
@@ -132,16 +140,18 @@ class Graph:
 
 
 class GraphDifferenceNode(Node):
+    graph = None 
     left_origin_node:Node = None
     right_origin_node:Node = None
     conflicts: list = None
     data: OrderedDict = None
 
-    def __init__(self, *args, left_node=None, right_node=None, parent=None, conflicts=None, **kwargs):
+    def __init__(self, *args, left_node=None, right_node=None, parent=None, conflicts=None, graph=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.left_origin_node = left_node
         self.right_origin_node = right_node
         self.parent = parent
+        self.graph = graph
         self.conflicts = conflicts if conflicts else []
         self.data = OrderedDict(uuid=self.uuid)
 
@@ -162,9 +172,11 @@ class GraphDifferenceNode(Node):
         return [node.uuid for node in (self.left_origin_node, self.right_origin_node) if node]
 
     def get_child(self, uuid):
-        for child in self.children:
-            if uuid in child.get_uuids():
-                return child
+        child = self.graph.diff_nodes_origin_map.get(uuid)
+        print("->", child)
+        # if child is not None and child not in self.children:
+        #     child.set_parent(self)
+        return child
 
     def copy_data(self, origin):
         self.data.update(origin.data)
@@ -206,7 +218,7 @@ class GraphDifferenceNode(Node):
             dest_uuid = destination.get("destination_uuid")
             if dest_uuid:
                 child = self.get_child(dest_uuid)
-                destination["destination_uuid"] = getattr(child, "uuid", None)
+                destination["destination_uuid"] = getattr(child, "uuid")
 
     def check_categories(self):
         if not (self.left_origin_node or self.right_origin_node).has_router:
@@ -308,23 +320,26 @@ class GraphDifferenceNode(Node):
         left = self.left_origin_node.data["actions"]
         right = self.right_origin_node.data["actions"]
         actions = []
-        matched = []
-
-        if len(left) == len(right):
+        
+        if "router" in self.data:
+            actions = left or right
+        else:
+            matched = []
+            if len(left) == len(right):
+                for l_action in left:
+                    for r_action in right:
+                        if self.check_actions_pair(l_action, r_action):
+                            actions.append(l_action)
+                            matched.append((l_action.get("uuid"), r_action.get("uuid")))
+            
+            left_matched, right_matched = zip(*matched) if matched else ([], [])
             for l_action in left:
-                for r_action in right:
-                    if self.check_actions_pair(l_action, r_action):
-                        actions.append(l_action)
-                        matched.append((l_action.get("uuid"), r_action.get("uuid")))
-        
-        left_matched, right_matched = zip(*matched) if matched else ([], [])
-        for l_action in left:
-            if l_action["uuid"] not in left_matched:
-                actions.append(l_action)
-        
-        for r_action in right:
-            if r_action["uuid"] not in right_matched:
-                actions.append(r_action)
+                if l_action["uuid"] not in left_matched:
+                    actions.append(l_action)
+            
+            for r_action in right:
+                if r_action["uuid"] not in right_matched:
+                    actions.append(r_action)
 
         self.data["actions"] = actions
                     
@@ -340,8 +355,8 @@ class GraphDifferenceNode(Node):
             jaro_distance(left.get("subject", ""), right.get("subject", "")) >= 0.8,
             jaro_distance(left.get("text", ""), right.get("text", "")) >= 0.8,
         ]
-        l_flow, r_flow = getattr(left.get("flow"), "uuid", None), getattr(right.get("flow"), "uuid", None)
-        is_similar.append(l_flow is not None and l_flow == r_flow)
+        is_similar.append("labels" in left and "labels" in right)
+        is_similar.append("groups" in left and "groups" in right)
         return any(is_similar)
     
     def update_used_exit_uuids(self, used_exit_uuids=None):
@@ -432,7 +447,7 @@ class GraphDifferenceMap:
                 self.create_diff_nodes_edge(parent.uuid, diff_node.uuid)
             return diff_node
 
-        diff_node = GraphDifferenceNode(uuid, left_node=left, right_node=right, parent=parent)
+        diff_node = GraphDifferenceNode(uuid, left_node=left, right_node=right, parent=parent, graph=self)
         self.diff_nodes_map[uuid] = diff_node
         self.diff_nodes_origin_map[left.uuid] = diff_node
         self.diff_nodes_origin_map[right.uuid] = diff_node
@@ -459,6 +474,7 @@ class GraphDifferenceMap:
             return diff_node
         
         kwargs = {("left_node" if graph == self.left_graph else "right_node"): origin_node, "parent": parent}
+        kwargs["graph"] = self
         diff_node = GraphDifferenceNode(uuid, **kwargs)
         diff_children = []
 
@@ -541,7 +557,7 @@ class GraphDifferenceMap:
         self.definition["nodes"].sort(key=lambda node: ordering[node["uuid"]])
     
     def merge_ui_definition(self):
-        origin_ui = {**self.left_graph.resource["_ui"]["nodes"], **self.right_graph.resource["_ui"]["nodes"]}
+        origin_ui = {**self.left_graph.resource["_ui"].get("nodes", {}), **self.right_graph.resource["_ui"].get("nodes", {})}
         merged_ui = {flow_uuid: origin_ui[flow_uuid] for flow_uuid in self.diff_nodes_map.keys()}
         self.definition["_ui"]["nodes"] = merged_ui
 
