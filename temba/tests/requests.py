@@ -50,7 +50,7 @@ class MockResponse:
 
     def raise_for_status(self):
         if self.status_code != 200:
-            raise HTTPError(response=self)
+            raise HTTPError(request=self.request, response=self)
 
 
 class MockPost:

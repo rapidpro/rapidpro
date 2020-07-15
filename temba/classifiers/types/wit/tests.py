@@ -41,21 +41,22 @@ class ClientTest(TembaTest):
 
 class WitTypeTest(TembaTest):
     def test_sync(self):
+        # create classifier but don't sync the intents
         c = Classifier.create(
             self.org,
             self.user,
             WitType.slug,
             "Booker",
             {WitType.CONFIG_APP_ID: "12345", WitType.CONFIG_ACCESS_TOKEN: "sesame"},
+            sync=False,
         )
+        self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 0)
 
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(400, '{ "error": "true" }')
-            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 1)
 
-            with self.assertRaises(Exception):
-                c.get_type().get_active_intents_from_api(c)
-                self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 3)
+            c.get_type().get_active_intents_from_api(c)
+            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 1)
 
             mock_get.side_effect = RequestException("Network is unreachable", response=MockResponse(100, ""))
             c.get_type().get_active_intents_from_api(c)

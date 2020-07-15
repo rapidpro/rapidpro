@@ -48,7 +48,7 @@ class WitType(ClassifierType):
             )
 
         except requests.RequestException as e:
-            HTTPLog.create_from_exception(HTTPLog.INTENTS_SYNCED, e.response.url, e, start, classifier=classifier)
+            HTTPLog.create_from_exception(HTTPLog.INTENTS_SYNCED, e.request.url, e, start, classifier=classifier)
             return []
 
         return [Intent(name=i["name"], external_id=i["id"]) for i in intents]
