@@ -169,8 +169,39 @@ class GraphDifferenceNode(Node):
     def copy_data(self, origin):
         self.data.update(origin.data)
 
-    def correct_uuids(self):
+    def correct_uuids(self, used_exit_uuids: set):
         self.data["uuid"] = self.uuid
+
+        # replace exit uuid with new uuid when exit uuid like that has been already used 
+        passible_uuids = set()
+        current_uuids = {ext["uuid"] for ext in self.data["exits"]}
+        duplicated_uuids = current_uuids.intersection(used_exit_uuids)
+        if duplicated_uuids:
+            if self.left_origin_node and self.right_origin_node:
+                passible_uuids = {
+                    *{ext["uuid"] for ext in self.left_origin_node.data["exits"]},
+                    *{ext["uuid"] for ext in self.right_origin_node.data["exits"]}
+                }
+            else:
+                passible_uuids = {ext["uuid"] for ext in (self.left_origin_node or self.right_origin_node).data["exits"]}
+        
+        passible_uuids = passible_uuids.difference(current_uuids)
+        for exit_uuid in duplicated_uuids:
+            new_uuid = passible_uuids.pop()
+            if "router" in self.data:
+                if self.data["router"].get("default_category_uuid") == exit_uuid:
+                    self.data["router"]["default_category_uuid"] = new_uuid
+
+                if "categories" in self.data["router"]:
+                    for category in self.data["router"]["categories"]:
+                        if category["exit_uuid"] == exit_uuid:
+                            category["exit_uuid"] = new_uuid
+
+                for ext in self.data["exits"]:
+                    if ext["uuid"] == exit_uuid:
+                        ext["uuid"] = new_uuid
+        
+        # correct destination uuids according to new nodes
         for destination in self.data["exits"]:
             dest_uuid = destination.get("destination_uuid")
             if dest_uuid:
@@ -192,6 +223,7 @@ class GraphDifferenceNode(Node):
             categories.append(category["category"])
             exits.append(category["exit"])
             if category["category"]["name"].lower() in ("other", "all_responses"):
+                nonlocal default_category
                 default_category = category["category"]["uuid"]
 
         def get_category_exits_dict(source):
@@ -311,18 +343,24 @@ class GraphDifferenceNode(Node):
         l_flow, r_flow = getattr(left.get("flow"), "uuid", None), getattr(right.get("flow"), "uuid", None)
         is_similar.append(l_flow is not None and l_flow == r_flow)
         return any(is_similar)
+    
+    def update_used_exit_uuids(self, used_exit_uuids=None):
+        if used_exit_uuids is not None and "exits" in self.data:
+            for ext in self.data["exits"]:
+                used_exit_uuids.add(ext["uuid"])
 
-    def check_difference(self, uuids=None):
+    def check_difference(self, used_exit_uuids=None):
         if bool(self.left_origin_node) != bool(self.right_origin_node):
             self.copy_data(self.left_origin_node or self.right_origin_node)
-            self.correct_uuids()
+            self.correct_uuids(used_exit_uuids)
             return
         
         self.check_routers()
         self.check_categories()
         self.check_cases()
         self.check_actions()
-        self.correct_uuids()
+        self.correct_uuids(used_exit_uuids)
+        self.update_used_exit_uuids(used_exit_uuids)
 
 
 class GraphDifferenceMap:
@@ -362,8 +400,8 @@ class GraphDifferenceMap:
                 parent_node = self.create_diff_node_for_matched_nodes_pair(parents_pair)
                 node = self.create_diff_node_for_matched_nodes_pair(matched_pair)
                 node.set_parent(parent_node)
-                if parents_pair in matched_pairs:
-                    matched_pairs.remove(parents_pair)
+                self.mark_nodes_as_matched(parents_pair, matched_pairs, ignored_pairs)
+                self.mark_nodes_as_matched(matched_pair, matched_pairs, ignored_pairs)
             
             if had_children and children_pairs:
                 node = self.create_diff_node_for_matched_nodes_pair(matched_pair)
@@ -373,8 +411,6 @@ class GraphDifferenceMap:
                     node.children.append(child)
                     self.create_diff_nodes_edge(node.uuid, child.uuid)
                     self.mark_nodes_as_matched(children_pair, matched_pairs, ignored_pairs)
-                    if children_pair in matched_pairs:
-                        matched_pairs.remove(children_pair)
     
             if not had_children and not had_parents:
                 node = self.create_diff_node_for_matched_nodes_pair(matched_pair)
@@ -452,10 +488,12 @@ class GraphDifferenceMap:
         left, right = matched_pair
         need_to_remove_from_matched_pairs = []
         if left:
-            self.unmatched_nodes_in_left.remove(left.uuid)
+            if left.uuid in self.unmatched_nodes_in_left:
+                self.unmatched_nodes_in_left.remove(left.uuid)
             need_to_remove_from_matched_pairs += filter(lambda node_pair: node_pair[0].uuid==left.uuid, matched_pairs or [])
         if right:
-            self.unmatched_nodes_in_right.remove(right.uuid)
+            if right.uuid in self.unmatched_nodes_in_right:
+                self.unmatched_nodes_in_right.remove(right.uuid)
             need_to_remove_from_matched_pairs += filter(lambda node_pair: node_pair[1].uuid==right.uuid, matched_pairs or [])
 
         ignored_pairs.extend(need_to_remove_from_matched_pairs)
@@ -486,11 +524,11 @@ class GraphDifferenceMap:
         return pairs, bool(node_a.children and node_b.children)
 
     def check_differences(self):
-        uuids = []
-        conflicts = {}
-        nodes = []
+        used_exit_uuids = set()
+        conflicts = dict()
+        nodes = list()
         for node in self.diff_nodes_map.values():
-            node.check_difference(uuids)
+            node.check_difference(used_exit_uuids)
             if node.conflicts:
                 conflicts[node.uuid] = node.conflicts
             nodes.append(node.data)
