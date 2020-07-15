@@ -21,9 +21,9 @@ class ConnectView(BaseConnectView):
                 return cleaned
 
             # try a basic call to see available intents
-            response = Client(cleaned["access_token"]).get_intents()
-
-            if response.status_code != 200:
+            try:
+                Client(cleaned["access_token"]).get_intents()
+            except Exception:
                 raise forms.ValidationError(_("Unable to access wit.ai with credentials, please check and try again"))
 
             return cleaned

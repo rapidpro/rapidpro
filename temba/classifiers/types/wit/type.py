@@ -40,21 +40,15 @@ class WitType(ClassifierType):
         start = timezone.now()
 
         try:
-            response = client.get_intents()
+            intents, response = client.get_intents()
             elapsed = (timezone.now() - start).total_seconds() * 1000
 
             HTTPLog.create_from_response(
                 HTTPLog.INTENTS_SYNCED, response.url, response, classifier=classifier, request_time=elapsed
             )
 
-            response.raise_for_status()
-            response_json = response.json()
         except requests.RequestException as e:
             HTTPLog.create_from_exception(HTTPLog.INTENTS_SYNCED, e.response.url, e, start, classifier=classifier)
             return []
 
-        intents = []
-        for intent in response_json:
-            intents.append(Intent(name=intent["name"], external_id=intent["id"]))
-
-        return intents
+        return [Intent(name=i["name"], external_id=i["id"]) for i in intents]

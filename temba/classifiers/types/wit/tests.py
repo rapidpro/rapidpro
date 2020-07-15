@@ -30,9 +30,10 @@ class ClientTest(TembaTest):
     def test_get_intents(self, mock_get):
         mock_get.return_value = MockResponse(200, "[]")
         client = Client("sesame")
-        response = client.get_intents()
+        intents, response = client.get_intents()
 
-        self.assertEqual([], response.json())
+        self.assertEqual([], intents)
+        self.assertEqual(200, response.status_code)
         mock_get.assert_called_once_with(
             "https://api.wit.ai/intents?v=20200513", headers={"Authorization": "Bearer sesame"}
         )
@@ -50,19 +51,22 @@ class WitTypeTest(TembaTest):
 
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(400, '{ "error": "true" }')
-            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 2)
+            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 1)
+
             with self.assertRaises(Exception):
                 c.get_type().get_active_intents_from_api(c)
                 self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 3)
 
             mock_get.side_effect = RequestException("Network is unreachable", response=MockResponse(100, ""))
             c.get_type().get_active_intents_from_api(c)
-            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 4)
+
+            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 2)
 
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(200, INTENT_RESPONSE)
             intents = c.get_type().get_active_intents_from_api(c)
-            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 5)
+
+            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 3)
             self.assertEqual(2, len(intents))
             car = intents[0]
             self.assertEqual("book_car", car.name)
@@ -130,9 +134,9 @@ class WitTypeTest(TembaTest):
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(400, '{ "error": "true" }')
             response = self.client.post(url, post_data)
+
             self.assertEqual(200, response.status_code)
             self.assertFalse(Classifier.objects.all())
-
             self.assertContains(response, "Unable to access wit.ai with credentials")
 
         # all good

@@ -1,6 +1,7 @@
 import json
 from unittest.mock import patch
 
+from requests import HTTPError
 from requests.structures import CaseInsensitiveDict
 
 from django.utils.encoding import force_bytes, force_text
@@ -49,7 +50,7 @@ class MockResponse:
 
     def raise_for_status(self):
         if self.status_code != 200:
-            raise Exception("Got HTTP error: %d" % self.status_code)
+            raise HTTPError(response=self)
 
 
 class MockPost:

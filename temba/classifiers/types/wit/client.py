@@ -1,3 +1,5 @@
+from typing import List, Tuple
+
 import requests
 
 
@@ -12,10 +14,13 @@ class Client:
     def __init__(self, access_token: str):
         self.access_token = access_token
 
-    def get_intents(self):
+    def get_intents(self) -> Tuple[List, requests.Response]:
         return self._request("intents")
 
     def _request(self, endpoint: str):
-        return requests.get(
+        response = requests.get(
             f"{self.base_url}{endpoint}?v={self.api_version}", headers={"Authorization": f"Bearer {self.access_token}"}
         )
+
+        response.raise_for_status()
+        return response.json(), response
