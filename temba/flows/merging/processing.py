@@ -41,6 +41,18 @@ class Node:
             if not (bool(common_types) and both_routers):
                 return False
 
+            if self.has_router and other.has_router:
+                self_actions = self.data.get("actions")
+                other_actions = other.data.get("actions")
+                if len(self_actions) != len(other_actions):
+                    return False
+                
+                if len(self_actions) > 1:
+                    return False
+                
+                if self_actions and other_actions and self_actions[0]["type"] != other_actions[0]["type"]:
+                    return False
+
             if "send_msg" in common_types:
                 for self_action in self.data.get("actions"):
                     for other_action in other.data.get("actions"):
@@ -219,6 +231,24 @@ class GraphDifferenceNode(Node):
         self.data["router"]["default_category_uuid"] = default_category
         self.data["exits"] = exits
 
+    def check_cases(self):
+        if not "router" in self.data:
+            return
+        
+        cases = []
+        category_uuids = [category["uuid"] for category in self.data["router"]["categories"]]
+
+        left = {case["category_uuid"]: case for case in self.left_origin_node.data.get("router", {}).get("cases", [])}
+        right = {case["category_uuid"]: case for case in self.right_origin_node.data.get("router", {}).get("cases", [])}
+        origin_cases = {**left, **right}
+        for uuid in category_uuids:
+            case = origin_cases.get(uuid)
+            if case:
+                cases.append(case)
+
+        self.data["router"]["cases"] = cases
+
+
     def check_routers(self):
         left = (self.left_origin_node or {}).data.get("router")
         right = (self.right_origin_node or {}).data.get("router")
@@ -282,7 +312,7 @@ class GraphDifferenceNode(Node):
         is_similar.append(l_flow is not None and l_flow == r_flow)
         return any(is_similar)
 
-    def check_difference(self):
+    def check_difference(self, uuids=None):
         if bool(self.left_origin_node) != bool(self.right_origin_node):
             self.copy_data(self.left_origin_node or self.right_origin_node)
             self.correct_uuids()
@@ -290,6 +320,7 @@ class GraphDifferenceNode(Node):
         
         self.check_routers()
         self.check_categories()
+        self.check_cases()
         self.check_actions()
         self.correct_uuids()
 
@@ -455,10 +486,11 @@ class GraphDifferenceMap:
         return pairs, bool(node_a.children and node_b.children)
 
     def check_differences(self):
+        uuids = []
         conflicts = {}
         nodes = []
         for node in self.diff_nodes_map.values():
-            node.check_difference()
+            node.check_difference(uuids)
             if node.conflicts:
                 conflicts[node.uuid] = node.conflicts
             nodes.append(node.data)
