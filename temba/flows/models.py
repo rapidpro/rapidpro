@@ -2204,66 +2204,62 @@ class Flow(TembaModel):
             for run in runs:
                 run.release()
 
+    def update_related_flows(self):
+        dependent_flows = self.dependent_flows.all()
+
+        def flow_dependency_filter(dependency):
+            if dependency.get("type") == "flow":
+                return dependency.get("uuid") == self.uuid
+            return False
+
+        def flow_node_filter(node):
+            flow_types = ("enter_flow", "start_session")
+            if "actions" in node and len(node["actions"]) > 0 and node["actions"][0]["type"] in flow_types:
+                return node["actions"][0]["flow"]["uuid"] == self.uuid
+            return False
+
+        def general_flow_update(flow):
+            dependencies = filter(flow_dependency_filter, flow.metadata.get("dependencies", []))
+            for dependency in dependencies:
+                dependency.update({"name": self.name})
+            flow.save()
+
+        def legacy_flow_update(flow):
+            actionsets = flow.action_sets.filter(actions__icontains=self.uuid)
+            for actionset in actionsets:
+                actions = actionset.actions
+                for action in actions:
+                    if action.get("type") in ("flow", "trigger-flow") and action.get("flow"):
+                        action["flow"].update({"name": self.name})
+
+            ActionSet.objects.bulk_update(actionsets, ["actions"])
+
+            rulesets = flow.rule_sets.filter(config__icontains=self.uuid)
+            for ruleset in rulesets:
+                config = ruleset.config
+                if "flow" in config:
+                    config["flow"].update({"name": self.name})
+
+            RuleSet.objects.bulk_update(rulesets, ["config"])
+
+        def next_flow_update(flow):
+            flow_revision = flow.revisions.order_by("revision").last()
+            nodes = filter(flow_node_filter, flow_revision.definition.get("nodes", []))
+            for node in nodes:
+                action = node["actions"][0]
+                action.update({"flow": {"uuid": self.uuid, "name": self.name}})
+            flow_revision.save()
+
+        for flow in dependent_flows:
+            next_flow_update(flow)
+            legacy_flow_update(flow)
+            general_flow_update(flow)
+
     def __str__(self):
         return self.name
 
     class Meta:
         ordering = ("-modified_on",)
-
-
-@receiver(post_save, sender=Flow)
-def update_related_flows(sender, instance, created, **kwargs):
-    dependent_flows = instance.dependent_flows.all()
-    if created:
-        return
-
-    def flow_dependency_filter(dependency):
-        if dependency.get("type") == "flow":
-            return dependency.get("uuid") == instance.uuid
-        return False
-
-    def flow_node_filter(node):
-        flow_types = ("enter_flow", "start_session")
-        if "actions" in node and len(node["actions"]) > 0 and node["actions"][0]["type"] in flow_types:
-            return node["actions"][0]["flow"]["uuid"] == instance.uuid
-        return False
-
-    def general_flow_update(flow):
-        dependencies = filter(flow_dependency_filter, flow.metadata.get("dependencies", []))
-        for dependency in dependencies:
-            dependency.update({"name": instance.name})
-        flow.save()
-
-    def legacy_flow_update(flow):
-        actionsets = flow.action_sets.filter(actions__icontains=instance.uuid)
-        for actionset in actionsets:
-            actions = actionset.actions
-            for action in actions:
-                if action.get("type") in ("flow", "trigger-flow") and action.get("flow"):
-                    action["flow"].update({"name": instance.name})
-
-        ActionSet.objects.bulk_update(actionsets, ["actions"])
-
-        rulesets = flow.rule_sets.filter(config__icontains=instance.uuid)
-        for ruleset in rulesets:
-            config = ruleset.config
-            if "flow" in config:
-                config["flow"].update({"name": instance.name})
-
-        RuleSet.objects.bulk_update(rulesets, ["config"])
-
-    def next_flow_update(flow):
-        flow_revision = flow.revisions.order_by("revision").last()
-        nodes = filter(flow_node_filter, flow_revision.definition.get("nodes", []))
-        for node in nodes:
-            action = node["actions"][0]
-            action.update({"flow": {"uuid": instance.uuid, "name": instance.name}})
-        flow_revision.save()
-
-    for flow in dependent_flows:
-        next_flow_update(flow)
-        legacy_flow_update(flow)
-        general_flow_update(flow)
 
 
 class FlowImage(models.Model):

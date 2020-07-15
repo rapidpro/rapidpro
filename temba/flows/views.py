@@ -1070,6 +1070,8 @@ class FlowCRUDL(SmartCRUDL):
 
             on_transaction_commit(lambda: update_run_expirations_task.delay(obj.pk))
 
+            obj.update_related_flows()
+
             return obj
 
     class UploadActionRecording(OrgObjPermsMixin, SmartUpdateView):
