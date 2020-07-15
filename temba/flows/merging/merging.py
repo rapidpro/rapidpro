@@ -22,6 +22,7 @@ class Node:
         self.children = []
         self.routing_categories = {}
         self.parent_routind_data = {}
+        self.node_types = set()
     
     def __str__(self):
         return f"Node: {str(self.node_types) + '_' + self.uuid}"
@@ -35,7 +36,7 @@ class Node:
     def __eq__(self, other):
         # Here we have method that allows us to compare similar nodes
         if isinstance(other, Node):
-            # TODO: Need to add set of instructions to chack if one node match with another by different metrics
+            # set of instructions to chack if one node match another node by different metrics
             common_types = self.node_types.intersection(other.node_types)
             both_routers = self.has_router == other.has_router
             if not (bool(common_types) and both_routers):
@@ -173,9 +174,10 @@ class GraphDifferenceNode(Node):
 
     def get_child(self, uuid):
         child = self.graph.diff_nodes_origin_map.get(uuid)
-        print("->", child)
-        # if child is not None and child not in self.children:
-        #     child.set_parent(self)
+        if child:
+            print(child, self.children)
+            if child not in self.children:
+                child.set_parent(self)
         return child
 
     def copy_data(self, origin):
@@ -226,7 +228,6 @@ class GraphDifferenceNode(Node):
 
         left = {**self.left_origin_node.routing_categories}
         right = {**self.right_origin_node.routing_categories}
-        all_categories = set({*left.keys(), *right.keys()})
         default_category = None
         categories = []
         exits = []
@@ -251,6 +252,7 @@ class GraphDifferenceNode(Node):
 
         left_categories = get_category_exits_dict(self.left_origin_node.data)
         right_categories = get_category_exits_dict(self.right_origin_node.data)
+        all_categories = set({*left_categories.keys(), *right_categories.keys()})
 
         if "All Responses" in all_categories and len(all_categories) > 1:
             all_categories.remove("All Responses")
