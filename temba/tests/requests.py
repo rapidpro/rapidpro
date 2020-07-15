@@ -8,13 +8,13 @@ from django.utils.encoding import force_bytes, force_text
 from temba.utils import dict_to_struct
 
 
-class MockResponse(object):
+class MockResponse:
     """
     MockResponse is a utility class that mimics the requests library response object for use
     in unit tests and mocks.
     """
 
-    def __init__(self, status_code, body, method="GET", url="http://foo.com/", headers=None):
+    def __init__(self, status_code: int, body, method="GET", url="http://foo.com/", headers=None):
         if headers is None:
             headers = {}
 
