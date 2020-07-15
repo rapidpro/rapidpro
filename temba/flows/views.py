@@ -74,7 +74,6 @@ from .models import (
     FlowVersionConflictException,
     MergeFlowsTask,
 )
-from django.http.response import Http404
 
 
 logger = logging.getLogger(__name__)
@@ -3005,10 +3004,9 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             queryset = Flow.objects.filter(org=self.org, is_active=True, is_archived=False, is_system=False)
-            context["source"]  = queryset.filter(uuid=self.request.GET.get("source")).first().as_json()
+            context["source"] = queryset.filter(uuid=self.request.GET.get("source")).first().as_json()
             context["target"] = queryset.filter(uuid=self.request.GET.get("target")).first().as_json()
             return context
-        
 
         def post(self, request, *args, **kwargs):
             queryset = Flow.objects.filter(org=self.org, is_active=True, is_archived=False, is_system=False)

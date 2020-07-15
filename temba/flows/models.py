@@ -4059,7 +4059,7 @@ class MergeFlowsTask(TembaModel):
         with transaction.atomic():
             backup_metadata = {}
             target = self.target
-    
+
             # import merge changes
             backup_metadata["target_name"] = target.name
             backup_metadata["terget_backup"] = target.as_json()
@@ -4069,6 +4069,7 @@ class MergeFlowsTask(TembaModel):
 
             # move campaigns from source to target
             from temba.campaigns.models import CampaignEvent
+
             campaigns = CampaignEvent.objects.filter(
                 is_active=True, flow=self.source, campaign__org=self.target.org, campaign__is_archived=False
             )
@@ -4077,6 +4078,7 @@ class MergeFlowsTask(TembaModel):
 
             # move triggers from source to target
             from temba.triggers.models import Trigger
+
             triggers = Trigger.objects.filter(flow=self.source)
             backup_metadata["moved_trigger_ids"] = list(triggers.values_list("id", flat=True))
             triggers.update(flow=self.target)
@@ -4108,6 +4110,7 @@ class MergeFlowsTask(TembaModel):
 
     def run(self):
         from .tasks import merge_flows_task
+
         merge_flows_task.delay(self.uuid)
 
 
