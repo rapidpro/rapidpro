@@ -50,7 +50,6 @@ class WitTypeTest(TembaTest):
             {WitType.CONFIG_APP_ID: "12345", WitType.CONFIG_ACCESS_TOKEN: "sesame"},
             sync=False,
         )
-        self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 0)
 
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(400, '{ "error": "true" }')
