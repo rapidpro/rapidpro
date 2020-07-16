@@ -9,7 +9,8 @@ class RocketChatType(TicketerType):
     Type for using RocketChat as a ticketer
     """
 
-    CONFIG_BASE_URL = "base_url"
+    CONFIG_DOMAIN = "domain"
+    CONFIG_APP_ID = "app_id"
     CONFIG_SECRET = "secret"
 
     name = "RocketChat"
