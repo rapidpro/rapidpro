@@ -30,7 +30,7 @@ class ConnectView(BaseConnectView):
 
             # make sure we have an intent entity, we can't classify without it
             response = requests.get(
-                "https://api.wit.ai/entities/intent", headers={"Authorization": f"Bearer {cleaned['access_token']}"}
+                "https://api.wit.ai/intents?v=20200513", headers={"Authorization": f"Bearer {cleaned['access_token']}"}
             )
 
             if response.status_code != 200:
