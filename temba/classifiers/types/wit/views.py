@@ -6,6 +6,8 @@ from django.utils.translation import ugettext_lazy as _
 from temba.classifiers.models import Classifier
 from temba.classifiers.views import BaseConnectView
 
+from .client import Client
+
 
 class ConnectView(BaseConnectView):
     class Form(forms.Form):
@@ -20,23 +22,12 @@ class ConnectView(BaseConnectView):
             if not self.is_valid():
                 return cleaned
 
-            # try a basic call to see available entities
-            response = requests.get(
-                "https://api.wit.ai/entities", headers={"Authorization": f"Bearer {cleaned['access_token']}"}
-            )
-
-            if response.status_code != 200:
-                raise forms.ValidationError(_("Unable to access wit.ai with credentials, please check and try again"))
-
-            # make sure we have an intent entity, we can't classify without it
-            response = requests.get(
-                "https://api.wit.ai/intents?v=20200513", headers={"Authorization": f"Bearer {cleaned['access_token']}"}
-            )
-
-            if response.status_code != 200:
+            # try a basic call to see available intents
+            try:
+                Client(cleaned["access_token"]).get_intents()
+            except Exception:
                 raise forms.ValidationError(
-                    _("Unable to get intent entity, make sure you have at least one intent defined")
-                )
+                    _("Unable to access wit.ai with credentials, please check and try again"))
 
             return cleaned
 

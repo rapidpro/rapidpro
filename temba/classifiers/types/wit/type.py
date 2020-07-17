@@ -5,6 +5,7 @@ from django.utils import timezone
 from temba.request_logs.models import HTTPLog
 
 from ...models import ClassifierType, Intent
+from .client import Client
 from .views import ConnectView
 
 
@@ -30,32 +31,24 @@ class WitType(ClassifierType):
         You can find the parameters below on your Wit.ai console under your App settings.
         """
 
-    INTENT_URL = "https://api.wit.ai/entities/intent"
-
     def get_active_intents_from_api(self, classifier):
         """
         Gets the current intents defined by this app. In Wit intents are treated as a special case of an entity. We
         fetch the possible values for that entity.
         """
-        access_token = classifier.config[self.CONFIG_ACCESS_TOKEN]
-
+        client = Client(classifier.config[self.CONFIG_ACCESS_TOKEN])
         start = timezone.now()
+
         try:
-            response = requests.get(self.INTENT_URL, headers={"Authorization": f"Bearer {access_token}"})
+            intents, response = client.get_intents()
             elapsed = (timezone.now() - start).total_seconds() * 1000
 
             HTTPLog.create_from_response(
-                HTTPLog.INTENTS_SYNCED, self.INTENT_URL, response, classifier=classifier, request_time=elapsed
+                HTTPLog.INTENTS_SYNCED, response.url, response, classifier=classifier, request_time=elapsed
             )
 
-            response.raise_for_status()
-            response_json = response.json()
         except requests.RequestException as e:
-            HTTPLog.create_from_exception(HTTPLog.INTENTS_SYNCED, self.INTENT_URL, e, start, classifier=classifier)
+            HTTPLog.create_from_exception(HTTPLog.INTENTS_SYNCED, e.request.url, e, start, classifier=classifier)
             return []
 
-        intents = []
-        for intent in response_json["values"]:
-            intents.append(Intent(name=intent["value"], external_id=intent["value"]))
-
-        return intents
+        return [Intent(name=i["name"], external_id=i["id"]) for i in intents]
