@@ -2995,7 +2995,11 @@ class FlowCRUDL(SmartCRUDL):
             return flow
 
     class MergeFlows(OrgPermsMixin, SmartTemplateView):
+        class MergeFlowsForm(forms.Form):
+            flow_name = forms.CharField(max_length=256)
+        
         title = _("Flow Merging")
+        form_class = MergeFlowsForm
 
         def derive_org(self):
             self.org = self.request.user.get_org()
@@ -3018,6 +3022,26 @@ class FlowCRUDL(SmartCRUDL):
             difference_map = GraphDifferenceMap(source_graph, target_graph)
             difference_map.compare_graphs()
             definition = difference_map.definition
+
+            # return error message if there are some conflicts
+            errors = []
+            if difference_map.conflicts:
+                errors.append(ValidationError(_("Can't merge these flows because of conflicts.")))
+
+            form = self.form_class(data=request.POST)
+            if not form.is_valid():
+                errors.extend(form.errors)
+            
+            if errors:
+                from django.template import loader
+                template = loader.get_template("flows/flow_merge_flows.html")
+                context = dict(
+                    flow_name=request.POST.get("flow_name"),
+                    source=source,
+                    target=target,
+                    errors=errors,
+                )
+                return HttpResponse(template.render(context))
 
             merging_task = MergeFlowsTask.objects.create(
                 source=source,

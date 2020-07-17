@@ -75,7 +75,7 @@ class Node:
         # if node already has parent we don't set new parent,
         # but add current node as child to the new parent
         if self.parent:
-            parent.children.apppend(self)
+            parent.children.append(self)
             return
 
         self.parent = parent
@@ -390,6 +390,7 @@ class GraphDifferenceMap:
     diff_nodes_edges: dict = None
     diff_nodes_origin_map = None
     definition: OrderedDict = None
+    conflicts: dict = None
 
     def __init__(self, _left, _right):
         self.left_graph = _left
@@ -553,6 +554,7 @@ class GraphDifferenceMap:
                 conflicts[node.uuid] = node.conflicts
             nodes.append(node.data)
         self.definition["nodes"] = nodes
+        self.conflicts = conflicts
 
     def order_nodes(self):
         left_order = {node["uuid"]: index for index, node in enumerate(self.left_graph.resource["nodes"])}

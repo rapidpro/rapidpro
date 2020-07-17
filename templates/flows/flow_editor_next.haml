@@ -434,7 +434,6 @@
           if (formData.source !== undefined && formData.target !== undefined) {
             window.location.href = "{% url 'flows.flow_merge_flows' %}?" + form.serialize();
           } else {
-            // TODO: Display validation error message.
             modal.ele.modal('hide');
           };
         });

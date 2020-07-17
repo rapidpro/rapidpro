@@ -4130,6 +4130,11 @@ class MergeFlowsTask(TembaModel):
             backup_metadata["moved_trigger_ids"] = list(triggers.values_list("id", flat=True))
             triggers.update(flow=self.target)
 
+            # move flow starts from source to target
+            flow_starts = self.source.starts.filter(is_active=True)
+            backup_metadata["moved_flow_starts"] = list(flow_starts.values_list("uuid", flat=True))
+            flow_starts.update(flow=self.target)
+
             # move runs from source to target
             runs = self.source.runs.filter(is_active=True)
             backup_metadata["moved_flow_runs"] = list(runs.values_list("uuid", flat=True))

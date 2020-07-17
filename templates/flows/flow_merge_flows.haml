@@ -20,21 +20,22 @@
           -trans "If you don't want to perform this action, click 'Cancel' button."
 
         %form#import-form.smartmin-form.horizontal-form{method:"post", enctype:"multipart/form-data"}
-                  - if form.non_field_errors
-                    %div.alert.alert-error.form-errors
-                      {{ form.non_field_errors }}
+          - if errors
+            - for error in errors
+              %div.alert.alert-error.form-errors
+                {{ error }}
                   
-                  -csrf_token
+          -csrf_token
 
-                  -block fields
-                    %label{for: "flow_name"}
-                        -trans "Name for merging result flow."
-                    %input{type:"text", name:"flow_name", id:"flow_name", value:"Merge of {{ source.name }} with {{ target.name }}"}
+          -block fields
+            %label{for: "flow_name"}
+              -trans "Name for merging result flow."
+            %input{type:"text", name:"flow_name", id:"flow_name", value:"{% if flow_name %}{{ flow_name }}{% else %}Merge of {{ source.name }} with {{ target.name }}{% endif %}"}
                     
-                  .form-buttons
-                    %input.btn.btn-primary{type:"submit", value:'{% trans "Merge" %}'}
-                    %a.btn{onclick:"javascript:history.go(-1)"}
-                      -trans "Cancel"
+          .form-buttons
+            %input.btn.btn-primary{type:"submit", value:'{% trans "Merge" %}'}
+            %a.btn{onclick:"javascript:history.go(-1)"}
+              -trans "Cancel"
 
 - block extra-script
   :javascript
