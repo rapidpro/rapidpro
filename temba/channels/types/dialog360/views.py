@@ -1,12 +1,10 @@
-import requests
-from smartmin.views import SmartFormView, SmartReadView, SmartUpdateView
+from smartmin.views import SmartFormView
 
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import URN
 from temba.utils.fields import ExternalURLField
-from temba.utils.views import PostOnlyMixin
 
 from ...models import Channel
 from ...views import ALL_COUNTRIES, ClaimViewMixin

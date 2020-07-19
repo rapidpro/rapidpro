@@ -1,6 +1,5 @@
 import requests
 
-from django.conf.urls import url
 from django.forms import ValidationError
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _

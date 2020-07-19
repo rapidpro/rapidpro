@@ -1,12 +1,8 @@
 from unittest.mock import patch
 
-from requests import RequestException
-
 from django.forms import ValidationError
 from django.urls import reverse
 
-from temba.request_logs.models import HTTPLog
-from temba.templates.models import Template, TemplateTranslation
 from temba.tests import MockResponse, TembaTest
 
 from ...models import Channel
