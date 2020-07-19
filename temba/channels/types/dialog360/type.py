@@ -39,10 +39,7 @@ class Dialog360Type(ChannelType):
 
     def activate(self, channel):
         domain = channel.org.get_brand_domain()
-        headers = {
-            "D360-API-KEY": channel.config[Channel.CONFIG_AUTH_TOKEN],
-            "Content-Type": "application/json"
-        }
+        headers = {"D360-API-KEY": channel.config[Channel.CONFIG_AUTH_TOKEN], "Content-Type": "application/json"}
 
         # first set our callbacks
         payload = {"url": "https://" + domain + reverse("courier.d3", args=[channel.uuid, "receive"])}

@@ -14,7 +14,6 @@ from .type import Dialog360Type
 
 
 class Dialog360TypeTest(TembaTest):
-
     def test_claim(self):
         Channel.objects.all().delete()
 
@@ -43,10 +42,10 @@ class Dialog360TypeTest(TembaTest):
 
         # then success
         with patch("requests.post") as mock_post:
-          mock_post.side_effect = [MockResponse(200, '{ "url": "https://ilhasoft.com.br/whatsapp" }')]
+            mock_post.side_effect = [MockResponse(200, '{ "url": "https://ilhasoft.com.br/whatsapp" }')]
 
-          response = self.client.post(url, post_data)
-          self.assertEqual(302, response.status_code)
+            response = self.client.post(url, post_data)
+            self.assertEqual(302, response.status_code)
 
         channel = Channel.objects.get()
 
