@@ -47,8 +47,5 @@ class Dialog360Type(ChannelType):
             channel.config[Channel.CONFIG_BASE_URL] + "/v1/configs/webhook", json=payload, headers=headers
         )
 
-        print('Activate channel!!!!')
-        print(payload)
-
         if resp.status_code != 200:
             raise ValidationError(_("Unable to register callbacks: %s", resp.content))
