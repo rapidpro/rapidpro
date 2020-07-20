@@ -7,9 +7,9 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from urllib.parse import quote, urlencode, urlparse
-from uuid import uuid4
 
 import pycountry
+import pytz
 import regex
 import stripe
 import stripe.error
@@ -27,7 +27,7 @@ from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
-from django.db.models import F, Prefetch, Q, Sum
+from django.db.models import Count, F, Prefetch, Q, Sum
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.text import slugify
@@ -44,7 +44,8 @@ from temba.utils.dates import datetime_to_str, str_to_datetime
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
-from temba.utils.text import random_string
+from temba.utils.text import generate_token, random_string
+from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -335,6 +336,13 @@ class Org(SmartModel):
 
         counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ALL, ContactGroup.TYPE_BLOCKED))
         return (counts[ContactGroup.TYPE_ALL] + counts[ContactGroup.TYPE_BLOCKED]) > 0
+
+    @cached_property
+    def has_ticketer(self):
+        """
+        Gets whether this org has an active ticketer configured
+        """
+        return self.ticketers.filter(is_active=True)
 
     def clear_credit_cache(self):
         """
@@ -631,14 +639,9 @@ class Org(SmartModel):
         """
         Attempts to normalize any contacts which don't have full e164 phone numbers
         """
-        from temba.contacts.models import ContactURN, TEL_SCHEME
+        from .tasks import normalize_contact_tels_task
 
-        # do we have an org-level country code? if so, try to normalize any numbers not starting with +
-        country_code = self.get_country_code()
-        if country_code:
-            urns = ContactURN.objects.filter(org=self, scheme=TEL_SCHEME).exclude(path__startswith="+")
-            for urn in urns:
-                urn.ensure_number_normalization(country_code)
+        normalize_contact_tels_task.delay(self.pk)
 
     def get_resthooks(self):
         """
@@ -1609,7 +1612,8 @@ class Org(SmartModel):
             context["branding"] = branding
             context["subject"] = subject
 
-            send_template_email(to_email, subject, template, context, branding)
+            if settings.SEND_RECEIPTS:
+                send_template_email(to_email, subject, template, context, branding)
 
             # apply our new topups
             from .tasks import apply_topups_task
@@ -1946,9 +1950,6 @@ class Org(SmartModel):
         # our system label counts
         self.system_labels.all().delete()
 
-        # any airtime transfers associate with us go away
-        self.airtime_transfers.all().delete()
-
         # delete our flow labels
         self.flow_labels.all().delete()
 
@@ -1975,8 +1976,10 @@ class Org(SmartModel):
 
             flow.delete()
 
-        # delete all sessions
+        # delete contact-related data
         self.sessions.all().delete()
+        self.tickets.all().delete()
+        self.airtime_transfers.all().delete()
 
         # delete our contacts
         for contact in self.contacts.all():
@@ -2015,6 +2018,11 @@ class Org(SmartModel):
         for classifier in self.classifiers.all():
             classifier.release()
             classifier.delete()
+
+        # delete our ticketers
+        for ticketer in self.ticketers.all():
+            ticketer.release()
+            ticketer.delete()
 
         # release all archives objects and files for this org
         Archive.release_org_archives(self)
@@ -2109,36 +2117,35 @@ def release(user, brand):
         user.save()
 
     # release any orgs we own on this brand
-    for org in user.get_owned_orgs(brand):
+    for org in user.get_owned_orgs([brand]):
         org.release(release_users=False)
 
     # remove us as a user on any org for our brand
-    for org in user.get_user_orgs(brand):
+    for org in user.get_user_orgs([brand]):
         org.administrators.remove(user)
         org.editors.remove(user)
         org.viewers.remove(user)
         org.surveyors.remove(user)
 
 
-def get_user_orgs(user, brand=None):
-
+def get_user_orgs(user, brands=None):
     if user.is_superuser:
         return Org.objects.all()
 
     user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
 
-    if brand:
-        user_orgs = user_orgs.filter(brand=brand)
+    if brands:
+        user_orgs = user_orgs.filter(brand__in=brands)
 
     return user_orgs.filter(is_active=True).distinct().order_by("name")
 
 
-def get_owned_orgs(user, brand=None):
+def get_owned_orgs(user, brands=None):
     """
-    Gets all the orgs where this is the only user for the currend brand
+    Gets all the orgs where this is the only user for the current brand
     """
     owned_orgs = []
-    for org in user.get_user_orgs(brand=brand):
+    for org in user.get_user_orgs(brands=brands):
         if not org.get_org_users().exclude(id=user.id).exists():
             owned_orgs.append(org)
     return owned_orgs
@@ -2149,11 +2156,15 @@ def get_org(obj):
 
 
 def is_alpha_user(user):  # pragma: needs cover
-    return user.groups.filter(name="Alpha")
+    return user.groups.filter(name="Alpha").exists()
 
 
 def is_beta_user(user):  # pragma: needs cover
-    return user.groups.filter(name="Beta")
+    return user.groups.filter(name="Beta").exists()
+
+
+def is_support_user(user):
+    return user.groups.filter(name="Customer Support").exists()
 
 
 def get_settings(user):
@@ -2209,6 +2220,7 @@ User.get_org = get_org
 User.set_org = set_org
 User.is_alpha = is_alpha_user
 User.is_beta = is_beta_user
+User.is_support = is_support_user
 User.get_settings = get_settings
 User.get_user_orgs = get_user_orgs
 User.get_org_group = get_org_group
@@ -2354,6 +2366,8 @@ class UserSettings(models.Model):
         blank=True,
         help_text=_("Phone number for testing and recording voice flows"),
     )
+    otp_secret = models.CharField(verbose_name=_("OTP Secret"), max_length=18, null=True, blank=True)
+    two_factor_enabled = models.BooleanField(verbose_name=_("Two Factor Enabled"), default=False)
 
     def get_tel_formatted(self):
         if self.tel:
@@ -2716,3 +2730,87 @@ class CreditAlert(SmartModel):
 
         for topup in expiring_final_topups:
             CreditAlert.trigger_credit_alert(topup.org, CreditAlert.TYPE_EXPIRING)
+
+
+class BackupToken(SmartModel):
+    settings = models.ForeignKey(
+        UserSettings, verbose_name=_("Settings"), related_name="backups", on_delete=models.CASCADE
+    )
+    token = models.CharField(verbose_name=_("Token"), max_length=18, unique=True, default=generate_token)
+    used = models.BooleanField(verbose_name=_("Used"), default=False)
+
+    def __str__(self):  # pragma: no cover
+        return f"{self.token}"
+
+
+class OrgActivity(models.Model):
+    """
+    Tracks various metrics for an organization on a daily basis:
+       * total # of contacts
+       * total # of active contacts (that sent or received a message)
+       * total # of messages sent
+       * total # of message received
+    """
+
+    # the org this contact activity is being tracked for
+    org = models.ForeignKey("orgs.Org", related_name="contact_activity", on_delete=models.CASCADE)
+
+    # the day this activity was tracked for
+    day = models.DateField()
+
+    # the total number of contacts on this day
+    contact_count = models.IntegerField(default=0)
+
+    # the number of active contacts on this day
+    active_contact_count = models.IntegerField(default=0)
+
+    # the number of messages sent on this day
+    outgoing_count = models.IntegerField(default=0)
+
+    # the number of messages received on this day
+    incoming_count = models.IntegerField(default=0)
+
+    @classmethod
+    def update_day(cls, now):
+        """
+        Updates our org activity for the passed in day.
+        """
+        # truncate to midnight the same day in UTC
+        end = pytz.utc.normalize(now.astimezone(pytz.utc)).replace(hour=0, minute=0, second=0, microsecond=0)
+        start = end - timedelta(days=1)
+
+        # first get all our contact counts
+        contact_counts = Org.objects.filter(
+            is_active=True, contacts__is_active=True, contacts__created_on__lt=end
+        ).annotate(contact_count=Count("contacts"))
+
+        # then get active contacts
+        active_counts = Org.objects.filter(
+            is_active=True, msgs__created_on__gte=start, msgs__created_on__lt=end
+        ).annotate(contact_count=Count("msgs__contact_id", distinct=True))
+        active_counts = {o.id: o.contact_count for o in active_counts}
+
+        # number of received msgs
+        incoming_count = Org.objects.filter(
+            is_active=True, msgs__created_on__gte=start, msgs__created_on__lt=end, msgs__direction="I"
+        ).annotate(msg_count=Count("id"))
+        incoming_count = {o.id: o.msg_count for o in incoming_count}
+
+        # number of sent messages
+        outgoing_count = Org.objects.filter(
+            is_active=True, msgs__created_on__gte=start, msgs__created_on__lt=end, msgs__direction="O"
+        ).annotate(msg_count=Count("id"))
+        outgoing_count = {o.id: o.msg_count for o in outgoing_count}
+
+        for org in contact_counts:
+            OrgActivity.objects.update_or_create(
+                org=org,
+                day=start,
+                contact_count=org.contact_count,
+                active_contact_count=active_counts.get(org.id, 0),
+                incoming_count=incoming_count.get(org.id, 0),
+                outgoing_count=outgoing_count.get(org.id, 0),
+            )
+
+    class Meta:
+        unique_together = ("org", "day")

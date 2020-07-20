@@ -150,6 +150,11 @@
         -blocktrans with name=event.name category=event.category value=event.value
           Run result <b>{{ name }}</b> updated to <b>{{ value }}</b> with category <b>{{ category }}</b>
 
+      -elif event.type == 'ticket_opened'
+        -url 'tickets.ticket_filter' event.ticket.ticketer.uuid as ticketer_url
+        -blocktrans trimmed with subject=event.ticket.subject ticketer=event.ticket.ticketer.name
+          Opened ticket on <a href="{{ ticketer_url }}">{{ ticketer }}</a> with subject <b>{{ subject }}</b>
+
       -elif event.type == 'webhook_called'
         -with event.obj as result
           -if result.is_success

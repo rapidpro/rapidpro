@@ -1,0 +1,7 @@
+{% load i18n %}
+
+<p>
+    {% blocktrans trimmed with code=verification_code %}
+    Your verification code is <b>{{ code }}</b> to continue adding an email-based ticketing service.
+    {% endblocktrans %}
+</p>

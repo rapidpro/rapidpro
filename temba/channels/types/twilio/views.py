@@ -1,5 +1,3 @@
-from uuid import uuid4
-
 import phonenumbers
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartFormView
@@ -12,8 +10,8 @@ from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.models import Org
-from temba.utils import analytics
 from temba.utils.timezones import timezone_to_country_code
+from temba.utils.uuid import uuid4
 
 from ...models import Channel
 from ...views import (
@@ -179,7 +177,5 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         channel = Channel.create(
             org, user, country, "T", name=phone, address=phone_number, role=role, config=config, uuid=channel_uuid
         )
-
-        analytics.track(user.username, "temba.channel_claim_twilio", properties=dict(number=phone_number))
 
         return channel

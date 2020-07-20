@@ -5,8 +5,8 @@ from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import Mock, patch
 from urllib.parse import urlencode
-from uuid import uuid4
 
+import pyotp
 import pytz
 import stripe
 import stripe.error
@@ -48,15 +48,18 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
-from temba.orgs.models import Debit, UserSettings
+from temba.orgs.models import BackupToken, Debit, OrgActivity, UserSettings
 from temba.request_logs.models import HTTPLog
 from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
+from temba.tickets.models import Ticket, Ticketer
+from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json, languages
 from temba.utils.email import link_components
+from temba.utils.uuid import uuid4
 from temba.values.constants import Value
 
 from .context_processors import GroupPermWrapper
@@ -159,6 +162,39 @@ class UserTest(TembaTest):
         self.assertFalse(self.admin.is_active)
         self.assertNotEqual("Administrator@nyaruka.com", self.admin.email)
         self.assertFalse(self.admin.get_user_orgs().exists())
+
+    def test_brand_aliases(self):
+        # set our brand to our custom org
+        self.org.brand = "custom-brand.io"
+        self.org.save(update_fields=["brand"])
+
+        # create a second org on the .org version
+        branded_org = Org.objects.create(
+            name="Other Brand Org",
+            timezone=pytz.timezone("Africa/Kigali"),
+            brand="custom-brand.org",
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+        branded_org.administrators.add(self.admin)
+        self.org2.administrators.add(self.admin)
+
+        # log in as admin
+        self.login(self.admin)
+
+        # check our choose page
+        response = self.client.get(reverse("orgs.org_choose"), SERVER_NAME="custom-brand.org")
+
+        # should contain both orgs
+        self.assertContains(response, "Other Brand Org")
+        self.assertContains(response, "Temba")
+        self.assertNotContains(response, "Trileet Inc")
+
+        # choose it
+        response = self.client.post(
+            reverse("orgs.org_choose"), dict(organization=self.org.id), SERVER_NAME="custom-brand.org"
+        )
+        self.assertRedirect(response, "/msg/inbox/")
 
     def test_release(self):
 
@@ -319,7 +355,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
         )
         parent_trigger.groups.add(self.parent_org.all_groups.all().first())
 
-        FlowStart.objects.create(flow=parent_flow)
+        FlowStart.objects.create(org=self.parent_org, flow=parent_flow)
 
         child_trigger = Trigger.create(
             self.child_org,
@@ -372,6 +408,17 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         # extra S3 file in child archive dir
         self.mock_s3.put_jsonl(settings.ARCHIVE_BUCKET, f"{self.child_org.id}/extra_file.json", [])
+
+        # add a ticketer and ticket
+        ticketer = Ticketer.create(self.org, self.admin, MailgunType.slug, "Email (bob)", {})
+        Ticket.objects.create(
+            org=self.org,
+            ticketer=ticketer,
+            contact=self.org.contacts.first(),
+            subject="Need help",
+            body="Where are my cookies?",
+            status="O",
+        )
 
     def release_org(self, org, child_org=None, immediately=False, expected_files=3):
 
@@ -431,7 +478,8 @@ class OrgDeleteTest(TembaNonAtomicTest):
         self.release_org(self.child_org)
 
     def test_release_parent_immediately(self):
-        self.release_org(self.parent_org, self.child_org, immediately=True)
+        with patch("temba.mailroom.client.MailroomClient.ticket_close"):
+            self.release_org(self.parent_org, self.child_org, immediately=True)
 
     def test_release_child_immediately(self):
         # 300 credits were given to our child org and each used one
@@ -571,6 +619,66 @@ class OrgTest(TembaTest):
         self.assertEqual("Temba", org.name)
         self.assertEqual("nice-temba", org.slug)
 
+    def test_two_factor(self):
+        # for now only Beta members have access
+        Group.objects.get(name="Beta").user_set.add(self.admin)
+        self.login(self.admin)
+
+        # create profile
+        response = self.client.get(reverse("orgs.org_two_factor"))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(UserSettings.objects.count(), 1)
+        self.assertEqual(UserSettings.objects.first().user, self.admin)
+
+        # validate token error
+        data = dict(token="12345")
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertIn("token", response.context["form"].errors)
+        self.assertIn("Invalid MFA token. Please try again.", response.context["form"].errors["token"])
+
+        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 0)
+        data = dict(generate_backup_tokens=True)
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 10)
+
+        # disable two factor
+        data = dict(disable_two_factor_auth=True)
+        user_settings = UserSettings.objects.get(user=self.admin)
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 0)
+        self.assertFalse(user_settings.two_factor_enabled)
+
+        # get backup tokens without backup tokens
+        data = dict(get_backup_tokens=True)
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"tokens": []})
+
+        # get backup tokens with backup tokens
+        backup_token = BackupToken.objects.create(
+            settings=self.admin.get_settings(), created_by=self.admin, modified_by=self.admin
+        )
+        data = dict(get_backup_tokens=True)
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"tokens": [f"{backup_token.token}"]})
+
+        # test form is valid
+        user_settings = UserSettings.objects.get(user=self.admin)
+        user_settings.two_factor_enabled = False
+        user_settings.save()
+        totp = pyotp.TOTP(self.admin.get_settings().otp_secret)
+        data = dict(token=totp.now())
+        response = self.client.post(reverse("orgs.org_two_factor"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(BackupToken.objects.count(), 10)
+        self.assertEqual(self.admin.get_settings().two_factor_enabled, True)
+
+        # check backup tokens now listed on account home page
+        response = self.client.get(reverse("orgs.org_home"))
+        self.assertContains(response, "Backup tokens can be used")
+
     def test_country(self):
         self.setUpLocations()
 
@@ -708,7 +816,7 @@ class OrgTest(TembaTest):
         omni_mark = json.dumps({"id": mark.uuid, "name": mark.name, "type": "contact"})
         self.client.post(
             reverse("flows.flow_broadcast", args=[flow.id]),
-            {"start_type": "select", "omnibox": omni_mark, "restart_participants": "on"},
+            {"recipients_mode": "select", "omnibox": omni_mark, "restart_participants": "on"},
             follow=True,
         )
 
@@ -751,7 +859,7 @@ class OrgTest(TembaTest):
 
         self.client.post(
             reverse("flows.flow_broadcast", args=[flow.id]),
-            {"start_type": "select", "omnibox": omni_mark, "restart_participants": "on"},
+            {"recipients_mode": "select", "omnibox": omni_mark, "restart_participants": "on"},
             follow=True,
         )
 
@@ -1813,6 +1921,44 @@ class OrgTest(TembaTest):
         self.assertFalse(org.is_connected_to_dtone())
         self.assertIsNone(org.get_dtone_client())
         self.assertEqual(org.modified_by, self.admin)
+
+    def test_prometheus(self):
+        # visit as viewer, no prometheus section
+        self.login(self.user)
+        org_home_url = reverse("orgs.org_home")
+        response = self.client.get(org_home_url)
+
+        self.assertNotContains(response, "Prometheus")
+
+        # admin can see it though
+        self.login(self.admin)
+
+        response = self.client.get(org_home_url)
+        self.assertContains(response, "Prometheus")
+        self.assertContains(response, "Enable Prometheus")
+
+        # enable it
+        prometheus_url = reverse("orgs.org_prometheus")
+        response = self.client.post(prometheus_url, {}, follow=True)
+        self.assertContains(response, "Disable Prometheus")
+
+        # make sure our API token exists
+        prometheus_group = Group.objects.get(name="Prometheus")
+        self.assertTrue(APIToken.objects.filter(org=self.org, role=prometheus_group, is_active=True))
+
+        # other admin sees it enabled too
+        self.other_admin = self.create_user("Other Administrator")
+        self.org.administrators.add(self.other_admin)
+        self.login(self.other_admin)
+
+        response = self.client.get(org_home_url)
+        self.assertContains(response, "Prometheus")
+        self.assertContains(response, "Disable Prometheus")
+
+        # now disable it
+        response = self.client.post(prometheus_url, {}, follow=True)
+        self.assertFalse(APIToken.objects.filter(org=self.org, role=prometheus_group, is_active=True))
+        self.assertContains(response, "Enable Prometheus")
 
     def test_dtone_account(self):
         self.login(self.admin)
@@ -3802,7 +3948,7 @@ class BulkExportTest(TembaTest):
         # create a contact and place her into our campaign
         sally = self.create_contact("Sally", "+12345")
         campaign.group.contacts.add(sally)
-        sally.set_field(self.user, "survey_start", "10-05-2020 12:30:10")
+        sally.set_field(self.user, "survey_start", "10-05-2025 12:30:10")
 
         # shoud have one event fire
         self.assertEqual(1, event.fires.all().count())
@@ -4508,6 +4654,13 @@ class StripeCreditsTest(TembaTest):
         self.assertIn("Visa", email.body)
         self.assertIn("$20", email.body)
 
+        # turn off email receipts and do it again, shouldn't get a receipt
+        with override_settings(SEND_RECEIPTS=False):
+            self.org.add_credits("2000", "stripe-token", self.admin)
+
+            # no new emails
+            self.assertEqual(1, len(mail.outbox))
+
     @patch("stripe.Customer.create")
     @patch("stripe.Charge.create")
     @override_settings(SEND_EMAILS=True)
@@ -4701,3 +4854,32 @@ class ParsingTest(TembaTest):
         )
 
         self.assertRaises(AssertionError, self.org.parse_datetime, timezone.now())
+
+
+class OrgActivityTest(TembaTest):
+    def test_get_dependencies(self):
+        from temba.orgs.tasks import update_org_activity
+
+        now = timezone.now()
+
+        # create a few contacts
+        self.create_contact("Marshawn", "+14255551212")
+        russell = self.create_contact("Marshawn", "+14255551313")
+
+        # create some messages for russel
+        self.create_incoming_msg(russell, "hut")
+        self.create_incoming_msg(russell, "10-2")
+        self.create_outgoing_msg(russell, "first down")
+
+        # calculate our org activity, should get nothing because we aren't tomorrow yet
+        update_org_activity(now)
+        self.assertEqual(0, OrgActivity.objects.all().count())
+
+        # ok, calculate based on a now of tomorrow, will calculate today's stats
+        update_org_activity(now + timedelta(days=1))
+
+        activity = OrgActivity.objects.get()
+        self.assertEqual(2, activity.contact_count)
+        self.assertEqual(1, activity.active_contact_count)
+        self.assertEqual(2, activity.incoming_count)
+        self.assertEqual(1, activity.outgoing_count)

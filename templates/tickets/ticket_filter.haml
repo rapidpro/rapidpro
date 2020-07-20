@@ -1,0 +1,74 @@
+-extends "tickets/ticket_list.html"
+-load smartmin i18n
+
+-block title
+  .medium-help.float-left(class='{{ ticketer.get_type.icon }}')
+  %h2.font_normalize.header-margin.title
+    {{ ticketer.get_type.name }}
+    -trans "Ticketing Service"
+    .ticketer-name
+      {{ ticketer.name }}
+
+-block post-content
+  -if org_perms.tickets.ticketer_delete
+    .deletion.hide
+      .title
+        -trans "Delete Ticketing Service"
+      .body
+        %p
+          -blocktrans trimmed
+            This will close all tickets that were created with this service. Once it is removed, it will be gone forever. There is no way to undo this operation.
+
+    %a#deletion-form.posterize(href='{% url "tickets.ticketer_delete" ticketer.uuid %}')
+
+    .deletion-unable.hide
+      .title
+        -trans "Warning"
+      .body
+        %p
+          -blocktrans trimmed
+            Unable to delete service still being used by the following flows
+
+          %ul
+            -for flow in used_by_flows
+              %li
+                %a(href="{% url 'flows.flow_editor' flow.uuid %}")
+                  {{ flow.name }}
+
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    $(".delete-ticketer").live('click', function(){
+    {% if used_by_flows %}
+      var modal = new Modal($('.deletion-unable > .title').html(), $('.deletion-unable > .body').html());
+      modal.addClass('alert');
+      modal.setListeners({onPrimary: function(){modal.dismiss();}}, false);
+      modal.show();
+    {% else %}
+      var modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
+      modal.addClass('alert');
+      modal.setListeners({onPrimary: function(){
+        $('#deletion-form').click();
+      }}, false);
+      modal.setPrimaryButton('{{ _("Delete")|escapejs }}');
+      modal.show();
+    {% endif %}
+    });
+
+-block extra-style
+  {{ block.super }}
+
+  :css
+    .ticketer-name {
+      font-size: 16pt;
+    }
+
+
+-block summary
+  {{ object.get_type.name }}
+  -trans "Ticketing Service"
+  %span -
+  %strong
+    {{ ticketer.name }}

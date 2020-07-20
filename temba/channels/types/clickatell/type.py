@@ -20,7 +20,7 @@ class ClickatellType(ChannelType):
     icon = "icon-channel-clickatell"
 
     claim_blurb = _(
-        """Connect your <a href="http://clickatell.com/" target="_blank">Clickatell</a> number, we'll walk you
+        """Connect your <a href="http://clickatell.com/">Clickatell</a> number, we'll walk you
                            through the steps necessary to get your Clickatell connection working in a few minutes."""
     )
     claim_view = ClaimView

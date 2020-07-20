@@ -5,6 +5,7 @@
 *.pyc
 *~
 .envrc
+.direnv
 .commit
 
 rp-indexer
@@ -50,6 +51,7 @@ media/attachments
 
 
 # External projects
+fabric
 fabconfig.py
 fabfile.py
 deploy

@@ -143,19 +143,14 @@
                           %a{href:'{%url "flows.flow_editor" obj.flow.uuid %}'}= obj.flow
                         -trans "flow"
 
-                        -if obj.groups.all
-                          -trans "for contacts in"
-                          {{ obj.groups.all|join:", " }}
-
                         -if obj.schedule
                           -if obj.schedule.next_fire and not obj.is_archived
-                            -trans "will start in"
                             %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
                               - if org_perms.triggers.trigger_update
                                 %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
-                                  {{ obj.schedule.next_fire|timeuntil}}
+                                  {{ obj.schedule.get_display }}
                               - else
-                                {{ obj.schedule.next_fire|timeuntil}}
+                                {{ obj.schedule.get_display }}
                           -else
                             -trans "is"
                             %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
@@ -166,12 +161,7 @@
                                 -trans "not scheduled"
 
                       %td{ width: "250px" }
-                        .groups
-                          -for group in obj.groups.all
-                            %nobr
-                              .icon.icon-users-2
-                              .name
-                                {{ group.name }}
+                        -include "includes/recipients.haml" with groups=obj.groups.all contacts=obj.contacts.all
 
                     - empty
                       %tr.empty_list
@@ -185,30 +175,12 @@
                   .paginator
                     - include "smartmin/sidebar_pagination.haml"
 
--block extra-style
-  :css
-    .groups {
-      font-size: 11px;
-      color: #aaa;
-    }
-
-    .groups .icon {
-      display:inline-block;
-      margin-right: -3px;
-
-    }
-
-    .groups .name {
-      display: inline-block;
-      margin-right:6px;
-    }
-
 -block extra-script
   {{ block.super }}
 
   :javascript
     $(document).on('click', '.update-trigger', function(e){
-       var modal = new Modax('{% trans "Update Trigger" %}', '/trigger/update/' + $(this).data("object-id") + '/');
+       var modal = new Modax('{{ _("Update Trigger")|escapejs }}', '/trigger/update/' + $(this).data("object-id") + '/');
        modal.setIcon('icon-feed');
        modal.setRedirectOnSuccess(true);
        modal.show();

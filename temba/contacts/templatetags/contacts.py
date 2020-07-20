@@ -70,6 +70,7 @@ ACTIVITY_ICONS = {
     "msg_received:voice": "icon-call-incoming",
     "run_result_changed": "icon-bars",
     "session_started": "icon-new",
+    "ticket_opened": "icon-ticket",
     "webhook_called": "icon-cloud-upload",
 }
 

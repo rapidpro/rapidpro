@@ -21,6 +21,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label
 from temba.orgs.models import Org
 from temba.templates.models import Template, TemplateTranslation
+from temba.tickets.models import Ticketer
 from temba.values.constants import Value
 
 # by default every user will have this password including the superuser
@@ -30,6 +31,7 @@ USER_PASSWORD = "Arst1234"
 LOCATIONS_DUMP = "test-data/nigeria.bin"
 
 ORG1 = dict(
+    uuid="bf0514a5-9407-44c9-b0f9-3f36f9c18414",
     name="UNICEF",
     has_locations=True,
     languages=("eng", "fra"),
@@ -115,7 +117,7 @@ ORG1 = dict(
             urns=["tel:+16055741111"],
             uuid="6393abc0-283d-4c9b-a1b3-641a035c34bf",
             groups=["Doctors"],
-            fields=dict(gender="F", state="Nigeria > Sokoto", ward="Nigeria > Sokoto > Yabo > Kilgori"),
+            fields=dict(gender="F", state="Nigeria > Yobe", ward="Nigeria > Yobe > Gulani > Dokshi"),
         ),
         dict(
             name="Bob",
@@ -195,9 +197,32 @@ ORG1 = dict(
             ),
         ),
     ),
+    ticketers=(
+        dict(
+            uuid="f9c9447f-a291-4f3c-8c79-c089bbd4e713",
+            name="Mailgun (IT Support)",
+            ticketer_type="mailgun",
+            config=dict(
+                domain="tickets.rapidpro.io",
+                api_key="sesame",
+                to_address="bob@acme.com",
+                brand_name="RapidPro",
+                url_base="https://app.rapidpro.io",
+            ),
+        ),
+        dict(
+            uuid="4ee6d4f3-f92b-439b-9718-8da90c05490b",
+            name="Zendesk (Nyaruka)",
+            ticketer_type="zendesk",
+            config=dict(
+                subdomain="nyaruka", oauth_token="754845822", secret="sesame", push_id="1234-abcd", push_token="523562"
+            ),
+        ),
+    ),
 )
 
 ORG2 = dict(
+    uuid="3ae7cdeb-fd96-46e5-abc4-a4622f349921",
     name="Nyaruka",
     has_locations=True,
     languages=("eng", "fra"),
@@ -224,6 +249,7 @@ ORG2 = dict(
     ),
     campaigns=(),
     templates=(),
+    ticketers=(),
 )
 
 ORGS = [ORG1, ORG2]
@@ -258,6 +284,11 @@ class Command(BaseCommand):
         settings.DATABASES["default"]["NAME"] = "mailroom_test"
         settings.DATABASES["default"]["USER"] = "mailroom_test"
 
+        # patch UUID generation so it's deterministic
+        from temba.utils import uuid
+
+        uuid.default_generator = uuid.seeded_generator(1234)
+
         self._log("Running migrations...\n")
 
         # run our migrations to put our database in the right state
@@ -273,9 +304,8 @@ class Command(BaseCommand):
         superuser = User.objects.create_superuser("root", "root@nyaruka.com", USER_PASSWORD)
         self._log(self.style.SUCCESS("OK") + "\n")
 
-        input(
-            '\nPlease start mailroom:\n   % ./mailroom -db="postgres://mailroom_test:temba@localhost/mailroom_test?sslmode=disable"\n\nPress enter when ready.\n'
-        )
+        mr_cmd = 'mailroom -db="postgres://mailroom_test:temba@localhost/mailroom_test?sslmode=disable" -uuid-seed=123'
+        input(f"\nPlease start mailroom:\n   % ./{mr_cmd}\n\nPress enter when ready.\n")
 
         country, locations = self.load_locations(LOCATIONS_DUMP)
 
@@ -318,6 +348,7 @@ class Command(BaseCommand):
         self._log(f"\nCreating org {spec['name']}...\n")
 
         org = Org.objects.create(
+            uuid=spec["uuid"],
             name=spec["name"],
             timezone=pytz.timezone("America/Los_Angeles"),
             brand="rapidpro.io",
@@ -356,6 +387,7 @@ class Command(BaseCommand):
         self.create_campaigns(spec, org, superuser)
         self.create_templates(spec, org, superuser)
         self.create_classifiers(spec, org, superuser)
+        self.create_ticketers(spec, org, superuser)
 
         return org
 
@@ -396,6 +428,22 @@ class Command(BaseCommand):
                 classifier.intents.create(
                     name=intent["name"], external_id=intent["external_id"], created_on=timezone.now()
                 )
+
+        self._log(self.style.SUCCESS("OK") + "\n")
+
+    def create_ticketers(self, spec, org, user):
+        self._log(f"Creating {len(spec['ticketers'])} ticketers... ")
+
+        for t in spec["ticketers"]:
+            Ticketer.objects.create(
+                org=org,
+                name=t["name"],
+                config=t["config"],
+                ticketer_type=t["ticketer_type"],
+                uuid=t["uuid"],
+                created_by=user,
+                modified_by=user,
+            )
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
@@ -453,7 +501,7 @@ class Command(BaseCommand):
 
         for f in spec["flows"]:
             with open("media/test_flows/mailroom/" + f["file"], "r") as flow_file:
-                org.import_app(json.load(flow_file), user, legacy=True)
+                org.import_app(json.load(flow_file), user)
 
                 # set the uuid on this flow
                 Flow.objects.filter(org=org, name=f["name"]).update(uuid=f["uuid"])

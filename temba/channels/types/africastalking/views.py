@@ -12,11 +12,17 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         shortcode = forms.CharField(max_length=6, min_length=1, help_text=_("Your short code on Africa's Talking"))
         country = forms.ChoiceField(
             choices=(
+                ("BF", _("Burkina Faso")),
+                ("CI", _("Côte d'Ivoire")),
+                ("ET", _("Ethiopia")),
                 ("KE", _("Kenya")),
-                ("UG", _("Uganda")),
                 ("MW", _("Malawi")),
-                ("RW", _("Rwanda")),
                 ("NG", _("Nigeria")),
+                ("RW", _("Rwanda")),
+                ("TZ", _("Tanzania")),
+                ("UG", _("Uganda")),
+                ("ZA", _("South Africa")),
+                ("ZM", _("Zambia")),
             )
         )
         is_shared = forms.BooleanField(

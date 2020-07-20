@@ -32,13 +32,13 @@ from django.utils import timezone
 from django.utils.http import is_safe_url, urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from django.views import View
-from django.views.decorators.csrf import csrf_exempt
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.templatetags.contacts import MISSING_VALUE
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.tickets.models import Ticket
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
@@ -355,7 +355,6 @@ class ContactActionForm(BaseActionForm):
 
 
 class ContactActionMixin(SmartListView):
-    @csrf_exempt
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
@@ -404,8 +403,8 @@ class ContactForm(forms.ModelForm):
                 urn = ContactURN()
                 urn.scheme = "tel"
                 urns = [urn]
-            for urn in urns:
 
+            for urn in urns:
                 first_urn = last_urn is None or urn.scheme != last_urn.scheme
 
                 urn_choice = None
@@ -419,9 +418,9 @@ class ContactForm(forms.ModelForm):
                 if urn_choice:
                     label = urn_choice[1]
 
-                help_text = "%s for this contact" % label
+                help_text = _(f"{label} for this contact")
                 if first_urn:
-                    help_text = "%s for this contact (@contact.%s)" % (label, scheme)
+                    help_text = _(f"{label} for this contact") + f" (@urns.{scheme})"
 
                 # get all the urns for this scheme
                 ctrl = forms.CharField(required=False, label=label, initial=urn.path, help_text=help_text)
@@ -473,7 +472,7 @@ class ContactForm(forms.ModelForm):
 
     class Meta:
         model = Contact
-        fields = "__all__"
+        fields = ("name",)
 
 
 class UpdateContactForm(ContactForm):
@@ -504,6 +503,10 @@ class UpdateContactForm(ContactForm):
         self.fields["groups"].initial = self.instance.user_groups.all()
         self.fields["groups"].queryset = ContactGroup.get_user_groups(self.user.get_org(), dynamic=False)
         self.fields["groups"].help_text = _("The groups which this contact belongs to")
+
+    class Meta:
+        model = Contact
+        fields = ("name", "language", "groups")
 
 
 class ExportForm(Form):
@@ -1042,9 +1045,12 @@ class ContactCRUDL(SmartCRUDL):
             # upcoming scheduled events
             context["upcoming_events"] = sorted(merged_upcoming_events, key=lambda k: k["scheduled"], reverse=True)
 
-            # divide contact's URNs into those we can send to, and those we can't
-            from temba.channels.models import Channel
+            # open tickets
+            context["open_tickets"] = list(
+                contact.tickets.filter(status=Ticket.STATUS_OPEN).select_related("ticketer").order_by("-opened_on")
+            )
 
+            # divide contact's URNs into those we can send to, and those we can't
             sendable_schemes = contact.org.get_schemes(Channel.ROLE_SEND)
 
             urns = contact.get_urns()
@@ -1438,19 +1444,6 @@ class ContactCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
-        exclude = (
-            "is_active",
-            "uuid",
-            "id",
-            "org",
-            "fields",
-            "is_blocked",
-            "is_stopped",
-            "created_by",
-            "modified_by",
-            "is_test",
-            "channel",
-        )
         success_url = "uuid@contacts.contact_read"
         success_message = ""
         submit_button_name = _("Save Changes")
@@ -1477,10 +1470,7 @@ class ContactCRUDL(SmartCRUDL):
             return super().get_form()
 
         def save(self, obj):
-            fields = [f.name for f in obj._meta.concrete_fields if f.name not in self.exclude]
-            obj.save(update_fields=fields, handle_update=True)
-
-            self.save_m2m()
+            obj.update(self.request.user, obj.name, obj.language)
 
             new_groups = self.form.cleaned_data.get("groups")
             if new_groups is not None:
@@ -1811,27 +1801,16 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
     def _get_static_context_data(self, **kwargs):
 
         active_user_fields = self.queryset.filter(org=self.request.user.get_org(), is_active=True)
-
-        context = {}
-
-        context["cf_categories"] = [
-            {"label": "All", "count": active_user_fields.count(), "url": reverse("contacts.contactfield_list")},
-            {
-                "label": "Featured",
-                "count": active_user_fields.filter(show_in_table=True).count(),
-                "url": reverse("contacts.contactfield_featured"),
-            },
-        ]
+        all_count = active_user_fields.count()
+        featured_count = active_user_fields.filter(show_in_table=True).count()
 
         type_counts = (
             active_user_fields.values("value_type")
             .annotate(type_count=Count("value_type"))
             .order_by("-type_count", "value_type")
         )
-
         value_type_map = {vt[0]: vt[1] for vt in Value.TYPE_CONFIG}
-
-        context["cf_types"] = [
+        types = [
             {
                 "label": value_type_map[type_cnt["value_type"]],
                 "count": type_cnt["type_count"],
@@ -1841,7 +1820,15 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
             for type_cnt in type_counts
         ]
 
-        return context
+        return {
+            "total_count": all_count,
+            "total_limit": settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG,
+            "cf_categories": [
+                {"label": "All", "count": all_count, "url": reverse("contacts.contactfield_list")},
+                {"label": "Featured", "count": featured_count, "url": reverse("contacts.contactfield_featured")},
+            ],
+            "cf_types": types,
+        }
 
     def get_queryset(self, **kwargs):
         qs = super().get_queryset(**kwargs)

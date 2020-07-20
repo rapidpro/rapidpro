@@ -16,7 +16,7 @@
 
 -block above-bar
   -if object.classifier
-    %a.btn.btn-secondary{ href: '{% url "request_logs.httplog_list" "classifier" object.classifier.uuid %}' } Classifier Log
+    %a.btn.btn-secondary{ href: '{% url "request_logs.httplog_classifier" object.classifier.uuid %}' } Classifier Log
 
 -block content
 

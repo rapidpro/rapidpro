@@ -1,45 +1,74 @@
-FROM python:3.6-alpine
+FROM python:3.6-slim
 
 ARG COMPRESS_ENABLED
 ARG BRANDING_ENABLED
 
 ENV PYTHONUNBUFFERED 1
-WORKDIR /app
+ENV DEBIAN_FRONTEND  noninteractive
 
-RUN apk update \
-  && apk add --virtual build-deps gcc python3-dev musl-dev \
-  && apk add postgresql-client postgresql-dev libxml2-dev libxslt-dev gettext-dev \
-  && apk add jpeg-dev zlib-dev freetype-dev lcms2-dev openjpeg-dev tiff-dev tk-dev tcl-dev \
-  && apk add libffi-dev py-cffi gettext nodejs npm git
+ENV PROJECT           rapidpro
+ENV PROJECT_PATH      /app
+ENV PROJECT_USER      $PROJECT
+ENV PROJECT_GROUP     $PROJECT_USER
+ENV PROJECT_CONF      ${PROJECT_PATH}-conf
+ENV NPM_CONFIG_PREFIX /opt/npm-globals
+ENV PATH              "${NPM_CONFIG_PREFIX}/bin:${PATH}"
 
-RUN apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/v3.11/community/ \
-  gdal gdal-dev geos-dev py3-gdal \
-  && rm -rf /var/cache/apk/*
+RUN apt-get update \
+ && apt-get install --no-install-recommends --no-install-suggests -y apt-utils \
+ && apt-get install --no-install-recommends --no-install-suggests -y gcc bzip2 git curl nginx libpq-dev gettext \
+    libgdal-dev python3-cffi python3-gdal vim
 
-RUN addgroup -S django \
-  && adduser -S -G django django
+RUN curl -sL https://deb.nodesource.com/setup_12.x | bash - \
+ && apt-get install --no-install-recommends --no-install-suggests -y nodejs
 
-RUN npm install --global --unsafe-perm \
+RUN rm -rf /var/lib/apt/lists/*
+
+RUN useradd -Ums /bin/bash $PROJECT_USER \
+ && usermod -aG adm $PROJECT_USER
+
+RUN mkdir $PROJECT_PATH \
+ && mkdir $PROJECT_CONF \
+ && mkdir $NPM_CONFIG_PREFIX \
+# && mkdir -p /var/www \
+ && chown -R $PROJECT_USER:$PROJECT_GROUP $PROJECT_PATH \
+ && chown -R $PROJECT_USER:$PROJECT_GROUP $NPM_CONFIG_PREFIX
+# && chown -R $PROJECT_USER:$PROJECT_GROUP /var/www
+
+RUN rm /etc/nginx/sites-enabled/default
+
+COPY ./docker/pip-freeze.txt /tmp/dep/
+COPY ./pip-freeze.txt ./docker/nginx.site.conf /tmp/
+RUN pip install --no-cache-dir -r /tmp/dep/pip-freeze.txt
+
+RUN envsubst < /tmp/nginx.site.conf > /etc/nginx/sites-available/$PROJECT.conf \
+ && ln -s /etc/nginx/sites-available/$PROJECT.conf /etc/nginx/sites-enabled/$PROJECT.conf
+
+#RUN envsubst < /tmp/nginx.conf > $PROJECT_CONF/nginx.conf \
+# && envsubst < /tmp/nginx.site.conf > $PROJECT_CONF/$PROJECT.conf \
+# && chown -R $PROJECT_USER:$PROJECT_GROUP $PROJECT_CONF
+
+COPY . $PROJECT_PATH
+RUN chown -R $PROJECT_USER:$PROJECT_GROUP $PROJECT_PATH
+
+#COPY --chown=$PROJECT_USER:$PROJECT_GROUP ./docker/nginx.start.sh /etc/init.d/$PROJECT
+#RUN chmod +x /etc/init.d/$PROJECT \
+# && cat /etc/init.d/$PROJECT \
+# && update-rc.d /etc/init.d/$PROJECT enable
+#RUN update-rc.d /etc/init.d/nginx enable
+
+WORKDIR $PROJECT_PATH
+#USER $PROJECT_USER
+
+RUN su $PROJECT_USER -c "npm install --global \
   coffeescript \
   less \
-  yarn
+  yarn"
 
-COPY ./package.json /app
-RUN npm install
+RUN su $PROJECT_USER -c "npm install \
+ && npm prune --production"
 
-COPY ./pip-freeze.txt /app
-RUN pip install --no-cache-dir -r pip-freeze.txt
-
-COPY . .
-RUN ln -s /app/temba/settings.py.prod /app/temba/settings.py
-
-COPY ./docker/start /start
-RUN sed -i 's/\r$//g' /start
-RUN chmod +x /start
-RUN chown django /start
-
-RUN chown -R django /app
-USER django
+RUN su $PROJECT_USER -c "ln -s $PROJECT_PATH/temba/settings.py.prod $PROJECT_PATH/temba/settings.py"
 
 EXPOSE 8000
-ENTRYPOINT ["/start"]
+ENTRYPOINT ["sh", "./docker/start"]

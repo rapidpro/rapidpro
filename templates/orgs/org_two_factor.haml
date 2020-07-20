@@ -1,0 +1,137 @@
+- extends 'smartmin/form.html'
+- load smartmin temba compress i18n
+
+-block form-span
+  span8
+
+
+-block pre-form
+
+  -if not user_settings.two_factor_enabled
+
+    %canvas#qr
+
+    %br
+
+    %script{src:"{{ STATIC_URL }}js/qrious.js"}
+
+    :javascript
+      (function() {
+        var secretUrl = "{{ secret_url }}";
+        if (secretUrl) {
+          var element = document.getElementById('qr');
+          element.style.display = "initial";
+          
+          var qr = new QRious({
+            element: element,
+            value: secretUrl,
+            background: "#eee"
+          });
+        }
+      })();
+    
+
+-block fields
+  -if not user_settings.two_factor_enabled
+    -blocktrans trimmed
+      To enable two factor authentication, use a one time password application such as
+    
+    %a{ href: "https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2"}
+      Google Authentication
+    
+    or
+
+    %a{ href: "https://authy.com/"}
+      Authy
+
+    %br
+    
+    {{block.super}}
+  -else
+    -blocktrans trimmed
+      Backup tokens can be used if you no longer have access to the authentication application configured for your account.
+
+    %br
+    %br
+
+    %p#backup_text_help
+      -blocktrans trimmed
+        These backup tokens can be used if you lose access to your authentication application, store them in a safe place. Any tokens you may have previously generated are invalid.
+
+    %br
+
+    %div#backup
+
+    %br
+
+    %a.btn.btn-primary.btn-tiny{id:'generate-backup-tokens', style:'margin-top:5px'}
+      -trans "Generate Backup Tokens"
+
+    %a.btn.btn-primary.btn-tiny{href:"{% url 'orgs.org_home' %}", id:'disable-two-factor-auth', style:'margin-top:5px'}
+      -trans "Disable Two Factor"
+
+    :javascript
+
+      $(document).ready(function () {
+        $("#backup_text_help").hide();
+      });
+
+      $(document).ready(function() {
+        $.ajax({
+          type: "POST",
+          url: "{%url 'orgs.org_two_factor'%}",
+          data: {
+            "get_backup_tokens": true,
+          },
+          success: function( backups ) {
+            var tokens = '';
+            for(token of backups.tokens) {
+                tokens = tokens + `<li>${token}</li>`;
+            }
+
+            element = `<ul>${tokens}</ul>`
+
+            $('#backup').html(element);
+          }
+        });
+      });
+
+      $('#generate-backup-tokens').click(function() {
+        $.ajax({
+          type: "POST",
+          url: "{%url 'orgs.org_two_factor'%}",
+          data: {
+            "generate_backup_tokens": true,
+          },
+          success: function( backups ) {
+            var tokens = '';
+            for(token of backups.tokens) {
+                tokens = tokens + `<li>${token}</li>`;
+            }
+
+            element = `
+            <ul>${tokens}</ul>
+            `
+
+            $('#backup').html(element);
+            $("#backup_text_help").show();
+          }
+        })
+      });
+
+      $('#disable-two-factor-auth').click(function() {
+        $.ajax({
+          type: "POST",
+          url: "{%url 'orgs.org_two_factor' %}",
+          data: {
+            "disable_two_factor_auth": true,
+          }
+        })
+      });
+
+- block form-buttons
+  -if not user_settings.two_factor_enabled
+    {{block.super}}
+
+- block summary
+  -trans "Two Factor Authentication"

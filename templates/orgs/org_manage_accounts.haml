@@ -281,7 +281,7 @@
         containerCssClass: 'select2-temba-field',
         tags: [],
         selectOnBlur: true,
-        placeholder: '{% trans "Enter emails of people to invite" %}',
+        placeholder: '{{ _("Enter emails of people to invite")|escapejs }}',
       });
 
       $("#id_user_group").select2({

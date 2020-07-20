@@ -8,6 +8,7 @@ from email.utils import parseaddr
 from functools import cmp_to_key
 from urllib.parse import parse_qs, unquote, urlparse
 
+import pyotp
 import pytz
 import requests
 from packaging.version import Version
@@ -49,7 +50,6 @@ from django.views.generic import View
 from temba.api.models import APIToken
 from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
-from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, get_anonymous_user, json, languages
@@ -59,7 +59,7 @@ from temba.utils.text import random_string
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import NonAtomicMixin
 
-from .models import Invitation, Org, OrgCache, TopUp, UserSettings, get_stripe_credentials
+from .models import BackupToken, Invitation, Org, OrgCache, TopUp, UserSettings, get_stripe_credentials
 from .tasks import apply_topups_task
 
 
@@ -540,6 +540,7 @@ class OrgCRUDL(SmartCRUDL):
         "clear_cache",
         "twilio_connect",
         "twilio_account",
+        "two_factor",
         "nexmo_account",
         "nexmo_connect",
         "sub_orgs",
@@ -547,6 +548,7 @@ class OrgCRUDL(SmartCRUDL):
         "export",
         "import",
         "plivo_connect",
+        "prometheus",
         "resthooks",
         "service",
         "surveyor",
@@ -1108,9 +1110,9 @@ class OrgCRUDL(SmartCRUDL):
             queryset = super().derive_queryset(**kwargs)
             queryset = queryset.filter(is_active=True)
 
-            brand = self.request.branding.get("brand")
-            if brand:
-                queryset = queryset.filter(brand=brand)
+            brands = self.request.branding.get("keys")
+            if brands:
+                queryset = queryset.filter(brand__in=brands)
 
             queryset = queryset.annotate(credits=Sum("topups__credits"))
             queryset = queryset.annotate(paid=Sum("topups__price"))
@@ -1426,6 +1428,113 @@ class OrgCRUDL(SmartCRUDL):
             org_id = self.request.GET.get("org")
             return "%s?org=%s" % (reverse("orgs.org_manage_accounts_sub_org"), org_id)
 
+    class TwoFactor(InferOrgMixin, OrgPermsMixin, SmartFormView):
+        class TwoFactorForm(forms.Form):
+            token = forms.CharField(
+                label=_("Authentication Token"),
+                help_text=_("Enter the code from your authentication application"),
+                strip=True,
+                required=True,
+            )
+
+            def __init__(self, *args, **kwargs):
+                self.request = kwargs.pop("request")
+                self.user_cache = None
+                super().__init__(*args, **kwargs)
+
+            def clean_token(self):  # pragma: no cover
+                token = self.cleaned_data.get("token", None)
+                user_pk = self.request.user.pk
+                user = User.objects.get(pk=user_pk)
+                totp = pyotp.TOTP(user.get_settings().otp_secret)
+                token_valid = totp.verify(token, valid_window=2)
+                if not token_valid:
+                    raise forms.ValidationError(_("Invalid MFA token. Please try again."), code="invalid-token")
+                self.user_cache = user
+                return token
+
+        form_class = TwoFactorForm
+        fields = ("token",)
+        success_url = "@orgs.org_two_factor"
+        success_message = ""
+        submit_button_name = _("Activate")
+        title = _("Two Factor Authentication")
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["request"] = self.request
+            return kwargs
+
+        def get(self, request, *args, **kwargs):
+            user = self.request.user
+            form = self.get_form()
+            secret = pyotp.random_base32()
+
+            user_settings = user.get_settings()
+            user_settings.otp_secret = secret
+            user_settings.save()
+            secret_url = self.get_secret_url()
+            return self.render_to_response(self.get_context_data(form=form, secret_url=secret_url))
+
+        def post(self, request, *args, **kwargs):
+            form = self.get_form()
+            if "disable_two_factor_auth" in request.POST:
+                self.disable_two_factor_auth()
+            if "get_backup_tokens" in request.POST:
+                tokens = self.get_backup_tokens()
+                data = {"tokens": tokens}
+                return JsonResponse(data)
+            elif "generate_backup_tokens" in request.POST:
+                tokens = self.generate_backup_tokens()
+                data = {"tokens": tokens}
+                return JsonResponse(data)
+            elif form.is_valid():
+                self.generate_backup_tokens()
+                user = self.request.user
+                user_settings = user.get_settings()
+                user_settings.two_factor_enabled = True
+                user_settings.save()
+            secret_url = self.get_secret_url()
+            return self.render_to_response(self.get_context_data(form=form, secret_url=secret_url))
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            user = self.get_user()
+            user_settings = user.get_settings()
+            context["user_settings"] = user_settings
+            return context
+
+        def get_secret_url(self):
+            user = self.request.user
+            otp_secret = user.get_settings().otp_secret
+            if otp_secret:
+                secret_url = pyotp.TOTP(otp_secret).provisioning_uri(user.username, issuer_name="Rapidpro")
+            return secret_url
+
+        def disable_two_factor_auth(self):
+            self.delete_backup_tokens()
+            user = self.get_user()
+            user_settings = user.get_settings()
+            user_settings.two_factor_enabled = False
+            user_settings.save()
+
+        def generate_backup_tokens(self):
+            user = self.get_user()
+            self.delete_backup_tokens()
+            for backup in range(10):
+                BackupToken.objects.create(settings=user.get_settings(), created_by=user, modified_by=user)
+            tokens = [backup.token for backup in BackupToken.objects.filter(settings__user=user)]
+            return tokens
+
+        def get_backup_tokens(self):
+            user = self.get_user()
+            tokens = [backup.token for backup in BackupToken.objects.filter(settings__user=user)]
+            return tokens
+
+        def delete_backup_tokens(self):
+            user = self.get_user()
+            BackupToken.objects.filter(settings__user=user).delete()
+
     class Service(SmartFormView):
         class ServiceForm(forms.Form):
             organization = forms.ModelChoiceField(queryset=Org.objects.all(), empty_label=None)
@@ -1564,8 +1673,7 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Select your Organization")
 
         def get_user_orgs(self):
-            brand = self.request.branding.get("brand")
-            return self.request.user.get_user_orgs(brand)
+            return self.request.user.get_user_orgs(self.request.branding.get("keys"))
 
         def pre_process(self, request, *args, **kwargs):
             user = self.request.user
@@ -1584,7 +1692,7 @@ class OrgCRUDL(SmartCRUDL):
                     return HttpResponseRedirect(self.get_success_url())  # pragma: needs cover
 
                 elif user_orgs.count() == 0:  # pragma: needs cover
-                    if user.groups.filter(name="Customer Support").first():
+                    if user.is_support():
                         return HttpResponseRedirect(reverse("orgs.org_manage"))
 
                     # for regular users, if there's no orgs, log them out with a message
@@ -2097,6 +2205,44 @@ class OrgCRUDL(SmartCRUDL):
             context["failed_webhooks"] = WebHookResult.get_recent_errored(self.request.user.get_org()).exists()
             return context
 
+    class Prometheus(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+        class ToggleForm(forms.ModelForm):
+            class Meta:
+                model = Org
+                fields = ("id",)
+
+        form_class = ToggleForm
+        success_url = "@orgs.org_home"
+        success_message = ""
+
+        def post_save(self, obj):
+            group = Group.objects.get(name="Prometheus")
+            user = self.request.user
+            org = user.get_org()
+
+            # look up to see if there is a prometheus token on this org
+            token = APIToken.objects.filter(is_active=True, org=org, role=group)
+
+            # if our org has a token, disable it
+            if token:
+                token.update(is_active=False)
+
+            # otherwise, create a new token (it is created for user but shared for org)
+            else:
+                APIToken.get_or_create(org, user, group)
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            user = self.request.user
+            org = user.get_org()
+            token = APIToken.objects.filter(is_active=True, org=org, role=Group.objects.get(name="Prometheus")).first()
+            if token:
+                context["prometheus_token"] = token.key
+                context["prometheus_url"] = f"https://{org.get_branding()['domain']}/mr/org/{org.uuid}/metrics"
+
+            return context
+
     class Chatbase(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class ChatbaseForm(forms.ModelForm):
             agent_name = forms.CharField(
@@ -2186,6 +2332,9 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("classifiers.classifier_connect"):
                 links.append(dict(title=_("Add Classifier"), href=reverse("classifiers.classifier_connect")))
 
+            if self.get_user().is_beta() and self.has_org_perm("tickets.ticketer_connect"):
+                links.append(dict(title=_("Add Ticketing Service"), href=reverse("tickets.ticketer_connect")))
+
             if self.has_org_perm("orgs.org_export"):
                 links.append(dict(title=_("Export"), href=reverse("orgs.org_export")))
 
@@ -2213,6 +2362,16 @@ class OrgCRUDL(SmartCRUDL):
                     action="link",
                 )
 
+        def add_ticketer_section(self, formax, ticketer):
+
+            if self.has_org_perm("tickets.ticket_filter"):
+                formax.add_section(
+                    "tickets",
+                    reverse("tickets.ticket_filter", args=[ticketer.uuid]),
+                    icon=ticketer.get_type().icon,
+                    action="link",
+                )
+
         def derive_formax_sections(self, formax, context):
 
             # add the channel option if we have one
@@ -2237,9 +2396,13 @@ class OrgCRUDL(SmartCRUDL):
                     formax.add_section("nexmo", reverse("orgs.org_nexmo_account"), icon="icon-channel-nexmo")
 
             if self.has_org_perm("classifiers.classifier_read"):
-                classifiers = Classifier.objects.filter(org=org, is_active=True).order_by("created_on")
+                classifiers = org.classifiers.filter(is_active=True).order_by("created_on")
                 for classifier in classifiers:
                     self.add_classifier_section(formax, classifier)
+
+            if self.has_org_perm("tickets.ticket_filter"):
+                for ticketer in org.ticketers.filter(is_active=True).order_by("created_on"):
+                    self.add_ticketer_section(formax, ticketer)
 
             if self.has_org_perm("orgs.org_profile"):
                 formax.add_section("user", reverse("orgs.user_edit"), icon="icon-user", action="redirect")
@@ -2247,6 +2410,15 @@ class OrgCRUDL(SmartCRUDL):
             # only pro orgs get multiple users
             if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user_tier():
                 formax.add_section("accounts", reverse("orgs.org_accounts"), icon="icon-users", action="redirect")
+
+            if self.has_org_perm("orgs.org_two_factor"):
+                formax.add_section(
+                    "two_factor",
+                    reverse("orgs.org_two_factor"),
+                    icon="icon-two-factor",
+                    action="redirect",
+                    nobutton=True,
+                )
 
             if self.has_org_perm("orgs.org_edit"):
                 formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")
@@ -2295,6 +2467,9 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_token"):
                 formax.add_section("token", reverse("orgs.org_token"), icon="icon-cloud-upload", nobutton=True)
+
+            if self.has_org_perm("orgs.org_prometheus"):
+                formax.add_section("prometheus", reverse("orgs.org_prometheus"), icon="icon-prometheus", nobutton=True)
 
             if self.has_org_perm("orgs.org_resthooks"):
                 formax.add_section(

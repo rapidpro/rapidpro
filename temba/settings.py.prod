@@ -76,7 +76,7 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["v2.messages"] = env("V2_MESSAGES", def
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["v2.broadcasts"] = env("V2_BROADCASTS", default="36000/hour")
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["v2.runs"] = env("V2_RUNS", default="3000/hour")
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["v2.api"] = env("V2_API", default="3000/hour")
- 
+
 
 # EMAIL
 # ------------------------------------------------------------------------------
@@ -92,9 +92,15 @@ FLOW_FROM_EMAIL = DEFAULT_FROM_EMAIL
 # ------------------------------------------------------------------------------
 COMPRESS_ENABLED = env.bool("COMPRESS_ENABLED", default=True)
 COMPRESS_OFFLINE = env.bool("COMPRESS_OFFLINE", default=True)
-COMPRESS_CSS_FILTERS = [
-    "compressor.filters.css_default.CssAbsoluteFilter", "compressor.filters.cssmin.CSSMinFilter"]
-COMPRESS_JS_FILTERS = ["compressor.filters.jsmin.JSMinFilter"]
+COMPRESS_FILTERS = {
+    "css": [
+        "compressor.filters.css_default.CssAbsoluteFilter", "compressor.filters.cssmin.CSSMinFilter"
+    ],
+    "js": [
+        "compressor.filters.jsmin.JSMinFilter"
+    ],
+}
+
 COMPRESS_CSS_HASHING_METHOD = "content"
 COMPRESS_OFFLINE_CONTEXT = dict(
     STATIC_URL=STATIC_URL, base_template="frame.html", brand=BRANDING.get(DEFAULT_BRAND), debug=False, testing=False
@@ -105,20 +111,7 @@ COMPRESS_OFFLINE_CONTEXT = dict(
 MIDDLEWARE = (
     "elasticapm.contrib.django.middleware.TracingMiddleware",
     "elasticapm.contrib.django.middleware.Catch404Middleware",
-    "django.middleware.security.SecurityMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "temba.middleware.ConsentMiddleware",
-    "temba.middleware.BrandingMiddleware",
-    "temba.middleware.OrgTimezoneMiddleware",
-    "temba.middleware.ActivateLanguageMiddleware",
-    "temba.middleware.OrgHeaderMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
-)
+) + MIDDLEWARE
 
 # REDIS
 # ------------------------------------------------------------------------------
@@ -164,7 +157,9 @@ STORAGE_URL = f"https://{AWS_BUCKET_DOMAIN}"
 
 DEFAULT_FILE_STORAGE = env("DEFAULT_FILE_STORAGE",
                            default="storages.backends.s3boto3.S3Boto3Storage")
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+S3_NETWORK_TIMEOUT = env.int("S3_NETWORK_TIMEOUT", default=120)
+S3_NETWORK_RETRY_COUNT = env.int("S3_NETWORK_RETRY_COUNT", default=5)
 
 # CELERY
 # ------------------------------------------------------------------------------
@@ -201,7 +196,7 @@ sentry_sdk.init(dsn=env("SENTRY_DSN", default=""),
 # ------------------------------------------------------------------------------
 LOGGING = {
     "version": 1,
-    "disable_existing_loggers": True,
+    "disable_existing_loggers": env("DISABLE_LOG", default=True),
     "root": {"level": "WARNING", "handlers": ["console"]},
     "formatters": {"verbose": {"format": "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s"}},
     "handlers": {

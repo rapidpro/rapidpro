@@ -1,0 +1,18 @@
+-extends "smartmin/form.html"
+
+-block title
+  .medium-help.float-left(class="{{ view.ticketer_type.icon }}")
+
+  %h2.font_normalize.header-margin(style="padding-top: 8px")
+    {{ title }}
+
+-block pre-form
+  %h4.form_blurb
+    {{ form_blurb }}
+
+-block extra-style
+  {{ block.super }}
+  :css
+    .form_blurb {
+      margin-bottom: 2em;
+    }

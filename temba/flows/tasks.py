@@ -23,6 +23,7 @@ from .models import (
     FlowRun,
     FlowRunCount,
     FlowSession,
+    FlowStart,
     FlowStartCount,
 )
 
@@ -49,22 +50,14 @@ def export_flow_results_task(export_id):
     ExportFlowResultsTask.objects.select_related("org").get(id=export_id).perform()
 
 
-@nonoverlapping_task(
-    track_started=True, name="squash_flowpathcounts", lock_key="squash_flowpathcounts", lock_timeout=7200
-)
-def squash_flowpathcounts():
-    FlowPathCount.squash()
-
-
-@nonoverlapping_task(
-    track_started=True, name="squash_flowruncounts", lock_key="squash_flowruncounts", lock_timeout=7200
-)
-def squash_flowruncounts():
+@nonoverlapping_task(track_started=True, name="squash_flowcounts", lock_timeout=7200)
+def squash_flowcounts():
     FlowNodeCount.squash()
     FlowRunCount.squash()
     FlowCategoryCount.squash()
     FlowPathRecentRun.prune()
     FlowStartCount.squash()
+    FlowPathCount.squash()
 
 
 @nonoverlapping_task(track_started=True, name="trim_flow_revisions")
@@ -83,10 +76,15 @@ def trim_flow_revisions():
     r.set(FlowRevision.LAST_TRIM_KEY, int(timezone.now().timestamp()))
 
     elapsed = timesince(start)
-    print(f"Trimmed {count} flow revisions since {last_trim} in {elapsed}")
+    logger.info(f"Trimmed {count} flow revisions since {last_trim} in {elapsed}")
 
 
-@nonoverlapping_task(track_started=True, name="trim_flow_sessions")
+@nonoverlapping_task(track_started=True, name="trim_flow_sessions_and_starts")
+def trim_flow_sessions_and_starts():
+    trim_flow_sessions()
+    trim_flow_starts()
+
+
 def trim_flow_sessions():
     """
     Cleanup old flow sessions
@@ -95,7 +93,7 @@ def trim_flow_sessions():
     num_deleted = 0
     start = timezone.now()
 
-    print(f"Deleting flow sessions which ended before {threshold.isoformat()}...")
+    logger.info(f"Deleting flow sessions which ended before {threshold.isoformat()}...")
 
     while True:
         session_ids = list(FlowSession.objects.filter(ended_on__lte=threshold).values_list("id", flat=True)[:1000])
@@ -112,4 +110,41 @@ def trim_flow_sessions():
             print(f" > Deleted {num_deleted} flow sessions")
 
     elapsed = timesince(start)
-    print(f"Deleted {num_deleted} flow sessions which ended before {threshold.isoformat()} in {elapsed}")
+    logger.info(f"Deleted {num_deleted} flow sessions which ended before {threshold.isoformat()} in {elapsed}")
+
+
+def trim_flow_starts():
+    """
+    Cleanup completed non-user created flow starts
+    """
+    threshold = timezone.now() - timedelta(days=7)
+    num_deleted = 0
+    start = timezone.now()
+
+    logger.info(f"Deleting completed non-user created flow starts...")
+
+    while True:
+        start_ids = list(
+            FlowStart.objects.filter(
+                created_by=None,
+                status__in=(FlowStart.STATUS_COMPLETE, FlowStart.STATUS_FAILED),
+                modified_on__lte=threshold,
+            ).values_list("id", flat=True)[:1000]
+        )
+        if not start_ids:
+            break
+
+        # detach any flows runs that belong to these starts
+        FlowRun.objects.filter(start_id__in=start_ids).update(start_id=None)
+
+        FlowStart.contacts.through.objects.filter(flowstart_id__in=start_ids).delete()
+        FlowStart.groups.through.objects.filter(flowstart_id__in=start_ids).delete()
+        FlowStartCount.objects.filter(start_id__in=start_ids).delete()
+        FlowStart.objects.filter(id__in=start_ids).delete()
+        num_deleted += len(start_ids)
+
+        if num_deleted % 10000 == 0:  # pragma: no cover
+            print(f" > Deleted {num_deleted} flow starts")
+
+    elapsed = timesince(start)
+    logger.info(f"Deleted {num_deleted} completed non-user created flow starts in {elapsed}")

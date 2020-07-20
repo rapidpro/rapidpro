@@ -1,4 +1,5 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
+from unittest.mock import patch
 
 import pytz
 
@@ -723,7 +724,9 @@ class CampaignTest(TembaTest):
         post_data = dict(name=self.farmer1.name, groups=[self.farmers.id], __urn__tel=self.farmer1.get_urn("tel").path)
 
         planting_date_field = ContactField.get_by_key(self.org, "planting_date")
+
         self.client.post(reverse("contacts.contact_update", args=[self.farmer1.id]), post_data)
+
         response = self.client.post(
             reverse("contacts.contact_update_fields", args=[self.farmer1.id]),
             dict(contact_field=planting_date_field.id, field_value="4/8/2020"),
@@ -1066,109 +1069,119 @@ class CampaignTest(TembaTest):
         self.org.import_app(exported, self.admin)
 
     def test_deleting_reimport_contact_groups(self):
-        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
+        with patch.object(timezone, "now", return_value=datetime(2020, 5, 1, 0, 0, 0, 0, pytz.UTC)):
+            campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
-        # create a reminder for our first planting event
-        planting_reminder = CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, relative_to=self.planting_date, offset=3, unit="D", flow=self.reminder_flow
-        )
+            # create a reminder for our first planting event
+            planting_reminder = CampaignEvent.create_flow_event(
+                self.org,
+                self.admin,
+                campaign,
+                relative_to=self.planting_date,
+                offset=3,
+                unit="D",
+                flow=self.reminder_flow,
+            )
 
-        self.assertEqual(0, EventFire.objects.all().count())
-        self.farmer1.set_field(self.user, "planting_date", "10-05-2020 12:30:10")
-        self.farmer2.set_field(self.user, "planting_date", "15-05-2020 12:30:10")
+            self.assertEqual(0, EventFire.objects.all().count())
+            self.farmer1.set_field(self.user, "planting_date", "10-05-2020 12:30:10")
+            self.farmer2.set_field(self.user, "planting_date", "15-05-2020 12:30:10")
 
-        # now we have event fires accordingly
-        self.assertEqual(2, EventFire.objects.all().count())
+            # now we have event fires accordingly
+            self.assertEqual(2, EventFire.objects.all().count())
 
-        # farmer one fire
-        scheduled = EventFire.objects.get(contact=self.farmer1, event=planting_reminder).scheduled
-        self.assertEqual("13-5-2020", "%s-%s-%s" % (scheduled.day, scheduled.month, scheduled.year))
+            # farmer one fire
+            scheduled = EventFire.objects.get(contact=self.farmer1, event=planting_reminder).scheduled
+            self.assertEqual("13-5-2020", "%s-%s-%s" % (scheduled.day, scheduled.month, scheduled.year))
 
-        # farmer two fire
-        scheduled = EventFire.objects.get(contact=self.farmer2, event=planting_reminder).scheduled
-        self.assertEqual("18-5-2020", "%s-%s-%s" % (scheduled.day, scheduled.month, scheduled.year))
+            # farmer two fire
+            scheduled = EventFire.objects.get(contact=self.farmer2, event=planting_reminder).scheduled
+            self.assertEqual("18-5-2020", "%s-%s-%s" % (scheduled.day, scheduled.month, scheduled.year))
 
-        # delete our farmers group
-        self.farmers.release()
+            # delete our farmers group
+            self.farmers.release()
 
-        # this should have removed all the event fires for that group
-        self.assertEqual(0, EventFire.objects.filter(event=planting_reminder).count())
+            # this should have removed all the event fires for that group
+            self.assertEqual(0, EventFire.objects.filter(event=planting_reminder).count())
 
-        # and our group is no longer active
-        self.assertFalse(campaign.group.is_active)
+            # and our group is no longer active
+            self.assertFalse(campaign.group.is_active)
 
-        # now import the group again
-        filename = "farmers.csv"
-        extra_fields = [dict(key="planting_date", header="field: planting_date", label="Planting Date", type="D")]
-        import_params = dict(
-            org_id=self.org.id, timezone=str(self.org.timezone), extra_fields=extra_fields, original_filename=filename
-        )
+            # now import the group again
+            filename = "farmers.csv"
+            extra_fields = [dict(key="planting_date", header="field: planting_date", label="Planting Date", type="D")]
+            import_params = dict(
+                org_id=self.org.id,
+                timezone=str(self.org.timezone),
+                extra_fields=extra_fields,
+                original_filename=filename,
+            )
 
-        task = ImportTask.objects.create(
-            created_by=self.admin,
-            modified_by=self.admin,
-            csv_file="test_imports/" + filename,
-            model_class="Contact",
-            import_params=json.dumps(import_params),
-            import_log="",
-            task_id="A",
-        )
-        Contact.import_csv(task, log=None)
+            task = ImportTask.objects.create(
+                created_by=self.admin,
+                modified_by=self.admin,
+                csv_file="test_imports/" + filename,
+                model_class="Contact",
+                import_params=json.dumps(import_params),
+                import_log="",
+                task_id="A",
+            )
+            Contact.import_csv(task, log=None)
 
-        # check that we have new planting dates
-        self.farmer1 = Contact.objects.get(pk=self.farmer1.pk)
-        self.farmer2 = Contact.objects.get(pk=self.farmer2.pk)
+            # check that we have new planting dates
+            self.farmer1 = Contact.objects.get(pk=self.farmer1.pk)
+            self.farmer2 = Contact.objects.get(pk=self.farmer2.pk)
 
-        planting = self.farmer1.get_field_value(self.planting_date)
-        self.assertEqual("10-8-2020", "%s-%s-%s" % (planting.day, planting.month, planting.year))
+            planting = self.farmer1.get_field_value(self.planting_date)
+            self.assertEqual("10-8-2020", "%s-%s-%s" % (planting.day, planting.month, planting.year))
 
-        planting = self.farmer2.get_field_value(self.planting_date)
-        self.assertEqual("15-8-2020", "%s-%s-%s" % (planting.day, planting.month, planting.year))
+            planting = self.farmer2.get_field_value(self.planting_date)
+            self.assertEqual("15-8-2020", "%s-%s-%s" % (planting.day, planting.month, planting.year))
 
-        # now update the campaign
-        new_farmers = ContactGroup.user_groups.filter(name="Farmers", is_active=True).first()
-        new_campaign = Campaign.create(self.org, self.admin, "Planting Reminders", new_farmers)
-        new_planting_reminder = CampaignEvent.create_flow_event(
-            self.org,
-            self.admin,
-            new_campaign,
-            relative_to=self.planting_date,
-            offset=3,
-            unit="D",
-            flow=self.reminder_flow,
-        )
+            # now update the campaign
+            new_farmers = ContactGroup.user_groups.filter(name="Farmers", is_active=True).first()
+            new_campaign = Campaign.create(self.org, self.admin, "Planting Reminders", new_farmers)
+            new_planting_reminder = CampaignEvent.create_flow_event(
+                self.org,
+                self.admin,
+                new_campaign,
+                relative_to=self.planting_date,
+                offset=3,
+                unit="D",
+                flow=self.reminder_flow,
+            )
 
-        self.login(self.admin)
-        post_data = dict(name="Planting Reminders", group=new_farmers.pk)
+            self.login(self.admin)
+            post_data = dict(name="Planting Reminders", group=new_farmers.pk)
 
-        self.client.post(reverse("campaigns.campaign_update", args=[new_campaign.pk]), post_data)
+            self.client.post(reverse("campaigns.campaign_update", args=[new_campaign.pk]), post_data)
 
-        self.farmer1.set_field(self.user, "planting_date", "13-08-2020 12:30:10")
-        self.farmer2.set_field(self.user, "planting_date", "18-08-2020 12:30:10")
+            self.farmer1.set_field(self.user, "planting_date", "13-08-2020 12:30:10")
+            self.farmer2.set_field(self.user, "planting_date", "18-08-2020 12:30:10")
 
-        # should have two fresh new fires
-        self.assertEqual(2, EventFire.objects.all().count())
+            # should have two fresh new fires
+            self.assertEqual(2, EventFire.objects.all().count())
 
-        # check their new planting dates
-        scheduled = EventFire.objects.get(contact=self.farmer1, event=new_planting_reminder).scheduled
-        self.assertEqual("16-8-2020", "%s-%s-%s" % (scheduled.day, scheduled.month, scheduled.year))
+            # check their new planting dates
+            scheduled = EventFire.objects.get(contact=self.farmer1, event=new_planting_reminder).scheduled
+            self.assertEqual("16-8-2020", "%s-%s-%s" % (scheduled.day, scheduled.month, scheduled.year))
 
-        # farmer two fire
-        scheduled = EventFire.objects.get(contact=self.farmer2, event=new_planting_reminder).scheduled
-        self.assertEqual("21-8-2020", "%s-%s-%s" % (scheduled.day, scheduled.month, scheduled.year))
+            # farmer two fire
+            scheduled = EventFire.objects.get(contact=self.farmer2, event=new_planting_reminder).scheduled
+            self.assertEqual("21-8-2020", "%s-%s-%s" % (scheduled.day, scheduled.month, scheduled.year))
 
-        # give our non farmer a planting date
-        self.nonfarmer.set_field(self.user, "planting_date", "20-05-2020 12:30:10")
+            # give our non farmer a planting date
+            self.nonfarmer.set_field(self.user, "planting_date", "20-05-2020 12:30:10")
 
-        # now update to the non-farmer group
-        self.nonfarmers = self.create_group("Not Farmers", [self.nonfarmer])
-        post_data = dict(name="Planting Reminders", group=self.nonfarmers.pk)
-        self.client.post(reverse("campaigns.campaign_update", args=[new_campaign.pk]), post_data)
+            # now update to the non-farmer group
+            self.nonfarmers = self.create_group("Not Farmers", [self.nonfarmer])
+            post_data = dict(name="Planting Reminders", group=self.nonfarmers.pk)
+            self.client.post(reverse("campaigns.campaign_update", args=[new_campaign.pk]), post_data)
 
-        # only one fire for the non-farmer the previous two should be deleted by the group change
-        self.assertEqual(1, EventFire.objects.filter(event__is_active=True).count())
-        self.assertEqual(2, EventFire.objects.filter(event__is_active=False).count())
-        self.assertEqual(1, EventFire.objects.filter(event__is_active=True, contact=self.nonfarmer).count())
+            # only one fire for the non-farmer the previous two should be deleted by the group change
+            self.assertEqual(1, EventFire.objects.filter(event__is_active=True).count())
+            self.assertEqual(2, EventFire.objects.filter(event__is_active=False).count())
+            self.assertEqual(1, EventFire.objects.filter(event__is_active=True, contact=self.nonfarmer).count())
 
     def test_dst_scheduling(self):
         # set our timezone to something that honors DST

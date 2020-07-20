@@ -17,7 +17,7 @@
 
 
   .header-margin
-    %a.btn.btn-tiny(href="{% url 'request_logs.httplog_list' 'classifier' classifier.uuid %}")
+    %a.btn.btn-tiny(href="{% url 'request_logs.httplog_classifier' classifier.uuid %}")
       -trans "Classifier Log"
 
 -block content
@@ -99,14 +99,14 @@
             modal.setListeners({onPrimary: function(){
               $('#deletion-form').click();
             }}, false);
-            modal.setPrimaryButton('{% trans "Delete" %}');
+            modal.setPrimaryButton('{{ _("Delete")|escapejs }}');
 
         {% else %}
             modal.hideSecondaryButton();
             modal.setListeners({onPrimary: function(){
               modal.dismiss();
             }}, false);
-            modal.setPrimaryButton('{% trans "Ok" %}');
+            modal.setPrimaryButton('{{ _("Ok")|escapejs }}');
         {% endif %}
 
         modal.show();

@@ -1,12 +1,14 @@
 import calendar
 import logging
-from datetime import timedelta
+from datetime import time, timedelta
 
 from dateutil.relativedelta import relativedelta
 from smartmin.models import SmartModel
 
+from django.contrib.humanize.templatetags.humanize import ordinal
 from django.db import models
 from django.utils import timezone
+from django.utils.timesince import timeuntil
 from django.utils.translation import ugettext_lazy as _
 
 logger = logging.getLogger(__name__)
@@ -179,7 +181,19 @@ class Schedule(SmartModel):
             return next_fire
 
     def get_repeat_days_display(self):
-        return [Schedule.DAYS_OF_WEEK_DISPLAY[d] for d in self.repeat_days_of_week] if self.repeat_days_of_week else ""
+        return [Schedule.DAYS_OF_WEEK_DISPLAY[d] for d in self.repeat_days_of_week] if self.repeat_days_of_week else []
+
+    def get_display(self):
+        if self.repeat_period == self.REPEAT_NEVER:
+            return _("in %(timeperiod)s") % {"timeperiod": timeuntil(self.next_fire)} if self.next_fire else ""
+        elif self.repeat_period == self.REPEAT_DAILY:
+            time_of_day = time(self.repeat_hour_of_day, self.repeat_minute_of_hour, 0).strftime("%H:%M")
+            return _("each day at %(time)s") % {"time": time_of_day}
+        elif self.repeat_period == self.REPEAT_WEEKLY:
+            days = [str(day) for day in self.get_repeat_days_display()]
+            return _("each week on %(daysofweek)s" % {"daysofweek": ", ".join(days)})
+        elif self.repeat_period == self.REPEAT_MONTHLY:
+            return _("each month on the %(dayofmonth)s" % {"dayofmonth": ordinal(self.repeat_day_of_month)})
 
     @staticmethod
     def _day_of_week(d):
@@ -189,5 +203,4 @@ class Schedule(SmartModel):
         return Schedule.DAYS_OF_WEEK_OFFSET[d.weekday()]
 
     def __str__(self):
-        repeat = f"{self.repeat_period} {self.repeat_day_of_month} {self.repeat_days_of_week} {self.repeat_hour_of_day}:{self.repeat_minute_of_hour}"
-        return f"schedule[id={self.id} repeat={repeat} next={str(self.next_fire)}]"
+        return f'Schedule[id={self.id} repeat="{self.get_display()}" next={str(self.next_fire)}]'

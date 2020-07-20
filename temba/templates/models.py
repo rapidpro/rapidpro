@@ -17,7 +17,7 @@ class Template(models.Model):
     uuid = models.UUIDField(default=uuid.uuid4)
 
     # the name of this template
-    name = models.CharField(max_length=64)
+    name = models.CharField(max_length=512)
 
     # the organization this template is used in
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="templates")
