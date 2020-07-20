@@ -1509,7 +1509,7 @@ class OrgCRUDL(SmartCRUDL):
             user = self.request.user
             otp_secret = user.get_settings().otp_secret
             if otp_secret:
-                secret_url = pyotp.TOTP(otp_secret).provisioning_uri(user.username, issuer_name="Rapidpro")
+                secret_url = pyotp.TOTP(otp_secret).provisioning_uri(user.username, issuer_name=settings.BRANDING[settings.DEFAULT_BRAND]["name"])
             return secret_url
 
         def disable_two_factor_auth(self):
