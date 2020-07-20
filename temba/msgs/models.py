@@ -1033,47 +1033,32 @@ class Msg(models.Model):
         self.delete()
 
     @classmethod
-    def apply_action_label(cls, user, msgs, label, add):
-        return label.toggle_label(msgs, add)
+    def apply_action_label(cls, user, msgs, label):
+        label.toggle_label(msgs, add=True)
+
+    @classmethod
+    def apply_action_unlabel(cls, user, msgs, label):
+        label.toggle_label(msgs, add=False)
 
     @classmethod
     def apply_action_archive(cls, user, msgs):
-        changed = []
-
         for msg in msgs:
             msg.archive()
-            changed.append(msg.pk)
-
-        return changed
 
     @classmethod
     def apply_action_restore(cls, user, msgs):
-        changed = []
-
         for msg in msgs:
             msg.restore()
-            changed.append(msg.pk)
-
-        return changed
 
     @classmethod
     def apply_action_delete(cls, user, msgs):
-        changed = []
-
         for msg in msgs:
             msg.release()
-            changed.append(msg.pk)
-
-        return changed
 
     @classmethod
     def apply_action_resend(cls, user, msgs):
-        changed = []
-
         for msg in msgs:
             msg.resend()
-            changed.append(msg.pk)
-        return changed
 
 
 class BroadcastMsgCount(SquashableModel):

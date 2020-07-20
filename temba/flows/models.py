@@ -526,36 +526,33 @@ class Flow(TembaModel):
         return name
 
     @classmethod
-    def apply_action_label(cls, user, flows, label, add):  # pragma: needs cover
-        return label.toggle_label(flows, add)
+    def apply_action_label(cls, user, flows, label):
+        label.toggle_label(flows, add=True)
+
+    @classmethod
+    def apply_action_unlabel(cls, user, flows, label):
+        label.toggle_label(flows, add=False)
 
     @classmethod
     def apply_action_archive(cls, user, flows):
-        changed = []
-
         for flow in flows:
-
             # don't archive flows that belong to campaigns
             from temba.campaigns.models import CampaignEvent
 
-            if not CampaignEvent.objects.filter(
+            has_events = CampaignEvent.objects.filter(
                 is_active=True, flow=flow, campaign__org=user.get_org(), campaign__is_archived=False
-            ).exists():
-                flow.archive()
-                changed.append(flow.pk)
+            ).exists()
 
-        return changed
+            if not has_events:
+                flow.archive()
 
     @classmethod
     def apply_action_restore(cls, user, flows):
-        changed = []
         for flow in flows:
             try:
                 flow.restore()
-                changed.append(flow.pk)
             except FlowException:  # pragma: no cover
                 pass
-        return changed
 
     def as_select2(self):
         return dict(id=self.uuid, text=self.name)

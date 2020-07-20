@@ -264,8 +264,6 @@ class Trigger(SmartModel):
         for trigger in triggers:
             trigger.archive(user)
 
-        return [each_trigger.pk for each_trigger in triggers]
-
     @classmethod
     def apply_action_restore(cls, user, triggers):
         restore_priority = triggers.order_by("-modified_on")
@@ -279,8 +277,6 @@ class Trigger(SmartModel):
             if not trigger_scopes.intersection(trigger_scope):
                 trigger.restore(user)
                 trigger_scopes = trigger_scopes | trigger_scope
-
-        return [t.pk for t in triggers]
 
     def as_export_def(self):
         """

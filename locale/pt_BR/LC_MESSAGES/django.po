@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-15 18:45+0000\n"
+"POT-Creation-Date: 2020-07-20 18:24+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3426,28 +3426,6 @@ msgstr ""
 msgid "Stopped"
 msgstr ""
 
-msgid "Add to Group"
-msgstr "Adicionar ao grupo"
-
-msgid "Remove from Group"
-msgstr "Remover do grupo"
-
-#, fuzzy
-msgid "Unblock Contacts"
-msgstr "Contatos com falha"
-
-#, fuzzy
-msgid "Block Contacts"
-msgstr "Contatos com falha"
-
-#, fuzzy
-msgid "Delete Contacts"
-msgstr "Criar contatos"
-
-#, fuzzy
-msgid "Unstop Contacts"
-msgstr "Restaurar contatos"
-
 #, fuzzy, python-brace-format
 #| msgid "The name of this contact"
 msgid "{label} for this contact"
@@ -3824,25 +3802,6 @@ msgid "The keyword \"%s\" is already used for another flow"
 msgstr ""
 
 #, fuzzy
-msgid "Archive Flows"
-msgstr "Arquivar"
-
-msgid "Label Messages"
-msgstr "Rotular mensagens"
-
-#, fuzzy
-msgid "Restore Flows"
-msgstr "Restaurar"
-
-#, python-format
-msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
-msgstr ""
-
-#, python-format
-msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
-msgstr ""
-
-#, fuzzy
 #| msgid "User does not have permission to create an SMS"
 msgid "You don't have permission to edit this flow"
 msgstr "Usuário não tem permissão para criar um SMS"
@@ -3905,6 +3864,10 @@ msgstr ""
 
 msgid "Flows"
 msgstr "Fluxos"
+
+#, python-format
+msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
+msgstr ""
 
 msgid "Contact Name"
 msgstr "Nome do contato"
@@ -4569,18 +4532,6 @@ msgstr "Mensagens agendadas"
 
 msgid "You must add a phone number before sending messages"
 msgstr "Você deve adicionar um número de telefone antes de enviar mensagens"
-
-msgid "Archive Messages"
-msgstr "Arquivar mensagens"
-
-msgid "Move to Inbox"
-msgstr "Mover para a caixa de entrada"
-
-msgid "Resend Messages"
-msgstr "Mensagens reenviadas"
-
-msgid "Delete Messages"
-msgstr "Deletar mensagens "
 
 msgid "Which channel will deliver the message"
 msgstr "Qual transmissor vai entregar a mensagem"
@@ -5744,12 +5695,6 @@ msgstr ""
 msgid "The referrer id that will trigger us"
 msgstr "O tipo desse disparo"
 
-msgid "Archive Triggers"
-msgstr "Arquivar disparadores"
-
-msgid "Restore Triggers"
-msgstr "Restaurar disparadores"
-
 msgid "Create Trigger"
 msgstr "Criar disparador"
 
@@ -5857,18 +5802,10 @@ msgstr ""
 msgid ", "
 msgstr ""
 
-msgid "Sorry you have no permission for this action."
-msgstr ""
-
-msgid "Must specify a label"
-msgstr "Deve especificar um rótulo"
-
 #, fuzzy
-msgid "Missing label"
-msgstr "Deve especificar um rótulo"
-
-msgid "Oops, so sorry. Something went wrong!"
-msgstr "Oops, me desculpe. Ocorreu algum erro!"
+#| msgid "We encountered an error removing your channel, please try again later."
+msgid "An error occurred while making your changes. Please try again."
+msgstr "Encontramos um erro ao remover o seu transmissor, por favor, tente novamente mais tarde."
 
 #, fuzzy
 #| msgid "Current Date and Time"
@@ -8197,6 +8134,9 @@ msgstr "Criar grupo de contatos"
 msgid "Create Group"
 msgstr "Criar grupo de contatos"
 
+msgid "Remove from Group"
+msgstr "Remover do grupo"
+
 msgid "New Group..."
 msgstr ""
 
@@ -8222,6 +8162,10 @@ msgstr "Nenhum contato correspondente"
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr ""
+
+#, fuzzy
+msgid "Delete Contacts"
+msgstr "Criar contatos"
 
 #, fuzzy
 msgid "Are you sure you want to delete these contacts?"
@@ -11879,6 +11823,60 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Oops, so sorry. Something went wrong!"
+#~ msgstr "Oops, me desculpe. Ocorreu algum erro!"
+
+#~ msgid "Add to Group"
+#~ msgstr "Adicionar ao grupo"
+
+#, fuzzy
+#~ msgid "Unblock Contacts"
+#~ msgstr "Contatos com falha"
+
+#, fuzzy
+#~ msgid "Block Contacts"
+#~ msgstr "Contatos com falha"
+
+#, fuzzy
+#~ msgid "Unstop Contacts"
+#~ msgstr "Restaurar contatos"
+
+#, fuzzy
+#~ msgid "Archive Flows"
+#~ msgstr "Arquivar"
+
+#~ msgid "Label Messages"
+#~ msgstr "Rotular mensagens"
+
+#, fuzzy
+#~ msgid "Restore Flows"
+#~ msgstr "Restaurar"
+
+#~ msgid "Archive Messages"
+#~ msgstr "Arquivar mensagens"
+
+#~ msgid "Move to Inbox"
+#~ msgstr "Mover para a caixa de entrada"
+
+#~ msgid "Resend Messages"
+#~ msgstr "Mensagens reenviadas"
+
+#~ msgid "Delete Messages"
+#~ msgstr "Deletar mensagens "
+
+#~ msgid "Must specify a label"
+#~ msgstr "Deve especificar um rótulo"
+
+#, fuzzy
+#~ msgid "Missing label"
+#~ msgstr "Deve especificar um rótulo"
+
+#~ msgid "Archive Triggers"
+#~ msgstr "Arquivar disparadores"
+
+#~ msgid "Restore Triggers"
+#~ msgstr "Restaurar disparadores"
 
 #, fuzzy
 #~| msgid "The name of the video"
