@@ -1,4 +1,3 @@
-import calendar
 import itertools
 import logging
 import os
@@ -13,7 +12,6 @@ import pytz
 import regex
 import stripe
 import stripe.error
-from dateutil.relativedelta import relativedelta
 from django_redis import get_redis_connection
 from packaging.version import Version
 from requests import Session
@@ -97,30 +95,7 @@ class Org(SmartModel):
     DATE_FORMAT_MONTH_FIRST = "M"
     DATE_FORMATS = ((DATE_FORMAT_DAY_FIRST, "DD-MM-YYYY"), (DATE_FORMAT_MONTH_FIRST, "MM-DD-YYYY"))
 
-    PLAN_FREE = "FREE"
-    PLAN_TRIAL = "TRIAL"
-    PLAN_TIER1 = "TIER1"
-    PLAN_TIER2 = "TIER2"
-    PLAN_TIER3 = "TIER3"
-    PLAN_TIER_39 = "TIER_39"
-    PLAN_TIER_249 = "TIER_249"
-    PLAN_TIER_449 = "TIER_449"
-    PLANS = (
-        (PLAN_FREE, _("Free Plan")),
-        (PLAN_TRIAL, _("Trial")),
-        (PLAN_TIER_39, _("Bronze")),
-        (PLAN_TIER1, _("Silver")),
-        (PLAN_TIER2, _("Gold (Legacy)")),
-        (PLAN_TIER3, _("Platinum (Legacy)")),
-        (PLAN_TIER_249, _("Gold")),
-        (PLAN_TIER_449, _("Platinum")),
-    )
-
-    STATUS_SUSPENDED = "suspended"
-    STATUS_RESTORED = "restored"
-    STATUS_WHITELISTED = "whitelisted"
-
-    CONFIG_STATUS = "STATUS"
+    CONFIG_VERIFIED = "verified"
     CONFIG_SMTP_SERVER = "smtp_server"
     CONFIG_TWILIO_SID = "ACCOUNT_SID"
     CONFIG_TWILIO_TOKEN = "ACCOUNT_TOKEN"
@@ -151,12 +126,8 @@ class Org(SmartModel):
     plan = models.CharField(
         verbose_name=_("Plan"),
         max_length=16,
-        choices=PLANS,
-        default=PLAN_FREE,
+        default=settings.DEFAULT_PLAN,
         help_text=_("What plan your organization is on"),
-    )
-    plan_start = models.DateTimeField(
-        verbose_name=_("Plan Start"), auto_now_add=True, help_text=_("When the user switched to this plan")
     )
 
     stripe_customer = models.CharField(
@@ -236,6 +207,20 @@ class Org(SmartModel):
         default=False, help_text=_("Whether this organization anonymizes the phone numbers of contacts within it")
     )
 
+    is_flagged = models.BooleanField(default=False, help_text=_("Whether this organization is currently flagged."))
+
+    is_suspended = models.BooleanField(default=False, help_text=_("Whether this organization is currently suspended."))
+
+    uses_topups = models.BooleanField(default=True, help_text=_("Whether this organization uses topups."))
+
+    is_multi_org = models.BooleanField(
+        default=False, help_text=_("Whether this organization can have child workspaces")
+    )
+
+    is_multi_user = models.BooleanField(
+        default=False, help_text=_("Whether this organization can have multiple logins")
+    )
+
     primary_language = models.ForeignKey(
         "orgs.Language",
         null=True,
@@ -280,9 +265,7 @@ class Org(SmartModel):
             return unique_slug
 
     def create_sub_org(self, name, timezone=None, created_by=None):
-
-        if self.is_multi_org_tier() and not self.parent:
-
+        if self.is_multi_org:
             if not timezone:
                 timezone = self.timezone
 
@@ -300,6 +283,8 @@ class Org(SmartModel):
                 slug=slug,
                 created_by=created_by,
                 modified_by=created_by,
+                is_multi_user=self.is_multi_user,
+                is_multi_org=self.is_multi_org,
             )
 
             org.administrators.add(created_by)
@@ -360,24 +345,27 @@ class Org(SmartModel):
             *active_topup_keys,
         )
 
-    def set_status(self, status):
-        self.config[Org.CONFIG_STATUS] = status
-        self.save(update_fields=("config", "modified_on"))
+    def flag(self):
+        self.is_flagged = True
+        self.save(update_fields=("is_flagged", "modified_on"))
 
-    def set_suspended(self):
-        self.set_status(Org.STATUS_SUSPENDED)
+    def unflag(self):
+        self.is_flagged = False
+        self.save(update_fields=("is_flagged", "modified_on"))
 
-    def set_whitelisted(self):
-        self.set_status(Org.STATUS_WHITELISTED)
+    def verify(self):
+        """
+        Unflags org and marks as verified so it won't be flagged automatically in future
+        """
+        self.is_flagged = False
+        self.config[Org.CONFIG_VERIFIED] = True
+        self.save(update_fields=("is_flagged", "config", "modified_on"))
 
-    def set_restored(self):
-        self.set_status(Org.STATUS_RESTORED)
-
-    def is_suspended(self):
-        return self.config.get(Org.CONFIG_STATUS) == Org.STATUS_SUSPENDED
-
-    def is_whitelisted(self):
-        return self.config.get(Org.CONFIG_STATUS) == Org.STATUS_WHITELISTED
+    def is_verified(self):
+        """
+        A verified org is not subject to automatic flagging for suspicious activity
+        """
+        return self.config.get(Org.CONFIG_VERIFIED, False)
 
     def import_app(self, export_json, user, site=None, legacy=False):
         """
@@ -1075,20 +1063,6 @@ class Org(SmartModel):
 
         return admin
 
-    def is_free_plan(self):  # pragma: needs cover
-        return self.plan == Org.PLAN_FREE or self.plan == Org.PLAN_TRIAL
-
-    def is_import_flows_tier(self):
-        return self.get_purchased_credits() >= self.get_branding().get("tiers", {}).get("import_flows", 0)
-
-    def is_multi_user_tier(self):
-        return self.get_purchased_credits() >= self.get_branding().get("tiers", {}).get("multi_user", 0)
-
-    def is_multi_org_tier(self):
-        return not self.parent and self.get_purchased_credits() >= self.get_branding().get("tiers", {}).get(
-            "multi_org", 0
-        )
-
     def get_user_org_group(self, user):
         if user in self.get_org_admins():
             user._org_group = Group.objects.get(name="Administrators")
@@ -1367,7 +1341,6 @@ class Org(SmartModel):
         # if we have an active topup cache, we need to decrement the amount remaining
         active_topup_id = self.get_active_topup_id()
         if active_topup_id:
-
             remaining = r.decr(ORG_ACTIVE_TOPUP_REMAINING % (self.id, active_topup_id), AMOUNT)
 
             # near the edge, clear out our cache and calculate from the db
@@ -1380,7 +1353,6 @@ class Org(SmartModel):
             active_topup = self.get_active_topup(force_dirty=True)
             if active_topup:
                 active_topup_id = active_topup.id
-
                 r.decr(ORG_ACTIVE_TOPUP_REMAINING % (self.id, active_topup.id), AMOUNT)
 
         if active_topup_id:
@@ -1491,21 +1463,29 @@ class Org(SmartModel):
         # any time we've reapplied topups, lets invalidate our credit cache too
         self.clear_credit_cache()
 
-    def current_plan_start(self):
-        today = timezone.now().date()
+        # update our capabilities based on topups
+        self.update_capabilities()
 
-        # move it to the same day our plan started (taking into account short months)
-        plan_start = today.replace(day=min(self.plan_start.day, calendar.monthrange(today.year, today.month)[1]))
+    def reset_capabilities(self):
+        """
+        Resets our capabilities based on the current tiers, mostly used in unit tests
+        """
+        self.is_multi_user = False
+        self.is_multi_org = False
+        self.update_capabilities()
 
-        if plan_start > today:  # pragma: needs cover
-            plan_start -= relativedelta(months=1)
+    def update_capabilities(self):
+        """
+        Using our topups and brand settings, figures out whether this org should be multi-user and multi-org. We never
+        disable one of these capabilities, but will turn it on for those that qualify via credits
+        """
+        if self.get_purchased_credits() >= self.get_branding().get("tiers", {}).get("multi_org", 0):
+            self.is_multi_org = True
 
-        return plan_start
+        if self.get_purchased_credits() >= self.get_branding().get("tiers", {}).get("multi_user", 0):
+            self.is_multi_user = True
 
-    def current_plan_end(self):
-        plan_start = self.current_plan_start()
-        plan_end = plan_start + relativedelta(months=1)
-        return plan_end
+        self.save(update_fields=("is_multi_user", "is_multi_org"))
 
     def get_stripe_customer(self):  # pragma: no cover
         # We can't test stripe in unit tests since it requires javascript tokens to be generated
@@ -1831,6 +1811,7 @@ class Org(SmartModel):
             self.create_system_groups()
             self.create_system_contact_fields()
             self.create_welcome_topup(topup_size)
+            self.update_capabilities()
 
         # outside of the transaction as it's going to call out to mailroom for flow validation
         self.create_sample_flows(branding.get("api_link", ""))

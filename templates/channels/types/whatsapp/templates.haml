@@ -20,7 +20,7 @@
     -for translation in translations
       -ifchanged translation.template.name
         %tr.template-name
-          %td(colspan=3)
+          %td(colspan=4)
             {{ translation.template.name }}
 
       %tr.translation
@@ -29,6 +29,9 @@
 
         %td.language
           {{ translation.language }}
+
+        %td.country
+          {{ translation.country }}
 
         %td.status{class:"tr-{{translation.get_status_display}}"}
           {{ translation.get_status_display }}
@@ -57,6 +60,10 @@
       border-bottom: 1px solid #e6e6e6;
     }
     tr.translation td.language {
+      font-family: monospace;
+      color: #666;
+    }
+    tr.translation td.country {
       font-family: monospace;
       color: #666;
     }

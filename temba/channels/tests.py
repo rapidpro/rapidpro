@@ -1118,10 +1118,9 @@ class ChannelTest(TembaTest):
         self.assertFalse(channel.is_active)
 
     def test_quota_exceeded(self):
-        # set our org to be on the trial plan
-        self.org.plan = Org.PLAN_FREE
-        self.org.save(update_fields=("plan",))
+        # reduce out credits to 10
         self.org.topups.all().update(credits=10)
+        self.org.clear_credit_cache()
 
         self.assertEqual(10, self.org.get_credits_remaining())
         self.assertEqual(0, self.org.get_credits_used())

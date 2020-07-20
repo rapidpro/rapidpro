@@ -194,13 +194,13 @@ class Ticket(models.Model):
     class Meta:
         indexes = [
             # used by the open tickets view
-            models.Index(name="tickets_org_open", fields=["org", "-opened_on"], condition=Q(status="O"),),
+            models.Index(name="tickets_org_open", fields=["org", "-opened_on"], condition=Q(status="O")),
             # used by the closed tickets view
-            models.Index(name="tickets_org_closed", fields=["org", "-opened_on"], condition=Q(status="C"),),
+            models.Index(name="tickets_org_closed", fields=["org", "-opened_on"], condition=Q(status="C")),
             # used by the tickets filtered by ticketer view
-            models.Index(name="tickets_org_ticketer", fields=["ticketer", "-opened_on"],),
+            models.Index(name="tickets_org_ticketer", fields=["ticketer", "-opened_on"]),
             # used by the list of tickets on contact page and also message handling to find open tickets for contact
-            models.Index(name="tickets_contact_open", fields=["contact", "-opened_on"], condition=Q(status="O"),),
+            models.Index(name="tickets_contact_open", fields=["contact", "-opened_on"], condition=Q(status="O")),
             # used by ticket handlers in mailroom to find tickets from their external IDs
             models.Index(name="tickets_ticketer_external_id", fields=["ticketer", "external_id"]),
         ]

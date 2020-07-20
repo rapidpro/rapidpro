@@ -5,13 +5,11 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("tickets", "0002_auto_20200515_2216"),
-    ]
+    dependencies = [("tickets", "0002_auto_20200515_2216")]
 
     operations = [
         migrations.AddIndex(
             model_name="ticket",
             index=models.Index(fields=["ticketer", "external_id"], name="tickets_ticketer_external_id"),
-        ),
+        )
     ]
