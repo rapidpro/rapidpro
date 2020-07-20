@@ -93,7 +93,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.requestView(open_url, self.admin, post_data={"action": "close", "objects": [ticket1.id]})
         self.assertEqual(200, response.status_code)
-        self.assertEqual("Oops, so sorry. Something went wrong!", response["Temba-Toast"])
+        self.assertEqual("An error occurred while making your changes. Please try again.", response["Temba-Toast"])
 
     @mock_mailroom
     def test_closed(self, mr_mocks):
