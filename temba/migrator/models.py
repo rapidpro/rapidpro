@@ -90,7 +90,6 @@ class MigrationTask(TembaModel):
         migrator = Migrator(org_id=self.migration_org)
 
         try:
-
             logger.info("---------------- Organization ----------------")
             logger.info("[STARTED] Organization data migration")
 

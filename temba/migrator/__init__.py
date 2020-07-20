@@ -199,10 +199,12 @@ class Migrator(object):
         )
 
     def get_org_contact_groups(self) -> (list, int):
-        count = self.get_count("contacts_contactgroup", condition=f"org_id = {self.org_id} AND group_type = 'U'")
+        count = self.get_count(
+            "contacts_contactgroup", condition=f"org_id = {self.org_id} AND group_type = 'U' AND is_active = true"
+        )
         return (
             self.get_results_paginated(
-                query_string=f"SELECT * FROM public.contacts_contactgroup WHERE org_id = {self.org_id} AND group_type = 'U' ORDER BY id ASC",
+                query_string=f"SELECT * FROM public.contacts_contactgroup WHERE org_id = {self.org_id} AND group_type = 'U' AND is_active = true ORDER BY id ASC",
                 count=count,
             ),
             count,
