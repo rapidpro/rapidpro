@@ -1,3 +1,9 @@
+v5.7.0
+----------
+ * Add start_type and created_by to queued flow starts
+ * New mixin for list views with bulk actions
+ * Update some dependencies to work with Python 3.8 and MacOS
+
 v5.6.5
 ----------
  * Set the tps options for Twilio based on country and number type
