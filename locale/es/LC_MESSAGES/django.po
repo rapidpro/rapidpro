@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-03 18:23+0000\n"
+"POT-Creation-Date: 2020-07-15 18:45+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3499,9 +3499,6 @@ msgstr "Token de acceso desde su repositorio"
 msgid "Unable to access wit.ai with credentials, please check and try again"
 msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
 
-msgid "Unable to get intent entity, make sure you have at least one intent defined"
-msgstr ""
-
 #, fuzzy
 #| msgid "Connect Hub9"
 msgid "Connect"
@@ -5512,6 +5509,26 @@ msgstr "Activar"
 
 msgid "Two Factor Authentication"
 msgstr ""
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Workspaces"
+msgstr "Elija su Organización"
+
+#, fuzzy
+#| msgid "dashboard"
+msgid "Dashboard"
+msgstr "Panel"
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "New Workspace"
+msgstr "Elija su Organización"
+
+#, fuzzy
+#| msgid "Purchase Credits"
+msgid "Transfer Credits"
+msgstr "Comprar Créditos"
 
 #, fuzzy
 #| msgid "Select your Organization"
@@ -9173,11 +9190,6 @@ msgstr ""
 "\n"
 "    "
 
-#, fuzzy
-#| msgid "dashboard"
-msgid "Dashboard"
-msgstr "Panel"
-
 msgid "Are you sure you want to remove"
 msgstr "¿Está seguro de que desea retirarlo?"
 
@@ -9376,6 +9388,11 @@ msgstr ""
 #| msgid "Create Flow"
 msgid "Delete Flow"
 msgstr "Crear Flujos"
+
+#, fuzzy
+#| msgid "Update Fields"
+msgid "Update Flow"
+msgstr "Actualizar campos"
 
 msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
 msgstr ""
@@ -10855,11 +10872,6 @@ msgstr ""
 msgid "Your workspace is configured to use a single language."
 msgstr "Su organización está configurada para usar solo un idioma."
 
-#, fuzzy
-#| msgid "Select your Organization"
-msgid "Workspaces"
-msgstr "Elija su Organización"
-
 msgid "Logins"
 msgstr ""
 
@@ -11070,6 +11082,11 @@ msgstr ""
 #, fuzzy
 #| msgid "Select your Organization"
 msgid "Manage Workspaces"
+msgstr "Elija su Organización"
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Add Workspace"
 msgstr "Elija su Organización"
 
 #, python-format

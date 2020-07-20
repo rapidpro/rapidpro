@@ -11,33 +11,20 @@ from .types.luis import LuisType
 from .types.wit import WitType
 
 INTENT_RESPONSE = """
-{
-  "builtin": false,
-  "name": "intent",
-  "doc": "User-defined entity",
-  "id": "ef9236ec-22c7-e96b-6b29-886c94d23953",
-  "lang": "en",
-  "lookups": [
-    "trait"
-  ],
-  "values": [
+[
     {
-      "value": "book_car",
-      "expressions": [
-      ]
+        "id": "754569408690533",
+        "name": "book_car"
     },
     {
-      "value": "book_hotel",
-      "expressions": [
-      ]
+        "id": "754569408690020",
+        "name": "book_horse"
     },
     {
-      "value": "book_horse",
-      "expressions": [
-      ]
+        "id": "754569408690131",
+        "name": "book_hotel"
     }
-  ]
-}
+]
 """
 
 
@@ -50,8 +37,12 @@ class ClassifierTest(TembaTest):
         self.c1.intents.create(
             name="book_flight", external_id="book_flight", created_on=timezone.now(), is_active=True
         )
-        self.c1.intents.create(name="book_hotel", external_id="book_hotel", created_on=timezone.now(), is_active=False)
-        self.c1.intents.create(name="book_car", external_id="book_car", created_on=timezone.now(), is_active=True)
+        self.c1.intents.create(
+            name="book_hotel", external_id="754569408690131", created_on=timezone.now(), is_active=False
+        )
+        self.c1.intents.create(
+            name="book_car", external_id="754569408690533", created_on=timezone.now(), is_active=True
+        )
 
         self.c2 = Classifier.create(self.org, self.admin, WitType.slug, "Old Booker", {}, sync=False)
         self.c2.is_active = False
@@ -80,11 +71,11 @@ class ClassifierTest(TembaTest):
             intents = self.c1.active_intents()
             self.assertEqual(3, intents.count())
             self.assertEqual("book_car", intents[0].name)
-            self.assertEqual("book_car", intents[0].external_id)
+            self.assertEqual("754569408690533", intents[0].external_id)
             self.assertEqual("book_horse", intents[1].name)
-            self.assertEqual("book_horse", intents[1].external_id)
+            self.assertEqual("754569408690020", intents[1].external_id)
             self.assertEqual("book_hotel", intents[2].name)
-            self.assertEqual("book_hotel", intents[2].external_id)
+            self.assertEqual("754569408690131", intents[2].external_id)
 
             # one inactive
             self.assertEqual(1, self.c1.intents.filter(is_active=False).count())

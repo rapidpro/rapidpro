@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-03 18:23+0000\n"
+"POT-Creation-Date: 2020-07-15 18:45+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2482,9 +2482,6 @@ msgstr "Токен доступа сервера Вашего приложени
 msgid "Unable to access wit.ai with credentials, please check and try again"
 msgstr "Не удалось получить доступ к wit.ai, используя идентификационные данные. Пожалуйста, проверьте их и попробуйте снова"
 
-msgid "Unable to get intent entity, make sure you have at least one intent defined"
-msgstr "Не удалось получить объект намерения. Убедитесь, что у Вас имеется хотя бы одно определенное намерение"
-
 msgid "Connect"
 msgstr "Подключить"
 
@@ -4228,6 +4225,24 @@ msgstr "Активировать"
 
 msgid "Two Factor Authentication"
 msgstr "Двухфакторная аутентификация"
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Workspaces"
+msgstr "Выберите свою Организацию"
+
+msgid "Dashboard"
+msgstr "Информационная панель"
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "New Workspace"
+msgstr "Выберите свою Организацию"
+
+#, fuzzy
+#| msgid "Purchased Credits"
+msgid "Transfer Credits"
+msgstr "Приобретенные Кредиты"
 
 #, fuzzy
 #| msgid "Select your Organization"
@@ -7201,9 +7216,6 @@ msgstr ""
 "      из файла, который Вы создали в Excel.\n"
 "    "
 
-msgid "Dashboard"
-msgstr "Информационная панель"
-
 msgid "Are you sure you want to remove"
 msgstr "Вы действительно хотите удалить "
 
@@ -7428,6 +7440,11 @@ msgstr ""
 
 msgid "Delete Flow"
 msgstr "Удалить Поток"
+
+#, fuzzy
+#| msgid "Update Folder"
+msgid "Update Flow"
+msgstr "Обновить Папку"
 
 msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
 msgstr "Новый редактор предоставляет новые эффективные функции и лучшую производительность, но, пожалуйста, имейте ввиду, что это действие нельзя отменить."
@@ -9177,11 +9194,6 @@ msgid "Your workspace is configured to use a single language."
 msgstr "Ваша организация настроена на использование одного языка."
 
 #, fuzzy
-#| msgid "Select your Organization"
-msgid "Workspaces"
-msgstr "Выберите свою Организацию"
-
-#, fuzzy
 #| msgid "Login"
 msgid "Logins"
 msgstr "Логин"
@@ -9390,6 +9402,11 @@ msgstr ""
 #, fuzzy
 #| msgid "Select your Organization"
 msgid "Manage Workspaces"
+msgstr "Выберите свою Организацию"
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Add Workspace"
 msgstr "Выберите свою Организацию"
 
 #, fuzzy, python-format
@@ -11113,6 +11130,9 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Unable to get intent entity, make sure you have at least one intent defined"
+#~ msgstr "Не удалось получить объект намерения. Убедитесь, что у Вас имеется хотя бы одно определенное намерение"
 
 #, python-brace-format
 #~ msgid "Unrecognized field: '{prop}'"

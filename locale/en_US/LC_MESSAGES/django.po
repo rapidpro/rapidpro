@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-03 18:23+0000\n"
+"POT-Creation-Date: 2020-07-15 18:45+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2229,9 +2229,6 @@ msgstr ""
 msgid "Unable to access wit.ai with credentials, please check and try again"
 msgstr ""
 
-msgid "Unable to get intent entity, make sure you have at least one intent defined"
-msgstr ""
-
 msgid "Connect"
 msgstr ""
 
@@ -3932,6 +3929,18 @@ msgid "Activate"
 msgstr ""
 
 msgid "Two Factor Authentication"
+msgstr ""
+
+msgid "Workspaces"
+msgstr ""
+
+msgid "Dashboard"
+msgstr ""
+
+msgid "New Workspace"
+msgstr ""
+
+msgid "Transfer Credits"
 msgstr ""
 
 msgid "Select your Workspace"
@@ -6361,9 +6370,6 @@ msgid ""
 "    "
 msgstr ""
 
-msgid "Dashboard"
-msgstr ""
-
 msgid "Are you sure you want to remove"
 msgstr ""
 
@@ -6505,6 +6511,9 @@ msgid ""
 msgstr ""
 
 msgid "Delete Flow"
+msgstr ""
+
+msgid "Update Flow"
 msgstr ""
 
 msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
@@ -7649,9 +7658,6 @@ msgstr ""
 msgid "Your workspace is configured to use a single language."
 msgstr ""
 
-msgid "Workspaces"
-msgstr ""
-
 msgid "Logins"
 msgstr ""
 
@@ -7828,6 +7834,9 @@ msgid ""
 msgstr ""
 
 msgid "Manage Workspaces"
+msgstr ""
+
+msgid "Add Workspace"
 msgstr ""
 
 #, python-format

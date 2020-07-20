@@ -113,6 +113,7 @@ class TwilioTypeTest(TembaTest):
                 self.assertEqual(
                     channel.role, Channel.ROLE_CALL + Channel.ROLE_ANSWER + Channel.ROLE_SEND + Channel.ROLE_RECEIVE
                 )
+                self.assertEqual(channel.tps, 1)
 
                 channel_config = channel.config
                 self.assertEqual(channel_config[Channel.CONFIG_ACCOUNT_SID], "account-sid")
@@ -142,6 +143,7 @@ class TwilioTypeTest(TembaTest):
                     # make sure it is actually connected
                     channel = Channel.objects.get(channel_type="T", org=self.org)
                     self.assertEqual(channel.role, Channel.ROLE_CALL + Channel.ROLE_ANSWER)
+                    self.assertEqual(channel.tps, 10)
 
         with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:
             mock_numbers.return_value = iter([MockTwilioClient.MockPhoneNumber("+4545335500")])
@@ -160,7 +162,8 @@ class TwilioTypeTest(TembaTest):
                 self.assertRedirects(response, reverse("public.public_welcome") + "?success")
 
                 # make sure it is actually connected
-                Channel.objects.get(channel_type="T", org=self.org)
+                channel = Channel.objects.get(channel_type="T", org=self.org)
+                self.assertEqual(channel.tps, 10)
 
         with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:
             mock_numbers.return_value = iter([])
@@ -187,7 +190,8 @@ class TwilioTypeTest(TembaTest):
                     self.assertEqual(mock_numbers.call_args_list[0][1], {"page_size": 1000})
 
                     # make sure it is actually connected
-                    Channel.objects.get(channel_type="T", org=self.org)
+                    channel = Channel.objects.get(channel_type="T", org=self.org)
+                    self.assertEqual(channel.tps, 100)
 
         twilio_channel = self.org.channels.all().first()
         # make channel support both sms and voice to check we clear both applications
