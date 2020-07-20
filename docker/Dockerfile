@@ -41,7 +41,7 @@ COPY ./docker/pip-freeze.txt /tmp/dep/
 COPY ./pip-freeze.txt ./docker/nginx.site.conf /tmp/
 RUN pip install --no-cache-dir -r /tmp/dep/pip-freeze.txt
 
-RUN envsubst < /tmp/nginx.site.conf > /etc/nginx/sites-available/$PROJECT.conf \
+RUN cp /tmp/nginx.site.conf /etc/nginx/sites-available/$PROJECT.conf \
  && ln -s /etc/nginx/sites-available/$PROJECT.conf /etc/nginx/sites-enabled/$PROJECT.conf
 
 #RUN envsubst < /tmp/nginx.conf > $PROJECT_CONF/nginx.conf \
