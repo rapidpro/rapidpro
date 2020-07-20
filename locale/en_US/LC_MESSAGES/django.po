@@ -4410,6 +4410,12 @@ msgstr ""
 msgid "Create Schedule"
 msgstr ""
 
+msgid "Backup Token"
+msgstr ""
+
+msgid "Enter one of the tokens generated when activating the two-factor login"
+msgstr ""
+
 msgid "Processing"
 msgstr ""
 
@@ -9096,6 +9102,9 @@ msgid "Choose when you would like the flow to start."
 msgstr ""
 
 msgid "Facebook Channel"
+msgstr ""
+
+msgid "Backup Tokens"
 msgstr ""
 
 msgid "Enter a query"

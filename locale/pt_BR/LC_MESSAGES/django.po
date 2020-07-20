@@ -5759,6 +5759,13 @@ msgstr "Criar disparador"
 msgid "Create Schedule"
 msgstr "Criar agendamento"
 
+#, fuzzy
+msgid "Backup Token"
+msgstr "Contas"
+
+msgid "Enter one of the tokens generated when activating the two-factor login"
+msgstr ""
+
 msgid "Processing"
 msgstr ""
 
@@ -11855,6 +11862,10 @@ msgstr "Escolha quando você gostaria de iniciar o fluxo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Remover telefone"
+
+#, fuzzy
+msgid "Backup Tokens"
+msgstr "Contas"
 
 #, fuzzy
 #| msgid "Enter Claim Code"

@@ -4769,6 +4769,14 @@ msgstr "Créer un déclencheur de référence"
 msgid "Create Schedule"
 msgstr "Créer un planning"
 
+#, fuzzy
+#| msgid "Account Token"
+msgid "Backup Token"
+msgstr "Jeton de compte"
+
+msgid "Enter one of the tokens generated when activating the two-factor login"
+msgstr ""
+
 msgid "Processing"
 msgstr "En traitement"
 
@@ -10932,6 +10940,11 @@ msgstr "Choisissez le moment où vous desirer que le flux démarre. "
 
 msgid "Facebook Channel"
 msgstr "Canal Facebook"
+
+#, fuzzy
+#| msgid "Account Token"
+msgid "Backup Tokens"
+msgstr "Jeton de compte"
 
 msgid "Enter a query"
 msgstr "Entrez une requête"
