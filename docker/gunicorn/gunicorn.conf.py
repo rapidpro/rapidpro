@@ -7,3 +7,4 @@ default_proc_name = proc_name
 accesslog = 'gunicorn.access'
 errorlog = 'gunicorn.error'
 capture_output = True
+timeout = 120

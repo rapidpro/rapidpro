@@ -158,6 +158,9 @@ STORAGE_URL = f"https://{AWS_BUCKET_DOMAIN}"
 DEFAULT_FILE_STORAGE = env("DEFAULT_FILE_STORAGE",
                            default="storages.backends.s3boto3.S3Boto3Storage")
 
+S3_NETWORK_TIMEOUT = env.int("S3_NETWORK_TIMEOUT", default=120)
+S3_NETWORK_RETRY_COUNT = env.int("S3_NETWORK_RETRY_COUNT", default=5)
+
 # CELERY
 # ------------------------------------------------------------------------------
 CELERY_TIMEZONE = env("CELERY_TIMEZONE", default="UTC")
@@ -193,7 +196,7 @@ sentry_sdk.init(dsn=env("SENTRY_DSN", default=""),
 # ------------------------------------------------------------------------------
 LOGGING = {
     "version": 1,
-    "disable_existing_loggers": True,
+    "disable_existing_loggers": env("DISABLE_LOG", default=True),
     "root": {"level": "WARNING", "handlers": ["console"]},
     "formatters": {"verbose": {"format": "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s"}},
     "handlers": {
