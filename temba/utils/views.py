@@ -62,12 +62,6 @@ class BulkActionMixin:
         class Meta:
             fields = ("action", "objects")
 
-    def dispatch(self, *args, **kwargs):
-        """
-        Need to allow posts which are otherwise not allowed on list views
-        """
-        return super().dispatch(*args, **kwargs)
-
     def post(self, request, *args, **kwargs):
         """
         Handles a POSTed action form and returns the default GET response
@@ -84,8 +78,8 @@ class BulkActionMixin:
             objects = form.cleaned_data["objects"]
             label = form.cleaned_data.get("label")
 
-            # convert objects queryset to one based only on id
-            objects = self.model._default_manager.filter(id__in=[o.id for o in objects])
+            # convert objects queryset to one based only on org + ids
+            objects = self.model._default_manager.filter(org=org, id__in=[o.id for o in objects])
 
             # check we have the required permission for this action
             permission = self.get_bulk_action_permission(action)
@@ -98,7 +92,7 @@ class BulkActionMixin:
                 action_error = ", ".join(e.messages)
             except Exception:
                 logger.exception(f"error applying '{action}' to {self.model.__name__} objects")
-                action_error = _("Oops, so sorry. Something went wrong!")
+                action_error = _("An error occurred while making your changes. Please try again.")
 
         response = self.get(request, *args, **kwargs)
         if action_error:

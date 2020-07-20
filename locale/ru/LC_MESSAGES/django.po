@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-20 16:23+0000\n"
+"POT-Creation-Date: 2020-07-20 18:24+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3044,15 +3044,9 @@ msgstr "Повторяет вызов три раза с заданным инт
 msgid "Flows"
 msgstr "Потоки"
 
-#, fuzzy, python-format
-#| msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
-msgid "%(flow)s is used inside a campaign. To archive it, first remove it from your campaigns."
-msgstr "%s используется внутри кампании. Для его архивации сначала удалите его из Ваших кампаний."
-
-#, fuzzy, python-format
-#| msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
-msgid "%(flows)s are used inside a campaign. To archive them, first remove them from your campaigns."
-msgstr "%s используются внутри кампании. Для их архивации сначала удалите их из Ваших кампаний."
+#, python-format
+msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
+msgstr ""
 
 msgid "Contact Name"
 msgstr "Название Контакта"
@@ -4789,8 +4783,10 @@ msgstr "0 секунд"
 msgid ", "
 msgstr ", "
 
-msgid "Oops, so sorry. Something went wrong!"
-msgstr "Ой, простите. Что-то пошло не так!"
+#, fuzzy
+#| msgid "An error occurred updating your contact. Please try again later."
+msgid "An error occurred while making your changes. Please try again."
+msgstr "При обновлении Вашего контакта произошла ошибка. Пожалуйста, попробуйте позже."
 
 msgid "Date & Time"
 msgstr "Дата и Время"
@@ -11084,6 +11080,19 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#, fuzzy, python-format
+#~| msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
+#~ msgid "%(flow)s is used inside a campaign. To archive it, first remove it from your campaigns."
+#~ msgstr "%s используется внутри кампании. Для его архивации сначала удалите его из Ваших кампаний."
+
+#, fuzzy, python-format
+#~| msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
+#~ msgid "%(flows)s are used inside a campaign. To archive them, first remove them from your campaigns."
+#~ msgstr "%s используются внутри кампании. Для их архивации сначала удалите их из Ваших кампаний."
+
+#~ msgid "Oops, so sorry. Something went wrong!"
+#~ msgstr "Ой, простите. Что-то пошло не так!"
 
 #~ msgid "Unable to get intent entity, make sure you have at least one intent defined"
 #~ msgstr "Не удалось получить объект намерения. Убедитесь, что у Вас имеется хотя бы одно определенное намерение"

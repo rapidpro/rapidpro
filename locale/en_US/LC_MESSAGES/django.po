@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-20 16:23+0000\n"
+"POT-Creation-Date: 2020-07-20 18:24+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2792,11 +2792,7 @@ msgid "Flows"
 msgstr ""
 
 #, python-format
-msgid "%(flow)s is used inside a campaign. To archive it, first remove it from your campaigns."
-msgstr ""
-
-#, python-format
-msgid "%(flows)s are used inside a campaign. To archive them, first remove them from your campaigns."
+msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
 msgstr ""
 
 msgid "Contact Name"
@@ -4452,7 +4448,7 @@ msgstr ""
 msgid ", "
 msgstr ""
 
-msgid "Oops, so sorry. Something went wrong!"
+msgid "An error occurred while making your changes. Please try again."
 msgstr ""
 
 msgid "Date & Time"

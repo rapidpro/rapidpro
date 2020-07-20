@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-20 16:23+0000\n"
+"POT-Creation-Date: 2020-07-20 18:24+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3866,11 +3866,7 @@ msgid "Flows"
 msgstr "Fluxos"
 
 #, python-format
-msgid "%(flow)s is used inside a campaign. To archive it, first remove it from your campaigns."
-msgstr ""
-
-#, python-format
-msgid "%(flows)s are used inside a campaign. To archive them, first remove them from your campaigns."
+msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
 msgstr ""
 
 msgid "Contact Name"
@@ -5806,8 +5802,10 @@ msgstr ""
 msgid ", "
 msgstr ""
 
-msgid "Oops, so sorry. Something went wrong!"
-msgstr "Oops, me desculpe. Ocorreu algum erro!"
+#, fuzzy
+#| msgid "We encountered an error removing your channel, please try again later."
+msgid "An error occurred while making your changes. Please try again."
+msgstr "Encontramos um erro ao remover o seu transmissor, por favor, tente novamente mais tarde."
 
 #, fuzzy
 #| msgid "Current Date and Time"
@@ -11825,6 +11823,9 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Oops, so sorry. Something went wrong!"
+#~ msgstr "Oops, me desculpe. Ocorreu algum erro!"
 
 #~ msgid "Add to Group"
 #~ msgstr "Adicionar ao grupo"
