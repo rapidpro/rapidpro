@@ -127,6 +127,10 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         )
 
         is_short_code = len(phone_number) <= 6
+        tps = 10
+        if country in ["US", "CA"]:
+            tps = 1
+
         if is_short_code:
             short_codes = client.api.short_codes.stream(short_code=phone_number)
             short_code = next(short_codes, None)
@@ -138,6 +142,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
                 role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE
                 phone = phone_number
+                tps = 100
 
             else:  # pragma: no cover
                 raise Exception(
@@ -175,7 +180,16 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         }
 
         channel = Channel.create(
-            org, user, country, "T", name=phone, address=phone_number, role=role, config=config, uuid=channel_uuid
+            org,
+            user,
+            country,
+            "T",
+            name=phone,
+            address=phone_number,
+            role=role,
+            config=config,
+            uuid=channel_uuid,
+            tps=tps,
         )
 
         return channel

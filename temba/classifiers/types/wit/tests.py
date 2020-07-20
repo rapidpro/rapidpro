@@ -8,63 +8,69 @@ from temba.classifiers.models import Classifier
 from temba.request_logs.models import HTTPLog
 from temba.tests import MockResponse, TembaTest
 
+from .client import Client
 from .type import WitType
 
 INTENT_RESPONSE = """
-{
-  "builtin": false,
-  "name": "intent",
-  "doc": "User-defined entity",
-  "id": "ef9236ec-22c7-e96b-6b29-886c94d23953",
-  "lang": "en",
-  "lookups": [
-    "trait"
-  ],
-  "values": [
+[
     {
-      "value": "book_car",
-      "expressions": [
-      ]
+        "id": "754569408690533",
+        "name": "book_car"
     },
     {
-      "value": "book_flight",
-      "expressions": [
-      ]
+        "id": "754569408690020",
+        "name": "book_flight"
     }
-  ]
-}
+]
 """
+
+
+class ClientTest(TembaTest):
+    @patch("requests.get")
+    def test_get_intents(self, mock_get):
+        mock_get.return_value = MockResponse(200, "[]")
+        client = Client("sesame")
+        intents, response = client.get_intents()
+
+        self.assertEqual([], intents)
+        self.assertEqual(200, response.status_code)
+        mock_get.assert_called_once_with(
+            "https://api.wit.ai/intents?v=20200513", headers={"Authorization": "Bearer sesame"}
+        )
 
 
 class WitTypeTest(TembaTest):
     def test_sync(self):
+        # create classifier but don't sync the intents
         c = Classifier.create(
             self.org,
             self.user,
             WitType.slug,
             "Booker",
             {WitType.CONFIG_APP_ID: "12345", WitType.CONFIG_ACCESS_TOKEN: "sesame"},
+            sync=False,
         )
 
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(400, '{ "error": "true" }')
-            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 2)
-            with self.assertRaises(Exception):
-                c.get_type().get_active_intents_from_api(c)
-                self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 3)
+
+            c.get_type().get_active_intents_from_api(c)
+            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 1)
 
             mock_get.side_effect = RequestException("Network is unreachable", response=MockResponse(100, ""))
             c.get_type().get_active_intents_from_api(c)
-            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 4)
+
+            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 2)
 
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(200, INTENT_RESPONSE)
             intents = c.get_type().get_active_intents_from_api(c)
-            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 5)
+
+            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 3)
             self.assertEqual(2, len(intents))
             car = intents[0]
             self.assertEqual("book_car", car.name)
-            self.assertEqual("book_car", car.external_id)
+            self.assertEqual("754569408690533", car.external_id)
 
     def test_delete(self):
         c = Classifier.create(
@@ -128,28 +134,15 @@ class WitTypeTest(TembaTest):
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(400, '{ "error": "true" }')
             response = self.client.post(url, post_data)
+
             self.assertEqual(200, response.status_code)
             self.assertFalse(Classifier.objects.all())
-
             self.assertContains(response, "Unable to access wit.ai with credentials")
-
-        # no intent entity
-        with patch("requests.get") as mock_get:
-            mock_get.side_effect = [
-                MockResponse(200, '["wit$age_of_person"]'),
-                MockResponse(404, '{"error": "not found"}'),
-            ]
-
-            response = self.client.post(url, post_data)
-            self.assertEqual(200, response.status_code)
-            self.assertFalse(Classifier.objects.all())
-            self.assertContains(response, "Unable to get intent entity")
 
         # all good
         with patch("requests.get") as mock_get:
             mock_get.side_effect = [
                 MockResponse(200, '["intent", "wit$age_of_person"]'),
-                MockResponse(200, '{"builtin": false, "name": "intent"}'),
                 MockResponse(200, INTENT_RESPONSE),
             ]
 

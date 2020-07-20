@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-14 16:46+0000\n"
+"POT-Creation-Date: 2020-07-20 16:23+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2481,9 +2481,6 @@ msgstr "Токен доступа сервера Вашего приложени
 
 msgid "Unable to access wit.ai with credentials, please check and try again"
 msgstr "Не удалось получить доступ к wit.ai, используя идентификационные данные. Пожалуйста, проверьте их и попробуйте снова"
-
-msgid "Unable to get intent entity, make sure you have at least one intent defined"
-msgstr "Не удалось получить объект намерения. Убедитесь, что у Вас имеется хотя бы одно определенное намерение"
 
 msgid "Connect"
 msgstr "Подключить"
@@ -11087,6 +11084,9 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Unable to get intent entity, make sure you have at least one intent defined"
+#~ msgstr "Не удалось получить объект намерения. Убедитесь, что у Вас имеется хотя бы одно определенное намерение"
 
 #~ msgid "Add to Group"
 #~ msgstr "Добавить в Группу"
