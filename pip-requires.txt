@@ -59,6 +59,10 @@ python-intercom
 pysocks
 pip-tools
 packaging
+sentry-sdk
+django-environ
+whitenoise
+elastic-apm
 
 ########################## testing ##########################
 black
