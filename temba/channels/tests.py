@@ -873,8 +873,9 @@ class ChannelTest(TembaTest):
 
         self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "CT")
         self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "EX")
-        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "IB")
-        self.assertEqual(response.context["channel_types"]["PHONE"][3].code, "JS")
+        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "I2")
+        self.assertEqual(response.context["channel_types"]["PHONE"][3].code, "IB")
+        self.assertEqual(response.context["channel_types"]["PHONE"][4].code, "JS")
 
     def test_register_unsupported_android(self):
         # remove our explicit country so it needs to be derived from channels
