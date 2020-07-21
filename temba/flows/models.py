@@ -55,7 +55,7 @@ from temba.globals.models import Global
 from temba.templates.models import Template
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime, datetime_to_str
-from temba.utils.email import is_valid_address
+from temba.utils.email import is_valid_address, send_template_email
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.models import (
     JSONAsTextField,
@@ -4086,6 +4086,84 @@ class FlowImagesExportAssetStore(BaseExportAssetStore):
     directory = "flowimages_download"
     permission = "flows.flowimage_download"
     extensions = ("zip",)
+
+
+class MergeFlowsTask(TembaModel):
+    source = models.ForeignKey("Flow", on_delete=models.CASCADE, related_name="merge_targets")
+    target = models.ForeignKey("Flow", on_delete=models.CASCADE, related_name="merge_sources")
+    merge_name = models.CharField(max_length=256, help_text=_("New name for target flow that contain erged data."))
+    merging_metadata = JSONField(null=True)
+    definition = JSONField()
+
+    email_subject = "%s: Flow Merging Finished"
+    email_template = "flows/email/flow_merging_result"
+
+    def process_merging(self):
+        with transaction.atomic():
+            backup_metadata = {}
+            target = self.target
+
+            # import merge changes
+            backup_metadata["target_name"] = target.name
+            backup_metadata["terget_backup"] = target.as_json()
+            target.import_definition(self.created_by, self.definition, {})
+            target.name = self.merge_name
+            target.save()
+
+            # move campaigns from source to target
+            from temba.campaigns.models import CampaignEvent
+
+            campaigns = CampaignEvent.objects.filter(
+                is_active=True, flow=self.source, campaign__org=self.target.org, campaign__is_archived=False
+            )
+            backup_metadata["moved_campaign_events"] = list(campaigns.values_list("uuid", flat=True))
+            campaigns.update(flow=self.target)
+
+            # move triggers from source to target
+            from temba.triggers.models import Trigger
+
+            triggers = Trigger.objects.filter(flow=self.source)
+            backup_metadata["moved_trigger_ids"] = list(triggers.values_list("id", flat=True))
+            triggers.update(flow=self.target)
+
+            # move flow starts from source to target
+            flow_starts = self.source.starts.filter(is_active=True)
+            backup_metadata["moved_flow_starts"] = list(flow_starts.values_list("uuid", flat=True))
+            flow_starts.update(flow=self.target)
+
+            # move runs from source to target
+            runs = self.source.runs.filter(is_active=True)
+            backup_metadata["moved_flow_runs"] = list(runs.values_list("uuid", flat=True))
+            runs.update(flow=self.target)
+
+            # move trackable links
+            links = self.source.related_links.all()
+            backup_metadata["moved_links"] = list(links.values_list("uuid", flat=True))
+            links.update(related_flow=self.target)
+
+            # archive source
+            self.source.archive()
+            self.merging_metadata = backup_metadata
+            self.save()
+
+            org = self.target.org
+            branding = org.get_branding()
+            send_template_email(
+                self.created_by.username,
+                self.email_subject % org,
+                self.email_template,
+                {
+                    "source": self.source,
+                    "target": self.target,
+                    "link": f"{branding['link']}{reverse('flows.flow_editor_next', args=[self.target.uuid])}",
+                },
+                branding,
+            )
+
+    def run(self):
+        from .tasks import merge_flows_task
+
+        merge_flows_task.delay(self.uuid)
 
 
 class FlowStart(models.Model):

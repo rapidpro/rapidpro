@@ -740,7 +740,9 @@ def migrate_export_to_version_11_0(json_export, org, same_site=True):
 
             if "config" in rs:
                 if "spelling_correction_sensitivity" in rs["config"]:
-                    rs["config"]["spelling_correction_sensitivity"] = str(rs["config"]["spelling_correction_sensitivity"])
+                    rs["config"]["spelling_correction_sensitivity"] = str(
+                        rs["config"]["spelling_correction_sensitivity"]
+                    )
 
                 if "lookup_queries" in rs["config"]:
                     for query in rs["config"].get("lookup_queries", []):

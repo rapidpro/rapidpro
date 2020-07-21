@@ -420,6 +420,27 @@
       });
     {% endif %}
 
+    {% if org_perms.flows.flow_merge_flows %}
+      $(".select2").select2({placeholder: "No Flow Selected"});
+      $("a.merge-flows-trigger").click(function(event) {
+        event.preventDefault();
+        var modal = new ConfirmationModal();
+        modal.ele = $("#select-source-flow");
+        $('.modal-footer a.btn.cancel').click(() => modal.ele.modal('hide'));
+        $('.modal-footer a.btn.btn-primary.ok').click(() => {
+          let form = modal.ele.find("#select-source-form");
+          let formData = {};
+          form.serializeArray().forEach((item) => {formData[item.name] = item.value;});
+          if (formData.source !== undefined && formData.target !== undefined) {
+            window.location.href = "{% url 'flows.flow_merge_flows' %}?" + form.serialize();
+          } else {
+            modal.ele.modal('hide');
+          };
+        });
+        modal.show();
+      });
+    {% endif %}
+
     {% if immutable_alert %}
       var modal = new ConfirmationModal(gettext("You can't edit this flow"), "{{ immutable_alert }}");
       modal.setListeners({ onSecondary: ()=>{
@@ -432,12 +453,14 @@
 
   -include "msgs/msg_send_modal.html"
   -include "delete_modal_include.html"
+  -include "flows/flow_merge_modal.html"
 
   %form{method:'POST', class:'pdf_export_next hide'}
     -csrf_token
     %input{type:'hidden', id:'pdf_export_lang', name:'pdf_export_lang'}
 
-  %rp-modax#send-message-modal{ header:"Send Message" }
+  %rp-modax#send-message-modal{ header: "Send Message" }
+  %rp-modax#select-source-flow-modal{ header: "Merge Flows" }
 
   #toolbar
     .actions.pull-right
