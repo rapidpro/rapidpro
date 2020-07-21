@@ -14,16 +14,15 @@ class ClickMobileType(ChannelType):
     code = "CM"
     category = ChannelType.Category.PHONE
 
-    name = "ClickMobile"
+    name = "Click Mobile"
     icon = "icon-channel-external"
 
     courier_url = r"^cm/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
 
     claim_blurb = _(
-        """If you are based in Malawi or Ghana you can purchase a number
-    from <a href="https://www.click-mobile.com/">ClickMobile</a> and connect it
-    in a few simple steps."""
-    )
+        """If you are based in Malawi or Ghana you can purchase a number from %(link)s and connect it in a few simple steps."""
+    ) % {"link": '<a href="https://www.click-mobile.com/">Click Mobile</a>'}
+
     claim_view = ClaimView
 
     schemes = [TEL_SCHEME]
@@ -32,7 +31,7 @@ class ClickMobileType(ChannelType):
 
     configuration_blurb = _(
         """
-        To finish configuring your ClickMobile channel you need to set ClickMobile to send MO messages to the URL below.
+        To finish configuring your channel you need to configure Click Mobile to send new messages to the URL below.
         """
     )
 

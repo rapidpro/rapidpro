@@ -16,7 +16,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             max_length=14,
             min_length=1,
             label=_("Number"),
-            help_text=_("The phone number or short code you are connecting with country code. " "ex: +250788123124"),
+            help_text=_("The phone number or short code you are connecting with country code. ex: +250788123124"),
         )
         country = forms.ChoiceField(choices=(("GH", _("Ghana")), ("MW", _("Malawi"))), label=_("Country"),)
         username = forms.CharField(max_length=32, label=_("Username"), help_text=_("Your username on ClickMobile"))
@@ -51,8 +51,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         config = {
             Channel.CONFIG_USERNAME: data["username"],
             Channel.CONFIG_PASSWORD: data["password"],
-            Channel.CONFIG_APP_ID: data["app_id"],
-            Channel.CONFIG_ORG_ID: data["org_id"],
+            "app_id": data["app_id"],
+            "org_id": data["org_id"],
         }
 
         self.object = Channel.create(
