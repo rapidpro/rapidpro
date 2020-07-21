@@ -41,3 +41,7 @@ class ClickMobileType(ChannelType):
             url="https://{{ channel.callback_domain }}{% url 'courier.cm' channel.uuid 'receive' %}",
         ),
     )
+
+    def is_available_to(self, user):
+        org = user.get_org()
+        return org.timezone and str(org.timezone) in ["Africa/Accra", "Africa/Blantyre"]

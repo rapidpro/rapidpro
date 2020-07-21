@@ -10,8 +10,14 @@ class ClickMobileTypeTest(TembaTest):
         Channel.objects.all().delete()
 
         url = reverse("channels.types.clickmobile.claim")
-
         self.login(self.admin)
+
+        response = self.client.get(reverse("channels.channel_claim"))
+        self.assertNotContains(response, url)
+
+        self.org.timezone = "Africa/Blantyre"
+        self.org.save()
+
         # check that claim page URL appears on claim list page
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertContains(response, url)
