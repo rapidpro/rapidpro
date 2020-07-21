@@ -1062,7 +1062,6 @@ CHANNEL_TYPES = [
     "temba.channels.types.burstsms.BurstSMSType",
     "temba.channels.types.chikka.ChikkaType",
     "temba.channels.types.clickatell.ClickatellType",
-    "temba.channels.types.clickmobile.ClickMobileType",
     "temba.channels.types.dartmedia.DartMediaType",
     "temba.channels.types.dmark.DMarkType",
     "temba.channels.types.external.ExternalType",
@@ -1107,6 +1106,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.zenvia.ZenviaType",
     "temba.channels.types.i2sms.I2SMSType",
     "temba.channels.types.clicksend.ClickSendType",
+    "temba.channels.types.clickmobile.ClickMobileType",
     "temba.channels.types.android.AndroidType",
 ]
 
