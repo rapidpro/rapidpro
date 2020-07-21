@@ -12,12 +12,12 @@
       .span9
         %p
           -blocktrans with source=source.name target=target.name
-            You are merging "{{ source }}" into "{{ target }}".
+            You have selected to merge "{{ source }}" with "{{ target }}".
         %p
-          -trans "All data will be moved from source to target flow. After merging source flow will be archived."
+          -blocktrans with source=source.name target=target.name
+            All data from {{ source }} will be transferred to {{ target }}. This transfer may take several minutes.
         %p
-          -trans "Merging process will take some time."
-          -trans "If you don't want to perform this action, click 'Cancel' button."
+          -trans 'If you do not wish to combine these flows, click the "Cancel Button" below'
 
         %form#import-form.smartmin-form.horizontal-form{method:"post", enctype:"multipart/form-data"}
           - if errors
@@ -29,11 +29,11 @@
 
           -block fields
             %label{for: "flow_name"}
-              -trans "Name for merging result flow."
+              -trans "Name of new combined flow:"
             %input{type:"text", name:"flow_name", id:"flow_name", value:"{% if flow_name %}{{ flow_name }}{% else %}Merge of {{ source.name }} with {{ target.name }}{% endif %}"}
                     
           .form-buttons
-            %input.btn.btn-primary{type:"submit", value:'{% trans "Merge" %}'}
+            %input.btn.btn-primary{type:"submit", value:'{% trans "Combine Flows" %}'}
             %a.btn{onclick:"javascript:history.go(-1)"}
               -trans "Cancel"
 

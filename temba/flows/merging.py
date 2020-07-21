@@ -177,7 +177,6 @@ class GraphDifferenceNode(Node):
     def get_child(self, uuid):
         child = self.graph.diff_nodes_origin_map.get(uuid)
         if child:
-            print(child, self.children)
             if child not in self.children:
                 child.set_parent(self)
         return child

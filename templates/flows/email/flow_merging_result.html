@@ -3,10 +3,13 @@
 
 <p>{% trans "Hi there!" %}</p>
 
-<p>{% trans "Your merging process has finished." %}</p>
-    <ul>
-        <li>{{ flow.name }}</li>
-    </ul>
+<p>
+{% blocktrans with source=source.name target=target.name %}
+    We have finished merging {{ source }} with {{ target }}.
+{% endblocktrans %}
+</p>
+<p>{% trans "Here is a link to your combined flow:" %}</p>
+<p><a href="{{ link }}">{{ link }}</a></p>
 
 <p>{% trans "Thanks," %}</p>
 

@@ -4156,7 +4156,11 @@ class MergeFlowsTask(TembaModel):
                 self.created_by.username,
                 self.email_subject % org,
                 self.email_template,
-                {"flow": self.target},
+                {
+                    "source": self.source,
+                    "target": self.target,
+                    "link": f"{branding['link']}{reverse('flows.flow_editor_next', args=[self.target.uuid])}",
+                },
                 branding,
             )
 

@@ -7,18 +7,18 @@
     %h3
       .glyph.icon-bubble-3
       %span.title
-        - trans "Merge Flows"
+        - trans "Combine Flows"
   .modal-body
     %form#select-source-form{action: "{% url 'flows.flow_merge_flows' %}"}
-      %label
-        - trans "Source Flow"
+      %label(data-toggle="tooltip" data-placement="bottom" title="{% trans 'This is the flow that will transfer data to the destination flow' %}")
+        - trans "Original Flow"
       %select.select2{name: "source"}
         - for flow in mergeable_flows
           %option{value: "{{ flow.uuid }}"}
             = flow
       
-      %label
-        - trans "Target Flow"
+      %label(data-toggle="tooltip" data-placement="bottom" title="{% trans 'This is the flow that will have the combined data from the original flow' %}")
+        - trans "Destination Flow"
       %select.select2{name: "target"}
         %option{value: "{{ object.uuid }}", selected}
           = object.name

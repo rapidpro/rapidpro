@@ -1728,7 +1728,7 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Import Database"), href=reverse("orgs.org_lookups")))
 
             if self.has_org_perm("flows.flow_merge_flows") and self.get_mergeable_flows():
-                links.append(dict(title=_("Merge With"), js_class="merge-flows-trigger", href="#"))
+                links.append(dict(title=_("Combine Flows"), js_class="merge-flows-trigger", href="#"))
 
             if self.has_org_perm("flows.flow_delete"):
                 links.append(dict(divider=True)),
@@ -2998,7 +2998,7 @@ class FlowCRUDL(SmartCRUDL):
         class MergeFlowsForm(forms.Form):
             flow_name = forms.CharField(max_length=256)
         
-        title = _("Flow Merging")
+        title = _("Combine Flows")
         form_class = MergeFlowsForm
 
         def derive_org(self):
@@ -3055,7 +3055,7 @@ class FlowCRUDL(SmartCRUDL):
 
             messages.info(
                 self.request,
-                _("Merging process has been successfully run. You will be informed with email when it gets done."),
+                _("Your flows are being combined right now. We will notify you by email when it is complete."),
             )
 
             return HttpResponseRedirect(reverse("flows.flow_list"))

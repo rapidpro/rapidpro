@@ -1,12 +1,12 @@
 {% load tz %}
 {% load i18n %}
 
-{% blocktrans with org_name=org.name brand=branding.name %}
+{% blocktrans with source=source.name target=target.name %}
 Hi there!
 
-Your merging process has finished.
+We have finished merging {{ source }} with {{ target }}.
 {% endblocktrans %}
-{% url "flows.flow_editor_next" flow.uuid %}
+{{ link }}
 
 {% trans "Thanks," %}
 
