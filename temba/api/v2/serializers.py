@@ -646,7 +646,8 @@ class ContactWriteSerializer(WriteSerializer):
                 )
 
                 # the above call won't always get the URN order correct so have mailroom fix them
-                mods += self.instance.update_urns(urns)
+                if urns:
+                    mods += self.instance.update_urns(urns)
 
             # update our fields
             if custom_fields is not None:

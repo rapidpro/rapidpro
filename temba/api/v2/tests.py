@@ -1739,7 +1739,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         resp_json = response.json()
-        self.assertEqual(resp_json["urns"], ["twitter:jean", "tel:+250783333333"])
+        self.assertEqual(resp_json["urns"], ["tel:+250783333333", "twitter:jean"])
 
         # URNs will be normalized
         nickname = ContactField.get_by_key(self.org, "nickname")
