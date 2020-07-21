@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-21 20:31+0000\n"
+"POT-Creation-Date: 2020-07-21 21:11+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -918,7 +918,9 @@ msgstr ""
 "        Для завершения настройки Вашего канала DMark Вам потребуется настроить DMark на отправку сообщений МО на адрес URL ниже.\n"
 "        "
 
-msgid "The phone number or short code you are connecting with country code. ex: +250788123124"
+#, fuzzy
+#| msgid "The phone number or short code you are connecting with country code. ex: +250788123124"
+msgid "The Click Mobile phone number or short code you are connecting with country code. ex: +250788123124"
 msgstr "Номер телефона или короткий код, который Вы подключаете, с кодом страны, например +250788123124"
 
 msgid "Ghana"
@@ -926,12 +928,12 @@ msgstr ""
 
 #, fuzzy
 #| msgid "Your username on DMark Mobile"
-msgid "Your username on ClickMobile"
+msgid "Your username on Click Mobile"
 msgstr "Ваше имя пользователя у DMark Mobile"
 
 #, fuzzy
 #| msgid "Your password on DMark Mobile"
-msgid "Your password on ClickMobile"
+msgid "Your password on Click Mobile"
 msgstr "Ваш пароль у DMark Mobile"
 
 msgid "App ID"
@@ -939,7 +941,7 @@ msgstr "ID Приложения"
 
 #, fuzzy
 #| msgid "Your password on DMark Mobile"
-msgid "Your app_id on ClickMobile"
+msgid "Your app_id on Click Mobile"
 msgstr "Ваш пароль у DMark Mobile"
 
 msgid "Org ID"
@@ -947,7 +949,7 @@ msgstr ""
 
 #, fuzzy
 #| msgid "Your password on DMark Mobile"
-msgid "Your org_id on ClickMobile"
+msgid "Your org_id on Click Mobile"
 msgstr "Ваш пароль у DMark Mobile"
 
 msgid "API Username"
@@ -1607,6 +1609,9 @@ msgstr "Эта конечная точка должна вызываться MAC
 
 msgid "This endpoint should be called by MACROKIOSK when the message status changes. (delivery reports)"
 msgstr "Эта конечная точка должна вызываться MACROKIOSK при изменениях статуса сообщения. (Отчеты о доставке)"
+
+msgid "The phone number or short code you are connecting with country code. ex: +250788123124"
+msgstr "Номер телефона или короткий код, который Вы подключаете, с кодом страны, например +250788123124"
 
 msgid "Sender ID"
 msgstr "ID Отправителя"

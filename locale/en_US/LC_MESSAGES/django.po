@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-21 20:31+0000\n"
+"POT-Creation-Date: 2020-07-21 21:11+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -846,28 +846,28 @@ msgid ""
 "        "
 msgstr ""
 
-msgid "The phone number or short code you are connecting with country code. ex: +250788123124"
+msgid "The Click Mobile phone number or short code you are connecting with country code. ex: +250788123124"
 msgstr ""
 
 msgid "Ghana"
 msgstr ""
 
-msgid "Your username on ClickMobile"
+msgid "Your username on Click Mobile"
 msgstr ""
 
-msgid "Your password on ClickMobile"
+msgid "Your password on Click Mobile"
 msgstr ""
 
 msgid "App ID"
 msgstr ""
 
-msgid "Your app_id on ClickMobile"
+msgid "Your app_id on Click Mobile"
 msgstr ""
 
 msgid "Org ID"
 msgstr ""
 
-msgid "Your org_id on ClickMobile"
+msgid "Your org_id on Click Mobile"
 msgstr ""
 
 msgid "API Username"
@@ -1420,6 +1420,9 @@ msgid "This endpoint should be called by MACROKIOSK when new messages are receiv
 msgstr ""
 
 msgid "This endpoint should be called by MACROKIOSK when the message status changes. (delivery reports)"
+msgstr ""
+
+msgid "The phone number or short code you are connecting with country code. ex: +250788123124"
 msgstr ""
 
 msgid "Sender ID"

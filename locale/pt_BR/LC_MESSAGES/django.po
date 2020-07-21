@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-21 20:31+0000\n"
+"POT-Creation-Date: 2020-07-21 21:11+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -1114,7 +1114,9 @@ msgstr ""
 "\n"
 "Para finalizar a configuração da sua conexão com o Hub9, você terá que fornece-los com os seguintes detalhes."
 
-msgid "The phone number or short code you are connecting with country code. ex: +250788123124"
+#, fuzzy
+#| msgid "The phone number or short code you are connecting with country code. ex: +250788123124"
+msgid "The Click Mobile phone number or short code you are connecting with country code. ex: +250788123124"
 msgstr "Número de telefone ou número curto com o qual você esta se conectando, com o código do país. Ex:+250788123124"
 
 msgid "Ghana"
@@ -1122,12 +1124,12 @@ msgstr ""
 
 #, fuzzy
 #| msgid "Your username on Africa's Talking"
-msgid "Your username on ClickMobile"
+msgid "Your username on Click Mobile"
 msgstr "O seu nome de usuário do Africa's Talking"
 
 #, fuzzy
 #| msgid "Your short code on Africa's Talking"
-msgid "Your password on ClickMobile"
+msgid "Your password on Click Mobile"
 msgstr "O seu número curto do Africa's Talking"
 
 msgid "App ID"
@@ -1135,7 +1137,7 @@ msgstr ""
 
 #, fuzzy
 #| msgid "Your username on Africa's Talking"
-msgid "Your app_id on ClickMobile"
+msgid "Your app_id on Click Mobile"
 msgstr "O seu nome de usuário do Africa's Talking"
 
 msgid "Org ID"
@@ -1143,7 +1145,7 @@ msgstr ""
 
 #, fuzzy
 #| msgid "Your short code on Africa's Talking"
-msgid "Your org_id on ClickMobile"
+msgid "Your org_id on Click Mobile"
 msgstr "O seu número curto do Africa's Talking"
 
 #, fuzzy
@@ -2001,6 +2003,9 @@ msgid "This endpoint should be called by MACROKIOSK when the message status chan
 msgstr ""
 "\n"
 "Esse terminal deve ser chamado pelo Hub9 quando o seu número receber novas mensagens. Você pode definir a URL de recebimento na sua conta do Hub9 contatando o seu agente de vendas"
+
+msgid "The phone number or short code you are connecting with country code. ex: +250788123124"
+msgstr "Número de telefone ou número curto com o qual você esta se conectando, com o código do país. Ex:+250788123124"
 
 #, fuzzy
 msgid "Sender ID"
