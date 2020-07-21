@@ -2846,7 +2846,7 @@ class FlowCRUDL(SmartCRUDL):
             whatsapp_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=WHATSAPP_SCHEME)
             if whatsapp_channel:
                 # check to see we are using templates
-                templates = flow.metadata.get(Flow.METADATA_DEPENDENCIES, {}).get("templates", [])
+                templates = flow.get_dependencies_metadata("template")
                 if not templates:
                     warnings.append(_("This flow does not use message templates."))
 
