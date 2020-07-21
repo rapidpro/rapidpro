@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-20 18:24+0000\n"
+"POT-Creation-Date: 2020-07-21 16:42+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -836,6 +836,42 @@ msgstr ""
 msgid "Invalid phone number, please include the country code. ex: +250788123123"
 msgstr ""
 
+msgid ""
+"If you are based in Malawi or Ghana you can purchase a number\n"
+"    from <a href=\"https://www.click-mobile.com/\">ClickMobile</a> and connect it\n"
+"    in a few simple steps."
+msgstr ""
+
+msgid ""
+"\n"
+"        To finish configuring your ClickMobile channel you need to set ClickMobile to send MO messages to the URL below.\n"
+"        "
+msgstr ""
+
+msgid "The phone number or short code you are connecting with country code. ex: +250788123124"
+msgstr ""
+
+msgid "Ghana"
+msgstr ""
+
+msgid "Your username on ClickMobile"
+msgstr ""
+
+msgid "Your password on ClickMobile"
+msgstr ""
+
+msgid "App ID"
+msgstr ""
+
+msgid "Your app_id on ClickMobile"
+msgstr ""
+
+msgid "Org ID"
+msgstr ""
+
+msgid "Your org_id on ClickMobile"
+msgstr ""
+
 msgid "API Username"
 msgstr ""
 
@@ -1386,9 +1422,6 @@ msgid "This endpoint should be called by MACROKIOSK when new messages are receiv
 msgstr ""
 
 msgid "This endpoint should be called by MACROKIOSK when the message status changes. (delivery reports)"
-msgstr ""
-
-msgid "The phone number or short code you are connecting with country code. ex: +250788123124"
 msgstr ""
 
 msgid "Sender ID"
@@ -2197,9 +2230,6 @@ msgid "Unable to access bothub with credentials, please check and try again"
 msgstr ""
 
 msgid "The name of your LUIS app"
-msgstr ""
-
-msgid "App ID"
 msgstr ""
 
 msgid "The ID for your LUIS app"

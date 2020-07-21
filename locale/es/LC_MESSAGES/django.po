@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-20 18:24+0000\n"
+"POT-Creation-Date: 2020-07-21 16:42+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -1159,6 +1159,67 @@ msgid "Invalid phone number, please include the country code. ex: +250788123123"
 msgstr "Número de teléfono inválido, por favor, incluya el código de país. Por ejemplo: +250788123123"
 
 #, fuzzy
+msgid ""
+"If you are based in Malawi or Ghana you can purchase a number\n"
+"    from <a href=\"https://www.click-mobile.com/\">ClickMobile</a> and connect it\n"
+"    in a few simple steps."
+msgstr ""
+"\n"
+"                  Si vive en Kenia, puede comprar un código abreviado\n"
+"                  de %(link_start)sAfrica's Talking%(link_end)s y conectarlo a TextIt\n"
+"                  con solo unos simples pasos.\n"
+"\n"
+"                "
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your Vumi connection you'll need to set the following parameters on your Vumi conversation:\n"
+#| "\n"
+#| "      "
+msgid ""
+"\n"
+"        To finish configuring your ClickMobile channel you need to set ClickMobile to send MO messages to the URL below.\n"
+"        "
+msgstr ""
+"\n"
+"        Para terminar de configurar su conexión Vumi, tendrá que establecer los siguientes parámetros en su conversación Vumi:\n"
+"\n"
+"      "
+
+msgid "The phone number or short code you are connecting with country code. ex: +250788123124"
+msgstr "El número de teléfono o código abreviado con el que se está conectando, con el código de país. Por ejemplo: +250788123124"
+
+msgid "Ghana"
+msgstr ""
+
+#, fuzzy
+#| msgid "Your username on Africa's Talking"
+msgid "Your username on ClickMobile"
+msgstr "Su contraseña en Africa's Talking"
+
+#, fuzzy
+#| msgid "Your short code on Africa's Talking"
+msgid "Your password on ClickMobile"
+msgstr "Su código abreviado en Africa's Talking"
+
+msgid "App ID"
+msgstr ""
+
+#, fuzzy
+#| msgid "Your username on Africa's Talking"
+msgid "Your app_id on ClickMobile"
+msgstr "Su contraseña en Africa's Talking"
+
+msgid "Org ID"
+msgstr ""
+
+#, fuzzy
+#| msgid "Your short code on Africa's Talking"
+msgid "Your org_id on ClickMobile"
+msgstr "Su código abreviado en Africa's Talking"
+
+#, fuzzy
 #| msgid "Username"
 msgid "API Username"
 msgstr "Nombre de usuario"
@@ -2130,9 +2191,6 @@ msgstr ""
 "        Vumi llamará a este endpoint cuando su número reciba mensajes nuevos.\n"
 "\n"
 "      "
-
-msgid "The phone number or short code you are connecting with country code. ex: +250788123124"
-msgstr "El número de teléfono o código abreviado con el que se está conectando, con el código de país. Por ejemplo: +250788123124"
 
 #, fuzzy
 msgid "Sender ID"
@@ -3455,9 +3513,6 @@ msgstr "No se puede acceder a acceso a bothub con credenciales, verifique e inte
 #| msgid "The name of your organization"
 msgid "The name of your LUIS app"
 msgstr "El nombre de su organización"
-
-msgid "App ID"
-msgstr ""
 
 #, fuzzy
 #| msgid "The name of your organization"

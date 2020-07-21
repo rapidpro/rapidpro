@@ -258,6 +258,8 @@ class Channel(TembaModel):
     CONFIG_KEY = "key"
     CONFIG_API_ID = "api_id"
     CONFIG_API_KEY = "api_key"
+    CONFIG_APP_ID = "app_id"
+    CONFIG_ORG_ID = "org_id"
     CONFIG_VERIFY_SSL = "verify_ssl"
     CONFIG_USE_NATIONAL = "use_national"
     CONFIG_ENCODING = "encoding"

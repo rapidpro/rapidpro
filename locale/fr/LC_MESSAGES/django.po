@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-20 18:24+0000\n"
+"POT-Creation-Date: 2020-07-21 16:42+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -900,6 +900,66 @@ msgstr "La clé API de votre intégration telle que fournie par Clickatell"
 msgid "Invalid phone number, please include the country code. ex: +250788123123"
 msgstr "Numéro de téléphone incorrect, s'il vous plaît inclure le code du pays. ex: +250788123123"
 
+#, fuzzy
+#| msgid ""
+#| "If you are based in Uganda or DRC you can purchase a short\n"
+#| "    code from <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> and connect it\n"
+#| "    in a few simple steps."
+msgid ""
+"If you are based in Malawi or Ghana you can purchase a number\n"
+"    from <a href=\"https://www.click-mobile.com/\">ClickMobile</a> and connect it\n"
+"    in a few simple steps."
+msgstr ""
+"Si vous résidez en Ouganda ou en RDC, vous pouvez acheter un code court\n"
+"    auprès de <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> et le connecter\n"
+"    en quelques étapes simples."
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your DMark channel you need to set DMark to send MO messages to the URL below.\n"
+#| "        "
+msgid ""
+"\n"
+"        To finish configuring your ClickMobile channel you need to set ClickMobile to send MO messages to the URL below.\n"
+"        "
+msgstr ""
+"\n"
+"        Pour terminer la configuration de votre canal DMark, vous devez configurer DMark afin qu’il envoie les messages MO à l’URL ci-dessous.\n"
+"        "
+
+msgid "The phone number or short code you are connecting with country code. ex: +250788123124"
+msgstr "Le numéro de téléphone ou code court vous vous connectez avec le code pays. ex: +250788123124"
+
+msgid "Ghana"
+msgstr ""
+
+#, fuzzy
+#| msgid "Your username on DMark Mobile"
+msgid "Your username on ClickMobile"
+msgstr "Votre nom d'utilisateur sur DMark Mobile"
+
+#, fuzzy
+#| msgid "Your password on DMark Mobile"
+msgid "Your password on ClickMobile"
+msgstr "Votre mot de passe sur DMark Mobile"
+
+msgid "App ID"
+msgstr "ID d'application"
+
+#, fuzzy
+#| msgid "Your password on DMark Mobile"
+msgid "Your app_id on ClickMobile"
+msgstr "Votre mot de passe sur DMark Mobile"
+
+msgid "Org ID"
+msgstr ""
+
+#, fuzzy
+#| msgid "Your password on DMark Mobile"
+msgid "Your org_id on ClickMobile"
+msgstr "Votre mot de passe sur DMark Mobile"
+
 msgid "API Username"
 msgstr "Nom d'utilisateur de l'API"
 
@@ -1577,9 +1637,6 @@ msgstr "MACROKIOSK doit appeler ce noeud final lorsque de nouveaux messages sont
 
 msgid "This endpoint should be called by MACROKIOSK when the message status changes. (delivery reports)"
 msgstr "MACROKIOSK doit appeler ce noeud final lorsque l’état du message change. (rapports de livraison)"
-
-msgid "The phone number or short code you are connecting with country code. ex: +250788123124"
-msgstr "Le numéro de téléphone ou code court vous vous connectez avec le code pays. ex: +250788123124"
 
 msgid "Sender ID"
 msgstr "ID de l'expéditeur"
@@ -2497,9 +2554,6 @@ msgstr "Impossible d'accéder à bothub avec les informations d'identification, 
 
 msgid "The name of your LUIS app"
 msgstr "Le nom de votre application LUIS"
-
-msgid "App ID"
-msgstr "ID d'application"
 
 msgid "The ID for your LUIS app"
 msgstr "L'ID de votre application LUIS"
