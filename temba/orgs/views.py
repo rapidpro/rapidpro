@@ -1560,35 +1560,38 @@ class OrgCRUDL(SmartCRUDL):
 
         fields = ("credits", "name", "manage", "created_on")
         link_fields = ()
-        title = "Workspaces"
+        title = _("Workspaces")
 
         def get_gear_links(self):
             links = []
 
             if self.has_org_perm("orgs.org_dashboard"):
-                links.append(dict(title="Dashboard", href=reverse("dashboard.dashboard_home")))
+                links.append(dict(title=_("Dashboard"), href=reverse("dashboard.dashboard_home")))
 
             if self.has_org_perm("orgs.org_create_sub_org"):
-                links.append(dict(title="New Workspace", js_class="add-sub-org", href="#"))
+                links.append(dict(title=_("New Workspace"), js_class="add-sub-org", href="#"))
 
             if self.has_org_perm("orgs.org_transfer_credits"):
-                links.append(dict(title="Transfer Credits", js_class="transfer-credits", href="#"))
+                links.append(dict(title=_("Transfer Credits"), js_class="transfer-credits", href="#"))
 
             return links
 
-        def get_manage(self, obj):
-            if obj.parent:  # pragma: needs cover
+        def get_manage(self, obj):  # pragma: needs cover
+            if obj == self.get_object():
                 return mark_safe(
-                    '<a href="%s?org=%s"><div class="btn btn-tiny">Manage Logins</div></a>'
-                    % (reverse("orgs.org_manage_accounts_sub_org"), obj.id)
+                    f'<a href="{reverse("orgs.org_manage_accounts")}"><div class="btn btn-tiny">{_("Manage Logins")}</div></a>'
+                )
+
+            if obj.parent:
+                return mark_safe(
+                    f'<a href="{reverse("orgs.org_manage_accounts_sub_org")}?org={obj.id}"><div class="btn btn-tiny">{_("Manage Logins")}</div></a>'
                 )
             return ""
 
         def get_credits(self, obj):
             credits = obj.get_credits_remaining()
             return mark_safe(
-                '<div class="edit-org" data-url="%s?org=%d"><div class="num-credits">%s</div></div>'
-                % (reverse("orgs.org_edit_sub_org"), obj.id, format(credits, ",d"))
+                f'<div class="edit-org" data-url="{reverse("orgs.org_edit_sub_org")}?org={obj.id}"><div class="num-credits">{format(credits, ",d")}</div></div>'
             )
 
         def get_name(self, obj):

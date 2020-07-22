@@ -1,3 +1,26 @@
+v5.7.0
+----------
+ * Add start_type and created_by to queued flow starts
+ * New mixin for list views with bulk actions
+ * Update some dependencies to work with Python 3.8 and MacOS
+
+v5.6.5
+----------
+ * Set the tps options for Twilio based on country and number type
+ * Fix wit.ai classifiers and double logging of errors on all classifier types
+
+v5.6.3
+----------
+ * Add variables for nav colors
+
+v5.6.2
+----------
+ * Fix failing to manage logins when the we are logged in the same org
+
+v5.6.1
+----------
+ * instead of dates, keep track of seen runs when excluding archived runs from exports
+
 v5.6.0
 ----------
  * 5.6.0 Release Candidate

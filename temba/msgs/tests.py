@@ -442,13 +442,13 @@ class MsgTest(TembaTest):
         self.assertEqual(response.context["object_list"].count(), 5)
         self.assertEqual(response.context["folders"][0]["url"], "/msg/inbox/")
         self.assertEqual(response.context["folders"][0]["count"], 5)
-        self.assertEqual(response.context["actions"], ["archive", "label"])
+        self.assertEqual(response.context["actions"], ("archive", "label"))
 
         # visit inbox page as administrator
         response = self.fetch_protected(inbox_url, self.admin)
 
         self.assertEqual(response.context["object_list"].count(), 5)
-        self.assertEqual(response.context["actions"], ["archive", "label"])
+        self.assertEqual(response.context["actions"], ("archive", "label"))
 
         # let's add some labels
         folder = Label.get_or_create_folder(self.org, self.user, "folder")
@@ -520,7 +520,7 @@ class MsgTest(TembaTest):
             response = self.fetch_protected(archive_url, self.admin)
 
         self.assertEqual(response.context["object_list"].count(), 1)
-        self.assertEqual(response.context["actions"], ["restore", "label", "delete"])
+        self.assertEqual(response.context["actions"], ("restore", "label", "delete"))
 
         # check that the inbox does not contains archived messages
 
@@ -533,11 +533,11 @@ class MsgTest(TembaTest):
         response = self.fetch_protected(inbox_url, self.admin)
 
         self.assertEqual(response.context["object_list"].count(), 4)
-        self.assertEqual(response.context["actions"], ["archive", "label"])
+        self.assertEqual(response.context["actions"], ("archive", "label"))
 
         # test restoring an archived message back to inbox
         post_data = dict(action="restore", objects=[msg1.pk])
-        self.client.post(inbox_url, post_data, follow=True)
+        self.client.post(archive_url, post_data, follow=True)
         self.assertEqual(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED).count(), 0)
 
         response = self.client.get(inbox_url)
@@ -602,7 +602,7 @@ class MsgTest(TembaTest):
             response = self.client.get(url)
 
         self.assertEqual(set(response.context["object_list"]), {msg3, msg2, msg1})
-        self.assertEqual(response.context["actions"], ["label"])
+        self.assertEqual(response.context["actions"], ("label",))
 
     def test_retry_errored(self):
         # change our default channel to external
@@ -667,7 +667,7 @@ class MsgTest(TembaTest):
             response = self.fetch_protected(failed_url, self.admin)
 
         self.assertEqual(response.context["object_list"].count(), 3)
-        self.assertEqual(response.context["actions"], ["resend"])
+        self.assertEqual(response.context["actions"], ("resend",))
         self.assertContains(response, "Export")
 
         self.assertContains(response, reverse("channels.channellog_read", args=[log.id]))
@@ -1751,7 +1751,7 @@ class MsgCRUDLTest(TembaTest):
         self.login(self.user)
         response = self.client.get(reverse("msgs.msg_filter", args=[label3.uuid]))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["actions"], ["unlabel", "label"])
+        self.assertEqual(response.context["actions"], ("unlabel", "label"))
         self.assertNotContains(response, reverse("msgs.label_update", args=[label3.pk]))  # can't update label
         self.assertNotContains(response, reverse("msgs.label_delete", args=[label3.pk]))  # can't delete label
 
@@ -1761,7 +1761,7 @@ class MsgCRUDLTest(TembaTest):
         # check viewing a folder
         response = self.client.get(reverse("msgs.msg_filter", args=[folder.uuid]))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["actions"], ["unlabel", "label"])
+        self.assertEqual(response.context["actions"], ("unlabel", "label"))
         self.assertNotContains(response, reverse("msgs.label_update", args=[folder.pk]))  # can't update folder
         self.assertNotContains(response, reverse("msgs.label_delete", args=[folder.pk]))  # can't delete folder
 
