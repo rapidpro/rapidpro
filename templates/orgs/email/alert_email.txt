@@ -9,13 +9,13 @@ Hi {{ customer }},
 {% if alert.alert_type == 'O' %}
 {% blocktrans with org=alert.org.name brand=branding.name %}
 
-Your {{ brand }} account for {{ org }} is out of credit. You will no longer be able to send messages and users will no longer be able to interact in flows.
+Your {{ brand }} workspace for {{ org }} is out of credit. You will no longer be able to send messages and users will no longer be able to interact in flows.
 
 {% endblocktrans %}
 
 {% if branding.allow_signups %}
 {% blocktrans %}
-To resume your service please visit your account page to purchase a top up.
+To resume your service please visit your workspace page to purchase a top up.
 {% endblocktrans %}
 {% else %}
 {% blocktrans %}
@@ -27,13 +27,13 @@ To resume your service, please contact your account manager.
 
 {% blocktrans with org=alert.org.name brand=branding.name%}
 
-Your {{ brand }} account for {{ org }} has expiring credits in less than one month.
+Your {{ brand }} workspace for {{ org }} has expiring credits in less than one month.
 
 {% endblocktrans %}
 
 {% if branding.allow_signups %}
 {% blocktrans %}
-Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your account page to purchase a top up.
+Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your workspace page to purchase a top up.
 {% endblocktrans %}
 {% else %}
 {% blocktrans %}
@@ -44,12 +44,12 @@ Messages will no longer be sent when your credits expire, to prevent an interrup
 {% else %}
 {% blocktrans with org=alert.org.name brand=branding.name remaining=org.get_credits_remaining %}
 
-Your {{ brand }} account for {{ org }} is running low on credits, you currently only have {{ remaining }} credits remaining.
+Your {{ brand }} workspace for {{ org }} is running low on credits, you currently only have {{ remaining }} credits remaining.
 
 {% endblocktrans %}
 {% if branding.allow_signups %}
 {% blocktrans %}
-Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your account page to purchase a top up.
+Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your workspace page to purchase a top up.
 {% endblocktrans %}
 {% else %}
 {% blocktrans %}

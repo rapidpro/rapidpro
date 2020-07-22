@@ -710,7 +710,7 @@ class EventFire(Model):
                 if scheduled:
                     EventFire.objects.create(event=event, contact=contact, scheduled=scheduled)
 
-    def __str__(self):
+    def __str__(self):  # pragma: no cover
         return f"EventFire[event={self.event.uuid}, contact={self.contact.uuid}, scheduled={self.scheduled}]"
 
     class Meta:
