@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-03 18:23+0000\n"
+"POT-Creation-Date: 2020-07-20 18:24+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3499,9 +3499,6 @@ msgstr "Token de acceso desde su repositorio"
 msgid "Unable to access wit.ai with credentials, please check and try again"
 msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
 
-msgid "Unable to get intent entity, make sure you have at least one intent defined"
-msgstr ""
-
 #, fuzzy
 #| msgid "Connect Hub9"
 msgid "Connect"
@@ -3721,30 +3718,6 @@ msgstr "Bloqueado"
 
 msgid "Stopped"
 msgstr ""
-
-msgid "Add to Group"
-msgstr "Agregar al grupo"
-
-msgid "Remove from Group"
-msgstr "Retirar del Grupo"
-
-#, fuzzy
-#| msgid "Blocked Contacts"
-msgid "Unblock Contacts"
-msgstr "Contactos bloqueados"
-
-#, fuzzy
-#| msgid "Blocked Contacts"
-msgid "Block Contacts"
-msgstr "Contactos bloqueados"
-
-msgid "Delete Contacts"
-msgstr "Borrar Contactos"
-
-#, fuzzy
-#| msgid "Restore Contacts"
-msgid "Unstop Contacts"
-msgstr "Restaurar contactos"
 
 #, fuzzy, python-brace-format
 #| msgid "The name of this contact"
@@ -4126,23 +4099,6 @@ msgstr "Las palabras clave \"%s\" están siendo usadas para otro flujo"
 msgid "The keyword \"%s\" is already used for another flow"
 msgstr "La palabra clave \"%s\" está siendo usada para otro flujo"
 
-msgid "Archive Flows"
-msgstr "Archivar flujos"
-
-msgid "Label Messages"
-msgstr "Etiquetar mensajes"
-
-msgid "Restore Flows"
-msgstr "Restaurar flujos"
-
-#, python-format
-msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
-msgstr ""
-
-#, python-format
-msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
-msgstr ""
-
 #, fuzzy
 #| msgid "User does not have permission to create an SMS"
 msgid "You don't have permission to edit this flow"
@@ -4208,6 +4164,10 @@ msgstr ""
 
 msgid "Flows"
 msgstr "Flujos"
+
+#, python-format
+msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
+msgstr ""
 
 msgid "Contact Name"
 msgstr "Nombre del contacto"
@@ -4878,18 +4838,6 @@ msgstr "Mensajes programados"
 msgid "You must add a phone number before sending messages"
 msgstr "Debe agregar un número antes de enviar mensajes"
 
-msgid "Archive Messages"
-msgstr "Archivar mensajes"
-
-msgid "Move to Inbox"
-msgstr "Mover a la bandeja de entrada"
-
-msgid "Resend Messages"
-msgstr "Reenviar mensajes"
-
-msgid "Delete Messages"
-msgstr "Borrar mensajes"
-
 msgid "Which channel will deliver the message"
 msgstr "Qué transmisor entregará el mensaje"
 
@@ -5515,6 +5463,26 @@ msgstr ""
 
 #, fuzzy
 #| msgid "Select your Organization"
+msgid "Workspaces"
+msgstr "Elija su Organización"
+
+#, fuzzy
+#| msgid "dashboard"
+msgid "Dashboard"
+msgstr "Panel"
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "New Workspace"
+msgstr "Elija su Organización"
+
+#, fuzzy
+#| msgid "Purchase Credits"
+msgid "Transfer Credits"
+msgstr "Comprar Créditos"
+
+#, fuzzy
+#| msgid "Select your Organization"
 msgid "Select your Workspace"
 msgstr "Elija su Organización"
 
@@ -6044,12 +6012,6 @@ msgstr ""
 msgid "The referrer id that will trigger us"
 msgstr "El tipo de este activador"
 
-msgid "Archive Triggers"
-msgstr "Archivar activadores"
-
-msgid "Restore Triggers"
-msgstr "Restaurar activadores"
-
 msgid "Create Trigger"
 msgstr "Crear activadores"
 
@@ -6169,17 +6131,10 @@ msgstr ""
 msgid ", "
 msgstr ","
 
-msgid "Sorry you have no permission for this action."
-msgstr "Lo sentimos, no tiene permiso para esta acción."
-
-msgid "Must specify a label"
-msgstr "Debe especificar una etiqueta"
-
-msgid "Missing label"
-msgstr "Etiqueta faltante"
-
-msgid "Oops, so sorry. Something went wrong!"
-msgstr "Lo sentimos. ¡Algo no funcionó!"
+#, fuzzy
+#| msgid "We encountered an error removing your channel, please try again later."
+msgid "An error occurred while making your changes. Please try again."
+msgstr "Encontramos un error para retirar su transmisor, por favor, inténtelo nuevamente más tarde."
 
 #, fuzzy
 #| msgid "Current Date and Time"
@@ -8867,6 +8822,9 @@ msgstr "Crear Contacto"
 msgid "Create Group"
 msgstr "Crear Grupo"
 
+msgid "Remove from Group"
+msgstr "Retirar del Grupo"
+
 msgid "New Group..."
 msgstr ""
 
@@ -8896,6 +8854,9 @@ msgstr "Los contactos no corresponden."
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr ""
+
+msgid "Delete Contacts"
+msgstr "Borrar Contactos"
 
 msgid "Are you sure you want to delete these contacts?"
 msgstr "¿Está seguro de que desea borrar estos contactos?"
@@ -9181,11 +9142,6 @@ msgstr ""
 "\n"
 "    "
 
-#, fuzzy
-#| msgid "dashboard"
-msgid "Dashboard"
-msgstr "Panel"
-
 msgid "Are you sure you want to remove"
 msgstr "¿Está seguro de que desea retirarlo?"
 
@@ -9384,6 +9340,11 @@ msgstr ""
 #| msgid "Create Flow"
 msgid "Delete Flow"
 msgstr "Crear Flujos"
+
+#, fuzzy
+#| msgid "Update Fields"
+msgid "Update Flow"
+msgstr "Actualizar campos"
 
 msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
 msgstr ""
@@ -10863,11 +10824,6 @@ msgstr ""
 msgid "Your workspace is configured to use a single language."
 msgstr "Su organización está configurada para usar solo un idioma."
 
-#, fuzzy
-#| msgid "Select your Organization"
-msgid "Workspaces"
-msgstr "Elija su Organización"
-
 msgid "Logins"
 msgstr ""
 
@@ -11078,6 +11034,11 @@ msgstr ""
 #, fuzzy
 #| msgid "Select your Organization"
 msgid "Manage Workspaces"
+msgstr "Elija su Organización"
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Add Workspace"
 msgstr "Elija su Organización"
 
 #, python-format
@@ -12813,6 +12774,63 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Oops, so sorry. Something went wrong!"
+#~ msgstr "Lo sentimos. ¡Algo no funcionó!"
+
+#~ msgid "Add to Group"
+#~ msgstr "Agregar al grupo"
+
+#, fuzzy
+#~| msgid "Blocked Contacts"
+#~ msgid "Unblock Contacts"
+#~ msgstr "Contactos bloqueados"
+
+#, fuzzy
+#~| msgid "Blocked Contacts"
+#~ msgid "Block Contacts"
+#~ msgstr "Contactos bloqueados"
+
+#, fuzzy
+#~| msgid "Restore Contacts"
+#~ msgid "Unstop Contacts"
+#~ msgstr "Restaurar contactos"
+
+#~ msgid "Archive Flows"
+#~ msgstr "Archivar flujos"
+
+#~ msgid "Label Messages"
+#~ msgstr "Etiquetar mensajes"
+
+#~ msgid "Restore Flows"
+#~ msgstr "Restaurar flujos"
+
+#~ msgid "Archive Messages"
+#~ msgstr "Archivar mensajes"
+
+#~ msgid "Move to Inbox"
+#~ msgstr "Mover a la bandeja de entrada"
+
+#~ msgid "Resend Messages"
+#~ msgstr "Reenviar mensajes"
+
+#~ msgid "Delete Messages"
+#~ msgstr "Borrar mensajes"
+
+#~ msgid "Sorry you have no permission for this action."
+#~ msgstr "Lo sentimos, no tiene permiso para esta acción."
+
+#~ msgid "Must specify a label"
+#~ msgstr "Debe especificar una etiqueta"
+
+#~ msgid "Missing label"
+#~ msgstr "Etiqueta faltante"
+
+#~ msgid "Archive Triggers"
+#~ msgstr "Archivar activadores"
+
+#~ msgid "Restore Triggers"
+#~ msgstr "Restaurar activadores"
 
 #, fuzzy
 #~| msgid "The name of the video"

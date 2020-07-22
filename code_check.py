@@ -36,6 +36,8 @@ def update_po_files():
         pot = polib.pofile("locale/en_US/LC_MESSAGES/django.po")
         return {e.msgid for e in pot if not e.fuzzy and not e.obsolete}
 
+    cmd(f"git restore --staged --worktree locale")
+
     # get the current set of msgids
     saved_msgids = get_current_msgids()
 
@@ -59,7 +61,7 @@ def update_po_files():
 
     # if there are no actual changes to msgids, revert
     if not added_msgids and not removed_msgids:
-        cmd(f"git checkout -- locale")
+        cmd(f"git restore locale")
 
 
 if __name__ == "__main__":

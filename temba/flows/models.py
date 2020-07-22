@@ -526,36 +526,33 @@ class Flow(TembaModel):
         return name
 
     @classmethod
-    def apply_action_label(cls, user, flows, label, add):  # pragma: needs cover
-        return label.toggle_label(flows, add)
+    def apply_action_label(cls, user, flows, label):
+        label.toggle_label(flows, add=True)
+
+    @classmethod
+    def apply_action_unlabel(cls, user, flows, label):
+        label.toggle_label(flows, add=False)
 
     @classmethod
     def apply_action_archive(cls, user, flows):
-        changed = []
-
         for flow in flows:
-
             # don't archive flows that belong to campaigns
             from temba.campaigns.models import CampaignEvent
 
-            if not CampaignEvent.objects.filter(
+            has_events = CampaignEvent.objects.filter(
                 is_active=True, flow=flow, campaign__org=user.get_org(), campaign__is_archived=False
-            ).exists():
-                flow.archive()
-                changed.append(flow.pk)
+            ).exists()
 
-        return changed
+            if not has_events:
+                flow.archive()
 
     @classmethod
     def apply_action_restore(cls, user, flows):
-        changed = []
         for flow in flows:
             try:
                 flow.restore()
-                changed.append(flow.pk)
             except FlowException:  # pragma: no cover
                 pass
-        return changed
 
     def as_select2(self):
         return dict(id=self.uuid, text=self.name)
@@ -2940,24 +2937,20 @@ class ExportFlowResultsTask(BaseExportTask):
         )
 
         flow_uuids = {str(flow.uuid) for flow in flows}
-        last_modified_on = None
+        seen = set()
 
         for archive in archives:
             for record_batch in chunk_list(archive.iter_records(), 1000):
                 matching = []
                 for record in record_batch:
-                    modified_on = iso8601.parse_date(record["modified_on"])
-                    if last_modified_on is None or last_modified_on < modified_on:
-                        last_modified_on = modified_on
-
                     if record["flow"]["uuid"] in flow_uuids and (not responded_only or record["responded"]):
+                        seen.add(record["id"])
                         matching.append(record)
+
                 yield matching
 
         # secondly get runs from database
         runs = FlowRun.objects.filter(flow__in=flows).order_by("modified_on")
-        if last_modified_on:
-            runs = runs.filter(modified_on__gt=last_modified_on)
         if responded_only:
             runs = runs.filter(responded=True)
         run_ids = array(str("l"), runs.values_list("id", flat=True))
@@ -2972,7 +2965,7 @@ class ExportFlowResultsTask(BaseExportTask):
             )
 
             # convert this batch of runs to same format as records in our archives
-            yield [run.as_archive_json() for run in run_batch]
+            yield [run.as_archive_json() for run in run_batch if run.id not in seen]
 
     def _write_runs(
         self,

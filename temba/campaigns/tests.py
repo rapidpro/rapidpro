@@ -661,14 +661,14 @@ class CampaignTest(TembaTest):
         self.reminder_flow.refresh_from_db()
         self.assertFalse(self.reminder_flow.is_archived)
         self.assertEqual(
-            "Reminder Flow is used inside a campaign. To archive it, first remove it from your campaigns.",
+            "The following flows are still used by campaigns so could not be archived: Reminder Flow",
             response.get("Temba-Toast"),
         )
 
         post_data = dict(action="archive", objects=[self.reminder_flow.pk, self.reminder2_flow.pk])
         response = self.client.post(reverse("flows.flow_list"), post_data)
         self.assertEqual(
-            "Planting Reminder and Reminder Flow are used inside a campaign. To archive them, first remove them from your campaigns.",
+            "The following flows are still used by campaigns so could not be archived: Planting Reminder, Reminder Flow",
             response.get("Temba-Toast"),
         )
 
