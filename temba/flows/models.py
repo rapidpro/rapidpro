@@ -3170,8 +3170,11 @@ class FlowStart(models.Model):
     # any extra parameters that should be passed as trigger params for this flow start
     extra = JSONAsTextField(null=True, default=dict)
 
-    # the parent flow's summary if there is one
+    # the parent run's summary if there is one
     parent_summary = JSONField(null=True)
+
+    # the session history if there is some
+    session_history = JSONField(null=True)
 
     # who created this flow start
     created_by = models.ForeignKey(
