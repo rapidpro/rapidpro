@@ -350,7 +350,7 @@
       .body
         %p
           {% if object.dependent_flows.count == 0 %}
-          -trans "Are you sure you want to remove this channel from your account?"
+          -trans "Are you sure you want to remove this channel from your workspace?"
           .number.text-center
             {{ object.get_channel_type_display }} {{ object.get_address_display|default:'' }}
           {% else %}
@@ -514,26 +514,26 @@
           modal.setListeners({onPrimary: function(){
             $('#deletion-form').click();
           }}, false);
-          modal.setPrimaryButton('{% trans "Remove" %}');
+          modal.setPrimaryButton('{{ _("Remove")|escapejs }}');
 
       {% else %}
           modal.setListeners({onPrimary: function(){
             modal.dismiss();
           }}, false);
-          modal.setPrimaryButton('{% trans "Ok" %}');
+          modal.setPrimaryButton('{{ _("Ok")|escapejs }}');
       {% endif %}
 
       modal.show();
       });
 
-    $(".remove-sender").live('click', function(){ removalConfirmation("remove-sender", "Disable Bulk Sending")});
-    $(".remove-caller").live('click', function(){ removalConfirmation("remove-caller", "Disable Voice Calling")});
+    $(".remove-sender").live('click', function(){ removalConfirmation("remove-sender", '{{ _("Disable Bulk Sending")|escapejs }}')});
+    $(".remove-caller").live('click', function(){ removalConfirmation("remove-caller", '{{ _("Disable Voice Calling")|escapejs }}')});
 
   {% endif %}
 
   {% if org_perms.channels.channel_facebook_whitelist %}
     $(".facebook-whitelist").live('click', function(){
-      var modal = new Modax('{% trans "Whitelist Domain" %}','{% url "channels.channel_facebook_whitelist" object.uuid %}');
+      var modal = new Modax('{{ _("Whitelist Domain")|escapejs }}','{% url "channels.channel_facebook_whitelist" object.uuid %}');
       modal.setIcon('icon-facebook-official');
       modal.setRedirectOnSuccess(true);
       modal.show();
@@ -581,7 +581,7 @@
               },
               yAxis: [{
                   title: {
-                      text: '{% trans "Minutes" %}'
+                      text: '{{ _("Minutes")|escapejs }}'
                   },
                   opposite: false,
                   min: 0,
@@ -591,7 +591,7 @@
                   {% endif %}
               },{
                   title: {
-                      text: '{% trans "Messages" %}'
+                      text: '{{ _("Messages")|escapejs }}'
                   },
                   opposite: true,
                   min: 0,

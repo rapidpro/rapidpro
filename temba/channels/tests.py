@@ -31,7 +31,13 @@ from temba.utils import dict_to_struct, json
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 
 from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
-from .tasks import check_channels_task, squash_channelcounts, sync_old_seen_channels_task, trim_sync_events_task
+from .tasks import (
+    check_channels_task,
+    squash_channelcounts,
+    sync_old_seen_channels_task,
+    track_org_channel_counts,
+    trim_sync_events_task,
+)
 
 
 class ChannelTest(TembaTest):
@@ -1112,10 +1118,9 @@ class ChannelTest(TembaTest):
         self.assertFalse(channel.is_active)
 
     def test_quota_exceeded(self):
-        # set our org to be on the trial plan
-        self.org.plan = Org.PLAN_FREE
-        self.org.save(update_fields=("plan",))
+        # reduce out credits to 10
         self.org.topups.all().update(credits=10)
+        self.org.clear_credit_cache()
 
         self.assertEqual(10, self.org.get_credits_remaining())
         self.assertEqual(0, self.org.get_credits_used())
@@ -1273,7 +1278,12 @@ class ChannelTest(TembaTest):
                 dict(cmd="mt_fail", msg_id=msg5.pk, ts=date),
                 # a missed call
                 dict(cmd="call", phone="2505551212", type="miss", ts=date),
+                # repeated missed calls should be skipped
+                dict(cmd="call", phone="2505551212", type="miss", ts=date),
+                dict(cmd="call", phone="2505551212", type="miss", ts=date),
                 # incoming
+                dict(cmd="call", phone="2505551212", type="mt", dur=10, ts=date),
+                # repeated calls should be skipped
                 dict(cmd="call", phone="2505551212", type="mt", dur=10, ts=date),
                 # incoming, invalid URN
                 dict(cmd="call", phone="*", type="mt", dur=10, ts=date),
@@ -1312,6 +1322,9 @@ class ChannelTest(TembaTest):
 
         # We should now have one sync
         self.assertEqual(1, SyncEvent.objects.filter(channel=self.tel_channel).count())
+
+        # We should have 3 channel event
+        self.assertEqual(3, ChannelEvent.objects.filter(channel=self.tel_channel).count())
 
         # check our channel fcm and uuid were updated
         self.tel_channel = Channel.objects.get(pk=self.tel_channel.pk)
@@ -2018,6 +2031,14 @@ class ChannelCountTest(TembaTest):
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
         msg.release()
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
+
+        with patch("temba.channels.tasks.track") as mock:
+            self.create_incoming_msg(contact, "Test Message")
+
+            with self.assertNumQueries(6):
+                track_org_channel_counts(now=timezone.now() + timedelta(days=1))
+                self.assertEqual(2, mock.call_count)
+                mock.assert_called_with("Administrator@nyaruka.com", "temba.ivr_outgoing", {"count": 1})
 
 
 class ChannelLogTest(TembaTest):
@@ -2768,7 +2789,7 @@ class FacebookWhitelistTest(TembaTest):
             response = self.client.post(whitelist_url, dict(whitelisted_domain="https://foo.bar"))
 
             mock.assert_called_once_with(
-                "https://graph.facebook.com/v2.12/me/thread_settings?access_token=auth",
+                "https://graph.facebook.com/v3.3/me/thread_settings?access_token=auth",
                 json=dict(
                     setting_type="domain_whitelisting",
                     whitelisted_domains=["https://foo.bar"],

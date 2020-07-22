@@ -31,7 +31,7 @@ class BoundaryCRUDL(SmartCRUDL):
             if not response:
                 org = request.user.get_org()
                 if not org.country:
-                    messages.warning(request, _("You must select a country for your organization."))
+                    messages.warning(request, _("You must select a country for your workspace."))
                     return HttpResponseRedirect(reverse("orgs.org_home"))
 
             return None
@@ -64,7 +64,7 @@ class BoundaryCRUDL(SmartCRUDL):
         def derive_url_pattern(cls, path, action):
             # though we are a read view, we don't actually need an id passed
             # in, that is derived
-            return r"^%s/%s/(?P<osmId>\w+\.?\d+\.?\d?\_?\d?)/$" % (path, action)
+            return r"^%s/%s/(?P<osmId>[\w\.]+)/$" % (path, action)
 
         def get_object(self):
             return AdminBoundary.geometries.get(osm_id=self.kwargs["osmId"])
@@ -128,7 +128,7 @@ class BoundaryCRUDL(SmartCRUDL):
                 end = start + page_size
 
                 matches = sorted(matches, key=lambda match: match.name)[start:end]
-                response = [match.as_json() for match in matches]
+                response = [match.as_json(org) for match in matches]
                 return JsonResponse(response, safe=False)
 
             # otherwise grab each item in the path
@@ -142,10 +142,10 @@ class BoundaryCRUDL(SmartCRUDL):
                     )
                 )
 
-                item = boundary.as_json()
+                item = boundary.as_json(org)
                 children_json = []
                 for child in children:
-                    child_json = child.as_json()
+                    child_json = child.as_json(org)
                     child_json["has_children"] = AdminBoundary.objects.filter(parent__osm_id=child.osm_id).exists()
                     children_json.append(child_json)
 

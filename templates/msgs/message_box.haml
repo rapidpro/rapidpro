@@ -4,7 +4,7 @@
 
 -block extra-style
   :css
-    rp-button {
+    temba-button {
       display: block;
     }
 
@@ -49,8 +49,8 @@
         .span3.sidebox
           %div{style:"margin-bottom: 10px"}
             - if org_perms.msgs.broadcast_send
-              %rp-modax#send-message-modal{ header:'{% trans "Send Message" %}', endpoint:"{% url 'msgs.broadcast_send' %}" }
-                %rp-button#send-message-button{ name:'{% trans "Send Message"%}', primary: 'true'}
+              %temba-modax#send-message-modal{ header:'{% trans "Send Message" %}', endpoint:"{% url 'msgs.broadcast_send' %}" }
+                %temba-button#send-message-button{ name:'{% trans "Send Message"%}', primary: 'true'}
 
           #sidebar-nav
             %ul.nav.nav-list.level1
@@ -278,7 +278,7 @@
 
     $('.page-content').on('click', ".add-label", function() {
       lastChecked = getCheckedIds();
-      var modal = new Modax('{% trans "Create Label" %}', '{% url "msgs.label_create" %}');
+      var modal = new Modax('{{ _("Create Label")|escapejs }}', '{% url "msgs.label_create" %}');
       modal.setIcon('icon-tag');
       modal.setListeners({
         onFormLoaded: function(){
@@ -295,7 +295,7 @@
     });
 
     $('.page-content').on('click', ".add-folder", function() {
-      var modal = new Modax('{% trans "Create Folder" %}', '{% url "msgs.label_create_folder" %}');
+      var modal = new Modax('{{ _("Create Folder")|escapejs }}', '{% url "msgs.label_create_folder" %}');
       modal.setIcon('icon-folder');
       modal.setListeners({
         onCompleted: function() { refresh(null, true);}
@@ -328,7 +328,7 @@
     {% if org_perms.msgs.msg_export %}
     $('.page-content').on('click', ".msg-export-btn", function() {
       lastChecked = getCheckedIds();
-      var modal = new Modax('{% trans "Export Messages" %}', '{{ export_url }}');
+      var modal = new Modax('{{ _("Export Messages")|escapejs }}', '{{ export_url }}');
       modal.setIcon('icon-excel');
       modal.setRedirectOnSuccess(true);
       modal.show();

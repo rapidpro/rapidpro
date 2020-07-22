@@ -49,7 +49,7 @@
   -if org_perms.flows.flow_delete
     :javascript
       $(".delete-flow").live('click', function() {    
-        var modal = new Modax('{% trans "Delete Flow" %}', '{% url "flows.flow_delete" flow.id %}');
+        var modal = new Modax('{{ _("Delete Flow")|escapejs }}', '{% url "flows.flow_delete" flow.id %}');
         modal.addClass("alert");
         modal.setRedirectOnSuccess(true);
         modal.show();
@@ -88,7 +88,7 @@
     // Editing the flow
     {% if org_perms.flows.flow_update %}
     $(".update-rulesflow").live('click', function(){
-      var modal = new Modax('Update Flow', '{% url "flows.flow_update" object.pk %}');
+      var modal = new Modax('{{_("Update Flow")|escapejs }}', '{% url "flows.flow_update" object.pk %}');
       modal.setIcon('icon-users-2');
       modal.setListeners({
         onSuccess: function(data) {location.reload(); },
@@ -120,6 +120,15 @@
         modal.show();
       });
     {% endif %}
+
+    $(".migrate-flow").live("click", function(){
+      var modal = new ConfirmationModal("Switch to New Editor", "{% trans 'The new editor provides powerful new features and better performance, but please note that this cannot be undone.' %}");
+      modal.addClass('alert');
+      modal.setListeners({
+        onPrimary: function() {document.location.href = "{% url 'flows.flow_editor_next' object.uuid %}?migrate=1";},
+      });
+      modal.show()
+    });
 
     $(function(){
       // where is our status box now?

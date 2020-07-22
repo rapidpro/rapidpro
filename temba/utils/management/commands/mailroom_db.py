@@ -21,6 +21,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label
 from temba.orgs.models import Org
 from temba.templates.models import Template, TemplateTranslation
+from temba.tickets.models import Ticketer
 from temba.values.constants import Value
 
 # by default every user will have this password including the superuser
@@ -30,6 +31,7 @@ USER_PASSWORD = "Arst1234"
 LOCATIONS_DUMP = "test-data/nigeria.bin"
 
 ORG1 = dict(
+    uuid="bf0514a5-9407-44c9-b0f9-3f36f9c18414",
     name="UNICEF",
     has_locations=True,
     languages=("eng", "fra"),
@@ -115,7 +117,7 @@ ORG1 = dict(
             urns=["tel:+16055741111"],
             uuid="6393abc0-283d-4c9b-a1b3-641a035c34bf",
             groups=["Doctors"],
-            fields=dict(gender="F", state="Nigeria > Sokoto", ward="Nigeria > Sokoto > Yabo > Kilgori"),
+            fields=dict(gender="F", state="Nigeria > Yobe", ward="Nigeria > Yobe > Gulani > Dokshi"),
         ),
         dict(
             name="Bob",
@@ -178,6 +180,7 @@ ORG1 = dict(
             translations=(
                 dict(
                     channel_uuid="0f661e8b-ea9d-4bd3-9953-d368340acf91",
+                    country="US",
                     language="eng",
                     content="Hi {{1}}, are you still experiencing problems with {{2}}?",
                     variable_count=2,
@@ -186,6 +189,7 @@ ORG1 = dict(
                 ),
                 dict(
                     channel_uuid="0f661e8b-ea9d-4bd3-9953-d368340acf91",
+                    country=None,
                     language="fra",
                     content="Bonjour {{1}}, a tu des problems avec {{2}}?",
                     variable_count=2,
@@ -194,10 +198,48 @@ ORG1 = dict(
                 ),
             ),
         ),
+        dict(
+            name="goodbye",
+            uuid="3b8dd151-1a91-411f-90cb-dd9065bb7a71",
+            translations=(
+                dict(
+                    channel_uuid="0f661e8b-ea9d-4bd3-9953-d368340acf91",
+                    country=None,
+                    language="fra",
+                    content="Salut!",
+                    variable_count=0,
+                    status="A",
+                    external_id="fra2",
+                ),
+            ),
+        ),
+    ),
+    ticketers=(
+        dict(
+            uuid="f9c9447f-a291-4f3c-8c79-c089bbd4e713",
+            name="Mailgun (IT Support)",
+            ticketer_type="mailgun",
+            config=dict(
+                domain="tickets.rapidpro.io",
+                api_key="sesame",
+                to_address="bob@acme.com",
+                brand_name="RapidPro",
+                url_base="https://app.rapidpro.io",
+            ),
+        ),
+        dict(
+            uuid="4ee6d4f3-f92b-439b-9718-8da90c05490b",
+            name="Zendesk (Nyaruka)",
+            ticketer_type="zendesk",
+            config=dict(
+                subdomain="nyaruka", oauth_token="754845822", secret="sesame", push_id="1234-abcd", push_token="523562"
+            ),
+        ),
     ),
 )
 
 ORG2 = dict(
+    uuid="3ae7cdeb-fd96-46e5-abc4-a4622f349921",
     name="Nyaruka",
     has_locations=True,
     languages=("eng", "fra"),
@@ -224,6 +266,7 @@ ORG2 = dict(
     ),
     campaigns=(),
     templates=(),
+    ticketers=(),
 )
 
 ORGS = [ORG1, ORG2]
@@ -258,6 +301,11 @@ class Command(BaseCommand):
         settings.DATABASES["default"]["NAME"] = "mailroom_test"
         settings.DATABASES["default"]["USER"] = "mailroom_test"
 
+        # patch UUID generation so it's deterministic
+        from temba.utils import uuid
+
+        uuid.default_generator = uuid.seeded_generator(1234)
+
         self._log("Running migrations...\n")
 
         # run our migrations to put our database in the right state
@@ -273,9 +321,8 @@ class Command(BaseCommand):
         superuser = User.objects.create_superuser("root", "root@nyaruka.com", USER_PASSWORD)
         self._log(self.style.SUCCESS("OK") + "\n")
 
-        input(
-            '\nPlease start mailroom:\n   % ./mailroom -db="postgres://mailroom_test:temba@localhost/mailroom_test?sslmode=disable"\n\nPress enter when ready.\n'
-        )
+        mr_cmd = 'mailroom -db="postgres://mailroom_test:temba@localhost/mailroom_test?sslmode=disable" -uuid-seed=123'
+        input(f"\nPlease start mailroom:\n   % ./{mr_cmd}\n\nPress enter when ready.\n")
 
         country, locations = self.load_locations(LOCATIONS_DUMP)
 
@@ -318,6 +365,7 @@ class Command(BaseCommand):
         self._log(f"\nCreating org {spec['name']}...\n")
 
         org = Org.objects.create(
+            uuid=spec["uuid"],
             name=spec["name"],
             timezone=pytz.timezone("America/Los_Angeles"),
             brand="rapidpro.io",
@@ -351,11 +399,12 @@ class Command(BaseCommand):
         self.create_labels(spec, org, superuser)
         self.create_groups(spec, org, superuser)
         self.create_flows(spec, org, superuser)
-        self.create_contacts(spec, org, locations, superuser)
+        self.create_contacts(spec, org, superuser)
         self.create_group_contacts(spec, org, superuser)
         self.create_campaigns(spec, org, superuser)
         self.create_templates(spec, org, superuser)
         self.create_classifiers(spec, org, superuser)
+        self.create_ticketers(spec, org, superuser)
 
         return org
 
@@ -396,6 +445,22 @@ class Command(BaseCommand):
                 classifier.intents.create(
                     name=intent["name"], external_id=intent["external_id"], created_on=timezone.now()
                 )
+
+        self._log(self.style.SUCCESS("OK") + "\n")
+
+    def create_ticketers(self, spec, org, user):
+        self._log(f"Creating {len(spec['ticketers'])} ticketers... ")
+
+        for t in spec["ticketers"]:
+            Ticketer.objects.create(
+                org=org,
+                name=t["name"],
+                config=t["config"],
+                ticketer_type=t["ticketer_type"],
+                uuid=t["uuid"],
+                created_by=user,
+                modified_by=user,
+            )
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
@@ -453,7 +518,7 @@ class Command(BaseCommand):
 
         for f in spec["flows"]:
             with open("media/test_flows/mailroom/" + f["file"], "r") as flow_file:
-                org.import_app(json.load(flow_file), user, legacy=True)
+                org.import_app(json.load(flow_file), user)
 
                 # set the uuid on this flow
                 Flow.objects.filter(org=org, name=f["name"]).update(uuid=f["uuid"])
@@ -518,6 +583,7 @@ class Command(BaseCommand):
                     channel,
                     t["name"],
                     tt["language"],
+                    tt["country"],
                     tt["content"],
                     tt["variable_count"],
                     tt["status"],
@@ -526,8 +592,10 @@ class Command(BaseCommand):
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
-    def create_contacts(self, spec, org, locations, user):
+    def create_contacts(self, spec, org, user):
         self._log(f"Creating {len(spec['contacts'])} contacts... ")
+
+        fields_by_key = {f.key: f for f in ContactField.user_fields.all()}
 
         for c in spec["contacts"]:
             contact = Contact.get_or_create_by_urns(org, user, c["name"], c["urns"])
@@ -535,13 +603,14 @@ class Command(BaseCommand):
             contact.save(update_fields=["uuid"], handle_update=False)
 
             # add to any groups we belong to
-            for g in c.get("groups", []):
-                group = ContactGroup.user_groups.get(org=org, name=g)
-                group.update_contacts(user, [contact], True)
+            groups = list(ContactGroup.user_groups.filter(org=org, name__in=c.get("groups", [])))
+            mods = contact.update_static_groups(groups)
 
             # set any fields we have
-            for key, value in c.get("fields", {}).items():
-                contact.set_field(user, key, value)
+            values = {fields_by_key[key]: val for key, val in c.get("fields", {}).items()}
+            mods += contact.update_fields(values)
+
+            contact.modify(user, mods)
 
         self._log(self.style.SUCCESS("OK") + "\n")
 

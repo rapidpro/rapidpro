@@ -47,9 +47,7 @@
   :javascript
     $(".smartmin-form select").select2({minimumResultsForSearch: 1, width: 'element', containerCssClass: "select2-custom-field-select" });
 
-    $(document).ready(function() {
-      useFontCheckbox(".field-include-checkbox input[type=checkbox]" );
-    });
+   
 
     var contactFields = {{ contact_fields|to_json }};
     $('.smartmin-form .field-as-name input').select2({
@@ -128,6 +126,11 @@
 
     .field-as-type select {
       width: 100px;
+    }
+
+    .field-include-checkbox {
+      display: inline-block;
+      margin-bottom: 3px;
     }
 
     .field-include-checkbox input {

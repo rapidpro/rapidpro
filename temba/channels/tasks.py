@@ -1,11 +1,16 @@
 import logging
 from datetime import timedelta
 
+import pytz
+
 from django.conf import settings
+from django.db.models import Sum
 from django.utils import timezone
 
 from celery.task import task
 
+from temba.orgs.models import Org
+from temba.utils.analytics import track
 from temba.utils.celery import nonoverlapping_task
 
 from .models import Alert, Channel, ChannelCount, ChannelLog, SyncEvent
@@ -82,3 +87,34 @@ def trim_channel_log_task():  # pragma: needs cover
 )
 def squash_channelcounts():
     ChannelCount.squash()
+
+
+@nonoverlapping_task(
+    track_started=True, name="track_org_channel_counts", lock_key="track_org_channel_counts", lock_timeout=7200
+)
+def track_org_channel_counts(now=None):
+    """
+    Run daily, logs to our analytics the number of incoming and outgoing messages/ivr messages per org that had
+    more than one message received or sent in the previous day. This helps track engagement of orgs.
+    """
+    now = now or timezone.now()
+    yesterday = (now.astimezone(pytz.utc) - timedelta(days=1)).date()
+
+    stats = [
+        dict(key="temba.msg_incoming", count_type=ChannelCount.INCOMING_MSG_TYPE),
+        dict(key="temba.msg_outgoing", count_type=ChannelCount.OUTGOING_MSG_TYPE),
+        dict(key="temba.ivr_incoming", count_type=ChannelCount.INCOMING_IVR_TYPE),
+        dict(key="temba.ivr_outgoing", count_type=ChannelCount.OUTGOING_IVR_TYPE),
+    ]
+
+    # calculate each stat and track
+    for stat in stats:
+        org_counts = (
+            Org.objects.filter(
+                channels__counts__day=yesterday, channels__counts__count_type=stat["count_type"]
+            ).annotate(count=Sum("channels__counts__count"))
+        ).prefetch_related("administrators")
+
+        for org in org_counts:
+            if org.administrators.all():
+                track(org.administrators.all()[0].email, stat["key"], dict(count=org.count))

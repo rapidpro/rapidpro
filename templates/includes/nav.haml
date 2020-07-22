@@ -1,91 +1,264 @@
--load smartmin i18n temba
+-load smartmin i18n humanize temba compress
 
-%ul#top-menu
+-compress css inline
+  {% lessblock %}
+    :plain
 
+      #menu {
+        display: flex;
+        position: absolute;
+        top: 40px;
+        right: 20px;
+
+        .submenu {
+          display: flex;
+          flex-direction: column;
+          padding-top: 15px;
+
+          a {
+            width: 28px;
+            margin: auto;
+            .circle {
+              color: var(--color-primary-dark);
+              border-color: var(--color-primary-dark);
+              height: 28px;
+              width: 28px;
+              border-width: 2px;
+
+              div {
+                height: 14px;
+                width: 14px;
+                font-size: 14px;
+              }
+            }
+
+            .title {
+              color: var(--color-primary-dark);
+              margin-bottom: 10px;
+              font-size: 11px;
+              
+            }
+
+            &:hover {
+              .circle {
+                background: var(--color-primary-dark);
+                color: #fff;
+              }
+            }
+          }
+        }
+
+        .more {
+          .icon-menu-4 {
+            width: 15px;
+            margin-left: 0px;
+            margin-right: 20px;
+            font-size: 36px;
+            color: var(--color-nav-unselected);
+          }
+        }
+      
+        a {
+          width: 75px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-decoration: none;
+          border: 0px solid red;
+          text-align: center;
+
+          &:hover, &.active{
+            text-decoration: none;
+            .circle {
+              background: var(--color-nav-selected-bg);
+              color: var(--color-nav-selected-text);
+            }
+          }
+
+          .title {
+            font-size: 12px;
+            font-family: 'Helvetica Neue', sans-serif;
+            letter-spacing: 0.05em;
+            margin-top: 3px;
+            font-weight: 400;
+            color: var(--color-nav-unselected);
+
+          }
+
+          .circle {
+
+            div {
+              border: 0px solid red;
+              width: 18px;
+              height: 20px;
+              text-align: center;
+              margin: 0;
+            }
+
+            .icon-3 {
+              font-size: 17px;
+              width: 16px;
+              height: 20px;
+            }
+
+            .icon-2 {
+              font-size: 15px;
+              width: 14px;
+              height: 12px;
+            }
+
+            .icon-1 {
+              font-size: 14px;
+              width: 14px;
+              height: 14px;
+            }
+
+            width: 32px;
+            height: 32px;
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            font-size:19px;
+            background: transparent;
+            color: var(--color-nav-unselected);
+            border-radius: 50%;
+            border: 3px solid var(--color-nav-unselected);
+            transition: all 150ms linear;
+          }
+        }
+      }
+  {% endlessblock %}
+
+#menu
   -if org_perms.msgs.msg_inbox and not request.user.is_superuser
-    %li.nav-messages
-      %a.icon-nav-messages{href:"{% url 'msgs.msg_inbox' %}", class:"{% active request 'inbox|outbox|broadcast|call|msg/filter|msg/flow|msg/archived|failed' %}"}
-        .title
-          -trans "messages"
+    %a{href:"{% url 'msgs.msg_inbox' %}", class:"{% active request 'inbox|outbox|broadcast|call|msg/filter|msg/flow|msg/archived|failed' %}"}
+      .circle
+        .icon-bubble-3.icon-2
+      .title 
+        -trans "messages"
 
   -if org_perms.contacts.contact_list and not request.user.is_superuser
-    %li.nav-contacts
-      %a.icon-nav-contacts{href:"{% url 'contacts.contact_list' %}", class:"{% active request 'contact|imports' %}"}
-        .title
-          -trans "contacts"
+    %a{href:"{% url 'contacts.contact_list' %}", class:"{% active request 'contact|imports' %}"}
+      .circle
+        .icon-vcard
+      .title 
+        -trans "contacts"
 
   -if org_perms.flows.flow_list and not request.user.is_superuser
-    %li.nav-flows
-      %a.icon-nav-flows{href:"{% url 'flows.flow_list' %}", class:"{% active request '(?<!msg)/flow' %}"}
-        .title
-          -trans "flows"
+    %a{href:"{% url 'flows.flow_list' %}", class:"{% active request '(?<!msg)/flow' %}"}
+      .circle
+        .icon-tree-2.icon-3
+      .title 
+        -trans "flows"
 
   -if org_perms.campaigns.campaign_list and not request.user.is_superuser
-    %li.nav-campaigns
-      %a.icon-nav-campaigns{href:"{% url 'campaigns.campaign_list' %}", class:"{% active request 'campaign' %}"}
-        .title
-          -trans "campaigns"
+    %a{href:"{% url 'campaigns.campaign_list' %}", class:"{% active request 'campaign' %}"}
+      .circle
+        .icon-instant
+      .title
+        -trans "campaigns"
 
   -if org_perms.triggers.trigger_list and not request.user.is_superuser
-    %li.nav-triggers
-      %a.icon-nav-triggers{href:"{% url 'triggers.trigger_list' %}", class:"{% active request 'trigger' %}"}
-        .title
-          -trans "triggers"
+    %a{href:"{% url 'triggers.trigger_list' %}", class:"{% active request 'trigger' %}"}
+      .circle
+        .icon-feed
+      .title
+        -trans "triggers"
+
+  -if org_perms.tickets.ticket_open and not request.user.is_superuser and user_org and user_org.has_ticketer
+    %a{href:"{% url 'tickets.ticket_open' %}", class:"{% active request 'ticket' %}"}
+      .circle
+        .icon-ticket
+      .title
+        -trans "tickets"
 
   -if org_perms.channels.channel_list or request.user.is_superuser
     -if not has_outgoing_channel and org_perms.channels.channel_claim
-      %li.nav-channels
-        %a.icon-nav-channels{href:"{% url 'channels.channel_list' %}", class:"{% active request 'channels' %}"}
-          .title
-            -trans "channels"
+      %a{href:"{% url 'channels.channel_list' %}", class:"{% active request 'channels' %}"}
+        .circle
+          .icon-phone
+        .title
+          -trans "channels"
 
   -if request.user.is_superuser or perms.auth.user_list
     -if not user_org
-      %li.nav-groups
-        %a.icon-nav-groups{href:"{% url 'orgs.user_list' %}", class:"{% active request 'users' %}"}
-          .title
-            -trans "users"
+      %a{href:"{% url 'orgs.user_list' %}", class:"{% active request 'users' %}"}
+        .circle
+          .icon-users-2.icon-3
+        .title
+          -trans "users"
 
   -if request.user.is_superuser or perms.orgs.org_manage
     -if not user_org
-      %li.nav-orgs
-        %a.icon-nav-orgs{href:"{% url 'orgs.org_manage' %}?search=Nyaruka", class:"{% active request 'org' %}"}
-          .title
-            -trans "orgs"
-
-  -if request.user.is_superuser or perms.orgs.org_dashboard
-    %li.nav-dashboard
-      %a.icon-nav-dashboard{href:"{% url 'dashboard.dashboard_home' %}", class:"{% active request 'dashboard(?!/flows)' %}"}
+      %a{href:"{% url 'orgs.org_manage' %}", class:"{% active request 'org' %}"}
+        .circle
+          .icon-office.icon-2
         .title
-          -trans "dashboard"
+          -trans "workspaces"
 
   -if request.user.is_superuser or perms.apks.apk_list
-    %li.nav-android
-      %a.icon-nav-android{href:"{% url 'apks.apk_list' %}", class:"{% active request 'apks' %}"}
-        .title
-          -trans "android"
+    %a{href:"{% url 'apks.apk_list' %}", class:"{% active request 'apk' %}"}
+      .circle
+        .icon-channel-android
+      .title
+        -trans "android"
+
+  -if request.user.is_superuser or perms.orgs.org_dashboard
+    %a{href:"{% url 'dashboard.dashboard_home' %}", class:"{% active request 'dashboard(?!/flows)' %}"}
+      .circle
+        .icon-bars-3.icon-1
+      .title
+        -trans "dashboard"
 
   -if not request.user.is_anonymous
-    %li.more
+    .more
       %a.icon-menu-4{href:""}
-
       .submenu-container.hide
         .submenu
 
-          %a.icon-nav-logout{href:"{% url 'users.user_logout' %}"}
-            .title
-              -trans "logout"
+          -block loggedin-submenu
+
+          -if request.user.is_superuser or perms.auth.user_list
+            -if user_org
+              %a{href:"{% url 'orgs.user_list' %}", class:"{% active request 'users' %}"}
+                .circle
+                  .icon-users-2
+                .title
+                  -trans "users"
+
+          -if request.user.is_superuser or perms.orgs.org_manage
+            -if user_org
+              %a{href:"{% url 'orgs.org_manage' %}", class:"{% active request 'org' %}"}
+                .circle
+                  .icon-office
+                .title
+                  -trans "orgs"
+
+          -if perms.orgs.org_service and user_org
+            %a.posterize{href:"{% url 'orgs.org_service' %}"}
+              .circle
+                .icon-exit
+              .title
+                -trans "end"
+          -else
+            %a{href:"{% url 'users.user_logout' %}"}
+              .circle
+                .icon-exit
+              .title
+                -trans "logout"
 
   -else
     -block temba-login
 
-      %li.nav-login
-        %a.icon-nav-login{href:"{% ssl_brand_url 'users.user_check_login' %}"}
-          .title
-            -trans "sign in"
+    %a{href:"{% ssl_brand_url 'users.user_check_login' %}"}
+      .circle
+        .icon-user
+      .title
+        -trans "sign in"
 
 -if user_org and user_org.has_low_credits and not user.is_superuser
-  -if user_org.get_credits_remaining < 0
+  -if user_org.get_credits_remaining <= 0
     .nav-alert.interrupted
       %a{href:'{% url "orgs.topup_list" %}'}
         {% blocktrans %}You are out of credits, add more to resume your service{% endblocktrans %}
@@ -93,8 +266,14 @@
     .nav-alert
       %a{href:'{% url "orgs.topup_list" %}'}
         {% blocktrans count credits=user_org.get_credits_remaining %}You have {{ credits }} credit remaining, add credits to prevent interruption{%plural%}You have {{ credits }} credits remaining, add credits to prevent interruption{% endblocktrans %}</a>
+
+-elif user_org and user_org.has_expiring_credits and not user.is_superuser
+  .nav-alert
+    -blocktrans trimmed
+      Your active credits will expire soon, add credits to prevent interruption.
+
 -elif unsent_msgs or delayed_syncevents
   .nav-alert
     %a{href:'{% url "orgs.org_home" %}'}
       .icon-warning
-      -trans "Your phone is having difficulty relaying messages"            
+      -trans "Your phone is having difficulty relaying messages"

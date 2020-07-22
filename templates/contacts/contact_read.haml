@@ -29,7 +29,7 @@
         .{class:"glyph {{urn|urn_icon}}"}
         -if not user_org.is_anon
           -if urn.sendable
-            %rp-modax.urn-link{ header:'Send Message', endpoint:"{% url 'msgs.broadcast_send' %}?u={{urn.id}}"}
+            %temba-modax.urn-link{ header:'Send Message', endpoint:"{% url 'msgs.broadcast_send' %}?u={{urn.id}}"}
               %a.contact-urn-path{href:'#'}><
                 {{urn|format_urn:user_org}}
           -else
@@ -123,6 +123,25 @@
   -if all_contact_fields|length > 6
     %a.pull-right.show-all.fields
       .icon-arrow-down
+
+  -if open_tickets
+    %h5
+      -trans "Open Tickets"
+
+    %table.activity.tickets
+      -for ticket in open_tickets
+        %tr.item
+          %td.icon
+            %span.glyph.icon-ticket
+          %td.details
+            %a(href="{% url 'tickets.ticket_filter' ticket.ticketer.uuid %}")
+              {{ ticket.ticketer.name }}
+          %td.details
+            {{ ticket.subject }}
+          %td.details
+            {{ ticket.body }}
+          %td.created_on
+            {% short_datetime ticket.opened_on %}
 
   -if upcoming_events
     %h5
@@ -577,14 +596,14 @@
 
     {% if org_perms.contacts.contact_update %}
     $(".update-contact").live('click', function(){
-      var modal = new Modax('{% trans "Update Contact" %}','{% url "contacts.contact_update" object.pk %}');
+      var modal = new Modax('{{ _("Update Contact")|escapejs }}','{% url "contacts.contact_update" object.pk %}');
       modal.setIcon('icon-user');
       modal.setRedirectOnSuccess(true);
       modal.show();
     });
 
     $(".update-contact-fields").live('click', function(){
-      var modal = new Modax('{% trans "Custom Fields" %}','{% url "contacts.contact_update_fields" object.pk %}');
+      var modal = new Modax('{{ _("Custom Fields")|escapejs }}','{% url "contacts.contact_update_fields" object.pk %}');
       modal.setIcon('icon-user');
       modal.setRedirectOnSuccess(true);
       modal.show();
@@ -592,7 +611,7 @@
 
     $('.contact-field-value.editable').live('click', function(evt) {
       var field_id = $(this).parent().data('id');
-      var modal = new Modax('{% trans "Custom Fields" %}','{% url "contacts.contact_update_fields" object.pk %}?field=' + field_id);
+      var modal = new Modax('{{ _("Custom Fields")|escapejs }}','{% url "contacts.contact_update_fields" object.pk %}?field=' + field_id);
       modal.setIcon('icon-user');
       modal.setRedirectOnSuccess(true);
       modal.show();
@@ -617,7 +636,7 @@
       modal.setListeners({onPrimary: function(){
         $('#delete-form').click();
       }}, false);
-      modal.setPrimaryButton('{% trans "Delete" %}');
+      modal.setPrimaryButton('{{ _("Delete")|escapejs }}');
       modal.show();
     });
     {% endif %}

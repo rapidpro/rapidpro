@@ -7,6 +7,7 @@ import regex
 from rest_framework import serializers
 
 from django.conf import settings
+from django.db import transaction
 
 from temba import mailroom
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
@@ -18,8 +19,10 @@ from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
+from temba.mailroom import modifiers
 from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
 from temba.templates.models import Template, TemplateTranslation
+from temba.tickets.models import Ticketer
 from temba.utils import extract_constants, json, on_transaction_commit
 from temba.values.constants import Value
 
@@ -109,15 +112,10 @@ class WriteSerializer(serializers.Serializer):
                 detail={"non_field_errors": ["Request body should be a single JSON object"]}
             )
 
-        if self.context["org"].is_suspended():
-            raise serializers.ValidationError(
-                detail={
-                    "non_field_errors": [
-                        "Sorry, your account is currently suspended. "
-                        "To enable sending messages, please contact support."
-                    ]
-                }
-            )
+        if self.context["org"].is_flagged or self.context["org"].is_suspended:
+            state = "flagged" if self.context["org"].is_flagged else "suspended"
+            msg = f"Sorry, your account is currently {state}. To enable sending messages, please contact support."
+            raise serializers.ValidationError(detail={"non_field_errors": [msg]})
 
         return super().run_validation(data)
 
@@ -577,13 +575,17 @@ class ContactWriteSerializer(WriteSerializer):
         return value
 
     def validate_fields(self, value):
-        valid_keys = {f.key for f in self.context["contact_fields"]}
+        fields_by_key = {f.key: f for f in self.context["contact_fields"]}
+        values_by_field = {}
 
         for field_key, field_val in value.items():
-            if field_key not in valid_keys:
+            field_obj = fields_by_key.get(field_key)
+            if not field_obj:
                 raise serializers.ValidationError(f"Invalid contact field key: {field_key}")
 
-        return value
+            values_by_field[field_obj] = field_val
+
+        return values_by_field
 
     def validate_urns(self, value):
         org = self.context["org"]
@@ -609,7 +611,7 @@ class ContactWriteSerializer(WriteSerializer):
             raise serializers.ValidationError("Inactive contacts can't be modified.")
 
         # we allow creation of contacts by URN used for lookup
-        if not data.get("urns") and "urns__identity" in self.context["lookup_values"]:
+        if not data.get("urns") and "urns__identity" in self.context["lookup_values"] and not self.instance:
             url_urn = self.context["lookup_values"]["urns__identity"]
 
             data["urns"] = [fields.validate_urn(url_urn)]
@@ -626,35 +628,33 @@ class ContactWriteSerializer(WriteSerializer):
         groups = self.validated_data.get("groups")
         custom_fields = self.validated_data.get("fields")
 
-        changed = []
+        mods = []
 
-        if self.instance:
-            # update our name and language
-            if "name" in self.validated_data and name != self.instance.name:
-                self.instance.name = name
-                changed.append("name")
-            if "language" in self.validated_data and language != self.instance.language:
-                self.instance.language = language
-                changed.append("language")
+        with transaction.atomic():
+            if self.instance:
+                # update our name and language
+                if "name" in self.validated_data and name != self.instance.name:
+                    mods.append(modifiers.Name(name=name))
+                if "language" in self.validated_data and language != self.instance.language:
+                    mods.append(modifiers.Language(language=language))
 
-            if changed:
-                self.instance.save(update_fields=changed, handle_update=True)
+                if "urns" in self.validated_data and urns is not None:
+                    mods += self.instance.update_urns(urns)
+            else:
+                self.instance = Contact.get_or_create_by_urns(
+                    self.context["org"], self.context["user"], name, urns=urns, language=language
+                )
 
-            if "urns" in self.validated_data and urns is not None:
-                self.instance.update_urns(self.context["user"], urns)
+            # update our fields
+            if custom_fields is not None:
+                mods += self.instance.update_fields(values=custom_fields)
 
-        else:
-            self.instance = Contact.get_or_create_by_urns(
-                self.context["org"], self.context["user"], name, urns=urns, language=language
-            )
+            # update our groups
+            if groups is not None:
+                mods += self.instance.update_static_groups(groups)
 
-        # update our fields
-        if custom_fields is not None:
-            self.instance.set_fields(user=self.context["user"], fields=custom_fields)
-
-        # update our groups
-        if groups is not None:
-            self.instance.update_static_groups(self.context["user"], groups)
+        if mods:
+            self.instance.modify(self.context["user"], mods)
 
         return self.instance
 
@@ -786,6 +786,11 @@ class ContactBulkActionSerializer(WriteSerializer):
     action = serializers.ChoiceField(required=True, choices=ACTIONS)
     group = fields.ContactGroupField(required=False, allow_dynamic=False)
 
+    def validate_contacts(self, value):
+        if not value:
+            raise serializers.ValidationError("Contacts can't be empty.")
+        return value
+
     def validate(self, data):
         contacts = data["contacts"]
         action = data["action"]
@@ -820,14 +825,13 @@ class ContactBulkActionSerializer(WriteSerializer):
             mailroom.queue_interrupt(self.context["org"], contacts=contacts)
         elif action == self.ARCHIVE:
             Msg.archive_all_for_contacts(contacts)
-        else:
+        elif action == self.BLOCK:
+            Contact.bulk_change_status(user, contacts, Contact.STATUS_BLOCKED)
+        elif action == self.UNBLOCK:
+            Contact.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
+        elif action == self.DELETE:
             for contact in contacts:
-                if action == self.BLOCK:
-                    contact.block(user)
-                elif action == self.UNBLOCK:
-                    contact.unblock(user)
-                elif action == self.DELETE:
-                    contact.release(user)
+                contact.release(user)
 
 
 class FlowReadSerializer(ReadSerializer):
@@ -1028,6 +1032,7 @@ class FlowStartWriteSerializer(WriteSerializer):
         return FlowStart.create(
             self.validated_data["flow"],
             self.context["user"],
+            start_type=FlowStart.TYPE_API_ZAPIER if self.context["is_zapier"] else FlowStart.TYPE_API,
             restart_participants=restart_participants,
             contacts=contacts,
             groups=groups,
@@ -1360,3 +1365,15 @@ class TemplateReadSerializer(ReadSerializer):
     class Meta:
         model = Template
         fields = ("uuid", "name", "translations", "created_on", "modified_on")
+
+
+class TicketerReadSerializer(ReadSerializer):
+    type = serializers.SerializerMethodField()
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    def get_type(self, obj):
+        return obj.ticketer_type
+
+    class Meta:
+        model = Ticketer
+        fields = ("uuid", "name", "type", "created_on")

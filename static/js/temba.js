@@ -104,7 +104,7 @@ function bindRefreshBlock() {
 document.addEventListener('rp-refresh-begin', function() {
     var checkedIds = getCheckedIds().length > 0;
     let openedModals = false;
-    var modals = document.querySelectorAll('rp-modax, rp-modax');
+    var modals = document.querySelectorAll('temba-modax');
 
     for (var modal of modals) {
         if (modal.open) {
@@ -113,9 +113,12 @@ document.addEventListener('rp-refresh-begin', function() {
         }
     }
 
-    var pjaxElement = document.querySelector('#pjax')
+    var pjaxElement = document.querySelector('#pjax');
     if (pjaxElement) {
-        pjaxElement.setAttribute('data-no-pjax', dropDownOpen || checkedIds || openedModals);
+        pjaxElement.setAttribute(
+            'data-no-pjax',
+            dropDownOpen || checkedIds || openedModals
+        );
     }
 });
 

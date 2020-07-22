@@ -94,7 +94,7 @@
       %script{src:"{{ STATIC_URL }}coffee/formax.coffee", type:"text/coffeescript"}
       %script{src:"{{ STATIC_URL }}coffee/completions.coffee", type:"text/coffeescript"}
     
-    -include "includes/components-head.html"
+    -include "components-head.html"
     -include "includes/frame_top.html"
 
     -if brand.favico
@@ -144,7 +144,6 @@
           --color-primary-dark: rgb(var(--primary-rgb));
           --color-secondary-dark: rgb(var(--secondary-rgb));
 
-
           /* light text goes over dark, dark over lights */
           --color-text-light: rgba(255,255,255,.92);
           --color-text-dark: rgba(0,0,0,.5);
@@ -180,9 +179,16 @@
           font-weight: 200;
           font-family: var(--font-family);
 
+          --button-y: 8px;
+          --button-x: 14px;
+
+          --color-nav-unselected: #fff;
+          --color-nav-selected-bg: #fff;
+          --color-nav-selected-text: var(--color-primary-dark);
+
         }
 
-        rp-select:focus {
+        temba-select:focus {
           outline: none;
           box-shadow: none;
         }
@@ -241,8 +247,9 @@
 
 -load smartmin
 {% block body %}
--include "includes/components-body.html"
+
 %body#pageBody
+  -include "components-body.html"
   .page-wrap
 
     <!-- Header -->
@@ -419,16 +426,16 @@
 
         });
 
-        $('#top-menu li').hoverIntent({
+        $('#menu .more').hoverIntent({
           over:function() {
             // $('.submenu').hide();
             $(this).find('.submenu-container').slideDown(250);
-            $(this).parents("#top-menu").addClass('expanded');
+            $(this).parents("#menu").addClass('expanded');
             // $(this).find('.submenu').show();
           },
           out:function() {
           $(this).find('.submenu-container').slideUp(200);
-          $(this).parents("#top-menu").removeClass('expanded');
+          $(this).parents("#menu").removeClass('expanded');
             //$(this).find('.submenu').hide();
           },
           timeout:300

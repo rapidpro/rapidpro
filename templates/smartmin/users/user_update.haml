@@ -20,9 +20,9 @@
     .deletion.hide
       .title
         -if orgs
-          -trans "Delete Organization"
+          -trans "Delete Workspace"
         -else
-          -trans "Delete User"
+          -trans "Delete Login"
 
       .body
         - with user.get_owned_orgs as orgs
@@ -31,16 +31,16 @@
               .attn
                 -trans "Whoa, whoa, whoa!"
               .orgs
-                -trans "By deleting this user,"
+                -trans "By deleting this login,"
                 -for org in orgs
                   %span.org
                     {{org.name}}{{forloop|oxford}}
                 -blocktrans
-                  will also be deleted. All organization data will be deleted and there is no
+                  will also be deleted. All workspace data will be deleted and there is no
                   going back. This includes all flows, contacts, messages, etc.
           - else
             -blocktrans with user.username as name
-              Are you sure you want to delete the user {{name}}?
+              Are you sure you want to delete the login {{name}}?
 
     %a#delete-form.posterize{href:'{% url "orgs.user_delete" user.id %}?delete=true'}
 
@@ -54,7 +54,7 @@
         modal.setListeners({onPrimary: function(){
           $('#delete-form').click();
         }}, false);
-        modal.setPrimaryButton('{% trans "Delete" %}');
+        modal.setPrimaryButton('{{ _("Delete")|escapejs }}');
         modal.show();
 
       });

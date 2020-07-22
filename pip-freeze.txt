@@ -12,7 +12,7 @@ asn1crypto==0.22.0        # via cryptography
 attrs==18.1.0             # via black
 beautifulsoup4==4.7.1
 billiard==3.5.0.2         # via celery
-black==19.3b0
+black==19.10b0
 boto3==1.9.91
 botocore==1.12.91         # via boto3, s3transfer
 celery[redis]==4.2.1
@@ -65,6 +65,7 @@ openpyxl==2.5.14
 packaging==19.0
 phonenumbers
 pip-tools==4.0.0
+polib==1.1.0
 psycopg2-binary==2.7.7
 pycodestyle==2.5.0        # via flake8
 pycountry==18.12.8
@@ -85,6 +86,7 @@ python-intercom==3.1.0
 python-magic==0.4.15
 python-telegram-bot==11.1.0
 pytz
+pyotp==2.3.0
 rapidpro-expressions==1.7
 raven==6.10.0
 rcssmin==1.0.6            # via django-compressor
@@ -98,7 +100,7 @@ rjsmin==1.0.12            # via django-compressor
 s3transfer==0.2.0         # via boto3
 simplejson==3.16.0
 six==1.10.0               # via analytics-python, cryptography, elasticsearch-dsl, librato-bg, librato-metrics, packaging, pip-tools, python-dateutil, python-intercom, responses, twilio
-smartmin==2.2.0
+smartmin==2.2.2
 soupsieve==1.6.2          # via beautifulsoup4
 sqlparse==0.2.3           # via django, smartmin
 stripe==2.20.3

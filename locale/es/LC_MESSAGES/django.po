@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-13 19:11+0000\n"
+"POT-Creation-Date: 2020-07-15 18:45+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -618,9 +618,10 @@ msgstr "Próximo intento"
 
 #, fuzzy
 msgid ""
-"If you are based in Kenya, Malawi, Nigeria, Rwanda or Uganda you can purchase a short\n"
-"    code from <a href=\"http://africastalking.com\">Africa's Talking</a> and connect it\n"
-"    in a few simple steps."
+"\n"
+"        You can purchase a short code from <a href=\"http://africastalking.com\">Africa's Talking</a>\n"
+"        and connect it in a few simple steps.\n"
+"        "
 msgstr ""
 "\n"
 "                  Si vive en Kenia, puede comprar un código abreviado\n"
@@ -695,19 +696,37 @@ msgstr ""
 msgid "Your short code on Africa's Talking"
 msgstr "Su código abreviado en Africa's Talking"
 
-msgid "Kenya"
+msgid "Burkina Faso"
 msgstr ""
 
-msgid "Uganda"
+msgid "Côte d'Ivoire"
+msgstr ""
+
+msgid "Ethiopia"
+msgstr ""
+
+msgid "Kenya"
 msgstr ""
 
 msgid "Malawi"
 msgstr ""
 
+msgid "Nigeria"
+msgstr ""
+
 msgid "Rwanda"
 msgstr ""
 
-msgid "Nigeria"
+msgid "Tanzania"
+msgstr ""
+
+msgid "Uganda"
+msgstr ""
+
+msgid "South Africa"
+msgstr "Sudáfrica"
+
+msgid "Zambia"
 msgstr ""
 
 #, fuzzy
@@ -1083,7 +1102,7 @@ msgstr ""
 #, fuzzy
 #| msgid "Connect your Kannel instance, we'll walk you through the steps necessary to get your SMSC connection working in a few minutes."
 msgid ""
-"Connect your <a href=\"http://clickatell.com/\" target=\"_blank\">Clickatell</a> number, we'll walk you\n"
+"Connect your <a href=\"http://clickatell.com/\">Clickatell</a> number, we'll walk you\n"
 "                           through the steps necessary to get your Clickatell connection working in a few minutes."
 msgstr "Conecte su caso Kannel, lo orientaremos para que siga los pasos necesarios para que su conexión SMSC funcione en cuestión de minutos."
 
@@ -1361,6 +1380,14 @@ msgstr "El token secreto que este transmisor deberá usar cuando firme los pedid
 msgid "The maximum length of any single message on this channel. (longer messages will be split)"
 msgstr ""
 
+#, fuzzy
+#| msgid "Numeric Value:"
+msgid "Authorization Header Value"
+msgstr "Valor numérico:"
+
+msgid "The Authorization header value added when calling the URL (if any)"
+msgstr ""
+
 msgid "Send URL"
 msgstr "Enviar URL"
 
@@ -1406,8 +1433,33 @@ msgstr ""
 msgid "The name of the Facebook page"
 msgstr "El nombre del video"
 
+#, fuzzy
+#| msgid "The name of the video"
+msgid "Reconnect Facebook Page"
+msgstr "El nombre del video"
+
 msgid ""
-"Add a <a href=\"https://firebase.google.com/docs/cloud-messaging/\" target=\"_blank\"> Firebase Cloud\n"
+"Add a <a href=\"http://facebook.com\">Facebook</a> bot to send and receive messages on behalf\n"
+"    of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect"
+msgstr ""
+
+#, fuzzy
+#| msgid "API Token"
+msgid "The User Access Token"
+msgstr "Token API"
+
+#, fuzzy
+#| msgid "The number of commands that we gave the channel"
+msgid "The Facebook User ID of the admin that connected the channel"
+msgstr "El número de comandos que nos dio el transmisor"
+
+#, fuzzy
+#| msgid "Your changes could not be saved. Please reload the page and try again."
+msgid "Sorry your Facebook channel could not be connected. Please try again"
+msgstr "No se pudieron guardar sus cambios. Por favor, actualice la página e inténtelo nuevamente."
+
+msgid ""
+"Add a <a href=\"https://firebase.google.com/docs/cloud-messaging/\"> Firebase Cloud\n"
 "    Messaging Channel</a> to send and receive messages. Your users will need an App to send and receive messages."
 msgstr ""
 
@@ -1459,7 +1511,7 @@ msgstr "Notificaciones de correo electrónico"
 msgid "Check if you want this channel to send notifications to contacts."
 msgstr ""
 
-msgid "Connect your approved <a href=\"https://www.freshworks.com/live-chat-software/\" target=\"_blank\">FreshChat</a> Channel"
+msgid "Connect your approved <a href=\"https://www.freshworks.com/live-chat-software/\">FreshChat</a> Channel"
 msgstr ""
 
 #, fuzzy
@@ -1799,7 +1851,7 @@ msgstr ""
 #, fuzzy
 #| msgid "Connect your Kannel instance, we'll walk you through the steps necessary to get your SMSC connection working in a few minutes."
 msgid ""
-"Connect your <a href=\"http://www.jasminsms.com/\" target=\"_blank\">Jasmin</a> instance that you have\n"
+"Connect your <a href=\"http://www.jasminsms.com/\">Jasmin</a> instance that you have\n"
 "                       already connected to an SMSC."
 msgstr "Conecte su caso Kannel, lo orientaremos para que siga los pasos necesarios para que su conexión SMSC funcione en cuestión de minutos."
 
@@ -1886,8 +1938,10 @@ msgstr ""
 msgid "The JioChat App secret"
 msgstr ""
 
-msgid "Connect your <a href=\"https://junebug.praekelt.org/\" target=\"_blank\">Junebug</a> instance that you have already set up and configured."
-msgstr ""
+#, fuzzy
+#| msgid "Connect your Kannel instance, we'll walk you through the steps necessary to get your SMSC connection working in a few minutes."
+msgid "Connect your <a href=\"https://junebug.praekelt.org/\">Junebug</a> instance that you have already set up and configured."
+msgstr "Conecte su caso Kannel, lo orientaremos para que siga los pasos necesarios para que su conexión SMSC funcione en cuestión de minutos."
 
 #, fuzzy
 msgid ""
@@ -1934,7 +1988,7 @@ msgstr "El nombre de usuario que usará para autenticar para Kannel, si lo deja 
 #, fuzzy
 #| msgid "Connect your Kannel instance, we'll walk you through the steps necessary to get your SMSC connection working in a few minutes."
 msgid ""
-"Connect your <a href=\"http://www.kannel.org/\" target=\"_blank\">Kannel</a> instance, we'll walk you through\n"
+"Connect your <a href=\"http://www.kannel.org/\">Kannel</a> instance, we'll walk you through\n"
 "                       the steps necessary to get your SMSC connection working in a few minutes."
 msgstr "Conecte su caso Kannel, lo orientaremos para que siga los pasos necesarios para que su conexión SMSC funcione en cuestión de minutos."
 
@@ -2593,6 +2647,26 @@ msgid "Your authentication token is invalid, please check and try again"
 msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
 
 #, fuzzy
+msgid "If you are based in Somalia, you can integrate with Telesom to send and receive messages on your shortcode."
+msgstr ""
+"\n"
+"                  Agregar instantáneamente un número de teléfono especial en el código de área de su\n"
+"                  preferencia de su\n"
+"                "
+
+#, fuzzy
+msgid "To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery URL for incoming messages to {{ channel.address }}."
+msgstr ""
+"\n"
+"        Para terminar de configurar su conexión Vumi, tendrá que establecer los siguientes parámetros en su conversación Vumi:\n"
+"\n"
+"      "
+
+#, fuzzy
+msgid "The private key provided to use their API"
+msgstr "El nombre de usuario otorgado por el proveedor para usar su API"
+
+#, fuzzy
 msgid ""
 "If you have a number with <a href=\"https://thinq.com\">ThinQ</a> you can connect it in a few easy steps to\n"
 "        automate your SMS numbers."
@@ -3231,7 +3305,7 @@ msgstr ""
 "      "
 
 #, fuzzy
-msgid "Sorry, you need to have an organization to add numbers. You can still test things out for free using an Android phone."
+msgid "Sorry, you need to have a workspace to add numbers. You can still test things out for free using an Android phone."
 msgstr "Puede probar cosas de manera gratuita usando un teléfono Android."
 
 #, fuzzy
@@ -3425,9 +3499,6 @@ msgstr "Token de acceso desde su repositorio"
 msgid "Unable to access wit.ai with credentials, please check and try again"
 msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
 
-msgid "Unable to get intent entity, make sure you have at least one intent defined"
-msgstr ""
-
 #, fuzzy
 #| msgid "Connect Hub9"
 msgid "Connect"
@@ -3600,72 +3671,6 @@ msgstr "El grupo único para exportar"
 msgid "The search query"
 msgstr ""
 
-#, python-brace-format
-msgid "Unrecognized field: '{prop}'"
-msgstr ""
-
-#, fuzzy, python-brace-format
-#| msgid "Using a Local Number"
-msgid "f'{val}' isn't a valid number"
-msgstr "Con un número local"
-
-#, python-brace-format
-msgid "Unknown text comparator: '{self.comparator}'"
-msgstr ""
-
-#, python-brace-format
-msgid "Unknown number comparator: '{self.comparator}'"
-msgstr ""
-
-#, fuzzy, python-brace-format
-#| msgid "Invalid group or contact id"
-msgid "Unable to parse the date '{self.value}'"
-msgstr "ID del grupo o contacto inválido "
-
-#, python-brace-format
-msgid "Unknown datetime comparator: '{self.comparator}'"
-msgstr ""
-
-#, fuzzy, python-brace-format
-#| msgid "Unknown alert type: %(alert)s"
-msgid "Unknown location type: '{field.value_type}'"
-msgstr "Tipo de alerta desconocido: %(alert)s"
-
-#, python-brace-format
-msgid "Unsupported comparator '{self.comparator}' for location field"
-msgstr ""
-
-#, python-brace-format
-msgid "Unrecognized contact field type '{field.value_type}'"
-msgstr ""
-
-#, python-brace-format
-msgid "Unknown urn scheme comparator: '{self.comparator}'"
-msgstr ""
-
-#, python-brace-format
-msgid "Unknown language comparator: '{self.comparator}'"
-msgstr ""
-
-#, python-brace-format
-msgid "Unknown created_on comparator: '{self.comparator}'"
-msgstr ""
-
-#, python-brace-format
-msgid "Unknown name comparator: '{self.comparator}'"
-msgstr ""
-
-#, python-brace-format
-msgid "No support for attribute field: '{field}'"
-msgstr ""
-
-#, python-brace-format
-msgid "Unrecognized contact field type '{prop_type}'"
-msgstr ""
-
-msgid "Invalid operator for empty string comparison"
-msgstr ""
-
 #, fuzzy
 #| msgid "days"
 msgid "day"
@@ -3737,6 +3742,11 @@ msgstr "Borrar Contactos"
 #| msgid "Restore Contacts"
 msgid "Unstop Contacts"
 msgstr "Restaurar contactos"
+
+#, fuzzy, python-brace-format
+#| msgid "The name of this contact"
+msgid "{label} for this contact"
+msgstr "El nombre de este contacto"
 
 #, fuzzy
 msgid "Used by another contact"
@@ -3844,6 +3854,11 @@ msgstr "Borrar grupo"
 
 msgid "Create"
 msgstr "Crear"
+
+#, fuzzy
+#| msgid "We encountered an error removing your channel, please try again later."
+msgid "An error occurred updating your contact. Please try again later."
+msgstr "Encontramos un error para retirar su transmisor, por favor, inténtelo nuevamente más tarde."
 
 #, fuzzy
 msgid "Contact blocked"
@@ -4022,6 +4037,20 @@ msgstr "Los flujos para exportar"
 msgid "Any configuration options for this flow export"
 msgstr "Configuraciones codificadas JSON para este informe"
 
+msgid "Pending"
+msgstr "Pendiente"
+
+#, fuzzy
+#| msgid "Start Flow"
+msgid "Starting"
+msgstr "Empezar flujo"
+
+msgid "Complete"
+msgstr ""
+
+msgid "Failed"
+msgstr "Error"
+
 msgid "The name of this flow label"
 msgstr "El nombre de la etiqueta de este flujo"
 
@@ -4054,6 +4083,11 @@ msgid "After 6 hours"
 msgstr "Después de 6 horas"
 
 msgid "After 12 hours"
+msgstr "Después de 12 horas"
+
+#, fuzzy
+#| msgid "After 12 hours"
+msgid "After 18 hours"
 msgstr "Después de 12 horas"
 
 msgid "After 1 day"
@@ -4270,9 +4304,53 @@ msgid "New Editor"
 msgstr "Sin Editores"
 
 #, fuzzy
-#| msgid "No Editors"
-msgid "Previous Editor"
-msgstr "Sin Editores"
+#| msgid "Export Data"
+msgid "Export Definition"
+msgstr "Exportar datos"
+
+#, fuzzy
+msgid "Export Translation"
+msgstr "Traducciones"
+
+#, fuzzy
+msgid "Import Translation"
+msgstr "Traducciones"
+
+#, fuzzy
+#| msgid "Using a Local Number"
+msgid "Not a valid language."
+msgstr "Con un número local"
+
+msgid "Include translations in this language."
+msgstr ""
+
+#, fuzzy
+msgid "Include Arguments"
+msgstr "Mensajes de texto entrantes"
+
+msgid "Include arguments to tests on splits"
+msgstr ""
+
+#, fuzzy
+msgid "PO translation file"
+msgstr "Traducciones"
+
+msgid "File doesn't appear to be a valid PO file."
+msgstr ""
+
+#, python-format
+msgid "Contains translations in %(lang)s which is the base language of this flow."
+msgstr ""
+
+#, python-format
+msgid "Contains translations in %(lang)s which is not a supported translation language."
+msgstr ""
+
+msgid "Replace flow translations in this language."
+msgstr ""
+
+msgid "Import"
+msgstr "Importar"
 
 msgid "Which group memberships, if any, to include in the export"
 msgstr ""
@@ -4398,7 +4476,10 @@ msgstr ""
 msgid "This flow is already being started, please wait until that process is complete before starting more contacts."
 msgstr ""
 
-msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgid "Sorry, your account is currently suspended. To enable starting flows, please contact support."
+msgstr ""
+
+msgid "Sorry, your account is currently flagged. To enable starting flows, please contact support."
 msgstr ""
 
 msgid "Add Contacts to Flow"
@@ -4419,6 +4500,11 @@ msgstr ""
 
 msgid "Name already used"
 msgstr "Nombre ya utilizado"
+
+#, fuzzy
+#| msgid "Flow Start"
+msgid "Flow Start Log"
+msgstr "Inicio de Flujo"
 
 #, python-format
 msgid "Cannot create a new global as limit is %(limit)s."
@@ -4460,11 +4546,10 @@ msgstr "Después de 30 minutos"
 msgid "After 4 minutes"
 msgstr "Después de 5 minutos"
 
-msgid "You must select a country for your organization."
+#, fuzzy
+#| msgid "You must select a country for your organization."
+msgid "You must select a country for your workspace."
 msgstr "Debe elegir un país para su organización."
-
-msgid "Pending"
-msgstr "Pendiente"
 
 msgid "Queued"
 msgstr "En cola"
@@ -4763,6 +4848,12 @@ msgstr "Activador de programa"
 msgid "At least one recipient is required"
 msgstr "Se requiere un destinatario como mínimo"
 
+msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgstr ""
+
+msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
+msgstr ""
+
 msgid "Inbox"
 msgstr "Bandeja de entrada"
 
@@ -4771,9 +4862,6 @@ msgstr "Bandeja de salida"
 
 msgid "Schedules"
 msgstr "Programaciones"
-
-msgid "Failed"
-msgstr "Error"
 
 msgid "Schedule Message"
 msgstr "Programar mensaje"
@@ -4888,41 +4976,11 @@ msgstr "Actualizar campos"
 msgid "Update Label"
 msgstr "Actualizar etiqueta"
 
-msgid "Free Plan"
-msgstr "Plan libre"
-
-msgid "Trial"
-msgstr "Prueba"
-
-msgid "Bronze"
-msgstr "Bronce"
-
-msgid "Silver"
-msgstr "Plata"
-
-msgid "Gold (Legacy)"
-msgstr "Oro (Legado)"
-
-msgid "Platinum (Legacy)"
-msgstr "Platino (Legado)"
-
-msgid "Gold"
-msgstr "Oro"
-
-msgid "Platinum"
-msgstr "Platino"
-
 msgid "Plan"
 msgstr "Plan"
 
 msgid "What plan your organization is on"
 msgstr "En qué plan está su organización"
-
-msgid "Plan Start"
-msgstr "Inicio de plan"
-
-msgid "When the user switched to this plan"
-msgstr "Cuándo el usuario se cambió a este plan"
 
 msgid "Stripe Customer"
 msgstr "Stripe Customer"
@@ -4982,6 +5040,31 @@ msgstr "Este slug no está disponible"
 
 msgid "Whether this organization anonymizes the phone numbers of contacts within it"
 msgstr "Si esta organización anonimiza los números de teléfonos de sus contactos "
+
+#, fuzzy
+#| msgid "Whether this report is currently published"
+msgid "Whether this organization is currently flagged."
+msgstr "Si este informe está publicado actualmente"
+
+#, fuzzy
+#| msgid "Whether this report is currently published"
+msgid "Whether this organization is currently suspended."
+msgstr "Si este informe está publicado actualmente"
+
+#, fuzzy
+#| msgid "Whether this report is currently published"
+msgid "Whether this organization uses topups."
+msgstr "Si este informe está publicado actualmente"
+
+#, fuzzy
+#| msgid "Whether this report is currently published"
+msgid "Whether this organization can have child workspaces"
+msgstr "Si este informe está publicado actualmente"
+
+#, fuzzy
+#| msgid "Whether this report is currently published"
+msgid "Whether this organization can have multiple logins"
+msgstr "Si este informe está publicado actualmente"
 
 msgid "The primary language will be used for contacts with no language preference."
 msgstr "Para los contactos sin preferencia de idioma, se usará el idioma principal"
@@ -5056,6 +5139,14 @@ msgstr "Número de teléfono"
 
 msgid "Phone number for testing and recording voice flows"
 msgstr "Número de teléfono para probar y grabar los flujos de voz"
+
+#, fuzzy
+#| msgid "API Secret:"
+msgid "OTP Secret"
+msgstr "Código secreto API:"
+
+msgid "Two Factor Enabled"
+msgstr ""
 
 msgid "Price Paid"
 msgstr "Precio pagado"
@@ -5151,6 +5242,12 @@ msgstr "créditos."
 msgid "%(name)s Credits Alert"
 msgstr ""
 
+msgid "Settings"
+msgstr "Configuraciones"
+
+msgid "Used"
+msgstr ""
+
 msgid "Your first name"
 msgstr "Su nombre"
 
@@ -5160,16 +5257,20 @@ msgstr "Su apellido"
 msgid "Your email address"
 msgstr "Su dirección de correo electrónico"
 
-msgid "The timezone your organization is in"
+#, fuzzy
+#| msgid "The timezone your organization is in"
+msgid "The timezone for your workspace"
 msgstr "La zona horaria en la que se encuentra su organización"
 
 msgid "Your password, at least eight letters please"
 msgstr "Su contraseña, como mínimo ocho letras por favor"
 
-msgid "Organization"
-msgstr "Organización"
+msgid "Workspace"
+msgstr ""
 
-msgid "The name of your organization"
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The name of your workspace"
 msgstr "El nombre de su organización"
 
 msgid "That email address is already used"
@@ -5179,11 +5280,11 @@ msgid "Passwords must contain at least 8 letters."
 msgstr "Las contraseñas deben contener como mínimo 8 letras."
 
 #, fuzzy
-msgid "The first name of the organization administrator"
+msgid "The first name of the workspace administrator"
 msgstr "El nombre de su organización"
 
 #, fuzzy
-msgid "Your last name of the organization administrator"
+msgid "Your last name of the workspace administrator"
 msgstr "Debe tener al menos un administrador"
 
 #, fuzzy
@@ -5191,7 +5292,7 @@ msgid "Their email address"
 msgstr "Su dirección de correo electrónico"
 
 #, fuzzy
-msgid "The timezone the organization is in"
+msgid "The timezone for the workspace"
 msgstr "La zona horaria en la que se encuentra su organización"
 
 #, fuzzy
@@ -5199,14 +5300,15 @@ msgid "Their password, at least eight letters please. (leave blank for existing 
 msgstr "Su contraseña, como mínimo ocho letras por favor"
 
 #, fuzzy
-msgid "The name of the new organization"
-msgstr "El nombre de su organización"
+#| msgid "The name of the video"
+msgid "The name of the new workspace"
+msgstr "El nombre del video"
 
 #, fuzzy
-msgid "The initial number of credits granted to this organization."
+msgid "The initial number of credits granted to this workspace"
 msgstr "El número de créditos comprados en esta recarga"
 
-msgid "User already exists, please do not include password."
+msgid "Login already exists, please do not include password."
 msgstr ""
 
 #, fuzzy
@@ -5249,9 +5351,6 @@ msgstr "El archivo de importación"
 
 msgid "Update all flows and campaigns"
 msgstr "Actualizar todos los flujos y campañas"
-
-msgid "Sorry, import is a premium feature"
-msgstr "Lo sentimos, la importación es una función premium"
 
 msgid "This file is not a valid flow definition file."
 msgstr ""
@@ -5371,22 +5470,24 @@ msgstr ""
 msgid "Topups"
 msgstr ""
 
+msgid "Unflag"
+msgstr ""
+
+msgid "Flag"
+msgstr ""
+
 #, fuzzy
-#| msgid "Restore Flows"
-msgid "Restore"
-msgstr "Restaurar flujos"
-
-msgid "Suspend"
-msgstr ""
-
-msgid "Whitelist"
-msgstr ""
+#| msgid "Alert Email"
+msgid "Verify"
+msgstr "Correo electrónico de alerta"
 
 #, fuzzy
 msgid "This password is not valid. Choose a new password and try again."
 msgstr "No se pudieron guardar sus cambios. Por favor, actualice la página e inténtelo nuevamente."
 
-msgid "Invite people to your organization"
+#, fuzzy
+#| msgid "Invite people to your organization"
+msgid "Invite people to your workspace"
 msgstr "Invite a personas a su organización"
 
 msgid "User group"
@@ -5395,7 +5496,43 @@ msgstr "Grupo de usuarios"
 msgid "One of the emails you entered is invalid."
 msgstr "Uno de los correos electrónicos que ingresó es inválido."
 
-msgid "Select your Organization"
+msgid "Enter the code from your authentication application"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid phone number, try again."
+msgid "Invalid MFA token. Please try again."
+msgstr "Número de teléfono inválido, inténtelo nuevamente."
+
+msgid "Activate"
+msgstr "Activar"
+
+msgid "Two Factor Authentication"
+msgstr ""
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Workspaces"
+msgstr "Elija su Organización"
+
+#, fuzzy
+#| msgid "dashboard"
+msgid "Dashboard"
+msgstr "Panel"
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "New Workspace"
+msgstr "Elija su Organización"
+
+#, fuzzy
+#| msgid "Purchase Credits"
+msgid "Transfer Credits"
+msgstr "Comprar Créditos"
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Select your Workspace"
 msgstr "Elija su Organización"
 
 #, fuzzy
@@ -5403,7 +5540,9 @@ msgstr "Elija su Organización"
 msgid "No organizations for this account, please contact your administrator."
 msgstr "El enlace de su invitación es inválido. Por favor, contacte al administrador de su organización."
 
-msgid "Your invitation link is invalid. Please contact your organization administrator."
+#, fuzzy
+#| msgid "Your invitation link is invalid. Please contact your organization administrator."
+msgid "Your invitation link is invalid. Please contact your workspace administrator."
 msgstr "El enlace de su invitación es inválido. Por favor, contacte al administrador de su organización."
 
 #, python-format
@@ -5413,7 +5552,9 @@ msgstr "Participar en %(name)s"
 msgid "Join"
 msgstr "Participar"
 
-msgid "Your invitation link has expired. Please contact your organization administrator."
+#, fuzzy
+#| msgid "Your invitation link has expired. Please contact your organization administrator."
+msgid "Your invitation link has expired. Please contact your workspace administrator."
 msgstr "El enlace de su invitación ha vencido. Por favor, contacte al administrador de su organización."
 
 #, fuzzy
@@ -5424,9 +5565,8 @@ msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevament
 msgid "Welcome!"
 msgstr ""
 
-#, fuzzy
-msgid "Create Organization Account"
-msgstr "Crear su Organización"
+msgid "Create Workspace Login"
+msgstr ""
 
 msgid "Sign Up"
 msgstr "Registrarse"
@@ -5465,8 +5605,8 @@ msgstr "Transmisor"
 msgid "Add Classifier"
 msgstr ""
 
-msgid "Import"
-msgstr "Importar"
+msgid "Add Ticketing Service"
+msgstr ""
 
 msgid "Login"
 msgstr ""
@@ -5493,26 +5633,25 @@ msgstr "Cuenta:"
 msgid "Account Token"
 msgstr "Clave de la cuenta"
 
-msgid "Your organization's timezone"
-msgstr "La zona horaria de su organización"
-
-msgid "The slug, or short name for your organization"
+#, fuzzy
+#| msgid "The slug, or short name for your organization"
+msgid "The slug, or short name for your workspace"
 msgstr "El slug, o nombre abreviado para su organización"
 
 #, fuzzy
-#| msgid "Organization"
-msgid "From Organization"
-msgstr "Organización"
+#| msgid "Select your Organization"
+msgid "From Workspace"
+msgstr "Elija su Organización"
 
-msgid "Select which organization to take credits from"
+msgid "Select which workspace to take credits from"
 msgstr ""
 
 #, fuzzy
-#| msgid "Organization"
-msgid "To Organization"
-msgstr "Organización"
+#| msgid "Select your Organization"
+msgid "To Workspace"
+msgstr "Elija su Organización"
 
-msgid "Select which organization to receive the credits"
+msgid "Select which workspace to receive the credits"
 msgstr ""
 
 #, fuzzy
@@ -5521,7 +5660,7 @@ msgid "How many credits to transfer"
 msgstr "¿Cómo se contabilizan los créditos?"
 
 #, python-format
-msgid "Sorry, %(org_name)s doesn't have enough credits for this transfer. Pick a different organization to transfer from or reduce the transfer amount."
+msgid "Sorry, %(org_name)s doesn't have enough credits for this transfer. Pick a different workspace to transfer from or reduce the transfer amount."
 msgstr ""
 
 msgid "The country used for location values. (optional)"
@@ -5544,7 +5683,7 @@ msgid "%(lang1)s and %(lang2)s"
 msgstr ""
 
 #, python-format
-msgid "Cleared %(name)s cache for this organization (%(count)d keys)"
+msgid "Cleared %(name)s cache for this workspace (%(count)d keys)"
 msgstr ""
 
 msgid "Privacy Policy"
@@ -5600,6 +5739,9 @@ msgstr ""
 msgid "Classifier Called"
 msgstr "Evento del transmisor"
 
+msgid "Ticketing Service Called"
+msgstr ""
+
 msgid "Airtime Transferred"
 msgstr ""
 
@@ -5613,6 +5755,16 @@ msgstr ""
 
 msgid "WhatsApp Contacts Refreshed"
 msgstr ""
+
+#, fuzzy
+#| msgid "Recent Channel Events"
+msgid "Recent Classifier Events"
+msgstr "Eventos recientes del transmisor"
+
+#, fuzzy
+#| msgid "Recent Channel Events"
+msgid "Recent Ticketing Service Events"
+msgstr "Eventos recientes del transmisor"
 
 msgid "Never"
 msgstr "Nunca"
@@ -5629,6 +5781,23 @@ msgstr "Semanalmente"
 #| msgid "Monthly"
 msgid "Monthly"
 msgstr "Mensualmente"
+
+#, fuzzy, python-format
+#| msgid "Join %(name)s"
+msgid "in %(timeperiod)s"
+msgstr "Participar en %(name)s"
+
+#, python-format
+msgid "each day at %(time)s"
+msgstr ""
+
+#, python-format
+msgid "each week on %(daysofweek)s"
+msgstr ""
+
+#, python-format
+msgid "each month on the %(dayofmonth)s"
+msgstr ""
 
 #, python-format
 msgid "%(day)s is not a valid day of the week"
@@ -5649,12 +5818,118 @@ msgstr "Francés"
 msgid "Spanish"
 msgstr ""
 
+msgid "Russian"
+msgstr ""
+
 #, fuzzy
 msgid "Visually build nationally scalable mobile applications from anywhere in the world."
 msgstr "Aplicaciones de mensajería visualmente interactivas en cualquier lugar del mundo."
 
 msgid "Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."
 msgstr ""
+
+msgid "Open"
+msgstr ""
+
+msgid "Closed"
+msgstr ""
+
+msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
+msgstr ""
+
+msgid "The email address to forward tickets and replies to"
+msgstr ""
+
+msgid "The verification code that was sent to your email"
+msgstr ""
+
+msgid "No verification code found, please start over."
+msgstr ""
+
+msgid "Code does not match, please check your email."
+msgstr ""
+
+#, fuzzy
+#| msgid "Alert Email"
+msgid "Verify Email"
+msgstr "Correo electrónico de alerta"
+
+#, python-format
+msgid "A verification code was sent to <code>%(address)s</code>. Enter it below to continue adding this ticketing service to your account."
+msgstr ""
+
+msgid "New tickets and replies will be sent to the email address that you configure below. You will need to verify it by entering the code sent to you."
+msgstr ""
+
+#, fuzzy
+#| msgid "Your email address"
+msgid "Verify your email address for tickets"
+msgstr "Su dirección de correo electrónico"
+
+msgid "<a href=\"https://www.zendesk.com/\">Zendesk</a> is one of the most popular customer service systems around. You can use it to manage all the tickets created on your account."
+msgstr ""
+
+msgid "Enter your Zendesk subdomain. You will be redirected to Zendesk where you need to grant access to this application."
+msgstr ""
+
+msgid "Your subdomain on Zendesk"
+msgstr ""
+
+#, fuzzy
+#| msgid "Using a Local Number"
+msgid "Not a valid subdomain name."
+msgstr "Con un número local"
+
+msgid "There is already a ticketing service configured for this subdomain."
+msgstr ""
+
+msgid "Unable to request OAuth token."
+msgstr ""
+
+msgid "Tickets"
+msgstr ""
+
+#, fuzzy
+#| msgid "The name of this contact"
+msgid "The display name of this account"
+msgstr "El nombre de este contacto"
+
+#, fuzzy
+#| msgid "The Stripe charge id for this charge"
+msgid "The secret for the ticketer"
+msgstr "Id de Stripe charge para esta recarga"
+
+msgid "Secret is incorrect."
+msgstr ""
+
+msgid "Add"
+msgstr "Agregar"
+
+#, fuzzy, python-format
+#| msgid "Connect Kannel"
+msgid "Connect %(ticketer)s"
+msgstr "Conectar Kannel"
+
+#, fuzzy
+#| msgid "Open TextIt"
+msgid "Open Tickets"
+msgstr "Abrir TextIt"
+
+#, fuzzy
+#| msgid "Choose File"
+msgid "Closed Tickets"
+msgstr "Elegir archivo"
+
+msgid "HTTP Log"
+msgstr ""
+
+msgid "Delete Ticketing Service"
+msgstr ""
+
+#, fuzzy
+#| msgid "Your flow has been removed."
+msgid "Your ticketing service has been deleted."
+msgstr "Su flujo ha sido retirado."
 
 msgid "Keyword Trigger"
 msgstr "Activador de palabra clave"
@@ -5817,9 +6092,6 @@ msgid "Create Schedule"
 msgstr "Crear cronograma"
 
 msgid "Processing"
-msgstr ""
-
-msgid "Complete"
 msgstr ""
 
 #, fuzzy
@@ -6146,7 +6418,7 @@ msgid "Add a Channel"
 msgstr "Transmisor"
 
 #, fuzzy, python-format
-msgid "To get started you need to add a channel to your account. A channel is a phone number or social network account which %(name)s can use to send and receive messages on your behalf. You can choose to use an Android phone and your own cell phone plan, or we can connect you with a service provider in your country directly."
+msgid "To get started you need to add a channel to your workspace. A channel is a phone number or social network account which %(name)s can use to send and receive messages on your behalf. You can choose to use an Android phone and your own cell phone plan, or we can connect you with a service provider in your country directly."
 msgstr ""
 "\n"
 "          Para empezar tiene que agregar un número de teléfono a su cuenta. Puede elegir usar un teléfono Android y su propio plan de telefonía celular o podemos conectarlo con un proveedor de servicios en su país directamente.\n"
@@ -6211,7 +6483,7 @@ msgstr "Pedir número de teléfono"
 #| "        to your number will be charged according to their plan.\n"
 #| "\n"
 #| "      "
-msgid "Once you claim a number you will immediately be able to send and receive messages. Users who send messages to your number will be charged according to their plan."
+msgid "Once you claim a number you will immediately be able to send and receive messages. Contacts who send messages to your number will be charged according to their plan."
 msgstr ""
 "\n"
 "        Cuando pide un número podrá enviar y recibir mensajes inmediatamente. A los usuarios que envíen mensajes\n"
@@ -6240,7 +6512,9 @@ msgstr "Dirección de correo electrónico"
 msgid "Additionally you will need to make sure the following IP addresses are whitelisted"
 msgstr ""
 
-msgid "Are you sure you want to remove this number from your account?"
+#, fuzzy
+#| msgid "Are you sure you want to remove this number from your account?"
+msgid "Are you sure you want to remove this number from your workspace?"
 msgstr "¿Está seguro de que desea borrar este número de su cuenta?"
 
 msgid "Cancel"
@@ -6254,9 +6528,6 @@ msgstr "Envío masivo permitido"
 
 msgid "Voice calls enabled"
 msgstr "Llamadas de voz permitidas"
-
-msgid "Settings"
-msgstr "Configuraciones"
 
 #, fuzzy
 #| msgid "Channel"
@@ -6367,7 +6638,7 @@ msgid "Remove Channel"
 msgstr "Borrar teléfono"
 
 #, fuzzy
-msgid "Are you sure you want to remove this channel from your account?"
+msgid "Are you sure you want to remove this channel from your workspace?"
 msgstr "¿Está seguro de que desea borrar este número de su cuenta?"
 
 msgid "This channel cannot be removed because it in use."
@@ -7317,13 +7588,69 @@ msgstr ""
 msgid "Verify Token"
 msgstr ""
 
-#, python-format
+msgid "You can connect your Facebook page in just a few simple steps."
+msgstr ""
+
+msgid "Click on the button below to get started."
+msgstr ""
+
+msgid "Select the user you want to log in as."
+msgstr ""
+
+msgid "Select all the pages you want to grant us permissions for."
+msgstr ""
+
+#, fuzzy
+msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
+msgstr "TextIt usa su teléfono Android para enviar y recibir mensajes."
+
+#, fuzzy
+#| msgid "Click here to send a message"
+msgid "Finally, select the page you want to add as a channel."
+msgstr "Haga clic aquí para enviar un mensaje"
+
+#, fuzzy
+#| msgid "The name of the video"
+msgid "Add Facebook Page"
+msgstr "El nombre del video"
+
+#, fuzzy
+#| msgid "Click here to send a message"
+msgid "Select the page you want to add as a channel:"
+msgstr "Haga clic aquí para enviar un mensaje"
+
+msgid "Error with token, you need to reconnect the Facebook page by clicking the button below"
+msgstr ""
+
+msgid "Everything looks good. No need to reconnect"
+msgstr ""
+
+msgid "Error reconnecting Facebook page. Please retry"
+msgstr ""
+
+#, fuzzy
+#| msgid "The name of the video"
+msgid "Reconnect Facebook page"
+msgstr "El nombre del video"
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "        You can connect your <a href=\"http://infobip.com\">Infobip</a> number by entering your number, username and password\n"
+#| "        here.\n"
+#| "\n"
+#| "      "
 msgid ""
 "\n"
-"        You can to connect using a <a href=\"https://firebase.google.com/docs/cloud-messaging/\" target=\"_blank\">\n"
-"        Firebase Cloud Messaging App</a> to your %(name)s account to automate sending notifications.\n"
+"        You can to connect using a <a href=\"https://firebase.google.com/docs/cloud-messaging/\">\n"
+"        Firebase Cloud Messaging App</a> to your %(name)s workspace to automate sending notifications.\n"
 "      "
 msgstr ""
+"\n"
+"        Puede conectar su número <a href=\"http://infobip.com\">Infobip</a> si ingresa su número, usuario y contraseña\n"
+"        aquí.\n"
+"\n"
+"      "
 
 msgid ""
 "\n"
@@ -7341,7 +7668,7 @@ msgstr ""
 #| "      "
 msgid ""
 "\n"
-"        You can connect a <a href=\"https://www.freshworks.com/live-chat-software/\" target=\"_blank\">FreshChat</a> Account to your %(name)s account\n"
+"        You can connect a <a href=\"https://www.freshworks.com/live-chat-software/\">FreshChat</a> Account to your %(name)s account\n"
 "        to automate sending and receiving messages via FreshChat. This will also support Apple Business Chat if it's been configured on your FreshChat account.\n"
 "      "
 msgstr ""
@@ -7361,7 +7688,7 @@ msgid "Under Settings again, select Webhooks and copy the Public Key and paste i
 msgstr ""
 
 #, python-format
-msgid "Lastly, you'll need the UUID of the Agent that %(name)s will use when it sends FreshChat Message. This is available via the <a href=\"https://developers.freshchat.com/api/#agent\" target=\"_blank\"> FreshChat API</a>."
+msgid "Lastly, you'll need the UUID of the Agent that %(name)s will use when it sends FreshChat Message. This is available via the <a href=\"https://developers.freshchat.com/api/#agent\">FreshChat API</a>."
 msgstr ""
 
 msgid "Once you press Submit below with all the information configured, the confirmation page will give you the URL to use for the FreshChat Webhooks. Enter this URL on the Settings page, under Webhooks where the Public Key was copied from before."
@@ -7413,13 +7740,24 @@ msgstr ""
 "\n"
 "      "
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "        You can connect your <a href=\"http://infobip.com\">Infobip</a> number by entering your number, username and password\n"
+#| "        here.\n"
+#| "\n"
+#| "      "
 msgid ""
 "\n"
-"        You can connect a <a href=\"https://jiochat.com\" target=\"_blank\">JioChat Channel</a> to your %(name)s account\n"
+"        You can connect a <a href=\"https://jiochat.com\">JioChat Channel</a> to your %(name)s workspace\n"
 "        to automate sending and receiving JioChat messages.\n"
 "      "
 msgstr ""
+"\n"
+"        Puede conectar su número <a href=\"http://infobip.com\">Infobip</a> si ingresa su número, usuario y contraseña\n"
+"        aquí.\n"
+"\n"
+"      "
 
 msgid ""
 "\n"
@@ -7445,24 +7783,35 @@ msgstr ""
 msgid "Make sure to change the forced-smsc and default-smsc values to the appropriate values for your configuration."
 msgstr "Asegúrese de cambiar los valores de forced-smsc y default-smsc a los valores apropiados para su configuración."
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "        You can connect your <a href=\"http://infobip.com\">Infobip</a> number by entering your number, username and password\n"
+#| "        here.\n"
+#| "\n"
+#| "      "
 msgid ""
 "\n"
-"        You can connect a <a href=\"https://developers.line.me/messaging-api/overview\" target=\"_blank\">LINE Bot</a> to your %(name)s account\n"
+"        You can connect a <a href=\"https://developers.line.me/messaging-api/overview\">LINE Bot</a> to your %(name)s workspace\n"
 "        to automate sending and receiving LINE messages.\n"
 "      "
 msgstr ""
+"\n"
+"        Puede conectar su número <a href=\"http://infobip.com\">Infobip</a> si ingresa su número, usuario y contraseña\n"
+"        aquí.\n"
+"\n"
+"      "
 
 msgid ""
 "\n"
-"        To start creating a LINE bot, go to <a href=\"https://developers.line.me/messaging-api/getting-started\" target=\"_blank\">Getting started with the Messaging API</a>.\n"
+"        To start creating a LINE bot, go to <a href=\"https://developers.line.me/messaging-api/getting-started\">Getting started with the Messaging API</a>.\n"
 "\n"
 "      "
 msgstr ""
 
 msgid ""
 "\n"
-"            Access the <a href=\"https://developers.line.me/channels/\" target=\"_blank\">LINE Channels</a> page and add a new Channel.</li>\n"
+"            Access the <a href=\"https://developers.line.me/channels/\">LINE Channels</a> page and add a new Channel.</li>\n"
 "\n"
 "          "
 msgstr ""
@@ -7512,7 +7861,7 @@ msgstr ""
 
 msgid ""
 "\n"
-"                In <a href=\"https://business.line.me/en/\" target=\"_blank\">LINE Business Center</a>, select \"Messaging API\" in the \"Services\"\n"
+"                In <a href=\"https://business.line.me/en/\">LINE Business Center</a>, select \"Messaging API\" in the \"Services\"\n"
 "\n"
 "              "
 msgstr ""
@@ -7596,7 +7945,7 @@ msgstr ""
 
 msgid ""
 "\n"
-"                Click on the menu \"Accounts\" at the top of the page at the link <a href=\"https://business.line.me\" target=\"_blank\">https://business.line.me</a>\n"
+"                Click on the menu \"Accounts\" at the top of the page at the link <a href=\"https://business.line.me\">https://business.line.me</a>\n"
 "\n"
 "              "
 msgstr ""
@@ -7714,7 +8063,7 @@ msgstr ""
 #| "      "
 msgid ""
 "\n"
-"        You can connect a <a href=\"https://core.telegram.org/bots\">Telegram Bot</a> to your %(name)s account\n"
+"        You can connect a <a href=\"https://core.telegram.org/bots\">Telegram Bot</a> to your %(name)s workspace\n"
 "        to automate sending and receiving Telegram messages.\n"
 "      "
 msgstr ""
@@ -7861,7 +8210,7 @@ msgstr ""
 msgid ""
 "\n"
 "          In order to receive direct messages from new followers, you'll need to update your Twitter account to enable\n"
-"          the option to <b>Receive Direct Messages from anyone</b>. You can do so from your <a href=\"https://twitter.com/settings/security\" target=\"_blank\">\n"
+"          the option to <b>Receive Direct Messages from anyone</b>. You can do so from your <a href=\"https://twitter.com/settings/security\">\n"
 "          Twitter Security Settings</a>.\n"
 "\n"
 "        "
@@ -8242,6 +8591,19 @@ msgid ""
 "          Run result <b>%(name)s</b> updated to <b>%(value)s</b> with category <b>%(category)s</b>\n"
 "\n"
 "        "
+msgstr ""
+"\n"
+"          Instalar el %(name)s app\n"
+"\n"
+"        "
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          Install the %(name)s app\n"
+#| "\n"
+#| "        "
+msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
 msgstr ""
 "\n"
 "          Instalar el %(name)s app\n"
@@ -8658,6 +9020,14 @@ msgstr "Flujos y Campañas"
 msgid "No related contact groups."
 msgstr "Crear Grupo de Contactos"
 
+#, python-format
+msgid "You have reached the limit of %(limit)s fields per workspace. Please remove fields that you are no longer using."
+msgstr ""
+
+#, python-format
+msgid "You are approaching the limit of %(limit)s fields per workspace. You should remove fields that you are no longer using."
+msgstr ""
+
 #, fuzzy
 #| msgid "Create Flow"
 msgid "Create Field"
@@ -8706,120 +9076,40 @@ msgid "Uses"
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"        Sorry, %(group_name)s cannot be deleted quite yet.\n"
-"      "
+msgid "Sorry, %(group_name)s cannot be deleted quite yet."
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"          This group is used by an active trigger. In order to delete it,\n"
-"          first remove the\n"
-"          "
-msgid_plural ""
-"\n"
-"            This group is used by %(counter)s triggers. In order to delete it,\n"
-"            first remove the\n"
-"\n"
-"        "
+msgid "This group is used by an <a href=\"%(triggers_url)s\">active trigger</a>. In order to delete it, first remove the trigger."
+msgid_plural "This group is used by <a href=\"%(triggers_url)s\">%(counter)s triggers<a>. In order to delete it, first remove the triggers."
 msgstr[0] ""
 msgstr[1] ""
-
-#, fuzzy
-#| msgid ""
-#| "\n"
-#| "          Install the %(name)s app\n"
-#| "\n"
-#| "        "
-msgid ""
-"\n"
-"          trigger.\n"
-"        "
-msgid_plural ""
-"\n"
-"          triggers.\n"
-"\n"
-"        "
-msgstr[0] ""
-"\n"
-"          Instalar el %(name)s app\n"
-"\n"
-"        "
-msgstr[1] ""
-"\n"
-"          Instalar el %(name)s app\n"
-"\n"
-"        "
 
 #, python-format
-msgid ""
-"\n"
-"          There is an active flow using this group. It cannot be deleted until it is removed from the\n"
-"\n"
-"          "
-msgid_plural ""
-"\n"
-"            There are %(counter)s flows using this group. It cannot be deleted until it is removed from the\n"
-"\n"
-"        "
+msgid "There is an active flow using this group. It cannot be deleted until it is removed from the"
+msgid_plural "There are %(counter)s flows using this group. It cannot be deleted until it is removed from the"
 msgstr[0] ""
 msgstr[1] ""
 
 #, fuzzy
-msgid ""
-"\n"
-"          flow.\n"
-"        "
-msgid_plural ""
-"\n"
-"          flows.\n"
-"\n"
-"        "
-msgstr[0] ""
-"\n"
-"                Llamada saliente (%(duration)s seconds)\n"
-"              "
-msgstr[1] ""
-"\n"
-"                Llamada saliente (%(duration)s seconds)\n"
-"              "
+#| msgid "flow"
+msgid "flow."
+msgid_plural "flows."
+msgstr[0] "flujo"
+msgstr[1] "flujo"
 
 #, python-format
-msgid ""
-"\n"
-"          There is an active campaign using this group. It cannot be deleted until it is removed from the\n"
-"\n"
-"          "
-msgid_plural ""
-"\n"
-"            There are %(counter)s campaigns using this group. It cannot be deleted until it is removed from the\n"
-"\n"
-"        "
+msgid "There is an active campaign using this group. It cannot be deleted until it is removed from the"
+msgid_plural "There are %(counter)s campaigns using this group. It cannot be deleted until it is removed from the"
 msgstr[0] ""
 msgstr[1] ""
 
 #, fuzzy
-msgid ""
-"\n"
-"          campaign.\n"
-"        "
-msgid_plural ""
-"\n"
-"          campaigns.\n"
-"\n"
-"        "
-msgstr[0] ""
-"\n"
-"          Instalar el %(name)s app\n"
-"\n"
-"        "
-msgstr[1] ""
-"\n"
-"          Instalar el %(name)s app\n"
-"\n"
-"        "
+#| msgid "campaigns"
+msgid "campaign."
+msgid_plural "campaigns."
+msgstr[0] "campañas"
+msgstr[1] "campañas"
 
 #, fuzzy, python-format
 #| msgid ""
@@ -8831,15 +9121,7 @@ msgstr[1] ""
 #| "            to send messages to over 200 countries.\n"
 #| "\n"
 #| "          "
-msgid ""
-"\n"
-"        You are about to delete\n"
-"        <span class='group_name'>\n"
-"          %(object)s.\n"
-"        </span>\n"
-"        No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?\n"
-"\n"
-"      "
+msgid "You are about to delete <span class='group_name'> %(object)s. </span> No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?"
 msgstr ""
 "\n"
 "            En lugar de usar su teléfono Android para enviar mensajes, puede usar su\n"
@@ -8907,11 +9189,6 @@ msgstr ""
 "      desde un archivo que haya creado en Excel.\n"
 "\n"
 "    "
-
-#, fuzzy
-#| msgid "dashboard"
-msgid "Dashboard"
-msgstr "Panel"
 
 msgid "Are you sure you want to remove"
 msgstr "¿Está seguro de que desea retirarlo?"
@@ -8982,7 +9259,7 @@ msgstr ""
 #, fuzzy, python-format
 msgid ""
 "\n"
-"      To get started you need to add a channel to your account. A channel is a phone number or social network\n"
+"      To get started you need to add a channel to your workspace. A channel is a phone number or social network\n"
 "      account which %(name)s can use to send and receive messages on your behalf. You can choose to use an\n"
 "      Android phone and your own cell phone plan, or we can connect you with a service provider in your country\n"
 "      directly.\n"
@@ -9001,9 +9278,9 @@ msgstr "en la derecha para abrirlo."
 #, fuzzy, python-format
 msgid ""
 "\n"
-"        To get started you need to add a voice-enabled channel to your account. A voice-enabled channel is a\n"
+"        To get started you need to add a voice-enabled channel to your workspace. A voice-enabled channel is a\n"
 "        phone number which %(name)s can use to make and receive phone calls on your behalf. For example, Twilio\n"
-"        is a service which provides voice-enabled numbers which you can add as channels in your %(name)s account.\n"
+"        is a service which provides voice-enabled numbers which you can add as channels in your %(name)s workspace.\n"
 "\n"
 "      "
 msgstr ""
@@ -9111,6 +9388,14 @@ msgstr ""
 #| msgid "Create Flow"
 msgid "Delete Flow"
 msgstr "Crear Flujos"
+
+#, fuzzy
+#| msgid "Update Fields"
+msgid "Update Flow"
+msgstr "Actualizar campos"
+
+msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
+msgstr ""
 
 msgid "To make your next connection,"
 msgstr "Para hacer su próxima conexión"
@@ -9267,6 +9552,18 @@ msgstr "Correr flujo"
 msgid "Run flow "
 msgstr "Correr flujo"
 
+#, fuzzy
+#| msgid "Language"
+msgid "Change Language"
+msgstr "Idioma"
+
+msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
+msgstr ""
+
+#, python-format
+msgid "This will change the default language of the flow to <b>%(language)s</b>. This means that by default the flow will be appear in that language and can be translated into other languages. Also if a contact is in this flow and no translation exists for their language or the default language of the workspace, communication with that contact will default to <b>%(language)s</b>."
+msgstr ""
+
 msgid ""
 "\n"
 "      Sorry, this flow cannot be exported because it references another flow. To export it, please remove any\n"
@@ -9283,6 +9580,9 @@ msgstr ""
 msgid "Back to Flow"
 msgstr "Regresar al flujo"
 
+msgid "Extracts a <a href=\"https://en.wikipedia.org/wiki/Gettext\">gettext</a> PO file from the flow which can later be re-imported with updated translations."
+msgstr ""
+
 msgid "Remove Label"
 msgstr "Borrar etiqueta"
 
@@ -9292,11 +9592,45 @@ msgstr "¿Está seguro de que desea retirar esta etiqueta?"
 msgid "You cannot remove a label which has child labels. Please remove all children first."
 msgstr ""
 
+msgid "Importing a PO file will replace all matching translations in the flow for the selected language."
+msgstr ""
+
+#, fuzzy
+#| msgid "Create Flow"
+msgid "Selected Flow"
+msgstr "Crear Flujos"
+
+#, fuzzy
+#| msgid "Language"
+msgid "Base Language"
+msgstr "Idioma"
+
+msgid "Uploaded PO File"
+msgstr ""
+
+#, fuzzy
+#| msgid "Number of Credits"
+msgid "Number of entries"
+msgstr "Número de créditos"
+
+#, fuzzy
+#| msgid "Number of Credits"
+msgid "Number of translations"
+msgstr "Número de créditos"
+
+msgid "Upload"
+msgstr ""
+
+msgid "Back"
+msgstr ""
+
+#, fuzzy
+#| msgid "Webhook URL"
+msgid "Webhook Call Log"
+msgstr "URL de Webhook"
+
 msgid "Unlabel"
 msgstr "Retirar la etiqueta"
-
-msgid "Activate"
-msgstr "Activar"
 
 msgid "Add Label"
 msgstr "Agregar etiqueta"
@@ -9395,6 +9729,47 @@ msgstr ""
 msgid "Ask a series of questions to collect data from your contacts."
 msgstr "Haga una serie de preguntas para obtener los datos de sus contactos."
 
+#, fuzzy, python-format
+#| msgid "has started this flow."
+msgid "was started by %(user)s for"
+msgstr "ha iniciado en este flujo."
+
+#, fuzzy
+#| msgid "has started this flow."
+msgid "was started by Zapier for"
+msgstr "ha iniciado en este flujo."
+
+#, fuzzy
+#| msgid "has started this flow."
+msgid "was started by an API call for"
+msgstr "ha iniciado en este flujo."
+
+#, fuzzy
+#| msgid "All Contacts"
+msgid "all contacts"
+msgstr "Todos los contactos"
+
+#, fuzzy
+#| msgid "Place contact in another flow"
+msgid "contacts not in other flows"
+msgstr "Colocar el contacto en otro flujo"
+
+#, fuzzy
+#| msgid "No contacts have started this flow."
+msgid "contacts not in other flows who haven't already been through this flow"
+msgstr "No se han iniciado contactos en este flujo."
+
+#, fuzzy
+#| msgid "No contacts have started this flow."
+msgid "contacts who haven't already been through this flow"
+msgstr "No se han iniciado contactos en este flujo."
+
+#, python-format
+msgid "<b>%(count)s</b> run"
+msgid_plural "<b>%(count)s</b> runs"
+msgstr[0] ""
+msgstr[1] ""
+
 #, fuzzy
 #| msgid "Are you sure you want to delete this contact?"
 msgid "Are you sure you want to delete this global?"
@@ -9438,12 +9813,6 @@ msgstr "Actualizar etiqueta"
 msgid "Delete Global"
 msgstr "Crear Flujos"
 
-msgid ""
-"\n"
-"    Sorry, importing has not been enabled on your account.\n"
-"  "
-msgstr ""
-
 msgid "messages"
 msgstr "mensajes"
 
@@ -9460,22 +9829,36 @@ msgid "triggers"
 msgstr "activadores"
 
 #, fuzzy
+#| msgid "Open TextIt"
+msgid "tickets"
+msgstr "Abrir TextIt"
+
+#, fuzzy
 msgid "channels"
 msgstr "Transmisor"
 
 msgid "users"
 msgstr "usuarios"
 
-msgid "orgs"
-msgstr "organizaciones"
-
-msgid "dashboard"
-msgstr "Panel"
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "workspaces"
+msgstr "Elija su Organización"
 
 #, fuzzy
 #| msgid "Android"
 msgid "android"
 msgstr "Android"
+
+msgid "dashboard"
+msgstr "Panel"
+
+msgid "orgs"
+msgstr "organizaciones"
+
+#, fuzzy
+msgid "end"
+msgstr "Enviar URL"
 
 msgid "logout"
 msgstr "salir"
@@ -9493,6 +9876,12 @@ msgid "You have %(credits)s credit remaining, add credits to prevent interruptio
 msgid_plural "You have %(credits)s credits remaining, add credits to prevent interruption"
 msgstr[0] "Le queda %(credits)s, obtenga más créditos para evitar la interrupción"
 msgstr[1] "Le quedan %(credits)s, obtengan más créditos para evitar la interrupción"
+
+#, fuzzy
+#| msgid "You have %(credits)s credit remaining, add credits to prevent interruption"
+#| msgid_plural "You have %(credits)s credits remaining, add credits to prevent interruption"
+msgid "Your active credits will expire soon, add credits to prevent interruption."
+msgstr "Le queda %(credits)s, obtenga más créditos para evitar la interrupción"
 
 msgid "Your phone is having difficulty relaying messages"
 msgstr "Su teléfono no puede enviar mensajes"
@@ -9820,7 +10209,7 @@ msgstr "Pendiente"
 #, fuzzy, python-format
 msgid ""
 "\n"
-"        To get started you need to add a channel to your account. A channel is a phone number or social network\n"
+"        To get started you need to add a channel to your workspace. A channel is a phone number or social network\n"
 "        account which %(name)s can use to send and receive messages on your behalf. You can choose to use an\n"
 "        Android phone and your own cell phone plan, or we can connect you with a service provider in your country\n"
 "        directly.\n"
@@ -9856,13 +10245,13 @@ msgstr ""
 msgid ""
 "\n"
 "\n"
-"Your %(brand)s account for %(org)s is out of credit. You will no longer be able to send messages and users will no longer be able to interact in flows.\n"
+"Your %(brand)s workspace for %(org)s is out of credit. You will no longer be able to send messages and users will no longer be able to interact in flows.\n"
 "\n"
 msgstr ""
 
 msgid ""
 "\n"
-"    To resume your service please visit your account page to purchase a top up.\n"
+"    To resume your service please visit your workspace page to purchase a top up.\n"
 "    "
 msgstr ""
 
@@ -9876,12 +10265,12 @@ msgstr ""
 msgid ""
 "\n"
 "\n"
-"Your %(brand)s account for %(org)s has expiring credits in less than one month.\n"
+"Your %(brand)s workspace for %(org)s has expiring credits in less than one month.\n"
 msgstr ""
 
 msgid ""
 "\n"
-"      Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+"      Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your workspace page to purchase a top up.\n"
 "    "
 msgstr ""
 
@@ -9894,12 +10283,12 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"Your %(brand)s account for %(org)s is running low on credits, you currently only have %(remaining)s credits remaining.\n"
+"Your %(brand)s workspace for %(org)s is running low on credits, you currently only have %(remaining)s credits remaining.\n"
 msgstr ""
 
 msgid ""
 "\n"
-"      Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+"      Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your workspace page to purchase a top up.\n"
 "    "
 msgstr ""
 
@@ -9932,7 +10321,7 @@ msgstr "Participar en %(name)s"
 
 msgid ""
 "\n"
-"To resume your service please visit your account page to purchase a top up.\n"
+"To resume your service please visit your workspace page to purchase a top up.\n"
 msgstr ""
 
 msgid ""
@@ -9944,13 +10333,13 @@ msgstr ""
 msgid ""
 "\n"
 "\n"
-"Your %(brand)s account for %(org)s has expiring credits in less than one month.\n"
+"Your %(brand)s workspace for %(org)s has expiring credits in less than one month.\n"
 "\n"
 msgstr ""
 
 msgid ""
 "\n"
-"Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+"Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your workspace page to purchase a top up.\n"
 msgstr ""
 
 msgid ""
@@ -9962,13 +10351,13 @@ msgstr ""
 msgid ""
 "\n"
 "\n"
-"Your %(brand)s account for %(org)s is running low on credits, you currently only have %(remaining)s credits remaining.\n"
+"Your %(brand)s workspace for %(org)s is running low on credits, you currently only have %(remaining)s credits remaining.\n"
 "\n"
 msgstr ""
 
 msgid ""
 "\n"
-"Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+"Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your workspace page to purchase a top up.\n"
 msgstr ""
 
 msgid ""
@@ -10039,7 +10428,7 @@ msgid ""
 "<br/>\n"
 "Date: %(charge_date)s\n"
 "<br/>\n"
-"Organization: %(org)s\n"
+"Workspace: %(org)s\n"
 "<br/>\n"
 "Description: %(description)s\n"
 "<br/>\n"
@@ -10074,7 +10463,7 @@ msgid ""
 "Invoice Details\n"
 "Id: %(charge_id)s\n"
 "Date: %(charge_date)s\n"
-"Organization: %(org)s\n"
+"Workspace: %(org)s\n"
 "Description: %(description)s\n"
 "Credits: %(credits)s\n"
 "Amount: USD $%(amount)s\n"
@@ -10087,15 +10476,15 @@ msgstr ""
 
 msgid ""
 "\n"
-"    Your organization can have user accounts with various roles. You can use the Manage Accounts page\n"
-"    to view all existing accounts or to invite new users to your organization.\n"
+"    Your workspace can have logins with various roles. You can use the Manage Logins page\n"
+"    to view all existing logins or to add new logins to your workspace.\n"
 "\n"
 "  "
 msgstr ""
 
 #, fuzzy
 #| msgid "Manage %(name)s Accounts"
-msgid "Manage Accounts"
+msgid "Manage Logins"
 msgstr "Manejar las cuentas de %(name)s "
 
 #, python-format
@@ -10214,7 +10603,7 @@ msgstr ""
 
 #, fuzzy
 #| msgid "Your account is not associated to an organization. Please create an organization."
-msgid "Your account is not associated with any organization. Please contact your administrator to receive an invitation to an organization."
+msgid "Your login is not associated with any workspace. Please contact your administrator to receive an invitation to a workspace."
 msgstr "Su cuenta no está asociada a una organización. Por favor, cree una organización."
 
 #, python-format
@@ -10235,7 +10624,9 @@ msgstr "Elija un país para recibir ayuda sobre la ubicación en sus flujos."
 msgid "Edit Aliases"
 msgstr "Editar apelativos"
 
-msgid "Create new account"
+#, fuzzy
+#| msgid "Create new account"
+msgid "Create new login"
 msgstr "Crear cuenta nueva"
 
 msgid "Sign in"
@@ -10327,7 +10718,7 @@ msgstr "aproximadamente a la misma hora."
 #| "  "
 msgid ""
 "\n"
-"    Your organization is <span class='attn'>%(org)s</span>\n"
+"    Your workspace is <span class='attn'>%(org)s</span>\n"
 "\n"
 "  "
 msgstr ""
@@ -10356,11 +10747,11 @@ msgstr ""
 #| "  "
 msgid ""
 "\n"
-"      You have <span class='attn'>%(org_count)s</span> child organization.\n"
+"      You have <span class='attn'>%(org_count)s</span> child workspaces.\n"
 "      "
 msgid_plural ""
 "\n"
-"      You have <span class='attn'>%(org_count)s</span> child organizations.\n"
+"      You have <span class='attn'>%(org_count)s</span> child workspaces.\n"
 "    "
 msgstr[0] ""
 "\n"
@@ -10408,10 +10799,17 @@ msgstr "Elegir todo lo demás"
 msgid "Select All"
 msgstr "Elegir todos"
 
+#, fuzzy
+#| msgid "Settings"
+msgid "Workspace Settings"
+msgstr "Configuraciones"
+
 msgid "Import Flows and Campaigns"
 msgstr "Importar Flujos y Campañas"
 
-msgid "If you have an export file with flows and or campaigns, select it below to import it into your account."
+#, fuzzy
+#| msgid "If you have an export file with flows and or campaigns, select it below to import it into your account."
+msgid "If you have an export file with flows and or campaigns, select it below to import it into your workspace."
 msgstr "Si tiene un archivo exportado con flujos y campañas, elíjalo a continuación para importarlo a su cuenta."
 
 msgid "Warning!"
@@ -10469,16 +10867,13 @@ msgstr ""
 "\n"
 "    "
 
-msgid "Your organization is configured to use a single language."
+#, fuzzy
+#| msgid "Your organization is configured to use a single language."
+msgid "Your workspace is configured to use a single language."
 msgstr "Su organización está configurada para usar solo un idioma."
 
-#, fuzzy
-#| msgid "Organization"
-msgid "Organizations"
-msgstr "Organización"
-
-msgid "Accounts"
-msgstr "Cuentas"
+msgid "Logins"
+msgstr ""
 
 msgid "Admins"
 msgstr "Administradores"
@@ -10550,6 +10945,30 @@ msgstr "Para poder conectar su cuenta Nexmo, envíenos su clave y código secret
 msgid "Plivo Dashboard"
 msgstr "panel de Nexmo"
 
+#, python-format
+msgid "You can monitor contact group counts and channel message counts on your workspace using your %(prometheus)s endpoint. This will let you monitor usage over time using graphs and alerts in a dashboard such as %(grafana)s."
+msgstr ""
+
+msgid "Endpoint"
+msgstr ""
+
+msgid "Disable Prometheus"
+msgstr ""
+
+#, fuzzy
+#| msgid "Enable Voice"
+msgid "Enable Prometheus"
+msgstr "Permitir voz"
+
+#, python-format
+msgid "You are monitoring your workspace using %(prometheus)s."
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "You must select a country for your organization."
+msgid "You have not enabled %(prometheus)s monitoring on your workspace."
+msgstr "Debe elegir un país para su organización."
+
 msgid ""
 "\n"
 "    You can create flow events which external services can subscribe to. For example, Zapier can subscribe\n"
@@ -10603,7 +11022,9 @@ msgstr "Ben"
 msgid "Haggerty"
 msgstr "Haggerty"
 
-msgid "What organization is this account for?"
+#, fuzzy
+#| msgid "What organization is this account for?"
+msgid "Which workspace is this login for?"
 msgstr "¿Para qué organización es esta cuenta?"
 
 msgid "name@domain.com"
@@ -10659,16 +11080,21 @@ msgid ""
 msgstr ""
 
 #, fuzzy
-#| msgid "Organization"
-msgid "Manage Organizations"
-msgstr "Organización"
+#| msgid "Select your Organization"
+msgid "Manage Workspaces"
+msgstr "Elija su Organización"
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Add Workspace"
+msgstr "Elija su Organización"
 
 #, python-format
 msgid ""
 "\n"
 "      To get started submitting surveys for %(org)s, download the %(brandname)s Surveyor app from\n"
 "      Google Play. After you install the Surveyor app on your Android phone, simply login with the same\n"
-"      account you use to login to %(brandname)s.\n"
+"      email address you use to login to %(brandname)s.\n"
 "\n"
 "    "
 msgstr ""
@@ -10697,7 +11123,7 @@ msgstr ""
 
 msgid ""
 "\n"
-"            Enter your details below to create your account.\n"
+"            Enter your details below to create your login.\n"
 "            This is the email address you will use to login to Surveyor.\n"
 "\n"
 "          "
@@ -10706,10 +11132,8 @@ msgstr ""
 msgid "API Docs"
 msgstr "Docs API"
 
-#, fuzzy
-#| msgid "Webhook URL"
-msgid "Webhook Log"
-msgstr "URL de Webhook"
+msgid "API Explorer"
+msgstr ""
 
 #, fuzzy, python-format
 #| msgid ""
@@ -10717,10 +11141,7 @@ msgstr "URL de Webhook"
 #| "    Your email address is <span class='attn'>%(email)s</span>.\n"
 #| "\n"
 #| "  "
-msgid ""
-"\n"
-"    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
-"  "
+msgid "Your API Token is <span class=\"attn\">%(token)s</span>."
 msgstr ""
 "\n"
 "    Su dirección de correo electrónico es <span class='attn'>%(email)s</span>.\n"
@@ -10736,17 +11157,37 @@ msgid ""
 "        "
 msgstr ""
 
-#, fuzzy
-msgid "This organization has been suspended"
-msgstr "La Organización del usuario."
+msgid "To enable two factor authentication, use a one time password application such as"
+msgstr ""
+
+msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
+msgstr ""
+
+msgid "These backup tokens can be used if you lose access to your authentication application, store them in a safe place. Any tokens you may have previously generated are invalid."
+msgstr ""
+
+msgid "Generate Backup Tokens"
+msgstr ""
+
+msgid "Disable Two Factor"
+msgstr ""
 
 #, fuzzy
-msgid "This organization has been whitelisted against spaminess"
+msgid "This workspace has been suspended"
 msgstr "La Organización del usuario."
 
 #, fuzzy
 #| msgid "The organization this trigger belongs to"
-msgid "This organization has been scheduled for deletion"
+msgid "This workspace has been flagged for possible spamming"
+msgstr "La organización a la que pertenece este activador"
+
+#, fuzzy
+msgid "This workspace has been verified"
+msgstr "La Organización del usuario."
+
+#, fuzzy
+#| msgid "The organization this trigger belongs to"
+msgid "This workspace has been scheduled for deletion"
 msgstr "La organización a la que pertenece este activador"
 
 msgid "Whoa, whoa, whoa!"
@@ -10763,64 +11204,10 @@ msgstr ""
 
 msgid ""
 "\n"
-"          Also, any user accounts will be deleted if they don't belong to another organization.\n"
+"          Also, any logins will be deleted if they don't belong to another workspace.\n"
 "\n"
 "        "
 msgstr ""
-
-msgid "Webhook"
-msgstr "Webhook"
-
-#, fuzzy
-#| msgid "Additional Languages"
-msgid "Additional options"
-msgstr "Idiomas adicionales"
-
-#, fuzzy
-msgid "Header key"
-msgstr "Alarmas del transmisor"
-
-#, fuzzy
-#| msgid "Numeric Value:"
-msgid "Header value"
-msgstr "Valor numérico:"
-
-msgid "Subscribed Events"
-msgstr "Eventos registrados"
-
-#, fuzzy
-msgid "Incoming Messages"
-msgstr "Mensajes de texto entrantes"
-
-#, fuzzy
-msgid "Outgoing Messages"
-msgstr "Mensajes de texto salientes"
-
-msgid "Incoming Calls"
-msgstr "Llamadas entrantes"
-
-msgid "Outgoing Calls"
-msgstr "Llamadas salientes"
-
-msgid "Channel Alarms (low battery, loss of connectivity)"
-msgstr "Alarmas transmitidas (baja batería, pérdida de conexión)"
-
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "    Your email address is <span class='attn'>%(email)s</span>.\n"
-#| "\n"
-#| "  "
-msgid ""
-"\n"
-"    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
-"\n"
-"  "
-msgstr ""
-"\n"
-"    Su dirección de correo electrónico es <span class='attn'>%(email)s</span>.\n"
-"\n"
-"  "
 
 msgid "Top Ups"
 msgstr "Recargas"
@@ -11003,6 +11390,11 @@ msgid ""
 "          Enter the URL to call out to at this point in the flow.\n"
 "        "
 msgstr ""
+
+#, fuzzy
+#| msgid "Additional Languages"
+msgid "Additional options"
+msgstr "Idiomas adicionales"
 
 #, fuzzy
 msgid "Header Name"
@@ -11308,7 +11700,7 @@ msgstr ""
 #| "      "
 msgid ""
 "\n"
-"        To use an Android phone with your %(brand)s account to send messages you need to download the %(brand)s relayer app\n"
+"        To use an Android phone with your %(brand)s workspace to send messages you need to download the %(brand)s relayer app\n"
 "\n"
 "      "
 msgstr ""
@@ -11386,13 +11778,21 @@ msgstr ""
 "\n"
 "        "
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          The easiest and most popular way to deploy %(name)s is by using a cheap Android phone along with a local sim card. It's quite\n"
+#| "          simple in principal. When your %(name)s account sends a message, it notifies your Android phone. The phone will then\n"
+#| "          send the message out from your local number on your behalf. If somebody responds to that message, the phone will then\n"
+#| "          relay that message to your %(name)s account.\n"
+#| "\n"
+#| "        "
 msgid ""
 "\n"
 "          The easiest and most popular way to deploy %(name)s is by using a cheap Android phone along with a local sim card. It's quite\n"
-"          simple in principal. When your %(name)s account sends a message, it notifies your Android phone. The phone will then\n"
+"          simple in principal. When your %(name)s workspace sends a message, it notifies your Android phone. The phone will then\n"
 "          send the message out from your local number on your behalf. If somebody responds to that message, the phone will then\n"
-"          relay that message to your %(name)s account.\n"
+"          relay that message to your %(name)s workspace.\n"
 "\n"
 "        "
 msgstr ""
@@ -11482,7 +11882,7 @@ msgstr "Una vez que haya instalado la aplicación, se le enviará un código de 
 #, python-format
 msgid ""
 "\n"
-"        And that's all there is to it. From then on, that phone will handle sending all the messages for your %(name)s account.\n"
+"        And that's all there is to it. From then on, that phone will handle sending all the messages for your %(name)s workspace.\n"
 "\n"
 "      "
 msgstr ""
@@ -11529,12 +11929,20 @@ msgstr ""
 msgid "What if I need to send a lot of messages?"
 msgstr "¿Qué pasa si necesito enviar muchos mensajes?"
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          We encourage people to validate their ideas and experiment before focusing on scaling. Starting with Android\n"
+#| "          phones is a logical starting point for most projects and you'll have no problem sending up to around 1,000 messages per hour.\n"
+#| "          If you do outgrow that, we can help you connect your %(name)s account\n"
+#| "          with a local aggregator or even a direct connection with the carriers themselves.\n"
+#| "\n"
+#| "        "
 msgid ""
 "\n"
 "          We encourage people to validate their ideas and experiment before focusing on scaling. Starting with Android\n"
 "          phones is a logical starting point for most projects and you'll have no problem sending up to around 1,000 messages per hour.\n"
-"          If you do outgrow that, we can help you connect your %(name)s account\n"
+"          If you do outgrow that, we can help you connect your %(name)s workspace\n"
 "          with a local aggregator or even a direct connection with the carriers themselves.\n"
 "\n"
 "        "
@@ -11650,11 +12058,19 @@ msgstr ""
 msgid "Connecting to Carriers"
 msgstr "Conectarse con los proveedores"
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "        For projects that need to send more than a few thousand messages an hour, it may be worth looking\n"
+#| "        into a direct connection with the local carriers. When your project is ready for it, your %(name)s account can be\n"
+#| "        coverted over to an SMPP connection. Integrating with each carrier is generally expensive and time consuming,\n"
+#| "        so it's not something that should be considered until it is absolutely necessary.\n"
+#| "\n"
+#| "      "
 msgid ""
 "\n"
 "        For projects that need to send more than a few thousand messages an hour, it may be worth looking\n"
-"        into a direct connection with the local carriers. When your project is ready for it, your %(name)s account can be\n"
+"        into a direct connection with the local carriers. When your project is ready for it, your %(name)s workspace can be\n"
 "        coverted over to an SMPP connection. Integrating with each carrier is generally expensive and time consuming,\n"
 "        so it's not something that should be considered until it is absolutely necessary.\n"
 "\n"
@@ -11727,11 +12143,6 @@ msgstr ""
 "      Siempre estamos ampliando nuestra red de agregadores locales. Si no encuentra una opción para su país,\n"
 "      <a href='javascript:void(0);' class='uv-send-message'>contáctese con nosotros.</a>. Con gusto lo ayudaremos a encontrar un agregador local que pueda integrarse con %(name)s para su país.\n"
 "    "
-
-#, fuzzy
-#| msgid "Create new account"
-msgid "Create Account"
-msgstr "Crear cuenta nueva"
 
 #, fuzzy, python-format
 #| msgid ""
@@ -11911,10 +12322,12 @@ msgstr ""
 "\n"
 "        "
 
-msgid "ACCOUNT"
-msgstr "CUENTA"
+msgid "WORKSPACE"
+msgstr ""
 
-msgid "Visit your account page to add credits at any time"
+#, fuzzy
+#| msgid "Visit your account page to add credits at any time"
+msgid "Visit your workspace page to add credits at any time"
 msgstr "Visite la página de su cuenta para agregar créditos en cualquier momento"
 
 #, python-format
@@ -12013,19 +12426,13 @@ msgstr ""
 msgid "More Videos"
 msgstr "Más videos"
 
-#, fuzzy
-msgid "Classifier Events"
-msgstr "Evento del transmisor"
+msgid "From"
+msgstr ""
 
 #, fuzzy
-#| msgid "Recent Channel Events"
-msgid "Recent Classifier Events"
-msgstr "Eventos recientes del transmisor"
-
-#, fuzzy
-#| msgid "Channel Event"
-msgid "Classifier: "
-msgstr "Evento del transmisor"
+#| msgid "Receive URL"
+msgid "Request time:"
+msgstr "Recibir URL"
 
 #, fuzzy
 #| msgid "Channel Event"
@@ -12109,20 +12516,20 @@ msgstr "Borrar"
 
 #, fuzzy
 #| msgid "Select your Organization"
-msgid "Delete Organization"
+msgid "Delete Workspace"
 msgstr "Elija su Organización"
 
 #, fuzzy
 #| msgid "Delete"
-msgid "Delete User"
+msgid "Delete Login"
 msgstr "Borrar"
 
-msgid "By deleting this user,"
+msgid "By deleting this login,"
 msgstr ""
 
 msgid ""
 "\n"
-"                  will also be deleted. All organization data will be deleted and there is no\n"
+"                  will also be deleted. All workspace data will be deleted and there is no\n"
 "                  going back. This includes all flows, contacts, messages, etc.\n"
 "                "
 msgstr ""
@@ -12130,10 +12537,105 @@ msgstr ""
 #, fuzzy, python-format
 msgid ""
 "\n"
-"              Are you sure you want to delete the user %(name)s?\n"
+"              Are you sure you want to delete the login %(name)s?\n"
 "\n"
 "            "
 msgstr "Establecer el idioma preferido para el contacto."
+
+msgid "Ticketing Service"
+msgstr ""
+
+#, fuzzy
+#| msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgid "This will close all tickets that were created with this service. Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgstr "Una vez que la borre, no la podrá recuperar. Esta operación no se puede deshacer."
+
+#, fuzzy
+#| msgid "Warning!"
+msgid "Warning"
+msgstr "¡Atención!"
+
+msgid "Unable to delete service still being used by the following flows"
+msgstr ""
+
+#, fuzzy
+#| msgid "Device"
+msgid "Services"
+msgstr "Dispositivo"
+
+msgid "Close"
+msgstr ""
+
+msgid "Reopen"
+msgstr ""
+
+#, fuzzy
+#| msgid "Open TextIt"
+msgid "No tickets."
+msgstr "Abrir TextIt"
+
+msgid "Through"
+msgstr ""
+
+#, fuzzy
+#| msgid "Contact Fields"
+msgid "Body"
+msgstr "Campos de Contactos"
+
+#, fuzzy
+#| msgid "Ended On"
+msgid "Opened On"
+msgstr "Finalizó el"
+
+#, fuzzy
+#| msgid "Choose File"
+msgid "Close Ticket"
+msgstr "Elegir archivo"
+
+#, fuzzy
+#| msgid "Are you sure you want to delete this contact?"
+msgid "Are you sure you want to close this ticket?"
+msgstr "¿Está seguro de que desea borrar este contacto?"
+
+#, fuzzy
+#| msgid "Connect Kannel Service"
+msgid "Connect a Ticketing Service"
+msgstr "Conectar con el Servicio Kannel"
+
+msgid "Ticketing Services let a human agent take over communication for a contact. In a flow you can open a new ticket for a contact and from that point until the ticket is closed all incoming messages from the contact will be forwarded to the service and all replies from the service will be sent back to the contact."
+msgstr ""
+
+msgid "Select the ticketing service you want to connect below to get started."
+msgstr ""
+
+msgid "No ticketing services are available."
+msgstr ""
+
+#, python-format
+msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
+msgstr ""
+
+#, python-format
+msgid "Your verification code is %(code)s to continue adding an email-based ticketing service."
+msgstr ""
+
+msgid "This will connect your account to Zendesk allowing you to open tickets in flows."
+msgstr ""
+
+msgid "To complete connecting your account here to your Zendesk account you need to complete the following steps."
+msgstr ""
+
+#, python-format
+msgid "Install the %(brand)s app into your Zendesk account from the <a href=\"%(market_url)s\">marketplace</a>."
+msgstr ""
+
+#, python-format
+msgid "Go to <a href=\"%(channels_url)s\">channel integrations</a> where you will see a new %(brand)s channel service."
+msgstr ""
+
+#, python-format
+msgid "Add account for the channel and enter <code>%(secret)s</code> as the secret."
+msgstr ""
 
 msgid "Trigger a Flow"
 msgstr "Activar un flujo"
@@ -12198,14 +12700,6 @@ msgstr "empieza el"
 
 msgid "flow"
 msgstr "flujo"
-
-#, fuzzy
-#| msgid "Your Contacts"
-msgid "for contacts in"
-msgstr "Sus Contactos"
-
-msgid "will start in"
-msgstr "empezará en"
 
 msgid "is"
 msgstr "no está"
@@ -12324,6 +12818,298 @@ msgstr "Ingrese el código de pedido"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
+#, fuzzy
+#~| msgid "The name of the video"
+#~ msgid "Connect Facebook page"
+#~ msgstr "El nombre del video"
+
+#, fuzzy
+#~| msgid "Your app's server access token"
+#~ msgid "Empty user access token!"
+#~ msgstr "Token de acceso desde su repositorio"
+
+#, fuzzy, python-brace-format
+#~| msgid "Using a Local Number"
+#~ msgid "f'{val}' isn't a valid number"
+#~ msgstr "Con un número local"
+
+#, fuzzy, python-brace-format
+#~| msgid "Invalid group or contact id"
+#~ msgid "Unable to parse the date '{self.value}'"
+#~ msgstr "ID del grupo o contacto inválido "
+
+#, fuzzy, python-brace-format
+#~| msgid "Unknown alert type: %(alert)s"
+#~ msgid "Unknown location type: '{field.value_type}'"
+#~ msgstr "Tipo de alerta desconocido: %(alert)s"
+
+#~ msgid "Sorry, import is a premium feature"
+#~ msgstr "Lo sentimos, la importación es una función premium"
+
+#, fuzzy
+#~| msgid "Manage %(name)s Accounts"
+#~ msgid "Manage Accounts"
+#~ msgstr "Manejar las cuentas de %(name)s "
+
+#, fuzzy
+#~| msgid "Organization"
+#~ msgid "Organizations"
+#~ msgstr "Organización"
+
+#, fuzzy
+#~| msgid "Organization"
+#~ msgid "Manage Organizations"
+#~ msgstr "Organización"
+
+#~ msgid "Organization"
+#~ msgstr "Organización"
+
+#, fuzzy
+#~ msgid "Create Organization Account"
+#~ msgstr "Crear su Organización"
+
+#, fuzzy
+#~| msgid "Organization"
+#~ msgid "From Organization"
+#~ msgstr "Organización"
+
+#, fuzzy
+#~| msgid "Organization"
+#~ msgid "To Organization"
+#~ msgstr "Organización"
+
+#~ msgid "Accounts"
+#~ msgstr "Cuentas"
+
+#, fuzzy
+#~| msgid "Create new account"
+#~ msgid "Create Account"
+#~ msgstr "Crear cuenta nueva"
+
+#~ msgid "ACCOUNT"
+#~ msgstr "CUENTA"
+
+#, fuzzy
+#~| msgid "Select your Organization"
+#~ msgid "Delete Organization"
+#~ msgstr "Elija su Organización"
+
+#, fuzzy
+#~| msgid "Delete"
+#~ msgid "Delete User"
+#~ msgstr "Borrar"
+
+#~ msgid "The name of your organization"
+#~ msgstr "El nombre de su organización"
+
+#, fuzzy
+#~ msgid "The name of the new organization"
+#~ msgstr "El nombre de su organización"
+
+#~ msgid "Your organization's timezone"
+#~ msgstr "La zona horaria de su organización"
+
+#, fuzzy
+#~ msgid "This organization has been whitelisted against flagging"
+#~ msgstr "La Organización del usuario."
+
+#, fuzzy
+#~| msgid "Restore Flows"
+#~ msgid "Restore"
+#~ msgstr "Restaurar flujos"
+
+#~ msgid "Free Plan"
+#~ msgstr "Plan libre"
+
+#~ msgid "Trial"
+#~ msgstr "Prueba"
+
+#~ msgid "Bronze"
+#~ msgstr "Bronce"
+
+#~ msgid "Silver"
+#~ msgstr "Plata"
+
+#~ msgid "Gold (Legacy)"
+#~ msgstr "Oro (Legado)"
+
+#~ msgid "Platinum (Legacy)"
+#~ msgstr "Platino (Legado)"
+
+#~ msgid "Gold"
+#~ msgstr "Oro"
+
+#~ msgid "Platinum"
+#~ msgstr "Platino"
+
+#~ msgid "Plan Start"
+#~ msgstr "Inicio de plan"
+
+#~ msgid "When the user switched to this plan"
+#~ msgstr "Cuándo el usuario se cambió a este plan"
+
+#~ msgid "Webhook"
+#~ msgstr "Webhook"
+
+#, fuzzy
+#~ msgid "Header key"
+#~ msgstr "Alarmas del transmisor"
+
+#, fuzzy
+#~| msgid "Numeric Value:"
+#~ msgid "Header value"
+#~ msgstr "Valor numérico:"
+
+#~ msgid "Subscribed Events"
+#~ msgstr "Eventos registrados"
+
+#, fuzzy
+#~ msgid "Incoming Messages"
+#~ msgstr "Mensajes de texto entrantes"
+
+#, fuzzy
+#~ msgid "Outgoing Messages"
+#~ msgstr "Mensajes de texto salientes"
+
+#~ msgid "Incoming Calls"
+#~ msgstr "Llamadas entrantes"
+
+#~ msgid "Outgoing Calls"
+#~ msgstr "Llamadas salientes"
+
+#~ msgid "Channel Alarms (low battery, loss of connectivity)"
+#~ msgstr "Alarmas transmitidas (baja batería, pérdida de conexión)"
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "    Your email address is <span class='attn'>%(email)s</span>.\n"
+#~| "\n"
+#~| "  "
+#~ msgid ""
+#~ "\n"
+#~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
+#~ "\n"
+#~ "  "
+#~ msgstr ""
+#~ "\n"
+#~ "    Su dirección de correo electrónico es <span class='attn'>%(email)s</span>.\n"
+#~ "\n"
+#~ "  "
+
+#, fuzzy
+#~ msgid "Classifier Events"
+#~ msgstr "Evento del transmisor"
+
+#, fuzzy
+#~| msgid "Channel Event"
+#~ msgid "Classifier: "
+#~ msgstr "Evento del transmisor"
+
+#, fuzzy
+#~| msgid "Start Flow"
+#~ msgid "Start Log"
+#~ msgstr "Empezar flujo"
+
+#, fuzzy
+#~| msgid "Start Flow"
+#~ msgid "Started By"
+#~ msgstr "Empezar flujo"
+
+#, fuzzy
+#~| msgid "Start Flow"
+#~ msgid "Started On"
+#~ msgstr "Empezar flujo"
+
+#, fuzzy
+#~| msgid "No Editors"
+#~ msgid "Previous Editor"
+#~ msgstr "Sin Editores"
+
+#, fuzzy
+#~| msgid "Export"
+#~ msgid "Export PO"
+#~ msgstr "Exportar"
+
+#, fuzzy
+#~| msgid "Download Results"
+#~ msgid "Download PO"
+#~ msgstr "Descargar Resultados"
+
+#, fuzzy
+#~| msgid "Your Contacts"
+#~ msgid "for contacts in"
+#~ msgstr "Sus Contactos"
+
+#~ msgid "will start in"
+#~ msgstr "empezará en"
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "          Install the %(name)s app\n"
+#~| "\n"
+#~| "        "
+#~ msgid ""
+#~ "\n"
+#~ "          trigger.\n"
+#~ "        "
+#~ msgid_plural ""
+#~ "\n"
+#~ "          triggers.\n"
+#~ "\n"
+#~ "        "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "          Instalar el %(name)s app\n"
+#~ "\n"
+#~ "        "
+#~ msgstr[1] ""
+#~ "\n"
+#~ "          Instalar el %(name)s app\n"
+#~ "\n"
+#~ "        "
+
+#, fuzzy
+#~ msgid ""
+#~ "\n"
+#~ "          flow.\n"
+#~ "        "
+#~ msgid_plural ""
+#~ "\n"
+#~ "          flows.\n"
+#~ "\n"
+#~ "        "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "                Llamada saliente (%(duration)s seconds)\n"
+#~ "              "
+#~ msgstr[1] ""
+#~ "\n"
+#~ "                Llamada saliente (%(duration)s seconds)\n"
+#~ "              "
+
+#, fuzzy
+#~ msgid ""
+#~ "\n"
+#~ "          campaign.\n"
+#~ "        "
+#~ msgid_plural ""
+#~ "\n"
+#~ "          campaigns.\n"
+#~ "\n"
+#~ "        "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "          Instalar el %(name)s app\n"
+#~ "\n"
+#~ "        "
+#~ msgstr[1] ""
+#~ "\n"
+#~ "          Instalar el %(name)s app\n"
+#~ "\n"
+#~ "        "
+
 #, fuzzy, python-format
 #~| msgid ""
 #~| "\n"
@@ -12376,10 +13162,6 @@ msgstr ""
 #~| msgid "Please enter at least 8 characters"
 #~ msgid "Please enter a valid contact query"
 #~ msgstr "Por favor, ingrese 8 caracteres como mínimo"
-
-#, fuzzy
-#~ msgid "Send"
-#~ msgstr "Enviar URL"
 
 #, fuzzy
 #~| msgid ""
@@ -12769,9 +13551,6 @@ msgstr ""
 #~ msgid "Alias names must be unique, try again."
 #~ msgstr "Los apelativos deben ser únicos, inténtelo de nuevo."
 
-#~ msgid "Your changes could not be saved. Please reload the page and try again."
-#~ msgstr "No se pudieron guardar sus cambios. Por favor, actualice la página e inténtelo nuevamente."
-
 #, fuzzy
 #~| msgid "Channel Event"
 #~ msgid "Flow Event"
@@ -12964,11 +13743,6 @@ msgstr ""
 #~| msgid "Infobip"
 #~ msgid "Info"
 #~ msgstr "Infobip"
-
-#, fuzzy
-#~| msgid "Warning!"
-#~ msgid "Warning"
-#~ msgstr "¡Atención!"
 
 #, fuzzy
 #~| msgid "When this flow run expired"
@@ -13682,9 +14456,6 @@ msgstr ""
 
 #~ msgid "The JSON encoded configurations for this report"
 #~ msgstr "Configuraciones codificadas JSON para este informe"
-
-#~ msgid "Whether this report is currently published"
-#~ msgstr "Si este informe está publicado actualmente"
 
 #, fuzzy
 #~ msgid "Numeric"
@@ -14421,9 +15192,6 @@ msgstr ""
 #~ msgid "Connect Public Viber Channel"
 #~ msgstr "Conectar Kannel"
 
-#~ msgid "Connect Kannel Service"
-#~ msgstr "Conectar con el Servicio Kannel"
-
 #~ msgid "Connect Infobip"
 #~ msgstr "Conectar Infobip"
 
@@ -14499,9 +15267,6 @@ msgstr ""
 
 #~ msgid "The End Date should be a date after the Start Date"
 #~ msgstr "La fecha de finalización deberá ser una fecha posterior a la fecha de inicio."
-
-#~ msgid "Export Data"
-#~ msgstr "Exportar datos"
 
 #~ msgid "Another active trigger uses this keyword, keywords must be unique"
 #~ msgstr "Otro activador activo usa esta palabra clave, las palabras clave deben ser únicas"
@@ -14829,9 +15594,6 @@ msgstr ""
 #~ msgid "Netherlands"
 #~ msgstr "Países Bajos"
 
-#~ msgid "South Africa"
-#~ msgstr "Sudáfrica"
-
 #, fuzzy
 #~ msgid "South Korea"
 #~ msgstr "Sudáfrica"
@@ -14939,9 +15701,6 @@ msgstr ""
 
 #~ msgid "1 Contact"
 #~ msgstr "1 Contacto"
-
-#~ msgid "has started this flow."
-#~ msgstr "ha iniciado en este flujo."
 
 #~ msgid "{{ participant_count }} Contacts"
 #~ msgstr "{{ participant_count }} Contactos"
@@ -15058,9 +15817,6 @@ msgstr ""
 
 #~ msgid "Send an e-mail"
 #~ msgstr "Enviar un mensaje de correo electrónico"
-
-#~ msgid "Place contact in another flow"
-#~ msgstr "Colocar el contacto en otro flujo"
 
 #~ msgid "Place somebody else in a flow"
 #~ msgstr "Colocar a alguien más en un flujo"
@@ -15300,9 +16056,6 @@ msgstr ""
 
 #~ msgid "Once"
 #~ msgstr "Una vez"
-
-#~ msgid "Add"
-#~ msgstr "Agregar"
 
 #~ msgid "Viewer."
 #~ msgstr "Visitante."
@@ -15688,9 +16441,6 @@ msgstr ""
 
 #~ msgid "Search for TextIt"
 #~ msgstr "Buscar TextIt"
-
-#~ msgid "Open TextIt"
-#~ msgstr "Abrir TextIt"
 
 #~ msgid "Remove Phone Number"
 #~ msgstr "Retirar número de teléfono"

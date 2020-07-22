@@ -48,7 +48,7 @@ install:
   - ./elasticsearch-${ES_VERSION}/bin/elasticsearch &
 
   # install mailroom
-  - MAILROOM_VERSION=5.3.42
+  - MAILROOM_VERSION=5.5.26
   - wget https://github.com/nyaruka/mailroom/releases/download/v${MAILROOM_VERSION}/mailroom_${MAILROOM_VERSION}_linux_amd64.tar.gz
   - tar -xvf mailroom_${MAILROOM_VERSION}_linux_amd64.tar.gz mailroom
 
@@ -89,7 +89,7 @@ script:
   - set -e
 
   # test that everything is well formatted, no missing migrations etc
-  - ./code_check.py
+  - ./code_check.py --debug $([[ "$TRAVIS_BRANCH" =~ "translations_django-po" ]] && echo "--skip-compilemessages")
 
   # run our Javascript tests
   - node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS

@@ -64,20 +64,21 @@ class WhatsAppTypeTest(TembaTest):
 
             self.assertContains(response, "check username and password")
 
-        # then FB failure
-        with patch("requests.post") as mock_post:
-            with patch("requests.get") as mock_get:
-                mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
-                mock_get.return_value = MockResponse(400, '{"data": []}')
-
-                response = self.client.post(url, post_data)
-                self.assertEqual(200, response.status_code)
-                self.assertFalse(Channel.objects.all())
-                mock_get.assert_called_with(
-                    "https://graph.facebook.com/v3.3/1234/message_templates", params={"access_token": "token123"}
-                )
-
-                self.assertContains(response, "check user id and access token")
+        # Uncomment this when we activate back the checking of Facebook templates
+        # # then FB failure
+        # with patch("requests.post") as mock_post:
+        #     with patch("requests.get") as mock_get:
+        #         mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
+        #         mock_get.return_value = MockResponse(400, '{"data": []}')
+        #
+        #         response = self.client.post(url, post_data)
+        #         self.assertEqual(200, response.status_code)
+        #         self.assertFalse(Channel.objects.all())
+        #         mock_get.assert_called_with(
+        #             "https://graph.facebook.com/v3.3/1234/message_templates", params={"access_token": "token123"}
+        #         )
+        #
+        #         self.assertContains(response, "check user id and access token")
 
         # then success
         with patch("requests.post") as mock_post:
@@ -197,6 +198,19 @@ class WhatsAppTypeTest(TembaTest):
                 "components": [
                   {
                     "type": "BODY",
+                    "text": "Hi {{1}}"
+                  }
+                ],
+                "language": "en_GB",
+                "status": "PENDING",
+                "category": "ISSUE_RESOLUTION",
+                "id": "4321"
+              },
+              {
+                "name": "hello",
+                "components": [
+                  {
+                    "type": "BODY",
                     "text": "Bonjour {{1}}"
                   }
                 ],
@@ -223,6 +237,27 @@ class WhatsAppTypeTest(TembaTest):
                 "components": [
                   {
                     "type": "HEADER",
+                    "text": "Workout challenge week extra points!"
+                  },
+                  {
+                    "type": "BODY",
+                    "text": "Hey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people."
+                  },
+                  {
+                    "type": "FOOTER",
+                    "text": "Remember to drink water."
+                  }
+                ],
+                "language": "en",
+                "status": "PENDING",
+                "category": "ISSUE_RESOLUTION",
+                "id": "9014"
+              },
+              {
+                "name": "workout_activity_with_unsuported_variablet",
+                "components": [
+                  {
+                    "type": "HEADER",
                     "text": "Workout challenge week {{2}}, {{4}} extra points!"
                   },
                   {
@@ -239,6 +274,7 @@ class WhatsAppTypeTest(TembaTest):
                 "category": "ISSUE_RESOLUTION",
                 "id": "9014"
               },
+
               {
                 "name": "invalid_component",
                 "components": [
@@ -296,7 +332,7 @@ class WhatsAppTypeTest(TembaTest):
 
             # should have 4 templates
             self.assertEqual(4, Template.objects.filter(org=self.org).count())
-            self.assertEqual(5, TemplateTranslation.objects.filter(channel=channel).count())
+            self.assertEqual(6, TemplateTranslation.objects.filter(channel=channel).count())
 
             # hit our template page
             response = self.client.get(reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
@@ -311,12 +347,12 @@ class WhatsAppTypeTest(TembaTest):
             self.assertEqual("Goodbye {{1}}, see you on {{2}}. See you later {{1}}", ct.content)
             self.assertEqual("eng", ct.language)
             self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
-            self.assertEqual("goodbye (eng) P: Goodbye {{1}}, see you on {{2}}. See you later {{1}}", str(ct))
+            self.assertEqual("goodbye (eng []) P: Goodbye {{1}}, see you on {{2}}. See you later {{1}}", str(ct))
 
             ct = TemplateTranslation.objects.get(template__name="workout_activity", is_active=True)
-            self.assertEqual(4, ct.variable_count)
+            self.assertEqual(3, ct.variable_count)
             self.assertEqual(
-                "Workout challenge week {{2}}, {{4}} extra points!\n\nHey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people.\n\nRemember to drink water.",
+                "Workout challenge week extra points!\n\nHey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people.\n\nRemember to drink water.",
                 ct.content,
             )
             self.assertEqual("eng", ct.language)
@@ -337,7 +373,7 @@ class WhatsAppTypeTest(TembaTest):
             channel.release()
 
         # all our templates should be inactive now
-        self.assertEqual(5, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())
+        self.assertEqual(6, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())
 
     def test_claim_self_hosted_templates(self):
         Channel.objects.all().delete()
@@ -361,6 +397,20 @@ class WhatsAppTypeTest(TembaTest):
         post_data["facebook_business_id"] = "1234"
         post_data["facebook_access_token"] = "token123"
         post_data["facebook_template_list_domain"] = "example.org"
+
+        with patch("requests.post") as mock_post:
+            with patch("requests.get") as mock_get:
+                mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
+                mock_get.return_value = MockResponse(400, '{"data": []}')
+
+                response = self.client.post(url, post_data)
+                self.assertEqual(200, response.status_code)
+                self.assertFalse(Channel.objects.all())
+                mock_get.assert_called_with(
+                    "https://example.org/v3.3/1234/message_templates", params={"access_token": "token123"}
+                )
+
+                self.assertContains(response, "check user id and access token")
 
         # success claim
         with patch("requests.post") as mock_post:
@@ -386,7 +436,6 @@ class WhatsAppTypeTest(TembaTest):
         channel = Channel.objects.get()
 
         self.assertEqual("example.org", channel.config[CONFIG_FB_TEMPLATE_LIST_DOMAIN])
-        self.assertEqual(1, channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).count())
         self.assertEqual(1, channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).count())
 
         # hit our sync logs page
@@ -415,6 +464,13 @@ class WhatsAppTypeTest(TembaTest):
         response = self.client.get(log_url)
         self.assertContains(response, "Connection Error")
         self.assertContains(response, "https://example.org/v3.3/1234/message_templates")
+
+        with patch("requests.get") as mock_get:
+            mock_get.side_effect = Exception("Random Error")
+
+            with patch("logging.Logger.error") as mock_logger:
+                refresh_whatsapp_templates()
+                mock_logger.assert_called_once()
 
         # sync logs not accessible by user from other org
         self.login(self.admin2)

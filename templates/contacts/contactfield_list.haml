@@ -20,6 +20,17 @@
 
   {% block pjax %}
   #pjax
+    -if total_count >= total_limit
+      .(style="margin-bottom: 10px")
+        %temba-alert(level="warning")
+          -blocktrans trimmed with limit=total_limit
+            You have reached the limit of {{ limit }} fields per workspace. Please remove fields that you are no longer using.
+    -elif total_count >= total_limit|add:-10
+      .(style="margin-bottom: 10px")
+        %temba-alert(level="warning")
+          -blocktrans trimmed with limit=total_limit
+            You are approaching the limit of {{ limit }} fields per workspace. You should remove fields that you are no longer using.
+
     .row-fluid
       .span3.sidebox
         %div.contacts{style:"margin-bottom: 10px"}
@@ -165,9 +176,9 @@
 
   function showCreateContactFieldModal() {
 
-    var modal = new Modax('{% trans "Create Contact Field" %}', '{% url "contacts.contactfield_create" %}')
+    var modal = new Modax('{{ _("Create Contact Field")|escapejs }}', '{% url "contacts.contactfield_create" %}')
     modal.setIcon('icon-vcard');
-    modal.ele.find('.primary').text('{% trans "Create" %}');
+    modal.ele.find('.primary').text('{{ _("Create")|escapejs }}');
 
     modal.setListeners({
       onSuccess: function() {
@@ -185,13 +196,13 @@
   function showUpdateContactFieldModal(cfid) {
     var updateUrl = '/contactfield/update/' + cfid + '/';
 
-    var modal = new Modax('{% trans "Update Contact Field" %}', updateUrl);
+    var modal = new Modax('{{ _("Update Contact Field")|escapejs }}', updateUrl);
 
     modal.setIcon('icon-vcard');
-    modal.ele.find('.primary').text('{% trans "Update" %}');
+    modal.ele.find('.primary').text('{{ _("Update")|escapejs }}');
 
     - if org_perms.contacts.contactfield_delete
-      modal.setTertiaryButton('{% trans "Delete" %}', function() {
+      modal.setTertiaryButton('{{ _("Delete")|escapejs }}', function() {
         // hide current UpdateModal
         modal.dismiss();
 
@@ -225,14 +236,14 @@
 
       modal.submit = function () {};
     } else {
-      modal.ele.find('.primary').text('{% trans "Delete" %}').addClass('btn-danger')
+      modal.ele.find('.primary').text('{{ _("Delete")|escapejs }}').addClass('btn-danger')
     }
   };
 
   function showDeleteContactFieldModal(cfid) {
     var deleteUrl = '/contactfield/delete/' + cfid + '/';
 
-    var modal = new Modax('{% trans "Delete Contact Field" %}', deleteUrl);
+    var modal = new Modax('{{ _("Delete Contact Field")|escapejs }}', deleteUrl);
 
     modal.setIcon('icon-vcard');
     modal.addClass("alert");
@@ -256,13 +267,13 @@
   function showDetailContactFieldModal(cfid, label) {
     var detailUrl = '/contactfield/detail/' + cfid + '/';
 
-    var modal = new Modax(label + ' ' + '{% trans "Uses" %}', detailUrl);
+    var modal = new Modax(label + ' ' + '{{ _("Uses")|escapejs }}', detailUrl);
 
     modal.setIcon('icon-vcard');
 
     modal.ele.find('.primary').hide();  // hide primary, because primary button onClick handler will try to submit the form
 
-    modal.ele.find('.secondary').text('{% trans "Ok" %}');
+    modal.ele.find('.secondary').text('{{ _("Ok")|escapejs }}');
 
     modal.setListeners({
       onSuccess: function() {

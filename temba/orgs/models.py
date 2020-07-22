@@ -1,4 +1,3 @@
-import calendar
 import itertools
 import logging
 import os
@@ -7,13 +6,12 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from urllib.parse import quote, urlencode, urlparse
-from uuid import uuid4
 
 import pycountry
+import pytz
 import regex
 import stripe
 import stripe.error
-from dateutil.relativedelta import relativedelta
 from django_redis import get_redis_connection
 from packaging.version import Version
 from requests import Session
@@ -27,7 +25,7 @@ from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
-from django.db.models import F, Prefetch, Q, Sum
+from django.db.models import Count, F, Prefetch, Q, Sum
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.text import slugify
@@ -44,7 +42,8 @@ from temba.utils.dates import datetime_to_str, str_to_datetime
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
-from temba.utils.text import random_string
+from temba.utils.text import generate_token, random_string
+from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -96,30 +95,7 @@ class Org(SmartModel):
     DATE_FORMAT_MONTH_FIRST = "M"
     DATE_FORMATS = ((DATE_FORMAT_DAY_FIRST, "DD-MM-YYYY"), (DATE_FORMAT_MONTH_FIRST, "MM-DD-YYYY"))
 
-    PLAN_FREE = "FREE"
-    PLAN_TRIAL = "TRIAL"
-    PLAN_TIER1 = "TIER1"
-    PLAN_TIER2 = "TIER2"
-    PLAN_TIER3 = "TIER3"
-    PLAN_TIER_39 = "TIER_39"
-    PLAN_TIER_249 = "TIER_249"
-    PLAN_TIER_449 = "TIER_449"
-    PLANS = (
-        (PLAN_FREE, _("Free Plan")),
-        (PLAN_TRIAL, _("Trial")),
-        (PLAN_TIER_39, _("Bronze")),
-        (PLAN_TIER1, _("Silver")),
-        (PLAN_TIER2, _("Gold (Legacy)")),
-        (PLAN_TIER3, _("Platinum (Legacy)")),
-        (PLAN_TIER_249, _("Gold")),
-        (PLAN_TIER_449, _("Platinum")),
-    )
-
-    STATUS_SUSPENDED = "suspended"
-    STATUS_RESTORED = "restored"
-    STATUS_WHITELISTED = "whitelisted"
-
-    CONFIG_STATUS = "STATUS"
+    CONFIG_VERIFIED = "verified"
     CONFIG_SMTP_SERVER = "smtp_server"
     CONFIG_TWILIO_SID = "ACCOUNT_SID"
     CONFIG_TWILIO_TOKEN = "ACCOUNT_TOKEN"
@@ -150,12 +126,8 @@ class Org(SmartModel):
     plan = models.CharField(
         verbose_name=_("Plan"),
         max_length=16,
-        choices=PLANS,
-        default=PLAN_FREE,
+        default=settings.DEFAULT_PLAN,
         help_text=_("What plan your organization is on"),
-    )
-    plan_start = models.DateTimeField(
-        verbose_name=_("Plan Start"), auto_now_add=True, help_text=_("When the user switched to this plan")
     )
 
     stripe_customer = models.CharField(
@@ -235,6 +207,20 @@ class Org(SmartModel):
         default=False, help_text=_("Whether this organization anonymizes the phone numbers of contacts within it")
     )
 
+    is_flagged = models.BooleanField(default=False, help_text=_("Whether this organization is currently flagged."))
+
+    is_suspended = models.BooleanField(default=False, help_text=_("Whether this organization is currently suspended."))
+
+    uses_topups = models.BooleanField(default=True, help_text=_("Whether this organization uses topups."))
+
+    is_multi_org = models.BooleanField(
+        default=False, help_text=_("Whether this organization can have child workspaces")
+    )
+
+    is_multi_user = models.BooleanField(
+        default=False, help_text=_("Whether this organization can have multiple logins")
+    )
+
     primary_language = models.ForeignKey(
         "orgs.Language",
         null=True,
@@ -279,9 +265,7 @@ class Org(SmartModel):
             return unique_slug
 
     def create_sub_org(self, name, timezone=None, created_by=None):
-
-        if self.is_multi_org_tier() and not self.parent:
-
+        if self.is_multi_org:
             if not timezone:
                 timezone = self.timezone
 
@@ -299,6 +283,8 @@ class Org(SmartModel):
                 slug=slug,
                 created_by=created_by,
                 modified_by=created_by,
+                is_multi_user=self.is_multi_user,
+                is_multi_org=self.is_multi_org,
             )
 
             org.administrators.add(created_by)
@@ -336,6 +322,13 @@ class Org(SmartModel):
         counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ALL, ContactGroup.TYPE_BLOCKED))
         return (counts[ContactGroup.TYPE_ALL] + counts[ContactGroup.TYPE_BLOCKED]) > 0
 
+    @cached_property
+    def has_ticketer(self):
+        """
+        Gets whether this org has an active ticketer configured
+        """
+        return self.ticketers.filter(is_active=True)
+
     def clear_credit_cache(self):
         """
         Clears the given cache types (currently just credits) for this org. Returns number of keys actually deleted
@@ -352,24 +345,27 @@ class Org(SmartModel):
             *active_topup_keys,
         )
 
-    def set_status(self, status):
-        self.config[Org.CONFIG_STATUS] = status
-        self.save(update_fields=("config", "modified_on"))
+    def flag(self):
+        self.is_flagged = True
+        self.save(update_fields=("is_flagged", "modified_on"))
 
-    def set_suspended(self):
-        self.set_status(Org.STATUS_SUSPENDED)
+    def unflag(self):
+        self.is_flagged = False
+        self.save(update_fields=("is_flagged", "modified_on"))
 
-    def set_whitelisted(self):
-        self.set_status(Org.STATUS_WHITELISTED)
+    def verify(self):
+        """
+        Unflags org and marks as verified so it won't be flagged automatically in future
+        """
+        self.is_flagged = False
+        self.config[Org.CONFIG_VERIFIED] = True
+        self.save(update_fields=("is_flagged", "config", "modified_on"))
 
-    def set_restored(self):
-        self.set_status(Org.STATUS_RESTORED)
-
-    def is_suspended(self):
-        return self.config.get(Org.CONFIG_STATUS) == Org.STATUS_SUSPENDED
-
-    def is_whitelisted(self):
-        return self.config.get(Org.CONFIG_STATUS) == Org.STATUS_WHITELISTED
+    def is_verified(self):
+        """
+        A verified org is not subject to automatic flagging for suspicious activity
+        """
+        return self.config.get(Org.CONFIG_VERIFIED, False)
 
     def import_app(self, export_json, user, site=None, legacy=False):
         """
@@ -631,14 +627,9 @@ class Org(SmartModel):
         """
         Attempts to normalize any contacts which don't have full e164 phone numbers
         """
-        from temba.contacts.models import ContactURN, TEL_SCHEME
+        from .tasks import normalize_contact_tels_task
 
-        # do we have an org-level country code? if so, try to normalize any numbers not starting with +
-        country_code = self.get_country_code()
-        if country_code:
-            urns = ContactURN.objects.filter(org=self, scheme=TEL_SCHEME).exclude(path__startswith="+")
-            for urn in urns:
-                urn.ensure_number_normalization(country_code)
+        normalize_contact_tels_task.delay(self.pk)
 
     def get_resthooks(self):
         """
@@ -1072,20 +1063,6 @@ class Org(SmartModel):
 
         return admin
 
-    def is_free_plan(self):  # pragma: needs cover
-        return self.plan == Org.PLAN_FREE or self.plan == Org.PLAN_TRIAL
-
-    def is_import_flows_tier(self):
-        return self.get_purchased_credits() >= self.get_branding().get("tiers", {}).get("import_flows", 0)
-
-    def is_multi_user_tier(self):
-        return self.get_purchased_credits() >= self.get_branding().get("tiers", {}).get("multi_user", 0)
-
-    def is_multi_org_tier(self):
-        return not self.parent and self.get_purchased_credits() >= self.get_branding().get("tiers", {}).get(
-            "multi_org", 0
-        )
-
     def get_user_org_group(self, user):
         if user in self.get_org_admins():
             user._org_group = Group.objects.get(name="Administrators")
@@ -1364,7 +1341,6 @@ class Org(SmartModel):
         # if we have an active topup cache, we need to decrement the amount remaining
         active_topup_id = self.get_active_topup_id()
         if active_topup_id:
-
             remaining = r.decr(ORG_ACTIVE_TOPUP_REMAINING % (self.id, active_topup_id), AMOUNT)
 
             # near the edge, clear out our cache and calculate from the db
@@ -1377,7 +1353,6 @@ class Org(SmartModel):
             active_topup = self.get_active_topup(force_dirty=True)
             if active_topup:
                 active_topup_id = active_topup.id
-
                 r.decr(ORG_ACTIVE_TOPUP_REMAINING % (self.id, active_topup.id), AMOUNT)
 
         if active_topup_id:
@@ -1488,21 +1463,29 @@ class Org(SmartModel):
         # any time we've reapplied topups, lets invalidate our credit cache too
         self.clear_credit_cache()
 
-    def current_plan_start(self):
-        today = timezone.now().date()
+        # update our capabilities based on topups
+        self.update_capabilities()
 
-        # move it to the same day our plan started (taking into account short months)
-        plan_start = today.replace(day=min(self.plan_start.day, calendar.monthrange(today.year, today.month)[1]))
+    def reset_capabilities(self):
+        """
+        Resets our capabilities based on the current tiers, mostly used in unit tests
+        """
+        self.is_multi_user = False
+        self.is_multi_org = False
+        self.update_capabilities()
 
-        if plan_start > today:  # pragma: needs cover
-            plan_start -= relativedelta(months=1)
+    def update_capabilities(self):
+        """
+        Using our topups and brand settings, figures out whether this org should be multi-user and multi-org. We never
+        disable one of these capabilities, but will turn it on for those that qualify via credits
+        """
+        if self.get_purchased_credits() >= self.get_branding().get("tiers", {}).get("multi_org", 0):
+            self.is_multi_org = True
 
-        return plan_start
+        if self.get_purchased_credits() >= self.get_branding().get("tiers", {}).get("multi_user", 0):
+            self.is_multi_user = True
 
-    def current_plan_end(self):
-        plan_start = self.current_plan_start()
-        plan_end = plan_start + relativedelta(months=1)
-        return plan_end
+        self.save(update_fields=("is_multi_user", "is_multi_org"))
 
     def get_stripe_customer(self):  # pragma: no cover
         # We can't test stripe in unit tests since it requires javascript tokens to be generated
@@ -1609,7 +1592,8 @@ class Org(SmartModel):
             context["branding"] = branding
             context["subject"] = subject
 
-            send_template_email(to_email, subject, template, context, branding)
+            if settings.SEND_RECEIPTS:
+                send_template_email(to_email, subject, template, context, branding)
 
             # apply our new topups
             from .tasks import apply_topups_task
@@ -1827,6 +1811,7 @@ class Org(SmartModel):
             self.create_system_groups()
             self.create_system_contact_fields()
             self.create_welcome_topup(topup_size)
+            self.update_capabilities()
 
         # outside of the transaction as it's going to call out to mailroom for flow validation
         self.create_sample_flows(branding.get("api_link", ""))
@@ -1946,9 +1931,6 @@ class Org(SmartModel):
         # our system label counts
         self.system_labels.all().delete()
 
-        # any airtime transfers associate with us go away
-        self.airtime_transfers.all().delete()
-
         # delete our flow labels
         self.flow_labels.all().delete()
 
@@ -1975,8 +1957,10 @@ class Org(SmartModel):
 
             flow.delete()
 
-        # delete all sessions
+        # delete contact-related data
         self.sessions.all().delete()
+        self.tickets.all().delete()
+        self.airtime_transfers.all().delete()
 
         # delete our contacts
         for contact in self.contacts.all():
@@ -2015,6 +1999,11 @@ class Org(SmartModel):
         for classifier in self.classifiers.all():
             classifier.release()
             classifier.delete()
+
+        # delete our ticketers
+        for ticketer in self.ticketers.all():
+            ticketer.release()
+            ticketer.delete()
 
         # release all archives objects and files for this org
         Archive.release_org_archives(self)
@@ -2109,36 +2098,35 @@ def release(user, brand):
         user.save()
 
     # release any orgs we own on this brand
-    for org in user.get_owned_orgs(brand):
+    for org in user.get_owned_orgs([brand]):
         org.release(release_users=False)
 
     # remove us as a user on any org for our brand
-    for org in user.get_user_orgs(brand):
+    for org in user.get_user_orgs([brand]):
         org.administrators.remove(user)
         org.editors.remove(user)
         org.viewers.remove(user)
         org.surveyors.remove(user)
 
 
-def get_user_orgs(user, brand=None):
-
+def get_user_orgs(user, brands=None):
     if user.is_superuser:
         return Org.objects.all()
 
     user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
 
-    if brand:
-        user_orgs = user_orgs.filter(brand=brand)
+    if brands:
+        user_orgs = user_orgs.filter(brand__in=brands)
 
     return user_orgs.filter(is_active=True).distinct().order_by("name")
 
 
-def get_owned_orgs(user, brand=None):
+def get_owned_orgs(user, brands=None):
     """
-    Gets all the orgs where this is the only user for the currend brand
+    Gets all the orgs where this is the only user for the current brand
     """
     owned_orgs = []
-    for org in user.get_user_orgs(brand=brand):
+    for org in user.get_user_orgs(brands=brands):
         if not org.get_org_users().exclude(id=user.id).exists():
             owned_orgs.append(org)
     return owned_orgs
@@ -2149,11 +2137,15 @@ def get_org(obj):
 
 
 def is_alpha_user(user):  # pragma: needs cover
-    return user.groups.filter(name="Alpha")
+    return user.groups.filter(name="Alpha").exists()
 
 
 def is_beta_user(user):  # pragma: needs cover
-    return user.groups.filter(name="Beta")
+    return user.groups.filter(name="Beta").exists()
+
+
+def is_support_user(user):
+    return user.groups.filter(name="Customer Support").exists()
 
 
 def get_settings(user):
@@ -2209,6 +2201,7 @@ User.get_org = get_org
 User.set_org = set_org
 User.is_alpha = is_alpha_user
 User.is_beta = is_beta_user
+User.is_support = is_support_user
 User.get_settings = get_settings
 User.get_user_orgs = get_user_orgs
 User.get_org_group = get_org_group
@@ -2354,6 +2347,8 @@ class UserSettings(models.Model):
         blank=True,
         help_text=_("Phone number for testing and recording voice flows"),
     )
+    otp_secret = models.CharField(verbose_name=_("OTP Secret"), max_length=18, null=True, blank=True)
+    two_factor_enabled = models.BooleanField(verbose_name=_("Two Factor Enabled"), default=False)
 
     def get_tel_formatted(self):
         if self.tel:
@@ -2716,3 +2711,87 @@ class CreditAlert(SmartModel):
 
         for topup in expiring_final_topups:
             CreditAlert.trigger_credit_alert(topup.org, CreditAlert.TYPE_EXPIRING)
+
+
+class BackupToken(SmartModel):
+    settings = models.ForeignKey(
+        UserSettings, verbose_name=_("Settings"), related_name="backups", on_delete=models.CASCADE
+    )
+    token = models.CharField(verbose_name=_("Token"), max_length=18, unique=True, default=generate_token)
+    used = models.BooleanField(verbose_name=_("Used"), default=False)
+
+    def __str__(self):  # pragma: no cover
+        return f"{self.token}"
+
+
+class OrgActivity(models.Model):
+    """
+    Tracks various metrics for an organization on a daily basis:
+       * total # of contacts
+       * total # of active contacts (that sent or received a message)
+       * total # of messages sent
+       * total # of message received
+    """
+
+    # the org this contact activity is being tracked for
+    org = models.ForeignKey("orgs.Org", related_name="contact_activity", on_delete=models.CASCADE)
+
+    # the day this activity was tracked for
+    day = models.DateField()
+
+    # the total number of contacts on this day
+    contact_count = models.IntegerField(default=0)
+
+    # the number of active contacts on this day
+    active_contact_count = models.IntegerField(default=0)
+
+    # the number of messages sent on this day
+    outgoing_count = models.IntegerField(default=0)
+
+    # the number of messages received on this day
+    incoming_count = models.IntegerField(default=0)
+
+    @classmethod
+    def update_day(cls, now):
+        """
+        Updates our org activity for the passed in day.
+        """
+        # truncate to midnight the same day in UTC
+        end = pytz.utc.normalize(now.astimezone(pytz.utc)).replace(hour=0, minute=0, second=0, microsecond=0)
+        start = end - timedelta(days=1)
+
+        # first get all our contact counts
+        contact_counts = Org.objects.filter(
+            is_active=True, contacts__is_active=True, contacts__created_on__lt=end
+        ).annotate(contact_count=Count("contacts"))
+
+        # then get active contacts
+        active_counts = Org.objects.filter(
+            is_active=True, msgs__created_on__gte=start, msgs__created_on__lt=end
+        ).annotate(contact_count=Count("msgs__contact_id", distinct=True))
+        active_counts = {o.id: o.contact_count for o in active_counts}
+
+        # number of received msgs
+        incoming_count = Org.objects.filter(
+            is_active=True, msgs__created_on__gte=start, msgs__created_on__lt=end, msgs__direction="I"
+        ).annotate(msg_count=Count("id"))
+        incoming_count = {o.id: o.msg_count for o in incoming_count}
+
+        # number of sent messages
+        outgoing_count = Org.objects.filter(
+            is_active=True, msgs__created_on__gte=start, msgs__created_on__lt=end, msgs__direction="O"
+        ).annotate(msg_count=Count("id"))
+        outgoing_count = {o.id: o.msg_count for o in outgoing_count}
+
+        for org in contact_counts:
+            OrgActivity.objects.update_or_create(
+                org=org,
+                day=start,
+                contact_count=org.contact_count,
+                active_contact_count=active_counts.get(org.id, 0),
+                incoming_count=incoming_count.get(org.id, 0),
+                outgoing_count=outgoing_count.get(org.id, 0),
+            )
+
+    class Meta:
+        unique_together = ("org", "day")

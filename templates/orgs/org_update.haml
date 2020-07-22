@@ -10,14 +10,18 @@
 
     -if org.is_suspended
       .alert.alert-error
-        -trans "This organization has been suspended"
+        -trans "This workspace has been suspended"
 
-    -if org.is_whitelisted
+    -if org.is_flagged
+      .alert.alert-error
+        -trans "This workspace has been flagged for possible spamming"
+
+    -if org.is_verified
       .alert.alert-info
-        -trans "This organization has been whitelisted against spaminess"
+        -trans "This workspace has been verified"
   -else
     .alert.alert-error
-      -trans "This organization has been scheduled for deletion"
+      -trans "This workspace has been scheduled for deletion"
 
   {{ block.super }}
 
@@ -77,9 +81,9 @@
 
       .delete-warning
         -blocktrans
-          Also, any user accounts will be deleted if they don't belong to another organization.
+          Also, any logins will be deleted if they don't belong to another workspace.
 
-    %a#delete-form.posterize{href:'{% url "orgs.org_update" org.id %}?status=delete'}
+    %a#delete-form.posterize{href:'{% url "orgs.org_update" org.id %}?action=delete'}
 
 -block extra-script
   <script>
@@ -90,7 +94,7 @@
       modal.setListeners({onPrimary: function(){
         $('#delete-form').click();
       }}, false);
-      modal.setPrimaryButton('{% trans "Delete" %}');
+      modal.setPrimaryButton('{{ _("Delete")|escapejs }}');
       modal.show();
     });
   </script>

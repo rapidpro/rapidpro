@@ -20,7 +20,6 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import is_safe_url, urlquote_plus
 from django.utils.translation import ugettext_lazy as _
-from django.views.decorators.csrf import csrf_exempt
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel
@@ -122,9 +121,15 @@ class SendMessageForm(Form):
 
     def clean(self):
         cleaned = super().clean()
-        if self.user.get_org().is_suspended():
+        org = self.user.get_org()
+
+        if org.is_suspended:
             raise ValidationError(
                 _("Sorry, your account is currently suspended. To enable sending messages, please contact support.")
+            )
+        if org.is_flagged:
+            raise ValidationError(
+                _("Sorry, your account is currently flagged. To enable sending messages, please contact support.")
             )
         return cleaned
 
@@ -464,7 +469,6 @@ class MsgActionForm(BaseActionForm):
 
 
 class MsgActionMixin(SmartListView):
-    @csrf_exempt
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 

@@ -14,6 +14,7 @@
   :css
     body {
       line-height: inherit;
+
     }
 
     h2 .icon-phone {
@@ -22,6 +23,11 @@
 
     h2 .icon-mobile {
       width: 40px;
+    }
+
+    #rp-flow-editor #simulator {
+      top: -180px;
+      margin-left: 20px;
     }
 
     #header *, #top-menu *, .org-header * {
@@ -33,6 +39,17 @@
       user-select: none;
       z-index: 0;
       position: relative;
+    }
+
+    .ReactModalPortal {
+      --curvature: 4px;
+      --curvature-widget: 4px; 
+    }
+
+    /* case_list_case is the dnd portal under body */
+    #rp-flow-editor, .case_list_case {
+      --curvature: 4px;
+      --curvature-widget: 4px; 
     }
 
     #rp-flow-editor input[type=text] {
@@ -93,10 +110,10 @@
       visibility: visible;
       position: relative;
       padding: 18px 30px;
-      background-color: #f9f9f9;
-      background-position: 13px 13px;
-      background-image: linear-gradient(0deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent),linear-gradient(90deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent);
-      background-size: 40px 40px;
+    }
+
+    #toolbar h2 {
+      margin-bottom: 0;
     }
 
     #pending {
@@ -108,15 +125,21 @@
       text-align: center;
     }
 
+    #grid {
+    }
+
     #rp-flow-editor {
       visibility: visible;
-      min-height: 1000px;
-      width: 100%;
+      width: 100%;    
+    }
+
+    #rp-flow-editor #canvas-container > div {
+      box-shadow: inset 0 7px 9px -10px rgba(0,0,0,0.4);
+    }
+
+    #rp-flow-editor #canvas-container #canvas:after {
+      box-shadow: inset 0 7px 9px -10px rgba(0,0,0,0.4);
       
-      background-color: #f9f9f9;
-      background-position: 13px 13px;
-      background-image: linear-gradient(0deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent),linear-gradient(90deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent);
-      background-size: 40px 40px;
     }
 
     #rp-flow-editor > div {
@@ -125,13 +148,30 @@
     }
 
     #rp-flow-editor .language-selector {
-      top: -15px !important;
+      /* top: 14px; */
     }
 
-    rp-loading {
+    temba-loading {
       margin-left: 30px;
-      padding-top: 5px;
+      padding-top: 25px;
       display: block;
+    }
+
+    .page-wrap {
+      min-height: inherit;
+      padding-bottom: inherit;
+      margin-bottom: inherit;
+    }
+
+    .footerArea {
+      display: none;
+    }
+
+    label, input, button, select, textarea {
+      font-size: inherit;
+      font-weight: inherit;
+      line-height: inherit;
+      margin-bottom: 0;
     }
 
 -block extra-script
@@ -155,6 +195,7 @@
     }
 
     function handleEditorLoaded() {
+      $('temba-loading').hide();
       $('#rp-flow-editor > div').css('opacity', '1')
     }
 
@@ -163,6 +204,19 @@
       var modal = document.querySelector("#send-message-modal");
       modal.endpoint = endpoint + "?step_node=" + nodeUUID + "&count=" + count;
       modal.open = true;
+    }
+
+    function handleChangeLanguage(code, name) {
+      var form = $('#change-language-form');
+      var url = $.url(form.attr("href"));
+      var body = form.find('.body').html().replace(/%LANG%/g, name);
+
+      form.attr("href", url.attr("path") + "?language=" + code);
+      var modal = new ConfirmationModal('{{ _("Change Language")|escapejs }}', body);
+      modal.addClass('alert');
+      modal.setListeners({onPrimary: function(){ form.click(); }}, false);
+      modal.setPrimaryButton('{{ _("Ok")|escapejs }}');
+      modal.show();
     }
 
     const config = {
@@ -177,6 +231,7 @@
       showTemplates: "{{has_whatsapp_channel}}" == "True",
       onLoad: handleEditorLoaded,
       onActivityClicked: handleActivityClicked,
+      onChangeLanguage: handleChangeLanguage,
       mutable: {{mutable|lower}},
       filters: {{feature_filters|to_json}},
 
@@ -193,6 +248,7 @@
         labels: api + 'labels.json',
         channels: api + 'channels.json',
         classifiers: api + 'classifiers.json',
+        ticketers: api + 'ticketers.json',
         resthooks: api + 'resthooks.json',
         templates: api + 'templates.json',
         flows: api + 'flows.json?archived=false',
@@ -222,7 +278,7 @@
 
     {% if org_perms.flows.flow_update %}
     $(".update-rulesflow").live('click', function(){
-      var modal = new Modax('Update Flow', '{% url "flows.flow_update" object.pk %}');
+      var modal = new Modax('{{_("Update Flow")|escapejs }}', '{% url "flows.flow_update" object.pk %}');
       modal.setIcon('icon-users-2');
       modal.setListeners({
         onSuccess: function(data) {location.reload(); },
@@ -257,9 +313,16 @@
       });
     {% endif %}
 
+    $(".export-translation").live('click', function(){
+      var modal = new Modax('{{ _("Export Translation")|escapejs }}', '{% url "flows.flow_export_translation" object.id %}');
+      modal.setIcon('icon-language');
+      modal.setRedirectOnSuccess(true);
+      modal.show();
+    });
+
     {% if org_perms.flows.flow_delete %}
       $(".delete-flow").live('click', function() {
-        var modal = new Modax('{% trans "Delete Flow" %}', '{% url "flows.flow_delete" flow.id %}');
+        var modal = new Modax('{{ _("Delete Flow")|escapejs }}', '{% url "flows.flow_delete" flow.id %}');
         modal.addClass("alert");
         modal.setRedirectOnSuccess(true);
         modal.show();
@@ -285,7 +348,7 @@
   -include "msgs/msg_send_modal.html"
   -include "delete_modal_include.html"
 
-  %rp-modax#send-message-modal{ header:"Send Message" }
+  %temba-modax#send-message-modal{ header:"Send Message" }
 
   #toolbar
     .actions.pull-right
@@ -299,9 +362,19 @@
     -if is_starting
       #pending
         %div{class:"alert alert-info"}
-          -blocktrans
+          -blocktrans trimmed
             This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
 
-  #rp-flow-editor
-    <rp-loading units="10" size="8"></rp-loading>
+  .hide
+    %a#change-language-form.posterize(href='{% url "flows.flow_change_language" object.id %}')
+      .body
+        -blocktrans trimmed with language="%LANG%"
+          This will change the default language of the flow to <b>{{ language }}</b>. This means that by default the
+          flow will be appear in that language and can be translated into other languages. Also if a contact is
+          in this flow and no translation exists for their language or the default language of the workspace,
+          communication with that contact will default to <b>{{ language }}</b>.
+
+  #grid
+    <temba-loading units="10" size="8"></temba-loading>
+    #rp-flow-editor
 

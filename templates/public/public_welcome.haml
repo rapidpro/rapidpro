@@ -29,7 +29,7 @@
 
   .row.workflow-section
     .span3
-      %a.charm.workflow-glyph.icon-nav-flows-inverted{href:'{% url "flows.flow_list" %}'}
+      %a.charm.workflow-glyph.icon-tree-2{href:'{% url "flows.flow_list" %}'}
     .span7
       %h3
         -trans "FLOWS"
@@ -57,7 +57,7 @@
   -if 'success' not in request.REQUEST.keys
     .row.workflow-section
       .span3
-        %a.charm.workflow-glyph.icon-nav-channels-inverted{href:'{% url "channels.channel_list" %}'}
+        %a.charm.workflow-glyph.icon-phone{href:'{% url "channels.channel_list" %}'}
       .span7
         %h3
           -trans "GET CONNECTED"
@@ -81,7 +81,7 @@
 
   .row.workflow-section
     .span3
-      %a.charm.workflow-glyph.icon-nav-contacts-inverted{href:'{% url "contacts.contact_list" %}'}
+      %a.charm.workflow-glyph.icon-vcard{href:'{% url "contacts.contact_list" %}'}
     .span7
       %h3
         -trans "CONTACTS"
@@ -116,7 +116,7 @@
 
   .row.workflow-section
     .span3
-      %a.charm.workflow-glyph.icon-nav-messages-inverted{href:'{% url "msgs.msg_inbox" %}'}
+      %a.charm.workflow-glyph.icon-bubble-3.icon-1{href:'{% url "msgs.msg_inbox" %}'}
     .span7
       %h3
         -trans "MESSAGES"
@@ -141,12 +141,12 @@
 
   .row.workflow-section
     .span3
-      %a.charm.workflow-glyph.icon-nav-home-inverted{href:'{% url "orgs.org_home" %}'}
+      %a.charm.workflow-glyph.icon-user{href:'{% url "orgs.org_home" %}'}
     .span7
       %h3
-        -trans "ACCOUNT"
+        -trans "WORKSPACE"
       %p
-        -trans "Visit your account page to add credits at any time"
+        -trans "Visit your workspace page to add credits at any time"
       %p
         -url 'api' as api_url
         -blocktrans with name=brand.name
@@ -156,6 +156,7 @@
           to learn more. 
 
       %div
+        -block account-details
         %a.btn.workflow-btn{href:"{% url 'orgs.org_home' %}?open=webhook"}
           -trans "Add Web Hook"
         %a.btn.workflow-btn{href:"{% url 'api' %}"}
@@ -166,7 +167,7 @@
   :javascript
     {% if org_perms.flows.flow_create %}
       $(".create_flow").on('click', function() {
-        var modal = new Modax('{% trans "Create a Flow" %}', '{% url "flows.flow_create" %}');
+        var modal = new Modax('{{ _("Create a Flow")|escapejs }}', '{% url "flows.flow_create" %}');
         modal.setIcon('icon-tree');
         modal.setRedirectOnSuccess(true);
         modal.show();
@@ -190,12 +191,26 @@
           font-weight: 100;
           font-size: 21px;
         }
+
         .workflow-glyph {
           line-height: 1;
-          color: @flat-blue;
-          font-size: 200px;
+          color: #fff;
+          background: var(--color-primary-dark);
+          font-size: 120px;
           height: 220px;
+          width: 220px;
           text-decoration: none;
+          border-radius: 50%;
+          text-align: center;
+          line-height:1.75em;
+
+          &:hover {
+            color: #fff;
+          }
+
+          &.icon-1 {
+            line-height:1.9em;
+          }
         }
         a.workflow-glyph {
           text-decoration: none;

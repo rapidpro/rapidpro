@@ -3,7 +3,7 @@
 - load i18n
 
 -block page-title
-  -trans "Manage Accounts"
+  -trans "Manage Logins"
   \- {{user_org.name|capfirst}}
 
 -block extra-less
@@ -92,13 +92,13 @@
 
   -if parent
     %h4
-      <a href="{% url 'orgs.org_sub_orgs'%}">{%blocktrans%}Organizations{%endblocktrans%}</a> &raquo; {{org.name}}
+      <a href="{% url 'orgs.org_sub_orgs'%}">{%blocktrans%}Workspaces{%endblocktrans%}</a> &raquo; {{org.name}}
 
   %table.table.table-condensed{style:"margin-bottom:0px;"}
     %thead
       %tr
         %th
-          -trans "Accounts"
+          -trans "Logins"
         %th.permission
           -trans "Admins"
         %th.permission
@@ -281,7 +281,7 @@
         containerCssClass: 'select2-temba-field',
         tags: [],
         selectOnBlur: true,
-        placeholder: '{% trans "Enter emails of people to invite" %}',
+        placeholder: '{{ _("Enter emails of people to invite")|escapejs }}',
       });
 
       $("#id_user_group").select2({

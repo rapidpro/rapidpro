@@ -9,6 +9,6 @@
   {{block.super}}
   %script
     $(document).ready(function() {
-      select2div("#id_new_conversation_channel", "520px", '{% trans "Social media channel" %}');
-      select2div("#id_new_conversation_flow", "520px", '{% trans "Flow to start" %}');
+      select2div("#id_new_conversation_channel", "520px", '{{ _("Social media channel")|escapejs }}');
+      select2div("#id_new_conversation_flow", "520px", '{{ _("Flow to start")|escapejs }}');
     });

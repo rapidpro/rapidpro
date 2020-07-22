@@ -16,8 +16,8 @@
     var body = modax.shadowRoot.querySelector(".modax-body");
     var languageLinks = body.querySelectorAll(".show_language");
     var deliveryHourOptions = body.querySelector("#send-at");
-    var unitSelect = body.querySelector("rp-select[name='unit']");
-    var eventTypeSelect = body.querySelector("rp-select[name='event_type']");
+    var unitSelect = body.querySelector("temba-select[name='unit']");
+    var eventTypeSelect = body.querySelector("temba-select[name='event_type']");
     var flowSection = body.querySelector("#flow-section");
     var messageSection = body.querySelector("#message-section");
 
@@ -36,8 +36,8 @@
 
     }
 
-    eventTypeSelect.addEventListener('rp-selection', function(event){
-      var type = event.detail.selected.value;
+    eventTypeSelect.addEventListener('change', function(event){
+      var type = event.target.values[0].value;
       if (type == 'F') {
         flowSection.style.display = 'block';
         messageSection.style.display = 'none';
@@ -48,8 +48,9 @@
     });
 
     // whenever our units update, update the hour visibility
-    unitSelect.addEventListener('rp-selection', function(event) {
-      var selectedUnit = event.detail.selected.value;
+    unitSelect.addEventListener('change', function(event) {
+
+      var selectedUnit = event.target.values[0].value;
       if (selectedUnit == "W" || selectedUnit == "D") {
         deliveryHourOptions.style.display = 'flex';
       } else {
@@ -138,7 +139,7 @@
       display: flex;
     }
 
-    rp-completion {
+    temba-completion {
       height: 125px;
       margin: 10px 0px 20px 0px;
     }

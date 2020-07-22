@@ -144,7 +144,7 @@
         -trans "Great, just a couple more questions and we are ready to roll."
 
       %label
-        -trans "Organization"
+        -trans "Workspace"
       -with form|field:'name' as form_field
         {{form_field}}
         -if form_field.errors
@@ -186,11 +186,11 @@
         $("#sign-up").addClass('failed');
       }
 
-      $("#id_first_name").attr('placeholder','{% trans "Ben" %}');
-      $("#id_last_name").attr('placeholder','{% trans "Haggerty" %}');
-      $("#id_name").attr('placeholder','{% trans "What organization is this account for?" %}');
-      $("#id_email").attr('placeholder','{% trans "name@domain.com" %}');
-      $("#id_password").attr('placeholder','{% trans "Please enter at least 8 characters" %}');
+      $("#id_first_name").attr('placeholder','{{ _("Ben")|escapejs }}');
+      $("#id_last_name").attr('placeholder','{{ _("Haggerty")|escapejs }}');
+      $("#id_name").attr('placeholder','{{ _("Which workspace is this login for?")|escapejs }}');
+      $("#id_email").attr('placeholder','{{ _("name@domain.com")|escapejs }}');
+      $("#id_password").attr('placeholder','{{ _("Please enter at least 8 characters")|escapejs }}');
 
       // Make the timezone select2
       $('#id_timezone').select2({

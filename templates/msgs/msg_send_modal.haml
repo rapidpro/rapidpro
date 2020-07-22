@@ -12,7 +12,7 @@
     -if send_channel
       #send-form
         {% csrf_token %}
-        %rp-completion#id_text{
+        %temba-completion#id_text{
           name:"text", 
           placeholder: "Hi @contact!"
           completionsEndpoint:"/mr/docs/completion.json", 
@@ -32,7 +32,7 @@
         #errors
     -else
       -blocktrans with name=brand.name
-        To get started you need to add a channel to your account. A channel is a phone number or social network
+        To get started you need to add a channel to your workspace. A channel is a phone number or social network
         account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
         Android phone and your own cell phone plan, or we can connect you with a service provider in your country
         directly.
@@ -80,14 +80,14 @@
       $("#send-message .error").remove();
 
       // clear the previous text
-      document.querySelector("#send-message rp-completion").value = "";
+      document.querySelector("#send-message temba-completion").value = "";
 
       // show us as loading or initialize and empty select2
       if (loading) {
         $("#omnibox").val("");
         $("#omni-select2").hide();
         $("#loading").show();
-        $("#send-message .ok").text('{% trans "Loading recipients.." %}').addClass("disabled");
+        $("#send-message .ok").text('{{ _("Loading recipients..")|escapejs }}').addClass("disabled");
       } else {
         $("#omni-select2").show();
         $("#loading").hide();
@@ -100,7 +100,7 @@
         $("#omni-select2").hide();
         $("#loading").hide();
         $("#send-message .schedule").hide();
-        $("#recipients-count").html("<strong>" + formatNumber(nodeRecipientsCount) + "</strong> " + '{% trans "recipients at this point in the flow" %}' );
+        $("#recipients-count").html("<strong>" + formatNumber(nodeRecipientsCount) + "</strong> " + '{{ _("recipients at this point in the flow")|escapejs }}' );
         $("#recipients-count").show();
       }
 
@@ -134,7 +134,7 @@
 
     function hideCompose() {
       $("#send-message").modal('hide');
-      $("#send-message .ok").text('{% trans "Send Message" %}').removeClass("disabled");
+      $("#send-message .ok").text('{{ _("Send Message")|escapejs }}').removeClass("disabled");
       if(window.simulation){
 
         window.refreshSimulator();
@@ -151,7 +151,7 @@
         return;
       }
 
-      $("#send-message .ok").text('{% trans "Sending.." %}').addClass("disabled");
+      $("#send-message .ok").text('{{ _("Sending..")|escapejs }}').addClass("disabled");
 
       // its possible we might send to a different end point such as
       // when doing a normal compose
@@ -166,7 +166,7 @@
         post = post + "&simulation=true"
       }
 
-      var text = document.querySelector("#send-form rp-completion").value
+      var text = document.querySelector("#send-form temba-completion").value
 
       // our post data
       var data = {
@@ -220,7 +220,7 @@
         }
 
         // re-enable our send button, so they can try again
-        $("#send-message .ok").text('{% trans "Send Message" %}').removeClass("disabled");
+        $("#send-message .ok").text('{{ _("Send Message")|escapejs }}').removeClass("disabled");
 
       });
     }

@@ -31,15 +31,15 @@
         display: none;
       }
 
-      .start-type {
+      .recipients-mode {
         margin-bottom: 10px;
       }
 
-      rp-contact-search {
+      temba-contact-search {
         font-size: 90%;
       }
 
-      rp-alert {
+      temba-alert {
         margin-bottom: 10px;
       }
 
@@ -47,7 +47,7 @@
   -if object.flow_type == 'M' and not send_channel
     %p
     -blocktrans with name=brand.name
-      To get started you need to add a channel to your account. A channel is a phone number or social network
+      To get started you need to add a channel to your workspace. A channel is a phone number or social network
       account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
       Android phone and your own cell phone plan, or we can connect you with a service provider in your country
       directly.
@@ -60,23 +60,23 @@
   -elif object.flow_type == 'V' and not call_channel
     %p
       -blocktrans with name=brand.name
-        To get started you need to add a voice-enabled channel to your account. A voice-enabled channel is a
+        To get started you need to add a voice-enabled channel to your workspace. A voice-enabled channel is a
         phone number which {{ name }} can use to make and receive phone calls on your behalf. For example, Twilio
-        is a service which provides voice-enabled numbers which you can add as channels in your {{ name }} account.
+        is a service which provides voice-enabled numbers which you can add as channels in your {{ name }} workspace.
 
   -else
     -if warnings
       -for warning in warnings
-        %rp-alert{level: "warning"}
+        %temba-alert{level: "warning"}
           %div= warning
 
-    .field.start-type
-      {% render_field 'start_type' %}
+    .field.recipients-mode
+      {% render_field 'recipients_mode' %}
 
-    .field.omnibox{class:'{% if not form.start_type.value == "select" %}hidden{%endif%}'}
+    .field.omnibox{class:'{% if not form.recipients_mode.value == "select" %}hidden{%endif%}'}
       {% render_field 'omnibox' %}
 
-    .field.query{class:'{% if form.start_type.value == "select" %}hidden{%endif%}'}
+    .field.query{class:'{% if form.recipients_mode.value == "select" %}hidden{%endif%}'}
       {% render_field 'contact_query' %}
 
     .start-options
@@ -139,10 +139,10 @@
     var queryField = document.querySelector('.query');
     var recipientsField = document.querySelector('.omnibox');
 
-    var startTypeSelect = document.querySelector("rp-select[name='start_type']");
-    if (startTypeSelect) {
-      startTypeSelect.addEventListener("rp-selection", function(evt) {
-        var selected = evt.detail.selected;
+    var modeSelect = document.querySelector("temba-select[name='recipients_mode']");
+    if (modeSelect) {
+      modeSelect.addEventListener("change", function(evt) {
+        var selected = evt.target.values[0];
         if (selected.value === "query") {
           removeClass(queryField, "hidden");
           addClass(recipientsField, "hidden");

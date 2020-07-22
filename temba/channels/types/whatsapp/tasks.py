@@ -181,20 +181,25 @@ def refresh_whatsapp_templates():
 
                     content_parts = []
 
+                    all_supported = True
                     for component in template["components"]:
                         if component["type"] not in ["HEADER", "BODY", "FOOTER"]:
                             logger.error(f"unknown component type: {component}")
                             continue
 
+                        if component["type"] in ["HEADER", "FOOTER"] and _calculate_variable_count(component["text"]):
+                            logger.error(f"unsupported component type wih variables: {component}")
+                            all_supported = False
+
                         content_parts.append(component["text"])
 
-                    if not content_parts:
+                    if not content_parts or not all_supported:
                         continue
 
                     content = "\n\n".join(content_parts)
                     variable_count = _calculate_variable_count(content)
 
-                    language = LANGUAGE_MAPPING.get(template["language"])
+                    language, country = LANGUAGE_MAPPING.get(template["language"], (None, None))
 
                     # its a (non fatal) error if we see a language we don't know
                     if language is None:
@@ -205,6 +210,7 @@ def refresh_whatsapp_templates():
                         channel=channel,
                         name=template["name"],
                         language=language,
+                        country=country,
                         content=content,
                         variable_count=variable_count,
                         status=status,
@@ -216,5 +222,8 @@ def refresh_whatsapp_templates():
                 # trim any translations we didn't see
                 TemplateTranslation.trim(channel, seen)
 
-            except RequestException as e:  # pragma: no cover
+            except RequestException as e:
                 HTTPLog.create_from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, e, start, channel=channel)
+
+            except Exception as e:
+                logger.error(f"Error refreshing whatsapp templates: {str(e)}", exc_info=True)

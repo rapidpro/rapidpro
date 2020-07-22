@@ -1,0 +1,56 @@
+-extends 'smartmin/form.html'
+-load smartmin
+-load i18n
+
+-block form-span
+  span8
+
+-block fields
+  {% blocktrans trimmed with prometheus='<a href="https://prometheus.io/">Prometheus</a>' grafana='<a href="https://grafana.com/">Grafana</a>'%}
+  You can monitor contact group counts and channel message counts on your workspace using your {{prometheus}} endpoint. This will let you monitor usage over time using graphs and alerts in a dashboard such as {{grafana}}.
+  {% endblocktrans %}
+  %hr
+
+  -if prometheus_url
+    %table(style="margin-bottom:15px;")
+      %tr.bottom-pad
+        %td(align="right")
+          {% trans "Endpoint" %}:
+        %td
+          %code= prometheus_url
+      %tr.bottom-pad
+        %td(align="right")
+          {%trans "Username" %}:
+        %td
+          %code metrics
+      %tr.bottom-pad
+        %td(align="right")
+          {% trans "Password" %}:
+        %td
+          %code= prometheus_token
+
+-block form-buttons
+  .form-actions
+    -if prometheus_url
+      %input(type="submit" class="btn btn-primary" value='{% trans "Disable Prometheus" %}')
+    -else
+      %input(type="submit" class="btn btn-primary" value='{% trans "Enable Prometheus" %}')
+
+-block summary
+  -if prometheus_url
+    {% blocktrans trimmed with prometheus='<span class="attn">Prometheus</span>' %}
+    You are monitoring your workspace using {{prometheus}}.
+    {% endblocktrans %}
+  -else
+    {% blocktrans trimmed with prometheus='<span class="attn">Prometheus</span>' %}
+    You have not enabled {{ prometheus }} monitoring on your workspace.
+    {% endblocktrans %}
+
+-block extra-style
+  {{ block.super }}
+  :css
+    tr.bottom-pad  {
+      border-top: 0px;
+      border-bottom: 4px solid transparent;
+    }
+

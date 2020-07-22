@@ -25,13 +25,14 @@ from .views import (
     MediaEndpoint,
     MessageActionsEndpoint,
     MessagesEndpoint,
-    OrgEndpoint,
     ResthookEventsEndpoint,
     ResthooksEndpoint,
     ResthookSubscribersEndpoint,
     RootView,
     RunsEndpoint,
     TemplatesEndpoint,
+    TicketersEndpoint,
+    WorkspaceEndpoint,
 )
 
 urlpatterns = [
@@ -59,12 +60,14 @@ urlpatterns = [
     url(r"^media$", MediaEndpoint.as_view(), name="api.v2.media"),
     url(r"^messages$", MessagesEndpoint.as_view(), name="api.v2.messages"),
     url(r"^message_actions$", MessageActionsEndpoint.as_view(), name="api.v2.message_actions"),
-    url(r"^org$", OrgEndpoint.as_view(), name="api.v2.org"),
+    url(r"^org$", WorkspaceEndpoint.as_view(), name="api.v2.org"),  # deprecated
     url(r"^resthooks$", ResthooksEndpoint.as_view(), name="api.v2.resthooks"),
     url(r"^resthook_events$", ResthookEventsEndpoint.as_view(), name="api.v2.resthook_events"),
     url(r"^resthook_subscribers$", ResthookSubscribersEndpoint.as_view(), name="api.v2.resthook_subscribers"),
     url(r"^runs$", RunsEndpoint.as_view(), name="api.v2.runs"),
     url(r"^templates$", TemplatesEndpoint.as_view(), name="api.v2.templates"),
+    url(r"^ticketers$", TicketersEndpoint.as_view(), name="api.v2.ticketers"),
+    url(r"^workspace$", WorkspaceEndpoint.as_view(), name="api.v2.workspace"),
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns, allowed=["json", "api"])

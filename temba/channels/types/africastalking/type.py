@@ -20,9 +20,10 @@ class AfricasTalkingType(ChannelType):
     icon = "icon-channel-external"
 
     claim_blurb = _(
-        """If you are based in Kenya, Malawi, Nigeria, Rwanda or Uganda you can purchase a short
-    code from <a href="http://africastalking.com">Africa's Talking</a> and connect it
-    in a few simple steps."""
+        """
+        You can purchase a short code from <a href="http://africastalking.com">Africa's Talking</a>
+        and connect it in a few simple steps.
+        """
     )
     claim_view = ClaimView
 
@@ -65,9 +66,15 @@ class AfricasTalkingType(ChannelType):
         return org.timezone and str(org.timezone) in [
             "Africa/Nairobi",
             "Africa/Kampala",
-            "Africa/Lilongwe",
+            "Africa/Dar_es_Salaam",
             "Africa/Kigali",
+            "Africa/Addis_Ababa",
             "Africa/Lagos",
+            "Africa/Abidjan",
+            "Africa/Ouagadougou",
+            "Africa/Lusaka",
+            "Africa/Lilongwe",
+            "Africa/Johannesburg",
         ]
 
     def is_recommended_to(self, user):

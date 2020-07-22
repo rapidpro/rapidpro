@@ -544,7 +544,6 @@ class CampaignEvent(TembaModel):
 
         # if flow isn't a user created flow we can delete it too
         if self.event_type == CampaignEvent.TYPE_MESSAGE:
-            self.flow.starts.all().update(is_active=False)
             self.flow.release()
 
     def _full_release(self):
@@ -711,7 +710,7 @@ class EventFire(Model):
                 if scheduled:
                     EventFire.objects.create(event=event, contact=contact, scheduled=scheduled)
 
-    def __str__(self):
+    def __str__(self):  # pragma: no cover
         return f"EventFire[event={self.event.uuid}, contact={self.contact.uuid}, scheduled={self.scheduled}]"
 
     class Meta:

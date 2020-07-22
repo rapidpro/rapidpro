@@ -77,6 +77,14 @@
                       %a{'href':'{% url "flows.flow_campaign" campaign.campaign__id %}'}
                         {{ campaign.campaign__name }} ({{campaign.count}})
 
+            .(style="margin-top: 10px; margin-bottom:10px;")
+              -if org_perms.flows.flowstart_list
+                %a.btn.btn-default.btn-block(href="{% url 'flows.flowstart_list' %}")
+                  -trans "Flow Start Log"
+              -if org_perms.api.webhookresult_list
+                %a.btn.btn-default.btn-block(href="{% url 'api.webhookresult_list' %}")
+                  -trans "Webhook Call Log"
+
           -block flow-list
             .span9
               - block buttons
@@ -191,7 +199,7 @@
     {% if org_perms.flows.flow_update %}
     function exportFlows(){
       var flowIds = getCheckedIds();
-      var modal = new Modax('{% trans "Export Flow Results" %}', '{% url "flows.flow_export_results" %}?ids=' + flowIds.join());
+      var modal = new Modax('{{ _("Export Flow Results")|escapejs }}', '{% url "flows.flow_export_results" %}?ids=' + flowIds.join());
       modal.setIcon('icon-excel');
       modal.setRedirectOnSuccess(true);
       modal.show();
@@ -227,7 +235,7 @@
 
       {% if org_perms.flows.flow_create %}
       $(".create_flow").live('click', function() {
-        var modal = new Modax('{% trans "Create Flow" %}', '{% url "flows.flow_create" %}');
+        var modal = new Modax('{{ _("Create Flow")|escapejs }}', '{% url "flows.flow_create" %}');
         modal.setIcon('icon-tree');
         modal.setRedirectOnSuccess(true);
         modal.show();
@@ -237,7 +245,7 @@
       {% if org_perms.flows.flowlabel_create %}
       $('.page-content').on('click', ".add-label", function() {
         lastChecked = getCheckedIds();
-        var modal = new Modax('{% trans "Create Label" %}', '{% url "flows.flowlabel_create" %}')
+        var modal = new Modax('{{ _("Create Label")|escapejs }}', '{% url "flows.flowlabel_create" %}')
         modal.setListeners({
           onFormLoaded: function(){
             $("#active-modal form input#id_flows").val(lastChecked.join());

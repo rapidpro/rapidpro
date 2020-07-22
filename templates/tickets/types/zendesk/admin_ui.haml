@@ -1,0 +1,51 @@
+-load i18n smartmin
+
+%html(lang="en")
+  %head
+    %link(rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@zendeskgarden/css-buttons@7.0.19/dist/index.min.css")
+    %link(rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@zendeskgarden/css-forms@7.0.20/dist/index.min.css")
+    %meta(charset="utf-8")
+    %style
+      body {
+        font-family: sans-serif;
+        font-size: 14px;
+        color: rgb(85, 85, 85);
+        max-width: 370px;
+      }
+      .c-txt__label {
+        color: rgb(85, 85, 85);
+      }
+      .c-txt {
+        margin-bottom: 15px;
+      }
+      .first {
+        margin-top: 15px;
+      }
+  %body
+    .preamble
+      -blocktrans trimmed
+        This will connect your account to Zendesk allowing you to open tickets in flows.
+
+    %form(method="post" enctype="multipart/form-data" id="admin_form")
+      -block pre-form-errors
+
+      -if form.non_field_errors
+        .alert.alert-error.form-errors
+          {{ form.non_field_errors }}
+
+      -block post-form-errors
+      -block pre-fields
+      -block form-help
+      -block fields
+
+        -for field in fields
+          -render_field field
+
+        -block extra-fields
+
+      -block post-fields
+
+      -block form-buttons
+        .form-actions
+          %button.c-btn.u-mt-sm(type="submit" form="admin_form")
+            {{ submit_button_name }}

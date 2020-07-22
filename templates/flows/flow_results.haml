@@ -330,7 +330,7 @@
       });
 
       $(".download-results").on("click", function() {
-        var modal = new Modax('{% trans "Export Flow Results" %}', '{% url "flows.flow_export_results" %}?ids={{object.id}}');
+        var modal = new Modax('{{ _("Export Flow Results")|escapejs }}', '{% url "flows.flow_export_results" %}?ids={{object.id}}');
         modal.setIcon('icon-excel');
         modal.setRedirectOnSuccess(true);
         modal.show();

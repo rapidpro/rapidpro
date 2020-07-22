@@ -1,6 +1,5 @@
 import logging
 from abc import ABCMeta
-from uuid import uuid4
 
 from smartmin.models import SmartModel
 
@@ -11,6 +10,7 @@ from django.utils import timezone
 
 from temba.utils import on_transaction_commit
 from temba.utils.models import JSONField
+from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ class ClassifierType(metaclass=ABCMeta):
         """
         return url(r"^connect", self.connect_view.as_view(classifier_type=self), name="connect")
 
-    def get_active_intents_from_api(self, classifier, logs):
+    def get_active_intents_from_api(self, classifier):
         """
         Should return current set of available intents for the passed in classifier by checking the provider API
         """

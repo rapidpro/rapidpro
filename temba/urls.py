@@ -1,5 +1,3 @@
-import importlib
-
 from django.conf import settings
 from django.conf.urls import include, url
 from django.conf.urls.static import static
@@ -34,6 +32,7 @@ urlpatterns = [
     url(r"^", include("temba.public.urls")),
     url(r"^", include("temba.request_logs.urls")),
     url(r"^", include("temba.schedules.urls")),
+    url(r"^", include("temba.tickets.urls")),
     url(r"^", include("temba.triggers.urls")),
     url(r"^relayers/relayer/sync/(\d+)/$", sync, {}, "sync"),
     url(r"^relayers/relayer/register/$", register, {}, "register"),
@@ -49,7 +48,7 @@ if settings.DEBUG:
 
 # import any additional urls
 for app in settings.APP_URLS:  # pragma: needs cover
-    importlib.import_module(app)
+    urlpatterns.append(url(r"^", include(app)))
 
 # initialize our analytics (the signal below will initialize each worker)
 init_analytics()
@@ -64,7 +63,6 @@ def track_user(self):  # pragma: no cover
     """
     Should the current user be tracked
     """
-
     # don't track unless we are on production
     if not settings.IS_PROD:
         return False
