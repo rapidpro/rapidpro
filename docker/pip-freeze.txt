@@ -1,0 +1,5 @@
+-r ../pip-freeze.txt
+
+django-environ==0.4.5
+elastic-apm==5.1.0
+sentry-sdk==0.10.2

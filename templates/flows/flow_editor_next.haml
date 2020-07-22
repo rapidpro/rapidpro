@@ -43,13 +43,13 @@
 
     .ReactModalPortal {
       --curvature: 4px;
-      --curvature-widget: 4px; 
+      --curvature-widget: 4px;
     }
 
     /* case_list_case is the dnd portal under body */
     #rp-flow-editor, .case_list_case {
       --curvature: 4px;
-      --curvature-widget: 4px; 
+      --curvature-widget: 4px;
     }
 
     #rp-flow-editor input[type=text] {
@@ -130,7 +130,7 @@
 
     #rp-flow-editor {
       visibility: visible;
-      width: 100%;    
+      width: 100%;
     }
 
     #rp-flow-editor #canvas-container > div {
@@ -139,7 +139,7 @@
 
     #rp-flow-editor #canvas-container #canvas:after {
       box-shadow: inset 0 7px 9px -10px rgba(0,0,0,0.4);
-      
+
     }
 
     #rp-flow-editor > div {
@@ -220,7 +220,7 @@
     }
 
     const config = {
-      
+
       // TODO: Remove once legacy editor is gone
       // this is only to support manual migration
       forceSaveOnLoad: "{{migrate}}" == "True",
@@ -296,7 +296,7 @@
         var modal = new Modax(gettext('Start Flow'), '{% url "flows.flow_broadcast" object.pk %}');
         var onActions = {
           onSuccess: function(data) {
-            // trigger an update right after sending so we have 
+            // trigger an update right after sending so we have
             // and opportunity to show "starting" status
             window.triggerActivityUpdate();
           },
