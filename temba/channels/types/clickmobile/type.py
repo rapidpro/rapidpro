@@ -30,9 +30,7 @@ class ClickMobileType(ChannelType):
     attachment_support = False
 
     configuration_blurb = _(
-        """
-        To finish configuring your channel you need to configure Click Mobile to send new messages to the URL below.
-        """
+        """To finish configuring your channel you need to configure Click Mobile to send new messages to the URL below."""
     )
 
     configuration_urls = (
