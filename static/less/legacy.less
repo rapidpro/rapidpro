@@ -77,17 +77,10 @@ td.value-received {
   text-align: right;
 }
 
-td.checkbox .glyph {
-  font-size: 14px;
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-}
-
 .radio,
 .checkbox {
-  min-height: 18px;
-  padding-left: 18px;
+  min-height: initial;
+  padding-left: initial;
 }
 
 tr.sms:hover {
@@ -2265,104 +2258,6 @@ input[type='radio'] {
 }
 
 
-.table {
-  td {
-    border-top: 0;
-    border-bottom: 1px solid #ddd;
-  }
-
-  tr:first-child {
-    border-top: 1px solid #ddd;
-  }
-}
-
-.object-list {
-  margin-top: 14px;
-
-  tbody {
-
-    tr.new {
-      td {
-        font-weight: bold;
-      }
-    }
-
-    td {
-
-      &.checkbox {
-        padding-left: 6px;
-        color: #777;
-        width: 10px;
-
-        &:hover {
-          color: #6885c7;
-        }
-
-        .glyph {
-          margin-top: 3px;
-        }
-      }
-
-      &.field_name {
-        white-space: nowrap;
-      }
-
-      &.value-text {
-        width: 75%;
-
-        .value-labels {
-          float: right;
-          white-space: nowrap;
-        }
-      }
-
-      &.value-name {
-        width: 90%;
-
-        .icon-phone {
-          color: @color-font-lightgrey;
-          font-size: 16px;
-          margin-right: 5px;
-          margin-top: -1px;
-        }
-
-        .icon-mobile {
-          color: @color-font-lightgrey;
-          font-size: 16px;
-          margin-right: 5px;
-        }
-      }
-
-      &.value-status {
-        white-space: nowrap;
-        text-align: right;
-      }
-
-      &.value-phone {
-        a {
-          &:hover {
-            text-decoration: none;
-          }
-
-        }
-      }
-
-      &.value-received {
-        text-align: right;
-      }
-
-      .last-triggered {
-        font-size: 13px;
-      }
-
-      .count {
-        font-size: 11px;
-        margin-left: 5px;
-      }
-    }
-  }
-}
-
 .list-buttons-container {
   height: 35px;
   display: none;
@@ -2426,19 +2321,6 @@ tr.checked td .glyph.object-row-checkbox:before {
 
 .glyph.checked:before {
   content: "\e05a";
-}
-
-.glyph.object-row-checkbox,
-.glyph.label-checkbox {
-  font-family: 'temba';
-  speak: none;
-  font-style: normal;
-  font-weight: normal;
-  line-height: 1;
-  -webkit-font-smoothing: antialiased;
-  float: left;
-  margin-top: 6px;
-  margin-right: 5px;
 }
 
 .form #number {

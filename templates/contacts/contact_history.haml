@@ -6,7 +6,7 @@
       %span.det(title='{% if event.obj.channel %}{{event.obj.channel.get_channel_type_name}} {{event.obj.channel.get_name}}{% endif %}')
         {{ event|history_icon }}
 
-    %td.details.wrapped
+    %td.details.wrapped.w-full
       -if event.type == 'airtime_transferred'
         -with event.obj as transfer
           -if transfer.status == 'S'
@@ -163,28 +163,28 @@
             -trans "Failed to call"
           {{ result.url|truncatechars:100 }}
 
+
+
     %td.created_on
-      %span.time
+      .time.flex.items-end.justify-end
         %span.short
           {% short_datetime event.created_on %}
         %span.long.hide
           {% format_datetime event.created_on %}
 
-      .log-icon
+    %td.text-center{style:"padding-left:0px"}
+      .log-icon.ml-2.text-dark-alpha-200
         -if event.type == 'msg_created' or event.type == 'msg_received' or event.type == 'call_started'
           {% channel_log_link event.obj %}
 
         -elif event.type == 'airtime_transferred'
-          %a(href="{% url 'airtime.airtimetransfer_read' event.obj.id %}")
-            .icon-docs-2
+          .hover-linked.icon-docs-2(onclick="goto(event)" href="{% url 'airtime.airtimetransfer_read' event.obj.id %}")
 
         -elif event.type == 'webhook_called'
-          %a(href="{% url 'api.webhookresult_read' event.obj.id %}")
-            .icon-docs-2
+          .hover-linked.icon-docs-2(onclick="goto(event)" href="{% url 'api.webhookresult_read' event.obj.id %}")
 
         -elif event.type == 'flow_entered' and perms.flows.flowsession_json and event.obj.session
-          %a(href="{% url 'flows.flowsession_json' event.obj.session.uuid %}")
-            .icon-docs-2
+          .hover-linked.icon-docs-2(onclick="goto(event)" href="{% url 'flows.flowsession_json' event.obj.session.uuid %}")
 
 -if has_older and not recent_only
   %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{after}}&before={{before}}", 

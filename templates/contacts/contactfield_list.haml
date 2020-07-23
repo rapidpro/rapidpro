@@ -56,7 +56,7 @@
               %temba-modax{ id:'uses-{{obj.id}}', header:'{% trans "Field Details" %}', endpoint:"{% url 'contacts.contactfield_detail' obj.id %}" }
 
           - block table
-            %table.object-list{ class:'{% get_list_class object_list %}', cellspacing:'0'}
+            %table.list{ class:'{% get_list_class object_list %}', cellspacing:'0'}
               %thead
                 %tbody#draggable-tbody
                   - for obj in object_list
@@ -69,28 +69,26 @@
                         %td
 
                       %td
-                        .py-2.px-6
-                          .w-full
-                            -if org_perms.contacts.contactfield_update
-                              .linked.update{onclick:"showUpdateContactFieldModal({{obj.id}})"}
-                                {{ obj.label }}                          
-                                .key{ style:"font-family: monospace; font-size: 12px;" }
-                                  @fields.{{ obj.key }}
-                            -else
+                        .w-full
+                          -if org_perms.contacts.contactfield_update
+                            .hover-linked.update{onclick:"showUpdateContactFieldModal({{obj.id}})"}
                               {{ obj.label }}                          
                               .key{ style:"font-family: monospace; font-size: 12px;" }
                                 @fields.{{ obj.key }}
+                          -else
+                            {{ obj.label }}                          
+                            .key{ style:"font-family: monospace; font-size: 12px;" }
+                              @fields.{{ obj.key }}
 
 
-                      %td{width:"20px"}
-                        .text-center.px-2
+                      %td
+                        .text-center
                           -if obj.show_in_table
                             .lbl
                               -trans "Featured"
 
-                      %td{width:"20px"}
+                      %td
                         .flex.text-center
-
                           -if obj.flow_count or obj.campaign_count or obj.contactgroup_count
                             .uses{onclick:"event.stopPropagation(); showDetailContactFieldModal({{ obj.id }}, \"{{ obj.label }}\");"}
                               .lbl.linked
@@ -100,7 +98,7 @@
                                   {{counter}} Uses
                                 {% endblocktrans %}
                       %td
-                        .text-right.pl-4
+                        .text-right
                           {{ obj.get_value_type_display }}
                       
                       %td.w-10

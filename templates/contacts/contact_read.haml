@@ -9,64 +9,34 @@
   {{contact|name_or_urn:user_org|default:"Contact Details"}}
 
 -block title
-  -if contact.is_blocked
-  -elif contact.is_stopped
-  -else
-  {{contact|name_or_urn:user_org|default:"Contact Details"}}
+  .flex.flex-wrap.flex-row.items-center
+    .mr-3
+      {{contact|name_or_urn:user_org|default:"Contact Details"}}
+    -for urn in contact_urns
+      -if not user_org.is_anon
+        -if urn.sendable
+          %temba-modax.text-base{ header:'Send Message', endpoint:"{% url 'msgs.broadcast_send' %}?u={{urn.id}}"}
+            .mr-3.hover-linked{class:"glyph {{urn|urn_icon}}", style:"margin-top:0px"}
 
 -block subtitle
-    -if user_org.is_anon
-      .contact-urn
-        .glyph.icon-vcard
-        {{contact.anon_identifier}}
-
-    -for urn in contact_urns
-      .contact-urn
-        .{class:"glyph {{urn|urn_icon}}"}
-        -if not user_org.is_anon
-          -if urn.sendable
-            %temba-modax.urn-link{ header:'Send Message', endpoint:"{% url 'msgs.broadcast_send' %}?u={{urn.id}}"}
-              %a.contact-urn-path{href:'#'}><
-                {{urn|format_urn:user_org}}
-          -else
-            %i.contact-urn-path
-              -if urn.scheme == 'mailto'
-                %a{href:"{{urn}}"}
-                  {{urn|format_urn:user_org}}
-              -elif urn.scheme == 'twitter'
-                %a{href:'http://twitter.com/{{urn.path}}'}
-                  {{urn|format_urn:user_org}}
-              -elif urn.scheme == 'twitterid'
-                %a{href:'http://twitter.com/{{urn.display}}'}
-                  {{urn|format_urn:user_org}}
-              -else
-                {{urn|format_urn:user_org}}
-
-        -else
-          %span.contact-urn-path
-            {{urn|format_urn:user_org}}
-
-    -for urn in contact_unsendable_urns
-      .contact-urn
-        .{class:"glyph {{urn|urn_icon}}"}
-        %i.contact-urn-path
-          -if urn.scheme == 'mailto'
-            %a{href:"{{urn}}"}
-              {{urn|format_urn:user_org}}
-          -elif urn.scheme == 'twitter'
-            %a{href:'http://twitter.com/{{urn.path}}'}
-              {{urn|format_urn:user_org}}
-          -else
-            {{urn|format_urn:user_org}}
 
   .flex.flex-wrap
+
+    -if contact.is_blocked
+      .lbl.mt-2.mr-2.bg-error.text-white.cursor-pointer{onclick:"goto(event)", href:"{% url 'contacts.contact_blocked' %}"}
+        -trans "Blocked"
+  
+    -elif contact.is_stopped
+      .lbl-group.mt-2.mr-2.linked.bg-error.text-white.font-normal{onclick:"goto(event)", href:"{% url 'contacts.contact_stopped' %}"}
+        -trans "Stopped"
+  
     -for group in contact_groups
       -if group.is_dynamic
-        .lbl-secondary.mt-2.mr-2.linked{onclick:"goto(event)", href:"{% url 'contacts.contact_filter' group.uuid %}"}
+        .lbl-group-dynamic.mt-2.mr-2.linked{onclick:"goto(event)", href:"{% url 'contacts.contact_filter' group.uuid %}"}
           = group.name
     -for group in contact_groups
       -if not group.is_dynamic
-        .lbl.mt-2.mr-2.linked{onclick:"goto(event)", href:"{% url 'contacts.contact_filter' group.uuid %}"}
+        .lbl-group.mt-2.mr-2.linked{onclick:"goto(event)", href:"{% url 'contacts.contact_filter' group.uuid %}"}
           = group.name
 
 -block read-buttons
@@ -80,49 +50,84 @@
   </style>
   <![endif]-->
 
-  .contact-fields.rounded-lg.shadow.p-3.bg-gray-100
-    .featured
-      .contact-field
-        .contact-field-label
-          -trans "Created On"
-
-        .contact-field-value
-          {% format_datetime contact.created_on %}
-
-      -if contact_language
-        .contact-field
-          .contact-field-label
-            -trans "Language"
-
+  %table.list.tight.toggle.stateful#contact-details
+    %thead
+      %th(colspan="2")
+        -trans "Details"
+    %tbody
+      %tr
+        %td
+          .whitespace-no-wrap.pr-24.contact-field
+            .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
+              -trans "Created On"
+        %td.w-full
           .contact-field-value
-            {{contact_language}}
+            {% format_datetime contact.created_on %}
+            
+      -if contact_language
+        %tr
+          %td
+            .whitespace-no-wrap.pr-12.contact-field
+              .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
+                -trans "Language"
+          %td.w-full
+            .contact-field-value.hover-linked
+              -trans 'Edit Contact' as title
+              %temba-modax(header="{{title|escapejs}}" endpoint="{% url 'contacts.contact_update' contact.pk %}")
+                {{contact_language}}
 
-      -for field in all_contact_fields|slice:":6"
-        .contact-field{data-id:'{{field.id}}'}
-          .contact-field-label
-            {{field.label|title}}
-
-          .contact-field-value.editable
-            {{field.value}}
-
-    .normal.hide
-      -for field in all_contact_fields|slice:"6:"
-        .contact-field{data-id:'{{field.id}}'}
-          .contact-field-label
-            {{field.label|title}}
-
-          .contact-field-value.editable
-            {{field.value}}
-
-  -if all_contact_fields|length > 6
-    %a.pull-right.show-all.fields
-      .icon-arrow-down
+      -if user_org.is_anon
+        %tr
+          %td
+            .whitespace-no-wrap.pr-12.contact-field
+              .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
+              -trans "Contact Id"
+          %td.w-full
+            {{contact.anon_identifier}}
+  
+    
+      -for field in all_contact_fields
+        %tr
+          %td
+            .whitespace-no-wrap.pr-12.contact-field{data-id:'{{field.id}}'}
+              .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
+                {{field.label|title}}
+          %td.w-full
+            .contact-field{data-id:'{{field.id}}'}
+              .contact-field-value.editable.cursor-pointer.hover-linked
+                {{field.value}}
+      
+      -for urn in contact_urns
+        -if not user_org.is_anon
+          %tr
+            %td
+              .whitespace-no-wrap.pr-12.contact-field
+                .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
+                  .mr-1.leading-none.text-gray-300{class:"glyph {{urn|urn_icon}}", style:"margin-top: -1px; font-size:14px"}
+                  -if urn.scheme == 'mailto'
+                    -trans "Email"
+                  -else
+                    {{urn.scheme}}
+            %td.w-full
+              .contact-field-value
+                -if urn.scheme == 'mailto'
+                  .linked{onclick:"goto(event)", href:"{{urn}}"}
+                    {{urn|format_urn:user_org}}
+                -elif urn.scheme == 'twitter'
+                  .linked{onclick:"goto(event)", href:'http://twitter.com/{{urn.path}}'}
+                    {{urn|format_urn:user_org}}
+                -elif urn.scheme == 'twitterid'
+                  .linked{onclick:"goto(event)", href:'http://twitter.com/{{urn.display}}'}
+                    {{urn|format_urn:user_org}}
+                -else
+                  {{urn|format_urn:user_org}}      
 
   -if open_tickets
-    %h5
-      -trans "Open Tickets"
+    %table.list.tickets
+      %thead
+        %th(colspan="5")
+          -trans "Open Tickets"
 
-    %table.activity.tickets
       -for ticket in open_tickets
         %tr.item
           %td.icon
@@ -138,16 +143,16 @@
             {% short_datetime ticket.opened_on %}
 
   -if upcoming_events
-    %h5
-      -trans "Upcoming"
-
     -if upcoming_events|length > 3
       :css
         tbody:nth-child(1) {
           display: none;
         }
 
-    %table.activity.pending
+    %table.list.upcoming.mt-6.light.lined
+      %thead
+        %th(colspan="3")
+          -trans "Upcoming"
       -for evt in upcoming_events
         -if forloop.counter0 == upcoming_events|length|add:-3
           %tbody.next_three
@@ -161,7 +166,7 @@
             -else
               %span.glyph.icon-clock
 
-          %td.details
+          %td.details.w-full
 
             .activity-scheduled
               -if evt.event_type == 'M'
@@ -184,19 +189,18 @@
       %a.pull-right.show-all.upcoming
         more
 
-  %h5{style:"margin-top: 40px;"}
-    -trans "History"
-
-    .flow-event-display-selector.pull-right
-      %a.is-active(href="#")
-        -trans "Full"
-      |
-      %a.summary-events-only(href="#")
-        -trans "Summary"
-
-  %table.activity.history{style:'padding:0;margin:0'}
-    // poll for our most recent messages
-
+  %table.list.activity.history.mt-6.light.lined
+    %thead
+      %th(colspan="2")
+        -trans "History"
+      %th(colspan="2")
+        .flex.justify-end
+          .flow-event-display-selector
+            %a.is-active(href="#")
+              -trans "Full"
+            |
+            %a.summary-events-only(href="#")
+              -trans "Summary"
     %tr.poll{ ic-src:"/contact/history/{{contact.uuid}}/?after={{recent_start}}",
               ic-trigger-on:"scrolled-into-view",
               ic-poll:"5s",
@@ -227,8 +231,8 @@
     {% lessblock %}
       :plain
         .show-all {
-          margin-top:-10px;
-          margin-right:18px;
+          margin-top:0px;
+          margin-right:10px;
           color: #d1d1d1;
 
           &.expanded {
@@ -259,7 +263,7 @@
             }
           }
 
-        table.activity {
+        table.list {
 
           tr.archive-note {
             border-bottom: none;
@@ -298,11 +302,7 @@
             }
           }
 
-          width: 100%;
-          margin-bottom: 20px;
-          border-collapse: collapse;
-
-          &.pending {
+          &.upcoming {
             color: #ccc;
 
             tr.non-msg {
@@ -322,10 +322,6 @@
           }
 
           tr {
-            border-top: 1px solid #f3f3f3;
-            border-bottom: 1px solid #f3f3f3;
-            width: 100%;
-
             &.msg {
               td.icon {
                 .icon-bubble-right, .icon-bubble-check, .icon-bullhorn, .icon-call-outgoing {
@@ -373,21 +369,12 @@
 
           td {
             vertical-align:middle;
-            padding: 2px 20px;
 
             &.icon {
-              border: 0px solid;
-              width: 30px;
-              padding: 2px 0px;
-              padding-left: 10px;
               text-align: center;
 
               .glyph {
-                margin-top:16px;
-                font-size:14px;
-                line-height:0;
                 color: rgba(0,0,0,.20);
-                padding: 5px;
               }
             }
 
@@ -397,11 +384,16 @@
           }
 
           .created_on {
-            width: 180px;
             font-size:13px;
             line-height:13px;
             border: 0px solid;
             text-align:right;
+            min-width: 150px;
+            padding-right: 0px;
+            
+            .time {
+              margin-right: 0px;
+            }
 
             .repeats {
               font-size:90%;
@@ -427,53 +419,6 @@
 
           .glyph {
             margin-right: 3px;
-          }
-        }
-
-        .contact-fields {
-          background: #f9f9f9;
-
-          font-size: 12px;
-          color: @color-font-grey;
-          border: 1px solid #f1f1f1;
-          margin-bottom:15px;
-
-          .show-more {
-            padding: 10px;
-            display:block;
-          }
-
-          .contact-field {
-            display: inline-block;
-            width: 260px;
-            padding: 2px 10px;
-
-
-            .contact-field-label {
-              font-weight: normal;
-              color: @color-font-black;
-              font-size:12px;
-              margin-right:2px;
-              padding-top:5px;
-              font-size:95%;
-              display:block;
-            }
-
-            .contact-field-label-featured {
-              font-style: italic;
-            }
-
-            .contact-field-value {
-              font-weight: bold;
-              color: @color-font-grey;
-              padding-top:-5px;
-              display:inline-block;
-            }
-
-            .editable:hover {
-              cursor: pointer;
-              text-decoration: underline;
-            }
           }
         }
 
@@ -513,18 +458,18 @@
 
       $('.show-all.upcoming').live('click', function() {
         $(this).hide();
-        $('table.activity.pending tbody:nth-child(1)').show();
+        $('table.activity.upcoming tbody:nth-child(1)').show();
       });
 
       $('.show-all.fields').live('click', function() {
         if ($(this).hasClass('expanded')) {
           $(this).removeClass('expanded');
           $('.contact-fields').removeClass('expanded');
-          $('.normal').slideUp();
+          $('.normal').hide();
         } else {
           $(this).addClass('expanded');
           $('.contact-fields').addClass('expanded');
-          $('.normal').slideDown();
+          $('.normal').show();
         }
       });
 

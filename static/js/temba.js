@@ -3,12 +3,18 @@ if (typeof console == 'undefined') {
     this.console = { log: function (msg) {} };
 }
 
-function goto(event) {
-    event.stopPropagation();
-    if (event.target.setActive) {
-        event.target.setActive();
+function goto(event, ele) {
+    if (!ele) {
+        ele = event.target;
     }
-    var href = event.target.getAttribute('href');
+    console.log('goto!', ele);
+
+    event.stopPropagation();
+    if (ele.setActive) {
+        ele.setActive();
+    }
+    var href = ele.getAttribute('href');
+    console.log(href, ele);
     if (href) {
         if (event.metaKey) {
             window.open(href, '_blank');
@@ -16,6 +22,12 @@ function goto(event) {
             document.location.href = href;
         }
     }
+}
+
+function setCookie(name, value) {
+    var now = new Date();
+    now.setTime(now.getTime() + 60 * 1000 * 60 * 24 * 30);
+    document.cookie = `${name}=${value};expires=${now.toUTCString()}`;
 }
 
 function getCookie(name) {
@@ -373,3 +385,33 @@ function disposeVideoPlayer(element) {
         player.dispose();
     }
 }
+
+// wire up our toggle tables
+document.addEventListener('DOMContentLoaded', function () {
+    document
+        .querySelectorAll('table.list.toggle > thead')
+        .forEach(function (ele) {
+            var table = ele.parentElement;
+            var classes = table.classList;
+            var stateful = classes.contains('stateful');
+
+            // read in our cookie if we are stateful
+            if (stateful) {
+                if (getCookie('rp-table-expanded-' + table.id) == 'true') {
+                    classes.add('expanded');
+                }
+            }
+
+            ele.addEventListener('click', function () {
+                classes.toggle('expanded');
+
+                // set a cookie
+                if (stateful) {
+                    setCookie(
+                        'rp-table-expanded-' + table.id,
+                        classes.contains('expanded')
+                    );
+                }
+            });
+        });
+});

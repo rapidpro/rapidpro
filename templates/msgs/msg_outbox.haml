@@ -35,7 +35,7 @@
         %tr
           %td.whitespace-no-wrap
             .px-6.py-3
-              .linked{onclick:"goto(event)", href:"/contact/read/{{object.contact.uuid}}/"}
+              .hover-linked{onclick:"goto(event)", href:"/contact/read/{{object.contact.uuid}}/"}
                 {{ object.contact|short_name:user_org }}
           %td.w-full
               {% get_value object 'text' %}

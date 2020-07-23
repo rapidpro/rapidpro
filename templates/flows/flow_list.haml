@@ -169,54 +169,59 @@
                   %input{type:'hidden', name:'status', value:'{{request.REQUEST.status}}'}
 
             -block flow-list
-              %table.object-list{class: '{% if org_perms.flows.flow_update %}selectable{% endif %}'}
+              %table.list.lined{class: '{% if org_perms.flows.flow_update %}selectable{% endif %}'}
+                %thead
+                  %tr
+                    -if org_perms.flows.flow_update
+                      %th
+                    %th
+                    %th
+                    %th.whitespace-no-wrap
+                      Runs / Completion
+                      
                 %tbody
                   -for object in object_list
-                    %tr.flow.object-row.select-row{ data-object-uuid: "{{object.uuid}}", data-object-id: "{{ object.id }}" }
-                      %td.flow.checkbox.object-row-checkbox
-                        .glyph.icon-checkbox-unchecked.flow-checkbox.object-row-checkbox.pl-3.w-4.py-1.cursor-pointer{style:"height:16px"}
+                    %tr.object-row.select-row{ data-object-uuid: "{{object.uuid}}", data-object-id: "{{ object.id }}" }
+
+                      -if org_perms.flows.flow_update
+                        %td.checkbox.object-row-checkbox
+                          .glyph.icon-checkbox-unchecked.object-row-checkbox
 
                       %td.w-full{onclick:"handleRowSelection(this)"}
-                        .flex.flex-wrap.flex-end.items-center.px-4.py-2
-                          .flex.linked.inline.whitespace-no-wrap
+                        .flex.flex-wrap.flex-end
+                          .flex.hover-linked.inline.whitespace-no-wrap
                             -if object.flow_type == 'V'
                               .icon-phone.mr-2.leading-snug
                             -elif object.flow_type == 'S'
                               .icon-mobile.mr-2.leading-snug
-                            .name{onclick:"goto(event)", href:"{% url 'flows.flow_editor' object.uuid%}"}
+                            .name.whitespace-normal{onclick:"goto(event)", href:"{% url 'flows.flow_editor' object.uuid%}"}
                               {{ object.name }}
-                          .whitespace-no-break.flex.items-center.ml-2
+
+                      %td{onclick:"handleRowSelection(this)"}
+                          .whitespace-no-break.flex.items-center.ml-2.justify-end
                             -for label in object.labels.all
-                              .lbl.cursor-pointer.m-1.py-0{ onclick:"goto(event)", data-id: '{{label.pk}}', href:"{% url 'flows.flow_filter' label.pk%}"}
+                              .lbl.linked.ml-2{ onclick:"goto(event)", data-id: '{{label.pk}}', href:"{% url 'flows.flow_filter' label.pk%}"}
                                 {{label.name}}
-
-
 
                       %td{onclick:"handleRowSelection(this)"}
                         -if not object.is_archived
                           .whitespace-no-break.flex.items-center.justify-end
 
                             -if object.run_stats.total
-                              %a.href.mr-2.whitespace-no-wrap{href:'{% url "flows.flow_results" object.uuid %}'}
-                                {% blocktrans with run_count=object.run_stats.total|intcomma count cc=object.run_stats.total %}
-                                  {{ run_count }} run
-                                {% plural %}
-                                  {{run_count}} runs
-                                {% endblocktrans %}
-                              %a.href.mr-2.whitespace-no-wrap{href:'{% url "flows.flow_results" object.uuid %}'}
-                                {% blocktrans with completed_percentage=object.run_stats.completion %}
-                                  {{ completed_percentage }}% completion
-                                {% endblocktrans %}
+                              .linked.mr-2.whitespace-no-wrap{onclick:"goto(event)", href:'{% url "flows.flow_results" object.uuid %}'}
+                                {{object.run_stats.total|intcomma}}
+                      
+                              \/ 
+                              .text-center.linked.mx-2.whitespace-no-wrap{onclick:"goto(event)", href:'{% url "flows.flow_results" object.uuid %}'}
+                                {{object.run_stats.completion}}%
 
                   -empty
-                    %tr.flow
-                      %td.flow
+                    %tr
+                      %td
                         -trans "No matching flows."
 
               - block paginator
-                // - if object_list.count
-                  .paginator
-                    - include "smartmin/sidebar_pagination.haml"
+                -include "includes/pagination.haml"
 
 -block extra-script
   {{ block.super }}

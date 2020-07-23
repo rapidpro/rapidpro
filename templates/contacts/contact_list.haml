@@ -120,7 +120,7 @@
                                   -if not group.is_dynamic
                                     %li
                                       .lbl-menu{'href':'#', onclick:'addContactToGroup({{group.pk}})', data-id:'{{group.pk}}'}
-                                        .flex.items-center.py-1.linked
+                                        .flex.items-center.py-1.hover-linked
                                           .glyph.message-label.label-checkbox
                                           .name.px-2
                                             {{ group.label }}
@@ -128,7 +128,7 @@
                                   - if groups
                                     %li.separator.-mx-4.border-b.my-3
                                   %li
-                                    .lbl-menu.add-group.linked{ onclick:"handleAddGroupClicked()" }
+                                    .lbl-menu.add-group.hover-linked{ onclick:"handleAddGroupClicked()" }
                                       - trans "New Group..."
 
                           - if org_perms.msgs.broadcast_send and not reply_disabled
@@ -165,16 +165,15 @@
                       -plural
                         Found {{ results_count }} contacts matching <i>{{search}}</i>.
 
-                %table.object-list{class:"{% if org_perms.contacts.contact_update %}selectable{%endif%}"}
+                %table.list.object-list.lined{class:"{% if org_perms.contacts.contact_update %}selectable{%endif%}"}
                   %tr.contacts
                     -if org_perms.contacts.contact_update
-                      %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
-
-                    %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
-                    %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
+                      %th
+                    %th
+                    %th
                     -for field in contact_fields
                       -if field.show_in_table
-                        %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
+                        %th
                           -if sort_field == field.key
                             -if sort_direction == 'desc'
                               %a{href:"?sort_on={{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}"}
@@ -216,22 +215,21 @@
 
                         - if org_perms.contacts.contact_update or org_perms.msgs.broadcast_send
                           %td.contact.checkbox.object-row-checkbox
-                            .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox.h-4.pl-3.w-4.cursor-pointer
+                            .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox
 
                         %td
-                          .pl-4.pr-8.py-2.whitespace-no-wrap
-                            .linked{onclick:"goto(event)", href:"/contact/read/{{object.uuid}}/"}
+                          .whitespace-no-wrap
+                            .hover-linked{onclick:"goto(event)", href:"/contact/read/{{object.uuid}}/"}
                               {{ object|name:user_org }}
 
                         %td.w-full{onclick:"handleRowSelection(this)"}
-                          .px-4.py-2.whitespace-no-wrap
+                          .whitespace-no-wrap
                             {{ object|urn:user_org }}
 
                         -for field in contact_fields
                           -if field.show_in_table
                             %td.field{onclick:"handleRowSelection(this)"}
-                              .px-4.py-2
-                                {{ object|contact_field:field.key }}
+                              {{ object|contact_field:field.key }}
 
                         %td.value-received.field_received{onclick:"handleRowSelection(this)"}
                           .px-4.py-2.whitespace-no-wrap
@@ -260,12 +258,8 @@
                         %td
 
 
-              .flex.flex-col.mx-4.mt-3.mb-16
-                .flex.flex-wrap
-                  .text-gray-700
-                    -include "includes/results_count.html"
-                  .flex-grow
-                    -include "includes/pages.html"
+              .flex.flex-col.mb-16
+                -include "includes/pagination.haml"
 
                 -if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages and paginator.count > 10000
                   .text-gray-400.text-sm.self-end.mt-2
@@ -330,12 +324,14 @@
       font-size: 14px;
       margin-top: -1px;
     }
+
     tr.contacts th a {
       text-decoration: none;
       font-weight:500;
       color: #717171;
       font-size: 0.75rem;
     }
+    
     tr.contacts th:hover a span.icon {
       visibility: visible;
       font-size: 14px;
@@ -343,22 +339,7 @@
     tr.contacts th a span.icon.visible {
       visibility: visible;
     }
-    tr.contacts th {
-      padding: 8px 0px;
-      padding-left:14px;
-      font-weight:200;
-      color: #aaa;
-      border:0px solid;
-      text-align:center;
-      white-space: nowrap;
-      border-bottom: 1px #eee solid;
-    }
-
-    td.field {
-      text-align:center;
-      min-width:125px;
-    }
-
+    
     .span9 .contact_list tr.contacts {
       border-top: none;
     }

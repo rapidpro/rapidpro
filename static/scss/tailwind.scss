@@ -43,14 +43,27 @@ a {
 }
 
 .linked {
-  @apply cursor-pointer;
+  @apply text-primary cursor-pointer;
 
   &.active {
-    @apply: text-primary;
+    @apply: underline;
   }
 
   &:hover {
-    @apply text-primary;
+    @apply underline;
+  }
+}
+
+.hover-linked {
+  @apply cursor-pointer;
+  color: inherit;
+
+  &.active {
+    @apply: text-primary no-underline;
+  }
+
+  &:hover {
+    @apply text-primary no-underline;
   }
 }
 
@@ -150,25 +163,69 @@ a {
 }
 
 .lbl {
-  @apply border border-transparent leading-tight shadow no-underline cursor-default px-2 py-1 inline-block text-xs font-normal rounded-full bg-dark-alpha-50 text-dark-alpha-500 tracking-wide whitespace-no-wrap text-center;
+  @apply shadow leading-tight no-underline cursor-default px-2 py-1 inline-block text-xs font-normal rounded-full bg-dark-alpha-50 text-dark-alpha-500 tracking-wide whitespace-no-wrap text-center;
 
   &.linked:hover {
     @apply no-underline cursor-pointer text-dark-alpha-500;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(255, 255, 255, .3);
   }
 
-  &:active {
+  &.linked:active {
     @apply shadow-none;
   }
 }
 
+.lbl-primary {
+  @apply lbl bg-primary;
+
+  &.linked:hover {
+    @apply no-underline cursor-pointer text-white;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(255, 255, 255, .1);
+  }
+
+  &.linked:active {
+    @apply shadow-none;
+  }
+}
+
+
+.lbl-icon {
+  @apply text-gray-500;
+  font-size: 11px;
+  font-family: 'icons' !important;
+  speak: never;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  vertical-align: text-bottom;
+}
+
+.lbl-group {
+  @apply lbl;
+
+  &::before {
+    @apply lbl-icon;
+    content: "\e03c";
+  }
+}
+
+.lbl-group-dynamic {
+  @apply lbl-group;
+
+  &::before {
+    content: "\ebeb";
+  }
+}
+
 .lbl-secondary {
-  @apply lbl border-secondary text-white bg-white text-secondary border;
+  @apply lbl text-white bg-white text-secondary;
 
   &.linked:hover {
     @apply no-underline bg-secondary text-white cursor-pointer;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(255, 255, 255, .1);
-
   }
 }
 
@@ -212,19 +269,208 @@ a {
 }
 
 .table-header {
-  @apply px-6 py-3 pt-4 border-b border-gray-200 bg-gray-100 text-left font-medium uppercase text-xs tracking-wider
+  @apply border-b border-gray-300 bg-gray-200 text-left font-medium uppercase text-xs tracking-wider
 }
 
 table.list {
-  @apply w-full shadow rounded-lg overflow-hidden;
+  @apply w-full shadow rounded-lg overflow-hidden bg-white;
+
+  &.light {
+    @apply shadow-none;
+
+    thead {
+      tr th {
+        @apply bg-transparent;
+      }
+    }
+  }
+
+  &.toggle {
+
+    thead {
+      @apply cursor-pointer select-none;
+
+      tr {
+        &:hover {
+          th {
+            @apply bg-gray-300 border-gray-400;
+          }
+        }
+
+        th {
+          &:last-child {
+            &::after {
+              transition: all 200ms ease-in-out;
+              content: "\e05c";
+              color: rgba(0, 0, 0, .3);
+              font-size: 12px;
+              float: right;
+              margin: -3px 0px;
+              font-family: 'temba' !important;
+            }
+          }
+        }
+      }
+    }
+
+    tbody tr td {
+      @apply border-none py-0 overflow-hidden h-0;
+      border: 0px;
+    }
+
+    tbody tr td>* {
+      max-height: 0px;
+    }
+  }
+
+  &.expanded {
+
+    &.lined {
+      @apply border-solid border-gray-300 border-l-0 border-r-0 border-b-0;
+    }
+
+    thead tr th {
+      &:last-child {
+        &::after {
+          transform: rotate(180deg);
+        }
+      }
+    }
+
+    tbody tr td {
+      padding: 14px;
+    }
+
+    tbody tr td>* {
+      max-height: 500px;
+    }
+  }
 
   th {
-    @apply table-header;
+    @apply table-header whitespace-no-wrap text-gray-600 p-3;
+  }
+
+  &.lined {
+    td {
+      @apply border-t border-gray-200;
+    }
+  }
+
+  tbody tr.warning {
+    background: repeating-linear-gradient(-55deg,
+        rgba(207, 127, 127, 0.06),
+        rgba(207, 127, 127, 0.06) 5px,
+        rgba(207, 127, 127, 0.08) 5px,
+        rgba(207, 127, 127, 0.08) 10px);
+    border-color: rgba(207, 127, 127, 0.35);
+
+    td {
+
+      .icon-docs-2,
+      .icon-cloud-upload {
+        @apply text-error;
+      }
+    }
   }
 
   td {
-    @apply border-b border-gray-200 px-4 py-2;
+    @apply p-3;
+
+    &:first-child {
+      @apply pl-4;
+    }
   }
+
+  &.tight.toggle {
+    tbody {
+      tr {
+        &:first-child {
+          td {
+            padding-top: 0px;
+          }
+        }
+
+        &:last-child {
+          td {
+            padding-bottom: 0px;
+          }
+        }
+
+        td {
+          @apply py-0;
+          font-size: 85%;
+        }
+      }
+    }
+  }
+
+
+  &.tight,
+  &.tight.expanded {
+    tbody {
+      tr {
+        &:first-child {
+          td {
+            padding-top: 14px;
+          }
+        }
+
+        &:last-child {
+          td {
+            padding-bottom: 14px;
+          }
+        }
+
+        & td {
+          @apply py-1;
+          font-size: 85%;
+        }
+      }
+    }
+  }
+
+
+  &.selectable {
+    tbody {
+      tr td.checkbox {
+        .glyph {
+          @apply cursor-pointer text-gray-300;
+        }
+      }
+
+      tr:hover {
+        td {
+          background-color: rgba(var(--selection-light-rgb), .3);
+
+          &.checkbox .glyph {
+            @apply text-gray-600;
+          }
+        }
+      }
+
+      tr.checked {
+        td.checkbox .glyph {
+          @apply text-gray-600;
+        }
+
+        td {
+          color: rgba(0, 0, 0, .65) !important;
+          background-color: rgba(var(--selection-light-rgb), .5) !important;
+          border-color: rgba(var(--selection-light-rgb), 1);
+
+          &:hover {
+            color: rgba(0, 0, 0, .65) !important;
+
+            background-color: rgba(var(--selection-light-rgb), .5);
+            border-color: rgba(var(--selection-light-rgb), 1);
+          }
+        }
+      }
+
+    }
+  }
+
+
 }
 
 .gear-links {
@@ -253,7 +499,7 @@ table.list {
       }
 
       .lp-nav-item {
-        @apply flex linked items-center px-2 py-1 border-gray-100;
+        @apply flex hover-linked items-center px-2 py-1 border-gray-100;
 
         .name {
           @apply leading-none pr-4;
@@ -269,8 +515,16 @@ table.list {
   .right {
     @apply flex-grow
   }
-
 }
+
+.action-buttons,
+.gear-menu {
+  .linked {
+    @apply hover-linked;
+  }
+}
+
+.warning {}
 
 .help-text {
   font-size: 11px;

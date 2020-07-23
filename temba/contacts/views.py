@@ -471,8 +471,7 @@ class UpdateContactForm(ContactForm):
         queryset=ContactGroup.user_groups.filter(pk__lt=0),
         required=False,
         label=_("Groups"),
-        help_text=_("Add or remove groups this contact belongs to"),
-        widget=SelectMultipleWidget(),
+        widget=SelectMultipleWidget(attrs={"placeholder": _("Select groups for this contact")}),
     )
 
     def __init__(self, *args, **kwargs):
@@ -1128,6 +1127,7 @@ class ContactCRUDL(SmartCRUDL):
                     dict(
                         id="send-message",
                         title=_("Send Message"),
+                        style="button-primary",
                         href=f"{reverse('msgs.broadcast_send')}?c={self.object.uuid}",
                         modax=_("Send Message"),
                     )

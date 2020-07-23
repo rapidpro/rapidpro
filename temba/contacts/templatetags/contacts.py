@@ -26,7 +26,7 @@ from temba.msgs.models import ERRORED, FAILED
 register = template.Library()
 
 URN_SCHEME_ICONS = {
-    TEL_SCHEME: "icon-mobile-2",
+    TEL_SCHEME: "icon-phone",
     TWITTER_SCHEME: "icon-twitter",
     TWITTERID_SCHEME: "icon-twitter",
     TWILIO_SCHEME: "icon-twilio_original",

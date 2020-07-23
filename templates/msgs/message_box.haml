@@ -132,7 +132,7 @@
                               -if node.obj.is_folder and node.children
                                 %li.dropdown-submenu
                                   .lbl-menu.object-btn-label.cursor-pointer{data-id:'{{node.obj.id}}'}
-                                    .flex.items-center.py-1.linked
+                                    .flex.items-center.py-1.hover-linked
                                       .icon-arrow-right-8.text-2xl.-ml-1.-mt-1.mr-1
                                       .name.px-2
                                         {{ node.obj.name }}
@@ -140,7 +140,7 @@
                                     - for child in node.children
                                       %li
                                         .lbl-menu.object-btn-label.px-4{data-id:'{{child.obj.id}}'}
-                                          .flex.items-center.py-1.linked
+                                          .flex.items-center.py-1.hover-linked
                                             .glyph.message-label.label-checkbox
                                             .name.px-1
                                               {{ child.obj.name }}
@@ -148,7 +148,7 @@
                               -if not node.obj.is_folder
                                 %li
                                   .lbl-menu.object-btn-label{data-id:'{{node.obj.id}}'}
-                                    .flex.items-center.py-1.linked
+                                    .flex.items-center.py-1.hover-linked
                                       .glyph.message-label.label-checkbox
                                       .name.px-1
                                         {{ node.obj.name }}
@@ -170,7 +170,7 @@
               %temba-textinput.w-full{onsubmit:'document.querySelector("#search-form").submit();', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
 
             -block message-list
-              %table.object-list{class: '{% if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send %}selectable{% endif %}'}
+              %table.list.object-list.lined{class: '{% if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send %}selectable{% endif %}'}
                 %tbody
                   -for object in object_list
                     %tr.sms.object-row{id: 'id-row-{{object.id}}', data-object-id:'{{ object.id }}',
@@ -178,13 +178,12 @@
                       -if actions
                         - if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send
                           %td.checkbox.sms.object-row-check{onclick:"handleRowSelection(this);"}                            
-                            .glyph.object-row-checkbox.py-2.pl-3.w-4.cursor-pointer
+                            .glyph.icon-checkbox-unchecked.object-row-checkbox
                       %td.whitespace-no-wrap
-                        .pl-4.py-2
-                          .linked{onclick:"goto(event)", href:"/contact/read/{{object.contact.uuid}}/"}
-                            {{ object.contact|short_name:user_org }}
+                        .hover-linked{onclick:"goto(event)", href:"/contact/read/{{object.contact.uuid}}/"}
+                          {{ object.contact|short_name:user_org }}
                       %td.w-full{onclick:"handleRowSelection(this)"}
-                        .flex.flex-wrap.flex-end.items-center.px-4.py-2.justify-end
+                        .flex.flex-wrap.flex-end.items-center.justify-end
                           .flex-grow.inline
                             {% get_value object 'text' %}
                           .labels.flex.items-center.flex-wrap

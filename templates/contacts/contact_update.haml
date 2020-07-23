@@ -87,37 +87,26 @@
 
 -block fields
 
-  //-for urn in object.get_urns
-    {{urn.scheme}}
-    %input{value:'{{urn.path}}'}
+  {{block.super}}
+  // Manual option to add a new URN for this contact
+  {% if not user_org.is_anon %}
+    <div class="control-group {% if form.errors.new_path %}error{%endif%}">
+      %label.control-label
+        Add Connection
+      .controls
+        .flex
+          %temba-select#id-urn-scheme.w-64{name:'new_scheme', float:'left'}
+            -for key, value in schemes
+              <temba-option name='{{value}}' value='{{key}}' {% if form.data.new_scheme == key %}selected{%endif%}></temba-option>
+          %temba-textinput.flex-grow{name:'new_path', type:'text', style:'margin-left:5px;width:345px', value:'{{form.data.new_path}}'}
 
-  .overflow-y-auto.-m-4{style:"max-height:400px"}
-    .p-4
-      {{block.super}}
-      // Manual option to add a new URN for this contact
-      {% if not user_org.is_anon %}
-      <div class="control-group {% if form.errors.new_path %}error{%endif%}">
-        %label.control-label
-          Add Connection
-        .controls
-
-          .flex
-
-            %temba-select#id-urn-scheme.w-64{name:'new_scheme', float:'left'}
-              -for key, value in schemes
-                <temba-option name='{{value}}' value='{{key}}' {% if form.data.new_scheme == key %}selected{%endif%}></temba-option>
-            
-            
-            %temba-textinput.flex-grow{name:'new_path', type:'text', style:'margin-left:5px;width:345px', value:'{{form.data.new_path}}'}
-
-          .help-text
-            Add a new way connect with this contact
-          -if form.errors.new_path
-            .alert-error.mt-2
-              {{form.errors.new_path}}
-
-      </div>
-      {% endif %}
+        .help-text
+          Add a new way connect with this contact
+        -if form.errors.new_path
+          .alert-error.mt-2
+            {{form.errors.new_path}}
+    </div>
+  {% endif %}
 
 
 

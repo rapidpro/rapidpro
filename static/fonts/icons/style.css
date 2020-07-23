@@ -1,9 +1,9 @@
 @font-face {
   font-family: 'icons';
   src:
-    url('fonts/icons.ttf?2fgn24') format('truetype'),
-    url('fonts/icons.woff?2fgn24') format('woff'),
-    url('fonts/icons.svg?2fgn24#icons') format('svg');
+    url('fonts/icons.ttf?dcjm9u') format('truetype'),
+    url('fonts/icons.woff?dcjm9u') format('woff'),
+    url('fonts/icons.svg?dcjm9u#icons') format('svg');
   font-weight: normal;
   font-style: normal;
   font-display: block;
@@ -26,6 +26,15 @@
 
 .icn-bubble:before {
   content: "\ead8";
+}
+.icn-smart-group-wand:before {
+  content: "\eb6d";
+}
+.icn-smart-group-atom:before {
+  content: "\ebeb";
+}
+.icn-smart-group-bulb:before {
+  content: "\ebfa";
 }
 .icn-trigger:before {
   content: "\edb1";
