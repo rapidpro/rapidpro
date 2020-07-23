@@ -4108,6 +4108,7 @@ class MergeFlowsTask(TembaModel):
             target = self.target
 
             # import merge changes
+            backup_metadata["source_name"] = self.source.name
             backup_metadata["target_name"] = target.name
             backup_metadata["terget_backup"] = target.as_json()
             target.import_definition(self.created_by, self.definition, {})
@@ -4157,8 +4158,8 @@ class MergeFlowsTask(TembaModel):
                 self.email_subject % org,
                 self.email_template,
                 {
-                    "source": self.source,
-                    "target": self.target,
+                    "source_name": backup_metadata["source_name"],
+                    "target_name": backup_metadata["target_name"],
                     "link": f"{branding['link']}{reverse('flows.flow_editor_next', args=[self.target.uuid])}",
                 },
                 branding,
