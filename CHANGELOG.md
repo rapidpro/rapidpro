@@ -1,3 +1,8 @@
+v5.7.1
+----------
+ * Add session history field to flowstarts
+ * Have mailroom reset URNs after contact creation to ensure order is correct
+
 v5.7.0
 ----------
  * Add start_type and created_by to queued flow starts
