@@ -477,14 +477,23 @@ class GraphDifferenceMap:
         kwargs = {("left_node" if graph == self.left_graph else "right_node"): origin_node, "parent": parent}
         kwargs["graph"] = self
         diff_node = GraphDifferenceNode(uuid, **kwargs)
+        self.diff_nodes_map[uuid] = diff_node
+        self.diff_nodes_origin_map[uuid] = diff_node
         diff_children = []
 
         # adding children if exists
         if origin_node.children:
             for origin_child in origin_node.children:
-                diff_child = self.create_diff_node_for_unmatched_node(origin_child.uuid, graph, parent=diff_node)
-                diff_children.append(diff_child)
-                self.create_diff_nodes_edge(diff_node.uuid, diff_child.uuid)
+                # here we check whether child node have not been processed yet to prevent infinite recursion
+                if origin_child.uuid not in self.diff_nodes_origin_map:
+                    diff_child = self.create_diff_node_for_unmatched_node(origin_child.uuid, graph, parent=diff_node)
+                    diff_children.append(diff_child)
+                    self.create_diff_nodes_edge(diff_node.uuid, diff_child.uuid)
+                else:
+                    diff_child = self.diff_nodes_origin_map[origin_child.uuid]
+                    diff_child.parent = diff_child.parent if diff_child.parent else diff_node
+                    diff_children.append(diff_child)
+                    self.create_diff_nodes_edge(diff_node.uuid, diff_child.uuid)
 
         # adding parent if not set but exists
         if origin_node.parent and not diff_node.parent:
@@ -494,8 +503,6 @@ class GraphDifferenceMap:
                 self.create_diff_nodes_edge(parent.uuid, diff_node.uuid)
 
         diff_node.children = diff_children
-        self.diff_nodes_map[uuid] = diff_node
-        self.diff_nodes_origin_map[uuid] = diff_node
         return diff_node
 
     def create_diff_nodes_edge(self, from_node, to_node):

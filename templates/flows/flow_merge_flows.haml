@@ -20,18 +20,18 @@
           -trans 'If you do not wish to combine these flows, click the "Cancel Button" below'
 
         %form#import-form.smartmin-form.horizontal-form{method:"post", enctype:"multipart/form-data"}
-          - if errors
-            - for error in errors
-              %div.alert.alert-error.form-errors
-                {{ error }}
-                  
           -csrf_token
 
           -block fields
             %label{for: "flow_name"}
               -trans "Name of new combined flow:"
             %input{type:"text", name:"flow_name", id:"flow_name", value:"{% if flow_name %}{{ flow_name }}{% else %}Merge of {{ source.name }} with {{ target.name }}{% endif %}"}
-                    
+
+          - if errors
+            - for error in errors
+              %div.alert.alert-error.form-errors
+                {{ error }}
+        
           .form-buttons
             %input.btn.btn-primary{type:"submit", value:'{% trans "Combine Flows" %}'}
             %a.btn{onclick:"javascript:history.go(-1)"}

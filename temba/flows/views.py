@@ -2996,7 +2996,7 @@ class FlowCRUDL(SmartCRUDL):
 
     class MergeFlows(OrgPermsMixin, SmartTemplateView):
         class MergeFlowsForm(forms.Form):
-            flow_name = forms.CharField(max_length=256)
+            flow_name = forms.CharField(max_length=64)
         
         title = _("Combine Flows")
         form_class = MergeFlowsForm
@@ -3011,6 +3011,11 @@ class FlowCRUDL(SmartCRUDL):
             context["source"] = queryset.filter(uuid=self.request.GET.get("source")).first().as_json()
             context["target"] = queryset.filter(uuid=self.request.GET.get("target")).first().as_json()
             return context
+
+        def get(self, request, *args, **kwargs):
+            context = self.get_context_data(**kwargs)
+            return self.render_to_response(context)
+
 
         def post(self, request, *args, **kwargs):
             queryset = Flow.objects.filter(org=self.org, is_active=True, is_archived=False, is_system=False)
@@ -3030,18 +3035,15 @@ class FlowCRUDL(SmartCRUDL):
 
             form = self.form_class(data=request.POST)
             if not form.is_valid():
-                errors.extend(form.errors)
+                errors.extend([message for val in form.errors.as_data().values() for error in val for message in error])
             
             if errors:
-                from django.template import loader
-                template = loader.get_template("flows/flow_merge_flows.html")
-                context = dict(
-                    flow_name=request.POST.get("flow_name"),
-                    source=source,
-                    target=target,
-                    errors=errors,
-                )
-                return HttpResponse(template.render(context))
+                context = self.get_context_data()
+                context.update({
+                    "flow_name": request.POST.get("flow_name"),
+                    "errors": errors,
+                })
+                return self.render_to_response(context)
 
             merging_task = MergeFlowsTask.objects.create(
                 source=source,
