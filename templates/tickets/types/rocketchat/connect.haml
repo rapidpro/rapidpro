@@ -13,8 +13,8 @@
       -blocktrans trimmed with brand=brand.name
         Install the RapidPro app into your RocketChat from the marketplace.
     %li
-      -blocktrans trimmed with secret=object.config.secret
-        Open the app details and in its settings, put <code>Secret123XyZ</code> on the secret field and save the changes.
+      -blocktrans trimmed
+        Open the app details and in its settings, put <code>{{ secret }}</code> on the secret field and save the changes.
     %li
       -blocktrans trimmed
         TODO: domain and app id.
@@ -30,3 +30,33 @@
       list-style-type: decimal;
       margin-top: 0.3em;
     }
+
+-block extra-script
+  {{ block.super }}
+  -compress js
+    :javascript
+      function processURI(input) {
+        let value = input.val();
+        if (value != null) {
+          let uri = value.match(/https?:\/\/[^ "]+\/[0-9a-fA-F]{8}(?:\-[0-9a-fA-F]{4}){3}\-[0-9a-fA-F]{12}/);
+          if (uri != null) {
+            if (value !== uri[0]){
+              input.val(uri[0]);
+            }
+            return uri[0];
+          }
+        }
+        return null;
+      }
+
+      $("#{{ form.base_url.id_for_label }}").on("change", function() {
+        processURI($(this));
+      }).parents("form").on("submit", function(event) {
+        let input = $("#{{ form.base_url.id_for_label }}");
+        let uri = processURI(input);
+        if (uri == null) {
+          input.parents(".control-group").addClass("error")
+          input.val("");
+          event.preventDefault();
+        }
+      });

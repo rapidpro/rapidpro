@@ -1,15 +1,16 @@
 import uuid
-from unittest.mock import patch
 
 from django.urls import reverse
 from requests.exceptions import Timeout
+from unittest.mock import patch
 
 from temba.tests import MockResponse, TembaTest
 from temba.tickets.models import Ticketer
 from temba.utils.text import random_string
+
 from .client import Client, ClientError
 from .type import RocketChatType
-from .views import SECRET_LENGTH
+from .views import SECRET_LENGTH, ConnectView
 
 
 class RocketChatMixin(TembaTest):
@@ -99,3 +100,70 @@ class RocketChatTypeTest(RocketChatMixin):
                 RocketChatType.callback_url(ticketer, domain),
                 f"{scheme}{domain}/mr/tickets/types/rocketchat/{ticketer.uuid}/event"
             )
+
+
+class RocketChatViewTest(RocketChatMixin):
+    @patch("random.choice")
+    def test_session_key(self, mock_choices):
+        choices = (c for c in self.secret)
+        mock_choices.side_effect = lambda letters: next(choices)
+        self.client.force_login(self.admin)
+        response = self.client.get(self.connect_url)
+        self.assertEqual(
+            response.wsgi_request.session.get(ConnectView.SESSION_KEY),
+            self.secret
+        )
+        response.wsgi_request.session.pop(ConnectView.SESSION_KEY, None)
+
+    @patch("random.choice")
+    def test_form_initial(self, mock_choices):
+        def configure():
+            choices = (c for c in self.secret)
+            mock_choices.side_effect = lambda letters: next(choices)
+
+        configure()
+        self.client.force_login(self.admin)
+        response = self.client.get(self.connect_url)
+        self.assertEqual(
+            response.context_data["form"].initial.get("secret"),
+            self.secret,
+        )
+
+        configure()
+        self.client.force_login(self.admin)
+        with patch("temba.tickets.types.rocketchat.views.ConnectView.derive_initial") as mock_initial:
+            mock_initial.return_value = {"secret": self.secret2}
+            response = self.client.get(self.connect_url)
+        self.assertEqual(
+            response.context_data["form"].initial.get("secret"),
+            self.secret2,
+        )
+
+    @patch("temba.tickets.types.rocketchat.client.Client.settings")
+    @patch("temba.tickets.types.rocketchat.client.Client.secret_check")
+    @patch("socket.gethostbyname")
+    @patch("random.choice")
+    def test_form_valid(self, mock_choices, mock_socket, mock_secret, mock_settings):
+        def settings_effect(domain, ticketer):
+            nonlocal object
+            object = ticketer
+
+        choices = (c for c in self.secret)
+        object = None
+        mock_choices.side_effect = lambda letters: next(choices)
+        mock_settings.side_effect = settings_effect
+        mock_socket.return_value = "192.55.123.1"  # Fake IP
+
+        self.client.force_login(self.admin)
+        response = self.client.post(self.connect_url, {
+            "secret": self.secret,
+            "base_url": self.secure_url
+        })
+        self.assertIsInstance(object, Ticketer)
+        self.assertEqual(object.ticketer_type, RocketChatType.slug)
+        self.assertRedirect(response, reverse("tickets.ticket_filter", args=[object.uuid]))
+
+        expected = f"{RocketChatType.name}: {self.domain}"
+        self.assertTrue(object.name.startswith(
+            expected[:Ticketer._meta.get_field("name").max_length - 4]
+        ), f"\nExpected: {expected}\nGot: {object.name}")
