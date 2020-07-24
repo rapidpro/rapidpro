@@ -239,6 +239,10 @@
     .text-center.py-16.bg-gray-100.text-gray-500
       {{ request.branding.credits|safe }}
 
+  -trans 'Delete' as title
+  %temba-dialog#general-delete-confirmation{header:"{{title|escapejs}}", primaryButtonName:"{{title|escapejs}}", destructive: "true"}
+    .p-6.confirmation-body
+      -trans "Are you sure you want to continue? This cannot be undone."
 
   // media associated with any form we are displaying
   -if form
@@ -257,14 +261,38 @@
         {% endif %}
       {% endif %}
 
+      function handlePosterize(ele) {
+        var url = $.url(ele.getAttribute('href'));
+        $("#posterizer").attr("action", url.attr("path"));
+        for (var key in url.param()){
+          $("#posterizer").append("<input type='hidden' name='" + key + "' value='" + url.param(key) + "'></input>");
+        }
+        $("#posterizer").submit();
+      }
+
       function removalConfirmation(removal, buttonName) {
-        modal = new ConfirmationModal($('.' + removal + ' > .title').html(), $('.' + removal + ' > .body').html());
-        modal.addClass('alert');
-        modal.setListeners({onPrimary: function(){
-          $('#' + removal + '-form').click();
-        }}, false);
-        modal.setPrimaryButton(buttonName);
-        modal.show();
+  
+        var modal = document.querySelector("#general-delete-confirmation");
+
+        // set modal deets
+        var title = document.querySelector('.' + removal + ' > .title').innerHTML;
+        var body = document.querySelector('.' + removal + ' > .body').innerHTML;
+
+        modal.header = title;
+        modal.querySelector('.confirmation-body').innerHTML = body;
+
+        modal.open = true;
+
+        modal.addEventListener("temba-button-clicked", function(event){
+          if(!event.detail.button.secondary) {
+            var ele = document.querySelector('#' + removal + '-form');
+            handlePosterize(ele);
+          }
+          modal.open = false;
+
+          // clear our listeners
+          modal.outerHTML = modal.outerHTML;
+        });
       }
 
       function formatContact(item) {
@@ -357,21 +385,12 @@
         });
 
         $(".posterize").click(function(event){
-          console.log("clicked on a posterize..")
           event.preventDefault();
           event.stopPropagation();
-
-          var href = $(this).attr("href");
-          var url = $.url(href);
-
-          $("#posterizer").attr("action", url.attr("path"));
-
-          for (var key in url.param()){
-            $("#posterizer").append("<input type='hidden' name='" + key + "' value='" + url.param(key) + "'></input>");
-          }
-
-          $("#posterizer").submit();
+          handlePosterize(ele);
         });
+
+
       });
 {% endblock body %}
 

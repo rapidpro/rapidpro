@@ -910,17 +910,26 @@ class OrgCRUDL(SmartCRUDL):
                 label=_("Email Address"),
                 required=False,
                 help_text=_("The from email address, can contain a name: ex: Jane Doe <jane@example.org>"),
+                widget=InputWidget(),
             )
-            smtp_host = forms.CharField(max_length=128, label=_("SMTP Host"), required=False)
-            smtp_username = forms.CharField(max_length=128, label=_("Username"), required=False)
+            smtp_host = forms.CharField(
+                max_length=128,
+                required=False,
+                widget=InputWidget(attrs={"widget_only": True, "placeholder": _("SMTP Host")}),
+            )
+            smtp_username = forms.CharField(max_length=128, label=_("Username"), required=False, widget=InputWidget())
             smtp_password = forms.CharField(
                 max_length=128,
                 label=_("Password"),
                 required=False,
                 help_text=_("Leave blank to keep the existing set password if one exists"),
-                widget=forms.PasswordInput,
+                widget=InputWidget(attrs={"password": True}),
             )
-            smtp_port = forms.CharField(max_length=128, label=_("Port"), required=False)
+            smtp_port = forms.CharField(
+                max_length=128,
+                required=False,
+                widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Port")}),
+            )
             disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
 
             def clean(self):
