@@ -31,7 +31,7 @@
 
     .buttons
       -if object.is_multi_org
-        .button-light(onclick="goto(event)" url='{% url "orgs.org_sub_orgs" %}')
+        .button-light(onclick="goto(event)" href='{% url "orgs.org_sub_orgs" %}')
           -trans "Manage Workspaces"
 
 

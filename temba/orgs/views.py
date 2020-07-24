@@ -2756,6 +2756,7 @@ class OrgCRUDL(SmartCRUDL):
                 required=False,
                 label=_("The country used for location values. (optional)"),
                 help_text="State and district names will be searched against this country.",
+                widget=SelectWidget(),
             )
 
             class Meta:
