@@ -4095,7 +4095,7 @@ class FlowImagesExportAssetStore(BaseExportAssetStore):
 class MergeFlowsTask(TembaModel):
     source = models.ForeignKey("Flow", on_delete=models.CASCADE, related_name="merge_targets")
     target = models.ForeignKey("Flow", on_delete=models.CASCADE, related_name="merge_sources")
-    merge_name = models.CharField(max_length=64, help_text=_("New name for target flow that contain erged data."))
+    merge_name = models.CharField(max_length=64, help_text=_("New name for target flow that contain merged data."))
     merging_metadata = JSONField(null=True)
     definition = JSONField()
 

@@ -2999,7 +2999,7 @@ class FlowCRUDL(SmartCRUDL):
     class MergeFlows(OrgPermsMixin, SmartTemplateView):
         class MergeFlowsForm(forms.Form):
             flow_name = forms.CharField(max_length=64)
-        
+
         title = _("Combine Flows")
         form_class = MergeFlowsForm
 
@@ -3018,7 +3018,6 @@ class FlowCRUDL(SmartCRUDL):
             context = self.get_context_data(**kwargs)
             return self.render_to_response(context)
 
-
         def post(self, request, *args, **kwargs):
             queryset = Flow.objects.filter(org=self.org, is_active=True, is_archived=False, is_system=False)
             source = queryset.filter(uuid=self.request.GET.get("source")).first()
@@ -3029,8 +3028,10 @@ class FlowCRUDL(SmartCRUDL):
             errors = []
             form = self.form_class(data=request.POST)
             if not form.is_valid():
-                errors.extend([message for val in form.errors.as_data().values() for error in val for message in error])
-            
+                errors.extend(
+                    [message for val in form.errors.as_data().values() for error in val for message in error]
+                )
+
             if {source.version_number, target.version_number}.intersection(set(Flow.VERSIONS)):
                 errors.append(_("Legacy flows don't support merging."))
 
@@ -3043,16 +3044,13 @@ class FlowCRUDL(SmartCRUDL):
                 difference_map = GraphDifferenceMap(source_graph, target_graph)
                 difference_map.compare_graphs()
                 definition = difference_map.definition
-            
+
                 if difference_map.conflicts:
-                    errors.append(_("Can't merge these flows because of conflicts."))
-            
+                    errors.append(_("These flows can't be merged because of conflicts."))
+
             if errors:
                 context = self.get_context_data()
-                context.update({
-                    "flow_name": request.POST.get("flow_name"),
-                    "errors": errors,
-                })
+                context.update({"flow_name": request.POST.get("flow_name"), "errors": errors})
                 return self.render_to_response(context)
 
             if definition:
