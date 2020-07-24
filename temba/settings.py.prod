@@ -53,6 +53,7 @@ BRANDING = {
         "api_link": "https://{}".format(brand_info.get("domain")),
         "docs_link": brand_info.get("docs_link"),
         "domain": brand_info.get("domain"),
+        "ticket_domain": brand_info.get("ticket_domain"),
         "favico": "brands/{}/push.ico".format(brand_info.get("folder")),
         "splash": "brands/{}/splash.jpg".format(brand_info.get("folder")),
         "logo": "brands/{}/logo.png".format(brand_info.get("folder")),
