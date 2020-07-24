@@ -2146,7 +2146,10 @@ class OrgCRUDL(SmartCRUDL):
     class Resthooks(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class ResthookForm(forms.ModelForm):
             resthook = forms.SlugField(
-                required=False, label=_("New Event"), help_text="Enter a name for your event. ex: new-registration"
+                required=False,
+                label=_("New Event"),
+                help_text="Enter a name for your event. ex: new-registration",
+                widget=InputWidget(),
             )
 
             def add_resthook_fields(self):
