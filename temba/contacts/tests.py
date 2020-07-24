@@ -436,9 +436,6 @@ class ContactGroupTest(TembaTest):
         with MockParseQuery("id = 123", ["id"], allow_as_group=False):
             self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, "Bose", "id = 123")
 
-        # can't call update_contacts on a dynamic group
-        self.assertRaises(ValueError, group.update_contacts, self.admin, [self.joe], True)
-
         # dynamic group should not have remove to group button
         self.login(self.admin)
         filter_url = reverse("contacts.contact_filter", args=[group.uuid])
@@ -501,27 +498,20 @@ class ContactGroupTest(TembaTest):
     @mock_mailroom
     def test_member_count(self, mr_mocks):
         group = self.create_group("Cool kids")
-
-        # add contacts via the related field
         group.contacts.add(self.joe, self.frank)
 
         self.assertEqual(ContactGroup.user_groups.get(pk=group.pk).get_member_count(), 2)
 
-        # add contacts via update_contacts
-        group.update_contacts(self.user, [self.mary], add=True)
+        group.contacts.add(self.mary)
 
         self.assertEqual(ContactGroup.user_groups.get(pk=group.pk).get_member_count(), 3)
 
-        # remove contacts via update_contacts
-        group.update_contacts(self.user, [self.mary], add=False)
+        group.contacts.remove(self.mary)
 
         self.assertEqual(ContactGroup.user_groups.get(pk=group.pk).get_member_count(), 2)
 
         # blocking a contact removes them from all user groups
         self.joe.block(self.user)
-
-        with self.assertRaises(ValueError):
-            group.update_contacts(self.user, [self.joe], True)
 
         group = ContactGroup.user_groups.get(pk=group.pk)
         self.assertEqual(group.get_member_count(), 1)
@@ -2995,7 +2985,8 @@ class ContactTest(TembaTest):
             self.assertEqual(self.joe, response.context["object"])
             self.assertNotContains(response, "Add Connection")
 
-    def test_read(self):
+    @mock_mailroom
+    def test_read(self, mr_mocks):
         read_url = reverse("contacts.contact_read", args=[self.joe.uuid])
 
         for i in range(5):
@@ -4931,14 +4922,15 @@ class ContactTest(TembaTest):
         self.login(self.admin)
         self.create_campaign()
 
-        ballers = self.create_group("Ballers")
+        contact = self.create_contact("Joe", urn="tel:123")
+        ballers = self.create_group("Ballers", contacts=[contact])
 
         self.campaign.group = ballers
         self.campaign.save()
 
         field_created_on = self.org.contactfields.get(key="created_on")
 
-        self.created_on_event = CampaignEvent.create_flow_event(
+        created_on_event = CampaignEvent.create_flow_event(
             self.org,
             self.admin,
             self.campaign,
@@ -4948,22 +4940,10 @@ class ContactTest(TembaTest):
             flow=self.reminder_flow,
         )
 
-        event_fires = EventFire.objects.filter(event=self.created_on_event)
-        self.assertEqual(event_fires.count(), 0)
+        EventFire.create_eventfires_for_event(created_on_event)
 
-        contact, urn = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe")
-
-        event_fires = EventFire.objects.filter(event=self.created_on_event)
-        self.assertEqual(event_fires.count(), 0)
-
-        ballers.update_contacts(self.admin, [contact], add=True)
-
-        event_fires = EventFire.objects.filter(event=self.created_on_event)
+        event_fires = EventFire.objects.filter(event=created_on_event)
         self.assertEqual(event_fires.count(), 1)
-
-        event_fire = EventFire.objects.filter(event=self.created_on_event).first()
-        contact_created_on = contact.created_on.replace(second=0, microsecond=0)
-        self.assertEqual(event_fire.scheduled, contact_created_on + timedelta(minutes=5))
 
     def test_contact_import_handle_update_contact(self):
         self.login(self.admin)

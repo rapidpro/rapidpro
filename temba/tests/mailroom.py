@@ -144,10 +144,13 @@ def apply_modifiers(org, user, contacts, modifiers: List):
                 fields = dict(is_blocked=False, is_stopped=False)
 
         elif mod.type == "groups":
-            add = mod.modification == "add"
             groups = ContactGroup.user_groups.filter(query=None, uuid__in=[g.uuid for g in mod.groups])
             for group in groups:
-                group.update_contacts(user, contacts, add=add)
+                assert not group.is_dynamic, "can't add/remove contacts from dynamic groups"
+                if mod.modification == "add":
+                    group.contacts.add(*contacts)
+                else:
+                    group.contacts.remove(*contacts)
 
         elif mod.type == "urns":
             assert len(contacts) == 1, "should never be trying to bulk update contact URNs"
