@@ -36,7 +36,7 @@ hideSection = (section) ->
     section.find(".formax-form").hide()
   else
     section.find(".formax-icon").animate
-      "font-size": "35px"
+      "font-size": "28px"
       width: "40px"
       height: "40px"
     , 100
@@ -83,7 +83,7 @@ _initializeForm = (section) ->
 
     form.off("submit").on "submit", _submitFormax
     unless section.data("nobutton")
-      form.append "<input type=\"submit\" class=\"btn btn-primary submit-button\" value=\"" + buttonName + "\"/>"
+      form.append "<input type=\"submit\" class=\"button-primary\" value=\"" + buttonName + "\"/>"
       form.find(".form-actions").remove()
     form.find(".submit-button").on "click", ->
       $(this).addClass("disabled").attr "enabled", false

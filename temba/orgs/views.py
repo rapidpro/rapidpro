@@ -36,7 +36,7 @@ from django.db import IntegrityError
 from django.db.models import ExpressionWrapper, F, IntegerField, Q, Sum
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_text
 from django.utils.html import escape
@@ -54,6 +54,7 @@ from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address
+from temba.utils.fields import ArbitraryChoiceField, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.http import http_headers
 from temba.utils.text import random_string
 from temba.utils.timezones import TimeZoneFormField
@@ -373,14 +374,22 @@ class UserCRUDL(SmartCRUDL):
 
     class Edit(SmartUpdateView):
         class EditForm(forms.ModelForm):
-            first_name = forms.CharField(label=_("Your First Name (required)"))
-            last_name = forms.CharField(label=_("Your Last Name (required)"))
-            email = forms.EmailField(required=True, label=_("Email"))
-            current_password = forms.CharField(label=_("Current Password (required)"), widget=forms.PasswordInput)
-            new_password = forms.CharField(
-                required=False, label=_("New Password (optional)"), widget=forms.PasswordInput
+            first_name = forms.CharField(
+                label=_("First Name"), widget=InputWidget(attrs={"placeholder": _("Required")})
             )
-            language = forms.ChoiceField(choices=settings.LANGUAGES, required=True, label=_("Website Language"))
+            last_name = forms.CharField(label=_("Last Name"), widget=InputWidget(attrs={"placeholder": _("Required")}))
+            email = forms.EmailField(required=True, label=_("Email"), widget=InputWidget())
+            current_password = forms.CharField(
+                label=_("Current Password"), widget=InputWidget(attrs={"placeholder": _("Required"), "password": True})
+            )
+            new_password = forms.CharField(
+                required=False,
+                label=_("New Password"),
+                widget=InputWidget(attrs={"placeholder": _("Optional"), "password": True}),
+            )
+            language = forms.ChoiceField(
+                choices=settings.LANGUAGES, required=True, label=_("Website Language"), widget=SelectWidget()
+            )
 
             def clean_new_password(self):
                 password = self.cleaned_data["new_password"]
@@ -1217,7 +1226,9 @@ class OrgCRUDL(SmartCRUDL):
 
     class Accounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class PasswordForm(forms.ModelForm):
-            surveyor_password = forms.CharField(max_length=128)
+            surveyor_password = forms.CharField(
+                max_length=128, widget=InputWidget(attrs={"placeholder": "Surveyor Password", "widget_only": True})
+            )
 
             def clean_surveyor_password(self):  # pragma: needs cover
                 password = self.cleaned_data.get("surveyor_password", "")
@@ -2058,9 +2069,6 @@ class OrgCRUDL(SmartCRUDL):
 
             obj.created_by = self.user
             obj.modified_by = self.user
-
-            slug = Org.get_unique_slug(self.form.cleaned_data["name"])
-            obj.slug = slug
             obj.brand = self.request.branding.get("brand", settings.DEFAULT_BRAND)
 
             if obj.timezone.zone in pytz.country_timezones("US"):
@@ -2630,17 +2638,19 @@ class OrgCRUDL(SmartCRUDL):
 
     class Edit(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class OrgForm(forms.ModelForm):
-            name = forms.CharField(max_length=128, label=_("The name of your workspace"), help_text="")
-            timezone = TimeZoneFormField(label=_("The timezone for your workspace"), help_text="")
-            slug = forms.SlugField(max_length=255, label=_("The slug, or short name for your workspace"), help_text="")
+            name = forms.CharField(max_length=128, label=_("Workspace Name"), help_text="", widget=InputWidget())
+            timezone = TimeZoneFormField(
+                label=_("Timezone"), help_text="", widget=SelectWidget(attrs={"searchable": True}),
+            )
 
             class Meta:
                 model = Org
-                fields = ("name", "slug", "timezone", "date_format")
+                fields = ("name", "timezone", "date_format")
+                widgets = {"date_format": SelectWidget()}
 
         success_message = ""
         form_class = OrgForm
-        fields = ("name", "slug", "timezone", "date_format")
+        fields = ("name", "timezone", "date_format")
 
         def has_permission(self, request, *args, **kwargs):
             self.org = self.derive_org()
@@ -2761,15 +2771,29 @@ class OrgCRUDL(SmartCRUDL):
 
     class Languages(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class LanguagesForm(forms.ModelForm):
-            primary_lang = forms.CharField(
+
+            primary_lang = ArbitraryChoiceField(
                 required=False,
                 label=_("Primary Language"),
-                help_text=_("The primary language will be used for contacts with no language preference."),
+                widget=SelectWidget(
+                    attrs={
+                        "placeholder": _("Select the primary language for contacts with no language preference"),
+                        "searchable": True,
+                        "endpoint": reverse_lazy("orgs.org_languages"),
+                    }
+                ),
             )
-            languages = forms.CharField(
+
+            languages = ArbitraryChoiceField(
                 required=False,
                 label=_("Additional Languages"),
-                help_text=_("Add any other languages you would like to provide translations for."),
+                widget=SelectMultipleWidget(
+                    attrs={
+                        "placeholder": _("Additional languages you would like to provid translations for"),
+                        "searchable": True,
+                        "endpoint": reverse_lazy("orgs.org_languages"),
+                    }
+                ),
             )
 
             def __init__(self, *args, **kwargs):
@@ -2792,13 +2816,16 @@ class OrgCRUDL(SmartCRUDL):
         def derive_initial(self):
 
             initial = super().derive_initial()
-            langs = ",".join(
-                [lang.iso_code for lang in self.get_object().languages.filter(orgs=None).order_by("name")]
-            )
+            langs = [
+                {"name": lang.name, "value": lang.iso_code}
+                for lang in self.get_object().languages.filter(orgs=None).order_by("name")
+            ]
+
             initial["languages"] = langs
 
             if self.object.primary_language:
-                initial["primary_lang"] = self.object.primary_language.iso_code
+                lang = self.object.primary_language
+                initial["primary_lang"] = [{"name": lang.name, "value": lang.iso_code}]
 
             return initial
 
@@ -2821,7 +2848,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def get(self, request, *args, **kwargs):
 
-            if "search" in self.request.GET or "initial" in self.request.GET:
+            if "search" in self.request.GET or "initial" in self.request.GET or "q" in self.request.GET:
                 initial = self.request.GET.get("initial", "").split(",")
                 matches = []
 
@@ -2832,7 +2859,7 @@ class OrgCRUDL(SmartCRUDL):
                             matches.append(dict(id=iso_code, text=lang))
 
                 if len(matches) == 0:
-                    search = self.request.GET.get("search", "").strip().lower()
+                    search = self.request.GET.get("search", self.request.GET.get("q", "")).strip().lower()
                     matches += languages.search_language_names(search)
                 return JsonResponse(dict(results=matches))
 
@@ -2841,10 +2868,11 @@ class OrgCRUDL(SmartCRUDL):
         def form_valid(self, form):
             user = self.request.user
             primary = form.cleaned_data["primary_lang"]
-            iso_codes = form.cleaned_data["languages"].split(",")
+            if primary:
+                primary = primary["value"]
 
             # remove empty codes and ensure primary is included in list
-            iso_codes = [code for code in iso_codes if code]
+            iso_codes = [d["value"] for d in form.cleaned_data["languages"] if d["value"]]
             if primary and primary not in iso_codes:
                 iso_codes.append(primary)
 

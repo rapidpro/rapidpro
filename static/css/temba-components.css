@@ -27,8 +27,7 @@ html {
   --color-selection: #f0f6ff;
 
   --widget-box-shadow-focused: 0 0 0 3px rgba(164, 202, 254, .45);
-  --widget-box-shadow-focused-error: inset 0 1px 1px rgba(var(--error-rgb), 0.075),
-    0 0 8px rgba(var(--error-rgb), 0.6);
+  --widget-box-shadow-focused-error: 0 0 0 3px rgba(var(--error-rgb), 0.075);
 
   /* page text, borders, widgets */
   --color-text: #555;

@@ -67,6 +67,17 @@ class SelectWidget(forms.Select):
     template_name = "utils/forms/select.haml"
     is_annotated = True
 
+    def format_value(self, value):
+        def format_single(v):
+            if isinstance(v, (dict)):
+                return v
+            return str(v)
+
+        if isinstance(value, (tuple, list)):
+            return [format_single(v) for v in value]
+
+        return [format_single(value)]
+
     def render(self, name, value, attrs=None, renderer=None):
         return super().render(name, value, attrs)
 
@@ -119,3 +130,40 @@ class OmniboxChoice(forms.Widget):
         for item in data.getlist(name):
             selected.append(json.loads(item))
         return selected
+
+
+class ArbitraryChoiceField(forms.ChoiceField):
+    """
+    ArbitraryChoiceField serializes names and values as json to support
+    loading ajax option lists that aren't known ahead of time
+    """
+
+    def widget_attrs(self, widget):
+        return {"jsonValue": True}
+
+    def clean(self, value):
+        if isinstance(value, (str)):
+            return json.loads(value)
+
+        if isinstance(value, (tuple, list)):
+            return [json.loads(_) for _ in value]
+
+        return value
+
+    def prepare_value(self, value):
+        if isinstance(value, (str)):
+            return json.loads(value)
+
+        if isinstance(value, (tuple, list)):
+            if len(value) > 0:
+                if isinstance(value[0], (dict)):
+                    return value
+                else:
+                    return [json.loads(_) for _ in value]
+            else:
+                return value
+
+        return json.loads(value)
+
+    def valid_value(self, value):
+        return True
