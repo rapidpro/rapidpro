@@ -78,3 +78,24 @@ class ClientTest(RocketChatMixin):
                 mock_request.return_value = MockResponse(status, {})
                 with self.assertRaises(ClientError, msg=f"The status {status} must be invalid"):
                     Client(self.secure_url, self.secret).settings(self.domain, ticketer)
+
+
+class RocketChatTypeTest(RocketChatMixin):
+    @patch("temba.orgs.models.Org.get_brand_domain")
+    def test_callback_url(self, mock_brand_domain):
+        ticketer = self.new_ticketer()
+        domains = [("https://", "test.domain.com"), ("", "http://test.domain.com"), ("", "https://test.domain.com")]
+        for scheme, domain in domains:
+            mock_brand_domain.return_value = domain
+            self.assertEqual(
+                RocketChatType.callback_url(ticketer),
+                f"{scheme}{domain}/mr/tickets/types/rocketchat/{ticketer.uuid}/event"
+            )
+
+        mock_brand_domain.return_value = "test.domain.com"
+        domains = [("https://", "req.domain.com"), ("", "http://req.domain.com"), ("", "https://requestreq.domain.com")]
+        for scheme, domain in domains:
+            self.assertEqual(
+                RocketChatType.callback_url(ticketer, domain),
+                f"{scheme}{domain}/mr/tickets/types/rocketchat/{ticketer.uuid}/event"
+            )
