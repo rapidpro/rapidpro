@@ -3,3 +3,4 @@
 sentry-sdk
 django-environ
 elastic-apm
+flower
