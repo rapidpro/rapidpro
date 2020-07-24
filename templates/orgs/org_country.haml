@@ -14,10 +14,9 @@
         -blocktrans with country=object.country
           Responses to location questions must be in <span class='attn'>{{country}}</span>.
 
-      -if object.country
-        .buttons
-          .button-light(onclick="goto(event)" href='{% url "locations.adminboundary_alias" %}')
-            -trans "Edit Aliases"
+      .buttons
+        .button-light(onclick="goto(event)" href='{% url "locations.adminboundary_alias" %}')
+          -trans "Edit Aliases"
 
   -else
     -trans "Choose a country to enable location support in your flows."

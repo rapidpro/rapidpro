@@ -2500,9 +2500,9 @@ class OrgCRUDL(SmartCRUDL):
         success_message = ""
 
         class DTOneAccountForm(forms.ModelForm):
-            account_login = forms.CharField(label=_("Login"), required=False)
-            airtime_api_token = forms.CharField(label=_("API Token"), required=False)
-            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
+            account_login = forms.CharField(label=_("Login"), required=False, widget=InputWidget())
+            airtime_api_token = forms.CharField(label=_("API Token"), required=False, widget=InputWidget())
+            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=False)
 
             def clean(self):
                 super().clean()
