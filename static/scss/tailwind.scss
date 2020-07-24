@@ -526,6 +526,10 @@ table.list {
 
 .warning {}
 
+code {
+  @apply px-4 py-2 shadow;
+}
+
 .help-text {
   font-size: 11px;
   line-height: inherit;
