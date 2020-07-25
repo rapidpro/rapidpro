@@ -4,10 +4,10 @@
 -block summary
   -if object.primary_language
     -blocktrans with lang=object.primary_language.name
-      The primary language is <span class='attn'>{{ lang }}</span>.
+      The primary language is <b>{{ lang }}</b>.
     -if languages
       -blocktrans with lang=languages
-        Translations are provided in <span class='attn'>{{lang}}</span>.
+        Translations are provided in <b>{{lang}}</b>.
   -else
     -trans "Your workspace is configured to use a single language."
 

@@ -6,11 +6,10 @@
   {{user_org.name|capfirst}}
   
 -block title
-  .medium-help.icon-home{ style:'float:left;' }
-  %h2.header-margin
+  .title
     {{user_org.name|capfirst}}
-  %h5.header-margin
-    -trans "Workspace Settings"
+-block subtitle
+  -trans "Workspace Settings"
 
 -block above-bar
   .pull-right

@@ -169,9 +169,9 @@
 -load smartmin
 {% block body %}
 
-%body#pageBody
+%body#pageBody.bg-gradient
   -include "components-body.html"
-  .flex.flex-col.h-full(style="background:#fdfdfd")
+  .flex.flex-col.h-full
     <!-- Header -->
     #print-header
       %span.logo.icon-logo

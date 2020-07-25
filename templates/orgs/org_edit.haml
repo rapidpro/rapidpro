@@ -15,17 +15,17 @@
   .flex.items-center
     .text.flex-grow.mr-4
       -blocktrans with org=object.name
-        Your workspace is <span class='attn'>{{org}}</span>
+        Your workspace is <b>{{org}}</b>
 
       -blocktrans with timezone=object.timezone
-        which is in the <span class='attn'>{{timezone}}</span> timezone.
+        which is in the <b>{{timezone}}</b> timezone.
 
       -if object.is_multi_org and sub_orgs
         .mt-4
           {% blocktrans count sub_orgs|length as org_count%}
-            You have <span class='attn'>{{org_count}}</span> child workspaces.
+            You have <b>{{org_count}}</b> child workspaces.
           {% plural %}
-            You have <span class='attn'>{{org_count}}</span> child workspaces.
+            You have <b>{{org_count}}</b> child workspaces.
           {% endblocktrans%}
 
 

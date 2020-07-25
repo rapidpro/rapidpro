@@ -2,8 +2,6 @@
 -load smartmin
 -load i18n
 
--block form-span
-
 -block fields
   {% render_field 'country' %}
 
@@ -12,7 +10,7 @@
     .flex.items-center
       .flex-grow.mr-4
         -blocktrans with country=object.country
-          Responses to location questions must be in <span class='attn'>{{country}}</span>.
+          Responses to location questions must be in <b>{{country}}</b>.
 
       .buttons
         .button-light(onclick="goto(event)" href='{% url "locations.adminboundary_alias" %}')

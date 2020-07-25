@@ -2342,7 +2342,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            links.append(dict(title=_("Logout"), style="btn-primary", href=reverse("users.user_logout")))
+            links.append(dict(title=_("Logout"), style="button-primary", href=reverse("users.user_logout")))
 
             if self.has_org_perm("channels.channel_claim"):
                 links.append(dict(title=_("Add Channel"), href=reverse("channels.channel_claim")))

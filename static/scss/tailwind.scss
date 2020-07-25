@@ -1,6 +1,15 @@
 @tailwind base;
 @tailwind components;
 
+html {
+  background: #f9f9f9
+}
+
+.bg-gradient {
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background: linear-gradient(to bottom, #ffffff 0%, #f9f9f9 65%);
+}
 
 .trans-border {
   box-shadow: 0 0px 0px 4px rgba(0, 0, 0, .1);
@@ -276,8 +285,6 @@ table.list {
   @apply w-full shadow rounded-lg overflow-hidden bg-white;
 
   &.light {
-    @apply shadow-none;
-
     thead {
       tr th {
         @apply bg-transparent;
@@ -536,6 +543,71 @@ code {
   color: var(--color-text-help);
   margin-left: 4px;
   margin-top: -5px;
+}
+
+.formax {
+  .formax-section {
+    @apply border-0 rounded-lg shadow bg-white mb-4 p-0 overflow-hidden flex items-stretch;
+
+    &:hover {
+      box-shadow: var(--widget-box-shadow-focused);
+    }
+
+    .formax-icon {
+      @apply bg-gray-200 text-gray-600 relative h-full p-8 mt-0 cursor-pointer;
+      width: inherit;
+      height: inherit;
+
+      transition: all 200ms ease-in-out;
+      font-size: 30px;
+
+      &:before {}
+    }
+
+    .formax-container {
+      @apply flex-grow;
+
+      .formax-summary {
+        @apply p-8 cursor-pointer;
+
+        b {
+          font-weight: 500;
+        }
+      }
+
+      .formax-form {
+        @apply hidden p-8;
+
+        .smartmin-form-buttons {
+          @apply hidden;
+        }
+      }
+    }
+
+    &.open {
+
+      &:hover {
+        @apply shadow;
+      }
+
+      .formax-summary {
+        @apply hidden;
+      }
+
+      .formax-icon {
+        font-size: 80px;
+        @apply bg-primary text-white p-12;
+
+        &:before {
+          vertical-align: inherit;
+        }
+      }
+
+      .formax-form {
+        @apply block;
+      }
+    }
+  }
 }
 
 @responsive {

@@ -14,11 +14,11 @@
     -if credits < 500
       .errored
         -trans "You have"
-        %span.attn {{ credits|intcomma }}
+        %b {{ credits|intcomma }}
         -trans "credits remaining."
     -else
       -trans "You have"
-      %span.attn {{ credits|intcomma }}
+      %b {{ credits|intcomma }}
       -trans "credits remaining."
 
   .extra

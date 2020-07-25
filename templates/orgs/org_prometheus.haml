@@ -2,8 +2,6 @@
 -load smartmin
 -load i18n
 
--block form-span
-
 -block fields
   .mb-4
     {% blocktrans trimmed with prometheus='<a href="https://prometheus.io/">Prometheus</a>' grafana='<a href="https://grafana.com/">Grafana</a>'%}
@@ -37,11 +35,11 @@
 
 -block summary
   -if prometheus_url
-    {% blocktrans trimmed with prometheus='<span class="attn">Prometheus</span>' %}
+    {% blocktrans trimmed with prometheus='<b>Prometheus</b>' %}
     You are monitoring your workspace using {{prometheus}}.
     {% endblocktrans %}
   -else
-    {% blocktrans trimmed with prometheus='<span class="attn">Prometheus</span>' %}
+    {% blocktrans trimmed with prometheus='<b>Prometheus</b>' %}
     You have not enabled {{ prometheus }} monitoring on your workspace.
     {% endblocktrans %}
 

@@ -870,6 +870,16 @@ video {
   border-color: transparent;
 }
 
+html {
+  background: #f9f9f9
+}
+
+.bg-gradient {
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background: linear-gradient(to bottom, #ffffff 0%, #f9f9f9 65%);
+}
+
 .trans-border {
   box-shadow: 0 0px 0px 4px rgba(0, 0, 0, .1);
 }
@@ -1658,10 +1668,6 @@ table.list {
   background-color: #fff;
 }
 
-table.list.light {
-    box-shadow: none;
-  }
-
 table.list.light thead tr th {
         background-color: transparent;
       }
@@ -1929,6 +1935,84 @@ code {
   margin-left: 4px;
   margin-top: -5px;
 }
+
+.formax .formax-section {
+    border-width: 0;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    background-color: #fff;
+    margin-bottom: 1rem;
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: stretch;
+  }
+
+.formax .formax-section:hover {
+      box-shadow: var(--widget-box-shadow-focused);
+    }
+
+.formax .formax-section .formax-icon {
+      background-color: #ededed;
+      color: #717171;
+      position: relative;
+      height: 100%;
+      padding: 2rem;
+      margin-top: 0;
+      cursor: pointer;
+      width: inherit;
+      height: inherit;
+      transition: all 200ms ease-in-out;
+      font-size: 30px;
+    }
+
+.formax .formax-section .formax-icon:before {
+      }
+
+.formax .formax-section .formax-container {
+      flex-grow: 1;
+    }
+
+.formax .formax-section .formax-container .formax-summary {
+        padding: 2rem;
+        cursor: pointer;
+      }
+
+.formax .formax-section .formax-container .formax-summary b {
+          font-weight: 500;
+        }
+
+.formax .formax-section .formax-container .formax-form {
+        display: none;
+        padding: 2rem;
+      }
+
+.formax .formax-section .formax-container .formax-form .smartmin-form-buttons {
+          display: none;
+        }
+
+.formax .formax-section.open:hover {
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+      }
+
+.formax .formax-section.open .formax-summary {
+        display: none;
+      }
+
+.formax .formax-section.open .formax-icon {
+        font-size: 80px;
+        background-color: rgb(var(--primary-rgb));
+        color: #fff;
+        padding: 3rem;
+      }
+
+.formax .formax-section.open .formax-icon:before {
+          vertical-align: inherit;
+        }
+
+.formax .formax-section.open .formax-form {
+        display: block;
+      }
 
 .text-shadow {
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.10);

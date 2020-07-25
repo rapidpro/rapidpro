@@ -38,7 +38,7 @@
   -with org.get_resthooks as resthooks
     -trans "You have"
 
-    %span.attn
+    %b
       -if resthooks|length == 0
         -trans "no flow events"
       -elif resthooks|length == 1

@@ -2,9 +2,6 @@
 -load smartmin
 -load i18n
 
--block form-span
-  span8
-
 -block fields
 
   .mb-4
@@ -28,4 +25,4 @@
   
 -block summary
   -blocktrans with email=user.username
-    Your email address is <span class='attn'>{{email}}</span>.
+    Your email address is <b>{{email}}</b>.

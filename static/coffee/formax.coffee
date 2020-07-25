@@ -11,16 +11,8 @@ showSection = (section) ->
       "font-size": "80px"
       width: "80px"
       height: "80px"
-
   else
-    section.find(".formax-icon").animate
-      "font-size": "80px"
-      width: "80px"
-      height: "80px"
-    , 100
-    section.find(".formax-form").slideDown "fast", ->
-      section.find("input[type=text]:first").focus()
-  section.find(".formax-summary").hide()
+    section[0].classList.add("open")
 
 ###
 Manually contract an expandable section
@@ -35,13 +27,8 @@ hideSection = (section) ->
     section.find(".formax-summary").show()
     section.find(".formax-form").hide()
   else
-    section.find(".formax-icon").animate
-      "font-size": "28px"
-      width: "40px"
-      height: "40px"
-    , 100
-    section.find(".formax-summary").fadeIn "slow"
-    section.find(".formax-form").hide()
+    section[0].classList.remove("open")
+
 
 
 ###
@@ -104,7 +91,7 @@ _initializeForm = (section) ->
 _submitFormax = (e) ->
   e.preventDefault()
   form = $(this)
-  section = form.parents("li")
+  section = form.parents(".formax-section")
   followRedirects = section.data("action") == 'redirect'
 
   fetchPJAXContent section.data("href"), "#" + section.attr("id") + " > .formax-container",
@@ -130,19 +117,19 @@ _submitFormax = (e) ->
           fetchData $(this)
 
 _bindToggle = (bindTo) ->
-  section = bindTo.parents("li")
+  section = bindTo.parents(".formax-section")
   action = section.data('action')
   if action =='fixed'
     showSection(section)
   else if action == 'formax' or action == 'redirect' or action == 'open'
     bindTo.off("click").on "click", ->
       section = $(this)
-      section = bindTo.parents("li") unless not bindTo.tagName is "formax"
+      section = bindTo.parents(".formax-section") unless not bindTo.tagName is "formax"
 
-      $("ul.formax > li").each ->
+      $(".formax > .formax-section").each ->
         hideSection $(this)  unless $(this).attr("id") is section.attr("id")
 
-      if section.find(".formax-form").is(":visible")
+      if section[0].classList.contains("open")
         hideSection(section)
       else
         showSection(section)
@@ -151,14 +138,14 @@ _bindToggle = (bindTo) ->
       document.location.href = section.data('href')
 
 $ ->
-  $('li .formax-summary').each ->
+  $('.formax-section .formax-summary').each ->
     section = $(this)
     _bindToggle(section)
 
-  $('.formax li').each ->
+  $('.formax .formax-section').each ->
     section = $(this)
     _initializeForm(section)
 
-  $('li .formax-icon').each ->
+  $('.formax-section .formax-icon').each ->
     section = $(this)
     _bindToggle(section)

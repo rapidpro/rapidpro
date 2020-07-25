@@ -13,8 +13,6 @@
   {{ block.super }}
   :css
 
--block form-span
-
 
 -block pre-form
 
@@ -37,7 +35,7 @@
 
 -block summary
 
-  %span.attn= object.name
+  %b= object.name
   -trans "has"
 
   -blocktrans count org.administrators.count as accounts
