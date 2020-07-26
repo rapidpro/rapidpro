@@ -54,7 +54,7 @@
             margin-left: 0px;
             margin-right: 20px;
             font-size: 36px;
-            color: #fff;
+            color: var(--color-nav-unselected);
           }
         }
       
@@ -70,8 +70,8 @@
           &:hover, &.active{
             text-decoration: none;
             .circle {
-              background: #ffff;
-              color: var(--color-primary-dark);
+              background: var(--color-nav-selected-bg);
+              color: var(--color-nav-selected-text);
             }
           }
 
@@ -81,7 +81,7 @@
             letter-spacing: 0.05em;
             margin-top: 3px;
             font-weight: 400;
-            color: rgba(255,255,255,.9);
+            color: var(--color-nav-unselected);
 
           }
 
@@ -121,9 +121,9 @@
             align-items: center;
             font-size:19px;
             background: transparent;
-            color: #fff;
+            color: var(--color-nav-unselected);
             border-radius: 50%;
-            border: 3px solid #fff;
+            border: 3px solid var(--color-nav-unselected);
             transition: all 150ms linear;
           }
         }

@@ -3630,14 +3630,9 @@ class ContactTest(TembaTest):
         # try to push into a dynamic group
         self.login(self.admin)
         group = self.create_group("Dynamo", query="tel = 325423")
+        self.client.post(list_url, {"action": "label", "label": group.id, "objects": self.frank.id, "add": True})
 
-        with self.assertRaises(ValueError):
-            post_data = dict()
-            post_data["action"] = "label"
-            post_data["label"] = group.pk
-            post_data["objects"] = self.frank.pk
-            post_data["add"] = True
-            self.client.post(list_url, post_data)
+        self.assertEqual(0, group.contacts.count())
 
         # check updating when org is anon
         self.org.is_anon = True
@@ -3656,14 +3651,14 @@ class ContactTest(TembaTest):
         # no more URN listed
         self.assertNotContains(response, "blow80")
 
+        self.frank.block(self.admin)
+
         # try delete action
         event = ChannelEvent.create(
             self.channel, str(self.frank.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), {}
         )
-        post_data["action"] = "delete"
-        post_data["objects"] = self.frank.pk
 
-        self.client.post(list_url, post_data)
+        self.client.post(blocked_url, {"action": "delete", "objects": self.frank.id})
         self.assertFalse(ChannelEvent.objects.filter(contact=self.frank))
         self.assertFalse(ChannelEvent.objects.filter(id=event.id))
 
