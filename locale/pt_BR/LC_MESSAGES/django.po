@@ -5213,11 +5213,6 @@ msgid "Workspaces"
 msgstr "Crie sua Organização"
 
 #, fuzzy
-#| msgid "dashboard"
-msgid "Dashboard"
-msgstr "Painel de controle"
-
-#, fuzzy
 msgid "New Workspace"
 msgstr "Crie sua Organização"
 
