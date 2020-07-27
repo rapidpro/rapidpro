@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-20 18:24+0000\n"
+"POT-Creation-Date: 2020-07-27 17:36+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -138,9 +138,6 @@ msgstr "Остановить это и запустить данное собы�
 
 msgid "Skip this event"
 msgstr "Пропустить данное событие"
-
-msgid "Flow starting rules"
-msgstr "Правила запуска потока"
 
 msgid "Stop it and send the message"
 msgstr "Остановить это и отправить сообщение"
@@ -2684,8 +2681,10 @@ msgstr "Недействительный ввод"
 msgid "Groups"
 msgstr "Группы"
 
-msgid "Add or remove groups this contact belongs to"
-msgstr "Добавить или удалить группы, которым принадлежит данный контакт"
+#, fuzzy
+#| msgid "{label} for this contact"
+msgid "Select groups for this contact"
+msgstr "{label} для данного контакта"
 
 #, python-format
 msgid "%s (Missing)"
@@ -2696,6 +2695,9 @@ msgstr "Группы, которым принадлежит данный кон�
 
 msgid "Group Memberships for"
 msgstr "Членство Групп для"
+
+msgid "Optional: Choose groups to show in your export"
+msgstr ""
 
 msgid "Include group membership only for these groups. (Leave blank to ignore group memberships)."
 msgstr "Включить членство групп только для данных групп. (Оставьте пустым, чтобы игнорировать членства групп)."
@@ -2730,6 +2732,11 @@ msgstr "'%(label)s' поля контактов содержит '%(key)s' кл�
 msgid "Send Message"
 msgstr "Отправить Сообщение"
 
+#, fuzzy
+#| msgid "Update Contact"
+msgid "Edit Contact"
+msgstr "Обновить Контакт"
+
 msgid "Custom Fields"
 msgstr "Настраиваемые Поля"
 
@@ -2742,11 +2749,17 @@ msgstr "Разблокировать"
 msgid "Unstop"
 msgstr "Запустить"
 
+msgid "Delete Contact"
+msgstr "Удалить Контакт"
+
 msgid "Save as Group"
 msgstr "Сохранить как Группу"
 
 msgid "Manage Fields"
 msgstr "Управление Полями"
+
+msgid "Export Contacts"
+msgstr "Экспортировать Контакты"
 
 msgid "Blocked Contacts"
 msgstr "Заблокированные Контакты"
@@ -2766,6 +2779,11 @@ msgstr "Создать"
 msgid "An error occurred updating your contact. Please try again later."
 msgstr "При обновлении Вашего контакта произошла ошибка. Пожалуйста, попробуйте позже."
 
+#, fuzzy
+#| msgid "Select a flow to start"
+msgid "Select a field to update"
+msgstr "Выберите поток для запуска"
+
 msgid "Contact blocked"
 msgstr "Контакт заблокирован"
 
@@ -2784,6 +2802,11 @@ msgstr "Не может являться зарезервированным сл
 #, python-format
 msgid "Cannot create a new field as limit is %(limit)s."
 msgstr "Невозможно создать новое поле, так как предел равен %(limit)s."
+
+#, fuzzy
+#| msgid "Field:Team"
+msgid "Field Name"
+msgstr "Поле:Команда"
 
 msgid "Manage Contact Fields"
 msgstr "Управление Полями Контактов"
@@ -2839,8 +2862,8 @@ msgstr "Когда этот элемент был сохранен"
 msgid "The user which last saved this flow"
 msgstr "Пользователь, который последним сохранял этот поток"
 
-msgid "The primary language for editing this flow"
-msgstr "Основной язык для редактирования этого потока"
+msgid "The authoring language, additional languages can be added later"
+msgstr ""
 
 msgid "The flow version this definition is in"
 msgstr "Версия потока, в которой находится это определение"
@@ -3008,8 +3031,15 @@ msgstr "Глобальные триггеры ключевых слов"
 msgid "When a user sends any of these keywords they will begin this flow"
 msgstr "Когда пользователь отправляет любое из этих ключевых слов, они запускают этот поток"
 
-msgid "Run flow over"
-msgstr "Запустить поток"
+#, fuzzy
+#| msgid "Ignore keyword triggers while in this flow"
+msgid "Select keywords to tirgger this flow"
+msgstr "Игнорировать триггеры ключевых слов при нахождении в этом потоке"
+
+#, fuzzy
+#| msgid "Types"
+msgid "Type"
+msgstr "Виды"
 
 msgid "Choose the method for your flow"
 msgstr "Выберите метод для Вашего потока"
@@ -3127,6 +3157,12 @@ msgstr "История редактирования"
 msgid "New Editor"
 msgstr "Новый Редактор"
 
+msgid "Edit Flow"
+msgstr "Редактировать Поток"
+
+msgid "Delete Flow"
+msgstr "Удалить Поток"
+
 msgid "Export Definition"
 msgstr "Экспортировать Определение"
 
@@ -3170,16 +3206,20 @@ msgstr "Заменить переводы потока на этот язык."
 msgid "Import"
 msgstr "Импорт"
 
-msgid "Which group memberships, if any, to include in the export"
-msgstr "Какие членства группы, если имеются, включить в экспорт"
+#, fuzzy
+#| msgid "Group Memberships for"
+msgid "Optional: Group memberships"
+msgstr "Членство Групп для"
 
-msgid "Which contact fields, if any, to include in the export"
-msgstr "Какие поля контактов, если имеются, включить в экспорт"
+msgid "Optional: Fields to include"
+msgstr ""
 
-msgid "Extra URNs"
-msgstr "Дополнительные URN"
+msgid "URNs"
+msgstr "Названия URN"
 
-msgid "Extra URNs to include in the export in addition to the URN used in the flow"
+#, fuzzy
+#| msgid "Extra URNs to include in the export in addition to the URN used in the flow"
+msgid "Optional: URNs in addition to the one used in the flow"
 msgstr "Дополнительные URN для включения в экспорт помимо URN, используемого в потоке"
 
 msgid "Responded Only"
@@ -3225,9 +3265,6 @@ msgstr "Суббота"
 
 msgid "Download"
 msgstr "Скачать"
-
-msgid "Edit Flow"
-msgstr "Редактировать Поток"
 
 msgid "Your flow contains an invalid loop. Please refresh your browser."
 msgstr "Ваш поток содержит недействительный цикл. Пожалуйста, обновите Ваш браузер."
@@ -3284,9 +3321,6 @@ msgstr "Извините, Ваша учетная запись в настоящ
 msgid "Sorry, your account is currently flagged. To enable starting flows, please contact support."
 msgstr "Извините, Ваша учетная запись в настоящее время заблокирована. Чтобы получить возможность отправки сообщений, обратитесь в службу поддержки."
 
-msgid "Add Contacts to Flow"
-msgstr "Добавить Контакты в Поток"
-
 msgid "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who have not sent an incoming message in the last 24 hours may not receive it."
 msgstr "Данный поток не указывает тему Facebook. Вы все равно можете запустить этот поток, но контакты Facebook, которые не отправляли входящее сообщение за последние 24 часа, могут не получить его."
 
@@ -3299,6 +3333,9 @@ msgstr "Шаблон сообщения {ref['name']} не существует 
 #, python-brace-format
 msgid "Your message template {template.name} is not approved and cannot be sent."
 msgstr "Ваш шаблон сообщения {template.name} не утвержден и не может быть отправлен."
+
+msgid "Optional: Select parent label"
+msgstr ""
 
 msgid "Name already used"
 msgstr "Название уже используется"
@@ -3371,9 +3408,6 @@ msgstr "Группы, которым нужно отправить сообще�
 
 msgid "Individual contacts included in this message"
 msgstr "Отдельные контакты, включенные в данное сообщение"
-
-msgid "URNs"
-msgstr "Названия URN"
 
 msgid "Individual URNs included in this message"
 msgstr "Отдельные названия URN, включенные в данное сообщение"
@@ -3561,8 +3595,10 @@ msgstr "Будет ли этот подсчет проводиться для а
 msgid "Number of items with this system label"
 msgstr "Количество объектов с этой системной меткой"
 
-msgid "The name of this label"
-msgstr "Название этой метки"
+#, fuzzy
+#| msgid "Choose the method for your flow"
+msgid "Choose a name for your label"
+msgstr "Выберите метод для Вашего потока"
 
 msgid "Folder"
 msgstr "Папка"
@@ -3611,6 +3647,9 @@ msgstr "Исходящие"
 msgid "Schedules"
 msgstr "Расписания"
 
+msgid "Export Messages"
+msgstr "Экспортировать Сообщения"
+
 msgid "Schedule Message"
 msgstr "Запланировать сообщение"
 
@@ -3644,11 +3683,25 @@ msgstr "Только эта папка"
 msgid "Selection"
 msgstr "Выбор"
 
-msgid "The date for the oldest message to export. (Leave blank to export from the oldest message)."
-msgstr "Дата самого старого сообщения для экспорта. (Оставьте пустым для экспорта, начиная с самого старого сообщения)."
+#, fuzzy
+#| msgid "The date for the oldest message to export"
+msgid "Leave blank for the oldest message"
+msgstr "Дата самого старого сообщения для экспорта"
 
-msgid "The date for the latest message to export. (Leave blank to export up to the latest message)."
-msgstr "Дата самого последнего сообщения для экспорта. (Оставьте пустым для экспорта вплоть до самого последнего сообщения)."
+#, fuzzy
+#| msgid "Started"
+msgid "Start Date"
+msgstr "Начато"
+
+#, fuzzy
+#| msgid "The date for the oldest message to export"
+msgid "Leave blank for the latest message"
+msgstr "Дата самого старого сообщения для экспорта"
+
+#, fuzzy
+#| msgid "Expiration Date"
+msgid "End Date"
+msgstr "Дата окончания срока действия"
 
 msgid "Export only messages from these contact groups. (Leave blank to export all messages)."
 msgstr "Экспортировать сообщения только из этих групп контактов. (Оставьте пустым для экспорта всех сообщений)."
@@ -3671,8 +3724,23 @@ msgstr "Отправленные Сообщения"
 msgid "Failed Outgoing Messages"
 msgstr "Невыполненные Исходящие Сообщения"
 
+#, fuzzy
+#| msgid "Update Folder"
+msgid "Edit Folder"
+msgstr "Обновить Папку"
+
+#, fuzzy
+#| msgid "Add Label"
+msgid "Edit Label"
+msgstr "Добавить метку"
+
 msgid "Send All"
 msgstr "Отправить Все"
+
+#, fuzzy
+#| msgid "Create Label"
+msgid "Delete Label"
+msgstr "Создать Метку"
 
 msgid "Name must not be blank or begin with punctuation"
 msgstr "Название не должно быть пустым или начинаться с пунктуационных знаков"
@@ -3684,14 +3752,54 @@ msgstr "Название должно быть уникальным"
 msgid "This org has %(count)d labels and the limit is %(limit)d. You must delete existing ones before you can create new ones."
 msgstr "Эта организация имеет %(count)d меток и предел составляет %(limit)d. Вы должны удалить существующие, прежде чем сможете создавать новые."
 
-msgid "The name of this folder"
-msgstr "Название этой папки"
+#, fuzzy
+#| msgid "Optional Data"
+msgid "Optional: Parent Folder"
+msgstr "Дополнительные данные"
+
+#, fuzzy
+#| msgid "Choose the method for your flow"
+msgid "Choose a name for your folder"
+msgstr "Выберите метод для Вашего потока"
 
 msgid "Update Folder"
 msgstr "Обновить Папку"
 
 msgid "Update Label"
 msgstr "Обновить Метку"
+
+msgid "Messages"
+msgstr "Сообщения "
+
+msgid "Campaigns"
+msgstr "Кампании"
+
+msgid "Triggers"
+msgstr "Триггеры"
+
+#, fuzzy
+#| msgid "users"
+msgid "Users"
+msgstr "пользователи"
+
+msgid "Orgs"
+msgstr ""
+
+msgid "Dashboard"
+msgstr "Информационная панель"
+
+#, fuzzy
+#| msgid "android"
+msgid "Android"
+msgstr "android"
+
+msgid "Sign in"
+msgstr "Войти"
+
+#, fuzzy
+#| msgid "Sign Up"
+msgid "Sign out"
+msgstr "Зарегистрироваться"
 
 msgid "Plan"
 msgstr "План"
@@ -4011,17 +4119,31 @@ msgstr "Пароль должен быть длиной не менее 8 сим
 msgid "Deleted user {username}"
 msgstr "Удаленный пользователь {username}"
 
-msgid "Your First Name (required)"
-msgstr "Ваше имя (обязательно)"
+msgid "First Name"
+msgstr "Имя"
 
-msgid "Your Last Name (required)"
-msgstr "Ваша фамилия (обязательно)"
+#, fuzzy
+#| msgid "POST Required"
+msgid "Required"
+msgstr "Требуется POST"
 
-msgid "Current Password (required)"
+msgid "Last Name"
+msgstr "Фамилия"
+
+#, fuzzy
+#| msgid "Current Password (required)"
+msgid "Current Password"
 msgstr "Текущий пароль (обязательно)"
 
-msgid "New Password (optional)"
-msgstr "Новый пароль (опционально)"
+#, fuzzy
+#| msgid "Password"
+msgid "New Password"
+msgstr "Пароль"
+
+#, fuzzy
+#| msgid "Optional Data"
+msgid "Optional"
+msgstr "Дополнительные данные"
 
 msgid "Website Language"
 msgstr "Язык веб-сайта"
@@ -4188,9 +4310,6 @@ msgstr "Двухфакторная аутентификация"
 msgid "Workspaces"
 msgstr "Выберите свою Организацию"
 
-msgid "Dashboard"
-msgstr "Информационная панель"
-
 #, fuzzy
 #| msgid "Select your Organization"
 msgid "New Workspace"
@@ -4288,9 +4407,9 @@ msgid "Account Token"
 msgstr "Токен Учетной записи"
 
 #, fuzzy
-#| msgid "The slug, or short name for your organization"
-msgid "The slug, or short name for your workspace"
-msgstr "Slug или короткое наименование Вашей организации"
+#| msgid "Select your Organization"
+msgid "Workspace Name"
+msgstr "Выберите свою Организацию"
 
 #, fuzzy
 #| msgid "Select your Organization"
@@ -4326,10 +4445,17 @@ msgstr "Страна, используемая для значений мест�
 msgid "Primary Language"
 msgstr "Основной язык"
 
+#, fuzzy
+#| msgid "The primary language will be used for contacts with no language preference."
+msgid "Select the primary language for contacts with no language preference"
+msgstr "Основной язык, который будет использоваться для контактов без языковых предпочтений."
+
 msgid "Additional Languages"
 msgstr "Дополнительные языки"
 
-msgid "Add any other languages you would like to provide translations for."
+#, fuzzy
+#| msgid "Add any other languages you would like to provide translations for."
+msgid "Additional languages you would like to provid translations for"
 msgstr "Добавьте любые иные языки, на которые Вы хотели бы предоставить перевод."
 
 msgid " and "
@@ -4630,11 +4756,8 @@ msgstr "Ключевые слова должны быть одним слово�
 msgid "An active trigger already exists, triggers must be unique for each group"
 msgstr "Активный триггер уже существует, триггеры должны быть уникальными для каждой группы"
 
-msgid "Only Groups"
-msgstr "Только Группы"
-
-msgid "Only apply this trigger to contacts in these groups. (leave empty to apply to all contacts)"
-msgstr "Примените этот триггер только к контактам в этих группах. (оставьте пустым, чтобы применить ко всем контактам)"
+msgid "Optional: Trigger only applies to these groups"
+msgstr ""
 
 msgid "The first word of the message text"
 msgstr "Первое слово текста сообщения"
@@ -4675,9 +4798,6 @@ msgstr "Создать Триггер"
 
 msgid "Active"
 msgstr "Активный"
-
-msgid "Triggers"
-msgstr "Триггеры"
 
 msgid "Join Keyword"
 msgstr "Присоединить ключевое слово"
@@ -4880,8 +5000,18 @@ msgstr "Ваша загрузка должна начаться автомати
 msgid "Download Now"
 msgstr "Скачать сейчас"
 
-msgid "Campaigns"
-msgstr "Кампании"
+#, fuzzy
+#| msgid "Update Campaign"
+msgid "Create Campaign"
+msgstr "Обновить Кампанию"
+
+msgid "Search"
+msgstr "Поиск"
+
+#, fuzzy
+#| msgid "No matching messages."
+msgid "No matching campaigns"
+msgstr "Нет соответствующих сообщений."
 
 msgid "(Archived)"
 msgstr "(Архивировано)"
@@ -4891,6 +5021,32 @@ msgstr "Ни одна из групп не привязана к этой кам
 
 msgid "No events in this campaign yet."
 msgstr "События в этой компании пока отсутствуют."
+
+msgid "before"
+msgstr ""
+
+msgid "after"
+msgstr ""
+
+#, fuzzy
+#| msgid "starts the"
+msgid "Start the"
+msgstr "начинает "
+
+#, fuzzy
+#| msgid "Upcoming"
+msgid "Upcoming Events"
+msgstr "Ожидается"
+
+#, fuzzy
+#| msgid "Not scheduled"
+msgid "No events scheduled"
+msgstr "Не запланировано"
+
+#, fuzzy
+#| msgid "Recent Webhook Events"
+msgid "Recent Events"
+msgstr "Последние события вебхука"
 
 msgid "If the contact is already active in a flow"
 msgstr "Активен ли уже контакт в потоке"
@@ -4955,9 +5111,6 @@ msgstr "Как только Вы заявите номер, Вы сразу же
 
 msgid "Pattern"
 msgstr "Комбинация"
-
-msgid "Search"
-msgstr "Поиск"
 
 msgid "Supported"
 msgstr "Поддерживается"
@@ -5038,9 +5191,6 @@ msgstr "ПОЛНОСТЬЮ ЗАРЯЖЕН"
 
 msgid "ON"
 msgstr "ВКЛ"
-
-msgid "Messages"
-msgstr "Сообщения "
 
 msgid "IVR Messages"
 msgstr "Сообщения ИРВ"
@@ -6489,11 +6639,15 @@ msgstr ""
 "                      типа\n"
 "                    "
 
-msgid "Dynamic group based on:"
-msgstr "Динамическая группа на основе:"
+#, fuzzy, python-format
+#| msgid "You are about to delete <span class='group_name'> %(object)s. </span> No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?"
+msgid "You are about to delete <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
+msgstr "Вы собираетесь удалить <span class='group_name'> %(object)s. </span> Контакты не будут удалены, но сама группа будет удалена. Способа отменить это действие нет. Вы уверены?"
 
-msgid "Update Contact Group"
-msgstr "Обновить Группу Контактов"
+#, fuzzy
+#| msgid "Select Group"
+msgid "Smart Group"
+msgstr "Выбрать Группу"
 
 #, python-format
 msgid ""
@@ -6875,8 +7029,21 @@ msgstr ""
 msgid "Choose File"
 msgstr "Выбрать Файл"
 
+msgid "Delete Contacts"
+msgstr "Удалить Контакты"
+
+#, fuzzy
+#| msgid "Are you sure you want to delete these contacts?"
+msgid "Are you sure you want to delete these contacts? This cannot be undone."
+msgstr "Вы действительно хотите удалить эти контакты?"
+
 msgid "Import Contacts"
 msgstr "Импортировать Контакты"
+
+#, fuzzy
+#| msgid "Contact Groups"
+msgid "Smart Groups"
+msgstr "Группы Контактов"
 
 msgid "Create Contact"
 msgstr "Создать Контакт"
@@ -6884,22 +7051,33 @@ msgstr "Создать Контакт"
 msgid "Create Group"
 msgstr "Создать Группу"
 
-msgid "Remove from Group"
+#, fuzzy
+#| msgid "Remove from Group"
+msgid "Remove From Group"
 msgstr "Удалить из Группы"
 
 msgid "New Group..."
 msgstr "Новая Группа..."
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "                    Found %(results_count)s contact matching <i>%(search)s</i>.\n"
+#| "                    "
+#| msgid_plural ""
+#| "\n"
+#| "                      Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
+#| "\n"
+#| "                  "
 msgid ""
 "\n"
-"                    Found %(results_count)s contact matching <i>%(search)s</i>.\n"
-"                    "
+"                      Found %(results_count)s contact matching <i>%(search)s</i>.\n"
+"                      "
 msgid_plural ""
 "\n"
-"                      Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
+"                        Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
 "\n"
-"                  "
+"                    "
 msgstr[0] ""
 "\n"
 "                    Найден %(results_count)s контакт, соответствующий <i>%(search)s</i>.\n"
@@ -6923,41 +7101,16 @@ msgstr[3] ""
 msgid "No matching contacts."
 msgstr "Нет соответствующих контактов."
 
+msgid "To view more than 10,000 search results, save it as a group."
+msgstr ""
+
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr "Просмотр результатов поиска ограничен 10 тысячами результатов. Если Вы хотите просмотреть все результаты, пожалуйста, сохраните этот поиск как группу."
 
-msgid "Delete Contacts"
-msgstr "Удалить Контакты"
-
-msgid "Are you sure you want to delete these contacts?"
-msgstr "Вы действительно хотите удалить эти контакты?"
-
-msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
-msgstr "После того как они будут удалены, они исчезнут навсегда. Способа отменить эту операцию не существует."
-
-msgid "Create Contact Group"
-msgstr "Создать Группу Контактов"
-
-msgid "Save Search as Group"
-msgstr "Сохранить Поиск как Группу"
-
-msgid "Unable to create a dynamic group"
-msgstr "Невозможно создать динамическую группу"
-
-msgid "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>."
-msgstr "Вы не можете создать динамическую группу на основе <strong>id</strong> или <strong>group</strong>."
-
-msgid "Export Contacts"
-msgstr "Экспортировать Контакты"
-
-msgid "Start Export"
-msgstr "Начать Экспорт"
-
-msgid "blocked"
-msgstr "заблокировано"
-
-msgid "stopped"
-msgstr "остановлено"
+#, fuzzy
+#| msgid "Contact"
+msgid "Contact Id"
+msgstr "Контакт"
 
 msgid "Upcoming"
 msgstr "Ожидается"
@@ -6977,44 +7130,44 @@ msgstr "История"
 msgid "Full"
 msgstr "Полностью"
 
-msgid "Delete Contact"
-msgstr "Удалить Контакт"
-
-msgid "Are you sure you want to delete this contact?"
-msgstr "Вы действительно хотите удалить этот контакт?"
-
-msgid "Update Contact"
-msgstr "Обновить Контакт"
-
 msgid "These contacts have opted out and you can no longer send them messages, they have been removed from all groups."
 msgstr "Эти контакты были исключены, и Вы больше не можете отправлять им сообщения, они были удалены из всех групп."
 
-msgid "cannot be deleted because it is in use. Usage summary:"
-msgstr "невозможно удалить, потому что используется. Сводная информация по использованию:"
+#, python-format
+msgid "<b>%(name)s</b> cannot be deleted since it is currently in use."
+msgstr ""
 
-msgid "Flows:"
-msgstr "Потоки:"
+#, fuzzy, python-format
+#| msgid "Are you sure you want to delete this contact?"
+msgid "Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
+msgstr "Вы действительно хотите удалить этот контакт?"
 
-msgid "Campaign events:"
-msgstr "События кампании:"
+#, fuzzy
+#| msgid "contacts not in other flows"
+msgid "Used in the flow"
+msgid_plural "Used in the flows"
+msgstr[0] "контактов, не находящихся в других потоках"
+msgstr[1] "контактов, не находящихся в других потоках"
+msgstr[2] "контактов, не находящихся в других потоках"
+msgstr[3] "контактов, не находящихся в других потоках"
 
-msgid "Contact groups:"
-msgstr "Группы Контактов:"
+#, fuzzy
+#| msgid "No events in this campaign yet."
+msgid "Used in the campaign event"
+msgid_plural "Used in the campaign events"
+msgstr[0] "События в этой компании пока отсутствуют."
+msgstr[1] "События в этой компании пока отсутствуют."
+msgstr[2] "События в этой компании пока отсутствуют."
+msgstr[3] "События в этой компании пока отсутствуют."
 
-msgid "Are you sure you want to delete this field?"
-msgstr "Вы действительно хотите удалить это поле?"
-
-msgid "Once deleted, field will be gone forever. There is no way to undo this operation."
-msgstr "После удаления поле исчезнет навсегда. Способа отменить эту операцию не существует."
-
-msgid "No related flows."
-msgstr "Нет связанных потоков."
-
-msgid "No related campaigns."
-msgstr "Нет связанных кампаний."
-
-msgid "No related contact groups."
-msgstr "Нет связанных групп контактов."
+#, fuzzy
+#| msgid "User group"
+msgid "Used in the group"
+msgid_plural "Used in the groups"
+msgstr[0] "Группа пользователей"
+msgstr[1] "Группа пользователей"
+msgstr[2] "Группа пользователей"
+msgstr[3] "Группа пользователей"
 
 #, fuzzy, python-format
 #| msgid "You have reached the limit of %(limit)s fields per account. Please remove fields that you are no longer using."
@@ -7029,11 +7182,20 @@ msgstr "Вы приближаетесь к пределу %(limit)s полей �
 msgid "Create Field"
 msgstr "Создать Поле"
 
-msgid "Contact Fields"
-msgstr "Поля Контактов"
+#, fuzzy
+#| msgid "Update Folder"
+msgid "Update Field"
+msgstr "Обновить Папку"
 
-msgid "Types"
-msgstr "Виды"
+#, fuzzy
+#| msgid "Delete Flow"
+msgid "Delete Field"
+msgstr "Удалить Поток"
+
+#, fuzzy
+#| msgid "Details"
+msgid "Field Details"
+msgstr "Детальная информация"
 
 msgid "Featured"
 msgstr "Рекомендованный"
@@ -7049,20 +7211,9 @@ msgstr[3] "%(counter)s использований"
 msgid "No fields"
 msgstr "Нет полей"
 
-msgid "Create Contact Field"
-msgstr "Создать Поле Контактов"
-
-msgid "Update Contact Field"
-msgstr "Обновить Поле Контактов"
-
-msgid "Delete Contact Field"
-msgstr "Удалить Поле Контактов"
-
-msgid "Uses"
-msgstr "Использования"
-
-#, python-format
-msgid "Sorry, %(group_name)s cannot be deleted quite yet."
+#, fuzzy, python-format
+#| msgid "Sorry, %(group_name)s cannot be deleted quite yet."
+msgid "Sorry, <span class=\"named\">%(group_name)s</span> cannot be deleted yet."
 msgstr "Извините, удалить %(group_name)s пока невозможно."
 
 #, python-format
@@ -7103,8 +7254,9 @@ msgstr[1] "кампаний."
 msgstr[2] "кампаний."
 msgstr[3] "кампаний."
 
-#, python-format
-msgid "You are about to delete <span class='group_name'> %(object)s. </span> No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?"
+#, fuzzy, python-format
+#| msgid "You are about to delete <span class='group_name'> %(object)s. </span> No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?"
+msgid "<div class='mb-2'> You are about to delete <span class='named'> %(object)s. </span> </div> No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?"
 msgstr "Вы собираетесь удалить <span class='group_name'> %(object)s. </span> Контакты не будут удалены, но сама группа будет удалена. Способа отменить это действие нет. Вы уверены?"
 
 msgid "Show Contacts"
@@ -7283,12 +7435,6 @@ msgstr ""
 "\n"
 "      "
 
-msgid "Restart contacts who have already entered this flow"
-msgstr "Перезапустить контакты, которые уже вошли в этот поток"
-
-msgid "Interrupt contacts currently active in flows"
-msgstr "Прервать контакты, в настоящее время активные в потоках"
-
 msgid "This flow has never been started."
 msgstr "Этот поток никогда не запускался."
 
@@ -7307,17 +7453,27 @@ msgstr "один раз."
 msgid "{{ complete_count }} times."
 msgstr "{{ complete_count }} раз."
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "                There is an active flow using this flow. It cannot be deleted until it is removed from the\n"
+#| "\n"
+#| "            "
+#| msgid_plural ""
+#| "\n"
+#| "                There are %(counter)s flows using this flow. It cannot be deleted until it is removed from the\n"
+#| "\n"
+#| "            "
 msgid ""
 "\n"
-"                There is an active flow using this flow. It cannot be deleted until it is removed from the\n"
+"        There is an active flow using this flow. It cannot be deleted until it is removed from the\n"
 "\n"
-"            "
+"      "
 msgid_plural ""
 "\n"
-"                There are %(counter)s flows using this flow. It cannot be deleted until it is removed from the\n"
+"        There are %(counter)s flows using this flow. It cannot be deleted until it is removed from the\n"
 "\n"
-"            "
+"      "
 msgstr[0] ""
 "\n"
 "                Существует активный поток, использующий этот поток. Его нельзя удалить, пока он не будет удален из\n"
@@ -7339,15 +7495,24 @@ msgstr[3] ""
 "\n"
 "            "
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "                flow.\n"
+#| "            "
+#| msgid_plural ""
+#| "\n"
+#| "                flows.\n"
+#| "\n"
+#| "            "
 msgid ""
 "\n"
-"                flow.\n"
-"            "
+"        flow.\n"
+"      "
 msgid_plural ""
 "\n"
-"                flows.\n"
-"\n"
-"            "
+"        flows.\n"
+"      "
 msgstr[0] ""
 "\n"
 "                потока.\n"
@@ -7368,16 +7533,25 @@ msgstr[3] ""
 "\n"
 "            "
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "                You are about to delete\n"
+#| "                <span class='name'>\n"
+#| "                  %(object)s.\n"
+#| "                </span>\n"
+#| "                There is no way to undo this. Are you sure?\n"
+#| "\n"
+#| "            "
 msgid ""
 "\n"
-"                You are about to delete\n"
-"                <span class='name'>\n"
-"                  %(object)s.\n"
-"                </span>\n"
-"                There is no way to undo this. Are you sure?\n"
+"        You are about to delete\n"
+"        <span class='font-normal'>\n"
+"          %(object)s.\n"
+"        </span>\n"
+"        There is no way to undo this. Are you sure?\n"
 "\n"
-"            "
+"      "
 msgstr ""
 "\n"
 "                Вы собираетесь удалить\n"
@@ -7387,9 +7561,6 @@ msgstr ""
 "                Способа отменить это действие нет. Вы уверены?\n"
 "\n"
 "            "
-
-msgid "Delete Flow"
-msgstr "Удалить Поток"
 
 #, fuzzy
 #| msgid "Update Folder"
@@ -7604,67 +7775,29 @@ msgstr "Загрузить"
 msgid "Back"
 msgstr "Вернуться"
 
-#, fuzzy
-#| msgid "Webhook Log"
-msgid "Webhook Call Log"
-msgstr "Журнал Вебхука"
-
-msgid "Unlabel"
-msgstr "Снять метку"
-
-msgid "Add Label"
-msgstr "Добавить метку"
-
-msgid "Download Results"
-msgstr "Скачать Результаты"
-
-msgid "No runs"
-msgstr "Нет проходов"
-
-#, python-format
-msgid ""
-"\n"
-"                              %(run_count)s run\n"
-"                            "
-msgid_plural ""
-"\n"
-"                              %(run_count)s runs\n"
-"                            "
-msgstr[0] ""
-"\n"
-"                              %(run_count)s проход\n"
-"                            "
-msgstr[1] ""
-"\n"
-"                              %(run_count)s проходов\n"
-"                            "
-msgstr[2] ""
-"\n"
-"                              %(run_count)s проходов\n"
-"                            "
-msgstr[3] ""
-"\n"
-"                              %(run_count)s проходов\n"
-"                            "
-
-#, python-format
-msgid ""
-"\n"
-"                            %(completed_percentage)s%% completion\n"
-"                          "
-msgstr ""
-"\n"
-"                            Завершено %(completed_percentage)s%%\n"
-"                          "
-
-msgid "No matching flows."
-msgstr "Нет соответствующих потоков"
-
 msgid "Export Flow Results"
 msgstr "Экспортировать Результаты Потока"
 
 msgid "Create Label"
 msgstr "Создать Метку"
+
+#, fuzzy
+#| msgid "Webhook Log"
+msgid "Webhook Call Log"
+msgstr "Журнал Вебхука"
+
+#, fuzzy
+#| msgid "New Label..."
+msgid "New Label"
+msgstr "Новая Метка..."
+
+#, fuzzy
+#| msgid "Export Flow Results"
+msgid "Export Results"
+msgstr "Экспортировать Результаты Потока"
+
+msgid "No matching flows."
+msgstr "Нет соответствующих потоков"
 
 msgid "Create a message keyword to allow people to join a group."
 msgstr "Создать ключевое слово сообщения, чтобы люди могли присоединяться к группе."
@@ -7726,11 +7859,25 @@ msgstr[1] "<b>%(count)s</b> проходов"
 msgstr[2] "<b>%(count)s</b> проходов"
 msgstr[3] "<b>%(count)s</b> проходов"
 
+#, fuzzy
+#| msgid "Are you sure you want to remove this label?"
+msgid "Are you sure you want to continue? This cannot be undone."
+msgstr "Вы действительно хотите удалить эту метку?"
+
+msgid "cannot be deleted because it is in use. Usage summary:"
+msgstr "невозможно удалить, потому что используется. Сводная информация по использованию:"
+
+msgid "Flows:"
+msgstr "Потоки:"
+
 msgid "Are you sure you want to delete this global?"
 msgstr "Вы действительно хотите удалить этот глобальный объект?"
 
 msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
 msgstr "После удаления этот глобальный объект исчезнет навсегда. Способа отменить эту операцию не существует."
+
+msgid "No related flows."
+msgstr "Нет связанных потоков."
 
 #, python-format
 msgid "You have <b>%(counter)s global</b> configured"
@@ -7757,6 +7904,9 @@ msgstr "Обновить Глобальный объект"
 
 msgid "Delete Global"
 msgstr "Удалить Глобальный объект"
+
+msgid "Uses"
+msgstr "Использования"
 
 msgid "messages"
 msgstr "сообщения"
@@ -7846,15 +7996,23 @@ msgstr ""
 "\n"
 "        "
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "                  %(count_comma)s recipient\n"
+#| "                  "
+#| msgid_plural ""
+#| "\n"
+#| "                    %(count_comma)s recipients\n"
+#| "                "
 msgid ""
 "\n"
-"                  %(count_comma)s recipient\n"
-"                  "
+"                    %(count_comma)s recipient\n"
+"                    "
 msgid_plural ""
 "\n"
-"                    %(count_comma)s recipients\n"
-"                "
+"                      %(count_comma)s recipients\n"
+"                  "
 msgstr[0] ""
 "\n"
 "                  %(count_comma)s получатель\n"
@@ -7872,12 +8030,17 @@ msgstr[3] ""
 "                    %(count_comma)s получателей\n"
 "                "
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
+#| "\n"
+#| "                "
 msgid ""
 "\n"
-"                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
+"                    %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
 "\n"
-"                "
+"                  "
 msgstr ""
 "\n"
 "                  %(group_count)s групп, %(contact_count)s контактов, %(urn_count)s urn\n"
@@ -8050,11 +8213,43 @@ msgstr ""
 "        %(name)s также отслеживает вызовы, получаемые на Вашем канале, чтобы Вы могли отвечать на любые звонки, которые могли быть осуществлены на него.\n"
 "      "
 
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "            Name updated to <b>%(name)s</b>\n"
+#| "          "
+msgid ""
+"\n"
+"          Uh oh, we couldn't delete %(name)s.\n"
+"        "
+msgstr ""
+"\n"
+"            Название изменено на <b>%(name)s</b>"
+
+#, fuzzy
+#| msgid "Are you sure you want to remove"
+msgid "Are you sure you want to delete"
+msgstr "Вы действительно хотите удалить "
+
 msgid "Numeric Value:"
 msgstr "Числовое значение:"
 
 msgid "Create Folder"
 msgstr "Создать папку"
+
+msgid "Restore"
+msgstr "Восстановить"
+
+msgid "Resend"
+msgstr "Отправить повторно"
+
+msgid "New Label..."
+msgstr "Новая Метка..."
+
+#, fuzzy
+#| msgid "messages"
+msgid "No messages"
+msgstr "сообщения"
 
 #, python-format
 msgid "Found %(results_count)s message in last 90 days matching <i>%(search)s</i>."
@@ -8071,21 +8266,6 @@ msgstr[0] "%(results_count)s сообщение с %(start_date)s."
 msgstr[1] "%(results_count)s сообщений с %(start_date)s."
 msgstr[2] "%(results_count)s сообщений с %(start_date)s."
 msgstr[3] "%(results_count)s сообщений с %(start_date)s."
-
-msgid "Unarchive"
-msgstr "Разархивировать"
-
-msgid "Resend"
-msgstr "Отправить повторно"
-
-msgid "New Label..."
-msgstr "Новая Метка..."
-
-msgid "No matching messages."
-msgstr "Нет соответствующих сообщений."
-
-msgid "Export Messages"
-msgstr "Экспортировать Сообщения"
 
 msgid "Remove Folder"
 msgstr "Удалить Папку"
@@ -8160,6 +8340,9 @@ msgstr ""
 
 msgid "(sending)"
 msgstr "(отправляется)"
+
+msgid "No matching messages."
+msgstr "Нет соответствующих сообщений."
 
 #, fuzzy, python-format
 #| msgid ""
@@ -8677,10 +8860,10 @@ msgstr ""
 #| "  "
 msgid ""
 "\n"
-"    Your workspace can have logins with various roles. You can use the Manage Logins page\n"
-"    to view all existing logins or to add new logins to your workspace.\n"
+"      Your workspace can have logins with various roles. You can use the Manage Logins page\n"
+"      to view all existing logins or to add new logins to your workspace.\n"
 "\n"
-"  "
+"    "
 msgstr ""
 "\n"
 "    У Вашей организации могут быть учетные записи пользователей с различными функциями. Вы можете использовать страницу «Управление учетными записями»\n"
@@ -8693,14 +8876,21 @@ msgstr ""
 msgid "Manage Logins"
 msgstr "Управление учетными записями"
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "    If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling\n"
+#| "    users to create accounts from within the Android application. Setting a Surveyor password will\n"
+#| "    allow anybody with that password to join %(org)s as a surveyor.\n"
+#| "\n"
+#| "  "
 msgid ""
 "\n"
-"    If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling\n"
-"    users to create accounts from within the Android application. Setting a Surveyor password will\n"
-"    allow anybody with that password to join %(org)s as a surveyor.\n"
+"      If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling\n"
+"      users to create accounts from within the Android application. Setting a Surveyor password will\n"
+"      allow anybody with that password to join %(org)s as a surveyor.\n"
 "\n"
-"  "
+"    "
 msgstr ""
 "\n"
 "    Если Вы используете приложение «Наблюдатель» %(brand)s для запуска потоков в автономном режиме, мы рекомендуем разрешить\n"
@@ -8879,31 +9069,33 @@ msgstr ""
 msgid "Your login is not associated with any workspace. Please contact your administrator to receive an invitation to a workspace."
 msgstr "Ваша учетная запись не связана ни с одной организацией. Пожалуйста, свяжитесь со своим администратором, чтобы получить приглашение для присоединения к организации."
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "      Responses to location questions must be in <span class='attn'>%(country)s</span>.\n"
+#| "\n"
+#| "    "
 msgid ""
 "\n"
-"      Responses to location questions must be in <span class='attn'>%(country)s</span>.\n"
+"          Responses to location questions must be in <b>%(country)s</b>.\n"
 "\n"
-"    "
+"        "
 msgstr ""
 "\n"
 "      Ответы на вопросы о местоположении должны быть в <span class='attn'>%(country)s</span>.\n"
 "\n"
 "    "
 
-msgid "Choose a country to enable location support in your flows."
-msgstr "Выберите страну для включения поддержки местоположения в Ваших потоках."
-
 msgid "Edit Aliases"
 msgstr "Редактировать Псевдонимы "
+
+msgid "Choose a country to enable location support in your flows."
+msgstr "Выберите страну для включения поддержки местоположения в Ваших потоках."
 
 #, fuzzy
 #| msgid "Create new account"
 msgid "Create new login"
 msgstr "Создать новую учетную запись"
-
-msgid "Sign in"
-msgstr "Войти"
 
 msgid "Add Credits"
 msgstr "Добавить Кредиты"
@@ -8931,32 +9123,48 @@ msgstr ""
 msgid "DT One Account"
 msgstr "Учетная запись DT One"
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "      Connected to DT One account <b>%(login)s</b>.\n"
+#| "    "
 msgid ""
 "\n"
-"      Connected to DT One account <b>%(login)s</b>.\n"
-"    "
+"          Connected to DT One account <b>%(login)s</b>.\n"
+"        "
 msgstr ""
 "\n"
 "      Подключено к учетной записи DT One <b>%(login)s</b>.\n"
 "    "
 
+msgid "Transfer Log"
+msgstr "Журнал передачи"
+
 msgid "No DT One account connected."
 msgstr "Подключенных учетных записей DT One нет."
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "      Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected\n"
+#| "      you can transfer airtime credit within your Flows. To signup for an account, visit\n"
+#| "    "
 msgid ""
 "\n"
-"      Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected\n"
-"      you can transfer airtime credit within your Flows. To signup for an account, visit\n"
-"    "
+"        Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected\n"
+"        you can transfer airtime credit within your Flows. To signup for an account, visit\n"
+"      "
 msgstr ""
 "\n"
 "      Добавление учетной записи DT One позволит Вам отправлять кредиты на эфирное время более 400 операторов в более чем 100 странах. После подключения\n"
 "      Вы сможете переводить кредит на эфирное время в рамках Ваших Потоков. Для регистрации учетной записи, посетите\n"
 "    "
 
-msgid "Transfer Log"
-msgstr "Журнал передачи"
+msgid "You can find your API Token by clicking on "
+msgstr "Вы можете узнать свой Токен API, нажав на"
+
+msgid " on the DT One site."
+msgstr "на сайте DT One."
 
 msgid "Your account is connected to a DT One account"
 msgstr "Ваша учетная запись подключена к учетной записи DT One"
@@ -8967,20 +9175,20 @@ msgstr "Вашу учетную запись DT One. Это приведет к 
 msgid "Disconnect DT One"
 msgstr "Отключить DT One"
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "          This will disconnect your DT One account. Payment actions will no longer be processed. Are you sure you want to proceed?\n"
+#| "        "
 msgid ""
 "\n"
 "          This will disconnect your DT One account. Payment actions will no longer be processed. Are you sure you want to proceed?\n"
+"\n"
 "        "
 msgstr ""
 "\n"
 "          Это отключит Вашу учетную запись DT One. Платежные действия больше не будут обрабатываться. Вы уверены, что хотите продолжить?\n"
 "        "
-
-msgid "You can find your API Token by clicking on "
-msgstr "Вы можете узнать свой Токен API, нажав на"
-
-msgid " on the DT One site."
-msgstr "на сайте DT One."
 
 #, fuzzy, python-format
 #| msgid ""
@@ -8990,21 +9198,26 @@ msgstr "на сайте DT One."
 #| "  "
 msgid ""
 "\n"
-"    Your workspace is <span class='attn'>%(org)s</span>\n"
+"        Your workspace is <b>%(org)s</b>\n"
 "\n"
-"  "
+"      "
 msgstr ""
 "\n"
 "    Вашей организацией является <span class='attn'>%(org)s</span>,\n"
 "\n"
 "  "
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "    which is in the <span class='attn'>%(timezone)s</span> timezone.\n"
+#| "\n"
+#| "  "
 msgid ""
 "\n"
-"    which is in the <span class='attn'>%(timezone)s</span> timezone.\n"
+"        which is in the <b>%(timezone)s</b> timezone.\n"
 "\n"
-"  "
+"      "
 msgstr ""
 "\n"
 "    которая находится в <span class='attn'>%(timezone)s</span> часовом поясе.\n"
@@ -9022,12 +9235,12 @@ msgstr ""
 #| "    "
 msgid ""
 "\n"
-"      You have <span class='attn'>%(org_count)s</span> child workspaces.\n"
-"      "
+"            You have <b>%(org_count)s</b> child workspaces.\n"
+"          "
 msgid_plural ""
 "\n"
-"      You have <span class='attn'>%(org_count)s</span> child workspaces.\n"
-"    "
+"            You have <b>%(org_count)s</b> child workspaces.\n"
+"          "
 msgstr[0] ""
 "\n"
 "      У Вас есть <span class='attn'>%(org_count)s</span> дочерняя организация.\n"
@@ -9044,6 +9257,11 @@ msgstr[3] ""
 "\n"
 "      У Вас есть <span class='attn'>%(org_count)s</span> дочерних организаций.\n"
 "    "
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Manage Workspaces"
+msgstr "Выберите свою Организацию"
 
 msgid "Show Archived"
 msgstr "Показать Архивированное"
@@ -9118,20 +9336,28 @@ msgstr "Вас пригласили присоединиться к "
 msgid "Please click Join to accept the invitation."
 msgstr "Пожалуйста, для принятия приглашения нажмите «Присоединиться»."
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "      The primary language is <span class='attn'>%(lang)s</span>.\n"
+#| "    "
 msgid ""
 "\n"
-"      The primary language is <span class='attn'>%(lang)s</span>.\n"
+"      The primary language is <b>%(lang)s</b>.\n"
 "    "
 msgstr ""
 "\n"
 "      Основным языком является <span class='attn'>%(lang)s</span>.\n"
 "    "
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "        Translations are provided in <span class='attn'>%(lang)s</span>.\n"
+#| "      "
 msgid ""
 "\n"
-"        Translations are provided in <span class='attn'>%(lang)s</span>.\n"
+"        Translations are provided in <b>%(lang)s</b>.\n"
 "      "
 msgstr ""
 "\n"
@@ -9235,12 +9461,19 @@ msgstr "Вы осуществляете мониторинг своей орга
 msgid "You have not enabled %(prometheus)s monitoring on your workspace."
 msgstr "Вы не включили мониторинг %(prometheus)s для своей организации."
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "    You can create flow events which external services can subscribe to. For example, Zapier can subscribe\n"
+#| "    to flow events you create and trigger any number of Zapier integrations when they occur in your flows.\n"
+#| "\n"
+#| "  "
 msgid ""
 "\n"
-"    You can create flow events which external services can subscribe to. For example, Zapier can subscribe\n"
-"    to flow events you create and trigger any number of Zapier integrations when they occur in your flows.\n"
+"      You can create flow events which external services can subscribe to. For example, Zapier can subscribe\n"
+"      to flow events you create and trigger any number of Zapier integrations when they occur in your flows.\n"
 "\n"
-"  "
+"    "
 msgstr ""
 "\n"
 "    Вы можете создавать события потока, на которые могут подписаться внешние сервисы. Например, Zapier может подписаться\n"
@@ -9265,12 +9498,6 @@ msgstr "Мы нашли некоторые проблемы, пожалуйст�
 
 msgid "Start by telling us a little about yourself. This will only take a minute."
 msgstr "Начните с того, чтобы рассказать нам немного о себе. Это займет всего минуту."
-
-msgid "First Name"
-msgstr "Имя"
-
-msgid "Last Name"
-msgstr "Фамилия"
 
 msgid "E-mail address"
 msgstr "Адрес электронной почты"
@@ -9339,20 +9566,20 @@ msgstr ""
 "\n"
 "      "
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          Removing your SMTP configuration will result in emails being delivered from %(brand)s that cannot be replied to. Are you sure you want to continue?\n"
+#| "        "
 msgid ""
 "\n"
 "          Removing your SMTP configuration will result in emails being delivered from %(brand)s that cannot be replied to. Are you sure you want to continue?\n"
+"\n"
 "        "
 msgstr ""
 "\n"
 "          Удаление Ваших настроек SMTP приведет к доставке электронных писем от %(brand)s, на которые невозможно будет ответить. Вы уверены что хотите продолжить?\n"
 "        "
-
-#, fuzzy
-#| msgid "Select your Organization"
-msgid "Manage Workspaces"
-msgstr "Выберите свою Организацию"
 
 #, fuzzy
 #| msgid "Select your Organization"
@@ -9432,7 +9659,7 @@ msgstr ""
 #| "\n"
 #| "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
 #| "  "
-msgid "Your API Token is <span class=\"attn\">%(token)s</span>."
+msgid "Your API Token is <b>%(token)s</b>."
 msgstr ""
 "\n"
 "    Ваш токен API - <span class=\"attn\">%(token)s</span>.\n"
@@ -9572,11 +9799,15 @@ msgstr "Добавлено"
 msgid " by "
 msgstr " со стороны "
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "    Your email address is <span class='attn'>%(email)s</span>.\n"
+#| "\n"
+#| "  "
 msgid ""
 "\n"
-"    Your email address is <span class='attn'>%(email)s</span>.\n"
-"\n"
+"    Your email address is <b>%(email)s</b>.\n"
 "  "
 msgstr ""
 "\n"
@@ -10943,9 +11174,6 @@ msgstr "Вы можете настроить триггеры для запус�
 msgid "Start a flow after receiving a message not handled elsewhere."
 msgstr "Запустите поток после получения сообщения, не обработанного где-либо еще."
 
-msgid "Flow to start"
-msgstr "Поток для запуска"
-
 msgid "Triggers allow users to start flows based on user actions or schedules."
 msgstr "Триггеры позволяют пользователям запускать потоки на основе действий пользователя или расписания."
 
@@ -11000,17 +11228,14 @@ msgstr "Запустить поток, когда разговор начина�
 msgid "Social media channel"
 msgstr "Канал в социальных сетях"
 
+msgid "Flow to start"
+msgstr "Поток для запуска"
+
 msgid "Start a flow when Facebook refers a contact."
 msgstr "Запустить поток, когда Facebook направляет контакт."
 
 msgid "Restrict to channel"
 msgstr "Ограничить каналом"
-
-msgid "Group to join"
-msgstr "Группа для присоединения"
-
-msgid "Add Group: "
-msgstr "Добавить Группу"
 
 msgid "Create a message keyword that allows people to join a group."
 msgstr "Создать ключевое слово сообщения, которое позволит людям присоединяться к группе."
@@ -11071,15 +11296,191 @@ msgstr ""
 msgid "Choose when you would like the flow to start."
 msgstr "Выберите время, когда Вы хотите, чтобы поток запускался."
 
-msgid "Facebook Channel"
-msgstr "Канал Facebook "
-
 msgid "Enter a query"
 msgstr "Ввести запрос"
 
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Flow starting rules"
+#~ msgstr "Правила запуска потока"
+
+#~ msgid "Add or remove groups this contact belongs to"
+#~ msgstr "Добавить или удалить группы, которым принадлежит данный контакт"
+
+#~ msgid "The primary language for editing this flow"
+#~ msgstr "Основной язык для редактирования этого потока"
+
+#~ msgid "Run flow over"
+#~ msgstr "Запустить поток"
+
+#~ msgid "Which group memberships, if any, to include in the export"
+#~ msgstr "Какие членства группы, если имеются, включить в экспорт"
+
+#~ msgid "Which contact fields, if any, to include in the export"
+#~ msgstr "Какие поля контактов, если имеются, включить в экспорт"
+
+#~ msgid "Extra URNs"
+#~ msgstr "Дополнительные URN"
+
+#~ msgid "Add Contacts to Flow"
+#~ msgstr "Добавить Контакты в Поток"
+
+#~ msgid "The name of this label"
+#~ msgstr "Название этой метки"
+
+#~ msgid "The date for the oldest message to export. (Leave blank to export from the oldest message)."
+#~ msgstr "Дата самого старого сообщения для экспорта. (Оставьте пустым для экспорта, начиная с самого старого сообщения)."
+
+#~ msgid "The date for the latest message to export. (Leave blank to export up to the latest message)."
+#~ msgstr "Дата самого последнего сообщения для экспорта. (Оставьте пустым для экспорта вплоть до самого последнего сообщения)."
+
+#~ msgid "The name of this folder"
+#~ msgstr "Название этой папки"
+
+#~ msgid "Your First Name (required)"
+#~ msgstr "Ваше имя (обязательно)"
+
+#~ msgid "Your Last Name (required)"
+#~ msgstr "Ваша фамилия (обязательно)"
+
+#~ msgid "New Password (optional)"
+#~ msgstr "Новый пароль (опционально)"
+
+#, fuzzy
+#~| msgid "The slug, or short name for your organization"
+#~ msgid "The slug, or short name for your workspace"
+#~ msgstr "Slug или короткое наименование Вашей организации"
+
+#~ msgid "Only Groups"
+#~ msgstr "Только Группы"
+
+#~ msgid "Only apply this trigger to contacts in these groups. (leave empty to apply to all contacts)"
+#~ msgstr "Примените этот триггер только к контактам в этих группах. (оставьте пустым, чтобы применить ко всем контактам)"
+
+#~ msgid "Dynamic group based on:"
+#~ msgstr "Динамическая группа на основе:"
+
+#~ msgid "Update Contact Group"
+#~ msgstr "Обновить Группу Контактов"
+
+#~ msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
+#~ msgstr "После того как они будут удалены, они исчезнут навсегда. Способа отменить эту операцию не существует."
+
+#~ msgid "Create Contact Group"
+#~ msgstr "Создать Группу Контактов"
+
+#~ msgid "Save Search as Group"
+#~ msgstr "Сохранить Поиск как Группу"
+
+#~ msgid "Unable to create a dynamic group"
+#~ msgstr "Невозможно создать динамическую группу"
+
+#~ msgid "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>."
+#~ msgstr "Вы не можете создать динамическую группу на основе <strong>id</strong> или <strong>group</strong>."
+
+#~ msgid "Start Export"
+#~ msgstr "Начать Экспорт"
+
+#~ msgid "blocked"
+#~ msgstr "заблокировано"
+
+#~ msgid "stopped"
+#~ msgstr "остановлено"
+
+#~ msgid "Campaign events:"
+#~ msgstr "События кампании:"
+
+#~ msgid "Contact groups:"
+#~ msgstr "Группы Контактов:"
+
+#~ msgid "Are you sure you want to delete this field?"
+#~ msgstr "Вы действительно хотите удалить это поле?"
+
+#~ msgid "Once deleted, field will be gone forever. There is no way to undo this operation."
+#~ msgstr "После удаления поле исчезнет навсегда. Способа отменить эту операцию не существует."
+
+#~ msgid "No related campaigns."
+#~ msgstr "Нет связанных кампаний."
+
+#~ msgid "No related contact groups."
+#~ msgstr "Нет связанных групп контактов."
+
+#~ msgid "Contact Fields"
+#~ msgstr "Поля Контактов"
+
+#~ msgid "Create Contact Field"
+#~ msgstr "Создать Поле Контактов"
+
+#~ msgid "Update Contact Field"
+#~ msgstr "Обновить Поле Контактов"
+
+#~ msgid "Delete Contact Field"
+#~ msgstr "Удалить Поле Контактов"
+
+#~ msgid "Restart contacts who have already entered this flow"
+#~ msgstr "Перезапустить контакты, которые уже вошли в этот поток"
+
+#~ msgid "Interrupt contacts currently active in flows"
+#~ msgstr "Прервать контакты, в настоящее время активные в потоках"
+
+#~ msgid "Unlabel"
+#~ msgstr "Снять метку"
+
+#~ msgid "Download Results"
+#~ msgstr "Скачать Результаты"
+
+#~ msgid "No runs"
+#~ msgstr "Нет проходов"
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "                              %(run_count)s run\n"
+#~ "                            "
+#~ msgid_plural ""
+#~ "\n"
+#~ "                              %(run_count)s runs\n"
+#~ "                            "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "                              %(run_count)s проход\n"
+#~ "                            "
+#~ msgstr[1] ""
+#~ "\n"
+#~ "                              %(run_count)s проходов\n"
+#~ "                            "
+#~ msgstr[2] ""
+#~ "\n"
+#~ "                              %(run_count)s проходов\n"
+#~ "                            "
+#~ msgstr[3] ""
+#~ "\n"
+#~ "                              %(run_count)s проходов\n"
+#~ "                            "
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "                            %(completed_percentage)s%% completion\n"
+#~ "                          "
+#~ msgstr ""
+#~ "\n"
+#~ "                            Завершено %(completed_percentage)s%%\n"
+#~ "                          "
+
+#~ msgid "Unarchive"
+#~ msgstr "Разархивировать"
+
+#~ msgid "Group to join"
+#~ msgstr "Группа для присоединения"
+
+#~ msgid "Add Group: "
+#~ msgstr "Добавить Группу"
+
+#~ msgid "Facebook Channel"
+#~ msgstr "Канал Facebook "
 
 #, fuzzy, python-format
 #~| msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
@@ -11277,9 +11678,6 @@ msgstr "Найдено ${count} по ${query}"
 #~| msgid "This organization has been whitelisted against spaminess"
 #~ msgid "This organization has been whitelisted against flagging"
 #~ msgstr "Данная организация была внесена в белый список, чтобы избежать попадания в спам"
-
-#~ msgid "Restore"
-#~ msgstr "Восстановить"
 
 #~ msgid "Suspend"
 #~ msgstr "Приостановить "

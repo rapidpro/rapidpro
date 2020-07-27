@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-20 18:24+0000\n"
+"POT-Creation-Date: 2020-07-27 17:36+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -132,9 +132,6 @@ msgid "Stop it and start this event"
 msgstr ""
 
 msgid "Skip this event"
-msgstr ""
-
-msgid "Flow starting rules"
 msgstr ""
 
 msgid "Stop it and send the message"
@@ -2431,7 +2428,7 @@ msgstr ""
 msgid "Groups"
 msgstr ""
 
-msgid "Add or remove groups this contact belongs to"
+msgid "Select groups for this contact"
 msgstr ""
 
 #, python-format
@@ -2442,6 +2439,9 @@ msgid "The groups which this contact belongs to"
 msgstr ""
 
 msgid "Group Memberships for"
+msgstr ""
+
+msgid "Optional: Choose groups to show in your export"
 msgstr ""
 
 msgid "Include group membership only for these groups. (Leave blank to ignore group memberships)."
@@ -2477,6 +2477,9 @@ msgstr ""
 msgid "Send Message"
 msgstr ""
 
+msgid "Edit Contact"
+msgstr ""
+
 msgid "Custom Fields"
 msgstr ""
 
@@ -2489,10 +2492,16 @@ msgstr ""
 msgid "Unstop"
 msgstr ""
 
+msgid "Delete Contact"
+msgstr ""
+
 msgid "Save as Group"
 msgstr ""
 
 msgid "Manage Fields"
+msgstr ""
+
+msgid "Export Contacts"
 msgstr ""
 
 msgid "Blocked Contacts"
@@ -2513,6 +2522,9 @@ msgstr ""
 msgid "An error occurred updating your contact. Please try again later."
 msgstr ""
 
+msgid "Select a field to update"
+msgstr ""
+
 msgid "Contact blocked"
 msgstr ""
 
@@ -2530,6 +2542,9 @@ msgstr ""
 
 #, python-format
 msgid "Cannot create a new field as limit is %(limit)s."
+msgstr ""
+
+msgid "Field Name"
 msgstr ""
 
 msgid "Manage Contact Fields"
@@ -2586,7 +2601,7 @@ msgstr ""
 msgid "The user which last saved this flow"
 msgstr ""
 
-msgid "The primary language for editing this flow"
+msgid "The authoring language, additional languages can be added later"
 msgstr ""
 
 msgid "The flow version this definition is in"
@@ -2755,7 +2770,10 @@ msgstr ""
 msgid "When a user sends any of these keywords they will begin this flow"
 msgstr ""
 
-msgid "Run flow over"
+msgid "Select keywords to tirgger this flow"
+msgstr ""
+
+msgid "Type"
 msgstr ""
 
 msgid "Choose the method for your flow"
@@ -2874,6 +2892,12 @@ msgstr ""
 msgid "New Editor"
 msgstr ""
 
+msgid "Edit Flow"
+msgstr ""
+
+msgid "Delete Flow"
+msgstr ""
+
 msgid "Export Definition"
 msgstr ""
 
@@ -2915,16 +2939,16 @@ msgstr ""
 msgid "Import"
 msgstr ""
 
-msgid "Which group memberships, if any, to include in the export"
+msgid "Optional: Group memberships"
 msgstr ""
 
-msgid "Which contact fields, if any, to include in the export"
+msgid "Optional: Fields to include"
 msgstr ""
 
-msgid "Extra URNs"
+msgid "URNs"
 msgstr ""
 
-msgid "Extra URNs to include in the export in addition to the URN used in the flow"
+msgid "Optional: URNs in addition to the one used in the flow"
 msgstr ""
 
 msgid "Responded Only"
@@ -2969,9 +2993,6 @@ msgid "Saturday"
 msgstr ""
 
 msgid "Download"
-msgstr ""
-
-msgid "Edit Flow"
 msgstr ""
 
 msgid "Your flow contains an invalid loop. Please refresh your browser."
@@ -3025,9 +3046,6 @@ msgstr ""
 msgid "Sorry, your account is currently flagged. To enable starting flows, please contact support."
 msgstr ""
 
-msgid "Add Contacts to Flow"
-msgstr ""
-
 msgid "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who have not sent an incoming message in the last 24 hours may not receive it."
 msgstr ""
 
@@ -3039,6 +3057,9 @@ msgstr ""
 
 #, python-brace-format
 msgid "Your message template {template.name} is not approved and cannot be sent."
+msgstr ""
+
+msgid "Optional: Select parent label"
 msgstr ""
 
 msgid "Name already used"
@@ -3109,9 +3130,6 @@ msgid "The groups to send the message to"
 msgstr ""
 
 msgid "Individual contacts included in this message"
-msgstr ""
-
-msgid "URNs"
 msgstr ""
 
 msgid "Individual URNs included in this message"
@@ -3300,7 +3318,7 @@ msgstr ""
 msgid "Number of items with this system label"
 msgstr ""
 
-msgid "The name of this label"
+msgid "Choose a name for your label"
 msgstr ""
 
 msgid "Folder"
@@ -3346,6 +3364,9 @@ msgstr ""
 msgid "Schedules"
 msgstr ""
 
+msgid "Export Messages"
+msgstr ""
+
 msgid "Schedule Message"
 msgstr ""
 
@@ -3379,10 +3400,16 @@ msgstr ""
 msgid "Selection"
 msgstr ""
 
-msgid "The date for the oldest message to export. (Leave blank to export from the oldest message)."
+msgid "Leave blank for the oldest message"
 msgstr ""
 
-msgid "The date for the latest message to export. (Leave blank to export up to the latest message)."
+msgid "Start Date"
+msgstr ""
+
+msgid "Leave blank for the latest message"
+msgstr ""
+
+msgid "End Date"
 msgstr ""
 
 msgid "Export only messages from these contact groups. (Leave blank to export all messages)."
@@ -3406,7 +3433,16 @@ msgstr ""
 msgid "Failed Outgoing Messages"
 msgstr ""
 
+msgid "Edit Folder"
+msgstr ""
+
+msgid "Edit Label"
+msgstr ""
+
 msgid "Send All"
+msgstr ""
+
+msgid "Delete Label"
 msgstr ""
 
 msgid "Name must not be blank or begin with punctuation"
@@ -3419,13 +3455,43 @@ msgstr ""
 msgid "This org has %(count)d labels and the limit is %(limit)d. You must delete existing ones before you can create new ones."
 msgstr ""
 
-msgid "The name of this folder"
+msgid "Optional: Parent Folder"
+msgstr ""
+
+msgid "Choose a name for your folder"
 msgstr ""
 
 msgid "Update Folder"
 msgstr ""
 
 msgid "Update Label"
+msgstr ""
+
+msgid "Messages"
+msgstr ""
+
+msgid "Campaigns"
+msgstr ""
+
+msgid "Triggers"
+msgstr ""
+
+msgid "Users"
+msgstr ""
+
+msgid "Orgs"
+msgstr ""
+
+msgid "Dashboard"
+msgstr ""
+
+msgid "Android"
+msgstr ""
+
+msgid "Sign in"
+msgstr ""
+
+msgid "Sign out"
 msgstr ""
 
 msgid "Plan"
@@ -3720,16 +3786,22 @@ msgstr ""
 msgid "Deleted user {username}"
 msgstr ""
 
-msgid "Your First Name (required)"
+msgid "First Name"
 msgstr ""
 
-msgid "Your Last Name (required)"
+msgid "Required"
 msgstr ""
 
-msgid "Current Password (required)"
+msgid "Last Name"
 msgstr ""
 
-msgid "New Password (optional)"
+msgid "Current Password"
+msgstr ""
+
+msgid "New Password"
+msgstr ""
+
+msgid "Optional"
 msgstr ""
 
 msgid "Website Language"
@@ -3891,9 +3963,6 @@ msgstr ""
 msgid "Workspaces"
 msgstr ""
 
-msgid "Dashboard"
-msgstr ""
-
 msgid "New Workspace"
 msgstr ""
 
@@ -3980,7 +4049,7 @@ msgstr ""
 msgid "Account Token"
 msgstr ""
 
-msgid "The slug, or short name for your workspace"
+msgid "Workspace Name"
 msgstr ""
 
 msgid "From Workspace"
@@ -4008,10 +4077,13 @@ msgstr ""
 msgid "Primary Language"
 msgstr ""
 
+msgid "Select the primary language for contacts with no language preference"
+msgstr ""
+
 msgid "Additional Languages"
 msgstr ""
 
-msgid "Add any other languages you would like to provide translations for."
+msgid "Additional languages you would like to provid translations for"
 msgstr ""
 
 msgid " and "
@@ -4311,10 +4383,7 @@ msgstr ""
 msgid "An active trigger already exists, triggers must be unique for each group"
 msgstr ""
 
-msgid "Only Groups"
-msgstr ""
-
-msgid "Only apply this trigger to contacts in these groups. (leave empty to apply to all contacts)"
+msgid "Optional: Trigger only applies to these groups"
 msgstr ""
 
 msgid "The first word of the message text"
@@ -4353,9 +4422,6 @@ msgid "Create Trigger"
 msgstr ""
 
 msgid "Active"
-msgstr ""
-
-msgid "Triggers"
 msgstr ""
 
 msgid "Join Keyword"
@@ -4539,7 +4605,13 @@ msgstr ""
 msgid "Download Now"
 msgstr ""
 
-msgid "Campaigns"
+msgid "Create Campaign"
+msgstr ""
+
+msgid "Search"
+msgstr ""
+
+msgid "No matching campaigns"
 msgstr ""
 
 msgid "(Archived)"
@@ -4549,6 +4621,24 @@ msgid "No group assigned to this campaign"
 msgstr ""
 
 msgid "No events in this campaign yet."
+msgstr ""
+
+msgid "before"
+msgstr ""
+
+msgid "after"
+msgstr ""
+
+msgid "Start the"
+msgstr ""
+
+msgid "Upcoming Events"
+msgstr ""
+
+msgid "No events scheduled"
+msgstr ""
+
+msgid "Recent Events"
 msgstr ""
 
 msgid "If the contact is already active in a flow"
@@ -4610,9 +4700,6 @@ msgid "Once you claim a number you will immediately be able to send and receive 
 msgstr ""
 
 msgid "Pattern"
-msgstr ""
-
-msgid "Search"
 msgstr ""
 
 msgid "Supported"
@@ -4687,9 +4774,6 @@ msgid "FULLY CHARGED"
 msgstr ""
 
 msgid "ON"
-msgstr ""
-
-msgid "Messages"
 msgstr ""
 
 msgid "IVR Messages"
@@ -5787,10 +5871,11 @@ msgid ""
 "                    "
 msgstr ""
 
-msgid "Dynamic group based on:"
+#, python-format
+msgid "You are about to delete <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
 msgstr ""
 
-msgid "Update Contact Group"
+msgid "Smart Group"
 msgstr ""
 
 #, python-format
@@ -6072,7 +6157,16 @@ msgstr ""
 msgid "Choose File"
 msgstr ""
 
+msgid "Delete Contacts"
+msgstr ""
+
+msgid "Are you sure you want to delete these contacts? This cannot be undone."
+msgstr ""
+
 msgid "Import Contacts"
+msgstr ""
+
+msgid "Smart Groups"
 msgstr ""
 
 msgid "Create Contact"
@@ -6081,7 +6175,7 @@ msgstr ""
 msgid "Create Group"
 msgstr ""
 
-msgid "Remove from Group"
+msgid "Remove From Group"
 msgstr ""
 
 msgid "New Group..."
@@ -6090,53 +6184,26 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"                    Found %(results_count)s contact matching <i>%(search)s</i>.\n"
-"                    "
+"                      Found %(results_count)s contact matching <i>%(search)s</i>.\n"
+"                      "
 msgid_plural ""
 "\n"
-"                      Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
+"                        Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
 "\n"
-"                  "
+"                    "
 msgstr[0] ""
 msgstr[1] ""
 
 msgid "No matching contacts."
 msgstr ""
 
+msgid "To view more than 10,000 search results, save it as a group."
+msgstr ""
+
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr ""
 
-msgid "Delete Contacts"
-msgstr ""
-
-msgid "Are you sure you want to delete these contacts?"
-msgstr ""
-
-msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
-msgstr ""
-
-msgid "Create Contact Group"
-msgstr ""
-
-msgid "Save Search as Group"
-msgstr ""
-
-msgid "Unable to create a dynamic group"
-msgstr ""
-
-msgid "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>."
-msgstr ""
-
-msgid "Export Contacts"
-msgstr ""
-
-msgid "Start Export"
-msgstr ""
-
-msgid "blocked"
-msgstr ""
-
-msgid "stopped"
+msgid "Contact Id"
 msgstr ""
 
 msgid "Upcoming"
@@ -6157,44 +6224,31 @@ msgstr ""
 msgid "Full"
 msgstr ""
 
-msgid "Delete Contact"
-msgstr ""
-
-msgid "Are you sure you want to delete this contact?"
-msgstr ""
-
-msgid "Update Contact"
-msgstr ""
-
 msgid "These contacts have opted out and you can no longer send them messages, they have been removed from all groups."
 msgstr ""
 
-msgid "cannot be deleted because it is in use. Usage summary:"
+#, python-format
+msgid "<b>%(name)s</b> cannot be deleted since it is currently in use."
 msgstr ""
 
-msgid "Flows:"
+#, python-format
+msgid "Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
 msgstr ""
 
-msgid "Campaign events:"
-msgstr ""
+msgid "Used in the flow"
+msgid_plural "Used in the flows"
+msgstr[0] ""
+msgstr[1] ""
 
-msgid "Contact groups:"
-msgstr ""
+msgid "Used in the campaign event"
+msgid_plural "Used in the campaign events"
+msgstr[0] ""
+msgstr[1] ""
 
-msgid "Are you sure you want to delete this field?"
-msgstr ""
-
-msgid "Once deleted, field will be gone forever. There is no way to undo this operation."
-msgstr ""
-
-msgid "No related flows."
-msgstr ""
-
-msgid "No related campaigns."
-msgstr ""
-
-msgid "No related contact groups."
-msgstr ""
+msgid "Used in the group"
+msgid_plural "Used in the groups"
+msgstr[0] ""
+msgstr[1] ""
 
 #, python-format
 msgid "You have reached the limit of %(limit)s fields per workspace. Please remove fields that you are no longer using."
@@ -6207,10 +6261,13 @@ msgstr ""
 msgid "Create Field"
 msgstr ""
 
-msgid "Contact Fields"
+msgid "Update Field"
 msgstr ""
 
-msgid "Types"
+msgid "Delete Field"
+msgstr ""
+
+msgid "Field Details"
 msgstr ""
 
 msgid "Featured"
@@ -6225,20 +6282,8 @@ msgstr[1] ""
 msgid "No fields"
 msgstr ""
 
-msgid "Create Contact Field"
-msgstr ""
-
-msgid "Update Contact Field"
-msgstr ""
-
-msgid "Delete Contact Field"
-msgstr ""
-
-msgid "Uses"
-msgstr ""
-
 #, python-format
-msgid "Sorry, %(group_name)s cannot be deleted quite yet."
+msgid "Sorry, <span class=\"named\">%(group_name)s</span> cannot be deleted yet."
 msgstr ""
 
 #, python-format
@@ -6270,7 +6315,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #, python-format
-msgid "You are about to delete <span class='group_name'> %(object)s. </span> No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?"
+msgid "<div class='mb-2'> You are about to delete <span class='named'> %(object)s. </span> </div> No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?"
 msgstr ""
 
 msgid "Show Contacts"
@@ -6396,12 +6441,6 @@ msgid ""
 "      "
 msgstr ""
 
-msgid "Restart contacts who have already entered this flow"
-msgstr ""
-
-msgid "Interrupt contacts currently active in flows"
-msgstr ""
-
 msgid "This flow has never been started."
 msgstr ""
 
@@ -6423,42 +6462,38 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"                There is an active flow using this flow. It cannot be deleted until it is removed from the\n"
+"        There is an active flow using this flow. It cannot be deleted until it is removed from the\n"
 "\n"
-"            "
+"      "
 msgid_plural ""
 "\n"
-"                There are %(counter)s flows using this flow. It cannot be deleted until it is removed from the\n"
+"        There are %(counter)s flows using this flow. It cannot be deleted until it is removed from the\n"
 "\n"
-"            "
+"      "
 msgstr[0] ""
 msgstr[1] ""
 
 msgid ""
 "\n"
-"                flow.\n"
-"            "
+"        flow.\n"
+"      "
 msgid_plural ""
 "\n"
-"                flows.\n"
-"\n"
-"            "
+"        flows.\n"
+"      "
 msgstr[0] ""
 msgstr[1] ""
 
 #, python-format
 msgid ""
 "\n"
-"                You are about to delete\n"
-"                <span class='name'>\n"
-"                  %(object)s.\n"
-"                </span>\n"
-"                There is no way to undo this. Are you sure?\n"
+"        You are about to delete\n"
+"        <span class='font-normal'>\n"
+"          %(object)s.\n"
+"        </span>\n"
+"        There is no way to undo this. Are you sure?\n"
 "\n"
-"            "
-msgstr ""
-
-msgid "Delete Flow"
+"      "
 msgstr ""
 
 msgid "Update Flow"
@@ -6646,47 +6681,22 @@ msgstr ""
 msgid "Back"
 msgstr ""
 
-msgid "Webhook Call Log"
-msgstr ""
-
-msgid "Unlabel"
-msgstr ""
-
-msgid "Add Label"
-msgstr ""
-
-msgid "Download Results"
-msgstr ""
-
-msgid "No runs"
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"                              %(run_count)s run\n"
-"                            "
-msgid_plural ""
-"\n"
-"                              %(run_count)s runs\n"
-"                            "
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid ""
-"\n"
-"                            %(completed_percentage)s%% completion\n"
-"                          "
-msgstr ""
-
-msgid "No matching flows."
-msgstr ""
-
 msgid "Export Flow Results"
 msgstr ""
 
 msgid "Create Label"
+msgstr ""
+
+msgid "Webhook Call Log"
+msgstr ""
+
+msgid "New Label"
+msgstr ""
+
+msgid "Export Results"
+msgstr ""
+
+msgid "No matching flows."
 msgstr ""
 
 msgid "Create a message keyword to allow people to join a group."
@@ -6745,10 +6755,22 @@ msgid_plural "<b>%(count)s</b> runs"
 msgstr[0] ""
 msgstr[1] ""
 
+msgid "Are you sure you want to continue? This cannot be undone."
+msgstr ""
+
+msgid "cannot be deleted because it is in use. Usage summary:"
+msgstr ""
+
+msgid "Flows:"
+msgstr ""
+
 msgid "Are you sure you want to delete this global?"
 msgstr ""
 
 msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
+msgstr ""
+
+msgid "No related flows."
 msgstr ""
 
 #, python-format
@@ -6773,6 +6795,9 @@ msgid "Update Global"
 msgstr ""
 
 msgid "Delete Global"
+msgstr ""
+
+msgid "Uses"
 msgstr ""
 
 msgid "messages"
@@ -6854,21 +6879,21 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"                  %(count_comma)s recipient\n"
-"                  "
+"                    %(count_comma)s recipient\n"
+"                    "
 msgid_plural ""
 "\n"
-"                    %(count_comma)s recipients\n"
-"                "
+"                      %(count_comma)s recipients\n"
+"                  "
 msgstr[0] ""
 msgstr[1] ""
 
 #, python-format
 msgid ""
 "\n"
-"                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
+"                    %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
 "\n"
-"                "
+"                  "
 msgstr ""
 
 msgid "No Matching schedules"
@@ -6971,10 +6996,32 @@ msgid ""
 "      "
 msgstr ""
 
+#, python-format
+msgid ""
+"\n"
+"          Uh oh, we couldn't delete %(name)s.\n"
+"        "
+msgstr ""
+
+msgid "Are you sure you want to delete"
+msgstr ""
+
 msgid "Numeric Value:"
 msgstr ""
 
 msgid "Create Folder"
+msgstr ""
+
+msgid "Restore"
+msgstr ""
+
+msgid "Resend"
+msgstr ""
+
+msgid "New Label..."
+msgstr ""
+
+msgid "No messages"
 msgstr ""
 
 #, python-format
@@ -6988,21 +7035,6 @@ msgid "%(results_count)s message since %(start_date)s."
 msgid_plural "%(results_count)s messages since %(start_date)s."
 msgstr[0] ""
 msgstr[1] ""
-
-msgid "Unarchive"
-msgstr ""
-
-msgid "Resend"
-msgstr ""
-
-msgid "New Label..."
-msgstr ""
-
-msgid "No matching messages."
-msgstr ""
-
-msgid "Export Messages"
-msgstr ""
 
 msgid "Remove Folder"
 msgstr ""
@@ -7046,6 +7078,9 @@ msgid ""
 msgstr ""
 
 msgid "(sending)"
+msgstr ""
+
+msgid "No matching messages."
 msgstr ""
 
 #, python-format
@@ -7299,10 +7334,10 @@ msgstr ""
 
 msgid ""
 "\n"
-"    Your workspace can have logins with various roles. You can use the Manage Logins page\n"
-"    to view all existing logins or to add new logins to your workspace.\n"
+"      Your workspace can have logins with various roles. You can use the Manage Logins page\n"
+"      to view all existing logins or to add new logins to your workspace.\n"
 "\n"
-"  "
+"    "
 msgstr ""
 
 msgid "Manage Logins"
@@ -7311,11 +7346,11 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"    If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling\n"
-"    users to create accounts from within the Android application. Setting a Surveyor password will\n"
-"    allow anybody with that password to join %(org)s as a surveyor.\n"
+"      If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling\n"
+"      users to create accounts from within the Android application. Setting a Surveyor password will\n"
+"      allow anybody with that password to join %(org)s as a surveyor.\n"
 "\n"
-"  "
+"    "
 msgstr ""
 
 msgid "has"
@@ -7416,21 +7451,18 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"      Responses to location questions must be in <span class='attn'>%(country)s</span>.\n"
+"          Responses to location questions must be in <b>%(country)s</b>.\n"
 "\n"
-"    "
-msgstr ""
-
-msgid "Choose a country to enable location support in your flows."
+"        "
 msgstr ""
 
 msgid "Edit Aliases"
 msgstr ""
 
-msgid "Create new login"
+msgid "Choose a country to enable location support in your flows."
 msgstr ""
 
-msgid "Sign in"
+msgid "Create new login"
 msgstr ""
 
 msgid "Add Credits"
@@ -7460,8 +7492,11 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"      Connected to DT One account <b>%(login)s</b>.\n"
-"    "
+"          Connected to DT One account <b>%(login)s</b>.\n"
+"        "
+msgstr ""
+
+msgid "Transfer Log"
 msgstr ""
 
 msgid "No DT One account connected."
@@ -7469,12 +7504,15 @@ msgstr ""
 
 msgid ""
 "\n"
-"      Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected\n"
-"      you can transfer airtime credit within your Flows. To signup for an account, visit\n"
-"    "
+"        Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected\n"
+"        you can transfer airtime credit within your Flows. To signup for an account, visit\n"
+"      "
 msgstr ""
 
-msgid "Transfer Log"
+msgid "You can find your API Token by clicking on "
+msgstr ""
+
+msgid " on the DT One site."
 msgstr ""
 
 msgid "Your account is connected to a DT One account"
@@ -7489,42 +7527,40 @@ msgstr ""
 msgid ""
 "\n"
 "          This will disconnect your DT One account. Payment actions will no longer be processed. Are you sure you want to proceed?\n"
+"\n"
 "        "
 msgstr ""
 
-msgid "You can find your API Token by clicking on "
-msgstr ""
-
-msgid " on the DT One site."
-msgstr ""
-
 #, python-format
 msgid ""
 "\n"
-"    Your workspace is <span class='attn'>%(org)s</span>\n"
+"        Your workspace is <b>%(org)s</b>\n"
 "\n"
-"  "
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"    which is in the <span class='attn'>%(timezone)s</span> timezone.\n"
-"\n"
-"  "
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"      You have <span class='attn'>%(org_count)s</span> child workspaces.\n"
 "      "
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"        which is in the <b>%(timezone)s</b> timezone.\n"
+"\n"
+"      "
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"            You have <b>%(org_count)s</b> child workspaces.\n"
+"          "
 msgid_plural ""
 "\n"
-"      You have <span class='attn'>%(org_count)s</span> child workspaces.\n"
-"    "
+"            You have <b>%(org_count)s</b> child workspaces.\n"
+"          "
 msgstr[0] ""
 msgstr[1] ""
+
+msgid "Manage Workspaces"
+msgstr ""
 
 msgid "Show Archived"
 msgstr ""
@@ -7592,14 +7628,14 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"      The primary language is <span class='attn'>%(lang)s</span>.\n"
+"      The primary language is <b>%(lang)s</b>.\n"
 "    "
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"        Translations are provided in <span class='attn'>%(lang)s</span>.\n"
+"        Translations are provided in <b>%(lang)s</b>.\n"
 "      "
 msgstr ""
 
@@ -7692,10 +7728,10 @@ msgstr ""
 
 msgid ""
 "\n"
-"    You can create flow events which external services can subscribe to. For example, Zapier can subscribe\n"
-"    to flow events you create and trigger any number of Zapier integrations when they occur in your flows.\n"
+"      You can create flow events which external services can subscribe to. For example, Zapier can subscribe\n"
+"      to flow events you create and trigger any number of Zapier integrations when they occur in your flows.\n"
 "\n"
-"  "
+"    "
 msgstr ""
 
 msgid "no flow events"
@@ -7714,12 +7750,6 @@ msgid "We found some problems, please correct them before continuing."
 msgstr ""
 
 msgid "Start by telling us a little about yourself. This will only take a minute."
-msgstr ""
-
-msgid "First Name"
-msgstr ""
-
-msgid "Last Name"
 msgstr ""
 
 msgid "E-mail address"
@@ -7778,10 +7808,8 @@ msgstr ""
 msgid ""
 "\n"
 "          Removing your SMTP configuration will result in emails being delivered from %(brand)s that cannot be replied to. Are you sure you want to continue?\n"
+"\n"
 "        "
-msgstr ""
-
-msgid "Manage Workspaces"
 msgstr ""
 
 msgid "Add Workspace"
@@ -7826,7 +7854,7 @@ msgid "API Explorer"
 msgstr ""
 
 #, python-format
-msgid "Your API Token is <span class=\"attn\">%(token)s</span>."
+msgid "Your API Token is <b>%(token)s</b>."
 msgstr ""
 
 msgid "Disconnect Twilio"
@@ -7933,8 +7961,7 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"    Your email address is <span class='attn'>%(email)s</span>.\n"
-"\n"
+"    Your email address is <b>%(email)s</b>.\n"
 "  "
 msgstr ""
 
@@ -8936,9 +8963,6 @@ msgstr ""
 msgid "Start a flow after receiving a message not handled elsewhere."
 msgstr ""
 
-msgid "Flow to start"
-msgstr ""
-
 msgid "Triggers allow users to start flows based on user actions or schedules."
 msgstr ""
 
@@ -8993,16 +9017,13 @@ msgstr ""
 msgid "Social media channel"
 msgstr ""
 
+msgid "Flow to start"
+msgstr ""
+
 msgid "Start a flow when Facebook refers a contact."
 msgstr ""
 
 msgid "Restrict to channel"
-msgstr ""
-
-msgid "Group to join"
-msgstr ""
-
-msgid "Add Group: "
 msgstr ""
 
 msgid "Create a message keyword that allows people to join a group."
@@ -9050,9 +9071,6 @@ msgid ""
 msgstr ""
 
 msgid "Choose when you would like the flow to start."
-msgstr ""
-
-msgid "Facebook Channel"
 msgstr ""
 
 msgid "Enter a query"
