@@ -1754,6 +1754,8 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_mergeable_flows(self):
             queryset = Flow.objects.filter(org=self.object.org, is_active=True, is_archived=False, is_system=False)
+            queryset = queryset.filter(flow_type=self.object.flow_type)
+            queryset = queryset.exclude(version_number__in=Flow.VERSIONS)
             queryset = queryset.exclude(uuid=self.object.uuid).order_by("name")
             return queryset
 
@@ -2998,8 +3000,8 @@ class FlowCRUDL(SmartCRUDL):
 
     class MergeFlows(OrgPermsMixin, SmartTemplateView):
         class MergeFlowsForm(forms.Form):
-            flow_name = forms.CharField(max_length=256)
-        
+            flow_name = forms.CharField(max_length=64)
+
         title = _("Combine Flows")
         form_class = MergeFlowsForm
 
@@ -3014,46 +3016,55 @@ class FlowCRUDL(SmartCRUDL):
             context["target"] = queryset.filter(uuid=self.request.GET.get("target")).first().as_json()
             return context
 
+        def get(self, request, *args, **kwargs):
+            context = self.get_context_data(**kwargs)
+            return self.render_to_response(context)
+
         def post(self, request, *args, **kwargs):
             queryset = Flow.objects.filter(org=self.org, is_active=True, is_archived=False, is_system=False)
             source = queryset.filter(uuid=self.request.GET.get("source")).first()
             target = queryset.filter(uuid=self.request.GET.get("target")).first()
-
-            source_graph = Graph(source.as_json())
-            target_graph = Graph(target.as_json())
-            difference_map = GraphDifferenceMap(source_graph, target_graph)
-            difference_map.compare_graphs()
-            definition = difference_map.definition
+            definition = {}
 
             # return error message if there are some conflicts
             errors = []
-            if difference_map.conflicts:
-                errors.append(ValidationError(_("Can't merge these flows because of conflicts.")))
-
             form = self.form_class(data=request.POST)
             if not form.is_valid():
-                errors.extend(form.errors)
-            
+                errors.extend(
+                    [message for val in form.errors.as_data().values() for error in val for message in error]
+                )
+
+            if {source.version_number, target.version_number}.intersection(set(Flow.VERSIONS)):
+                errors.append(_("Legacy flows don't support merging."))
+
+            if source.flow_type != target.flow_type:
+                errors.append(_("These flows can't be merged because of different flow types."))
+
+            if not errors:
+                source_graph = Graph(source.as_json())
+                target_graph = Graph(target.as_json())
+                difference_map = GraphDifferenceMap(source_graph, target_graph)
+                difference_map.compare_graphs()
+                definition = difference_map.definition
+
+                if difference_map.conflicts:
+                    errors.append(_("These flows can't be merged because of conflicts."))
+
             if errors:
-                from django.template import loader
-                template = loader.get_template("flows/flow_merge_flows.html")
-                context = dict(
-                    flow_name=request.POST.get("flow_name"),
+                context = self.get_context_data()
+                context.update({"flow_name": request.POST.get("flow_name"), "errors": errors})
+                return self.render_to_response(context)
+
+            if definition:
+                merging_task = MergeFlowsTask.objects.create(
                     source=source,
                     target=target,
-                    errors=errors,
+                    merge_name=request.POST.get("flow_name"),
+                    definition=definition,
+                    created_by=self.get_user(),
+                    modified_by=self.get_user(),
                 )
-                return HttpResponse(template.render(context))
-
-            merging_task = MergeFlowsTask.objects.create(
-                source=source,
-                target=target,
-                merge_name=request.POST.get("flow_name"),
-                definition=definition,
-                created_by=self.get_user(),
-                modified_by=self.get_user(),
-            )
-            merging_task.run()
+                merging_task.run()
 
             messages.info(
                 self.request,

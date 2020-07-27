@@ -1,7 +1,7 @@
 {% load tz %}
 {% load i18n %}
 
-{% blocktrans with source=source.name target=target.name %}
+{% blocktrans with source=source_name target=target_name %}
 Hi there!
 
 We have finished merging {{ source }} with {{ target }}.

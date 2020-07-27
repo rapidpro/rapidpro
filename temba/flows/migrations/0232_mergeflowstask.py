@@ -54,7 +54,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "merge_name",
-                    models.CharField(help_text="New name for target flow that contain erged data.", max_length=256),
+                    models.CharField(help_text="New name for target flow that contain merged data.", max_length=64),
                 ),
                 ("merging_metadata", temba.utils.models.JSONField(encoder=temba.utils.json.TembaEncoder, null=True)),
                 ("definition", temba.utils.models.JSONField(encoder=temba.utils.json.TembaEncoder)),
