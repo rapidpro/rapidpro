@@ -1599,9 +1599,13 @@ class APITest(TembaTest):
         contact3.release(self.user)
 
         # put some contacts in a group
-        group = ContactGroup.get_or_create(self.org, self.admin, "Customers")
-        group.update_contacts(self.user, [self.joe], add=True)  # add contacts separately for predictable modified_on
-        group.update_contacts(self.user, [contact4], add=True)  # ordering
+        group = self.create_group("Customers", contacts=[self.joe, contact4])
+
+        # tweak modified_on so we get the order we want
+        self.joe.modified_on = timezone.now()
+        self.joe.save(update_fields=("modified_on",), handle_update=False)
+        contact4.modified_on = timezone.now()
+        contact4.save(update_fields=("modified_on",), handle_update=False)
 
         contact1.refresh_from_db()
         contact4.refresh_from_db()
