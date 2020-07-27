@@ -29,11 +29,7 @@ class RocketChatMixin(TembaTest):
 
     def new_ticketer(self, config=None) -> Ticketer:
         return Ticketer.create(
-            org=self.org,
-            user=self.user,
-            ticketer_type=RocketChatType.slug,
-            name="Name",
-            config=config or {}
+            org=self.org, user=self.user, ticketer_type=RocketChatType.slug, name="Name", config=config or {}
         )
 
 
@@ -90,15 +86,19 @@ class RocketChatTypeTest(RocketChatMixin):
             mock_brand_domain.return_value = domain
             self.assertEqual(
                 RocketChatType.callback_url(ticketer),
-                f"{scheme}{domain}/mr/tickets/types/rocketchat/{ticketer.uuid}/event"
+                f"{scheme}{domain}/mr/tickets/types/rocketchat/{ticketer.uuid}/event",
             )
 
         mock_brand_domain.return_value = "test.domain.com"
-        domains = [("https://", "req.domain.com"), ("", "http://req.domain.com"), ("", "https://requestreq.domain.com")]
+        domains = [
+            ("https://", "req.domain.com"),
+            ("", "http://req.domain.com"),
+            ("", "https://requestreq.domain.com"),
+        ]
         for scheme, domain in domains:
             self.assertEqual(
                 RocketChatType.callback_url(ticketer, domain),
-                f"{scheme}{domain}/mr/tickets/types/rocketchat/{ticketer.uuid}/event"
+                f"{scheme}{domain}/mr/tickets/types/rocketchat/{ticketer.uuid}/event",
             )
 
 
@@ -109,10 +109,7 @@ class RocketChatViewTest(RocketChatMixin):
         mock_choices.side_effect = lambda letters: next(choices)
         self.client.force_login(self.admin)
         response = self.client.get(self.connect_url)
-        self.assertEqual(
-            response.wsgi_request.session.get(ConnectView.SESSION_KEY),
-            self.secret
-        )
+        self.assertEqual(response.wsgi_request.session.get(ConnectView.SESSION_KEY), self.secret)
         response.wsgi_request.session.pop(ConnectView.SESSION_KEY, None)
 
     @patch("random.choice")
@@ -125,8 +122,7 @@ class RocketChatViewTest(RocketChatMixin):
         self.client.force_login(self.admin)
         response = self.client.get(self.connect_url)
         self.assertEqual(
-            response.context_data["form"].initial.get("secret"),
-            self.secret,
+            response.context_data["form"].initial.get("secret"), self.secret,
         )
 
         configure()
@@ -135,8 +131,7 @@ class RocketChatViewTest(RocketChatMixin):
             mock_initial.return_value = {"secret": self.secret2}
             response = self.client.get(self.connect_url)
         self.assertEqual(
-            response.context_data["form"].initial.get("secret"),
-            self.secret2,
+            response.context_data["form"].initial.get("secret"), self.secret2,
         )
 
     @patch("temba.tickets.types.rocketchat.client.Client.settings")
@@ -155,15 +150,13 @@ class RocketChatViewTest(RocketChatMixin):
         mock_socket.return_value = "192.55.123.1"  # Fake IP
 
         self.client.force_login(self.admin)
-        response = self.client.post(self.connect_url, {
-            "secret": self.secret,
-            "base_url": self.secure_url
-        })
+        response = self.client.post(self.connect_url, {"secret": self.secret, "base_url": self.secure_url})
         self.assertIsInstance(object, Ticketer)
         self.assertEqual(object.ticketer_type, RocketChatType.slug)
         self.assertRedirect(response, reverse("tickets.ticket_filter", args=[object.uuid]))
 
         expected = f"{RocketChatType.name}: {self.domain}"
-        self.assertTrue(object.name.startswith(
-            expected[:Ticketer._meta.get_field("name").max_length - 4]
-        ), f"\nExpected: {expected}\nGot: {object.name}")
+        self.assertTrue(
+            object.name.startswith(expected[: Ticketer._meta.get_field("name").max_length - 4]),
+            f"\nExpected: {expected}\nGot: {object.name}",
+        )

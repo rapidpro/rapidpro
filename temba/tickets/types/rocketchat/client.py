@@ -38,7 +38,7 @@ class Client:
     def secret_check(self):
         response = self.get(
             f"{self.base_url}/secret.check",
-            _("Unable to validate the secret code. Connection to RocketChat is taking too long.")
+            _("Unable to validate the secret code. Connection to RocketChat is taking too long."),
         )
         if response.status_code != 200:
             raise ClientError(response=response)
@@ -49,7 +49,7 @@ class Client:
         response = self.post(
             f"{self.base_url}/settings",
             _("Unable to configure. Connection to RocketChat is taking too long."),
-            data={"webhook": {"url": RocketChatType.callback_url(ticketer, domain)}}
+            data={"webhook": {"url": RocketChatType.callback_url(ticketer, domain)}},
         )
         if response.status_code != 204:
             raise ClientError(response=response)

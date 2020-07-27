@@ -26,10 +26,9 @@ class ConnectView(BaseConnectView):
 
     class Form(BaseConnectView.Form):
         base_url = ExternalURLField(
-            label=_("URL"), widget=forms.URLInput(attrs={
-                "placeholder": _("Ex.: http://rocketchat-domain.com/.../secret.check"),
-            }),
-            help_text=_("The URL for your RocketChat installation")
+            label=_("URL"),
+            widget=forms.URLInput(attrs={"placeholder": _("Ex.: http://rocketchat-domain.com/.../secret.check"),}),
+            help_text=_("The URL for your RocketChat installation"),
         )
         secret = forms.CharField(
             label=_("Secret"), widget=forms.HiddenInput(), help_text=_("Secret to be passed to RocketChat")
@@ -59,9 +58,9 @@ class ConnectView(BaseConnectView):
                 raise forms.ValidationError(_("Invalid URL: %(base_url)s") % self.cleaned_data)
 
             base_url_exists = org.ticketers.filter(
-                is_active=True, ticketer_type=RocketChatType.slug, **{
-                    f"config__{RocketChatType.CONFIG_BASE_URL}": base_url
-                }
+                is_active=True,
+                ticketer_type=RocketChatType.slug,
+                **{f"config__{RocketChatType.CONFIG_BASE_URL}": base_url},
             ).exists()
             if base_url_exists:
                 raise forms.ValidationError(_("There is already a ticketing service configured for this URL."))
@@ -104,11 +103,7 @@ class ConnectView(BaseConnectView):
             name = f"{name[:(max_length-4)]}{'' if name[max_length - 4] == '.' else name[max_length - 4]}..."
 
         self.object = Ticketer.create(
-            org=self.org,
-            user=self.request.user,
-            ticketer_type=RocketChatType.slug,
-            name=name,
-            config=config
+            org=self.org, user=self.request.user, ticketer_type=RocketChatType.slug, name=name, config=config
         )
         try:
             client.settings(self.request.build_absolute_uri("/"), self.object)
