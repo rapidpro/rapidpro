@@ -234,6 +234,7 @@ class Trigger(SmartModel):
             if groups:
                 trigger = trigger.filter(groups__in=groups)
 
+            trigger = trigger.order_by("-created_on")
             if trigger.count() > 1:
                 trigger.update(is_archived=True)
 

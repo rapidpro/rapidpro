@@ -4198,7 +4198,7 @@ class BulkExportTest(TembaTest):
         trigger.save()
 
         flow2 = self.create_flow()
-        trigger = Trigger.objects.create(
+        trigger2 = Trigger.objects.create(
             org=self.org,
             trigger_type=Trigger.TYPE_KEYWORD,
             keyword="rating",
@@ -4214,6 +4214,7 @@ class BulkExportTest(TembaTest):
 
         flow = Flow.objects.get(name="Rate us")
         self.assertEqual(1, Trigger.objects.filter(keyword="rating", is_archived=False).count())
+        self.assertEqual(trigger2.pk, Trigger.objects.filter(keyword="rating", is_archived=False).first().pk)
         self.assertEqual(1, Trigger.objects.filter(flow=flow).count())
 
     def test_export_import(self):
