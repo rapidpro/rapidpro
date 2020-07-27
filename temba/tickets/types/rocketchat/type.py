@@ -20,7 +20,7 @@ class RocketChatType(TicketerType):
 
     name = "RocketChat"
     slug = "rocketchat"
-    # icon = ""
+    icon = "icon-rocket-chat"
 
     connect_view = ConnectView
     connect_blurb = _(
