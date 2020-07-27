@@ -5209,9 +5209,6 @@ msgid "Two Factor Authentication"
 msgstr ""
 
 #, fuzzy
-<<<<<<< HEAD
-msgid "Select your Organization"
-=======
 msgid "Workspaces"
 msgstr "Crie sua Organização"
 
@@ -5231,7 +5228,6 @@ msgstr "Comprar créditos"
 
 #, fuzzy
 msgid "Select your Workspace"
->>>>>>> master
 msgstr "Crie sua Organização"
 
 #, fuzzy
@@ -10018,19 +10014,8 @@ msgstr ""
 msgid "Your organization is configured to use a single language."
 msgstr ""
 
-<<<<<<< HEAD
-#, fuzzy
-#| msgid "Organization"
-msgid "Organizations"
-msgstr "Organização"
-
-#, fuzzy
-msgid "Accounts"
-msgstr "Conta:"
-=======
 msgid "Logins"
 msgstr ""
->>>>>>> master
 
 msgid "Admins"
 msgstr "Administradores"

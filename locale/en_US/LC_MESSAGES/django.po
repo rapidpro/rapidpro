@@ -3949,9 +3949,6 @@ msgstr ""
 msgid "Two Factor Authentication"
 msgstr ""
 
-<<<<<<< HEAD
-msgid "Select your Organization"
-=======
 msgid "Workspaces"
 msgstr ""
 
@@ -3965,7 +3962,6 @@ msgid "Transfer Credits"
 msgstr ""
 
 msgid "Select your Workspace"
->>>>>>> master
 msgstr ""
 
 msgid "No organizations for this account, please contact your administrator."
@@ -7626,14 +7622,7 @@ msgstr ""
 msgid "Your organization is configured to use a single language."
 msgstr ""
 
-<<<<<<< HEAD
-msgid "Organizations"
-msgstr ""
-
-msgid "Accounts"
-=======
 msgid "Logins"
->>>>>>> master
 msgstr ""
 
 msgid "Admins"

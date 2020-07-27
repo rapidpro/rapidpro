@@ -4246,9 +4246,6 @@ msgstr "activer"
 msgid "Two Factor Authentication"
 msgstr "Authentification à deux facteurs"
 
-<<<<<<< HEAD
-msgid "Select your Organization"
-=======
 #, fuzzy
 #| msgid "Select your Organization"
 msgid "Workspaces"
@@ -4270,7 +4267,6 @@ msgstr "Crédits achetés"
 #, fuzzy
 #| msgid "Select your Organization"
 msgid "Select your Workspace"
->>>>>>> master
 msgstr "Choisissez votre Organisation"
 
 msgid "No organizations for this account, please contact your administrator."
@@ -8760,18 +8756,10 @@ msgstr ""
 msgid "Your organization is configured to use a single language."
 msgstr "Votre organisation est configurée pour utiliser une seule langue."
 
-<<<<<<< HEAD
-msgid "Organizations"
-msgstr "Organisations"
-
-msgid "Accounts"
-msgstr "Comptes"
-=======
 #, fuzzy
 #| msgid "Login"
 msgid "Logins"
 msgstr "S'identifier"
->>>>>>> master
 
 msgid "Admins"
 msgstr "Admins"
@@ -8972,9 +8960,6 @@ msgstr ""
 msgid "Manage Organizations"
 msgstr "Gérer les organisations"
 
-<<<<<<< HEAD
-#, python-format
-=======
 #, fuzzy
 #| msgid "Select your Organization"
 msgid "Add Workspace"
@@ -8988,7 +8973,6 @@ msgstr "Choisissez votre Organisation"
 #| "      account you use to login to %(brandname)s.\n"
 #| "\n"
 #| "    "
->>>>>>> master
 msgid ""
 "\n"
 "      To get started submitting surveys for %(org)s, download the %(brandname)s Surveyor app from\n"
@@ -10601,8 +10585,6 @@ msgstr "Entrez une requête"
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
 
-<<<<<<< HEAD
-=======
 #, fuzzy, python-format
 #~| msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
 #~ msgid "%(flow)s is used inside a campaign. To archive it, first remove it from your campaigns."
@@ -10802,7 +10784,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Your organization's timezone"
 #~ msgstr "Le fuseau horaire de votre organisation"
 
->>>>>>> master
 #~ msgid "Whitelist"
 #~ msgstr "Liste blanche"
 
