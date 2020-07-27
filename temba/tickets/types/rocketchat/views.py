@@ -41,7 +41,6 @@ class ConnectView(BaseConnectView):
 
             initial = self.initial.get("secret")
             if secret != initial:
-                print(dir(self.data))
                 self.data = self.data.copy()
                 self.data["secret"] = initial
                 raise forms.ValidationError(_("Secret code change detected."))
