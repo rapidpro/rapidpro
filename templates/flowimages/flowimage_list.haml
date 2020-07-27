@@ -133,10 +133,12 @@
                           %td.flowimage.checkbox.object-row-checkbox
                             .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox
                         %td.value-text.field_name
-                          {{ object.contact|name_or_urn:user_org }}
+                          %span
+                            {{ object.contact|name_or_urn:user_org }}
                         -if not current_object.flow_type
                           %td.value-text.field_name{'style': 'text-align: center'}
-                            {{ object.flow.name }}
+                            %span
+                              {{ object.flow.name }}
                         %td.value-text.field_name{'style': 'text-align: center; min-width: 50px'}
                           -if object.is_playable
                             %a.attachment-preview{
@@ -199,6 +201,15 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    td:hover {
+      overflow: visible;
+    }
+
+    td:hover span {
+      position: relative;
+      background-color: white;
     }
 
     tr.flowimages th {
