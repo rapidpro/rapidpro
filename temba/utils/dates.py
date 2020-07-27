@@ -111,6 +111,9 @@ def str_to_date(date_str, dayfirst=True):
         else:
             parsed = _date_from_formats(date_str, DD_MM_YYYY, 2, 1, 3)
 
+    if not parsed:
+        parsed = _date_from_formats(date_str, DD_MM_YYYY, 2, 1, 3)
+
     return parsed
 
 
