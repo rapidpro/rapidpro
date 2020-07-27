@@ -904,6 +904,15 @@ class OrgTest(TembaTest):
         # only superuser
         self.login(self.superuser)
 
+        response = self.client.get(manage_url + "?flagged=1")
+        self.assertFalse(self.org in response.context["object_list"])
+
+        response = self.client.get(manage_url + "?anon=1")
+        self.assertFalse(self.org in response.context["object_list"])
+
+        response = self.client.get(manage_url + "?suspended=1")
+        self.assertFalse(self.org in response.context["object_list"])
+
         response = self.client.get(manage_url)
         self.assertEqual(200, response.status_code)
         self.assertNotContains(response, "(Flagged)")
@@ -914,6 +923,9 @@ class OrgTest(TembaTest):
 
         # should contain our test org
         self.assertContains(response, "Temba")
+
+        response = self.client.get(manage_url + "?flagged=1")
+        self.assertTrue(self.org in response.context["object_list"])
 
         # and can go to that org
         response = self.client.get(update_url)

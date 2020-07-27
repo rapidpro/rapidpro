@@ -94,8 +94,26 @@
     -else
       %a{class:'quick', href:'?search='} All
     |&nbsp;
-    %a{class:'quick', href:'?search="STATUS": "suspended"'}><
-      Suspended
+    -if anon_query
+      %span{class:'quick'}
+        Anonymous
+    -else
+      %a{class:'quick', href:'?anon=1'}><
+        Anonymous
+    |&nbsp;
+    -if flagged_query
+      %span{class:'quick'}
+        Flagged
+    -else
+      %a{class:'quick', href:'?flagged=1'}><
+        Flagged
+    |&nbsp;
+    -if suspended_query
+      %span{class:'quick'}
+        Suspended
+    -else
+      %a{class:'quick', href:'?suspended=1'}><
+        Suspended
 
     -for s in searches
       |
