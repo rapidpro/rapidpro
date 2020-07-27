@@ -60,7 +60,7 @@ from temba.utils.fields import (
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
 from temba.utils.uuid import uuid4
-from temba.utils.views import BaseActionForm, NonAtomicMixin
+from temba.utils.views import BulkActionMixin, NonAtomicMixin
 
 from .models import (
     ExportFlowResultsTask,
@@ -154,59 +154,6 @@ class BaseFlowForm(forms.ModelForm):
     class Meta:
         model = Flow
         fields = "__all__"
-
-
-class FlowActionForm(BaseActionForm):
-    allowed_actions = (
-        ("archive", _("Archive Flows")),
-        ("label", _("Label Messages")),
-        ("restore", _("Restore Flows")),
-    )
-
-    model = Flow
-    label_model = FlowLabel
-    has_is_active = True
-
-    class Meta:
-        fields = ("action", "objects", "label", "add")
-
-
-class FlowActionMixin(SmartListView):
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        user = self.request.user
-        org = user.get_org()
-
-        form = FlowActionForm(self.request.POST, org=org, user=user)
-
-        toast = None
-        ignored = []
-        if form.is_valid():
-            changed = form.execute().get("changed")
-            for flow in form.cleaned_data["objects"]:
-                if flow.id not in changed:
-                    ignored.append(flow.name)
-
-            if form.cleaned_data["action"] == "archive" and ignored:
-                if len(ignored) > 1:
-                    toast = _(
-                        "%s are used inside a campaign. To archive them, first remove them from your campaigns."
-                        % " and ".join(ignored)
-                    )
-                else:
-                    toast = _(
-                        "%s is used inside a campaign. To archive it, first remove it from your campaigns."
-                        % ignored[0]
-                    )
-
-        response = self.get(request, *args, **kwargs)
-
-        if toast:
-            response["Temba-Toast"] = toast
-
-        return response
 
 
 class PartialTemplate(SmartTemplateView):  # pragma: no cover
@@ -833,7 +780,7 @@ class FlowCRUDL(SmartCRUDL):
             )
             return {"type": file.content_type, "url": f"{settings.STORAGE_URL}/{url}"}
 
-    class BaseList(FlowActionMixin, OrgQuerysetMixin, OrgPermsMixin, SmartListView):
+    class BaseList(OrgQuerysetMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         title = _("Flows")
         refresh = 10000
         fields = ("name", "modified_on")
@@ -848,7 +795,6 @@ class FlowCRUDL(SmartCRUDL):
             context["labels"] = self.get_flow_labels()
             context["campaigns"] = self.get_campaigns()
             context["request_url"] = self.request.path
-            context["actions"] = self.actions
 
             # decorate flow objects with their run activity stats
             for flow in context["object_list"]:
@@ -875,6 +821,21 @@ class FlowCRUDL(SmartCRUDL):
             return (
                 events.values("campaign__name", "campaign__id").annotate(count=Count("id")).order_by("campaign__name")
             )
+
+        def apply_bulk_action(self, user, action, objects, label):
+            super().apply_bulk_action(user, action, objects, label)
+
+            if action == "archive":
+                ignored = objects.filter(is_archived=False)
+                if ignored:
+                    flow_names = ", ".join([f.name for f in ignored])
+                    raise forms.ValidationError(
+                        _("The following flows are still used by campaigns so could not be archived: %(flows)s"),
+                        params={"flows": flow_names},
+                    )
+
+        def get_bulk_action_labels(self):
+            return self.get_user().get_org().flow_labels.all()
 
         def get_flow_labels(self):
             labels = []
@@ -905,7 +866,7 @@ class FlowCRUDL(SmartCRUDL):
             ]
 
     class Archived(BaseList):
-        actions = ("restore",)
+        bulk_actions = ("restore",)
         default_order = ("-created_on",)
 
         def derive_queryset(self, *args, **kwargs):
@@ -913,7 +874,7 @@ class FlowCRUDL(SmartCRUDL):
 
     class List(BaseList):
         title = _("Flows")
-        actions = ("archive", "label")
+        bulk_actions = ("archive", "label")
 
         def derive_queryset(self, *args, **kwargs):
             queryset = super().derive_queryset(*args, **kwargs)
@@ -929,7 +890,7 @@ class FlowCRUDL(SmartCRUDL):
             return queryset
 
     class Campaign(BaseList, OrgObjPermsMixin):
-        actions = ["label"]
+        bulk_actions = ("label",)
         campaign = None
 
         @classmethod
@@ -969,7 +930,7 @@ class FlowCRUDL(SmartCRUDL):
 
     class Filter(BaseList, OrgObjPermsMixin):
         add_button = True
-        actions = ("label",)
+        bulk_actions = ("label",)
 
         def get_gear_links(self):
             links = []

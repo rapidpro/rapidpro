@@ -4,7 +4,7 @@ from django.contrib.auth.models import Group
 from django.test.utils import override_settings
 from django.urls import reverse
 
-from temba.tests import CRUDLTestMixin, TembaTest
+from temba.tests import CRUDLTestMixin, TembaTest, mock_mailroom
 
 from .models import Ticket, Ticketer
 from .types import reload_ticketer_types
@@ -58,7 +58,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             status=status,
         )
 
-    def test_open(self):
+    @mock_mailroom
+    def test_open(self, mr_mocks):
         open_url = reverse("tickets.ticket_open")
 
         ticket1 = self.create_ticket("Ticket 1", "Where are my cookies?", "O")
@@ -74,12 +75,28 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, reverse("tickets.ticket_filter", args=[self.zendesk.uuid]))
 
         # can close tickets with an action POST
-        with patch("temba.mailroom.client.MailroomClient.ticket_close") as mock_close:
-            self.requestView(open_url, self.admin, post_data={"action": "close", "objects": [ticket2.id]})
+        response = self.requestView(open_url, self.admin, post_data={"action": "close", "objects": [ticket2.id]})
+        self.assertEqual(200, response.status_code)
 
-        mock_close.assert_called_once_with(self.org.id, [ticket2.id])
+        ticket1.refresh_from_db()
+        ticket2.refresh_from_db()
 
-    def test_closed(self):
+        self.assertEqual("O", ticket1.status)
+        self.assertEqual("C", ticket2.status)
+
+        # unless you're only a user
+        response = self.requestView(open_url, self.user, post_data={"action": "close", "objects": [ticket1.id]})
+        self.assertEqual(403, response.status_code)
+
+        # return generic error as a toast if mailroom blows up (actual mailroom error will be logged to sentry)
+        mr_mocks.error("boom!")
+
+        response = self.requestView(open_url, self.admin, post_data={"action": "close", "objects": [ticket1.id]})
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("An error occurred while making your changes. Please try again.", response["Temba-Toast"])
+
+    @mock_mailroom
+    def test_closed(self, mr_mocks):
         closed_url = reverse("tickets.ticket_closed")
 
         # still see closed tickets for deleted ticketers
@@ -100,10 +117,18 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotContains(response, reverse("tickets.ticket_filter", args=[self.zendesk.uuid]))
 
         # can reopen tickets with an action POST
-        with patch("temba.mailroom.client.MailroomClient.ticket_reopen") as mock_reopen:
-            self.requestView(closed_url, self.admin, post_data={"action": "reopen", "objects": [ticket1.id]})
+        response = self.requestView(closed_url, self.admin, post_data={"action": "reopen", "objects": [ticket1.id]})
+        self.assertEqual(200, response.status_code)
 
-        mock_reopen.assert_called_once_with(self.org.id, [ticket1.id])
+        ticket1.refresh_from_db()
+        ticket2.refresh_from_db()
+
+        self.assertEqual("O", ticket1.status)
+        self.assertEqual("C", ticket2.status)
+
+        # unless you're only a user
+        response = self.requestView(closed_url, self.user, post_data={"action": "reopen", "objects": [ticket2.id]})
+        self.assertEqual(403, response.status_code)
 
     def test_filter(self):
         filter_url = reverse("tickets.ticket_filter", args=[self.mailgun.uuid])

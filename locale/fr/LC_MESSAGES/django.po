@@ -12,7 +12,11 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
+<<<<<<< HEAD
 "POT-Creation-Date: 2020-06-18 17:55+0000\n"
+=======
+"POT-Creation-Date: 2020-07-20 18:24+0000\n"
+>>>>>>> master
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2491,9 +2495,6 @@ msgstr "Jeton d'accès au serveur de votre application"
 msgid "Unable to access wit.ai with credentials, please check and try again"
 msgstr "Impossible d'accéder à wit.ai avec les informations d'identification, veuillez vérifier et réessayer"
 
-msgid "Unable to get intent entity, make sure you have at least one intent defined"
-msgstr "Impossible d'obtenir l'entité d'intention, assurez-vous d'avoir défini au moins une intention"
-
 msgid "Connect"
 msgstr "Connecter"
 
@@ -2742,24 +2743,6 @@ msgstr "Bloqué"
 
 msgid "Stopped"
 msgstr "Stoppé"
-
-msgid "Add to Group"
-msgstr "Ajouter au groupe"
-
-msgid "Remove from Group"
-msgstr "Supprimer du groupe"
-
-msgid "Unblock Contacts"
-msgstr "Autoriser les contacts"
-
-msgid "Block Contacts"
-msgstr "Bloquer les contacts"
-
-msgid "Delete Contacts"
-msgstr "Supprimer des contacts"
-
-msgid "Unstop Contacts"
-msgstr "Débloquer les contacts"
 
 #, python-brace-format
 msgid "{label} for this contact"
@@ -3079,23 +3062,6 @@ msgstr "Les mot-clés \"%s\"  sont également utilisés par un autre flux"
 msgid "The keyword \"%s\" is already used for another flow"
 msgstr "Le mot-clé \"%s\" est également utilisé par un autre flux"
 
-msgid "Archive Flows"
-msgstr "Archiver les Flux"
-
-msgid "Label Messages"
-msgstr "Etiquette Messages"
-
-msgid "Restore Flows"
-msgstr "Restaurer les Flux"
-
-#, python-format
-msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
-msgstr "%s sont utilisés dans une campagne. Pour les archiver, commencez par les supprimer de vos campagnes."
-
-#, python-format
-msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
-msgstr "%s est utilisé dans une campagne. Pour l'archiver, commencez par le supprimer de vos campagnes."
-
 msgid "You don't have permission to edit this flow"
 msgstr "Vous n'êtes pas autorisé à modifier ce flux"
 
@@ -3153,6 +3119,10 @@ msgstr "Relance l'appel trois fois pour l'intervalle choisi"
 
 msgid "Flows"
 msgstr "flux"
+
+#, python-format
+msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
+msgstr ""
 
 msgid "Contact Name"
 msgstr " Nom du Contact"
@@ -3711,18 +3681,6 @@ msgstr "Messages planifiés"
 
 msgid "You must add a phone number before sending messages"
 msgstr "Vous devez ajouter un numéro de téléphone avant d'envoyer des messages"
-
-msgid "Archive Messages"
-msgstr "Messages Archivés"
-
-msgid "Move to Inbox"
-msgstr "Déplacer vers la Boîte de Réception"
-
-msgid "Resend Messages"
-msgstr "Renvoyer Messages"
-
-msgid "Delete Messages"
-msgstr "Messages Supprimés"
 
 msgid "Which channel will deliver the message"
 msgstr "Quel channel livrera le message"
@@ -4292,7 +4250,31 @@ msgstr "activer"
 msgid "Two Factor Authentication"
 msgstr "Authentification à deux facteurs"
 
+<<<<<<< HEAD
 msgid "Select your Organization"
+=======
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Workspaces"
+msgstr "Choisissez votre Organisation"
+
+msgid "Dashboard"
+msgstr "Tableau de bord"
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "New Workspace"
+msgstr "Choisissez votre Organisation"
+
+#, fuzzy
+#| msgid "Purchased Credits"
+msgid "Transfer Credits"
+msgstr "Crédits achetés"
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Select your Workspace"
+>>>>>>> master
 msgstr "Choisissez votre Organisation"
 
 msgid "No organizations for this account, please contact your administrator."
@@ -4744,12 +4726,6 @@ msgstr "Le canal auquel appliquer ce déclencheur, laissez vide pour tous les ca
 msgid "The referrer id that will trigger us"
 msgstr "L'identifiant de référence qui nous déclenchera"
 
-msgid "Archive Triggers"
-msgstr "Archiver Déclencheurs"
-
-msgid "Restore Triggers"
-msgstr "Restaurer les Déclencheurs"
-
 msgid "Create Trigger"
 msgstr "Créer des declencheurs"
 
@@ -4846,17 +4822,10 @@ msgstr "0 secondes"
 msgid ", "
 msgstr ","
 
-msgid "Sorry you have no permission for this action."
-msgstr "Désolé vous n'avez pas la permission pour cette action."
-
-msgid "Must specify a label"
-msgstr "Vous devez spécifier une étiquette"
-
-msgid "Missing label"
-msgstr "Étiquette manquant"
-
-msgid "Oops, so sorry. Something went wrong!"
-msgstr "Oups, désolé. Quelque chose s'est mal passé!"
+#, fuzzy
+#| msgid "An error occurred updating your contact. Please try again later."
+msgid "An error occurred while making your changes. Please try again."
+msgstr "Une erreur s'est produite lors de la mise à jour de votre contact. Veuillez réessayer plus tard."
 
 msgid "Date & Time"
 msgstr "Date & Heure"
@@ -6852,6 +6821,9 @@ msgstr "Créer un contact"
 msgid "Create Group"
 msgstr "Créer un groupe"
 
+msgid "Remove from Group"
+msgstr "Supprimer du groupe"
+
 msgid "New Group..."
 msgstr "Nouveau groupe..."
 
@@ -6880,6 +6852,9 @@ msgstr "Pas de contacts correspondants."
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr "La navigation dans les recherches est limitée à 10 000 résultats. Si vous souhaitez parcourir tous les résultats, veuillez enregistrer cette recherche en tant que groupe."
+
+msgid "Delete Contacts"
+msgstr "Supprimer des contacts"
 
 msgid "Are you sure you want to delete these contacts?"
 msgstr "Êtes-vous sûr de vouloir supprimer ces contacts?"
@@ -7292,6 +7267,11 @@ msgstr ""
 
 msgid "Delete Flow"
 msgstr "Supprimer le flux"
+
+#, fuzzy
+#| msgid "Update Folder"
+msgid "Update Flow"
+msgstr "Mettre à jour le dossier"
 
 msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
 msgstr "Le nouvel éditeur fournit de nouvelles fonctionnalités puissantes et de meilleures performances, mais veuillez noter que cela ne peut pas être annulé."
@@ -8784,11 +8764,18 @@ msgstr ""
 msgid "Your organization is configured to use a single language."
 msgstr "Votre organisation est configurée pour utiliser une seule langue."
 
+<<<<<<< HEAD
 msgid "Organizations"
 msgstr "Organisations"
 
 msgid "Accounts"
 msgstr "Comptes"
+=======
+#, fuzzy
+#| msgid "Login"
+msgid "Logins"
+msgstr "S'identifier"
+>>>>>>> master
 
 msgid "Admins"
 msgstr "Admins"
@@ -8989,7 +8976,23 @@ msgstr ""
 msgid "Manage Organizations"
 msgstr "Gérer les organisations"
 
+<<<<<<< HEAD
 #, python-format
+=======
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Add Workspace"
+msgstr "Choisissez votre Organisation"
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "      To get started submitting surveys for %(org)s, download the %(brandname)s Surveyor app from\n"
+#| "      Google Play. After you install the Surveyor app on your Android phone, simply login with the same\n"
+#| "      account you use to login to %(brandname)s.\n"
+#| "\n"
+#| "    "
+>>>>>>> master
 msgid ""
 "\n"
 "      To get started submitting surveys for %(org)s, download the %(brandname)s Surveyor app from\n"
@@ -10602,6 +10605,208 @@ msgstr "Entrez une requête"
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
 
+<<<<<<< HEAD
+=======
+#, fuzzy, python-format
+#~| msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
+#~ msgid "%(flow)s is used inside a campaign. To archive it, first remove it from your campaigns."
+#~ msgstr "%s est utilisé dans une campagne. Pour l'archiver, commencez par le supprimer de vos campagnes."
+
+#, fuzzy, python-format
+#~| msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
+#~ msgid "%(flows)s are used inside a campaign. To archive them, first remove them from your campaigns."
+#~ msgstr "%s sont utilisés dans une campagne. Pour les archiver, commencez par les supprimer de vos campagnes."
+
+#~ msgid "Oops, so sorry. Something went wrong!"
+#~ msgstr "Oups, désolé. Quelque chose s'est mal passé!"
+
+#~ msgid "Unable to get intent entity, make sure you have at least one intent defined"
+#~ msgstr "Impossible d'obtenir l'entité d'intention, assurez-vous d'avoir défini au moins une intention"
+
+#~ msgid "Add to Group"
+#~ msgstr "Ajouter au groupe"
+
+#~ msgid "Unblock Contacts"
+#~ msgstr "Autoriser les contacts"
+
+#~ msgid "Block Contacts"
+#~ msgstr "Bloquer les contacts"
+
+#~ msgid "Unstop Contacts"
+#~ msgstr "Débloquer les contacts"
+
+#~ msgid "Archive Flows"
+#~ msgstr "Archiver les Flux"
+
+#~ msgid "Label Messages"
+#~ msgstr "Etiquette Messages"
+
+#~ msgid "Restore Flows"
+#~ msgstr "Restaurer les Flux"
+
+#~ msgid "Archive Messages"
+#~ msgstr "Messages Archivés"
+
+#~ msgid "Move to Inbox"
+#~ msgstr "Déplacer vers la Boîte de Réception"
+
+#~ msgid "Resend Messages"
+#~ msgstr "Renvoyer Messages"
+
+#~ msgid "Delete Messages"
+#~ msgstr "Messages Supprimés"
+
+#~ msgid "Sorry you have no permission for this action."
+#~ msgstr "Désolé vous n'avez pas la permission pour cette action."
+
+#~ msgid "Must specify a label"
+#~ msgstr "Vous devez spécifier une étiquette"
+
+#~ msgid "Missing label"
+#~ msgstr "Étiquette manquant"
+
+#~ msgid "Archive Triggers"
+#~ msgstr "Archiver Déclencheurs"
+
+#~ msgid "Restore Triggers"
+#~ msgstr "Restaurer les Déclencheurs"
+
+#, fuzzy
+#~| msgid "The name of the Facebook page"
+#~ msgid "Connect Facebook page"
+#~ msgstr "Le nom de la page Facebook"
+
+#, fuzzy
+#~| msgid "Your app's server access token"
+#~ msgid "Empty user access token!"
+#~ msgstr "Jeton d'accès au serveur de votre application"
+
+#, python-brace-format
+#~ msgid "Unrecognized field: '{prop}'"
+#~ msgstr "Champ non reconnu: '{prop}'"
+
+#, python-brace-format
+#~ msgid "f'{val}' isn't a valid number"
+#~ msgstr "f'{val}' n'est pas un numéro valide"
+
+#, python-brace-format
+#~ msgid "Unknown text comparator: '{self.comparator}'"
+#~ msgstr "Comparateur de texte inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unknown number comparator: '{self.comparator}'"
+#~ msgstr "Comparateur de nombre inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unable to parse the date '{self.value}'"
+#~ msgstr "Impossible d'analyser la date '{self.value}'"
+
+#, python-brace-format
+#~ msgid "Unknown datetime comparator: '{self.comparator}'"
+#~ msgstr "Comparateur de date/heure inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unknown location type: '{field.value_type}'"
+#~ msgstr "Type d'emplacement inconnu: '{field.value_type}'"
+
+#, python-brace-format
+#~ msgid "Unsupported comparator '{self.comparator}' for location field"
+#~ msgstr "Comparateur non pris en charge '{self.comparator}' pour le champ de localisation"
+
+#, python-brace-format
+#~ msgid "Unrecognized contact field type '{field.value_type}'"
+#~ msgstr "Type de champ de contact non reconnu '{field.value_type}'"
+
+#, python-brace-format
+#~ msgid "Unknown urn scheme comparator: '{self.comparator}'"
+#~ msgstr "Comparateur de schéma URN inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unknown language comparator: '{self.comparator}'"
+#~ msgstr "Comparateur de langue inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unknown created_on comparator: '{self.comparator}'"
+#~ msgstr "Comparateur created_on inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "Unknown name comparator: '{self.comparator}'"
+#~ msgstr "Comparateur de nom inconnu: '{self.comparator}'"
+
+#, python-brace-format
+#~ msgid "No support for attribute field: '{field}'"
+#~ msgstr "Pas de support pour le champ d'attribut: '{field}'"
+
+#, python-brace-format
+#~ msgid "Unrecognized contact field type '{prop_type}'"
+#~ msgstr "Type de champ de contact non reconnu '{prop_type}'"
+
+#~ msgid "Invalid operator for empty string comparison"
+#~ msgstr "Opérateur non valide pour la comparaison de chaîne vide"
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "    Sorry, importing has not been enabled on your account.\n"
+#~| "  "
+#~ msgid ""
+#~ "\n"
+#~ "    Sorry, importing has not been enabled on your workspace.\n"
+#~ "  "
+#~ msgstr ""
+#~ "\n"
+#~ "    Désolé, l'importation n'a pas été activée sur votre compte.\n"
+#~ "  "
+
+#~ msgid "Sorry, import is a premium feature"
+#~ msgstr "Désolé, l'importation est une fonctionnalité de la version premium"
+
+#~ msgid "Manage Accounts"
+#~ msgstr "Gérer les comptes"
+
+#~ msgid "Organizations"
+#~ msgstr "Organisations"
+
+#~ msgid "Manage Organizations"
+#~ msgstr "Gérer les organisations"
+
+#~ msgid "Organization"
+#~ msgstr "Organisation"
+
+#~ msgid "Create Organization Account"
+#~ msgstr "Créer un compte d'organisation"
+
+#~ msgid "From Organization"
+#~ msgstr "De l'organisation"
+
+#~ msgid "To Organization"
+#~ msgstr "À l'organisation"
+
+#~ msgid "Accounts"
+#~ msgstr "Comptes"
+
+#~ msgid "Create Account"
+#~ msgstr "Créer un compte"
+
+#~ msgid "ACCOUNT"
+#~ msgstr "COMPTE"
+
+#~ msgid "Delete Organization"
+#~ msgstr "Supprimer l'organisation"
+
+#~ msgid "Delete User"
+#~ msgstr "Supprimer l'utilisateur"
+
+#~ msgid "The name of your organization"
+#~ msgstr "Le nom de votre organisation"
+
+#~ msgid "The name of the new organization"
+#~ msgstr "Le nom de la nouvelle organisation"
+
+#~ msgid "Your organization's timezone"
+#~ msgstr "Le fuseau horaire de votre organisation"
+
+>>>>>>> master
 #~ msgid "Whitelist"
 #~ msgstr "Liste blanche"
 

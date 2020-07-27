@@ -75,6 +75,10 @@ html {
   --color-label-secondary: rgba(0, 0, 0, 0.2);
   --color-label-secondary-text: rgba(255, 255, 255, 0.9);
 
+  --color-nav-unselected: #fff;
+  --color-nav-selected-bg: #fff;
+  --color-nav-selected-text: var(--color-primary-dark);
+
   --color-info: #c0d9eb;
   --color-warning: #fff6c0;
   --color-error: rgb(var(--error-rgb));

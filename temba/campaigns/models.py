@@ -185,8 +185,6 @@ class Campaign(TembaModel):
         for campaign in campaigns:
             EventFire.update_campaign_events(campaign)
 
-        return [each_campaign.pk for each_campaign in campaigns]
-
     @classmethod
     def apply_action_restore(cls, user, campaigns):
         campaigns.update(is_archived=False, modified_by=user, modified_on=timezone.now())
@@ -195,8 +193,6 @@ class Campaign(TembaModel):
         for campaign in campaigns:
             Campaign.restore_flows(campaign)
             EventFire.update_campaign_events(campaign)
-
-        return [each_campaign.pk for each_campaign in campaigns]
 
     def get_events(self):
         return self.events.filter(is_active=True).order_by("relative_to", "offset")

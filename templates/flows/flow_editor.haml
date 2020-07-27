@@ -88,7 +88,7 @@
     // Editing the flow
     {% if org_perms.flows.flow_update %}
     $(".update-rulesflow").live('click', function(){
-      var modal = new Modax('Update Flow', '{% url "flows.flow_update" object.pk %}');
+      var modal = new Modax('{{_("Update Flow")|escapejs }}', '{% url "flows.flow_update" object.pk %}');
       modal.setIcon('icon-users-2');
       modal.setListeners({
         onSuccess: function(data) {location.reload(); },
