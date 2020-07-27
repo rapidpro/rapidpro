@@ -270,7 +270,6 @@ a {
 
 .cap-label {
   @apply uppercase font-normal text-sm text-gray-600 tracking-wide;
-
 }
 
 .page-content {
@@ -279,6 +278,24 @@ a {
 
 .table-header {
   @apply border-b border-gray-300 bg-gray-200 text-left font-medium uppercase text-xs tracking-wider
+}
+
+.page-title {
+  @apply text-3xl text-gray-700
+}
+
+.page-subtitle {
+  @apply text-2xl text-gray-500
+}
+
+.title {
+  @apply text-2xl text-gray-700 mb-1
+}
+
+table.padded {
+  td {
+    @apply p-3
+  }
 }
 
 table.list {
@@ -321,7 +338,7 @@ table.list {
     }
 
     tbody tr td {
-      @apply border-none py-0 overflow-hidden h-0;
+      @apply py-0 overflow-hidden h-0;
       border: 0px;
     }
 
@@ -498,7 +515,7 @@ table.list {
       }
 
       &.lower {
-        @apply rounded-lg p-3 pr-4 w-64 mt-4 bg-gray-100;
+        @apply rounded-lg p-3 pr-4 w-64 mt-4 bg-white;
       }
 
       .inner-scroll {
@@ -534,7 +551,11 @@ table.list {
 .warning {}
 
 code {
-  @apply px-4 py-2 shadow;
+  @apply px-2 py-1 mx-2 shadow rounded-lg;
+}
+
+.card {
+  @apply rounded-lg border py-6 px-6 shadow my-4 bg-white
 }
 
 .help-text {

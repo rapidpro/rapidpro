@@ -429,7 +429,14 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Global keyword triggers"),
                 help_text=_("When a user sends any of these keywords they will begin this flow"),
                 widget=SelectWidget(
-                    attrs={"widget_only": False, "multi": True, "searchable": True, "tags": True, "space_select": True}
+                    attrs={
+                        "widget_only": False,
+                        "multi": True,
+                        "searchable": True,
+                        "tags": True,
+                        "space_select": True,
+                        "placeholder": _("Select keywords to tirgger this flow"),
+                    }
                 ),
             )
 

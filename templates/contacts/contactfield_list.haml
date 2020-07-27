@@ -56,7 +56,7 @@
               %temba-modax{ id:'uses-{{obj.id}}', header:'{% trans "Field Details" %}', endpoint:"{% url 'contacts.contactfield_detail' obj.id %}" }
 
           - block table
-            %table.list{ class:'{% get_list_class object_list %}', cellspacing:'0'}
+            %table.list.lined{ class:'{% get_list_class object_list %}', cellspacing:'0'}
               %thead
                 %tbody#draggable-tbody
                   - for obj in object_list

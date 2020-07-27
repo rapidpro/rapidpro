@@ -103,7 +103,7 @@
             %td
               .whitespace-no-wrap.pr-12.contact-field
                 .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
-                  .mr-1.leading-none.text-gray-300{class:"glyph {{urn|urn_icon}}", style:"margin-top: -1px; font-size:14px"}
+                  .mr-1.leading-none.text-gray-500{class:"glyph {{urn|urn_icon}}", style:"margin-top: -1px; font-size:14px"}
                   -if urn.scheme == 'mailto'
                     -trans "Email"
                   -else
@@ -189,7 +189,7 @@
       %a.pull-right.show-all.upcoming
         more
 
-  %table.list.activity.history.mt-6.light.lined
+  %table.list.activity.history.mt-6.lined
     %thead
       %th(colspan="2")
         -trans "History"
@@ -389,7 +389,6 @@
             border: 0px solid;
             text-align:right;
             min-width: 150px;
-            padding-right: 0px;
             
             .time {
               margin-right: 0px;

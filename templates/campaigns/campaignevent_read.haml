@@ -29,6 +29,10 @@
     {{object.abs_offset}} {{object.get_unit_display|slice:"-1"}}{{object.offset|pluralize}} After
   {{object.relative_to|title}}
 
+  .mt-2
+    -if object.campaign.group.is_active
+      .lbl-group.linked(onclick="goto(event)" href="{% url 'contacts.contact_filter' object.campaign.group.uuid %}")
+        {{object.campaign.group.name}}
 
 -block content
   .event-details.p-4.bg-gray-100.rounded-lg.mb-6

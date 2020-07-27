@@ -1159,7 +1159,7 @@ class ContactCRUDL(SmartCRUDL):
                     links.append(
                         dict(
                             title=_("Block"),
-                            style="btn-primary",
+                            style="button-primary",
                             js_class="posterize",
                             href=reverse("contacts.contact_block", args=(self.object.pk,)),
                         )
@@ -1169,7 +1169,7 @@ class ContactCRUDL(SmartCRUDL):
                     links.append(
                         dict(
                             title=_("Unblock"),
-                            style="btn-primary",
+                            style="button-primary",
                             js_class="posterize",
                             href=reverse("contacts.contact_unblock", args=(self.object.pk,)),
                         )

@@ -7,14 +7,12 @@ function goto(event, ele) {
     if (!ele) {
         ele = event.target;
     }
-    console.log('goto!', ele);
 
     event.stopPropagation();
     if (ele.setActive) {
         ele.setActive();
     }
     var href = ele.getAttribute('href');
-    console.log(href, ele);
     if (href) {
         if (event.metaKey) {
             window.open(href, '_blank');

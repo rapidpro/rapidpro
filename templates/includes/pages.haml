@@ -9,7 +9,7 @@
               %a{href:"{{url_params|safe}}page={{page_obj.previous_page_number}}"}<
                 Previous
           - else 
-            .prev.disabled.mr-4.text-gray-200
+            .prev.disabled.mr-4.text-gray-300
               .icon-arrow-left-8
               Previous
 
@@ -21,7 +21,7 @@
                     %a{href:"{{url_params|safe}}page={{page_num}}"}
                       {{ page_num }}
                 - else
-                  .page-num.active.mx-3.rounded-full.bg-gray-100.px-2
+                  .page-num.active.mx-3.rounded-full.bg-gray-200.px-2
                     {{ page_num }}
 
             - elif page_num < page_obj.number|add:"5" and page_num > page_obj.number|add:"-5" 
@@ -30,7 +30,7 @@
                   %a{href:"{{url_params|safe}}page={{page_num}}"}
                     {{ page_num }}
               - else 
-                .page_num.active.mx-3.rounded-full.bg-gray-100.px-2
+                .page_num.active.mx-3.rounded-full.bg-gray-200.px-2
                   {{ page_num }}
 
             - elif page_obj.number > paginator.num_pages|add:"-5"
@@ -40,7 +40,7 @@
                     %a{href:"{{url_params|safe}}page={{page_num}}"}
                       {{ page_num }}
                 - else 
-                  .page-num.active.mx-3.rounded-full.bg-gray-100.px-2
+                  .page-num.active.mx-3.rounded-full.bg-gray-200.px-2
                     {{ page_num }}
 
           
@@ -50,7 +50,7 @@
                 Next
                 .icon-arrow-right-8
           - else 
-            .next.disabled.text-gray-200.ml-4
+            .next.disabled.text-gray-300.ml-4
               Next
               .icon-arrow-right-8
 

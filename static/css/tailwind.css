@@ -1660,6 +1660,26 @@ a:hover {
   letter-spacing: 0.05em
 }
 
+.page-title {
+  font-size: 1.875rem;
+  color: #4a4a4a
+}
+
+.page-subtitle {
+  font-size: 1.5rem;
+  color: #a0a0a0
+}
+
+.title {
+  font-size: 1.5rem;
+  color: #4a4a4a;
+  margin-bottom: 0.25rem
+}
+
+table.padded td {
+    padding: 0.75rem
+  }
+
 table.list {
   width: 100%;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
@@ -1696,7 +1716,6 @@ table.list.toggle thead tr th:last-child::after {
             }
 
 table.list.toggle tbody tr td {
-      border-style: none;
       padding-top: 0;
       padding-bottom: 0;
       overflow: hidden;
@@ -1856,7 +1875,7 @@ table.list.selectable tbody tr.checked td:hover {
         padding-right: 1rem;
         width: 16rem;
         margin-top: 1rem;
-        background-color: #f7f7f7;
+        background-color: #fff;
       }
 
 .lp-frame .left .lp-nav .inner-scroll {
@@ -1921,11 +1940,27 @@ table.list.selectable tbody tr.checked td:hover {
 }
 
 code {
-  padding-left: 1rem;
-  padding-right: 1rem;
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  margin-left: 0.5rem;
+  margin-right: 0.5rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border-radius: 0.5rem;
+}
+
+.card {
+  border-radius: 0.5rem;
+  border-width: 1px;
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  background-color: #fff
 }
 
 .help-text {

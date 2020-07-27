@@ -16,7 +16,7 @@
       -if link.modax
         %temba-modax{ header:'{{link.modax}}', endpoint:"{{link.href}}", id:"{{link.id}}"}
 
-    #gear-container.flex.items-center
+    #gear-container.flex.items-center.text-gray-700
       -if gear_links|length == 1
         -with link=gear_links|first
           -if link.modax

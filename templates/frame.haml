@@ -217,10 +217,10 @@
         -block page-top
           .flex.items-start
             .flex.flex-col.mr-5.leading-tight
-              .text-title
+              .page-title
                 -block title
-                  {{title}}
-              .text-subtitle
+                  
+              .page-subtitle
                 -block subtitle
 
             .flex-grow
@@ -236,7 +236,7 @@
         
         -block post-content
 
-    .text-center.py-16.bg-gray-100.text-gray-500
+    .text-center.py-12.text-gray-400
       {{ request.branding.credits|safe }}
 
   -trans 'Delete' as title
@@ -387,7 +387,7 @@
         $(".posterize").click(function(event){
           event.preventDefault();
           event.stopPropagation();
-          handlePosterize(ele);
+          handlePosterize(event.target);
         });
 
 

@@ -6,13 +6,15 @@
   -if object.is_archived
     -trans "(Archived)"
 
+-block title
+  {{object.name}}
+
 -block subtitle
   .flex.flex-col
     .summary
       -if object.group.is_active
-        Events for the
-        %a{href:"{% url 'contacts.contact_filter' object.group.uuid %}"}= object.group.name
-        group
+        .lbl-group.linked(onclick="goto(event)" href="{% url 'contacts.contact_filter' object.group.uuid %}")
+          {{object.group.name}}
       -else
         -trans "No group assigned to this campaign"
 

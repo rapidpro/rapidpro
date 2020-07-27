@@ -2,6 +2,8 @@ from django.conf.urls import url
 from django.contrib.sitemaps.views import sitemap
 from django.views.decorators.csrf import csrf_exempt
 
+from temba.settings import DEBUG
+
 from .sitemaps import PublicViewSitemap, VideoSitemap
 from .views import (
     Android,
@@ -12,6 +14,7 @@ from .views import (
     LeadCRUDL,
     LeadViewer,
     OrderStatus,
+    Style,
     VideoCRUDL,
     Welcome,
     WelcomeRedirect,
@@ -30,6 +33,10 @@ urlpatterns = [
     url(r"^demo/status/$", csrf_exempt(OrderStatus.as_view()), {}, "demo.order_status"),
     url(r"^demo/coupon/$", csrf_exempt(GenerateCoupon.as_view()), {}, "demo.generate_coupon"),
 ]
+
+if DEBUG:
+    urlpatterns.append(url(r"^style/$", Style.as_view(), {}, "public.public_style")),
+
 
 urlpatterns += LeadCRUDL().as_urlpatterns()
 urlpatterns += LeadViewer().as_urlpatterns()

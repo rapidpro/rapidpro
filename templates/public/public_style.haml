@@ -1,0 +1,130 @@
+-extends "frame.haml"
+
+-block title
+  Style Guide
+
+-block subtitle
+  Canonical record for how things should look
+
+
+-block content
+  
+  .title.mt-2
+    Title weighted text
+
+  .card
+      .page-title
+        Page Title
+    .mt-2
+      .page-subtitle
+        Page Subtitle
+    .mt-2
+      .title
+        Internal Title
+    .mt-2
+      .cap-label
+        Column Header
+
+  .title.mt-8
+    Buttons
+  
+  .mt-4
+    %table.list.lined
+
+      %thead
+        %tr
+          %th
+            Button Type
+          %th
+            Usage
+
+      %tbody
+        %tr
+          %td
+            .button-primary
+              Primary Button
+          %td
+            Primary action to be taken on a given page. There should only be one primary button on a page at a time.
+        %tr
+          %td
+            .button-light
+              Light Button
+          %td
+            Most buttons are light buttons, non-primary actions to take on all pages
+
+        %tr
+          %td
+            .button-secondary
+              Secondary Button
+          %td
+            Button with the secondary color. Contrasting option, extra call to action, only one per page.
+        %tr
+          %td
+            .button-tertiary
+              Tertiary Button
+          %td
+            Button with the tertiary color. Contrasting option, extra call to action, only one per page.
+
+  .title.mt-8
+    Table Options
+  .mb-6
+    .card
+      %table.padded
+        %tr
+          %td
+            <code>.lined</code>
+          %td.w-full
+            Add lines between rows
+        %tr
+          %td
+            <code>.toggle</code>
+          %td.w-full
+            Adds hide/show functionality. 
+        %tr
+          %td
+            <code>.stateful</code>
+          %td.w-full
+            Remember toggle state on page reload.
+
+  %table.list.toggle.stateful.lined
+    
+    %thead
+      %tr
+        %th(colspan=2)
+          Expandable Table    
+    
+    %tbody
+      %tr
+        %td
+          .name
+            Joe Exotic
+        %td
+          .number
+            +1 (206) 555-1212
+      %tr
+        %td
+          .name
+            Carol Baskin
+        %td
+          .number
+            +1 (360) 555-1010
+
+  .title.mt-8
+    Form Elements
+
+  .card
+
+    %temba-textinput(name="Example" placeholder="Placeholder Text" label="My Text Input" help_text="This is here to help, I hope you can read it okay.")
+
+    .mt-6
+      %temba-textinput(textarea="true" name="Example" placeholder="Placeholder Text" label="My Textarea" help_text="This is here to help, I hope you can read it okay.")
+
+    .mt-6
+      %temba-checkbox(label="Check Me Out" help_text="This is here to help, I hope you can read it okay.")
+    
+    .mt-6
+      %temba-select(name="select" label="My Favorite Things")
+        %temba-option(name="Phish" value="phish")
+        %temba-option(name="Prismatic" value="prismatic")
+        %temba-option(name="Bicycles" value="bicycles")
+      
