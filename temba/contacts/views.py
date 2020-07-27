@@ -1582,7 +1582,6 @@ class ContactCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
                 org = user.get_org()
                 self.fields["contact_field"].queryset = org.contactfields(manager="user_fields").filter(is_active=True)
-                print(list(self.fields["contact_field"].queryset))
 
         form_class = Form
         success_url = "uuid@contacts.contact_read"
