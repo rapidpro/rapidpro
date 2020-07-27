@@ -73,7 +73,7 @@
     .repeat-period
       %p.instructions
         -render_field 'repeat_period'
-    .weekly-repeat-options{class:'{% if form.repeat_period.value == "W" %}{% else%}hide{%endif%}'}
+    .weekly-repeat-options.mb-4{class:'{% if form.repeat_period.value == "W" %}{% else%}hide{%endif%}'}
       .btn-group{'data-toggle':'buttons-checkbox'}
         #mon.btn{value:"M", class:'{% if "M" in form.repeat_days_of_week.value %}active{% endif %}'}
           -trans "Mon"

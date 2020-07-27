@@ -78,14 +78,14 @@
                             -trans "The keyword"
                             %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
                               - if org_perms.triggers.trigger_update
-                                %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}= obj.keyword
+                                .linked.inline{onclick:"updateTrigger(event, {{obj.id}})"}= obj.keyword
                               - else
                                 =obj.keyword
                           -elif obj.trigger_type == 'M'
                             A
                             %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
                               - if org_perms.triggers.trigger_update
-                                %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
+                                .linked.inline{onclick:"updateTrigger(event, {{obj.id}})"}><
                                   -trans "missed call"
                               - else
                                 -trans "missed call"
@@ -94,7 +94,7 @@
                             An
                             %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
                               - if org_perms.triggers.trigger_update
-                                %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
+                                .linked.inline{onclick:"updateTrigger(event, {{obj.id}})"}><
                                   -trans "uncaught message"
                               - else
                                 -trans "uncaught message"
@@ -103,7 +103,7 @@
                             An
                             %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
                               - if org_perms.triggers.trigger_update
-                                %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
+                                .linked.inline{onclick:"updateTrigger(event, {{obj.id}})"}><
                                   -trans "inbound call"
                               - else
                                 -trans "inbound call"
@@ -112,7 +112,7 @@
                             A new
                             %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
                               - if org_perms.triggers.trigger_update
-                                %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
+                                .linked.inline{onclick:"updateTrigger(event, {{obj.id}})"}><
                                   -trans "conversation"
                               - else
                                 -trans "conversation"
@@ -125,7 +125,7 @@
                             The referrer id
                             %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
                               - if org_perms.triggers.trigger_update
-                                %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
+                                .linked.inline{onclick:"updateTrigger(event, {{obj.id}})"}><
                                   "{{obj.referrer_id}}"
                               - else
                                 "{{obj.referrer_id}}"
@@ -145,16 +145,16 @@
                           -if obj.schedule
                             -if obj.schedule.next_fire and not obj.is_archived
                               %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
-                                - if org_perms.triggers.trigger_update
-                                  %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
+                                - if org_perms.triggers.trigger_update and false
+                                  .linked.inline{onclick:"updateTrigger(event, {{obj.id}})"}><
                                     {{ obj.schedule.get_display }}
                                 - else
                                   {{ obj.schedule.get_display }}
                             -else
                               -trans "is"
                               %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
-                                - if org_perms.triggers.trigger_update
-                                  %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}
+                                - if org_perms.triggers.trigger_update and false
+                                  .linked.inline{onclick:"updateTrigger(event, {{obj.id}})"}
                                     -trans "not scheduled"
                                 - else
                                   -trans "not scheduled"
@@ -171,15 +171,18 @@
 
                 -block paginator
                   -include "includes/pagination.haml"
-
+  
+  %temba-modax#update-trigger
 -block extra-script
   {{ block.super }}
 
   :javascript
-    $(document).on('click', '.update-trigger', function(e){
-       var modal = new Modax('{{ _("Update Trigger")|escapejs }}', '/trigger/update/' + $(this).data("object-id") + '/');
-       modal.setIcon('icon-feed');
-       modal.setRedirectOnSuccess(true);
-       modal.show();
-    });
+    function updateTrigger(event, id) {
+      event.preventDefault();
+      event.stopPropagation();
+      var modal = document.querySelector("#update-trigger");
+      modal.endpoint = '/trigger/update/' + id + '/';
+      modal.header = '{{ _("Update Trigger")|escapejs }}';
+      modal.open = true;
+    }
     

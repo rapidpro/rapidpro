@@ -19,7 +19,14 @@ from temba.orgs.views import OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.schedules.views import BaseScheduleForm
 from temba.utils import analytics, json
-from temba.utils.fields import CompletionTextarea, JSONField, OmniboxChoice, SelectWidget
+from temba.utils.fields import (
+    CompletionTextarea,
+    InputWidget,
+    JSONField,
+    OmniboxChoice,
+    SelectMultipleWidget,
+    SelectWidget,
+)
 from temba.utils.views import BaseActionForm
 
 from .models import Trigger
@@ -30,7 +37,12 @@ class BaseTriggerForm(forms.ModelForm):
     Base form for creating different trigger types
     """
 
-    flow = forms.ModelChoiceField(Flow.objects.filter(pk__lt=0), label=_("Flow"), required=True)
+    flow = forms.ModelChoiceField(
+        Flow.objects.filter(pk__lt=0),
+        label=_("Flow"),
+        required=True,
+        widget=SelectWidget(attrs={"widget_only": True, "placeholder": "Select the flow to trigger"}),
+    )
 
     def __init__(self, user, flows, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -92,16 +104,16 @@ class DefaultTriggerForm(BaseTriggerForm):
 class GroupBasedTriggerForm(BaseTriggerForm):
 
     groups = forms.ModelMultipleChoiceField(
-        queryset=ContactGroup.user_groups.filter(pk__lt=0), required=False, label=_("Only Groups")
+        queryset=ContactGroup.user_groups.filter(pk__lt=0),
+        required=False,
+        widget=SelectMultipleWidget(
+            attrs={"widget_only": True, "placeholder": _("Optional: Trigger only applies to these groups")}
+        ),
     )
 
     def __init__(self, user, flows, *args, **kwargs):
         super().__init__(user, flows, *args, **kwargs)
-
         self.fields["groups"].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
-        self.fields["groups"].help_text = _(
-            "Only apply this trigger to contacts in these groups. (leave empty to apply to all contacts)"
-        )
 
     def get_existing_triggers(self, cleaned_data):
         groups = cleaned_data.get("groups", [])
@@ -164,6 +176,7 @@ class KeywordTriggerForm(GroupBasedTriggerForm):
 
     class Meta(BaseTriggerForm.Meta):
         fields = ("keyword", "match_type", "flow", "groups")
+        widgets = {"keyword": InputWidget(), "match_type": SelectWidget()}
 
 
 class RegisterTriggerForm(BaseTriggerForm):
@@ -184,13 +197,16 @@ class RegisterTriggerForm(BaseTriggerForm):
 
             return super().clean(value)
 
-    keyword = forms.CharField(max_length=16, required=True, help_text=_("The first word of the message text"))
+    keyword = forms.CharField(
+        max_length=16, required=True, help_text=_("The first word of the message text"), widget=InputWidget()
+    )
 
     action_join_group = AddNewGroupChoiceField(
         ContactGroup.user_groups.filter(pk__lt=0),
         required=True,
         label=_("Group to Join"),
         help_text=_("The group the contact will join when they send the above keyword"),
+        widget=SelectWidget(),
     )
 
     response = forms.CharField(
@@ -217,9 +233,13 @@ class RegisterTriggerForm(BaseTriggerForm):
 
 
 class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
-    repeat_period = forms.ChoiceField(choices=Schedule.REPEAT_CHOICES, label="Repeat", required=False)
+    repeat_period = forms.ChoiceField(
+        choices=Schedule.REPEAT_CHOICES, label="Repeat", required=False, widget=SelectWidget()
+    )
     repeat_days_of_week = forms.CharField(required=False)
-    start = forms.ChoiceField(choices=(("stop", "Stop Schedule"), ("later", "Schedule for later")))
+    start = forms.ChoiceField(
+        choices=(("stop", "Stop Schedule"), ("later", "Schedule for later")), widget=SelectWidget()
+    )
     start_datetime_value = forms.IntegerField(required=False)
     flow = forms.ModelChoiceField(
         Flow.objects.filter(pk__lt=0),

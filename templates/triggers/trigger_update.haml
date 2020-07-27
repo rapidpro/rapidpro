@@ -47,6 +47,8 @@
       -trans "Create a message keyword that allows people to join a group."
 
 -block fields
+  %script{src:"{{ STATIC_URL }}js/schedules-ui.js"}
+  %script{src:"{{ STATIC_URL }}js/temba.js"}
 
   -load smartmin
   -if object.schedule
@@ -101,83 +103,45 @@
       {{block.super}}
 
 
--block extra-style
-  {{block.super}}
-  :css
-    #id_action_join_group {
-      width: 100%;
-    }
-
-    #schedule-options {
-      margin-top: 10px;
-    }
-
 -block modal-script
-  {{block.super}}
-  %script{src:"{{ STATIC_URL }}js/schedules-ui.js"}
-
   :javascript
-    var user_tz = "{{ user_tz }}";
-    var user_tz_offset = {{ user_tz_offset }};
+    {{block.super}}
 
-    $(document).ready(function() {
+    window.addEventListener("DOMContentLoaded", function(){
 
-      {% if object.trigger_type == 'C' %}
-        select2div("#id_catchall_flow", "520px", '{{ _("Flow to start")|escapejs }}');
-        $("#id_groups").select2({ containerCssClass: "select2-temba-field" })
-      {% endif %}
+      var user_tz = "{{ user_tz }}";
+      var user_tz_offset = {{ user_tz_offset }};
 
-      {% if object.trigger_type == 'M' %}
-        select2div("#id_missedcall_flow", "520px", '{{ _("Flow to start")|escapejs }}');
-      {% endif %}
+      $(document).ready(function() {
 
-      {% if object.trigger_type == 'N' %}
-        select2div("#id_channel", "520px", '{{ _("Social media channel")|escapejs }}');
-      {% endif %}
+        // this initialize day in the modal
+        day = getStartTime().day();
 
-      {% if object.trigger_type == 'R' %}
-        select2div("#id_channel", "520px", '{{ _("Facebook Channel")|escapejs }}');
-      {% endif %}
+        var minDate = new Date();
+        var minutes = minDate.getMinutes();
+        if (minutes > 0) {
+          minDate.setMinutes(0);
+          minDate.setHours(minDate.getHours() + 1);
+        }
 
-      {% if object.trigger_type == 'K' or object.trigger_type == 'V' %}
-        $('#id_groups').select2({ containerCssClass: "select2-temba-field" });
-      {% endif %}
-
-      $('select#id_flow').select2({
-        minimumResultsForSearch: -1
-      });
-
-      $('#id_match_type').select2({
-        containerCssClass: "select2-temba-field",
-        minimumResultsForSearch: -1
-      });
-
-      // this initialize day in the modal
-      day = getStartTime().day();
-
-      var minDate = new Date();
-      var minutes = minDate.getMinutes();
-      if (minutes > 0) {
-        minDate.setMinutes(0);
-        minDate.setHours(minDate.getHours() + 1);
-      }
-
-      {% if object.schedule.next_fire and object.schedule.next_fire|timeuntil != "0 minutes" %}
-        // honor our form value if we have a validation failure
-        {% if form.start_datetime_value.value %}
-          initializeDatetimePicker(minDate, new Date({{form.start_datetime_value.value}} * 1000));
+        {% if object.schedule.next_fire and object.schedule.next_fire|timeuntil != "0 minutes" %}
+          // honor our form value if we have a validation failure
+          {% if form.start_datetime_value.value %}
+            initializeDatetimePicker(minDate, new Date({{form.start_datetime_value.value}} * 1000));
+          {% else %}
+            initializeDatetimePicker(minDate, new Date({{object.schedule.next_fire|date:"U"}} * 1000));
+          {% endif %}
         {% else %}
-          initializeDatetimePicker(minDate, new Date({{object.schedule.next_fire|date:"U"}} * 1000));
+          initializeDatetimePicker(minDate);
         {% endif %}
-      {% else %}
-        initializeDatetimePicker(minDate);
-      {% endif %}
 
-      // re-enable our datetime widget after load, this works around
-      // an issue with jquery datetimepicker that shows the picker on load
-      window.setTimeout(function(){
-        $("input#start-datetime").attr('disabled', false);
-      }, 0);
-
+        // re-enable our datetime widget after load, this works around
+        // an issue with jquery datetimepicker that shows the picker on load
+        window.setTimeout(function(){
+          $("input#start-datetime").attr('disabled', false);
+        }, 0);
+      });
     });
+
+
 
