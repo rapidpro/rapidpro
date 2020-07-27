@@ -234,6 +234,9 @@ class Trigger(SmartModel):
             if groups:
                 trigger = trigger.filter(groups__in=groups)
 
+            if trigger.count() > 1:
+                trigger.update(is_archived=True)
+
             trigger = trigger.first()
             if trigger:
                 trigger.is_archived = False

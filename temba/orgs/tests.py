@@ -4184,6 +4184,38 @@ class BulkExportTest(TembaTest):
         self.assertEqual(cat_blasts.query, "facts_per_day = 1")
         self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
 
+    def test_import_flow_with_triggers(self):
+        flow = self.create_flow()
+        trigger = Trigger.objects.create(
+            org=self.org,
+            trigger_type=Trigger.TYPE_KEYWORD,
+            keyword="rating",
+            flow=flow,
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+        trigger.is_archived = True
+        trigger.save()
+
+        flow2 = self.create_flow()
+        trigger = Trigger.objects.create(
+            org=self.org,
+            trigger_type=Trigger.TYPE_KEYWORD,
+            keyword="rating",
+            flow=flow2,
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
+        data = self.get_import_json("rating_10")
+
+        with ESMockWithScroll():
+            self.org.import_app(data, self.admin, site="http://rapidpro.io")
+
+        flow = Flow.objects.get(name="Rate us")
+        self.assertEqual(1, Trigger.objects.filter(keyword="rating", is_archived=False).count())
+        self.assertEqual(1, Trigger.objects.filter(flow=flow).count())
+
     def test_export_import(self):
         def assert_object_counts():
             # the regular flows
