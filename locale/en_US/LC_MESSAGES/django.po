@@ -3952,9 +3952,6 @@ msgstr ""
 msgid "Workspaces"
 msgstr ""
 
-msgid "Dashboard"
-msgstr ""
-
 msgid "New Workspace"
 msgstr ""
 
