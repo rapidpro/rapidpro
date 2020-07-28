@@ -12,6 +12,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba.orgs.models import Org
 from temba.utils.timezones import timezone_to_country_code
 from temba.utils.uuid import uuid4
+from temba.utils.views import ComponentFormMixin
 
 from ...models import Channel
 from ...views import (
@@ -23,7 +24,7 @@ from ...views import (
 )
 
 
-class ClaimView(BaseClaimNumberMixin, SmartFormView):
+class ClaimView(ComponentFormMixin, BaseClaimNumberMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
         country = forms.ChoiceField(choices=ALL_COUNTRIES)
         phone_number = forms.CharField(help_text=_("The phone number being added"))

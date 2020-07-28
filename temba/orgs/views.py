@@ -58,7 +58,7 @@ from temba.utils.fields import ArbitraryChoiceField, InputWidget, SelectMultiple
 from temba.utils.http import http_headers
 from temba.utils.text import random_string
 from temba.utils.timezones import TimeZoneFormField
-from temba.utils.views import NonAtomicMixin
+from temba.utils.views import ComponentFormMixin, NonAtomicMixin
 
 from .models import BackupToken, Invitation, Org, OrgCache, TopUp, UserSettings, get_stripe_credentials
 from .tasks import apply_topups_task
@@ -707,7 +707,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return non_single_buckets, singles
 
-    class TwilioConnect(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
+    class TwilioConnect(ComponentFormMixin, ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class TwilioConnectForm(forms.Form):
             account_sid = forms.CharField(help_text=_("Your Twilio Account SID"))
             account_token = forms.CharField(help_text=_("Your Twilio Account Token"))
@@ -2578,7 +2578,7 @@ class OrgCRUDL(SmartCRUDL):
                 org.refresh_dtone_account_currency()
                 return super().form_valid(form)
 
-    class TwilioAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+    class TwilioAccount(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
         success_message = ""
 

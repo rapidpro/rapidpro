@@ -238,9 +238,16 @@ a {
   }
 }
 
-
 .alert {
-  @apply rounded-lg px-4 py-2 shadow;
+  @apply rounded-lg px-4 py-3;
+}
+
+.alert-info {
+  @apply alert bg-gray-100;
+}
+
+.alert-warning {
+  @apply alert bg-gray-100;
 }
 
 .alert-error {
