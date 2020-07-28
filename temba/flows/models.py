@@ -4099,65 +4099,81 @@ class MergeFlowsTask(TembaModel):
     email_template = "flows/email/flow_merging_result"
 
     def process_merging(self):
-        with transaction.atomic():
-            backup_metadata = {}
-            target = self.target
+        try:
+            with transaction.atomic():
+                backup_metadata = {}
+                target = self.target
 
-            # import merge changes
-            backup_metadata["source_name"] = self.source.name
-            backup_metadata["target_name"] = target.name
-            backup_metadata["terget_backup"] = target.as_json()
-            target.import_definition(self.created_by, self.definition, {})
-            target.name = self.merge_name
-            target.save()
+                # import merge changes
+                backup_metadata["source_name"] = self.source.name
+                backup_metadata["target_name"] = target.name
+                backup_metadata["terget_backup"] = target.as_json()
+                target.import_definition(self.created_by, self.definition, {})
+                target.name = self.merge_name
+                target.save()
 
-            # move campaigns from source to target
-            from temba.campaigns.models import CampaignEvent
+                # move campaigns from source to target
+                from temba.campaigns.models import CampaignEvent
 
-            campaigns = CampaignEvent.objects.filter(
-                is_active=True, flow=self.source, campaign__org=self.target.org, campaign__is_archived=False
-            )
-            backup_metadata["moved_campaign_events"] = list(campaigns.values_list("uuid", flat=True))
-            campaigns.update(flow=self.target)
+                campaigns = CampaignEvent.objects.filter(
+                    is_active=True, flow=self.source, campaign__org=self.target.org, campaign__is_archived=False
+                )
+                backup_metadata["moved_campaign_events"] = [
+                    str(uuid) for uuid in campaigns.values_list("uuid", flat=True)
+                ]
+                campaigns.update(flow=self.target)
 
-            # move triggers from source to target
-            from temba.triggers.models import Trigger
+                # move triggers from source to target
+                from temba.triggers.models import Trigger
 
-            triggers = Trigger.objects.filter(flow=self.source)
-            backup_metadata["moved_trigger_ids"] = list(triggers.values_list("id", flat=True))
-            triggers.update(flow=self.target)
+                triggers = Trigger.objects.filter(flow=self.source)
+                backup_metadata["moved_trigger_ids"] = list(triggers.values_list("id", flat=True))
+                triggers.update(flow=self.target)
 
-            # move flow starts from source to target
-            flow_starts = self.source.starts.filter(is_active=True)
-            backup_metadata["moved_flow_starts"] = list(flow_starts.values_list("uuid", flat=True))
-            flow_starts.update(flow=self.target)
+                # move flow starts from source to target
+                flow_starts = self.source.starts.filter(is_active=True)
+                backup_metadata["moved_flow_starts"] = [
+                    str(uuid) for uuid in flow_starts.values_list("uuid", flat=True)
+                ]
+                flow_starts.update(flow=self.target)
 
-            # move runs from source to target
-            runs = self.source.runs.filter(is_active=True)
-            backup_metadata["moved_flow_runs"] = list(runs.values_list("uuid", flat=True))
-            runs.update(flow=self.target)
+                # move runs from source to target
+                runs = self.source.runs.filter(is_active=True)
+                backup_metadata["moved_flow_runs"] = [str(uuid) for uuid in runs.values_list("uuid", flat=True)]
+                runs.update(flow=self.target)
 
-            # move trackable links
-            links = self.source.related_links.all()
-            backup_metadata["moved_links"] = list(links.values_list("uuid", flat=True))
-            links.update(related_flow=self.target)
+                # move trackable links
+                links = self.source.related_links.all()
+                backup_metadata["moved_links"] = [str(uuid) for uuid in links.values_list("uuid", flat=True)]
+                links.update(related_flow=self.target)
 
-            # archive source
-            self.source.archive()
-            self.merging_metadata = backup_metadata
-            self.save()
+                # archive source
+                self.source.archive()
+                self.merging_metadata = backup_metadata
+                self.save()
 
-            org = self.target.org
-            branding = org.get_branding()
+                org = self.target.org
+                branding = org.get_branding()
+                send_template_email(
+                    self.created_by.username,
+                    self.email_subject % org,
+                    self.email_template,
+                    {
+                        "source_name": backup_metadata["source_name"],
+                        "target_name": backup_metadata["target_name"],
+                        "link": f"{branding['link']}{reverse('flows.flow_editor_next', args=[self.target.uuid])}",
+                    },
+                    branding,
+                )
+        except Exception as e:
+            logger.error(str(e), exc_info=True)
+            email_subject = "%s: Flow Merging Failed"
+            email_template = "flows/email/flow_merging_error"
             send_template_email(
                 self.created_by.username,
-                self.email_subject % org,
-                self.email_template,
-                {
-                    "source_name": backup_metadata["source_name"],
-                    "target_name": backup_metadata["target_name"],
-                    "link": f"{branding['link']}{reverse('flows.flow_editor_next', args=[self.target.uuid])}",
-                },
+                email_subject % org,
+                email_template,
+                {"source_name": self.source.name, "target_name": self.target.name},
                 branding,
             )
 
