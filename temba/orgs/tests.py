@@ -4214,8 +4214,10 @@ class BulkExportTest(TembaTest):
 
         flow = Flow.objects.get(name="Rate us")
         self.assertEqual(1, Trigger.objects.filter(keyword="rating", is_archived=False).count())
-        self.assertEqual(trigger2.pk, Trigger.objects.filter(keyword="rating", is_archived=False).first().pk)
         self.assertEqual(1, Trigger.objects.filter(flow=flow).count())
+        # shoud have archived the existing
+        self.assertFalse(Trigger.objects.filter(pk=trigger.pk, is_archived=False).first())
+        self.assertFalse(Trigger.objects.filter(pk=trigger2.pk, is_archived=False).first())
 
     def test_export_import(self):
         def assert_object_counts():
@@ -4288,7 +4290,7 @@ class BulkExportTest(TembaTest):
         )
 
         # same with our trigger
-        trigger = Trigger.objects.filter(keyword="patient").first()
+        trigger = Trigger.objects.filter(keyword="patient").order_by("-created_on").first()
         self.assertEqual(Flow.objects.filter(name="Register Patient").first(), trigger.flow)
 
         # our old campaign message flow should be inactive now

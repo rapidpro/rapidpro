@@ -234,15 +234,12 @@ class Trigger(SmartModel):
             if groups:
                 trigger = trigger.filter(groups__in=groups)
 
-            trigger = trigger.order_by("-created_on")
-            if trigger.count() > 1:
-                trigger.update(is_archived=True)
+            exact_flow_trigger = trigger.filter(flow=flow).order_by("-created_on").first()
+            trigger.update(is_archived=True)
 
-            trigger = trigger.first()
-            if trigger:
-                trigger.is_archived = False
-                trigger.flow = flow
-                trigger.save()
+            if exact_flow_trigger:
+                exact_flow_trigger.is_archived = False
+                exact_flow_trigger.save()
             else:
 
                 # if we have a channel resolve it
