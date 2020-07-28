@@ -240,5 +240,6 @@ ELASTIC_APM = {
 # Crontab Settings ..
 # -----------------------------------------------------------------------------------
 CELERYBEAT_SCHEDULE["retry-errored-messages"] = {"task": "retry_errored_messages", "schedule": crontab(hour=1, minute=0)}
+CELERYBEAT_SCHEDULE["refresh-whatsapp-tokens"] = {"task": "refresh_whatsapp_tokens", "schedule": timedelta(hours=12)}
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
