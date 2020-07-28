@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-27 17:36+0000\n"
+"POT-Creation-Date: 2020-07-29 00:16+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -5101,21 +5101,32 @@ msgstr "Каналы Социальной сети"
 msgid "API Channels"
 msgstr "Каналы API"
 
-msgid "Claim phone number"
-msgstr "Заявить номер телефон"
+#, fuzzy
+#| msgid "Phone Number"
+msgid "Connect a Phone Number"
+msgstr "Номер телефона"
 
 #, fuzzy
 #| msgid "Once you claim a number you will immediately be able to send and receive messages. Users who send messages to your number will be charged according to their plan."
-msgid "Once you claim a number you will immediately be able to send and receive messages. Contacts who send messages to your number will be charged according to their plan."
+msgid "Once you connect a number you will immediately be able to send and receive messages. Contacts who send messages to your number will be charged according to their plan."
 msgstr "Как только Вы заявите номер, Вы сразу же сможете отправлять и получать сообщения. Пользователи, которые отправляют сообщения на Ваш номер, будут платить в соответствии с их планом."
 
 msgid "Pattern"
 msgstr "Комбинация"
 
-msgid "Supported"
-msgstr "Поддерживается"
+#, fuzzy
+#| msgid "Use National Numbers"
+msgid "Existing Numbers"
+msgstr "Использовать национальные номера"
 
-msgid "Unsupported"
+#, fuzzy
+#| msgid "A telegram channel for this bot already exists on your account."
+msgid "Select a number you already own to connect it to your account."
+msgstr "Канал Telegram для этого бота существует в Вашей учетной записи."
+
+#, fuzzy
+#| msgid "Unsupported"
+msgid "(Unsupported)"
 msgstr "Не поддерживается"
 
 msgid "IP Addresses"
@@ -7071,13 +7082,13 @@ msgstr "Новая Группа..."
 #| "                  "
 msgid ""
 "\n"
-"                      Found %(results_count)s contact matching <i>%(search)s</i>.\n"
-"                      "
+"                    Found %(results_count)s contact matching <i>%(search)s</i>.\n"
+"                    "
 msgid_plural ""
 "\n"
-"                        Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
+"                      Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
 "\n"
-"                    "
+"                  "
 msgstr[0] ""
 "\n"
 "                    Найден %(results_count)s контакт, соответствующий <i>%(search)s</i>.\n"
@@ -9668,10 +9679,15 @@ msgstr ""
 msgid "Disconnect Twilio"
 msgstr "Отключить Twilio"
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "          Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?\n"
+#| "        "
 msgid ""
 "\n"
-"          Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?\n"
-"        "
+"            Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?\n"
+"          "
 msgstr ""
 "\n"
 "          Отключение Вашей учетной записи Twilio также удалит все каналы Twilio, подключенные к ней. Вы уверены, что хотите продолжить?"
@@ -11025,6 +11041,67 @@ msgstr "не будет повторяться"
 msgid "Not scheduled"
 msgstr "Не запланировано"
 
+#, fuzzy
+#| msgid "Welcome!"
+msgid "Welcome Back"
+msgstr "Добро пожаловать!"
+
+msgid ""
+"\n"
+"    Please sign in with your email address and password. If you don't remember\n"
+"    your password, you can <a href=\"/users/user/forget/\">reset it</a>.\n"
+"\n"
+"  "
+msgstr ""
+
+#, fuzzy
+#| msgid "Sign in"
+msgid "Sign In"
+msgstr "Войти"
+
+msgid "Login Failure"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"    Sorry, you cannot log in at this time because we received %(failed_login_limit)s incorrect login attempts.\n"
+"\n"
+"  "
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"      Please wait %(lockout_timeout)s minutes before to try log in again.\n"
+"\n"
+"    "
+msgstr ""
+
+msgid "Alternatively, you can fill out the form below to have your password reset via e-mail."
+msgstr ""
+
+msgid "Please contact the website administrator to have your password reset."
+msgstr ""
+
+#, fuzzy
+#| msgid "Resend"
+msgid "Reset"
+msgstr "Отправить повторно"
+
+#, fuzzy
+#| msgid "Password"
+msgid "Reset Password"
+msgstr "Пароль"
+
+msgid ""
+"\n"
+"    Enter the email address you used to sign up. We will\n"
+"    send you an email with details on how to reset your password.\n"
+"\n"
+"  "
+msgstr ""
+
 msgid "Delete "
 msgstr "Удалить"
 
@@ -11302,6 +11379,12 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Claim phone number"
+#~ msgstr "Заявить номер телефон"
+
+#~ msgid "Supported"
+#~ msgstr "Поддерживается"
 
 #~ msgid "Flow starting rules"
 #~ msgstr "Правила запуска потока"

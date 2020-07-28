@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-27 17:36+0000\n"
+"POT-Creation-Date: 2020-07-29 00:16+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -5127,21 +5127,32 @@ msgstr "Canaux Réseaux Sociaux"
 msgid "API Channels"
 msgstr "Canaux API"
 
-msgid "Claim phone number"
-msgstr "Réclamer le numéro de téléphone"
+#, fuzzy
+#| msgid "Phone Number"
+msgid "Connect a Phone Number"
+msgstr "Numéro de téléphone"
 
 #, fuzzy
 #| msgid "Once you claim a number you will immediately be able to send and receive messages. Users who send messages to your number will be charged according to their plan."
-msgid "Once you claim a number you will immediately be able to send and receive messages. Contacts who send messages to your number will be charged according to their plan."
+msgid "Once you connect a number you will immediately be able to send and receive messages. Contacts who send messages to your number will be charged according to their plan."
 msgstr "Une fois que vous aurez réclamé un numéro, vous pourrez immédiatement envoyer et recevoir des messages. Les utilisateurs qui envoient des messages à votre numéro seront facturés selon leur forfait."
 
 msgid "Pattern"
 msgstr "Pattern"
 
-msgid "Supported"
-msgstr "Prise en charge"
+#, fuzzy
+#| msgid "Use National Numbers"
+msgid "Existing Numbers"
+msgstr "Utiliser les numéros nationaux"
 
-msgid "Unsupported"
+#, fuzzy
+#| msgid "A telegram channel for this bot already exists on your account."
+msgid "Select a number you already own to connect it to your account."
+msgstr "Un canal Telegram pour ce bot existe déjà sur votre compte."
+
+#, fuzzy
+#| msgid "Unsupported"
+msgid "(Unsupported)"
 msgstr "Non pris en charge"
 
 msgid "IP Addresses"
@@ -7078,13 +7089,13 @@ msgstr "Nouveau groupe..."
 #| "                  "
 msgid ""
 "\n"
-"                      Found %(results_count)s contact matching <i>%(search)s</i>.\n"
-"                      "
+"                    Found %(results_count)s contact matching <i>%(search)s</i>.\n"
+"                    "
 msgid_plural ""
 "\n"
-"                        Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
+"                      Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
 "\n"
-"                    "
+"                  "
 msgstr[0] ""
 "\n"
 "                    Trouvé %(results_count)s contact correspondant <i>%(search)s</i>.\n"
@@ -9535,10 +9546,15 @@ msgstr ""
 msgid "Disconnect Twilio"
 msgstr "Déconnecter Twilio"
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "          Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?\n"
+#| "        "
 msgid ""
 "\n"
-"          Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?\n"
-"        "
+"            Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?\n"
+"          "
 msgstr ""
 "\n"
 "          Déconnecter votre compte Twilio supprimera également tous les canaux Twilio qui y sont connectés. Êtes-vous sur de vouloir continuer?\n"
@@ -10858,6 +10874,67 @@ msgstr "pas répéter"
 msgid "Not scheduled"
 msgstr "Non prévu"
 
+#, fuzzy
+#| msgid "Welcome!"
+msgid "Welcome Back"
+msgstr "Bienvenu !"
+
+msgid ""
+"\n"
+"    Please sign in with your email address and password. If you don't remember\n"
+"    your password, you can <a href=\"/users/user/forget/\">reset it</a>.\n"
+"\n"
+"  "
+msgstr ""
+
+#, fuzzy
+#| msgid "Sign in"
+msgid "Sign In"
+msgstr "Connectez-vous"
+
+msgid "Login Failure"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"    Sorry, you cannot log in at this time because we received %(failed_login_limit)s incorrect login attempts.\n"
+"\n"
+"  "
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"      Please wait %(lockout_timeout)s minutes before to try log in again.\n"
+"\n"
+"    "
+msgstr ""
+
+msgid "Alternatively, you can fill out the form below to have your password reset via e-mail."
+msgstr ""
+
+msgid "Please contact the website administrator to have your password reset."
+msgstr ""
+
+#, fuzzy
+#| msgid "Resend"
+msgid "Reset"
+msgstr "renvoyez"
+
+#, fuzzy
+#| msgid "Password"
+msgid "Reset Password"
+msgstr "Mot de passe"
+
+msgid ""
+"\n"
+"    Enter the email address you used to sign up. We will\n"
+"    send you an email with details on how to reset your password.\n"
+"\n"
+"  "
+msgstr ""
+
 msgid "Delete "
 msgstr "Supprimer"
 
@@ -11131,6 +11208,12 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Claim phone number"
+#~ msgstr "Réclamer le numéro de téléphone"
+
+#~ msgid "Supported"
+#~ msgstr "Prise en charge"
 
 #~ msgid "Flow starting rules"
 #~ msgstr "Règles de démarrage de flux"

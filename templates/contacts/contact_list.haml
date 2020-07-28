@@ -25,237 +25,238 @@
   #pjax
     -block pjax
       .lp-frame
-        -if org_perms.contacts.contact_import
-          .left
+
+        .left
+          -if org_perms.contacts.contact_import
             .button-primary{ onclick:"goto(event)", href:"{% url 'contacts.contact_import' %}"}
               -trans "Import Contacts"
 
-            .lp-nav.upper
-              -for folder in folders
-                .lp-nav-item{'class': '{% if request.path == folder.url %}font-normal{% endif %}' }
-                  .name{onclick:"goto(event)", href:'{{folder.url}}'}
-                    {{folder.label}}
-                  .count{onclick:"goto(event)", href:'{{folder.url}}'}
-                    {{ folder.count | intcomma }}
+          .lp-nav.upper
+            -for folder in folders
+              .lp-nav-item{'class': '{% if request.path == folder.url %}font-normal{% endif %}' }
+                .name{onclick:"goto(event)", href:'{{folder.url}}'}
+                  {{folder.label}}
+                .count{onclick:"goto(event)", href:'{{folder.url}}'}
+                  {{ folder.count | intcomma }}
 
-            .lp-nav.upper
-              .font-normal.uppercase.text-xs.pb-1.text-gray-500
-                - trans "Smart Groups"
-              .inner-scroll
-                -for group in groups
-                  -if group.is_dynamic
-                    .lp-nav-item{'class': '{% if current_group.id == group.pk %}font-normal{% endif %}' }
-                      .name{onclick:"goto(event)", href:'{% url "contacts.contact_filter" group.uuid %}'}
-                        {{group.label}}
-                      .count{onclick:"goto(event)", href:'{% url "contacts.contact_filter" group.uuid %}'}
-                        {{ group.count | intcomma }}
+          .lp-nav.upper
+            .font-normal.uppercase.text-xs.pb-1.text-gray-500
+              - trans "Smart Groups"
+            .inner-scroll
+              -for group in groups
+                -if group.is_dynamic
+                  .lp-nav-item{'class': '{% if current_group.id == group.pk %}font-normal{% endif %}' }
+                    .name{onclick:"goto(event)", href:'{% url "contacts.contact_filter" group.uuid %}'}
+                      {{group.label}}
+                    .count{onclick:"goto(event)", href:'{% url "contacts.contact_filter" group.uuid %}'}
+                      {{ group.count | intcomma }}
 
-            .lp-nav.lower
+          .lp-nav.lower
 
-              .font-normal.uppercase.text-xs.text-gray-500.pb-1
-                - trans "Groups"
-              .inner-scroll
-                -for group in groups
-                  -if not group.is_dynamic
-                    .lp-nav-item{'class': '{% if current_group.id == group.pk %}font-normal{% endif %}' }
-                      .name{onclick:"goto(event)", href:'{% url "contacts.contact_filter" group.uuid %}'}
-                        {{group.label}}
-                      .count{onclick:"goto(event)", href:'{% url "contacts.contact_filter" group.uuid %}'}
-                        {{ group.count | intcomma }}
+            .font-normal.uppercase.text-xs.text-gray-500.pb-1
+              - trans "Groups"
+            .inner-scroll
+              -for group in groups
+                -if not group.is_dynamic
+                  .lp-nav-item{'class': '{% if current_group.id == group.pk %}font-normal{% endif %}' }
+                    .name{onclick:"goto(event)", href:'{% url "contacts.contact_filter" group.uuid %}'}
+                      {{group.label}}
+                    .count{onclick:"goto(event)", href:'{% url "contacts.contact_filter" group.uuid %}'}
+                      {{ group.count | intcomma }}
 
-            .flex-grow
-              -if org_perms.contacts.contact_create
-                %temba-modax#create-label-modal{ header:'{% trans "Create Contact" %}', endpoint:"{% url 'contacts.contact_create' %}"}
-                  .button-light.mt-3
-                    - trans "Create Contact"
+          .flex-grow
+            -if org_perms.contacts.contact_create
+              %temba-modax#create-label-modal{ header:'{% trans "Create Contact" %}', endpoint:"{% url 'contacts.contact_create' %}"}
+                .button-light.mt-3
+                  - trans "Create Contact"
 
-              -if org_perms.contacts.contactgroup_create
-                %temba-modax#create-group-modal{ header:'{% trans "Create Group" %}', endpoint:"{% url 'contacts.contactgroup_create' %}", onloaded: "handleCreateGroupModalLoaded", onsubmitted: "handleCreateGroupModalSubmitted"}
-                  .button-light.mt-3
-                    - trans "Create Group"
+            -if org_perms.contacts.contactgroup_create
+              %temba-modax#create-group-modal{ header:'{% trans "Create Group" %}', endpoint:"{% url 'contacts.contactgroup_create' %}", onloaded: "handleCreateGroupModalLoaded", onsubmitted: "handleCreateGroupModalSubmitted"}
+                .button-light.mt-3
+                  - trans "Create Group"
 
-          .right
+        .right
 
-            -if has_contacts
-              -block contacts-list
-                .flex.w-full.mb-4.items-end.flex-wrap.justify-end.-mt-2{style:"min-height:41px"}
+          -if has_contacts
+            -block contacts-list
+              .flex.w-full.mb-4.items-end.flex-wrap.justify-end.-mt-2{style:"min-height:41px"}
 
-                  -block action-buttons
-                    -if org_perms.contacts.contact_update
-                      .list-buttons-container.h-full.mr-2.mt-2.flex-grow
-                        .list-buttons.flex.items-center.-mx-2.h-full
-                          -if 'block' in actions
-                            .button-action.object-btn-block
-                              .-mt-1.mr-2.glyph.icon-user-block
-                              -trans "Block"
+                -block action-buttons
+                  -if org_perms.contacts.contact_update
+                    .list-buttons-container.h-full.mr-2.mt-2.flex-grow
+                      .list-buttons.flex.items-center.-mx-2.h-full
+                        -if 'block' in actions
+                          .button-action.object-btn-block
+                            .-mt-1.mr-2.glyph.icon-user-block
+                            -trans "Block"
 
-                          - if 'unblock' in actions
-                            .button-action.object-btn-unblock
-                              .-mt-1.mr-2.glyph.icon-user-block
-                              -trans "Unblock"
+                        - if 'unblock' in actions
+                          .button-action.object-btn-unblock
+                            .-mt-1.mr-2.glyph.icon-user-block
+                            -trans "Unblock"
 
-                          - if 'unstop' in actions
-                            .button-action.object-btn-unstop
-                              .-mt-1.mr-2.glyph.icon-user
-                              -trans "Unstop"
+                        - if 'unstop' in actions
+                          .button-action.object-btn-unstop
+                            .-mt-1.mr-2.glyph.icon-user
+                            -trans "Unstop"
 
-                          - if 'delete' in actions
-                            .button-action.contacts-btn-delete
-                              .-mt-1.mr-2.glyph.icon-user-delete
-                              -trans "Delete"
+                        - if 'delete' in actions
+                          .button-action.contacts-btn-delete
+                            .-mt-1.mr-2.glyph.icon-user-delete
+                            -trans "Delete"
 
-                          - if 'unlabel' in actions
-                            .button-action{onclick:'unlabelObjectRows({{current_group.pk}});'}
-                              .-mt-1.mr-2.glyph.icon-user-remove
-                              -trans "Remove From Group"
+                        - if 'unlabel' in actions
+                          .button-action{onclick:'unlabelObjectRows({{current_group.pk}});'}
+                            .-mt-1.mr-2.glyph.icon-user-remove
+                            -trans "Remove From Group"
 
-                          - if 'label' in actions
-                            .btn-group
-                              .button-action.dropdown-toggle{data-toggle:"dropdown", data-delay:"800"}
-                                .-mt-1.mr-2.glyph.icon-users-2{style:"width:16px"}
-                                -trans "Groups"
+                        - if 'label' in actions
+                          .btn-group
+                            .button-action.dropdown-toggle{data-toggle:"dropdown", data-delay:"800"}
+                              .-mt-1.mr-2.glyph.icon-users-2{style:"width:16px"}
+                              -trans "Groups"
 
-                              %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
-                                -for group in groups
-                                  -if not group.is_dynamic
-                                    %li
-                                      .lbl-menu{'href':'#', onclick:'addContactToGroup({{group.pk}})', data-id:'{{group.pk}}'}
-                                        .flex.items-center.py-1.hover-linked
-                                          .glyph.message-label.label-checkbox
-                                          .name.px-2
-                                            {{ group.label }}
-                                - if org_perms.contacts.contactgroup_create
-                                  - if groups
-                                    %li.separator.-mx-4.border-b.my-3
+                            %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
+                              -for group in groups
+                                -if not group.is_dynamic
                                   %li
-                                    .lbl-menu.add-group.hover-linked{ onclick:"handleAddGroupClicked()" }
-                                      - trans "New Group..."
+                                    .lbl-menu{'href':'#', onclick:'addContactToGroup({{group.pk}})', data-id:'{{group.pk}}'}
+                                      .flex.items-center.py-1.hover-linked
+                                        .glyph.message-label.label-checkbox
+                                        .name.px-2
+                                          {{ group.label }}
+                              - if org_perms.contacts.contactgroup_create
+                                - if groups
+                                  %li.separator.-mx-4.border-b.my-3
+                                %li
+                                  .lbl-menu.add-group.hover-linked{ onclick:"handleAddGroupClicked()" }
+                                    - trans "New Group..."
 
-                          - if org_perms.msgs.broadcast_send and not reply_disabled
-                            -trans 'Send Message' as button_title
-                              %temba-modax#send-message-modal{ header:'{{title|escapejs}}', endpoint:"{% url 'msgs.broadcast_send' %}" }
-                                .button-action{onclick:"handleSendMessageClicked()"}
-                                  .mr-2.glyph.icon-bubble-3{style:"font-size:14px"}
-                                  {{button_title}}
+                        - if org_perms.msgs.broadcast_send and not reply_disabled
+                          -trans 'Send Message' as button_title
+                            %temba-modax#send-message-modal{ header:'{{title|escapejs}}', endpoint:"{% url 'msgs.broadcast_send' %}" }
+                              .button-action{onclick:"handleSendMessageClicked()"}
+                                .mr-2.glyph.icon-bubble-3{style:"font-size:14px"}
+                                {{button_title}}
 
-                    .flex-grow.ml-1.self-end.items-end
-                      .flex.flex-col.pr-12
-                        .page-title.leading-tight
-                          -block title
-                            -if current_group
-                              {{current_group.name}}
-                            -else
-                              {{title}}
-                        .subtitle
-                          -block subtitle
-                    .gear-links
-                      -include "gear_links_include.haml"
+                  .flex-grow.ml-1.self-end.items-end
+                    .flex.flex-col.pr-12
+                      .page-title.leading-tight
+                        -block title
+                          -if current_group
+                            {{current_group.name}}
+                          -else
+                            {{title}}
+                      .subtitle
+                        -block subtitle
+                  .gear-links
+                    -include "gear_links_include.haml"
 
-                %form#search-form.mb-4{method:"get"}
-                  %temba-textinput.w-full{onsubmit:'document.querySelector("#search-form").submit();', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
+              %form#search-form.mb-4{method:"get"}
+                %temba-textinput.w-full{onsubmit:'document.querySelector("#search-form").submit();', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
 
-                -if search_error
-                  .mb-4.ml-2
-                    %span.search-error
-                      =search_error
-                -elif search
-                  .mb-4.ml-1.text-base.leading-relaxed
-                    -blocktrans with results_count=paginator.count|intcomma count cc=paginator.count
-                      Found {{ results_count }} contact matching <i>{{search}}</i>.
-                      -plural
-                        Found {{ results_count }} contacts matching <i>{{search}}</i>.
+              -if search_error
+                .mb-4.ml-2
+                  %span.search-error
+                    =search_error
+              -elif search
+                .mb-4.ml-1.text-base.leading-relaxed
+                  -blocktrans with results_count=paginator.count|intcomma count cc=paginator.count
+                    Found {{ results_count }} contact matching <i>{{search}}</i>.
+                    -plural
+                      Found {{ results_count }} contacts matching <i>{{search}}</i>.
 
-                %table.list.object-list.lined{class:"{% if org_perms.contacts.contact_update %}selectable{%endif%}"}
-                  %tr.contacts
-                    -if org_perms.contacts.contact_update
+              %table.list.object-list.lined{class:"{% if org_perms.contacts.contact_update %}selectable{%endif%}"}
+                %tr.contacts
+                  -if org_perms.contacts.contact_update
+                    %th
+                  %th
+                  %th
+                  -for field in contact_fields
+                    -if field.show_in_table
                       %th
-                    %th
-                    %th
-                    -for field in contact_fields
-                      -if field.show_in_table
-                        %th
-                          -if sort_field == field.key
-                            -if sort_direction == 'desc'
-                              %a{href:"?sort_on={{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}"}
-                                %div
-                                  {{ field.label }}
-                                  %span.sort.icon.icon-arrow-down-2.sort-asc.visible
-                            -else
-                              %a{href:"?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}"}
-                                %div
-                                  {{ field.label }}
-                                  %span.sort.icon.icon-arrow-up51.sort-desc.visible
+                        -if sort_field == field.key
+                          -if sort_direction == 'desc'
+                            %a{href:"?sort_on={{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}"}
+                              %div
+                                {{ field.label }}
+                                %span.sort.icon.icon-arrow-down-2.sort-asc.visible
                           -else
                             %a{href:"?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}"}
                               %div
                                 {{ field.label }}
-                                %span.sort.icon.icon-arrow-down-2.sort-desc
-                    %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
-                      - if object_list
-                        -if sort_field == 'created_on'
-                          -if sort_direction == 'desc'
-                            %a{href:"?sort_on=created_on{% if search %}&search={{ search|escape }}{% endif %}"}
-                              %div
-                                -trans "Created On"
-                                %span.sort.icon.icon-arrow-down-2.sort-asc.visible
-                          -else
-                            %a{href:"?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}"}
-                              %div
-                                -trans "Created On"
                                 %span.sort.icon.icon-arrow-up51.sort-desc.visible
+                        -else
+                          %a{href:"?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}"}
+                            %div
+                              {{ field.label }}
+                              %span.sort.icon.icon-arrow-down-2.sort-desc
+                  %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
+                    - if object_list
+                      -if sort_field == 'created_on'
+                        -if sort_direction == 'desc'
+                          %a{href:"?sort_on=created_on{% if search %}&search={{ search|escape }}{% endif %}"}
+                            %div
+                              -trans "Created On"
+                              %span.sort.icon.icon-arrow-down-2.sort-asc.visible
                         -else
                           %a{href:"?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}"}
                             %div
                               -trans "Created On"
-                              %span.sort.icon.icon-arrow-down-2.sort-desc
+                              %span.sort.icon.icon-arrow-up51.sort-desc.visible
+                      -else
+                        %a{href:"?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}"}
+                          %div
+                            -trans "Created On"
+                            %span.sort.icon.icon-arrow-down-2.sort-desc
 
-                  %tbody
-                    - for object in contacts
-                      %tr.contact.select-row.object-row{'data-uuid': '{{object.uuid}}', 'data-object-id':'{{object.id}}'}
+                %tbody
+                  - for object in contacts
+                    %tr.contact.select-row.object-row{'data-uuid': '{{object.uuid}}', 'data-object-id':'{{object.id}}'}
 
-                        - if org_perms.contacts.contact_update or org_perms.msgs.broadcast_send
-                          %td.contact.checkbox.object-row-checkbox
-                            .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox
+                      - if org_perms.contacts.contact_update or org_perms.msgs.broadcast_send
+                        %td.contact.checkbox.object-row-checkbox
+                          .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox
 
-                        %td
-                          .whitespace-no-wrap
-                            .hover-linked{onclick:"goto(event)", href:"/contact/read/{{object.uuid}}/"}
-                              {{ object|name:user_org }}
+                      %td
+                        .whitespace-no-wrap
+                          .hover-linked{onclick:"goto(event)", href:"/contact/read/{{object.uuid}}/"}
+                            {{ object|name:user_org }}
 
-                        %td.w-full{onclick:"handleRowSelection(this)"}
-                          .whitespace-no-wrap
-                            {{ object|urn:user_org }}
+                      %td.w-full{onclick:"handleRowSelection(this)"}
+                        .whitespace-no-wrap
+                          {{ object|urn:user_org }}
 
-                        -for field in contact_fields
-                          -if field.show_in_table
-                            %td.field{onclick:"handleRowSelection(this)"}
-                              {{ object|contact_field:field.key }}
+                      -for field in contact_fields
+                        -if field.show_in_table
+                          %td.field{onclick:"handleRowSelection(this)"}
+                            {{ object|contact_field:field.key }}
 
-                        %td.value-received.field_received{onclick:"handleRowSelection(this)"}
-                          .whitespace-no-wrap
-                            {% format_datetime object.created_on %}
+                      %td.value-received.field_received{onclick:"handleRowSelection(this)"}
+                        .whitespace-no-wrap
+                          {% format_datetime object.created_on %}
 
-                        // This is needed for action buttons
-                        %td.hide
-                          .value-labels
-                            %nobr
-                              - for group in object.all_groups.all
-                                - if group.group_type == 'U'
-                                  %span.label.label-info.lbl{ data-id: '{{group.id}}'}
-                                    %a{'href':'{% url "contacts.contact_filter" group.uuid %}'}
-                                      {{group.name}}
+                      // This is needed for action buttons
+                      %td.hide
+                        .value-labels
+                          %nobr
+                            - for group in object.all_groups.all
+                              - if group.group_type == 'U'
+                                %span.label.label-info.lbl{ data-id: '{{group.id}}'}
+                                  %a{'href':'{% url "contacts.contact_filter" group.uuid %}'}
+                                    {{group.name}}
 
-                    -empty
-                      %tr
-                        %td
-                        %td.w-full
-                          .p-6.text-xl.w-full
-                            -trans "No matching contacts."
+                  -empty
+                    %tr
+                      %td
+                      %td.w-full
+                        .p-6.text-xl.w-full
+                          -trans "No matching contacts."
 
-                        -for field in contact_fields
-                          -if field.show_in_table
-                            %td.field
-                        %td
+                      -for field in contact_fields
+                        -if field.show_in_table
+                          %td.field
+                      %td
 
 
               .flex.flex-col.mb-16

@@ -142,6 +142,9 @@ class ArbitraryChoiceField(forms.ChoiceField):
         return {"jsonValue": True}
 
     def clean(self, value):
+        if value is None:
+            value = ""
+
         if isinstance(value, (str)):
             return json.loads(value)
 
@@ -151,6 +154,9 @@ class ArbitraryChoiceField(forms.ChoiceField):
         return value
 
     def prepare_value(self, value):
+        if value is None:
+            return value
+
         if isinstance(value, (str)):
             return json.loads(value)
 

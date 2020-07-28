@@ -96,13 +96,13 @@ class ArchiveCRUDLTest(TembaTest, CRUDLTestMixin):
             reverse("archives.archive_run"), allow_viewers=False, allow_editors=True, context_objects=[]
         )
 
-        self.assertContains(response, "Run Archive")
+        self.assertContains(response, "No archives found")
 
         response = self.assertListFetch(
             reverse("archives.archive_message"), allow_viewers=False, allow_editors=True, context_objects=[]
         )
 
-        self.assertContains(response, "Message Archive")
+        self.assertContains(response, "No archives found")
 
     def test_archive_type_filter(self):
         archives = [self.create_archive(self.org, idx) for idx in range(1, 10)]
