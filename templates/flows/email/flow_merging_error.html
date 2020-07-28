@@ -1,0 +1,13 @@
+{% load tz %}
+{% load i18n %}
+
+<p>
+{% blocktrans with source=source_name target=target_name %}
+    When combining {{ source }} and {{ target }} appeared some errors.
+    Those flows were not merged.
+{% endblocktrans %}
+</p>
+
+<p>{% trans "Thanks," %}</p>
+
+<p>{% blocktrans with brand=branding.name %}The {{ brand }} Team{% endblocktrans %}</p>
