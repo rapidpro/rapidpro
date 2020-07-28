@@ -9,84 +9,109 @@
 
 -block content
   
-  .title.mt-2
-    Title weighted text
+  %table.list.lined
+    %thead
+      %tr
+        %th(colspan=2)
+          Titles / Headers
 
-  .card
-      .page-title
-        Page Title
-    .mt-2
-      .page-subtitle
-        Page Subtitle
-    .mt-2
-      .title
-        Internal Title
-    .mt-2
-      .cap-label
-        Column Header
+    %tbody
+      %tr
+        %td.text-base
+          <code>.page-title</code>
+        %td.w-full
+          .page-title
+            Page Title
 
-  .title.mt-8
-    Buttons
-  
-  .mt-4
-    %table.list.lined
+      %tr
+        %td
+          <code>.page-subtitle</code>
+        %td
+          .page-subtitle
+            Page Subtitle
 
-      %thead
-        %tr
-          %th
-            Button Type
-          %th
-            Usage
+      %tr
+        %td
+          <code>.title</code>
+        %td
+          .title
+            Internal Title
 
-      %tbody
-        %tr
-          %td
-            .button-primary
-              Primary Button
-          %td
+      %tr
+        %td
+          <code>.cap-label</code>
+        %td
+          .cap-label
+            Column Header
+
+
+  %table.list.lined.mt-8
+    %thead
+      %tr
+        %th(colspan=2)
+          Buttons
+        %th
+          Usage
+
+    %tbody
+      %tr
+        %td
+          <code>.button-primary</code>
+        %td
+          .button-primary
+            Primary Button
+        %td
             Primary action to be taken on a given page. There should only be one primary button on a page at a time.
-        %tr
-          %td
-            .button-light
-              Light Button
-          %td
-            Most buttons are light buttons, non-primary actions to take on all pages
+      %tr
+        %td
+          <code>.button-light</code>
+        %td
+          .button-light
+            Light Button
+        %td
+          Most buttons are light buttons, non-primary actions to take on all pages
 
-        %tr
-          %td
-            .button-secondary
-              Secondary Button
-          %td
-            Button with the secondary color. Contrasting option, extra call to action, only one per page.
-        %tr
-          %td
-            .button-tertiary
-              Tertiary Button
-          %td
-            Button with the tertiary color. Contrasting option, extra call to action, only one per page.
+      %tr
+        %td
+          <code>.button-secondary</code>
+        %td
+          .button-secondary
+            Secondary Button
+        %td
+          Button with the secondary color. Contrasting option, extra call to action, only one per page.
 
-  .title.mt-8
-    Table Options
-  .mb-6
-    .card
-      %table.padded
-        %tr
-          %td
-            <code>.lined</code>
-          %td.w-full
-            Add lines between rows
-        %tr
-          %td
-            <code>.toggle</code>
-          %td.w-full
-            Adds hide/show functionality. 
-        %tr
-          %td
-            <code>.stateful</code>
-          %td.w-full
-            Remember toggle state on page reload.
+      %tr
+        %td
+          <code>.button-tertiary</code>
+        %td
+          .button-tertiary
+            Tertiary Button
+        %td
+          Button with the tertiary color. Contrasting option, extra call to action, only one per page.
 
-  %table.list.toggle.stateful.lined
+  %table.list.lined.mt-8
+    %thead
+      %tr
+        %th(colspan=2)
+          Table Options
+    
+    %tr
+      %td
+        <code>.lined</code>
+      %td.w-full
+        Add lines between rows
+    %tr
+      %td
+        <code>.toggle</code>
+      %td.w-full
+        Adds hide/show functionality. 
+    %tr
+      %td
+        <code>.stateful</code>
+      %td.w-full
+        Remember toggle state on page reload.
+
+  %table.list.toggle.stateful.lined.mt-8
     
     %thead
       %tr
@@ -109,22 +134,109 @@
           .number
             +1 (360) 555-1010
 
-  .title.mt-8
-    Form Elements
+  %table.list.lined.mt-8
+    %thead
+      %tr
+        %th
+          Form Elements
 
-  .card
+    %tbody
+      %tr
+        %td
+          .p-4
+            %temba-textinput(name="Example" placeholder="Placeholder Text" label="My Text Input" help_text="This is here to help, I hope you can read it okay.")
+      %tr
+        %td
+          .p-4
+            %temba-textinput(textarea="true" name="Example" placeholder="Placeholder Text" label="My Textarea" help_text="This is here to help, I hope you can read it okay.")
 
-    %temba-textinput(name="Example" placeholder="Placeholder Text" label="My Text Input" help_text="This is here to help, I hope you can read it okay.")
-
-    .mt-6
-      %temba-textinput(textarea="true" name="Example" placeholder="Placeholder Text" label="My Textarea" help_text="This is here to help, I hope you can read it okay.")
-
-    .mt-6
-      %temba-checkbox(label="Check Me Out" help_text="This is here to help, I hope you can read it okay.")
+      %tr
+        %td
+          .p-4
+            %temba-checkbox(label="Check Me Out" help_text="This is here to help, I hope you can read it okay.")
     
-    .mt-6
-      %temba-select(name="select" label="My Favorite Things")
-        %temba-option(name="Phish" value="phish")
-        %temba-option(name="Prismatic" value="prismatic")
-        %temba-option(name="Bicycles" value="bicycles")
+      %tr
+        %td
+          .p-4
+            %temba-select(name="select" label="My Favorite Things")
+              %temba-option(name="Phish" value="phish")
+              %temba-option(name="Prismatic" value="prismatic")
+              %temba-option(name="Bicycles" value="bicycles")
+    
+  .mt-8
+
+    .mt-2
+      <code>.card</code>
+    .card
+      .title
+        Cards
       
+      This is a card. Other card ideas to add include full bleed edges, headers, and icons.
+
+  .mt-8
+
+    .title
+      Layout
+    
+    Where possible use flexbox for layouts. We have classes for laying things out quickly. The most common pattern
+    is a flex box with a left and right column but with te right side growing to fill avaliable space. To accomplish this,
+    use the <code>.flex-grow</code> class.
+
+    .flex.items-center.border.mt-4.bg-white
+      .p-4.border-r
+        This is the left side
+      .p-4.flex-grow
+        This is the right side, but it is greedy.
+
+    .mt-8.mb-4
+      .title
+        List Pages
+
+      There are helper classes for laying out a general list page
+    .p-8.rounded-lg.shadow
+      .lp-frame.mt-0
+        .left
+          .button-primary
+            Primary Action
+          .lp-nav.upper
+            .lp-nav-item
+              .name
+                Some item
+              .count
+                123
+          .lp-nav.lower
+            .lp-nav-item
+              .name
+                Another item
+              .count
+                123
+        .right
+          Main content view
+
+  .mt-8
+    .title
+        Language
+    
+    Baseline rules for how we talk about things with users.
+
+    .card
+      Do not capitalize or hyphenate email except when using title case.
+      .mt-3
+        Users "Sign In" and "Sign Out".
+      .mt-3
+        Account passwords are reset, not recovered.
+
+      .mt-3
+        For contacts, we have Groups and Smart Groups.
+    
+      .mt-3
+        Capitalize Flows, Contacts, Campaigns, Groups, Smart Groups, Triggers
+      
+      .mt-3
+        Users "Select" instead of "Choose", <i>Select the Flow to start</i>
+
+      .mt-3
+        Users "Connect" numbers to their account when adding a channel.
+
+
+        

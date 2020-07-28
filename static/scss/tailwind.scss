@@ -238,9 +238,16 @@ a {
   }
 }
 
-
 .alert {
-  @apply rounded-lg px-4 py-2 shadow;
+  @apply rounded-lg px-4 py-3;
+}
+
+.alert-info {
+  @apply alert bg-gray-100;
+}
+
+.alert-warning {
+  @apply alert bg-gray-100;
 }
 
 .alert-error {
@@ -551,11 +558,11 @@ table.list {
 .warning {}
 
 code {
-  @apply px-2 py-1 mx-2 shadow rounded-lg;
+  @apply px-2 py-1 mx-1 rounded-lg text-base;
 }
 
 .card {
-  @apply rounded-lg border py-6 px-6 shadow my-4 bg-white
+  @apply rounded-lg py-6 px-6 shadow my-4 bg-white
 }
 
 .help-text {
