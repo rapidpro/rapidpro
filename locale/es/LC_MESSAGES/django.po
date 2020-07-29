@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-29 00:16+0000\n"
+"POT-Creation-Date: 2020-07-30 11:54+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4513,6 +4513,9 @@ msgstr ""
 msgid "Isn't a valid name"
 msgstr "Con un número local"
 
+msgid "Value"
+msgstr "Valor"
+
 #, fuzzy
 #| msgid "Manage Fields"
 msgid "Manage Globals"
@@ -5536,6 +5539,11 @@ msgstr ""
 msgid "Failed to send email with STMP server configuration"
 msgstr ""
 
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Workspaces"
+msgstr "Elija su Organización"
+
 msgid "Topups"
 msgstr ""
 
@@ -5578,11 +5586,6 @@ msgstr "Activar"
 
 msgid "Two Factor Authentication"
 msgstr ""
-
-#, fuzzy
-#| msgid "Select your Organization"
-msgid "Workspaces"
-msgstr "Elija su Organización"
 
 #, fuzzy
 #| msgid "Select your Organization"
@@ -9781,18 +9784,14 @@ msgstr[1] ""
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "¿Está seguro de que desea borrar este contacto?"
 
-msgid "cannot be deleted because it is in use. Usage summary:"
+#, python-format
+msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
 msgstr ""
 
 #, fuzzy
 #| msgid "Flows"
 msgid "Flows:"
 msgstr "Flujos"
-
-#, fuzzy
-#| msgid "Are you sure you want to delete this contact?"
-msgid "Are you sure you want to delete this global?"
-msgstr "¿Está seguro de que desea borrar este contacto?"
 
 #, fuzzy
 #| msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
@@ -9824,8 +9823,21 @@ msgstr "Crear Flujos"
 msgid "Globals"
 msgstr "Manejar campos"
 
-msgid "No globals"
-msgstr ""
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "                              %(completed_percentage)s%% completion\n"
+#| "                            "
+msgid "Found %(results_count)s global matching <i>%(search)s</i>."
+msgid_plural "Found %(results_count)s globals matching <i>%(search)s</i>."
+msgstr[0] ""
+"\n"
+"                              %(completed_percentage)s%% completion\n"
+"                            "
+msgstr[1] ""
+"\n"
+"                              %(completed_percentage)s%% completion\n"
+"                            "
 
 #, fuzzy
 #| msgid "Update Label"
@@ -9837,7 +9849,12 @@ msgstr "Actualizar etiqueta"
 msgid "Delete Global"
 msgstr "Crear Flujos"
 
-msgid "Uses"
+#, fuzzy
+#| msgid "Query Fields"
+msgid "Global Details"
+msgstr "Campos de la solicitud"
+
+msgid "No globals"
 msgstr ""
 
 msgid "messages"
@@ -11406,9 +11423,6 @@ msgid ""
 "        "
 msgstr "Elegir un campo existente, o tipear un nombre para crear un nuevo campo."
 
-msgid "Value"
-msgstr "Valor"
-
 #, fuzzy
 msgid ""
 "\n"
@@ -12927,6 +12941,37 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy, python-format
+#~ msgid ""
+#~ "\n"
+#~ "                Found %(results_count)s global matching <i>%(search)s</i>.\n"
+#~ "              "
+#~ msgid_plural ""
+#~ "\n"
+#~ "                Found %(results_count)s globals matching <i>%(search)s</i>.\n"
+#~ "\n"
+#~ "              "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "                    %(sms_failed)s Error\n"
+#~ "\n"
+#~ "         "
+#~ msgstr[1] ""
+#~ "\n"
+#~ "                    %(sms_failed)s Error\n"
+#~ "\n"
+#~ "         "
+
+#, fuzzy, python-format
+#~| msgid "Are you sure you want to delete this contact?"
+#~ msgid "Are you sure you want to delete this global? <b> %(object.name)s </b> Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
+#~ msgstr "¿Está seguro de que desea borrar este contacto?"
+
+#, fuzzy
+#~| msgid "Are you sure you want to delete this contact?"
+#~ msgid "Are you sure you want to delete this global?"
+#~ msgstr "¿Está seguro de que desea borrar este contacto?"
 
 #~ msgid "Claim phone number"
 #~ msgstr "Pedir número de teléfono"

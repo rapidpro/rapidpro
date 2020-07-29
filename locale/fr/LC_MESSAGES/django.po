@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-29 00:16+0000\n"
+"POT-Creation-Date: 2020-07-30 11:54+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3396,6 +3396,9 @@ msgstr "Impossible de créer un nouveau global car la limite est %(limit)s."
 msgid "Isn't a valid name"
 msgstr "N'est pas un nom valide"
 
+msgid "Value"
+msgstr "Valeur"
+
 msgid "Manage Globals"
 msgstr "Gérer les variables globales"
 
@@ -4311,6 +4314,11 @@ msgstr "Impossible d'envoyer un e-mail avec la configuration du serveur STMP ave
 msgid "Failed to send email with STMP server configuration"
 msgstr "Impossible d'envoyer un e-mail avec la configuration du serveur STMP"
 
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Workspaces"
+msgstr "Choisissez votre Organisation"
+
 msgid "Topups"
 msgstr "Les recharges"
 
@@ -4350,11 +4358,6 @@ msgstr "activer"
 
 msgid "Two Factor Authentication"
 msgstr "Authentification à deux facteurs"
-
-#, fuzzy
-#| msgid "Select your Organization"
-msgid "Workspaces"
-msgstr "Choisissez votre Organisation"
 
 #, fuzzy
 #| msgid "Select your Organization"
@@ -7833,14 +7836,13 @@ msgstr[1] "<b>%(count)s</b> exécutions"
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "Etes-vous sûr de vouloir supprimer ce libellé?"
 
-msgid "cannot be deleted because it is in use. Usage summary:"
+#, fuzzy, python-format
+#| msgid "cannot be deleted because it is in use. Usage summary:"
+msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
 msgstr "ne peut pas être supprimé car il est en cours d'utilisation. Résumé d'utilisation:"
 
 msgid "Flows:"
 msgstr "Flux:"
-
-msgid "Are you sure you want to delete this global?"
-msgstr "Voulez-vous vraiment supprimer cette variable globale?"
 
 msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
 msgstr "Une fois supprimé, ce global sera définitivement perdu. Il n'y a aucun moyen d'annuler cette opération."
@@ -7863,8 +7865,13 @@ msgstr "Créer une variable globale"
 msgid "Globals"
 msgstr "Variables Globales"
 
-msgid "No globals"
-msgstr "Pas de variables globales"
+#, fuzzy, python-format
+#| msgid "Found %(results_count)s message in last 90 days matching <i>%(search)s</i>."
+#| msgid_plural "Found %(results_count)s messages in last 90 days matching <i>%(search)s</i>."
+msgid "Found %(results_count)s global matching <i>%(search)s</i>."
+msgid_plural "Found %(results_count)s globals matching <i>%(search)s</i>."
+msgstr[0] "%(results_count)s message trouvé au cours des 90 derniers jours pour <i>%(search)s</i>."
+msgstr[1] "%(results_count)s messages trouvés au cours des 90 derniers jours pour <i>%(search)s</i>."
 
 msgid "Update Global"
 msgstr "Mettre à jour la variable globale"
@@ -7872,8 +7879,13 @@ msgstr "Mettre à jour la variable globale"
 msgid "Delete Global"
 msgstr "Supprimer la variable globale"
 
-msgid "Uses"
-msgstr "Utilisations"
+#, fuzzy
+#| msgid "Details"
+msgid "Global Details"
+msgstr "Détails"
+
+msgid "No globals"
+msgstr "Pas de variables globales"
 
 msgid "messages"
 msgstr "messages"
@@ -9775,9 +9787,6 @@ msgstr ""
 "          Sélectionnez un champ existant ou tapez un nom pour créer un nouveau champ.\n"
 "        "
 
-msgid "Value"
-msgstr "Valeur"
-
 msgid ""
 "\n"
 "          The value to store can be any text you like. You can also reference other\n"
@@ -11208,6 +11217,46 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "                    Found %(results_count)s contact matching <i>%(search)s</i>.\n"
+#~| "                    "
+#~| msgid_plural ""
+#~| "\n"
+#~| "                      Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
+#~| "\n"
+#~| "                  "
+#~ msgid ""
+#~ "\n"
+#~ "                Found %(results_count)s global matching <i>%(search)s</i>.\n"
+#~ "              "
+#~ msgid_plural ""
+#~ "\n"
+#~ "                Found %(results_count)s globals matching <i>%(search)s</i>.\n"
+#~ "\n"
+#~ "              "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "                    Trouvé %(results_count)s contact correspondant <i>%(search)s</i>.\n"
+#~ "                    "
+#~ msgstr[1] ""
+#~ "\n"
+#~ "                      Trouvé %(results_count)s contacts correspondants <i>%(search)s</i>.\n"
+#~ "\n"
+#~ "                  "
+
+#, fuzzy, python-format
+#~| msgid "Are you sure you want to delete this contact?"
+#~ msgid "Are you sure you want to delete this global? <b> %(object.name)s </b> Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
+#~ msgstr "Êtes-vous sûr de vouloir supprimer ce contact?"
+
+#~ msgid "Are you sure you want to delete this global?"
+#~ msgstr "Voulez-vous vraiment supprimer cette variable globale?"
+
+#~ msgid "Uses"
+#~ msgstr "Utilisations"
 
 #~ msgid "Claim phone number"
 #~ msgstr "Réclamer le numéro de téléphone"

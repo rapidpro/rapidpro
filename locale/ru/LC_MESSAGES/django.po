@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-29 00:16+0000\n"
+"POT-Creation-Date: 2020-07-30 11:54+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3350,6 +3350,9 @@ msgstr "Невозможно создать новый глобальный об
 msgid "Isn't a valid name"
 msgstr "Не является допустимым именем"
 
+msgid "Value"
+msgstr "Значение"
+
 msgid "Manage Globals"
 msgstr "Управление Глобальным объектами"
 
@@ -4265,6 +4268,11 @@ msgstr "Не удалось отправить электронное письм
 msgid "Failed to send email with STMP server configuration"
 msgstr "Не удалось отправить электронное письмо с конфигурацией сервера STMP"
 
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Workspaces"
+msgstr "Выберите свою Организацию"
+
 msgid "Topups"
 msgstr "Пополнения"
 
@@ -4304,11 +4312,6 @@ msgstr "Активировать"
 
 msgid "Two Factor Authentication"
 msgstr "Двухфакторная аутентификация"
-
-#, fuzzy
-#| msgid "Select your Organization"
-msgid "Workspaces"
-msgstr "Выберите свою Организацию"
 
 #, fuzzy
 #| msgid "Select your Organization"
@@ -7875,14 +7878,13 @@ msgstr[3] "<b>%(count)s</b> проходов"
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "Вы действительно хотите удалить эту метку?"
 
-msgid "cannot be deleted because it is in use. Usage summary:"
+#, fuzzy, python-format
+#| msgid "cannot be deleted because it is in use. Usage summary:"
+msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
 msgstr "невозможно удалить, потому что используется. Сводная информация по использованию:"
 
 msgid "Flows:"
 msgstr "Потоки:"
-
-msgid "Are you sure you want to delete this global?"
-msgstr "Вы действительно хотите удалить этот глобальный объект?"
 
 msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
 msgstr "После удаления этот глобальный объект исчезнет навсегда. Способа отменить эту операцию не существует."
@@ -7907,8 +7909,15 @@ msgstr "Создать Глобальный объект"
 msgid "Globals"
 msgstr "Глобальные объекты"
 
-msgid "No globals"
-msgstr "Нет глобальных объектов"
+#, fuzzy, python-format
+#| msgid "Found %(results_count)s message in last 90 days matching <i>%(search)s</i>."
+#| msgid_plural "Found %(results_count)s messages in last 90 days matching <i>%(search)s</i>."
+msgid "Found %(results_count)s global matching <i>%(search)s</i>."
+msgid_plural "Found %(results_count)s globals matching <i>%(search)s</i>."
+msgstr[0] "Найдено %(results_count)s сообщение за последние 90 дней, соответствующее <i>%(search)s</i>."
+msgstr[1] "Найдено %(results_count)s сообщений за последние 90 дней, соответствующих <i>%(search)s</i>."
+msgstr[2] "Найдено %(results_count)s сообщений за последние 90 дней, соответствующих <i>%(search)s</i>."
+msgstr[3] "Найдено %(results_count)s сообщений за последние 90 дней, соответствующих <i>%(search)s</i>."
 
 msgid "Update Global"
 msgstr "Обновить Глобальный объект"
@@ -7916,8 +7925,13 @@ msgstr "Обновить Глобальный объект"
 msgid "Delete Global"
 msgstr "Удалить Глобальный объект"
 
-msgid "Uses"
-msgstr "Использования"
+#, fuzzy
+#| msgid "Details"
+msgid "Global Details"
+msgstr "Детальная информация"
+
+msgid "No globals"
+msgstr "Нет глобальных объектов"
 
 msgid "messages"
 msgstr "сообщения"
@@ -9903,9 +9917,6 @@ msgstr ""
 "          Выберите существующее поле или введите название, чтобы создать новое поле.\n"
 "        "
 
-msgid "Value"
-msgstr "Значение"
-
 msgid ""
 "\n"
 "          The value to store can be any text you like. You can also reference other\n"
@@ -11379,6 +11390,56 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "                    Found %(results_count)s contact matching <i>%(search)s</i>.\n"
+#~| "                    "
+#~| msgid_plural ""
+#~| "\n"
+#~| "                      Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
+#~| "\n"
+#~| "                  "
+#~ msgid ""
+#~ "\n"
+#~ "                Found %(results_count)s global matching <i>%(search)s</i>.\n"
+#~ "              "
+#~ msgid_plural ""
+#~ "\n"
+#~ "                Found %(results_count)s globals matching <i>%(search)s</i>.\n"
+#~ "\n"
+#~ "              "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "                    Найден %(results_count)s контакт, соответствующий <i>%(search)s</i>.\n"
+#~ "                    "
+#~ msgstr[1] ""
+#~ "\n"
+#~ "                      Найдено %(results_count)s контактов, соответствующих <i>%(search)s</i>.\n"
+#~ "\n"
+#~ "                  "
+#~ msgstr[2] ""
+#~ "\n"
+#~ "                      Найдено %(results_count)s контактов, соответствующих <i>%(search)s</i>.\n"
+#~ "\n"
+#~ "                  "
+#~ msgstr[3] ""
+#~ "\n"
+#~ "                      Найдено %(results_count)s контактов, соответствующих <i>%(search)s</i>.\n"
+#~ "\n"
+#~ "                  "
+
+#, fuzzy, python-format
+#~| msgid "Are you sure you want to delete this contact?"
+#~ msgid "Are you sure you want to delete this global? <b> %(object.name)s </b> Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
+#~ msgstr "Вы действительно хотите удалить этот контакт?"
+
+#~ msgid "Are you sure you want to delete this global?"
+#~ msgstr "Вы действительно хотите удалить этот глобальный объект?"
+
+#~ msgid "Uses"
+#~ msgstr "Использования"
 
 #~ msgid "Claim phone number"
 #~ msgstr "Заявить номер телефон"

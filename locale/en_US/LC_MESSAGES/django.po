@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-29 00:16+0000\n"
+"POT-Creation-Date: 2020-07-30 11:54+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3075,6 +3075,9 @@ msgstr ""
 msgid "Isn't a valid name"
 msgstr ""
 
+msgid "Value"
+msgstr ""
+
 msgid "Manage Globals"
 msgstr ""
 
@@ -3924,6 +3927,9 @@ msgstr ""
 msgid "Failed to send email with STMP server configuration"
 msgstr ""
 
+msgid "Workspaces"
+msgstr ""
+
 msgid "Topups"
 msgstr ""
 
@@ -3958,9 +3964,6 @@ msgid "Activate"
 msgstr ""
 
 msgid "Two Factor Authentication"
-msgstr ""
-
-msgid "Workspaces"
 msgstr ""
 
 msgid "New Workspace"
@@ -6761,13 +6764,11 @@ msgstr[1] ""
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr ""
 
-msgid "cannot be deleted because it is in use. Usage summary:"
+#, python-format
+msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
 msgstr ""
 
 msgid "Flows:"
-msgstr ""
-
-msgid "Are you sure you want to delete this global?"
 msgstr ""
 
 msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
@@ -6791,8 +6792,11 @@ msgstr ""
 msgid "Globals"
 msgstr ""
 
-msgid "No globals"
-msgstr ""
+#, python-format
+msgid "Found %(results_count)s global matching <i>%(search)s</i>."
+msgid_plural "Found %(results_count)s globals matching <i>%(search)s</i>."
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Update Global"
 msgstr ""
@@ -6800,7 +6804,10 @@ msgstr ""
 msgid "Delete Global"
 msgstr ""
 
-msgid "Uses"
+msgid "Global Details"
+msgstr ""
+
+msgid "No globals"
 msgstr ""
 
 msgid "messages"
@@ -8019,9 +8026,6 @@ msgid ""
 "\n"
 "          Select an existing field, or type a name to create a new field.\n"
 "        "
-msgstr ""
-
-msgid "Value"
 msgstr ""
 
 msgid ""
