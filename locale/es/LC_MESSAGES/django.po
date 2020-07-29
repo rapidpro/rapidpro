@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-27 17:36+0000\n"
+"POT-Creation-Date: 2020-07-29 00:16+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -6557,8 +6557,10 @@ msgstr "Transmisor"
 msgid "API Channels"
 msgstr "Transmisor"
 
-msgid "Claim phone number"
-msgstr "Pedir número de teléfono"
+#, fuzzy
+#| msgid "Add a Phone Number"
+msgid "Connect a Phone Number"
+msgstr "Agregar un número de teléfono"
 
 #, fuzzy
 #| msgid ""
@@ -6567,7 +6569,7 @@ msgstr "Pedir número de teléfono"
 #| "        to your number will be charged according to their plan.\n"
 #| "\n"
 #| "      "
-msgid "Once you claim a number you will immediately be able to send and receive messages. Contacts who send messages to your number will be charged according to their plan."
+msgid "Once you connect a number you will immediately be able to send and receive messages. Contacts who send messages to your number will be charged according to their plan."
 msgstr ""
 "\n"
 "        Cuando pide un número podrá enviar y recibir mensajes inmediatamente. A los usuarios que envíen mensajes\n"
@@ -6579,12 +6581,17 @@ msgid "Pattern"
 msgstr "Patrón"
 
 #, fuzzy
-#| msgid "Start Flow"
-msgid "Supported"
-msgstr "Empezar flujo"
+#| msgid "Using a Local Number"
+msgid "Existing Numbers"
+msgstr "Con un número local"
 
-msgid "Unsupported"
+msgid "Select a number you already own to connect it to your account."
 msgstr ""
+
+#, fuzzy
+#| msgid "Start Flow"
+msgid "(Unsupported)"
+msgstr "Empezar flujo"
 
 #, fuzzy
 msgid "IP Addresses"
@@ -8998,13 +9005,13 @@ msgstr ""
 #, fuzzy, python-format
 msgid ""
 "\n"
-"                      Found %(results_count)s contact matching <i>%(search)s</i>.\n"
-"                      "
+"                    Found %(results_count)s contact matching <i>%(search)s</i>.\n"
+"                    "
 msgid_plural ""
 "\n"
-"                        Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
+"                      Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
 "\n"
-"                    "
+"                  "
 msgstr[0] ""
 "\n"
 "                    %(sms_failed)s Error\n"
@@ -11201,8 +11208,8 @@ msgstr "Desconectar Twilio"
 
 msgid ""
 "\n"
-"          Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?\n"
-"        "
+"            Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?\n"
+"          "
 msgstr ""
 
 msgid "To enable two factor authentication, use a one time password application such as"
@@ -12562,6 +12569,67 @@ msgid "Not scheduled"
 msgstr "programado"
 
 #, fuzzy
+#| msgid "Flow Message"
+msgid "Welcome Back"
+msgstr "Mensaje del flujo"
+
+msgid ""
+"\n"
+"    Please sign in with your email address and password. If you don't remember\n"
+"    your password, you can <a href=\"/users/user/forget/\">reset it</a>.\n"
+"\n"
+"  "
+msgstr ""
+
+#, fuzzy
+#| msgid "Sign in"
+msgid "Sign In"
+msgstr "Registrarse"
+
+msgid "Login Failure"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"    Sorry, you cannot log in at this time because we received %(failed_login_limit)s incorrect login attempts.\n"
+"\n"
+"  "
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"      Please wait %(lockout_timeout)s minutes before to try log in again.\n"
+"\n"
+"    "
+msgstr ""
+
+msgid "Alternatively, you can fill out the form below to have your password reset via e-mail."
+msgstr ""
+
+msgid "Please contact the website administrator to have your password reset."
+msgstr ""
+
+#, fuzzy
+#| msgid "Resend"
+msgid "Reset"
+msgstr "Reenviar"
+
+#, fuzzy
+#| msgid "Password"
+msgid "Reset Password"
+msgstr "Contraseña"
+
+msgid ""
+"\n"
+"    Enter the email address you used to sign up. We will\n"
+"    send you an email with details on how to reset your password.\n"
+"\n"
+"  "
+msgstr ""
+
+#, fuzzy
 #| msgid "Delete"
 msgid "Delete "
 msgstr "Borrar"
@@ -12859,6 +12927,9 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Claim phone number"
+#~ msgstr "Pedir número de teléfono"
 
 #, fuzzy
 #~| msgid "Flow to start"
@@ -16690,9 +16761,6 @@ msgstr ""
 
 #~ msgid "phone"
 #~ msgstr "teléfono"
-
-#~ msgid "Add a Phone Number"
-#~ msgstr "Agregar un número de teléfono"
 
 #~ msgid ""
 #~ "\n"

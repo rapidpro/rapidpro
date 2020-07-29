@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-27 17:36+0000\n"
+"POT-Creation-Date: 2020-07-29 00:16+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -6207,8 +6207,10 @@ msgstr "Transmissor"
 msgid "API Channels"
 msgstr "Transmissor"
 
-msgid "Claim phone number"
-msgstr "Número de telefone de requisição"
+#, fuzzy
+#| msgid "Add a Phone Number"
+msgid "Connect a Phone Number"
+msgstr "Adicionar número de telefone"
 
 #, fuzzy
 #| msgid ""
@@ -6217,7 +6219,7 @@ msgstr "Número de telefone de requisição"
 #| "        to your number will be charged according to their plan.\n"
 #| "\n"
 #| "      "
-msgid "Once you claim a number you will immediately be able to send and receive messages. Contacts who send messages to your number will be charged according to their plan."
+msgid "Once you connect a number you will immediately be able to send and receive messages. Contacts who send messages to your number will be charged according to their plan."
 msgstr ""
 "\n"
 "Assim que você solicitar um número, você imediatamente será capaz de enviar e receber mensagens. Os usuários que enviarem mensagens ao seu número serão cobrados de acordo com os planos deles. "
@@ -6226,11 +6228,16 @@ msgid "Pattern"
 msgstr "Padrão"
 
 #, fuzzy
-msgid "Supported"
-msgstr "Ação de iniciar o fluxo"
+#| msgid "Using a Local Number"
+msgid "Existing Numbers"
+msgstr "Use um número local"
 
-msgid "Unsupported"
+msgid "Select a number you already own to connect it to your account."
 msgstr ""
+
+#, fuzzy
+msgid "(Unsupported)"
+msgstr "Ação de iniciar o fluxo"
 
 #, fuzzy
 msgid "IP Addresses"
@@ -8306,13 +8313,13 @@ msgstr ""
 #, fuzzy, python-format
 msgid ""
 "\n"
-"                      Found %(results_count)s contact matching <i>%(search)s</i>.\n"
-"                      "
+"                    Found %(results_count)s contact matching <i>%(search)s</i>.\n"
+"                    "
 msgid_plural ""
 "\n"
-"                        Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
+"                      Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
 "\n"
-"                    "
+"                  "
 msgstr[0] ""
 "\n"
 "Contatos %(contacts_count)s importados com sucesso para"
@@ -10370,8 +10377,8 @@ msgstr "Desconectar Twilio "
 
 msgid ""
 "\n"
-"          Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?\n"
-"        "
+"            Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?\n"
+"          "
 msgstr ""
 
 msgid "To enable two factor authentication, use a one time password application such as"
@@ -11618,6 +11625,67 @@ msgid "Not scheduled"
 msgstr "Não agendado"
 
 #, fuzzy
+#| msgid "Flow Message"
+msgid "Welcome Back"
+msgstr "Fluxo de mensagens"
+
+msgid ""
+"\n"
+"    Please sign in with your email address and password. If you don't remember\n"
+"    your password, you can <a href=\"/users/user/forget/\">reset it</a>.\n"
+"\n"
+"  "
+msgstr ""
+
+#, fuzzy
+#| msgid "Sign in"
+msgid "Sign In"
+msgstr "Entrar"
+
+msgid "Login Failure"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"    Sorry, you cannot log in at this time because we received %(failed_login_limit)s incorrect login attempts.\n"
+"\n"
+"  "
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"      Please wait %(lockout_timeout)s minutes before to try log in again.\n"
+"\n"
+"    "
+msgstr ""
+
+msgid "Alternatively, you can fill out the form below to have your password reset via e-mail."
+msgstr ""
+
+msgid "Please contact the website administrator to have your password reset."
+msgstr ""
+
+#, fuzzy
+#| msgid "Resend"
+msgid "Reset"
+msgstr "Re-enviar"
+
+#, fuzzy
+#| msgid "Password"
+msgid "Reset Password"
+msgstr "Senha"
+
+msgid ""
+"\n"
+"    Enter the email address you used to sign up. We will\n"
+"    send you an email with details on how to reset your password.\n"
+"\n"
+"  "
+msgstr ""
+
+#, fuzzy
 #| msgid "Delete"
 msgid "Delete "
 msgstr "Deletar"
@@ -11894,6 +11962,9 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Claim phone number"
+#~ msgstr "Número de telefone de requisição"
 
 #, fuzzy
 #~| msgid "Flow to start"
@@ -15794,9 +15865,6 @@ msgstr ""
 
 #~ msgid "phone"
 #~ msgstr "telefone"
-
-#~ msgid "Add a Phone Number"
-#~ msgstr "Adicionar número de telefone"
 
 #~ msgid ""
 #~ "\n"

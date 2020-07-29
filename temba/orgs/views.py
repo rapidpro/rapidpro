@@ -1073,7 +1073,7 @@ class OrgCRUDL(SmartCRUDL):
         default_order = ("-credits", "-created_on")
         search_fields = ("name__icontains", "created_by__email__iexact", "config__icontains")
         link_fields = ("name", "owner")
-        title = "Workspaces"
+        title = _("Workspaces")
 
         def get_used(self, obj):
             if not obj.credits:  # pragma: needs cover
