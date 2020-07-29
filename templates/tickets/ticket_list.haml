@@ -39,12 +39,12 @@
                   .list-buttons.flex.items-center.-mx-2.h-full
                     -if 'close' in actions
                       .button-action.object-btn-close
-                        .glyph.icon-box
+                        .-mt-1.mr-2.glyph.icon-box
                         -trans "Close"
 
                     -if 'reopen' in actions
                       .button-action.object-btn-close
-                        .glyph.icon-box
+                        .-mt-1.mr-2.glyph.icon-folder-open
                         -trans "Reopen"
 
             .flex-grow.ml-2.items-center
@@ -52,7 +52,7 @@
                 .page-title.leading-tight
                   {{ title }}
 
-          %table.list.object-list.lined{class: '{% if tickets.ticket_update %}selectable{% endif %}'}
+          %table.list.object-list.lined(class='{% if org_perms.tickets.ticket_update %}selectable{% endif %}')
             %tbody
               -for object in object_list
                 %tr.ticket.object-row.select-row{ data-object-id: "{{ obj.id }}"}
@@ -70,17 +70,20 @@
                       -else
                         %span.ticketer-inactive
                           {{ object.ticketer.name }}
-                  %td.ticket-subject
+                  %td(onclick="handleRowSelection(this)")
                     {{ object.subject }}
-                  %td.ticket-body
+                  %td(onclick="handleRowSelection(this)")
                     {{ object.body }}
+
                   -if not folder
-                    %td.ticket-status
+                    %td(onclick="handleRowSelection(this)")
                       %span.label(class="status-{{object.status}}")
                         {{ object.get_status_display }}
-                  %td.opened_on
-                    %span.time
-                      {% short_datetime object.opened_on %}
+
+                  %td.opened_on(onclick="handleRowSelection(this)")
+                    .flex.w-full.items-end.justify-end.pr-4
+                      .time.whitespace-no-wrap
+                        {% short_datetime object.opened_on %}
 
               -empty
                 %tr.empty
@@ -114,16 +117,13 @@
   {{ block.super }}
 
   :css
-    td.opened_on {
-      text-align: right;
-    }
-
     .ticketer-inactive {
       color: #AAA;
     }
 
 
 -block extra-less
+  {{ block.super }}
   -compress css inline
     {% lessblock %}
       :plain
