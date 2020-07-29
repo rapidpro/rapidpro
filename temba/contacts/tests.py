@@ -885,14 +885,14 @@ class ContactGroupCRUDLTest(TembaTest):
         ContactGroup.user_groups.filter(id=self.dynamic_group.pk).update(status=ContactGroup.STATUS_READY)
 
         # update both name and query, form should fail, because query is not parsable
-        mr_mocks.parse_query("(!))!)", error="error at !")
+        mr_mocks.error("error at !", code="unexpected_token", extra={"token": "!"})
         response = self.client.post(url, dict(name="Frank", query="(!))!)"))
-        self.assertFormError(response, "form", "query", "error at !")
+        self.assertFormError(response, "form", "query", "Invalid query syntax at '!'")
 
         # try to update a group with an invalid query
-        mr_mocks.parse_query("name <> some_name", error="error at >")
+        mr_mocks.error("error at >", code="unexpected_token", extra={"token": ">"})
         response = self.client.post(url, dict(name="Frank", query="name <> some_name"))
-        self.assertFormError(response, "form", "query", "error at >")
+        self.assertFormError(response, "form", "query", "Invalid query syntax at '>'")
 
         # dependent on id
         response = self.client.post(url, dict(name="Frank", query="id = 123"))

@@ -1,5 +1,5 @@
 import re
-from typing import List
+from typing import Dict, List
 from unittest.mock import patch
 
 from django.conf import settings
@@ -20,13 +20,8 @@ class Mocks:
         self._parse_query = {}
         self._errors = []
 
-    def parse_query(self, query, *, fields=None, allow_as_group=True, elastic_query=None, error: str = None):
-        assert not (fields and error), "can't mock with both fields and error"
-
+    def parse_query(self, query, *, fields=None, allow_as_group=True, elastic_query=None):
         def mock():
-            if error:
-                raise MailroomException("mr/parse_query", None, {"error": error})
-
             return {
                 "query": query,
                 "fields": list(fields),
@@ -36,15 +31,21 @@ class Mocks:
 
         self._parse_query[query] = mock
 
-    def error(self, msg: str):
+    def error(self, msg: str, code: str = None, extra: Dict = None):
         """
         Queues an error which will become a mailroom exception at the next client call
         """
-        self._errors.append(msg)
+        err = {"error": msg}
+        if code:
+            err["code"] = code
+        if extra:
+            err["extra"] = extra
+
+        self._errors.append(err)
 
     def _check_error(self, endpoint: str):
         if self._errors:
-            raise MailroomException(endpoint, None, {"error": self._errors.pop(0)})
+            raise MailroomException(endpoint, None, self._errors.pop(0))
 
 
 class TestClient(MailroomClient):
