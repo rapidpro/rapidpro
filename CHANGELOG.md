@@ -1,3 +1,9 @@
+v5.7.2
+----------
+ * Add error messages for all error codes from mailroom query parsing
+ * Fix org manage quick searches
+ * Always use mailroom for static group changes
+
 v5.7.1
 ----------
  * Add session history field to flowstarts
