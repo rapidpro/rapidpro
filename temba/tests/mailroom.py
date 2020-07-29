@@ -31,7 +31,7 @@ class Mocks:
 
         self._parse_query[query] = mock
 
-    def error(self, msg: str, code: str, extra: Dict):
+    def error(self, msg: str, code: str = None, extra: Dict = None):
         """
         Queues an error which will become a mailroom exception at the next client call
         """
