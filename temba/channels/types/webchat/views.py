@@ -1,4 +1,5 @@
 import regex
+import pycountry
 
 from django import forms
 from django.conf import settings
@@ -65,7 +66,11 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         }
         languages = org.languages.all().order_by("orgs")
         for lang in languages:
-            basic_config[f"welcome_message_{lang.iso_code}"] = ""
+            lang_alpha = pycountry.languages.get(alpha_3=lang.iso_code)
+            if not hasattr(lang_alpha, "alpha_2"):
+                continue
+
+            basic_config[f"welcome_message_{lang_alpha.alpha_2}"] = ""
 
         self.object = Channel.create(
             org,
@@ -98,12 +103,17 @@ class ConfigurationView(SmartReadView):
 
             languages = channel.org.languages.all().order_by("orgs")
             for lang in languages:
-                welcome_message[f"{lang.iso_code}"] = channel.config.get(f"welcome_message_{lang.iso_code}")
+                lang_alpha = pycountry.languages.get(alpha_3=lang.iso_code)
+                if not hasattr(lang_alpha, "alpha_2"):
+                    continue
+
+                welcome_message[f"{lang_alpha.alpha_2}"] = channel.config.get(f"welcome_message_{lang_alpha.alpha_2}")
 
             welcome_message_default = channel.config.get("welcome_message_default")
             if len(welcome_message_default) == 0:
+                primary_language = pycountry.languages.get(alpha_3=channel.org.primary_language.iso_code)
                 welcome_message_default = (
-                    welcome_message.get(channel.org.primary_language.iso_code)
+                    welcome_message.get(primary_language.alpha_2 if hasattr(primary_language, "alpha_2") else None)
                     if channel.org.primary_language
                     else None
                 )
@@ -116,7 +126,7 @@ class ConfigurationView(SmartReadView):
                 "hostApi": f"https://{channel.callback_domain}",
                 "icon": channel.config.get("logo"),
                 "welcomeMessage": welcome_message_default,
-                "welcomeMessage_i18n": welcome_message,
+                "welcomeMessageI18n": welcome_message,
                 "theme": {
                     "widgetBackgroundColor": f"#{channel.config.get('widget_bg_color')}",
                     "chatHeaderBackgroundColor": f"#{channel.config.get('chat_header_bg_color')}",
