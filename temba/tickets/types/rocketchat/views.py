@@ -105,7 +105,7 @@ class ConnectView(BaseConnectView):
             client.settings(self.request.build_absolute_uri("/"), self.object)
             self.request.session.pop(self.SESSION_KEY, None)
         except ClientError as err:
-            messages.error(self.request, err.msg if err.msg else _("Unable to validate the secret code."))
+            messages.error(self.request, err.msg if err.msg else _("Configuration has failed"))
             self.object.delete()
             return super().get(self.request, *self.args, **self.kwargs)
 

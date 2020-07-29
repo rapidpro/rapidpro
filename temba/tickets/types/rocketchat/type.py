@@ -31,8 +31,10 @@ class RocketChatType(TicketerType):
     @staticmethod
     def callback_url(ticketer, domain=None):
         if not domain:
-            domain = RE_HOST.search(ticketer.org.get_brand_domain()).group()
-        scheme, domain = RE_HOST.search(domain).groups()
-        if not domain:
+            domain = RE_HOST.search(ticketer.org.get_brand_domain() or "")
+            domain = domain and domain.group() or ""
+        search = RE_HOST.search(domain)
+        if not search:
             raise ValueError("Cannot to identify the hostname.")
+        scheme, domain = search.groups()
         return CALLBACK_URL_TEMPLATE.format(host=f"{scheme or 'https'}://{domain}", uuid=ticketer.uuid)
