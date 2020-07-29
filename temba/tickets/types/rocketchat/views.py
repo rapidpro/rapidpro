@@ -7,7 +7,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba.tickets.models import Ticketer
 from temba.utils.fields import ExternalURLField
 from temba.tickets.views import BaseConnectView
-from temba.utils.text import random_string
+from temba.utils.text import random_string, truncate
 
 from .client import Client, ClientError
 
@@ -96,13 +96,10 @@ class ConnectView(BaseConnectView):
             messages.error(self.request, err.msg if err.msg else _("Unable to validate the secret code."))
             return super().get(self.request, *self.args, **self.kwargs)
 
-        name = f"{RocketChatType.name}: {RE_HOST.search(url).group('domain')}"
-        max_length = Ticketer._meta.get_field("name").max_length
-        if len(name) > max_length:
-            name = f"{name[:(max_length-4)]}{'' if name[max_length - 4] == '.' else name[max_length - 4]}..."
-
         self.object = Ticketer.create(
-            org=self.org, user=self.request.user, ticketer_type=RocketChatType.slug, name=name, config=config
+            org=self.org, user=self.request.user, ticketer_type=RocketChatType.slug, config=config,
+            name=truncate(f"{RocketChatType.name}: {RE_HOST.search(url).group('domain')}",
+                          Ticketer._meta.get_field("name").max_length)
         )
         try:
             client.settings(self.request.build_absolute_uri("/"), self.object)
