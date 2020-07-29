@@ -226,20 +226,20 @@ class Trigger(SmartModel):
             flow = Flow.objects.get(org=org, uuid=trigger_def[Trigger.EXPORT_FLOW]["uuid"], is_active=True)
 
             # see if that trigger already exists
-            trigger = Trigger.objects.filter(org=org, trigger_type=trigger_def[Trigger.EXPORT_TYPE])
+            existing_triggers = Trigger.objects.filter(org=org, trigger_type=trigger_def[Trigger.EXPORT_TYPE])
 
             if trigger_def[Trigger.EXPORT_KEYWORD]:
-                trigger = trigger.filter(keyword__iexact=trigger_def[Trigger.EXPORT_KEYWORD])
+                existing_triggers = existing_triggers.filter(keyword__iexact=trigger_def[Trigger.EXPORT_KEYWORD])
 
             if groups:
-                trigger = trigger.filter(groups__in=groups)
+                existing_triggers = existing_triggers.filter(groups__in=groups)
 
-            exact_flow_trigger = trigger.filter(flow=flow).order_by("-created_on").first()
-            trigger.update(is_archived=True)
+            exact_flow_trigger = existing_triggers.filter(flow=flow).order_by("-created_on").first()
+            for tr in existing_triggers:
+                tr.archive(user)
 
             if exact_flow_trigger:
-                exact_flow_trigger.is_archived = False
-                exact_flow_trigger.save()
+                exact_flow_trigger.restore(user)
             else:
 
                 # if we have a channel resolve it
