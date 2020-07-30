@@ -3,11 +3,6 @@
 -load compress temba
 -load i18n
 
--block title-icon
-  .title-icon
-    %span.glyph{class:"{{ view.channel_type.icon }}"}
-
-
 -block country-select
   %temba-select#country(name="country" label='{{_("Country")|escapejs}}')
     -for country in search_countries

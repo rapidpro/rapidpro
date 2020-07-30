@@ -860,7 +860,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(self.get_success_url())
 
-    class PlivoConnect(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
+    class PlivoConnect(ModalMixin, ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class PlivoConnectForm(forms.Form):
             auth_id = forms.CharField(help_text=_("Your Plivo AUTH ID"))
             auth_token = forms.CharField(help_text=_("Your Plivo AUTH TOKEN"))
