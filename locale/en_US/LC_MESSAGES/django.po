@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-29 00:16+0000\n"
+"POT-Creation-Date: 2020-07-30 21:00+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2096,10 +2096,19 @@ msgstr ""
 msgid "Allow international sending"
 msgstr ""
 
-msgid "The number or address of this channel"
+msgid "Phone number of this channel"
 msgstr ""
 
-msgid "Phone number of this channel"
+msgid "Settings"
+msgstr ""
+
+msgid "Channel Log"
+msgstr ""
+
+msgid "Call Log"
+msgstr ""
+
+msgid "Edit Channel"
 msgstr ""
 
 msgid "Disable Bulk Sending"
@@ -2111,7 +2120,16 @@ msgstr ""
 msgid "Disable Voice Calling"
 msgstr ""
 
-msgid "Remove"
+msgid "Disable Voice Caliing"
+msgstr ""
+
+msgid "Enable Voice Calling"
+msgstr ""
+
+msgid "Delete"
+msgstr ""
+
+msgid "Delete Channel"
 msgstr ""
 
 msgid "Whitelist Domain"
@@ -2133,6 +2151,12 @@ msgid "An error occured contacting the Facebook API"
 msgstr ""
 
 msgid "Remove Android"
+msgstr ""
+
+msgid "Remove Voice Calling"
+msgstr ""
+
+msgid "Remove Bulk Sending"
 msgstr ""
 
 msgid "We have disconnected your Twilio number. If you do not need this number you can delete it from the Twilio website."
@@ -2236,9 +2260,6 @@ msgid "Your classifier has been deleted."
 msgstr ""
 
 msgid "Sync"
-msgstr ""
-
-msgid "Delete"
 msgstr ""
 
 msgid "Your classifier has been synched."
@@ -2811,6 +2832,9 @@ msgstr ""
 
 #, python-format
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
+msgstr ""
+
+msgid "Remove"
 msgstr ""
 
 msgid "Contact Name"
@@ -3722,9 +3746,6 @@ msgstr ""
 msgid "%(name)s Credits Alert"
 msgstr ""
 
-msgid "Settings"
-msgstr ""
-
 msgid "Used"
 msgstr ""
 
@@ -3924,6 +3945,9 @@ msgstr ""
 msgid "Failed to send email with STMP server configuration"
 msgstr ""
 
+msgid "Workspaces"
+msgstr ""
+
 msgid "Topups"
 msgstr ""
 
@@ -3958,9 +3982,6 @@ msgid "Activate"
 msgstr ""
 
 msgid "Two Factor Authentication"
-msgstr ""
-
-msgid "Workspaces"
 msgstr ""
 
 msgid "New Workspace"
@@ -4717,25 +4738,14 @@ msgstr ""
 msgid "Additionally you will need to make sure the following IP addresses are whitelisted"
 msgstr ""
 
-msgid "Are you sure you want to remove this number from your workspace?"
-msgstr ""
-
-msgid "Cancel"
-msgstr ""
-
-msgid "Remove Phone"
+#, python-format
+msgid "You are about to disable bulk sending for <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
 msgstr ""
 
 msgid "Bulk sending enabled"
 msgstr ""
 
 msgid "Voice calls enabled"
-msgstr ""
-
-msgid "Channel Log"
-msgstr ""
-
-msgid "Call Log"
 msgstr ""
 
 msgid "Last synced"
@@ -4752,9 +4762,6 @@ msgid "unsent message"
 msgid_plural "unsent messages"
 msgstr[0] ""
 msgstr[1] ""
-
-msgid "Enable Voice"
-msgstr ""
 
 msgid "unsent messages"
 msgid_plural "unsent message"
@@ -4833,19 +4840,7 @@ msgid_plural "Used by %(num_flows)s flows:"
 msgstr[0] ""
 msgstr[1] ""
 
-msgid "Are you sure you want to remove bulk sending for this number?"
-msgstr ""
-
-msgid "Disable Voice Calls"
-msgstr ""
-
-msgid "Are you sure you want to remove voice calling for this number?"
-msgstr ""
-
-msgid "Ok"
-msgstr ""
-
-msgid "Select a Country"
+msgid "Cancel"
 msgstr ""
 
 #, python-format
@@ -5853,6 +5848,9 @@ msgid "Are you sure you want to remove this classifier from your account?"
 msgstr ""
 
 msgid "This classifier cannot be removed because it in use."
+msgstr ""
+
+msgid "Ok"
 msgstr ""
 
 msgid "Hold up!"

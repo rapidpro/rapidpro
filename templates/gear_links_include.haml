@@ -38,8 +38,13 @@
                   {{link.flag}}
 
           -else
-            .button-light{onclick:'goto(event)', href:'{{link.href}}', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
-              {{link.title}}
+            -if link.js_class
+              .button-light{class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
+                {{link.title}}
+
+            -else
+              .button-light{onclick:'goto(event)', href:'{{link.href}}', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
+                {{link.title}}
 
         .btn-group.gear-menu.ml-3
           .button-light.p-icon.dropdown-toggle{ data-toggle:"dropdown" }
@@ -69,10 +74,16 @@
                           {{link.flag}}
 
                     -else
-                      .hover-linked.font-normal{onclick:"goto(event);", href:'{{link.href}}', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
-                        {{link.title}}
-                        %span{class:'gear-flag'}
-                          {{link.flag}}
+                      -if link.js_class
+                        .hover-linked.font-normal{class:'{{ link|gear_link_classes }}', href:'{{link.href}}', data-success-url:'{{ link.success_url }}'}
+                          {{link.title}}
+                          %span{class:'gear-flag'}
+                            {{link.flag}}
+                      -else
+                        .hover-linked.font-normal{onclick:"goto(event);", href:'{{link.href}}', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
+                          {{link.title}}
+                          %span{class:'gear-flag'}
+                            {{link.flag}}
 
 
       :javascript

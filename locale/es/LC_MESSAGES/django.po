@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-29 00:16+0000\n"
+"POT-Creation-Date: 2020-07-30 21:00+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3323,12 +3323,25 @@ msgid "Allow international sending"
 msgstr ""
 
 #, fuzzy
-msgid "The number or address of this channel"
-msgstr "El nombre de esta etiqueta"
-
-#, fuzzy
 msgid "Phone number of this channel"
 msgstr "El número de teléfono para esta llamada"
+
+msgid "Settings"
+msgstr "Configuraciones"
+
+#, fuzzy
+#| msgid "Channel"
+msgid "Channel Log"
+msgstr "Transmisor"
+
+#, fuzzy
+#| msgid "Calls"
+msgid "Call Log"
+msgstr "Llamadas"
+
+#, fuzzy
+msgid "Edit Channel"
+msgstr "Transmisor"
 
 msgid "Disable Bulk Sending"
 msgstr "Deshabilitar envío masivo"
@@ -3339,8 +3352,23 @@ msgstr "Permitir envío masivo"
 msgid "Disable Voice Calling"
 msgstr "Desactivar las llamadas de voz"
 
-msgid "Remove"
-msgstr "Retirar"
+#, fuzzy
+#| msgid "Disable Voice Calling"
+msgid "Disable Voice Caliing"
+msgstr "Desactivar las llamadas de voz"
+
+#, fuzzy
+#| msgid "Disable Voice Calling"
+msgid "Enable Voice Calling"
+msgstr "Desactivar las llamadas de voz"
+
+msgid "Delete"
+msgstr "Borrar"
+
+#, fuzzy
+#| msgid "Create Label"
+msgid "Delete Channel"
+msgstr "Crear etiqueta"
 
 msgid "Whitelist Domain"
 msgstr ""
@@ -3370,6 +3398,16 @@ msgstr ""
 
 msgid "Remove Android"
 msgstr "Retirar Android"
+
+#, fuzzy
+#| msgid "Disable Voice Calling"
+msgid "Remove Voice Calling"
+msgstr "Desactivar las llamadas de voz"
+
+#, fuzzy
+#| msgid "Enable Bulk Sending"
+msgid "Remove Bulk Sending"
+msgstr "Permitir envío masivo"
 
 msgid "We have disconnected your Twilio number. If you do not need this number you can delete it from the Twilio website."
 msgstr ""
@@ -3513,9 +3551,6 @@ msgstr "Su flujo ha sido retirado."
 #| msgid "Synced on"
 msgid "Sync"
 msgstr "Sincronizado el"
-
-msgid "Delete"
-msgstr "Borrar"
 
 #, fuzzy
 #| msgid "Your flow has been removed."
@@ -4198,6 +4233,9 @@ msgstr "Flujos"
 #, python-format
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
 msgstr ""
+
+msgid "Remove"
+msgstr "Retirar"
 
 msgid "Contact Name"
 msgstr "Nombre del contacto"
@@ -5299,9 +5337,6 @@ msgstr "créditos."
 msgid "%(name)s Credits Alert"
 msgstr ""
 
-msgid "Settings"
-msgstr "Configuraciones"
-
 msgid "Used"
 msgstr ""
 
@@ -5536,6 +5571,11 @@ msgstr ""
 msgid "Failed to send email with STMP server configuration"
 msgstr ""
 
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Workspaces"
+msgstr "Elija su Organización"
+
 msgid "Topups"
 msgstr ""
 
@@ -5578,11 +5618,6 @@ msgstr "Activar"
 
 msgid "Two Factor Authentication"
 msgstr ""
-
-#, fuzzy
-#| msgid "Select your Organization"
-msgid "Workspaces"
-msgstr "Elija su Organización"
 
 #, fuzzy
 #| msgid "Select your Organization"
@@ -6600,32 +6635,32 @@ msgstr "Dirección de correo electrónico"
 msgid "Additionally you will need to make sure the following IP addresses are whitelisted"
 msgstr ""
 
-#, fuzzy
-#| msgid "Are you sure you want to remove this number from your account?"
-msgid "Are you sure you want to remove this number from your workspace?"
-msgstr "¿Está seguro de que desea borrar este número de su cuenta?"
-
-msgid "Cancel"
-msgstr "Cancelar"
-
-msgid "Remove Phone"
-msgstr "Borrar teléfono"
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "            Instead of using your Android phone to send messages, you can use your\n"
+#| "            <a class='nexmo-account' href='#'>\n"
+#| "              Nexmo Account\n"
+#| "            </a>\n"
+#| "            to send messages to over 200 countries.\n"
+#| "\n"
+#| "          "
+msgid "You are about to disable bulk sending for <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
+msgstr ""
+"\n"
+"            En lugar de usar su teléfono Android para enviar mensajes, puede usar su\n"
+"            <a class='nexmo-account' href='#'>\n"
+"              Cuenta Nexmo\n"
+"            </a>\n"
+"            para enviar mensajes a más de 200 países.\n"
+"\n"
+"          "
 
 msgid "Bulk sending enabled"
 msgstr "Envío masivo permitido"
 
 msgid "Voice calls enabled"
 msgstr "Llamadas de voz permitidas"
-
-#, fuzzy
-#| msgid "Channel"
-msgid "Channel Log"
-msgstr "Transmisor"
-
-#, fuzzy
-#| msgid "Calls"
-msgid "Call Log"
-msgstr "Llamadas"
 
 msgid "Last synced"
 msgstr "Última sincronización"
@@ -6643,9 +6678,6 @@ msgid "unsent message"
 msgid_plural "unsent messages"
 msgstr[0] "Mensaje reciente"
 msgstr[1] "Mensaje reciente"
-
-msgid "Enable Voice"
-msgstr "Permitir voz"
 
 #, fuzzy
 #| msgid "Resent message"
@@ -6744,20 +6776,8 @@ msgstr[1] ""
 "                Llamada saliente (%(duration)s seconds)\n"
 "              "
 
-msgid "Are you sure you want to remove bulk sending for this number?"
-msgstr "¿Está seguro de que desea retirar el envío masivo para este número?"
-
-msgid "Disable Voice Calls"
-msgstr "Deshabilitar llamadas de voz"
-
-msgid "Are you sure you want to remove voice calling for this number?"
-msgstr "¿Está seguro de que desea retirar las llamadas de voz para este número?"
-
-msgid "Ok"
-msgstr ""
-
-msgid "Select a Country"
-msgstr "Elegir un país"
+msgid "Cancel"
+msgstr "Cancelar"
 
 #, fuzzy, python-format
 #| msgid ""
@@ -8449,6 +8469,9 @@ msgid "Are you sure you want to remove this classifier from your account?"
 msgstr "¿Está seguro de que desea borrar este número de su cuenta?"
 
 msgid "This classifier cannot be removed because it in use."
+msgstr ""
+
+msgid "Ok"
 msgstr ""
 
 msgid "Hold up!"
@@ -12927,6 +12950,33 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "The number or address of this channel"
+#~ msgstr "El nombre de esta etiqueta"
+
+#, fuzzy
+#~| msgid "Are you sure you want to remove this number from your account?"
+#~ msgid "Are you sure you want to remove this number from your workspace?"
+#~ msgstr "¿Está seguro de que desea borrar este número de su cuenta?"
+
+#~ msgid "Remove Phone"
+#~ msgstr "Borrar teléfono"
+
+#~ msgid "Enable Voice"
+#~ msgstr "Permitir voz"
+
+#~ msgid "Are you sure you want to remove bulk sending for this number?"
+#~ msgstr "¿Está seguro de que desea retirar el envío masivo para este número?"
+
+#~ msgid "Disable Voice Calls"
+#~ msgstr "Deshabilitar llamadas de voz"
+
+#~ msgid "Are you sure you want to remove voice calling for this number?"
+#~ msgstr "¿Está seguro de que desea retirar las llamadas de voz para este número?"
+
+#~ msgid "Select a Country"
+#~ msgstr "Elegir un país"
 
 #~ msgid "Claim phone number"
 #~ msgstr "Pedir número de teléfono"

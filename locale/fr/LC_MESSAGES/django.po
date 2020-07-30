@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-29 00:16+0000\n"
+"POT-Creation-Date: 2020-07-30 21:00+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2395,11 +2395,22 @@ msgstr "Une erreur s'est produite lors de la connexion de votre numéro Twilio. 
 msgid "Allow international sending"
 msgstr "Autoriser l'envoi international"
 
-msgid "The number or address of this channel"
-msgstr "Le numéro ou l'adresse de ce canal"
-
 msgid "Phone number of this channel"
 msgstr "Numéro de téléphone de cette chaîne"
+
+msgid "Settings"
+msgstr "Paramètres"
+
+msgid "Channel Log"
+msgstr "Journal des canaux"
+
+msgid "Call Log"
+msgstr "Journal d'appel"
+
+#, fuzzy
+#| msgid "Add Channel"
+msgid "Edit Channel"
+msgstr "Ajouter un canal"
 
 msgid "Disable Bulk Sending"
 msgstr "Désactiver l'envoi groupé"
@@ -2410,8 +2421,23 @@ msgstr "Activer l'envoi massif"
 msgid "Disable Voice Calling"
 msgstr "Désactiver les appels vocaux"
 
-msgid "Remove"
-msgstr "Supprimer"
+#, fuzzy
+#| msgid "Disable Voice Calling"
+msgid "Disable Voice Caliing"
+msgstr "Désactiver les appels vocaux"
+
+#, fuzzy
+#| msgid "Disable Voice Calling"
+msgid "Enable Voice Calling"
+msgstr "Désactiver les appels vocaux"
+
+msgid "Delete"
+msgstr "Effacer"
+
+#, fuzzy
+#| msgid "Create Label"
+msgid "Delete Channel"
+msgstr "Créer un libellé"
 
 msgid "Whitelist Domain"
 msgstr "Domaine de la liste blanche"
@@ -2433,6 +2459,16 @@ msgstr "Une erreur s'est produite lors de la connexion à l'API Facebook"
 
 msgid "Remove Android"
 msgstr "Retirer Android"
+
+#, fuzzy
+#| msgid "Disable Voice Calling"
+msgid "Remove Voice Calling"
+msgstr "Désactiver les appels vocaux"
+
+#, fuzzy
+#| msgid "Enable Bulk Sending"
+msgid "Remove Bulk Sending"
+msgstr "Activer l'envoi massif"
 
 msgid "We have disconnected your Twilio number. If you do not need this number you can delete it from the Twilio website."
 msgstr "Nous avons déconnecté votre numéro Twilio. Si vous n'avez pas besoin de ce numéro, vous pouvez le supprimer du site Web Twilio."
@@ -2536,9 +2572,6 @@ msgstr "Votre classificateur a été supprimé."
 
 msgid "Sync"
 msgstr "Synchroniser"
-
-msgid "Delete"
-msgstr "Effacer"
 
 msgid "Your classifier has been synched."
 msgstr "Votre classificateur a été synchronisé."
@@ -3123,6 +3156,9 @@ msgstr "flux"
 #, python-format
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
 msgstr ""
+
+msgid "Remove"
+msgstr "Supprimer"
 
 msgid "Contact Name"
 msgstr " Nom du Contact"
@@ -4085,9 +4121,6 @@ msgstr "Crédits expirant bientôt"
 msgid "%(name)s Credits Alert"
 msgstr "%(name)s Alerte Crédits"
 
-msgid "Settings"
-msgstr "Paramètres"
-
 msgid "Used"
 msgstr "Utilisé"
 
@@ -4311,6 +4344,11 @@ msgstr "Impossible d'envoyer un e-mail avec la configuration du serveur STMP ave
 msgid "Failed to send email with STMP server configuration"
 msgstr "Impossible d'envoyer un e-mail avec la configuration du serveur STMP"
 
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Workspaces"
+msgstr "Choisissez votre Organisation"
+
 msgid "Topups"
 msgstr "Les recharges"
 
@@ -4350,11 +4388,6 @@ msgstr "activer"
 
 msgid "Two Factor Authentication"
 msgstr "Authentification à deux facteurs"
-
-#, fuzzy
-#| msgid "Select your Organization"
-msgid "Workspaces"
-msgstr "Choisissez votre Organisation"
 
 #, fuzzy
 #| msgid "Select your Organization"
@@ -5161,28 +5194,16 @@ msgstr "Adresses IP"
 msgid "Additionally you will need to make sure the following IP addresses are whitelisted"
 msgstr "De plus, vous devrez vous assurer que les adresses IP suivantes figurent sur la liste blanche"
 
-#, fuzzy
-#| msgid "Are you sure you want to remove this number from your account?"
-msgid "Are you sure you want to remove this number from your workspace?"
-msgstr "Etes-vous sûr de vouloir supprimer ce numéro de votre compte?"
-
-msgid "Cancel"
-msgstr "Annuler"
-
-msgid "Remove Phone"
-msgstr "Supprimer téléphone"
+#, fuzzy, python-format
+#| msgid "You are about to delete <span class='group_name'> %(object)s. </span> No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?"
+msgid "You are about to disable bulk sending for <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
+msgstr "Vous êtes sur le point de supprimer <span class='group_name'> %(object)s. </span> Aucun contact ne sera supprimé mais le groupe lui-même sera supprimé. Il n'y a aucun moyen d'annuler cela. Êtes-vous sûr?"
 
 msgid "Bulk sending enabled"
 msgstr "Envoi groupé configuré"
 
 msgid "Voice calls enabled"
 msgstr "Les appels vocaux activés"
-
-msgid "Channel Log"
-msgstr "Journal des canaux"
-
-msgid "Call Log"
-msgstr "Journal d'appel"
 
 msgid "Last synced"
 msgstr "Dernière synchronisation"
@@ -5198,9 +5219,6 @@ msgid "unsent message"
 msgid_plural "unsent messages"
 msgstr[0] "message non envoyé"
 msgstr[1] "messages non envoyés"
-
-msgid "Enable Voice"
-msgstr "Activer la voix"
 
 msgid "unsent messages"
 msgid_plural "unsent message"
@@ -5281,20 +5299,8 @@ msgid_plural "Used by %(num_flows)s flows:"
 msgstr[0] "Utilisé par %(num_flows)s flux:"
 msgstr[1] "Utilisé par %(num_flows)s flux:"
 
-msgid "Are you sure you want to remove bulk sending for this number?"
-msgstr "Etes-vous sûr de vouloir supprimer l'envoi massif de ce numéro?"
-
-msgid "Disable Voice Calls"
-msgstr "Désactiver les appels vocaux"
-
-msgid "Are you sure you want to remove voice calling for this number?"
-msgstr "Etes-vous sûr de vouloir supprimer les appels vocaux pour ce numéro?"
-
-msgid "Ok"
-msgstr "Ok"
-
-msgid "Select a Country"
-msgstr "Sélectionner un pays"
+msgid "Cancel"
+msgstr "Annuler"
 
 #, python-format
 msgid "Found %(results_count)s call in last 90 days for <i>%(search)s</i>."
@@ -6658,6 +6664,9 @@ msgstr "Voulez-vous vraiment supprimer ce classificateur de votre compte?"
 
 msgid "This classifier cannot be removed because it in use."
 msgstr "Ce classificateur ne peut pas être supprimé car il est en cours d'utilisation."
+
+msgid "Ok"
+msgstr "Ok"
 
 msgid "Hold up!"
 msgstr "Attendez!"
@@ -11208,6 +11217,32 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "The number or address of this channel"
+#~ msgstr "Le numéro ou l'adresse de ce canal"
+
+#, fuzzy
+#~| msgid "Are you sure you want to remove this number from your account?"
+#~ msgid "Are you sure you want to remove this number from your workspace?"
+#~ msgstr "Etes-vous sûr de vouloir supprimer ce numéro de votre compte?"
+
+#~ msgid "Remove Phone"
+#~ msgstr "Supprimer téléphone"
+
+#~ msgid "Enable Voice"
+#~ msgstr "Activer la voix"
+
+#~ msgid "Are you sure you want to remove bulk sending for this number?"
+#~ msgstr "Etes-vous sûr de vouloir supprimer l'envoi massif de ce numéro?"
+
+#~ msgid "Disable Voice Calls"
+#~ msgstr "Désactiver les appels vocaux"
+
+#~ msgid "Are you sure you want to remove voice calling for this number?"
+#~ msgstr "Etes-vous sûr de vouloir supprimer les appels vocaux pour ce numéro?"
+
+#~ msgid "Select a Country"
+#~ msgstr "Sélectionner un pays"
 
 #~ msgid "Claim phone number"
 #~ msgstr "Réclamer le numéro de téléphone"
