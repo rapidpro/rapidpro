@@ -236,10 +236,12 @@ class Trigger(SmartModel):
 
             exact_flow_trigger = existing_triggers.filter(flow=flow).order_by("-created_on").first()
             for tr in existing_triggers:
-                tr.archive(user)
+                if not tr.is_archived and tr != exact_flow_trigger:
+                    tr.archive(user)
 
             if exact_flow_trigger:
-                exact_flow_trigger.restore(user)
+                if exact_flow_trigger.is_archived:
+                    exact_flow_trigger.restore(user)
             else:
 
                 # if we have a channel resolve it
