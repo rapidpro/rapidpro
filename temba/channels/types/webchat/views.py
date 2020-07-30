@@ -1,4 +1,5 @@
 import regex
+import pycountry
 
 from django import forms
 from django.conf import settings
@@ -65,7 +66,11 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         }
         languages = org.languages.all().order_by("orgs")
         for lang in languages:
-            basic_config[f"welcome_message_{lang.iso_code}"] = ""
+            lang_alpha = pycountry.languages.get(alpha_3=lang.iso_code)
+            if not hasattr(lang_alpha, "alpha_2"):
+                continue
+
+            basic_config[f"welcome_message_{lang_alpha.alpha_2}"] = ""
 
         self.object = Channel.create(
             org,
@@ -78,58 +83,3 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
 
         return super().form_valid(form)
-
-
-class ConfigurationView(SmartReadView):
-    slug_url_kwarg = "uuid"
-
-    def get_object(self, queryset=None):
-        return Channel.objects.filter(uuid=self.kwargs.get("uuid"), is_active=True, channel_type="WCH").first()
-
-    def get(self, request, *args, **kwargs):
-        channel = self.get_object()
-        if not channel:
-            return JsonResponse(dict(error=_("Channel not found")), status=404)
-
-        if not channel.config:
-            response = dict(info=_("No configuration on this channel"))
-        else:
-            welcome_message = {}
-
-            languages = channel.org.languages.all().order_by("orgs")
-            for lang in languages:
-                welcome_message[f"{lang.iso_code}"] = channel.config.get(f"welcome_message_{lang.iso_code}")
-
-            welcome_message_default = channel.config.get("welcome_message_default")
-            if len(welcome_message_default) == 0:
-                welcome_message_default = (
-                    welcome_message.get(channel.org.primary_language.iso_code)
-                    if channel.org.primary_language
-                    else None
-                )
-
-            response = {
-                "socketUrl": settings.WEBSOCKET_SERVER_URL,
-                "channelUUID": channel.uuid,
-                "title": channel.config.get("title"),
-                "autoOpen": channel.config.get("auto_open", "false") == "true",
-                "hostApi": f"https://{channel.callback_domain}",
-                "icon": channel.config.get("logo"),
-                "welcomeMessage": welcome_message_default,
-                "welcomeMessage_i18n": welcome_message,
-                "theme": {
-                    "widgetBackgroundColor": f"#{channel.config.get('widget_bg_color')}",
-                    "chatHeaderBackgroundColor": f"#{channel.config.get('chat_header_bg_color')}",
-                    "chatHeaderTextColor": f"#{channel.config.get('chat_header_text_color')}",
-                    "automatedChatBackgroundColor": f"#{channel.config.get('automated_chat_bg')}",
-                    "automatedChatTextColor": f"#{channel.config.get('automated_chat_txt')}",
-                    "userChatBackgroundColor": f"#{channel.config.get('user_chat_bg')}",
-                    "userChatTextColor": f"#{channel.config.get('user_chat_txt')}",
-                    "chatButtonHeight": 0,  # Needs to be added
-                    "sidePadding": 0,  # Needs to be added
-                    "bottomPadding": 0,  # Needs to be added
-                    "sideOfScreen": "right|left",  # Needs to be added
-                },
-                "meta": {"icon": {"width": 0, "height": 0}},  # Needs to be processed
-            }
-        return JsonResponse(response)

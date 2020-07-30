@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import logging
 import time
+import pycountry
 from collections import defaultdict
 from datetime import datetime, timedelta
 
@@ -1313,20 +1314,20 @@ class UpdateWebChatForm(UpdateChannelForm):
             self.fields["bottom_padding"].initial = config.get("bottom_padding", "20")
             self.fields["side_of_screen"].initial = config.get("side_of_screen", "right")
 
-            self.fields["welcome_message_default"].initial = config.get("welcome_message_default", "")
-
             self.fields["action_type"].initial = "update_and_generate_code_snippet"
 
-            """ Code for the next sprint only
+            self.fields["welcome_message_default"].initial = config.get("welcome_message_default", "")
+
             languages = self.object.org.languages.all().order_by("orgs")
-            if not languages:
-                self.fields["welcome_message_default"].initial = config.get("welcome_message_default", "")
 
             for lang in languages:
-                self.fields[f"welcome_message_{lang.iso_code}"].initial = config.get(
-                    f"welcome_message_{lang.iso_code}", ""
+                lang_alpha = pycountry.languages.get(alpha_3=lang.iso_code)
+                if not hasattr(lang_alpha, "alpha_2"):
+                    continue
+
+                self.fields[f"welcome_message_{lang_alpha.alpha_2}"].initial = config.get(
+                    f"welcome_message_{lang_alpha.alpha_2}", ""
                 )
-            """
 
     def clean_name(self):
         org = self.object.org
@@ -1417,18 +1418,22 @@ class UpdateWebChatForm(UpdateChannelForm):
             None,
         )
 
-        """ Code for the next sprint only
         org = self.object.org
         languages = org.languages.all().order_by("orgs")
         for lang in languages:
+            lang_alpha = pycountry.languages.get(alpha_3=lang.iso_code)
+            if not hasattr(lang_alpha, "alpha_2"):
+                continue
+
             self.add_config_field(
-                f"welcome_message_{lang.iso_code}",
+                f"welcome_message_{lang_alpha.alpha_2}",
                 forms.CharField(
-                    label=_("Welcome Message"), widget=forms.Textarea(attrs={"style": "height: 110px", "required": ""})
+                    label=_(f"Welcome Message {lang.name}"),
+                    required=False,
+                    widget=forms.Textarea(attrs={"style": "height: 110px"})
                 ),
                 "",
             )
-        """
 
         self.add_config_field("theme", forms.ChoiceField(label=_("Theme"), required=False), None)
 
@@ -1517,12 +1522,6 @@ class UpdateWebChatForm(UpdateChannelForm):
         del self.fields["address"]
 
         unlisted_fields = ["name", "alert_email"]
-
-        """ Code for the next sprint only
-        if languages:
-            unlisted_fields.append("welcome_message_default")
-            del self.fields["welcome_message_default"]
-        """
 
         for field in list(self.fields):
             if field in unlisted_fields:
@@ -1901,9 +1900,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            if self.org:
-                languages = self.org.languages.all().order_by("orgs")
-                context["languages"] = languages
+
             if self.object.channel_type == "WCH":
                 context["customable_fields"] = [
                     "#id_title",
@@ -1923,6 +1920,15 @@ class ChannelCRUDL(SmartCRUDL):
                 context["websocket_url"] = settings.WEBSOCKET_SERVER_URL
                 logo_img = self.object.config.get("logo")
                 context["wch_logo_size"] = get_image_size(logo_img=logo_img)
+
+                context_languages = []
+                for lang in self.object.org.languages.all().order_by("orgs"):
+                    lang_alpha = pycountry.languages.get(alpha_3=lang.iso_code)
+                    if not hasattr(lang_alpha, "alpha_2"):
+                        continue
+                    context_languages.append(dict(name=lang.name, iso_code=lang_alpha.alpha_2))
+                context["languages"] = context_languages
+
             return context
 
         def derive_title(self):
@@ -2160,6 +2166,20 @@ class ChannelCRUDL(SmartCRUDL):
                 if logo_img:
                     context_dict["wch_logo_size"] = get_image_size(logo_img=logo_img)
                 context_dict["hostname"] = settings.HOSTNAME
+
+                welcome_message_i18n = {}
+
+                languages = self.object.org.languages.all().order_by("orgs")
+                for lang in languages:
+                    lang_alpha = pycountry.languages.get(alpha_3=lang.iso_code)
+                    if not hasattr(lang_alpha, "alpha_2"):
+                        continue
+
+                    welcome_message_i18n[f"{lang_alpha.alpha_2}"] = self.object.config.get(
+                        f"welcome_message_{lang_alpha.alpha_2}"
+                    )
+
+                context_dict["welcome_message_i18n"] = welcome_message_i18n
 
             context["configuration_template"] = channel_type.get_configuration_template(
                 self.object, context=context_dict

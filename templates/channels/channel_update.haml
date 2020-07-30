@@ -33,12 +33,16 @@
       border-right: 1px solid #569D9B;
     }
 
-    .ref-welcome-message-languages a:first-child {
+    .ref-welcome-message-languages {
+      max-width: 380px;
+    }
+
+    .ref-welcome-message-languages a {
       padding: 0 10px 0 0;
+      display: inline-block;
     }
 
     .ref-welcome-message-languages a:last-child {
-      padding: 0 0 0 10px;
       border-right: none;
     }
 
@@ -52,7 +56,7 @@
 <script src="https://ccl-web-surveyor.s3-us-west-1.amazonaws.com/latest/ccl-web-surveyor.min.js" type="text/javascript"></script>
 {% endif %}
 :javascript
-  function buildWebChat() {
+  function buildWebChat(welcomeMsgDict) {
     var title = $("#id_title").val();
     var icon = "{{ object.config.logo }}";
     var welcomeMessage = $("#id_welcome_message_default").val();
@@ -77,6 +81,7 @@
       hostApi: 'https://{{ hostname }}',
       icon: icon,
       welcomeMessage: welcomeMessage,
+      welcomeMessageI18n: welcomeMsgDict,
       theme: {
         widgetBackgroundColor: widgetBackgroundColor,
         chatHeaderBackgroundColor: chatHeaderBackgroundColor,
@@ -140,20 +145,15 @@
       $(".smartmin-form").submit();
     }
 
-    {% if object.channel_type == "WCH" %}
-      $(document).ready(function() {
-        var updateChangesBtn = document.createElement("a");
-        updateChangesBtn.className = "btn btn-primary";
-        updateChangesBtn.onclick = function() { updateFormActionAndSubmit(); };
-        updateChangesBtn.innerHTML = "{% trans 'Save and Update Widget' %}"
-        $(".form-actions").prepend(updateChangesBtn);
-      });
-    {% endif %}
-
     // adding languages to the form
     {% if object.channel_type == "WCH" %}
     $(document).ready(function() {
-      buildWebChat();
+
+      var updateChangesBtn = document.createElement("a");
+      updateChangesBtn.className = "btn btn-primary";
+      updateChangesBtn.onclick = function() { updateFormActionAndSubmit(); };
+      updateChangesBtn.innerHTML = "{% trans 'Save and Update Widget' %}"
+      $(".form-actions").prepend(updateChangesBtn);
 
       {% for item in customable_fields %}
       $("{{ item }}").blur(function() {
@@ -169,11 +169,15 @@
         buildWebChat();
       });
 
-      var allLanguages = [];
+      var allLanguages = [{"iso_code": "default", "name": "Default"}];
+      var welcomeMsgValues = {};
 
       {% for lang in languages %}
       allLanguages.push({"iso_code": "{{ lang.iso_code }}", "name": "{{ lang.name }}"});
+      welcomeMsgValues["{{ lang.iso_code }}"] = document.getElementById("id_welcome_message_{{ lang.iso_code }}").value;
       {% endfor %}
+
+      buildWebChat(welcomeMsgValues);
 
       var divLanguages;
       var welcomeMessageField;
