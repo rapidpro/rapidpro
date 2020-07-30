@@ -62,6 +62,7 @@ FCM_SCHEME = "fcm"
 WHATSAPP_SCHEME = "whatsapp"
 WECHAT_SCHEME = "wechat"
 FRESHCHAT_SCHEME = "freshchat"
+DISCORD_SCHEME = "discord"
 
 FACEBOOK_PATH_REF_PREFIX = "ref:"
 
@@ -82,6 +83,7 @@ URN_SCHEME_CONFIG = (
     (WHATSAPP_SCHEME, _("WhatsApp identifier"), WHATSAPP_SCHEME),
     (FRESHCHAT_SCHEME, _("Freshchat identifier"), FRESHCHAT_SCHEME),
     (VK_SCHEME, _("VK identifier"), VK_SCHEME),
+    (DISCORD_SCHEME, _("Discord identifier"), DISCORD_SCHEME)
 )
 
 
@@ -144,6 +146,9 @@ class URN(object):
 
         if parsed.scheme not in cls.VALID_SCHEMES and parsed.scheme != DELETED_SCHEME:
             raise ValueError("URN contains an invalid scheme component: '%s'" % parsed.scheme)
+        print("Printing parsed URN to_parts")
+        print(parsed)
+        print(f"Fragment: {parsed.fragment}")
 
         return parsed.scheme, parsed.path, parsed.query or None, parsed.fragment or None
 
@@ -238,6 +243,14 @@ class URN(object):
                 path,
                 regex.V0,
             )
+        # Discord IDs are snowflakes, which are int64s internally 
+        elif scheme == DISCORD_SCHEME:
+            try:
+                print(path)
+                int(path) 
+                return True
+            except ValueError:
+                return False
 
         # anything goes for external schemes
         return True
@@ -384,6 +397,9 @@ class URN(object):
     @classmethod
     def from_wechat(cls, path):
         return cls.from_parts(WECHAT_SCHEME, path)
+    @classmethod
+    def from_discord(cls, path):
+        return cls.from_parts(DISCORD_SCHEME, path)
 
 
 class UserContactFieldsQuerySet(models.QuerySet):
@@ -2242,6 +2258,7 @@ class ContactURN(models.Model):
         VIBER_SCHEME: 90,
         FCM_SCHEME: 90,
         FRESHCHAT_SCHEME: 90,
+        DISCORD_SCHEME: 90
     }
 
     ANON_MASK = "*" * 8  # Returned instead of URN values for anon orgs
