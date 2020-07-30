@@ -73,7 +73,8 @@ class ContactCRUDLTest(TembaTest):
         # point so create them explicitly here, so that we also get the sample groups
         self.org.create_sample_flows("https://api.rapidpro.io")
 
-    def test_list(self):
+    @mock_mailroom
+    def test_list(self, mr_mocks):
         self.login(self.user)
         list_url = reverse("contacts.contact_list")
 
@@ -121,104 +122,64 @@ class ContactCRUDLTest(TembaTest):
             ],
         )
 
-        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-            instance = mock_mr.return_value
-            instance.contact_search.return_value = {
-                "contact_ids": [self.frank.id],
-                "total": 1,
-                "query": "age = 18",
-                "fields": ["age"],
-                "allow_as_group": True,
-            }
+        mr_mocks.contact_search("age = 18", contacts=[self.frank], allow_as_group=True)
 
-            response = self.client.get(list_url + "?search=age+%3D+18")
-            self.assertEqual(list(response.context["object_list"]), [self.frank])
-            self.assertEqual(response.context["search"], "age = 18")
-            self.assertEqual(response.context["save_dynamic_search"], True)
-            self.assertIsNone(response.context["search_error"])
-            self.assertEqual(list(response.context["contact_fields"].values_list("label", flat=True)), ["Home", "Age"])
+        response = self.client.get(list_url + "?search=age+%3D+18")
+        self.assertEqual(list(response.context["object_list"]), [self.frank])
+        self.assertEqual(response.context["search"], "age = 18")
+        self.assertEqual(response.context["save_dynamic_search"], True)
+        self.assertIsNone(response.context["search_error"])
+        self.assertEqual(list(response.context["contact_fields"].values_list("label", flat=True)), ["Home", "Age"])
 
-        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-            instance = mock_mr.return_value
-            instance.contact_search.return_value = {
-                "contact_ids": [self.frank.id],
-                "total": 10020,
-                "query": "age = 18",
-                "fields": ["age"],
-                "allow_as_group": True,
-            }
+        mr_mocks.contact_search("age = 18", contacts=[self.frank], total=10020, allow_as_group=True)
 
-            # we return up to 10000 contacts when searching with ES, so last page is 200
-            url = f'{reverse("contacts.contact_list")}?{"search=age+%3D+18&page=200"}'
-            response = self.client.get(url)
+        # we return up to 10000 contacts when searching with ES, so last page is 200
+        url = f'{reverse("contacts.contact_list")}?{"search=age+%3D+18&page=200"}'
+        response = self.client.get(url)
 
-            self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
 
-            # when user requests page 201, we return a 404, page not found
-            url = f'{reverse("contacts.contact_list")}?{"search=age+%3D+18&page=201"}'
-            response = self.client.get(url)
+        # when user requests page 201, we return a 404, page not found
+        url = f'{reverse("contacts.contact_list")}?{"search=age+%3D+18&page=201"}'
+        response = self.client.get(url)
 
-            self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 404)
 
-        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-            instance = mock_mr.return_value
-            instance.contact_search.return_value = {
-                "contact_ids": [self.joe.id],
-                "total": 1,
-                "query": 'age > 18 AND home = "Kigali"',
-                "fields": ["age", "home"],
-                "allow_as_group": True,
-            }
+        mr_mocks.contact_search(
+            'age > 18 and home = "Kigali"', cleaned='age > 18 AND home = "Kigali"', contacts=[self.joe],
+        )
 
-            response = self.client.get(list_url + '?search=age+>+18+and+home+%3D+"Kigali"')
-            self.assertEqual(list(response.context["object_list"]), [self.joe])
-            self.assertEqual(response.context["search"], 'age > 18 AND home = "Kigali"')
-            self.assertEqual(response.context["save_dynamic_search"], True)
-            self.assertIsNone(response.context["search_error"])
+        response = self.client.get(list_url + '?search=age+>+18+and+home+%3D+"Kigali"')
+        self.assertEqual(list(response.context["object_list"]), [self.joe])
+        self.assertEqual(response.context["search"], 'age > 18 AND home = "Kigali"')
+        self.assertEqual(response.context["save_dynamic_search"], True)
+        self.assertIsNone(response.context["search_error"])
 
-        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-            instance = mock_mr.return_value
-            instance.contact_search.return_value = {
-                "contact_ids": [self.joe.id],
-                "total": 1,
-                "query": 'name ~ "Joe"',
-                "fields": ["name"],
-                "allow_as_group": True,
-            }
+        mr_mocks.contact_search("Joe", cleaned='name ~ "Joe"', contacts=[self.joe])
 
-            response = self.client.get(list_url + "?search=Joe")
-            self.assertEqual(list(response.context["object_list"]), [self.joe])
-            self.assertEqual(response.context["search"], 'name ~ "Joe"')
-            self.assertEqual(response.context["save_dynamic_search"], True)
-            self.assertIsNone(response.context["search_error"])
+        response = self.client.get(list_url + "?search=Joe")
+        self.assertEqual(list(response.context["object_list"]), [self.joe])
+        self.assertEqual(response.context["search"], 'name ~ "Joe"')
+        self.assertEqual(response.context["save_dynamic_search"], True)
+        self.assertIsNone(response.context["search_error"])
 
         with AnonymousOrg(self.org):
-            with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-                instance = mock_mr.return_value
-                instance.contact_search.return_value = {
-                    "contact_ids": [self.joe.id],
-                    "total": 1,
-                    "query": f"id = {self.joe.id}",
-                    "fields": ["id"],
-                    "allow_as_group": False,
-                }
-
-                response = self.client.get(list_url + f"?search={self.joe.id}")
-                self.assertEqual(list(response.context["object_list"]), [self.joe])
-                self.assertIsNone(response.context["search_error"])
-                self.assertEqual(response.context["search"], f"id = {self.joe.id}")
-                self.assertEqual(response.context["save_dynamic_search"], False)
-
-        # try with invalid search string
-        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-            instance = mock_mr.return_value
-            instance.contact_search.side_effect = MailroomException(
-                "", "", {"error": "Search query contains an error"}
+            mr_mocks.contact_search(
+                f"{self.joe.id}", cleaned=f"id = {self.joe.id}", contacts=[self.joe], allow_as_group=False
             )
 
-            response = self.client.get(list_url + "?search=(((")
-            self.assertEqual(list(response.context["object_list"]), [])
-            self.assertEqual(response.context["search_error"], "Search query contains an error")
+            response = self.client.get(list_url + f"?search={self.joe.id}")
+            self.assertEqual(list(response.context["object_list"]), [self.joe])
+            self.assertIsNone(response.context["search_error"])
+            self.assertEqual(response.context["search"], f"id = {self.joe.id}")
+            self.assertEqual(response.context["save_dynamic_search"], False)
+
+        # try with invalid search string
+        mr_mocks.error("mismatched input at (((", code="unexpected_token", extra={"token": "((("})
+
+        response = self.client.get(list_url + "?search=(((")
+        self.assertEqual(list(response.context["object_list"]), [])
+        self.assertEqual(response.context["search_error"], "Invalid query syntax at '((('")
 
     @mock_mailroom
     def test_read(self, mr_mocks):
@@ -3173,67 +3134,53 @@ class ContactTest(TembaTest):
         # with a proper code, we should see the language
         self.assertContains(response, "French")
 
-    def test_contacts_search(self):
+    @mock_mailroom
+    def test_contacts_search(self, mr_mocks):
         search_url = reverse("contacts.contact_search")
         self.login(self.admin)
 
-        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-            instance = mock_mr.return_value
-            instance.contact_search.return_value = {
-                "contact_ids": [self.frank.id],
-                "total": 1,
-                "query": 'name ~ "Frank"',
-                "fields": ["name"],
-            }
+        mr_mocks.contact_search("Frank", cleaned='name ~ "Frank"', contacts=[self.frank])
 
-            response = self.client.get(search_url + "?search=Frank")
-            self.assertEqual(200, response.status_code)
-            results = response.json()
+        response = self.client.get(search_url + "?search=Frank")
+        self.assertEqual(200, response.status_code)
+        results = response.json()
 
-            # check that we get a total and a sample
-            self.assertEqual(1, results["total"])
-            self.assertEqual(1, len(results["sample"]))
-            self.assertEqual("+250 782 222 222", results["sample"][0]["primary_urn_formatted"])
+        # check that we get a total and a sample
+        self.assertEqual(1, results["total"])
+        self.assertEqual(1, len(results["sample"]))
+        self.assertEqual("+250 782 222 222", results["sample"][0]["primary_urn_formatted"])
 
-            # our query should get expanded into a proper query
-            self.assertEqual('name ~ "Frank"', results["query"])
+        # our query should get expanded into a proper query
+        self.assertEqual('name ~ "Frank"', results["query"])
 
-            # check no primary urn
-            self.frank.urns.all().delete()
-            response = self.client.get(search_url + "?search=Frank")
-            self.assertEqual(200, response.status_code)
-            results = response.json()
-            self.assertEqual("--", results["sample"][0]["primary_urn_formatted"])
+        # check no primary urn
+        self.frank.urns.all().delete()
+        response = self.client.get(search_url + "?search=Frank")
+        self.assertEqual(200, response.status_code)
+        results = response.json()
+        self.assertEqual("--", results["sample"][0]["primary_urn_formatted"])
 
-            # no query, no results
-            response = self.client.get(search_url)
-            results = response.json()
-            self.assertEqual(0, results["total"])
+        # no query, no results
+        response = self.client.get(search_url)
+        results = response.json()
+        self.assertEqual(0, results["total"])
 
-        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-            instance = mock_mr.return_value
-            instance.contact_search.side_effect = MailroomException("", "", {"error": "parse exception"})
+        mr_mocks.error("mismatched input at <EOF>", code="unexpected_token", extra={"token": "<EOF>"})
 
-            # bogus query
-            response = self.client.get(search_url + '?search=name="notclosed')
-            results = response.json()
-            self.assertEqual("parse exception", results["error"])
-            self.assertEqual(0, results["total"])
+        # bogus query
+        response = self.client.get(search_url + '?search=name="notclosed')
+        results = response.json()
+        self.assertEqual("Invalid query syntax at '<EOF>'", results["error"])
+        self.assertEqual(0, results["total"])
 
-        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-            instance = mock_mr.return_value
-            instance.contact_search.return_value = {
-                "contact_ids": [self.frank.id],
-                "total": 1,
-                "query": "age > 32",
-                "fields": ["age"],
-            }
+        # if we query a field, it should show up in our field dict
+        age = self.create_field("age", "Age", Value.TYPE_NUMBER)
 
-            # if we query a field, it should show up in our field dict
-            age = self.create_field("age", "Age", Value.TYPE_NUMBER)
-            response = self.client.get(search_url + "?search=age>32")
-            results = response.json()
-            self.assertEqual("Age", results["fields"][str(age.uuid)]["label"])
+        mr_mocks.contact_search("age>32", cleaned='age > 32"', contacts=[self.frank], fields=[age])
+
+        response = self.client.get(search_url + "?search=age>32")
+        results = response.json()
+        self.assertEqual("Age", results["fields"][str(age.uuid)]["label"])
 
     @mock_mailroom
     def test_update_and_list(self, mr_mocks):
@@ -3405,16 +3352,10 @@ class ContactTest(TembaTest):
         response = self.client.get(blocked_url)
         self.assertEqual(list(response.context["object_list"]), [self.billy, self.joe])
 
-        with patch("temba.mailroom.client.MailroomClient.contact_search") as mock_contact_search:
-            mock_contact_search.return_value = {
-                "contact_ids": [self.joe.id],
-                "total": 1,
-                "query": "name ~ Joe",
-                "fields": ["name"],
-            }
+        mr_mocks.contact_search("Joe", cleaned="name ~ Joe", contacts=[self.joe])
 
-            response = self.client.get(blocked_url + "?search=Joe")
-            self.assertEqual(list(response.context["object_list"]), [self.joe])
+        response = self.client.get(blocked_url + "?search=Joe")
+        self.assertEqual(list(response.context["object_list"]), [self.joe])
 
         # can unblock contacts from this page
         self.client.post(blocked_url, {"action": "unblock", "objects": self.joe.id}, follow=True)
@@ -6262,42 +6203,37 @@ class ContactFieldTest(TembaTest):
             (None, None, None),
         )
 
-    def test_contact_field_list_sort_contactfields(self):
+    @mock_mailroom
+    def test_contact_field_list_sort_contactfields(self, mr_mocks):
         url = reverse("contacts.contact_list")
         self.login(self.admin)
 
-        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-            instance = mock_mr.return_value
-            instance.contact_search.return_value = {
-                "contact_ids": [self.joe.id],
-                "total": 1,
-                "query": "",
-                "fields": ["age"],
-            }
+        mr_mocks.contact_search("", contacts=[self.joe])
+        mr_mocks.contact_search("Joe", contacts=[self.joe])
 
-            response = self.client.get("%s?sort_on=%s" % (url, str(self.contactfield_1.key)))
+        response = self.client.get("%s?sort_on=%s" % (url, str(self.contactfield_1.key)))
 
-            self.assertEqual(response.context["sort_field"], str(self.contactfield_1.key))
-            self.assertEqual(response.context["sort_direction"], "asc")
-            self.assertTrue("search" not in response.context)
+        self.assertEqual(response.context["sort_field"], str(self.contactfield_1.key))
+        self.assertEqual(response.context["sort_direction"], "asc")
+        self.assertNotIn("search", response.context)
 
-            response = self.client.get("%s?sort_on=-%s" % (url, str(self.contactfield_1.key)))
+        response = self.client.get("%s?sort_on=-%s" % (url, str(self.contactfield_1.key)))
 
-            self.assertEqual(response.context["sort_field"], str(self.contactfield_1.key))
-            self.assertEqual(response.context["sort_direction"], "desc")
-            self.assertTrue("search" not in response.context)
+        self.assertEqual(response.context["sort_field"], str(self.contactfield_1.key))
+        self.assertEqual(response.context["sort_direction"], "desc")
+        self.assertNotIn("search", response.context)
 
-            response = self.client.get("%s?sort_on=%s" % (url, "created_on"))
+        response = self.client.get("%s?sort_on=%s" % (url, "created_on"))
 
-            self.assertEqual(response.context["sort_field"], "created_on")
-            self.assertEqual(response.context["sort_direction"], "asc")
-            self.assertTrue("search" not in response.context)
+        self.assertEqual(response.context["sort_field"], "created_on")
+        self.assertEqual(response.context["sort_direction"], "asc")
+        self.assertNotIn("search", response.context)
 
-            response = self.client.get("%s?sort_on=-%s&search=Joe" % (url, "created_on"))
+        response = self.client.get("%s?sort_on=-%s&search=Joe" % (url, "created_on"))
 
-            self.assertEqual(response.context["sort_field"], "created_on")
-            self.assertEqual(response.context["sort_direction"], "desc")
-            self.assertTrue("search" in response.context)
+        self.assertEqual(response.context["sort_field"], "created_on")
+        self.assertEqual(response.context["sort_direction"], "desc")
+        self.assertIn("search", response.context)
 
     def test_delete_with_flow_dependency(self):
         self.login(self.admin)

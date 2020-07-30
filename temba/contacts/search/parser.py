@@ -759,11 +759,18 @@ class ContactQLVisitor(ParseTreeVisitor):
         return value.replace(r"\"", '"')  # unescape embedded quotes
 
 
+class Metadata(NamedTuple):
+    attributes: list = []
+    schemes: list = []
+    fields: list = []
+    groups: list = []
+    allow_as_group: bool = False
+
+
 class ParsedQuery(NamedTuple):
     query: str
-    fields: list
     elastic_query: dict
-    allow_as_group: bool
+    metadata: Metadata
 
 
 def parse_query(org_id, query, group_uuid=""):
@@ -773,9 +780,7 @@ def parse_query(org_id, query, group_uuid=""):
     try:
         client = mailroom.get_client()
         response = client.parse_query(org_id, query, group_uuid=str(group_uuid))
-        return ParsedQuery(
-            response["query"], response["fields"], response["elastic_query"], response.get("allow_as_group", False)
-        )
+        return ParsedQuery(response["query"], response["elastic_query"], Metadata(**response["metadata"]),)
 
     except mailroom.MailroomException as e:
         raise SearchException.from_mailroom_exception(e)
@@ -784,9 +789,8 @@ def parse_query(org_id, query, group_uuid=""):
 class SearchResults(NamedTuple):
     total: int
     query: str
-    fields: list
-    allow_as_group: bool
     contact_ids: list
+    metadata: Metadata
 
 
 def search_contacts(org_id, group_uuid, query, sort=None, offset=None):
@@ -794,11 +798,7 @@ def search_contacts(org_id, group_uuid, query, sort=None, offset=None):
         client = mailroom.get_client()
         response = client.contact_search(org_id, str(group_uuid), query, sort, offset=offset)
         return SearchResults(
-            response["total"],
-            response["query"],
-            response["fields"],
-            response.get("allow_as_group", False),
-            response["contact_ids"],
+            response["total"], response["query"], response["contact_ids"], Metadata(**response["metadata"]),
         )
 
     except mailroom.MailroomException as e:

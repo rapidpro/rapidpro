@@ -3,7 +3,7 @@ from unittest.mock import patch
 from temba.mailroom import MailroomException
 from temba.tests import TembaTest
 
-from . import ParsedQuery, SearchException
+from . import Metadata, ParsedQuery, SearchException
 
 
 class MockParseQuery:
@@ -33,9 +33,14 @@ class MockParseQuery:
         else:
             mock.return_value = ParsedQuery(
                 query=self.query,
-                fields=self.fields,
                 elastic_query=self.elastic_query,
-                allow_as_group=self.allow_as_group,
+                metadata=Metadata(
+                    attributes=[],
+                    schemes=[],
+                    fields=[{"key": f, "name": ""} for f in self.fields],
+                    groups=[],
+                    allow_as_group=self.allow_as_group,
+                ),
             )
 
         return mock
