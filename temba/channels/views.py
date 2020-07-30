@@ -1316,9 +1316,9 @@ class UpdateWebChatForm(UpdateChannelForm):
 
             self.fields["action_type"].initial = "update_and_generate_code_snippet"
 
+            self.fields["welcome_message_default"].initial = config.get("welcome_message_default", "")
+
             languages = self.object.org.languages.all().order_by("orgs")
-            if not languages:
-                self.fields["welcome_message_default"].initial = config.get("welcome_message_default", "")
 
             for lang in languages:
                 lang_alpha = pycountry.languages.get(alpha_3=lang.iso_code)
@@ -1428,8 +1428,9 @@ class UpdateWebChatForm(UpdateChannelForm):
             self.add_config_field(
                 f"welcome_message_{lang_alpha.alpha_2}",
                 forms.CharField(
-                    label=_("Welcome Message"),
-                    widget=forms.Textarea(attrs={"style": "height: 110px", "required": ""})
+                    label=_(f"Welcome Message {lang.name}"),
+                    required=False,
+                    widget=forms.Textarea(attrs={"style": "height: 110px"})
                 ),
                 "",
             )
@@ -1521,10 +1522,6 @@ class UpdateWebChatForm(UpdateChannelForm):
         del self.fields["address"]
 
         unlisted_fields = ["name", "alert_email"]
-
-        if languages:
-            unlisted_fields.append("welcome_message_default")
-            del self.fields["welcome_message_default"]
 
         for field in list(self.fields):
             if field in unlisted_fields:
@@ -2169,6 +2166,20 @@ class ChannelCRUDL(SmartCRUDL):
                 if logo_img:
                     context_dict["wch_logo_size"] = get_image_size(logo_img=logo_img)
                 context_dict["hostname"] = settings.HOSTNAME
+
+                welcome_message_i18n = {}
+
+                languages = self.object.org.languages.all().order_by("orgs")
+                for lang in languages:
+                    lang_alpha = pycountry.languages.get(alpha_3=lang.iso_code)
+                    if not hasattr(lang_alpha, "alpha_2"):
+                        continue
+
+                    welcome_message_i18n[f"{lang_alpha.alpha_2}"] = self.object.config.get(
+                        f"welcome_message_{lang_alpha.alpha_2}"
+                    )
+
+                context_dict["welcome_message_i18n"] = welcome_message_i18n
 
             context["configuration_template"] = channel_type.get_configuration_template(
                 self.object, context=context_dict
