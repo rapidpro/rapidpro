@@ -23,18 +23,19 @@ class Mocks:
 
     @staticmethod
     def _parse_query_response(query: str, elastic: Dict, fields: List, allow_as_group: bool):
+        def field_ref(f):
+            return {"key": f.key, "name": f.label} if isinstance(f, ContactField) else {"key": f}
+
         return {
             "query": query,
             "elastic_query": elastic,
             "metadata": {
                 "attributes": [],
                 "schemes": [],
-                "fields": [{"key": f.key, "name": f.label} for f in fields],
+                "fields": [field_ref(f) for f in fields],
                 "groups": [],
                 "allow_as_group": allow_as_group,
             },
-            "fields": [f.key for f in fields],  # deprecated
-            "allow_as_group": allow_as_group,  # deprecated
         }
 
     def parse_query(self, query, *, cleaned=None, fields=(), allow_as_group=True, elastic_query=None):
@@ -59,8 +60,6 @@ class Mocks:
                     "groups": [],
                     "allow_as_group": allow_as_group,
                 },
-                "fields": [f.key for f in fields],  # deprecated
-                "allow_as_group": allow_as_group,  # deprecated
             }
 
         self._contact_search[query] = mock
