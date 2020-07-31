@@ -37,10 +37,10 @@ class Mocks:
             "allow_as_group": allow_as_group,  # deprecated
         }
 
-    def parse_query(self, query, *, fields=(), allow_as_group=True, elastic_query=None):
+    def parse_query(self, query, *, cleaned=None, fields=(), allow_as_group=True, elastic_query=None):
         def mock():
             elastic = elastic_query or {"term": {"is_active": True}}
-            return self._parse_query_response(query, elastic, fields, allow_as_group)
+            return self._parse_query_response(cleaned or query, elastic, fields, allow_as_group)
 
         self._parse_query[query] = mock
 

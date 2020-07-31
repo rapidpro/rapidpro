@@ -770,7 +770,7 @@ class Metadata(NamedTuple):
 class ParsedQuery(NamedTuple):
     query: str
     elastic_query: dict
-    metadata: Metadata
+    metadata: Metadata = Metadata()
 
 
 def parse_query(org_id, query, group_uuid=""):
@@ -790,7 +790,7 @@ class SearchResults(NamedTuple):
     total: int
     query: str
     contact_ids: list
-    metadata: Metadata
+    metadata: Metadata = Metadata()
 
 
 def search_contacts(org_id, group_uuid, query, sort=None, offset=None):
