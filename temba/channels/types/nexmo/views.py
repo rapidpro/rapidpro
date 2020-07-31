@@ -9,7 +9,6 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.models import Org
 from temba.utils.models import generate_uuid
-from temba.utils.views import ComponentFormMixin
 
 from ...models import Channel
 from ...views import (
@@ -21,7 +20,7 @@ from ...views import (
 )
 
 
-class ClaimView(ComponentFormMixin, BaseClaimNumberMixin, SmartFormView):
+class ClaimView(BaseClaimNumberMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
         country = forms.ChoiceField(choices=NEXMO_SUPPORTED_COUNTRIES)
         phone_number = forms.CharField(help_text=_("The phone number being added"))

@@ -14,10 +14,14 @@ logger = logging.getLogger(__name__)
 
 class ComponentFormMixin(View):
     def customize_form_field(self, name, field):
-        if isinstance(field.widget, (forms.widgets.TextInput, forms.widgets.EmailInput,)):
+        if isinstance(
+            field.widget,
+            (forms.widgets.TextInput, forms.widgets.EmailInput, forms.widgets.URLInput, forms.widgets.NumberInput,),
+        ):
             field.widget = InputWidget()
         elif isinstance(field.widget, (forms.widgets.Select)):
             field.widget = SelectWidget()
+            field.widget.choices = field._choices
         elif isinstance(field.widget, (forms.widgets.CheckboxInput,)):
             field.widget = CheckboxWidget()
         return field

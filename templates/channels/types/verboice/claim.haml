@@ -13,22 +13,10 @@
       -blocktrans
         You can connect your <a href="http://verboice.instedd.org/">Verboice</a> number by entering your credentials here.
 
--block extra-script
-  {{ block.super }}
-
-  :javascript
-    $(function(){
-      $("#id_country").select2();
-    });
-
 -block extra-style
   {{ block.super }}
 
   :css
-    #s2id_id_country {
-      width: 370px;
-    }
-
     .info {
       width: 800px;
       margin-bottom: 20px;
