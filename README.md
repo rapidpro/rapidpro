@@ -1,3 +1,9 @@
+![photo](https://i.imgur.com/PKrSNGY.png)
+## BLACK LIVES MATTER
+
+- [Black Lives Matter](https://blacklivesmatter.com/)
+- [Supporting the cause](https://act.unicefusa.org/blm)
+
 # RapidPro [![Build Status](https://travis-ci.org/rapidpro/rapidpro.svg?branch=master)](https://travis-ci.org/rapidpro/rapidpro) [![codecov](https://codecov.io/gh/rapidpro/rapidpro/branch/master/graph/badge.svg)](https://codecov.io/gh/rapidpro/rapidpro)    
 
 RapidPro is a hosted service for visually building interactive messaging applications.
