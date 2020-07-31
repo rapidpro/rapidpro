@@ -718,6 +718,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="%(app_label)s_%(class)s_creations", null=True
     )
 
+    last_seen_on = models.DateTimeField(null=True)
+
     NAME = "name"
     FIRST_NAME = "first_name"
     LANGUAGE = "language"
