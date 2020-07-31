@@ -1,12 +1,6 @@
 -extends "channels/channel_claim_form.html"
 -load i18n compress temba
 
--block title
-  .medium-help.float-left(class="{{ view.channel_type.icon }}")
-
-  %h2.font_normalize.header-margin
-    {{ title }}
-
 -block modal
     #fb-guide
       %h4
@@ -32,7 +26,7 @@
         -trans "Add Facebook Page"
     
     #throbber(style="display:none;")
-      %img(src="{{ STATIC_URL }}/images/loader-circles.gif")
+      %temba-loading
 
     #fb-channel-options(style="display:none;")
       %p(style="font-size:1rem;")

@@ -1300,6 +1300,15 @@ class ChannelCRUDL(SmartCRUDL):
 
             channel = self.get_object()
 
+            if channel.parent:
+                links.append(
+                    dict(
+                        title=_("Android Channel"),
+                        style="button-primary",
+                        href=reverse("channels.channel_read", args=[channel.parent.uuid]),
+                    )
+                )
+
             if channel.get_type().show_config_page:
                 links.append(
                     dict(title=_("Settings"), href=reverse("channels.channel_configuration", args=[channel.uuid]),)
@@ -1338,10 +1347,10 @@ class ChannelCRUDL(SmartCRUDL):
                     if sender and sender.is_delegate_sender():
                         links.append(
                             dict(
+                                id="disable-sender",
                                 title=_("Disable Bulk Sending"),
-                                style="btn-primary",
-                                href="#",
-                                js_class="remove-sender",
+                                modax=_("Disable Bulk Sending"),
+                                href=reverse("channels.channel_delete", args=[sender.pk]),
                             )
                         )
                     elif self.get_object().is_android():
@@ -1359,7 +1368,7 @@ class ChannelCRUDL(SmartCRUDL):
                             dict(
                                 id="disable-voice",
                                 title=_("Disable Voice Calling"),
-                                modax=_("Disable Voice Caliing"),
+                                modax=_("Disable Voice Calling"),
                                 href=reverse("channels.channel_delete", args=[caller.pk]),
                             )
                         )
@@ -1368,7 +1377,6 @@ class ChannelCRUDL(SmartCRUDL):
                             dict(
                                 id="enable-voice",
                                 title=_("Enable Voice Calling"),
-                                # modax=_("Enable Voice Calling"),
                                 js_class="posterize",
                                 href=f"{reverse('channels.channel_create_caller')}?channel={channel.id}",
                             )
@@ -1596,7 +1604,7 @@ class ChannelCRUDL(SmartCRUDL):
             whitelisted_domain = forms.URLField(
                 required=True,
                 initial="https://",
-                help_text="The domain to whitelist for Messenger extensions  ex: https://yourdomain.com",
+                help_text="The domain to whitelist for Messenger extensions ex: https://yourdomain.com",
             )
 
         slug_url_kwarg = "uuid"
@@ -1644,10 +1652,10 @@ class ChannelCRUDL(SmartCRUDL):
         def derive_submit_button_name(self):
             channel = self.get_object()
             if channel.is_delegate_caller():
-                return _("Remove Voice Calling")
+                return _("Disable Voice Calling")
 
             if channel.is_delegate_sender():
-                return _("Remove Bulk Sending")
+                return _("Disable Bulk Sending")
 
             return super().derive_submit_button_name()
 
@@ -1767,8 +1775,10 @@ class ChannelCRUDL(SmartCRUDL):
             for ch_type in list(Channel.get_types()):
                 if ch_type.is_recommended_to(user):
                     recommended_channels.append(ch_type)
-                elif ch_type.is_available_to(user) and ch_type.category:
-                    types_by_category[ch_type.category.name].append(ch_type)
+                elif ch_type.category or (ch_type.is_available_to(user) and ch_type.category):
+                    print(ch_type)
+                    if ch_type.name != "Twitter Legacy":
+                        types_by_category[ch_type.category.name].append(ch_type)
 
             context["recommended_channels"] = recommended_channels
             context["channel_types"] = types_by_category
@@ -1819,7 +1829,8 @@ class ChannelCRUDL(SmartCRUDL):
             return super().form_invalid(form)
 
         def get_success_url(self):
-            return reverse("orgs.org_home")
+            channel = self.form.cleaned_data["channel"]
+            return reverse("channels.channel_read", args=[channel.uuid])
 
     class CreateCaller(OrgPermsMixin, SmartFormView):
         class CallerForm(forms.Form):

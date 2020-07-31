@@ -613,18 +613,29 @@ code {
     }
 
     .formax-icon {
-      @apply bg-gray-200 text-gray-600 relative h-full p-8 mt-0 cursor-pointer;
-      width: inherit;
-      height: inherit;
-
+      @apply bg-gray-200 text-gray-600 cursor-pointer;
       transition: all 200ms ease-in-out;
       font-size: 30px;
+      flex-basis: 90px;
+      flex-grow: 0;
+      flex-shrink: 0;
 
-      &:before {}
+      .margin-wrapper {
+        margin: auto;
+      }
+
+      .i-container {
+
+        width: 30px;
+
+        &:before {}
+      }
+
     }
 
     .formax-container {
-      @apply flex-grow;
+
+
 
       .formax-summary {
         @apply p-8 cursor-pointer;
@@ -656,6 +667,17 @@ code {
 
       .formax-icon {
         font-size: 80px;
+        flex-basis: 160px;
+        padding-top: 10px;
+
+        .margin-wrapper {
+          margin-top: 0px;
+        }
+
+        .i-container {
+          width: 80px;
+        }
+
         @apply bg-primary text-white p-12;
 
         &:before {

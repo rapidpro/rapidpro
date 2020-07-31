@@ -2063,23 +2063,24 @@ code {
 .formax .formax-section .formax-icon {
       background-color: #ededed;
       color: #717171;
-      position: relative;
-      height: 100%;
-      padding: 2rem;
-      margin-top: 0;
       cursor: pointer;
-      width: inherit;
-      height: inherit;
       transition: all 200ms ease-in-out;
       font-size: 30px;
+      flex-basis: 90px;
+      flex-grow: 0;
+      flex-shrink: 0;
     }
 
-.formax .formax-section .formax-icon:before {
+.formax .formax-section .formax-icon .margin-wrapper {
+        margin: auto;
       }
 
-.formax .formax-section .formax-container {
-      flex-grow: 1;
-    }
+.formax .formax-section .formax-icon .i-container {
+        width: 30px;
+      }
+
+.formax .formax-section .formax-icon .i-container:before {
+        }
 
 .formax .formax-section .formax-container .formax-summary {
         padding: 2rem;
@@ -2113,10 +2114,20 @@ code {
 
 .formax .formax-section.open .formax-icon {
         font-size: 80px;
+        flex-basis: 160px;
+        padding-top: 10px;
         background-color: rgb(var(--primary-rgb));
         color: #fff;
         padding: 3rem;
       }
+
+.formax .formax-section.open .formax-icon .margin-wrapper {
+          margin-top: 0px;
+        }
+
+.formax .formax-section.open .formax-icon .i-container {
+          width: 80px;
+        }
 
 .formax .formax-section.open .formax-icon:before {
           vertical-align: inherit;

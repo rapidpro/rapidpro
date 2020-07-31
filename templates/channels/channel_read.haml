@@ -6,16 +6,22 @@
 -block title
   .flex.items-start.flex-col
     .name
-      {{ object.name }}
+      -if object.parent
+        {{object.parent.name}}
+      -else
+        {{ object.name }}
 
 -block subtitle
   -if object.get_channel_type_display != object.name
     .flex.mt-2
-      //.channel_icon.mr-4.text-2xl{class:'{{object|channel_icon}}'}
       .flex.flex-col
         .channel_type
-          {{object.get_channel_type_display}}
-          -trans "Channel"
+
+            -if object.parent
+              {{object.name}}
+            -else
+              {{object.get_channel_type_display}}
+              -trans "Channel"
 
   -if object.get_country_display
     .country
@@ -23,75 +29,59 @@
         {{ object.get_country_display }}
 
 
+  -with object.get_delegate_channels as delegates
+    -if delegates
+      .channel-roles.mt-3
+        -for channel in delegates
+          .lbl.linked(onclick="goto(event, this)" href="{% url 'channels.channel_read' channel.uuid%}")
+            .flex.items-center
+              .text-base{class:'{{ channel|channel_icon }}'}
+              .name.mx-1
+                -if channel.is_delegate_sender
+                  -trans "Bulk sending"
 
--block other
-
-  .medium-help.float-left{class:'{{object|channel_icon}}'}
-
-  %h2.font_normalize.header-margin.title
-    -if object.name
-      {{ object.get_channel_type_display }} - {{ object.name }}
-    -else
-      {{ object.get_channel_type_display }}
-      -trans "Channel"
-
-    .number
-      {{ object.get_address_display }}
-      -if object.get_country_display
-        ({{ object.get_country_display }})
-
-      -if object.channel_type == 'A'
-        \- {{ channel.device }}
-        -if channel.os
-          (v{{channel.os}})
-
-    .channel-roles
-      -for channel in object.get_delegate_channels
-
-        %a{href:"{% url 'channels.channel_read' channel.uuid%}"}
-          .icon{class:'{{ channel|channel_icon }}'}
-
-          -if channel.is_delegate_sender
-            -trans "Bulk sending enabled"
-
-          -if channel.is_delegate_caller
-            -trans "Voice calls enabled"
+                -if channel.is_delegate_caller
+                  -trans "Voice calls"
 
 
-      -for link in object.get_type.extra_links
-        <a class="btn btn-tiny" href="{% url link.name object.uuid %}">{{ link.link }}</a>
+    -for link in object.get_type.extra_links
+      <a class="btn btn-tiny" href="{% url link.name object.uuid %}">{{ link.link }}</a>
 
-      .notice
-        -if delayed_sync_event or unsent_msgs_count
-          .icon.icon-warning.errored
-          -if delayed_sync_event
-            %span.errored
-              -trans "Last synced"
-              -if last_sync
-                -blocktrans trimmed with last_sync.created_on|timesince as last_sync
-                  {{ last_sync }} ago
-              -else
-                -trans "Never"
+    .my-8.text-base
+      -if delayed_sync_event or unsent_msgs_count
+        .flex.items-center.text-error
+          .mr-1
+            .icon-warning.text-error.text-lg.mt-1
+          .message             
+            -if delayed_sync_event
+              .inline-block.ml-2
+                -if last_sync
+                  -trans "Last synced"
+                  -blocktrans trimmed with last_sync.created_on|timesince as last_sync
+                    {{ last_sync }} ago
+                -else
+                  -trans "Not synced yet"
+
+            -if unsent_msgs_count
+              .text-error.text-base.inline-block.ml-2(onclick="goto(event)" href="{% url 'msgs.msg_failed' %}")
+                = unsent_msgs_count|intcomma
+                {% blocktrans trimmed count unsent_msgs_count=unsent_msgs_count %}
+                  unsent message
+                {% plural %}
+                  unsent messages
+                {% endblocktrans %}
+
+      -else
+        -if object.channel_type == 'A'
+          -if last_sync
+            -trans "Last synced"
+            -blocktrans trimmed with last_sync.created_on|timesince as last_sync
+              {{ last_sync }} ago
           -else
-            -if object.channel_type == 'A'
-              -trans "Last synced"
-              -if last_sync
-                -blocktrans trimmed with last_sync.created_on|timesince as last_sync
-                  {{ last_sync }} ago
-              -else
-                -trans "Never"
-            -else
-              -trans "Activated"
-              {{ object.created_on }}
-
-          -if unsent_msgs_count
-            %a.errored{href:"{% url 'msgs.msg_failed' %}"}
-              = unsent_msgs_count
-              {% blocktrans trimmed count unsent_msgs_count=unsent_msgs_count %}
-                unsent message
-              {% plural %}
-                unsent messages
-              {% endblocktrans %}
+            -trans "Not synced yet"
+        -else
+          -trans "Activated"
+          {{ object.created_on }}
 
 
 -block top-form
@@ -106,31 +96,21 @@
 
   -with object.get_sender as sender and object.get_caller as caller
 
-
-    -if object.channel_type == 'A'
-      
+    -if object.channel_type == 'A'      
       .device
         -if channel.name
-          {{ channel.name }} -
-        {{ channel.device }}
+          {{ channel.name }}
+        -if channel.device != channel.name
+          \- {{ channel.device }}
         -if channel.os
-          (v{{channel.os}})
+          .inline-block
+            (v{{channel.os}})
         %span.number
           {{ channel.get_address_display }}
 
-      -if unsent_msgs_count
-        <span class='errored'>
-          = unsent_msgs_count
-          {% blocktrans trimmed count unsent_msgs_count=unsent_msgs_count %}
-            unsent messages
-          {% plural %}
-            unsent message
-          {% endblocktrans %}
-        </span>
-
       -if last_sync
         -if delayed_syncevents
-          <span class='errored'>
+          <span class='text-error'>
         -else
           <span>
 
@@ -155,106 +135,105 @@
       {{ object.created_on }}
 
     -for channel in object.get_delegate_channels
-      .icon{class:'{{ channel|channel_icon }}'}
+      .ml-1{class:'{{ channel|channel_icon }}'}
 
       -if channel.is_delegate_sender
-        -trans "Bulk sending enabled"
+        -trans "Bulk sending"
 
       -if channel.is_delegate_caller
-        -trans "Voice calls enabled"
+        -trans "Voice calls"
+  
+    -if object.channel_type == 'A'      
+      -if unsent_msgs_count
+        .text-error
+          {{unsent_msgs_count|intcomma}}
+          {% blocktrans trimmed count unsent_msgs_count=unsent_msgs_count %}
+            unsent message
+          {% plural %}
+            unsent messages
+          {% endblocktrans %}
 
 -block content
   -block charts-zone
     -if start_date
-          -if object.channel_type == 'A'
-            %table.list.lined
+      -if object.channel_type == 'A'
+
+        -if last_sync
+          .sync-summary.mb-4
+            .flex.text-gray-600
+              .i-status.w-12.py-1.px-2
+                -ifequal last_sync.network_type "WIFI"
+                  .icon-connection.-mt-1{style:"font-size: 16px"}
+                -else
+                  .icon-radio{style:"font-size: 16px"}
+
+              .perc
+                -for net in network_share
+                  -if net.0 == last_sync.network_type
+                    {{ net.1 }}%
+              
+              .t-status.px-2
+                -trans "ON"
+                = last_sync.network_type
+
+
+            .flex.text-gray-600
+              .i-status.w-12.px-3
+                -if last_sync.power_level < 20
+                  .mini-status.icon-battery-empty
+                -elif last_sync.power_level >= 20 and last_sync.power_level <= 80
+                  .mini-status.icon-battery-half
+                -else
+                  .mini-status.icon-battery-full.rotate
+              
+              .t-status
+                {{last_sync.power_level}}%
+
+              .plugged.px-2
+                -if last_sync.power_status == 'UNK'
+                  -trans "UNKNOWN"
+                -if last_sync.power_status == 'DIS'
+                  -trans "DISCHARGING"
+                -if last_sync.power_status == 'CHA'
+                  -trans "CHARGING"
+                -if last_sync.power_status == 'FUL'
+                  -trans "FULLY CHARGED"
+
+
+
+      -else
+
+        -if msg_count or ivr_count or channel.get_error_log_count
+          %table.list.lined
+            %thead
+              %tr
+                %th
+                  -trans "Messages"
+                
+                -if ivr_count
+                  %th
+                    -trans "IVR Messages"
+                %th
+                  -trans "Recent Errors"
+                
+            %tbody
+              
               %tr
                 %td
-                  -if last_sync
-                    %h2{style:"padding:0px 5px;"}
-                      -if last_sync.power_level < 20
-                        .mini-status.icon-battery-empty.rotate
-                      -elif last_sync.power_level >= 20 and last_sync.power_level <= 80
-                        .mini-status.icon-battery-half.rotate
-                      -else
-                        .mini-status.icon-battery-full.rotate
-
-                      .pull-right
-                        -if last_sync.power_level == 100
-                          %span.smaller {{last_sync.power_level}}%
-                        -else
-                          {{last_sync.power_level}}%
-
-                    %h5.weight-200.font_normalize{style:"padding-right:5px;text-align: right"}
-                      -if last_sync.power_status == 'UNK'
-                        -trans "UNKNOWN"
-                      -if last_sync.power_status == 'DIS'
-                        -trans "DISCHARGING"
-                      -if last_sync.power_status == 'CHA'
-                        -trans "CHARGING"
-                      -if last_sync.power_status == 'FUL'
-                        -trans "FULLY CHARGED"
-
-              %tr
-                %td
-                  -if last_sync
-                    %h2{style:"padding:0px 5px;"}
-                      -ifequal last_sync.network_type "WIFI"
-                        .glyph.icon-connection{style:"font-size: 24px"}
-                      -else
-                        .glyph.icon-radio{style:"font-size: 24px"}
-
-                      -for net in network_share
-                        -if net.0 == last_sync.network_type
-                          -if net.1 == 100
-                            %span.pull-right.smaller {{ net.1 }}%
-                          -else
-                            .pull-right {{ net.1 }}%
-
-                    %h5.weight-200.font_normalize{style:"padding-right:5px;text-align: right"}
-                      -trans "ON"
-                      = last_sync.network_type
-
-              -if network_share|length > 1
-                %tr
-                  %td
-                    %h4.weight-200{style:"padding:0px 5px;"}
-                      -for net in network_share
-                        -if not net.0 == last_sync.network_type
-                          .font_normalize
-                          -ifequal net.0 "WIFI"
-                            .glyph.icon-connection
-                            .pull-right {{net.1}}%
-                          -else
-                            .glyph.icon-radio &nbsp;{{net.0}}
-                            .pull-right {{net.1}}%
-
-          -else
-
-            %table.list.lined
-              %tr
-                %td
-                  %h4
-                    -trans "Messages"
                   {{ msg_count|intcomma }}
 
-              -if ivr_count
-                %tr
+                -if ivr_count
                   %td
-                    %h4
-                      -trans "IVR Messages"
                     {{ ivr_count|intcomma }}
-              %tr
                 %td
-                  %h4
-                    -trans "Recent Errors"
                   {{ channel.get_error_log_count|intcomma }}
 
-        .card.pt-8
-          %div#channel-chart
-        -if ivr_count
-          .minutes-disclaimer
-            In many cases operators round up to the nearest minute for billing. Minutes shown here are only a usage guideline.
+      .card.pt-8
+        %div#channel-chart
+
+      -if ivr_count
+        .minutes-disclaimer
+          In many cases operators round up to the nearest minute for billing. Minutes shown here are only a usage guideline.
 
       %table.list.lined
         %thead
@@ -286,185 +265,57 @@
                   = month_data.outgoing_ivr_count|intcomma
 
   -if object.channel_type == 'A'
-    %div.row
-      %div.span12
-        %table.list-table.table.table-bordered.table-striped.table-condensed
-          %thead
-            %tr
-              %th
-                -trans "Synced on"
-              %th.align-center
-                -trans "Incoming"
-              %th.align-center
-                -trans "Outgoing"
-              %th.align-center
-                -trans "Pending"
-              %th.align-center
-                -trans "Retry"
-              %th.align-center
-                -trans "Battery"
-              %th.align-center
-                -trans "Network"
-          %tbody
-            - for sync_event in latest_sync_events
-              %tr
-                %td
-                  = sync_event.created_on
-                %td.align-center
-                  = sync_event.incoming_command_count
-                %td.align-center
-                  = sync_event.outgoing_command_count
-                %td.align-center
-                  = sync_event.pending_message_count
-                %td.align-center
-                  = sync_event.retry_message_count
-                %td.align-center
-                  -if sync_event.power_status == 'CHA'
-                    .glyph.icon-battery-charging
-                  -else
-                    -if sync_event.power_level < 20
-                      .glyph.icon-battery-empty
-                    -elif sync_event.power_level >= 20 and sync_event.power_level <= 80
-                      .glyph.icon-battery-half
-                    -else
-                      .glyph.icon-battery-full
+    %table.list.lined.mt-4
+      %thead
+        %tr
+          %th
+            -trans "Synced on"
+          %th.align-center
+            -trans "Incoming"
+          %th.align-center
+            -trans "Outgoing"
+          %th.align-center
+            -trans "Pending"
+          %th.align-center
+            -trans "Retry"
+          %th.align-center
+            -trans "Battery"
+          %th.align-center
+            -trans "Network"
+      %tbody
+        - for sync_event in latest_sync_events
+          %tr
+            %td
+              = sync_event.created_on
+            %td.align-center
+              = sync_event.incoming_command_count
+            %td.align-center
+              = sync_event.outgoing_command_count
+            %td.align-center
+              = sync_event.pending_message_count
+            %td.align-center
+              = sync_event.retry_message_count
+            %td.align-center
+              -if sync_event.power_status == 'CHA'
+                .glyph.icon-battery-charging
+              -else
+                -if sync_event.power_level < 20
+                  .glyph.icon-battery-empty
+                -elif sync_event.power_level >= 20 and sync_event.power_level <= 80
+                  .glyph.icon-battery-half
+                -else
+                  .glyph.icon-battery-full
 
-                  &nbsp;{{ sync_event.power_level }}%
-                %td.align-center
-                  - if sync_event.network_type == 'WIFI'
-                    .glyph.icon-connection
-                  -else
-                    .glyph.icon-radio
-                  -if sync_event.network_type == 'NONE' or sync_event.network_type == 'UNKNOWN'
-                    -trans "&nbsp;&nbsp;OTHER"
-                  -else
-                    &nbsp;&nbsp;{{ sync_event.network_type }}
-
--block post-content
-  - if org_perms.channels.channel_delete
-    .deletion.hide
-      .title
-        -trans "Remove Channel"
-      .body
-        %p
-          {% if object.dependent_flows.count == 0 %}
-          -trans "Are you sure you want to remove this channel from your workspace?"
-          .number.text-center
-            {{ object.get_channel_type_display }} {{ object.get_address_display|default:'' }}
-          {% else %}
-          - trans "This channel cannot be removed because it in use."
-          .number.text-center
-            {{ object.get_channel_type_display }} {{ object.get_address_display|default:'' }}
-          {% endif %}
-
-        %p
-          {% if object.dependent_flows.count == 0 %}
-            -trans "Once it is removed, it will be gone forever. There is no way to undo this operation."
-          {% else %}
-            {% blocktrans trimmed count num_flows=object.dependent_flows.count %}
-            Used by {{num_flows}} flow:
-            {% plural %}
-            Used by {{num_flows}} flows:
-            {% endblocktrans %}
-
-          %ul
-          - for flow in object.dependent_flows.all
-            %li
-              %a{href:"{% url 'flows.flow_editor' flow.uuid %}"}
-                {{ flow.name }}
-
-          {% endif %}
-
--block extra-less
-  -compress css inline
-    {% lessblock %}
-      :plain
-        a.errored:hover {
-          color:@flat-darkred;
-        }
-
-        .title {
-          .channel-roles {
-            font-size:14px;
-            margin-top:0px;
-            padding:0px;
-            line-height:14px;
-          }
-        }
-    {% endlessblock %}
-
--block extra-style
-  {{block.super}}
-  :css
-
-    .channel-roles a,
-    .channel-roles a:hover,
-    .channel-roles a:active,
-    .channel-roles a:visited {
-      text-decoration: none;
-      color: rgb(102,102,102);
-    }
-
-    @media(min-width: 768px) and (max-width: 1200px) {
-      .span2.strong-min-170 {
-        min-width: 170px;
-      }
-
-      .span10.strong-max-750 {
-        max-width: 750px;
-      }
-    }
-
-    .minutes-disclaimer {
-      width: 100%;
-      text-align: center;
-      font-size:13px;
-    }
-
-    .icon {
-      margin-left:5px;
-      margin-right:5px;
-    }
-
-    .notice {
-      margin-top:10px;
-    }
-
-    .device .number {
-      padding-left:5px;
-    }
-
-    .title .number {
-      font-size:20px;
-    }
-
-    td.align-center {
-      width: 100px;
-    }
-
-    h2 .smaller {
-      font-size: 32px;
-    }
-
-    .mini-status {
-        line-height: 1;
-        font-size: 40px;
-        margin-top: 30px;
-        margin-left: -10px;
-        text-decoration: none;
-    }
-
-    #gear-container {
-      float:right;
-    }
-
-    .message-stats-table thead tr th {
-      text-align: center;
-    }
-
-    .message-stats-table tbody tr td {
-      text-align: right;
-    }
+              &nbsp;{{ sync_event.power_level }}%
+            %td.align-center
+              - if sync_event.network_type == 'WIFI'
+                .glyph.icon-connection
+              -else
+                .glyph.icon-radio
+              -if sync_event.network_type == 'NONE' or sync_event.network_type == 'UNKNOWN'
+                -trans "&nbsp;&nbsp;OTHER"
+              -else
+                &nbsp;&nbsp;{{ sync_event.network_type }}
 
 -block extra-script
   {{block.super}}
