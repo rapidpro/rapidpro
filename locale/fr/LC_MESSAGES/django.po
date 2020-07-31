@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-20 18:24+0000\n"
+"POT-Creation-Date: 2020-07-28 21:40+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2667,6 +2667,54 @@ msgstr "Le groupe unique à exporter"
 
 msgid "The search query"
 msgstr "La requête de recherche"
+
+#, python-format
+msgid "Invalid query syntax at '%(token)s'"
+msgstr ""
+
+#, python-format
+msgid "Unable to convert '%(value)s' to a number"
+msgstr ""
+
+#, python-format
+msgid "Unable to convert '%(value)s' to a date"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "%(day)s is not a valid day of the week"
+msgid "'%(value)s' is not a valid language code"
+msgstr "%(day)s n'est pas un jour de la semaine valide"
+
+#, fuzzy, python-format
+#| msgid "f'{val}' isn't a valid number"
+msgid "'%(value)s' is not a valid group name"
+msgstr "f'{val}' n'est pas un numéro valide"
+
+#, python-format
+msgid "Using ~ with name requires token of at least %(min_token_length)s characters"
+msgstr ""
+
+#, python-format
+msgid "Using ~ with URN requires value of at least %(min_value_length)s characters"
+msgstr ""
+
+msgid "Can only use ~ with name or URN values"
+msgstr ""
+
+#, python-format
+msgid "Can only use %(operator)s with number or date values"
+msgstr ""
+
+#, python-format
+msgid "Can't check whether '%(property)s' is set or not set"
+msgstr ""
+
+#, python-format
+msgid "Can't resolve '%(property)s' to a field or URN scheme"
+msgstr ""
+
+msgid "Can't query on URNs in an anonymous workspace"
+msgstr ""
 
 msgid "day"
 msgstr "jour"
@@ -10997,10 +11045,6 @@ msgstr "${count} trouvé pour ${query}"
 #, python-brace-format
 #~ msgid "Unrecognized field: '{prop}'"
 #~ msgstr "Champ non reconnu: '{prop}'"
-
-#, python-brace-format
-#~ msgid "f'{val}' isn't a valid number"
-#~ msgstr "f'{val}' n'est pas un numéro valide"
 
 #, python-brace-format
 #~ msgid "Unknown text comparator: '{self.comparator}'"

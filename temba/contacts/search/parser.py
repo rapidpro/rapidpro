@@ -11,6 +11,7 @@ from antlr4.error.Errors import NoViableAltException, ParseCancellationException
 from antlr4.error.ErrorStrategy import BailErrorStrategy
 
 from django.utils.encoding import force_text
+from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
 from temba.contacts.models import URN_SCHEME_CONFIG, ContactField
@@ -26,14 +27,38 @@ class SearchException(Exception):
     Exception class for unparseable search queries
     """
 
-    def __init__(self, message):
+    messages = {
+        "unexpected_token": _("Invalid query syntax at '%(token)s'"),
+        "invalid_number": _("Unable to convert '%(value)s' to a number"),
+        "invalid_date": _("Unable to convert '%(value)s' to a date"),
+        "invalid_language": _("'%(value)s' is not a valid language code"),
+        "invalid_group": _("'%(value)s' is not a valid group name"),
+        "invalid_partial_name": _("Using ~ with name requires token of at least %(min_token_length)s characters"),
+        "invalid_partial_urn": _("Using ~ with URN requires value of at least %(min_value_length)s characters"),
+        "unsupported_contains": _("Can only use ~ with name or URN values"),
+        "unsupported_comparison": _("Can only use %(operator)s with number or date values"),
+        "unsupported_setcheck": _("Can't check whether '%(property)s' is set or not set"),
+        "unknown_property": _("Can't resolve '%(property)s' to a field or URN scheme"),
+        "redacted_urns": _("Can't query on URNs in an anonymous workspace"),
+    }
+
+    def __init__(self, message, code=None, extra=None):
         self.message = message
+        self.code = code
+        self.extra = extra
+
+    @classmethod
+    def from_mailroom_exception(cls, e):
+        return cls(e.response["error"], e.response.get("code"), e.response.get("extra", {}))
 
     def __str__(self):
+        if self.code and self.code in self.messages:
+            return self.messages[self.code] % self.extra
+
         return force_text(self.message)
 
 
-class ContactQuery(object):
+class ContactQuery:
     """
     A parsed contact query consisting of a hierarchy of conditions and boolean combinations of conditions
     """
@@ -753,7 +778,7 @@ def parse_query(org_id, query, group_uuid=""):
         )
 
     except mailroom.MailroomException as e:
-        raise SearchException(e.response["error"])
+        raise SearchException.from_mailroom_exception(e)
 
 
 class SearchResults(NamedTuple):
@@ -777,7 +802,7 @@ def search_contacts(org_id, group_uuid, query, sort=None, offset=None):
         )
 
     except mailroom.MailroomException as e:
-        raise SearchException(e.response["error"])
+        raise SearchException.from_mailroom_exception(e)
 
 
 def legacy_parse_query(text, optimize=True, as_anon=False):  # pragma: no cover
