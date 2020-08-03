@@ -133,6 +133,23 @@ class Archive(models.Model):
 
             yield json.loads(line.decode("utf-8"))
 
+    def select_records(self, expression):
+        s3 = self.s3_client()
+        stream = s3.select_object_content(
+            **self.s3_location(),
+            ExpressionType="SQL",
+            Expression=f"SELECT * FROM s3object WHERE {expression}",
+            InputSerialization={"CompressionType": "GZIP", "JSON": {"Type": "LINES"}},
+            OutputSerialization={"JSON": {"RecordDelimiter": "\n"}},
+        )
+
+        for event in stream:
+            if "Records" in event:
+                lines = event["Records"]["Payload"].split(b"\n")
+                for line in lines:
+                    if line:
+                        yield json.loads(line.decode("utf-8"))
+
     def release(self):
 
         # detach us from our rollups
