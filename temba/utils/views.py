@@ -7,24 +7,24 @@ from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from temba.utils.fields import InputWidget, SelectWidget
+from temba.utils.fields import CheckboxWidget, InputWidget, SelectWidget
 
 logger = logging.getLogger(__name__)
 
 
 class ComponentFormMixin(View):
-    def get_form(self):
-        form = super().get_form()
-        for name, field in form.fields.items():
-            if isinstance(field.widget, (forms.widgets.TextInput,)):
-                print("Replacing", name, field.widget)
-                field.widget = InputWidget()
-            elif isinstance(field.widget, (forms.widgets.Select)):
-                print("Replacing", name, field.widget)
-                field.widget = SelectWidget()
-            else:
-                print("Ignoring", name, field.widget)
-        return form
+    def customize_form_field(self, name, field):
+        if isinstance(
+            field.widget,
+            (forms.widgets.TextInput, forms.widgets.EmailInput, forms.widgets.URLInput, forms.widgets.NumberInput,),
+        ):
+            field.widget = InputWidget()
+        elif isinstance(field.widget, (forms.widgets.Select)):
+            field.widget = SelectWidget()
+            field.widget.choices = field._choices
+        elif isinstance(field.widget, (forms.widgets.CheckboxInput,)):
+            field.widget = CheckboxWidget()
+        return field
 
 
 class PostOnlyMixin(View):
