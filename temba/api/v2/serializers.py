@@ -645,6 +645,10 @@ class ContactWriteSerializer(WriteSerializer):
                     self.context["org"], self.context["user"], name, urns=urns, language=language
                 )
 
+                # the above call won't always get the URN order correct so have mailroom fix them
+                if urns:
+                    mods += self.instance.update_urns(urns)
+
             # update our fields
             if custom_fields is not None:
                 mods += self.instance.update_fields(values=custom_fields)
@@ -818,9 +822,9 @@ class ContactBulkActionSerializer(WriteSerializer):
         group = self.validated_data.get("group")
 
         if action == self.ADD:
-            group.update_contacts(user, contacts, add=True)
+            Contact.bulk_change_group(user, contacts, group, add=True)
         elif action == self.REMOVE:
-            group.update_contacts(user, contacts, add=False)
+            Contact.bulk_change_group(user, contacts, group, add=False)
         elif action == self.INTERRUPT:
             mailroom.queue_interrupt(self.context["org"], contacts=contacts)
         elif action == self.ARCHIVE:

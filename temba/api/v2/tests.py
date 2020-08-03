@@ -27,7 +27,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.luis import LuisType
 from temba.classifiers.types.wit import WitType
-from temba.contacts.models import Contact, ContactField, ContactGroup
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import BoundaryAlias
@@ -1599,9 +1599,13 @@ class APITest(TembaTest):
         contact3.release(self.user)
 
         # put some contacts in a group
-        group = ContactGroup.get_or_create(self.org, self.admin, "Customers")
-        group.update_contacts(self.user, [self.joe], add=True)  # add contacts separately for predictable modified_on
-        group.update_contacts(self.user, [contact4], add=True)  # ordering
+        group = self.create_group("Customers", contacts=[self.joe, contact4])
+
+        # tweak modified_on so we get the order we want
+        self.joe.modified_on = timezone.now()
+        self.joe.save(update_fields=("modified_on",), handle_update=False)
+        contact4.modified_on = timezone.now()
+        contact4.save(update_fields=("modified_on",), handle_update=False)
 
         contact1.refresh_from_db()
         contact4.refresh_from_db()
@@ -1739,7 +1743,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         resp_json = response.json()
-        self.assertEqual(resp_json["urns"], ["twitter:jean", "tel:+250783333333"])
+        self.assertEqual(resp_json["urns"], ["tel:+250783333333", "twitter:jean"])
 
         # URNs will be normalized
         nickname = ContactField.get_by_key(self.org, "nickname")
@@ -2107,6 +2111,26 @@ class APITest(TembaTest):
             response = self.fetchJSON(url, "urn=%s" % quote_plus("tel:+250-78-8000004"))
             self.assertEqual(response.status_code, 400)
             self.assertResponseError(response, None, "URN lookups not allowed for anonymous organizations")
+
+    @mock_mailroom
+    def test_contact_create_with_urns(self, mr_mocks):
+        url = reverse("api.v2.contacts")
+        self.assertEndpointAccess(url)
+
+        # one of the URNs will already exist in an orphaned state
+        ContactURN.get_or_create(self.org, None, "tel:+250783333335")
+
+        # test create with a null chars \u0000
+        response = self.postJSON(
+            url, None, {"name": "Jean", "urns": ["tel:+250783333334", "tel:+250783333335", "tel:+250783333336"]},
+        )
+        self.assertEqual(201, response.status_code)
+
+        # check URNs are in the specified order
+        contact = Contact.objects.get(name="Jean")
+        self.assertEqual(
+            ["tel:+250783333334", "tel:+250783333335", "tel:+250783333336"], [u.identity for u in contact.get_urns()]
+        )
 
     @mock_mailroom
     def test_contact_actions(self, mr_mocks):
