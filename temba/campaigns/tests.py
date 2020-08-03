@@ -712,18 +712,6 @@ class CampaignTest(TembaTest):
         self.set_contact_field(self.nonfarmer, "planting_date", "1/7/2025", legacy_handle=True)
         self.assertEqual(2, EventFire.objects.filter(event__is_active=True).count())
 
-        # remove one of the farmers from the group
-        self.farmers.update_contacts(self.admin, [self.farmer1], add=False)
-
-        # should only be one event now (on farmer 2)
-        fire = EventFire.objects.get()
-        self.assertEqual(2, fire.scheduled.day)
-        self.assertEqual(6, fire.scheduled.month)
-        self.assertEqual(2022, fire.scheduled.year)
-
-        # but if we add him back in, should be updated
-        post_data = dict(name=self.farmer1.name, groups=[self.farmers.id], __urn__tel=self.farmer1.get_urn("tel").path)
-
         planting_date_field = ContactField.get_by_key(self.org, "planting_date")
 
         self.client.post(reverse("contacts.contact_update", args=[self.farmer1.id]), post_data)

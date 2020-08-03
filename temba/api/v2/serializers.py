@@ -822,9 +822,9 @@ class ContactBulkActionSerializer(WriteSerializer):
         group = self.validated_data.get("group")
 
         if action == self.ADD:
-            group.update_contacts(user, contacts, add=True)
+            Contact.bulk_change_group(user, contacts, group, add=True)
         elif action == self.REMOVE:
-            group.update_contacts(user, contacts, add=False)
+            Contact.bulk_change_group(user, contacts, group, add=False)
         elif action == self.INTERRUPT:
             mailroom.queue_interrupt(self.context["org"], contacts=contacts)
         elif action == self.ARCHIVE:

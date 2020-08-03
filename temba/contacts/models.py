@@ -718,6 +718,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="%(app_label)s_%(class)s_creations", null=True
     )
 
+    last_seen_on = models.DateTimeField(null=True)
+
     NAME = "name"
     FIRST_NAME = "first_name"
     LANGUAGE = "language"
@@ -1949,6 +1951,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         cls.bulk_modify(user, contacts, [modifiers.Status(status=status)])
 
     @classmethod
+    def bulk_change_group(cls, user, contacts, group, add: bool):
+        mod = modifiers.Groups(
+            groups=[modifiers.GroupRef(uuid=str(group.uuid), name=group.name)], modification="add" if add else "remove"
+        )
+        cls.bulk_modify(user, contacts, mods=[mod])
+
+    @classmethod
     def apply_action_block(cls, user, contacts):
         cls.bulk_change_status(user, contacts, Contact.STATUS_BLOCKED)
 
@@ -1962,11 +1971,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def apply_action_label(cls, user, contacts, group):
-        group.update_contacts(user, contacts, add=True)
+        cls.bulk_change_group(user, contacts, group, add=True)
 
     @classmethod
     def apply_action_unlabel(cls, user, contacts, group):
-        group.update_contacts(user, contacts, add=False)
+        cls.bulk_change_group(user, contacts, group, add=False)
 
     @classmethod
     def apply_action_delete(cls, user, contacts):
@@ -2598,15 +2607,6 @@ class ContactGroup(TembaModel):
 
         # first character must be a word char
         return regex.match(r"\w", name[0], flags=regex.UNICODE)
-
-    def update_contacts(self, user, contacts, add):
-        """
-        Manually adds or removes contacts from a static group. Returns contact ids of contacts whose membership changed.
-        """
-        if self.group_type != self.TYPE_USER_DEFINED or self.is_dynamic:  # pragma: no cover
-            raise ValueError("Can't add or remove contacts from system or dynamic groups")
-
-        return self._update_contacts(user, contacts, add)
 
     def remove_contacts(self, user, contacts):
         """

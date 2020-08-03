@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-20 18:24+0000\n"
+"POT-Creation-Date: 2020-07-28 21:40+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3377,6 +3377,54 @@ msgid "The unique group to export"
 msgstr "Os fluxos para exportar"
 
 msgid "The search query"
+msgstr ""
+
+#, python-format
+msgid "Invalid query syntax at '%(token)s'"
+msgstr ""
+
+#, python-format
+msgid "Unable to convert '%(value)s' to a number"
+msgstr ""
+
+#, python-format
+msgid "Unable to convert '%(value)s' to a date"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "Using a Local Number"
+msgid "'%(value)s' is not a valid language code"
+msgstr "Use um número local"
+
+#, fuzzy, python-format
+#| msgid "Using a Local Number"
+msgid "'%(value)s' is not a valid group name"
+msgstr "Use um número local"
+
+#, python-format
+msgid "Using ~ with name requires token of at least %(min_token_length)s characters"
+msgstr ""
+
+#, python-format
+msgid "Using ~ with URN requires value of at least %(min_value_length)s characters"
+msgstr ""
+
+msgid "Can only use ~ with name or URN values"
+msgstr ""
+
+#, python-format
+msgid "Can only use %(operator)s with number or date values"
+msgstr ""
+
+#, python-format
+msgid "Can't check whether '%(property)s' is set or not set"
+msgstr ""
+
+#, python-format
+msgid "Can't resolve '%(property)s' to a field or URN scheme"
+msgstr ""
+
+msgid "Can't query on URNs in an anonymous workspace"
 msgstr ""
 
 #, fuzzy
@@ -11886,11 +11934,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "Empty user access token!"
 #~ msgstr "Seu Token API é"
-
-#, fuzzy, python-brace-format
-#~| msgid "Using a Local Number"
-#~ msgid "f'{val}' isn't a valid number"
-#~ msgstr "Use um número local"
 
 #, fuzzy, python-brace-format
 #~| msgid "Invalid group or contact id"
