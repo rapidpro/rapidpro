@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-30 11:54+0000\n"
+"POT-Creation-Date: 2020-08-03 14:12+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -7830,6 +7830,11 @@ msgid "<b>%(count)s</b> run"
 msgid_plural "<b>%(count)s</b> runs"
 msgstr[0] "<b>%(count)s</b> exécution"
 msgstr[1] "<b>%(count)s</b> exécutions"
+
+#, fuzzy
+#| msgid "Flow to start"
+msgid "No flow starts"
+msgstr "Début du flux"
 
 #, fuzzy
 #| msgid "Are you sure you want to remove this label?"
