@@ -8,6 +8,8 @@
   .title-icon
     %span.glyph.icon-global
 
+-block page-top
+
 - block summary
   -if global_count
     {% blocktrans trimmed with counter=global_count|intcomma count num=global_count  %}
@@ -45,6 +47,16 @@
                   {{ category.count | intcomma }}
 
         .right
+          .flex.w-full.mb-4.items-end.flex-wrap.justify-end.-mt-2{style:"min-height:41px"}
+            .flex-grow.ml-1.self-end.items-end
+              .flex.flex-col.pr-12
+                .page-title.leading-tight
+                  -block title
+                    {{title}}
+                .subtitle
+                  -block subtitle
+
+
           %form#search-form.mb-4{method:"get"}
             %temba-textinput.w-full{onsubmit:'document.querySelector("#search-form").submit();', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
 
