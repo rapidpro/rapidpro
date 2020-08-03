@@ -292,11 +292,15 @@ a {
 }
 
 .page-subtitle {
-  @apply text-2xl text-gray-500
+  @apply text-2xl text-gray-600
 }
 
 .title {
   @apply text-2xl text-gray-700 mb-1
+}
+
+.subtitle {
+  @apply text-xl text-gray-700 mb-1
 }
 
 table.padded {
@@ -558,11 +562,38 @@ table.list {
 .warning {}
 
 code {
-  @apply px-2 py-1 mx-1 rounded-lg text-base;
+  @apply px-2 py-1 rounded-lg text-base;
+}
+
+.code {
+  @apply bg-gray-100 rounded-lg px-3 py-2 leading-tight font-normal text-sm font-mono;
+  color: #2980b9;
+}
+
+.code {
+  @apply bg-gray-100 rounded-lg px-3 py-2 leading-tight font-normal text-sm font-mono;
+  color: #2980b9;
 }
 
 .card {
-  @apply rounded-lg py-6 px-6 shadow my-4 bg-white
+  @apply rounded-lg py-6 px-6 shadow my-4 bg-white overflow-hidden;
+
+  .bleed-t {
+    @apply -mt-6 pt-6;
+  }
+
+  .bleed-b {
+    @apply -mb-6 py-6;
+  }
+
+  .bleed-x {
+    @apply -mx-6 px-6;
+  }
+
+  .bleed-y {
+    @apply -my-6 py-6;
+  }
+
 }
 
 .help-text {
@@ -582,18 +613,29 @@ code {
     }
 
     .formax-icon {
-      @apply bg-gray-200 text-gray-600 relative h-full p-8 mt-0 cursor-pointer;
-      width: inherit;
-      height: inherit;
-
+      @apply bg-gray-200 text-gray-600 cursor-pointer;
       transition: all 200ms ease-in-out;
       font-size: 30px;
+      flex-basis: 90px;
+      flex-grow: 0;
+      flex-shrink: 0;
 
-      &:before {}
+      .margin-wrapper {
+        margin: auto;
+      }
+
+      .i-container {
+
+        width: 30px;
+
+        &:before {}
+      }
+
     }
 
     .formax-container {
-      @apply flex-grow;
+
+
 
       .formax-summary {
         @apply p-8 cursor-pointer;
@@ -613,9 +655,10 @@ code {
     }
 
     &.open {
+      @apply shadow-lg;
 
       &:hover {
-        @apply shadow;
+        @apply shadow-lg;
       }
 
       .formax-summary {
@@ -624,6 +667,17 @@ code {
 
       .formax-icon {
         font-size: 80px;
+        flex-basis: 160px;
+        padding-top: 10px;
+
+        .margin-wrapper {
+          margin-top: 0px;
+        }
+
+        .i-container {
+          width: 80px;
+        }
+
         @apply bg-primary text-white p-12;
 
         &:before {

@@ -270,6 +270,7 @@
             - include "contacts/empty_include.haml"
 
 -block extra-style
+  {{block.super}}
   :css
     @media only screen and (max-width: 1500px) {
       th:nth-child(n+10), td:nth-child(n+10) {

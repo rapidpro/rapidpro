@@ -1897,7 +1897,7 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(
                     dict(
                         title=_("Edit Flow"),
-                        style="btn-primary",
+                        style="button-primary",
                         href=reverse("flows.flow_editor", args=[self.get_object().uuid]),
                     )
                 )

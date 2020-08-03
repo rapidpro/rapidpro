@@ -171,11 +171,8 @@
 
 %body#pageBody.bg-gradient
   -include "components-body.html"
-  .flex.flex-col.h-full
+  .flex.flex-col
     <!-- Header -->
-    #print-header
-      %span.logo.icon-logo
-
     #header
       &nbsp;
 
@@ -213,28 +210,30 @@
     -block post-header
     <!-- Content -->
     -block page-container
-      .page-content.flex-grow
-        -block page-top
-          .flex.items-start
-            .flex.flex-col.mr-5.leading-tight
-              .page-title
-                -block title
-                  
-              .page-subtitle
-                -block subtitle
+      .flex-grow
+        .page-content.w-full
+          .px-12.py-4
+            -block page-top
+              .flex.items-start
+                .flex.flex-col.mr-5.leading-tight
+                  .page-title
+                    -block title
+                      
+                  .page-subtitle
+                    -block subtitle
 
-            .flex-grow
-              .flex.justify-end.w-full
-                -block gear-menu
-                  -include "gear_links_include.haml"
+                .flex-grow
+                  .flex.justify-end.w-full
+                    -block gear-menu
+                      -include "gear_links_include.haml"
 
-          -block post-title
+              -block post-title
 
 
-        .mt-6
-          -block content
-        
-        -block post-content
+            .mt-6
+              -block content
+            
+            -block post-content
 
     .text-center.py-12.text-gray-400
       {{ request.branding.credits|safe }}
@@ -344,7 +343,7 @@
           $("html").addClass("windows");
         }
 
-        initSelect2Fields();
+        // initSelect2Fields();
 
         $(".btn").tooltip();
 

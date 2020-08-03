@@ -86,10 +86,8 @@
     });
 
     $("#account-numbers").on('click', ".phone-number", function(e){
-        var country = document.querySelector("#country").values[0].value;
-
         $("#phone-number").val($(this).data("number"));
-        $("#claim-country").val(country);
+        $("#claim-country").val($(this).data("country"));
         $("#claim-form").submit();
     });
 
