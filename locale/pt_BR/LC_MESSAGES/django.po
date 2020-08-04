@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-03 23:29+0000\n"
+"POT-Creation-Date: 2020-08-04 15:14+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3169,6 +3169,15 @@ msgid "Calls"
 msgstr ""
 
 #, fuzzy
+msgid "Messages"
+msgstr "Mensagem"
+
+#, fuzzy
+#| msgid "Android integration"
+msgid "Other Interactions"
+msgstr "Integração com Android"
+
+#, fuzzy
 #| msgid "The name of your organization"
 msgid "The name of your bot"
 msgstr "Nome da sua organização"
@@ -4761,10 +4770,6 @@ msgid "Update Label"
 msgstr "Atualizar rótulo"
 
 #, fuzzy
-msgid "Messages"
-msgstr "Mensagem"
-
-#, fuzzy
 #| msgid "campaigns"
 msgid "Campaigns"
 msgstr "campanhas"
@@ -6052,6 +6057,11 @@ msgid "Time"
 msgstr "Tempo"
 
 #, fuzzy
+#| msgid "Webhook Events"
+msgid "Webhook Event"
+msgstr "Eventos do Webhook"
+
+#, fuzzy
 msgid "Archives"
 msgstr "Arquivado"
 
@@ -6474,11 +6484,6 @@ msgstr "Nenhuma chamada correspondente"
 #, fuzzy
 msgid "Channel Events"
 msgstr "Evento do transmissor"
-
-#, fuzzy
-#| msgid "Android integration"
-msgid "Other Interactions"
-msgstr "Integração com Android"
 
 msgid "Recent Channel Events"
 msgstr "Eventos recentes do transmissor"
@@ -13432,9 +13437,6 @@ msgstr ""
 
 #~ msgid "Cannot process an outgoing message."
 #~ msgstr "Não é possível processar uma mensagem de saída."
-
-#~ msgid "Webhook Events"
-#~ msgstr "Eventos do Webhook"
 
 #~ msgid "Which type of actions will trigger webhook events."
 #~ msgstr "Quais tipo de ações irão desencadear os eventos de webhook"

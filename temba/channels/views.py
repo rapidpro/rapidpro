@@ -2135,12 +2135,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             links = []
 
             if self.request.GET.get("connections") or self.request.GET.get("others"):
-                links.append(
-                    dict(
-                        title=_("Messages"),
-                        href=reverse("channels.channellog_list", args=[channel.uuid]),
-                    )
-                )
+                links.append(dict(title=_("Messages"), href=reverse("channels.channellog_list", args=[channel.uuid]),))
 
             if not self.request.GET.get("connections"):
                 if channel.supports_ivr():

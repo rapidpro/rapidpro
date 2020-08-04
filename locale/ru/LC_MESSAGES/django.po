@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-03 23:29+0000\n"
+"POT-Creation-Date: 2020-08-04 15:14+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2463,6 +2463,12 @@ msgstr "Извините, номера не найдены, введите др�
 msgid "Calls"
 msgstr "Вызовы"
 
+msgid "Messages"
+msgstr "Сообщения "
+
+msgid "Other Interactions"
+msgstr "Прочие взаимодействия"
+
 msgid "The name of your bot"
 msgstr "Название Вашего бота"
 
@@ -3845,9 +3851,6 @@ msgstr "Обновить Папку"
 msgid "Update Label"
 msgstr "Обновить Метку"
 
-msgid "Messages"
-msgstr "Сообщения "
-
 msgid "Campaigns"
 msgstr "Кампании"
 
@@ -5031,6 +5034,11 @@ msgstr "Прошло"
 msgid "Time"
 msgstr "Время"
 
+#, fuzzy
+#| msgid "Recent Webhook Events"
+msgid "Webhook Event"
+msgstr "Последние события вебхука"
+
 msgid "Archives"
 msgstr "Архивы"
 
@@ -5324,9 +5332,6 @@ msgstr "Нет Соответствующих вызовов"
 
 msgid "Channel Events"
 msgstr "События Канала"
-
-msgid "Other Interactions"
-msgstr "Прочие взаимодействия"
 
 msgid "Recent Channel Events"
 msgstr "Последние События Канала"

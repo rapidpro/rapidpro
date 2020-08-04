@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-03 23:29+0000\n"
+"POT-Creation-Date: 2020-08-04 15:14+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2202,6 +2202,12 @@ msgstr ""
 msgid "Calls"
 msgstr ""
 
+msgid "Messages"
+msgstr ""
+
+msgid "Other Interactions"
+msgstr ""
+
 msgid "The name of your bot"
 msgstr ""
 
@@ -3534,9 +3540,6 @@ msgstr ""
 msgid "Update Label"
 msgstr ""
 
-msgid "Messages"
-msgstr ""
-
 msgid "Campaigns"
 msgstr ""
 
@@ -4630,6 +4633,9 @@ msgstr ""
 msgid "Time"
 msgstr ""
 
+msgid "Webhook Event"
+msgstr ""
+
 msgid "Archives"
 msgstr ""
 
@@ -4884,9 +4890,6 @@ msgid "No Matching calls"
 msgstr ""
 
 msgid "Channel Events"
-msgstr ""
-
-msgid "Other Interactions"
 msgstr ""
 
 msgid "Recent Channel Events"

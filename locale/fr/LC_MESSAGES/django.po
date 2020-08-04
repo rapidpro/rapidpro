@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-28 21:40+0000\n"
+"POT-Creation-Date: 2020-08-04 15:14+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2509,6 +2509,12 @@ msgstr "Désolé, aucun numéro trouvé, veuillez entrer un autre motif et rées
 msgid "Calls"
 msgstr "Appels"
 
+msgid "Messages"
+msgstr "Messages"
+
+msgid "Other Interactions"
+msgstr "Autres interactions"
+
 msgid "The name of your bot"
 msgstr "Le nom de votre bot"
 
@@ -3195,6 +3201,11 @@ msgstr "flux"
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
 msgstr ""
 
+#, fuzzy
+#| msgid "Add Label"
+msgid "Edit Label"
+msgstr "Ajouter une étiquette"
+
 msgid "Remove"
 msgstr "Supprimer"
 
@@ -3852,11 +3863,6 @@ msgstr "Messages Sortants ayant échoués"
 msgid "Edit Folder"
 msgstr "Mettre à jour le dossier"
 
-#, fuzzy
-#| msgid "Add Label"
-msgid "Edit Label"
-msgstr "Ajouter une étiquette"
-
 msgid "Send All"
 msgstr "Envoyer tout"
 
@@ -3890,9 +3896,6 @@ msgstr "Mettre à jour le dossier"
 
 msgid "Update Label"
 msgstr "Mise à jour du libellé"
-
-msgid "Messages"
-msgstr "Messages"
 
 msgid "Campaigns"
 msgstr "Campagnes"
@@ -5061,6 +5064,11 @@ msgstr "Écoulé"
 msgid "Time"
 msgstr "Temps"
 
+#, fuzzy
+#| msgid "Recent Webhook Events"
+msgid "Webhook Event"
+msgstr "Événements Webhook récents"
+
 msgid "Archives"
 msgstr "Archives"
 
@@ -5346,9 +5354,6 @@ msgstr "Pas d'appels correspondants"
 
 msgid "Channel Events"
 msgstr "Événements du canal"
-
-msgid "Other Interactions"
-msgstr "Autres interactions"
 
 msgid "Recent Channel Events"
 msgstr "Channel récents événements"
@@ -11537,17 +11542,8 @@ msgstr "Lancer un flux après un appel manqué."
 msgid "Start a flow when a conversation is started by a contact."
 msgstr "Démarrer un flux lorsqu'une conversation est lancée par un contact."
 
-msgid "Social media channel"
-msgstr "Canal de médias sociaux"
-
-msgid "Flow to start"
-msgstr "Début du flux"
-
 msgid "Start a flow when Facebook refers a contact."
 msgstr "Lancer un flux lorsque Facebook fait référence à un contact."
-
-msgid "Restrict to channel"
-msgstr "Restreindre au canal"
 
 msgid "Create a message keyword that allows people to join a group."
 msgstr "Créez un mot-clé de message permettant aux personnes de rejoindre un groupe."
@@ -11608,6 +11604,15 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Social media channel"
+#~ msgstr "Canal de médias sociaux"
+
+#~ msgid "Flow to start"
+#~ msgstr "Début du flux"
+
+#~ msgid "Restrict to channel"
+#~ msgstr "Restreindre au canal"
 
 #, fuzzy
 #~| msgid "Disable Voice Calling"
