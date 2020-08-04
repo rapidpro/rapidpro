@@ -4145,7 +4145,7 @@ class MergeFlowsTask(TembaModel):
                 runs = self.source.runs.all()
                 backup_metadata["moved_flow_runs"] = [str(uuid) for uuid in runs.values_list("uuid", flat=True)]
                 runs.update(flow=self.target)
-                
+
                 # move runs count data from source to target
                 exits = self.source.exit_counts.all()
                 backup_metadata["moved_flow_run_exits"] = list(exits.values_list("id", flat=True))
@@ -4155,13 +4155,10 @@ class MergeFlowsTask(TembaModel):
                         target_exit.count += source_exit.count
                         target_exit.save()
                     else:
-                        self.target.exit_counts.create(
-                            exit_type=source_exit.exit_type,
-                            count=source_exit.count,
-                        )
+                        self.target.exit_counts.create(exit_type=source_exit.exit_type, count=source_exit.count)
                     source_exit.count = 0
                     source_exit.save()
-                
+
                 # move flow images data
                 images = self.source.flow_images.all()
                 backup_metadata["moved_flow_images"] = [str(uuid) for uuid in images.values_list("uuid", flat=True)]

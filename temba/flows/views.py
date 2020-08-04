@@ -62,7 +62,7 @@ from temba.utils.fields import ContactSearchWidget, JSONField, OmniboxChoice, Se
 from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm, NonAtomicMixin
 
-from .merging import Graph, GraphDifferenceMap
+from .merging import Graph, GraphDifferenceMap, serialize_difference_graph, deserialize_difference_graph, deserialize_dict_param_from_request
 from .models import (
     ExportFlowImagesTask,
     ExportFlowResultsTask,
@@ -3009,13 +3009,36 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            queryset = Flow.objects.filter(org=self.org, is_active=True, is_archived=False, is_system=False)
-            context["source"] = queryset.filter(uuid=self.request.GET.get("source")).first().as_json()
-            context["target"] = queryset.filter(uuid=self.request.GET.get("target")).first().as_json()
             return context
 
         def get(self, request, *args, **kwargs):
             context = self.get_context_data(**kwargs)
+            queryset = Flow.objects.filter(org=self.org, is_active=True, is_archived=False, is_system=False)
+            source = queryset.filter(uuid=self.request.GET.get("source")).first()
+            target = queryset.filter(uuid=self.request.GET.get("target")).first()
+            context["source"] = source.as_json()
+            context["target"] = target.as_json()
+
+            errors = []
+            if {source.version_number, target.version_number}.intersection(set(Flow.VERSIONS)):
+                errors.append(_("Legacy flows don't support merging."))
+
+            if source.flow_type != target.flow_type:
+                errors.append(_("These flows can't be merged because of different flow types."))
+
+            source_graph = Graph(source.as_json())
+            target_graph = Graph(target.as_json())
+            diff_graph = GraphDifferenceMap(source_graph, target_graph)
+            diff_graph.compare_graphs()
+
+            if diff_graph.conflicts:
+                errors.append(_("These flows can't be merged because of conflicts."))
+
+            serialized_difference = serialize_difference_graph(diff_graph, dumps=True)
+            context["errors"] = errors
+            context["merging_map"] = serialized_difference
+            context["conflict_solutions"] = diff_graph.get_conflict_solutions()
+
             return self.render_to_response(context)
 
         def post(self, request, *args, **kwargs):
@@ -3038,11 +3061,22 @@ class FlowCRUDL(SmartCRUDL):
             if source.flow_type != target.flow_type:
                 errors.append(_("These flows can't be merged because of different flow types."))
 
+            resolved_conflicts = deserialize_dict_param_from_request("conflicts", request.POST)
+            conflicts_data = []
             if not errors:
-                source_graph = Graph(source.as_json())
-                target_graph = Graph(target.as_json())
-                difference_map = GraphDifferenceMap(source_graph, target_graph)
-                difference_map.compare_graphs()
+                difference_map_data = request.POST.get("merging_map")
+                difference_map = None
+                if difference_map_data:
+                    difference_map = deserialize_difference_graph(difference_map_data, loads=True)
+                    if difference_map.conflicts and resolved_conflicts:
+                        difference_map.apply_conflict_resolving(resolved_conflicts)
+                if not difference_map:
+                    difference_map = deserialize_difference_graph()
+                    source_graph = Graph(source.as_json())
+                    target_graph = Graph(target.as_json())
+                    difference_map = GraphDifferenceMap(source_graph, target_graph)
+                    difference_map.compare_graphs()
+
                 definition = difference_map.definition
 
                 if difference_map.conflicts:
@@ -3050,7 +3084,14 @@ class FlowCRUDL(SmartCRUDL):
 
             if errors:
                 context = self.get_context_data()
-                context.update({"flow_name": request.POST.get("flow_name"), "errors": errors})
+                context.update({
+                    "source": source.as_json(),
+                    "target": target.as_json(),
+                    "flow_name": request.POST.get("flow_name"),
+                    "merging_map": serialize_difference_graph(difference_map, dumps=True),
+                    "conflict_solutions": difference_map.get_conflict_solutions(),
+                    "errors": errors,
+                })
                 return self.render_to_response(context)
 
             if definition:
