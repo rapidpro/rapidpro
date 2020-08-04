@@ -1,3 +1,9 @@
+v5.7.4
+----------
+ * Use new metadata field from mailroom searching endpoints
+ * Make sure we have only one active trigger when importing flows
+ * Fix org selector and header text alignment when editor is open
+
 v5.7.3
 ----------
  * Add contact.last_seen_on
