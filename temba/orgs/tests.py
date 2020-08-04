@@ -4181,6 +4181,64 @@ class BulkExportTest(TembaTest):
         self.assertEqual(cat_blasts.query, "facts_per_day = 1")
         self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
 
+    def test_import_flow_with_triggers(self):
+        flow = self.create_flow()
+        trigger = Trigger.objects.create(
+            org=self.org,
+            trigger_type=Trigger.TYPE_KEYWORD,
+            keyword="rating",
+            flow=flow,
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+        trigger.is_archived = True
+        trigger.save()
+
+        flow2 = self.create_flow()
+        trigger2 = Trigger.objects.create(
+            org=self.org,
+            trigger_type=Trigger.TYPE_KEYWORD,
+            keyword="rating",
+            flow=flow2,
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
+        data = self.get_import_json("rating_10")
+
+        with ESMockWithScroll():
+            self.org.import_app(data, self.admin, site="http://rapidpro.io")
+
+        flow = Flow.objects.get(name="Rate us")
+        self.assertEqual(1, Trigger.objects.filter(keyword="rating", is_archived=False).count())
+        self.assertEqual(1, Trigger.objects.filter(flow=flow).count())
+        # shoud have archived the existing
+        self.assertFalse(Trigger.objects.filter(pk=trigger.pk, is_archived=False).first())
+        self.assertFalse(Trigger.objects.filter(pk=trigger2.pk, is_archived=False).first())
+
+        # Archive trigger
+        flow_trigger = (
+            Trigger.objects.filter(flow=flow, keyword="rating", is_archived=False).order_by("-created_on").first()
+        )
+        flow_trigger.archive(self.admin)
+
+        # re import again will restore the trigger
+        data = self.get_import_json("rating_10")
+        with ESMockWithScroll():
+            self.org.import_app(data, self.admin, site="http://rapidpro.io")
+
+        flow_trigger.refresh_from_db()
+
+        self.assertEqual(1, Trigger.objects.filter(keyword="rating", is_archived=False).count())
+        self.assertEqual(1, Trigger.objects.filter(flow=flow).count())
+        self.assertFalse(Trigger.objects.filter(pk=trigger.pk, is_archived=False).first())
+        self.assertFalse(Trigger.objects.filter(pk=trigger2.pk, is_archived=False).first())
+
+        restored_trigger = (
+            Trigger.objects.filter(flow=flow, keyword="rating", is_archived=False).order_by("-created_on").first()
+        )
+        self.assertEqual(restored_trigger.pk, flow_trigger.pk)
+
     def test_export_import(self):
         def assert_object_counts():
             # the regular flows
@@ -4252,7 +4310,7 @@ class BulkExportTest(TembaTest):
         )
 
         # same with our trigger
-        trigger = Trigger.objects.filter(keyword="patient").first()
+        trigger = Trigger.objects.filter(keyword="patient").order_by("-created_on").first()
         self.assertEqual(Flow.objects.filter(name="Register Patient").first(), trigger.flow)
 
         # our old campaign message flow should be inactive now
