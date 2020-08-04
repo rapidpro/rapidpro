@@ -19,9 +19,9 @@ class ComponentFormMixin(View):
             (forms.widgets.TextInput, forms.widgets.EmailInput, forms.widgets.URLInput, forms.widgets.NumberInput,),
         ):
             field.widget = InputWidget()
-        elif isinstance(field.widget, (forms.widgets.Select)):
+        elif isinstance(field.widget, (forms.widgets.Select,)):
             field.widget = SelectWidget()
-            field.widget.choices = field._choices
+            field.widget.choices = field.choices
         elif isinstance(field.widget, (forms.widgets.CheckboxInput,)):
             field.widget = CheckboxWidget()
         return field

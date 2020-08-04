@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-03 14:37+0000\n"
+"POT-Creation-Date: 2020-08-03 23:29+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2381,6 +2381,52 @@ msgstr ""
 msgid "The search query"
 msgstr ""
 
+#, python-format
+msgid "Invalid query syntax at '%(token)s'"
+msgstr ""
+
+#, python-format
+msgid "Unable to convert '%(value)s' to a number"
+msgstr ""
+
+#, python-format
+msgid "Unable to convert '%(value)s' to a date"
+msgstr ""
+
+#, python-format
+msgid "'%(value)s' is not a valid language code"
+msgstr ""
+
+#, python-format
+msgid "'%(value)s' is not a valid group name"
+msgstr ""
+
+#, python-format
+msgid "Using ~ with name requires token of at least %(min_token_length)s characters"
+msgstr ""
+
+#, python-format
+msgid "Using ~ with URN requires value of at least %(min_value_length)s characters"
+msgstr ""
+
+msgid "Can only use ~ with name or URN values"
+msgstr ""
+
+#, python-format
+msgid "Can only use %(operator)s with number or date values"
+msgstr ""
+
+#, python-format
+msgid "Can't check whether '%(property)s' is set or not set"
+msgstr ""
+
+#, python-format
+msgid "Can't resolve '%(property)s' to a field or URN scheme"
+msgstr ""
+
+msgid "Can't query on URNs in an anonymous workspace"
+msgstr ""
+
 msgid "day"
 msgstr ""
 
@@ -2826,6 +2872,9 @@ msgstr ""
 
 #, python-format
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
+msgstr ""
+
+msgid "Edit Label"
 msgstr ""
 
 msgid "Remove"
@@ -3455,9 +3504,6 @@ msgid "Failed Outgoing Messages"
 msgstr ""
 
 msgid "Edit Folder"
-msgstr ""
-
-msgid "Edit Label"
 msgstr ""
 
 msgid "Send All"
@@ -9073,16 +9119,7 @@ msgstr ""
 msgid "Start a flow when a conversation is started by a contact."
 msgstr ""
 
-msgid "Social media channel"
-msgstr ""
-
-msgid "Flow to start"
-msgstr ""
-
 msgid "Start a flow when Facebook refers a contact."
-msgstr ""
-
-msgid "Restrict to channel"
 msgstr ""
 
 msgid "Create a message keyword that allows people to join a group."

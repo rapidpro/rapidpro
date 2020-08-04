@@ -27,7 +27,7 @@ from temba.utils.fields import (
     SelectMultipleWidget,
     SelectWidget,
 )
-from temba.utils.views import BulkActionMixin
+from temba.utils.views import BulkActionMixin, ComponentFormMixin
 
 from .models import Trigger
 
@@ -41,7 +41,7 @@ class BaseTriggerForm(forms.ModelForm):
         Flow.objects.filter(pk__lt=0),
         label=_("Flow"),
         required=True,
-        widget=SelectWidget(attrs={"widget_only": True, "placeholder": "Select the flow to trigger"}),
+        # widget=SelectWidget(attrs={"widget_only": True, "placeholder": "Select the flow to trigger"}),
     )
 
     def __init__(self, user, flows, *args, **kwargs):
@@ -553,7 +553,7 @@ class TriggerCRUDL(SmartCRUDL):
         def get_queryset(self, *args, **kwargs):
             return super().get_queryset(*args, **kwargs).filter(is_active=True, is_archived=True)
 
-    class CreateTrigger(OrgPermsMixin, SmartCreateView):
+    class CreateTrigger(OrgPermsMixin, ComponentFormMixin, SmartCreateView):
         success_url = "@triggers.trigger_list"
         success_message = ""
 

@@ -935,8 +935,20 @@ class FlowCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
+            label = FlowLabel.objects.get(pk=self.kwargs["label_id"])
+
             if self.has_org_perm("flows.flow_update"):
-                links.append(dict(title=_("Edit"), href="#", js_class="label-update-btn"))
+                # links.append(dict(title=_("Edit"), href="#", js_class="label-update-btn"))
+
+                links.append(
+                    dict(
+                        id="update-label",
+                        title=_("Edit"),
+                        style="button-primary",
+                        href=f"{reverse('flows.flowlabel_update', args=[label.pk])}",
+                        modax=_("Edit Label"),
+                    )
+                )
 
             if self.has_org_perm("flows.flow_delete"):
                 links.append(dict(title=_("Remove"), href="#", js_class="remove-label"))
@@ -2402,7 +2414,10 @@ class FlowLabelCRUDL(SmartCRUDL):
             return kwargs
 
         def derive_fields(self):
-            return ("name", "parent")
+            if FlowLabel.objects.filter(parent=self.get_object()):
+                return ("name",)
+            else:
+                return ("name", "parent")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "parent", "flows")

@@ -85,7 +85,7 @@ class RemoveFromGroupForm(forms.Form):
         assert not group.is_dynamic, "can't manually add/remove contacts for a dynamic group"
 
         # remove contact from group
-        group.update_contacts(self.user, [contact], add=False)
+        Contact.bulk_change_group(self.user, [contact], group, add=False)
 
         return {"status": "success"}
 
@@ -1679,9 +1679,9 @@ class ContactGroupCRUDL(SmartCRUDL):
 
                 if preselected_contacts:
                     preselected_ids = [int(c_id) for c_id in preselected_contacts.split(",") if c_id.isdigit()]
-                    contacts = Contact.objects.filter(org=org, pk__in=preselected_ids, is_active=True)
+                    contacts = org.contacts.filter(id__in=preselected_ids, is_active=True)
 
-                    self.object.update_contacts(user, contacts, add=True)
+                    on_transaction_commit(lambda: Contact.bulk_change_group(user, contacts, self.object, add=True))
 
         def derive_initial(self):
             initial = super().derive_initial()

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-03 14:37+0000\n"
+"POT-Creation-Date: 2020-08-03 23:29+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2642,6 +2642,54 @@ msgstr "Уникальная группа для экспорта"
 msgid "The search query"
 msgstr "Поисковый запрос"
 
+#, python-format
+msgid "Invalid query syntax at '%(token)s'"
+msgstr ""
+
+#, python-format
+msgid "Unable to convert '%(value)s' to a number"
+msgstr ""
+
+#, python-format
+msgid "Unable to convert '%(value)s' to a date"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "%(day)s is not a valid day of the week"
+msgid "'%(value)s' is not a valid language code"
+msgstr "%(day)s не является действительным днем ​​недели"
+
+#, fuzzy, python-format
+#| msgid "f'{val}' isn't a valid number"
+msgid "'%(value)s' is not a valid group name"
+msgstr "f'{val}' не является действительным номером"
+
+#, python-format
+msgid "Using ~ with name requires token of at least %(min_token_length)s characters"
+msgstr ""
+
+#, python-format
+msgid "Using ~ with URN requires value of at least %(min_value_length)s characters"
+msgstr ""
+
+msgid "Can only use ~ with name or URN values"
+msgstr ""
+
+#, python-format
+msgid "Can only use %(operator)s with number or date values"
+msgstr ""
+
+#, python-format
+msgid "Can't check whether '%(property)s' is set or not set"
+msgstr ""
+
+#, python-format
+msgid "Can't resolve '%(property)s' to a field or URN scheme"
+msgstr ""
+
+msgid "Can't query on URNs in an anonymous workspace"
+msgstr ""
+
 msgid "day"
 msgstr "день"
 
@@ -3100,6 +3148,11 @@ msgstr "Потоки"
 #, python-format
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
 msgstr ""
+
+#, fuzzy
+#| msgid "Add Label"
+msgid "Edit Label"
+msgstr "Добавить метку"
 
 msgid "Remove"
 msgstr "Удалить"
@@ -3757,11 +3810,6 @@ msgstr "Невыполненные Исходящие Сообщения"
 #| msgid "Update Folder"
 msgid "Edit Folder"
 msgstr "Обновить Папку"
-
-#, fuzzy
-#| msgid "Add Label"
-msgid "Edit Label"
-msgstr "Добавить метку"
 
 msgid "Send All"
 msgstr "Отправить Все"
@@ -11654,17 +11702,8 @@ msgstr "Запустить поток после пропущенного зво
 msgid "Start a flow when a conversation is started by a contact."
 msgstr "Запустить поток, когда разговор начинается контактом."
 
-msgid "Social media channel"
-msgstr "Канал в социальных сетях"
-
-msgid "Flow to start"
-msgstr "Поток для запуска"
-
 msgid "Start a flow when Facebook refers a contact."
 msgstr "Запустить поток, когда Facebook направляет контакт."
-
-msgid "Restrict to channel"
-msgstr "Ограничить каналом"
 
 msgid "Create a message keyword that allows people to join a group."
 msgstr "Создать ключевое слово сообщения, которое позволит людям присоединяться к группе."
@@ -11770,6 +11809,15 @@ msgstr "Найдено ${count} по ${query}"
 
 #~ msgid "To complete the configuration of your VK connection, you will need to enter the Webhook URL in the URL field in the Manage > API Usage > Callback API > Server Settings section. And the Verify Token in the Secret Key field present in the API Usage > Callback API > Server Settings section. After this part, go to Manage > API Usage > Callback API > Event Types and check the option: <code>Message received</code>"
 #~ msgstr "Для завершения настройки своего подключения VK, Вам потребуется ввести адрес URL Вебхука в поле адреса URL в разделе «Управление» > «Использование API» > «API обратного вызова» > «Настройки сервера». А «Проверить Токен» - в поле «Секретный ключ», находящемся в разделе «Использование API» > «API обратного вызова» > «Настройки сервера». После этого перейдите в «Управление» > «Использование API» > «API обратного вызова» > «Типы событий» и укажите вариант: <code>Сообщение получено</code>"
+
+#~ msgid "Social media channel"
+#~ msgstr "Канал в социальных сетях"
+
+#~ msgid "Flow to start"
+#~ msgstr "Поток для запуска"
+
+#~ msgid "Restrict to channel"
+#~ msgstr "Ограничить каналом"
 
 #~ msgid "The number or address of this channel"
 #~ msgstr "Номер или адрес этого канала"
@@ -12049,10 +12097,6 @@ msgstr "Найдено ${count} по ${query}"
 #, python-brace-format
 #~ msgid "Unrecognized field: '{prop}'"
 #~ msgstr "Нераспознанное поле: '{prop}'"
-
-#, python-brace-format
-#~ msgid "f'{val}' isn't a valid number"
-#~ msgstr "f'{val}' не является действительным номером"
 
 #, python-brace-format
 #~ msgid "Unknown text comparator: '{self.comparator}'"

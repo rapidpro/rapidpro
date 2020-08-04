@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-03 14:37+0000\n"
+"POT-Creation-Date: 2020-08-03 23:29+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3398,6 +3398,54 @@ msgstr "Os fluxos para exportar"
 msgid "The search query"
 msgstr ""
 
+#, python-format
+msgid "Invalid query syntax at '%(token)s'"
+msgstr ""
+
+#, python-format
+msgid "Unable to convert '%(value)s' to a number"
+msgstr ""
+
+#, python-format
+msgid "Unable to convert '%(value)s' to a date"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "Using a Local Number"
+msgid "'%(value)s' is not a valid language code"
+msgstr "Use um número local"
+
+#, fuzzy, python-format
+#| msgid "Using a Local Number"
+msgid "'%(value)s' is not a valid group name"
+msgstr "Use um número local"
+
+#, python-format
+msgid "Using ~ with name requires token of at least %(min_token_length)s characters"
+msgstr ""
+
+#, python-format
+msgid "Using ~ with URN requires value of at least %(min_value_length)s characters"
+msgstr ""
+
+msgid "Can only use ~ with name or URN values"
+msgstr ""
+
+#, python-format
+msgid "Can only use %(operator)s with number or date values"
+msgstr ""
+
+#, python-format
+msgid "Can't check whether '%(property)s' is set or not set"
+msgstr ""
+
+#, python-format
+msgid "Can't resolve '%(property)s' to a field or URN scheme"
+msgstr ""
+
+msgid "Can't query on URNs in an anonymous workspace"
+msgstr ""
+
 #, fuzzy
 #| msgid "days"
 msgid "day"
@@ -3919,6 +3967,11 @@ msgstr "Fluxos"
 #, python-format
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
 msgstr ""
+
+#, fuzzy
+#| msgid "Add Label"
+msgid "Edit Label"
+msgstr "Adicionar rótulo"
 
 msgid "Remove"
 msgstr "Remover"
@@ -4671,11 +4724,6 @@ msgstr "Mensagens de saída com falha"
 #| msgid "Update Fields"
 msgid "Edit Folder"
 msgstr "Atualizar campos"
-
-#, fuzzy
-#| msgid "Add Label"
-msgid "Edit Label"
-msgstr "Adicionar rótulo"
 
 msgid "Send All"
 msgstr "Enviar todas"
@@ -11941,19 +11989,9 @@ msgstr "Iniciar um fluxo após detectar uma chamada perdida."
 msgid "Start a flow when a conversation is started by a contact."
 msgstr "Iniciar um fluxo após detectar uma chamada perdida."
 
-msgid "Social media channel"
-msgstr ""
-
-msgid "Flow to start"
-msgstr "Fluxo para iniciar"
-
 #, fuzzy
 msgid "Start a flow when Facebook refers a contact."
 msgstr "Iniciar um fluxo após detectar uma chamada perdida."
-
-#, fuzzy
-msgid "Restrict to channel"
-msgstr "Remover telefone"
 
 #, fuzzy
 msgid "Create a message keyword that allows people to join a group."
@@ -12051,6 +12089,13 @@ msgstr ""
 
 #~ msgid "Add Phone"
 #~ msgstr "Adicionar telefone"
+
+#~ msgid "Flow to start"
+#~ msgstr "Fluxo para iniciar"
+
+#, fuzzy
+#~ msgid "Restrict to channel"
+#~ msgstr "Remover telefone"
 
 #, fuzzy
 #~ msgid "The number or address of this channel"
@@ -12321,11 +12366,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "Empty user access token!"
 #~ msgstr "Seu Token API é"
-
-#, fuzzy, python-brace-format
-#~| msgid "Using a Local Number"
-#~ msgid "f'{val}' isn't a valid number"
-#~ msgstr "Use um número local"
 
 #, fuzzy, python-brace-format
 #~| msgid "Invalid group or contact id"
