@@ -18,18 +18,51 @@ from temba.utils import json
 class Mocks:
     def __init__(self):
         self._parse_query = {}
+        self._contact_search = {}
         self._errors = []
 
-    def parse_query(self, query, *, fields=None, allow_as_group=True, elastic_query=None):
-        def mock():
-            return {
-                "query": query,
-                "fields": list(fields),
+    @staticmethod
+    def _parse_query_response(query: str, elastic: Dict, fields: List, allow_as_group: bool):
+        def field_ref(f):
+            return {"key": f.key, "name": f.label} if isinstance(f, ContactField) else {"key": f}
+
+        return {
+            "query": query,
+            "elastic_query": elastic,
+            "metadata": {
+                "attributes": [],
+                "schemes": [],
+                "fields": [field_ref(f) for f in fields],
+                "groups": [],
                 "allow_as_group": allow_as_group,
-                "elastic_query": elastic_query or {"term": {"is_active": True}},
-            }
+            },
+        }
+
+    def parse_query(self, query, *, cleaned=None, fields=(), allow_as_group=True, elastic_query=None):
+        def mock():
+            elastic = elastic_query or {"term": {"is_active": True}}
+            return self._parse_query_response(cleaned or query, elastic, fields, allow_as_group)
 
         self._parse_query[query] = mock
+
+    def contact_search(self, query, *, cleaned=None, contacts=(), total=0, fields=(), allow_as_group=True):
+        def mock(offset, sort):
+            return {
+                "query": cleaned or query,
+                "contact_ids": [c.id for c in contacts],
+                "total": total or len(contacts),
+                "offset": offset,
+                "sort": sort,
+                "metadata": {
+                    "attributes": [],
+                    "schemes": [],
+                    "fields": [{"key": f.key, "name": f.label} for f in fields],
+                    "groups": [],
+                    "allow_as_group": allow_as_group,
+                },
+            }
+
+        self._contact_search[query] = mock
 
     def error(self, msg: str, code: str = None, extra: Dict = None):
         """
@@ -76,13 +109,18 @@ class TestClient(MailroomClient):
         # otherwise just approximate what mailroom would do
         tokens = [t.lower() for t in re.split(r"\W+", query) if t]
         fields = ContactField.all_fields.filter(org_id=org_id, key__in=tokens)
+        allow_as_group = "id" not in tokens and "group" not in tokens
 
-        return {
-            "query": query,
-            "fields": [f.key for f in fields],
-            "allow_as_group": "id" not in tokens and "group" not in tokens,
-            "elastic_query": {"term": {"is_active": True}},
-        }
+        return Mocks._parse_query_response(query, {"term": {"is_active": True}}, fields, allow_as_group)
+
+    def contact_search(self, org_id, group_uuid, query, sort, offset=0):
+        self.mocks._check_error("contact_search")
+
+        mock = self.mocks._contact_search.get(query or "")
+
+        assert mock, f"missing contact_search mock for query '{query}'"
+
+        return mock(offset, sort)
 
     def ticket_close(self, org_id, ticket_ids):
         self.mocks._check_error("ticket_close")

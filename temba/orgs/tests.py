@@ -42,7 +42,6 @@ from temba.contacts.models import (
     ExportContactsTask,
 )
 from temba.contacts.omnibox import omnibox_serialize
-from temba.contacts.search import ParsedQuery
 from temba.flows.models import ActionSet, ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
@@ -50,7 +49,7 @@ from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
 from temba.orgs.models import BackupToken, Debit, OrgActivity, UserSettings
 from temba.request_logs.models import HTTPLog
-from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers
+from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
@@ -4108,20 +4107,18 @@ class BulkExportTest(TembaTest):
         # and so no fields created
         self.assertEqual(ContactField.user_fields.all().count(), 0)
 
-    def test_implicit_field_and_explicit_group_imports(self):
+    @mock_mailroom
+    def test_implicit_field_and_explicit_group_imports(self, mr_mocks):
         """
         Tests importing flow definitions with groups included in the export but not fields
         """
         data = self.get_import_json("cataclysm")
         del data["fields"]
 
-        with patch("temba.contacts.search.parse_query") as mock:
-            mock.side_effect = [
-                ParsedQuery("facts_per_day = 1", ["facts_per_day"], {}, allow_as_group=True),
-                ParsedQuery('likes_cats = "true"', ["likes_cats"], {}, allow_as_group=True),
-            ]
+        mr_mocks.parse_query("facts_per_day = 1", fields=["facts_per_day"])
+        mr_mocks.parse_query("likes_cats = true", cleaned='likes_cats = "true"', fields=["likes_cats"])
 
-            self.org.import_app(data, self.admin, site="http://rapidpro.io")
+        self.org.import_app(data, self.admin, site="http://rapidpro.io")
 
         flow = Flow.objects.get(name="Cataclysmic")
         self.validate_flow_dependencies(flow.as_json())
@@ -4148,16 +4145,16 @@ class BulkExportTest(TembaTest):
         self.assertEqual(cat_blasts.query, "facts_per_day = 1")
         self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
 
-    def test_explicit_field_and_group_imports(self):
+    @mock_mailroom
+    def test_explicit_field_and_group_imports(self, mr_mocks):
         """
         Tests importing flow definitions with groups and fields included in the export
         """
-        with patch("temba.contacts.search.parse_query") as mock:
-            mock.side_effect = [
-                ParsedQuery("facts_per_day = 1", ["facts_per_day"], {}, allow_as_group=True),
-                ParsedQuery('likes_cats = "true"', ["likes_cats"], {}, allow_as_group=True),
-            ]
-            self.import_file("cataclysm")
+
+        mr_mocks.parse_query("facts_per_day = 1", fields=["facts_per_day"])
+        mr_mocks.parse_query("likes_cats = true", cleaned='likes_cats = "true"', fields=["likes_cats"])
+
+        self.import_file("cataclysm")
 
         flow = Flow.objects.get(name="Cataclysmic")
         self.validate_flow_dependencies(flow.as_json())
