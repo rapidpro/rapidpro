@@ -129,6 +129,11 @@
 -block extra-style
   {{ block.super }}
   :css
+    .page-content {
+      max-width: 768px !important;
+      margin-left: auto;
+      margin-right: auto;
+    }
 
     /* The icon we are using for channels is not the same size */
     .formax .formax-icon.icon-everywhere {
