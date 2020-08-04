@@ -1299,7 +1299,6 @@ class MigrationTask(TembaModel):
                             json_flow = FlowRevision.migrate_definition(
                                 json_flow=exported_json[Org.EXPORT_FLOWS][0], flow=new_flow
                             )
-                            json_flow = FlowRevision.migrate_issues(json_flow)
                         spec_version = Flow.CURRENT_SPEC_VERSION
                     except Exception as e:
                         if not new_flow.is_system and (idx == len(revisions)):
