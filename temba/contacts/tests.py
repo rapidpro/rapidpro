@@ -34,7 +34,15 @@ from temba.mailroom import MailroomException, modifiers
 from temba.msgs.models import Broadcast, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, ESMockWithScroll, TembaNonAtomicTest, TembaTest, mock_mailroom
+from temba.tests import (
+    AnonymousOrg,
+    CRUDLTestMixin,
+    ESMockWithScroll,
+    MigrationTest,
+    TembaNonAtomicTest,
+    TembaTest,
+    mock_mailroom,
+)
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -7188,3 +7196,40 @@ class ESIntegrationTest(TembaNonAtomicTest):
 
         # should now have 81 events instead, these were created by mailroom
         self.assertEqual(81, EventFire.objects.filter(event=event, fired=None).count())
+
+
+class PopulateLastSeenOnTest(MigrationTest):
+    app = "contacts"
+    migrate_from = "0109_contact_last_seen_on"
+    migrate_to = "0110_populate_last_seen_on"
+
+    def setUpBeforeMigration(self, apps):
+        # contact 1 has multiple incoming messages
+        self.contact1 = self.create_contact("Anne", urn="tel:+1234567891")
+        self.create_incoming_msg(self.contact1, text="Hi", created_on=datetime(2020, 8, 1, 13, 0, 0, 0, pytz.UTC))
+        self.create_incoming_msg(self.contact1, text="Hi", created_on=datetime(2020, 8, 2, 13, 0, 0, 0, pytz.UTC))
+
+        # contact 2 has a single incoming message
+        self.contact2 = self.create_contact("Bill", urn="tel:+1234567892")
+        self.create_incoming_msg(self.contact2, text="Hi", created_on=datetime(2020, 8, 3, 13, 0, 0, 0, pytz.UTC))
+
+        # contact 3 only has an outgoing message
+        self.contact3 = self.create_contact("Cate", urn="tel:+1234567893")
+        self.create_outgoing_msg(self.contact3, text="Hi")
+
+        Contact.objects.all().update(last_seen_on=None)
+
+        # contact4 has a value already
+        self.contact4 = self.create_contact("Dave", urn="tel:+1234567894")
+        self.create_incoming_msg(self.contact4, text="Hi", created_on=datetime(2020, 8, 4, 13, 0, 0, 0, pytz.UTC))
+        self.contact4.last_seen_on = datetime(2020, 8, 4, 13, 0, 0, 0, pytz.UTC)
+        self.contact4.save(update_fields=("last_seen_on",), handle_update=False)
+
+    def test_migration(self):
+        for c in (self.contact1, self.contact2, self.contact3, self.contact4):
+            c.refresh_from_db()
+
+        self.assertEqual(datetime(2020, 8, 2, 13, 0, 0, 0, pytz.UTC), self.contact1.last_seen_on)
+        self.assertEqual(datetime(2020, 8, 3, 13, 0, 0, 0, pytz.UTC), self.contact2.last_seen_on)
+        self.assertEqual(None, self.contact3.last_seen_on)
+        self.assertEqual(datetime(2020, 8, 4, 13, 0, 0, 0, pytz.UTC), self.contact4.last_seen_on)
