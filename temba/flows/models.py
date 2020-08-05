@@ -4146,7 +4146,29 @@ class MergeFlowsTask(TembaModel):
                 backup_metadata["moved_flow_runs"] = [str(uuid) for uuid in runs.values_list("uuid", flat=True)]
                 runs.update(flow=self.target)
 
-                # move runs count data from source to target
+                # move flow images data
+                images = self.source.flow_images.all()
+                backup_metadata["moved_flow_images"] = [str(uuid) for uuid in images.values_list("uuid", flat=True)]
+                images.update(flow=self.target)
+
+                # move trackable links
+                links = self.source.related_links.all()
+                backup_metadata["moved_links"] = [str(uuid) for uuid in links.values_list("uuid", flat=True)]
+                links.update(related_flow=self.target)
+
+                # move analytics data
+                node_counts = self.source.node_counts.all()
+                backup_metadata["moved_node_counts"] = list(node_counts.values_list("id", flat=True))
+                node_counts.update(flow=self.target)
+
+                path_counts = self.source.path_counts.all()
+                backup_metadata["path_path_counts"] = list(path_counts.values_list("id", flat=True))
+                path_counts.update(flow=self.target)
+
+                category_counts = self.source.category_counts.all()
+                backup_metadata["path_category_counts"] = list(category_counts.values_list("id", flat=True))
+                category_counts.update(flow=self.target)
+
                 exits = self.source.exit_counts.all()
                 backup_metadata["moved_flow_run_exits"] = list(exits.values_list("id", flat=True))
                 for source_exit in exits:
@@ -4159,15 +4181,20 @@ class MergeFlowsTask(TembaModel):
                     source_exit.count = 0
                     source_exit.save()
 
-                # move flow images data
-                images = self.source.flow_images.all()
-                backup_metadata["moved_flow_images"] = [str(uuid) for uuid in images.values_list("uuid", flat=True)]
-                images.update(flow=self.target)
+                # move flow metadata
+                waiting_exits = self.source.metadata.get("waiting_exit_uuids", [])
+                backup_metadata["moved_waiting_exits"] = waiting_exits
+                self.target.metadata["waiting_exit_uuids"] = [
+                    *self.target.metadata.get("waiting_exit_uuids", []),
+                    *waiting_exits
+                ]
 
-                # move trackable links
-                links = self.source.related_links.all()
-                backup_metadata["moved_links"] = [str(uuid) for uuid in links.values_list("uuid", flat=True)]
-                links.update(related_flow=self.target)
+                results = self.source.metadata.get("results", [])
+                backup_metadata["moved_results"] = results
+                self.target.metadata["results"] = [
+                    *self.target.metadata.get("results", []),
+                    *results
+                ]
 
                 # archive source
                 self.source.archive()

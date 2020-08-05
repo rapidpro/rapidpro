@@ -269,13 +269,13 @@ class GraphDifferenceNode(Node):
                     categories_dict["Other"] = data
 
         for category in all_categories:
-            if category in left and left.get(category) is not None:
+            if category in left_categories and left.get(category) is not None:
                 append_category(left_categories[category])
-            elif category in right and right.get(category) is not None:
+            elif category in right_categories and right.get(category) is not None:
                 append_category(right_categories[category])
-            elif category in left:
+            elif category in left_categories:
                 append_category(left_categories[category])
-            else:
+            elif category in right_categories:
                 append_category(right_categories[category])
 
         self.data["router"]["categories"] = categories
