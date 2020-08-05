@@ -67,6 +67,7 @@ from .tasks import (
     update_run_expirations_task,
 )
 from .views import FlowCRUDL
+from .merging import serialized_test_data, DiffGraphSerializer, GraphDifferenceMap
 
 
 class FlowTest(TembaTest):
@@ -6043,3 +6044,12 @@ class PopulateTemplateDepsTest(MigrationTest):
         self.assertEqual(set(), set(self.flow1.template_dependencies.all()))
         self.assertEqual({self.template1, self.template3}, set(self.flow2.template_dependencies.all()))
         self.assertEqual({self.template2}, set(self.flow3.template_dependencies.all()))
+
+
+class MergeSerializationTest(TembaTest):
+    def test_deserialization(self):
+        serializer = DiffGraphSerializer(data=serialized_test_data)
+        self.assertTrue(serializer.is_valid(), str(serializer.errors))
+
+        obj = serializer.save()
+        self.assertTrue(isinstance(obj, GraphDifferenceMap))

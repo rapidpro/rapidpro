@@ -21,6 +21,7 @@
 
         %form#import-form.smartmin-form.horizontal-form{method:"post", enctype:"multipart/form-data"}
           -csrf_token
+          %input{type:"hidden", name:"merging_map", value:"{{ merging_map }}"}
 
           -block fields
             %label{for: "flow_name"}
@@ -31,6 +32,29 @@
             - for error in errors
               %div.alert.alert-error.form-errors
                 {{ error }}
+
+          - if conflict_solutions
+            %label{for: "flow_name"}
+              -trans "Merging conflicts:"
+            %fieldset
+              %table
+                - for conflict in conflict_solutions
+                  %tr.conflict
+                    %td.field-form-label
+                      %div
+                        %i Node: {{ conflict.node_type }}
+                    %td.field-form-label
+                      %input.resolving-select{
+                        type: "text",
+                        name: "conflicts[{{conflict.uuid}}]",
+                        list: "conflicts",
+                        placeholder: '{% trans "Choose solution or provide your own..." %}'
+                        required
+                      }
+                      %datalist{id: "conflicts"}
+                        - for solution in conflict.solutions
+                          %option{value: "{{solution}}"}
+                            = solution
         
           .form-buttons
             %input.btn.btn-primary{type:"submit", value:'{% trans "Combine Flows" %}'}
@@ -39,6 +63,13 @@
 
 - block extra-script
   :javascript
+    $(".resolving-select").select2({
+        tags: true,
+        minimumResultsForSearch: -1,
+        placeholder: gettext("Choose solution or provide your own..."),
+        containerCssClass: "select2-temba-field",
+        data: 
+    });
     
 
 - block extra-style
@@ -113,4 +144,8 @@
       margin-left: auto;
       margin-right: auto;
       width: 150px;
+    }
+
+    .select2-container {
+      max-width: 350px;
     }

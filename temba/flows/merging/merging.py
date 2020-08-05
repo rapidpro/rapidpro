@@ -94,6 +94,12 @@ class Node:
 
         return self.routing_categories
 
+    def get_parent(self):
+        return self.parent.uuid if self.parent else None
+
+    def get_children(self):
+        return [child.uuid for child in self.children]
+
 
 class Graph:
     resource: dict = None
@@ -263,13 +269,13 @@ class GraphDifferenceNode(Node):
                     categories_dict["Other"] = data
 
         for category in all_categories:
-            if category in left and left.get(category) is not None:
+            if category in left_categories and left.get(category) is not None:
                 append_category(left_categories[category])
-            elif category in right and right.get(category) is not None:
+            elif category in right_categories and right.get(category) is not None:
                 append_category(right_categories[category])
-            elif category in left:
+            elif category in left_categories:
                 append_category(left_categories[category])
-            else:
+            elif category in right_categories:
                 append_category(right_categories[category])
 
         self.data["router"]["categories"] = categories
@@ -331,7 +337,11 @@ class GraphDifferenceNode(Node):
                 for l_action in left:
                     for r_action in right:
                         if self.check_actions_pair(l_action, r_action):
-                            actions.append(l_action)
+                            conflict = self.check_actions_conflict(l_action, r_action)
+                            if conflict:
+                                self.conflicts.append(conflict)
+                            else:
+                                actions.append(l_action)
                             matched.append((l_action.get("uuid"), r_action.get("uuid")))
 
             left_matched, right_matched = zip(*matched) if matched else ([], [])
@@ -361,6 +371,17 @@ class GraphDifferenceNode(Node):
         is_similar.append("groups" in left and "groups" in right)
         return any(is_similar)
 
+    def check_actions_conflict(self, l_action, r_action):
+        conflict = {
+            "conflict_type": NodeConflictTypes.ACTION_CONFLICT,
+            "left_action": l_action,
+            "right_action": r_action,
+        }
+        if l_action["type"] in ("send_msg", "say_msg"):
+            if l_action["text"] != r_action["text"]:
+                conflict["field"] = "text"
+                return conflict
+
     def update_used_exit_uuids(self, used_exit_uuids=None):
         if used_exit_uuids is not None and "exits" in self.data:
             for ext in self.data["exits"]:
@@ -378,6 +399,14 @@ class GraphDifferenceNode(Node):
         self.check_actions()
         self.correct_uuids(used_exit_uuids)
         self.update_used_exit_uuids(used_exit_uuids)
+
+    def resolve_conflict(self, value):
+        conflict = self.conflicts.pop(0)
+        if conflict["conflict_type"] == NodeConflictTypes.ACTION_CONFLICT:
+            action = conflict["left_action"]
+            action[conflict["field"]] = value
+            self.data["actions"].append(action)
+        return self.conflicts
 
 
 class GraphDifferenceMap:
@@ -450,6 +479,7 @@ class GraphDifferenceMap:
             return diff_node
 
         diff_node = GraphDifferenceNode(uuid, left_node=left, right_node=right, parent=parent, graph=self)
+        diff_node.node_types = set([*getattr(left, "node_types", []), *getattr(right, "node_types", [])])
         self.diff_nodes_map[uuid] = diff_node
         self.diff_nodes_origin_map[left.uuid] = diff_node
         self.diff_nodes_origin_map[right.uuid] = diff_node
@@ -503,6 +533,7 @@ class GraphDifferenceMap:
                 self.create_diff_nodes_edge(parent.uuid, diff_node.uuid)
 
         diff_node.children = diff_children
+        diff_node.node_types = origin_node.node_types
         return diff_node
 
     def create_diff_nodes_edge(self, from_node, to_node):
@@ -575,6 +606,34 @@ class GraphDifferenceMap:
         }
         merged_ui = {flow_uuid: origin_ui[flow_uuid] for flow_uuid in self.diff_nodes_map.keys()}
         self.definition["_ui"]["nodes"] = merged_ui
+    
+    def get_conflict_solutions(self):
+        conflict_solutions = []
+        for uuid, conflicts in self.conflicts.items():
+            for conflict in conflicts:
+                if conflict["conflict_type"] == NodeConflictTypes.ACTION_CONFLICT:
+                    conflict_solutions.append({
+                        "uuid": uuid,
+                        "node_type": getattr(self.diff_nodes_map.get(uuid, {}), "node_types", [None]).pop(),
+                        "solutions": [
+                            conflict["left_action"][conflict["field"]],
+                            conflict["right_action"][conflict["field"]],
+                        ]
+                    })
+        return conflict_solutions
+
+    def apply_conflict_resolving(self, conflict_resolving):
+        for node_uuid, resolving in conflict_resolving.items():
+            updated_conflicts = self.diff_nodes_map.get(node_uuid).resolve_conflict(resolving)
+            if updated_conflicts:
+                self.conflicts[node_uuid] = updated_conflicts
+            else:
+                del self.conflicts[node_uuid]
+        self.definition["nodes"] = [
+            node.data for node in self.diff_nodes_map.values()
+        ]
+
+
 
     def compare_graphs(self):
         self.match_flow_steps()
