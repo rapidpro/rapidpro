@@ -7209,9 +7209,17 @@ class PopulateLastSeenOnTest(MigrationTest):
         self.create_incoming_msg(self.contact1, text="Hi", created_on=datetime(2020, 8, 1, 13, 0, 0, 0, pytz.UTC))
         self.create_incoming_msg(self.contact1, text="Hi", created_on=datetime(2020, 8, 2, 13, 0, 0, 0, pytz.UTC))
 
-        # contact 2 has a single incoming message
+        # contact 2 has a single incoming message and a channel event
         self.contact2 = self.create_contact("Bill", urn="tel:+1234567892")
-        self.create_incoming_msg(self.contact2, text="Hi", created_on=datetime(2020, 8, 3, 13, 0, 0, 0, pytz.UTC))
+        self.create_incoming_msg(self.contact1, text="Hi", created_on=datetime(2020, 7, 1, 13, 0, 0, 0, pytz.UTC))
+        ChannelEvent.objects.create(
+            org=self.org,
+            contact=self.contact2,
+            event_type=ChannelEvent.TYPE_CALL_IN_MISSED,
+            channel=self.channel,
+            created_on=datetime(2020, 8, 3, 13, 0, 0, 0, pytz.UTC),
+            occurred_on=datetime(2020, 8, 3, 13, 0, 0, 0, pytz.UTC),
+        )
 
         # contact 3 only has an outgoing message
         self.contact3 = self.create_contact("Cate", urn="tel:+1234567893")
