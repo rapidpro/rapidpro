@@ -1318,6 +1318,8 @@ class UpdateWebChatForm(UpdateChannelForm):
 
             self.fields["welcome_message_default"].initial = config.get("welcome_message_default", "")
 
+            self.fields["inputtext_placeholder_default"].initial = config.get("inputtext_placeholder_default", "")
+
             languages = self.object.org.languages.all().order_by("orgs")
 
             for lang in languages:
@@ -1327,6 +1329,10 @@ class UpdateWebChatForm(UpdateChannelForm):
 
                 self.fields[f"welcome_message_{lang_alpha.alpha_2}"].initial = config.get(
                     f"welcome_message_{lang_alpha.alpha_2}", ""
+                )
+
+                self.fields[f"inputtext_placeholder_{lang_alpha.alpha_2}"].initial = config.get(
+                    f"inputtext_placeholder_{lang_alpha.alpha_2}", ""
                 )
 
     def clean_name(self):
@@ -1429,6 +1435,31 @@ class UpdateWebChatForm(UpdateChannelForm):
                 f"welcome_message_{lang_alpha.alpha_2}",
                 forms.CharField(
                     label=_(f"Welcome Message {lang.name}"),
+                    required=False,
+                    widget=forms.Textarea(attrs={"style": "height: 110px"})
+                ),
+                "",
+            )
+
+        self.add_config_field(
+            "inputtext_placeholder_default",
+            forms.CharField(
+                label=_("Input Text Placeholder"),
+                widget=forms.Textarea(attrs={"style": "height: 110px", "required": ""})
+            ),
+            None,
+        )
+
+        # Unfortunately, duplicated "for" here because of the frontend implementation
+        for lang in languages:
+            lang_alpha = pycountry.languages.get(alpha_3=lang.iso_code)
+            if not hasattr(lang_alpha, "alpha_2"):
+                continue
+
+            self.add_config_field(
+                f"inputtext_placeholder_{lang_alpha.alpha_2}",
+                forms.CharField(
+                    label=_(f"Input Text Placeholder {lang.name}"),
                     required=False,
                     widget=forms.Textarea(attrs={"style": "height: 110px"})
                 ),
@@ -1921,6 +1952,8 @@ class ChannelCRUDL(SmartCRUDL):
                 logo_img = self.object.config.get("logo")
                 context["wch_logo_size"] = get_image_size(logo_img=logo_img)
 
+                context["widget_compiled_file"] = settings.WIDGET_COMPILED_FILE
+
                 context_languages = []
                 for lang in self.object.org.languages.all().order_by("orgs"):
                     lang_alpha = pycountry.languages.get(alpha_3=lang.iso_code)
@@ -2168,6 +2201,7 @@ class ChannelCRUDL(SmartCRUDL):
                 context_dict["hostname"] = settings.HOSTNAME
 
                 welcome_message_i18n = {}
+                input_placeholder_i18n = {}
 
                 languages = self.object.org.languages.all().order_by("orgs")
                 for lang in languages:
@@ -2176,10 +2210,15 @@ class ChannelCRUDL(SmartCRUDL):
                         continue
 
                     welcome_message_i18n[f"{lang_alpha.alpha_2}"] = self.object.config.get(
-                        f"welcome_message_{lang_alpha.alpha_2}"
+                        f"welcome_message_{lang_alpha.alpha_2}", ""
+                    )
+
+                    input_placeholder_i18n[f"{lang_alpha.alpha_2}"] = self.object.config.get(
+                        f"inputtext_placeholder_{lang_alpha.alpha_2}", ""
                     )
 
                 context_dict["welcome_message_i18n"] = welcome_message_i18n
+                context_dict["input_placeholder_i18n"] = input_placeholder_i18n
 
             context["configuration_template"] = channel_type.get_configuration_template(
                 self.object, context=context_dict

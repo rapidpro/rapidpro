@@ -20,6 +20,8 @@
         icon: '{{ channel.config.logo }}',
         welcomeMessage: '{{ channel.config.welcome_message_default|adapt_for_widget }}',
         welcomeMessageI18n: {{ welcome_message_i18n }},
+        inputTextPlaceholder: '{{ channel.config.inputtext_placeholder_default|adapt_for_widget }}',
+        inputTextPlaceholderI18n: {{ input_placeholder_i18n }},
         theme: {
           widgetBackgroundColor: '{{ "#"|add:channel.config.widget_bg_color }}',
           chatHeaderBackgroundColor: '{{ "#"|add:channel.config.chat_header_bg_color }}',

@@ -4,9 +4,8 @@ import pycountry
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.http import JsonResponse
 from django.utils.translation import ugettext_lazy as _
-from smartmin.views import SmartFormView, SmartReadView
+from smartmin.views import SmartFormView
 from ...models import Channel
 from ...views import ClaimViewMixin
 
@@ -48,6 +47,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         basic_config = {
             "title": f"Chat with {channel_name}",
             "welcome_message_default": "",
+            "inputtext_placeholder_default": "",
             "theme": settings.WIDGET_DEFAULT_THEME,
             "logo": f"https://{settings.HOSTNAME}{settings.STATIC_URL}{branding.get('favico')}",
             "widget_bg_color": default_theme.get("widget_bg"),
