@@ -1710,6 +1710,18 @@ table.list {
   background-color: #fff;
 }
 
+table.list tr.checked td temba-checkbox {
+          --color-text: #999;
+        }
+
+table.list tr td temba-checkbox {
+        margin-top: -7px;
+        display: block;
+        --color-text: #ddd;
+        width: 14px;
+        height: 14px;
+      }
+
 table.list.light thead tr th {
         background-color: transparent;
       }
@@ -1838,34 +1850,26 @@ table.list.tight tbody tr td, table.list.tight.expanded tbody tr td {
           font-size: 85%;
         }
 
-table.list.selectable tbody tr td.checkbox .glyph {
-          cursor: pointer;
-          color: #e2e2e2;
+table.list.selectable tbody tr td {
+          background-color: #fff;
         }
 
-table.list.selectable tbody tr:hover td {
-          background-color: rgba(var(--selection-light-rgb), .3);
+table.list.selectable tbody tr.hovered td {
+          background: rgba(var(--selection-light-rgb), .4);
         }
 
-table.list.selectable tbody tr:hover td.checkbox .glyph {
-            color: #717171;
+table.list.selectable tbody tr.hovered td:not(:first-child) {
+            cursor: pointer;
           }
 
-table.list.selectable tbody tr.checked td.checkbox .glyph {
-          color: #717171;
+table.list.selectable tbody td:hover temba-checkbox {
+          --color-text: #999;
         }
 
 table.list.selectable tbody tr.checked td {
-          color: rgba(0, 0, 0, .65) !important;
-          background-color: rgba(var(--selection-light-rgb), .5) !important;
+          background: rgba(var(--selection-light-rgb), .4);
           border-color: rgba(var(--selection-light-rgb), 1);
         }
-
-table.list.selectable tbody tr.checked td:hover {
-            color: rgba(0, 0, 0, .65) !important;
-            background-color: rgba(var(--selection-light-rgb), .5);
-            border-color: rgba(var(--selection-light-rgb), 1);
-          }
 
 .gear-links {
   margin-left: 1rem;

@@ -212,27 +212,26 @@
 
                 %tbody
                   - for object in contacts
-                    %tr.contact.select-row.object-row{'data-uuid': '{{object.uuid}}', 'data-object-id':'{{object.id}}'}
+                    %tr.contact.select-row.object-row{'data-uuid': '{{object.uuid}}', 'data-object-id':'{{object.id}}', onrowclick:'handleRowClicked("{{object.uuid}}")'}
 
                       - if org_perms.contacts.contact_update or org_perms.msgs.broadcast_send
                         %td.contact.checkbox.object-row-checkbox
-                          .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox
+                          %temba-checkbox{onclick:"handleRowSelection(this)"}
 
                       %td
                         .whitespace-no-wrap
-                          .hover-linked{onclick:"goto(event)", href:"/contact/read/{{object.uuid}}/"}
-                            {{ object|name:user_org }}
+                          {{ object|name:user_org }}
 
-                      %td.w-full{onclick:"handleRowSelection(this)"}
+                      %td.w-full
                         .whitespace-no-wrap
                           {{ object|urn:user_org }}
 
                       -for field in contact_fields
                         -if field.show_in_table
-                          %td.field{onclick:"handleRowSelection(this)"}
+                          %td.field
                             {{ object|contact_field:field.key }}
 
-                      %td.value-received.field_received{onclick:"handleRowSelection(this)"}
+                      %td.value-received.field_received
                         .whitespace-no-wrap
                           {% format_datetime object.created_on %}
 
@@ -368,6 +367,10 @@
   {{ block.super }}
 
   :javascript
+
+    function handleRowClicked(uuid) {
+      gotoLink("/contact/read/" + uuid + "/");
+    }
 
     function handleSendMessageClicked() {
       // when we click send, include any clicked messages in our modax request

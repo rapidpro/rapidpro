@@ -69,87 +69,46 @@
                 %table.list.trigger-list.lined{class: '{% if org_perms.flows.flow_update %}selectable{% endif %}'}
                   %tbody
                     -for obj in object_list
-                      %tr.trigger.object-row{ data-object-id: "{{ obj.id }}" }
+                      %tr.trigger.object-row{ data-object-id: "{{ obj.id }}", onrowclick:"updateTrigger(event, {{obj.id}})" }
                         - if org_perms.triggers.trigger_update
                           %td.trigger.checkbox.object-row-checkbox
-                            .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox
-                        %td{onclick:"handleRowSelection(this)"}
+                            %temba-checkbox{onclick:"handleRowSelection(this)"}
+                        %td.w-full
                           -if obj.trigger_type == 'K'
                             -trans "The keyword"
-                            %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
-                              - if org_perms.triggers.trigger_update
-                                .linked.inline{onclick:"updateTrigger(event, {{obj.id}})"}= obj.keyword
-                              - else
-                                =obj.keyword
+                            %b
+                              {{obj.keyword}}
                           -elif obj.trigger_type == 'M'
-                            A
-                            %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
-                              - if org_perms.triggers.trigger_update
-                                .linked.inline{onclick:"updateTrigger(event, {{obj.id}})"}><
-                                  -trans "missed call"
-                              - else
-                                -trans "missed call"
-
+                            -trans "A missed call"
                           -elif obj.trigger_type == 'C'
-                            An
-                            %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
-                              - if org_perms.triggers.trigger_update
-                                .linked.inline{onclick:"updateTrigger(event, {{obj.id}})"}><
-                                  -trans "uncaught message"
-                              - else
-                                -trans "uncaught message"
-
+                            -trans "An uncaught message"
                           -elif obj.trigger_type == 'V'
-                            An
-                            %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
-                              - if org_perms.triggers.trigger_update
-                                .linked.inline{onclick:"updateTrigger(event, {{obj.id}})"}><
-                                  -trans "inbound call"
-                              - else
-                                -trans "inbound call"
-
+                            -trans "An inbound call"
                           -elif obj.trigger_type == 'N'
-                            A new
-                            %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
-                              - if org_perms.triggers.trigger_update
-                                .linked.inline{onclick:"updateTrigger(event, {{obj.id}})"}><
-                                  -trans "conversation"
-                              - else
-                                -trans "conversation"
+                            -trans "A new conversation"
                             -if obj.channel
-                              on
-                              %span.attn
+                              -trans "on"
+                              %b
                                 %a{href:'{%url "channels.channel_read" obj.channel.uuid %}'}= obj.channel
 
                           -elif obj.trigger_type == 'R'
-                            The referrer id
-                            %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
-                              - if org_perms.triggers.trigger_update
-                                .linked.inline{onclick:"updateTrigger(event, {{obj.id}})"}><
-                                  "{{obj.referrer_id}}"
-                              - else
-                                "{{obj.referrer_id}}"
+                            -trans "The referrer id"
+                            %b
+                              {{obj.referrer_id}}"
                             -if obj.channel
-                              on
-                              %span.attn
+                              -trans "on"
+                              %b
                                 %a{href:'{%url "channels.channel_read" obj.channel.uuid %}'}= obj.channel
 
                           -if obj.schedule
-                            -trans "The"
+                            -trans "Start"
                           -else
-                            -trans "starts the"
-                          %span.attn
-                            %a{href:'{%url "flows.flow_editor" obj.flow.uuid %}'}= obj.flow
-                          -trans "flow"
+                            -trans "starts"
+                          %a{href:'{%url "flows.flow_editor" obj.flow.uuid %}'}= obj.flow
 
                           -if obj.schedule
                             -if obj.schedule.next_fire and not obj.is_archived
-                              %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
-                                - if org_perms.triggers.trigger_update and false
-                                  .linked.inline{onclick:"updateTrigger(event, {{obj.id}})"}><
-                                    {{ obj.schedule.get_display }}
-                                - else
-                                  {{ obj.schedule.get_display }}
+                              {{ obj.schedule.get_display }}
                             -else
                               -trans "is"
                               %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}

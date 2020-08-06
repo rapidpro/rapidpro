@@ -79,6 +79,7 @@ function postLabelChanges(smsIds, labelId, addLabel, number, onError) {
         },
         onSuccess: function (data, textStatus) {
             recheckIds();
+            wireTableListeners();
         },
         onError: onError,
     });
@@ -141,9 +142,9 @@ function labelObjectRows(labelId, forceRemove) {
 function recheckIds() {
     if (lastChecked && lastChecked.length > 0) {
         for (var i = 0; i < lastChecked.length; i++) {
-            $(".object-row[data-object-id='" + lastChecked[i] + "']").addClass(
-                'checked'
-            );
+            var row = $(".object-row[data-object-id='" + lastChecked[i] + "']");
+            row.addClass('checked');
+            row.find('temba-checkbox').attr('checked', true);
         }
         $('.search-details').hide();
         $('.list-buttons-container').addClass('visible');
@@ -222,17 +223,41 @@ function updateLabelMenu() {
     }
 }
 
-function handleRowSelection(row) {
+function handleRowSelection(checkbox) {
+    var row = checkbox.parentElement.parentElement.classList;
+    var listButtons = document.querySelector('.list-buttons-container')
+        .classList;
+    var pageTitle = document.querySelector('.page-title').classList;
+
+    if (checkbox.checked) {
+        row.add('checked');
+    } else {
+        row.remove('checked');
+    }
+
+    if (document.querySelector('tr.checked')) {
+        listButtons.add('visible');
+        pageTitle.add('hidden');
+    } else {
+        listButtons.remove('visible');
+        pageTitle.remove('hidden');
+    }
+
+    updateLabelMenu();
+}
+
+function handleRowSelections(row) {
     var row = $(row).parent('tr');
 
     // noop if the row doesn't have a checkbox
-    var checks = row.find('.object-row-checkbox');
-    if (checks.length == 0) {
+    var checkbox = row.find('temba-checkbox');
+    if (checkbox.length == 0) {
         return;
     }
 
-    if (row.hasClass('checked')) {
+    if (checkbox.attr('checked')) {
         row.removeClass('checked');
+
         var checks = $('.object-row.checked');
         if (checks.length == 0) {
             $('.list-buttons-container').removeClass('visible');
@@ -247,13 +272,6 @@ function handleRowSelection(row) {
     }
     updateLabelMenu();
 }
-
-$(document).on('click', 'td.object-row-checkbox', function (e) {
-    e.stopPropagation();
-    e.preventDefault();
-    handleRowSelection(this);
-    return false;
-});
 
 function wireActionHandlers() {
     $('.page-content').on('click', '.object-btn-label', function () {
