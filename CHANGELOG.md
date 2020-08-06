@@ -1,3 +1,8 @@
+v5.7.5
+----------
+ * Add migration to populate contact.last_seen_on
+ * Update to latest temba-components with support for refresh work
+
 v5.7.4
 ----------
  * Use new metadata field from mailroom searching endpoints
