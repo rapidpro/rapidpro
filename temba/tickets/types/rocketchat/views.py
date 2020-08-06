@@ -27,7 +27,7 @@ class ConnectView(BaseConnectView):
     class Form(BaseConnectView.Form):
         base_url = ExternalURLField(
             label=_("URL"),
-            widget=forms.URLInput(attrs={"placeholder": _("Ex.: http://rocketchat-domain.com/.../secret.check"),}),
+            widget=forms.URLInput(attrs={"placeholder": _("Ex.: http://rocketchat-domain.com/.../secret.check")}),
             help_text=_("The URL for your RocketChat installation"),
         )
         secret = forms.CharField(
@@ -97,9 +97,14 @@ class ConnectView(BaseConnectView):
             return super().get(self.request, *self.args, **self.kwargs)
 
         self.object = Ticketer.create(
-            org=self.org, user=self.request.user, ticketer_type=RocketChatType.slug, config=config,
-            name=truncate(f"{RocketChatType.name}: {RE_HOST.search(url).group('domain')}",
-                          Ticketer._meta.get_field("name").max_length)
+            org=self.org,
+            user=self.request.user,
+            ticketer_type=RocketChatType.slug,
+            config=config,
+            name=truncate(
+                f"{RocketChatType.name}: {RE_HOST.search(url).group('domain')}",
+                Ticketer._meta.get_field("name").max_length,
+            ),
         )
         try:
             client.settings(self.request.build_absolute_uri("/"), self.object)
