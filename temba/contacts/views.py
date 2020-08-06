@@ -85,7 +85,7 @@ class RemoveFromGroupForm(forms.Form):
         assert not group.is_dynamic, "can't manually add/remove contacts for a dynamic group"
 
         # remove contact from group
-        group.update_contacts(self.user, [contact], add=False)
+        Contact.bulk_change_group(self.user, [contact], group, add=False)
 
         return {"status": "success"}
 
@@ -128,7 +128,7 @@ class ContactGroupForm(forms.ModelForm):
 
         try:
             parsed = parse_query(self.org.id, self.cleaned_data["query"])
-            if not parsed.allow_as_group:
+            if not parsed.metadata.allow_as_group:
                 raise forms.ValidationError(_('You cannot create a dynamic group based on "id" or "group".'))
 
             if (
@@ -264,7 +264,7 @@ class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
             try:
                 results = search_contacts(org.id, str(group.uuid), search_query, sort_on, offset)
                 self.parsed_query = results.query if len(results.query) > 0 else None
-                self.save_dynamic_search = results.allow_as_group
+                self.save_dynamic_search = results.metadata.allow_as_group
 
                 return IDSliceQuerySet(Contact, results.contact_ids, offset, results.total)
             except SearchException as e:
@@ -1216,7 +1216,7 @@ class ContactCRUDL(SmartCRUDL):
                 summary = {
                     "total": results.total,
                     "query": results.query,
-                    "fields": results.fields,
+                    "fields": results.metadata.fields,
                     "sample": IDSliceQuerySet(Contact, results.contact_ids, 0, results.total)[0:samples],
                 }
             except SearchException as e:
@@ -1243,9 +1243,10 @@ class ContactCRUDL(SmartCRUDL):
             summary["sample"] = json_contacts
 
             # add in our field defs
+            field_keys = [f["key"] for f in summary["fields"]]
             summary["fields"] = {
                 str(f.uuid): {"label": f.label}
-                for f in ContactField.user_fields.filter(org=org, key__in=summary["fields"], is_active=True)
+                for f in ContactField.user_fields.filter(org=org, key__in=field_keys, is_active=True)
             }
             return JsonResponse(summary)
 
@@ -1603,9 +1604,9 @@ class ContactGroupCRUDL(SmartCRUDL):
 
                 if preselected_contacts:
                     preselected_ids = [int(c_id) for c_id in preselected_contacts.split(",") if c_id.isdigit()]
-                    contacts = Contact.objects.filter(org=org, pk__in=preselected_ids, is_active=True)
+                    contacts = org.contacts.filter(id__in=preselected_ids, is_active=True)
 
-                    self.object.update_contacts(user, contacts, add=True)
+                    on_transaction_commit(lambda: Contact.bulk_change_group(user, contacts, self.object, add=True))
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()

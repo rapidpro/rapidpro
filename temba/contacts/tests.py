@@ -26,7 +26,6 @@ from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import DELETED_SCHEME
 from temba.contacts.search import SearchException, SearchResults, evaluate_query, is_phonenumber, search_contacts
-from temba.contacts.search.tests import MockParseQuery
 from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowRun
 from temba.ivr.models import IVRCall
@@ -73,7 +72,8 @@ class ContactCRUDLTest(TembaTest):
         # point so create them explicitly here, so that we also get the sample groups
         self.org.create_sample_flows("https://api.rapidpro.io")
 
-    def test_list(self):
+    @mock_mailroom
+    def test_list(self, mr_mocks):
         self.login(self.user)
         list_url = reverse("contacts.contact_list")
 
@@ -121,104 +121,64 @@ class ContactCRUDLTest(TembaTest):
             ],
         )
 
-        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-            instance = mock_mr.return_value
-            instance.contact_search.return_value = {
-                "contact_ids": [self.frank.id],
-                "total": 1,
-                "query": "age = 18",
-                "fields": ["age"],
-                "allow_as_group": True,
-            }
+        mr_mocks.contact_search("age = 18", contacts=[self.frank], allow_as_group=True)
 
-            response = self.client.get(list_url + "?search=age+%3D+18")
-            self.assertEqual(list(response.context["object_list"]), [self.frank])
-            self.assertEqual(response.context["search"], "age = 18")
-            self.assertEqual(response.context["save_dynamic_search"], True)
-            self.assertIsNone(response.context["search_error"])
-            self.assertEqual(list(response.context["contact_fields"].values_list("label", flat=True)), ["Home", "Age"])
+        response = self.client.get(list_url + "?search=age+%3D+18")
+        self.assertEqual(list(response.context["object_list"]), [self.frank])
+        self.assertEqual(response.context["search"], "age = 18")
+        self.assertEqual(response.context["save_dynamic_search"], True)
+        self.assertIsNone(response.context["search_error"])
+        self.assertEqual(list(response.context["contact_fields"].values_list("label", flat=True)), ["Home", "Age"])
 
-        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-            instance = mock_mr.return_value
-            instance.contact_search.return_value = {
-                "contact_ids": [self.frank.id],
-                "total": 10020,
-                "query": "age = 18",
-                "fields": ["age"],
-                "allow_as_group": True,
-            }
+        mr_mocks.contact_search("age = 18", contacts=[self.frank], total=10020, allow_as_group=True)
 
-            # we return up to 10000 contacts when searching with ES, so last page is 200
-            url = f'{reverse("contacts.contact_list")}?{"search=age+%3D+18&page=200"}'
-            response = self.client.get(url)
+        # we return up to 10000 contacts when searching with ES, so last page is 200
+        url = f'{reverse("contacts.contact_list")}?{"search=age+%3D+18&page=200"}'
+        response = self.client.get(url)
 
-            self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
 
-            # when user requests page 201, we return a 404, page not found
-            url = f'{reverse("contacts.contact_list")}?{"search=age+%3D+18&page=201"}'
-            response = self.client.get(url)
+        # when user requests page 201, we return a 404, page not found
+        url = f'{reverse("contacts.contact_list")}?{"search=age+%3D+18&page=201"}'
+        response = self.client.get(url)
 
-            self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 404)
 
-        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-            instance = mock_mr.return_value
-            instance.contact_search.return_value = {
-                "contact_ids": [self.joe.id],
-                "total": 1,
-                "query": 'age > 18 AND home = "Kigali"',
-                "fields": ["age", "home"],
-                "allow_as_group": True,
-            }
+        mr_mocks.contact_search(
+            'age > 18 and home = "Kigali"', cleaned='age > 18 AND home = "Kigali"', contacts=[self.joe],
+        )
 
-            response = self.client.get(list_url + '?search=age+>+18+and+home+%3D+"Kigali"')
-            self.assertEqual(list(response.context["object_list"]), [self.joe])
-            self.assertEqual(response.context["search"], 'age > 18 AND home = "Kigali"')
-            self.assertEqual(response.context["save_dynamic_search"], True)
-            self.assertIsNone(response.context["search_error"])
+        response = self.client.get(list_url + '?search=age+>+18+and+home+%3D+"Kigali"')
+        self.assertEqual(list(response.context["object_list"]), [self.joe])
+        self.assertEqual(response.context["search"], 'age > 18 AND home = "Kigali"')
+        self.assertEqual(response.context["save_dynamic_search"], True)
+        self.assertIsNone(response.context["search_error"])
 
-        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-            instance = mock_mr.return_value
-            instance.contact_search.return_value = {
-                "contact_ids": [self.joe.id],
-                "total": 1,
-                "query": 'name ~ "Joe"',
-                "fields": ["name"],
-                "allow_as_group": True,
-            }
+        mr_mocks.contact_search("Joe", cleaned='name ~ "Joe"', contacts=[self.joe])
 
-            response = self.client.get(list_url + "?search=Joe")
-            self.assertEqual(list(response.context["object_list"]), [self.joe])
-            self.assertEqual(response.context["search"], 'name ~ "Joe"')
-            self.assertEqual(response.context["save_dynamic_search"], True)
-            self.assertIsNone(response.context["search_error"])
+        response = self.client.get(list_url + "?search=Joe")
+        self.assertEqual(list(response.context["object_list"]), [self.joe])
+        self.assertEqual(response.context["search"], 'name ~ "Joe"')
+        self.assertEqual(response.context["save_dynamic_search"], True)
+        self.assertIsNone(response.context["search_error"])
 
         with AnonymousOrg(self.org):
-            with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-                instance = mock_mr.return_value
-                instance.contact_search.return_value = {
-                    "contact_ids": [self.joe.id],
-                    "total": 1,
-                    "query": f"id = {self.joe.id}",
-                    "fields": ["id"],
-                    "allow_as_group": False,
-                }
-
-                response = self.client.get(list_url + f"?search={self.joe.id}")
-                self.assertEqual(list(response.context["object_list"]), [self.joe])
-                self.assertIsNone(response.context["search_error"])
-                self.assertEqual(response.context["search"], f"id = {self.joe.id}")
-                self.assertEqual(response.context["save_dynamic_search"], False)
-
-        # try with invalid search string
-        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-            instance = mock_mr.return_value
-            instance.contact_search.side_effect = MailroomException(
-                "", "", {"error": "Search query contains an error"}
+            mr_mocks.contact_search(
+                f"{self.joe.id}", cleaned=f"id = {self.joe.id}", contacts=[self.joe], allow_as_group=False
             )
 
-            response = self.client.get(list_url + "?search=(((")
-            self.assertEqual(list(response.context["object_list"]), [])
-            self.assertEqual(response.context["search_error"], "Search query contains an error")
+            response = self.client.get(list_url + f"?search={self.joe.id}")
+            self.assertEqual(list(response.context["object_list"]), [self.joe])
+            self.assertIsNone(response.context["search_error"])
+            self.assertEqual(response.context["search"], f"id = {self.joe.id}")
+            self.assertEqual(response.context["save_dynamic_search"], False)
+
+        # try with invalid search string
+        mr_mocks.error("mismatched input at (((", code="unexpected_token", extra={"token": "((("})
+
+        response = self.client.get(list_url + "?search=(((")
+        self.assertEqual(list(response.context["object_list"]), [])
+        self.assertEqual(response.context["search_error"], "Invalid query syntax at '((('")
 
     @mock_mailroom
     def test_read(self, mr_mocks):
@@ -404,40 +364,37 @@ class ContactGroupTest(TembaTest):
         # exception if group name is blank
         self.assertRaises(ValueError, ContactGroup.create_static, self.org, self.admin, "   ")
 
-    def test_create_dynamic(self):
-        name = ContactField.system_fields.filter(org=self.org, key="name").get()
+    @mock_mailroom
+    def test_create_dynamic(self, mr_mocks):
         age = ContactField.get_or_create(self.org, self.admin, "age", value_type=Value.TYPE_NUMBER)
         gender = ContactField.get_or_create(self.org, self.admin, "gender", priority=10)
 
         # create a dynamic group using a query
-        with MockParseQuery('(age < 18 AND gender = "male") OR (age > 18 AND gender = "female")', ["age", "gender"]):
-            group = ContactGroup.create_dynamic(
-                self.org, self.admin, "Group two", '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
-            )
+        query = '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")'
+        mr_mocks.parse_query(query, fields=[age, gender])
 
+        group = ContactGroup.create_dynamic(self.org, self.admin, "Group two", query)
         group.refresh_from_db()
-        self.assertEqual(group.query, '(age < 18 AND gender = "male") OR (age > 18 AND gender = "female")')
+
+        self.assertEqual(group.query, query)
         self.assertEqual(set(group.query_fields.all()), {age, gender})
         self.assertEqual(group.status, ContactGroup.STATUS_INITIALIZING)
 
         # update group query
-        with MockParseQuery('age > 18 AND name ~ "Mary"', ["age", "name"]):
-            group.update_query("age > 18 and name ~ Mary")
-
+        mr_mocks.parse_query("age > 18 and name ~ Mary", cleaned='age > 18 AND name ~ "Mary"', fields=[age])
+        group.update_query("age > 18 and name ~ Mary")
         group.refresh_from_db()
+
         self.assertEqual(group.query, 'age > 18 AND name ~ "Mary"')
-        self.assertEqual(set(group.query_fields.all()), {age, name})
+        self.assertEqual(set(group.query_fields.all()), {age})
         self.assertEqual(group.status, ContactGroup.STATUS_INITIALIZING)
 
         # can't create a dynamic group with empty query
         self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, "Empty", "")
 
         # can't create a dynamic group with id attribute
-        with MockParseQuery("id = 123", ["id"], allow_as_group=False):
-            self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, "Bose", "id = 123")
-
-        # can't call update_contacts on a dynamic group
-        self.assertRaises(ValueError, group.update_contacts, self.admin, [self.joe], True)
+        mr_mocks.parse_query("id = 123", allow_as_group=False)
+        self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, "Bose", "id = 123")
 
         # dynamic group should not have remove to group button
         self.login(self.admin)
@@ -453,10 +410,11 @@ class ContactGroupTest(TembaTest):
         with self.assertRaises(ValueError):
             group.update_query("age = 18")
 
-    def test_query_elasticsearch_for_ids_bad_query(self):
+    @mock_mailroom
+    def test_query_elasticsearch_for_ids_bad_query(self, mr_mocks):
         with self.assertRaises(SearchException):
-            with MockParseQuery(error="bad field <> error"):
-                Contact.query_elasticsearch_for_ids(self.org, "bad_field <> error")
+            mr_mocks.error("bad field <> error")
+            Contact.query_elasticsearch_for_ids(self.org, "bad_field <> error")
 
     def test_get_or_create(self):
         group = ContactGroup.get_or_create(self.org, self.user, " first ")
@@ -501,27 +459,20 @@ class ContactGroupTest(TembaTest):
     @mock_mailroom
     def test_member_count(self, mr_mocks):
         group = self.create_group("Cool kids")
-
-        # add contacts via the related field
         group.contacts.add(self.joe, self.frank)
 
         self.assertEqual(ContactGroup.user_groups.get(pk=group.pk).get_member_count(), 2)
 
-        # add contacts via update_contacts
-        group.update_contacts(self.user, [self.mary], add=True)
+        group.contacts.add(self.mary)
 
         self.assertEqual(ContactGroup.user_groups.get(pk=group.pk).get_member_count(), 3)
 
-        # remove contacts via update_contacts
-        group.update_contacts(self.user, [self.mary], add=False)
+        group.contacts.remove(self.mary)
 
         self.assertEqual(ContactGroup.user_groups.get(pk=group.pk).get_member_count(), 2)
 
         # blocking a contact removes them from all user groups
         self.joe.block(self.user)
-
-        with self.assertRaises(ValueError):
-            group.update_contacts(self.user, [self.joe], True)
 
         group = ContactGroup.user_groups.get(pk=group.pk)
         self.assertEqual(group.get_member_count(), 1)
@@ -774,9 +725,6 @@ class ContactGroupCRUDLTest(TembaTest):
 
         self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])
 
-        with MockParseQuery("tel = 1234", ["tel"]):
-            self.dynamic_group = self.create_group("Dynamic", query="tel is 1234")
-
         self.other_org_group = self.create_group("Customers", contacts=[], org=self.org2)
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
@@ -866,6 +814,8 @@ class ContactGroupCRUDLTest(TembaTest):
     def test_update(self, mr_mocks):
         url = reverse("contacts.contactgroup_update", args=[self.joe_and_frank.id])
 
+        dynamic_group = self.create_group("Dynamic", query="tel is 1234")
+
         # can't create group as viewer
         self.login(self.user)
         response = self.client.post(url, dict(name="Spammers"))
@@ -889,20 +839,20 @@ class ContactGroupCRUDLTest(TembaTest):
         self.assertEqual(self.joe_and_frank.name, "new name")
 
         # now try a dynamic group
-        url = reverse("contacts.contactgroup_update", args=[self.dynamic_group.pk])
+        url = reverse("contacts.contactgroup_update", args=[dynamic_group.id])
 
         # mark our group as ready
-        ContactGroup.user_groups.filter(id=self.dynamic_group.pk).update(status=ContactGroup.STATUS_READY)
+        ContactGroup.user_groups.filter(id=dynamic_group.id).update(status=ContactGroup.STATUS_READY)
 
         # update both name and query, form should fail, because query is not parsable
-        mr_mocks.parse_query("(!))!)", error="error at !")
+        mr_mocks.error("error at !", code="unexpected_token", extra={"token": "!"})
         response = self.client.post(url, dict(name="Frank", query="(!))!)"))
-        self.assertFormError(response, "form", "query", "error at !")
+        self.assertFormError(response, "form", "query", "Invalid query syntax at '!'")
 
         # try to update a group with an invalid query
-        mr_mocks.parse_query("name <> some_name", error="error at >")
+        mr_mocks.error("error at >", code="unexpected_token", extra={"token": ">"})
         response = self.client.post(url, dict(name="Frank", query="name <> some_name"))
-        self.assertFormError(response, "form", "query", "error at >")
+        self.assertFormError(response, "form", "query", "Invalid query syntax at '>'")
 
         # dependent on id
         response = self.client.post(url, dict(name="Frank", query="id = 123"))
@@ -912,12 +862,12 @@ class ContactGroupCRUDLTest(TembaTest):
 
         self.assertNoFormErrors(response)
 
-        self.dynamic_group.refresh_from_db()
-        self.assertEqual(self.dynamic_group.query, 'twitter = "hola"')
+        dynamic_group.refresh_from_db()
+        self.assertEqual(dynamic_group.query, 'twitter = "hola"')
 
         # mark our dynamic group as evaluating
-        self.dynamic_group.status = ContactGroup.STATUS_EVALUATING
-        self.dynamic_group.save(update_fields=("status",))
+        dynamic_group.status = ContactGroup.STATUS_EVALUATING
+        dynamic_group.save(update_fields=("status",))
 
         # and check we can't change the query while that is the case
         response = self.client.post(url, dict(name="Frank", query='twitter = "hello"'))
@@ -927,8 +877,8 @@ class ContactGroupCRUDLTest(TembaTest):
         response = self.client.post(url, dict(name="Frank2", query='twitter = "hola"'))
         self.assertNoFormErrors(response)
 
-        self.dynamic_group.refresh_from_db()
-        self.assertEqual(self.dynamic_group.name, "Frank2")
+        dynamic_group.refresh_from_db()
+        self.assertEqual(dynamic_group.name, "Frank2")
 
         # try to update group in other org
         response = self.client.post(
@@ -2117,34 +2067,34 @@ class ContactTest(TembaTest):
         query = legacy_parse_query(r'name ~ "O\"Learly"')
         self.assertEqual(query.as_text(), r'name ~ "O"Learly"')
 
-    def test_contact_create_with_dynamicgroup_reevaluation(self):
+    @mock_mailroom
+    def test_contact_create_with_dynamicgroup_reevaluation(self, mr_mocks):
 
-        ContactField.get_or_create(self.org, self.admin, "age", label="Age", value_type=Value.TYPE_NUMBER)
-        ContactField.get_or_create(self.org, self.admin, "gender", label="Gender", value_type=Value.TYPE_TEXT)
+        age = ContactField.get_or_create(self.org, self.admin, "age", label="Age", value_type=Value.TYPE_NUMBER)
+        gender = ContactField.get_or_create(self.org, self.admin, "gender", label="Gender", value_type=Value.TYPE_TEXT)
 
-        with MockParseQuery('(age < 18 AND gender = "male") or (age > 18 and gender = "female")', ["age", "gender"]):
-            ContactGroup.create_dynamic(
-                self.org,
-                self.admin,
-                "simple group",
-                '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")',
-            )
+        mr_mocks.parse_query(
+            '(age < 18 AND gender = "male") or (age > 18 and gender = "female")', fields=[age, gender]
+        )
+        ContactGroup.create_dynamic(
+            self.org, self.admin, "simple group", '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")',
+        )
 
-        with MockParseQuery('age > 18 AND gender = "male"', ["age", "gender"]):
-            ContactGroup.create_dynamic(self.org, self.admin, "cannon fodder", 'age > 18 and gender = "male"')
+        mr_mocks.parse_query('age > 18 and gender = "male"', fields=[age, gender])
+        ContactGroup.create_dynamic(self.org, self.admin, "cannon fodder", 'age > 18 and gender = "male"')
 
-        with MockParseQuery('age = ""', ["age"]):
-            ContactGroup.create_dynamic(self.org, self.admin, "Empty age field", 'age = ""')
+        mr_mocks.parse_query('age = ""', fields=[age])
+        ContactGroup.create_dynamic(self.org, self.admin, "Empty age field", 'age = ""')
 
-        with MockParseQuery('age != ""', ["age"]):
-            ContactGroup.create_dynamic(self.org, self.admin, "Age field is set", 'age != ""')
+        mr_mocks.parse_query('age != ""', fields=[age])
+        ContactGroup.create_dynamic(self.org, self.admin, "Age field is set", 'age != ""')
 
-        with MockParseQuery('twitter = "helio"', ["twitter"]):
-            ContactGroup.create_dynamic(self.org, self.admin, "urn group", 'twitter = "helio"')
+        mr_mocks.parse_query('twitter = "helio"')
+        ContactGroup.create_dynamic(self.org, self.admin, "urn group", 'twitter = "helio"')
 
         with self.assertRaises(ValueError):
-            with MockParseQuery(error="age field is invalid"):
-                ContactGroup.create_dynamic(self.org, self.admin, "Age field is invalid", 'age < "age"')
+            mr_mocks.error("age field is invalid")
+            ContactGroup.create_dynamic(self.org, self.admin, "Age field is invalid", 'age < "age"')
 
         # when creating a new contact we should only reevaluate 'empty age field' and 'urn group' groups
         with self.assertNumQueries(32):
@@ -2171,14 +2121,13 @@ class ContactTest(TembaTest):
         joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
         nobody = self.create_group("Nobody", [])
 
-        with MockParseQuery('gender = "M"', ["gender"]):
-            men = self.create_group("Men", query="gender=M")
-            ContactGroup.user_groups.filter(id=men.id).update(status=ContactGroup.STATUS_READY)
+        men = self.create_group("Men", query="gender=M")
+        ContactGroup.user_groups.filter(id=men.id).update(status=ContactGroup.STATUS_READY)
 
-            # a group which is being re-evaluated and shouldn't appear in any omnibox results
-            unready = self.create_group("Group being re-evaluated...", query="gender=M")
-            unready.status = ContactGroup.STATUS_EVALUATING
-            unready.save(update_fields=("status",))
+        # a group which is being re-evaluated and shouldn't appear in any omnibox results
+        unready = self.create_group("Group being re-evaluated...", query="gender=M")
+        unready.status = ContactGroup.STATUS_EVALUATING
+        unready.save(update_fields=("status",))
 
         joe_tel = self.joe.get_urn(TEL_SCHEME)
         joe_twitter = self.joe.get_urn(TWITTER_SCHEME)
@@ -2200,24 +2149,18 @@ class ContactTest(TembaTest):
             response = self.client.get(f"{path}?{query}&v={version}")
             return response.json()["results"]
 
-        # search with search string that will raise a SearchException, which we ignore
-        with patch("temba.contacts.omnibox.search_contacts") as sc:
-            sc.side_effect = SearchException("Invalid query")
-            actual_result = omnibox_request("search=-123`213")
-            expected_result = []
+        # omnibox makes two search calls (X and tel = X), but we ignore errors
+        mr_mocks.error("ooh that doesn't look right")
+        mr_mocks.error("ooh that doesn't look right again")
 
-            self.assertEqual(actual_result, expected_result)
+        self.assertEqual([], omnibox_request("search=-123`213"))
 
         with patch("temba.contacts.omnibox.search_contacts") as sc:
             sc.side_effect = [
                 SearchResults(
-                    query="",
-                    total=4,
-                    fields=[""],
-                    allow_as_group=False,
-                    contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
+                    query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
                 ),
-                SearchResults(query="", total=3, fields=[""], allow_as_group=False, contact_ids=[]),
+                SearchResults(query="", total=3, contact_ids=[]),
             ]
             actual_result = omnibox_request(query="", version="2")
             expected_result = [
@@ -2236,16 +2179,8 @@ class ContactTest(TembaTest):
 
         with patch("temba.contacts.omnibox.search_contacts") as sc:
             sc.side_effect = [
-                SearchResults(
-                    query="", total=2, fields=[""], allow_as_group=False, contact_ids=[self.billy.id, self.frank.id]
-                ),
-                SearchResults(
-                    query="",
-                    total=2,
-                    fields=[""],
-                    allow_as_group=False,
-                    contact_ids=[self.voldemort.id, self.frank.id],
-                ),
+                SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id]),
+                SearchResults(query="", total=2, contact_ids=[self.voldemort.id, self.frank.id],),
             ]
             actual_result = omnibox_request(query="search=250", version="2")
             expected_result = [
@@ -2266,10 +2201,8 @@ class ContactTest(TembaTest):
 
         with patch("temba.contacts.omnibox.search_contacts") as sc:
             sc.side_effect = [
-                SearchResults(
-                    query="", total=2, fields=[""], allow_as_group=False, contact_ids=[self.billy.id, self.frank.id]
-                ),
-                SearchResults(query="", total=0, fields=[""], allow_as_group=False, contact_ids=[]),
+                SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id]),
+                SearchResults(query="", total=0, contact_ids=[]),
             ]
             with self.assertNumQueries(17):
                 actual_result = omnibox_request(query="")
@@ -2309,19 +2242,9 @@ class ContactTest(TembaTest):
         with patch("temba.contacts.omnibox.search_contacts") as sc:
             sc.side_effect = [
                 SearchResults(
-                    query="",
-                    total=4,
-                    fields=[""],
-                    allow_as_group=False,
-                    contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
+                    query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
                 ),
-                SearchResults(
-                    query="",
-                    total=3,
-                    fields=[""],
-                    allow_as_group=False,
-                    contact_ids=[self.voldemort.id, self.joe.id, self.frank.id],
-                ),
+                SearchResults(query="", total=3, contact_ids=[self.voldemort.id, self.joe.id, self.frank.id],),
             ]
             self.assertEqual(
                 omnibox_request("search=250&types=c,u"),
@@ -2339,10 +2262,8 @@ class ContactTest(TembaTest):
         # search for Frank by phone
         with patch("temba.contacts.omnibox.search_contacts") as sc:
             sc.side_effect = [
-                SearchResults(query="name ~ 222", total=0, fields=[""], allow_as_group=True, contact_ids=[]),
-                SearchResults(
-                    query="urn ~ 222", total=1, fields=[""], allow_as_group=True, contact_ids=[self.frank.id]
-                ),
+                SearchResults(query="name ~ 222", total=0, contact_ids=[]),
+                SearchResults(query="urn ~ 222", total=1, contact_ids=[self.frank.id]),
             ]
             self.assertEqual(
                 omnibox_request("search=222"),
@@ -2358,12 +2279,8 @@ class ContactTest(TembaTest):
         # search for Joe - match on last name and twitter handle
         with patch("temba.contacts.omnibox.search_contacts") as sc:
             sc.side_effect = [
-                SearchResults(
-                    query="name ~ blow", total=1, fields=[""], allow_as_group=True, contact_ids=[self.joe.id]
-                ),
-                SearchResults(
-                    query="urn ~ blow", total=1, fields=[""], allow_as_group=True, contact_ids=[self.joe.id]
-                ),
+                SearchResults(query="name ~ blow", total=1, contact_ids=[self.joe.id]),
+                SearchResults(query="urn ~ blow", total=1, contact_ids=[self.joe.id]),
             ]
             self.assertEqual(
                 omnibox_request("search=BLOW"),
@@ -2407,9 +2324,7 @@ class ContactTest(TembaTest):
 
         with AnonymousOrg(self.org):
             with patch("temba.contacts.omnibox.search_contacts") as sc:
-                sc.side_effect = [
-                    SearchResults(query="", total=1, fields=[""], allow_as_group=False, contact_ids=[self.billy.id])
-                ]
+                sc.side_effect = [SearchResults(query="", total=1, contact_ids=[self.billy.id])]
                 self.assertEqual(
                     omnibox_request(""),
                     [
@@ -2425,9 +2340,7 @@ class ContactTest(TembaTest):
 
             # same search but with v2 format
             with patch("temba.contacts.omnibox.search_contacts") as sc:
-                sc.side_effect = [
-                    SearchResults(query="", total=1, fields=[""], allow_as_group=False, contact_ids=[self.billy.id])
-                ]
+                sc.side_effect = [SearchResults(query="", total=1, contact_ids=[self.billy.id])]
                 self.assertEqual(
                     omnibox_request("", version="2"),
                     [
@@ -2995,7 +2908,8 @@ class ContactTest(TembaTest):
             self.assertEqual(self.joe, response.context["object"])
             self.assertNotContains(response, "Add Connection")
 
-    def test_read(self):
+    @mock_mailroom
+    def test_read(self, mr_mocks):
         read_url = reverse("contacts.contact_read", args=[self.joe.uuid])
 
         for i in range(5):
@@ -3017,8 +2931,7 @@ class ContactTest(TembaTest):
                 message=msg,
             )
 
-        with MockParseQuery('planting_date != ""', ["planting_date"]):
-            planters = self.create_group("Planters", query='planting_date != ""')
+        planters = self.create_group("Planters", query='planting_date != ""')
 
         now = timezone.now()
         self.set_contact_field(self.joe, "planting_date", (now + timedelta(days=1)).isoformat(), legacy_handle=True)
@@ -3182,67 +3095,53 @@ class ContactTest(TembaTest):
         # with a proper code, we should see the language
         self.assertContains(response, "French")
 
-    def test_contacts_search(self):
+    @mock_mailroom
+    def test_contacts_search(self, mr_mocks):
         search_url = reverse("contacts.contact_search")
         self.login(self.admin)
 
-        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-            instance = mock_mr.return_value
-            instance.contact_search.return_value = {
-                "contact_ids": [self.frank.id],
-                "total": 1,
-                "query": 'name ~ "Frank"',
-                "fields": ["name"],
-            }
+        mr_mocks.contact_search("Frank", cleaned='name ~ "Frank"', contacts=[self.frank])
 
-            response = self.client.get(search_url + "?search=Frank")
-            self.assertEqual(200, response.status_code)
-            results = response.json()
+        response = self.client.get(search_url + "?search=Frank")
+        self.assertEqual(200, response.status_code)
+        results = response.json()
 
-            # check that we get a total and a sample
-            self.assertEqual(1, results["total"])
-            self.assertEqual(1, len(results["sample"]))
-            self.assertEqual("+250 782 222 222", results["sample"][0]["primary_urn_formatted"])
+        # check that we get a total and a sample
+        self.assertEqual(1, results["total"])
+        self.assertEqual(1, len(results["sample"]))
+        self.assertEqual("+250 782 222 222", results["sample"][0]["primary_urn_formatted"])
 
-            # our query should get expanded into a proper query
-            self.assertEqual('name ~ "Frank"', results["query"])
+        # our query should get expanded into a proper query
+        self.assertEqual('name ~ "Frank"', results["query"])
 
-            # check no primary urn
-            self.frank.urns.all().delete()
-            response = self.client.get(search_url + "?search=Frank")
-            self.assertEqual(200, response.status_code)
-            results = response.json()
-            self.assertEqual("--", results["sample"][0]["primary_urn_formatted"])
+        # check no primary urn
+        self.frank.urns.all().delete()
+        response = self.client.get(search_url + "?search=Frank")
+        self.assertEqual(200, response.status_code)
+        results = response.json()
+        self.assertEqual("--", results["sample"][0]["primary_urn_formatted"])
 
-            # no query, no results
-            response = self.client.get(search_url)
-            results = response.json()
-            self.assertEqual(0, results["total"])
+        # no query, no results
+        response = self.client.get(search_url)
+        results = response.json()
+        self.assertEqual(0, results["total"])
 
-        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-            instance = mock_mr.return_value
-            instance.contact_search.side_effect = MailroomException("", "", {"error": "parse exception"})
+        mr_mocks.error("mismatched input at <EOF>", code="unexpected_token", extra={"token": "<EOF>"})
 
-            # bogus query
-            response = self.client.get(search_url + '?search=name="notclosed')
-            results = response.json()
-            self.assertEqual("parse exception", results["error"])
-            self.assertEqual(0, results["total"])
+        # bogus query
+        response = self.client.get(search_url + '?search=name="notclosed')
+        results = response.json()
+        self.assertEqual("Invalid query syntax at '<EOF>'", results["error"])
+        self.assertEqual(0, results["total"])
 
-        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-            instance = mock_mr.return_value
-            instance.contact_search.return_value = {
-                "contact_ids": [self.frank.id],
-                "total": 1,
-                "query": "age > 32",
-                "fields": ["age"],
-            }
+        # if we query a field, it should show up in our field dict
+        age = self.create_field("age", "Age", Value.TYPE_NUMBER)
 
-            # if we query a field, it should show up in our field dict
-            age = self.create_field("age", "Age", Value.TYPE_NUMBER)
-            response = self.client.get(search_url + "?search=age>32")
-            results = response.json()
-            self.assertEqual("Age", results["fields"][str(age.uuid)]["label"])
+        mr_mocks.contact_search("age>32", cleaned='age > 32"', contacts=[self.frank], fields=[age])
+
+        response = self.client.get(search_url + "?search=age>32")
+        results = response.json()
+        self.assertEqual("Age", results["fields"][str(age.uuid)]["label"])
 
     @mock_mailroom
     def test_update_and_list(self, mr_mocks):
@@ -3414,16 +3313,10 @@ class ContactTest(TembaTest):
         response = self.client.get(blocked_url)
         self.assertEqual(list(response.context["object_list"]), [self.billy, self.joe])
 
-        with patch("temba.mailroom.client.MailroomClient.contact_search") as mock_contact_search:
-            mock_contact_search.return_value = {
-                "contact_ids": [self.joe.id],
-                "total": 1,
-                "query": "name ~ Joe",
-                "fields": ["name"],
-            }
+        mr_mocks.contact_search("Joe", cleaned="name ~ Joe", contacts=[self.joe])
 
-            response = self.client.get(blocked_url + "?search=Joe")
-            self.assertEqual(list(response.context["object_list"]), [self.joe])
+        response = self.client.get(blocked_url + "?search=Joe")
+        self.assertEqual(list(response.context["object_list"]), [self.joe])
 
         # can unblock contacts from this page
         self.client.post(blocked_url, {"action": "unblock", "objects": self.joe.id}, follow=True)
@@ -4931,14 +4824,15 @@ class ContactTest(TembaTest):
         self.login(self.admin)
         self.create_campaign()
 
-        ballers = self.create_group("Ballers")
+        contact = self.create_contact("Joe", urn="tel:123")
+        ballers = self.create_group("Ballers", contacts=[contact])
 
         self.campaign.group = ballers
         self.campaign.save()
 
         field_created_on = self.org.contactfields.get(key="created_on")
 
-        self.created_on_event = CampaignEvent.create_flow_event(
+        created_on_event = CampaignEvent.create_flow_event(
             self.org,
             self.admin,
             self.campaign,
@@ -4948,30 +4842,18 @@ class ContactTest(TembaTest):
             flow=self.reminder_flow,
         )
 
-        event_fires = EventFire.objects.filter(event=self.created_on_event)
-        self.assertEqual(event_fires.count(), 0)
+        EventFire.create_eventfires_for_event(created_on_event)
 
-        contact, urn = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe")
-
-        event_fires = EventFire.objects.filter(event=self.created_on_event)
-        self.assertEqual(event_fires.count(), 0)
-
-        ballers.update_contacts(self.admin, [contact], add=True)
-
-        event_fires = EventFire.objects.filter(event=self.created_on_event)
+        event_fires = EventFire.objects.filter(event=created_on_event)
         self.assertEqual(event_fires.count(), 1)
 
-        event_fire = EventFire.objects.filter(event=self.created_on_event).first()
-        contact_created_on = contact.created_on.replace(second=0, microsecond=0)
-        self.assertEqual(event_fire.scheduled, contact_created_on + timedelta(minutes=5))
-
-    def test_contact_import_handle_update_contact(self):
+    @mock_mailroom
+    def test_contact_import_handle_update_contact(self, mr_mocks):
         self.login(self.admin)
         self.create_campaign()
 
         self.create_field("team", "Team")
-        with MockParseQuery('team = "ballers"', ["team"]):
-            ballers = self.create_group("Ballers", query="team = ballers")
+        ballers = self.create_group("Ballers", query="team = ballers")
 
         self.campaign.group = ballers
         self.campaign.save()
@@ -6034,138 +5916,135 @@ class ContactFieldTest(TembaTest):
                 log_info_threshold.return_value = 1
 
                 with ESMockWithScroll(data=mock_es_data):
-                    with MockParseQuery(query='name ~ "adam" OR name ~ "deng"', fields=["name"]):
-                        with self.assertNumQueries(50):
-                            self.assertExcelSheet(
-                                request_export("?s=name+has+adam+or+name+has+deng")[0],
+                    with self.assertNumQueries(51):
+                        self.assertExcelSheet(
+                            request_export("?s=name+has+adam+or+name+has+deng")[0],
+                            [
                                 [
-                                    [
-                                        "Contact UUID",
-                                        "Name",
-                                        "Language",
-                                        "Created On",
-                                        "URN:Mailto",
-                                        "URN:Tel",
-                                        "URN:Tel",
-                                        "URN:Telegram",
-                                        "URN:Twitter",
-                                        "Field:Third",
-                                        "Field:Second",
-                                        "Field:First",
-                                    ],
-                                    [
-                                        contact2.uuid,
-                                        "Adam Sumner",
-                                        "eng",
-                                        contact2.created_on,
-                                        "adam@sumner.com",
-                                        "+12067799191",
-                                        "",
-                                        "1234",
-                                        "adam",
-                                        "",
-                                        "",
-                                        "",
-                                    ],
-                                    [
-                                        contact3.uuid,
-                                        "Luol Deng",
-                                        "",
-                                        contact3.created_on,
-                                        "",
-                                        "+12078776655",
-                                        "",
-                                        "",
-                                        "deng",
-                                        "",
-                                        "",
-                                        "",
-                                    ],
+                                    "Contact UUID",
+                                    "Name",
+                                    "Language",
+                                    "Created On",
+                                    "URN:Mailto",
+                                    "URN:Tel",
+                                    "URN:Tel",
+                                    "URN:Telegram",
+                                    "URN:Twitter",
+                                    "Field:Third",
+                                    "Field:Second",
+                                    "Field:First",
                                 ],
-                                tz=self.org.timezone,
-                            )
+                                [
+                                    contact2.uuid,
+                                    "Adam Sumner",
+                                    "eng",
+                                    contact2.created_on,
+                                    "adam@sumner.com",
+                                    "+12067799191",
+                                    "",
+                                    "1234",
+                                    "adam",
+                                    "",
+                                    "",
+                                    "",
+                                ],
+                                [
+                                    contact3.uuid,
+                                    "Luol Deng",
+                                    "",
+                                    contact3.created_on,
+                                    "",
+                                    "+12078776655",
+                                    "",
+                                    "",
+                                    "deng",
+                                    "",
+                                    "",
+                                    "",
+                                ],
+                            ],
+                            tz=self.org.timezone,
+                        )
 
-                        self.assertEqual(len(captured_logger.output), 2)
-                        self.assertTrue("contacts - 50% (1/2)" in captured_logger.output[0])
-                        self.assertTrue("contacts - 100% (2/2)" in captured_logger.output[1])
+                    self.assertEqual(len(captured_logger.output), 2)
+                    self.assertTrue("contacts - 50% (1/2)" in captured_logger.output[0])
+                    self.assertTrue("contacts - 100% (2/2)" in captured_logger.output[1])
 
-                        assertImportExportedFile("?s=name+has+adam+or+name+has+deng")
+                    assertImportExportedFile("?s=name+has+adam+or+name+has+deng")
 
         # export a search within a specified group of contacts
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
-            with MockParseQuery(query='name ~ "Hagg"', fields=["name"]):
-                with self.assertNumQueries(49):
-                    self.assertExcelSheet(
-                        request_export("?g=%s&s=Hagg" % group.uuid)[0],
-                        [
-                            [
-                                "Contact UUID",
-                                "Name",
-                                "Language",
-                                "Created On",
-                                "URN:Mailto",
-                                "URN:Tel",
-                                "URN:Tel",
-                                "URN:Telegram",
-                                "URN:Twitter",
-                                "Field:Third",
-                                "Field:Second",
-                                "Field:First",
-                            ],
-                            [
-                                contact.uuid,
-                                "Ben Haggerty",
-                                "",
-                                contact.created_on,
-                                "",
-                                "+12067799294",
-                                "+12062233445",
-                                "",
-                                "",
-                                "20-12-2015 08:30",
-                                "",
-                                "One",
-                            ],
-                        ],
-                        tz=self.org.timezone,
-                    )
-
-                assertImportExportedFile("?g=%s&s=Hagg" % group.uuid)
-
-        # now try with an anonymous org
-        with AnonymousOrg(self.org):
-            with MockParseQuery(query='name ~ "Hagg"', fields=["name"]):
+            with self.assertNumQueries(50):
                 self.assertExcelSheet(
-                    request_export()[0],
+                    request_export("?g=%s&s=Hagg" % group.uuid)[0],
                     [
                         [
-                            "ID",
                             "Contact UUID",
                             "Name",
                             "Language",
                             "Created On",
+                            "URN:Mailto",
+                            "URN:Tel",
+                            "URN:Tel",
+                            "URN:Telegram",
+                            "URN:Twitter",
                             "Field:Third",
                             "Field:Second",
                             "Field:First",
                         ],
-                        [str(contact2.id), contact2.uuid, "Adam Sumner", "eng", contact2.created_on, "", "", ""],
                         [
-                            str(contact.id),
                             contact.uuid,
                             "Ben Haggerty",
                             "",
                             contact.created_on,
+                            "",
+                            "+12067799294",
+                            "+12062233445",
+                            "",
+                            "",
                             "20-12-2015 08:30",
                             "",
                             "One",
                         ],
-                        [str(contact3.id), contact3.uuid, "Luol Deng", "", contact3.created_on, "", "", ""],
-                        [str(contact4.id), contact4.uuid, "Stephen", "", contact4.created_on, "", "", ""],
                     ],
                     tz=self.org.timezone,
                 )
-                assertImportExportedFile()
+
+            assertImportExportedFile("?g=%s&s=Hagg" % group.uuid)
+
+        # now try with an anonymous org
+        with AnonymousOrg(self.org):
+            self.assertExcelSheet(
+                request_export()[0],
+                [
+                    [
+                        "ID",
+                        "Contact UUID",
+                        "Name",
+                        "Language",
+                        "Created On",
+                        "Field:Third",
+                        "Field:Second",
+                        "Field:First",
+                    ],
+                    [str(contact2.id), contact2.uuid, "Adam Sumner", "eng", contact2.created_on, "", "", ""],
+                    [
+                        str(contact.id),
+                        contact.uuid,
+                        "Ben Haggerty",
+                        "",
+                        contact.created_on,
+                        "20-12-2015 08:30",
+                        "",
+                        "One",
+                    ],
+                    [str(contact3.id), contact3.uuid, "Luol Deng", "", contact3.created_on, "", "", ""],
+                    [str(contact4.id), contact4.uuid, "Stephen", "", contact4.created_on, "", "", ""],
+                ],
+                tz=self.org.timezone,
+            )
+            assertImportExportedFile()
 
     def test_prepare_sort_field_struct(self):
         ward = ContactField.get_or_create(self.org, self.admin, "ward", "Home Ward", value_type=Value.TYPE_WARD)
@@ -6282,42 +6161,37 @@ class ContactFieldTest(TembaTest):
             (None, None, None),
         )
 
-    def test_contact_field_list_sort_contactfields(self):
+    @mock_mailroom
+    def test_contact_field_list_sort_contactfields(self, mr_mocks):
         url = reverse("contacts.contact_list")
         self.login(self.admin)
 
-        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-            instance = mock_mr.return_value
-            instance.contact_search.return_value = {
-                "contact_ids": [self.joe.id],
-                "total": 1,
-                "query": "",
-                "fields": ["age"],
-            }
+        mr_mocks.contact_search("", contacts=[self.joe])
+        mr_mocks.contact_search("Joe", contacts=[self.joe])
 
-            response = self.client.get("%s?sort_on=%s" % (url, str(self.contactfield_1.key)))
+        response = self.client.get("%s?sort_on=%s" % (url, str(self.contactfield_1.key)))
 
-            self.assertEqual(response.context["sort_field"], str(self.contactfield_1.key))
-            self.assertEqual(response.context["sort_direction"], "asc")
-            self.assertTrue("search" not in response.context)
+        self.assertEqual(response.context["sort_field"], str(self.contactfield_1.key))
+        self.assertEqual(response.context["sort_direction"], "asc")
+        self.assertNotIn("search", response.context)
 
-            response = self.client.get("%s?sort_on=-%s" % (url, str(self.contactfield_1.key)))
+        response = self.client.get("%s?sort_on=-%s" % (url, str(self.contactfield_1.key)))
 
-            self.assertEqual(response.context["sort_field"], str(self.contactfield_1.key))
-            self.assertEqual(response.context["sort_direction"], "desc")
-            self.assertTrue("search" not in response.context)
+        self.assertEqual(response.context["sort_field"], str(self.contactfield_1.key))
+        self.assertEqual(response.context["sort_direction"], "desc")
+        self.assertNotIn("search", response.context)
 
-            response = self.client.get("%s?sort_on=%s" % (url, "created_on"))
+        response = self.client.get("%s?sort_on=%s" % (url, "created_on"))
 
-            self.assertEqual(response.context["sort_field"], "created_on")
-            self.assertEqual(response.context["sort_direction"], "asc")
-            self.assertTrue("search" not in response.context)
+        self.assertEqual(response.context["sort_field"], "created_on")
+        self.assertEqual(response.context["sort_direction"], "asc")
+        self.assertNotIn("search", response.context)
 
-            response = self.client.get("%s?sort_on=-%s&search=Joe" % (url, "created_on"))
+        response = self.client.get("%s?sort_on=-%s&search=Joe" % (url, "created_on"))
 
-            self.assertEqual(response.context["sort_field"], "created_on")
-            self.assertEqual(response.context["sort_direction"], "desc")
-            self.assertTrue("search" in response.context)
+        self.assertEqual(response.context["sort_field"], "created_on")
+        self.assertEqual(response.context["sort_direction"], "desc")
+        self.assertIn("search", response.context)
 
     def test_delete_with_flow_dependency(self):
         self.login(self.admin)
