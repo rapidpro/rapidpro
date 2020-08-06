@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-04 15:14+0000\n"
+"POT-Creation-Date: 2020-08-06 20:46+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -6391,6 +6391,11 @@ msgid "Webhook Event"
 msgstr "Eventos Webhook"
 
 #, fuzzy
+#| msgid "Receive URL"
+msgid "Request Time"
+msgstr "Recibir URL"
+
+#, fuzzy
 #| msgid "Archive"
 msgid "Archives"
 msgstr "Archivar"
@@ -6873,6 +6878,11 @@ msgstr "Borrado"
 msgid "Channel interaction"
 msgstr "Integración de Android"
 
+#, fuzzy
+#| msgid "Receive URL"
+msgid "Request time"
+msgstr "Recibir URL"
+
 msgid "Channel Event"
 msgstr "Evento del transmisor"
 
@@ -6883,6 +6893,18 @@ msgstr "Mensaje"
 #, fuzzy
 msgid "Message Log"
 msgstr "Mensaje"
+
+#, fuzzy
+msgid "Recipient"
+msgstr "Número de créditos"
+
+#, fuzzy
+#| msgid "Export Data"
+msgid "Date"
+msgstr "Exportar datos"
+
+msgid "Duration"
+msgstr "Duración"
 
 #, fuzzy
 msgid "Error"
@@ -15697,9 +15719,6 @@ msgstr ""
 
 #~ msgid "Unknown channel type: %(channel)s"
 #~ msgstr "Tipo de transmisor desconocido: %(channel)s"
-
-#~ msgid "Duration"
-#~ msgstr "Duración"
 
 #, fuzzy
 #~| msgid "Connect Kannel"

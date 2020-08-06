@@ -26,17 +26,19 @@
                 .subtitle
                   {% format_datetime object.created_on %}
 
-          .card.flex
+          .card.flex.mt-0
             .inline-flex.mr-8
               .font-bold.mr-2 URL
               {{ object.url }}
 
             .inline-flex.mr-8
-              .font-bold.mr-2 Elapsed
+              .font-bold.mr-2 
+                -trans "Request Time"
               {{ object.request_time|intcomma }}ms
 
             .inline-flex.mr-8
-              .font-bold.mr-2 Contact
+              .font-bold.mr-2 
+                - trans "Contact"
               %a{href: "{% url 'contacts.contact_read' object.contact.uuid %}"}
                 {{ object.contact|name_or_urn:object.org }}
 

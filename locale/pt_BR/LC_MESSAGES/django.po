@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-04 15:14+0000\n"
+"POT-Creation-Date: 2020-08-06 20:46+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -6062,6 +6062,11 @@ msgid "Webhook Event"
 msgstr "Eventos do Webhook"
 
 #, fuzzy
+#| msgid "Receive URL"
+msgid "Request Time"
+msgstr "URL de recebimento"
+
+#, fuzzy
 msgid "Archives"
 msgstr "Arquivado"
 
@@ -6508,6 +6513,11 @@ msgstr "Deletado"
 msgid "Channel interaction"
 msgstr "Integração com Android"
 
+#, fuzzy
+#| msgid "Receive URL"
+msgid "Request time"
+msgstr "URL de recebimento"
+
 msgid "Channel Event"
 msgstr "Evento do transmissor"
 
@@ -6518,6 +6528,18 @@ msgstr "Mensagem"
 #, fuzzy
 msgid "Message Log"
 msgstr "Mensagem"
+
+#, fuzzy
+msgid "Recipient"
+msgstr "Quantidade de créditos"
+
+#, fuzzy
+#| msgid "Date"
+msgid "Date"
+msgstr "Data"
+
+msgid "Duration"
+msgstr "Duração"
 
 #, fuzzy
 msgid "Error"
@@ -14614,9 +14636,6 @@ msgstr ""
 
 #~ msgid "Unknown channel type: %(channel)s"
 #~ msgstr "Tipo do transmissor desconhecido: %(channel)s"
-
-#~ msgid "Duration"
-#~ msgstr "Duração"
 
 #, fuzzy
 #~ msgid "Connect Public Viber Channel"
