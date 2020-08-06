@@ -5865,6 +5865,51 @@ msgstr ""
 msgid "Verify your email address for tickets"
 msgstr "Su dirección de correo electrónico"
 
+msgid "Connection to RocketChat is taking too long."
+msgstr ""
+
+msgid "Unable to validate the secret code. Connection to RocketChat is taking too long."
+msgstr ""
+
+msgid "Unable to configure. Connection to RocketChat is taking too long."
+msgstr ""
+
+msgid "<a href=\"https://rocket.chat/\">RocketChat</a> is the ultimate free open source solution for team communications. Its omnichannel feature allows you to integrate RocketChat as a ticket service."
+msgstr ""
+
+msgid "Setup your RocketChat first to be able to integrate."
+msgstr ""
+
+msgid "Ex.: http://rocketchat-domain.com/.../secret.check"
+msgstr ""
+
+msgid "The URL for your RocketChat installation"
+msgstr ""
+
+msgid "Secret to be passed to RocketChat"
+msgstr ""
+
+msgid "Invalid secret code."
+msgstr ""
+
+msgid "Secret code change detected."
+msgstr ""
+
+#, python-format
+msgid "Invalid URL: %(base_url)s"
+msgstr ""
+
+msgid "There is already a ticketing service configured for this URL."
+msgstr ""
+
+msgid "Unable to validate the secret code."
+msgstr ""
+
+#, fuzzy
+#| msgid "Configuration"
+msgid "Configuration has failed"
+msgstr "Configuración"
+
 msgid "<a href=\"https://www.zendesk.com/\">Zendesk</a> is one of the most popular customer service systems around. You can use it to manage all the tickets created on your account."
 msgstr ""
 

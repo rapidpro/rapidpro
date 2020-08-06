@@ -5552,6 +5552,51 @@ msgstr ""
 msgid "Verify your email address for tickets"
 msgstr "Seu endereço de e-mail é "
 
+msgid "Connection to RocketChat is taking too long."
+msgstr " Conexão com o RocketChat está demorando muito."
+
+msgid "Unable to validate the secret code. Connection to RocketChat is taking too long."
+msgstr "Não foi possível validar o código secreto. Conexão com o RocketChat está demorando muito."
+
+msgid "Unable to configure. Connection to RocketChat is taking too long."
+msgstr "Não foi possível configurar. Conexão com o RocketChat está demorando muito."
+
+msgid "<a href=\"https://rocket.chat/\">RocketChat</a> is the ultimate free open source solution for team communications. Its omnichannel feature allows you to integrate RocketChat as a ticket service."
+msgstr "<a href=\"https://rocket.chat/\">RocketChat</a> é a melhor solução gratuita de código aberto para comunicação de equipes. Seu recurso omnichannel permite integrar o RocketChat como um serviço de ticket."
+
+msgid "Setup your RocketChat first to be able to integrate."
+msgstr "Configure seu RocketChat primeiro para poder integrar."
+
+msgid "Ex.: http://rocketchat-domain.com/.../secret.check"
+msgstr "Ex.: http://rocketchat-domain.com/.../secret.check"
+
+msgid "The URL for your RocketChat installation"
+msgstr "O URL da sua instalação do RocketChat"
+
+msgid "Secret to be passed to RocketChat"
+msgstr "Segredo a ser passado para o RocketChat"
+
+msgid "Invalid secret code."
+msgstr "Código secreto inválido"
+
+msgid "Secret code change detected."
+msgstr "Alteração no código secreto detectada."
+
+#, python-format
+msgid "Invalid URL: %(base_url)s"
+msgstr "URL inválida: %(base_url)s"
+
+msgid "There is already a ticketing service configured for this URL."
+msgstr "Já existe um serviço de ticket configurado para essa URL"
+
+msgid "Unable to validate the secret code."
+msgstr "Não foi possível validar o código secreto"
+
+#, fuzzy
+#| msgid "Configuration"
+msgid "Configuration has failed"
+msgstr "A configuração falhou"
+
 msgid "<a href=\"https://www.zendesk.com/\">Zendesk</a> is one of the most popular customer service systems around. You can use it to manage all the tickets created on your account."
 msgstr ""
 
