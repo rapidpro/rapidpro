@@ -26,36 +26,47 @@
                 .subtitle
                   {% format_datetime object.created_on %}
 
-          .log-details
-            .detail.started
-              .header URL
+          .card.flex
+            .inline-flex.mr-8
+              .font-bold.mr-2 URL
               {{ object.url }}
 
-            -if object.request_time
-              .detail.elapsed
-                .header Elapsed
-                {{ object.request_time|intcomma }}ms
+            .inline-flex.mr-8
+              .font-bold.mr-2 Elapsed
+              {{ object.request_time|intcomma }}ms
 
-            -if object.contact
-              .detail.contact
-                .header Contact
-                  %a{href: "{% url 'contacts.contact_read' object.contact.uuid %}"}
-                    {{ object.contact|name_or_urn:object.org }}
+            .inline-flex.mr-8
+              .font-bold.mr-2 Contact
+              %a{href: "{% url 'contacts.contact_read' object.contact.uuid %}"}
+                {{ object.contact|name_or_urn:object.org }}
 
-          .log<
-            .summary{id: "{{log.id}}"}
-              .time.pull-right
-                {% format_datetime object.created_on %}
+          %table.list.tight.toggle.stateful
+            %thead
+              %tr.border-b
+                %th
+                  {{ object.status_code }}
+                %th
+                  .text-right
+                    -if object.request_time
+                      -trans "Request Time:"
+                      {{ object.request_time|intcomma }}ms
 
-              %span.status-code
-                {{ object.status_code }}
+                %th
+                  .text-right
+                    {% format_datetime object.created_on %}
+                %th(style="width: 10px;")
 
-            %pre.prettyprint.request<
-              :plain
-                {{ object.request }}
-            %pre.prettyprint.response<
-              :plain
-                {{ object.response }}
+            %tbody
+              %tr
+                %td(colspan="4" style="padding:0;")
+                  %pre.prettyprint.request<
+                    :plain
+                      {{ object.request }}
+              %tr
+                %td(colspan="4" style="padding:0;")
+                  %pre.prettyprint.response<
+                    :plain
+                      {{ object.response }}
 
 
 -block extra-script
@@ -79,71 +90,28 @@
   -compress css inline
     {% lessblock %}
       :plain
-        .result {
-          clear: both;
-          margin-bottom: 10px;
-        }
 
-        .log {
-          padding: 0px;
-          border: 1px solid #f7f7f9 - #111;
-          margin-bottom:10px;
-
-          pre, .prettyprint {
-            border: 0;
-            margin-bottom: 0px;
+        table {
+          pre {
+            display: none;
           }
 
-          .request-time {
-            margin-right: 50px;
-
-            .request-time-value {
-              font-weight: bold
-            }
-          }
-
-          .status-code {
-            margin-right: 5px;
-          }
-
-          .summary {
-            border: 1px solid #f7f7f9 - #111;
-            padding: 10px;
-            color: @flat-grey;
-            cursor: pointer;
-            word-break: break-all;
-            word-wrap: break-word;
-
-            .method {
-              font-weight: bold;
-            }
-          }
-          .prettyprint {
-            padding: 10px;
-            border-radius: 0;
-
-            &.request {
-              background: #f7f7f9 + 111;
-              border-bottom: 1px solid @flat-white;
+          &.expanded {
+            pre {
+              display: block;
             }
           }
         }
 
-        .log-details {
-          padding: 10px;
-          margin-bottom:10px;
-          border: 1px solid #f7f7f9 - #111;
-          font-size: 80%;
+        pre.prettyprint {
+          margin: 0;
+          border: 0;
+          max-height: none !important;
 
-          .header {
-            display: inline-block;
-            font-weight: 400;
-            margin-right: 2px;
+          &.request {
+            background: #f7f7f9 + 111;
           }
 
-          .detail {
-            display: inline-block;
-            margin-right: 16px;
-          }
         }
+
     {% endlessblock %}

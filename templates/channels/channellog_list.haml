@@ -43,7 +43,7 @@
                   %th{ style:'width:150px' }
 
                 %th{ style:'width:200px'}
-                  -trans "Elapsed"
+                  -trans "Request Time"
 
                 %th{ style:'width:160px;text-align:right;'}
                   -trans "Time"
@@ -78,7 +78,6 @@
 
                     %td
                       -if obj.request_time
-                        Request time:
                         %span
                           {{ obj.request_time|default:"0"|intcomma }}ms
 
@@ -91,7 +90,6 @@
                     %td.clickable
                       %a{ href:'{% url "channels.channellog_read" obj.id %}' }= obj.description
                     %td
-                      Request time:
                       %span
                         {{ obj.request_time|default:"0"|intcomma }}ms
 
@@ -107,7 +105,6 @@
                     %td.clickable
                       %a{ href:'{% url "channels.channellog_read" obj.id %}' }= obj.description
                     %td
-                      Request time:
                       %span
                         {{ obj.request_time|default:"0"|intcomma }}ms
 

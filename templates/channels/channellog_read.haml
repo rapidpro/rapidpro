@@ -37,42 +37,46 @@
                 .subtitle
                   Provider: {{ object.channel.get_channel_type_display }}
 
-  .log-details
-    .detail.recipient
-      .header
-        Recipient
-          -if object.msg
-            %a{href:'{% url "contacts.contact_read" object.msg.contact.uuid %}'}
-              {{object.msg.contact_urn.get_display}}
-          -elif object.connection_type
-            %a{href:'{% url "contacts.contact_read" object.contact.uuid %}'}
-              {{object.contact_urn.path}}
-    .detail.channel
-      .header
-        Channel
+  .card.flex
+    .inline-flex.mr-8
+      .font-bold.mr-2
+        -trans "Recipient"
+      -if object.msg
+        %a{href:'{% url "contacts.contact_read" object.msg.contact.uuid %}'}
+          {{object.msg.contact_urn.get_display}}
+      -elif object.connection_type
+        %a{href:'{% url "contacts.contact_read" object.contact.uuid %}'}
+          {{object.contact_urn.path}}
+
+    .inline-flex.mr-8
+      .font-bold.mr-2
+        -trans ""
+          Channel
       %a{href:'{% url "channels.channel_read" object.channel.uuid %}'}
         {{object.channel}}
-    .detail.direction
-      .header
-        Direction
+
+    .inline-flex.mr-8
+      .font-bold.mr-2
+        -trans "Direction"
       -if object.connection_type
         {{object.get_direction_display}}
       -else
         {{object.msg.get_direction_display}}
-    .detail.started
-      .header
-        Date
+
+    .inline-flex.mr-8
+      .font-bold.mr-2
+        -trans "Date"
       {{object.created_on|date:"M j, Y g:i:s a"}}
 
     -if object.duration
-      .detail.duration
-        .header
-          Duration
+      .inline-flex.mr-8
+        .font-bold.mr-2
+          -trans "Duration"
         {{object.get_duration|delta}}
 
-    .detail.status
-      .header
-        Status
+    .inline-flex.mr-8
+      .font-bold.mr-2
+        -trans "Status"
       -if object.connection_type
         {{object.get_status_display}}
       -else
@@ -126,82 +130,25 @@
   -compress css inline
     {% lessblock %}
       :plain
-        .result {
-          clear: both;
-          margin-bottom: 10px;
-        }
-
-        .result-status {
-          float: left;
-          margin-top: 10px;
-          font-size: 32px;
-          color: #666;
-        }
-
-        .result .result-summary {
-          margin-left: 70px;
-        }
-
-        .log {
-          padding: 0px;
-          border: 1px solid #f7f7f9 - #111;
-          margin-bottom:10px;
-
-          pre, .prettyprint {
-            border: 0;
-            margin-bottom: 0px;
+        table {
+          pre {
+            display: none;
           }
 
-          .request-time {
-            margin-right: 50px;
-
-            .request-time-value {
-              font-weight: bold
-            }
-          }
-
-          .status-code {
-            margin-right: 5px;
-          }
-
-          .summary {
-            border: 1px solid #f7f7f9 - #111;
-            padding: 10px;
-            color: @flat-grey;
-            cursor: pointer;
-            word-break: break-all;
-            word-wrap: break-word;
-
-            .method {
-              font-weight: bold;
-            }
-          }
-          .prettyprint {
-            padding: 10px;
-            border-radius: 0;
-
-            &.request {
-              background: #f7f7f9 + 111;
-              border-bottom: 1px solid @flat-white;
+          &.expanded {
+            pre {
+              display: block;
             }
           }
         }
 
-        .log-details {
-          padding: 10px;
-          margin-bottom:10px;
-          border: 1px solid #f7f7f9 - #111;
-          font-size: 80%;
+        pre.prettyprint {
+          margin: 0;
+          border: 0;
+          max-height: none !important;
 
-          .header {
-            display: inline-block;
-            font-weight: 400;
-            margin-right: 2px;
-          }
-
-          .detail {
-            display: inline-block;
-            margin-right: 16px;
+          &.request {
+            background: #f7f7f9 + 111;
           }
         }
     {% endlessblock %}
