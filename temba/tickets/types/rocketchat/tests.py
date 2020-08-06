@@ -62,8 +62,10 @@ class ClientTest(RocketChatMixin):
     @patch("requests.get")
     def test_secret_check_exceptions(self, mock_request):
         for err in [Timeout(), Exception()]:
+
             def side_effect(*arg, **kwargs):
                 raise err
+
             mock_request.side_effect = side_effect
             with self.assertRaises(ClientError):
                 Client(self.secure_url, self.secret).secret_check()
@@ -89,8 +91,10 @@ class ClientTest(RocketChatMixin):
     @patch("requests.post")
     def test_settings_exceptions(self, mock_request):
         for err in [Timeout(), Exception()]:
+
             def side_effect(*arg, **kwargs):
                 raise err
+
             mock_request.side_effect = side_effect
             ticketer = self.new_ticketer()
             with self.assertRaises(ClientError):
@@ -134,9 +138,9 @@ class RocketChatViewTest(RocketChatMixin):
         mock_choices.side_effect = lambda letters: next(choices)
 
         self.client.force_login(self.admin)
-        check = [(Timeout(), timeout_msg),
-                 (Exception(), exception_msg)]
+        check = [(Timeout(), timeout_msg), (Exception(), exception_msg)]
         for err, msg in check:
+
             def side_effect(*arg, **kwargs):
                 raise err
 
@@ -184,8 +188,8 @@ class RocketChatViewTest(RocketChatMixin):
     @patch("random.choice")
     def test_form_valid(self, mock_choices, mock_socket, mock_secret, mock_settings):
         def settings_effect(domain, ticketer):
-            nonlocal object
-            object = ticketer
+            nonlocal _ticketer
+            _ticketer = ticketer
 
         choices = (c for c in self.secret)
         mock_choices.side_effect = lambda letters: next(choices)
@@ -193,22 +197,28 @@ class RocketChatViewTest(RocketChatMixin):
         mock_socket.return_value = "192.55.123.1"  # Fake IP
 
         self.client.force_login(self.admin)
+        toggle = True
+        max_length = Ticketer._meta.get_field("name").max_length
         for path in [f"/{self.app_id}", f"/{self.app_id}/", f"/{self.app_id}/path", f"/path/{self.app_id}/"]:
             for scheme in ["", "http", "https"]:
-                object = None
+                _ticketer: Ticketer = None
                 choices = (c for c in self.secret)
                 data = {"secret": self.secret, "base_url": self.new_url("valid.com", path=path, scheme=scheme)}
+                if toggle:
+                    toggle = not toggle
+                    domain = data["base_url"].replace("http://", "").replace("https://", "").split("/")[0]
+                    data["base_url"] = f"{'x' * (max_length - len(domain))}-{data['base_url']}"
                 response = self.client.post(self.connect_url, data=data)
-                self.assertIsInstance(object, Ticketer)
-                self.assertEqual(object.ticketer_type, RocketChatType.slug)
-                self.assertRedirect(response, reverse("tickets.ticket_filter", args=[object.uuid]))
+                self.assertIsInstance(_ticketer, Ticketer, msg=f"Data: {data}")
+                self.assertEqual(_ticketer.ticketer_type, RocketChatType.slug)
+                self.assertRedirect(response, reverse("tickets.ticket_filter", args=[_ticketer.uuid]))
 
                 domain = data["base_url"].replace("http://", "").replace("https://", "").split("/")[0]
-                max_length = Ticketer._meta.get_field("name").max_length
                 expected = f"{RocketChatType.name}: {domain}"
                 if len(expected) > max_length:
                     expected = f"{expected[:max_length - 3]}..."
-                self.assertEqual(object.name, expected, f"\nExpected: {expected}\nGot: {object.name}")
+                self.assertEqual(_ticketer.name, expected, f"\nExpected: {expected}\nGot: {_ticketer.name}")
+                self.assertFalse(_ticketer.config[RocketChatType.CONFIG_BASE_URL].endswith("/"))
 
     @patch("temba.tickets.types.rocketchat.client.Client.settings")
     @patch("temba.tickets.types.rocketchat.client.Client.secret_check")
@@ -254,7 +264,7 @@ class RocketChatViewTest(RocketChatMixin):
                 data = {"secret": self.secret, "base_url": self.new_url("invalid.com", path=path, scheme=scheme)}
                 response = self.client.post(self.connect_url, data=data)
 
-                url = data['base_url']
+                url = data["base_url"]
                 if not url.startswith("http"):
                     url = f"http://{url}"
                 self.assertFormError(response, "form", "base_url", f"Invalid URL: {url}")
@@ -263,17 +273,21 @@ class RocketChatViewTest(RocketChatMixin):
         data = {"secret": self.secret, "base_url": self.new_url("domain.com", path=f"/{self.app_id}")}
         self.new_ticketer({RocketChatType.CONFIG_BASE_URL: data["base_url"]})
         response = self.client.post(self.connect_url, data=data)
-        self.assertFormError(response, "form", "base_url",
-                             "There is already a ticketing service configured for this URL.")
+        self.assertFormError(
+            response, "form", "base_url", "There is already a ticketing service configured for this URL."
+        )
 
     @patch("socket.gethostbyname")
     @patch("random.choice")
     @patch("requests.get")
     def test_secret_check_exception(self, mock_request, mock_choices, mock_socket):
         mock_socket.return_value = "192.55.123.1"  # Fake IP
-        self.check_exceptions(mock_choices, mock_request,
-                              "Unable to validate the secret code. Connection to RocketChat is taking too long.",
-                              "Unable to validate the secret code.")
+        self.check_exceptions(
+            mock_choices,
+            mock_request,
+            "Unable to validate the secret code. Connection to RocketChat is taking too long.",
+            "Unable to validate the secret code.",
+        )
 
     @patch("temba.tickets.types.rocketchat.client.Client.secret_check")
     @patch("socket.gethostbyname")
@@ -281,6 +295,9 @@ class RocketChatViewTest(RocketChatMixin):
     @patch("requests.post")
     def test_settings_exception(self, mock_request, mock_choices, mock_socket, mock_secret):
         mock_socket.return_value = "192.55.123.1"  # Fake IP
-        self.check_exceptions(mock_choices, mock_request,
-                              "Unable to configure. Connection to RocketChat is taking too long.",
-                              "Configuration has failed")
+        self.check_exceptions(
+            mock_choices,
+            mock_request,
+            "Unable to configure. Connection to RocketChat is taking too long.",
+            "Configuration has failed",
+        )
