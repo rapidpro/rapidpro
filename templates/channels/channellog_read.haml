@@ -130,10 +130,21 @@
   -compress css inline
     {% lessblock %}
       :plain
+        table.list {
+          tbody {
+            tr:first-child {
+              td {
+                padding: 1.5rem;
+              }
+            }
+          }
+        }
+
         pre.prettyprint {
           margin: 0;
           border: 0;
           max-height: none !important;
+          padding: 1.5rem;
 
           &.request {
             background: #f7f7f9 + 111;
