@@ -69,6 +69,10 @@
 -block extra-style
   {{ block.super }}
   <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}rest_framework/css/prettify.css"/>
+  :css
+    .page-content {
+      max-width: 100%;
+    }
 
 -block extra-less
   {{block.super}}
