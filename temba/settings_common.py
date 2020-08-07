@@ -290,6 +290,12 @@ LOGGING = {
     },
 }
 
+# the name of our topup plan
+TOPUP_PLAN = "topups"
+
+# Default plan for new orgs
+DEFAULT_PLAN = TOPUP_PLAN
+
 # -----------------------------------------------------------------------------------
 # Branding Configuration
 # -----------------------------------------------------------------------------------
@@ -300,6 +306,7 @@ BRANDING = {
         "org": "UNICEF",
         "colors": dict(primary="#0c6596"),
         "styles": ["brands/rapidpro/font/style.css"],
+        "default_plan": TOPUP_PLAN,
         "welcome_topup": 1000,
         "email": "join@rapidpro.io",
         "support_email": "support@rapidpro.io",
@@ -1209,9 +1216,6 @@ MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
 
 # ElasticSearch configuration (URL RFC-1738)
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
-
-# Default plan for new orgs
-DEFAULT_PLAN = "topups"
 
 # Maximum active objects are org can have
 MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
