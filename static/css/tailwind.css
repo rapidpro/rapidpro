@@ -1724,6 +1724,7 @@ table.list tr td temba-checkbox {
 
 table.list.light thead tr th {
         background-color: transparent;
+        border-color: #ededed;
       }
 
 table.list.toggle thead {
@@ -2039,6 +2040,10 @@ code {
     padding-top: 1.5rem;
     padding-bottom: 1.5rem;
   }
+
+.shadow-subtle {
+  box-shadow: 0px 0px 25px 0px rgba(0, 0, 0, 0.05);
+}
 
 .help-text {
   font-size: 11px;

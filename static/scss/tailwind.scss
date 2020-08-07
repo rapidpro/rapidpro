@@ -337,7 +337,7 @@ table.list {
   &.light {
     thead {
       tr th {
-        @apply bg-transparent;
+        @apply bg-transparent border-gray-200;
       }
     }
   }
@@ -618,6 +618,10 @@ code {
 
 }
 
+.shadow-subtle {
+  box-shadow: 0px 0px 25px 0px rgba(0, 0, 0, 0.05);
+}
+
 .help-text {
   font-size: 11px;
   line-height: inherit;
@@ -656,9 +660,6 @@ code {
     }
 
     .formax-container {
-
-
-
       .formax-summary {
         @apply p-8 cursor-pointer;
 

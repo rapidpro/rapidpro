@@ -2885,10 +2885,10 @@ class ContactTest(TembaTest):
             self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-right"></span>')
 
         item = {"type": "flow_entered", "obj": run}
-        self.assertEqual(history_icon(item), '<span class="glyph icon-tree-2"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-flow"></span>')
 
         run.run_event_type = "Invalid"
-        self.assertEqual(history_icon(item), '<span class="glyph icon-tree-2"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-flow"></span>')
 
         item = {"type": "flow_exited", "obj": run}
 

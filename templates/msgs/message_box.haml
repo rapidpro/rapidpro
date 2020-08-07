@@ -249,7 +249,8 @@
 -block extra-script
   {{ block.super }}
   :javascript
-    function handleRowClicked(uuid) {
+
+    function handleRowClick(uuid) {
       gotoLink("/contact/read/" + uuid + "/");
     }
 
