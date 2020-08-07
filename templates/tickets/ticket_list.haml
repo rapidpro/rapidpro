@@ -18,7 +18,7 @@
                 .name(onclick="goto(event)" href="{% url 'tickets.ticket_open' %}")
                   -trans "Open"
               .lp-nav-item(class="{% if folder == 'closed' %}font-normal{% endif %}")
-                .name(onclick="goto(event)" href="{% url 'tickets.ticket_open' %}")
+                .name(onclick="goto(event)" href="{% url 'tickets.ticket_closed' %}")
                   -trans "Closed"
 
             -if ticketers
@@ -58,10 +58,12 @@
                 %tr.ticket.object-row.select-row{ data-object-id: "{{ obj.id }}"}
                   -if actions and org_perms.tickets.ticket_update
                     %td.campaign.checkbox.object-row-checkbox
-                      .glyph.icon-checkbox-unchecked.flow-checkbox.object-row-checkbox
+                      %temba-checkbox{onclick:"handleRowSelection(this)"}
+
                   %td.whitespace-no-wrap
-                    .hover-linked{onclick:"goto(event)", href:"/contact/read/{{object.contact.uuid}}/"}
+                    .hover-linked(onclick="goto(event)" href="/contact/read/{{object.contact.uuid}}/")
                       {{ object.contact|short_name:user_org }}
+
                   -if not ticketer
                     %td.ticket-ticketer
                       -if object.ticketer.is_active
@@ -70,17 +72,18 @@
                       -else
                         %span.ticketer-inactive
                           {{ object.ticketer.name }}
-                  %td(onclick="handleRowSelection(this)")
+
+                  %td
                     {{ object.subject }}
-                  %td(onclick="handleRowSelection(this)")
+                  %td
                     {{ object.body }}
 
                   -if not folder
-                    %td(onclick="handleRowSelection(this)")
+                    %td
                       %span.label(class="status-{{object.status}}")
                         {{ object.get_status_display }}
 
-                  %td.opened_on(onclick="handleRowSelection(this)")
+                  %td
                     .flex.w-full.items-end.justify-end.pr-4
                       .time.whitespace-no-wrap
                         {% short_datetime object.opened_on %}
@@ -96,21 +99,6 @@
                 -include "includes/results_count.html"
               .flex-grow
                 -include "includes/pages.html"
-
-
--block extra-script
-  {{ block.super }}
-
-  :javascript
-    $('.select-row').live('mouseover', function(){
-      var contactPageUrl = '/contact/read/' + $(this).data('contact-uuid');
-
-      $(this).find('td').not('.checkbox').each(function(){
-        $(this).on('click', function() {
-          document.location.href = contactPageUrl;
-        });
-      });
-    });
 
 
 -block extra-style
