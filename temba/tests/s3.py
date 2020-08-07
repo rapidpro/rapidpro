@@ -54,8 +54,10 @@ class MockS3Client:
 
         payload.seek(0)
 
-        return [
-            {"Records": {"Payload": payload.read()}},
-            {"Stats": {"Details": {"BytesScanned": 123, "BytesProcessed": 234, "BytesReturned": 3456}}},
-            {"End": {}},
-        ]
+        return {
+            "Payload": [
+                {"Records": {"Payload": payload.read()}},
+                {"Stats": {"Details": {"BytesScanned": 123, "BytesProcessed": 234, "BytesReturned": 3456}}},
+                {"End": {}},
+            ]
+        }

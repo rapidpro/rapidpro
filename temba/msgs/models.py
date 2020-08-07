@@ -1620,9 +1620,6 @@ class ExportMessagesTask(BaseExportTask):
                 if last_created_on is None or last_created_on < created_on:
                     last_created_on = created_on
 
-                if created_on < start_date or created_on > end_date:  # pragma: can't cover
-                    continue
-
                 if group_contacts and record["contact"]["uuid"] not in group_contacts:
                     continue
 

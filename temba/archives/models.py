@@ -4,6 +4,7 @@ from gettext import gettext as _
 from urllib.parse import urlparse
 
 import boto3
+import iso8601
 from dateutil.relativedelta import relativedelta
 
 from django.conf import settings
@@ -148,43 +149,53 @@ class Archive(models.Model):
         return archives.order_by("start_date")
 
     @classmethod
-    def iter_all_records(cls, org, archive_type: str, after: datetime = None, before: datetime = None):
+    def iter_all_records(
+        cls, org, archive_type: str, after: datetime = None, before: datetime = None, expression: str = None
+    ):
         archives = cls._get_covering_period(org, archive_type, after, before)
         for archive in archives:
-            for record in archive.iter_records():
+            for record in archive.iter_records(expression):
+
+                # TODO could do this in S3 select
+                created_on = iso8601.parse_date(record["created_on"])
+                if after and created_on < after:
+                    continue
+                if before and created_on > before:
+                    continue
+
                 yield record
 
-    def iter_records(self):
+    def iter_records(self, expression: str = None):
         """
         Creates an iterator for the records in this archive, streaming and decompressing on the fly
         """
         s3 = self.s3_client()
-        s3_obj = s3.get_object(**self.s3_location())
-        stream = gzip.GzipFile(fileobj=s3_obj["Body"])
 
-        while True:
-            line = stream.readline()
-            if not line:
-                break
+        if expression:
+            response = s3.select_object_content(
+                **self.s3_location(),
+                ExpressionType="SQL",
+                Expression=f"SELECT * FROM s3object s WHERE {expression}",
+                InputSerialization={"CompressionType": "GZIP", "JSON": {"Type": "LINES"}},
+                OutputSerialization={"JSON": {"RecordDelimiter": "\n"}},
+            )
 
-            yield self._parse_record(line)
+            for event in response["Payload"]:
+                if "Records" in event:
+                    lines = event["Records"]["Payload"].split(b"\n")
+                    for line in lines:
+                        if line:
+                            yield self._parse_record(line)
+        else:
+            s3_obj = s3.get_object(**self.s3_location())
+            stream = gzip.GzipFile(fileobj=s3_obj["Body"])
 
-    def select_records(self, expression):
-        s3 = self.s3_client()
-        stream = s3.select_object_content(
-            **self.s3_location(),
-            ExpressionType="SQL",
-            Expression=f"SELECT * FROM s3object WHERE {expression}",
-            InputSerialization={"CompressionType": "GZIP", "JSON": {"Type": "LINES"}},
-            OutputSerialization={"JSON": {"RecordDelimiter": "\n"}},
-        )
+            while True:
+                line = stream.readline()
+                if not line:
+                    break
 
-        for event in stream:
-            if "Records" in event:
-                lines = event["Records"]["Payload"].split(b"\n")
-                for line in lines:
-                    if line:
-                        yield self._parse_record(line)
+                yield self._parse_record(line)
 
     @staticmethod
     def _parse_record(line):

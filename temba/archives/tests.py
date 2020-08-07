@@ -36,7 +36,7 @@ class ArchiveTest(TembaTest):
             self.assertEqual(next(records_iter), {"id": 3})
             self.assertRaises(StopIteration, next, records_iter)
 
-    def test_select_records(self):
+    def test_iter_records_with_expression(self):
         archive = Archive.objects.create(
             org=self.org,
             archive_type=Archive.TYPE_MSG,
@@ -53,7 +53,7 @@ class ArchiveTest(TembaTest):
         mock_s3.put_jsonl("s3-bucket", "my/32562662.jsonl.gz", [{"id": 1}, {"id": 2}, {"id": 3}])
 
         with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
-            records_iter = archive.select_records("direction = 'in'")
+            records_iter = archive.iter_records(expression="direction = 'in'")
 
             self.assertEqual(next(records_iter), {"id": 1})
             self.assertEqual(next(records_iter), {"id": 2})
