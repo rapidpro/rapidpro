@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.views import OrgObjPermsMixin
-from temba.utils.fields import InputWidget
+from temba.utils.fields import InputWidget, SelectMultipleWidget
 from temba.utils.views import ComponentFormMixin
 
 from .models import Schedule
@@ -33,8 +33,13 @@ class BaseScheduleForm(object):
 
 class ScheduleForm(BaseScheduleForm, forms.ModelForm):
     repeat_period = forms.ChoiceField(choices=Schedule.REPEAT_CHOICES)
-    repeat_days_of_week = forms.CharField(required=False)
-    start = forms.CharField(max_length=16)
+
+    repeat_days_of_week = forms.MultipleChoiceField(
+        choices=Schedule.REPEAT_DAYS_CHOICES,
+        label="Repeat Days",
+        required=False,
+        widget=SelectMultipleWidget(attrs=({"placeholder": _("Select days to repeat on")})),
+    )
 
     start_datetime = forms.DateTimeField(
         required=False,
@@ -45,6 +50,9 @@ class ScheduleForm(BaseScheduleForm, forms.ModelForm):
     def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["start_datetime"].help_text = _("%s Time Zone" % org.timezone)
+
+    def clean_repeat_days_of_week(self):
+        return "".join(self.cleaned_data["repeat_days_of_week"])
 
     class Meta:
         model = Schedule

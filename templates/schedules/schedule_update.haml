@@ -14,7 +14,7 @@
     -if object.get_broadcast
       #schedule-options
         -render_field 'start_datetime'
-      #recurrence{class:'{% if not object.schedule.next_fire %}hidden{%endif%}'}
+      #recurrence
         .repeat-period
           -render_field 'repeat_period'
         .weekly-repeat-options{class:'{% if form.repeat_period.value == "W" %}{% else%}hidden{%endif%}'}
@@ -68,9 +68,31 @@
     %input.button-primary{type:'submit', value:'Schedule'}
 
 -block extra-script
+  {{block.super}}
   :javascript
     function unschedule(event) {
       event.stopPropagation();
       event.preventDefault();
       handlePosterize(event.currentTarget);
     }
+
+    function wireRepeatListener() {
+      var repeatPeriod = document.querySelector("#id_repeat_period");      
+      if (repeatPeriod) {
+        repeatPeriod.addEventListener("change", function(event){
+          var currentRepeat = event.currentTarget.values[0].value;
+          if (currentRepeat == 'W') {
+            document.querySelector(".weekly-repeat-options").classList.remove("hidden");
+          } else {
+            document.querySelector(".weekly-repeat-options").classList.add("hidden");
+          }
+        });
+      } else {
+        // we can't use DOMContentLoaded here since we need it 
+        // to invoke after formax submission too
+        window.setTimeout(function(){wireRepeatListener()}, 300);
+      }
+    }
+
+    wireRepeatListener();
+
