@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-03 23:29+0000\n"
+"POT-Creation-Date: 2020-08-07 20:06+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -5626,6 +5626,19 @@ msgstr ""
 msgid "Must specify at least one day of the week"
 msgstr ""
 
+#, fuzzy
+#| msgid "Select a message to record"
+msgid "Select days to repeat on"
+msgstr "Selecione uma mensagem para gravar"
+
+msgid " "
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "Timezone"
+msgid "%s Time Zone"
+msgstr "Fuso horário"
+
 msgid "English"
 msgstr "Inglês"
 
@@ -5856,6 +5869,11 @@ msgstr[1] "Respostas"
 
 msgid "The message to send in response after they join the group (optional)"
 msgstr "A mensagem para enviar em resposta após se juntar ao grupo (opcional)"
+
+#, fuzzy
+#| msgid "starts the"
+msgid "Start Time"
+msgstr "inicia o"
 
 #, fuzzy
 msgid "Select a flow"
@@ -9334,24 +9352,8 @@ msgstr "Histórico de mensagens"
 #, fuzzy, python-format
 msgid ""
 "\n"
-"                        %(count_comma)s recipient\n"
-"                        "
-msgid_plural ""
-"\n"
-"                          %(count_comma)s recipients\n"
-"                      "
-msgstr[0] ""
-"\n"
-"Distribuir para %(count_comma)s Contact"
-msgstr[1] ""
-"\n"
-"Distribuir para %(count_comma)s contatos"
-
-#, fuzzy, python-format
-msgid ""
-"\n"
-"                        %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
-"                      "
+"                    %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
+"                  "
 msgstr ""
 "\n"
 "Contatos %(contacts_count)s importados com sucesso para"
@@ -9363,55 +9365,35 @@ msgid_plural "%(recipients)s recipients currently at this step in the flow"
 msgstr[0] "Quando o usuário saiu neste passo no fluxo"
 msgstr[1] "Quando o usuário saiu neste passo no fluxo"
 
-msgid "Write the message that will get sent when the scheduled time arrives"
-msgstr "Escrever a mensagem que será enviada quando chegar o momento agendado"
+#, fuzzy
+msgid "Message Details"
+msgstr "Contagem de mensagens \"tentar novamente\""
 
 #, fuzzy, python-format
 msgid ""
 "\n"
-"        The message will be sent to\n"
-"        <span class='attn'>\n"
 "          %(count_comma)s recipients\n"
-"        </span>\n"
 "        "
 msgid_plural ""
 "\n"
-"          The message will be sent to\n"
-"          <span class='attn'>\n"
-"            %(count_comma)s recipients\n"
-"          </span>\n"
+"          %(count_comma)s recipients\n"
 "      "
 msgstr[0] ""
 "\n"
-"A mensagem será enviada para \n"
-"<span class='attn'>\n"
-"%(contacts)s\n"
-"contatos %(pluralizer)s\n"
-"</span>"
+"%(sms_sent)s Enviadas"
 msgstr[1] ""
 "\n"
-"A mensagem será enviada para \n"
-"<span class='attn'>\n"
-"%(contacts)s\n"
-"contatos %(pluralizer)s\n"
-"</span>"
+"%(sms_sent)s Enviadas"
 
 #, fuzzy, python-format
 msgid ""
 "\n"
-"        The message will be sent to\n"
-"        <span class='attn'>\n"
-"          %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
+"        %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
 "\n"
-"        </span>\n"
 "      "
 msgstr ""
 "\n"
-"A mensagem será enviada para \n"
-"<span class='attn'>\n"
-"%(contacts)s\n"
-"contatos %(pluralizer)s\n"
-"</span>"
+"Contatos %(contacts_count)s importados com sucesso para"
 
 msgid "Your message export is ready."
 msgstr ""
@@ -11405,8 +11387,8 @@ msgstr "Seu número de telefone agora está conectado"
 #, fuzzy, python-format
 msgid ""
 "\n"
-"            You can now start flows through %(name)s.\n"
-"          "
+"      You can now start flows through %(name)s.\n"
+"    "
 msgstr ""
 "\n"
 "Você pode enviar e receber mensagens através do %(name)s"
@@ -11414,16 +11396,38 @@ msgstr ""
 msgid "Getting Started"
 msgstr "Introduzindo"
 
-msgid "FLOWS"
-msgstr "FLUXOS"
-
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        Every account includes 1,000 credits to get you started.\n"
+#| "\n"
+#| "      "
 msgid ""
 "\n"
-"          Using a simple drag-and-drop interface, anybody can design a custom SMS application\n"
-"          that is tailored to their needs. Design a flow in minutes and start getting responses\n"
-"          instantly. Once people start interacting with your flow, use real-time analytics to\n"
-"          see how things are going.\n"
-"        "
+"      Here's a short introduction to help you get started.\n"
+"\n"
+"\n"
+"    "
+msgstr ""
+"\n"
+"Cada conta inclui 1.000 créditos para você começar. "
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "          Using a simple drag-and-drop interface, anybody can design a custom SMS application\n"
+#| "          that is tailored to their needs. Design a flow in minutes and start getting responses\n"
+#| "          instantly. Once people start interacting with your flow, use real-time analytics to\n"
+#| "          see how things are going.\n"
+#| "        "
+msgid ""
+"\n"
+"            Using a simple drag-and-drop interface, anybody can design a custom SMS application\n"
+"            that is tailored to their needs. Design a flow in minutes and start getting responses\n"
+"            instantly. Once people start interacting with your flow, use real-time analytics to\n"
+"            see how things are going.\n"
+"\n"
+"          "
 msgstr ""
 "\n"
 "Usando uma simples interface arrasta-e-solta, qualquer um pode criar uma aplicação SMS personalizada que seja adaptado às suas necessidades, projetar um fluxo em minutos e começar a receber respostas instantaneamente. Uma vez que as pessoas começarem a interagir com o seu fluxo, use análises em tempo real para ver como as coisas estão indo. "
@@ -11440,8 +11444,9 @@ msgstr "Visualizar exemplos de fluxos"
 msgid "How to Build Flows"
 msgstr "Como construir fluxos"
 
-msgid "GET CONNECTED"
-msgstr "Conecte-se"
+#, fuzzy
+msgid "Get Connected"
+msgstr "Conecte Infobip"
 
 #, python-format
 msgid ""
@@ -11456,11 +11461,17 @@ msgstr ""
 "Não importa onde você esteja no mundo, é fácil de configurar o %(name)s para trabalhar em telefones reais sem demora.  \n"
 "Independente se você quiser usar um número Twilio, uma conexão direta com sua operadora local, ou até mesmo o cartão SIM, garantimos que você terá nossa cobertura."
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "            You can also use our flow simulator if you don't want to setup a number right away.\n"
+#| "\n"
+#| "          "
 msgid ""
 "\n"
-"            You can also use our flow simulator if you don't want to setup a number right away.\n"
+"              You can also use our flow simulator if you don't want to setup a number right away.\n"
 "\n"
-"          "
+"            "
 msgstr ""
 "\n"
 "Você também pode usar nosso simulador de fluxo, se você não quiser configurar um número de imediato. "
@@ -11468,10 +11479,21 @@ msgstr ""
 msgid "Add Number"
 msgstr "Adicionar números"
 
-msgid "CONTACTS"
-msgstr "CONTATOS"
-
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          Before you do anything else in %(name)s, it is helpful to have a list of contacts. This will make it easy to send a message or survey out\n"
+#| "          to a wide distribution list.\n"
+#| "\n"
+#| "          For example, you might have groups\n"
+#| "          called <i>Field Staff</i>, <i>Office Managers</i>, or <i>Trainees</i>. You can import these groups into\n"
+#| "          %(name)s by uploading an Excel file using our\n"
+#| "          <a href='%(STATIC_URL)s/examples/contacts.xls'>\n"
+#| "            template\n"
+#| "          </a>\n"
+#| "          as a guide. We'll create a group for you automatically for each file you upload. Don't worry, it's easy to add or\n"
+#| "          remove people from groups later if you need to tweak things.\n"
+#| "        "
 msgid ""
 "\n"
 "          Before you do anything else in %(name)s, it is helpful to have a list of contacts. This will make it easy to send a message or survey out\n"
@@ -11485,6 +11507,7 @@ msgid ""
 "          </a>\n"
 "          as a guide. We'll create a group for you automatically for each file you upload. Don't worry, it's easy to add or\n"
 "          remove people from groups later if you need to tweak things.\n"
+"\n"
 "        "
 msgstr ""
 "\n"
@@ -11499,18 +11522,22 @@ msgstr ""
 "como um guia. Para cada arquivo que você fizer upload, vamos criar um grupo automaticamente. Não se preocupe, é fácil adicionar ou  \n"
 "remover pessoas dos grupos mais tarde, se você precisar."
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "          If you want anybody to be able to join a group using SMS, you can set a <i>join keyword</i>. Anybody who\n"
+#| "          texts with that keyword will automatically be registered into the group.\n"
+#| "\n"
+#| "        "
 msgid ""
 "\n"
-"          If you want anybody to be able to join a group using SMS, you can set a <i>join keyword</i>. Anybody who\n"
-"          texts with that keyword will automatically be registered into the group.\n"
+"            If you want anybody to be able to join a group using SMS, you can set a <i>join keyword</i>. Anybody who\n"
+"            texts with that keyword will automatically be registered into the group.\n"
 "\n"
-"        "
+"          "
 msgstr ""
 "\n"
 "Se você quiser que qualquer um seja capaz de se juntar a um grupo usando o SMS, você pode definir uma <i>palavra-chave </ i>. Qualquer um que enviar mensagem com a palavra-chave será automaticamente registrado no grupo. "
-
-msgid "MESSAGES"
-msgstr "MENSAGENS"
 
 #, python-format
 msgid ""
@@ -11524,36 +11551,43 @@ msgstr ""
 "\n"
 "Se você é usuário de e-mail, ler e escrever mensagens no %(name)s já será familiar para você. Assim como no e-mail, você tem uma caixa de entrada e é fácil classificar mensagens para que você possa acompanha-las mais tarde. %(name)s também permite que você agende uma mensagem para ser enviada posteriormente ou até mesmo como um lembrete em uma programação regular. "
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          For example you might have %(name)s send a message every Friday reminding people in the <i>Field Staff</i> group to complete their weekly report.\n"
+#| "          If anybody joins the <i>Field Staff</i> group later, they will automatically start receiving the weekly reminder.\n"
+#| "\n"
+#| "        "
 msgid ""
 "\n"
-"          For example you might have %(name)s send a message every Friday reminding people in the <i>Field Staff</i> group to complete their weekly report.\n"
-"          If anybody joins the <i>Field Staff</i> group later, they will automatically start receiving the weekly reminder.\n"
+"            For example you might have %(name)s send a message every Friday reminding people in the <i>Field Staff</i> group to complete their weekly report.\n"
+"            If anybody joins the <i>Field Staff</i> group later, they will automatically start receiving the weekly reminder.\n"
 "\n"
-"        "
+"          "
 msgstr ""
 "\n"
 "Por exemplo, você pode usar o %(name)s para enviar uma mensagem toda sexta-feira lembrando as pessoas do grupo <i> Equipe de Campo </ i> de completar o seu relatório semanal. \n"
 "Se alguém se juntar ao grupo <i> Equipe de Campo </ i> mais tarde, vão começar a receber automaticamente o lembrete semanal."
 
-msgid "WORKSPACE"
-msgstr ""
-
-#, fuzzy
-#| msgid "Visit your account page to add credits at any time"
-msgid "Visit your workspace page to add credits at any time"
-msgstr "Visite a página de sua conta para adicionar créditos a qualquer momento"
-
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          %(name)s also offers a robust REST API to add SMS features to your own website. Have a look through the\n"
+#| "          <a href='%(api_url)s'>\n"
+#| "            API documentation\n"
+#| "          </a>\n"
+#| "          to learn more.\n"
+#| "\n"
+#| "        "
 msgid ""
 "\n"
-"          %(name)s also offers a robust REST API to add SMS features to your own website. Have a look through the\n"
-"          <a href='%(api_url)s'>\n"
-"            API documentation\n"
-"          </a>\n"
-"          to learn more.\n"
+"            %(name)s also offers a robust REST API to add SMS features to your own website. Have a look through the\n"
+"            <a href='%(api_url)s'>\n"
+"              API documentation\n"
+"            </a>\n"
+"            to learn more.\n"
 "\n"
-"        "
+"          "
 msgstr ""
 "\n"
 "%(name)s também oferece uma API REST robusta para adicionar funcionalidades SMS para seu próprio site. Dê uma olhada através do  \n"
@@ -11561,9 +11595,6 @@ msgstr ""
 "Documentação da API \n"
 "</ a> \n"
 "para saber mais. "
-
-msgid "Add Web Hook"
-msgstr "Adicionar Web Hook"
 
 msgid "API Documentation"
 msgstr "Documentação da API"
@@ -11596,11 +11627,11 @@ msgstr "Adicionar video"
 #, fuzzy, python-format
 msgid ""
 "\n"
-"      To make sure you get the most out of %(brand)s, we've put together a bunch of short videos to guide you through\n"
-"      some of the most powerful features. Each of these videos are only a couple minutes, but they will help you\n"
-"      build complex flows without a lot of effort.\n"
+"    To make sure you get the most out of %(brand)s, we've put together a bunch of short videos to guide you through\n"
+"    some of the most powerful features. Each of these videos are only a couple minutes, but they will help you\n"
+"    build complex flows without a lot of effort.\n"
 "\n"
-"    "
+"  "
 msgstr ""
 "\n"
 "Para garantir que você esta aproveitando ao máximo o Textit, reunimos vários vídeos curtos para guiá-lo em alguns dos recursos mais poderosos. Cada um desses vídeos tem apenas dois minutos, mas vão ajudá-lo a construir fluxos complexos sem muito esforço. "
@@ -11649,35 +11680,9 @@ msgid "Connection Error"
 msgstr "Erro no transmissor"
 
 #, fuzzy
-#| msgid "Create Schedule"
-msgid "Leave unscheduled"
-msgstr "Criar agendamento"
-
-#, fuzzy
-#| msgid "Create Schedule"
-msgid "Cancel schedule"
-msgstr "Criar agendamento"
-
-msgid "Mon"
-msgstr "Segunda-feira"
-
-msgid "Tue"
-msgstr "Terça-feira"
-
-msgid "Wed"
-msgstr "Quarta-feira"
-
-msgid "Thu"
-msgstr "Quinta-feira"
-
-msgid "Fri"
-msgstr "Sexta-feira"
-
-msgid "Sat"
-msgstr "Sábado"
-
-msgid "Sun"
-msgstr "Domingo"
+#| msgid "Choose when you would like the flow to start."
+msgid "Select when you would like the message to be sent"
+msgstr "Escolha quando você gostaria de iniciar o fluxo."
 
 #, fuzzy
 #| msgid "When this message was sent to the endpoint"
@@ -11709,6 +11714,11 @@ msgstr "Se repetirá a cada"
 #| msgid "It will repeat every"
 msgid "not repeat"
 msgstr "Se repetirá a cada"
+
+#, fuzzy
+#| msgid "not scheduled"
+msgid "Unschedule"
+msgstr "Não agendado"
 
 #, fuzzy
 #| msgid "not scheduled"
@@ -11933,33 +11943,46 @@ msgstr "Criar uma palavra-chave SMS que inicia um fluxo."
 msgid "The keyword"
 msgstr "A palavra-chave"
 
-msgid "missed call"
+#, fuzzy
+#| msgid "missed call"
+msgid "A missed call"
 msgstr "Chamadas perdidas"
 
-msgid "uncaught message"
+#, fuzzy
+#| msgid "uncaught message"
+msgid "An uncaught message"
 msgstr "mensagem não capturada"
 
 #, fuzzy
-msgid "inbound call"
+msgid "An inbound call"
 msgstr "Chamadas perdidas"
 
 #, fuzzy
-msgid "conversation"
+msgid "A new conversation"
 msgstr "Configuração"
 
-msgid "The"
-msgstr "O"
+#, fuzzy
+#| msgid "Mon"
+msgid "on"
+msgstr "Segunda-feira"
 
-msgid "starts the"
+#, fuzzy
+#| msgid "The type of this trigger"
+msgid "The referrer id"
+msgstr "O tipo desse disparo"
+
+#, fuzzy
+msgid "on the channel"
+msgstr "Transmissor"
+
+#, fuzzy
+#| msgid "starts the"
+msgid "starts"
 msgstr "inicia o"
 
-msgid "flow"
-msgstr "fluxo"
-
-msgid "is"
-msgstr "é"
-
-msgid "not scheduled"
+#, fuzzy
+#| msgid "not scheduled"
+msgid "is not scheduled"
 msgstr "Não agendado"
 
 msgid "No matching triggers."
@@ -11984,56 +12007,8 @@ msgstr "Iniciar um fluxo após detectar uma chamada perdida."
 msgid "Create a message keyword that allows people to join a group."
 msgstr "Criar uma palavra-chave SMS que permite às pessoas se juntarem a um grupo."
 
-msgid "Select a date"
-msgstr "Selecionar uma data"
-
 msgid "Start a flow in the future or on a schedule."
 msgstr "Iniciar um fluxo futuramente ou segundo agendamento."
-
-msgid "Missed call trigger activated. Change flow that starts on missed call."
-msgstr "Disparador ativado para chamadas perdidas. Mudar o fluxo que se inicia ao identificar uma chamada perdida."
-
-msgid "Catch all trigger activated. Change flow that catches all messages."
-msgstr "Disparador ativado para capturar todas as mensagens. Mudar fluxo que captura todas as mensagens."
-
-#, fuzzy
-msgid "The next time the flow will be started is"
-msgstr "Qual fluxo será iniciado"
-
-msgid "month"
-msgstr "mês"
-
-#, python-format
-msgid ""
-"\n"
-"          on the %(repeat_day_of_month)s\n"
-"\n"
-"        "
-msgstr ""
-"\n"
-"no %(repeat_day_of_month)s"
-
-#, python-format
-msgid ""
-"\n"
-"          It will repeat <span class='attn'>%(repeat_period_display)s</span> at around the same time.\n"
-"\n"
-"        "
-msgstr ""
-"\n"
-"Se repetirá <span class='attn'>%(repeat_period_display)s</span> em torno da mesma hora."
-
-msgid ""
-"\n"
-"        It will <span class='attn'>not repeat</span>.\n"
-"\n"
-"      "
-msgstr ""
-"\n"
-"Não <span class='attn'>repetirá</span>."
-
-msgid "Choose when you would like the flow to start."
-msgstr "Escolha quando você gostaria de iniciar o fluxo."
 
 #, fuzzy
 #| msgid "Enter Claim Code"
@@ -12043,6 +12018,187 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy, python-format
+#~ msgid ""
+#~ "\n"
+#~ "                        %(count_comma)s recipient\n"
+#~ "                        "
+#~ msgid_plural ""
+#~ "\n"
+#~ "                          %(count_comma)s recipients\n"
+#~ "                      "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "Distribuir para %(count_comma)s Contact"
+#~ msgstr[1] ""
+#~ "\n"
+#~ "Distribuir para %(count_comma)s contatos"
+
+#, fuzzy, python-format
+#~ msgid ""
+#~ "\n"
+#~ "                        %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
+#~ "                      "
+#~ msgstr ""
+#~ "\n"
+#~ "Contatos %(contacts_count)s importados com sucesso para"
+
+#~ msgid "Write the message that will get sent when the scheduled time arrives"
+#~ msgstr "Escrever a mensagem que será enviada quando chegar o momento agendado"
+
+#, fuzzy, python-format
+#~ msgid ""
+#~ "\n"
+#~ "        The message will be sent to\n"
+#~ "        <span class='attn'>\n"
+#~ "          %(count_comma)s recipients\n"
+#~ "        </span>\n"
+#~ "        "
+#~ msgid_plural ""
+#~ "\n"
+#~ "          The message will be sent to\n"
+#~ "          <span class='attn'>\n"
+#~ "            %(count_comma)s recipients\n"
+#~ "          </span>\n"
+#~ "      "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "A mensagem será enviada para \n"
+#~ "<span class='attn'>\n"
+#~ "%(contacts)s\n"
+#~ "contatos %(pluralizer)s\n"
+#~ "</span>"
+#~ msgstr[1] ""
+#~ "\n"
+#~ "A mensagem será enviada para \n"
+#~ "<span class='attn'>\n"
+#~ "%(contacts)s\n"
+#~ "contatos %(pluralizer)s\n"
+#~ "</span>"
+
+#, fuzzy, python-format
+#~ msgid ""
+#~ "\n"
+#~ "        The message will be sent to\n"
+#~ "        <span class='attn'>\n"
+#~ "          %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
+#~ "\n"
+#~ "        </span>\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "A mensagem será enviada para \n"
+#~ "<span class='attn'>\n"
+#~ "%(contacts)s\n"
+#~ "contatos %(pluralizer)s\n"
+#~ "</span>"
+
+#~ msgid "FLOWS"
+#~ msgstr "FLUXOS"
+
+#~ msgid "GET CONNECTED"
+#~ msgstr "Conecte-se"
+
+#~ msgid "CONTACTS"
+#~ msgstr "CONTATOS"
+
+#~ msgid "MESSAGES"
+#~ msgstr "MENSAGENS"
+
+#, fuzzy
+#~| msgid "Visit your account page to add credits at any time"
+#~ msgid "Visit your workspace page to add credits at any time"
+#~ msgstr "Visite a página de sua conta para adicionar créditos a qualquer momento"
+
+#~ msgid "Add Web Hook"
+#~ msgstr "Adicionar Web Hook"
+
+#, fuzzy
+#~| msgid "Create Schedule"
+#~ msgid "Leave unscheduled"
+#~ msgstr "Criar agendamento"
+
+#, fuzzy
+#~| msgid "Create Schedule"
+#~ msgid "Cancel schedule"
+#~ msgstr "Criar agendamento"
+
+#~ msgid "Tue"
+#~ msgstr "Terça-feira"
+
+#~ msgid "Wed"
+#~ msgstr "Quarta-feira"
+
+#~ msgid "Thu"
+#~ msgstr "Quinta-feira"
+
+#~ msgid "Fri"
+#~ msgstr "Sexta-feira"
+
+#~ msgid "Sat"
+#~ msgstr "Sábado"
+
+#~ msgid "Sun"
+#~ msgstr "Domingo"
+
+#, fuzzy
+#~ msgid "conversation"
+#~ msgstr "Configuração"
+
+#~ msgid "The"
+#~ msgstr "O"
+
+#~ msgid "flow"
+#~ msgstr "fluxo"
+
+#~ msgid "is"
+#~ msgstr "é"
+
+#~ msgid "Select a date"
+#~ msgstr "Selecionar uma data"
+
+#~ msgid "Missed call trigger activated. Change flow that starts on missed call."
+#~ msgstr "Disparador ativado para chamadas perdidas. Mudar o fluxo que se inicia ao identificar uma chamada perdida."
+
+#~ msgid "Catch all trigger activated. Change flow that catches all messages."
+#~ msgstr "Disparador ativado para capturar todas as mensagens. Mudar fluxo que captura todas as mensagens."
+
+#, fuzzy
+#~ msgid "The next time the flow will be started is"
+#~ msgstr "Qual fluxo será iniciado"
+
+#~ msgid "month"
+#~ msgstr "mês"
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "          on the %(repeat_day_of_month)s\n"
+#~ "\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "no %(repeat_day_of_month)s"
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "          It will repeat <span class='attn'>%(repeat_period_display)s</span> at around the same time.\n"
+#~ "\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "Se repetirá <span class='attn'>%(repeat_period_display)s</span> em torno da mesma hora."
+
+#~ msgid ""
+#~ "\n"
+#~ "        It will <span class='attn'>not repeat</span>.\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "Não <span class='attn'>repetirá</span>."
 
 #, fuzzy
 #~| msgid "Disable Voice Calling"
@@ -12879,22 +13035,6 @@ msgstr ""
 #, fuzzy
 #~ msgid ""
 #~ "\n"
-#~ "                %(count_comma)s recipient\n"
-#~ "              "
-#~ msgid_plural ""
-#~ "\n"
-#~ "                %(count_comma)s recipients\n"
-#~ "              "
-#~ msgstr[0] ""
-#~ "\n"
-#~ "%(sms_sent)s Enviadas"
-#~ msgstr[1] ""
-#~ "\n"
-#~ "%(sms_sent)s Enviadas"
-
-#, fuzzy
-#~ msgid ""
-#~ "\n"
 #~ "      <span class='attn'>\n"
 #~ "        Nobody\n"
 #~ "      </span>\n"
@@ -13023,10 +13163,6 @@ msgstr ""
 #~| msgid "Channel Event"
 #~ msgid "Flow Event"
 #~ msgstr "Evento do transmissor"
-
-#, fuzzy
-#~ msgid "Message Event"
-#~ msgstr "Contagem de mensagens \"tentar novamente\""
 
 #, fuzzy
 #~| msgid "Wired"
@@ -15139,9 +15275,6 @@ msgstr ""
 #~ msgid "No participants"
 #~ msgstr "Sem participantes"
 
-#~ msgid "Select a message to record"
-#~ msgstr "Selecione uma mensagem para gravar"
-
 #~ msgid "Done"
 #~ msgstr "Feito"
 
@@ -15585,15 +15718,6 @@ msgstr ""
 
 #~ msgid "No Monthly Fees"
 #~ msgstr "Sem taxas mensais"
-
-#~ msgid ""
-#~ "\n"
-#~ "        Every account includes 1,000 credits to get you started.\n"
-#~ "\n"
-#~ "      "
-#~ msgstr ""
-#~ "\n"
-#~ "Cada conta inclui 1.000 créditos para você começar. "
 
 #~ msgid ""
 #~ "\n"

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-03 23:29+0000\n"
+"POT-Creation-Date: 2020-08-07 20:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4265,6 +4265,16 @@ msgstr ""
 msgid "Must specify at least one day of the week"
 msgstr ""
 
+msgid "Select days to repeat on"
+msgstr ""
+
+msgid " "
+msgstr ""
+
+#, python-format
+msgid "%s Time Zone"
+msgstr ""
+
 msgid "English"
 msgstr ""
 
@@ -4462,6 +4472,9 @@ msgstr[0] ""
 msgstr[1] ""
 
 msgid "The message to send in response after they join the group (optional)"
+msgstr ""
+
+msgid "Start Time"
 msgstr ""
 
 msgid "Select a flow"
@@ -6950,20 +6963,8 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"                        %(count_comma)s recipient\n"
-"                        "
-msgid_plural ""
-"\n"
-"                          %(count_comma)s recipients\n"
-"                      "
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid ""
-"\n"
-"                        %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
-"                      "
+"                    %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
+"                  "
 msgstr ""
 
 #, python-format
@@ -6972,23 +6973,17 @@ msgid_plural "%(recipients)s recipients currently at this step in the flow"
 msgstr[0] ""
 msgstr[1] ""
 
-msgid "Write the message that will get sent when the scheduled time arrives"
+msgid "Message Details"
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"        The message will be sent to\n"
-"        <span class='attn'>\n"
 "          %(count_comma)s recipients\n"
-"        </span>\n"
 "        "
 msgid_plural ""
 "\n"
-"          The message will be sent to\n"
-"          <span class='attn'>\n"
-"            %(count_comma)s recipients\n"
-"          </span>\n"
+"          %(count_comma)s recipients\n"
 "      "
 msgstr[0] ""
 msgstr[1] ""
@@ -6996,11 +6991,8 @@ msgstr[1] ""
 #, python-format
 msgid ""
 "\n"
-"        The message will be sent to\n"
-"        <span class='attn'>\n"
-"          %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
+"        %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
 "\n"
-"        </span>\n"
 "      "
 msgstr ""
 
@@ -8640,23 +8632,29 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"            You can now start flows through %(name)s.\n"
-"          "
+"      You can now start flows through %(name)s.\n"
+"    "
 msgstr ""
 
 msgid "Getting Started"
 msgstr ""
 
-msgid "FLOWS"
+msgid ""
+"\n"
+"      Here's a short introduction to help you get started.\n"
+"\n"
+"\n"
+"    "
 msgstr ""
 
 msgid ""
 "\n"
-"          Using a simple drag-and-drop interface, anybody can design a custom SMS application\n"
-"          that is tailored to their needs. Design a flow in minutes and start getting responses\n"
-"          instantly. Once people start interacting with your flow, use real-time analytics to\n"
-"          see how things are going.\n"
-"        "
+"            Using a simple drag-and-drop interface, anybody can design a custom SMS application\n"
+"            that is tailored to their needs. Design a flow in minutes and start getting responses\n"
+"            instantly. Once people start interacting with your flow, use real-time analytics to\n"
+"            see how things are going.\n"
+"\n"
+"          "
 msgstr ""
 
 msgid "To learn more about flows, visit the"
@@ -8671,7 +8669,7 @@ msgstr ""
 msgid "How to Build Flows"
 msgstr ""
 
-msgid "GET CONNECTED"
+msgid "Get Connected"
 msgstr ""
 
 #, python-format
@@ -8686,15 +8684,12 @@ msgstr ""
 
 msgid ""
 "\n"
-"            You can also use our flow simulator if you don't want to setup a number right away.\n"
+"              You can also use our flow simulator if you don't want to setup a number right away.\n"
 "\n"
-"          "
+"            "
 msgstr ""
 
 msgid "Add Number"
-msgstr ""
-
-msgid "CONTACTS"
 msgstr ""
 
 #, python-format
@@ -8711,18 +8706,16 @@ msgid ""
 "          </a>\n"
 "          as a guide. We'll create a group for you automatically for each file you upload. Don't worry, it's easy to add or\n"
 "          remove people from groups later if you need to tweak things.\n"
+"\n"
 "        "
 msgstr ""
 
 msgid ""
 "\n"
-"          If you want anybody to be able to join a group using SMS, you can set a <i>join keyword</i>. Anybody who\n"
-"          texts with that keyword will automatically be registered into the group.\n"
+"            If you want anybody to be able to join a group using SMS, you can set a <i>join keyword</i>. Anybody who\n"
+"            texts with that keyword will automatically be registered into the group.\n"
 "\n"
-"        "
-msgstr ""
-
-msgid "MESSAGES"
+"          "
 msgstr ""
 
 #, python-format
@@ -8738,31 +8731,22 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"          For example you might have %(name)s send a message every Friday reminding people in the <i>Field Staff</i> group to complete their weekly report.\n"
-"          If anybody joins the <i>Field Staff</i> group later, they will automatically start receiving the weekly reminder.\n"
+"            For example you might have %(name)s send a message every Friday reminding people in the <i>Field Staff</i> group to complete their weekly report.\n"
+"            If anybody joins the <i>Field Staff</i> group later, they will automatically start receiving the weekly reminder.\n"
 "\n"
-"        "
-msgstr ""
-
-msgid "WORKSPACE"
-msgstr ""
-
-msgid "Visit your workspace page to add credits at any time"
+"          "
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"          %(name)s also offers a robust REST API to add SMS features to your own website. Have a look through the\n"
-"          <a href='%(api_url)s'>\n"
-"            API documentation\n"
-"          </a>\n"
-"          to learn more.\n"
+"            %(name)s also offers a robust REST API to add SMS features to your own website. Have a look through the\n"
+"            <a href='%(api_url)s'>\n"
+"              API documentation\n"
+"            </a>\n"
+"            to learn more.\n"
 "\n"
-"        "
-msgstr ""
-
-msgid "Add Web Hook"
+"          "
 msgstr ""
 
 msgid "API Documentation"
@@ -8796,11 +8780,11 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"      To make sure you get the most out of %(brand)s, we've put together a bunch of short videos to guide you through\n"
-"      some of the most powerful features. Each of these videos are only a couple minutes, but they will help you\n"
-"      build complex flows without a lot of effort.\n"
+"    To make sure you get the most out of %(brand)s, we've put together a bunch of short videos to guide you through\n"
+"    some of the most powerful features. Each of these videos are only a couple minutes, but they will help you\n"
+"    build complex flows without a lot of effort.\n"
 "\n"
-"    "
+"  "
 msgstr ""
 
 msgid ""
@@ -8836,31 +8820,7 @@ msgstr ""
 msgid "Connection Error"
 msgstr ""
 
-msgid "Leave unscheduled"
-msgstr ""
-
-msgid "Cancel schedule"
-msgstr ""
-
-msgid "Mon"
-msgstr ""
-
-msgid "Tue"
-msgstr ""
-
-msgid "Wed"
-msgstr ""
-
-msgid "Thu"
-msgstr ""
-
-msgid "Fri"
-msgstr ""
-
-msgid "Sat"
-msgstr ""
-
-msgid "Sun"
+msgid "Select when you would like the message to be sent"
 msgstr ""
 
 msgid "The next message will be sent on"
@@ -8882,6 +8842,9 @@ msgid "It will "
 msgstr ""
 
 msgid "not repeat"
+msgstr ""
+
+msgid "Unschedule"
 msgstr ""
 
 msgid "Not scheduled"
@@ -9073,31 +9036,31 @@ msgstr ""
 msgid "The keyword"
 msgstr ""
 
-msgid "missed call"
+msgid "A missed call"
 msgstr ""
 
-msgid "uncaught message"
+msgid "An uncaught message"
 msgstr ""
 
-msgid "inbound call"
+msgid "An inbound call"
 msgstr ""
 
-msgid "conversation"
+msgid "A new conversation"
 msgstr ""
 
-msgid "The"
+msgid "on"
 msgstr ""
 
-msgid "starts the"
+msgid "The referrer id"
 msgstr ""
 
-msgid "flow"
+msgid "on the channel"
 msgstr ""
 
-msgid "is"
+msgid "starts"
 msgstr ""
 
-msgid "not scheduled"
+msgid "is not scheduled"
 msgstr ""
 
 msgid "No matching triggers."
@@ -9118,48 +9081,7 @@ msgstr ""
 msgid "Create a message keyword that allows people to join a group."
 msgstr ""
 
-msgid "Select a date"
-msgstr ""
-
 msgid "Start a flow in the future or on a schedule."
-msgstr ""
-
-msgid "Missed call trigger activated. Change flow that starts on missed call."
-msgstr ""
-
-msgid "Catch all trigger activated. Change flow that catches all messages."
-msgstr ""
-
-msgid "The next time the flow will be started is"
-msgstr ""
-
-msgid "month"
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"          on the %(repeat_day_of_month)s\n"
-"\n"
-"        "
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"          It will repeat <span class='attn'>%(repeat_period_display)s</span> at around the same time.\n"
-"\n"
-"        "
-msgstr ""
-
-msgid ""
-"\n"
-"        It will <span class='attn'>not repeat</span>.\n"
-"\n"
-"      "
-msgstr ""
-
-msgid "Choose when you would like the flow to start."
 msgstr ""
 
 msgid "Enter a query"
