@@ -22,6 +22,10 @@ function goto(event, ele) {
     }
 }
 
+function gotoLink(href) {
+    document.location.href = href;
+}
+
 function setCookie(name, value) {
     var now = new Date();
     now.setTime(now.getTime() + 60 * 1000 * 60 * 24 * 30);
@@ -128,6 +132,7 @@ document.addEventListener('temba-refresh-begin', function () {
     var modals = document.querySelectorAll('temba-modax');
     var activeElement = document.activeElement.tagName;
     var openMenu = !!document.querySelector('.gear-menu.open');
+    var selection = !!window.getSelection().toString();
 
     var focused = activeElement == 'TEMBA-TEXTINPUT';
 
@@ -143,7 +148,12 @@ document.addEventListener('temba-refresh-begin', function () {
     if (pjaxElement) {
         pjaxElement.setAttribute(
             'data-no-pjax',
-            dropDownOpen || checkedIds || openedModals || focused || openMenu
+            dropDownOpen ||
+                checkedIds ||
+                openedModals ||
+                focused ||
+                openMenu ||
+                selection
         );
     }
 });
@@ -384,8 +394,36 @@ function disposeVideoPlayer(element) {
     }
 }
 
+function wireTableListeners() {
+    var tds = document.querySelectorAll(
+        'table.selectable tr td:not(:first-child)'
+    );
+
+    for (var td of tds) {
+        td.addEventListener('mouseenter', function () {
+            var tr = this.parentElement;
+            tr.classList.add('hovered');
+        });
+
+        td.addEventListener('mouseleave', function () {
+            var tr = this.parentElement;
+            tr.classList.remove('hovered');
+        });
+
+        td.addEventListener('click', function () {
+            var tr = this.parentElement;
+            eval(tr.getAttribute('onrowclick'));
+        });
+    }
+}
+
+document.addEventListener('temba-refresh-complete', function () {
+    wireTableListeners();
+});
+
 // wire up our toggle tables
 document.addEventListener('DOMContentLoaded', function () {
+    wireTableListeners();
     document
         .querySelectorAll('table.list.toggle > thead')
         .forEach(function (ele) {

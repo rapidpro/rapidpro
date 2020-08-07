@@ -1,13 +1,16 @@
-function initializeDatetimePicker(minDate, initialDate, showButtons) {
-    if (showButtons === undefined) {
-        showButtons = true;
-    }
+function initializeDatetimePicker(
+    ele,
+    minDate,
+    initialDate,
+    showButtons,
+    user_tz,
+    user_tz_offset
+) {
+    // force us into jQuery
+    ele = $(ele);
 
-    var hasInitial = true;
-    if (initialDate === undefined) {
-        initialDate = minDate;
-        hasInitial = false;
-    }
+    initialDate = initialDate || minDate;
+    var hasInitial = !!initialDate;
 
     var initial = moment(initialDate).tz(user_tz);
     setDatetimeValue(initial, null, initialDate);
@@ -20,14 +23,11 @@ function initializeDatetimePicker(minDate, initialDate, showButtons) {
         initialHour = initial.hour();
         initialMinute = initial.minute();
         initialDate = initial.toDate();
-
-        $('#start-datetime').val(
-            initial.format('dddd, MMMM D, YYYY [at] h:mm a')
-        );
+        ele.val(initial.format('dddd, MMMM D, YYYY [at] h:mm a'));
     }
 
     var timeFormat = 'h:mm tt';
-    $('#start-datetime').datetimepicker({
+    ele.datetimepicker({
         dateFormat: 'DD, MM d, yy',
         timeFormat: timeFormat,
         pickerTimeFormat: "'Start at' " + timeFormat,

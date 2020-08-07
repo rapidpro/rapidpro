@@ -7,24 +7,33 @@ from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from temba.utils.fields import InputWidget, SelectWidget
+from temba.utils.fields import CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
 
 logger = logging.getLogger(__name__)
 
 
 class ComponentFormMixin(View):
-    def get_form(self):
-        form = super().get_form()
-        for name, field in form.fields.items():
-            if isinstance(field.widget, (forms.widgets.TextInput,)):
-                print("Replacing", name, field.widget)
-                field.widget = InputWidget()
-            elif isinstance(field.widget, (forms.widgets.Select)):
-                print("Replacing", name, field.widget)
-                field.widget = SelectWidget()
+    def customize_form_field(self, name, field):
+
+        # don't replace the widget if it is already one of us
+        if isinstance(field.widget, (CheckboxWidget, InputWidget, SelectWidget, SelectMultipleWidget)):
+            return field
+
+        if isinstance(
+            field.widget,
+            (forms.widgets.TextInput, forms.widgets.EmailInput, forms.widgets.URLInput, forms.widgets.NumberInput,),
+        ):
+            field.widget = InputWidget()
+        elif isinstance(field.widget, (forms.widgets.Select,)):
+            if isinstance(field, (forms.models.ModelMultipleChoiceField,)):
+                field.widget = SelectMultipleWidget()
             else:
-                print("Ignoring", name, field.widget)
-        return form
+                field.widget = SelectWidget()
+
+            field.widget.choices = field.choices
+        elif isinstance(field.widget, (forms.widgets.CheckboxInput,)):
+            field.widget = CheckboxWidget()
+        return field
 
 
 class PostOnlyMixin(View):

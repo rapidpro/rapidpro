@@ -606,18 +606,17 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse("orgs.org_edit"))
         self.assertEqual(200, response.status_code)
 
-        # update the name and slug of the organization
-        data = dict(name="Temba", timezone="Africa/Kigali", date_format=Org.DATE_FORMAT_DAY_FIRST, slug="nice temba")
+        # update the name of the organization
+        data = dict(name="Temba", timezone="Bad/Timezone", date_format=Org.DATE_FORMAT_DAY_FIRST)
         response = self.client.post(reverse("orgs.org_edit"), data)
-        self.assertIn("slug", response.context["form"].errors)
+        self.assertIn("timezone", response.context["form"].errors)
 
-        data = dict(name="Temba", timezone="Africa/Kigali", date_format=Org.DATE_FORMAT_MONTH_FIRST, slug="nice-temba")
+        data = dict(name="Temba", timezone="Africa/Kigali", date_format=Org.DATE_FORMAT_MONTH_FIRST)
         response = self.client.post(reverse("orgs.org_edit"), data)
         self.assertEqual(302, response.status_code)
 
         org = Org.objects.get(pk=self.org.pk)
         self.assertEqual("Temba", org.name)
-        self.assertEqual("nice-temba", org.slug)
 
     def test_two_factor(self):
         # for now only Beta members have access
@@ -904,6 +903,15 @@ class OrgTest(TembaTest):
         # only superuser
         self.login(self.superuser)
 
+        response = self.client.get(manage_url + "?flagged=1")
+        self.assertFalse(self.org in response.context["object_list"])
+
+        response = self.client.get(manage_url + "?anon=1")
+        self.assertFalse(self.org in response.context["object_list"])
+
+        response = self.client.get(manage_url + "?suspended=1")
+        self.assertFalse(self.org in response.context["object_list"])
+
         response = self.client.get(manage_url)
         self.assertEqual(200, response.status_code)
         self.assertNotContains(response, "(Flagged)")
@@ -914,6 +922,9 @@ class OrgTest(TembaTest):
 
         # should contain our test org
         self.assertContains(response, "Temba")
+
+        response = self.client.get(manage_url + "?flagged=1")
+        self.assertTrue(self.org in response.context["object_list"])
 
         # and can go to that org
         response = self.client.get(update_url)
@@ -1496,7 +1507,7 @@ class OrgTest(TembaTest):
         # superuser gets redirected to user management page
         self.login(self.superuser)
         response = self.client.get(choose_url, follow=True)
-        self.assertContains(response, "Workspaces")
+        self.assertEqual(reverse("orgs.org_manage"), response.request["PATH_INFO"])
 
     def test_topup_admin(self):
         self.login(self.admin)
@@ -1605,7 +1616,7 @@ class OrgTest(TembaTest):
         # check our credits
         self.login(self.admin)
         response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "<span class='attn'>999</span>")
+        self.assertContains(response, "<b>999</b>")
 
         # view our topups
         response = self.client.get(reverse("orgs.topup_list"))
@@ -1614,7 +1625,7 @@ class OrgTest(TembaTest):
         self.assertContains(response, "999\n")
 
         # should say we have a 1,000 credits too
-        self.assertContains(response, "1 of 1,000 Credits Used")
+        self.assertContains(response, "1,000 Credits")
 
         # our receipt should show that the topup was free
         with patch("stripe.Charge.retrieve") as stripe:
@@ -1622,7 +1633,7 @@ class OrgTest(TembaTest):
             response = self.client.get(
                 reverse("orgs.topup_read", args=[TopUp.objects.filter(org=self.org).first().pk])
             )
-            self.assertContains(response, "1000 Credits")
+            self.assertContains(response, "1,000 Credits")
 
     def test_topups(self):
 
@@ -2010,6 +2021,7 @@ class OrgTest(TembaTest):
 
         # connect DT One
         dtone_account_url = reverse("orgs.org_dtone_account")
+        org_home_url = reverse("orgs.org_home")
 
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, "Unexpected content")
@@ -2091,8 +2103,10 @@ class OrgTest(TembaTest):
 
         # link show for formax requests
         response = self.client.get(dtone_account_url, HTTP_X_FORMAX=True)
-        self.assertContains(response, reverse("airtime.airtimetransfer_list"))
         self.assertContains(response, "%s?disconnect=true" % reverse("orgs.org_dtone_account"))
+
+        response = self.client.get(org_home_url)
+        self.assertContains(response, reverse("airtime.airtimetransfer_list"))
 
     def test_chatbase_account(self):
         self.login(self.admin)
@@ -3244,7 +3258,6 @@ class OrgCRUDLTest(TembaTest):
         org = Org.objects.get(name="Relieves World")
         self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
         self.assertEqual(str(org), "Relieves World")
-        self.assertEqual(org.slug, "relieves-world")
 
         # of which our user is an administrator
         self.assertTrue(org.get_org_admins().filter(pk=user.pk))
@@ -3524,7 +3537,13 @@ class LanguageTest(TembaTest):
         self.login(self.admin)
 
         # update our org with some language settings
-        response = self.client.post(url, dict(primary_lang="fra", languages="hat,arc"))
+        response = self.client.post(
+            url,
+            dict(
+                primary_lang='{"name":"French", "value":"fra"}',
+                languages=['{"name":"Haitian", "value":"hat"}', '{"name":"Official Aramaic", "value":"arc"}'],
+            ),
+        )
         self.assertEqual(response.status_code, 302)
         self.org.refresh_from_db()
 
@@ -3541,20 +3560,32 @@ class LanguageTest(TembaTest):
         response = self.client.get(url)
         self.assertEqual(response.context["languages"], "Haitian and Official Aramaic (700-300 BCE)")
         self.assertContains(response, "fra")
-        self.assertContains(response, "hat,arc")
+        # self.assertContains(response, "hat,arc")
 
         # three translation languages
-        self.client.post(url, dict(primary_lang="fra", languages="hat,arc,spa"))
+        self.client.post(
+            url,
+            dict(
+                primary_lang='{"name":"French", "value":"fra"}',
+                languages=[
+                    '{"name":"Haitian", "value":"hat"}',
+                    '{"name":"Official Aramaic", "value":"arc"}',
+                    '{"name":"Spanish", "value":"spa"}',
+                ],
+            ),
+        )
         response = self.client.get(reverse("orgs.org_languages"))
         self.assertEqual(response.context["languages"], "Haitian, Official Aramaic (700-300 BCE) and Spanish")
 
         # one translation language
-        self.client.post(url, dict(primary_lang="fra", languages="hat"))
+        self.client.post(
+            url, dict(primary_lang='{"name":"French", "value":"fra"}', languages=['{"name":"Haitian", "value":"hat"}'])
+        )
         response = self.client.get(reverse("orgs.org_languages"))
         self.assertEqual(response.context["languages"], "Haitian")
 
         # remove all languages
-        self.client.post(url, dict())
+        self.client.post(url, dict(primary_lang="{}", languages=[]))
         self.org.refresh_from_db()
         self.assertIsNone(self.org.primary_language)
         self.assertFalse(self.org.languages.all())

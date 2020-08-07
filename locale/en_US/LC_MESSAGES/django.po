@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-27 17:36+0000\n"
+"POT-Creation-Date: 2020-08-07 20:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2096,10 +2096,22 @@ msgstr ""
 msgid "Allow international sending"
 msgstr ""
 
-msgid "The number or address of this channel"
+msgid "Phone number of this channel"
 msgstr ""
 
-msgid "Phone number of this channel"
+msgid "Android Channel"
+msgstr ""
+
+msgid "Settings"
+msgstr ""
+
+msgid "Channel Log"
+msgstr ""
+
+msgid "Call Log"
+msgstr ""
+
+msgid "Edit Channel"
 msgstr ""
 
 msgid "Disable Bulk Sending"
@@ -2111,7 +2123,13 @@ msgstr ""
 msgid "Disable Voice Calling"
 msgstr ""
 
-msgid "Remove"
+msgid "Enable Voice Calling"
+msgstr ""
+
+msgid "Delete"
+msgstr ""
+
+msgid "Delete Channel"
 msgstr ""
 
 msgid "Whitelist Domain"
@@ -2238,9 +2256,6 @@ msgstr ""
 msgid "Sync"
 msgstr ""
 
-msgid "Delete"
-msgstr ""
-
 msgid "Your classifier has been synched."
 msgstr ""
 
@@ -2364,6 +2379,52 @@ msgid "The unique group to export"
 msgstr ""
 
 msgid "The search query"
+msgstr ""
+
+#, python-format
+msgid "Invalid query syntax at '%(token)s'"
+msgstr ""
+
+#, python-format
+msgid "Unable to convert '%(value)s' to a number"
+msgstr ""
+
+#, python-format
+msgid "Unable to convert '%(value)s' to a date"
+msgstr ""
+
+#, python-format
+msgid "'%(value)s' is not a valid language code"
+msgstr ""
+
+#, python-format
+msgid "'%(value)s' is not a valid group name"
+msgstr ""
+
+#, python-format
+msgid "Using ~ with name requires token of at least %(min_token_length)s characters"
+msgstr ""
+
+#, python-format
+msgid "Using ~ with URN requires value of at least %(min_value_length)s characters"
+msgstr ""
+
+msgid "Can only use ~ with name or URN values"
+msgstr ""
+
+#, python-format
+msgid "Can only use %(operator)s with number or date values"
+msgstr ""
+
+#, python-format
+msgid "Can't check whether '%(property)s' is set or not set"
+msgstr ""
+
+#, python-format
+msgid "Can't resolve '%(property)s' to a field or URN scheme"
+msgstr ""
+
+msgid "Can't query on URNs in an anonymous workspace"
 msgstr ""
 
 msgid "day"
@@ -2811,6 +2872,12 @@ msgstr ""
 
 #, python-format
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
+msgstr ""
+
+msgid "Edit Label"
+msgstr ""
+
+msgid "Remove"
 msgstr ""
 
 msgid "Contact Name"
@@ -3436,9 +3503,6 @@ msgstr ""
 msgid "Edit Folder"
 msgstr ""
 
-msgid "Edit Label"
-msgstr ""
-
 msgid "Send All"
 msgstr ""
 
@@ -3722,9 +3786,6 @@ msgstr ""
 msgid "%(name)s Credits Alert"
 msgstr ""
 
-msgid "Settings"
-msgstr ""
-
 msgid "Used"
 msgstr ""
 
@@ -3924,6 +3985,9 @@ msgstr ""
 msgid "Failed to send email with STMP server configuration"
 msgstr ""
 
+msgid "Workspaces"
+msgstr ""
+
 msgid "Topups"
 msgstr ""
 
@@ -3958,9 +4022,6 @@ msgid "Activate"
 msgstr ""
 
 msgid "Two Factor Authentication"
-msgstr ""
-
-msgid "Workspaces"
 msgstr ""
 
 msgid "New Workspace"
@@ -4204,6 +4265,16 @@ msgstr ""
 msgid "Must specify at least one day of the week"
 msgstr ""
 
+msgid "Select days to repeat on"
+msgstr ""
+
+msgid " "
+msgstr ""
+
+#, python-format
+msgid "%s Time Zone"
+msgstr ""
+
 msgid "English"
 msgstr ""
 
@@ -4401,6 +4472,9 @@ msgstr[0] ""
 msgstr[1] ""
 
 msgid "The message to send in response after they join the group (optional)"
+msgstr ""
+
+msgid "Start Time"
 msgstr ""
 
 msgid "Select a flow"
@@ -4693,19 +4767,22 @@ msgstr ""
 msgid "API Channels"
 msgstr ""
 
-msgid "Claim phone number"
+msgid "Connect a Phone Number"
 msgstr ""
 
-msgid "Once you claim a number you will immediately be able to send and receive messages. Contacts who send messages to your number will be charged according to their plan."
+msgid "Once you connect a number you will immediately be able to send and receive messages. Contacts who send messages to your number will be charged according to their plan."
 msgstr ""
 
 msgid "Pattern"
 msgstr ""
 
-msgid "Supported"
+msgid "Existing Numbers"
 msgstr ""
 
-msgid "Unsupported"
+msgid "Select a number you already own to connect it to your account."
+msgstr ""
+
+msgid "(Unsupported)"
 msgstr ""
 
 msgid "IP Addresses"
@@ -4714,25 +4791,14 @@ msgstr ""
 msgid "Additionally you will need to make sure the following IP addresses are whitelisted"
 msgstr ""
 
-msgid "Are you sure you want to remove this number from your workspace?"
+#, python-format
+msgid "You are about to disable bulk sending for <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
 msgstr ""
 
-msgid "Cancel"
+msgid "Bulk sending"
 msgstr ""
 
-msgid "Remove Phone"
-msgstr ""
-
-msgid "Bulk sending enabled"
-msgstr ""
-
-msgid "Voice calls enabled"
-msgstr ""
-
-msgid "Channel Log"
-msgstr ""
-
-msgid "Call Log"
+msgid "Voice calls"
 msgstr ""
 
 msgid "Last synced"
@@ -4742,7 +4808,7 @@ msgstr ""
 msgid "%(last_sync)s ago"
 msgstr ""
 
-msgid "Activated"
+msgid "Not synced yet"
 msgstr ""
 
 msgid "unsent message"
@@ -4750,15 +4816,13 @@ msgid_plural "unsent messages"
 msgstr[0] ""
 msgstr[1] ""
 
-msgid "Enable Voice"
+msgid "Activated"
 msgstr ""
 
-msgid "unsent messages"
-msgid_plural "unsent message"
-msgstr[0] ""
-msgstr[1] ""
-
 msgid "Device has not synced yet"
+msgstr ""
+
+msgid "ON"
 msgstr ""
 
 msgid "UNKNOWN"
@@ -4771,9 +4835,6 @@ msgid "CHARGING"
 msgstr ""
 
 msgid "FULLY CHARGED"
-msgstr ""
-
-msgid "ON"
 msgstr ""
 
 msgid "IVR Messages"
@@ -4812,37 +4873,7 @@ msgstr ""
 msgid "&nbsp;&nbsp;OTHER"
 msgstr ""
 
-msgid "Remove Channel"
-msgstr ""
-
-msgid "Are you sure you want to remove this channel from your workspace?"
-msgstr ""
-
-msgid "This channel cannot be removed because it in use."
-msgstr ""
-
-msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
-msgstr ""
-
-#, python-format
-msgid "Used by %(num_flows)s flow:"
-msgid_plural "Used by %(num_flows)s flows:"
-msgstr[0] ""
-msgstr[1] ""
-
-msgid "Are you sure you want to remove bulk sending for this number?"
-msgstr ""
-
-msgid "Disable Voice Calls"
-msgstr ""
-
-msgid "Are you sure you want to remove voice calling for this number?"
-msgstr ""
-
-msgid "Ok"
-msgstr ""
-
-msgid "Select a Country"
+msgid "Cancel"
 msgstr ""
 
 #, python-format
@@ -5085,14 +5116,14 @@ msgid ""
 "Please check on your %(channel_type)s to make sure it has sufficient credit and can send text messages. Currently your %(channel_type)s has %(unsent_count)s messages which haven't sent in over an hour.\n"
 msgstr ""
 
-msgid "Add Phone"
-msgstr ""
-
 msgid "Connect your Android phone"
 msgstr ""
 
+msgid "Add Android Channel"
+msgstr ""
+
 #, python-format
-msgid "%(brand)s uses your Android phone to send and receive messages on your behalf."
+msgid "%(brand)s can use your Android phone to send and receive messages on your behalf."
 msgstr ""
 
 #, python-format
@@ -5231,42 +5262,41 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"        In order to connect your Facebook page to %(name)s you will need to\n"
-"        <a href=\"https://developer.facebook.com/\">create a new Facebook application</a> that\n"
-"        has messaging permissions.\n"
+"      In order to connect your Facebook page to %(name)s you will need to\n"
+"      <a href=\"https://developer.facebook.com/\">create a new Facebook application</a> that\n"
+"      has messaging permissions.\n"
 "\n"
-"      "
+"    "
 msgstr ""
 
 msgid ""
 "\n"
 "        On the Messenger section of your application, you can create a Page Access Token for the page you wish\n"
 "        to connect. Enter that Page Access Token below.\n"
-"\n"
 "      "
 msgstr ""
 
 msgid ""
 "\n"
 "        To get your Facebook Page ID, go to your Facebook page and click the About tab in the left column.\n"
-"\n"
 "      "
 msgstr ""
 
 msgid ""
 "\n"
-"          Until your Facebook application is approved by Facebook you will only be able to send and receive messages\n"
-"          with administrators of your application.\n"
+"        Until your Facebook application is approved by Facebook you will only be able to send and receive messages\n"
+"        with administrators of your application.\n"
 "\n"
-"        "
+"      "
 msgstr ""
 
+#, python-format
 msgid ""
 "\n"
-"          When submitting your application for approval, make sure to include the <code>pages_messaging</code>\n"
-"          and <code>pages_messaging_subscriptions</code> permissions so that you are able to initiate conversations with your contacts.\n"
+"        When submitting your application for approval, make sure to include the %(messaging)s\n"
+"        and %(subscriptions)s permissions so that you are able to initiate conversations with your contacts.\n"
 "\n"
-"        "
+"      "
 msgstr ""
 
 msgid ""
@@ -5277,24 +5307,33 @@ msgid ""
 "  "
 msgstr ""
 
+msgid "Referral Parmeters"
+msgstr ""
+
+msgid "Permissions"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"      When submitting your application for approval, make sure to include the %(messaging)s\n"
+"      and %(subscriptions)s permissions so that you are able to initiate conversations with your contacts.\n"
+"\n"
+"    "
+msgstr ""
+
+msgid "Verify Token"
+msgstr ""
+
 msgid ""
 "\n"
 "      It may take up to ten minutes for a new webhook to take effect after being set on your Facebook application. Remember,\n"
 "      until your Facebook application is approved by Facebook you will only be able to send and receive messages\n"
 "      with administrators of your application.\n"
 "\n"
-"    "
-msgstr ""
-
-msgid ""
 "\n"
-"      When submitting your application for approval, make sure to include the <code>pages_messaging</code>\n"
-"      and <code>pages_messaging_subscriptions</code> permissions so that you are able to initiate conversations with your contacts.\n"
 "\n"
 "    "
-msgstr ""
-
-msgid "Verify Token"
 msgstr ""
 
 msgid "You can connect your Facebook page in just a few simple steps."
@@ -5336,27 +5375,27 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"        You can to connect using a <a href=\"https://firebase.google.com/docs/cloud-messaging/\">\n"
-"        Firebase Cloud Messaging App</a> to your %(name)s workspace to automate sending notifications.\n"
-"      "
+"    You can to connect using a <a href=\"https://firebase.google.com/docs/cloud-messaging/\">\n"
+"    Firebase Cloud Messaging App</a> to your %(name)s workspace to automate sending notifications.\n"
+"  "
 msgstr ""
 
 msgid ""
 "\n"
-"        You will need to create a new App on Firebase Console and get its key. To do so:\n"
-"\n"
-"      "
+"    You will need to create a new App on Firebase Console and get its key. To do so:\n"
+"  "
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"        You can connect a <a href=\"https://www.freshworks.com/live-chat-software/\">FreshChat</a> Account to your %(name)s account\n"
-"        to automate sending and receiving messages via FreshChat. This will also support Apple Business Chat if it's been configured on your FreshChat account.\n"
-"      "
+"      You can connect a <a href=\"https://www.freshworks.com/live-chat-software/\">FreshChat</a> Account to your %(name)s account\n"
+"      to automate sending and receiving messages via FreshChat. This will also support Apple Business Chat if it's been configured on your FreshChat account.\n"
+"\n"
+"    "
 msgstr ""
 
-msgid "You will need to have a  FreshChat account and get an authentication token and setup a webhook. To do so:"
+msgid "You will need to have a  FreshChat account and get an authentication token and setup a webhook."
 msgstr ""
 
 msgid "In the FreshChat web interface, under Settings, API Tokens, select Generate Token. Once the token is created you'll enter it below."
@@ -5372,61 +5411,61 @@ msgstr ""
 msgid "Once you press Submit below with all the information configured, the confirmation page will give you the URL to use for the FreshChat Webhooks. Enter this URL on the Settings page, under Webhooks where the Public Key was copied from before."
 msgstr ""
 
-msgid "Each Message sent to the channel will have a URN that's in the format of <code>channel-uuid/user-uuid</code> where the channel uuid is the FreshChat Message Channels uuid."
+#, python-format
+msgid "Each Message sent to the channel will have a URN that's in the format of %(uuid)s where the channel uuid is the FreshChat Message Channels uuid."
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"        You can connect your <a href=\"http://www.globelabs.com.ph/\">Globe Labs</a> application to %(name)s using the fields below. You\n"
-"        will first need to create a Globe Labs application, then get approval from Globe Labs by sending an email\n"
-"        to <a href:\"mailto:api@globelabsbeta.com\">api@globelabsbeta.com</a>.\n"
+"    You can connect your <a href=\"http://www.globelabs.com.ph/\">Globe Labs</a> application to %(name)s using the fields below. You\n"
+"    will first need to create a Globe Labs application, then get approval from Globe Labs by sending an email\n"
+"    to <a href:\"mailto:api@globelabsbeta.com\">api@globelabsbeta.com</a>.\n"
 "\n"
-"      "
+"  "
 msgstr ""
 
 msgid ""
 "\n"
-"        With the approval from Globe Labs you will receive the passphrase to use below.\n"
-"      "
+"      With the approval from Globe Labs you will receive the passphrase to use below.\n"
+"    "
 msgstr ""
 
 msgid ""
 "\n"
-"        You can connect your <a href=\"http://infobip.com\">Infobip</a> number by entering your number, username and password\n"
-"        here.\n"
+"    You can connect your <a href=\"http://infobip.com\">Infobip</a> number by entering your number, username and password\n"
+"    here.\n"
 "\n"
-"      "
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"        After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want\n"
-"        to push a message to %(brand)s.\n"
-"\n"
-"      "
+"  "
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"        You can connect a <a href=\"https://jiochat.com\">JioChat Channel</a> to your %(name)s workspace\n"
-"        to automate sending and receiving JioChat messages.\n"
-"      "
+"      After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want\n"
+"      to push a message to %(brand)s.\n"
+"\n"
+"    "
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"    You can connect a <a href=\"https://jiochat.com\">JioChat Channel</a> to your %(name)s workspace\n"
+"    to automate sending and receiving JioChat messages.\n"
+"  "
 msgstr ""
 
 msgid ""
 "\n"
-"        To start copy the App ID and App Secret from the Developer Center into the form below and click Submit.\n"
-"      "
+"      To start copy the App ID and App Secret from the Developer Center into the form below and click Submit.\n"
+"    "
 msgstr ""
 
 msgid ""
 "\n"
-"        After entering your endpoint URL below, we'll provide you with the configuration details for your Kannel configuration file.\n"
-"\n"
-"      "
+"    After entering your endpoint URL below, we'll provide you with the configuration details for your Kannel configuration file.\n"
+"  "
 msgstr ""
 
 msgid ""
@@ -5443,177 +5482,183 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"        You can connect a <a href=\"https://developers.line.me/messaging-api/overview\">LINE Bot</a> to your %(name)s workspace\n"
-"        to automate sending and receiving LINE messages.\n"
-"      "
+"    You can connect a <a href=\"https://developers.line.me/messaging-api/overview\">LINE Bot</a> to your %(name)s workspace\n"
+"    to automate sending and receiving LINE messages.\n"
+"  "
 msgstr ""
 
 msgid ""
 "\n"
-"        To start creating a LINE bot, go to <a href=\"https://developers.line.me/messaging-api/getting-started\">Getting started with the Messaging API</a>.\n"
-"\n"
-"      "
-msgstr ""
-
-msgid ""
-"\n"
-"            Access the <a href=\"https://developers.line.me/channels/\">LINE Channels</a> page and add a new Channel.</li>\n"
-"\n"
-"          "
-msgstr ""
-
-msgid ""
-"\n"
-"            Create a Line account using the application on your smartphone\n"
-"\n"
-"          "
-msgstr ""
-
-msgid ""
-"\n"
-"            Activate the permission to login via web application in the \"Settings > Account > Allow login\"\n"
-"\n"
-"          "
-msgstr ""
-
-msgid ""
-"\n"
-"            Register your email and password via the application \"Settings > Account > Email Account\"\n"
-"\n"
-"          "
-msgstr ""
-
-msgid ""
-"\n"
-"            Create a new business account Line (With Messaging API enabled)\n"
-"\n"
-"          "
-msgstr ""
-
-msgid ""
-"\n"
-"                In <a href=\"https://business.line.me/en/\">LINE Business Center</a>, select \"Messaging API\" in the \"Services\"\n"
-"\n"
-"              "
-msgstr ""
-
-msgid ""
-"\n"
-"                Select \"Start using Messaging API\"\n"
-"\n"
-"              "
-msgstr ""
-
-msgid ""
-"\n"
-"                Enter your credentials created through the application and wait for the confirmation code in it.\n"
-"\n"
-"              "
-msgstr ""
-
-msgid ""
-"\n"
-"                    Note: At this time you must create a LINE business account and some information, for example, address, phone, etc., will be requested.\n"
-"\n"
-"                  "
-msgstr ""
-
-msgid ""
-"\n"
-"                After the creation process of the LINE business account, you will see the page to add a new channel of communication \"Messaging API.\" Enter the name and select the appropriate category and click OK.\n"
-"\n"
-"              "
-msgstr ""
-
-msgid ""
-"\n"
-"                In the next step, click the \"LINE @ Manager\" and it will redirect you to the API activation page.\n"
-"\n"
-"              "
-msgstr ""
-
-msgid ""
-"\n"
-"                Click \"Enable API\" and confirm. (By doing so, the status of your API will be \"Valid\")\n"
-"\n"
-"              "
-msgstr ""
-
-msgid ""
-"\n"
-"                Enable the option to allow the use of Webhooks and click \"Save.\"\n"
-"\n"
-"              "
-msgstr ""
-
-msgid ""
-"\n"
-"            Set your bot:\n"
-"\n"
-"          "
-msgstr ""
-
-msgid ""
-"\n"
-"                Click on the menu \"Accounts\" at the top of the page at the link <a href=\"https://business.line.me\">https://business.line.me</a>\n"
-"\n"
-"              "
-msgstr ""
-
-msgid ""
-"\n"
-"                In the communication channel of your choice, click on the \"LINE Developers\" button, accept the terms, and it will direct you to a page with the information needed to fill out in the form below (Channel ID, Channel Name, Channel Secret and Channel Access Token).\n"
-"\n"
-"              "
-msgstr ""
-
-msgid ""
-"\n"
-"                  Note: To generate the Channel Access Token click on \"Issue\" button\n"
-"\n"
-"                "
-msgstr ""
-
-msgid ""
-"\n"
-"        To finish the configuration of Line channel you'll need to set the following callback URL in the Line Bot settings page, following the steps below:\n"
-"\n"
-"      "
-msgstr ""
-
-msgid ""
-"\n"
-"              Configure \"Callback URL\" in the channel page (the same page which get the information Channel Secret and Channel Access Token) by clicking on the \"Edit\" button, filling the field \"webhook URL\" and pressing on the \"Save\" button.\n"
-"\n"
-"            "
-msgstr ""
-
-msgid ""
-"\n"
-"              Fill the IP addresses in the \"Server IP Whitelist\" with the list of addresses displayed below.\n"
-"\n"
-"            "
-msgstr ""
-
-msgid ""
-"\n"
-"        You can connect your number by entering your credentials here.\n"
-"\n"
-"      "
-msgstr ""
-
-msgid ""
-"\n"
-"    To finish configuring your Novo connection you'll need to set the following callback URLs on your\n"
-"    Novo account.\n"
+"    To start creating a LINE bot, go to <a href=\"https://developers.line.me/messaging-api/getting-started\">Getting started with the Messaging API</a>.\n"
 "\n"
 "  "
 msgstr ""
 
 msgid ""
 "\n"
+"        Access the <a href=\"https://developers.line.me/channels/\">LINE Channels</a> page and add a new Channel.</li>\n"
+"\n"
+"      "
+msgstr ""
+
+msgid ""
+"\n"
+"        Create a Line account using the application on your smartphone\n"
+"\n"
+"      "
+msgstr ""
+
+msgid ""
+"\n"
+"        Activate the permission to login via web application in the \"Settings > Account > Allow login\"\n"
+"\n"
+"      "
+msgstr ""
+
+msgid ""
+"\n"
+"        Register your email and password via the application \"Settings > Account > Email Account\"\n"
+"\n"
+"      "
+msgstr ""
+
+msgid ""
+"\n"
+"        Create a new business account Line (With Messaging API enabled)\n"
+"\n"
+"      "
+msgstr ""
+
+msgid ""
+"\n"
+"            In <a href=\"https://business.line.me/en/\">LINE Business Center</a>, select \"Messaging API\" in the \"Services\"\n"
+"\n"
+"          "
+msgstr ""
+
+msgid ""
+"\n"
+"            Select \"Start using Messaging API\"\n"
+"\n"
+"          "
+msgstr ""
+
+msgid ""
+"\n"
+"            Enter your credentials created through the application and wait for the confirmation code in it.\n"
+"\n"
+"          "
+msgstr ""
+
+msgid ""
+"\n"
+"                Note: At this time you must create a LINE business account and some information, for example, address, phone, etc., will be requested.\n"
+"\n"
+"              "
+msgstr ""
+
+msgid ""
+"\n"
+"            After the creation process of the LINE business account, you will see the page to add a new channel of communication \"Messaging API.\" Enter the name and select the appropriate category and click OK.\n"
+"\n"
+"          "
+msgstr ""
+
+msgid ""
+"\n"
+"            In the next step, click the \"LINE @ Manager\" and it will redirect you to the API activation page.\n"
+"\n"
+"          "
+msgstr ""
+
+msgid ""
+"\n"
+"            Click \"Enable API\" and confirm. (By doing so, the status of your API will be \"Valid\")\n"
+"\n"
+"          "
+msgstr ""
+
+msgid ""
+"\n"
+"            Enable the option to allow the use of Webhooks and click \"Save.\"\n"
+"\n"
+"          "
+msgstr ""
+
+msgid ""
+"\n"
+"        Set your bot:\n"
+"\n"
+"      "
+msgstr ""
+
+msgid ""
+"\n"
+"            Click on the menu \"Accounts\" at the top of the page at the link <a href=\"https://business.line.me\">https://business.line.me</a>\n"
+"\n"
+"          "
+msgstr ""
+
+msgid ""
+"\n"
+"            In the communication channel of your choice, click on the \"LINE Developers\" button, accept the terms, and it will direct you to a page with the information needed to fill out in the form below (Channel ID, Channel Name, Channel Secret and Channel Access Token).\n"
+"\n"
+"          "
+msgstr ""
+
+msgid ""
+"\n"
+"              Note: To generate the Channel Access Token click on \"Issue\" button\n"
+"\n"
+"            "
+msgstr ""
+
+msgid ""
+"\n"
+"      To finish the configuration of Line channel you'll need to set the following callback URL in the Line Bot settings page, following the steps below:\n"
+"\n"
+"    "
+msgstr ""
+
+msgid "Step One"
+msgstr ""
+
+msgid ""
+"\n"
+"        Configure \"Callback URL\" in the channel page (the same page which get the information Channel Secret and Channel Access Token) by clicking on the \"Edit\" button, filling the field \"webhook URL\" and pressing on the \"Save\" button.\n"
+"\n"
+"      "
+msgstr ""
+
+msgid "Step Two"
+msgstr ""
+
+msgid ""
+"\n"
+"        Fill the IP addresses in the \"Server IP Whitelist\" with the list of addresses displayed below.\n"
+"\n"
+"      "
+msgstr ""
+
+msgid ""
+"\n"
+"    You can connect your number by entering your credentials here.\n"
+"  "
+msgstr ""
+
+msgid ""
+"\n"
+"  To finish configuring your Novo connection you'll need to set the following callback URLs on your\n"
+"  Novo account.\n"
+"\n"
+"\n"
+msgstr ""
+
+msgid ""
+"\n"
 "      When a new message is received by your service, it should notify us with a POST to the following URL, passing\n"
 "      the following parameters: 'from' and 'text'.\n"
+"\n"
 "    "
 msgstr ""
 
@@ -5626,41 +5671,42 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"        You can connect a <a href=\"https://core.telegram.org/bots\">Telegram Bot</a> to your %(name)s workspace\n"
-"        to automate sending and receiving Telegram messages.\n"
+"    You can connect a <a href=\"https://core.telegram.org/bots\">Telegram Bot</a> to your %(name)s workspace\n"
+"    to automate sending and receiving Telegram messages.\n"
+"\n"
+"  "
+msgstr ""
+
+msgid ""
+"\n"
+"    You will need to <a href=\"https://core.telegram.org/bots#create-a-new-bot\">create a new Telegram bot</a> and\n"
+"    get its Authentication Token. To do so:\n"
+"\n"
+"  "
+msgstr ""
+
+msgid ""
+"\n"
+"        Start a new chat with the <a href=\"https://telegram.me/botfather\">BotFather</a>. You can do so on your\n"
+"        device by searching for \"botfather\" and starting a new chat.</li>\n"
+"\n"
 "      "
 msgstr ""
 
 msgid ""
 "\n"
-"        You will need to <a href=\"https://core.telegram.org/bots#create-a-new-bot\">create a new Telegram bot</a> and\n"
-"        get its Authentication Token. To do so:\n"
+"        In your @botfather chat, type in the command <code>/newbot</code>. Follow the instructions to name your bot and\n"
+"        choose a username for it.\n"
 "\n"
 "      "
 msgstr ""
 
 msgid ""
 "\n"
-"            Start a new chat with the <a href=\"https://telegram.me/botfather\">BotFather</a>. You can do so on your\n"
-"            device by searching for \"botfather\" and starting a new chat.</li>\n"
+"        Once you have created your bot, @botfather will provide you with the authentication token to use your bot.\n"
+"        Enter that token below.\n"
 "\n"
-"          "
-msgstr ""
-
-msgid ""
-"\n"
-"            In your @botfather chat, type in the command <code>/newbot</code>. Follow the instructions to name your bot and\n"
-"            choose a username for it.\n"
-"\n"
-"          "
-msgstr ""
-
-msgid ""
-"\n"
-"            Once you have created your bot, @botfather will provide you with the authentication token to use your bot.\n"
-"            Enter that token below.\n"
-"\n"
-"          "
+"      "
 msgstr ""
 
 msgid ""
@@ -5674,25 +5720,24 @@ msgstr ""
 
 msgid ""
 "\n"
-"        You can add your Twilio Messaging SID as a channel. You can get your messaging Service SID\n"
-"        or create a new messaging service from <a href=\"https://www.twilio.com/user/account/messaging/services\">Twilio Console</a>.\n"
+"    You can add your Twilio Messaging SID as a channel. You can get your messaging Service SID\n"
+"    or create a new messaging service from <a href=\"https://www.twilio.com/user/account/messaging/services\">Twilio Console</a>.\n"
 "\n"
-"      "
+"  "
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"        After adding your Twilio Messaging Service SID we will provide you with the URL endpoint for Twilio to call\n"
-"        when they want to push a message to %(brand)s.\n"
-"\n"
-"      "
+"      After adding your Twilio Messaging Service SID we will provide you with the URL endpoint for Twilio to call\n"
+"      when they want to push a message to %(brand)s.\n"
+"    "
 msgstr ""
 
 msgid "You have connected a Twilio Trial Account which has some restrictions."
 msgstr ""
 
-msgid "Once you claim a number you will immediately be able to send and receive WhatsApp messages."
+msgid "Once you connect a number you will immediately be able to send and receive WhatsApp messages."
 msgstr ""
 
 msgid "You do not have any number on your Twilio Account. Please make sure you have a number and that it has access to Twilio WhatsApp."
@@ -5703,9 +5748,8 @@ msgstr ""
 
 msgid ""
 "\n"
-"        You can add a TwiML REST API as a channel using your TwiML instance.\n"
-"\n"
-"      "
+"    You can add a TwiML REST API as a channel using your TwiML instance.\n"
+"  "
 msgstr ""
 
 #, python-format
@@ -5713,6 +5757,7 @@ msgid ""
 "\n"
 "        After connecting your account, any incoming direct messages will automatically be read by %(name)s,\n"
 "        you'll also be able to send direct messages to contacts you know using their twitter handle.\n"
+"\n"
 "      "
 msgstr ""
 
@@ -5726,11 +5771,11 @@ msgstr ""
 
 msgid ""
 "\n"
-"          In order to receive direct messages from new followers, you'll need to update your Twitter account to enable\n"
-"          the option to <b>Receive Direct Messages from anyone</b>. You can do so from your <a href=\"https://twitter.com/settings/security\">\n"
-"          Twitter Security Settings</a>.\n"
+"        In order to receive direct messages from new followers, you'll need to update your Twitter account to enable\n"
+"        the option to <b>Receive Direct Messages from anyone</b>. You can do so from your <a href=\"https://twitter.com/settings/security\">\n"
+"        Twitter Security Settings</a>.\n"
 "\n"
-"        "
+"      "
 msgstr ""
 
 msgid ""
@@ -5742,29 +5787,26 @@ msgstr ""
 
 msgid ""
 "\n"
-"        You can connect your <a href=\"http://verboice.instedd.org/\">Verboice</a> number by entering your credentials here.\n"
-"\n"
-"      "
+"    You can connect your <a href=\"http://verboice.instedd.org/\">Verboice</a> number by entering your credentials here.\n"
+"  "
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"        In order to connect your public Viber page to %(brand_name)s you will need to create a public channel and follow the steps\n"
-"        necessary to get an authentication token. Please consult the\n"
-"        <a href=\"https://developers.viber.com/?b_id=15145\">Viber developers documentation</a> on how to create your own\n"
-"        public account.\n"
+"    In order to connect your public Viber page to %(brand_name)s you will need to create a public channel and follow the steps\n"
+"    necessary to get an authentication token. Please consult the\n"
+"    <a href=\"https://developers.viber.com/?b_id=15145\">Viber developers documentation</a> on how to create your own\n"
+"    public account.\n"
 "\n"
-"      "
+"  "
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"        Once you have your authentication token, enter it below to connect your public channel to %(brand_name)s\n"
-"\n"
-"\n"
-"      "
+"    Once you have your authentication token, enter it below to connect your public channel to %(brand_name)s\n"
+"  "
 msgstr ""
 
 msgid "To connect your VK community to RapidPro, you will need to create a community token with messaging permissions."
@@ -5782,7 +5824,11 @@ msgstr ""
 msgid "The API Version of the configured server must be <code>5.103</code>. To configure this, go to Manage > API Usage > Callback API > Server Settings."
 msgstr ""
 
-msgid "To complete the configuration of your VK connection, you will need to enter the Webhook URL in the URL field in the Manage > API Usage > Callback API > Server Settings section. And the Verify Token in the Secret Key field present in the API Usage > Callback API > Server Settings section. After this part, go to Manage > API Usage > Callback API > Event Types and check the option: <code>Message received</code>"
+msgid "To complete the configuration you will need to enter a few things on your VK account."
+msgstr ""
+
+#, python-format
+msgid "<div class='code mt-4'> Manage > API Usage > Callback API > Server Settings </div> <div class='mt-2'> Enter the Webhook URL below for the <div class='code inline py-1'>URL</div> field and the Verify Token in the <div class='code inline py-1'>Secret Key</div> field. </div> <div class='code mt-6'> Manage > API Usage > Callback API > Event Types </div> <div class='mt-2'> Check the option %(option)s </div>"
 msgstr ""
 
 msgid ""
@@ -5850,6 +5896,18 @@ msgid "Are you sure you want to remove this classifier from your account?"
 msgstr ""
 
 msgid "This classifier cannot be removed because it in use."
+msgstr ""
+
+msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgstr ""
+
+#, python-format
+msgid "Used by %(num_flows)s flow:"
+msgid_plural "Used by %(num_flows)s flows:"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Ok"
 msgstr ""
 
 msgid "Hold up!"
@@ -6184,13 +6242,13 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"                      Found %(results_count)s contact matching <i>%(search)s</i>.\n"
-"                      "
+"                    Found %(results_count)s contact matching <i>%(search)s</i>.\n"
+"                    "
 msgid_plural ""
 "\n"
-"                        Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
+"                      Found %(results_count)s contacts matching <i>%(search)s</i>.\n"
 "\n"
-"                    "
+"                  "
 msgstr[0] ""
 msgstr[1] ""
 
@@ -6905,20 +6963,8 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"                        %(count_comma)s recipient\n"
-"                        "
-msgid_plural ""
-"\n"
-"                          %(count_comma)s recipients\n"
-"                      "
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid ""
-"\n"
-"                        %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
-"                      "
+"                    %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
+"                  "
 msgstr ""
 
 #, python-format
@@ -6927,23 +6973,17 @@ msgid_plural "%(recipients)s recipients currently at this step in the flow"
 msgstr[0] ""
 msgstr[1] ""
 
-msgid "Write the message that will get sent when the scheduled time arrives"
+msgid "Message Details"
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"        The message will be sent to\n"
-"        <span class='attn'>\n"
 "          %(count_comma)s recipients\n"
-"        </span>\n"
 "        "
 msgid_plural ""
 "\n"
-"          The message will be sent to\n"
-"          <span class='attn'>\n"
-"            %(count_comma)s recipients\n"
-"          </span>\n"
+"          %(count_comma)s recipients\n"
 "      "
 msgstr[0] ""
 msgstr[1] ""
@@ -6951,11 +6991,8 @@ msgstr[1] ""
 #, python-format
 msgid ""
 "\n"
-"        The message will be sent to\n"
-"        <span class='attn'>\n"
-"          %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
+"        %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
 "\n"
-"        </span>\n"
 "      "
 msgstr ""
 
@@ -7862,8 +7899,8 @@ msgstr ""
 
 msgid ""
 "\n"
-"          Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?\n"
-"        "
+"            Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?\n"
+"          "
 msgstr ""
 
 msgid "To enable two factor authentication, use a one time password application such as"
@@ -8595,23 +8632,29 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"            You can now start flows through %(name)s.\n"
-"          "
+"      You can now start flows through %(name)s.\n"
+"    "
 msgstr ""
 
 msgid "Getting Started"
 msgstr ""
 
-msgid "FLOWS"
+msgid ""
+"\n"
+"      Here's a short introduction to help you get started.\n"
+"\n"
+"\n"
+"    "
 msgstr ""
 
 msgid ""
 "\n"
-"          Using a simple drag-and-drop interface, anybody can design a custom SMS application\n"
-"          that is tailored to their needs. Design a flow in minutes and start getting responses\n"
-"          instantly. Once people start interacting with your flow, use real-time analytics to\n"
-"          see how things are going.\n"
-"        "
+"            Using a simple drag-and-drop interface, anybody can design a custom SMS application\n"
+"            that is tailored to their needs. Design a flow in minutes and start getting responses\n"
+"            instantly. Once people start interacting with your flow, use real-time analytics to\n"
+"            see how things are going.\n"
+"\n"
+"          "
 msgstr ""
 
 msgid "To learn more about flows, visit the"
@@ -8626,7 +8669,7 @@ msgstr ""
 msgid "How to Build Flows"
 msgstr ""
 
-msgid "GET CONNECTED"
+msgid "Get Connected"
 msgstr ""
 
 #, python-format
@@ -8641,15 +8684,12 @@ msgstr ""
 
 msgid ""
 "\n"
-"            You can also use our flow simulator if you don't want to setup a number right away.\n"
+"              You can also use our flow simulator if you don't want to setup a number right away.\n"
 "\n"
-"          "
+"            "
 msgstr ""
 
 msgid "Add Number"
-msgstr ""
-
-msgid "CONTACTS"
 msgstr ""
 
 #, python-format
@@ -8666,18 +8706,16 @@ msgid ""
 "          </a>\n"
 "          as a guide. We'll create a group for you automatically for each file you upload. Don't worry, it's easy to add or\n"
 "          remove people from groups later if you need to tweak things.\n"
+"\n"
 "        "
 msgstr ""
 
 msgid ""
 "\n"
-"          If you want anybody to be able to join a group using SMS, you can set a <i>join keyword</i>. Anybody who\n"
-"          texts with that keyword will automatically be registered into the group.\n"
+"            If you want anybody to be able to join a group using SMS, you can set a <i>join keyword</i>. Anybody who\n"
+"            texts with that keyword will automatically be registered into the group.\n"
 "\n"
-"        "
-msgstr ""
-
-msgid "MESSAGES"
+"          "
 msgstr ""
 
 #, python-format
@@ -8693,31 +8731,22 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"          For example you might have %(name)s send a message every Friday reminding people in the <i>Field Staff</i> group to complete their weekly report.\n"
-"          If anybody joins the <i>Field Staff</i> group later, they will automatically start receiving the weekly reminder.\n"
+"            For example you might have %(name)s send a message every Friday reminding people in the <i>Field Staff</i> group to complete their weekly report.\n"
+"            If anybody joins the <i>Field Staff</i> group later, they will automatically start receiving the weekly reminder.\n"
 "\n"
-"        "
-msgstr ""
-
-msgid "WORKSPACE"
-msgstr ""
-
-msgid "Visit your workspace page to add credits at any time"
+"          "
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"          %(name)s also offers a robust REST API to add SMS features to your own website. Have a look through the\n"
-"          <a href='%(api_url)s'>\n"
-"            API documentation\n"
-"          </a>\n"
-"          to learn more.\n"
+"            %(name)s also offers a robust REST API to add SMS features to your own website. Have a look through the\n"
+"            <a href='%(api_url)s'>\n"
+"              API documentation\n"
+"            </a>\n"
+"            to learn more.\n"
 "\n"
-"        "
-msgstr ""
-
-msgid "Add Web Hook"
+"          "
 msgstr ""
 
 msgid "API Documentation"
@@ -8751,11 +8780,11 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"      To make sure you get the most out of %(brand)s, we've put together a bunch of short videos to guide you through\n"
-"      some of the most powerful features. Each of these videos are only a couple minutes, but they will help you\n"
-"      build complex flows without a lot of effort.\n"
+"    To make sure you get the most out of %(brand)s, we've put together a bunch of short videos to guide you through\n"
+"    some of the most powerful features. Each of these videos are only a couple minutes, but they will help you\n"
+"    build complex flows without a lot of effort.\n"
 "\n"
-"    "
+"  "
 msgstr ""
 
 msgid ""
@@ -8791,31 +8820,7 @@ msgstr ""
 msgid "Connection Error"
 msgstr ""
 
-msgid "Leave unscheduled"
-msgstr ""
-
-msgid "Cancel schedule"
-msgstr ""
-
-msgid "Mon"
-msgstr ""
-
-msgid "Tue"
-msgstr ""
-
-msgid "Wed"
-msgstr ""
-
-msgid "Thu"
-msgstr ""
-
-msgid "Fri"
-msgstr ""
-
-msgid "Sat"
-msgstr ""
-
-msgid "Sun"
+msgid "Select when you would like the message to be sent"
 msgstr ""
 
 msgid "The next message will be sent on"
@@ -8839,7 +8844,63 @@ msgstr ""
 msgid "not repeat"
 msgstr ""
 
+msgid "Unschedule"
+msgstr ""
+
 msgid "Not scheduled"
+msgstr ""
+
+msgid "Welcome Back"
+msgstr ""
+
+msgid ""
+"\n"
+"    Please sign in with your email address and password. If you don't remember\n"
+"    your password, you can <a href=\"/users/user/forget/\">reset it</a>.\n"
+"\n"
+"  "
+msgstr ""
+
+msgid "Sign In"
+msgstr ""
+
+msgid "Login Failure"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"    Sorry, you cannot log in at this time because we received %(failed_login_limit)s incorrect login attempts.\n"
+"\n"
+"  "
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"      Please wait %(lockout_timeout)s minutes before to try log in again.\n"
+"\n"
+"    "
+msgstr ""
+
+msgid "Alternatively, you can fill out the form below to have your password reset via e-mail."
+msgstr ""
+
+msgid "Please contact the website administrator to have your password reset."
+msgstr ""
+
+msgid "Reset"
+msgstr ""
+
+msgid "Reset Password"
+msgstr ""
+
+msgid ""
+"\n"
+"    Enter the email address you used to sign up. We will\n"
+"    send you an email with details on how to reset your password.\n"
+"\n"
+"  "
 msgstr ""
 
 msgid "Delete "
@@ -8975,31 +9036,31 @@ msgstr ""
 msgid "The keyword"
 msgstr ""
 
-msgid "missed call"
+msgid "A missed call"
 msgstr ""
 
-msgid "uncaught message"
+msgid "An uncaught message"
 msgstr ""
 
-msgid "inbound call"
+msgid "An inbound call"
 msgstr ""
 
-msgid "conversation"
+msgid "A new conversation"
 msgstr ""
 
-msgid "The"
+msgid "on"
 msgstr ""
 
-msgid "starts the"
+msgid "The referrer id"
 msgstr ""
 
-msgid "flow"
+msgid "on the channel"
 msgstr ""
 
-msgid "is"
+msgid "starts"
 msgstr ""
 
-msgid "not scheduled"
+msgid "is not scheduled"
 msgstr ""
 
 msgid "No matching triggers."
@@ -9014,63 +9075,13 @@ msgstr ""
 msgid "Start a flow when a conversation is started by a contact."
 msgstr ""
 
-msgid "Social media channel"
-msgstr ""
-
-msgid "Flow to start"
-msgstr ""
-
 msgid "Start a flow when Facebook refers a contact."
-msgstr ""
-
-msgid "Restrict to channel"
 msgstr ""
 
 msgid "Create a message keyword that allows people to join a group."
 msgstr ""
 
-msgid "Select a date"
-msgstr ""
-
 msgid "Start a flow in the future or on a schedule."
-msgstr ""
-
-msgid "Missed call trigger activated. Change flow that starts on missed call."
-msgstr ""
-
-msgid "Catch all trigger activated. Change flow that catches all messages."
-msgstr ""
-
-msgid "The next time the flow will be started is"
-msgstr ""
-
-msgid "month"
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"          on the %(repeat_day_of_month)s\n"
-"\n"
-"        "
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"          It will repeat <span class='attn'>%(repeat_period_display)s</span> at around the same time.\n"
-"\n"
-"        "
-msgstr ""
-
-msgid ""
-"\n"
-"        It will <span class='attn'>not repeat</span>.\n"
-"\n"
-"      "
-msgstr ""
-
-msgid "Choose when you would like the flow to start."
 msgstr ""
 
 msgid "Enter a query"

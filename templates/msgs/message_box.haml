@@ -3,6 +3,7 @@
 -load i18n humanize
 
 -block extra-style
+  {{block.super}}
   :css
     temba-button {
       display: block;
@@ -85,7 +86,7 @@
                     - trans "Create Label"
                   
               -if org_perms.msgs.label_create_folder
-                %temba-modax{ header:'{% trans "Create Folder" %}', endpoint:"{% url 'msgs.label_create_folder' %}", on-temba-loaded:"labelOnLoad", onsubmit: "function(e) { labelOnSubmit(e) }" }
+                %temba-modax{ header:'{% trans "Create Folder" %}', endpoint:"{% url 'msgs.label_create_folder' %}"}
                   .button-light.mt-3
                     -trans "Create Folder"
 
@@ -174,22 +175,21 @@
                 %tbody
                   -for object in object_list
                     %tr.sms.object-row{id: 'id-row-{{object.id}}', data-object-id:'{{ object.id }}',
-                                  data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', data-sender-select2:'{{object.contact|short_name:user_org}}'}
+                                  data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', data-sender-select2:'{{object.contact|short_name:user_org}}', onrowclick:'handleRowClick("{{object.contact.uuid}}")'}
                       -if actions
                         - if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send
-                          %td.checkbox.sms.object-row-check{onclick:"handleRowSelection(this);"}                            
-                            .glyph.icon-checkbox-unchecked.object-row-checkbox
+                          %td.checkbox.sms.object-row-check
+                            %temba-checkbox{onclick:"handleRowSelection(this)"}
                       %td.whitespace-no-wrap
-                        .hover-linked{onclick:"goto(event)", href:"/contact/read/{{object.contact.uuid}}/"}
                           {{ object.contact|short_name:user_org }}
-                      %td.w-full{onclick:"handleRowSelection(this)"}
+                      %td.w-full
                         .flex.flex-wrap.flex-end.items-center.justify-end
                           .flex-grow.inline
                             {% get_value object 'text' %}
                           .labels.flex.items-center.flex-wrap
                             -if 'label' in actions
                               -for label in object.labels.all
-                                .lbl.linked.ml-2{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' label.uuid %}", data-id: '{{label.id}}'}                                
+                                .lbl.linked.ml-2{onclick:"goto(event, this)", href:"{% url 'msgs.msg_filter' label.uuid %}", data-id: '{{label.id}}'}                                
                                   {{label.name}}
 
                         -if object.attachments
@@ -197,7 +197,7 @@
                             - for attachment in object.attachments
                               {% attachment_button attachment %}
 
-                      %td{onclick:"handleRowSelection(this)"}
+                      %td
                         .flex.w-full.items-end.justify-end.pr-4
                           .time.whitespace-no-wrap
                             {% short_datetime object.created_on %}
@@ -249,6 +249,11 @@
 -block extra-script
   {{ block.super }}
   :javascript
+
+    function handleRowClick(uuid) {
+      gotoLink("/contact/read/" + uuid + "/");
+    }
+
     {% if org_perms.msgs.msg_update %}
 
     function handleCreateLabelModalLoaded(event) {

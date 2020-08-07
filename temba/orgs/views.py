@@ -52,7 +52,7 @@ from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
-from temba.utils import analytics, get_anonymous_user, json, languages
+from temba.utils import analytics, get_anonymous_user, json, languages, str_to_bool
 from temba.utils.email import is_valid_address
 from temba.utils.fields import ArbitraryChoiceField, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.http import http_headers
@@ -752,7 +752,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(self.get_success_url())
 
-    class NexmoAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+    class NexmoAccount(InferOrgMixin, ComponentFormMixin, OrgPermsMixin, SmartUpdateView):
         success_message = ""
 
         class NexmoKeys(forms.ModelForm):
@@ -860,7 +860,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(self.get_success_url())
 
-    class PlivoConnect(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
+    class PlivoConnect(ModalMixin, ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class PlivoConnectForm(forms.Form):
             auth_id = forms.CharField(help_text=_("Your Plivo AUTH ID"))
             auth_token = forms.CharField(help_text=_("Your Plivo AUTH TOKEN"))
@@ -1073,7 +1073,7 @@ class OrgCRUDL(SmartCRUDL):
         default_order = ("-credits", "-created_on")
         search_fields = ("name__icontains", "created_by__email__iexact", "config__icontains")
         link_fields = ("name", "owner")
-        title = "Workspaces"
+        title = _("Workspaces")
 
         def get_used(self, obj):
             if not obj.credits:  # pragma: needs cover
@@ -1126,6 +1126,18 @@ class OrgCRUDL(SmartCRUDL):
             if brands:
                 queryset = queryset.filter(brand__in=brands)
 
+            anon = self.request.GET.get("anon")
+            if anon:
+                queryset = queryset.filter(is_anon=str_to_bool(anon))
+
+            suspended = self.request.GET.get("suspended")
+            if suspended:
+                queryset = queryset.filter(is_suspended=str_to_bool(suspended))
+
+            flagged = self.request.GET.get("flagged")
+            if flagged:
+                queryset = queryset.filter(is_flagged=str_to_bool(flagged))
+
             queryset = queryset.annotate(credits=Sum("topups__credits"))
             queryset = queryset.annotate(paid=Sum("topups__price"))
 
@@ -1134,6 +1146,9 @@ class OrgCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["searches"] = ["Nyaruka"]
+            context["anon_query"] = str_to_bool(self.request.GET.get("anon"))
+            context["flagged_query"] = str_to_bool(self.request.GET.get("flagged"))
+            context["suspended_query"] = str_to_bool(self.request.GET.get("suspended"))
             return context
 
         def lookup_field_link(self, context, field, obj):

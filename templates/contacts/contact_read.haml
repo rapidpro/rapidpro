@@ -20,7 +20,7 @@
 
 -block subtitle
 
-  .flex.flex-wrap
+  .flex.flex-wrap.mt-1
 
     -if contact.is_blocked
       .lbl.mt-2.mr-2.bg-error.text-white.cursor-pointer{onclick:"goto(event)", href:"{% url 'contacts.contact_blocked' %}"}
@@ -49,6 +49,22 @@
     table.activity { table-layout: fixed; }
   </style>
   <![endif]-->
+
+
+  -if all_contact_fields.0.show_in_table
+    .bg-gray-100.rounded-lg.p-3.mb-6
+      .flex.flex-wrap
+        -for field in all_contact_fields
+          -if field.show_in_table
+            .flex.flex-col.p-2
+              .contact-field{data-id:'{{field.id}}'}
+                .contact-field-value.editable.cursor-pointer.hover-linked.font-bold.text-gray-600
+                  {{field.value|truncatechars:20}}      
+              .whitespace-no-wrap.pr-12.contact-field{data-id:'{{field.id}}'}
+                .contact-field-value.tracking-wider.font-normal.text-xs
+                  {{field.label|title}}
+        
+      
 
   %table.list.tight.toggle.stateful#contact-details
     %thead
@@ -149,7 +165,7 @@
           display: none;
         }
 
-    %table.list.upcoming.mt-6.light.lined
+    %table.list.upcoming.mt-6.light
       %thead
         %th(colspan="3")
           -trans "Upcoming"
@@ -162,7 +178,7 @@
             -if evt.event_type == 'M'
               %span.glyph.icon-bubble-right
             -elif evt.event_type == 'F'
-              %span.glyph.icon-tree-2
+              %span.glyph.icon-flow
             -else
               %span.glyph.icon-clock
 
@@ -176,20 +192,21 @@
               -elif evt.event_type == 'F'
                 -trans "Start"
                 %a.href{ href: "{% url 'flows.flow_editor' evt.flow_uuid %}" }= evt.flow_name
-          %td.created_on
-            {{ evt.scheduled|naturaltime }}
+          %td.whitespace-no-wrap.text-right
+            .pr-6
+              {{ evt.scheduled|naturaltime }}
 
-            .repeats
-              -if evt.repeat_period == 'D'
-                -trans 'repeats daily'
-              -elif evt.repeat_period == 'W'
-                -trans 'repeats weekly'
+              .repeats
+                -if evt.repeat_period == 'D'
+                  -trans 'repeats daily'
+                -elif evt.repeat_period == 'W'
+                  -trans 'repeats weekly'
 
     -if upcoming_events|length > 3
       %a.pull-right.show-all.upcoming
         more
 
-  %table.list.activity.history.mt-6.lined
+  %table.list.activity.history.mt-6.light
     %thead
       %th(colspan="2")
         -trans "History"
@@ -230,6 +247,19 @@
 
     {% lessblock %}
       :plain
+        table.history, table.upcoming {
+          .glyph {
+            font-size: 14px;
+            line-height: 16px;
+            padding-left: 5px;
+
+            &.icon-flow {
+              font-size: 18px;
+              padding-left: 2px;
+            }
+          }
+        }
+
         .show-all {
           margin-top:0px;
           margin-right:10px;
@@ -303,21 +333,21 @@
           }
 
           &.upcoming {
-            color: #ccc;
+            color: #bbb;
 
             tr.non-msg {
               background: inherit;
             }
 
             .icon {
-              .glyph.icon-bubble-right, .glyph.icon-tree-2 {
-                color: #ddd;
+              .glyph.icon-bubble-right, .glyph.icon-flow {
+                color: #bbb;
               }
               text-align:center;
             }
 
             a {
-              color: #ddd;
+              color: #bbb;
             }
           }
 
