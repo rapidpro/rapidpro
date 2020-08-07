@@ -2014,6 +2014,8 @@ code {
   margin-bottom: 1rem;
   background-color: #fff;
   overflow: hidden;
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+  transition-duration: 200ms;
 }
 
 .card .bleed-t {
@@ -2040,6 +2042,14 @@ code {
     padding-top: 1.5rem;
     padding-bottom: 1.5rem;
   }
+
+.card.link {
+    cursor: pointer;
+  }
+
+.card.link:hover {
+      box-shadow: var(--widget-box-shadow-focused);
+    }
 
 .shadow-subtle {
   box-shadow: 0px 0px 25px 0px rgba(0, 0, 0, 0.05);
