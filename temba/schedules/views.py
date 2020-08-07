@@ -2,8 +2,6 @@ from smartmin.views import SmartCRUDL, SmartUpdateView
 
 from django import forms
 from django.urls import reverse
-from django.utils import timezone
-from django.utils.timezone import get_current_timezone_name
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.views import OrgObjPermsMixin
@@ -81,14 +79,6 @@ class ScheduleCRUDL(SmartCRUDL):
 
         def derive_success_message(self):
             return None
-
-        def get_context_data(self, **kwargs):
-            org = self.get_object().org
-            context = super().get_context_data(**kwargs)
-            context["days"] = self.get_object().repeat_days_of_week or ""
-            context["user_tz"] = get_current_timezone_name()
-            context["user_tz_offset"] = int(timezone.now().astimezone(org.timezone).utcoffset().total_seconds() // 60)
-            return context
 
         def save(self, *args, **kwargs):
             form = self.form

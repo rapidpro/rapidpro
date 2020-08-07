@@ -5,8 +5,6 @@ from django import forms
 from django.db.models import Min
 from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
-from django.utils import timezone
-from django.utils.timezone import get_current_timezone_name
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel
@@ -443,8 +441,6 @@ class TriggerCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             if self.get_object().schedule:
                 context["days"] = self.get_object().schedule.repeat_days_of_week or ""
-            context["user_tz"] = get_current_timezone_name()
-            context["user_tz_offset"] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() // 60)
             return context
 
         def form_invalid(self, form):
@@ -668,8 +664,6 @@ class TriggerCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["user_tz"] = get_current_timezone_name()
-            context["user_tz_offset"] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() // 60)
             return context
 
         def form_invalid(self, form):
