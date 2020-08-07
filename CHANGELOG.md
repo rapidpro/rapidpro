@@ -1,3 +1,7 @@
+v5.7.6
+----------
+ * Optimizations to migration to backfill last_seen_on
+
 v5.7.5
 ----------
  * Add migration to populate contact.last_seen_on
