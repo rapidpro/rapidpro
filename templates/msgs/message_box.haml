@@ -86,7 +86,7 @@
                     - trans "Create Label"
                   
               -if org_perms.msgs.label_create_folder
-                %temba-modax{ header:'{% trans "Create Folder" %}', endpoint:"{% url 'msgs.label_create_folder' %}", on-temba-loaded:"labelOnLoad", onsubmit: "function(e) { labelOnSubmit(e) }" }
+                %temba-modax{ header:'{% trans "Create Folder" %}', endpoint:"{% url 'msgs.label_create_folder' %}"}
                   .button-light.mt-3
                     -trans "Create Folder"
 

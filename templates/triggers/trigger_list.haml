@@ -94,11 +94,11 @@
                           -elif obj.trigger_type == 'R'
                             -trans "The referrer id"
                             %b
-                              {{obj.referrer_id}}"
+                              {{obj.referrer_id}}
                             -if obj.channel
-                              -trans "on"
-                              %b
-                                %a{href:'{%url "channels.channel_read" obj.channel.uuid %}'}= obj.channel
+                              -trans "on the channel"
+                              .linked.inline{onclick:"goto(event)", href:'{%url "channels.channel_read" obj.channel.uuid %}'}
+                                {{obj.channel}}
 
                           -if obj.schedule
                             -trans "Start"
@@ -110,13 +110,7 @@
                             -if obj.schedule.next_fire and not obj.is_archived
                               {{ obj.schedule.get_display }}
                             -else
-                              -trans "is"
-                              %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
-                                - if org_perms.triggers.trigger_update and false
-                                  .linked.inline{onclick:"updateTrigger(event, {{obj.id}})"}
-                                    -trans "not scheduled"
-                                - else
-                                  -trans "not scheduled"
+                              -trans "is not scheduled"
 
                         %td{onclick:"handleRowSelection(this)", width: "250px" }
                           -include "includes/recipients.haml" with groups=obj.groups.all contacts=obj.contacts.all

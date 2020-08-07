@@ -23,7 +23,6 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel
-from temba.contacts.fields import OmniboxField
 from temba.contacts.models import TEL_SCHEME, ContactGroup, ContactURN
 from temba.contacts.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
 from temba.flows.legacy.expressions import get_function_listing
@@ -40,7 +39,7 @@ from temba.utils.fields import (
     SelectWidget,
 )
 from temba.utils.models import patch_queryset_count
-from temba.utils.views import BulkActionMixin
+from temba.utils.views import BulkActionMixin, ComponentFormMixin
 
 from .models import INITIALIZING, QUEUED, Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
 from .tasks import export_messages_task
@@ -252,11 +251,19 @@ class BroadcastForm(forms.ModelForm):
         max_length=Broadcast.MAX_TEXT_LEN,
     )
 
-    omnibox = OmniboxField()
-
-    def __init__(self, user, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["omnibox"].set_user(user)
+    omnibox = JSONField(
+        label=_("Recipients"),
+        required=False,
+        help_text=_("The contacts to send the message to"),
+        widget=OmniboxChoice(
+            attrs={
+                "placeholder": _("Recipients, enter contacts or groups"),
+                "groups": True,
+                "contacts": True,
+                "urns": True,
+            }
+        ),
+    )
 
     def is_valid(self):
         valid = super().is_valid()
@@ -301,31 +308,28 @@ class BroadcastCRUDL(SmartCRUDL):
                     action="formax",
                 )
 
-    class Update(OrgObjPermsMixin, SmartUpdateView):
+    class Update(OrgObjPermsMixin, ComponentFormMixin, SmartUpdateView):
         form_class = BroadcastForm
         fields = ("message", "omnibox")
         field_config = {"restrict": {"label": ""}, "omnibox": {"label": ""}, "message": {"label": "", "help": ""}}
         success_message = ""
         success_url = "msgs.broadcast_schedule_list"
 
-        def get_form_kwargs(self):
-            args = super().get_form_kwargs()
-            args["user"] = self.request.user
-            return args
-
         def derive_initial(self):
-            selected = ["g-%s" % _.uuid for _ in self.object.groups.all()]
-            selected += ["c-%s" % _.uuid for _ in self.object.contacts.all()]
-            selected = ",".join(selected)
+            org = self.object.org
+            results = [*self.object.groups.all(), *self.object.contacts.all()]
+            selected = omnibox_results_to_dict(org, results, version=2)
             message = self.object.text[self.object.base_language]
             return dict(message=message, omnibox=selected)
 
         def save(self, *args, **kwargs):
             form = self.form
             broadcast = self.object
+            org = broadcast.org
 
             # save off our broadcast info
             omnibox = form.cleaned_data["omnibox"]
+            omnibox = omnibox_deserialize(org, self.form.cleaned_data["omnibox"])
 
             # set our new message
             broadcast.text = {broadcast.base_language: form.cleaned_data["message"]}

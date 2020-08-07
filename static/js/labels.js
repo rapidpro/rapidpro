@@ -48,6 +48,9 @@ function runActionOnObjectRows(action) {
     jQuery.ajaxSettings.traditional = true;
     fetchPJAXContent('', '#pjax', {
         postData: { objects: objectIds, action: action, pjax: 'true' },
+        onSuccess: function (data, textStatus) {
+            wireTableListeners();
+        },
     });
 }
 
