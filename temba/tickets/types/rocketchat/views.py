@@ -8,6 +8,7 @@ from temba.tickets.models import Ticketer
 from temba.utils.fields import ExternalURLField
 from temba.tickets.views import BaseConnectView
 from temba.utils.text import random_string, truncate
+from temba.utils.uuid import uuid4
 
 from .client import Client, ClientError
 
@@ -88,32 +89,29 @@ class ConnectView(BaseConnectView):
             RocketChatType.CONFIG_BASE_URL: url,
             RocketChatType.CONFIG_SECRET: form.cleaned_data["secret"],
         }
-        client = Client(**config)
-        try:
-            client.secret_check()
-            self.request.session.pop(self.SESSION_KEY, None)
-        except ClientError as err:
-            messages.error(self.request, err.msg if err.msg else _("Unable to validate the secret code."))
-            return super().get(self.request, *self.args, **self.kwargs)
 
-        self.object = Ticketer.create(
+        self.object = Ticketer(
+            uuid=uuid4(),
             org=self.org,
-            user=self.request.user,
             ticketer_type=RocketChatType.slug,
             config=config,
             name=truncate(
                 f"{RocketChatType.name}: {RE_HOST.search(url).group('domain')}",
                 Ticketer._meta.get_field("name").max_length,
             ),
+            created_by=self.request.user,
+            modified_by=self.request.user,
         )
+
         try:
+            client = Client(**config)
             client.settings(self.request.build_absolute_uri("/"), self.object)
             self.request.session.pop(self.SESSION_KEY, None)
         except ClientError as err:
             messages.error(self.request, err.msg if err.msg else _("Configuration has failed"))
-            self.object.delete()
             return super().get(self.request, *self.args, **self.kwargs)
 
+        self.object.save()
         return super().form_valid(form)
 
     def get_context_data(self, **kwargs):

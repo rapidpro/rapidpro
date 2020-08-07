@@ -44,33 +44,7 @@ class RocketChatMixin(TembaTest):
 
 
 class ClientTest(RocketChatMixin):
-    def test_secret_check_success(self):
-        with patch("requests.get") as mock_request:
-            mock_request.return_value = MockResponse(200, {})
-            try:
-                Client(self.secure_url, self.secret).secret_check()
-            except ClientError:
-                self.fail("The status 200 should not raise exceptions")
-
-    def test_secret_check_fail(self):
-        for status in range(201, 599):
-            with patch("requests.get") as mock_request:
-                mock_request.return_value = MockResponse(status, {})
-                with self.assertRaises(ClientError, msg=f"The status {status} must be invalid"):
-                    Client(self.secure_url, self.secret).secret_check()
-
-    @patch("requests.get")
-    def test_secret_check_exceptions(self, mock_request):
-        for err in [Timeout(), Exception()]:
-
-            def side_effect(*arg, **kwargs):
-                raise err
-
-            mock_request.side_effect = side_effect
-            with self.assertRaises(ClientError):
-                Client(self.secure_url, self.secret).secret_check()
-
-    @patch("requests.post")
+    @patch("requests.put")
     def test_settings_success(self, mock_request):
         mock_request.return_value = MockResponse(204, {})
         try:
@@ -83,12 +57,12 @@ class ClientTest(RocketChatMixin):
         for status in range(200, 599):
             if status == 204:
                 continue
-            with patch("requests.post") as mock_request:
+            with patch("requests.put") as mock_request:
                 mock_request.return_value = MockResponse(status, {})
                 with self.assertRaises(ClientError, msg=f"The status {status} must be invalid"):
                     Client(self.secure_url, self.secret).settings(self.domain, ticketer)
 
-    @patch("requests.post")
+    @patch("requests.put")
     def test_settings_exceptions(self, mock_request):
         for err in [Timeout(), Exception()]:
 
@@ -110,7 +84,7 @@ class RocketChatTypeTest(RocketChatMixin):
             mock_brand_domain.return_value = domain
             self.assertEqual(
                 RocketChatType.callback_url(ticketer),
-                f"{scheme}{domain}/mr/tickets/types/rocketchat/{ticketer.uuid}/event",
+                f"{scheme}{domain}/mr/tickets/types/rocketchat/{ticketer.uuid}/eventCallback",
             )
 
         mock_brand_domain.return_value = "test.domain.com"
@@ -122,7 +96,7 @@ class RocketChatTypeTest(RocketChatMixin):
         for scheme, domain in domains:
             self.assertEqual(
                 RocketChatType.callback_url(ticketer, domain),
-                f"{scheme}{domain}/mr/tickets/types/rocketchat/{ticketer.uuid}/event",
+                f"{scheme}{domain}/mr/tickets/types/rocketchat/{ticketer.uuid}/eventCallback",
             )
 
     @patch("temba.orgs.models.Org.get_brand_domain")
@@ -183,10 +157,9 @@ class RocketChatViewTest(RocketChatMixin):
         )
 
     @patch("temba.tickets.types.rocketchat.client.Client.settings")
-    @patch("temba.tickets.types.rocketchat.client.Client.secret_check")
     @patch("socket.gethostbyname")
     @patch("random.choice")
-    def test_form_valid(self, mock_choices, mock_socket, mock_secret, mock_settings):
+    def test_form_valid(self, mock_choices, mock_socket, mock_settings):
         def settings_effect(domain, ticketer):
             nonlocal _ticketer
             _ticketer = ticketer
@@ -221,10 +194,9 @@ class RocketChatViewTest(RocketChatMixin):
                 self.assertFalse(_ticketer.config[RocketChatType.CONFIG_BASE_URL].endswith("/"))
 
     @patch("temba.tickets.types.rocketchat.client.Client.settings")
-    @patch("temba.tickets.types.rocketchat.client.Client.secret_check")
     @patch("socket.gethostbyname")
     @patch("random.choice")
-    def test_form_invalid_url(self, mock_choices, mock_socket, mock_secret, mock_settings):
+    def test_form_invalid_url(self, mock_choices, mock_socket, mock_settings):
         mock_choices.side_effect = lambda letters: next(choices)
         mock_socket.return_value = "192.55.123.1"  # Fake IP
 
@@ -279,21 +251,8 @@ class RocketChatViewTest(RocketChatMixin):
 
     @patch("socket.gethostbyname")
     @patch("random.choice")
-    @patch("requests.get")
-    def test_secret_check_exception(self, mock_request, mock_choices, mock_socket):
-        mock_socket.return_value = "192.55.123.1"  # Fake IP
-        self.check_exceptions(
-            mock_choices,
-            mock_request,
-            "Unable to validate the secret code. Connection to RocketChat is taking too long.",
-            "Unable to validate the secret code.",
-        )
-
-    @patch("temba.tickets.types.rocketchat.client.Client.secret_check")
-    @patch("socket.gethostbyname")
-    @patch("random.choice")
-    @patch("requests.post")
-    def test_settings_exception(self, mock_request, mock_choices, mock_socket, mock_secret):
+    @patch("requests.put")
+    def test_settings_exception(self, mock_request, mock_choices, mock_socket):
         mock_socket.return_value = "192.55.123.1"  # Fake IP
         self.check_exceptions(
             mock_choices,

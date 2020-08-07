@@ -2,6 +2,8 @@ import requests
 from django.utils.translation import gettext_lazy as _
 from requests.exceptions import Timeout
 
+from temba.utils import json
+
 
 class ClientError(Exception):
     def __init__(self, msg=None, response=None):
@@ -17,6 +19,7 @@ class Client:
 
     def headers(self, **kwargs):
         kwargs["Authorization"] = f"Token {self.secret}"
+        kwargs["Content-Type"] = f"application/json"
         return kwargs
 
     def _request(self, method, url, timeout_msg=None, **kwargs):
@@ -29,27 +32,16 @@ class Client:
         except Exception as err:
             raise ClientError() from err
 
-    def get(self, url, timeout_msg=None, **kwargs):
-        return self._request("get", url, timeout_msg, **kwargs)
-
-    def post(self, url, timeout_msg=None, **kwargs):
-        return self._request("post", url, timeout_msg, **kwargs)
-
-    def secret_check(self):
-        response = self.get(
-            f"{self.base_url}/secret.check",
-            _("Unable to validate the secret code. Connection to RocketChat is taking too long."),
-        )
-        if response.status_code != 200:
-            raise ClientError(response=response)
+    def put(self, url, timeout_msg=None, **kwargs):
+        return self._request("put", url, timeout_msg, **kwargs)
 
     def settings(self, domain, ticketer):
         from .type import RocketChatType
 
-        response = self.post(
+        response = self.put(
             f"{self.base_url}/settings",
             _("Unable to configure. Connection to RocketChat is taking too long."),
-            data={"webhook": {"url": RocketChatType.callback_url(ticketer, domain)}},
+            data=json.dumps({"webhook": {"url": RocketChatType.callback_url(ticketer, domain)}}),
         )
         if response.status_code != 204:
             raise ClientError(response=response)
