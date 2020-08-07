@@ -1,4 +1,5 @@
 import gzip
+from datetime import date, datetime
 from gettext import gettext as _
 from urllib.parse import urlparse
 
@@ -7,6 +8,7 @@ from dateutil.relativedelta import relativedelta
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 
 from temba.utils import json, sizeof_fmt
@@ -118,6 +120,40 @@ class Archive(models.Model):
         else:
             return ""
 
+    @classmethod
+    def _get_covering_period(cls, org, archive_type: str, after: datetime = None, before: datetime = None):
+        """
+        Gets the archives which cover the given period, which may include records outside of that period
+        """
+        archives = org.archives.filter(archive_type=archive_type, record_count__gt=0, rollup=None)
+
+        if after:
+            earliest_day = after.date()
+            earliest_month = date(earliest_day.year, earliest_day.month, 1)
+
+            archives = archives.filter(
+                Q(period=cls.PERIOD_MONTHLY, start_date__gte=earliest_month)
+                | Q(period=cls.PERIOD_DAILY, start_date__gte=earliest_day)
+            )
+
+        if before:
+            latest_day = before.date()
+            latest_month = date(latest_day.year, latest_day.month, 1)
+
+            archives = archives.filter(
+                Q(period=cls.PERIOD_MONTHLY, start_date__lte=latest_month)
+                | Q(period=cls.PERIOD_DAILY, start_date__lte=latest_day)
+            )
+
+        return archives.order_by("start_date")
+
+    @classmethod
+    def iter_all_records(cls, org, archive_type: str, after: datetime = None, before: datetime = None):
+        archives = cls._get_covering_period(org, archive_type, after, before)
+        for archive in archives:
+            for record in archive.iter_records():
+                yield record
+
     def iter_records(self):
         """
         Creates an iterator for the records in this archive, streaming and decompressing on the fly
@@ -131,7 +167,7 @@ class Archive(models.Model):
             if not line:
                 break
 
-            yield json.loads(line.decode("utf-8"))
+            yield self._parse_record(line)
 
     def select_records(self, expression):
         s3 = self.s3_client()
@@ -148,7 +184,11 @@ class Archive(models.Model):
                 lines = event["Records"]["Payload"].split(b"\n")
                 for line in lines:
                     if line:
-                        yield json.loads(line.decode("utf-8"))
+                        yield self._parse_record(line)
+
+    @staticmethod
+    def _parse_record(line):
+        return json.loads(line.decode("utf-8"))
 
     def release(self):
 
