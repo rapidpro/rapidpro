@@ -5,7 +5,7 @@ from temba.orgs.models import Org
 from temba.utils import json
 
 
-class Command(BaseCommand):
+class Command(BaseCommand):  # pragma: no cover
     help = "Searches through archives"
 
     def add_arguments(self, parser):

@@ -1,32 +1,45 @@
-from datetime import date
+from datetime import date, datetime
 from unittest.mock import patch
+
+import pytz
 
 from django.urls import reverse
 from django.utils import timezone
 
 from temba.tests import CRUDLTestMixin, TembaTest
 from temba.tests.s3 import MockS3Client
+from temba.utils.text import random_string
 from temba.utils.uuid import uuid4
 
 from .models import Archive
 
 
 class ArchiveTest(TembaTest):
-    def test_iter_records(self):
+    def create_archive(self, s3, archive_type, period, start_date, records=(), needs_deletion=False, rollup_of=()):
+        bucket = "s3-bucket"
+        key = f"things/{random_string(10)}.jsonl.gz"
+        s3.put_jsonl(bucket, key, records)
         archive = Archive.objects.create(
             org=self.org,
-            archive_type=Archive.TYPE_FLOWRUN,
+            archive_type=archive_type,
             size=10,
             hash=uuid4().hex,
-            url=f"http://s3-bucket.aws.com/my/32562662.jsonl.gz",
-            record_count=2,
-            start_date=timezone.now(),
-            period="D",
+            url=f"http://{bucket}.aws.com/{key}",
+            record_count=len(records),
+            start_date=start_date,
+            period=period,
             build_time=23425,
+            needs_deletion=needs_deletion,
         )
+        if rollup_of:
+            Archive.objects.filter(id__in=[a.id for a in rollup_of]).update(rollup=archive)
+        return archive
 
+    def test_iter_records(self):
         mock_s3 = MockS3Client()
-        mock_s3.put_jsonl("s3-bucket", "my/32562662.jsonl.gz", [{"id": 1}, {"id": 2}, {"id": 3}])
+        archive = self.create_archive(
+            mock_s3, Archive.TYPE_MSG, "D", timezone.now().date(), [{"id": 1}, {"id": 2}, {"id": 3}]
+        )
 
         with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
             records_iter = archive.iter_records()
@@ -37,56 +50,87 @@ class ArchiveTest(TembaTest):
             self.assertRaises(StopIteration, next, records_iter)
 
     def test_iter_records_with_expression(self):
-        archive = Archive.objects.create(
-            org=self.org,
-            archive_type=Archive.TYPE_MSG,
-            size=10,
-            hash=uuid4().hex,
-            url=f"http://s3-bucket.aws.com/my/32562662.jsonl.gz",
-            record_count=2,
-            start_date=timezone.now(),
-            period="D",
-            build_time=23425,
+        mock_s3 = MockS3Client()
+        archive = self.create_archive(
+            mock_s3, Archive.TYPE_MSG, "D", timezone.now().date(), [{"id": 1}, {"id": 2}, {"id": 3}]
         )
 
-        mock_s3 = MockS3Client()
-        mock_s3.put_jsonl("s3-bucket", "my/32562662.jsonl.gz", [{"id": 1}, {"id": 2}, {"id": 3}])
-
         with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
-            records_iter = archive.iter_records(expression="direction = 'in'")
+            records_iter = archive.iter_records(expression="s.direction = 'in'")
 
             self.assertEqual(next(records_iter), {"id": 1})
             self.assertEqual(next(records_iter), {"id": 2})
             self.assertEqual(next(records_iter), {"id": 3})
             self.assertRaises(StopIteration, next, records_iter)
 
+    @patch("temba.archives.models.Archive.s3_client")
+    def test_iter_all_records(self, mock_s3_client):
+        mock_s3 = MockS3Client()
+        mock_s3_client.return_value = mock_s3
+
+        d1 = self.create_archive(
+            mock_s3,
+            Archive.TYPE_MSG,
+            "D",
+            date(2020, 7, 31),
+            [{"id": 1, "created_on": "2020-07-30T10:00:00Z"}, {"id": 2, "created_on": "2020-07-30T15:00:00Z"}],
+        )
+        self.create_archive(
+            mock_s3,
+            Archive.TYPE_MSG,
+            "M",
+            date(2020, 7, 1),
+            [{"id": 1, "created_on": "2020-07-30T10:00:00Z"}, {"id": 2, "created_on": "2020-07-30T15:00:00Z"}],
+            rollup_of=(d1,),
+        )
+        self.create_archive(
+            mock_s3,
+            Archive.TYPE_MSG,
+            "D",
+            date(2020, 8, 1),
+            [{"id": 3, "created_on": "2020-08-01T10:00:00Z"}, {"id": 4, "created_on": "2020-08-01T15:00:00Z"}],
+        )
+        self.create_archive(
+            mock_s3,
+            Archive.TYPE_FLOWRUN,
+            "D",
+            date(2020, 8, 1),
+            [{"id": 3, "created_on": "2020-08-01T10:00:00Z"}, {"id": 4, "created_on": "2020-08-01T15:00:00Z"}],
+        )
+        self.create_archive(
+            mock_s3,
+            Archive.TYPE_MSG,
+            "D",
+            date(2020, 8, 2),
+            [{"id": 5, "created_on": "2020-08-02T10:00:00Z"}, {"id": 6, "created_on": "2020-08-02T15:00:00Z"}],
+        )
+
+        def assert_records(record_iter, ids):
+            self.assertEqual(ids, [r["id"] for r in list(record_iter)])
+
+        assert_records(Archive.iter_all_records(self.org, Archive.TYPE_MSG), [1, 2, 3, 4, 5, 6])
+        assert_records(
+            Archive.iter_all_records(self.org, Archive.TYPE_MSG, after=datetime(2020, 7, 30, 12, 0, 0, 0, pytz.UTC)),
+            [2, 3, 4, 5, 6],
+        )
+        assert_records(
+            Archive.iter_all_records(self.org, Archive.TYPE_MSG, before=datetime(2020, 8, 2, 12, 0, 0, 0, pytz.UTC)),
+            [1, 2, 3, 4, 5],
+        )
+        assert_records(
+            Archive.iter_all_records(
+                self.org,
+                Archive.TYPE_MSG,
+                after=datetime(2020, 7, 30, 12, 0, 0, 0, pytz.UTC),
+                before=datetime(2020, 8, 2, 12, 0, 0, 0, pytz.UTC),
+            ),
+            [2, 3, 4, 5],
+        )
+
     def test_end_date(self):
-
-        daily = Archive.objects.create(
-            org=self.org,
-            archive_type=Archive.TYPE_FLOWRUN,
-            size=10,
-            hash=uuid4().hex,
-            url=f"http://s3-bucket.aws.com/my/32562662.jsonl.gz",
-            record_count=100,
-            start_date=date(2018, 2, 1),
-            period="D",
-            build_time=1234,
-            needs_deletion=True,
-        )
-
-        monthly = Archive.objects.create(
-            org=self.org,
-            archive_type=Archive.TYPE_FLOWRUN,
-            size=10,
-            hash=uuid4().hex,
-            url=f"http://s3-bucket.aws.com/my/32562663.jsonl.gz",
-            record_count=2000,
-            start_date=date(2018, 1, 1),
-            period="M",
-            build_time=1234,
-            needs_deletion=False,
-        )
+        mock_s3 = MockS3Client()
+        daily = self.create_archive(mock_s3, Archive.TYPE_FLOWRUN, "D", date(2018, 2, 1), [], needs_deletion=True)
+        monthly = self.create_archive(mock_s3, Archive.TYPE_FLOWRUN, "M", date(2018, 1, 1), [])
 
         self.assertEqual(date(2018, 2, 2), daily.get_end_date())
         self.assertEqual(date(2018, 2, 1), monthly.get_end_date())

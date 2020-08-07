@@ -17,51 +17,50 @@ from temba.utils import json, sizeof_fmt
 
 class Archive(models.Model):
     DOWNLOAD_EXPIRES = 60 * 60 * 24  # Up to 24 hours
+
     TYPE_MSG = "message"
     TYPE_FLOWRUN = "run"
-
-    PERIOD_MONTHLY = "monthly"
-    PERIOD_DAILY = "daily"
-
     TYPE_CHOICES = ((TYPE_MSG, _("Message")), (TYPE_FLOWRUN, _("Run")))
 
     PERIOD_DAILY = "D"
     PERIOD_MONTHLY = "M"
-
     PERIOD_CHOICES = ((PERIOD_DAILY, "Day"), (PERIOD_MONTHLY, "Month"))
 
-    org = models.ForeignKey(
-        "orgs.Org", related_name="archives", on_delete=models.PROTECT, help_text="The org this archive is for"
-    )
-    archive_type = models.CharField(
-        choices=TYPE_CHOICES, max_length=16, help_text="The type of record this is an archive for"
-    )
-    created_on = models.DateTimeField(default=timezone.now, help_text="When this archive was created")
-    period = models.CharField(
-        max_length=1, choices=PERIOD_CHOICES, default=PERIOD_DAILY, help_text="The length of time this archive covers"
-    )
+    org = models.ForeignKey("orgs.Org", related_name="archives", on_delete=models.PROTECT)
 
-    start_date = models.DateField(help_text="The starting modified_on date for records in this archive (inclusive")
+    archive_type = models.CharField(choices=TYPE_CHOICES, max_length=16)
 
-    record_count = models.IntegerField(default=0, help_text="The number of records in this archive")
+    created_on = models.DateTimeField(default=timezone.now)
 
-    size = models.BigIntegerField(default=0, help_text="The size of this archive in bytes (after gzipping)")
-    hash = models.TextField(help_text="The md5 hash of this archive (after gzipping)")
-    url = models.URLField(help_text="The full URL for this archive")
+    # the length of time this archive covers
+    period = models.CharField(max_length=1, choices=PERIOD_CHOICES, default=PERIOD_DAILY)
 
-    needs_deletion = models.BooleanField(
-        default=False, help_text="Whether the records in this archive need to be deleted"
-    )
-    build_time = models.IntegerField(help_text="The number of milliseconds it took to build and upload this archive")
+    # the earliest modified_on date for records in this archive (inclusive)
+    start_date = models.DateField()
 
-    rollup = models.ForeignKey(
-        "archives.Archive",
-        on_delete=models.PROTECT,
-        null=True,
-        help_text=_("The archive we were rolled up into, if any"),
-    )
+    # number of records in this archive
+    record_count = models.IntegerField(default=0)
 
-    deleted_on = models.DateTimeField(null=True, help_text="When this archive's records where deleted (if any)")
+    # size in bytes of the archive contents (after compression)
+    size = models.BigIntegerField(default=0)
+
+    # MD5 hash of the archive contents (after compression)
+    hash = models.TextField()
+
+    # full URL of this archive
+    url = models.URLField()
+
+    # whether the records in this archive need to be deleted
+    needs_deletion = models.BooleanField(default=False)
+
+    # number of milliseconds it took to build and upload this archive
+    build_time = models.IntegerField()
+
+    # archive we were rolled up into, if any
+    rollup = models.ForeignKey("archives.Archive", on_delete=models.PROTECT, null=True)
+
+    # when this archive's records where deleted (if any)
+    deleted_on = models.DateTimeField(null=True)
 
     def size_display(self):
         return sizeof_fmt(self.size)
@@ -152,6 +151,11 @@ class Archive(models.Model):
     def iter_all_records(
         cls, org, archive_type: str, after: datetime = None, before: datetime = None, expression: str = None
     ):
+        """
+        Creates a record iterator across archives of the given type for records which match the given criteria
+
+        Expression should be SQL with s prefix for fields, e.g. s.direction = 'in' AND s.type = 'flow'
+        """
         archives = cls._get_covering_period(org, archive_type, after, before)
         for archive in archives:
             for record in archive.iter_records(expression):
