@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-28 21:40+0000\n"
+"POT-Creation-Date: 2020-08-07 19:24+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -60,9 +60,6 @@ msgstr "Сообщение"
 
 msgid "Run"
 msgstr "Пуск"
-
-msgid "The archive we were rolled up into, if any"
-msgstr "Архив, в который у нас прошло сворачивание, при наличии"
 
 msgid "Archive"
 msgstr "Архив"
@@ -11128,6 +11125,9 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "The archive we were rolled up into, if any"
+#~ msgstr "Архив, в который у нас прошло сворачивание, при наличии"
 
 #, fuzzy, python-format
 #~| msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
