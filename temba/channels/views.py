@@ -1775,8 +1775,7 @@ class ChannelCRUDL(SmartCRUDL):
             for ch_type in list(Channel.get_types()):
                 if ch_type.is_recommended_to(user):
                     recommended_channels.append(ch_type)
-                elif ch_type.category or (ch_type.is_available_to(user) and ch_type.category):
-                    print(ch_type)
+                elif ch_type.is_available_to(user) and ch_type.category:
                     if ch_type.name != "Twitter Legacy":
                         types_by_category[ch_type.category.name].append(ch_type)
 

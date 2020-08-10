@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'temba';
-  src:  url('fonts/temba.eot?f77vj9');
-  src:  url('fonts/temba.eot?f77vj9#iefix') format('embedded-opentype'),
-    url('fonts/temba.ttf?f77vj9') format('truetype'),
-    url('fonts/temba.woff?f77vj9') format('woff'),
-    url('fonts/temba.svg?f77vj9#temba') format('svg');
+  src:  url('fonts/temba.eot?13aoa6');
+  src:  url('fonts/temba.eot?13aoa6#iefix') format('embedded-opentype'),
+    url('fonts/temba.ttf?13aoa6') format('truetype'),
+    url('fonts/temba.woff?13aoa6') format('woff'),
+    url('fonts/temba.svg?13aoa6#temba') format('svg');
   font-weight: normal;
   font-style: normal;
   font-display: block;
@@ -13,7 +13,7 @@
 [class^="icon-"], [class*=" icon-"] {
   /* use !important to prevent issues with browser extensions that change fonts */
   font-family: 'temba' !important;
-  speak: none;
+  speak: never;
   font-style: normal;
   font-weight: normal;
   font-variant: normal;
@@ -25,6 +25,15 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-campaign:before {
+  content: "\e919";
+}
+.icon-contact:before {
+  content: "\e91a";
+}
+.icon-flow:before {
+  content: "\e91b";
+}
 .icon-email-tickets:before {
   content: "\ea35";
 }
@@ -499,9 +508,6 @@
 }
 .icon-close-2:before {
   content: "\e0a2";
-}
-.icon-activity:before {
-  content: "\e0a7";
 }
 .icon-feed:before {
   content: "\e0a8";

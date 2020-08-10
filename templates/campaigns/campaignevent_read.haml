@@ -12,7 +12,7 @@
 
 -block title-icon
   .title-icon
-    %span.glyph.icon-instant
+    %span.glyph.icon-campaign
 
 -block title
   %a{href:"{% url 'campaigns.campaign_read' object.campaign.pk %}"}
@@ -144,7 +144,7 @@
       {% if org_perms.campaigns.campaignevent_update %}
         $(".update-event").live('click', function(){
           var modal = new Modax('{{_("Update Event")|escapejs }}', '{% url "campaigns.campaignevent_update" object.pk %}');
-          modal.setIcon('icon-instant');
+          modal.setIcon('icon-campaign');
           modal.setRedirectOnSuccess(true);
           modal.show();
         });

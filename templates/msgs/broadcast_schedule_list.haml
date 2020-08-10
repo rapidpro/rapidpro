@@ -9,11 +9,11 @@
 -block action-buttons
 
 -block message-list
-  .mt-4.rounded-lg.shadow.p-4
-    %table.w-full
+  .mt-4
+    %table.list.lined.w-full
       %tbody
         -for object in object_list
-          %tr.select-row{class:'{% cycle row1 row1 %}', onClick:'document.location="{% url "msgs.broadcast_schedule_read" object.id %}"'}
+          %tr.select-row.cursor-pointer{class:'{% cycle row1 row1 %}', onclick:'document.location="{% url "msgs.broadcast_schedule_read" object.id %}"'}
 
             %td.value-contacts.field_phone
               -with recipient_counts=object.get_recipient_counts
