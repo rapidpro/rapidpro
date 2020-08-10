@@ -14,7 +14,7 @@ TYPE_STOP_CONTACT = "stop_contact"
 SEEN_EVENTS = {TYPE_CALL_IN, TYPE_CALL_IN_MISSED, TYPE_NEW_CONVERSATION, TYPE_REFERRAL, TYPE_STOP_CONTACT}
 
 
-def calculate_last_seen(apps, org):
+def calculate_last_seen(apps, org):  # pragma: no cover
     ChannelEvent = apps.get_model("channels", "ChannelEvent")
     Msg = apps.get_model("msgs", "Msg")
 
@@ -57,7 +57,7 @@ def calculate_last_seen(apps, org):
     return last_seen_by_id
 
 
-def populate_last_seen_on_for_org(apps, org):
+def populate_last_seen_on_for_org(apps, org):  # pragma: no cover
     Contact = apps.get_model("contacts", "Contact")
 
     last_seen_by_id = calculate_last_seen(apps, org)
@@ -77,7 +77,7 @@ def populate_last_seen_on_for_org(apps, org):
         print(f"   - Updated {len(contact_ids)} contacts with new last seen values")
 
 
-def populate_last_seen_on(apps, schema_editor):
+def populate_last_seen_on(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
     num_orgs = Org.objects.filter(is_active=True).count()
 
@@ -87,7 +87,7 @@ def populate_last_seen_on(apps, schema_editor):
         populate_last_seen_on_for_org(apps, org)
 
 
-def pop_dict_items(d, count):
+def pop_dict_items(d, count):  # pragma: no cover
     """
     Pop up to count items from the dict d
     """
@@ -100,7 +100,7 @@ def pop_dict_items(d, count):
     return dict(items)
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
