@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-07 19:24+0000\n"
+"POT-Creation-Date: 2020-08-10 14:16+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -161,6 +161,14 @@ msgstr "Défaut"
 
 msgid "Update Event"
 msgstr "Mettre à jour l'événement"
+
+#, fuzzy
+#| msgid "Delete "
+msgid "Delete Event"
+msgstr "Supprimer"
+
+msgid "Delete"
+msgstr "Effacer"
 
 msgid "Default Encoding"
 msgstr "Encodage par défaut"
@@ -2427,9 +2435,6 @@ msgstr "Désactiver les appels vocaux"
 #| msgid "Disable Voice Calling"
 msgid "Enable Voice Calling"
 msgstr "Désactiver les appels vocaux"
-
-msgid "Delete"
-msgstr "Effacer"
 
 #, fuzzy
 #| msgid "Create Label"
@@ -5143,6 +5148,11 @@ msgid "after"
 msgstr ""
 
 #, fuzzy
+#| msgid "You are about to delete <span class='group_name'> %(object)s. </span> No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?"
+msgid "You are about to delete this event. There is no way to undo this. Are you sure?"
+msgstr "Vous êtes sur le point de supprimer <span class='group_name'> %(object)s. </span> Aucun contact ne sera supprimé mais le groupe lui-même sera supprimé. Il n'y a aucun moyen d'annuler cela. Êtes-vous sûr?"
+
+#, fuzzy
 #| msgid "starts the"
 msgid "Start the"
 msgstr "commence le"
@@ -5203,14 +5213,16 @@ msgstr "Recommandations"
 msgid "We recommend using an Android phone with a local sim card for your country. This phone will send and receive messages for you. You will only need one phone per country depending on message volume. Don't worry! The people you are texting with can still use basic phones."
 msgstr "Nous vous recommandons d'utiliser un téléphone Android avec une carte SIM locale pour votre pays. Ce téléphone enverra et recevra des messages pour vous. Vous n'aurez besoin que d'un téléphone par pays en fonction du volume de messages. Ne t'inquiète pas! Les personnes avec qui vous envoyez des SMS peuvent toujours utiliser des téléphones de base."
 
-msgid "Works in any country and uses the cell phone plan you already have. You just need an Android phone to get started."
-msgstr "Fonctionne dans n'importe quel pays et utilise le forfait de téléphonie mobile que vous avez déjà. Vous avez juste besoin d'un téléphone Android pour commencer."
-
-msgid "Phone Channels"
-msgstr "Canaux téléphoniques"
-
 msgid "Social Network Channels"
 msgstr "Canaux Réseaux Sociaux"
+
+#, fuzzy
+#| msgid "Add Channel"
+msgid "SMS and Voice Channels"
+msgstr "Ajouter un canal"
+
+msgid "Works in any country and uses the cell phone plan you already have. You just need an Android phone to get started."
+msgstr "Fonctionne dans n'importe quel pays et utilise le forfait de téléphonie mobile que vous avez déjà. Vous avez juste besoin d'un téléphone Android pour commencer."
 
 msgid "API Channels"
 msgstr "Canaux API"
@@ -11604,6 +11616,9 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Phone Channels"
+#~ msgstr "Canaux téléphoniques"
 
 #, fuzzy
 #~| msgid "Disable Voice Calling"

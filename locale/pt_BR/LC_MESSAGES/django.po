@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-07 19:24+0000\n"
+"POT-Creation-Date: 2020-08-10 14:16+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -198,6 +198,14 @@ msgstr ""
 #| msgid "Update Contact"
 msgid "Update Event"
 msgstr "Atualizar contato"
+
+#, fuzzy
+#| msgid "Delete"
+msgid "Delete Event"
+msgstr "Deletar"
+
+msgid "Delete"
+msgstr "Deletar"
 
 msgid "Default Encoding"
 msgstr ""
@@ -3066,9 +3074,6 @@ msgstr "Desativar chamada de voz"
 #| msgid "Disable Voice Calling"
 msgid "Enable Voice Calling"
 msgstr "Desativar chamada de voz"
-
-msgid "Delete"
-msgstr "Deletar"
 
 #, fuzzy
 #| msgid "Create Label"
@@ -6140,6 +6145,25 @@ msgid "after"
 msgstr ""
 
 #, fuzzy
+#| msgid ""
+#| "\n"
+#| "            Instead of using your Android phone to send messages, you can use your\n"
+#| "            <a class='nexmo-account' href='#'>\n"
+#| "              Nexmo Account\n"
+#| "            </a>\n"
+#| "            to send messages to over 200 countries.\n"
+#| "\n"
+#| "          "
+msgid "You are about to delete this event. There is no way to undo this. Are you sure?"
+msgstr ""
+"\n"
+"Em vez de usar o seu telefone Android para enviar mensagens, você pode usar a sua \n"
+"<a class='nexmo-account' href='#'>\n"
+"Conta Nexmo \n"
+"</ a> \n"
+"para enviar mensagens para mais de 200 países."
+
+#, fuzzy
 #| msgid "starts the"
 msgid "Start the"
 msgstr "inicia o"
@@ -6268,6 +6292,14 @@ msgstr ""
 "do volume de mensagens. Não se preocupe! As pessoas com quem voce esta trocando mensagens de texto ainda podem usar telefones básicos."
 
 #, fuzzy
+msgid "Social Network Channels"
+msgstr "Transmissor"
+
+#, fuzzy
+msgid "SMS and Voice Channels"
+msgstr "Transmissor"
+
+#, fuzzy
 #| msgid ""
 #| "\n"
 #| "                Works in any country and uses the cell phone plan\n"
@@ -6281,14 +6313,6 @@ msgstr ""
 "Funciona em qualquer país e utiliza o plano de telefone celular \n"
 "que você já tem. Você só precisa de um telefone Android \n"
 "para começar. "
-
-#, fuzzy
-msgid "Phone Channels"
-msgstr "Transmissor"
-
-#, fuzzy
-msgid "Social Network Channels"
-msgstr "Transmissor"
 
 #, fuzzy
 msgid "API Channels"
@@ -12015,6 +12039,10 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "Phone Channels"
+#~ msgstr "Transmissor"
 
 #, fuzzy, python-format
 #~ msgid ""

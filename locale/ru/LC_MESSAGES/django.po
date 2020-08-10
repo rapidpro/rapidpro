@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-07 19:24+0000\n"
+"POT-Creation-Date: 2020-08-10 14:16+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -161,6 +161,14 @@ msgstr "По умолчанию"
 
 msgid "Update Event"
 msgstr "Обновить событие"
+
+#, fuzzy
+#| msgid "Delete "
+msgid "Delete Event"
+msgstr "Удалить"
+
+msgid "Delete"
+msgstr "Удалить"
 
 msgid "Default Encoding"
 msgstr "Кодировка по умолчанию"
@@ -2381,9 +2389,6 @@ msgstr "Отключить Голосовые Звонки"
 #| msgid "Disable Voice Calling"
 msgid "Enable Voice Calling"
 msgstr "Отключить Голосовые Звонки"
-
-msgid "Delete"
-msgstr "Удалить"
 
 #, fuzzy
 #| msgid "Create Label"
@@ -5117,6 +5122,11 @@ msgid "after"
 msgstr ""
 
 #, fuzzy
+#| msgid "You are about to delete <span class='group_name'> %(object)s. </span> No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?"
+msgid "You are about to delete this event. There is no way to undo this. Are you sure?"
+msgstr "Вы собираетесь удалить <span class='group_name'> %(object)s. </span> Контакты не будут удалены, но сама группа будет удалена. Способа отменить это действие нет. Вы уверены?"
+
+#, fuzzy
 #| msgid "starts the"
 msgid "Start the"
 msgstr "начинает "
@@ -5177,14 +5187,16 @@ msgstr "Рекомендации"
 msgid "We recommend using an Android phone with a local sim card for your country. This phone will send and receive messages for you. You will only need one phone per country depending on message volume. Don't worry! The people you are texting with can still use basic phones."
 msgstr "Мы рекомендуем использовать телефон Android с местной сим-картой Вашей страны. Этот телефон будет отправлять и получать сообщения для Вас. Вам понадобится только один телефон на каждую страну, в зависимости от объема сообщений. Не переживайте! Люди, которым Вы пишете, могут использовать обычные телефоны."
 
-msgid "Works in any country and uses the cell phone plan you already have. You just need an Android phone to get started."
-msgstr "Работает в любой стране и использует тарифный план сотовой связи, который у Вас уже есть. Чтобы начать, Вам нужен всего лишь телефон Android."
-
-msgid "Phone Channels"
-msgstr "Телефонные каналы"
-
 msgid "Social Network Channels"
 msgstr "Каналы Социальной сети"
+
+#, fuzzy
+#| msgid "Add Channel"
+msgid "SMS and Voice Channels"
+msgstr "Добавить Канал"
+
+msgid "Works in any country and uses the cell phone plan you already have. You just need an Android phone to get started."
+msgstr "Работает в любой стране и использует тарифный план сотовой связи, который у Вас уже есть. Чтобы начать, Вам нужен всего лишь телефон Android."
 
 msgid "API Channels"
 msgstr "Каналы API"
@@ -11754,6 +11766,9 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Phone Channels"
+#~ msgstr "Телефонные каналы"
 
 #, python-format
 #~ msgid ""

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-07 19:24+0000\n"
+"POT-Creation-Date: 2020-08-10 14:16+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -191,6 +191,14 @@ msgstr ""
 #| msgid "Update Contact"
 msgid "Update Event"
 msgstr "Actualizar Contacto"
+
+#, fuzzy
+#| msgid "Delete"
+msgid "Delete Event"
+msgstr "Borrar"
+
+msgid "Delete"
+msgstr "Borrar"
 
 msgid "Default Encoding"
 msgstr ""
@@ -3358,9 +3366,6 @@ msgstr "Desactivar las llamadas de voz"
 msgid "Enable Voice Calling"
 msgstr "Desactivar las llamadas de voz"
 
-msgid "Delete"
-msgstr "Borrar"
-
 #, fuzzy
 #| msgid "Create Label"
 msgid "Delete Channel"
@@ -6476,6 +6481,27 @@ msgid "after"
 msgstr ""
 
 #, fuzzy
+#| msgid ""
+#| "\n"
+#| "            Instead of using your Android phone to send messages, you can use your\n"
+#| "            <a class='nexmo-account' href='#'>\n"
+#| "              Nexmo Account\n"
+#| "            </a>\n"
+#| "            to send messages to over 200 countries.\n"
+#| "\n"
+#| "          "
+msgid "You are about to delete this event. There is no way to undo this. Are you sure?"
+msgstr ""
+"\n"
+"            En lugar de usar su teléfono Android para enviar mensajes, puede usar su\n"
+"            <a class='nexmo-account' href='#'>\n"
+"              Cuenta Nexmo\n"
+"            </a>\n"
+"            para enviar mensajes a más de 200 países.\n"
+"\n"
+"          "
+
+#, fuzzy
 #| msgid "starts the"
 msgid "Start the"
 msgstr "empieza el"
@@ -6618,6 +6644,14 @@ msgstr ""
 "        "
 
 #, fuzzy
+msgid "Social Network Channels"
+msgstr "Transmisor"
+
+#, fuzzy
+msgid "SMS and Voice Channels"
+msgstr "Transmisor"
+
+#, fuzzy
 #| msgid ""
 #| "\n"
 #| "                Works in any country and uses the cell phone plan\n"
@@ -6633,14 +6667,6 @@ msgstr ""
 "                para empezar.\n"
 "\n"
 "              "
-
-#, fuzzy
-msgid "Phone Channels"
-msgstr "Transmisor"
-
-#, fuzzy
-msgid "Social Network Channels"
-msgstr "Transmisor"
 
 #, fuzzy
 msgid "API Channels"
@@ -12969,6 +12995,10 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "Phone Channels"
+#~ msgstr "Transmisor"
 
 #, fuzzy
 #~| msgid "Disable Voice Calling"
