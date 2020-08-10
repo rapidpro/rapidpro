@@ -1,3 +1,7 @@
+v5.7.8
+----------
+ * Add plan_end field to Orgs
+
 v5.7.7
 ----------
  * Add search archives management command
