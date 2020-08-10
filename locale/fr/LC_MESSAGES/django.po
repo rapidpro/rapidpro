@@ -11894,52 +11894,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "Il ne <span class='attn'>se répétera pas</span>."
 
-#~ msgid "Social media channel"
-#~ msgstr "Canal de médias sociaux"
-
-#~ msgid "Flow to start"
-#~ msgstr "Début du flux"
-
-#~ msgid "Restrict to channel"
-#~ msgstr "Restreindre au canal"
-
-#, fuzzy
-#~| msgid "Disable Voice Calling"
-#~ msgid "Disable Voice Caliing"
-#~ msgstr "Désactiver les appels vocaux"
-
-#, fuzzy
-#~| msgid "Disable Voice Calling"
-#~ msgid "Remove Voice Calling"
-#~ msgstr "Désactiver les appels vocaux"
-
-#, fuzzy
-#~| msgid "Enable Bulk Sending"
-#~ msgid "Remove Bulk Sending"
-#~ msgstr "Activer l'envoi massif"
-
-#~ msgid "unsent messages"
-#~ msgid_plural "unsent message"
-#~ msgstr[0] "messages non envoyés"
-#~ msgstr[1] "message non envoyé"
-
-#~ msgid "Remove Channel"
-#~ msgstr "Supprimer le canal"
-
-#, fuzzy
-#~| msgid "Are you sure you want to remove this channel from your account?"
-#~ msgid "Are you sure you want to remove this channel from your workspace?"
-#~ msgstr "Êtes-vous sûr de vouloir supprimer ce canal de votre compte?"
-
-#~ msgid "This channel cannot be removed because it in use."
-#~ msgstr "Ce canal ne peut pas être supprimé car il est utilisé."
-
-#~ msgid "Add Phone"
-#~ msgstr "Ajouter un téléphone"
-
-#~ msgid "To complete the configuration of your VK connection, you will need to enter the Webhook URL in the URL field in the Manage > API Usage > Callback API > Server Settings section. And the Verify Token in the Secret Key field present in the API Usage > Callback API > Server Settings section. After this part, go to Manage > API Usage > Callback API > Event Types and check the option: <code>Message received</code>"
-#~ msgstr "Pour terminer la configuration de votre connexion VK, vous devrez saisir l'URL du Webhook dans le champ URL de la section Gérer> Utilisation de l'API> API de rappel> Paramètres du serveur. Et le jeton de vérification dans le champ Clé secrète présent dans la section Utilisation de l'API> API de rappel> Paramètres du serveur. Après cette partie, accédez à Gérer> Utilisation de l'API> API de rappel> Types d'événements et cochez l'option: <code>Message reçu</code>"
-
 #~ msgid "The number or address of this channel"
 #~ msgstr "Le numéro ou l'adresse de ce canal"
 
