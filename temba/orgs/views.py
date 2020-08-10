@@ -1163,6 +1163,7 @@ class OrgCRUDL(SmartCRUDL):
     class Update(SmartUpdateView):
         class Form(forms.ModelForm):
             parent = forms.IntegerField(required=False)
+            plan_end = forms.DateTimeField(required=False)
 
             def clean_parent(self):
                 parent = self.cleaned_data.get("parent")
@@ -1173,6 +1174,8 @@ class OrgCRUDL(SmartCRUDL):
                 model = Org
                 fields = (
                     "name",
+                    "plan",
+                    "plan_end",
                     "brand",
                     "parent",
                     "is_anon",
@@ -2097,6 +2100,7 @@ class OrgCRUDL(SmartCRUDL):
             obj.created_by = self.user
             obj.modified_by = self.user
             obj.brand = self.request.branding.get("brand", settings.DEFAULT_BRAND)
+            obj.plan = self.request.branding.get("default_plan", settings.DEFAULT_PLAN)
 
             if obj.timezone.zone in pytz.country_timezones("US"):
                 obj.date_format = Org.DATE_FORMAT_MONTH_FIRST
