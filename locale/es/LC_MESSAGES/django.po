@@ -13288,46 +13288,6 @@ msgstr ""
 #~ "\n"
 #~ "        "
 
-#~ msgid "Flow to start"
-#~ msgstr "Flujo para empezar"
-
-#, fuzzy
-#~ msgid "Restrict to channel"
-#~ msgstr "Borrar teléfono"
-
-#, fuzzy
-#~| msgid "Disable Voice Calling"
-#~ msgid "Disable Voice Caliing"
-#~ msgstr "Desactivar las llamadas de voz"
-
-#, fuzzy
-#~| msgid "Disable Voice Calling"
-#~ msgid "Remove Voice Calling"
-#~ msgstr "Desactivar las llamadas de voz"
-
-#, fuzzy
-#~| msgid "Enable Bulk Sending"
-#~ msgid "Remove Bulk Sending"
-#~ msgstr "Permitir envío masivo"
-
-#, fuzzy
-#~| msgid "Resent message"
-#~ msgid "unsent messages"
-#~ msgid_plural "unsent message"
-#~ msgstr[0] "Mensaje reciente"
-#~ msgstr[1] "Mensaje reciente"
-
-#, fuzzy
-#~ msgid "Remove Channel"
-#~ msgstr "Borrar teléfono"
-
-#, fuzzy
-#~ msgid "Are you sure you want to remove this channel from your workspace?"
-#~ msgstr "¿Está seguro de que desea borrar este número de su cuenta?"
-
-#~ msgid "Add Phone"
-#~ msgstr "Agregar teléfono"
-
 #, fuzzy
 #~ msgid "The number or address of this channel"
 #~ msgstr "El nombre de esta etiqueta"
