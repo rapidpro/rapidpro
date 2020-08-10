@@ -1,3 +1,7 @@
+v5.7.7
+----------
+ * Add search archives management command
+
 v5.7.6
 ----------
  * Optimizations to migration to backfill last_seen_on

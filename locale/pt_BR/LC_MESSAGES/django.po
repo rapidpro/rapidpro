@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-07 19:02+0000\n"
+"POT-Creation-Date: 2020-08-07 19:24+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -65,9 +65,6 @@ msgstr "Mensagem"
 #| msgid "Sun"
 msgid "Run"
 msgstr "Domingo"
-
-msgid "The archive we were rolled up into, if any"
-msgstr ""
 
 #, fuzzy
 msgid "Archive"
@@ -4786,6 +4783,14 @@ msgstr ""
 
 #, fuzzy
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
+msgstr "Desculpe, mas não fomos capazes de cobrar em seu cartão, por favor, tente novamente mais tarde ou entre em contato conosco pelo feedback@textit.in"
+
+#, fuzzy
+msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
+msgstr "Desculpe, não podemos cancelar seu plano neste momento. Por favor, entre em contato conosco pelo feedback@textit.in."
+
+#, fuzzy
+msgid "Sorry, we were unable to charge your card, please try again later or contact us."
 msgstr "Desculpe, mas não fomos capazes de cobrar em seu cartão, por favor, tente novamente mais tarde ou entre em contato conosco pelo feedback@textit.in"
 
 msgid "Viewer"
@@ -11863,14 +11868,6 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
-
-#, fuzzy
-#~ msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
-#~ msgstr "Desculpe, não podemos cancelar seu plano neste momento. Por favor, entre em contato conosco pelo feedback@textit.in."
-
-#, fuzzy
-#~ msgid "Sorry, we were unable to charge your card, please try again later or contact us."
-#~ msgstr "Desculpe, mas não fomos capazes de cobrar em seu cartão, por favor, tente novamente mais tarde ou entre em contato conosco pelo feedback@textit.in"
 
 #~ msgid "Oops, so sorry. Something went wrong!"
 #~ msgstr "Oops, me desculpe. Ocorreu algum erro!"

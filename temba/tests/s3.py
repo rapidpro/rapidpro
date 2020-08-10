@@ -39,3 +39,25 @@ class MockS3Client:
                 matches.append({"Key": o[1]})
 
         return dict(Contents=matches)
+
+    def select_object_content(self, Bucket, Key, **kwargs):
+        stream = self.objects[(Bucket, Key)]
+        stream.seek(0)
+        zstream = gzip.GzipFile(fileobj=stream)
+
+        payload = io.BytesIO()
+        while True:
+            line = zstream.readline()
+            if not line:
+                break
+            payload.write(line)
+
+        payload.seek(0)
+
+        return {
+            "Payload": [
+                {"Records": {"Payload": payload.read()}},
+                {"Stats": {"Details": {"BytesScanned": 123, "BytesProcessed": 234, "BytesReturned": 3456}}},
+                {"End": {}},
+            ]
+        }
