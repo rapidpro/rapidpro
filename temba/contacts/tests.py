@@ -22,6 +22,7 @@ from django.utils import timezone
 
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import WebHookResult
+from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import DELETED_SCHEME
@@ -44,6 +45,7 @@ from temba.tests import (
     mock_mailroom,
 )
 from temba.tests.engine import MockSessionWriter
+from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.dates import datetime_to_ms, datetime_to_str
@@ -7198,32 +7200,80 @@ class ESIntegrationTest(TembaNonAtomicTest):
         self.assertEqual(81, EventFire.objects.filter(event=event, fired=None).count())
 
 
-class PopulateLastSeenOnTest(MigrationTest):
+class PopulateLastSeenOn2Test(MigrationTest):
     app = "contacts"
-    migrate_from = "0109_contact_last_seen_on"
-    migrate_to = "0110_populate_last_seen_on"
+    migrate_from = "0110_populate_last_seen_on"
+    migrate_to = "0111_populate_last_seen_on_2"
+
+    def setUp(self):
+        self.mock_s3 = MockS3Client()
+        self.s3_patcher = patch("boto3.session.Session.client", return_value=self.mock_s3)
+        self.s3_patcher.start()
+
+        super().setUp()
+
+    def tearDown(self):
+        self.s3_patcher.stop()
+
+        super().tearDown()
 
     def setUpBeforeMigration(self, apps):
-        # contact 1 has multiple incoming messages
         self.contact1 = self.create_contact("Anne", urn="tel:+1234567891")
-        self.create_incoming_msg(self.contact1, text="Hi", created_on=datetime(2020, 8, 1, 13, 0, 0, 0, pytz.UTC))
-        self.create_incoming_msg(self.contact1, text="Hi", created_on=datetime(2020, 8, 2, 13, 0, 0, 0, pytz.UTC))
-
-        # contact 2 has a single incoming message and a channel event
         self.contact2 = self.create_contact("Bill", urn="tel:+1234567892")
-        self.create_incoming_msg(self.contact1, text="Hi", created_on=datetime(2020, 7, 1, 13, 0, 0, 0, pytz.UTC))
-        ChannelEvent.objects.create(
-            org=self.org,
-            contact=self.contact2,
-            event_type=ChannelEvent.TYPE_CALL_IN_MISSED,
-            channel=self.channel,
-            created_on=datetime(2020, 8, 3, 13, 0, 0, 0, pytz.UTC),
-            occurred_on=datetime(2020, 8, 3, 13, 0, 0, 0, pytz.UTC),
-        )
-
-        # contact 3 only has an outgoing message
         self.contact3 = self.create_contact("Cate", urn="tel:+1234567893")
-        self.create_outgoing_msg(self.contact3, text="Hi")
+
+        self.create_archive(
+            Archive.TYPE_MSG,
+            "D",
+            date(2020, 7, 31),
+            s3=self.mock_s3,
+            records=(
+                [
+                    {
+                        "id": 40,
+                        "broadcast": None,
+                        "contact": {"uuid": self.contact1.uuid, "name": "Anne"},
+                        "urn": None,
+                        "channel": {"uuid": "b1ab642c-e7a5-442d-b3da-0862efb7c207", "name": "24453"},
+                        "direction": "in",
+                        "type": "inbox",
+                        "status": "handled",
+                        "visibility": "archived",
+                        "text": "it me!",
+                        "attachments": [],
+                        "labels": [],
+                        "created_on": "2020-07-31T11:00:00Z",
+                        "sent_on": None,
+                        "modified_on": "2020-07-31T13:00:00Z",
+                    },
+                    {
+                        "contact": {"uuid": self.contact1.uuid, "name": "Anne"},
+                        "direction": "in",
+                        "created_on": "2020-07-31T13:00:00Z",
+                    },
+                    {
+                        "contact": {"uuid": self.contact1.uuid, "name": "Anne"},
+                        "direction": "out",
+                        "created_on": "2020-07-31T15:00:00Z",
+                    },
+                ]
+            ),
+        )
+        self.create_archive(
+            Archive.TYPE_MSG,
+            "M",
+            date(2020, 8, 1),
+            s3=self.mock_s3,
+            records=(
+                [
+                    {
+                        "contact": {"uuid": self.contact2.uuid, "name": "Bill"},
+                        "direction": "in",
+                        "created_on": "2020-08-02T13:00:00Z",
+                    },
+                ]
+            ),
+        )
 
         Contact.objects.all().update(last_seen_on=None)
 
@@ -7237,7 +7287,7 @@ class PopulateLastSeenOnTest(MigrationTest):
         for c in (self.contact1, self.contact2, self.contact3, self.contact4):
             c.refresh_from_db()
 
-        self.assertEqual(datetime(2020, 8, 2, 13, 0, 0, 0, pytz.UTC), self.contact1.last_seen_on)
-        self.assertEqual(datetime(2020, 8, 3, 13, 0, 0, 0, pytz.UTC), self.contact2.last_seen_on)
+        self.assertEqual(datetime(2020, 7, 31, 13, 0, 0, 0, pytz.UTC), self.contact1.last_seen_on)
+        self.assertEqual(datetime(2020, 8, 2, 13, 0, 0, 0, pytz.UTC), self.contact2.last_seen_on)
         self.assertEqual(None, self.contact3.last_seen_on)
         self.assertEqual(datetime(2020, 8, 4, 13, 0, 0, 0, pytz.UTC), self.contact4.last_seen_on)
