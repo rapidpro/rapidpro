@@ -7,19 +7,19 @@ To learn more, please visit the project site at http://rapidpro.github.io/rapidp
 
 The set of versions that make up the latest stable release are:
 
- * [RapidPro v5.4.13](https://github.com/rapidpro/rapidpro/releases/tag/v5.4.13)
- * [Mailroom v5.4.4](https://github.com/nyaruka/mailroom/releases/tag/v5.4.4)
- * [Courier v5.4.1](https://github.com/nyaruka/courier/releases/tag/v5.4.1)
- * [Archiver v5.4.0](https://github.com/nyaruka/rp-archiver/releases/tag/v5.4.0)
- * [Indexer v5.4.0](https://github.com/nyaruka/rp-indexer/releases/tag/v5.4.0)
+ * [RapidPro v5.6.5](https://github.com/rapidpro/rapidpro/releases/tag/v5.6.5)
+ * [Mailroom v5.6.1](https://github.com/nyaruka/mailroom/releases/tag/v5.6.1)
+ * [Courier v5.6.0](https://github.com/nyaruka/courier/releases/tag/v5.6.0)
+ * [Archiver v5.6.0](https://github.com/nyaruka/rp-archiver/releases/tag/v5.6.0)
+ * [Indexer v5.6.0](https://github.com/nyaruka/rp-indexer/releases/tag/v5.6.0)
  * [Android Channel v2.0.0](https://github.com/rapidpro/android-channel/releases/tag/v2.0.0)
- * [Android Surveyor v13.4.2](https://github.com/rapidpro/surveyor/releases/tag/v13.4.2)
+ * [Android Surveyor v13.5.0](https://github.com/rapidpro/surveyor/releases/tag/v13.5.0)
 
 ### Versioning in RapidPro
 
-Major releases of RapidPro are made every four months on a set schedule. We target July 1st
-as a major release (`v5.0.0`), then November 1st as the first stable dot release (`v5.2.0`) and March 1st
-as the second stable dot release (`v5.4.0`). The next July would start the next major release `v6.0.0`.
+Major releases of RapidPro are made every four months on a set schedule. We target November 1st
+as a major release (`v6.0.0`), then March 1st as the first stable dot release (`v6.2.0`) and July 1st
+as the second stable dot release (`v6.4.0`). The next November would start the next major release `v7.0.0`.
 
 Unstable releases have odd minor versions, that is versions `v5.1.*` would indicate an unstable or *development*
 version of RapidPro. Generally we recommend staying on stable releases unless you
