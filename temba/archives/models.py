@@ -196,11 +196,7 @@ class Archive(models.Model):
                 if not line:
                     break
 
-                yield self._parse_record(line)
-
-    @staticmethod
-    def _parse_record(line):
-        return json.loads(line.decode("utf-8"))
+                yield json.loads(line.decode("utf-8"))
 
     def release(self):
 

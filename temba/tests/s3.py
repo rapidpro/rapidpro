@@ -6,7 +6,7 @@ from temba.utils import chunk_list, json
 
 
 class MockEventStream:
-    def __init__(self, records: List[Dict], max_payload_size=256):
+    def __init__(self, records: List[Dict], max_payload_size: int = 256):
         # serialize records as a JSONL payload
         buffer = io.BytesIO()
         for record in records:
@@ -35,7 +35,7 @@ class MockS3Client:
     def __init__(self):
         self.objects = {}
 
-    def put_jsonl(self, bucket, key, records: List[Dict]):
+    def put_jsonl(self, bucket: str, key: str, records: List[Dict]):
         stream = io.BytesIO()
         gz = gzip.GzipFile(fileobj=stream, mode="wb")
 

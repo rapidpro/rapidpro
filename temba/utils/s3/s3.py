@@ -28,8 +28,6 @@ class EventStreamReader:
                 self.buffer.extend(event["Records"]["Payload"])
 
                 lines = self.buffer.splitlines(keepends=True)
-                if not lines:
-                    continue
 
                 # if last line doesn't end with \n then it's incomplete and goes back in the buffer
                 if not lines[-1].endswith(b"\n"):
