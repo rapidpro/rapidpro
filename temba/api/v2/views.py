@@ -3101,6 +3101,15 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
                 queryset = queryset.filter(flow=flow)
             else:
                 queryset = queryset.filter(pk=-1)
+        
+        # filter by flow start (optional)        
+        flow_start_uuid = params.get("start")
+        if flow_start_uuid:
+            flow_start = FlowStart.objects.filter(org=org, uuid=flow_start_uuid, flow__is_active=True).first()
+            if flow_start:
+                queryset = queryset.filter(start=flow_start)
+            else:
+                queryset = queryset.filter(pk=-1)
 
         # filter by id (optional)
         run_id = self.get_int_param("id")
