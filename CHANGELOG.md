@@ -1,3 +1,8 @@
+v5.7.9
+----------
+ * Fix reading of S3 event streams
+ * Migration to populate contact.last_seen_on from msg archives
+
 v5.7.8
 ----------
  * Add plan_end field to Orgs
