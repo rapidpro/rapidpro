@@ -3462,6 +3462,14 @@ msgstr "Lo sentimos, no se encontraron números, por favor, ingrese otro código
 msgid "Calls"
 msgstr "Llamadas"
 
+msgid "Messages"
+msgstr "Mensajes"
+
+#, fuzzy
+#| msgid "Android integration"
+msgid "Other Interactions"
+msgstr "Integración de Android"
+
 #, fuzzy
 #| msgid "The name of your organization"
 msgid "The name of your bot"
@@ -4595,6 +4603,9 @@ msgstr ""
 msgid "Isn't a valid name"
 msgstr "Con un número local"
 
+msgid "Value"
+msgstr "Valor"
+
 #, fuzzy
 #| msgid "Manage Fields"
 msgid "Manage Globals"
@@ -5072,9 +5083,6 @@ msgstr "Actualizar campos"
 
 msgid "Update Label"
 msgstr "Actualizar etiqueta"
-
-msgid "Messages"
-msgstr "Mensajes"
 
 #, fuzzy
 #| msgid "campaigns"
@@ -6400,6 +6408,21 @@ msgid "Time"
 msgstr "Hora"
 
 #, fuzzy
+#| msgid "Webhook Events"
+msgid "Webhook Event"
+msgstr "Eventos Webhook"
+
+#, fuzzy
+#| msgid "Receive URL"
+msgid "Request Time"
+msgstr "Recibir URL"
+
+#, fuzzy
+#| msgid "Receive URL"
+msgid "Request Time:"
+msgstr "Recibir URL"
+
+#, fuzzy
 #| msgid "Archive"
 msgid "Archives"
 msgstr "Archivar"
@@ -6880,11 +6903,6 @@ msgstr "Las llamadas no corresponden"
 msgid "Channel Events"
 msgstr "Evento del transmisor"
 
-#, fuzzy
-#| msgid "Android integration"
-msgid "Other Interactions"
-msgstr "Integración de Android"
-
 msgid "Recent Channel Events"
 msgstr "Eventos recientes del transmisor"
 
@@ -6908,6 +6926,11 @@ msgstr "Borrado"
 msgid "Channel interaction"
 msgstr "Integración de Android"
 
+#, fuzzy
+#| msgid "Receive URL"
+msgid "Request time"
+msgstr "Recibir URL"
+
 msgid "Channel Event"
 msgstr "Evento del transmisor"
 
@@ -6918,6 +6941,18 @@ msgstr "Mensaje"
 #, fuzzy
 msgid "Message Log"
 msgstr "Mensaje"
+
+#, fuzzy
+msgid "Recipient"
+msgstr "Número de créditos"
+
+#, fuzzy
+#| msgid "Export Data"
+msgid "Date"
+msgstr "Exportar datos"
+
+msgid "Duration"
+msgstr "Duración"
 
 #, fuzzy
 msgid "Error"
@@ -9913,22 +9948,23 @@ msgstr[0] ""
 msgstr[1] ""
 
 #, fuzzy
+#| msgid "Flow to start"
+msgid "No flow starts"
+msgstr "Flujo para empezar"
+
+#, fuzzy
 #| msgid "Are you sure you want to delete this contact?"
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "¿Está seguro de que desea borrar este contacto?"
 
-msgid "cannot be deleted because it is in use. Usage summary:"
+#, python-format
+msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
 msgstr ""
 
 #, fuzzy
 #| msgid "Flows"
 msgid "Flows:"
 msgstr "Flujos"
-
-#, fuzzy
-#| msgid "Are you sure you want to delete this contact?"
-msgid "Are you sure you want to delete this global?"
-msgstr "¿Está seguro de que desea borrar este contacto?"
 
 #, fuzzy
 #| msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
@@ -9960,8 +9996,21 @@ msgstr "Crear Flujos"
 msgid "Globals"
 msgstr "Manejar campos"
 
-msgid "No globals"
-msgstr ""
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "                              %(completed_percentage)s%% completion\n"
+#| "                            "
+msgid "Found %(results_count)s global matching <i>%(search)s</i>."
+msgid_plural "Found %(results_count)s globals matching <i>%(search)s</i>."
+msgstr[0] ""
+"\n"
+"                              %(completed_percentage)s%% completion\n"
+"                            "
+msgstr[1] ""
+"\n"
+"                              %(completed_percentage)s%% completion\n"
+"                            "
 
 #, fuzzy
 #| msgid "Update Label"
@@ -9973,7 +10022,12 @@ msgstr "Actualizar etiqueta"
 msgid "Delete Global"
 msgstr "Crear Flujos"
 
-msgid "Uses"
+#, fuzzy
+#| msgid "Query Fields"
+msgid "Global Details"
+msgstr "Campos de la solicitud"
+
+msgid "No globals"
 msgstr ""
 
 msgid "messages"
@@ -11510,9 +11564,6 @@ msgid ""
 "          Select an existing field, or type a name to create a new field.\n"
 "        "
 msgstr "Elegir un campo existente, o tipear un nombre para crear un nuevo campo."
-
-msgid "Value"
-msgstr "Valor"
 
 #, fuzzy
 msgid ""
@@ -14643,9 +14694,6 @@ msgstr ""
 #~ msgid "Cannot process an outgoing message."
 #~ msgstr "No puede procesar un mensaje saliente."
 
-#~ msgid "Webhook Events"
-#~ msgstr "Eventos Webhook"
-
 #~ msgid "Which type of actions will trigger webhook events."
 #~ msgstr "Qué tipo de acciones activarán los eventos webhook."
 
@@ -15838,9 +15886,6 @@ msgstr ""
 
 #~ msgid "Unknown channel type: %(channel)s"
 #~ msgstr "Tipo de transmisor desconocido: %(channel)s"
-
-#~ msgid "Duration"
-#~ msgstr "Duración"
 
 #, fuzzy
 #~| msgid "Connect Kannel"

@@ -2129,6 +2129,32 @@ class ChannelLogCRUDL(SmartCRUDL):
         link_fields = ("channel", "description", "created_on")
         paginate_by = 50
 
+        def get_gear_links(self):
+            channel = self.derive_channel()
+            links = []
+
+            if self.request.GET.get("connections") or self.request.GET.get("others"):
+                links.append(dict(title=_("Messages"), href=reverse("channels.channellog_list", args=[channel.uuid]),))
+
+            if not self.request.GET.get("connections"):
+                if channel.supports_ivr():
+                    links.append(
+                        dict(
+                            title=_("Calls"),
+                            href=f"{reverse('channels.channellog_list', args=[channel.uuid])}?connections=1",
+                        )
+                    )
+
+            if not self.request.GET.get("others"):
+                links.append(
+                    dict(
+                        title=_("Other Interactions"),
+                        href=f"{reverse('channels.channellog_list', args=[channel.uuid])}?others=1",
+                    )
+                )
+
+            return links
+
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r"^%s/(?P<channel_uuid>[^/]+)/$" % path
