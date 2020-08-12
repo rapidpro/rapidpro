@@ -447,15 +447,17 @@ class ContactField(SmartModel):
     KEY_NAME = "name"
     KEY_CREATED_ON = "created_on"
     KEY_LANGUAGE = "language"
+    KEY_LAST_SEEN_ON = "last_seen_on"
 
     # fields that cannot be updated by user
-    IMMUTABLE_FIELDS = (KEY_ID, KEY_CREATED_ON)
+    IMMUTABLE_FIELDS = (KEY_ID, KEY_CREATED_ON, KEY_LAST_SEEN_ON)
 
     SYSTEM_FIELDS = {
-        KEY_ID: dict(label=_("ID"), value_type=Value.TYPE_NUMBER),
-        KEY_NAME: dict(label=_("Name"), value_type=Value.TYPE_TEXT),
-        KEY_CREATED_ON: dict(label=_("Created On"), value_type=Value.TYPE_DATETIME),
-        KEY_LANGUAGE: dict(label=_("Language"), value_type=Value.TYPE_TEXT),
+        KEY_ID: dict(label="ID", value_type=Value.TYPE_NUMBER),
+        KEY_NAME: dict(label="Name", value_type=Value.TYPE_TEXT),
+        KEY_CREATED_ON: dict(label="Created On", value_type=Value.TYPE_DATETIME),
+        KEY_LANGUAGE: dict(label="Language", value_type=Value.TYPE_TEXT),
+        KEY_LAST_SEEN_ON: dict(label="Last Seen On", value_type=Value.TYPE_DATETIME),
     }
 
     EXPORT_KEY = "key"
@@ -494,6 +496,19 @@ class ContactField(SmartModel):
     all_fields = models.Manager()  # this is the default manager
     user_fields = UserContactFieldsManager()
     system_fields = SystemContactFieldsManager()
+
+    @classmethod
+    def create_system_fields(cls, org):
+        for key, spec in ContactField.SYSTEM_FIELDS.items():
+            org.contactfields.create(
+                field_type=ContactField.FIELD_TYPE_SYSTEM,
+                key=key,
+                label=spec["label"],
+                value_type=spec["value_type"],
+                show_in_table=False,
+                created_by=org.created_by,
+                modified_by=org.modified_by,
+            )
 
     @classmethod
     def make_key(cls, label):
@@ -2503,6 +2518,30 @@ class ContactGroup(TembaModel):
     all_groups = models.Manager()
     system_groups = SystemContactGroupManager()
     user_groups = UserContactGroupManager()
+
+    @classmethod
+    def create_system_groups(cls, org):
+        """
+        Creates our system groups for the given organization so that we can keep track of counts etc..
+        """
+        org.all_groups.create(
+            name="All Contacts",
+            group_type=ContactGroup.TYPE_ALL,
+            created_by=org.created_by,
+            modified_by=org.modified_by,
+        )
+        org.all_groups.create(
+            name="Blocked Contacts",
+            group_type=ContactGroup.TYPE_BLOCKED,
+            created_by=org.created_by,
+            modified_by=org.modified_by,
+        )
+        org.all_groups.create(
+            name="Stopped Contacts",
+            group_type=ContactGroup.TYPE_STOPPED,
+            created_by=org.created_by,
+            modified_by=org.modified_by,
+        )
 
     @classmethod
     def get_user_group_by_name(cls, org, name):

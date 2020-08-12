@@ -7291,3 +7291,28 @@ class PopulateLastSeenOn2Test(MigrationTest):
         self.assertEqual(datetime(2020, 8, 2, 13, 0, 0, 0, pytz.UTC), self.contact2.last_seen_on)
         self.assertEqual(None, self.contact3.last_seen_on)
         self.assertEqual(datetime(2020, 8, 4, 13, 0, 0, 0, pytz.UTC), self.contact4.last_seen_on)
+
+
+class LastSeenOnSystemFieldTest(MigrationTest):
+    app = "contacts"
+    migrate_from = "0111_populate_last_seen_on_2"
+    migrate_to = "0112_last_seen_on_sys_field"
+
+    def setUpBeforeMigration(self, apps):
+        # org 2 already has the field
+        self.org2.contactfields.create(
+            field_type="S",
+            key="last_seen_on",
+            label="Last Seen On",
+            value_type="D",
+            show_in_table=False,
+            created_by=self.org2.created_by,
+            modified_by=self.org2.modified_by,
+        )
+
+    def test_migration(self):
+        self.org.refresh_from_db()
+        self.org2.refresh_from_db()
+
+        self.assertEqual(1, self.org.contactfields.filter(field_type="S", key="last_seen_on").count())
+        self.assertEqual(1, self.org2.contactfields.filter(field_type="S", key="last_seen_on").count())

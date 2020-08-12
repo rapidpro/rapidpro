@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-10 22:37+0000\n"
+"POT-Creation-Date: 2020-08-11 20:41+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2545,12 +2545,6 @@ msgstr "Идентификатор Freshchat"
 msgid "VK identifier"
 msgstr "Идентификатор VK"
 
-msgid "ID"
-msgstr "ID"
-
-msgid "Language"
-msgstr "Язык"
-
 msgid "Label"
 msgstr "Метка"
 
@@ -2565,6 +2559,9 @@ msgstr "Рекомендованное поле"
 
 msgid "The name of this contact"
 msgstr "Название данного контакта"
+
+msgid "Language"
+msgstr "Язык"
 
 msgid "The preferred language for this contact"
 msgstr "Предпочитаемый язык для этого контакта"
@@ -11119,6 +11116,9 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "ID"
+#~ msgstr "ID"
 
 #~ msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
 #~ msgstr "Извините, в настоящее время мы не можем отменить Ваш план. Пожалуйста, свяжитесь с нами."
