@@ -324,7 +324,7 @@ class CampaignTest(TembaTest):
 
         # 'Created On' system field must be selectable in the form
         contact_fields = [field.key for field in response.context["form"].fields["relative_to"].queryset]
-        self.assertEqual(contact_fields, ["created_on", "planting_date"])
+        self.assertEqual(contact_fields, ["created_on", "last_seen_on", "planting_date"])
 
         # promote spanish to our primary language
         self.org.primary_language = spa
@@ -474,7 +474,7 @@ class CampaignTest(TembaTest):
 
         # 'Created On' system field must be selectable in the form
         contact_fields = [field.key for field in response.context["form"].fields["relative_to"].queryset]
-        self.assertEqual(contact_fields, ["created_on", "planting_date"])
+        self.assertEqual(contact_fields, ["created_on", "last_seen_on", "planting_date"])
 
         post_data = dict(
             relative_to=self.planting_date.pk,
