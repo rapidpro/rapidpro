@@ -976,6 +976,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         elif field.field_type == ContactField.FIELD_TYPE_SYSTEM:
             if field.key == "created_on":
                 return {Value.KEY_DATETIME: self.created_on}
+            elif field.key == "last_seen_on":
+                return {Value.KEY_DATETIME: self.last_seen_on}
             elif field.key == "language":
                 return {Value.KEY_TEXT: self.language}
             elif field.key == "name":
@@ -1032,6 +1034,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         elif field.field_type == ContactField.FIELD_TYPE_SYSTEM:
             if field.key == "created_on":
                 return self.created_on
+            if field.key == "last_seen_on":
+                return self.last_seen_on
             elif field.key == "language":
                 return self.language
             elif field.key == "name":
