@@ -970,23 +970,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Returns the JSON (as a dict) value for this field, or None if there is no value
         """
-        if field.field_type == ContactField.FIELD_TYPE_USER:
-            return self.fields.get(str(field.uuid)) if self.fields else None
+        assert field.field_type == ContactField.FIELD_TYPE_USER, f"not supported for system field {field.key}"
 
-        elif field.field_type == ContactField.FIELD_TYPE_SYSTEM:
-            if field.key == "created_on":
-                return {Value.KEY_DATETIME: self.created_on}
-            elif field.key == "last_seen_on":
-                return {Value.KEY_DATETIME: self.last_seen_on}
-            elif field.key == "language":
-                return {Value.KEY_TEXT: self.language}
-            elif field.key == "name":
-                return {Value.KEY_TEXT: self.name}
-            else:
-                raise ValueError(f"System contact field '{field.key}' is not supported")
-
-        else:  # pragma: no cover
-            raise ValueError(f"Unhandled ContactField type '{field.field_type}'.")
+        return self.fields.get(str(field.uuid)) if self.fields else None
 
     def get_field_serialized(self, field):
         """
