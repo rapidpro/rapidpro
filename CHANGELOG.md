@@ -1,3 +1,10 @@
+v5.7.11
+----------
+ * Fix creating of campaign events based on last_seen_on
+ * Tweak msg_console so it can include sent messages which are not replies
+ * Fix mailroom_db command
+ * Expose last_seen_on on contact API endpoint
+
 v5.7.10
 ----------
  * Update floweditor to 1.9.10
