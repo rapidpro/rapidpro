@@ -21,15 +21,12 @@
 
           .flex.w-full.mb-4.items-end.flex-wrap{style:"min-height:41px"}
             %p
-              -trans "You can import your contacts from an XLS file you create in Excel."
+              -blocktrans trimmed
+                You can import your contacts from an XLS file you create in Excel.
+                Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available.
+                You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>.
 
-            %p
-              -trans "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
-
-            %p
-              -trans "You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
-
-            %table.list.my-6
+            %table#example.list.my-6
               %tr
                 %th
                   -trans "URN:Tel"
@@ -59,24 +56,24 @@
 
               %table.list.my-6
                 %tr
-                  %th
+                  %th.whitespace-no-wrap
                     -trans "Column Header"
-                  %th
+                  %th.whitespace-no-wrap
                     -trans "Imported as"
-                  %th
+                  %th.whitespace-no-wrap
                     -trans "Details"
                 %tr
-                  %td
+                  %td.whitespace-no-wrap
                     -trans "Name"
-                  %td
+                  %td.whitespace-no-wrap
                     -trans "Contact name"
                   %td
                 %tr
-                  %td
+                  %td.whitespace-no-wrap
                     -trans "Language"
-                  %td
+                  %td.whitespace-no-wrap
                     -trans "Contact language"
-                  %td
+                  %td.whitespace-no-wrap
                     -trans "Only valid ISO639-3 codes supportted"
 
                 -for conf in urn_scheme_config
@@ -88,21 +85,21 @@
                     %td
 
                 %tr
-                  %td
+                  %td.whitespace-no-wrap
                     Field:<i>custom_field</i>
-                  %td
+                  %td.whitespace-no-wrap
                     <i>custom_field</i>
-                  %td
+                  %td.whitespace-no-wrap
                     -blocktrans trimmed
                       You will have the option to choose the columns to import and to which field to import them.
 
                 %tr
-                  %td
+                  %td.whitespace-no-wrap
                     Group:Group Name
-                  %td
+                  %td.whitespace-no-wrap
                     %i
                       -trans "IGNORED"
-                  %td
+                  %td.whitespace-no-wrap
                     Columns starting with the prefix <i>Group:</i> are ignored
 
             - block import-status
@@ -208,7 +205,7 @@
                           %input{type:"file", name:"csv_file", id:"csv_file", onchange:'updateFile()'}
                         #real_button.flex.mb-4
                           %input{type:"text", id:"file-field"}
-                          .block.button-primary.ml-2
+                          .block.button-primary.ml-4
                             -trans "Choose File"
 
                       .flex
@@ -219,6 +216,11 @@
 
 {% block extra-style %}
 :css
+
+  table.list tr th {
+    text-transform: none;
+    font-size: 0.85rem;
+  }
 
   #file-upload {
     position:relative;

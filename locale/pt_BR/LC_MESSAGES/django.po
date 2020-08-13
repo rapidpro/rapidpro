@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-13 16:11+0000\n"
+"POT-Creation-Date: 2020-08-13 19:54+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -5080,9 +5080,6 @@ msgstr "Seu primeiro nome"
 msgid "Your last name"
 msgstr "Seu sobrenome"
 
-msgid "Your email address"
-msgstr "Seu endereço de e-mail"
-
 #, fuzzy
 #| msgid "The timezone for"
 msgid "The timezone for your workspace"
@@ -5093,11 +5090,6 @@ msgstr "Por favor, a sua senha deve ter no mínimo oito letras."
 
 msgid "Workspace"
 msgstr ""
-
-#, fuzzy
-#| msgid "The name of your organization"
-msgid "The name of your workspace"
-msgstr "Nome da sua organização"
 
 msgid "That email address is already used"
 msgstr "Esse endereço de e-mail já está sendo usado"
@@ -5364,6 +5356,11 @@ msgid "Transfer Credits"
 msgstr "Comprar créditos"
 
 #, fuzzy
+#| msgid "The name of your organization"
+msgid "The name of your workspace"
+msgstr "Nome da sua organização"
+
+#, fuzzy
 msgid "Select your Workspace"
 msgstr "Crie sua Organização"
 
@@ -5393,6 +5390,9 @@ msgstr "O link do seu convite expirou. Por favor, contate o administrador da org
 #| msgid "Invalid claim code, please check and try again."
 msgid "Invalid surveyor password, please check with your project leader and try again."
 msgstr "Código de requisição inválido, por favor, verifique-o e tente novamente."
+
+msgid "Your email address"
+msgstr "Seu endereço de e-mail"
 
 msgid "Welcome!"
 msgstr ""
@@ -8255,15 +8255,7 @@ msgstr "Desarquivar"
 msgid "Import Contacts"
 msgstr "Importar contatos"
 
-msgid "You can import your contacts from an XLS file you create in Excel."
-msgstr "Você pode importar seus contatos de um arquivo XLS criado no Excel."
-
-#, fuzzy
-#| msgid "Each row should have the phone number (including country code) and the name of the contact if available."
-msgid "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
-msgstr "Cada linha deve ter o número de telefone (incluindo o código do país) e o nome do contato, se disponível."
-
-msgid "You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
+msgid "You can import your contacts from an XLS file you create in Excel. Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available. You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
 msgstr ""
 
 msgid "URN:Tel"
@@ -12028,6 +12020,14 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "You can import your contacts from an XLS file you create in Excel."
+#~ msgstr "Você pode importar seus contatos de um arquivo XLS criado no Excel."
+
+#, fuzzy
+#~| msgid "Each row should have the phone number (including country code) and the name of the contact if available."
+#~ msgid "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
+#~ msgstr "Cada linha deve ter o número de telefone (incluindo o código do país) e o nome do contato, se disponível."
 
 #, fuzzy, python-format
 #~ msgid ""

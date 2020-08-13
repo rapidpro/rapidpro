@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-13 16:11+0000\n"
+"POT-Creation-Date: 2020-08-13 19:54+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3804,9 +3804,6 @@ msgstr ""
 msgid "Your last name"
 msgstr ""
 
-msgid "Your email address"
-msgstr ""
-
 msgid "The timezone for your workspace"
 msgstr ""
 
@@ -3814,9 +3811,6 @@ msgid "Your password, at least eight letters please"
 msgstr ""
 
 msgid "Workspace"
-msgstr ""
-
-msgid "The name of your workspace"
 msgstr ""
 
 msgid "That email address is already used"
@@ -4039,6 +4033,9 @@ msgstr ""
 msgid "Transfer Credits"
 msgstr ""
 
+msgid "The name of your workspace"
+msgstr ""
+
 msgid "Select your Workspace"
 msgstr ""
 
@@ -4059,6 +4056,9 @@ msgid "Your invitation link has expired. Please contact your workspace administr
 msgstr ""
 
 msgid "Invalid surveyor password, please check with your project leader and try again."
+msgstr ""
+
+msgid "Your email address"
 msgstr ""
 
 msgid "Welcome!"
@@ -6101,13 +6101,7 @@ msgstr ""
 msgid "Import Contacts"
 msgstr ""
 
-msgid "You can import your contacts from an XLS file you create in Excel."
-msgstr ""
-
-msgid "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
-msgstr ""
-
-msgid "You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
+msgid "You can import your contacts from an XLS file you create in Excel. Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available. You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
 msgstr ""
 
 msgid "URN:Tel"

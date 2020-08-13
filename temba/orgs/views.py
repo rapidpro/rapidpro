@@ -230,30 +230,28 @@ class OrgSignupForm(forms.ModelForm):
     """
 
     first_name = forms.CharField(
-        help_text=_("Your first name"),
         max_length=User._meta.get_field("first_name").max_length,
-        widget=InputWidget(attrs={"widget_only": False}),
+        widget=InputWidget(attrs={"widget_only": False, "placeholder": _("Your first name")}),
     )
     last_name = forms.CharField(
-        help_text=_("Your last name"),
         max_length=User._meta.get_field("last_name").max_length,
-        widget=InputWidget(attrs={"widget_only": False}),
+        widget=InputWidget(attrs={"widget_only": False, "placeholder": _("Your last name")}),
     )
     email = forms.EmailField(
-        help_text=_("Your email address"),
         max_length=User._meta.get_field("username").max_length,
-        widget=InputWidget(attrs={"widget_only": False}),
+        widget=InputWidget(attrs={"widget_only": False, "placeholder": _("Email")}),
     )
     timezone = TimeZoneFormField(help_text=_("The timezone for your workspace"))
     password = forms.CharField(
-        help_text=_("Your password, at least eight letters please"),
-        widget=InputWidget(attrs={"widget_only": False, "password": True},),
+        widget=InputWidget(
+            attrs={
+                "widget_only": False,
+                "password": True,
+                "placeholder": _("Your password, at least eight letters please"),
+            },
+        ),
     )
-    name = forms.CharField(
-        label=_("Workspace"),
-        help_text=_("The name of your workspace"),
-        widget=InputWidget(attrs={"widget_only": False}),
-    )
+    name = forms.CharField(label=_("Workspace"), widget=InputWidget(attrs={"widget_only": False}),)
 
     def __init__(self, *args, **kwargs):
         if "branding" in kwargs:

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-13 16:11+0000\n"
+"POT-Creation-Date: 2020-08-13 19:54+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -4133,9 +4133,6 @@ msgstr "Ваше имя"
 msgid "Your last name"
 msgstr "Ваша фамилия"
 
-msgid "Your email address"
-msgstr "Ваш адрес электронной почты"
-
 #, fuzzy
 #| msgid "The timezone your organization is in"
 msgid "The timezone for your workspace"
@@ -4146,11 +4143,6 @@ msgstr "Ваш пароль. Пожалуйста, укажите не мене�
 
 msgid "Workspace"
 msgstr ""
-
-#, fuzzy
-#| msgid "The name of your bot"
-msgid "The name of your workspace"
-msgstr "Название Вашего бота"
 
 msgid "That email address is already used"
 msgstr "Такой адрес электронной почты уже используется"
@@ -4403,6 +4395,11 @@ msgid "Transfer Credits"
 msgstr "Приобретенные Кредиты"
 
 #, fuzzy
+#| msgid "The name of your bot"
+msgid "The name of your workspace"
+msgstr "Название Вашего бота"
+
+#, fuzzy
 #| msgid "Select your Organization"
 msgid "Select your Workspace"
 msgstr "Выберите свою Организацию"
@@ -4429,6 +4426,9 @@ msgstr "Срок действия Вашей пригласительной сс
 
 msgid "Invalid surveyor password, please check with your project leader and try again."
 msgstr "Недействительный пароль наблюдателя. Пожалуйста, уточните его у руководителя проекта и повторите попытку."
+
+msgid "Your email address"
+msgstr "Ваш адрес электронной почты"
 
 msgid "Welcome!"
 msgstr "Добро пожаловать!"
@@ -7275,14 +7275,8 @@ msgstr "архиве"
 msgid "Import Contacts"
 msgstr "Импортировать Контакты"
 
-msgid "You can import your contacts from an XLS file you create in Excel."
-msgstr "Вы можете импортировать свои контакты из XLS файла, который Вы создадите в Excel."
-
-msgid "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
-msgstr "В каждой строке должен быть указан номер телефона в виде <i>URN:tel</i> (в том числе код страны) и название контакта, если имеется."
-
-msgid "You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
-msgstr "Вы также можете указать значения пользовательских полей контактов в файле XLS для столбцов с префиксом <i>Поле:</i>, например: <i>Поле:Команда</i>."
+msgid "You can import your contacts from an XLS file you create in Excel. Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available. You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
+msgstr ""
 
 msgid "URN:Tel"
 msgstr "URN:Tel"
@@ -11791,6 +11785,15 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "You can import your contacts from an XLS file you create in Excel."
+#~ msgstr "Вы можете импортировать свои контакты из XLS файла, который Вы создадите в Excel."
+
+#~ msgid "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
+#~ msgstr "В каждой строке должен быть указан номер телефона в виде <i>URN:tel</i> (в том числе код страны) и название контакта, если имеется."
+
+#~ msgid "You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
+#~ msgstr "Вы также можете указать значения пользовательских полей контактов в файле XLS для столбцов с префиксом <i>Поле:</i>, например: <i>Поле:Команда</i>."
 
 #, python-format
 #~ msgid ""

@@ -36,8 +36,16 @@
 
             -block fields
               %fieldset
-                -for field in fields
-                  -render_field field
+                .flex
+                  .first-name.flex-grow(class="w-1/2")
+                    -render_field 'first_name'
+                  .px-1
+                  .last-name.flex-grow(class="w-1/2")
+                    -render_field 'last_name'
+                .mb-2
+                  -render_field 'email'
+
+                -render_field 'password'
 
             -csrf_token
 
@@ -58,7 +66,7 @@
                 %temba-textinput#id_username(type="text" name="username" maxlenght="30" label="{% trans 'Email Address' %}")
 
               .control-group
-                %temba-textinput#id_password(type="password" name="password" label="{% trans 'Password' %}" password)
+                %temba-textinput#id_password(type="password" name="password" label="{% trans 'Password' %}" placeholder="{% trans 'Your password, at least eight letters please' %}" password)
 
             -csrf_token
             %input.button-primary{type:"submit", value:"Login"}
