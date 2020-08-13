@@ -1,6 +1,7 @@
 import os
 import logging
 import pytz
+import requests
 
 from datetime import datetime
 
@@ -8,6 +9,7 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
+from django.template.defaultfilters import slugify
 from packaging.version import Version
 
 from temba import mailroom
@@ -371,6 +373,23 @@ class MigrationTask(TembaModel):
                 self.add_links(logger=logger, links=org_links, migrator=migrator, count=links_count)
 
             logger.info("[COMPLETED] Trackable Links migration")
+            logger.info("")
+
+            logger.info("---------------- Parse Data ----------------")
+            logger.info("[STARTED] Parse Data migration")
+
+            org_config = json.loads(org_data.config) if org_data.config else dict()
+
+            org_giftcards = org_config.get("GIFTCARDS", [])
+            org_lookups = org_config.get("LOOKUPS", [])
+
+            for collection in org_giftcards:
+                collection_data = self.get_collection_data(collection_name=collection, collection_type="giftcards")
+
+            for collection in org_lookups:
+                collection_data = self.get_collection_data(collection_name=collection, collection_type="lookups")
+
+            logger.info("[COMPLETED] Parse Data migration")
             logger.info("")
 
             end = timezone.now()
@@ -772,10 +791,10 @@ class MigrationTask(TembaModel):
             if schedule.repeat_period == "W":
                 repeat_days_of_week = ""
                 bitmask_number = bin(schedule.repeat_days)
-                for idx in range(7):
-                    power = bin(pow(2, idx + 1))
+                for idx2 in range(7):
+                    power = bin(pow(2, idx2 + 1))
                     if bin(int(bitmask_number, 2) & int(power, 2)) == power:
-                        repeat_days_of_week += WEEKDAYS[idx]
+                        repeat_days_of_week += WEEKDAYS[idx2]
             else:
                 repeat_days_of_week = schedule.repeat_days
 
@@ -974,7 +993,7 @@ class MigrationTask(TembaModel):
 
             attachments = msg.attachments
             if attachments:
-                for idx, item in enumerate(attachments):
+                for idx2, item in enumerate(attachments):
                     [content_type, url] = item.split(":", 1)
 
                     if (
@@ -992,7 +1011,7 @@ class MigrationTask(TembaModel):
                         file_obj = self.org.get_temporary_file_from_url(media_url=url)
                         file_extension = url.split(".")[-1] if url else None
                         s3_file_url = self.org.save_media(file=file_obj, extension=file_extension)
-                        attachments[idx] = f"{content_type}:{s3_file_url}"
+                        attachments[idx2] = f"{content_type}:{s3_file_url}"
                     except Exception as e:
                         logger.warning(f"Image was not UPLOADED to S3: {url}. Reason: {str(e)}")
                         pass
@@ -1283,7 +1302,7 @@ class MigrationTask(TembaModel):
             }
 
             if revisions:
-                for idx, item in enumerate(revisions, 1):
+                for idx2, item in enumerate(revisions, 1):
                     logger.info(f">>> Revision: {item.id}")
 
                     json_flow = dict()
@@ -1301,7 +1320,7 @@ class MigrationTask(TembaModel):
                             )
                         spec_version = Flow.CURRENT_SPEC_VERSION
                     except Exception as e:
-                        if not new_flow.is_system and (idx == len(revisions)):
+                        if not new_flow.is_system and (idx2 == len(revisions)):
                             logger.warning(str(e), exc_info=True)
                         json_flow = json.loads(item.definition)
 
@@ -1775,6 +1794,59 @@ class MigrationTask(TembaModel):
 
     def remove_association(self):
         return self.associations.all().exclude(model=MigrationAssociation.MODEL_ORG).delete()
+
+    def get_collection_full_name(self, collection_name, collection_type):
+        collection_slug = slugify(collection_name)
+        org_slug = self.org.slug
+        org_id = self.migration_org
+
+        collection_full_name = (
+            f"{settings.MIGRATION_PARSE_SERVER_NAME}_{org_slug}_{org_id}_{collection_type}_{collection_slug}"
+        )
+        collection_full_name = collection_full_name.replace("-", "")
+
+        return collection_full_name
+
+    def get_collection_data(self, collection_name, collection_type):
+        query_limit = 1000
+
+        collection_data = []
+        collection_full_name = self.get_collection_full_name(collection_name, collection_type)
+
+        parse_headers = {
+            "X-Parse-Application-Id": settings.MIGRATION_PARSE_APP_ID,
+            "X-Parse-Master-Key": settings.MIGRATION_PARSE_MASTER_KEY,
+            "Content-Type": "application/json",
+        }
+        counter_url = f"{settings.MIGRATION_PARSE_URL}/classes/{collection_full_name}?limit=0&count=1"
+        counter_response = requests.get(counter_url, headers=parse_headers)
+
+        if counter_response != 200 and "count" not in counter_response.json():
+            return collection_data
+
+        results_count = counter_response.json().get("count")
+        loop_count = results_count / query_limit
+        loop_count = int(loop_count) + 1 if loop_count - int(loop_count) > 0 else int(loop_count)
+
+        for idx in range(loop_count):
+            parse_url = f"{settings.MIGRATION_PARSE_URL}/classes/{collection_full_name}?order=order&limit={query_limit}&skip={idx * query_limit}"
+            response = requests.get(parse_url, headers=parse_headers)
+
+            if response.status_code == 200 and "results" in response.json():
+                collection_data += response.json().get("results", [])
+
+        fields = []
+        if collection_data:
+            fields = list(collection_data[0].keys())
+
+        for idx, key in enumerate(fields):
+            if key in ["objectId", "updatedAt", "createdAt", "ACL"]:
+                fields.pop(idx)
+
+        for row in collection_data:
+            pass
+
+        return []
 
     @classmethod
     def get_run_status(cls, exit_type, is_active):
