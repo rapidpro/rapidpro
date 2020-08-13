@@ -1807,7 +1807,31 @@ class MigrationTask(TembaModel):
 
         return collection_full_name
 
+    @classmethod
+    def get_collection_fields(cls, collection_full_name, parse_headers):
+        fields = dict()
+
+        schemas_url = f"{settings.MIGRATION_PARSE_URL}/schemas/{collection_full_name}"
+        schemas_response = requests.get(schemas_url, headers=parse_headers)
+
+        if schemas_response.status_code != 200 or "fields" not in schemas_response.json():
+            return fields
+
+        fields = schemas_response.json().get("fields")
+
+        for key in list(fields.keys()):
+            if key in ["objectId", "updatedAt", "createdAt", "ACL"]:
+                del fields[key]
+
+        return fields
+
     def get_collection_data(self, collection_name, collection_type):
+        """
+        This function returns the parse data as import_data_to_parse() is expecting on iterator argument
+        :param collection_name: string
+        :param collection_type: string (lookups|giftcards)
+        :return: list
+        """
         query_limit = 1000
 
         collection_data = []
@@ -1818,6 +1842,9 @@ class MigrationTask(TembaModel):
             "X-Parse-Master-Key": settings.MIGRATION_PARSE_MASTER_KEY,
             "Content-Type": "application/json",
         }
+
+        collection_fields = MigrationTask.get_collection_fields(collection_full_name, parse_headers)
+
         counter_url = f"{settings.MIGRATION_PARSE_URL}/classes/{collection_full_name}?limit=0&count=1"
         counter_response = requests.get(counter_url, headers=parse_headers)
 
@@ -1835,18 +1862,31 @@ class MigrationTask(TembaModel):
             if response.status_code == 200 and "results" in response.json():
                 collection_data += response.json().get("results", [])
 
-        fields = []
-        if collection_data:
-            fields = list(collection_data[0].keys())
-
-        for idx, key in enumerate(fields):
-            if key in ["objectId", "updatedAt", "createdAt", "ACL"]:
-                fields.pop(idx)
+        collection_header = list(collection_fields.keys())
+        collection_rows = []
 
         for row in collection_data:
-            pass
+            new_row = [None] * len(collection_header)
+            for key in list(row.keys()):
+                if key in ["objectId", "updatedAt", "createdAt", "ACL"]:
+                    continue
+                key_idx = collection_header.index(key)
+                new_row[key_idx] = row.get(key, None)
+            collection_rows.append(new_row)
 
-        return []
+        for key in collection_header:
+            field_type = collection_fields[key].get("type")
+            prefix = ""
+            if field_type == "Date":
+                prefix = "date_"
+            elif field_type == "Number":
+                prefix = "numeric_"
+            field_idx = collection_header.index(key)
+            collection_header[field_idx] = f"{prefix}{key}"
+
+        collection_rows.insert(0, collection_header)
+
+        return collection_rows
 
     @classmethod
     def get_run_status(cls, exit_type, is_active):
