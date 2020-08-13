@@ -639,9 +639,13 @@ class OrgCRUDL(SmartCRUDL):
         def post(self, request, *args, **kwargs):
             org = self.get_object()
 
+
+            flow_ids =[elt for elt in self.request.POST.getlist("flows") if elt]
+            campaign_ids = [elt for elt in self.request.POST.getlist("campaigns") if elt]
+
             # fetch the selected flows and campaigns
-            flows = Flow.objects.filter(id__in=self.request.POST.getlist("flows"), org=org, is_active=True)
-            campaigns = Campaign.objects.filter(id__in=self.request.POST.getlist("campaigns"), org=org, is_active=True)
+            flows = Flow.objects.filter(id__in=flow_ids, org=org, is_active=True)
+            campaigns = Campaign.objects.filter(id__in=campaign_ids, org=org, is_active=True)
 
             components = set(itertools.chain(flows, campaigns))
 
