@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-12 09:05+0000\n"
+"POT-Creation-Date: 2020-08-13 14:21+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3352,6 +3352,9 @@ msgstr "Суббота"
 
 msgid "Download"
 msgstr "Скачать"
+
+msgid "Export Flow Results"
+msgstr "Экспортировать Результаты Потока"
 
 msgid "Your flow contains an invalid loop. Please refresh your browser."
 msgstr "Ваш поток содержит недействительный цикл. Пожалуйста, обновите Ваш браузер."
@@ -8237,9 +8240,6 @@ msgstr "Загрузить"
 msgid "Back"
 msgstr "Вернуться"
 
-msgid "Export Flow Results"
-msgstr "Экспортировать Результаты Потока"
-
 msgid "Create Label"
 msgstr "Создать Метку"
 
@@ -9713,19 +9713,26 @@ msgstr[3] ""
 msgid "Manage Workspaces"
 msgstr "Выберите свою Организацию"
 
+#, fuzzy
+#| msgid "Start Export"
+msgid "Create Export"
+msgstr "Начать Экспорт"
+
 msgid "Show Archived"
 msgstr "Показать Архивированное"
 
 msgid "Hide Archived"
 msgstr "Скрыть Архивированное"
 
-msgid ""
-"\n"
-"    Select all of the items below that you would like to include in your export. We've grouped them\n"
-"    together based on which flows and campaigns work with each other. Any related triggers will automatically\n"
-"    be included in the export.\n"
-"\n"
-"  "
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "    Select all of the items below that you would like to include in your export. We've grouped them\n"
+#| "    together based on which flows and campaigns work with each other. Any related triggers will automatically\n"
+#| "    be included in the export.\n"
+#| "\n"
+#| "  "
+msgid "Select all of the items below that you would like to include in your export. We've grouped them together based on which flows and campaigns work with each other. Any related triggers will automatically be included in the export."
 msgstr ""
 "\n"
 "    Выберите все элементы ниже, которые Вы хотите включить в свой экспорт. Мы сгруппировали их \n"
@@ -12185,9 +12192,6 @@ msgstr "Найдено ${count} по ${query}"
 
 #~ msgid "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>."
 #~ msgstr "Вы не можете создать динамическую группу на основе <strong>id</strong> или <strong>group</strong>."
-
-#~ msgid "Start Export"
-#~ msgstr "Начать Экспорт"
 
 #~ msgid "blocked"
 #~ msgstr "заблокировано"

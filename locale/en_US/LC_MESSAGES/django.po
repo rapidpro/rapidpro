@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-12 09:05+0000\n"
+"POT-Creation-Date: 2020-08-13 14:21+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3066,6 +3066,9 @@ msgid "Saturday"
 msgstr ""
 
 msgid "Download"
+msgstr ""
+
+msgid "Export Flow Results"
 msgstr ""
 
 msgid "Your flow contains an invalid loop. Please refresh your browser."
@@ -6766,9 +6769,6 @@ msgstr ""
 msgid "Back"
 msgstr ""
 
-msgid "Export Flow Results"
-msgstr ""
-
 msgid "Create Label"
 msgstr ""
 
@@ -7633,19 +7633,16 @@ msgstr[1] ""
 msgid "Manage Workspaces"
 msgstr ""
 
+msgid "Create Export"
+msgstr ""
+
 msgid "Show Archived"
 msgstr ""
 
 msgid "Hide Archived"
 msgstr ""
 
-msgid ""
-"\n"
-"    Select all of the items below that you would like to include in your export. We've grouped them\n"
-"    together based on which flows and campaigns work with each other. Any related triggers will automatically\n"
-"    be included in the export.\n"
-"\n"
-"  "
+msgid "Select all of the items below that you would like to include in your export. We've grouped them together based on which flows and campaigns work with each other. Any related triggers will automatically be included in the export."
 msgstr ""
 
 msgid "Group"

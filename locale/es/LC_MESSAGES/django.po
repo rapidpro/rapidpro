@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-12 09:05+0000\n"
+"POT-Creation-Date: 2020-08-13 14:21+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4504,6 +4504,11 @@ msgstr ""
 #| msgid "Download Results"
 msgid "Download"
 msgstr "Descargar Resultados"
+
+#, fuzzy
+#| msgid "Export Flow"
+msgid "Export Flow Results"
+msgstr "Exportar flujo"
 
 msgid "Your flow contains an invalid loop. Please refresh your browser."
 msgstr ""
@@ -9839,11 +9844,6 @@ msgstr ""
 msgid "Back"
 msgstr ""
 
-#, fuzzy
-#| msgid "Export Flow"
-msgid "Export Flow Results"
-msgstr "Exportar flujo"
-
 msgid "Create Label"
 msgstr "Crear etiqueta"
 
@@ -10989,6 +10989,11 @@ msgid "Manage Workspaces"
 msgstr "Elija su Organización"
 
 #, fuzzy
+#| msgid "Export"
+msgid "Create Export"
+msgstr "Exportar"
+
+#, fuzzy
 msgid "Show Archived"
 msgstr "Archivado"
 
@@ -10996,13 +11001,7 @@ msgstr "Archivado"
 msgid "Hide Archived"
 msgstr "Archivado"
 
-msgid ""
-"\n"
-"    Select all of the items below that you would like to include in your export. We've grouped them\n"
-"    together based on which flows and campaigns work with each other. Any related triggers will automatically\n"
-"    be included in the export.\n"
-"\n"
-"  "
+msgid "Select all of the items below that you would like to include in your export. We've grouped them together based on which flows and campaigns work with each other. Any related triggers will automatically be included in the export."
 msgstr ""
 
 msgid "Group"
@@ -13380,11 +13379,6 @@ msgstr ""
 
 #~ msgid "Save Search as Group"
 #~ msgstr "Guardar Búsqueda como Grupo"
-
-#, fuzzy
-#~| msgid "Export"
-#~ msgid "Start Export"
-#~ msgstr "Exportar"
 
 #, fuzzy
 #~| msgid "Blocked"
