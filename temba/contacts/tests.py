@@ -5248,13 +5248,8 @@ class ContactTest(TembaTest):
         field_language = self.org.contactfields.get(key="language")
         field_name = self.org.contactfields.get(key="name")
 
-        self.assertEqual(joe.get_field_serialized(field_created_on), joe.created_on)
         self.assertEqual(joe.get_field_display(field_created_on), self.org.format_datetime(joe.created_on))
-
-        self.assertEqual(joe.get_field_serialized(field_language), joe.language)
         self.assertEqual(joe.get_field_display(field_language), "eng")
-
-        self.assertEqual(joe.get_field_serialized(field_name), joe.name)
         self.assertEqual(joe.get_field_display(field_name), "Joe Blow")
 
         # create a system field that is not supported
@@ -5262,7 +5257,7 @@ class ContactTest(TembaTest):
             org_id=self.org.id, key="iban", label="IBAN", created_by_id=self.admin.id, modified_by_id=self.admin.id
         )
 
-        self.assertRaises(ValueError, joe.get_field_serialized, field_iban)
+        self.assertRaises(AssertionError, joe.get_field_serialized, field_iban)
         self.assertRaises(ValueError, joe.get_field_display, field_iban)
 
     def test_set_location_fields(self):
