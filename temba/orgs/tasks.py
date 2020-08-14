@@ -169,6 +169,8 @@ def import_data_to_parse(
                             )
                         except Exception:
                             field_value = None
+                    elif isinstance(field_value, bool):
+                        pass
                     else:
                         field_value = None if str(field_value).strip() in ["nan", "NaN"] else str(field_value).strip()
 

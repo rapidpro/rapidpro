@@ -21,7 +21,7 @@ from temba.contacts.models import ContactField, Contact, ContactGroup, ContactUR
 from temba.channels.models import Channel, ChannelCount, SyncEvent, ChannelEvent, ChannelLog
 from temba.schedules.models import Schedule
 from temba.msgs.models import Msg, Label, Broadcast
-from temba.orgs.models import Org
+from temba.orgs.models import Org, DEFAULT_FIELDS_PAYLOAD_GIFTCARDS, DEFAULT_INDEXES_FIELDS_PAYLOAD_GIFTCARDS
 from temba.flows.models import (
     Flow,
     FlowLabel,
@@ -1797,14 +1797,10 @@ class MigrationTask(TembaModel):
     def remove_association(self):
         return self.associations.all().exclude(model=MigrationAssociation.MODEL_ORG).delete()
 
-    def get_collection_full_name(self, server_name, collection_name, collection_type):
+    def get_collection_full_name(self, server_name, org_id, collection_name, collection_type):
         collection_slug = slugify(collection_name)
-        org_slug = self.org.slug
-        org_id = self.migration_org
-
-        collection_full_name = f"{server_name}_{org_slug}_{org_id}_{collection_type}_{collection_slug}"
+        collection_full_name = f"{server_name}_{self.org.slug}_{org_id}_{collection_type}_{collection_slug}"
         collection_full_name = collection_full_name.replace("-", "")
-
         return collection_full_name
 
     @classmethod
@@ -1836,7 +1832,7 @@ class MigrationTask(TembaModel):
 
         collection_data = []
         collection_full_name = self.get_collection_full_name(
-            settings.MIGRATION_PARSE_SERVER_NAME, collection_name, collection_type
+            settings.MIGRATION_PARSE_SERVER_NAME, self.migration_org, collection_name, collection_type
         )
 
         parse_headers = {
@@ -1907,7 +1903,7 @@ class MigrationTask(TembaModel):
                 collection_name=collection, collection_type=collection_type
             )
             collection_full_name = self.get_collection_full_name(
-                settings.PARSE_SERVER_NAME, collection, collection_type
+                settings.PARSE_SERVER_NAME, self.org.id, collection, collection_type
             )
             parse_url = f"{settings.PARSE_URL}/schemas/{collection_full_name}"
 
@@ -1937,7 +1933,15 @@ class MigrationTask(TembaModel):
                     if response_purge.status_code in [200, 404]:
                         requests.put(parse_url, data=json.dumps(remove_fields), headers=parse_headers)
             else:
+                # Removing collection before adding again, overriding the data to avoid duplicates
                 requests.delete(purge_url, headers=parse_headers)
+
+                data = {
+                    "className": collection_full_name,
+                    "fields": DEFAULT_FIELDS_PAYLOAD_GIFTCARDS,
+                    "indexes": DEFAULT_INDEXES_FIELDS_PAYLOAD_GIFTCARDS,
+                }
+                requests.post(parse_url, data=json.dumps(data), headers=parse_headers)
 
             logger.info(f">>> [{idx}/{len(collections)}] Collection: {collection} [{count} row(s)]")
 
@@ -1951,7 +1955,7 @@ class MigrationTask(TembaModel):
                 collection_type,
                 collection,
                 f"Migration {self.uuid}",
-                True,
+                True if collection_type == "lookups" else False,
                 self.org.timezone.zone,
                 self.org.get_dayfirst(),
             )
