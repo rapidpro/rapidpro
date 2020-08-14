@@ -1887,7 +1887,9 @@ class MigrationTask(TembaModel):
 
     def add_parse_data(self, logger, collections, collection_type):
         for idx, collection in enumerate(collections, start=1):
-            (collection_data, count) = self.get_collection_data(collection_name=collection, collection_type=collection_type)
+            (collection_data, count) = self.get_collection_data(
+                collection_name=collection, collection_type=collection_type
+            )
 
             logger.info(f">>>[{idx}/{len(collections)}] Collection: {collection} [{count} row(s)]")
 
