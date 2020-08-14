@@ -185,6 +185,13 @@ PARSE_APP_ID = os.environ.get("PARSE_APP_ID", "")
 PARSE_REST_KEY = os.environ.get("PARSE_REST_KEY", "")
 PARSE_MASTER_KEY = os.environ.get("PARSE_MASTER_KEY", "")
 
+# Parse configuration (migration)
+MIGRATION_PARSE_SERVER_NAME = os.environ.get("MIGRATION_PARSE_SERVER_NAME", "")
+MIGRATION_PARSE_URL = os.environ.get("MIGRATION_PARSE_URL", "")
+MIGRATION_PARSE_APP_ID = os.environ.get("MIGRATION_PARSE_APP_ID", "")
+MIGRATION_PARSE_REST_KEY = os.environ.get("MIGRATION_PARSE_REST_KEY", "")
+MIGRATION_PARSE_MASTER_KEY = os.environ.get("MIGRATION_PARSE_MASTER_KEY", "")
+
 # WebSocket URL server for Webchat channel
 WIDGET_COMPILED_FILE = os.environ.get("WIDGET_COMPILED_FILE", "https://ccl-web-surveyor.s3-us-west-1.amazonaws.com/latest/ccl-web-surveyor.min.js")
 WEBSOCKET_SERVER_URL = os.environ.get("WEBSOCKET_SERVER_URL", "http://localhost:9090")
