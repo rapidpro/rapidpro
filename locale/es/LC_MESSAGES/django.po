@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-15 18:45+0000\n"
+"POT-Creation-Date: 2020-08-11 20:41+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -61,9 +61,6 @@ msgstr "Mensaje"
 #| msgid "Sun"
 msgid "Run"
 msgstr "Domingo"
-
-msgid "The archive we were rolled up into, if any"
-msgstr ""
 
 msgid "Archive"
 msgstr "Archivar"
@@ -3592,14 +3589,6 @@ msgstr "ID externo"
 msgid "VK identifier"
 msgstr "ID externo"
 
-#, fuzzy
-#| msgid "UUID"
-msgid "ID"
-msgstr "UUID"
-
-msgid "Language"
-msgstr "Idioma"
-
 msgid "Label"
 msgstr "Etiquetar"
 
@@ -3614,6 +3603,9 @@ msgstr ""
 
 msgid "The name of this contact"
 msgstr "El nombre de este contacto"
+
+msgid "Language"
+msgstr "Idioma"
 
 msgid "The preferred language for this contact"
 msgstr "El idioma preferido para este contacto"
@@ -3671,6 +3663,54 @@ msgstr "El grupo único para exportar"
 msgid "The search query"
 msgstr ""
 
+#, python-format
+msgid "Invalid query syntax at '%(token)s'"
+msgstr ""
+
+#, python-format
+msgid "Unable to convert '%(value)s' to a number"
+msgstr ""
+
+#, python-format
+msgid "Unable to convert '%(value)s' to a date"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "Using a Local Number"
+msgid "'%(value)s' is not a valid language code"
+msgstr "Con un número local"
+
+#, fuzzy, python-format
+#| msgid "Using a Local Number"
+msgid "'%(value)s' is not a valid group name"
+msgstr "Con un número local"
+
+#, python-format
+msgid "Using ~ with name requires token of at least %(min_token_length)s characters"
+msgstr ""
+
+#, python-format
+msgid "Using ~ with URN requires value of at least %(min_value_length)s characters"
+msgstr ""
+
+msgid "Can only use ~ with name or URN values"
+msgstr ""
+
+#, python-format
+msgid "Can only use %(operator)s with number or date values"
+msgstr ""
+
+#, python-format
+msgid "Can't check whether '%(property)s' is set or not set"
+msgstr ""
+
+#, python-format
+msgid "Can't resolve '%(property)s' to a field or URN scheme"
+msgstr ""
+
+msgid "Can't query on URNs in an anonymous workspace"
+msgstr ""
+
 #, fuzzy
 #| msgid "days"
 msgid "day"
@@ -3718,30 +3758,6 @@ msgstr "Bloqueado"
 
 msgid "Stopped"
 msgstr ""
-
-msgid "Add to Group"
-msgstr "Agregar al grupo"
-
-msgid "Remove from Group"
-msgstr "Retirar del Grupo"
-
-#, fuzzy
-#| msgid "Blocked Contacts"
-msgid "Unblock Contacts"
-msgstr "Contactos bloqueados"
-
-#, fuzzy
-#| msgid "Blocked Contacts"
-msgid "Block Contacts"
-msgstr "Contactos bloqueados"
-
-msgid "Delete Contacts"
-msgstr "Borrar Contactos"
-
-#, fuzzy
-#| msgid "Restore Contacts"
-msgid "Unstop Contacts"
-msgstr "Restaurar contactos"
 
 #, fuzzy, python-brace-format
 #| msgid "The name of this contact"
@@ -4123,23 +4139,6 @@ msgstr "Las palabras clave \"%s\" están siendo usadas para otro flujo"
 msgid "The keyword \"%s\" is already used for another flow"
 msgstr "La palabra clave \"%s\" está siendo usada para otro flujo"
 
-msgid "Archive Flows"
-msgstr "Archivar flujos"
-
-msgid "Label Messages"
-msgstr "Etiquetar mensajes"
-
-msgid "Restore Flows"
-msgstr "Restaurar flujos"
-
-#, python-format
-msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
-msgstr ""
-
-#, python-format
-msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
-msgstr ""
-
 #, fuzzy
 #| msgid "User does not have permission to create an SMS"
 msgid "You don't have permission to edit this flow"
@@ -4205,6 +4204,10 @@ msgstr ""
 
 msgid "Flows"
 msgstr "Flujos"
+
+#, python-format
+msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
+msgstr ""
 
 msgid "Contact Name"
 msgstr "Nombre del contacto"
@@ -4875,18 +4878,6 @@ msgstr "Mensajes programados"
 msgid "You must add a phone number before sending messages"
 msgstr "Debe agregar un número antes de enviar mensajes"
 
-msgid "Archive Messages"
-msgstr "Archivar mensajes"
-
-msgid "Move to Inbox"
-msgstr "Mover a la bandeja de entrada"
-
-msgid "Resend Messages"
-msgstr "Reenviar mensajes"
-
-msgid "Delete Messages"
-msgstr "Borrar mensajes"
-
 msgid "Which channel will deliver the message"
 msgstr "Qué transmisor entregará el mensaje"
 
@@ -5099,14 +5090,6 @@ msgstr ""
 
 #, fuzzy
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
-msgstr "Lo sentimos, no podemos recargar su tarjeta, por favor, inténtelo nuevamente más tarde o contáctenos a feedback@textit.in"
-
-#, fuzzy
-msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
-msgstr "Lo sentimos, no podemos cancelar su plan en este momento. Por favor, contáctenos a feedback@textit.in."
-
-#, fuzzy
-msgid "Sorry, we were unable to charge your card, please try again later or contact us."
 msgstr "Lo sentimos, no podemos recargar su tarjeta, por favor, inténtelo nuevamente más tarde o contáctenos a feedback@textit.in"
 
 msgid "Viewer"
@@ -6061,12 +6044,6 @@ msgstr ""
 msgid "The referrer id that will trigger us"
 msgstr "El tipo de este activador"
 
-msgid "Archive Triggers"
-msgstr "Archivar activadores"
-
-msgid "Restore Triggers"
-msgstr "Restaurar activadores"
-
 msgid "Create Trigger"
 msgstr "Crear activadores"
 
@@ -6178,17 +6155,10 @@ msgstr ""
 msgid ", "
 msgstr ","
 
-msgid "Sorry you have no permission for this action."
-msgstr "Lo sentimos, no tiene permiso para esta acción."
-
-msgid "Must specify a label"
-msgstr "Debe especificar una etiqueta"
-
-msgid "Missing label"
-msgstr "Etiqueta faltante"
-
-msgid "Oops, so sorry. Something went wrong!"
-msgstr "Lo sentimos. ¡Algo no funcionó!"
+#, fuzzy
+#| msgid "We encountered an error removing your channel, please try again later."
+msgid "An error occurred while making your changes. Please try again."
+msgstr "Encontramos un error para retirar su transmisor, por favor, inténtelo nuevamente más tarde."
 
 #, fuzzy
 #| msgid "Current Date and Time"
@@ -8876,6 +8846,9 @@ msgstr "Crear Contacto"
 msgid "Create Group"
 msgstr "Crear Grupo"
 
+msgid "Remove from Group"
+msgstr "Retirar del Grupo"
+
 msgid "New Group..."
 msgstr ""
 
@@ -8905,6 +8878,9 @@ msgstr "Los contactos no corresponden."
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr ""
+
+msgid "Delete Contacts"
+msgstr "Borrar Contactos"
 
 msgid "Are you sure you want to delete these contacts?"
 msgstr "¿Está seguro de que desea borrar estos contactos?"
@@ -12819,6 +12795,76 @@ msgid "Found ${count} for ${query}"
 msgstr ""
 
 #, fuzzy
+#~| msgid "UUID"
+#~ msgid "ID"
+#~ msgstr "UUID"
+
+#, fuzzy
+#~ msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
+#~ msgstr "Lo sentimos, no podemos cancelar su plan en este momento. Por favor, contáctenos a feedback@textit.in."
+
+#, fuzzy
+#~ msgid "Sorry, we were unable to charge your card, please try again later or contact us."
+#~ msgstr "Lo sentimos, no podemos recargar su tarjeta, por favor, inténtelo nuevamente más tarde o contáctenos a feedback@textit.in"
+
+#~ msgid "Oops, so sorry. Something went wrong!"
+#~ msgstr "Lo sentimos. ¡Algo no funcionó!"
+
+#~ msgid "Add to Group"
+#~ msgstr "Agregar al grupo"
+
+#, fuzzy
+#~| msgid "Blocked Contacts"
+#~ msgid "Unblock Contacts"
+#~ msgstr "Contactos bloqueados"
+
+#, fuzzy
+#~| msgid "Blocked Contacts"
+#~ msgid "Block Contacts"
+#~ msgstr "Contactos bloqueados"
+
+#, fuzzy
+#~| msgid "Restore Contacts"
+#~ msgid "Unstop Contacts"
+#~ msgstr "Restaurar contactos"
+
+#~ msgid "Archive Flows"
+#~ msgstr "Archivar flujos"
+
+#~ msgid "Label Messages"
+#~ msgstr "Etiquetar mensajes"
+
+#~ msgid "Restore Flows"
+#~ msgstr "Restaurar flujos"
+
+#~ msgid "Archive Messages"
+#~ msgstr "Archivar mensajes"
+
+#~ msgid "Move to Inbox"
+#~ msgstr "Mover a la bandeja de entrada"
+
+#~ msgid "Resend Messages"
+#~ msgstr "Reenviar mensajes"
+
+#~ msgid "Delete Messages"
+#~ msgstr "Borrar mensajes"
+
+#~ msgid "Sorry you have no permission for this action."
+#~ msgstr "Lo sentimos, no tiene permiso para esta acción."
+
+#~ msgid "Must specify a label"
+#~ msgstr "Debe especificar una etiqueta"
+
+#~ msgid "Missing label"
+#~ msgstr "Etiqueta faltante"
+
+#~ msgid "Archive Triggers"
+#~ msgstr "Archivar activadores"
+
+#~ msgid "Restore Triggers"
+#~ msgstr "Restaurar activadores"
+
+#, fuzzy
 #~| msgid "The name of the video"
 #~ msgid "Connect Facebook page"
 #~ msgstr "El nombre del video"
@@ -12827,11 +12873,6 @@ msgstr ""
 #~| msgid "Your app's server access token"
 #~ msgid "Empty user access token!"
 #~ msgstr "Token de acceso desde su repositorio"
-
-#, fuzzy, python-brace-format
-#~| msgid "Using a Local Number"
-#~ msgid "f'{val}' isn't a valid number"
-#~ msgstr "Con un número local"
 
 #, fuzzy, python-brace-format
 #~| msgid "Invalid group or contact id"

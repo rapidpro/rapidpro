@@ -2,7 +2,7 @@ import logging
 
 from django import forms
 from django.db import transaction
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseForbidden
 from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -29,131 +29,114 @@ class NonAtomicMixin(View):
         return super().dispatch(request, *args, **kwargs)
 
 
-class BaseActionForm(forms.Form):
+class BulkActionMixin:
     """
-    Base form class for bulk actions against domain models, typically initiated from list views
+    Mixin for list views which have bulk actions
     """
 
-    model = None
-    model_manager = "objects"
-    label_model = None
-    label_model_manager = "objects"
-    has_is_active = False
-    allowed_actions = ()
+    bulk_actions = ()
+    bulk_action_permissions = {}
 
-    def __init__(self, *args, **kwargs):
-        org = kwargs.pop("org")
-        self.user = kwargs.pop("user")
+    class Form(forms.Form):
+        def __init__(self, actions, queryset, label_queryset, *args, **kwargs):
+            super().__init__(*args, **kwargs)
 
-        super().__init__(*args, **kwargs)
+            self.fields["action"] = forms.ChoiceField(choices=[(a, a) for a in actions], required=True)
+            self.fields["objects"] = forms.ModelMultipleChoiceField(queryset=queryset, required=True)
 
-        objects_qs = getattr(self.model, self.model_manager).filter(org=org)
-        if self.has_is_active:
-            objects_qs = objects_qs.filter(is_active=True)
+            if label_queryset:
+                self.fields["label"] = forms.ModelChoiceField(label_queryset, required=False)
 
-        self.fields["action"] = forms.ChoiceField(choices=self.allowed_actions)
-        self.fields["objects"] = forms.ModelMultipleChoiceField(objects_qs)
-        self.fields["add"] = forms.BooleanField(required=False)
-        self.fields["number"] = forms.BooleanField(required=False)
+        def clean(self):
+            cleaned_data = super().clean()
 
-        if self.label_model:
-            label_qs = getattr(self.label_model, self.label_model_manager).filter(org=org)
-            self.fields["label"] = forms.ModelChoiceField(label_qs, required=False)
+            action = cleaned_data.get("action")
+            label = cleaned_data.get("label")
+            if action in ("label", "unlabel") and not label:
+                raise forms.ValidationError("Must specify a label")
 
-    def clean(self):
-        data = self.cleaned_data
-        action = data["action"]
-        user_permissions = self.user.get_org_group().permissions
+            # TODO update frontend to send back unlabel actions
+            if action == "label" and self.data.get("add", "").lower() == "false":
+                cleaned_data["action"] = "unlabel"
 
-        update_perm_codename = self.model.__name__.lower() + "_update"
+        class Meta:
+            fields = ("action", "objects")
 
-        update_allowed = user_permissions.filter(codename=update_perm_codename)
-        delete_allowed = user_permissions.filter(codename="msg_update")
-        resend_allowed = user_permissions.filter(codename="broadcast_send")
+    def post(self, request, *args, **kwargs):
+        """
+        Handles a POSTed action form and returns the default GET response
+        """
+        user = self.get_user()
+        org = user.get_org()
+        form = BulkActionMixin.Form(
+            self.get_bulk_actions(), self.get_queryset(), self.get_bulk_action_labels(), data=self.request.POST,
+        )
+        action_error = None
 
-        if (
-            action in ("label", "unlabel", "archive", "restore", "block", "unblock", "unstop", "close", "reopen")
-            and not update_allowed
-        ):
-            raise forms.ValidationError(_("Sorry you have no permission for this action."))
+        if form.is_valid():
+            action = form.cleaned_data["action"]
+            objects = form.cleaned_data["objects"]
+            label = form.cleaned_data.get("label")
 
-        if action == "delete" and not delete_allowed:  # pragma: needs cover
-            raise forms.ValidationError(_("Sorry you have no permission for this action."))
+            # convert objects queryset to one based only on org + ids
+            objects = self.model._default_manager.filter(org=org, id__in=[o.id for o in objects])
 
-        if action == "resend" and not resend_allowed:  # pragma: needs cover
-            raise forms.ValidationError(_("Sorry you have no permission for this action."))
+            # check we have the required permission for this action
+            permission = self.get_bulk_action_permission(action)
+            if not user.has_perm(permission) and not user.has_org_perm(org, permission):
+                return HttpResponseForbidden()
 
-        if action == "label" and "label" not in self.cleaned_data:  # pragma: needs cover
-            raise forms.ValidationError(_("Must specify a label"))
+            try:
+                self.apply_bulk_action(user, action, objects, label)
+            except forms.ValidationError as e:
+                action_error = ", ".join(e.messages)
+            except Exception:
+                logger.exception(f"error applying '{action}' to {self.model.__name__} objects")
+                action_error = _("An error occurred while making your changes. Please try again.")
 
-        if action == "unlabel" and "label" not in self.cleaned_data:  # pragma: needs cover
-            raise forms.ValidationError(_("Must specify a label"))
+        response = self.get(request, *args, **kwargs)
+        if action_error:
+            response["Temba-Toast"] = action_error
 
-        return data
+        return response
 
-    def execute(self):
-        data = self.cleaned_data
-        action = data["action"]
-        objects = data["objects"]
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["actions"] = self.get_bulk_actions()
+        return context
 
-        if action == "label":
-            label = data["label"]
-            add = data["add"]
+    def get_bulk_actions(self):
+        """
+        Gets the allowed bulk actions for this view
+        """
+        return self.bulk_actions
 
-            if not label:
-                return dict(error=_("Missing label"))
+    def get_bulk_action_permission(self, action):
+        """
+        Gets the required permission for the given action (defaults to the update permission for the model class)
+        """
+        default = f"{self.model._meta.app_label}.{self.model.__name__.lower()}_update"
 
-            changed = self.model.apply_action_label(self.user, objects, label, add)
-            return dict(changed=changed, added=add, label_id=label.id, label=label.name)
+        return self.bulk_action_permissions.get(action, default)
 
-        elif action == "unlabel":
-            label = data["label"]
-            add = data["add"]
+    def get_bulk_action_labels(self):
+        """
+        Views can override this to provide a set of labels for label/unlabel actions
+        """
+        return None
 
-            if not label:
-                return dict(error=_("Missing label"))
+    def apply_bulk_action(self, user, action, objects, label):
+        """
+        Applies the given action to the given objects. If this method throws a validation error, that will become the
+        error message sent back to the user.
+        """
+        func_name = f"apply_action_{action}"
+        model_func = getattr(self.model, func_name)
+        assert model_func, f"{self.model.__name__} has no method called {func_name}"
 
-            changed = self.model.apply_action_label(self.user, objects, label, False)
-            return dict(changed=changed, added=add, label_id=label.id, label=label.name)
+        args = [label] if label else []
 
-        elif action == "archive":
-            changed = self.model.apply_action_archive(self.user, objects)
-            return dict(changed=changed)
-
-        elif action == "block":
-            changed = self.model.apply_action_block(self.user, objects)
-            return dict(changed=changed)
-
-        elif action == "unblock":
-            changed = self.model.apply_action_unblock(self.user, objects)
-            return dict(changed=changed)
-
-        elif action == "restore":
-            changed = self.model.apply_action_restore(self.user, objects)
-            return dict(changed=changed)
-
-        elif action == "delete":
-            changed = self.model.apply_action_delete(self.user, objects)
-            return dict(changed=changed)
-
-        elif action == "unstop":
-            changed = self.model.apply_action_unstop(self.user, objects)
-            return dict(changed=changed)
-
-        elif action == "resend":
-            changed = self.model.apply_action_resend(self.user, objects)
-            return dict(changed=changed)
-
-        elif action == "close":
-            changed = self.model.apply_action_close(objects)
-            return dict(changed=changed)
-
-        elif action == "reopen":
-            changed = self.model.apply_action_reopen(objects)
-            return dict(changed=changed)
-
-        else:  # pragma: no cover
-            return dict(error=_("Oops, so sorry. Something went wrong!"))
+        model_func(user, objects, *args)
 
 
 class ExternalURLHandler(View):

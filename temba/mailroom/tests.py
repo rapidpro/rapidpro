@@ -399,7 +399,9 @@ class MailroomQueueTest(TembaTest):
                 "org_id": self.org.id,
                 "task": {
                     "start_id": start.id,
+                    "start_type": "M",
                     "org_id": self.org.id,
+                    "created_by": self.admin.username,
                     "flow_id": flow.id,
                     "flow_type": "M",
                     "contact_ids": [jim.id],

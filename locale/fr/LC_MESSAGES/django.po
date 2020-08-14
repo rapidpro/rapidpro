@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-15 18:45+0000\n"
+"POT-Creation-Date: 2020-08-11 20:41+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -60,9 +60,6 @@ msgstr "Message"
 
 msgid "Run"
 msgstr "Exécuter"
-
-msgid "The archive we were rolled up into, if any"
-msgstr "Les archives dans lesquelles nous avons été rassemblées, le cas échéant"
 
 msgid "Archive"
 msgstr "Archives"
@@ -2594,12 +2591,6 @@ msgstr "Identifiant Freshchat"
 msgid "VK identifier"
 msgstr "Identifiant VK"
 
-msgid "ID"
-msgstr "Identifiant"
-
-msgid "Language"
-msgstr "Langue"
-
 msgid "Label"
 msgstr "Etiquette"
 
@@ -2614,6 +2605,9 @@ msgstr "Champ en vedette"
 
 msgid "The name of this contact"
 msgstr "Le nom de ce contact"
+
+msgid "Language"
+msgstr "Langue"
 
 msgid "The preferred language for this contact"
 msgstr "La langue préférée pour ce contact"
@@ -2668,6 +2662,54 @@ msgstr "Le groupe unique à exporter"
 msgid "The search query"
 msgstr "La requête de recherche"
 
+#, python-format
+msgid "Invalid query syntax at '%(token)s'"
+msgstr ""
+
+#, python-format
+msgid "Unable to convert '%(value)s' to a number"
+msgstr ""
+
+#, python-format
+msgid "Unable to convert '%(value)s' to a date"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "%(day)s is not a valid day of the week"
+msgid "'%(value)s' is not a valid language code"
+msgstr "%(day)s n'est pas un jour de la semaine valide"
+
+#, fuzzy, python-format
+#| msgid "f'{val}' isn't a valid number"
+msgid "'%(value)s' is not a valid group name"
+msgstr "f'{val}' n'est pas un numéro valide"
+
+#, python-format
+msgid "Using ~ with name requires token of at least %(min_token_length)s characters"
+msgstr ""
+
+#, python-format
+msgid "Using ~ with URN requires value of at least %(min_value_length)s characters"
+msgstr ""
+
+msgid "Can only use ~ with name or URN values"
+msgstr ""
+
+#, python-format
+msgid "Can only use %(operator)s with number or date values"
+msgstr ""
+
+#, python-format
+msgid "Can't check whether '%(property)s' is set or not set"
+msgstr ""
+
+#, python-format
+msgid "Can't resolve '%(property)s' to a field or URN scheme"
+msgstr ""
+
+msgid "Can't query on URNs in an anonymous workspace"
+msgstr ""
+
 msgid "day"
 msgstr "jour"
 
@@ -2710,24 +2752,6 @@ msgstr "Bloqué"
 
 msgid "Stopped"
 msgstr "Stoppé"
-
-msgid "Add to Group"
-msgstr "Ajouter au groupe"
-
-msgid "Remove from Group"
-msgstr "Supprimer du groupe"
-
-msgid "Unblock Contacts"
-msgstr "Autoriser les contacts"
-
-msgid "Block Contacts"
-msgstr "Bloquer les contacts"
-
-msgid "Delete Contacts"
-msgstr "Supprimer des contacts"
-
-msgid "Unstop Contacts"
-msgstr "Débloquer les contacts"
 
 #, python-brace-format
 msgid "{label} for this contact"
@@ -3050,23 +3074,6 @@ msgstr "Les mot-clés \"%s\"  sont également utilisés par un autre flux"
 msgid "The keyword \"%s\" is already used for another flow"
 msgstr "Le mot-clé \"%s\" est également utilisé par un autre flux"
 
-msgid "Archive Flows"
-msgstr "Archiver les Flux"
-
-msgid "Label Messages"
-msgstr "Etiquette Messages"
-
-msgid "Restore Flows"
-msgstr "Restaurer les Flux"
-
-#, python-format
-msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
-msgstr "%s sont utilisés dans une campagne. Pour les archiver, commencez par les supprimer de vos campagnes."
-
-#, python-format
-msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
-msgstr "%s est utilisé dans une campagne. Pour l'archiver, commencez par le supprimer de vos campagnes."
-
 msgid "You don't have permission to edit this flow"
 msgstr "Vous n'êtes pas autorisé à modifier ce flux"
 
@@ -3124,6 +3131,10 @@ msgstr "Relance l'appel trois fois pour l'intervalle choisi"
 
 msgid "Flows"
 msgstr "flux"
+
+#, python-format
+msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
+msgstr ""
 
 msgid "Contact Name"
 msgstr " Nom du Contact"
@@ -3700,18 +3711,6 @@ msgstr "Messages planifiés"
 msgid "You must add a phone number before sending messages"
 msgstr "Vous devez ajouter un numéro de téléphone avant d'envoyer des messages"
 
-msgid "Archive Messages"
-msgstr "Messages Archivés"
-
-msgid "Move to Inbox"
-msgstr "Déplacer vers la Boîte de Réception"
-
-msgid "Resend Messages"
-msgstr "Renvoyer Messages"
-
-msgid "Delete Messages"
-msgstr "Messages Supprimés"
-
 msgid "Which channel will deliver the message"
 msgstr "Quel channel livrera le message"
 
@@ -3898,12 +3897,6 @@ msgstr "Désolé, votre carte a été refusée. Veuillez contacter votre fournis
 
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
 msgstr "Désolé, nous n'avons pas pu traiter votre paiement. Veuillez réessayer ultérieurement ou contactez-nous."
-
-msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
-msgstr "Désolé, nous ne pouvons pas annuler votre plan pour le moment. Contactez nous s'il vous plait."
-
-msgid "Sorry, we were unable to charge your card, please try again later or contact us."
-msgstr "Désolé, nous n'avons pas pu charger votre carte. Veuillez réessayer ultérieurement ou contactez-nous."
 
 msgid "Viewer"
 msgstr "Spectateur"
@@ -4757,12 +4750,6 @@ msgstr "Le canal auquel appliquer ce déclencheur, laissez vide pour tous les ca
 msgid "The referrer id that will trigger us"
 msgstr "L'identifiant de référence qui nous déclenchera"
 
-msgid "Archive Triggers"
-msgstr "Archiver Déclencheurs"
-
-msgid "Restore Triggers"
-msgstr "Restaurer les Déclencheurs"
-
 msgid "Create Trigger"
 msgstr "Créer des declencheurs"
 
@@ -4862,17 +4849,10 @@ msgstr "0 secondes"
 msgid ", "
 msgstr ","
 
-msgid "Sorry you have no permission for this action."
-msgstr "Désolé vous n'avez pas la permission pour cette action."
-
-msgid "Must specify a label"
-msgstr "Vous devez spécifier une étiquette"
-
-msgid "Missing label"
-msgstr "Étiquette manquant"
-
-msgid "Oops, so sorry. Something went wrong!"
-msgstr "Oups, désolé. Quelque chose s'est mal passé!"
+#, fuzzy
+#| msgid "An error occurred updating your contact. Please try again later."
+msgid "An error occurred while making your changes. Please try again."
+msgstr "Une erreur s'est produite lors de la mise à jour de votre contact. Veuillez réessayer plus tard."
 
 msgid "Date & Time"
 msgstr "Date & Heure"
@@ -6947,6 +6927,9 @@ msgstr "Créer un contact"
 msgid "Create Group"
 msgstr "Créer un groupe"
 
+msgid "Remove from Group"
+msgstr "Supprimer du groupe"
+
 msgid "New Group..."
 msgstr "Nouveau groupe..."
 
@@ -6975,6 +6958,9 @@ msgstr "Pas de contacts correspondants."
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr "La navigation dans les recherches est limitée à 10 000 résultats. Si vous souhaitez parcourir tous les résultats, veuillez enregistrer cette recherche en tant que groupe."
+
+msgid "Delete Contacts"
+msgstr "Supprimer des contacts"
 
 msgid "Are you sure you want to delete these contacts?"
 msgstr "Êtes-vous sûr de vouloir supprimer ces contacts?"
@@ -10957,8 +10943,81 @@ msgstr "Entrez une requête"
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
 
+#~ msgid "ID"
+#~ msgstr "Identifiant"
+
+#~ msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
+#~ msgstr "Désolé, nous ne pouvons pas annuler votre plan pour le moment. Contactez nous s'il vous plait."
+
+#~ msgid "Sorry, we were unable to charge your card, please try again later or contact us."
+#~ msgstr "Désolé, nous n'avons pas pu charger votre carte. Veuillez réessayer ultérieurement ou contactez-nous."
+
+#~ msgid "The archive we were rolled up into, if any"
+#~ msgstr "Les archives dans lesquelles nous avons été rassemblées, le cas échéant"
+
+#, fuzzy, python-format
+#~| msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
+#~ msgid "%(flow)s is used inside a campaign. To archive it, first remove it from your campaigns."
+#~ msgstr "%s est utilisé dans une campagne. Pour l'archiver, commencez par le supprimer de vos campagnes."
+
+#, fuzzy, python-format
+#~| msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
+#~ msgid "%(flows)s are used inside a campaign. To archive them, first remove them from your campaigns."
+#~ msgstr "%s sont utilisés dans une campagne. Pour les archiver, commencez par les supprimer de vos campagnes."
+
+#~ msgid "Oops, so sorry. Something went wrong!"
+#~ msgstr "Oups, désolé. Quelque chose s'est mal passé!"
+
 #~ msgid "Unable to get intent entity, make sure you have at least one intent defined"
 #~ msgstr "Impossible d'obtenir l'entité d'intention, assurez-vous d'avoir défini au moins une intention"
+
+#~ msgid "Add to Group"
+#~ msgstr "Ajouter au groupe"
+
+#~ msgid "Unblock Contacts"
+#~ msgstr "Autoriser les contacts"
+
+#~ msgid "Block Contacts"
+#~ msgstr "Bloquer les contacts"
+
+#~ msgid "Unstop Contacts"
+#~ msgstr "Débloquer les contacts"
+
+#~ msgid "Archive Flows"
+#~ msgstr "Archiver les Flux"
+
+#~ msgid "Label Messages"
+#~ msgstr "Etiquette Messages"
+
+#~ msgid "Restore Flows"
+#~ msgstr "Restaurer les Flux"
+
+#~ msgid "Archive Messages"
+#~ msgstr "Messages Archivés"
+
+#~ msgid "Move to Inbox"
+#~ msgstr "Déplacer vers la Boîte de Réception"
+
+#~ msgid "Resend Messages"
+#~ msgstr "Renvoyer Messages"
+
+#~ msgid "Delete Messages"
+#~ msgstr "Messages Supprimés"
+
+#~ msgid "Sorry you have no permission for this action."
+#~ msgstr "Désolé vous n'avez pas la permission pour cette action."
+
+#~ msgid "Must specify a label"
+#~ msgstr "Vous devez spécifier une étiquette"
+
+#~ msgid "Missing label"
+#~ msgstr "Étiquette manquant"
+
+#~ msgid "Archive Triggers"
+#~ msgstr "Archiver Déclencheurs"
+
+#~ msgid "Restore Triggers"
+#~ msgstr "Restaurer les Déclencheurs"
 
 #, fuzzy
 #~| msgid "The name of the Facebook page"
@@ -10973,10 +11032,6 @@ msgstr "${count} trouvé pour ${query}"
 #, python-brace-format
 #~ msgid "Unrecognized field: '{prop}'"
 #~ msgstr "Champ non reconnu: '{prop}'"
-
-#, python-brace-format
-#~ msgid "f'{val}' isn't a valid number"
-#~ msgstr "f'{val}' n'est pas un numéro valide"
 
 #, python-brace-format
 #~ msgid "Unknown text comparator: '{self.comparator}'"
