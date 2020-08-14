@@ -381,13 +381,10 @@ class MigrationTask(TembaModel):
             org_config = json.loads(org_data.config) if org_data.config else dict()
 
             org_giftcards = org_config.get("GIFTCARDS", [])
+            self.add_parse_data(logger=logger, collections=org_giftcards, collection_type="giftcards")
+
             org_lookups = org_config.get("LOOKUPS", [])
-
-            for collection in org_giftcards:
-                collection_data = self.get_collection_data(collection_name=collection, collection_type="giftcards")
-
-            for collection in org_lookups:
-                collection_data = self.get_collection_data(collection_name=collection, collection_type="lookups")
+            self.add_parse_data(logger=logger, collections=org_lookups, collection_type="lookups")
 
             logger.info("[COMPLETED] Parse Data migration")
             logger.info("")
@@ -1830,7 +1827,7 @@ class MigrationTask(TembaModel):
         This function returns the parse data as import_data_to_parse() is expecting on iterator argument
         :param collection_name: string
         :param collection_type: string (lookups|giftcards)
-        :return: list
+        :return: list, int
         """
         query_limit = 1000
 
@@ -1886,7 +1883,15 @@ class MigrationTask(TembaModel):
 
         collection_rows.insert(0, collection_header)
 
-        return collection_rows
+        return collection_rows, results_count
+
+    def add_parse_data(self, logger, collections, collection_type):
+        for idx, collection in enumerate(collections, start=1):
+            (collection_data, count) = self.get_collection_data(collection_name=collection, collection_type=collection_type)
+
+            logger.info(f">>>[{idx}/{len(collections)}] Collection: {collection} [{count} row(s)]")
+
+            # TODO Call the import_data_to_parse method here
 
     @classmethod
     def get_run_status(cls, exit_type, is_active):
