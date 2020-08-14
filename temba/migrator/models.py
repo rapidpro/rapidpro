@@ -1802,9 +1802,7 @@ class MigrationTask(TembaModel):
         org_slug = self.org.slug
         org_id = self.migration_org
 
-        collection_full_name = (
-            f"{server_name}_{org_slug}_{org_id}_{collection_type}_{collection_slug}"
-        )
+        collection_full_name = f"{server_name}_{org_slug}_{org_id}_{collection_type}_{collection_slug}"
         collection_full_name = collection_full_name.replace("-", "")
 
         return collection_full_name
@@ -1880,7 +1878,11 @@ class MigrationTask(TembaModel):
                     value = value.get("iso", None)
                     if value:
                         value_dt = datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%fZ")
-                        dt_format = "%d-%m-%Y %H:%M:%S" if self.org.date_format == Org.DATE_FORMAT_DAY_FIRST else "%m-%d-%Y %H:%M:%S"
+                        dt_format = (
+                            "%d-%m-%Y %H:%M:%S"
+                            if self.org.date_format == Org.DATE_FORMAT_DAY_FIRST
+                            else "%m-%d-%Y %H:%M:%S"
+                        )
                         value = value_dt.strftime(dt_format)
                 new_row[key_idx] = value
             collection_rows.append(new_row)
