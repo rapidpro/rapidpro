@@ -16,6 +16,7 @@ from temba import mailroom
 from temba.migrator import Migrator
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent, WebHookResult
 from temba.orgs.models import TopUp, TopUpCredits, Language
+from temba.orgs.tasks import import_data_to_parse
 from temba.contacts.models import ContactField, Contact, ContactGroup, ContactURN
 from temba.channels.models import Channel, ChannelCount, SyncEvent, ChannelEvent, ChannelLog
 from temba.schedules.models import Schedule
@@ -380,8 +381,12 @@ class MigrationTask(TembaModel):
 
             org_config = json.loads(org_data.config) if org_data.config else dict()
 
+            logger.info(">>> Gift Card (You will receive an email for each collection imported)")
+
             org_giftcards = org_config.get("GIFTCARDS", [])
             self.add_parse_data(logger=logger, collections=org_giftcards, collection_type="giftcards")
+
+            logger.info(">>> Lookup (You will receive an email for each collection imported)")
 
             org_lookups = org_config.get("LOOKUPS", [])
             self.add_parse_data(logger=logger, collections=org_lookups, collection_type="lookups")
@@ -1792,13 +1797,13 @@ class MigrationTask(TembaModel):
     def remove_association(self):
         return self.associations.all().exclude(model=MigrationAssociation.MODEL_ORG).delete()
 
-    def get_collection_full_name(self, collection_name, collection_type):
+    def get_collection_full_name(self, server_name, collection_name, collection_type):
         collection_slug = slugify(collection_name)
         org_slug = self.org.slug
         org_id = self.migration_org
 
         collection_full_name = (
-            f"{settings.MIGRATION_PARSE_SERVER_NAME}_{org_slug}_{org_id}_{collection_type}_{collection_slug}"
+            f"{server_name}_{org_slug}_{org_id}_{collection_type}_{collection_slug}"
         )
         collection_full_name = collection_full_name.replace("-", "")
 
@@ -1832,7 +1837,9 @@ class MigrationTask(TembaModel):
         query_limit = 1000
 
         collection_data = []
-        collection_full_name = self.get_collection_full_name(collection_name, collection_type)
+        collection_full_name = self.get_collection_full_name(
+            settings.MIGRATION_PARSE_SERVER_NAME, collection_name, collection_type
+        )
 
         parse_headers = {
             "X-Parse-Application-Id": settings.MIGRATION_PARSE_APP_ID,
@@ -1868,7 +1875,14 @@ class MigrationTask(TembaModel):
                 if key in ["objectId", "updatedAt", "createdAt", "ACL"]:
                     continue
                 key_idx = collection_header.index(key)
-                new_row[key_idx] = row.get(key, None)
+                value = row.get(key, "nan")
+                if isinstance(value, dict):
+                    value = value.get("iso", None)
+                    if value:
+                        value_dt = datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%fZ")
+                        dt_format = "%d-%m-%Y %H:%M:%S" if self.org.date_format == Org.DATE_FORMAT_DAY_FIRST else "%m-%d-%Y %H:%M:%S"
+                        value = value_dt.strftime(dt_format)
+                new_row[key_idx] = value
             collection_rows.append(new_row)
 
         for key in collection_header:
@@ -1890,10 +1904,55 @@ class MigrationTask(TembaModel):
             (collection_data, count) = self.get_collection_data(
                 collection_name=collection, collection_type=collection_type
             )
+            collection_full_name = self.get_collection_full_name(
+                settings.PARSE_SERVER_NAME, collection, collection_type
+            )
+            parse_url = f"{settings.PARSE_URL}/schemas/{collection_full_name}"
 
-            logger.info(f">>>[{idx}/{len(collections)}] Collection: {collection} [{count} row(s)]")
+            parse_headers = {
+                "X-Parse-Application-Id": settings.PARSE_APP_ID,
+                "X-Parse-Master-Key": settings.PARSE_MASTER_KEY,
+                "Content-Type": "application/json",
+            }
 
-            # TODO Call the import_data_to_parse method here
+            purge_url = f"{settings.PARSE_URL}/purge/{collection_full_name}"
+
+            if collection_type == "lookups":
+                response = requests.get(parse_url, headers=parse_headers)
+                if response.status_code == 200 and "fields" in response.json():
+                    fields = response.json().get("fields")
+
+                    for key in list(fields.keys()):
+                        if key in ["objectId", "updatedAt", "createdAt", "ACL"]:
+                            del fields[key]
+                        else:
+                            del fields[key]["type"]
+                            fields[key]["__op"] = "Delete"
+
+                    remove_fields = {"className": collection_full_name, "fields": fields}
+                    response_purge = requests.delete(purge_url, headers=parse_headers)
+
+                    if response_purge.status_code in [200, 404]:
+                        requests.put(parse_url, data=json.dumps(remove_fields), headers=parse_headers)
+            else:
+                requests.delete(purge_url, headers=parse_headers)
+
+            logger.info(f">>> [{idx}/{len(collections)}] Collection: {collection} [{count} row(s)]")
+
+            import_data_to_parse.delay(
+                self.org.get_branding(),
+                self.created_by.email,
+                collection_data,
+                parse_url,
+                parse_headers,
+                collection_full_name,
+                collection_type,
+                collection,
+                f"Migration {self.uuid}",
+                True,
+                self.org.timezone.zone,
+                self.org.get_dayfirst(),
+            )
 
     @classmethod
     def get_run_status(cls, exit_type, is_active):
