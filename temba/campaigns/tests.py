@@ -181,26 +181,6 @@ class CampaignTest(TembaTest):
         e = EventFire.objects.get()
         self.assertEqual(e.id, e2.id)
 
-    def test_event_fire_creation(self):
-
-        self.login(self.admin)
-
-        # update the planting date for our contacts
-        self.set_contact_field(self.farmer1, "planting_date", "1/10/2020", legacy_handle=True)
-
-        # create a campaign with an event
-        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
-        field = ContactField.get_by_key(self.org, "planting_date")
-        event = CampaignEvent.create_message_event(self.org, self.admin, campaign, field, 15, "D", "Event Message")
-
-        # should create one event fire
-        EventFire.do_create_eventfires_for_event(event)
-        self.assertEqual(EventFire.objects.filter(event=event).count(), 1)
-
-        # but shouldn't create extras if we call it again
-        EventFire.do_create_eventfires_for_event(event)
-        self.assertEqual(EventFire.objects.filter(event=event).count(), 1)
-
     def test_message_event_editing(self):
         # update the planting date for our contacts
         self.set_contact_field(self.farmer1, "planting_date", "1/10/2020")

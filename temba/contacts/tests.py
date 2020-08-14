@@ -4830,33 +4830,6 @@ class ContactTest(TembaTest):
         country_label_two = ContactField.user_fields.get(key="country_label_two")
         self.assertEqual(country_label_two.label, "Country Label Two")
 
-    def test_campaign_eventfires_on_systemfields_for_new_contacts(self):
-        self.login(self.admin)
-        self.create_campaign()
-
-        contact = self.create_contact("Joe", urn="tel:123")
-        ballers = self.create_group("Ballers", contacts=[contact])
-
-        self.campaign.group = ballers
-        self.campaign.save()
-
-        field_created_on = self.org.contactfields.get(key="created_on")
-
-        created_on_event = CampaignEvent.create_flow_event(
-            self.org,
-            self.admin,
-            self.campaign,
-            relative_to=field_created_on,
-            offset=5,
-            unit="M",
-            flow=self.reminder_flow,
-        )
-
-        EventFire.create_eventfires_for_event(created_on_event)
-
-        event_fires = EventFire.objects.filter(event=created_on_event)
-        self.assertEqual(event_fires.count(), 1)
-
     @mock_mailroom
     def test_contact_import_handle_update_contact(self, mr_mocks):
         self.login(self.admin)
@@ -7176,8 +7149,9 @@ class ESIntegrationTest(TembaNonAtomicTest):
         event = CampaignEvent.create_message_event(
             self.org, self.admin, campaign, relative_to=created_on, offset=12, unit="M", message="Happy One Year!"
         )
-        # rapidpro creation of events
-        EventFire.create_eventfires_for_event(event)
+
+        # mailroom creation of event fires
+        event.schedule_async()
 
         # should have 69 events
         EventFire.objects.filter(event=event, fired=None).count()
@@ -7191,7 +7165,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
         # should have updated count
         self.assertEqual(81, adults.get_member_count())
 
-        # should now have 81 events instead, these were created by mailroom
+        # should now have 81 events instead
         self.assertEqual(81, EventFire.objects.filter(event=event, fired=None).count())
 
 

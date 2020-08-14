@@ -664,7 +664,7 @@ class CampaignEventCRUDL(SmartCRUDL):
                 or prev.start_mode != obj.start_mode
             ):
                 obj = obj.deactivate_and_copy()
-                EventFire.create_eventfires_for_event(obj)
+                obj.calculate_fires_async()
 
             return obj
 
@@ -738,7 +738,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         def post_save(self, obj):
             obj = super().post_save(obj)
             obj.update_flow_name()
-            EventFire.create_eventfires_for_event(obj)
+            obj.calculate_fires_async()
             return obj
 
         def pre_save(self, obj):
