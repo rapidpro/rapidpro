@@ -1,9 +1,7 @@
 <!DOCTYPE HTML>
 -load humanize
-{% block html-tag %}
-<!--[if lte IE 8]><html class="ie" lang="en">    <![endif]-->
-<!--[if !IE]><!--><html lang="en">              <!--<![endif]-->
-{% endblock %}
+
+%html(lang="{{ LANGUAGE_CODE }}")
   %head
     %title
       {% block page-title %}
@@ -458,5 +456,3 @@
         });
       });
 {% endblock body %}
-
-</html>
