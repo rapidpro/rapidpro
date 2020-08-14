@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-28 21:40+0000\n"
+"POT-Creation-Date: 2020-08-14 13:49+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -4557,9 +4557,6 @@ msgstr ""
 msgid "Connection to RocketChat is taking too long."
 msgstr ""
 
-msgid "Unable to validate the secret code. Connection to RocketChat is taking too long."
-msgstr ""
-
 msgid "Unable to configure. Connection to RocketChat is taking too long."
 msgstr ""
 
@@ -4569,12 +4566,12 @@ msgstr ""
 msgid "Setup your RocketChat first to be able to integrate."
 msgstr ""
 
-msgid "Ex.: http://rocketchat-domain.com/.../secret.check"
+msgid "Ex.: http://my.rocket.chat/29542a4b-5a89-4f27-872b-5f8091899f7b"
 msgstr ""
 
 #, fuzzy
 #| msgid "The base URL for your WhatsApp enterprise installation"
-msgid "The URL for your RocketChat installation"
+msgid "The URL for your RocketChat Tickets app"
 msgstr "Базовый URL для Вашей корпоративной установки WhatsApp "
 
 msgid "Secret to be passed to RocketChat"
@@ -4591,9 +4588,6 @@ msgid "Invalid URL: %(base_url)s"
 msgstr ""
 
 msgid "There is already a ticketing service configured for this URL."
-msgstr ""
-
-msgid "Unable to validate the secret code."
 msgstr ""
 
 #, fuzzy
@@ -10998,6 +10992,28 @@ msgstr ""
 msgid "Your verification code is %(code)s to continue adding an email-based ticketing service."
 msgstr ""
 
+#, python-format
+msgid "You will need to enable Omnichannel and setup a %(brand)s Tickets app on your RocketChat. To do so:"
+msgstr ""
+
+msgid "On your RocketChat, go to <b>Administration > Omnichannel</b> and enable the Omnichannel."
+msgstr ""
+
+#, python-format
+msgid "Install your %(brand)s Tickets app from marketplace."
+msgstr ""
+
+msgid "Open the app details, at <b>Administration > Apps > app</b>, and in its settings section put the following token on the <b>App's Secret</b> field:"
+msgstr ""
+
+#, python-format
+msgid "Your new secret: <code>%(secret)s</code>."
+msgstr ""
+
+#, python-format
+msgid "Save the changes, copy the app's URL and back to %(brand)s by pasting that URL on field below, so try connect."
+msgstr ""
+
 msgid "This will connect your account to Zendesk allowing you to open tickets in flows."
 msgstr ""
 
@@ -11176,12 +11192,12 @@ msgstr "Ввести запрос"
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
 #~ msgid "%(flow)s is used inside a campaign. To archive it, first remove it from your campaigns."
 #~ msgstr "%s используется внутри кампании. Для его архивации сначала удалите его из Ваших кампаний."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
 #~ msgid "%(flows)s are used inside a campaign. To archive them, first remove them from your campaigns."
 #~ msgstr "%s используются внутри кампании. Для их архивации сначала удалите их из Ваших кампаний."
@@ -11240,59 +11256,45 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Restore Triggers"
 #~ msgstr "Восстановить Триггеры"
 
-#, python-brace-format
 #~ msgid "Unrecognized field: '{prop}'"
 #~ msgstr "Нераспознанное поле: '{prop}'"
 
-#, python-brace-format
 #~ msgid "Unknown text comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор текста: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown number comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор номера: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unable to parse the date '{self.value}'"
 #~ msgstr "Невозможно разобрать дату '{self.value}'"
 
-#, python-brace-format
 #~ msgid "Unknown datetime comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор даты и времени: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown location type: '{field.value_type}'"
 #~ msgstr "Неизвестный тип местоположения: '{field.value_type}'"
 
-#, python-brace-format
 #~ msgid "Unsupported comparator '{self.comparator}' for location field"
 #~ msgstr "Неподдерживаемый компаратор '{self.comparator}' для поля местоположения"
 
-#, python-brace-format
 #~ msgid "Unrecognized contact field type '{field.value_type}'"
 #~ msgstr "Нераспознаваемый тип поля контактов '{field.value_type}'"
 
-#, python-brace-format
 #~ msgid "Unknown urn scheme comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор схемы urn: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown language comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор языка: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown created_on comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор created_on: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown name comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор названия: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "No support for attribute field: '{field}'"
 #~ msgstr "Не поддерживается поле атрибутов: '{field}'"
 
-#, python-brace-format
 #~ msgid "Unrecognized contact field type '{prop_type}'"
 #~ msgstr "Нераспознаваемый тип поля контактов '{prop_type}'"
 
@@ -11432,7 +11434,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Channel Alarms (low battery, loss of connectivity)"
 #~ msgstr "Оповещения Канала (низкий заряд батареи, потеря связи)"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"

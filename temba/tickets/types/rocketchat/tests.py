@@ -1,10 +1,11 @@
 import re
 import uuid
 from secrets import token_urlsafe
+from unittest.mock import patch
+
+from requests.exceptions import Timeout
 
 from django.urls import reverse
-from requests.exceptions import Timeout
-from unittest.mock import patch
 
 from temba.tests import MockResponse, TembaTest
 from temba.tickets.models import Ticketer
@@ -84,7 +85,7 @@ class RocketChatTypeTest(RocketChatMixin):
             mock_brand_domain.return_value = domain
             self.assertEqual(
                 RocketChatType.callback_url(ticketer),
-                f"{scheme}{domain}/mr/tickets/types/rocketchat/{ticketer.uuid}/eventCallback",
+                f"{scheme}{domain}/mr/tickets/types/rocketchat/event_callback/{ticketer.uuid}",
             )
 
         mock_brand_domain.return_value = "test.domain.com"
@@ -96,7 +97,7 @@ class RocketChatTypeTest(RocketChatMixin):
         for scheme, domain in domains:
             self.assertEqual(
                 RocketChatType.callback_url(ticketer, domain),
-                f"{scheme}{domain}/mr/tickets/types/rocketchat/{ticketer.uuid}/eventCallback",
+                f"{scheme}{domain}/mr/tickets/types/rocketchat/event_callback/{ticketer.uuid}",
             )
 
     @patch("temba.orgs.models.Org.get_brand_domain")

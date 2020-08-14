@@ -6,18 +6,25 @@
     {{ form_blurb }}
 
   -blocktrans trimmed with brand=brand.name
-    You will need to install the {{ brand }} app in your RocketChat and set a secret token. To do so:
+    You will need to enable Omnichannel and setup a {{ brand }} Tickets app on your RocketChat. To do so:
 
   %ol.instructions
     %li
+      -blocktrans trimmed
+        On your RocketChat, go to <b>Administration > Omnichannel</b> and enable the Omnichannel.
+    %li
       -blocktrans trimmed with brand=brand.name
-        Install the RapidPro app into your RocketChat from the marketplace.
+        Install your {{ brand }} Tickets app from marketplace.
     %li
       -blocktrans trimmed
-        Open the app details and in its settings, put <code>{{ secret }}</code> on the secret field and save the changes.
-    %li
+        Open the app details, at <b>Administration > Apps > app</b>, and in its settings section put the following token on the <b>App's Secret</b> field:
+
+    %p
       -blocktrans trimmed
-        TODO: domain and app id.
+        Your new secret: <code>{{ secret }}</code>.
+    %li
+      -blocktrans trimmed with brand=brand.name
+        Save the changes, copy the app's URL and back to {{ brand }} by pasting that URL on field below, so try connect.
 
 -block extra-style
   {{ block.super }}

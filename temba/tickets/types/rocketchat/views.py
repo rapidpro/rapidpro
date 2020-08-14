@@ -5,8 +5,8 @@ from django.contrib import messages
 from django.utils.translation import ugettext_lazy as _
 
 from temba.tickets.models import Ticketer
-from temba.utils.fields import ExternalURLField
 from temba.tickets.views import BaseConnectView
+from temba.utils.fields import ExternalURLField
 from temba.utils.text import random_string, truncate
 from temba.utils.uuid import uuid4
 
@@ -28,8 +28,10 @@ class ConnectView(BaseConnectView):
     class Form(BaseConnectView.Form):
         base_url = ExternalURLField(
             label=_("URL"),
-            widget=forms.URLInput(attrs={"placeholder": _("Ex.: http://rocketchat-domain.com/.../secret.check")}),
-            help_text=_("The URL for your RocketChat installation"),
+            widget=forms.URLInput(
+                attrs={"placeholder": _("Ex.: http://my.rocket.chat/29542a4b-5a89-4f27-872b" "-5f8091899f7b")}
+            ),
+            help_text=_("The URL for your RocketChat Tickets app"),
         )
         secret = forms.CharField(
             label=_("Secret"), widget=forms.HiddenInput(), help_text=_("Secret to be passed to RocketChat")

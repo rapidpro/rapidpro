@@ -5,9 +5,8 @@ from django.utils.translation import ugettext_lazy as _
 from temba.tickets.models import TicketerType
 from temba.tickets.types.rocketchat.views import ConnectView
 
-
 RE_HOST = re.compile(r"(?:(?P<scheme>https?)://)?(?P<domain>[^ \"'/]+)")
-CALLBACK_URL_TEMPLATE = "{host}/mr/tickets/types/rocketchat/{uuid}/eventCallback"
+CALLBACK_URL_TEMPLATE = "{host}/mr/tickets/types/rocketchat/event_callback/{uuid}"
 
 
 class RocketChatType(TicketerType):

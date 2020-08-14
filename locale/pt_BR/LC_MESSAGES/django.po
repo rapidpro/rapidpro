@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-28 21:40+0000\n"
+"POT-Creation-Date: 2020-08-14 13:49+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -5555,9 +5555,6 @@ msgstr "Seu endereço de e-mail é "
 msgid "Connection to RocketChat is taking too long."
 msgstr " Conexão com o RocketChat está demorando muito."
 
-msgid "Unable to validate the secret code. Connection to RocketChat is taking too long."
-msgstr "Não foi possível validar o código secreto. Conexão com o RocketChat está demorando muito."
-
 msgid "Unable to configure. Connection to RocketChat is taking too long."
 msgstr "Não foi possível configurar. Conexão com o RocketChat está demorando muito."
 
@@ -5567,10 +5564,12 @@ msgstr "<a href=\"https://rocket.chat/\">RocketChat</a> é a melhor solução gr
 msgid "Setup your RocketChat first to be able to integrate."
 msgstr "Configure seu RocketChat primeiro para poder integrar."
 
-msgid "Ex.: http://rocketchat-domain.com/.../secret.check"
-msgstr "Ex.: http://rocketchat-domain.com/.../secret.check"
+msgid "Ex.: http://my.rocket.chat/29542a4b-5a89-4f27-872b-5f8091899f7b"
+msgstr ""
 
-msgid "The URL for your RocketChat installation"
+#, fuzzy
+#| msgid "The URL for your RocketChat installation"
+msgid "The URL for your RocketChat Tickets app"
 msgstr "O URL da sua instalação do RocketChat"
 
 msgid "Secret to be passed to RocketChat"
@@ -5588,9 +5587,6 @@ msgstr "URL inválida: %(base_url)s"
 
 msgid "There is already a ticketing service configured for this URL."
 msgstr "Já existe um serviço de ticket configurado para essa URL"
-
-msgid "Unable to validate the secret code."
-msgstr "Não foi possível validar o código secreto"
 
 #, fuzzy
 #| msgid "Configuration"
@@ -11734,6 +11730,28 @@ msgstr ""
 msgid "Your verification code is %(code)s to continue adding an email-based ticketing service."
 msgstr ""
 
+#, python-format
+msgid "You will need to enable Omnichannel and setup a %(brand)s Tickets app on your RocketChat. To do so:"
+msgstr ""
+
+msgid "On your RocketChat, go to <b>Administration > Omnichannel</b> and enable the Omnichannel."
+msgstr ""
+
+#, python-format
+msgid "Install your %(brand)s Tickets app from marketplace."
+msgstr ""
+
+msgid "Open the app details, at <b>Administration > Apps > app</b>, and in its settings section put the following token on the <b>App's Secret</b> field:"
+msgstr ""
+
+#, python-format
+msgid "Your new secret: <code>%(secret)s</code>."
+msgstr ""
+
+#, python-format
+msgid "Save the changes, copy the app's URL and back to %(brand)s by pasting that URL on field below, so try connect."
+msgstr ""
+
 msgid "This will connect your account to Zendesk allowing you to open tickets in flows."
 msgstr ""
 
@@ -11917,6 +11935,15 @@ msgstr "Insira o seu código de requisição"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
+#~ msgid "Unable to validate the secret code. Connection to RocketChat is taking too long."
+#~ msgstr "Não foi possível validar o código secreto. Conexão com o RocketChat está demorando muito."
+
+#~ msgid "Ex.: http://rocketchat-domain.com/.../secret.check"
+#~ msgstr "Ex.: http://rocketchat-domain.com/.../secret.check"
+
+#~ msgid "Unable to validate the secret code."
+#~ msgstr "Não foi possível validar o código secreto"
+
 #~ msgid "Oops, so sorry. Something went wrong!"
 #~ msgstr "Oops, me desculpe. Ocorreu algum erro!"
 
@@ -11980,12 +12007,12 @@ msgstr ""
 #~ msgid "Empty user access token!"
 #~ msgstr "Seu Token API é"
 
-#, fuzzy, python-brace-format
+#, fuzzy
 #~| msgid "Invalid group or contact id"
 #~ msgid "Unable to parse the date '{self.value}'"
 #~ msgstr "Grupo ou id do contato inválido"
 
-#, fuzzy, python-brace-format
+#, fuzzy
 #~| msgid "Unknown alert type: %(alert)s"
 #~ msgid "Unknown location type: '{field.value_type}'"
 #~ msgstr "Tipo de alerta desconhecido: %(alert)s"
@@ -12130,7 +12157,7 @@ msgstr ""
 #~ msgid "Channel Alarms (low battery, loss of connectivity)"
 #~ msgstr "Alarmes do Transmissor (bateria fraca, perda de conexão)"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
@@ -12236,7 +12263,7 @@ msgstr ""
 #~ "\n"
 #~ "%(sms_sent)s Enviadas"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        You can connect your <a href=\"http://infobip.com\">Infobip</a> number by entering your number, username and password\n"
