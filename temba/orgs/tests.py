@@ -944,6 +944,7 @@ class OrgTest(TembaTest):
             "name": "Temba",
             "brand": "rapidpro.io",
             "plan": "TRIAL",
+            "plan_end": "",
             "language": "",
             "country": "",
             "primary_language": "",

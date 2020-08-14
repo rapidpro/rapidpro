@@ -506,6 +506,7 @@ class ContactReadSerializer(ReadSerializer):
     stopped = serializers.SerializerMethodField()
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    last_seen_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_name(self, obj):
         return obj.name if obj.is_active else None
@@ -554,6 +555,7 @@ class ContactReadSerializer(ReadSerializer):
             "stopped",
             "created_on",
             "modified_on",
+            "last_seen_on",
         )
 
 

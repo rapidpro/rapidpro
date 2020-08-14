@@ -1605,7 +1605,8 @@ class APITest(TembaTest):
         self.joe.modified_on = timezone.now()
         self.joe.save(update_fields=("modified_on",), handle_update=False)
         contact4.modified_on = timezone.now()
-        contact4.save(update_fields=("modified_on",), handle_update=False)
+        contact4.last_seen_on = datetime(2020, 8, 12, 13, 30, 45, 123456, pytz.UTC)
+        contact4.save(update_fields=("modified_on", "last_seen_on"), handle_update=False)
 
         contact1.refresh_from_db()
         contact4.refresh_from_db()
@@ -1635,6 +1636,7 @@ class APITest(TembaTest):
                 "stopped": False,
                 "created_on": format_datetime(contact4.created_on),
                 "modified_on": format_datetime(contact4.modified_on),
+                "last_seen_on": "2020-08-12T13:30:45.123456Z",
             },
         )
 
@@ -1686,6 +1688,7 @@ class APITest(TembaTest):
                 "stopped": None,
                 "created_on": format_datetime(contact3.created_on),
                 "modified_on": format_datetime(contact3.modified_on),
+                "last_seen_on": None,
             },
         )
 
@@ -1712,6 +1715,7 @@ class APITest(TembaTest):
                 "stopped": False,
                 "created_on": format_datetime(empty.created_on),
                 "modified_on": format_datetime(empty.modified_on),
+                "last_seen_on": None,
             },
         )
 

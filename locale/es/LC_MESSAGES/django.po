@@ -62,9 +62,6 @@ msgstr "Mensaje"
 msgid "Run"
 msgstr "Domingo"
 
-msgid "The archive we were rolled up into, if any"
-msgstr ""
-
 msgid "Archive"
 msgstr "Archivar"
 
@@ -3592,14 +3589,6 @@ msgstr "ID externo"
 msgid "VK identifier"
 msgstr "ID externo"
 
-#, fuzzy
-#| msgid "UUID"
-msgid "ID"
-msgstr "UUID"
-
-msgid "Language"
-msgstr "Idioma"
-
 msgid "Label"
 msgstr "Etiquetar"
 
@@ -3614,6 +3603,9 @@ msgstr ""
 
 msgid "The name of this contact"
 msgstr "El nombre de este contacto"
+
+msgid "Language"
+msgstr "Idioma"
 
 msgid "The preferred language for this contact"
 msgstr "El idioma preferido para este contacto"
@@ -5098,14 +5090,6 @@ msgstr ""
 
 #, fuzzy
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
-msgstr "Lo sentimos, no podemos recargar su tarjeta, por favor, inténtelo nuevamente más tarde o contáctenos a feedback@textit.in"
-
-#, fuzzy
-msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
-msgstr "Lo sentimos, no podemos cancelar su plan en este momento. Por favor, contáctenos a feedback@textit.in."
-
-#, fuzzy
-msgid "Sorry, we were unable to charge your card, please try again later or contact us."
 msgstr "Lo sentimos, no podemos recargar su tarjeta, por favor, inténtelo nuevamente más tarde o contáctenos a feedback@textit.in"
 
 msgid "Viewer"
@@ -12871,6 +12855,19 @@ msgstr "Ingrese el código de pedido"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
+#, fuzzy
+#~| msgid "UUID"
+#~ msgid "ID"
+#~ msgstr "UUID"
+
+#, fuzzy
+#~ msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
+#~ msgstr "Lo sentimos, no podemos cancelar su plan en este momento. Por favor, contáctenos a feedback@textit.in."
+
+#, fuzzy
+#~ msgid "Sorry, we were unable to charge your card, please try again later or contact us."
+#~ msgstr "Lo sentimos, no podemos recargar su tarjeta, por favor, inténtelo nuevamente más tarde o contáctenos a feedback@textit.in"
+
 #~ msgid "Oops, so sorry. Something went wrong!"
 #~ msgstr "Lo sentimos. ¡Algo no funcionó!"
 
@@ -12938,12 +12935,12 @@ msgstr ""
 #~ msgid "Empty user access token!"
 #~ msgstr "Token de acceso desde su repositorio"
 
-#, fuzzy
+#, fuzzy, python-brace-format
 #~| msgid "Invalid group or contact id"
 #~ msgid "Unable to parse the date '{self.value}'"
 #~ msgstr "ID del grupo o contacto inválido "
 
-#, fuzzy
+#, fuzzy, python-brace-format
 #~| msgid "Unknown alert type: %(alert)s"
 #~ msgid "Unknown location type: '{field.value_type}'"
 #~ msgstr "Tipo de alerta desconocido: %(alert)s"
@@ -13085,7 +13082,7 @@ msgstr ""
 #~ msgid "Channel Alarms (low battery, loss of connectivity)"
 #~ msgstr "Alarmas transmitidas (baja batería, pérdida de conexión)"
 
-#, fuzzy
+#, fuzzy, python-format
 #~| msgid ""
 #~| "\n"
 #~| "    Your email address is <span class='attn'>%(email)s</span>.\n"
@@ -13215,7 +13212,7 @@ msgstr ""
 #~ "\n"
 #~ "        "
 
-#, fuzzy
+#, fuzzy, python-format
 #~| msgid ""
 #~| "\n"
 #~| "        You can connect your <a href=\"http://infobip.com\">Infobip</a> number by entering your number, username and password\n"

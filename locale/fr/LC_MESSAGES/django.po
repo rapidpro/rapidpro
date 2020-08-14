@@ -61,9 +61,6 @@ msgstr "Message"
 msgid "Run"
 msgstr "Exécuter"
 
-msgid "The archive we were rolled up into, if any"
-msgstr "Les archives dans lesquelles nous avons été rassemblées, le cas échéant"
-
 msgid "Archive"
 msgstr "Archives"
 
@@ -2594,12 +2591,6 @@ msgstr "Identifiant Freshchat"
 msgid "VK identifier"
 msgstr "Identifiant VK"
 
-msgid "ID"
-msgstr "Identifiant"
-
-msgid "Language"
-msgstr "Langue"
-
 msgid "Label"
 msgstr "Etiquette"
 
@@ -2614,6 +2605,9 @@ msgstr "Champ en vedette"
 
 msgid "The name of this contact"
 msgstr "Le nom de ce contact"
+
+msgid "Language"
+msgstr "Langue"
 
 msgid "The preferred language for this contact"
 msgstr "La langue préférée pour ce contact"
@@ -3903,12 +3897,6 @@ msgstr "Désolé, votre carte a été refusée. Veuillez contacter votre fournis
 
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
 msgstr "Désolé, nous n'avons pas pu traiter votre paiement. Veuillez réessayer ultérieurement ou contactez-nous."
-
-msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
-msgstr "Désolé, nous ne pouvons pas annuler votre plan pour le moment. Contactez nous s'il vous plait."
-
-msgid "Sorry, we were unable to charge your card, please try again later or contact us."
-msgstr "Désolé, nous n'avons pas pu charger votre carte. Veuillez réessayer ultérieurement ou contactez-nous."
 
 msgid "Viewer"
 msgstr "Spectateur"
@@ -11018,12 +11006,24 @@ msgstr "Entrez une requête"
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
 
-#, fuzzy
+#~ msgid "ID"
+#~ msgstr "Identifiant"
+
+#~ msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
+#~ msgstr "Désolé, nous ne pouvons pas annuler votre plan pour le moment. Contactez nous s'il vous plait."
+
+#~ msgid "Sorry, we were unable to charge your card, please try again later or contact us."
+#~ msgstr "Désolé, nous n'avons pas pu charger votre carte. Veuillez réessayer ultérieurement ou contactez-nous."
+
+#~ msgid "The archive we were rolled up into, if any"
+#~ msgstr "Les archives dans lesquelles nous avons été rassemblées, le cas échéant"
+
+#, fuzzy, python-format
 #~| msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
 #~ msgid "%(flow)s is used inside a campaign. To archive it, first remove it from your campaigns."
 #~ msgstr "%s est utilisé dans une campagne. Pour l'archiver, commencez par le supprimer de vos campagnes."
 
-#, fuzzy
+#, fuzzy, python-format
 #~| msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
 #~ msgid "%(flows)s are used inside a campaign. To archive them, first remove them from your campaigns."
 #~ msgstr "%s sont utilisés dans une campagne. Pour les archiver, commencez par les supprimer de vos campagnes."
@@ -11092,45 +11092,59 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Empty user access token!"
 #~ msgstr "Jeton d'accès au serveur de votre application"
 
+#, python-brace-format
 #~ msgid "Unrecognized field: '{prop}'"
 #~ msgstr "Champ non reconnu: '{prop}'"
 
+#, python-brace-format
 #~ msgid "Unknown text comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de texte inconnu: '{self.comparator}'"
 
+#, python-brace-format
 #~ msgid "Unknown number comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de nombre inconnu: '{self.comparator}'"
 
+#, python-brace-format
 #~ msgid "Unable to parse the date '{self.value}'"
 #~ msgstr "Impossible d'analyser la date '{self.value}'"
 
+#, python-brace-format
 #~ msgid "Unknown datetime comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de date/heure inconnu: '{self.comparator}'"
 
+#, python-brace-format
 #~ msgid "Unknown location type: '{field.value_type}'"
 #~ msgstr "Type d'emplacement inconnu: '{field.value_type}'"
 
+#, python-brace-format
 #~ msgid "Unsupported comparator '{self.comparator}' for location field"
 #~ msgstr "Comparateur non pris en charge '{self.comparator}' pour le champ de localisation"
 
+#, python-brace-format
 #~ msgid "Unrecognized contact field type '{field.value_type}'"
 #~ msgstr "Type de champ de contact non reconnu '{field.value_type}'"
 
+#, python-brace-format
 #~ msgid "Unknown urn scheme comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de schéma URN inconnu: '{self.comparator}'"
 
+#, python-brace-format
 #~ msgid "Unknown language comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de langue inconnu: '{self.comparator}'"
 
+#, python-brace-format
 #~ msgid "Unknown created_on comparator: '{self.comparator}'"
 #~ msgstr "Comparateur created_on inconnu: '{self.comparator}'"
 
+#, python-brace-format
 #~ msgid "Unknown name comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de nom inconnu: '{self.comparator}'"
 
+#, python-brace-format
 #~ msgid "No support for attribute field: '{field}'"
 #~ msgstr "Pas de support pour le champ d'attribut: '{field}'"
 
+#, python-brace-format
 #~ msgid "Unrecognized contact field type '{prop_type}'"
 #~ msgstr "Type de champ de contact non reconnu '{prop_type}'"
 
@@ -11270,6 +11284,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Channel Alarms (low battery, loss of connectivity)"
 #~ msgstr "Channel alarmes (batterie faible, perte de connectivité)"
 
+#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"

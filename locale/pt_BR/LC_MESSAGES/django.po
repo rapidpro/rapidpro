@@ -66,9 +66,6 @@ msgstr "Mensagem"
 msgid "Run"
 msgstr "Domingo"
 
-msgid "The archive we were rolled up into, if any"
-msgstr ""
-
 #, fuzzy
 msgid "Archive"
 msgstr "Arquivado"
@@ -3296,14 +3293,6 @@ msgstr "ID Externo"
 msgid "VK identifier"
 msgstr "ID Externo"
 
-#, fuzzy
-#| msgid "UUID"
-msgid "ID"
-msgstr "UUID"
-
-msgid "Language"
-msgstr "Linguagem"
-
 msgid "Label"
 msgstr "Rótulo"
 
@@ -3318,6 +3307,9 @@ msgstr ""
 
 msgid "The name of this contact"
 msgstr "O nome deste contato"
+
+msgid "Language"
+msgstr "Linguagem"
 
 #, fuzzy
 msgid "The preferred language for this contact"
@@ -4786,14 +4778,6 @@ msgstr ""
 
 #, fuzzy
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
-msgstr "Desculpe, mas não fomos capazes de cobrar em seu cartão, por favor, tente novamente mais tarde ou entre em contato conosco pelo feedback@textit.in"
-
-#, fuzzy
-msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
-msgstr "Desculpe, não podemos cancelar seu plano neste momento. Por favor, entre em contato conosco pelo feedback@textit.in."
-
-#, fuzzy
-msgid "Sorry, we were unable to charge your card, please try again later or contact us."
 msgstr "Desculpe, mas não fomos capazes de cobrar em seu cartão, por favor, tente novamente mais tarde ou entre em contato conosco pelo feedback@textit.in"
 
 msgid "Viewer"
@@ -11935,14 +11919,18 @@ msgstr "Insira o seu código de requisição"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
-#~ msgid "Unable to validate the secret code. Connection to RocketChat is taking too long."
-#~ msgstr "Não foi possível validar o código secreto. Conexão com o RocketChat está demorando muito."
+#, fuzzy
+#~| msgid "UUID"
+#~ msgid "ID"
+#~ msgstr "UUID"
 
-#~ msgid "Ex.: http://rocketchat-domain.com/.../secret.check"
-#~ msgstr "Ex.: http://rocketchat-domain.com/.../secret.check"
+#, fuzzy
+#~ msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
+#~ msgstr "Desculpe, não podemos cancelar seu plano neste momento. Por favor, entre em contato conosco pelo feedback@textit.in."
 
-#~ msgid "Unable to validate the secret code."
-#~ msgstr "Não foi possível validar o código secreto"
+#, fuzzy
+#~ msgid "Sorry, we were unable to charge your card, please try again later or contact us."
+#~ msgstr "Desculpe, mas não fomos capazes de cobrar em seu cartão, por favor, tente novamente mais tarde ou entre em contato conosco pelo feedback@textit.in"
 
 #~ msgid "Oops, so sorry. Something went wrong!"
 #~ msgstr "Oops, me desculpe. Ocorreu algum erro!"
@@ -12007,12 +11995,12 @@ msgstr ""
 #~ msgid "Empty user access token!"
 #~ msgstr "Seu Token API é"
 
-#, fuzzy
+#, fuzzy, python-brace-format
 #~| msgid "Invalid group or contact id"
 #~ msgid "Unable to parse the date '{self.value}'"
 #~ msgstr "Grupo ou id do contato inválido"
 
-#, fuzzy
+#, fuzzy, python-brace-format
 #~| msgid "Unknown alert type: %(alert)s"
 #~ msgid "Unknown location type: '{field.value_type}'"
 #~ msgstr "Tipo de alerta desconhecido: %(alert)s"
@@ -12157,7 +12145,7 @@ msgstr ""
 #~ msgid "Channel Alarms (low battery, loss of connectivity)"
 #~ msgstr "Alarmes do Transmissor (bateria fraca, perda de conexão)"
 
-#, fuzzy
+#, fuzzy, python-format
 #~ msgid ""
 #~ "\n"
 #~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
@@ -12263,7 +12251,7 @@ msgstr ""
 #~ "\n"
 #~ "%(sms_sent)s Enviadas"
 
-#, fuzzy
+#, fuzzy, python-format
 #~| msgid ""
 #~| "\n"
 #~| "        You can connect your <a href=\"http://infobip.com\">Infobip</a> number by entering your number, username and password\n"

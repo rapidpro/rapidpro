@@ -61,9 +61,6 @@ msgstr "Сообщение"
 msgid "Run"
 msgstr "Пуск"
 
-msgid "The archive we were rolled up into, if any"
-msgstr "Архив, в который у нас прошло сворачивание, при наличии"
-
 msgid "Archive"
 msgstr "Архив"
 
@@ -2548,12 +2545,6 @@ msgstr "Идентификатор Freshchat"
 msgid "VK identifier"
 msgstr "Идентификатор VK"
 
-msgid "ID"
-msgstr "ID"
-
-msgid "Language"
-msgstr "Язык"
-
 msgid "Label"
 msgstr "Метка"
 
@@ -2568,6 +2559,9 @@ msgstr "Рекомендованное поле"
 
 msgid "The name of this contact"
 msgstr "Название данного контакта"
+
+msgid "Language"
+msgstr "Язык"
 
 msgid "The preferred language for this contact"
 msgstr "Предпочитаемый язык для этого контакта"
@@ -3857,12 +3851,6 @@ msgstr "Извините, Ваша карта была отклонена, по�
 
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
 msgstr "Извините, нам не удалось обработать Ваш платеж, повторите попытку позже или свяжитесь с нами."
-
-msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
-msgstr "Извините, в настоящее время мы не можем отменить Ваш план. Пожалуйста, свяжитесь с нами."
-
-msgid "Sorry, we were unable to charge your card, please try again later or contact us."
-msgstr "Извините, нам не удалось снять средства с Вашей карты, повторите попытку позже или свяжитесь с нами."
 
 msgid "Viewer"
 msgstr "Абонент"
@@ -11192,12 +11180,24 @@ msgstr "Ввести запрос"
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
 
-#, fuzzy
+#~ msgid "ID"
+#~ msgstr "ID"
+
+#~ msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
+#~ msgstr "Извините, в настоящее время мы не можем отменить Ваш план. Пожалуйста, свяжитесь с нами."
+
+#~ msgid "Sorry, we were unable to charge your card, please try again later or contact us."
+#~ msgstr "Извините, нам не удалось снять средства с Вашей карты, повторите попытку позже или свяжитесь с нами."
+
+#~ msgid "The archive we were rolled up into, if any"
+#~ msgstr "Архив, в который у нас прошло сворачивание, при наличии"
+
+#, fuzzy, python-format
 #~| msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
 #~ msgid "%(flow)s is used inside a campaign. To archive it, first remove it from your campaigns."
 #~ msgstr "%s используется внутри кампании. Для его архивации сначала удалите его из Ваших кампаний."
 
-#, fuzzy
+#, fuzzy, python-format
 #~| msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
 #~ msgid "%(flows)s are used inside a campaign. To archive them, first remove them from your campaigns."
 #~ msgstr "%s используются внутри кампании. Для их архивации сначала удалите их из Ваших кампаний."
@@ -11256,45 +11256,59 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Restore Triggers"
 #~ msgstr "Восстановить Триггеры"
 
+#, python-brace-format
 #~ msgid "Unrecognized field: '{prop}'"
 #~ msgstr "Нераспознанное поле: '{prop}'"
 
+#, python-brace-format
 #~ msgid "Unknown text comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор текста: '{self.comparator}'"
 
+#, python-brace-format
 #~ msgid "Unknown number comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор номера: '{self.comparator}'"
 
+#, python-brace-format
 #~ msgid "Unable to parse the date '{self.value}'"
 #~ msgstr "Невозможно разобрать дату '{self.value}'"
 
+#, python-brace-format
 #~ msgid "Unknown datetime comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор даты и времени: '{self.comparator}'"
 
+#, python-brace-format
 #~ msgid "Unknown location type: '{field.value_type}'"
 #~ msgstr "Неизвестный тип местоположения: '{field.value_type}'"
 
+#, python-brace-format
 #~ msgid "Unsupported comparator '{self.comparator}' for location field"
 #~ msgstr "Неподдерживаемый компаратор '{self.comparator}' для поля местоположения"
 
+#, python-brace-format
 #~ msgid "Unrecognized contact field type '{field.value_type}'"
 #~ msgstr "Нераспознаваемый тип поля контактов '{field.value_type}'"
 
+#, python-brace-format
 #~ msgid "Unknown urn scheme comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор схемы urn: '{self.comparator}'"
 
+#, python-brace-format
 #~ msgid "Unknown language comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор языка: '{self.comparator}'"
 
+#, python-brace-format
 #~ msgid "Unknown created_on comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор created_on: '{self.comparator}'"
 
+#, python-brace-format
 #~ msgid "Unknown name comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор названия: '{self.comparator}'"
 
+#, python-brace-format
 #~ msgid "No support for attribute field: '{field}'"
 #~ msgstr "Не поддерживается поле атрибутов: '{field}'"
 
+#, python-brace-format
 #~ msgid "Unrecognized contact field type '{prop_type}'"
 #~ msgstr "Нераспознаваемый тип поля контактов '{prop_type}'"
 
@@ -11434,6 +11448,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Channel Alarms (low battery, loss of connectivity)"
 #~ msgstr "Оповещения Канала (низкий заряд батареи, потеря связи)"
 
+#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
