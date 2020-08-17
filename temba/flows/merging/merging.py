@@ -661,6 +661,15 @@ class GraphDifferenceMap:
         }
         merged_ui = {flow_uuid: origin_ui[flow_uuid] for flow_uuid in self.diff_nodes_map.keys()}
         self.definition["_ui"]["nodes"] = merged_ui
+    
+    def merge_localizations(self):
+        localization = self.left_graph.resource["localization"]
+        for key, value in self.right_graph.resource["localization"].items():
+            if key in localization:
+                localization[key].update(value)
+            else:
+                localization[key] = value
+        self.definition["localization"] = localization
 
     def get_conflict_solutions(self):
         conflict_solutions = []
@@ -704,3 +713,4 @@ class GraphDifferenceMap:
         self.check_differences()
         self.order_nodes()
         self.merge_ui_definition()
+        self.merge_localizations()
