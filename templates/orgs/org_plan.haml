@@ -1,0 +1,21 @@
+-extends "smartmin/base.html"
+-load smartmin i18n humanize
+
+
+-block summary
+
+  -if org.plan != 'trial'
+    .flex.items-center
+      .flex-grow.mr-4
+          -trans "You are currently subscribed to TextIt. Thank you for your support!"
+      .buttons
+        .button-light(onclick="goto(event)" href="/b/billing")
+          -trans "Billing"
+  -else 
+
+    .flex.items-center
+      .flex-grow.mr-4
+          -trans "You are currently on the Trial plan which is limited to 100 contacts."
+      .buttons
+        .button-primary(onclick="goto(event)" href="/b/billing/subscription/create")
+          -trans "Upgrade"

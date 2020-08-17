@@ -26,7 +26,7 @@
                 {{link.flag}}
 
           -else
-            .button-light{href:'{{link.href}}', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
+            .button-light{onclick:'goto(event)', href:'{{link.href}}', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
               {{link.title}}
 
       - else
