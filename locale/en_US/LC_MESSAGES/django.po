@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-10 17:02+0000\n"
+"POT-Creation-Date: 2020-08-13 19:54+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3068,6 +3068,9 @@ msgstr ""
 msgid "Download"
 msgstr ""
 
+msgid "Export Flow Results"
+msgstr ""
+
 msgid "Your flow contains an invalid loop. Please refresh your browser."
 msgstr ""
 
@@ -3801,9 +3804,6 @@ msgstr ""
 msgid "Your last name"
 msgstr ""
 
-msgid "Your email address"
-msgstr ""
-
 msgid "The timezone for your workspace"
 msgstr ""
 
@@ -3811,9 +3811,6 @@ msgid "Your password, at least eight letters please"
 msgstr ""
 
 msgid "Workspace"
-msgstr ""
-
-msgid "The name of your workspace"
 msgstr ""
 
 msgid "That email address is already used"
@@ -4036,6 +4033,9 @@ msgstr ""
 msgid "Transfer Credits"
 msgstr ""
 
+msgid "The name of your workspace"
+msgstr ""
+
 msgid "Select your Workspace"
 msgstr ""
 
@@ -4056,6 +4056,9 @@ msgid "Your invitation link has expired. Please contact your workspace administr
 msgstr ""
 
 msgid "Invalid surveyor password, please check with your project leader and try again."
+msgstr ""
+
+msgid "Your email address"
 msgstr ""
 
 msgid "Welcome!"
@@ -6095,13 +6098,10 @@ msgstr ""
 msgid "archive"
 msgstr ""
 
-msgid "You can import your contacts from an XLS file you create in Excel."
+msgid "Import Contacts"
 msgstr ""
 
-msgid "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
-msgstr ""
-
-msgid "You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
+msgid "You can import your contacts from an XLS file you create in Excel. Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available. You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
 msgstr ""
 
 msgid "URN:Tel"
@@ -6149,94 +6149,44 @@ msgstr ""
 msgid "Only valid ISO639-3 codes supportted"
 msgstr ""
 
-msgid ""
-"\n"
-"                  You will have the option to choose the columns to import and to which field to import them.\n"
-"\n"
-"                "
+msgid "You will have the option to choose the columns to import and to which field to import them."
 msgstr ""
 
 msgid "IGNORED"
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"                          Created %(create_count)s new contact\n"
-"                          "
-msgid_plural ""
-"\n"
-"                            Created %(create_count)s new contacts\n"
-"\n"
-"                        "
+msgid "Created %(create_count)s new contact"
+msgid_plural "Created %(create_count)s new contacts"
 msgstr[0] ""
 msgstr[1] ""
 
 #, python-format
-msgid ""
-"\n"
-"                          Updated %(update_count)s contact with an existing phone number\n"
-"                          "
-msgid_plural ""
-"\n"
-"                            Updated %(update_count)s contacts with existing phone numbers\n"
-"\n"
-"                        "
+msgid "Updated %(update_count)s contact with an existing phone number"
+msgid_plural "Updated %(update_count)s contacts with existing phone numbers"
 msgstr[0] ""
 msgstr[1] ""
 
-msgid ""
-"\n"
-"                        Added all contacts to the new\n"
-"                      "
+msgid "Added all contacts to the new"
 msgstr ""
 
-msgid ""
-"\n"
-"                              Some rows were not imported\n"
-"                            "
+msgid "Some rows were not imported"
 msgstr ""
 
-msgid ""
-"\n"
-"                              Errors description\n"
-"                            "
+msgid "Errors description"
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"                        Failed to import %(error_count)s contact due to missing or invalid phone number\n"
-"                        "
-msgid_plural ""
-"\n"
-"                          Failed to import %(error_count)s contacts due to missing or invalid phone numbers\n"
-"\n"
-"                      "
+msgid "Failed to import %(error_count)s contact due to missing or invalid phone number"
+msgid_plural "Failed to import %(error_count)s contacts due to missing or invalid phone numbers"
 msgstr[0] ""
 msgstr[1] ""
 
-msgid ""
-"\n"
-"                            Errors description\n"
-"\n"
-"                          "
-msgstr ""
-
-msgid ""
-"\n"
-"                        No contacts imported, please make sure your have a channel connected.\n"
-"\n"
-"                      "
+msgid "No contacts imported, please make sure your have a channel connected."
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"                  You can download\n"
-"                  <a href='%(STATIC_URL)sexamples/contacts.xls'>this Excel template</a>\n"
-"                  as a sample.\n"
-"                "
+msgid "You can download <a href='%(STATIC_URL)sexamples/contacts.xls'>this Excel template</a> as a sample."
 msgstr ""
 
 msgid "Choose File"
@@ -6246,9 +6196,6 @@ msgid "Delete Contacts"
 msgstr ""
 
 msgid "Are you sure you want to delete these contacts? This cannot be undone."
-msgstr ""
-
-msgid "Import Contacts"
 msgstr ""
 
 msgid "Smart Groups"
@@ -6764,9 +6711,6 @@ msgid "Upload"
 msgstr ""
 
 msgid "Back"
-msgstr ""
-
-msgid "Export Flow Results"
 msgstr ""
 
 msgid "Create Label"
@@ -7633,19 +7577,16 @@ msgstr[1] ""
 msgid "Manage Workspaces"
 msgstr ""
 
+msgid "Create Export"
+msgstr ""
+
 msgid "Show Archived"
 msgstr ""
 
 msgid "Hide Archived"
 msgstr ""
 
-msgid ""
-"\n"
-"    Select all of the items below that you would like to include in your export. We've grouped them\n"
-"    together based on which flows and campaigns work with each other. Any related triggers will automatically\n"
-"    be included in the export.\n"
-"\n"
-"  "
+msgid "Select all of the items below that you would like to include in your export. We've grouped them together based on which flows and campaigns work with each other. Any related triggers will automatically be included in the export."
 msgstr ""
 
 msgid "Group"
@@ -7690,7 +7631,8 @@ msgstr ""
 msgid "Enter emails of people to invite"
 msgstr ""
 
-msgid "You have been invited to join"
+#, python-format
+msgid "You have been invited to join %(name)s."
 msgstr ""
 
 msgid "Please click Join to accept the invitation."

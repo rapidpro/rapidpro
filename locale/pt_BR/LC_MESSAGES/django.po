@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-10 17:02+0000\n"
+"POT-Creation-Date: 2020-08-13 19:54+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4201,6 +4201,10 @@ msgstr ""
 msgid "Download"
 msgstr "Resultados ao vivo"
 
+#, fuzzy
+msgid "Export Flow Results"
+msgstr "Exportar"
+
 msgid "Your flow contains an invalid loop. Please refresh your browser."
 msgstr ""
 
@@ -5076,9 +5080,6 @@ msgstr "Seu primeiro nome"
 msgid "Your last name"
 msgstr "Seu sobrenome"
 
-msgid "Your email address"
-msgstr "Seu endereço de e-mail"
-
 #, fuzzy
 #| msgid "The timezone for"
 msgid "The timezone for your workspace"
@@ -5089,11 +5090,6 @@ msgstr "Por favor, a sua senha deve ter no mínimo oito letras."
 
 msgid "Workspace"
 msgstr ""
-
-#, fuzzy
-#| msgid "The name of your organization"
-msgid "The name of your workspace"
-msgstr "Nome da sua organização"
 
 msgid "That email address is already used"
 msgstr "Esse endereço de e-mail já está sendo usado"
@@ -5360,6 +5356,11 @@ msgid "Transfer Credits"
 msgstr "Comprar créditos"
 
 #, fuzzy
+#| msgid "The name of your organization"
+msgid "The name of your workspace"
+msgstr "Nome da sua organização"
+
+#, fuzzy
 msgid "Select your Workspace"
 msgstr "Crie sua Organização"
 
@@ -5389,6 +5390,9 @@ msgstr "O link do seu convite expirou. Por favor, contate o administrador da org
 #| msgid "Invalid claim code, please check and try again."
 msgid "Invalid surveyor password, please check with your project leader and try again."
 msgstr "Código de requisição inválido, por favor, verifique-o e tente novamente."
+
+msgid "Your email address"
+msgstr "Seu endereço de e-mail"
 
 msgid "Welcome!"
 msgstr ""
@@ -8248,15 +8252,10 @@ msgstr ""
 msgid "archive"
 msgstr "Desarquivar"
 
-msgid "You can import your contacts from an XLS file you create in Excel."
-msgstr "Você pode importar seus contatos de um arquivo XLS criado no Excel."
+msgid "Import Contacts"
+msgstr "Importar contatos"
 
-#, fuzzy
-#| msgid "Each row should have the phone number (including country code) and the name of the contact if available."
-msgid "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
-msgstr "Cada linha deve ter o número de telefone (incluindo o código do país) e o nome do contato, se disponível."
-
-msgid "You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
+msgid "You can import your contacts from an XLS file you create in Excel. Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available. You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
 msgstr ""
 
 msgid "URN:Tel"
@@ -8313,11 +8312,7 @@ msgid "Only valid ISO639-3 codes supportted"
 msgstr ""
 
 #, fuzzy
-msgid ""
-"\n"
-"                  You will have the option to choose the columns to import and to which field to import them.\n"
-"\n"
-"                "
+msgid "You will have the option to choose the columns to import and to which field to import them."
 msgstr ""
 "\n"
 "%(sms_sent)s Enviadas"
@@ -8326,32 +8321,14 @@ msgid "IGNORED"
 msgstr ""
 
 #, fuzzy, python-format
-msgid ""
-"\n"
-"                          Created %(create_count)s new contact\n"
-"                          "
-msgid_plural ""
-"\n"
-"                            Created %(create_count)s new contacts\n"
-"\n"
-"                        "
-msgstr[0] ""
-"\n"
-"Contatos %(contacts_count)s importados com sucesso para"
-msgstr[1] ""
-"\n"
-"Contatos %(contacts_count)s importados com sucesso para"
+msgid "Created %(create_count)s new contact"
+msgid_plural "Created %(create_count)s new contacts"
+msgstr[0] "Criar grupo de contatos"
+msgstr[1] "Criar grupo de contatos"
 
 #, fuzzy, python-format
-msgid ""
-"\n"
-"                          Updated %(update_count)s contact with an existing phone number\n"
-"                          "
-msgid_plural ""
-"\n"
-"                            Updated %(update_count)s contacts with existing phone numbers\n"
-"\n"
-"                        "
+msgid "Updated %(update_count)s contact with an existing phone number"
+msgid_plural "Updated %(update_count)s contacts with existing phone numbers"
 msgstr[0] ""
 "\n"
 "Contatos %(contacts_count)s importados com sucesso para"
@@ -8360,58 +8337,26 @@ msgstr[1] ""
 "Contatos %(contacts_count)s importados com sucesso para"
 
 #, fuzzy
-msgid ""
-"\n"
-"                        Added all contacts to the new\n"
-"                      "
+msgid "Added all contacts to the new"
+msgstr "%d contatos foram adicionados para o fluxo '%s'"
+
+msgid "Some rows were not imported"
 msgstr ""
-"\n"
-"%(label)s coluna como"
 
 #, fuzzy
-msgid ""
-"\n"
-"                              Some rows were not imported\n"
-"                            "
-msgstr ""
-"\n"
-"%(new_contacts)s Nova Resposta %(new_contact_plr)s"
-
-#, fuzzy
-msgid ""
-"\n"
-"                              Errors description\n"
-"                            "
-msgstr ""
-"\n"
-"%(new_contacts)s Nova Resposta %(new_contact_plr)s"
+#| msgid "Description"
+msgid "Errors description"
+msgstr "Descrição"
 
 #, fuzzy, python-format
-msgid ""
-"\n"
-"                        Failed to import %(error_count)s contact due to missing or invalid phone number\n"
-"                        "
-msgid_plural ""
-"\n"
-"                          Failed to import %(error_count)s contacts due to missing or invalid phone numbers\n"
-"\n"
-"                      "
+msgid "Failed to import %(error_count)s contact due to missing or invalid phone number"
+msgid_plural "Failed to import %(error_count)s contacts due to missing or invalid phone numbers"
 msgstr[0] ""
 "\n"
 "Contatos %(contacts_count)s importados com sucesso para"
 msgstr[1] ""
 "\n"
 "Contatos %(contacts_count)s importados com sucesso para"
-
-#, fuzzy
-msgid ""
-"\n"
-"                            Errors description\n"
-"\n"
-"                          "
-msgstr ""
-"\n"
-"%(new_contacts)s Nova Resposta %(new_contact_plr)s"
 
 #, fuzzy
 #| msgid ""
@@ -8419,22 +8364,19 @@ msgstr ""
 #| "                        No contacts imported, please make sure your file contains \"Name\" and \"Phone\" columns.\n"
 #| "\n"
 #| "                      "
-msgid ""
-"\n"
-"                        No contacts imported, please make sure your have a channel connected.\n"
-"\n"
-"                      "
+msgid "No contacts imported, please make sure your have a channel connected."
 msgstr ""
 "\n"
 "Nenhum contato importado, por favor, verifique se o seu arquivo contém as colunas \"Nome\" e \"Telefone\"."
 
-#, python-format
-msgid ""
-"\n"
-"                  You can download\n"
-"                  <a href='%(STATIC_URL)sexamples/contacts.xls'>this Excel template</a>\n"
-"                  as a sample.\n"
-"                "
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "                  You can download\n"
+#| "                  <a href='%(STATIC_URL)sexamples/contacts.xls'>this Excel template</a>\n"
+#| "                  as a sample.\n"
+#| "                "
+msgid "You can download <a href='%(STATIC_URL)sexamples/contacts.xls'>this Excel template</a> as a sample."
 msgstr ""
 "\n"
 "Você pode fazer o download <a href='%(STATIC_URL)sexamples/contacts.xls'> deste modelo do Excel</a>\n"
@@ -8450,9 +8392,6 @@ msgstr "Criar contatos"
 #, fuzzy
 msgid "Are you sure you want to delete these contacts? This cannot be undone."
 msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
-
-msgid "Import Contacts"
-msgstr "Importar contatos"
 
 #, fuzzy
 #| msgid "Contact Groups"
@@ -9125,10 +9064,6 @@ msgstr ""
 
 msgid "Back"
 msgstr ""
-
-#, fuzzy
-msgid "Export Flow Results"
-msgstr "Exportar"
 
 msgid "Create Label"
 msgstr "Criar rótulo"
@@ -10170,6 +10105,11 @@ msgid "Manage Workspaces"
 msgstr "Crie sua Organização"
 
 #, fuzzy
+#| msgid "Export"
+msgid "Create Export"
+msgstr "Exportar"
+
+#, fuzzy
 msgid "Show Archived"
 msgstr "Arquivado"
 
@@ -10177,13 +10117,7 @@ msgstr "Arquivado"
 msgid "Hide Archived"
 msgstr "Arquivado"
 
-msgid ""
-"\n"
-"    Select all of the items below that you would like to include in your export. We've grouped them\n"
-"    together based on which flows and campaigns work with each other. Any related triggers will automatically\n"
-"    be included in the export.\n"
-"\n"
-"  "
+msgid "Select all of the items below that you would like to include in your export. We've grouped them together based on which flows and campaigns work with each other. Any related triggers will automatically be included in the export."
 msgstr ""
 
 #, fuzzy
@@ -10237,7 +10171,9 @@ msgstr "Adicionar visualizadores convidados a"
 msgid "Enter emails of people to invite"
 msgstr "Digite os e-mails das pessoas que deseja convidar"
 
-msgid "You have been invited to join"
+#, fuzzy, python-format
+#| msgid "You have been invited to join"
+msgid "You have been invited to join %(name)s."
 msgstr "Você foi convidado a se juntar"
 
 msgid "Please click Join to accept the invitation."
@@ -12085,6 +12021,68 @@ msgstr "Insira o seu código de requisição"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
+#~ msgid "You can import your contacts from an XLS file you create in Excel."
+#~ msgstr "Você pode importar seus contatos de um arquivo XLS criado no Excel."
+
+#, fuzzy
+#~| msgid "Each row should have the phone number (including country code) and the name of the contact if available."
+#~ msgid "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
+#~ msgstr "Cada linha deve ter o número de telefone (incluindo o código do país) e o nome do contato, se disponível."
+
+#, fuzzy, python-format
+#~ msgid ""
+#~ "\n"
+#~ "                          Created %(create_count)s new contact\n"
+#~ "                          "
+#~ msgid_plural ""
+#~ "\n"
+#~ "                            Created %(create_count)s new contacts\n"
+#~ "\n"
+#~ "                        "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "Contatos %(contacts_count)s importados com sucesso para"
+#~ msgstr[1] ""
+#~ "\n"
+#~ "Contatos %(contacts_count)s importados com sucesso para"
+
+#, fuzzy
+#~ msgid ""
+#~ "\n"
+#~ "                        Added all contacts to the new\n"
+#~ "                      "
+#~ msgstr ""
+#~ "\n"
+#~ "%(label)s coluna como"
+
+#, fuzzy
+#~ msgid ""
+#~ "\n"
+#~ "                              Some rows were not imported\n"
+#~ "                            "
+#~ msgstr ""
+#~ "\n"
+#~ "%(new_contacts)s Nova Resposta %(new_contact_plr)s"
+
+#, fuzzy
+#~ msgid ""
+#~ "\n"
+#~ "                              Errors description\n"
+#~ "                            "
+#~ msgstr ""
+#~ "\n"
+#~ "%(new_contacts)s Nova Resposta %(new_contact_plr)s"
+
+#, fuzzy
+#~ msgid ""
+#~ "\n"
+#~ "                            Errors description\n"
+#~ "\n"
+#~ "                          "
+#~ msgstr ""
+#~ "\n"
+#~ "%(new_contacts)s Nova Resposta %(new_contact_plr)s"
+
 #, fuzzy
 #~ msgid "Phone Channels"
 #~ msgstr "Transmissor"
@@ -12352,10 +12350,6 @@ msgstr ""
 #~ msgid "The primary language for editing this flow"
 #~ msgstr "O nome para esse fluxo"
 
-#, fuzzy
-#~ msgid "Add Contacts to Flow"
-#~ msgstr "%d contatos foram adicionados para o fluxo '%s'"
-
 #~ msgid "The name of this label"
 #~ msgstr "O nome deste rótulo"
 
@@ -12392,11 +12386,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "Save Search as Group"
 #~ msgstr "Criar grupos"
-
-#, fuzzy
-#~| msgid "Export"
-#~ msgid "Start Export"
-#~ msgstr "Exportar"
 
 #, fuzzy
 #~ msgid "blocked"
