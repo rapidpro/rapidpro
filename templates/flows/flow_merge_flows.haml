@@ -46,12 +46,12 @@
                     %td.field-form-label
                       %input.resolving-select{
                         type: "text",
-                        name: "conflicts[{{conflict.uuid}}]",
-                        list: "conflicts",
+                        name: "conflicts[{{ conflict.uuid }}]",
+                        list: "conflicts-{{ forloop.counter }}",
                         placeholder: '{% trans "Choose solution or provide your own..." %}'
                         required
                       }
-                      %datalist{id: "conflicts"}
+                      %datalist{id: "conflicts-{{ forloop.counter }}"}
                         - for solution in conflict.solutions
                           %option{value: "{{solution}}"}
                             = solution

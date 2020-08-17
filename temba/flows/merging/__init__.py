@@ -1,3 +1,4 @@
+# flake8: noqa
 from .merging import Graph, GraphDifferenceMap, Node
 from .serializers import (
     NodeSerializer,

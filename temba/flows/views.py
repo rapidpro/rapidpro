@@ -62,7 +62,13 @@ from temba.utils.fields import ContactSearchWidget, JSONField, OmniboxChoice, Se
 from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm, NonAtomicMixin
 
-from .merging import Graph, GraphDifferenceMap, serialize_difference_graph, deserialize_difference_graph, deserialize_dict_param_from_request
+from .merging import (
+    Graph,
+    GraphDifferenceMap,
+    serialize_difference_graph,
+    deserialize_difference_graph,
+    deserialize_dict_param_from_request,
+)
 from .models import (
     ExportFlowImagesTask,
     ExportFlowResultsTask,
@@ -3063,45 +3069,55 @@ class FlowCRUDL(SmartCRUDL):
             if source.flow_type != target.flow_type:
                 errors.append(_("These flows can't be merged because of different flow types."))
 
+            difference_map = None
             resolved_conflicts = deserialize_dict_param_from_request("conflicts", request.POST)
-            conflicts_data = []
-            if not errors:
-                difference_map_data = request.POST.get("merging_map")
-                difference_map = None
-                if difference_map_data:
-                    difference_map = deserialize_difference_graph(difference_map_data, loads=True)
-                    if difference_map.conflicts and resolved_conflicts:
-                        difference_map.apply_conflict_resolving(resolved_conflicts)
-                if not difference_map:
-                    difference_map = deserialize_difference_graph()
-                    source_graph = Graph(source.as_json())
-                    target_graph = Graph(target.as_json())
-                    difference_map = GraphDifferenceMap(source_graph, target_graph)
-                    difference_map.compare_graphs()
+            difference_map_data = request.POST.get("merging_map")
+            if difference_map_data:
+                difference_map = deserialize_difference_graph(difference_map_data, loads=True)
+                if difference_map.conflicts and resolved_conflicts:
+                    difference_map.apply_conflict_resolving(resolved_conflicts)
+            if difference_map is None:
+                source_graph = Graph(source.as_json())
+                target_graph = Graph(target.as_json())
+                difference_map = GraphDifferenceMap(source_graph, target_graph)
+                difference_map.compare_graphs()
 
-                definition = difference_map.definition
+            definition = difference_map.definition
 
-                if difference_map.conflicts:
-                    errors.append(_("These flows can't be merged because of conflicts."))
+            if difference_map.conflicts:
+                errors.append(_("These flows can't be merged because of conflicts."))
 
             if errors:
                 context = self.get_context_data()
-                context.update({
-                    "source": source.as_json(),
-                    "target": target.as_json(),
-                    "flow_name": request.POST.get("flow_name"),
-                    "merging_map": serialize_difference_graph(difference_map, dumps=True),
-                    "conflict_solutions": difference_map.get_conflict_solutions(),
-                    "errors": errors,
-                })
+                context.update(
+                    {
+                        "source": source.as_json(),
+                        "target": target.as_json(),
+                        "flow_name": request.POST.get("flow_name"),
+                        "merging_map": serialize_difference_graph(difference_map, dumps=True),
+                        "conflict_solutions": difference_map.get_conflict_solutions(),
+                        "errors": errors,
+                    }
+                )
                 return self.render_to_response(context)
 
             if definition:
+                merging_metadata = {
+                    "origin_node_uuids": {
+                        node_uuid: node.uuid for node_uuid, node in difference_map.diff_nodes_origin_map.items()
+                    },
+                    "origin_exit_uuids": {
+                        origin_uuid: new_uuid
+                        for node in difference_map.diff_nodes_map.values()
+                        for origin_uuid, new_uuid in node.origin_exits_map.items()
+                    },
+                }
                 merging_task = MergeFlowsTask.objects.create(
                     source=source,
                     target=target,
                     merge_name=request.POST.get("flow_name"),
                     definition=definition,
+                    merging_metadata=merging_metadata,
                     created_by=self.get_user(),
                     modified_by=self.get_user(),
                 )

@@ -1,5 +1,6 @@
 import re
 import json
+from django.core.exceptions import ValidationError
 from rest_framework import serializers
 from .merging import Node, Graph, GraphDifferenceNode, GraphDifferenceMap
 
@@ -59,17 +60,15 @@ class DiffNodeSerializer(serializers.Serializer):
     left_origin_node = NodeSerializer(many=False, allow_null=True)
     right_origin_node = NodeSerializer(many=False, allow_null=True)
     conflicts = serializers.ListField(child=serializers.JSONField())
+    origin_exits_map = serializers.DictField(child=serializers.CharField())
     data = serializers.JSONField()
 
     def create(self, validated_data):
-        validated_data.pop("left_origin_node")
-        validated_data.pop("right_origin_node")
-        data = validated_data.pop("data")
-        uuid = validated_data.pop("uuid")
-        node_types = validated_data.pop("node_types", [])
-        node = GraphDifferenceNode(uuid, **validated_data)
-        node.node_types = set(node_types)
-        node.data = data
+        node = GraphDifferenceNode(validated_data.get("uuid"))
+        node.node_types = set(validated_data.get("node_types", []))
+        node.conflicts = validated_data.get("conflicts", [])
+        node.origin_exits_map = validated_data.get("origin_exits_map", {})
+        node.data = validated_data.get("data")
         return node
 
 
@@ -125,7 +124,7 @@ class DiffGraphSerializer(serializers.Serializer):
     def create_diff_nodes_origin_map(self, diff_nodes_map, validated_data):
         diff_nodes_origin_map = {}
         for node_uuid, origin_node in validated_data.get("diff_nodes_origin_map", {}).items():
-            diff_nodes_origin_map[node_uuid] = diff_nodes_map.get(origin_node.get('uuid'))
+            diff_nodes_origin_map[node_uuid] = diff_nodes_map.get(origin_node.get("uuid"))
         return diff_nodes_origin_map
 
     def get_origin_node(self, uuid, origin_graph):
@@ -148,7 +147,7 @@ def deserialize_difference_graph(data, loads=False):
 
 
 def deserialize_dict_param_from_request(param, request_data):
-    pattern = r'^%s\[([\w\-]+)\]$' % param
+    pattern = r"^%s\[([\w\-]+)\]$" % param
     keys = filter(lambda x: re.match(pattern, x), request_data.keys())
     result_data = {}
     for key in keys:
