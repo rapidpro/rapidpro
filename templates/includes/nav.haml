@@ -241,13 +241,6 @@
                 .icon-exit
               .title
                 -trans "end"
-          -else
-            %a{href:"{% url 'users.user_logout' %}"}
-              .circle
-                .icon-exit
-              .title
-                -trans "logout"
-
   -else
     -block temba-login
 

@@ -2,7 +2,10 @@
 @tailwind components;
 
 html {
-  background: #f9f9f9
+  background: #f9f9f9;
+  body {
+    @apply text-gray-900;
+  }
 }
 
 .bg-gradient {
@@ -643,6 +646,16 @@ code {
 
     &:hover {
       box-shadow: var(--widget-box-shadow-focused);
+    }
+
+    &.action-summary:hover {
+      @apply shadow;
+      .formax-icon {
+        @apply cursor-default;
+      }
+      .formax-summary {
+        @apply cursor-default;
+      }
     }
 
     .formax-icon {

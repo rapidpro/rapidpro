@@ -16,12 +16,16 @@ class ComponentFormMixin(View):
     def customize_form_field(self, name, field):
 
         # don't replace the widget if it is already one of us
-        if isinstance(field.widget, (CheckboxWidget, InputWidget, SelectWidget, SelectMultipleWidget)):
+        if isinstance(
+            field.widget, (forms.widgets.HiddenInput, CheckboxWidget, InputWidget, SelectWidget, SelectMultipleWidget)
+        ):
             return field
 
-        if isinstance(
+        if isinstance(field.widget, (forms.widgets.PasswordInput,)):
+            field.widget = InputWidget(attrs={"password": True})
+        elif isinstance(
             field.widget,
-            (forms.widgets.TextInput, forms.widgets.EmailInput, forms.widgets.URLInput, forms.widgets.NumberInput,),
+            (forms.widgets.TextInput, forms.widgets.EmailInput, forms.widgets.URLInput, forms.widgets.NumberInput),
         ):
             field.widget = InputWidget()
         elif isinstance(field.widget, (forms.widgets.Select,)):

@@ -871,8 +871,12 @@ video {
 }
 
 html {
-  background: #f9f9f9
+  background: #f9f9f9;
 }
+
+html body {
+    color: #1a1a1a;
+  }
 
 .bg-gradient {
   background-repeat: no-repeat;
@@ -2078,6 +2082,18 @@ code {
 .formax .formax-section:hover {
       box-shadow: var(--widget-box-shadow-focused);
     }
+
+.formax .formax-section.action-summary:hover {
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    }
+
+.formax .formax-section.action-summary:hover .formax-icon {
+        cursor: default;
+      }
+
+.formax .formax-section.action-summary:hover .formax-summary {
+        cursor: default;
+      }
 
 .formax .formax-section .formax-icon {
       background-color: #ededed;

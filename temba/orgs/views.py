@@ -231,27 +231,30 @@ class OrgSignupForm(forms.ModelForm):
 
     first_name = forms.CharField(
         max_length=User._meta.get_field("first_name").max_length,
-        widget=InputWidget(attrs={"widget_only": False, "placeholder": _("Your first name")}),
+        widget=InputWidget(attrs={"widget_only": True, "placeholder": _("First name")}),
     )
     last_name = forms.CharField(
         max_length=User._meta.get_field("last_name").max_length,
-        widget=InputWidget(attrs={"widget_only": False, "placeholder": _("Your last name")}),
+        widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Last name")}),
     )
     email = forms.EmailField(
         max_length=User._meta.get_field("username").max_length,
-        widget=InputWidget(attrs={"widget_only": False, "placeholder": _("Email")}),
+        widget=InputWidget(attrs={"widget_only": True, "placeholder": _("name@domain.com")}),
     )
-    timezone = TimeZoneFormField(help_text=_("The timezone for your workspace"))
+
+    timezone = TimeZoneFormField(help_text=_("The timezone for your workspace"), widget=forms.widgets.HiddenInput())
+
     password = forms.CharField(
         widget=InputWidget(
-            attrs={
-                "widget_only": False,
-                "password": True,
-                "placeholder": _("Your password, at least eight letters please"),
-            },
+            attrs={"widget_only": False, "password": True, "placeholder": _("At least eight characters")},
         ),
     )
-    name = forms.CharField(label=_("Workspace"), widget=InputWidget(attrs={"widget_only": False}),)
+
+    name = forms.CharField(
+        label=_("Workspace"),
+        help_text=_("A workspace is usually the name of a company or project"),
+        widget=InputWidget(attrs={"widget_only": False, "placeholder": _("My Company, Inc.")}),
+    )
 
     def __init__(self, *args, **kwargs):
         if "branding" in kwargs:
@@ -567,6 +570,7 @@ class OrgCRUDL(SmartCRUDL):
         "two_factor",
         "nexmo_account",
         "nexmo_connect",
+        "plan",
         "sub_orgs",
         "create_sub_org",
         "export",
@@ -877,6 +881,9 @@ class OrgCRUDL(SmartCRUDL):
             org.save()
 
             return HttpResponseRedirect(self.get_success_url())
+
+    class Plan(InferOrgMixin, OrgPermsMixin, SmartReadView):
+        pass
 
     class PlivoConnect(ModalMixin, ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class PlivoConnectForm(forms.Form):
@@ -2093,7 +2100,7 @@ class OrgCRUDL(SmartCRUDL):
                 return super().get_template_names()
 
     class Grant(NonAtomicMixin, SmartCreateView):
-        title = _("Create Workspace Login")
+        title = _("Create Workspace Account")
         form_class = OrgGrantForm
         fields = ("first_name", "last_name", "email", "password", "name", "timezone", "credits")
         success_message = "Workspace successfully created."
@@ -2124,6 +2131,7 @@ class OrgCRUDL(SmartCRUDL):
             return kwargs
 
         def pre_save(self, obj):
+
             obj = super().pre_save(obj)
 
             self.user = self.create_user()
@@ -2154,7 +2162,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return obj
 
-    class Signup(Grant):
+    class Signup(ComponentFormMixin, Grant):
         title = _("Sign Up")
         form_class = OrgSignupForm
         permission = None
@@ -2395,8 +2403,6 @@ class OrgCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            links.append(dict(title=_("Logout"), style="button-primary", href=reverse("users.user_logout")))
-
             if self.has_org_perm("channels.channel_claim"):
                 links.append(dict(title=_("Add Channel"), href=reverse("channels.channel_claim")))
 
@@ -2406,13 +2412,32 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("tickets.ticketer_connect"):
                 links.append(dict(title=_("Add Ticketing Service"), href=reverse("tickets.ticketer_connect")))
 
+            if len(links) > 0:
+                links.append(dict(divider=True))
+
             if self.has_org_perm("orgs.org_export"):
                 links.append(dict(title=_("Export"), href=reverse("orgs.org_export")))
 
             if self.has_org_perm("orgs.org_import"):
                 links.append(dict(title=_("Import"), href=reverse("orgs.org_import")))
 
+            if len(links) > 0:
+                links.append(dict(divider=True))
+
+            links.append(
+                dict(
+                    title=_("Sign Out"),
+                    style="button-light",
+                    href=f"{reverse('users.user_logout')}?next={reverse('users.user_login')}",
+                )
+            )
+
             return links
+
+        def get_context_data(self, *args, **kwargs):
+            context = super().get_context_data(*args, **kwargs)
+            # context['channels'] = Channel.objects.filter(org=self.request.user.get_org(), is_active=True, parent=None).order_by("-role")
+            return context
 
         def add_channel_section(self, formax, channel):
 
@@ -2449,8 +2474,8 @@ class OrgCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            if self.has_org_perm("orgs.topup_list"):
-                formax.add_section("topups", reverse("orgs.topup_list"), icon="icon-coins", action="link")
+            if self.has_org_perm("orgs.org_plan"):
+                formax.add_section("plan", reverse("orgs.org_plan"), icon="icon-credit", action="summary")
 
             if self.has_org_perm("channels.channel_update"):
                 # get any channel thats not a delegate

@@ -18,6 +18,10 @@
         -include "gear_links_include.haml"
 
 -block content
+  -for channel in channels
+    .mt-2
+      {{channel.name}}
+
   -include "formax.haml"
 
 -block extra-script
