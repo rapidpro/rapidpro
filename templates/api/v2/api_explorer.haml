@@ -62,7 +62,7 @@
                   -else
                     (optional)
 
-      .request-form.rounded-lg.border.p-4.bg-gray-200.my-2
+      .request-form.rounded-lg.border.p-4.bg-gray-200.mt-4
         .request-header.font-mono.mb-4
           <b class="font-bold">{{ endpoint.method }}</b> {{brand.api_link}}{{ endpoint.url }}.json<span class="query-display"></span><br/>
           <b class="font-bold">Authorization:</b> Token {{ request.user.api_token }}
@@ -83,7 +83,7 @@
               %textarea.textinput.p-2.rounded.request-body{ id:"request-body-{{ endpoint.slug }}", rows:"5" }<
                 {{ endpoint.example.body }}
 
-      .request-buttons.flex.justify-between.items-center.my-4.h-12
+      .request-buttons.flex.justify-between.items-center.mt-4.h-12
         .pull-left
           %a{ href: '{{ endpoint.url }}' }
             -trans "View Full Documentation"
@@ -93,7 +93,7 @@
         -else
           %span Log in to use the Explorer
 
-      %pre.prettyprint.result.mb-0(id="result-{{ endpoint.slug }}" style="margin-bottom:0;" )
+      %pre.prettyprint.result.mb-0.mt-4(id="result-{{ endpoint.slug }}" style="margin-bottom:0;" )
 
 -block extra-script
   {{ block.super }}
