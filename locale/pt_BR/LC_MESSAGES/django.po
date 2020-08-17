@@ -1090,6 +1090,58 @@ msgstr ""
 msgid "Invalid phone number, please include the country code. ex: +250788123123"
 msgstr "Número de telefone inválido, por favor inclua o código do país. ex:+250788123123"
 
+#, fuzzy, python-format
+msgid "If you are based in Malawi or Ghana you can purchase a number from %(link)s and connect it in a few simple steps."
+msgstr ""
+"\n"
+"Se sua base estiver no Quênia, você pode comprar um número curto da %(link_start)s Africa's Talking %(link_end)s e\n"
+"conectá-lo ao Textit em poucos e simples passos."
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your Hub9 connection you'll need to provide them with the following details.\n"
+#| "\n"
+#| "      "
+msgid "To finish configuring your channel you need to configure Click Mobile to send new messages to the URL below."
+msgstr ""
+"\n"
+"Para finalizar a configuração da sua conexão com o Hub9, você terá que fornece-los com os seguintes detalhes."
+
+#, fuzzy
+#| msgid "The phone number or short code you are connecting with country code. ex: +250788123124"
+msgid "The Click Mobile phone number or short code you are connecting with country code. ex: +250788123124"
+msgstr "Número de telefone ou número curto com o qual você esta se conectando, com o código do país. Ex:+250788123124"
+
+msgid "Ghana"
+msgstr ""
+
+#, fuzzy
+#| msgid "Your username on Africa's Talking"
+msgid "Your username on Click Mobile"
+msgstr "O seu nome de usuário do Africa's Talking"
+
+#, fuzzy
+#| msgid "Your short code on Africa's Talking"
+msgid "Your password on Click Mobile"
+msgstr "O seu número curto do Africa's Talking"
+
+msgid "App ID"
+msgstr ""
+
+#, fuzzy
+#| msgid "Your username on Africa's Talking"
+msgid "Your app_id on Click Mobile"
+msgstr "O seu nome de usuário do Africa's Talking"
+
+msgid "Org ID"
+msgstr ""
+
+#, fuzzy
+#| msgid "Your short code on Africa's Talking"
+msgid "Your org_id on Click Mobile"
+msgstr "O seu número curto do Africa's Talking"
+
 #, fuzzy
 #| msgid "Username"
 msgid "API Username"
@@ -3160,9 +3212,6 @@ msgstr "Código de requisição inválido, por favor, verifique-o e tente novame
 #| msgid "The name of your organization"
 msgid "The name of your LUIS app"
 msgstr "Nome da sua organização"
-
-msgid "App ID"
-msgstr ""
 
 #, fuzzy
 #| msgid "The name of your organization"
