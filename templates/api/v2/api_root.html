@@ -8,10 +8,14 @@
 
 {% block extra-style %}
     {{ block.super }}
-    <link rel="stylesheet" type="text/css" href="{% static "rest_framework/css/prettify.css" %}"/>
-    <link rel="stylesheet" type="text/css" href="{% static "css/codemirror.css" %}"/>
+    <link rel="stylesheet" type="text/css" href='{% static "rest_framework/css/prettify.css" %}'/>
+    <link rel="stylesheet" type="text/css" href='{% static "css/codemirror.css" %}'/>
 
  <style>
+    .page-content {
+         max-width: 100%;
+    }
+
    .button-form {
        float: right;
    }
