@@ -2,53 +2,41 @@
 -load i18n channels
 
 -block title
-  .medium-help.float-left{class:'{{object|channel_icon}}'}
-  %h2.font_normalize.header-margin.title
-    {{ object.get_channel_type_display }} Configuration
+  {{ object.get_channel_type_display }} Configuration
 
-    .number
-      {{ object.get_address_display }}
-      -if object.get_country_display
-        ({{ object.get_country_display }})
+-block subtitle
+  {{ object.get_address_display }}
 
-      -if object.channel_type == 'A'
-        \- {{ channel.device }}
-        -if channel.os
-          (v{{channel.os}})
+  -if object.get_country_display
+    .text-base
+      {{ object.get_country_display }}
 
 -block content
   -if configuration_template
     {{ configuration_template }}
 
   -elif configuration_blurb
-    %h4
-      {{configuration_blurb}}
+    {{configuration_blurb}}
 
-    -for url in configuration_urls
-      %hr
-
-      %h4
+  -for url in configuration_urls
+    .card.mt-6
+      .title
         {{url.label}}
+      .code.inline-block.mt-3
+        {{url.url}}       
 
-      -if url.description
-        %p
-          {{url.description}}
-
-      -if url.url
-        %code
-          {{url.url}}
+      .my-4
+        {{url.description}}
 
   -if show_public_addresses
-    %hr
-
-    %h4
-      -trans "IP Addresses"
-
-    %p
-      -trans "Additionally you will need to make sure the following IP addresses are whitelisted"
-
-    -for ip_address in ip_addresses
-      %code= ip_address
+    .mt-6.card
+      .title
+        -trans "IP Addresses"
+      .mt-2
+        -trans "Additionally you will need to make sure the following IP addresses are whitelisted"
+      .mt-2
+        -for ip_address in ip_addresses
+          .code.inline.mr-1= ip_address
 
 -block extra-script
   {{ block.super }}
@@ -57,62 +45,3 @@
     $(function(){
       prettyPrint();
     });
-
--block extra-style
-  <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}rest_framework/css/prettify.css"/>
-  :css
-    .config-value {
-      float: left;
-      padding-top: 10px;
-      padding-bottom: 10px;
-      padding-right: 20px;
-      height: 10px;
-    }
-
-    .config-value .name {
-      font-weight: normal;
-      float: left;
-    }
-
-    .config-value .value {
-      float: left;
-      padding-left: 5px;
-    }
-
-    pre.prettyprint {
-      margin-top: 0px;
-      margin-bottom: 0px;
-
-      font-family: monospace;
-      font-size: inherit;
-      white-space: pre;
-      line-height: 110%;
-
-      -webkit-border-radius: 0px;
-      -moz-border-radius: 0px;
-      border-radius: 0px;
-    }
-
-    .important {
-      background-color: #efefef;
-      border: 1px solid #ccc;
-      padding: 10px 10px 0px 10px;
-      margin-bottom: 10px;
-    }
-
-    .device .number {
-      padding-left:5px;
-    }
-
-    .title .number {
-      font-size:20px;
-    }
-
-    ol.line-steps li {
-      margin-top: 10px;
-      list-style: decimal;
-    }
-
-    .info {
-      margin-bottom: 20px;
-    }

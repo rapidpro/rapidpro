@@ -83,14 +83,6 @@ td.value-received {
   padding-left: initial;
 }
 
-tr.sms:hover {
-  cursor: pointer;
-}
-
-tr.sms.checked .glyph.message-checkbox:before {
-  content: "\e05a";
-}
-
 .sms_list tbody td.checkbox {
   color: #777;
 }
@@ -766,11 +758,6 @@ table.list-table {
     color: #000;
   }
 
-  tr td.checkbox {
-    cursor: pointer;
-    color: @color-font-lightgrey;
-  }
-
   tr:hover td.checkbox {
     color: @color-font-lightgrey;
   }
@@ -1295,7 +1282,7 @@ input[type='text'].search-query {
     display: none;
   }
 
-  &.icon-vcard {
+  &.icon-contact {
     margin-top: -30px;
   }
 }
@@ -1338,13 +1325,6 @@ input[type='text'].search-query {
 // buttons at the top of the list
 .message-buttons {
   margin-bottom: 0px;
-}
-
-tr.checked {
-  td {
-    background-color: @color-selected;
-    color: @color-selected-font;
-  }
 }
 
 // *******************************
@@ -1949,10 +1929,6 @@ background: #624e87;
 
 }
 
-.select-row:hover {
-  cursor: pointer;
-}
-
 .span9 .list-table {
   margin-top: 48px;
 }
@@ -2282,29 +2258,12 @@ input[type='radio'] {
   }
 }
 
-tr.object-row:hover {
-  cursor: pointer;
-}
-
-tr.object-row {
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  -khtml-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-}
-
 .glyph.label-checkbox:before {
   content: "\e004";
 }
 
 .glyph.object-row-checkbox:before {
   content: "\e004";
-}
-
-tr.checked td .glyph.object-row-checkbox:before {
-  content: "\e05a";
 }
 
 .glyph.label-checkbox.checked:before {
@@ -2679,7 +2638,7 @@ span.label a {
     /* Opera/IE 8+ */
 }
 
-/* Message Bubble Colors */
+/* Message bubble colors */
 .queued {
   color: @color-status-queued
 }

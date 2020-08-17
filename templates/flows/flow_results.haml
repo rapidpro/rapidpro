@@ -329,13 +329,6 @@
         updateCols();
       });
 
-      $(".download-results").on("click", function() {
-        var modal = new Modax('{{ _("Export Flow Results")|escapejs }}', '{% url "flows.flow_export_results" %}?ids={{object.id}}');
-        modal.setIcon('icon-excel');
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      });
-
       Highcharts.setOptions({
         global: {
           timezoneOffset: -1 * {{utcoffset}}
@@ -641,7 +634,7 @@
               %td.header
                 .details{ onclick: 'toggleValue({{forloop.counter0}});'}
                   .icons
-                    .icon-tree-2.category
+                    .icon-flow.category
                     .icon-bubble-2.text
                   {{result_field.name}}
                 .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }

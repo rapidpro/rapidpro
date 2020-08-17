@@ -1,3 +1,33 @@
+v5.7.7
+----------
+ * Add search archives management command
+
+v5.7.6
+----------
+ * Optimizations to migration to backfill last_seen_on
+
+v5.7.5
+----------
+ * Add migration to populate contact.last_seen_on
+ * Update to latest temba-components with support for refresh work
+
+v5.7.4
+----------
+ * Use new metadata field from mailroom searching endpoints
+ * Make sure we have only one active trigger when importing flows
+ * Fix org selector and header text alignment when editor is open
+
+v5.7.3
+----------
+ * Add contact.last_seen_on
+ * Bump floweditor to v1.9.9
+
+v5.7.2
+----------
+ * Add error messages for all error codes from mailroom query parsing
+ * Fix org manage quick searches
+ * Always use mailroom for static group changes
+
 v5.7.1
 ----------
  * Add session history field to flowstarts

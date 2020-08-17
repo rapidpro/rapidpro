@@ -121,6 +121,8 @@ function refresh(onSuccess, forceReload){
           onSuccess();
         }
         document.dispatchEvent(new Event("temba-refresh-complete"));
+        refreshTimeout = Math.floor(refreshTimeout * 1.1)
+        scheduleRefresh();
       },
       shouldIgnore: function() {
         if (forceReload) {
@@ -136,7 +138,7 @@ function refresh(onSuccess, forceReload){
 
 refreshTimeout = {{ refresh }};
 function scheduleRefresh() {
-    window.setTimeout(refresh, {{ refresh }});
+    window.setTimeout(refresh, refreshTimeout);
 }
 
 $(document).ready(function(){

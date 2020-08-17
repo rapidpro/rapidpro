@@ -718,6 +718,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="%(app_label)s_%(class)s_creations", null=True
     )
 
+    last_seen_on = models.DateTimeField(null=True)
+
     NAME = "name"
     FIRST_NAME = "first_name"
     LANGUAGE = "language"
@@ -1949,6 +1951,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         cls.bulk_modify(user, contacts, [modifiers.Status(status=status)])
 
     @classmethod
+    def bulk_change_group(cls, user, contacts, group, add: bool):
+        mod = modifiers.Groups(
+            groups=[modifiers.GroupRef(uuid=str(group.uuid), name=group.name)], modification="add" if add else "remove"
+        )
+        cls.bulk_modify(user, contacts, mods=[mod])
+
+    @classmethod
     def apply_action_block(cls, user, contacts):
         cls.bulk_change_status(user, contacts, Contact.STATUS_BLOCKED)
 
@@ -1962,11 +1971,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def apply_action_label(cls, user, contacts, group):
-        group.update_contacts(user, contacts, add=True)
+        cls.bulk_change_group(user, contacts, group, add=True)
 
     @classmethod
     def apply_action_unlabel(cls, user, contacts, group):
-        group.update_contacts(user, contacts, add=False)
+        cls.bulk_change_group(user, contacts, group, add=False)
 
     @classmethod
     def apply_action_delete(cls, user, contacts):
@@ -2599,15 +2608,6 @@ class ContactGroup(TembaModel):
         # first character must be a word char
         return regex.match(r"\w", name[0], flags=regex.UNICODE)
 
-    def update_contacts(self, user, contacts, add):
-        """
-        Manually adds or removes contacts from a static group. Returns contact ids of contacts whose membership changed.
-        """
-        if self.group_type != self.TYPE_USER_DEFINED or self.is_dynamic:  # pragma: no cover
-            raise ValueError("Can't add or remove contacts from system or dynamic groups")
-
-        return self._update_contacts(user, contacts, add)
-
     def remove_contacts(self, user, contacts):
         """
         Forces removal of contacts from this group regardless of whether it is static or dynamic
@@ -2667,7 +2667,7 @@ class ContactGroup(TembaModel):
             if not parsed:
                 parsed = parse_query(self.org_id, query)
 
-            if not parsed.allow_as_group:
+            if not parsed.metadata.allow_as_group:
                 raise ValueError(f"Cannot use query '{query}' as a dynamic group")
 
             self.query = parsed.query
@@ -2677,8 +2677,9 @@ class ContactGroup(TembaModel):
             self.query_fields.clear()
 
             # build our list of the fields we are dependent on
+            field_keys = [f["key"] for f in parsed.metadata.fields]
             field_ids = []
-            for c in ContactField.all_fields.filter(org=self.org, is_active=True, key__in=parsed.fields).only("id"):
+            for c in ContactField.all_fields.filter(org=self.org, is_active=True, key__in=field_keys).only("id"):
                 field_ids.append(c.id)
 
             # and add them as dependencies
@@ -2770,9 +2771,8 @@ class ContactGroup(TembaModel):
                 from .search import parse_query
 
                 parsed_query = parse_query(org.id, group_query)
-                for key in parsed_query.fields:
-                    if key not in ContactField.SYSTEM_FIELDS.keys() and key not in ContactURN.SCHEMES:
-                        ContactField.get_or_create(org, user, key=key)
+                for field_ref in parsed_query.metadata.fields:
+                    ContactField.get_or_create(org, user, key=field_ref["key"])
 
             group = ContactGroup.get_or_create(
                 org, user, group_name, group_query, uuid=group_uuid, parsed_query=parsed_query

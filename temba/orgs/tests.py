@@ -42,7 +42,6 @@ from temba.contacts.models import (
     ExportContactsTask,
 )
 from temba.contacts.omnibox import omnibox_serialize
-from temba.contacts.search import ParsedQuery
 from temba.flows.models import ActionSet, ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
@@ -50,7 +49,7 @@ from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
 from temba.orgs.models import BackupToken, Debit, OrgActivity, UserSettings
 from temba.request_logs.models import HTTPLog
-from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers
+from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
@@ -606,18 +605,17 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse("orgs.org_edit"))
         self.assertEqual(200, response.status_code)
 
-        # update the name and slug of the organization
-        data = dict(name="Temba", timezone="Africa/Kigali", date_format=Org.DATE_FORMAT_DAY_FIRST, slug="nice temba")
+        # update the name of the organization
+        data = dict(name="Temba", timezone="Bad/Timezone", date_format=Org.DATE_FORMAT_DAY_FIRST)
         response = self.client.post(reverse("orgs.org_edit"), data)
-        self.assertIn("slug", response.context["form"].errors)
+        self.assertIn("timezone", response.context["form"].errors)
 
-        data = dict(name="Temba", timezone="Africa/Kigali", date_format=Org.DATE_FORMAT_MONTH_FIRST, slug="nice-temba")
+        data = dict(name="Temba", timezone="Africa/Kigali", date_format=Org.DATE_FORMAT_MONTH_FIRST)
         response = self.client.post(reverse("orgs.org_edit"), data)
         self.assertEqual(302, response.status_code)
 
         org = Org.objects.get(pk=self.org.pk)
         self.assertEqual("Temba", org.name)
-        self.assertEqual("nice-temba", org.slug)
 
     def test_two_factor(self):
         # for now only Beta members have access
@@ -904,6 +902,15 @@ class OrgTest(TembaTest):
         # only superuser
         self.login(self.superuser)
 
+        response = self.client.get(manage_url + "?flagged=1")
+        self.assertFalse(self.org in response.context["object_list"])
+
+        response = self.client.get(manage_url + "?anon=1")
+        self.assertFalse(self.org in response.context["object_list"])
+
+        response = self.client.get(manage_url + "?suspended=1")
+        self.assertFalse(self.org in response.context["object_list"])
+
         response = self.client.get(manage_url)
         self.assertEqual(200, response.status_code)
         self.assertNotContains(response, "(Flagged)")
@@ -914,6 +921,9 @@ class OrgTest(TembaTest):
 
         # should contain our test org
         self.assertContains(response, "Temba")
+
+        response = self.client.get(manage_url + "?flagged=1")
+        self.assertTrue(self.org in response.context["object_list"])
 
         # and can go to that org
         response = self.client.get(update_url)
@@ -1496,7 +1506,7 @@ class OrgTest(TembaTest):
         # superuser gets redirected to user management page
         self.login(self.superuser)
         response = self.client.get(choose_url, follow=True)
-        self.assertContains(response, "Workspaces")
+        self.assertEqual(reverse("orgs.org_manage"), response.request["PATH_INFO"])
 
     def test_topup_admin(self):
         self.login(self.admin)
@@ -1605,7 +1615,7 @@ class OrgTest(TembaTest):
         # check our credits
         self.login(self.admin)
         response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "<span class='attn'>999</span>")
+        self.assertContains(response, "<b>999</b>")
 
         # view our topups
         response = self.client.get(reverse("orgs.topup_list"))
@@ -1614,7 +1624,7 @@ class OrgTest(TembaTest):
         self.assertContains(response, "999\n")
 
         # should say we have a 1,000 credits too
-        self.assertContains(response, "1 of 1,000 Credits Used")
+        self.assertContains(response, "1,000 Credits")
 
         # our receipt should show that the topup was free
         with patch("stripe.Charge.retrieve") as stripe:
@@ -1622,7 +1632,7 @@ class OrgTest(TembaTest):
             response = self.client.get(
                 reverse("orgs.topup_read", args=[TopUp.objects.filter(org=self.org).first().pk])
             )
-            self.assertContains(response, "1000 Credits")
+            self.assertContains(response, "1,000 Credits")
 
     def test_topups(self):
 
@@ -2010,6 +2020,7 @@ class OrgTest(TembaTest):
 
         # connect DT One
         dtone_account_url = reverse("orgs.org_dtone_account")
+        org_home_url = reverse("orgs.org_home")
 
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, "Unexpected content")
@@ -2091,8 +2102,10 @@ class OrgTest(TembaTest):
 
         # link show for formax requests
         response = self.client.get(dtone_account_url, HTTP_X_FORMAX=True)
-        self.assertContains(response, reverse("airtime.airtimetransfer_list"))
         self.assertContains(response, "%s?disconnect=true" % reverse("orgs.org_dtone_account"))
+
+        response = self.client.get(org_home_url)
+        self.assertContains(response, reverse("airtime.airtimetransfer_list"))
 
     def test_chatbase_account(self):
         self.login(self.admin)
@@ -3244,7 +3257,6 @@ class OrgCRUDLTest(TembaTest):
         org = Org.objects.get(name="Relieves World")
         self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
         self.assertEqual(str(org), "Relieves World")
-        self.assertEqual(org.slug, "relieves-world")
 
         # of which our user is an administrator
         self.assertTrue(org.get_org_admins().filter(pk=user.pk))
@@ -3524,7 +3536,13 @@ class LanguageTest(TembaTest):
         self.login(self.admin)
 
         # update our org with some language settings
-        response = self.client.post(url, dict(primary_lang="fra", languages="hat,arc"))
+        response = self.client.post(
+            url,
+            dict(
+                primary_lang='{"name":"French", "value":"fra"}',
+                languages=['{"name":"Haitian", "value":"hat"}', '{"name":"Official Aramaic", "value":"arc"}'],
+            ),
+        )
         self.assertEqual(response.status_code, 302)
         self.org.refresh_from_db()
 
@@ -3541,20 +3559,32 @@ class LanguageTest(TembaTest):
         response = self.client.get(url)
         self.assertEqual(response.context["languages"], "Haitian and Official Aramaic (700-300 BCE)")
         self.assertContains(response, "fra")
-        self.assertContains(response, "hat,arc")
+        # self.assertContains(response, "hat,arc")
 
         # three translation languages
-        self.client.post(url, dict(primary_lang="fra", languages="hat,arc,spa"))
+        self.client.post(
+            url,
+            dict(
+                primary_lang='{"name":"French", "value":"fra"}',
+                languages=[
+                    '{"name":"Haitian", "value":"hat"}',
+                    '{"name":"Official Aramaic", "value":"arc"}',
+                    '{"name":"Spanish", "value":"spa"}',
+                ],
+            ),
+        )
         response = self.client.get(reverse("orgs.org_languages"))
         self.assertEqual(response.context["languages"], "Haitian, Official Aramaic (700-300 BCE) and Spanish")
 
         # one translation language
-        self.client.post(url, dict(primary_lang="fra", languages="hat"))
+        self.client.post(
+            url, dict(primary_lang='{"name":"French", "value":"fra"}', languages=['{"name":"Haitian", "value":"hat"}'])
+        )
         response = self.client.get(reverse("orgs.org_languages"))
         self.assertEqual(response.context["languages"], "Haitian")
 
         # remove all languages
-        self.client.post(url, dict())
+        self.client.post(url, dict(primary_lang="{}", languages=[]))
         self.org.refresh_from_db()
         self.assertIsNone(self.org.primary_language)
         self.assertFalse(self.org.languages.all())
@@ -4096,20 +4126,18 @@ class BulkExportTest(TembaTest):
         # and so no fields created
         self.assertEqual(ContactField.user_fields.all().count(), 0)
 
-    def test_implicit_field_and_explicit_group_imports(self):
+    @mock_mailroom
+    def test_implicit_field_and_explicit_group_imports(self, mr_mocks):
         """
         Tests importing flow definitions with groups included in the export but not fields
         """
         data = self.get_import_json("cataclysm")
         del data["fields"]
 
-        with patch("temba.contacts.search.parse_query") as mock:
-            mock.side_effect = [
-                ParsedQuery("facts_per_day = 1", ["facts_per_day"], {}, allow_as_group=True),
-                ParsedQuery('likes_cats = "true"', ["likes_cats"], {}, allow_as_group=True),
-            ]
+        mr_mocks.parse_query("facts_per_day = 1", fields=["facts_per_day"])
+        mr_mocks.parse_query("likes_cats = true", cleaned='likes_cats = "true"', fields=["likes_cats"])
 
-            self.org.import_app(data, self.admin, site="http://rapidpro.io")
+        self.org.import_app(data, self.admin, site="http://rapidpro.io")
 
         flow = Flow.objects.get(name="Cataclysmic")
         self.validate_flow_dependencies(flow.as_json())
@@ -4136,16 +4164,16 @@ class BulkExportTest(TembaTest):
         self.assertEqual(cat_blasts.query, "facts_per_day = 1")
         self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
 
-    def test_explicit_field_and_group_imports(self):
+    @mock_mailroom
+    def test_explicit_field_and_group_imports(self, mr_mocks):
         """
         Tests importing flow definitions with groups and fields included in the export
         """
-        with patch("temba.contacts.search.parse_query") as mock:
-            mock.side_effect = [
-                ParsedQuery("facts_per_day = 1", ["facts_per_day"], {}, allow_as_group=True),
-                ParsedQuery('likes_cats = "true"', ["likes_cats"], {}, allow_as_group=True),
-            ]
-            self.import_file("cataclysm")
+
+        mr_mocks.parse_query("facts_per_day = 1", fields=["facts_per_day"])
+        mr_mocks.parse_query("likes_cats = true", cleaned='likes_cats = "true"', fields=["likes_cats"])
+
+        self.import_file("cataclysm")
 
         flow = Flow.objects.get(name="Cataclysmic")
         self.validate_flow_dependencies(flow.as_json())
@@ -4171,6 +4199,64 @@ class BulkExportTest(TembaTest):
         cat_blasts = ContactGroup.user_groups.get(name="Cat Blasts")
         self.assertEqual(cat_blasts.query, "facts_per_day = 1")
         self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
+
+    def test_import_flow_with_triggers(self):
+        flow = self.create_flow()
+        trigger = Trigger.objects.create(
+            org=self.org,
+            trigger_type=Trigger.TYPE_KEYWORD,
+            keyword="rating",
+            flow=flow,
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+        trigger.is_archived = True
+        trigger.save()
+
+        flow2 = self.create_flow()
+        trigger2 = Trigger.objects.create(
+            org=self.org,
+            trigger_type=Trigger.TYPE_KEYWORD,
+            keyword="rating",
+            flow=flow2,
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
+        data = self.get_import_json("rating_10")
+
+        with ESMockWithScroll():
+            self.org.import_app(data, self.admin, site="http://rapidpro.io")
+
+        flow = Flow.objects.get(name="Rate us")
+        self.assertEqual(1, Trigger.objects.filter(keyword="rating", is_archived=False).count())
+        self.assertEqual(1, Trigger.objects.filter(flow=flow).count())
+        # shoud have archived the existing
+        self.assertFalse(Trigger.objects.filter(pk=trigger.pk, is_archived=False).first())
+        self.assertFalse(Trigger.objects.filter(pk=trigger2.pk, is_archived=False).first())
+
+        # Archive trigger
+        flow_trigger = (
+            Trigger.objects.filter(flow=flow, keyword="rating", is_archived=False).order_by("-created_on").first()
+        )
+        flow_trigger.archive(self.admin)
+
+        # re import again will restore the trigger
+        data = self.get_import_json("rating_10")
+        with ESMockWithScroll():
+            self.org.import_app(data, self.admin, site="http://rapidpro.io")
+
+        flow_trigger.refresh_from_db()
+
+        self.assertEqual(1, Trigger.objects.filter(keyword="rating", is_archived=False).count())
+        self.assertEqual(1, Trigger.objects.filter(flow=flow).count())
+        self.assertFalse(Trigger.objects.filter(pk=trigger.pk, is_archived=False).first())
+        self.assertFalse(Trigger.objects.filter(pk=trigger2.pk, is_archived=False).first())
+
+        restored_trigger = (
+            Trigger.objects.filter(flow=flow, keyword="rating", is_archived=False).order_by("-created_on").first()
+        )
+        self.assertEqual(restored_trigger.pk, flow_trigger.pk)
 
     def test_export_import(self):
         def assert_object_counts():
@@ -4243,7 +4329,7 @@ class BulkExportTest(TembaTest):
         )
 
         # same with our trigger
-        trigger = Trigger.objects.filter(keyword="patient").first()
+        trigger = Trigger.objects.filter(keyword="patient").order_by("-created_on").first()
         self.assertEqual(Flow.objects.filter(name="Register Patient").first(), trigger.flow)
 
         # our old campaign message flow should be inactive now

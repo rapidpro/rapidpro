@@ -32,6 +32,16 @@ class Schedule(SmartModel):
         (REPEAT_MONTHLY, _("Monthly")),
     )
 
+    REPEAT_DAYS_CHOICES = (
+        ("M", _("Monday")),
+        ("T", _("Tuesday")),
+        ("W", _("Wednesday")),
+        ("R", _("Thursday")),
+        ("F", _("Friday")),
+        ("S", _("Saturday")),
+        ("U", _("Sunday")),
+    )
+
     DAYS_OF_WEEK_DISPLAY = {
         "M": _("Monday"),
         "T": _("Tuesday"),

@@ -1683,11 +1683,17 @@ a:hover {
 
 .page-subtitle {
   font-size: 1.5rem;
-  color: #a0a0a0
+  color: #717171
 }
 
 .title {
   font-size: 1.5rem;
+  color: #4a4a4a;
+  margin-bottom: 0.25rem
+}
+
+.subtitle {
+  font-size: 1.25rem;
   color: #4a4a4a;
   margin-bottom: 0.25rem
 }
@@ -1704,8 +1710,21 @@ table.list {
   background-color: #fff;
 }
 
+table.list tr.checked td temba-checkbox {
+          --color-text: #999;
+        }
+
+table.list tr td temba-checkbox {
+        margin-top: -7px;
+        display: block;
+        --color-text: #ddd;
+        width: 14px;
+        height: 14px;
+      }
+
 table.list.light thead tr th {
         background-color: transparent;
+        border-color: #ededed;
       }
 
 table.list.toggle thead {
@@ -1832,34 +1851,26 @@ table.list.tight tbody tr td, table.list.tight.expanded tbody tr td {
           font-size: 85%;
         }
 
-table.list.selectable tbody tr td.checkbox .glyph {
-          cursor: pointer;
-          color: #e2e2e2;
+table.list.selectable tbody tr td {
+          background-color: #fff;
         }
 
-table.list.selectable tbody tr:hover td {
-          background-color: rgba(var(--selection-light-rgb), .3);
+table.list.selectable tbody tr.hovered td {
+          background: rgba(var(--selection-light-rgb), .4);
         }
 
-table.list.selectable tbody tr:hover td.checkbox .glyph {
-            color: #717171;
+table.list.selectable tbody tr.hovered td:not(:first-child) {
+            cursor: pointer;
           }
 
-table.list.selectable tbody tr.checked td.checkbox .glyph {
-          color: #717171;
+table.list.selectable tbody td:hover temba-checkbox {
+          --color-text: #999;
         }
 
 table.list.selectable tbody tr.checked td {
-          color: rgba(0, 0, 0, .65) !important;
-          background-color: rgba(var(--selection-light-rgb), .5) !important;
+          background: rgba(var(--selection-light-rgb), .4);
           border-color: rgba(var(--selection-light-rgb), 1);
         }
-
-table.list.selectable tbody tr.checked td:hover {
-            color: rgba(0, 0, 0, .65) !important;
-            background-color: rgba(var(--selection-light-rgb), .5);
-            border-color: rgba(var(--selection-light-rgb), 1);
-          }
 
 .gear-links {
   margin-left: 1rem;
@@ -1960,10 +1971,36 @@ code {
   padding-right: 0.5rem;
   padding-top: 0.25rem;
   padding-bottom: 0.25rem;
-  margin-left: 0.25rem;
-  margin-right: 0.25rem;
   border-radius: 0.5rem;
   font-size: 1rem;
+}
+
+.code {
+  background-color: #f7f7f7;
+  border-radius: 0.5rem;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  line-height: 1.25;
+  font-weight: 400;
+  font-size: 0.875rem;
+  font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  color: #2980b9;
+}
+
+.code {
+  background-color: #f7f7f7;
+  border-radius: 0.5rem;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  line-height: 1.25;
+  font-weight: 400;
+  font-size: 0.875rem;
+  font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  color: #2980b9;
 }
 
 .card {
@@ -1975,7 +2012,47 @@ code {
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   margin-top: 1rem;
   margin-bottom: 1rem;
-  background-color: #fff
+  background-color: #fff;
+  overflow: hidden;
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+  transition-duration: 200ms;
+}
+
+.card .bleed-t {
+    margin-top: -1.5rem;
+    padding-top: 1.5rem;
+  }
+
+.card .bleed-b {
+    margin-bottom: -1.5rem;
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+
+.card .bleed-x {
+    margin-left: -1.5rem;
+    margin-right: -1.5rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+.card .bleed-y {
+    margin-top: -1.5rem;
+    margin-bottom: -1.5rem;
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+
+.card.link {
+    cursor: pointer;
+  }
+
+.card.link:hover {
+      box-shadow: var(--widget-box-shadow-focused);
+    }
+
+.shadow-subtle {
+  box-shadow: 0px 0px 25px 0px rgba(0, 0, 0, 0.05);
 }
 
 .help-text {
@@ -2005,23 +2082,24 @@ code {
 .formax .formax-section .formax-icon {
       background-color: #ededed;
       color: #717171;
-      position: relative;
-      height: 100%;
-      padding: 2rem;
-      margin-top: 0;
       cursor: pointer;
-      width: inherit;
-      height: inherit;
       transition: all 200ms ease-in-out;
       font-size: 30px;
+      flex-basis: 90px;
+      flex-grow: 0;
+      flex-shrink: 0;
     }
 
-.formax .formax-section .formax-icon:before {
+.formax .formax-section .formax-icon .margin-wrapper {
+        margin: auto;
       }
 
-.formax .formax-section .formax-container {
-      flex-grow: 1;
-    }
+.formax .formax-section .formax-icon .i-container {
+        width: 30px;
+      }
+
+.formax .formax-section .formax-icon .i-container:before {
+        }
 
 .formax .formax-section .formax-container .formax-summary {
         padding: 2rem;
@@ -2029,7 +2107,7 @@ code {
       }
 
 .formax .formax-section .formax-container .formax-summary b {
-          font-weight: 500;
+          font-weight: 400;
         }
 
 .formax .formax-section .formax-container .formax-form {
@@ -2041,8 +2119,12 @@ code {
           display: none;
         }
 
+.formax .formax-section.open {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
 .formax .formax-section.open:hover {
-        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
       }
 
 .formax .formax-section.open .formax-summary {
@@ -2051,10 +2133,20 @@ code {
 
 .formax .formax-section.open .formax-icon {
         font-size: 80px;
+        flex-basis: 160px;
+        padding-top: 10px;
         background-color: rgb(var(--primary-rgb));
         color: #fff;
         padding: 3rem;
       }
+
+.formax .formax-section.open .formax-icon .margin-wrapper {
+          margin-top: 0px;
+        }
+
+.formax .formax-section.open .formax-icon .i-container {
+          width: 80px;
+        }
 
 .formax .formax-section.open .formax-icon:before {
           vertical-align: inherit;

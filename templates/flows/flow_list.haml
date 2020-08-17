@@ -181,29 +181,29 @@
                       
                 %tbody
                   -for object in object_list
-                    %tr.object-row.select-row{ data-object-uuid: "{{object.uuid}}", data-object-id: "{{ object.id }}" }
+                    %tr.object-row.select-row{ data-object-uuid: "{{object.uuid}}", data-object-id: "{{ object.id }}",  onrowclick:'gotoLink("{% url "flows.flow_editor" object.uuid%}")'}
 
                       -if org_perms.flows.flow_update
                         %td.checkbox.object-row-checkbox
-                          .glyph.icon-checkbox-unchecked.object-row-checkbox
+                          %temba-checkbox{onclick:"handleRowSelection(this)"}
 
-                      %td.w-full{onclick:"handleRowSelection(this)"}
+                      %td.w-full
                         .flex.flex-wrap.flex-end
-                          .flex.hover-linked.inline.whitespace-no-wrap
+                          .flex.inline.whitespace-no-wrap
                             -if object.flow_type == 'V'
                               .icon-phone.mr-2.leading-snug
                             -elif object.flow_type == 'S'
                               .icon-mobile.mr-2.leading-snug
-                            .name.whitespace-normal{onclick:"goto(event)", href:"{% url 'flows.flow_editor' object.uuid%}"}
+                            .name.whitespace-normal
                               {{ object.name }}
 
-                      %td{onclick:"handleRowSelection(this)"}
+                      %td
                           .whitespace-no-break.flex.items-center.ml-2.justify-end
                             -for label in object.labels.all
                               .lbl.linked.ml-2{ onclick:"goto(event)", data-id: '{{label.pk}}', href:"{% url 'flows.flow_filter' label.pk%}"}
                                 {{label.name}}
 
-                      %td{onclick:"handleRowSelection(this)"}
+                      %td
                         -if not object.is_archived
                           .whitespace-no-break.flex.items-center.justify-end
 

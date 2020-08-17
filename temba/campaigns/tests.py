@@ -9,7 +9,6 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactField, ContactGroup, ImportTask
-from temba.contacts.search.tests import MockParseQuery
 from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, Org
@@ -712,18 +711,6 @@ class CampaignTest(TembaTest):
         self.set_contact_field(self.nonfarmer, "planting_date", "1/7/2025", legacy_handle=True)
         self.assertEqual(2, EventFire.objects.filter(event__is_active=True).count())
 
-        # remove one of the farmers from the group
-        self.farmers.update_contacts(self.admin, [self.farmer1], add=False)
-
-        # should only be one event now (on farmer 2)
-        fire = EventFire.objects.get()
-        self.assertEqual(2, fire.scheduled.day)
-        self.assertEqual(6, fire.scheduled.month)
-        self.assertEqual(2022, fire.scheduled.year)
-
-        # but if we add him back in, should be updated
-        post_data = dict(name=self.farmer1.name, groups=[self.farmers.id], __urn__tel=self.farmer1.get_urn("tel").path)
-
         planting_date_field = ContactField.get_by_key(self.org, "planting_date")
 
         self.client.post(reverse("contacts.contact_update", args=[self.farmer1.id]), post_data)
@@ -804,7 +791,7 @@ class CampaignTest(TembaTest):
 
         # page title and main content title should NOT contain (Archived)
         self.assertContains(response, "Perform the rain dance", count=2)
-        self.assertContains(response, "(Archived)", count=0)
+        self.assertContains(response, "Archived", count=0)
 
         gear_links = response.context["view"].get_gear_links()
         self.assertListEqual([gl["title"] for gl in gear_links], ["Add Event", "Export", "Edit", "Archive"])
@@ -817,7 +804,7 @@ class CampaignTest(TembaTest):
 
         # page title and main content title should contain (Archived)
         self.assertContains(response, "Perform the rain dance", count=2)
-        self.assertContains(response, "(Archived)", count=2)
+        self.assertContains(response, "Archived", count=2)
 
         gear_links = response.context["view"].get_gear_links()
         self.assertListEqual([gl["title"] for gl in gear_links], ["Activate", "Export"])
@@ -866,9 +853,9 @@ class CampaignTest(TembaTest):
 
         response = self.client.get(reverse("campaigns.campaignevent_read", args=[event.pk]))
 
-        # page title and main content title should NOT contain (Archived)
-        self.assertContains(response, "Perform the rain dance", count=2)
-        self.assertContains(response, "(Archived)", count=0)
+        # page title and main content title should NOT contain Archived
+        self.assertContains(response, "Perform the rain dance", count=1)
+        self.assertContains(response, "Archived", count=0)
 
         gear_links = response.context["view"].get_gear_links()
         self.assertListEqual([gl["title"] for gl in gear_links], ["Edit", "Delete"])
@@ -879,9 +866,9 @@ class CampaignTest(TembaTest):
 
         response = self.client.get(reverse("campaigns.campaignevent_read", args=[event.pk]))
 
-        # page title and main content title should contain (Archived)
-        self.assertContains(response, "Perform the rain dance", count=2)
-        self.assertContains(response, "(Archived)", count=1)
+        # page title and main content title should contain Archived
+        self.assertContains(response, "Perform the rain dance", count=1)
+        self.assertContains(response, "Archived", count=1)
 
         gear_links = response.context["view"].get_gear_links()
         self.assertListEqual([gl["title"] for gl in gear_links], ["Delete"])
@@ -1460,10 +1447,9 @@ class CampaignTest(TembaTest):
         self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 1)
 
         # change dynamic group query so anna is removed
-        with MockParseQuery('gender = "FEMALE"', ["gender"]):
-            women.update_query(query='gender="FEMALE"')
-            ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
-            anna.handle_update(fields=["gender"])
+        women.update_query(query='gender="FEMALE"')
+        ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
+        anna.handle_update(fields=["gender"])
 
         self.assertEqual(set(women.contacts.all()), set())
 
@@ -1471,10 +1457,9 @@ class CampaignTest(TembaTest):
         self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 0)
 
         # but if query is reverted, her event fire should be recreated
-        with MockParseQuery('gender = "F"', ["gender"]):
-            women.update_query("gender=F")
-            ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
-            anna.handle_update(fields=["gender"])
+        women.update_query("gender=F")
+        ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
+        anna.handle_update(fields=["gender"])
 
         self.assertEqual(set(women.contacts.all()), {anna})
 

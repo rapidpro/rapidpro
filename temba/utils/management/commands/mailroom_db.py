@@ -628,7 +628,7 @@ class Command(BaseCommand):
                     contact, _ = Contact.get_or_create(org, urn, user=user)
                     contacts.append(contact)
 
-                group.update_contacts(user, contacts, True)
+                Contact.bulk_change_group(user, contacts, group, add=True)
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
