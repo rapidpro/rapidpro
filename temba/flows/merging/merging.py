@@ -54,8 +54,9 @@ class Node:
                     return False
 
                 if self_router["type"] == other_router["type"]:
-                    if self_router["type"] == "switch" and self_router["operand"] != other_router["operand"]:
-                        return False
+                    if self_router["type"] == "switch":
+                        if jaro_distance(self_router["operand"], other_router["operand"]) < 0.9:
+                            return False
                 else:
                     return False
 
@@ -332,16 +333,40 @@ class GraphDifferenceNode(Node):
         conflict = {"conflict_type": NodeConflictTypes.ROUTER_CONFLICT, "left_router": left, "right_router": right}
 
         if left and right:
-            if left["type"] != right["type"]:
-                conflict["field"] = "type"
-                self.conflicts.append(conflict)
-                return
             self.data["router"] = left
+            conflicts = self.check_router_conflicts(left, right)
+            if conflicts:
+                self.conflicts.extend(conflicts)
         elif bool(left) != bool(right):
             if left:
                 self.data["router"] = left
             if right:
                 self.data["router"] = right
+
+    def check_router_conflicts(self, left_router, right_router):
+        conflicts = []
+        conflict_base = {
+            "conflict_type": NodeConflictTypes.ROUTER_CONFLICT,
+            "left_router": left_router,
+            "right_router": right_router,
+        }
+        if left_router["type"] != right_router["type"]:
+            conflict = dict(conflict_base)
+            conflict.update({"field": "type"})
+            conflicts.append(conflict)
+            return conflicts
+
+        if left_router.get("operand") != right_router.get("operand"):
+            conflict = dict(conflict_base)
+            conflict.update({"field": "operand"})
+            conflicts.append(conflict)
+
+        if left_router.get("result_name") != right_router.get("result_name"):
+            conflict = dict(conflict_base)
+            conflict.update({"field": "result_name"})
+            conflicts.append(conflict)
+
+        return conflicts
 
     def check_actions(self):
         left = self.left_origin_node.data["actions"]
@@ -430,6 +455,13 @@ class GraphDifferenceNode(Node):
             action = conflict["left_action"]
             action[conflict["field"]] = value
             self.data["actions"].append(action)
+        elif conflict["conflict_type"] == NodeConflictTypes.ROUTER_CONFLICT:
+            if conflict["field"] == "type":
+                if conflict["right_router"]["type"] == value:
+                    self.data["router"] = right_router
+                    self.correct_uuids()
+            else:
+                self.data["router"][conflict["field"]] = value
         return self.conflicts
 
 
@@ -633,18 +665,29 @@ class GraphDifferenceMap:
     def get_conflict_solutions(self):
         conflict_solutions = []
         for uuid, conflicts in self.conflicts.items():
-            for conflict in conflicts:
-                if conflict["conflict_type"] == NodeConflictTypes.ACTION_CONFLICT:
-                    conflict_solutions.append(
-                        {
-                            "uuid": uuid,
-                            "node_type": getattr(self.diff_nodes_map.get(uuid, {}), "node_types", [None]).pop(),
-                            "solutions": [
-                                conflict["left_action"][conflict["field"]],
-                                conflict["right_action"][conflict["field"]],
-                            ],
-                        }
-                    )
+            conflict = conflicts[0]
+            if conflict["conflict_type"] == NodeConflictTypes.ACTION_CONFLICT:
+                conflict_solutions.append(
+                    {
+                        "uuid": uuid,
+                        "node_type": f"{getattr(self.diff_nodes_map.get(uuid, {}), 'node_types', [None]).pop()} {conflict['field']}",
+                        "solutions": [
+                            conflict["left_action"][conflict["field"]],
+                            conflict["right_action"][conflict["field"]],
+                        ],
+                    }
+                )
+            elif conflict["conflict_type"] == NodeConflictTypes.ROUTER_CONFLICT:
+                conflict_solutions.append(
+                    {
+                        "uuid": uuid,
+                        "node_type": f"{getattr(self.diff_nodes_map.get(uuid, {}), 'node_types', [None]).pop()} {conflict['field']}",
+                        "solutions": [
+                            conflict["left_router"][conflict["field"]],
+                            conflict["right_router"][conflict["field"]],
+                        ],
+                    }
+                )
         return conflict_solutions
 
     def apply_conflict_resolving(self, conflict_resolving):

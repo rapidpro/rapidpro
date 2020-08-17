@@ -3067,25 +3067,23 @@ class FlowCRUDL(SmartCRUDL):
             if source.flow_type != target.flow_type:
                 errors.append(_("These flows can't be merged because of different flow types."))
 
+            difference_map = None
             resolved_conflicts = deserialize_dict_param_from_request("conflicts", request.POST)
-            if not errors:
-                difference_map_data = request.POST.get("merging_map")
-                difference_map = None
-                if difference_map_data:
-                    difference_map = deserialize_difference_graph(difference_map_data, loads=True)
-                    if difference_map.conflicts and resolved_conflicts:
-                        difference_map.apply_conflict_resolving(resolved_conflicts)
-                if not difference_map:
-                    difference_map = deserialize_difference_graph()
-                    source_graph = Graph(source.as_json())
-                    target_graph = Graph(target.as_json())
-                    difference_map = GraphDifferenceMap(source_graph, target_graph)
-                    difference_map.compare_graphs()
+            difference_map_data = request.POST.get("merging_map")
+            if difference_map_data:
+                difference_map = deserialize_difference_graph(difference_map_data, loads=True)
+                if difference_map.conflicts and resolved_conflicts:
+                    difference_map.apply_conflict_resolving(resolved_conflicts)
+            if difference_map is None:
+                source_graph = Graph(source.as_json())
+                target_graph = Graph(target.as_json())
+                difference_map = GraphDifferenceMap(source_graph, target_graph)
+                difference_map.compare_graphs()
 
-                definition = difference_map.definition
+            definition = difference_map.definition
 
-                if difference_map.conflicts:
-                    errors.append(_("These flows can't be merged because of conflicts."))
+            if difference_map.conflicts:
+                errors.append(_("These flows can't be merged because of conflicts."))
 
             if errors:
                 context = self.get_context_data()

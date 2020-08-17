@@ -4117,6 +4117,7 @@ class MergeFlowsTask(TembaModel):
                 backup_metadata["source_name"] = self.source.name
                 backup_metadata["target_name"] = target.name
                 backup_metadata["terget_backup"] = target.as_json()
+                self.definition[Flow.DEFINITION_REVISION] = self.target.get_current_revision().revision + 1
                 target.save_revision(self.created_by, self.definition)
                 target.name = self.merge_name
                 target.save()
