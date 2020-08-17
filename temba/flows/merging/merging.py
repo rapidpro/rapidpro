@@ -63,8 +63,8 @@ class Node:
                     return False
 
             if "send_msg" in common_types:
-                for self_action in self.data.get("actions"):
-                    for other_action in other.data.get("actions"):
+                for self_action in self.data.get("actions", []):
+                    for other_action in other.data.get("actions", []):
                         if self_action["type"] == other_action["type"] and self_action["type"] == "send_msg":
                             if jaro_distance(self_action["text"], other_action["text"]) >= 0.8:
                                 return True
@@ -152,6 +152,7 @@ class GraphDifferenceNode(Node):
     graph = None
     left_origin_node: Node = None
     right_origin_node: Node = None
+    origin_exits_map: dict = None
     conflicts: list = None
     data: OrderedDict = None
 
@@ -163,6 +164,7 @@ class GraphDifferenceNode(Node):
         self.graph = graph
         self.conflicts = conflicts if conflicts else []
         self.data = OrderedDict(uuid=self.uuid)
+        self.origin_exits_map = {}
 
     def __str__(self):
         return self.uuid
@@ -190,46 +192,12 @@ class GraphDifferenceNode(Node):
     def copy_data(self, origin):
         self.data.update(origin.data)
 
-    def correct_uuids(self, used_exit_uuids: set):
+    def correct_uuids(self):
         self.data["uuid"] = self.uuid
 
-        # replace exit uuid with new uuid when exit uuid like that has been already used
-        passible_uuids = set()
-        current_uuids = {ext["uuid"] for ext in self.data["exits"]}
-        duplicated_uuids = current_uuids.intersection(used_exit_uuids)
-        if duplicated_uuids:
-            if self.left_origin_node and self.right_origin_node:
-                passible_uuids = {
-                    *{ext["uuid"] for ext in self.left_origin_node.data["exits"]},
-                    *{ext["uuid"] for ext in self.right_origin_node.data["exits"]},
-                }
-            else:
-                passible_uuids = {
-                    ext["uuid"] for ext in (self.left_origin_node or self.right_origin_node).data["exits"]
-                }
-
-        passible_uuids = passible_uuids.difference(current_uuids)
-        for exit_uuid in duplicated_uuids:
-            new_uuid = passible_uuids.pop()
-            if "router" in self.data:
-                if self.data["router"].get("default_category_uuid") == exit_uuid:
-                    self.data["router"]["default_category_uuid"] = new_uuid
-
-                if "categories" in self.data["router"]:
-                    for category in self.data["router"]["categories"]:
-                        if category["exit_uuid"] == exit_uuid:
-                            category["exit_uuid"] = new_uuid
-
-                for ext in self.data["exits"]:
-                    if ext["uuid"] == exit_uuid:
-                        ext["uuid"] = new_uuid
-
-        # correct destination uuids according to new nodes
-        for destination in self.data["exits"]:
-            dest_uuid = destination.get("destination_uuid")
-            if dest_uuid:
-                child = self.get_child(dest_uuid)
-                destination["destination_uuid"] = getattr(child, "uuid")
+        if "categories" in self.data.get("router", {}):
+            for category in self.data["router"]["categories"]:
+                category["exit_uuid"] = self.origin_exits_map.get(category["exit_uuid"], category["exit_uuid"])
 
     def check_categories(self):
         if not (self.left_origin_node or self.right_origin_node).has_router:
@@ -280,7 +248,6 @@ class GraphDifferenceNode(Node):
 
         self.data["router"]["categories"] = categories
         self.data["router"]["default_category_uuid"] = default_category
-        self.data["exits"] = exits
 
     def check_cases(self):
         if "router" not in self.data:
@@ -301,28 +268,80 @@ class GraphDifferenceNode(Node):
 
         self.data["router"]["cases"] = cases
 
+    def check_exits(self):
+        def get_exits_data(data):
+            if not data:
+                return {}
+
+            result_data = {}
+            categories_data = {}
+            if data.get("router", {}).get("categories"):
+                categories_data = {
+                    category["exit_uuid"]: "Other" if category["name"] == "All Responses" else category["name"]
+                    for category in data["router"]["categories"]
+                }
+            for exit_item in data["exits"]:
+                result_data[exit_item["uuid"]] = {
+                    "category": categories_data.get(exit_item["uuid"], "All Responses"),
+                    "destination": getattr(
+                        self.graph.diff_nodes_origin_map.get(exit_item.get("destination_uuid")), "uuid", None
+                    ),
+                }
+            return result_data
+
+        left_data = get_exits_data(getattr(self.left_origin_node, "data", {}))
+        right_data = get_exits_data(getattr(self.right_origin_node, "data", {}))
+        merged_exits = []
+
+        if left_data and right_data:
+            matches = []
+            for uuid_l, data_l in left_data.items():
+                for uuid_r, data_r in right_data.items():
+                    if data_l["category"] == data_r["category"]:
+                        matches.append((uuid_l, uuid_r))
+                        merged_exits.append(
+                            {
+                                "uuid": uuid_l,
+                                "destination_uuid": data_l.get("destination") or data_r.get("destination"),
+                            }
+                        )
+                        self.origin_exits_map[uuid_l] = uuid_l
+                        self.origin_exits_map[uuid_r] = uuid_l
+
+            left_matched, right_matched = zip(*matches)
+
+            for uuid_l, data_l in left_data.items():
+                if uuid_l not in left_matched:
+                    self.origin_exits_map[uuid_l] = uuid_l
+                    merged_exits.append({"uuid": uuid_l, "destination_uuid": data_l.get("destination")})
+
+            for uuid_r, data_r in right_data.items():
+                if uuid_r not in right_matched:
+                    self.origin_exits_map[uuid_r] = uuid_r
+                    merged_exits.append({"uuid": uuid_r, "destination_uuid": data_r.get("destination")})
+        else:
+            exits_data = left_data or right_data
+            for uuid, data in exits_data.items():
+                self.origin_exits_map[uuid] = uuid
+                merged_exits.append({"uuid": uuid, "destination_uuid": data.get("destination")})
+        self.data["exits"] = merged_exits
+
     def check_routers(self):
         left = (self.left_origin_node or {}).data.get("router")
         right = (self.right_origin_node or {}).data.get("router")
-
-        if self.left_origin_node and self.right_origin_node:
-            self.data["exits"] = self.left_origin_node.data["exits"]
-        elif bool(self.left_origin_node) != bool(self.right_origin_node):
-            self.data["exits"] = (self.left_origin_node or self.right_origin_node).data["exits"]
+        conflict = {"conflict_type": NodeConflictTypes.ROUTER_CONFLICT, "left_router": left, "right_router": right}
 
         if left and right:
             if left["type"] != right["type"]:
-                self.conflicts.append(NodeConflictTypes.ROUTER_CONFLICT)
+                conflict["field"] = "type"
+                self.conflicts.append(conflict)
                 return
             self.data["router"] = left
-            self.data["exits"] = self.left_origin_node.data["exits"]
         elif bool(left) != bool(right):
             if left:
                 self.data["router"] = left
-                self.data["exits"] = self.left_origin_node.data["exits"]
             if right:
                 self.data["router"] = right
-                self.data["exits"] = self.right_origin_node.data["exits"]
 
     def check_actions(self):
         left = self.left_origin_node.data["actions"]
@@ -377,28 +396,33 @@ class GraphDifferenceNode(Node):
             "left_action": l_action,
             "right_action": r_action,
         }
-        if l_action["type"] in ("send_msg", "say_msg"):
+        if l_action["type"] in ("send_msg", "say_msg", "send_broadcast"):
             if l_action["text"] != r_action["text"]:
                 conflict["field"] = "text"
                 return conflict
 
-    def update_used_exit_uuids(self, used_exit_uuids=None):
-        if used_exit_uuids is not None and "exits" in self.data:
-            for ext in self.data["exits"]:
-                used_exit_uuids.add(ext["uuid"])
+        if l_action["type"] in ("add_contact_urn"):
+            if l_action["path"] != r_action["path"]:
+                conflict["field"] = "path"
+                return conflict
 
-    def check_difference(self, used_exit_uuids=None):
+        # TODO: add checks for other types of actions
+        # TODO: add merge labels
+        # TODO: add merge groups and contacts in [send broadcast, ]
+
+    def check_difference(self):
         if bool(self.left_origin_node) != bool(self.right_origin_node):
             self.copy_data(self.left_origin_node or self.right_origin_node)
-            self.correct_uuids(used_exit_uuids)
+            self.check_exits()
+            self.correct_uuids()
             return
 
         self.check_routers()
+        self.check_exits()
         self.check_categories()
         self.check_cases()
         self.check_actions()
-        self.correct_uuids(used_exit_uuids)
-        self.update_used_exit_uuids(used_exit_uuids)
+        self.correct_uuids()
 
     def resolve_conflict(self, value):
         conflict = self.conflicts.pop(0)
@@ -582,11 +606,10 @@ class GraphDifferenceMap:
         return pairs, bool(node_a.children and node_b.children)
 
     def check_differences(self):
-        used_exit_uuids = set()
         conflicts = dict()
         nodes = list()
         for node in self.diff_nodes_map.values():
-            node.check_difference(used_exit_uuids)
+            node.check_difference()
             if node.conflicts:
                 conflicts[node.uuid] = node.conflicts
             nodes.append(node.data)
@@ -606,20 +629,22 @@ class GraphDifferenceMap:
         }
         merged_ui = {flow_uuid: origin_ui[flow_uuid] for flow_uuid in self.diff_nodes_map.keys()}
         self.definition["_ui"]["nodes"] = merged_ui
-    
+
     def get_conflict_solutions(self):
         conflict_solutions = []
         for uuid, conflicts in self.conflicts.items():
             for conflict in conflicts:
                 if conflict["conflict_type"] == NodeConflictTypes.ACTION_CONFLICT:
-                    conflict_solutions.append({
-                        "uuid": uuid,
-                        "node_type": getattr(self.diff_nodes_map.get(uuid, {}), "node_types", [None]).pop(),
-                        "solutions": [
-                            conflict["left_action"][conflict["field"]],
-                            conflict["right_action"][conflict["field"]],
-                        ]
-                    })
+                    conflict_solutions.append(
+                        {
+                            "uuid": uuid,
+                            "node_type": getattr(self.diff_nodes_map.get(uuid, {}), "node_types", [None]).pop(),
+                            "solutions": [
+                                conflict["left_action"][conflict["field"]],
+                                conflict["right_action"][conflict["field"]],
+                            ],
+                        }
+                    )
         return conflict_solutions
 
     def apply_conflict_resolving(self, conflict_resolving):
@@ -629,11 +654,7 @@ class GraphDifferenceMap:
                 self.conflicts[node_uuid] = updated_conflicts
             else:
                 del self.conflicts[node_uuid]
-        self.definition["nodes"] = [
-            node.data for node in self.diff_nodes_map.values()
-        ]
-
-
+        self.definition["nodes"] = [node.data for node in self.diff_nodes_map.values()]
 
     def compare_graphs(self):
         self.match_flow_steps()

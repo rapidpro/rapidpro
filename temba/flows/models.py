@@ -4106,13 +4106,18 @@ class MergeFlowsTask(TembaModel):
         try:
             with transaction.atomic():
                 backup_metadata = {}
+                uuids_metadata = self.merging_metadata or {}
+                origin_node_uuids = uuids_metadata.get("origin_node_uuids", {})
+                origin_exit_uuids = uuids_metadata.get("origin_exit_uuids", {})
                 target = self.target
+                source_metadata = dict(self.source.metadata)
+                target_metadata = dict(self.target.metadata)
 
                 # import merge changes
                 backup_metadata["source_name"] = self.source.name
                 backup_metadata["target_name"] = target.name
                 backup_metadata["terget_backup"] = target.as_json()
-                target.import_definition(self.created_by, self.definition, {})
+                target.save_revision(self.created_by, self.definition)
                 target.name = self.merge_name
                 target.save()
 
@@ -4157,18 +4162,58 @@ class MergeFlowsTask(TembaModel):
                 links.update(related_flow=self.target)
 
                 # move analytics data
+                # move node counts
                 node_counts = self.source.node_counts.all()
                 backup_metadata["moved_node_counts"] = list(node_counts.values_list("id", flat=True))
-                node_counts.update(flow=self.target)
 
+                # update uuids for current counts
+                for node_count in self.target.node_counts.all().order_by("-count"):
+                    node_count.node_uuid = origin_node_uuids.get(str(node_count.node_uuid), node_count.node_uuid)
+                    node_count.save()
+
+                # transfer counts from source flow
+                for node_count in self.source.node_counts.all():
+                    node_count.node_uuid = origin_node_uuids.get(str(node_count.node_uuid), node_count.node_uuid)
+                    node_count.flow = self.target
+                    node_count.save()
+
+                # move path counts
                 path_counts = self.source.path_counts.all()
                 backup_metadata["path_path_counts"] = list(path_counts.values_list("id", flat=True))
-                path_counts.update(flow=self.target)
 
+                # update uuids for current counts
+                for path_count in self.target.path_counts.all():
+                    path_count.from_uuid = origin_exit_uuids.get(str(path_count.from_uuid), path_count.from_uuid)
+                    path_count.to_uuid = origin_node_uuids.get(str(path_count.to_uuid), path_count.to_uuid)
+                    path_count.save()
+
+                # transfer counts from source flow
+                for path_count in self.source.path_counts.all():
+                    path_count.from_uuid = origin_exit_uuids.get(str(path_count.from_uuid), path_count.from_uuid)
+                    path_count.to_uuid = origin_node_uuids.get(str(path_count.to_uuid), path_count.to_uuid)
+                    path_count.flow = self.target
+                    path_count.save()
+
+                # move category counts
                 category_counts = self.source.category_counts.all()
                 backup_metadata["path_category_counts"] = list(category_counts.values_list("id", flat=True))
-                category_counts.update(flow=self.target)
 
+                # update uuids for current counts
+                for category_count in self.target.category_counts.all():
+                    category_count.node_uuid = origin_node_uuids.get(
+                        str(category_count.node_uuid), category_count.node_uuid
+                    )
+                    category_count.save()
+
+                # transfer counts from source flow
+                for category_count in self.source.category_counts.all():
+                    category_count.node_uuid = origin_node_uuids.get(
+                        str(category_count.node_uuid), category_count.node_uuid
+                    )
+                    category_count.flow = self.target
+                    category_count.save()
+
+                # move exit counts
                 exits = self.source.exit_counts.all()
                 backup_metadata["moved_flow_run_exits"] = list(exits.values_list("id", flat=True))
                 for source_exit in exits:
@@ -4182,23 +4227,24 @@ class MergeFlowsTask(TembaModel):
                     source_exit.save()
 
                 # move flow metadata
-                waiting_exits = self.source.metadata.get("waiting_exit_uuids", [])
+                waiting_exits = source_metadata.get("waiting_exit_uuids", [])
                 backup_metadata["moved_waiting_exits"] = waiting_exits
-                self.target.metadata["waiting_exit_uuids"] = [
-                    *self.target.metadata.get("waiting_exit_uuids", []),
-                    *waiting_exits
-                ]
+                waiting_exit_uuids = [*target_metadata.get("waiting_exit_uuids", []), *waiting_exits]
+                for index, exit_uuid in enumerate(waiting_exit_uuids):
+                    waiting_exit_uuids[index] = origin_exit_uuids.get(exit_uuid, exit_uuid)
+                self.target.metadata["waiting_exit_uuids"] = list(set(waiting_exit_uuids))
 
-                results = self.source.metadata.get("results", [])
+                results = source_metadata.get("results", [])
                 backup_metadata["moved_results"] = results
-                self.target.metadata["results"] = [
-                    *self.target.metadata.get("results", []),
-                    *results
-                ]
+                results = [*target_metadata.get("results", []), *results]
+                for result in results:
+                    for index, node_uuid in enumerate(result.get("node_uuids", [])):
+                        result["node_uuids"][index] = origin_node_uuids.get(node_uuid, node_uuid)
+                self.target.metadata["results"] = results
 
                 # archive source
                 self.source.archive()
-                self.merging_metadata = backup_metadata
+                self.merging_metadata.update(backup_metadata)
                 self.save()
 
                 org = self.target.org
@@ -4216,6 +4262,8 @@ class MergeFlowsTask(TembaModel):
                 )
         except Exception as e:
             logger.error(str(e), exc_info=True)
+            org = self.target.org
+            branding = org.get_branding()
             email_subject = "%s: Flow Merging Failed"
             email_template = "flows/email/flow_merging_error"
             send_template_email(
