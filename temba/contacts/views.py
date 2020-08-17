@@ -691,6 +691,10 @@ class ContactCRUDL(SmartCRUDL):
             """
             org = self.derive_org()
             column_controls = []
+
+            cf_qs = ContactField.user_fields.active_for_org(org=org).order_by("label")
+            cf_labels_choices = [(c.label, c.label) for c in cf_qs]
+
             for header_col in column_headers:
 
                 header = header_col
@@ -699,7 +703,7 @@ class ContactCRUDL(SmartCRUDL):
 
                 header_key = slugify_with(header)
 
-                include_field = forms.BooleanField(label=" ", required=False, initial=True)
+                include_field = forms.BooleanField(label=" ", required=False, initial=True, widget=CheckboxWidget(attrs={"widget_only": True}))
                 include_field_name = "column_%s_include" % header_key
 
                 label_initial = ContactField.get_by_label(org, header.title())
@@ -708,7 +712,13 @@ class ContactCRUDL(SmartCRUDL):
                 if label_initial:
                     label_field_initial = label_initial.label
 
-                label_field = forms.CharField(initial=label_field_initial, required=False, label=" ")
+                label_field = forms.ChoiceField(initial=label_field_initial, choices=cf_labels_choices, required=False, label=" ",
+                    widget=SelectWidget(attrs={
+                        "widget_only": True,
+                        "searchable": True,
+                        "tags": True,
+                    }
+                ))
 
                 label_field_name = "column_%s_label" % header_key
 
@@ -717,7 +727,7 @@ class ContactCRUDL(SmartCRUDL):
                     type_field_initial = label_initial.value_type
 
                 type_field = forms.ChoiceField(
-                    label=" ", choices=Value.TYPE_CHOICES, required=True, initial=type_field_initial
+                    label=" ", choices=Value.TYPE_CHOICES, required=True, initial=type_field_initial, widget=SelectWidget(attrs={"widget_only": True})
                 )
                 type_field_name = "column_%s_type" % header_key
 

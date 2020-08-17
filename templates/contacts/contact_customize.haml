@@ -21,25 +21,25 @@
         %fieldset
           %table
             -for column_control in column_controls
-              %tr.custom-field
-                %td.field-include-checkbox
+              %tr.custom-field.content-center.flex.w-full
+                %td.field-include-checkbox.mt-4.flex-none
                   {% render_field column_control.include_field %}
-                %td.field-form-label
+                %td.field-form-label.flex-grow
                   %div
                     %i {{ column_control.header|title }}
                     -trans "column as"
                 %td.field-as-name
                   {% render_field column_control.label_field %}
-                %td.field-form-label.for-type
+                %td.field-form-label.for-type.flex-none
                   %div
                     -blocktrans
                       of type
-                %td.field-as-type.for-type
+                %td.field-as-type.for-type.flex-none
                   {% render_field column_control.type_field %}
 
-      .form-buttons
-        %input.btn.btn-primary{type:"submit", value:"Add Fields"}
-        %a.btn{onclick:"javascript:history.go(-1)"}
+      .flex.mt-4
+        %input.button-primary{type:"submit", value:"Add Fields"}
+        .ml-4.button-light{onclick:"javascript:history.go(-1)"}
           -trans "Cancel"
 
 -block extra-script
@@ -124,33 +124,23 @@
       font-weight: bold;
     }
 
-    .field-as-type select {
-      width: 100px;
+    .field-as-type {
+      width: 120px;
     }
-
-    .field-include-checkbox {
-      display: inline-block;
-      margin-bottom: 3px;
-    }
-
-    .field-include-checkbox input {
-      margin-bottom: 12px;
-    }
-
-    .field-include-checkbox .glyph {
-      margin-top: -8px;
-    }
-
-
 
     .field-form-label div {
       margin-bottom: 7px;
       padding: 0 5px;
       margin-top: 12px;
     }
-    .field-as-name input {
+    .field-as-name  {
       width: 200px;
     }
+
+    .field-as-type {
+       width: 120px;
+    }
+
     .field-as-type, .field-as-name {
       vertical-align: top;
     }
@@ -160,5 +150,5 @@
     }
 
     .for-type {
-      display: none;
+
     }
