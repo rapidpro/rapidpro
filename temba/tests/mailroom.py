@@ -21,6 +21,8 @@ class Mocks:
         self._contact_search = {}
         self._errors = []
 
+        self.queued_batch_tasks = []
+
     @staticmethod
     def _parse_query_response(query: str, elastic: Dict, fields: List, allow_as_group: bool):
         def field_ref(f):
@@ -145,9 +147,19 @@ def mock_mailroom(f):
     """
 
     def wrapped(instance, *args, **kwargs):
-        with patch("temba.mailroom.get_client") as mock_get_client:
+        with patch("temba.mailroom.get_client") as mock_get_client, patch(
+            "temba.mailroom.queue._queue_batch_task"
+        ) as mock_queue_batch_task:
             mocks = Mocks()
             mock_get_client.return_value = TestClient(mocks)
+
+            def queue_batch_task(org_id, task_type, task, priority):
+                mocks.queued_batch_tasks.append(
+                    {"type": task_type.value, "org_id": org_id, "task": task, "queued_on": timezone.now()}
+                )
+
+            mock_queue_batch_task.side_effect = queue_batch_task
+
             return f(instance, mocks, *args, **kwargs)
 
     return wrapped

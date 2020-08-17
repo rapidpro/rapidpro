@@ -2945,7 +2945,6 @@ class ContactTest(TembaTest):
 
         now = timezone.now()
         self.set_contact_field(self.joe, "planting_date", (now + timedelta(days=1)).isoformat(), legacy_handle=True)
-        EventFire.update_campaign_events(self.campaign)
 
         # should have seven fires, one for each campaign event
         self.assertEqual(7, EventFire.objects.filter(event__is_active=True).count())
@@ -5335,9 +5334,6 @@ class ContactTest(TembaTest):
             men_group = self.create_group("Boys", query='gender = "male" AND age >= 18')
             women_group = self.create_group("Girls", query='gender = "female" AND age >= 18')
 
-            for c in [self.frank, self.joe, self.mary]:
-                c.handle_update(is_new=True)
-
             joe_flow = self.create_flow()
             joes_campaign = Campaign.create(self.org, self.admin, "Joe Reminders", joes_group)
             joes_event = CampaignEvent.create_flow_event(
@@ -5350,7 +5346,9 @@ class ContactTest(TembaTest):
                 flow=joe_flow,
                 delivery_hour=17,
             )
-            EventFire.update_campaign_events(joes_campaign)
+
+            for c in [self.frank, self.joe, self.mary]:
+                c.handle_update(is_new=True)
 
             # check initial group members added correctly
             self.assertEqual([self.frank, self.joe, self.mary], list(mtn_group.contacts.order_by("name")))
@@ -7164,9 +7162,6 @@ class ESIntegrationTest(TembaNonAtomicTest):
 
         # should have updated count
         self.assertEqual(81, adults.get_member_count())
-
-        # should now have 81 events instead
-        self.assertEqual(81, EventFire.objects.filter(event=event, fired=None).count())
 
 
 class PopulateLastSeenOn2Test(MigrationTest):
