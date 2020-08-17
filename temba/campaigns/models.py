@@ -487,7 +487,7 @@ class CampaignEvent(TembaModel):
                 scheduled = scheduled.replace(hour=self.delivery_hour, minute=0, second=0, microsecond=0)
 
             # if we've changed utcoffset (DST shift), tweak accordingly (this keeps us at the same hour of the day)
-            elif str(tz) != "UTC" and date_value.utcoffset() != scheduled.utcoffset():
+            elif str(tz) != "UTC" and date_value.utcoffset() != scheduled.utcoffset():  # pragma: needs cover
                 scheduled = tz.normalize(date_value.utcoffset() - scheduled.utcoffset() + scheduled)
 
             # ignore anything in the past

@@ -1150,6 +1150,18 @@ class CampaignTest(TembaTest):
             scheduled = EventFire.objects.get(contact=self.farmer2, event=new_planting_reminder).scheduled
             self.assertEqual("21-8-2020", "%s-%s-%s" % (scheduled.day, scheduled.month, scheduled.year))
 
+            # give our non farmer a planting date
+            self.set_contact_field(self.nonfarmer, "planting_date", "20-05-2020 12:30:10", legacy_handle=True)
+
+            # now update to the non-farmer group
+            self.nonfarmers = self.create_group("Not Farmers", [self.nonfarmer])
+            post_data = dict(name="Planting Reminders", group=self.nonfarmers.pk)
+            self.client.post(reverse("campaigns.campaign_update", args=[new_campaign.pk]), post_data)
+
+            # which will cause event to be cloned again
+            new_planting_reminder.refresh_from_db()
+            self.assertFalse(new_planting_reminder.is_active)
+
     def test_update_to_non_date(self):
         # create our campaign and event
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
@@ -1203,6 +1215,16 @@ class CampaignTest(TembaTest):
             mr_mocks.queued_batch_tasks,
         )
 
+        # if any event fires already exist, scheduling will trigger cloning the event
+        EventFire.objects.create(event=planting_reminder, contact=self.farmer1, scheduled=timezone.now(), fired=None)
+
+        EventFire.update_campaign_events(campaign)
+
+        planting_reminder.refresh_from_db()
+        self.assertFalse(planting_reminder.is_active)
+
+        planting_reminder_new = campaign.events.get(is_active=True)
+
         # ok, set a planting date on one of our contacts
         self.set_contact_field(self.farmer1, "planting_date", "05-10-2020 12:30:10", legacy_handle=True)
 
@@ -1218,7 +1240,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(self.farmer1, fire.contact)
 
         planting_reminder = campaign.get_events().first()
-        self.assertEqual(planting_reminder, fire.event)
+        self.assertEqual(planting_reminder_new, fire.event)
 
         self.assertIsNone(fire.fired)
 
