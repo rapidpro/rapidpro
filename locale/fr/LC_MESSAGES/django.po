@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-10 22:45+0000\n"
+"POT-Creation-Date: 2020-08-17 23:36+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2511,6 +2511,12 @@ msgstr "Désolé, aucun numéro trouvé, veuillez entrer un autre motif et rées
 msgid "Calls"
 msgstr "Appels"
 
+msgid "Messages"
+msgstr "Messages"
+
+msgid "Other Interactions"
+msgstr "Autres interactions"
+
 msgid "The name of your bot"
 msgstr "Le nom de votre bot"
 
@@ -3393,6 +3399,9 @@ msgstr "Samedi"
 msgid "Download"
 msgstr "Télécharger"
 
+msgid "Export Flow Results"
+msgstr "Exportation des résultats du flux"
+
 msgid "Your flow contains an invalid loop. Please refresh your browser."
 msgstr "Votre flux contient une boucle non valide. Veuillez actualiser votre navigateur."
 
@@ -3476,6 +3485,9 @@ msgstr "Impossible de créer un nouveau global car la limite est %(limit)s."
 
 msgid "Isn't a valid name"
 msgstr "N'est pas un nom valide"
+
+msgid "Value"
+msgstr "Valeur"
 
 msgid "Manage Globals"
 msgstr "Gérer les variables globales"
@@ -3890,9 +3902,6 @@ msgstr "Mettre à jour le dossier"
 msgid "Update Label"
 msgstr "Mise à jour du libellé"
 
-msgid "Messages"
-msgstr "Messages"
-
 msgid "Campaigns"
 msgstr "Campagnes"
 
@@ -4158,24 +4167,37 @@ msgstr "%(name)s Alerte Crédits"
 msgid "Used"
 msgstr "Utilisé"
 
-msgid "Your email address"
-msgstr "Votre adresse mail"
+#, fuzzy
+#| msgid "First Name"
+msgid "First name"
+msgstr "Prénom"
+
+#, fuzzy
+#| msgid "Last Name"
+msgid "Last name"
+msgstr "Nom"
+
+msgid "name@domain.com"
+msgstr "name@domain.com"
 
 #, fuzzy
 #| msgid "The timezone your organization is in"
 msgid "The timezone for your workspace"
 msgstr "Le fuseau horaire de votre organisation"
 
-msgid "Your password, at least eight letters please"
-msgstr "Votre mot de passe, au moins huit lettres s'il vous plait "
+#, fuzzy
+#| msgid "Please enter at least 8 characters"
+msgid "At least eight characters"
+msgstr "S'il vous plaît entrer au moins 8 caractères"
 
 msgid "Workspace"
 msgstr ""
 
-#, fuzzy
-#| msgid "The name of your bot"
-msgid "The name of your workspace"
-msgstr "Le nom de votre bot"
+msgid "A workspace is usually the name of a company or project"
+msgstr ""
+
+msgid "My Company, Inc."
+msgstr ""
 
 msgid "That email address is already used"
 msgstr "Cette adresse email est déjà utilisée"
@@ -4399,6 +4421,9 @@ msgstr "Ce mot de passe n'est pas valide. Choisissez un nouveau mot de passe et 
 msgid "Invite people to your workspace"
 msgstr "Invitez les gens à votre organisation"
 
+msgid "Enter emails of people to invite"
+msgstr "Entrez les courriels de personnes à inviter"
+
 msgid "User group"
 msgstr "Groupe d'utilisateurs"
 
@@ -4426,6 +4451,11 @@ msgstr "Choisissez votre Organisation"
 #| msgid "Purchased Credits"
 msgid "Transfer Credits"
 msgstr "Crédits achetés"
+
+#, fuzzy
+#| msgid "The name of your bot"
+msgid "The name of your workspace"
+msgstr "Le nom de votre bot"
 
 #, fuzzy
 #| msgid "Select your Organization"
@@ -4461,11 +4491,19 @@ msgstr "Votre prénom"
 msgid "Your last name"
 msgstr "Votre nom"
 
+msgid "Your email address"
+msgstr "Votre adresse mail"
+
+msgid "Your password, at least eight letters please"
+msgstr "Votre mot de passe, au moins huit lettres s'il vous plait "
+
 msgid "Welcome!"
 msgstr "Bienvenu !"
 
-msgid "Create Workspace Login"
-msgstr ""
+#, fuzzy
+#| msgid "Create Account"
+msgid "Create Workspace Account"
+msgstr "Créer un compte"
 
 msgid "Sign Up"
 msgstr "Inscrivez-vous"
@@ -4488,9 +4526,6 @@ msgstr "Données manquantes: nom de l'agent ou clé de l'API. Veuillez les véri
 msgid "Your Account"
 msgstr "Votre compte"
 
-msgid "Logout"
-msgstr "Déconnexion"
-
 msgid "Add Channel"
 msgstr "Ajouter un canal"
 
@@ -4499,6 +4534,11 @@ msgstr "Ajouter un classificateur"
 
 msgid "Add Ticketing Service"
 msgstr ""
+
+#, fuzzy
+#| msgid "Sign Up"
+msgid "Sign Out"
+msgstr "Inscrivez-vous"
 
 msgid "Login"
 msgstr "S'identifier"
@@ -5074,6 +5114,21 @@ msgstr "Écoulé"
 msgid "Time"
 msgstr "Temps"
 
+#, fuzzy
+#| msgid "Recent Webhook Events"
+msgid "Webhook Event"
+msgstr "Événements Webhook récents"
+
+#, fuzzy
+#| msgid "Request URL"
+msgid "Request Time"
+msgstr "URL de demande"
+
+#, fuzzy
+#| msgid "Request URL"
+msgid "Request Time:"
+msgstr "URL de demande"
+
 msgid "Archives"
 msgstr "Archives"
 
@@ -5367,9 +5422,6 @@ msgstr "Pas d'appels correspondants"
 msgid "Channel Events"
 msgstr "Événements du canal"
 
-msgid "Other Interactions"
-msgstr "Autres interactions"
-
 msgid "Recent Channel Events"
 msgstr "Channel récents événements"
 
@@ -5385,6 +5437,11 @@ msgstr "terminé"
 msgid "Channel interaction"
 msgstr "Interaction du canal"
 
+#, fuzzy
+#| msgid "Request URL"
+msgid "Request time"
+msgstr "URL de demande"
+
 msgid "Channel Event"
 msgstr "Evénement du relayeur"
 
@@ -5393,6 +5450,21 @@ msgstr "Message d'erreur"
 
 msgid "Message Log"
 msgstr "Journal des messages"
+
+#, fuzzy
+#| msgid "Recipients"
+msgid "Recipient"
+msgstr "Destinataires"
+
+#, fuzzy
+#| msgid "Expiration Date"
+msgid "Date"
+msgstr "Date d'expiration"
+
+#, fuzzy
+#| msgid "Direction"
+msgid "Duration"
+msgstr "Direction"
 
 msgid "Error"
 msgstr "Erreur"
@@ -7263,14 +7335,11 @@ msgstr ""
 msgid "archive"
 msgstr "archive"
 
-msgid "You can import your contacts from an XLS file you create in Excel."
-msgstr "Vous pouvez importer vos contacts à partir d'un fichier XLS que vous créez dans Excel."
+msgid "Import Contacts"
+msgstr "Importer des contacts"
 
-msgid "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
-msgstr "Le numéro de téléphone de chaque ligne doit être <i>URN:tel</i> (indicatif du pays) et le nom du contact, le cas échéant."
-
-msgid "You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
-msgstr "Vous pouvez également inclure des valeurs de champs de contact personnalisées dans le fichier XLS pour les colonnes avec le préfixe <i>Field:</i>, par exemple: <i>Field:Team</i>."
+msgid "You can import your contacts from an XLS file you create in Excel. Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available. You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
+msgstr ""
 
 msgid "URN:Tel"
 msgstr "URN:Tel"
@@ -7317,11 +7386,13 @@ msgstr "Langue du contact"
 msgid "Only valid ISO639-3 codes supportted"
 msgstr "Seuls les codes ISO 639-3 valides sont pris en charge"
 
-msgid ""
-"\n"
-"                  You will have the option to choose the columns to import and to which field to import them.\n"
-"\n"
-"                "
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "                  You will have the option to choose the columns to import and to which field to import them.\n"
+#| "\n"
+#| "                "
+msgid "You will have the option to choose the columns to import and to which field to import them."
 msgstr ""
 "\n"
 "                  Vous aurez la possibilité de choisir les colonnes à importer et dans quel champ les importer.\n"
@@ -7331,36 +7402,25 @@ msgstr ""
 msgid "IGNORED"
 msgstr "IGNORÉ"
 
-#, python-format
-msgid ""
-"\n"
-"                          Created %(create_count)s new contact\n"
-"                          "
-msgid_plural ""
-"\n"
-"                            Created %(create_count)s new contacts\n"
-"\n"
-"                        "
-msgstr[0] ""
-"\n"
-"                          Crée %(create_count)s nouveau contact\n"
-"                          "
-msgstr[1] ""
-"\n"
-"                            Créé %(create_count)s nouveaux contacts\n"
-"\n"
-"                        "
+#, fuzzy, python-format
+#| msgid "Create a contact "
+msgid "Created %(create_count)s new contact"
+msgid_plural "Created %(create_count)s new contacts"
+msgstr[0] "Créer un contact"
+msgstr[1] "Créer un contact"
 
-#, python-format
-msgid ""
-"\n"
-"                          Updated %(update_count)s contact with an existing phone number\n"
-"                          "
-msgid_plural ""
-"\n"
-"                            Updated %(update_count)s contacts with existing phone numbers\n"
-"\n"
-"                        "
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "                          Updated %(update_count)s contact with an existing phone number\n"
+#| "                          "
+#| msgid_plural ""
+#| "\n"
+#| "                            Updated %(update_count)s contacts with existing phone numbers\n"
+#| "\n"
+#| "                        "
+msgid "Updated %(update_count)s contact with an existing phone number"
+msgid_plural "Updated %(update_count)s contacts with existing phone numbers"
 msgstr[0] ""
 "\n"
 "                          Mise à jour de %(update_count)s contact avec un numéro de téléphone existant\n"
@@ -7371,43 +7431,31 @@ msgstr[1] ""
 "\n"
 "                        "
 
-msgid ""
-"\n"
-"                        Added all contacts to the new\n"
-"                      "
-msgstr ""
-"\n"
-"                        Ajout de tous les contacts à la nouvelle\n"
-"                      "
+#, fuzzy
+#| msgid "Add Contacts to Flow"
+msgid "Added all contacts to the new"
+msgstr "Ajouter des contact à un flux"
 
-msgid ""
-"\n"
-"                              Some rows were not imported\n"
-"                            "
+msgid "Some rows were not imported"
 msgstr ""
-"\n"
-"                              Certaines lignes n'ont pas été importées\n"
-"                            "
 
-msgid ""
-"\n"
-"                              Errors description\n"
-"                            "
-msgstr ""
-"\n"
-"                              Description des erreurs\n"
-"                            "
+#, fuzzy
+#| msgid "Description"
+msgid "Errors description"
+msgstr "Description"
 
-#, python-format
-msgid ""
-"\n"
-"                        Failed to import %(error_count)s contact due to missing or invalid phone number\n"
-"                        "
-msgid_plural ""
-"\n"
-"                          Failed to import %(error_count)s contacts due to missing or invalid phone numbers\n"
-"\n"
-"                      "
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "                        Failed to import %(error_count)s contact due to missing or invalid phone number\n"
+#| "                        "
+#| msgid_plural ""
+#| "\n"
+#| "                          Failed to import %(error_count)s contacts due to missing or invalid phone numbers\n"
+#| "\n"
+#| "                      "
+msgid "Failed to import %(error_count)s contact due to missing or invalid phone number"
+msgid_plural "Failed to import %(error_count)s contacts due to missing or invalid phone numbers"
 msgstr[0] ""
 "\n"
 "                        Échec de l'importation de %(error_count)s contact en raison de numéro de téléphone manquant ou invalide\n"
@@ -7418,35 +7466,27 @@ msgstr[1] ""
 "\n"
 "                      "
 
-msgid ""
-"\n"
-"                            Errors description\n"
-"\n"
-"                          "
-msgstr ""
-"\n"
-"                            Description des erreurs\n"
-"\n"
-"                          "
-
-msgid ""
-"\n"
-"                        No contacts imported, please make sure your have a channel connected.\n"
-"\n"
-"                      "
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "                        No contacts imported, please make sure your have a channel connected.\n"
+#| "\n"
+#| "                      "
+msgid "No contacts imported, please make sure your have a channel connected."
 msgstr ""
 "\n"
 "                        Aucun contact importé, assurez-vous qu'un canal est connecté.\n"
 "\n"
 "                      "
 
-#, python-format
-msgid ""
-"\n"
-"                  You can download\n"
-"                  <a href='%(STATIC_URL)sexamples/contacts.xls'>this Excel template</a>\n"
-"                  as a sample.\n"
-"                "
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "                  You can download\n"
+#| "                  <a href='%(STATIC_URL)sexamples/contacts.xls'>this Excel template</a>\n"
+#| "                  as a sample.\n"
+#| "                "
+msgid "You can download <a href='%(STATIC_URL)sexamples/contacts.xls'>this Excel template</a> as a sample."
 msgstr ""
 "\n"
 "Vous pouvez télécharge\n"
@@ -7463,9 +7503,6 @@ msgstr "Supprimer des contacts"
 #| msgid "Are you sure you want to delete these contacts?"
 msgid "Are you sure you want to delete these contacts? This cannot be undone."
 msgstr "Êtes-vous sûr de vouloir supprimer ces contacts?"
-
-msgid "Import Contacts"
-msgstr "Importer des contacts"
 
 #, fuzzy
 #| msgid "Contact Groups"
@@ -8145,9 +8182,6 @@ msgstr "Télécharger"
 msgid "Back"
 msgstr "Retour"
 
-msgid "Export Flow Results"
-msgstr "Exportation des résultats du flux"
-
 msgid "Create Label"
 msgstr "Créer un libellé"
 
@@ -8229,18 +8263,22 @@ msgstr[0] "<b>%(count)s</b> exécution"
 msgstr[1] "<b>%(count)s</b> exécutions"
 
 #, fuzzy
+#| msgid "Flow to start"
+msgid "No flow starts"
+msgstr "Début du flux"
+
+#, fuzzy
 #| msgid "Are you sure you want to remove this label?"
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "Etes-vous sûr de vouloir supprimer ce libellé?"
 
-msgid "cannot be deleted because it is in use. Usage summary:"
+#, fuzzy, python-format
+#| msgid "cannot be deleted because it is in use. Usage summary:"
+msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
 msgstr "ne peut pas être supprimé car il est en cours d'utilisation. Résumé d'utilisation:"
 
 msgid "Flows:"
 msgstr "Flux:"
-
-msgid "Are you sure you want to delete this global?"
-msgstr "Voulez-vous vraiment supprimer cette variable globale?"
 
 msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
 msgstr "Une fois supprimé, ce global sera définitivement perdu. Il n'y a aucun moyen d'annuler cette opération."
@@ -8263,8 +8301,13 @@ msgstr "Créer une variable globale"
 msgid "Globals"
 msgstr "Variables Globales"
 
-msgid "No globals"
-msgstr "Pas de variables globales"
+#, fuzzy, python-format
+#| msgid "Found %(results_count)s message in last 90 days matching <i>%(search)s</i>."
+#| msgid_plural "Found %(results_count)s messages in last 90 days matching <i>%(search)s</i>."
+msgid "Found %(results_count)s global matching <i>%(search)s</i>."
+msgid_plural "Found %(results_count)s globals matching <i>%(search)s</i>."
+msgstr[0] "%(results_count)s message trouvé au cours des 90 derniers jours pour <i>%(search)s</i>."
+msgstr[1] "%(results_count)s messages trouvés au cours des 90 derniers jours pour <i>%(search)s</i>."
 
 msgid "Update Global"
 msgstr "Mettre à jour la variable globale"
@@ -8272,8 +8315,13 @@ msgstr "Mettre à jour la variable globale"
 msgid "Delete Global"
 msgstr "Supprimer la variable globale"
 
-msgid "Uses"
-msgstr "Utilisations"
+#, fuzzy
+#| msgid "Details"
+msgid "Global Details"
+msgstr "Détails"
+
+msgid "No globals"
+msgstr "Pas de variables globales"
 
 msgid "messages"
 msgstr "messages"
@@ -8315,9 +8363,6 @@ msgstr "orgs"
 
 msgid "end"
 msgstr ""
-
-msgid "logout"
-msgstr "déconnexion"
 
 msgid "sign in"
 msgstr "se connecter"
@@ -9525,19 +9570,26 @@ msgstr[1] ""
 msgid "Manage Workspaces"
 msgstr "Choisissez votre Organisation"
 
+#, fuzzy
+#| msgid "Start Export"
+msgid "Create Export"
+msgstr "Lancer l'exportation"
+
 msgid "Show Archived"
 msgstr "Montrer les éléments archivés"
 
 msgid "Hide Archived"
 msgstr "Cacher les éléments archivés"
 
-msgid ""
-"\n"
-"    Select all of the items below that you would like to include in your export. We've grouped them\n"
-"    together based on which flows and campaigns work with each other. Any related triggers will automatically\n"
-"    be included in the export.\n"
-"\n"
-"  "
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "    Select all of the items below that you would like to include in your export. We've grouped them\n"
+#| "    together based on which flows and campaigns work with each other. Any related triggers will automatically\n"
+#| "    be included in the export.\n"
+#| "\n"
+#| "  "
+msgid "Select all of the items below that you would like to include in your export. We've grouped them together based on which flows and campaigns work with each other. Any related triggers will automatically be included in the export."
 msgstr ""
 "\n"
 "Sélectionner tous les éléments ci-dessous que vous souhaitez inclure dans votre exportation. Nous les avons regroupés\n"
@@ -9587,10 +9639,9 @@ msgstr "Ne procédez pas à moins que vous ne souhaitiez remplacer vos flux et c
 msgid "Add guest viewers to"
 msgstr "Ajouter des utilisateurs invités a"
 
-msgid "Enter emails of people to invite"
-msgstr "Entrez les courriels de personnes à inviter"
-
-msgid "You have been invited to join"
+#, fuzzy, python-format
+#| msgid "You have been invited to join"
+msgid "You have been invited to join %(name)s."
 msgstr "Vous avez été invité à rejoindre"
 
 msgid "Please click Join to accept the invitation."
@@ -9688,6 +9739,20 @@ msgstr "Page des paramètres de Nexmo"
 msgid "in the API Settings section."
 msgstr "dans la section des paramètres de l'API."
 
+msgid "You are currently subscribed to TextIt. Thank you for your support!"
+msgstr ""
+
+#, fuzzy
+#| msgid "Reverse Billing"
+msgid "Billing"
+msgstr "facturation inverse"
+
+msgid "You are currently on the Trial plan which is limited to 100 contacts."
+msgstr ""
+
+msgid "Upgrade"
+msgstr ""
+
 msgid "Connect Plivo"
 msgstr "Connecter Plivo"
 
@@ -9753,16 +9818,20 @@ msgstr "événements de flux"
 msgid "configured."
 msgstr "configuré."
 
+msgid "Create Account"
+msgstr "Créer un compte"
+
+#, python-format
+msgid "Creating a %(brand)s account is free and only takes a minute. If you alread have an account, you can"
+msgstr ""
+
 #, fuzzy
-#| msgid "What organization is this account for?"
-msgid "Which workspace is this login for?"
-msgstr "Quel est l'organisme appartient ce compte?"
+#| msgid "Sign in"
+msgid "Sign In"
+msgstr "Connectez-vous"
 
-msgid "name@domain.com"
-msgstr "name@domain.com"
-
-msgid "Please enter at least 8 characters"
-msgstr "S'il vous plaît entrer au moins 8 caractères"
+msgid "instead."
+msgstr ""
 
 msgid "Remove SMTP configuration"
 msgstr "Supprimer la configuration SMTP"
@@ -10138,9 +10207,6 @@ msgstr ""
 "\n"
 "          Sélectionnez un champ existant ou tapez un nom pour créer un nouveau champ.\n"
 "        "
-
-msgid "Value"
-msgstr "Valeur"
 
 msgid ""
 "\n"
@@ -11291,16 +11357,18 @@ msgstr "Bienvenu !"
 
 msgid ""
 "\n"
-"    Please sign in with your email address and password. If you don't remember\n"
-"    your password, you can <a href=\"/users/user/forget/\">reset it</a>.\n"
+"    Please sign in with your email address and password.\n"
 "\n"
 "  "
 msgstr ""
 
+msgid "Don't have an account yet?"
+msgstr ""
+
 #, fuzzy
-#| msgid "Sign in"
-msgid "Sign In"
-msgstr "Connectez-vous"
+#| msgid "Sign Up"
+msgid "Sign up"
+msgstr "Inscrivez-vous"
 
 msgid "Login Failure"
 msgstr ""
@@ -11581,6 +11649,90 @@ msgstr "Entrez une requête"
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
 
+#~ msgid "Logout"
+#~ msgstr "Déconnexion"
+
+#~ msgid "You can import your contacts from an XLS file you create in Excel."
+#~ msgstr "Vous pouvez importer vos contacts à partir d'un fichier XLS que vous créez dans Excel."
+
+#~ msgid "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
+#~ msgstr "Le numéro de téléphone de chaque ligne doit être <i>URN:tel</i> (indicatif du pays) et le nom du contact, le cas échéant."
+
+#~ msgid "You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
+#~ msgstr "Vous pouvez également inclure des valeurs de champs de contact personnalisées dans le fichier XLS pour les colonnes avec le préfixe <i>Field:</i>, par exemple: <i>Field:Team</i>."
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "                          Created %(create_count)s new contact\n"
+#~ "                          "
+#~ msgid_plural ""
+#~ "\n"
+#~ "                            Created %(create_count)s new contacts\n"
+#~ "\n"
+#~ "                        "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "                          Crée %(create_count)s nouveau contact\n"
+#~ "                          "
+#~ msgstr[1] ""
+#~ "\n"
+#~ "                            Créé %(create_count)s nouveaux contacts\n"
+#~ "\n"
+#~ "                        "
+
+#~ msgid ""
+#~ "\n"
+#~ "                        Added all contacts to the new\n"
+#~ "                      "
+#~ msgstr ""
+#~ "\n"
+#~ "                        Ajout de tous les contacts à la nouvelle\n"
+#~ "                      "
+
+#~ msgid ""
+#~ "\n"
+#~ "                              Some rows were not imported\n"
+#~ "                            "
+#~ msgstr ""
+#~ "\n"
+#~ "                              Certaines lignes n'ont pas été importées\n"
+#~ "                            "
+
+#~ msgid ""
+#~ "\n"
+#~ "                              Errors description\n"
+#~ "                            "
+#~ msgstr ""
+#~ "\n"
+#~ "                              Description des erreurs\n"
+#~ "                            "
+
+#~ msgid ""
+#~ "\n"
+#~ "                            Errors description\n"
+#~ "\n"
+#~ "                          "
+#~ msgstr ""
+#~ "\n"
+#~ "                            Description des erreurs\n"
+#~ "\n"
+#~ "                          "
+
+#~ msgid "Are you sure you want to delete this global?"
+#~ msgstr "Voulez-vous vraiment supprimer cette variable globale?"
+
+#~ msgid "Uses"
+#~ msgstr "Utilisations"
+
+#~ msgid "logout"
+#~ msgstr "déconnexion"
+
+#, fuzzy
+#~| msgid "What organization is this account for?"
+#~ msgid "Which workspace is this login for?"
+#~ msgstr "Quel est l'organisme appartient ce compte?"
+
 #~ msgid "Flow starting rules"
 #~ msgstr "Règles de démarrage de flux"
 
@@ -11604,9 +11756,6 @@ msgstr "${count} trouvé pour ${query}"
 
 #~ msgid "Extra URNs"
 #~ msgstr "URNs supplémentaires"
-
-#~ msgid "Add Contacts to Flow"
-#~ msgstr "Ajouter des contact à un flux"
 
 #~ msgid "The name of this label"
 #~ msgstr "Le nom de ce label"
@@ -11705,9 +11854,6 @@ msgstr "${count} trouvé pour ${query}"
 
 #~ msgid "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>."
 #~ msgstr "Vous ne pouvez pas créer un groupe dynamique basé sur <strong>id</strong> ou <strong>group</strong>."
-
-#~ msgid "Start Export"
-#~ msgstr "Lancer l'exportation"
 
 #~ msgid "blocked"
 #~ msgstr "bloqué"
@@ -11934,9 +12080,6 @@ msgstr "${count} trouvé pour ${query}"
 
 #~ msgid "Sun"
 #~ msgstr "Dim"
-
-#~ msgid "Flow to start"
-#~ msgstr "Début du flux"
 
 #~ msgid "conversation"
 #~ msgstr "conversation"
@@ -12191,9 +12334,6 @@ msgstr "${count} trouvé pour ${query}"
 
 #~ msgid "Accounts"
 #~ msgstr "Comptes"
-
-#~ msgid "Create Account"
-#~ msgstr "Créer un compte"
 
 #~ msgid "ACCOUNT"
 #~ msgstr "COMPTE"
