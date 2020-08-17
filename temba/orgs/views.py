@@ -1292,7 +1292,7 @@ class OrgCRUDL(SmartCRUDL):
 
     class ManageAccounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class AccountsForm(forms.ModelForm):
-            invite_emails = forms.CharField(label=_("Invite people to your workspace"), required=False, widget=InputWidget())
+            invite_emails = forms.CharField(label=_("Invite people to your workspace"), required=False, widget=InputWidget(attrs={"placeholder": _("Enter emails of people to invite")}))
             invite_group = forms.ChoiceField(
                 choices=(("A", _("Administrators")), ("E", _("Editors")), ("V", _("Viewers")), ("S", _("Surveyors"))),
                 required=True,
@@ -1309,7 +1309,7 @@ class OrgCRUDL(SmartCRUDL):
                     field_mapping = []
 
                     for group in groups:
-                        check_field = forms.BooleanField(required=False)
+                        check_field = forms.BooleanField(required=False, widget=CheckboxWidget(attrs={"widget_only": True}))
                         field_name = "%s_%d" % (group.lower(), user.pk)
 
                         field_mapping.append((field_name, check_field))
@@ -1325,7 +1325,7 @@ class OrgCRUDL(SmartCRUDL):
                 for invite in invites:
                     field_name = "%s_%d" % ("remove_invite", invite.pk)
                     self.fields = OrderedDict(
-                        list(self.fields.items()) + [(field_name, forms.BooleanField(required=False))]
+                        list(self.fields.items()) + [(field_name, forms.BooleanField(required=False, widget=CheckboxWidget(attrs={"widget_only": True})))]
                     )
                     fields_by_invite[invite] = field_name
 
