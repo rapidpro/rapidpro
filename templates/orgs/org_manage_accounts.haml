@@ -11,49 +11,8 @@
     {% lessblock %}
       :plain
 
-        #id-channel {
-          a {
-            text-decoration:none;
-            &:hover {
-              text-decoration:none;
-            }
-          }
-        }
-
         tr.invites-title th {
           border: none
-        }
-
-        tr.invite td {
-          color: #ddd;
-
-          &.invite-remove {
-            color: #999999;
-          }
-        }
-
-        .glyph.level-checkbox:before {
-          content: "\e004";
-        }
-
-        td.check.checked .glyph.level-checkbox:before {
-          content: "\e05a";
-        }
-
-        .glyph.level-checkbox.checked:before {
-          content: "\e05a";
-        }
-
-        .glyph.level-checkbox {
-          font-family: 'temba';
-          speak: none;
-          font-style: normal;
-          font-weight: normal;
-          line-height: 1;
-          -webkit-font-smoothing: antialiased;
-          margin-top: 6px;
-          margin-right: 5px;
-          margin-top:2px;
         }
 
         .formax-form .table th, .table td {
@@ -72,9 +31,6 @@
           border-top: 1px solid #eee;
         }
 
-        #plan-form ul.errorlist li {
-          color: #fff;
-        }
     {% endlessblock %}
 
 -block extra-style
@@ -124,7 +80,7 @@
                   {{form|field:check_name}}
           %td.check.permission.level-checkbox
             .flex.justify-center
-              %temba-checkbox()
+              %temba-checkbox(name="")
 
       // pending invites
       %tr
@@ -134,16 +90,32 @@
 
       -for invite in invites
         %tr.invite
-          %td
+          %td.opacity-50
             {{invite.email}} (Invite Sent)
           %td.permission
-            .glyph.level-checkbox{class:'{% if invite.user_group == "A"%}checked{%endif%}'}
+            .flex.justify-center.opacity-25.pointer-events-none
+              -if invite.user_group == "A"
+                %temba-checkbox.pointer-events-none(name="" checked)
+              -else
+                %temba-checkbox.pointer-events-none(name="")
           %td.permission
-            .glyph.level-checkbox{class:'{% if invite.user_group == "E"%}checked{%endif%}'}
+            .flex.justify-center.opacity-25.pointer-events-none
+              -if invite.user_group == "E"
+                %temba-checkbox.pointer-events-none(name="" checked)
+              -else
+                %temba-checkbox.pointer-events-none(name="")
           %td.permission
-            .glyph.level-checkbox{class:'{% if invite.user_group == "V"%}checked{%endif%}'}
+            .flex.justify-center.opacity-25.pointer-events-none
+              -if invite.user_group == "V"
+                %temba-checkbox.pointer-events-none(name="" checked)
+              -else
+                %temba-checkbox.pointer-events-none(name="")
           %td.permission
-            .glyph.level-checkbox{class:'{% if invite.user_group == "S"%}checked{%endif%}'}
+            .flex.justify-center.opacity-25.pointer-events-none
+              -if invite.user_group == "S"
+                %temba-checkbox.pointer-events-none(name="" checked)
+              -else
+                %temba-checkbox.pointer-events-none(name="")
           - with invites_fields|get:invite as check_name
             %td.permission.invite-perm.invite-remove.level-checkbox
               .flex.justify-center
@@ -248,5 +220,3 @@
 
       });
     });
-
-
