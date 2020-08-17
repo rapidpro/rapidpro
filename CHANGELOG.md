@@ -1,3 +1,44 @@
+v5.7.11
+----------
+ * Fix creating of campaign events based on last_seen_on
+ * Tweak msg_console so it can include sent messages which are not replies
+ * Fix mailroom_db command
+ * Expose last_seen_on on contact API endpoint
+
+v5.7.10
+----------
+ * Update floweditor to 1.9.10
+ * Add Last Seen On as a system field so it can be used in campaigns
+ * Tweak search_archives command to allow JSONL output
+
+v5.7.9
+----------
+ * Fix reading of S3 event streams
+ * Migration to populate contact.last_seen_on from msg archives
+
+v5.7.8
+----------
+ * Add plan_end field to Orgs
+
+v5.7.7
+----------
+ * Add search archives management command
+
+v5.7.6
+----------
+ * Optimizations to migration to backfill last_seen_on
+
+v5.7.5
+----------
+ * Add migration to populate contact.last_seen_on
+ * Update to latest temba-components with support for refresh work
+
+v5.7.4
+----------
+ * Use new metadata field from mailroom searching endpoints
+ * Make sure we have only one active trigger when importing flows
+ * Fix org selector and header text alignment when editor is open
+
 v5.7.3
 ----------
  * Add contact.last_seen_on

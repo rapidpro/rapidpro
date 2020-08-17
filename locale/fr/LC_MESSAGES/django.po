@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-28 21:40+0000\n"
+"POT-Creation-Date: 2020-08-11 20:41+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -60,9 +60,6 @@ msgstr "Message"
 
 msgid "Run"
 msgstr "Exécuter"
-
-msgid "The archive we were rolled up into, if any"
-msgstr "Les archives dans lesquelles nous avons été rassemblées, le cas échéant"
 
 msgid "Archive"
 msgstr "Archives"
@@ -2647,12 +2644,6 @@ msgstr "Identifiant Freshchat"
 msgid "VK identifier"
 msgstr "Identifiant VK"
 
-msgid "ID"
-msgstr "Identifiant"
-
-msgid "Language"
-msgstr "Langue"
-
 msgid "Label"
 msgstr "Etiquette"
 
@@ -2667,6 +2658,9 @@ msgstr "Champ en vedette"
 
 msgid "The name of this contact"
 msgstr "Le nom de ce contact"
+
+msgid "Language"
+msgstr "Langue"
 
 msgid "The preferred language for this contact"
 msgstr "La langue préférée pour ce contact"
@@ -3956,12 +3950,6 @@ msgstr "Désolé, votre carte a été refusée. Veuillez contacter votre fournis
 
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
 msgstr "Désolé, nous n'avons pas pu traiter votre paiement. Veuillez réessayer ultérieurement ou contactez-nous."
-
-msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
-msgstr "Désolé, nous ne pouvons pas annuler votre plan pour le moment. Contactez nous s'il vous plait."
-
-msgid "Sorry, we were unable to charge your card, please try again later or contact us."
-msgstr "Désolé, nous n'avons pas pu charger votre carte. Veuillez réessayer ultérieurement ou contactez-nous."
 
 msgid "Viewer"
 msgstr "Spectateur"
@@ -11007,6 +10995,18 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "ID"
+#~ msgstr "Identifiant"
+
+#~ msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
+#~ msgstr "Désolé, nous ne pouvons pas annuler votre plan pour le moment. Contactez nous s'il vous plait."
+
+#~ msgid "Sorry, we were unable to charge your card, please try again later or contact us."
+#~ msgstr "Désolé, nous n'avons pas pu charger votre carte. Veuillez réessayer ultérieurement ou contactez-nous."
+
+#~ msgid "The archive we were rolled up into, if any"
+#~ msgstr "Les archives dans lesquelles nous avons été rassemblées, le cas échéant"
 
 #, fuzzy, python-format
 #~| msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."

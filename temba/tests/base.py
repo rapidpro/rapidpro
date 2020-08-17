@@ -13,6 +13,7 @@ from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase
 from django.utils import timezone
 
+from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, clear_flow_users
@@ -461,6 +462,31 @@ class TembaTestMixin:
             description="Looks good",
         )
         return call
+
+    def create_archive(
+        self, archive_type, period, start_date, records=(), needs_deletion=False, rollup_of=(), s3=None, org=None
+    ):
+        archive_hash = uuid4().hex
+        bucket = "s3-bucket"
+        key = f"things/{archive_hash}.jsonl.gz"
+        if s3:
+            s3.put_jsonl(bucket, key, records)
+
+        archive = Archive.objects.create(
+            org=org or self.org,
+            archive_type=archive_type,
+            size=10,
+            hash=archive_hash,
+            url=f"http://{bucket}.aws.com/{key}",
+            record_count=len(records),
+            start_date=start_date,
+            period=period,
+            build_time=23425,
+            needs_deletion=needs_deletion,
+        )
+        if rollup_of:
+            Archive.objects.filter(id__in=[a.id for a in rollup_of]).update(rollup=archive)
+        return archive
 
     def set_contact_field(self, contact, key, value, legacy_handle=False):
         update_field_locally(self.admin, contact, key, value)
