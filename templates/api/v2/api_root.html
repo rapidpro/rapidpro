@@ -16,41 +16,80 @@
          max-width: 100%;
     }
 
-   .button-form {
-       float: right;
-   }
+    .button-form {
+        float: right;
+    }
+ 
+    #get-form {
+        margin-left: 5px;
+    }
+ 
+    .form-horizontal .form-actions {
+        margin-top: 0px;
+        margin-bottom: 0px;
+        padding-top: 0px;
+        padding-bottom: 0px;
+    }
+ 
+    .nav.nav-tabs {
+        margin-bottom: 0px;
+    }
+ 
+    pre {
+        line-height: 18px;
+        font-size:  12px;
+        font-family: monospace;
+    }
+ 
+    .CodeMirror {
+        background: #fff;
+        border: 1px solid #eee;
+        margin-bottom: 10px;
+        height: 200px;
+    }
+ 
+    .str, .atv {
+        color: teal;
+    }
 
-   #get-form {
-       margin-left: 5px;
-   }
+    h1,
+    h2,
+    h3,
+    h4,
+    h5 {
+      font-family: 'Helvetica Neue', 'RobotoThin', sans-serif;
+      letter-spacing: 1px;
+      padding: 0;
+      text-transform: none;
+      font-weight: 100;
+      color: #666;
+      margin-top: 2rem;
+      margin-bottom: 0.75rem;
+    }
+    h1 {
+      font-size: 44px;
+      line-height: 40px;
+    }
+    h2 {
+      font-size: 42px;
+    }
+    h3 {
+      font-size: 26px;
+    }
+    h5 {
+      font-weight: 300;
+      color: #999999;
+      margin-bottom: 5px;
+    }
 
-   .form-horizontal .form-actions {
-       margin-top: 0px;
-       margin-bottom: 0px;
-       padding-top: 0px;
-       padding-bottom: 0px;
-   }
+    ul, ol {
+       padding: 0;
+        margin: 0 0 10px 25px;
+    }
 
-   .nav.nav-tabs {
-       margin-bottom: 0px;
-   }
-
-   pre {
-       line-height: 18px;
-       font-size:  12px;
-       font-family: monospace;
-   }
-
-   .CodeMirror {
-       background: #fff;
-       border: 1px solid #eee;
-       margin-bottom: 10px;
-       height: 200px;
-   }
-
-   .str, .atv {
-       color: teal;
-   }
+    strong {
+       font-weight: bold;
+    }
  </style>
 {% endblock %}
 
@@ -68,7 +107,7 @@
     {% endblock %}
 
     <!-- Content -->
-    <a class="btn btn-primary pull-right" href='{% url "api.v2.explorer" %}' style="margin-left: 10px">API Explorer</a>
+    <a class="button-primary pull-right" href='{% url "api.v2.explorer" %}' style="margin-left: 10px">API Explorer</a>
 
     <div id="content">
         <div class="content-main">
