@@ -3045,6 +3045,13 @@ class FlowCRUDL(SmartCRUDL):
             context["merging_map"] = serialized_difference
             context["conflict_solutions"] = diff_graph.get_conflict_solutions()
 
+            if len([node for node in diff_graph.diff_nodes_map.values() if node.parent is None]) > 1:
+                context["warnings"] = [
+                    _(
+                        "Some of the flow steps are not matched and can break the flow logic. After merging you will need to check all flow steps and resolve issues manually on the flow editor page."
+                    )
+                ]
+
             return self.render_to_response(context)
 
         def post(self, request, *args, **kwargs):
@@ -3097,6 +3104,12 @@ class FlowCRUDL(SmartCRUDL):
                         "errors": errors,
                     }
                 )
+                if len([node for node in difference_map.diff_nodes_map.values() if node.parent is None]) > 1:
+                    context["warnings"] = [
+                        _(
+                            "Some of the flow steps are not matched and can break the flow logic. After merging you will need to check all flow steps and resolve issues manually on the flow editor page."
+                        )
+                    ]
                 return self.render_to_response(context)
 
             if definition:

@@ -55,6 +55,15 @@
                         - for solution in conflict.solutions
                           %option{value: "{{solution}}"}
                             = solution
+          
+          - if warnings
+            .warning
+              .attn
+                -trans "Warning!"
+              
+              - for warning in warnings
+                %p
+                  =warning
         
           .form-buttons
             %input.btn.btn-primary{type:"submit", value:'{% trans "Combine Flows" %}'}
@@ -74,6 +83,21 @@
 
 - block extra-style
   :css
+    .warning {
+      margin-top:20px;
+      margin-bottom:20px;
+      width: 600px;
+      padding: 15px;
+      background: #fff6c0;
+      border: 1px solid #EFE7B4;
+    }
+
+    .warning .attn {
+      font-weight: 500;
+      margin-bottom:8px;
+      font-size:20px;
+    }
+
     .form-buttons {
       margin-top: 10px;
     }
