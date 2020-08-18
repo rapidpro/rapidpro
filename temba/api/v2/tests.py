@@ -1600,6 +1600,7 @@ class APITest(TembaTest):
 
         # put some contacts in a group
         group = self.create_group("Customers", contacts=[self.joe, contact4])
+        other_org_group = self.create_group("Nerds", org=self.org2)
 
         # tweak modified_on so we get the order we want
         self.joe.modified_on = timezone.now()
@@ -1756,6 +1757,10 @@ class APITest(TembaTest):
         self.assertEqual(set(jean.urns.values_list("identity", flat=True)), {"tel:+250783333333", "twitter:jean"})
         self.assertEqual(set(jean.user_groups.all()), {group})
         self.assertEqual(jean.get_field_value(nickname), "Jado")
+
+        # try to create with group from other org
+        response = self.postJSON(url, None, {"name": "Jim", "groups": [other_org_group.uuid]},)
+        self.assertResponseError(response, "groups", f"No such object: {other_org_group.uuid}")
 
         # try to create with invalid fields
         response = self.postJSON(
@@ -2155,6 +2160,7 @@ class APITest(TembaTest):
         group = self.create_group("Testers")
         self.create_field("isdeveloper", "Is developer")
         self.create_group("Developers", query="isdeveloper = YES")
+        other_org_group = self.create_group("Testers", org=self.org2)
 
         # create some "active" runs for some of the contacts
         flow = self.get_flow("favorites_v13")
@@ -2226,6 +2232,12 @@ class APITest(TembaTest):
         # try adding with invalid group UUID
         response = self.postJSON(url, None, {"contacts": [contact3.uuid], "action": "add", "group": "nope"})
         self.assertResponseError(response, "group", "No such object: nope")
+
+        # try to add to a group in another org
+        response = self.postJSON(
+            url, None, {"contacts": [contact1.uuid], "action": "add", "group": other_org_group.uuid}
+        )
+        self.assertResponseError(response, "group", f"No such object: {other_org_group.uuid}")
 
         # remove contact 2 from group by its name (which is case-insensitive)
         response = self.postJSON(url, None, {"contacts": [contact2.uuid], "action": "remove", "group": "testers"})

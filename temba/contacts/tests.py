@@ -3414,6 +3414,24 @@ class ContactTest(TembaTest):
         self.assertEqual(response.context["form"].fields["urn__tel__0"].initial, "+250781111111")
         self.assertEqual(response.context["form"].fields["urn__tel__1"].initial, "+250786666666")
 
+        # try to add joe to a group in another org
+        other_org_group = self.create_group("Nerds", org=self.org2)
+        response = self.client.post(
+            reverse("contacts.contact_update", args=[self.joe.id]),
+            {
+                "name": "Joe Gashyantare",
+                "groups": [other_org_group.id],
+                "urn__tel__0": "+250781111111",
+                "urn__tel__1": "+250786666666",
+            },
+        )
+        self.assertFormError(
+            response,
+            "form",
+            "groups",
+            f"Select a valid choice. {other_org_group.id} is not one of the available choices.",
+        )
+
         # update joe, add him to "Just Joe" group
         post_data = dict(
             name="Joe Gashyantare", groups=[self.just_joe.id], urn__tel__0="+250781111111", urn__tel__1="+250786666666"
