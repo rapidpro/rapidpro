@@ -381,9 +381,9 @@ class GraphDifferenceNode(Node):
                 for l_action in left:
                     for r_action in right:
                         if self.check_actions_pair(l_action, r_action):
-                            conflict = self.check_actions_conflict(l_action, r_action)
-                            if conflict:
-                                self.conflicts.append(conflict)
+                            conflicts = self.check_actions_conflicts(l_action, r_action)
+                            if conflicts:
+                                self.conflicts.extend(conflicts)
                             else:
                                 actions.append(l_action)
                             matched.append((l_action.get("uuid"), r_action.get("uuid")))
@@ -415,25 +415,68 @@ class GraphDifferenceNode(Node):
         is_similar.append("groups" in left and "groups" in right)
         return any(is_similar)
 
-    def check_actions_conflict(self, l_action, r_action):
+    def check_actions_conflicts(self, l_action, r_action):
         conflict = {
             "conflict_type": NodeConflictTypes.ACTION_CONFLICT,
             "left_action": l_action,
             "right_action": r_action,
         }
+
+        if l_action["type"] in ("send_broadcast", "start_session"):
+            contacts = [contact["uuid"] for contact in l_action["contacts"]]
+            groups = [group["uuid"] for group in l_action["groups"]]
+            for contact in r_action["contacts"]:
+                if contact["uuid"] not in contacts:
+                    l_action["contacts"].append(contact)
+            for group in r_action["groups"]:
+                if group["uuid"] not in groups:
+                    l_action["groups"].append(group)
+
+        if l_action["type"] == "add_input_labels":
+            labels = [label["uuid"] for label in l_action["labels"]]
+            for label in r_action["labels"]:
+                if label["uuid"] not in labels:
+                    l_action["labels"].append(label)
+
         if l_action["type"] in ("send_msg", "say_msg", "send_broadcast"):
             if l_action["text"] != r_action["text"]:
                 conflict["field"] = "text"
-                return conflict
+                return [conflict]
 
-        if l_action["type"] in ("add_contact_urn"):
+        if l_action["type"] == "add_contact_urn":
             if l_action["path"] != r_action["path"]:
                 conflict["field"] = "path"
-                return conflict
+                return [conflict]
 
-        # TODO: add checks for other types of actions
-        # TODO: add merge labels
-        # TODO: add merge groups and contacts in [send broadcast, ]
+        if l_action["type"] == "remove_contact_groups":
+            if any((l_action["all_groups"], r_action["all_groups"])):
+                l_action["all_groups"] = True
+                l_action["groups"] = []
+            else:
+                groups = [group["uuid"] for group in l_action["groups"]]
+                for group in r_action["groups"]:
+                    if group["uuid"] not in groups:
+                        l_action["groups"].append(group)
+
+        if l_action["type"] == "send_email":
+            conflicts = []
+            l_action["addresses"] = list(set([*l_action["addresses"], *r_action["addresses"]]))
+            l_action["attachments"] = list(set([*l_action["attachments"], *r_action["attachments"]]))
+            if l_action["body"] != r_action["body"]:
+                body_conflict = dict(conflict)
+                body_conflict["field"] = "body"
+                conflicts.append(body_conflict)
+
+            if l_action["subject"] != r_action["subject"]:
+                subject_conflict = dict(conflict)
+                subject_conflict["field"] = "subject"
+                conflicts.append(subject_conflict)
+            return conflicts
+
+        if l_action["type"] in ("start_session", "enter_flow"):
+            if l_action["flow"]["uuid"] != r_action["flow"]["uuid"]:
+                conflict["field"] = "flow"
+                return conflict
 
     def check_difference(self):
         if bool(self.left_origin_node) != bool(self.right_origin_node):
@@ -452,9 +495,16 @@ class GraphDifferenceNode(Node):
     def resolve_conflict(self, value):
         conflict = self.conflicts.pop(0)
         if conflict["conflict_type"] == NodeConflictTypes.ACTION_CONFLICT:
+            already_created = False
             action = conflict["left_action"]
+            for action_ in self.data["actions"]:
+                if action["uuid"] == action_["uuid"]:
+                    action = action_
+                    already_created = True
+
             action[conflict["field"]] = value
-            self.data["actions"].append(action)
+            if not already_created:
+                self.data["actions"].append(action)
         elif conflict["conflict_type"] == NodeConflictTypes.ROUTER_CONFLICT:
             if conflict["field"] == "type":
                 if conflict["right_router"]["type"] == value:
@@ -661,7 +711,7 @@ class GraphDifferenceMap:
         }
         merged_ui = {flow_uuid: origin_ui[flow_uuid] for flow_uuid in self.diff_nodes_map.keys()}
         self.definition["_ui"]["nodes"] = merged_ui
-    
+
     def merge_localizations(self):
         localization = self.left_graph.resource["localization"]
         for key, value in self.right_graph.resource["localization"].items():
