@@ -697,6 +697,21 @@ MAX_HISTORY = 50
 
 
 class Contact(RequireUpdateFieldsMixin, TembaModel):
+    """
+    A contact represents an individual with which we can communicate and collect data
+    """
+
+    STATUS_ACTIVE = "A"
+    STATUS_BLOCKED = "B"
+    STATUS_STOPPED = "S"
+    STATUS_ARCHIVED = "V"
+    STATUS_CHOICES = (
+        (STATUS_ACTIVE, "Active"),
+        (STATUS_BLOCKED, "Blocked"),
+        (STATUS_STOPPED, "Stopped"),
+        (STATUS_ARCHIVED, "Archived"),
+    )
+
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contacts")
 
     name = models.CharField(
@@ -719,6 +734,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     # custom field values for this contact, keyed by field UUID
     fields = JSONField(null=True)
+
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, null=True)
 
     # user that last modified this contact
     modified_by = models.ForeignKey(
