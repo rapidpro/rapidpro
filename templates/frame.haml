@@ -1,7 +1,9 @@
 <!DOCTYPE HTML>
 -load humanize
 
-%html(lang="{{ LANGUAGE_CODE }}")
+{% block html-tag %}
+<html lang="{{ LANGUAGE_CODE }}">
+{% endblock %}
   %head
     %title
       {% block page-title %}
@@ -456,3 +458,5 @@
         });
       });
 {% endblock body %}
+
+</html>
