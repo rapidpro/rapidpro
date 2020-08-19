@@ -3831,6 +3831,25 @@ class ContactTest(TembaTest):
         self.assertEqual([str(u) for u in contact.urns.all()], ["tel:+250788111111"])
         self.assertEqual(contact.created_by, self.admin)
 
+        # if UUID is included it updates an existing contact
+        contact2 = Contact.create_instance(
+            {
+                "uuid": contact.uuid,
+                "org": self.org,
+                "created_by": self.admin,
+                "name": "Bobby",
+                "urn:tel": "+250788111111",
+            },
+        )
+
+        contact.refresh_from_db()
+        self.assertEqual(contact, contact2)
+        self.assertEqual("Bobby", contact.name)
+
+        # but contact has to be in the right org
+        with self.assertRaises(SmartImportRowError):
+            Contact.create_instance({"uuid": contact.uuid, "org": self.org2, "created_by": self.admin2})
+
     def test_create_instance_with_language(self):
         contact = Contact.create_instance(
             {"org": self.org, "created_by": self.admin, "name": "Bob", "urn:tel": "+250788111111", "language": "fra"}
