@@ -1,3 +1,10 @@
+v5.7.12
+----------
+ * Fix imports that match by UUID
+ * Fix Nexmo search numbers and claim number
+ * Use Django language code on html tag
+ * Add support for ClickMobile channel type
+
 v5.7.11
 ----------
  * Fix creating of campaign events based on last_seen_on

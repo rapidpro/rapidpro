@@ -833,6 +833,37 @@ msgstr ""
 msgid "Invalid phone number, please include the country code. ex: +250788123123"
 msgstr ""
 
+#, python-format
+msgid "If you are based in Malawi or Ghana you can purchase a number from %(link)s and connect it in a few simple steps."
+msgstr ""
+
+msgid "To finish configuring your channel you need to configure Click Mobile to send new messages to the URL below."
+msgstr ""
+
+msgid "The Click Mobile phone number or short code you are connecting with country code. ex: +250788123124"
+msgstr ""
+
+msgid "Ghana"
+msgstr ""
+
+msgid "Your username on Click Mobile"
+msgstr ""
+
+msgid "Your password on Click Mobile"
+msgstr ""
+
+msgid "App ID"
+msgstr ""
+
+msgid "Your app_id on Click Mobile"
+msgstr ""
+
+msgid "Org ID"
+msgstr ""
+
+msgid "Your org_id on Click Mobile"
+msgstr ""
+
 msgid "API Username"
 msgstr ""
 
@@ -2194,9 +2225,6 @@ msgid "Unable to access bothub with credentials, please check and try again"
 msgstr ""
 
 msgid "The name of your LUIS app"
-msgstr ""
-
-msgid "App ID"
 msgstr ""
 
 msgid "The ID for your LUIS app"

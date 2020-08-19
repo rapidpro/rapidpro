@@ -960,6 +960,62 @@ msgstr ""
 "Numéro de téléphone incorrect, s'il vous plaît inclure le code du pays. ex: "
 "+250788123123"
 
+#, fuzzy, python-format
+#| msgid ""
+#| "If you are based in Uganda or DRC you can purchase a short\n"
+#| "    code from <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> and connect it\n"
+#| "    in a few simple steps."
+msgid "If you are based in Malawi or Ghana you can purchase a number from %(link)s and connect it in a few simple steps."
+msgstr ""
+"Si vous résidez en Ouganda ou en RDC, vous pouvez acheter un code court\n"
+"    auprès de <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> et le connecter\n"
+"    en quelques étapes simples."
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your DMark channel you need to set DMark to send MO messages to the URL below.\n"
+#| "        "
+msgid "To finish configuring your channel you need to configure Click Mobile to send new messages to the URL below."
+msgstr ""
+"\n"
+"        Pour terminer la configuration de votre canal DMark, vous devez configurer DMark afin qu’il envoie les messages MO à l’URL ci-dessous.\n"
+"        "
+
+#, fuzzy
+#| msgid "The phone number or short code you are connecting with country code. ex: +250788123124"
+msgid "The Click Mobile phone number or short code you are connecting with country code. ex: +250788123124"
+msgstr "Le numéro de téléphone ou code court vous vous connectez avec le code pays. ex: +250788123124"
+
+msgid "Ghana"
+msgstr ""
+
+#, fuzzy
+#| msgid "Your username on DMark Mobile"
+msgid "Your username on Click Mobile"
+msgstr "Votre nom d'utilisateur sur DMark Mobile"
+
+#, fuzzy
+#| msgid "Your password on DMark Mobile"
+msgid "Your password on Click Mobile"
+msgstr "Votre mot de passe sur DMark Mobile"
+
+msgid "App ID"
+msgstr "ID d'application"
+
+#, fuzzy
+#| msgid "Your password on DMark Mobile"
+msgid "Your app_id on Click Mobile"
+msgstr "Votre mot de passe sur DMark Mobile"
+
+msgid "Org ID"
+msgstr ""
+
+#, fuzzy
+#| msgid "Your password on DMark Mobile"
+msgid "Your org_id on Click Mobile"
+msgstr "Votre mot de passe sur DMark Mobile"
+
 msgid "API Username"
 msgstr "Nom d'utilisateur de l'API"
 
@@ -2895,9 +2951,6 @@ msgstr ""
 
 msgid "The name of your LUIS app"
 msgstr "Le nom de votre application LUIS"
-
-msgid "App ID"
-msgstr "ID d'application"
 
 msgid "The ID for your LUIS app"
 msgstr "L'ID de votre application LUIS"
