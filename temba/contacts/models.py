@@ -735,7 +735,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     # custom field values for this contact, keyed by field UUID
     fields = JSONField(null=True)
 
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, null=True)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_ACTIVE, null=True)
 
     # user that last modified this contact
     modified_by = models.ForeignKey(
@@ -789,10 +789,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     # the import headers which map to contact attributes or URNs rather than custom fields
     ATTRIBUTE_AND_URN_IMPORT_HEADERS = RESERVED_ATTRIBUTES.union(URN.IMPORT_HEADERS)
-
-    STATUS_ACTIVE = "active"
-    STATUS_BLOCKED = "blocked"
-    STATUS_STOPPED = "stopped"
 
     @property
     def anon_identifier(self):
@@ -1981,15 +1977,15 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def apply_action_block(cls, user, contacts):
-        cls.bulk_change_status(user, contacts, Contact.STATUS_BLOCKED)
+        cls.bulk_change_status(user, contacts, modifiers.Status.BLOCKED)
 
     @classmethod
     def apply_action_unblock(cls, user, contacts):
-        cls.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
+        cls.bulk_change_status(user, contacts, modifiers.Status.ACTIVE)
 
     @classmethod
     def apply_action_unstop(cls, user, contacts):
-        cls.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
+        cls.bulk_change_status(user, contacts, modifiers.Status.ACTIVE)
 
     @classmethod
     def apply_action_label(cls, user, contacts, group):
@@ -2009,7 +2005,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Blocks this contact removing it from all non-dynamic groups
         """
 
-        Contact.bulk_change_status(user, [self], Contact.STATUS_BLOCKED)
+        Contact.bulk_change_status(user, [self], modifiers.Status.BLOCKED)
         self.refresh_from_db()
 
     def stop(self, user):
@@ -2017,7 +2013,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Marks this contact has stopped, removing them from all groups.
         """
 
-        Contact.bulk_change_status(user, [self], Contact.STATUS_STOPPED)
+        Contact.bulk_change_status(user, [self], modifiers.Status.STOPPED)
         self.refresh_from_db()
 
     def reactivate(self, user):
@@ -2025,7 +2021,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Reactivates a stopped or blocked contact, re-adding them to any dynamic groups they belong to
         """
 
-        Contact.bulk_change_status(user, [self], Contact.STATUS_ACTIVE)
+        Contact.bulk_change_status(user, [self], modifiers.Status.ACTIVE)
         self.refresh_from_db()
 
     def release(self, user, *, full=True, immediately=False):

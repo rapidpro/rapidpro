@@ -1040,6 +1040,7 @@ class ContactTest(TembaTest):
         self.assertEqual(joe.org, self.org)
         self.assertEqual(joe.name, "Joe")
         self.assertEqual(joe.language, "fra")
+        self.assertEqual(joe.status, Contact.STATUS_ACTIVE)
 
         # calling again with same URN updates and returns existing contact
         contact = Contact.get_or_create_by_urns(
