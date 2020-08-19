@@ -28,6 +28,14 @@ class InputWidget(forms.TextInput):
     template_name = "utils/forms/input.haml"
     is_annotated = True
 
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        context["widget"]["type"] = self.input_type
+
+        if attrs.get("hide_label", False) and context.get("label", None):
+            del context["label"]
+        return context
+
 
 def validate_external_url(value):
     parsed = parse.urlparse(value)

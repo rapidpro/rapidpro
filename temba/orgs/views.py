@@ -245,9 +245,8 @@ class OrgSignupForm(forms.ModelForm):
     timezone = TimeZoneFormField(help_text=_("The timezone for your workspace"), widget=forms.widgets.HiddenInput())
 
     password = forms.CharField(
-        widget=InputWidget(
-            attrs={"widget_only": False, "password": True, "placeholder": _("At least eight characters")},
-        ),
+        help_text="At least eight characters or more",
+        widget=InputWidget(attrs={"hide_label": True, "password": True, "placeholder": _("Password")},),
     )
 
     name = forms.CharField(
@@ -1093,7 +1092,7 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
     class Manage(SmartListView):
-        fields = ("credits", "used", "name", "owner", "service", "created_on")
+        fields = ("plan", "name", "owner", "created_on", "service")
         field_config = {"service": {"label": ""}}
         default_order = ("-credits", "-created_on")
         search_fields = ("name__icontains", "created_by__email__iexact", "config__icontains")
@@ -1113,13 +1112,21 @@ class OrgCRUDL(SmartCRUDL):
                 used_class = "used-alert"
             return mark_safe("<div class='used-pct %s'>%d%%</div>" % (used_class, used_pct))
 
-        def get_credits(self, obj):
+        def get_plan(self, obj):
             if not obj.credits:  # pragma: needs cover
                 obj.credits = 0
-            return mark_safe(
-                "<div class='num-credits'><a href='%s'>%s</a></div>"
-                % (reverse("orgs.topup_manage") + "?org=%d" % obj.id, format(obj.credits, ",d"))
-            )
+
+            if obj.plan == "topups":
+                return mark_safe(
+                    "<div class='num-credits inline-block'><a href='%s'>%s</a></div>%s"
+                    % (
+                        reverse("orgs.topup_manage") + "?org=%d" % obj.id,
+                        format(obj.credits, ",d"),
+                        self.get_used(obj),
+                    )
+                )
+
+            return mark_safe(f"<div class='plan-name'>{obj.plan}</div>")
 
         def get_owner(self, obj):
             # default to the created by if there are no admins
@@ -1133,7 +1140,8 @@ class OrgCRUDL(SmartCRUDL):
             url = reverse("orgs.org_service")
 
             return mark_safe(
-                "<a href='%s?organization=%d' class='service posterize btn btn-tiny'>Service</a>" % (url, obj.id)
+                "<div onclick='goto(event)' href='%s?organization=%d' class='service posterize hover-linked text-gray-400'><div class='icon-wand'></div></div>"
+                % (url, obj.id)
             )
 
         def get_name(self, obj):
@@ -2420,6 +2428,12 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_import"):
                 links.append(dict(title=_("Import"), href=reverse("orgs.org_import")))
+
+            if settings.HELP_URL:
+                if len(links) > 0:
+                    links.append(dict(divider=True))
+
+                links.append(dict(title=_("Help"), href=settings.HELP_URL,))
 
             if len(links) > 0:
                 links.append(dict(divider=True))

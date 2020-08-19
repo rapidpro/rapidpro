@@ -9,11 +9,6 @@
 -block login-content
   -blocktrans trimmed with brand.name as brand
     Creating a {{brand}} account is free and only takes a minute.
-    If you alread have an account, you can
-
-  %a(href="/users/login/")<
-    -trans "Sign In"
-  -trans "instead."
 
   %form.my-6(method="post")
     -csrf_token
@@ -34,7 +29,8 @@
     
     -render_field 'password'
     
-    -render_field 'name'
+    .my-8
+      -render_field 'name'
     
     .hidden
       -with form|field:'timezone' as form_field
@@ -42,6 +38,11 @@
 
     .mt-4
       %input.button-primary{type:'submit', value:'Sign Up'}
+
+    .mt-6
+      Already have an account?
+      %a(href="/users/login/")<
+        -trans "Sign In"
 
 
 -block extra-script

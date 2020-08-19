@@ -144,6 +144,8 @@ COMPRESS_ROOT = os.path.join(PROJECT_DIR, "../sitestatic")
 MEDIA_ROOT = os.path.join(PROJECT_DIR, "../media")
 MEDIA_URL = "/media/"
 
+HELP_URL = None
+
 
 # -----------------------------------------------------------------------------------
 # Templates Configuration

@@ -380,9 +380,15 @@
         });
 
         $(".posterize").click(function(event){
+
+          var ele = event.target;
+          while (ele && !ele.classList.contains("posterize")) {
+            ele = ele.parentElement;
+          }
+
           event.preventDefault();
           event.stopPropagation();
-          handlePosterize(event.target);
+          handlePosterize(ele);
         });
 
 
