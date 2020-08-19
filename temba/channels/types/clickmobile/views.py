@@ -21,7 +21,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             ),
         )
         country = forms.ChoiceField(choices=(("GH", _("Ghana")), ("MW", _("Malawi"))), label=_("Country"),)
-        username = forms.CharField(max_length=32, label=_("Username"), help_text=_("Your username on Click Mobile"))
+        username = forms.CharField(max_length=32, label=_("User ID"), help_text=_("Your user_id on Click Mobile"))
         password = forms.CharField(max_length=64, label=_("Password"), help_text=_("Your password on Click Mobile"))
         app_id = forms.CharField(max_length=32, label=_("App ID"), help_text=_("Your app_id on Click Mobile"))
         org_id = forms.CharField(max_length=32, label=_("Org ID"), help_text=_("Your org_id on Click Mobile"))
