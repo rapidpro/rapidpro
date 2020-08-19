@@ -13,13 +13,13 @@ from django.utils import timezone
 WRITE_BATCH_SIZE = 5000
 
 
-def s3_client():
+def s3_client():  # pragma: no cover
     return boto3.Session(
         aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
     ).client("s3")
 
 
-def iter_records(archive):
+def iter_records(archive):  # pragma: no cover
     s3 = s3_client()
     url_parts = urlparse(archive.url)
     s3_obj = s3.get_object(Bucket=url_parts.netloc.split(".")[0], Key=url_parts.path[1:])
@@ -33,7 +33,7 @@ def iter_records(archive):
         yield json.loads(line.decode("utf-8"))
 
 
-def calculate_last_seen_from(org):
+def calculate_last_seen_from(org):  # pragma: no cover
     # map of contact uuid -> last seen date
     last_seen_by_uuid = {}
 
@@ -59,7 +59,7 @@ def calculate_last_seen_from(org):
     return last_seen_by_uuid
 
 
-def populate_last_seen_on_for_org(apps, org):
+def populate_last_seen_on_for_org(apps, org):  # pragma: no cover
     Contact = apps.get_model("contacts", "Contact")
 
     last_seen_by_uuid = calculate_last_seen_from(org)
@@ -81,7 +81,7 @@ def populate_last_seen_on_for_org(apps, org):
         print(f"   - Updated {len(contact_uuids)} contacts with new last seen values")
 
 
-def populate_last_seen_on(apps, schema_editor):
+def populate_last_seen_on(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
     num_orgs = Org.objects.filter(is_active=True).count()
 
@@ -91,7 +91,7 @@ def populate_last_seen_on(apps, schema_editor):
         populate_last_seen_on_for_org(apps, org)
 
 
-def pop_dict_items(d, count):
+def pop_dict_items(d, count):  # pragma: no cover
     """
     Pop up to count items from the dict d
     """
@@ -104,7 +104,7 @@ def pop_dict_items(d, count):
     return dict(items)
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
