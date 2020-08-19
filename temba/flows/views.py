@@ -382,7 +382,7 @@ class FlowCRUDL(SmartCRUDL):
                         "searchable": True,
                         "tags": True,
                         "space_select": True,
-                        "placeholder": _("Select keywords to tirgger this flow"),
+                        "placeholder": _("Select keywords to trigger this flow"),
                     }
                 ),
             )
