@@ -960,6 +960,49 @@ msgstr ""
 "Numéro de téléphone incorrect, s'il vous plaît inclure le code du pays. ex: "
 "+250788123123"
 
+#, python-format
+msgid ""
+"If you are based in Malawi or Ghana you can purchase a number from %(link)s "
+"and connect it in a few simple steps."
+msgstr ""
+"Si vous êtes basé au Malawi ou au Ghana, vous pouvez acheter un numéro "
+"auprès de %(link)s et le connecter en quelques étapes simples."
+
+msgid ""
+"To finish configuring your channel you need to configure Click Mobile to "
+"send new messages to the URL below."
+msgstr ""
+"Pour terminer la configuration de votre chaîne, vous devez configurer Click "
+"Mobile pour envoyer de nouveaux messages à l'URL ci-dessous."
+
+msgid ""
+"The Click Mobile phone number or short code you are connecting with country "
+"code. ex: +250788123124"
+msgstr ""
+"Le numéro de téléphone Click Mobile ou le code court que vous connectez avec"
+" le code du pays. ex: +250788123124"
+
+msgid "Ghana"
+msgstr "Ghana"
+
+msgid "Your username on Click Mobile"
+msgstr "Votre nom d'utilisateur sur Click Mobile"
+
+msgid "Your password on Click Mobile"
+msgstr "Votre mot de passe sur Click Mobile"
+
+msgid "App ID"
+msgstr "ID d'application"
+
+msgid "Your app_id on Click Mobile"
+msgstr "Votre app_id sur Click Mobile"
+
+msgid "Org ID"
+msgstr "ID de l'organisation"
+
+msgid "Your org_id on Click Mobile"
+msgstr "Votre org_id sur Click Mobile"
+
 msgid "API Username"
 msgstr "Nom d'utilisateur de l'API"
 
@@ -2895,9 +2938,6 @@ msgstr ""
 
 msgid "The name of your LUIS app"
 msgstr "Le nom de votre application LUIS"
-
-msgid "App ID"
-msgstr "ID d'application"
 
 msgid "The ID for your LUIS app"
 msgstr "L'ID de votre application LUIS"
