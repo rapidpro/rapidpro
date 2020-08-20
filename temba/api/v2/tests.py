@@ -1724,9 +1724,12 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"name": None, "language": None, "urns": [], "groups": [], "fields": {}})
         self.assertEqual(response.status_code, 201)
 
-        jaqen = Contact.objects.filter(name=None, language=None).order_by("-pk").first()
-        self.assertEqual(set(jaqen.urns.all()), set())
-        self.assertEqual(set(jaqen.user_groups.all()), set())
+        jaqen = Contact.objects.order_by("id").last()
+        self.assertIsNone(jaqen.name)
+        self.assertIsNone(jaqen.language)
+        self.assertEqual(Contact.STATUS_ACTIVE, jaqen.status)
+        self.assertEqual(set(), set(jaqen.urns.all()))
+        self.assertEqual(set(), set(jaqen.user_groups.all()))
         self.assertIsNone(jaqen.fields)
 
         # create a dynamic group

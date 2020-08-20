@@ -22,7 +22,6 @@ from django.utils import timezone
 
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import WebHookResult
-from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import DELETED_SCHEME
@@ -35,17 +34,8 @@ from temba.mailroom import MailroomException, modifiers
 from temba.msgs.models import Broadcast, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import (
-    AnonymousOrg,
-    CRUDLTestMixin,
-    ESMockWithScroll,
-    MigrationTest,
-    TembaNonAtomicTest,
-    TembaTest,
-    mock_mailroom,
-)
+from temba.tests import AnonymousOrg, CRUDLTestMixin, ESMockWithScroll, TembaNonAtomicTest, TembaTest, mock_mailroom
 from temba.tests.engine import MockSessionWriter
-from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.dates import datetime_to_ms, datetime_to_str
@@ -1050,6 +1040,7 @@ class ContactTest(TembaTest):
         self.assertEqual(joe.org, self.org)
         self.assertEqual(joe.name, "Joe")
         self.assertEqual(joe.language, "fra")
+        self.assertEqual(joe.status, Contact.STATUS_ACTIVE)
 
         # calling again with same URN updates and returns existing contact
         contact = Contact.get_or_create_by_urns(
@@ -7230,121 +7221,3 @@ class ESIntegrationTest(TembaNonAtomicTest):
 
         # should now have 81 events instead, these were created by mailroom
         self.assertEqual(81, EventFire.objects.filter(event=event, fired=None).count())
-
-
-class PopulateLastSeenOn2Test(MigrationTest):
-    app = "contacts"
-    migrate_from = "0110_populate_last_seen_on"
-    migrate_to = "0111_populate_last_seen_on_2"
-
-    def setUp(self):
-        self.mock_s3 = MockS3Client()
-        self.s3_patcher = patch("boto3.session.Session.client", return_value=self.mock_s3)
-        self.s3_patcher.start()
-
-        super().setUp()
-
-    def tearDown(self):
-        self.s3_patcher.stop()
-
-        super().tearDown()
-
-    def setUpBeforeMigration(self, apps):
-        self.contact1 = self.create_contact("Anne", urn="tel:+1234567891")
-        self.contact2 = self.create_contact("Bill", urn="tel:+1234567892")
-        self.contact3 = self.create_contact("Cate", urn="tel:+1234567893")
-
-        self.create_archive(
-            Archive.TYPE_MSG,
-            "D",
-            date(2020, 7, 31),
-            s3=self.mock_s3,
-            records=(
-                [
-                    {
-                        "id": 40,
-                        "broadcast": None,
-                        "contact": {"uuid": self.contact1.uuid, "name": "Anne"},
-                        "urn": None,
-                        "channel": {"uuid": "b1ab642c-e7a5-442d-b3da-0862efb7c207", "name": "24453"},
-                        "direction": "in",
-                        "type": "inbox",
-                        "status": "handled",
-                        "visibility": "archived",
-                        "text": "it me!",
-                        "attachments": [],
-                        "labels": [],
-                        "created_on": "2020-07-31T11:00:00Z",
-                        "sent_on": None,
-                        "modified_on": "2020-07-31T13:00:00Z",
-                    },
-                    {
-                        "contact": {"uuid": self.contact1.uuid, "name": "Anne"},
-                        "direction": "in",
-                        "created_on": "2020-07-31T13:00:00Z",
-                    },
-                    {
-                        "contact": {"uuid": self.contact1.uuid, "name": "Anne"},
-                        "direction": "out",
-                        "created_on": "2020-07-31T15:00:00Z",
-                    },
-                ]
-            ),
-        )
-        self.create_archive(
-            Archive.TYPE_MSG,
-            "M",
-            date(2020, 8, 1),
-            s3=self.mock_s3,
-            records=(
-                [
-                    {
-                        "contact": {"uuid": self.contact2.uuid, "name": "Bill"},
-                        "direction": "in",
-                        "created_on": "2020-08-02T13:00:00Z",
-                    },
-                ]
-            ),
-        )
-
-        Contact.objects.all().update(last_seen_on=None)
-
-        # contact4 has a value already
-        self.contact4 = self.create_contact("Dave", urn="tel:+1234567894")
-        self.create_incoming_msg(self.contact4, text="Hi", created_on=datetime(2020, 8, 4, 13, 0, 0, 0, pytz.UTC))
-        self.contact4.last_seen_on = datetime(2020, 8, 4, 13, 0, 0, 0, pytz.UTC)
-        self.contact4.save(update_fields=("last_seen_on",), handle_update=False)
-
-    def test_migration(self):
-        for c in (self.contact1, self.contact2, self.contact3, self.contact4):
-            c.refresh_from_db()
-
-        self.assertEqual(datetime(2020, 7, 31, 13, 0, 0, 0, pytz.UTC), self.contact1.last_seen_on)
-        self.assertEqual(datetime(2020, 8, 2, 13, 0, 0, 0, pytz.UTC), self.contact2.last_seen_on)
-        self.assertEqual(None, self.contact3.last_seen_on)
-        self.assertEqual(datetime(2020, 8, 4, 13, 0, 0, 0, pytz.UTC), self.contact4.last_seen_on)
-
-
-class LastSeenOnSystemFieldTest(MigrationTest):
-    app = "contacts"
-    migrate_from = "0111_populate_last_seen_on_2"
-    migrate_to = "0112_last_seen_on_sys_field"
-
-    def setUpBeforeMigration(self, apps):
-        # org 2 already has the field
-        self.org2.contactfields.create(
-            field_type="S",
-            key="last_seen_on",
-            label="Last Seen On",
-            value_type="D",
-            show_in_table=False,
-            created_by=self.org2.created_by,
-            modified_by=self.org2.modified_by,
-        )
-
-    def test_migration(self):
-        self.org.refresh_from_db()
-        self.org2.refresh_from_db()
-
-        self.assertEqual(1, self.org.contactfields.filter(field_type="S", key="last_seen_on").count())
-        self.assertEqual(1, self.org2.contactfields.filter(field_type="S", key="last_seen_on").count())
