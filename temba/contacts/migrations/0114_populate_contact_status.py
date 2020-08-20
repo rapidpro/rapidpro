@@ -22,7 +22,7 @@ def populate_contact_status(apps, schema_editor):
         blocked_ids = []
         stopped_ids = []
 
-        for contact in contacts:
+        for contact in batch:
             if contact["status"]:
                 continue
             elif contact["is_stopped"]:
