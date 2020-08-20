@@ -159,7 +159,7 @@ class ManifestView(View):
                 "id": domain,
                 "author": "Nyaruka",
                 "version": "v0.0.1",
-                "channelback_files": False,
+                "channelback_files": True,
                 "push_client_id": settings.ZENDESK_CLIENT_ID,
                 "urls": {
                     "admin_ui": f"https://{domain}{reverse('tickets.types.zendesk.admin_ui')}",
