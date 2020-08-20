@@ -217,7 +217,7 @@ class ContactCRUDLTest(TembaTest):
 
         # and that it works
         self.client.post(block_url, dict(id=self.joe.id))
-        self.assertTrue(Contact.objects.get(pk=self.joe.id, is_blocked=True))
+        self.assertTrue(Contact.objects.get(pk=self.joe.id, status="B"))
 
         # try unblocking now
         response = self.client.get(read_url)
@@ -225,7 +225,7 @@ class ContactCRUDLTest(TembaTest):
         self.assertContains(response, unblock_url)
 
         self.client.post(unblock_url, dict(id=self.joe.id))
-        self.assertTrue(Contact.objects.get(pk=self.joe.id, is_blocked=False))
+        self.assertTrue(Contact.objects.get(pk=self.joe.id, status="A"))
 
         # can't block contacts from other orgs
         response = self.client.post(reverse("contacts.contact_block", args=[other_org_contact.id]))
@@ -233,7 +233,7 @@ class ContactCRUDLTest(TembaTest):
 
         # contact should be unchanged
         other_org_contact.refresh_from_db()
-        self.assertFalse(other_org_contact.is_blocked)
+        self.assertEqual(Contact.STATUS_ACTIVE, other_org_contact.status)
 
         # or unblock...
         other_org_contact.block(self.admin2)
@@ -243,7 +243,7 @@ class ContactCRUDLTest(TembaTest):
 
         # contact should be unchanged
         other_org_contact.refresh_from_db()
-        self.assertTrue(other_org_contact.is_blocked)
+        self.assertEqual(Contact.STATUS_BLOCKED, other_org_contact.status)
 
         unstop_url = reverse("contacts.contact_unstop", args=[self.joe.id])
         delete_url = reverse("contacts.contact_delete", args=[self.joe.id])
@@ -305,7 +305,7 @@ class ContactCRUDLTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         contact.refresh_from_db()
-        self.assertFalse(contact.is_stopped)
+        self.assertEqual(Contact.STATUS_ACTIVE, contact.status)
 
         # can't unstop contact in other org
         unstop_url = reverse("contacts.contact_unstop", args=[other_org_contact.id])
@@ -314,7 +314,7 @@ class ContactCRUDLTest(TembaTest):
 
         # contact should be unchanged
         other_org_contact.refresh_from_db()
-        self.assertTrue(other_org_contact.is_stopped)
+        self.assertEqual(Contact.STATUS_STOPPED, other_org_contact.status)
 
     def test_delete(self):
         contact = self.create_contact("Joe", number="+593979000111")
@@ -1269,8 +1269,7 @@ class ContactTest(TembaTest):
 
         # check that joe is now stopped
         self.joe = Contact.objects.get(pk=self.joe.pk)
-        self.assertTrue(self.joe.is_stopped)
-        self.assertFalse(self.joe.is_blocked)
+        self.assertEqual(Contact.STATUS_STOPPED, self.joe.status)
         self.assertTrue(self.joe.is_active)
 
         # and added to stopped group
@@ -1284,8 +1283,7 @@ class ContactTest(TembaTest):
 
         # check that joe is now blocked instead of stopped
         self.joe = Contact.objects.get(pk=self.joe.pk)
-        self.assertFalse(self.joe.is_stopped)
-        self.assertTrue(self.joe.is_blocked)
+        self.assertEqual(Contact.STATUS_BLOCKED, self.joe.status)
         self.assertTrue(self.joe.is_active)
 
         # and that he's been removed from the all and failed groups, and added to the blocked group
@@ -1308,8 +1306,7 @@ class ContactTest(TembaTest):
 
         # check that joe is now neither blocked or stopped
         self.joe = Contact.objects.get(pk=self.joe.pk)
-        self.assertFalse(self.joe.is_stopped)
-        self.assertFalse(self.joe.is_blocked)
+        self.assertEqual(Contact.STATUS_ACTIVE, self.joe.status)
         self.assertTrue(self.joe.is_active)
 
         # and that he's been removed from the blocked group, and put back in the all and failed groups
@@ -1320,10 +1317,9 @@ class ContactTest(TembaTest):
 
         self.joe.release(self.user)
 
-        # check that joe is no longer active
+        # check that joe has been released (doesn't change his status)
         self.joe = Contact.objects.get(pk=self.joe.pk)
-        self.assertFalse(self.joe.is_stopped)
-        self.assertFalse(self.joe.is_blocked)
+        self.assertEqual(Contact.STATUS_ACTIVE, self.joe.status)
         self.assertFalse(self.joe.is_active)
 
         contact_counts = ContactGroup.get_system_group_counts(self.org)
@@ -3196,7 +3192,7 @@ class ContactTest(TembaTest):
         # viewer also can't block
         post_data["action"] = "block"
         self.client.post(list_url, post_data, follow=True)
-        self.assertFalse(Contact.objects.get(pk=self.joe.id).is_blocked)
+        self.assertEqual(Contact.STATUS_ACTIVE, Contact.objects.get(pk=self.joe.id).status)
 
         # list the contacts as a manager of the organization
         self.login(self.admin)
@@ -3284,7 +3280,7 @@ class ContactTest(TembaTest):
         self.client.post(list_url, {"action": "block", "objects": self.joe.id}, follow=True)
 
         self.joe = Contact.objects.filter(pk=self.joe.pk)[0]
-        self.assertEqual(self.joe.is_blocked, True)
+        self.assertEqual(Contact.STATUS_BLOCKED, self.joe.status)
         self.assertEqual(len(self.just_joe.contacts.all()), 0)
         self.assertEqual(len(self.joe_and_frank.contacts.all()), 1)
 
@@ -3309,7 +3305,7 @@ class ContactTest(TembaTest):
         self.assertEqual(0, response.context["object_list"].count())  # from ContactGroupCount
 
         self.frank.refresh_from_db()
-        self.assertFalse(self.frank.is_stopped)
+        self.assertEqual(Contact.STATUS_ACTIVE, self.frank.status)
 
         # add him back to joe and frank
         self.joe_and_frank.contacts.add(self.frank)
@@ -5007,7 +5003,7 @@ class ContactTest(TembaTest):
         field_dict["name"] = "LaToya Jackson"
         c2 = Contact.create_instance(field_dict)
         self.assertEqual(c1.pk, c2.pk)
-        self.assertFalse(c2.is_blocked)
+        self.assertEqual(Contact.STATUS_ACTIVE, c2.status)
 
         import_params = dict(
             org_id=self.org.id,
@@ -5623,7 +5619,7 @@ class ContactFieldTest(TembaTest):
         self.login(self.admin)
 
         # archive all our current contacts
-        Contact.objects.filter(org=self.org).update(is_blocked=True)
+        Contact.apply_action_block(self.admin, self.org.contacts.all())
 
         # make third a datetime
         self.contactfield_3.value_type = Value.TYPE_DATETIME

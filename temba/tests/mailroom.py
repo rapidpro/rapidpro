@@ -174,13 +174,13 @@ def apply_modifiers(org, user, contacts, modifiers: List):
 
         elif mod.type == "status":
             if mod.status == "blocked":
-                fields = dict(is_blocked=True, is_stopped=False)
+                fields = dict(status=Contact.STATUS_BLOCKED, is_blocked=True, is_stopped=False)
                 clear_groups = True
             elif mod.status == "stopped":
-                fields = dict(is_blocked=False, is_stopped=True)
+                fields = dict(status=Contact.STATUS_STOPPED, is_blocked=False, is_stopped=True)
                 clear_groups = True
             else:
-                fields = dict(is_blocked=False, is_stopped=False)
+                fields = dict(status=Contact.STATUS_ACTIVE, is_blocked=False, is_stopped=False)
 
         elif mod.type == "groups":
             groups = ContactGroup.user_groups.filter(query=None, uuid__in=[g.uuid for g in mod.groups])

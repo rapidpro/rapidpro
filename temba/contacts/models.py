@@ -735,7 +735,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     # custom field values for this contact, keyed by field UUID
     fields = JSONField(null=True)
 
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_ACTIVE, null=True)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
 
     # user that last modified this contact
     modified_by = models.ForeignKey(
@@ -1604,7 +1604,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             )
 
         # if they exist and are blocked, reactivate them
-        if contact.is_blocked:
+        if contact.status == Contact.STATUS_BLOCKED:
             contact.reactivate(user)
 
         # ignore any reserved fields or URN schemes
@@ -1923,8 +1923,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             if getattr(contact, "is_new", False):
                 num_creates += 1
 
-            # do not add blocked or stopped contacts
-            if not contact.is_stopped and not contact.is_blocked:
+            # do not add inactive contacts
+            if contact.status == Contact.STATUS_ACTIVE:
                 group.contacts.add(contact)
 
         # group is now ready to be used in a flow starts etc
@@ -2163,8 +2163,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         from .search import evaluate_query
 
-        # blocked, stopped or test contacts can't be in dynamic groups
-        if self.is_blocked or self.is_stopped:
+        # inactive contacts can't be in dynamic groups
+        if self.status != Contact.STATUS_ACTIVE:
             return set()
 
         # cache contact search json
@@ -2667,7 +2667,7 @@ class ContactGroup(TembaModel):
         group_contacts = self.contacts.all()
 
         for contact in contacts:
-            if add and (contact.is_blocked or contact.is_stopped or not contact.is_active):  # pragma: no cover
+            if add and (contact.status != Contact.STATUS_ACTIVE or not contact.is_active):  # pragma: no cover
                 raise ValueError("Blocked, stopped and deleted contacts can't be added to groups")
 
             contact_changed = False
