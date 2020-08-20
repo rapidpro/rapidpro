@@ -1,3 +1,11 @@
+v5.7.13
+----------
+ * Enable channelback files for Zendesk ticketers
+ * Set status as active for new contacts
+ * Add new status field to contact
+ * Fix legacy editor by putting html-tag block back
+ * Change the label for CM channel claim
+
 v5.7.12
 ----------
  * Fix imports that match by UUID
