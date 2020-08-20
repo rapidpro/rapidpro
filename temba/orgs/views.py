@@ -54,7 +54,13 @@ from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, get_anonymous_user, json, languages, str_to_bool
 from temba.utils.email import is_valid_address
-from temba.utils.fields import ArbitraryChoiceField, CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
+from temba.utils.fields import (
+    ArbitraryJsonChoiceField,
+    CheckboxWidget,
+    InputWidget,
+    SelectMultipleWidget,
+    SelectWidget,
+)
 from temba.utils.http import http_headers
 from temba.utils.text import random_string
 from temba.utils.timezones import TimeZoneFormField
@@ -2877,7 +2883,7 @@ class OrgCRUDL(SmartCRUDL):
     class Languages(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class LanguagesForm(forms.ModelForm):
 
-            primary_lang = ArbitraryChoiceField(
+            primary_lang = ArbitraryJsonChoiceField(
                 required=False,
                 label=_("Primary Language"),
                 widget=SelectWidget(
@@ -2889,7 +2895,7 @@ class OrgCRUDL(SmartCRUDL):
                 ),
             )
 
-            languages = ArbitraryChoiceField(
+            languages = ArbitraryJsonChoiceField(
                 required=False,
                 label=_("Additional Languages"),
                 widget=SelectMultipleWidget(

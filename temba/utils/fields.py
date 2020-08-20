@@ -141,6 +141,11 @@ class OmniboxChoice(forms.Widget):
 
 
 class ArbitraryChoiceField(forms.ChoiceField):
+    def valid_value(self, value):
+        return True
+
+
+class ArbitraryJsonChoiceField(forms.ChoiceField):
     """
     ArbitraryChoiceField serializes names and values as json to support
     loading ajax option lists that aren't known ahead of time

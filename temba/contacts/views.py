@@ -41,7 +41,7 @@ from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
-from temba.utils.fields import CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
+from temba.utils.fields import ArbitraryChoiceField, CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.text import slugify_with
 from temba.utils.views import BulkActionMixin, NonAtomicMixin
@@ -628,9 +628,6 @@ class ContactCRUDL(SmartCRUDL):
                 for key, value in self.data.items():
                     if re_col_name_field.match(key):
                         field_label = value.strip()
-                        if field_label.startswith("[_NEW_]"):
-                            field_label = field_label[7:]
-
                         field_key = ContactField.make_key(field_label)
 
                         if not ContactField.is_valid_label(field_label):
@@ -658,6 +655,7 @@ class ContactCRUDL(SmartCRUDL):
                                 % dict(label=value, key=existing_key)
                             )
 
+                        self.fields[key].choices.append((field_label, field_label))
                         used_labels.append(field_label)
 
                 return self.cleaned_data
@@ -703,7 +701,9 @@ class ContactCRUDL(SmartCRUDL):
 
                 header_key = slugify_with(header)
 
-                include_field = forms.BooleanField(label=" ", required=False, initial=True, widget=CheckboxWidget(attrs={"widget_only": True}))
+                include_field = forms.BooleanField(
+                    label=" ", required=False, initial=True, widget=CheckboxWidget(attrs={"widget_only": True})
+                )
                 include_field_name = "column_%s_include" % header_key
 
                 label_initial = ContactField.get_by_label(org, header.title())
@@ -712,13 +712,12 @@ class ContactCRUDL(SmartCRUDL):
                 if label_initial:
                     label_field_initial = label_initial.label
 
-                label_field = forms.ChoiceField(initial=label_field_initial, choices=cf_labels_choices, required=False, label=" ",
-                    widget=SelectWidget(attrs={
-                        "widget_only": True,
-                        "searchable": True,
-                        "tags": True,
-                    }
-                ))
+                label_field = ArbitraryChoiceField(
+                    initial=label_field_initial,
+                    choices=cf_labels_choices,
+                    required=False,
+                    widget=SelectWidget(attrs={"widget_only": True, "searchable": True, "tags": True}),
+                )
 
                 label_field_name = "column_%s_label" % header_key
 
@@ -727,7 +726,11 @@ class ContactCRUDL(SmartCRUDL):
                     type_field_initial = label_initial.value_type
 
                 type_field = forms.ChoiceField(
-                    label=" ", choices=Value.TYPE_CHOICES, required=True, initial=type_field_initial, widget=SelectWidget(attrs={"widget_only": True})
+                    label=" ",
+                    choices=Value.TYPE_CHOICES,
+                    required=True,
+                    initial=type_field_initial,
+                    widget=SelectWidget(attrs={"widget_only": True}),
                 )
                 type_field_name = "column_%s_type" % header_key
 
@@ -752,21 +755,8 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-
-            org = self.derive_org()
-
             context["column_controls"] = self.column_controls
             context["task"] = self.get_object()
-
-            contact_fields = sorted(
-                [
-                    dict(id=elt["label"], text=elt["label"])
-                    for elt in ContactField.user_fields.active_for_org(org=org).values("label")
-                ],
-                key=lambda k: k["text"].lower(),
-            )
-            context["contact_fields"] = json.dumps(contact_fields)
-
             return context
 
         def get_form_kwargs(self):

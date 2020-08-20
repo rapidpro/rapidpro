@@ -171,7 +171,7 @@
 
 %body#pageBody.bg-gradient
   -include "components-body.html"
-  .flex.flex-col
+  .flex.flex-col.h-full
     <!-- Header -->
     #header
       &nbsp;
@@ -211,7 +211,7 @@
     <!-- Content -->
     -block page-container
       .flex-grow
-        .page-content.w-full
+        .page-content
           .px-12.py-4
             -block page-top
               .flex.items-start
@@ -235,7 +235,7 @@
             
             -block post-content
 
-    .text-center.py-12.text-gray-400
+    .text-center.py-12.bg-gray-200.text-gray-500
       {{ request.branding.credits|safe }}
 
   -trans 'Delete' as title
