@@ -1,9 +1,13 @@
 -extends 'smartmin/update.html'
 
+-load i18n
+
+-block title
+  -trans "Update Policy"
+
 -block extra-style
   :css
-    textarea {
-      width: 100%;
-      height: 600px;
+    html {
+      --textarea-height: 300px;
     }
 

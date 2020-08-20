@@ -152,6 +152,10 @@ a {
   @apply button text-primary bg-white;
 }
 
+.button-danger {
+  @apply button text-white bg-error;
+}
+
 .button-dark-alpha {
   @apply button text-white bg-dark-alpha-200;
 }

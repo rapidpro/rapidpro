@@ -21,7 +21,9 @@ class ComponentFormMixin(View):
         ):
             return field
 
-        if isinstance(field.widget, (forms.widgets.PasswordInput,)):
+        if isinstance(field.widget, (forms.widgets.Textarea,)):
+            field.widget = InputWidget(attrs={"textarea": True})
+        elif isinstance(field.widget, (forms.widgets.PasswordInput,)):
             field.widget = InputWidget(attrs={"password": True})
         elif isinstance(
             field.widget,
@@ -37,6 +39,8 @@ class ComponentFormMixin(View):
             field.widget.choices = field.choices
         elif isinstance(field.widget, (forms.widgets.CheckboxInput,)):
             field.widget = CheckboxWidget()
+        else:
+            print(field.widget)
         return field
 
 
