@@ -1,3 +1,7 @@
+v5.7.14
+----------
+ * Migration to backfill contact status
+
 v5.7.13
 ----------
  * Enable channelback files for Zendesk ticketers
