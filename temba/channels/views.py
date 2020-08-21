@@ -1341,7 +1341,7 @@ class ChannelCRUDL(SmartCRUDL):
                     )
                 )
 
-                if channel.is_android():
+                if channel.is_android() or (channel.parent and channel.parent.is_android()):
 
                     sender = self.get_object().get_sender()
                     if sender and sender.is_delegate_sender():
@@ -1647,7 +1647,7 @@ class ChannelCRUDL(SmartCRUDL):
             channel = self.get_object()
             if channel.parent:
                 return reverse("channels.channel_read", args=[channel.parent.uuid])
-            return reverse("org.org_home")
+            return reverse("orgs.org_home")
 
         def derive_submit_button_name(self):
             channel = self.get_object()

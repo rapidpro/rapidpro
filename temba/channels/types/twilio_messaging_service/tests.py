@@ -67,7 +67,6 @@ class TwilioMessagingServiceTypeTest(TembaTest):
 
         response = self.client.get(claim_twilio_ms)
         self.assertEqual(response.context["form"].fields["country"].choices, list(TWILIO_SUPPORTED_COUNTRIES))
-        self.assertContains(response, "icon-channel-twilio")
 
         response = self.client.post(claim_twilio_ms, dict())
         self.assertTrue(response.context["form"].errors)

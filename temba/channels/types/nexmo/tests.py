@@ -154,13 +154,13 @@ class NexmoTypeTest(TembaTest):
 
             # try changing our address
             updated = response.context["form"].initial
-            updated["address"] = "MTN"
             updated["alert_email"] = "foo@bar.com"
 
             response = self.client.post(update_url, updated)
             channel = Channel.objects.get(pk=channel.id)
 
-            self.assertEqual("MTN", channel.address)
+            self.assertEqual("+13607884540", channel.address)
+            self.assertEqual("foo@bar.com", channel.alert_email)
 
             nexmo_get.reset_mock()
             nexmo_post.reset_mock()
@@ -190,7 +190,7 @@ class NexmoTypeTest(TembaTest):
             self.assertTrue(Channel.objects.filter(channel_type="NX", org=self.org, address="+15797884540").first())
 
             # as is our old one
-            self.assertTrue(Channel.objects.filter(channel_type="NX", org=self.org, address="MTN").first())
+            self.assertTrue(Channel.objects.filter(channel_type="NX", org=self.org, address="+13607884540").first())
 
             config_url = reverse("channels.channel_configuration", args=[channel.uuid])
             response = self.client.get(config_url)
@@ -227,8 +227,7 @@ class NexmoTypeTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(update_url)
         self.assertEqual(
-            ["name", "address", "country", "alert_email", "allow_international", "loc"],
-            list(response.context["form"].fields.keys()),
+            ["name", "alert_email", "allow_international", "loc"], list(response.context["form"].fields.keys()),
         )
 
 
