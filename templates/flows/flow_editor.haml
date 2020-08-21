@@ -154,6 +154,13 @@
       {% if is_starting %}
         $("html").scope().is_starting = true;
       {% endif %}
+
+      var modal = new ConfirmationModal($("#migrate-nag .title").html(), $("#migrate-nag .body").html());
+      modal.setListeners({
+        onPrimary: function() {document.location.href = "{% url 'flows.flow_editor_next' object.uuid %}?migrate=1";},
+      });
+      modal.setPrimaryButton('{{ _("Update")|escapejs }}');
+      modal.show();
     })
 
 
@@ -279,6 +286,14 @@
       #saving
         .throbber
           %img{ src: "{{ STATIC_URL }}images/loader-bars.gif" }
+
+    #migrate-nag.hide
+      .title
+        -trans "Legacy flows"
+      .body
+        -blocktrans trimmed
+          This flow is using a discontinued version of the flow editor. Update it to use the new editor today to start
+          using powerful new features. Starting October 1st, all remaining flows will be updated automatically.
 
     #workspace{ng-dblclick:'addNote($event); $event.stopPropagation();'}
 
