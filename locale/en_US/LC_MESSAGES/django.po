@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-07 20:06+0000\n"
+"POT-Creation-Date: 2020-08-17 23:36+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -54,9 +54,6 @@ msgid "Message"
 msgstr ""
 
 msgid "Run"
-msgstr ""
-
-msgid "The archive we were rolled up into, if any"
 msgstr ""
 
 msgid "Archive"
@@ -158,6 +155,12 @@ msgid "Default"
 msgstr ""
 
 msgid "Update Event"
+msgstr ""
+
+msgid "Delete Event"
+msgstr ""
+
+msgid "Delete"
 msgstr ""
 
 msgid "Default Encoding"
@@ -2126,9 +2129,6 @@ msgstr ""
 msgid "Enable Voice Calling"
 msgstr ""
 
-msgid "Delete"
-msgstr ""
-
 msgid "Delete Channel"
 msgstr ""
 
@@ -2200,6 +2200,12 @@ msgid "Sorry, no numbers found, please enter another pattern and try again."
 msgstr ""
 
 msgid "Calls"
+msgstr ""
+
+msgid "Messages"
+msgstr ""
+
+msgid "Other Interactions"
 msgstr ""
 
 msgid "The name of your bot"
@@ -3062,6 +3068,9 @@ msgstr ""
 msgid "Download"
 msgstr ""
 
+msgid "Export Flow Results"
+msgstr ""
+
 msgid "Your flow contains an invalid loop. Please refresh your browser."
 msgstr ""
 
@@ -3140,6 +3149,9 @@ msgid "Cannot create a new global as limit is %(limit)s."
 msgstr ""
 
 msgid "Isn't a valid name"
+msgstr ""
+
+msgid "Value"
 msgstr ""
 
 msgid "Manage Globals"
@@ -3531,9 +3543,6 @@ msgstr ""
 msgid "Update Label"
 msgstr ""
 
-msgid "Messages"
-msgstr ""
-
 msgid "Campaigns"
 msgstr ""
 
@@ -3665,12 +3674,6 @@ msgstr ""
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
 msgstr ""
 
-msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
-msgstr ""
-
-msgid "Sorry, we were unable to charge your card, please try again later or contact us."
-msgstr ""
-
 msgid "Viewer"
 msgstr ""
 
@@ -3789,25 +3792,28 @@ msgstr ""
 msgid "Used"
 msgstr ""
 
-msgid "Your first name"
+msgid "First name"
 msgstr ""
 
-msgid "Your last name"
+msgid "Last name"
 msgstr ""
 
-msgid "Your email address"
+msgid "name@domain.com"
 msgstr ""
 
 msgid "The timezone for your workspace"
 msgstr ""
 
-msgid "Your password, at least eight letters please"
+msgid "At least eight characters"
 msgstr ""
 
 msgid "Workspace"
 msgstr ""
 
-msgid "The name of your workspace"
+msgid "A workspace is usually the name of a company or project"
+msgstr ""
+
+msgid "My Company, Inc."
 msgstr ""
 
 msgid "That email address is already used"
@@ -4006,6 +4012,9 @@ msgstr ""
 msgid "Invite people to your workspace"
 msgstr ""
 
+msgid "Enter emails of people to invite"
+msgstr ""
+
 msgid "User group"
 msgstr ""
 
@@ -4030,6 +4039,9 @@ msgstr ""
 msgid "Transfer Credits"
 msgstr ""
 
+msgid "The name of your workspace"
+msgstr ""
+
 msgid "Select your Workspace"
 msgstr ""
 
@@ -4052,10 +4064,22 @@ msgstr ""
 msgid "Invalid surveyor password, please check with your project leader and try again."
 msgstr ""
 
+msgid "Your first name"
+msgstr ""
+
+msgid "Your last name"
+msgstr ""
+
+msgid "Your email address"
+msgstr ""
+
+msgid "Your password, at least eight letters please"
+msgstr ""
+
 msgid "Welcome!"
 msgstr ""
 
-msgid "Create Workspace Login"
+msgid "Create Workspace Account"
 msgstr ""
 
 msgid "Sign Up"
@@ -4079,9 +4103,6 @@ msgstr ""
 msgid "Your Account"
 msgstr ""
 
-msgid "Logout"
-msgstr ""
-
 msgid "Add Channel"
 msgstr ""
 
@@ -4089,6 +4110,9 @@ msgid "Add Classifier"
 msgstr ""
 
 msgid "Add Ticketing Service"
+msgstr ""
+
+msgid "Sign Out"
 msgstr ""
 
 msgid "Login"
@@ -4640,6 +4664,15 @@ msgstr ""
 msgid "Time"
 msgstr ""
 
+msgid "Webhook Event"
+msgstr ""
+
+msgid "Request Time"
+msgstr ""
+
+msgid "Request Time:"
+msgstr ""
+
 msgid "Archives"
 msgstr ""
 
@@ -4703,6 +4736,9 @@ msgstr ""
 msgid "after"
 msgstr ""
 
+msgid "You are about to delete this event. There is no way to undo this. Are you sure?"
+msgstr ""
+
 msgid "Start the"
 msgstr ""
 
@@ -4755,13 +4791,13 @@ msgstr ""
 msgid "We recommend using an Android phone with a local sim card for your country. This phone will send and receive messages for you. You will only need one phone per country depending on message volume. Don't worry! The people you are texting with can still use basic phones."
 msgstr ""
 
-msgid "Works in any country and uses the cell phone plan you already have. You just need an Android phone to get started."
-msgstr ""
-
-msgid "Phone Channels"
-msgstr ""
-
 msgid "Social Network Channels"
+msgstr ""
+
+msgid "SMS and Voice Channels"
+msgstr ""
+
+msgid "Works in any country and uses the cell phone plan you already have. You just need an Android phone to get started."
 msgstr ""
 
 msgid "API Channels"
@@ -4896,9 +4932,6 @@ msgstr ""
 msgid "Channel Events"
 msgstr ""
 
-msgid "Other Interactions"
-msgstr ""
-
 msgid "Recent Channel Events"
 msgstr ""
 
@@ -4914,6 +4947,9 @@ msgstr ""
 msgid "Channel interaction"
 msgstr ""
 
+msgid "Request time"
+msgstr ""
+
 msgid "Channel Event"
 msgstr ""
 
@@ -4921,6 +4957,15 @@ msgid "Message Error"
 msgstr ""
 
 msgid "Message Log"
+msgstr ""
+
+msgid "Recipient"
+msgstr ""
+
+msgid "Date"
+msgstr ""
+
+msgid "Duration"
 msgstr ""
 
 msgid "Error"
@@ -6068,13 +6113,10 @@ msgstr ""
 msgid "archive"
 msgstr ""
 
-msgid "You can import your contacts from an XLS file you create in Excel."
+msgid "Import Contacts"
 msgstr ""
 
-msgid "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
-msgstr ""
-
-msgid "You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
+msgid "You can import your contacts from an XLS file you create in Excel. Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available. You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
 msgstr ""
 
 msgid "URN:Tel"
@@ -6122,94 +6164,44 @@ msgstr ""
 msgid "Only valid ISO639-3 codes supportted"
 msgstr ""
 
-msgid ""
-"\n"
-"                  You will have the option to choose the columns to import and to which field to import them.\n"
-"\n"
-"                "
+msgid "You will have the option to choose the columns to import and to which field to import them."
 msgstr ""
 
 msgid "IGNORED"
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"                          Created %(create_count)s new contact\n"
-"                          "
-msgid_plural ""
-"\n"
-"                            Created %(create_count)s new contacts\n"
-"\n"
-"                        "
+msgid "Created %(create_count)s new contact"
+msgid_plural "Created %(create_count)s new contacts"
 msgstr[0] ""
 msgstr[1] ""
 
 #, python-format
-msgid ""
-"\n"
-"                          Updated %(update_count)s contact with an existing phone number\n"
-"                          "
-msgid_plural ""
-"\n"
-"                            Updated %(update_count)s contacts with existing phone numbers\n"
-"\n"
-"                        "
+msgid "Updated %(update_count)s contact with an existing phone number"
+msgid_plural "Updated %(update_count)s contacts with existing phone numbers"
 msgstr[0] ""
 msgstr[1] ""
 
-msgid ""
-"\n"
-"                        Added all contacts to the new\n"
-"                      "
+msgid "Added all contacts to the new"
 msgstr ""
 
-msgid ""
-"\n"
-"                              Some rows were not imported\n"
-"                            "
+msgid "Some rows were not imported"
 msgstr ""
 
-msgid ""
-"\n"
-"                              Errors description\n"
-"                            "
+msgid "Errors description"
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"                        Failed to import %(error_count)s contact due to missing or invalid phone number\n"
-"                        "
-msgid_plural ""
-"\n"
-"                          Failed to import %(error_count)s contacts due to missing or invalid phone numbers\n"
-"\n"
-"                      "
+msgid "Failed to import %(error_count)s contact due to missing or invalid phone number"
+msgid_plural "Failed to import %(error_count)s contacts due to missing or invalid phone numbers"
 msgstr[0] ""
 msgstr[1] ""
 
-msgid ""
-"\n"
-"                            Errors description\n"
-"\n"
-"                          "
-msgstr ""
-
-msgid ""
-"\n"
-"                        No contacts imported, please make sure your have a channel connected.\n"
-"\n"
-"                      "
+msgid "No contacts imported, please make sure your have a channel connected."
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"                  You can download\n"
-"                  <a href='%(STATIC_URL)sexamples/contacts.xls'>this Excel template</a>\n"
-"                  as a sample.\n"
-"                "
+msgid "You can download <a href='%(STATIC_URL)sexamples/contacts.xls'>this Excel template</a> as a sample."
 msgstr ""
 
 msgid "Choose File"
@@ -6219,9 +6211,6 @@ msgid "Delete Contacts"
 msgstr ""
 
 msgid "Are you sure you want to delete these contacts? This cannot be undone."
-msgstr ""
-
-msgid "Import Contacts"
 msgstr ""
 
 msgid "Smart Groups"
@@ -6739,9 +6728,6 @@ msgstr ""
 msgid "Back"
 msgstr ""
 
-msgid "Export Flow Results"
-msgstr ""
-
 msgid "Create Label"
 msgstr ""
 
@@ -6813,16 +6799,17 @@ msgid_plural "<b>%(count)s</b> runs"
 msgstr[0] ""
 msgstr[1] ""
 
+msgid "No flow starts"
+msgstr ""
+
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr ""
 
-msgid "cannot be deleted because it is in use. Usage summary:"
+#, python-format
+msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
 msgstr ""
 
 msgid "Flows:"
-msgstr ""
-
-msgid "Are you sure you want to delete this global?"
 msgstr ""
 
 msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
@@ -6846,8 +6833,11 @@ msgstr ""
 msgid "Globals"
 msgstr ""
 
-msgid "No globals"
-msgstr ""
+#, python-format
+msgid "Found %(results_count)s global matching <i>%(search)s</i>."
+msgid_plural "Found %(results_count)s globals matching <i>%(search)s</i>."
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Update Global"
 msgstr ""
@@ -6855,7 +6845,10 @@ msgstr ""
 msgid "Delete Global"
 msgstr ""
 
-msgid "Uses"
+msgid "Global Details"
+msgstr ""
+
+msgid "No globals"
 msgstr ""
 
 msgid "messages"
@@ -6895,9 +6888,6 @@ msgid "orgs"
 msgstr ""
 
 msgid "end"
-msgstr ""
-
-msgid "logout"
 msgstr ""
 
 msgid "sign in"
@@ -7599,19 +7589,16 @@ msgstr[1] ""
 msgid "Manage Workspaces"
 msgstr ""
 
+msgid "Create Export"
+msgstr ""
+
 msgid "Show Archived"
 msgstr ""
 
 msgid "Hide Archived"
 msgstr ""
 
-msgid ""
-"\n"
-"    Select all of the items below that you would like to include in your export. We've grouped them\n"
-"    together based on which flows and campaigns work with each other. Any related triggers will automatically\n"
-"    be included in the export.\n"
-"\n"
-"  "
+msgid "Select all of the items below that you would like to include in your export. We've grouped them together based on which flows and campaigns work with each other. Any related triggers will automatically be included in the export."
 msgstr ""
 
 msgid "Group"
@@ -7653,10 +7640,8 @@ msgstr ""
 msgid "Add guest viewers to"
 msgstr ""
 
-msgid "Enter emails of people to invite"
-msgstr ""
-
-msgid "You have been invited to join"
+#, python-format
+msgid "You have been invited to join %(name)s."
 msgstr ""
 
 msgid "Please click Join to accept the invitation."
@@ -7733,6 +7718,18 @@ msgstr ""
 msgid "in the API Settings section."
 msgstr ""
 
+msgid "You are currently subscribed to TextIt. Thank you for your support!"
+msgstr ""
+
+msgid "Billing"
+msgstr ""
+
+msgid "You are currently on the Trial plan which is limited to 100 contacts."
+msgstr ""
+
+msgid "Upgrade"
+msgstr ""
+
 msgid "Connect Plivo"
 msgstr ""
 
@@ -7783,34 +7780,17 @@ msgstr ""
 msgid "configured."
 msgstr ""
 
-msgid "We found some problems, please correct them before continuing."
+msgid "Create Account"
 msgstr ""
 
-msgid "Start by telling us a little about yourself. This will only take a minute."
+#, python-format
+msgid "Creating a %(brand)s account is free and only takes a minute. If you alread have an account, you can"
 msgstr ""
 
-msgid "E-mail address"
+msgid "Sign In"
 msgstr ""
 
-msgid "Continue"
-msgstr ""
-
-msgid "Great, just a couple more questions and we are ready to roll."
-msgstr ""
-
-msgid "Ben"
-msgstr ""
-
-msgid "Haggerty"
-msgstr ""
-
-msgid "Which workspace is this login for?"
-msgstr ""
-
-msgid "name@domain.com"
-msgstr ""
-
-msgid "Please enter at least 8 characters"
+msgid "instead."
 msgstr ""
 
 msgid "Remove SMTP configuration"
@@ -8053,9 +8033,6 @@ msgid ""
 "\n"
 "          Select an existing field, or type a name to create a new field.\n"
 "        "
-msgstr ""
-
-msgid "Value"
 msgstr ""
 
 msgid ""
@@ -8855,13 +8832,15 @@ msgstr ""
 
 msgid ""
 "\n"
-"    Please sign in with your email address and password. If you don't remember\n"
-"    your password, you can <a href=\"/users/user/forget/\">reset it</a>.\n"
+"    Please sign in with your email address and password.\n"
 "\n"
 "  "
 msgstr ""
 
-msgid "Sign In"
+msgid "Don't have an account yet?"
+msgstr ""
+
+msgid "Sign up"
 msgstr ""
 
 msgid "Login Failure"

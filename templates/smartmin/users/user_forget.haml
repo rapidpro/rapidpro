@@ -13,4 +13,4 @@
   %form.mt-8(method="post" action="{% url 'users.user_forget' %}")
     {% csrf_token %}
     %temba-textinput(type="email" name="email" required="" placeholder='{{_("Email Address")|escapejs}}')
-    %input.mt-4.button-primary(type="submit" value='{{_("Reset")}}')
+    %input.mt-4.button-primary(type="submit" value='{{_("Reset Password")}}')

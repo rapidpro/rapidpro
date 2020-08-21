@@ -41,7 +41,7 @@ from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
-from temba.utils.fields import CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
+from temba.utils.fields import ArbitraryChoiceField, CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.text import slugify_with
 from temba.utils.views import BulkActionMixin, NonAtomicMixin
@@ -128,7 +128,7 @@ class ContactGroupForm(forms.ModelForm):
 
         try:
             parsed = parse_query(self.org.id, self.cleaned_data["query"])
-            if not parsed.allow_as_group:
+            if not parsed.metadata.allow_as_group:
                 raise forms.ValidationError(_('You cannot create a dynamic group based on "id" or "group".'))
 
             if (
@@ -265,7 +265,7 @@ class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
             try:
                 results = search_contacts(org.id, str(group.uuid), search_query, sort_on, offset)
                 self.parsed_query = results.query if len(results.query) > 0 else None
-                self.save_dynamic_search = results.allow_as_group
+                self.save_dynamic_search = results.metadata.allow_as_group
 
                 return IDSliceQuerySet(Contact, results.contact_ids, offset, results.total)
             except SearchException as e:
@@ -628,9 +628,6 @@ class ContactCRUDL(SmartCRUDL):
                 for key, value in self.data.items():
                     if re_col_name_field.match(key):
                         field_label = value.strip()
-                        if field_label.startswith("[_NEW_]"):
-                            field_label = field_label[7:]
-
                         field_key = ContactField.make_key(field_label)
 
                         if not ContactField.is_valid_label(field_label):
@@ -658,6 +655,7 @@ class ContactCRUDL(SmartCRUDL):
                                 % dict(label=value, key=existing_key)
                             )
 
+                        self.fields[key].choices.append((field_label, field_label))
                         used_labels.append(field_label)
 
                 return self.cleaned_data
@@ -691,6 +689,10 @@ class ContactCRUDL(SmartCRUDL):
             """
             org = self.derive_org()
             column_controls = []
+
+            cf_qs = ContactField.user_fields.active_for_org(org=org).order_by("label")
+            cf_labels_choices = [(c.label, c.label) for c in cf_qs]
+
             for header_col in column_headers:
 
                 header = header_col
@@ -699,7 +701,9 @@ class ContactCRUDL(SmartCRUDL):
 
                 header_key = slugify_with(header)
 
-                include_field = forms.BooleanField(label=" ", required=False, initial=True)
+                include_field = forms.BooleanField(
+                    label=" ", required=False, initial=True, widget=CheckboxWidget(attrs={"widget_only": True})
+                )
                 include_field_name = "column_%s_include" % header_key
 
                 label_initial = ContactField.get_by_label(org, header.title())
@@ -708,7 +712,12 @@ class ContactCRUDL(SmartCRUDL):
                 if label_initial:
                     label_field_initial = label_initial.label
 
-                label_field = forms.CharField(initial=label_field_initial, required=False, label=" ")
+                label_field = ArbitraryChoiceField(
+                    initial=label_field_initial,
+                    choices=cf_labels_choices,
+                    required=False,
+                    widget=SelectWidget(attrs={"widget_only": True, "searchable": True, "tags": True}),
+                )
 
                 label_field_name = "column_%s_label" % header_key
 
@@ -717,7 +726,11 @@ class ContactCRUDL(SmartCRUDL):
                     type_field_initial = label_initial.value_type
 
                 type_field = forms.ChoiceField(
-                    label=" ", choices=Value.TYPE_CHOICES, required=True, initial=type_field_initial
+                    label=" ",
+                    choices=Value.TYPE_CHOICES,
+                    required=True,
+                    initial=type_field_initial,
+                    widget=SelectWidget(attrs={"widget_only": True}),
                 )
                 type_field_name = "column_%s_type" % header_key
 
@@ -742,21 +755,8 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-
-            org = self.derive_org()
-
             context["column_controls"] = self.column_controls
             context["task"] = self.get_object()
-
-            contact_fields = sorted(
-                [
-                    dict(id=elt["label"], text=elt["label"])
-                    for elt in ContactField.user_fields.active_for_org(org=org).values("label")
-                ],
-                key=lambda k: k["text"].lower(),
-            )
-            context["contact_fields"] = json.dumps(contact_fields)
-
             return context
 
         def get_form_kwargs(self):
@@ -1248,7 +1248,7 @@ class ContactCRUDL(SmartCRUDL):
                 summary = {
                     "total": results.total,
                     "query": results.query,
-                    "fields": results.fields,
+                    "fields": results.metadata.fields,
                     "sample": IDSliceQuerySet(Contact, results.contact_ids, 0, results.total)[0:samples],
                 }
             except SearchException as e:
@@ -1275,9 +1275,10 @@ class ContactCRUDL(SmartCRUDL):
             summary["sample"] = json_contacts
 
             # add in our field defs
+            field_keys = [f["key"] for f in summary["fields"]]
             summary["fields"] = {
                 str(f.uuid): {"label": f.label}
-                for f in ContactField.user_fields.filter(org=org, key__in=summary["fields"], is_active=True)
+                for f in ContactField.user_fields.filter(org=org, key__in=field_keys, is_active=True)
             }
             return JsonResponse(summary)
 

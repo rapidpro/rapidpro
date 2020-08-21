@@ -871,8 +871,12 @@ video {
 }
 
 html {
-  background: #f9f9f9
+  background: #f9f9f9;
 }
+
+html body {
+    color: #1a1a1a;
+  }
 
 .bg-gradient {
   background-repeat: no-repeat;
@@ -1006,6 +1010,7 @@ a:hover {
   }
 
 .button:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -1044,6 +1049,7 @@ a:hover {
   }
 
 .button-light:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -1095,6 +1101,7 @@ a:hover {
   }
 
 .button-action:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -1145,6 +1152,7 @@ a:hover {
   }
 
 .button-tertiary:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -1183,6 +1191,7 @@ a:hover {
   }
 
 .button-secondary:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -1221,6 +1230,7 @@ a:hover {
   }
 
 .button-primary:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -1259,6 +1269,46 @@ a:hover {
   }
 
 .button-white:hover {
+    text-decoration: none;
+    cursor: pointer;
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(255, 255, 255, .1);
+  }
+
+.button-danger {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  line-height: 1;
+  font-size: 1.125rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+  transition-duration: 300ms;
+  text-align: center;
+  border-radius: 0.5rem;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+          user-select: none;
+  white-space: nowrap;
+  font-weight: 400;
+  margin-top: 1px;
+  color: #fff;
+  background-color: rgb(var(--error-rgb));
+}
+
+.button-danger:active {
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(0, 0, 0, .15) !important;
+  }
+
+.button-danger:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -1297,6 +1347,7 @@ a:hover {
   }
 
 .button-dark-alpha:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -1343,6 +1394,7 @@ a:hover {
   }
 
 .button-sm:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -2014,6 +2066,8 @@ code {
   margin-bottom: 1rem;
   background-color: #fff;
   overflow: hidden;
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+  transition-duration: 200ms;
 }
 
 .card .bleed-t {
@@ -2041,6 +2095,14 @@ code {
     padding-bottom: 1.5rem;
   }
 
+.card.link {
+    cursor: pointer;
+  }
+
+.card.link:hover {
+      box-shadow: var(--widget-box-shadow-focused);
+    }
+
 .shadow-subtle {
   box-shadow: 0px 0px 25px 0px rgba(0, 0, 0, 0.05);
 }
@@ -2052,6 +2114,10 @@ code {
   margin-left: 4px;
   margin-top: -5px;
 }
+
+.hover-box:hover {
+    box-shadow: var(--widget-box-shadow-focused);
+  }
 
 .formax .formax-section {
     border-width: 0;
@@ -2068,6 +2134,18 @@ code {
 .formax .formax-section:hover {
       box-shadow: var(--widget-box-shadow-focused);
     }
+
+.formax .formax-section.action-summary:hover {
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    }
+
+.formax .formax-section.action-summary:hover .formax-icon {
+        cursor: default;
+      }
+
+.formax .formax-section.action-summary:hover .formax-summary {
+        cursor: default;
+      }
 
 .formax .formax-section .formax-icon {
       background-color: #ededed;

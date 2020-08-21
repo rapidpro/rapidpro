@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-07 20:06+0000\n"
+"POT-Creation-Date: 2020-08-17 23:36+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -65,9 +65,6 @@ msgstr "Mensagem"
 #| msgid "Sun"
 msgid "Run"
 msgstr "Domingo"
-
-msgid "The archive we were rolled up into, if any"
-msgstr ""
 
 #, fuzzy
 msgid "Archive"
@@ -201,6 +198,14 @@ msgstr ""
 #| msgid "Update Contact"
 msgid "Update Event"
 msgstr "Atualizar contato"
+
+#, fuzzy
+#| msgid "Delete"
+msgid "Delete Event"
+msgstr "Deletar"
+
+msgid "Delete"
+msgstr "Deletar"
 
 msgid "Default Encoding"
 msgstr ""
@@ -3070,13 +3075,9 @@ msgstr "Desativar chamada de voz"
 msgid "Enable Voice Calling"
 msgstr "Desativar chamada de voz"
 
-msgid "Delete"
-msgstr "Deletar"
-
 #, fuzzy
-#| msgid "Create Label"
 msgid "Delete Channel"
-msgstr "Criar rótulo"
+msgstr "Remover telefone"
 
 msgid "Whitelist Domain"
 msgstr ""
@@ -3167,6 +3168,15 @@ msgstr "Desculpe, não foram encontrados números, por favor entre com outro có
 
 msgid "Calls"
 msgstr ""
+
+#, fuzzy
+msgid "Messages"
+msgstr "Mensagem"
+
+#, fuzzy
+#| msgid "Android integration"
+msgid "Other Interactions"
+msgstr "Integração com Android"
 
 #, fuzzy
 #| msgid "The name of your organization"
@@ -4190,6 +4200,10 @@ msgstr ""
 msgid "Download"
 msgstr "Resultados ao vivo"
 
+#, fuzzy
+msgid "Export Flow Results"
+msgstr "Exportar"
+
 msgid "Your flow contains an invalid loop. Please refresh your browser."
 msgstr ""
 
@@ -4289,6 +4303,9 @@ msgstr ""
 #| msgid "Using a Local Number"
 msgid "Isn't a valid name"
 msgstr "Use um número local"
+
+msgid "Value"
+msgstr "Valor"
 
 #, fuzzy
 #| msgid "Manage Fields"
@@ -4758,10 +4775,6 @@ msgid "Update Label"
 msgstr "Atualizar rótulo"
 
 #, fuzzy
-msgid "Messages"
-msgstr "Mensagem"
-
-#, fuzzy
 #| msgid "campaigns"
 msgid "Campaigns"
 msgstr "campanhas"
@@ -4916,14 +4929,6 @@ msgstr ""
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
 msgstr "Desculpe, mas não fomos capazes de cobrar em seu cartão, por favor, tente novamente mais tarde ou entre em contato conosco pelo feedback@textit.in"
 
-#, fuzzy
-msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
-msgstr "Desculpe, não podemos cancelar seu plano neste momento. Por favor, entre em contato conosco pelo feedback@textit.in."
-
-#, fuzzy
-msgid "Sorry, we were unable to charge your card, please try again later or contact us."
-msgstr "Desculpe, mas não fomos capazes de cobrar em seu cartão, por favor, tente novamente mais tarde ou entre em contato conosco pelo feedback@textit.in"
-
 msgid "Viewer"
 msgstr "Espectador"
 
@@ -5060,30 +5065,36 @@ msgstr ""
 msgid "Used"
 msgstr ""
 
-msgid "Your first name"
-msgstr "Seu primeiro nome"
+#, fuzzy
+#| msgid "First Name"
+msgid "First name"
+msgstr "Primeiro nome"
 
-msgid "Your last name"
-msgstr "Seu sobrenome"
+#, fuzzy
+msgid "Last name"
+msgstr "Primeiro nome"
 
-msgid "Your email address"
-msgstr "Seu endereço de e-mail"
+msgid "name@domain.com"
+msgstr "name@domain.com"
 
 #, fuzzy
 #| msgid "The timezone for"
 msgid "The timezone for your workspace"
 msgstr "O fuso horário para"
 
-msgid "Your password, at least eight letters please"
-msgstr "Por favor, a sua senha deve ter no mínimo oito letras."
+#, fuzzy
+#| msgid "Please enter at least 8 characters"
+msgid "At least eight characters"
+msgstr "Por favor, insira pelo menos 8 caracteres"
 
 msgid "Workspace"
 msgstr ""
 
-#, fuzzy
-#| msgid "The name of your organization"
-msgid "The name of your workspace"
-msgstr "Nome da sua organização"
+msgid "A workspace is usually the name of a company or project"
+msgstr ""
+
+msgid "My Company, Inc."
+msgstr ""
 
 msgid "That email address is already used"
 msgstr "Esse endereço de e-mail já está sendo usado"
@@ -5320,6 +5331,9 @@ msgstr ""
 msgid "Invite people to your workspace"
 msgstr "Convide pessoas para a sua Organização"
 
+msgid "Enter emails of people to invite"
+msgstr "Digite os e-mails das pessoas que deseja convidar"
+
 msgid "User group"
 msgstr "Grupo do usuário"
 
@@ -5348,6 +5362,11 @@ msgstr "Crie sua Organização"
 #| msgid "Purchase Credits"
 msgid "Transfer Credits"
 msgstr "Comprar créditos"
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The name of your workspace"
+msgstr "Nome da sua organização"
 
 #, fuzzy
 msgid "Select your Workspace"
@@ -5380,11 +5399,25 @@ msgstr "O link do seu convite expirou. Por favor, contate o administrador da org
 msgid "Invalid surveyor password, please check with your project leader and try again."
 msgstr "Código de requisição inválido, por favor, verifique-o e tente novamente."
 
+msgid "Your first name"
+msgstr "Seu primeiro nome"
+
+msgid "Your last name"
+msgstr "Seu sobrenome"
+
+msgid "Your email address"
+msgstr "Seu endereço de e-mail"
+
+msgid "Your password, at least eight letters please"
+msgstr "Por favor, a sua senha deve ter no mínimo oito letras."
+
 msgid "Welcome!"
 msgstr ""
 
-msgid "Create Workspace Login"
-msgstr ""
+#, fuzzy
+#| msgid "Create new account"
+msgid "Create Workspace Account"
+msgstr "Criar nova conta"
 
 msgid "Sign Up"
 msgstr "Cadastrar-se"
@@ -5413,9 +5446,6 @@ msgstr "SID e Token da conta Twilio estão inválidos. Por favor, verifique-os e
 msgid "Your Account"
 msgstr "Sua conta"
 
-msgid "Logout"
-msgstr "Sair"
-
 #, fuzzy
 msgid "Add Channel"
 msgstr "Transmissor"
@@ -5425,6 +5455,11 @@ msgstr ""
 
 msgid "Add Ticketing Service"
 msgstr ""
+
+#, fuzzy
+#| msgid "Sign Up"
+msgid "Sign Out"
+msgstr "Cadastrar-se"
 
 msgid "Login"
 msgstr ""
@@ -5871,9 +5906,8 @@ msgid "The message to send in response after they join the group (optional)"
 msgstr "A mensagem para enviar em resposta após se juntar ao grupo (opcional)"
 
 #, fuzzy
-#| msgid "starts the"
 msgid "Start Time"
-msgstr "inicia o"
+msgstr "Ação de iniciar o fluxo"
 
 #, fuzzy
 msgid "Select a flow"
@@ -6067,6 +6101,21 @@ msgid "Time"
 msgstr "Tempo"
 
 #, fuzzy
+#| msgid "Webhook Events"
+msgid "Webhook Event"
+msgstr "Eventos do Webhook"
+
+#, fuzzy
+#| msgid "Receive URL"
+msgid "Request Time"
+msgstr "URL de recebimento"
+
+#, fuzzy
+#| msgid "Receive URL"
+msgid "Request Time:"
+msgstr "URL de recebimento"
+
+#, fuzzy
 msgid "Archives"
 msgstr "Arquivado"
 
@@ -6141,6 +6190,10 @@ msgstr ""
 
 msgid "after"
 msgstr ""
+
+#, fuzzy
+msgid "You are about to delete this event. There is no way to undo this. Are you sure?"
+msgstr "Uma vez que for removido, ele irá desaparecer para sempre. Não há maneira de desfazer esta operação."
 
 #, fuzzy
 #| msgid "starts the"
@@ -6271,6 +6324,15 @@ msgstr ""
 "do volume de mensagens. Não se preocupe! As pessoas com quem voce esta trocando mensagens de texto ainda podem usar telefones básicos."
 
 #, fuzzy
+msgid "Social Network Channels"
+msgstr "Transmissor"
+
+#, fuzzy
+#| msgid "Channel"
+msgid "SMS and Voice Channels"
+msgstr "Transmissor"
+
+#, fuzzy
 #| msgid ""
 #| "\n"
 #| "                Works in any country and uses the cell phone plan\n"
@@ -6284,14 +6346,6 @@ msgstr ""
 "Funciona em qualquer país e utiliza o plano de telefone celular \n"
 "que você já tem. Você só precisa de um telefone Android \n"
 "para começar. "
-
-#, fuzzy
-msgid "Phone Channels"
-msgstr "Transmissor"
-
-#, fuzzy
-msgid "Social Network Channels"
-msgstr "Transmissor"
 
 #, fuzzy
 msgid "API Channels"
@@ -6490,11 +6544,6 @@ msgstr "Nenhuma chamada correspondente"
 msgid "Channel Events"
 msgstr "Evento do transmissor"
 
-#, fuzzy
-#| msgid "Android integration"
-msgid "Other Interactions"
-msgstr "Integração com Android"
-
 msgid "Recent Channel Events"
 msgstr "Eventos recentes do transmissor"
 
@@ -6518,6 +6567,11 @@ msgstr "Deletado"
 msgid "Channel interaction"
 msgstr "Integração com Android"
 
+#, fuzzy
+#| msgid "Receive URL"
+msgid "Request time"
+msgstr "URL de recebimento"
+
 msgid "Channel Event"
 msgstr "Evento do transmissor"
 
@@ -6528,6 +6582,18 @@ msgstr "Mensagem"
 #, fuzzy
 msgid "Message Log"
 msgstr "Mensagem"
+
+#, fuzzy
+msgid "Recipient"
+msgstr "Quantidade de créditos"
+
+#, fuzzy
+#| msgid "Date"
+msgid "Date"
+msgstr "Data"
+
+msgid "Duration"
+msgstr "Duração"
 
 #, fuzzy
 msgid "Error"
@@ -8192,15 +8258,10 @@ msgstr ""
 msgid "archive"
 msgstr "Desarquivar"
 
-msgid "You can import your contacts from an XLS file you create in Excel."
-msgstr "Você pode importar seus contatos de um arquivo XLS criado no Excel."
+msgid "Import Contacts"
+msgstr "Importar contatos"
 
-#, fuzzy
-#| msgid "Each row should have the phone number (including country code) and the name of the contact if available."
-msgid "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
-msgstr "Cada linha deve ter o número de telefone (incluindo o código do país) e o nome do contato, se disponível."
-
-msgid "You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
+msgid "You can import your contacts from an XLS file you create in Excel. Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available. You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
 msgstr ""
 
 msgid "URN:Tel"
@@ -8257,11 +8318,7 @@ msgid "Only valid ISO639-3 codes supportted"
 msgstr ""
 
 #, fuzzy
-msgid ""
-"\n"
-"                  You will have the option to choose the columns to import and to which field to import them.\n"
-"\n"
-"                "
+msgid "You will have the option to choose the columns to import and to which field to import them."
 msgstr ""
 "\n"
 "%(sms_sent)s Enviadas"
@@ -8270,32 +8327,14 @@ msgid "IGNORED"
 msgstr ""
 
 #, fuzzy, python-format
-msgid ""
-"\n"
-"                          Created %(create_count)s new contact\n"
-"                          "
-msgid_plural ""
-"\n"
-"                            Created %(create_count)s new contacts\n"
-"\n"
-"                        "
-msgstr[0] ""
-"\n"
-"Contatos %(contacts_count)s importados com sucesso para"
-msgstr[1] ""
-"\n"
-"Contatos %(contacts_count)s importados com sucesso para"
+msgid "Created %(create_count)s new contact"
+msgid_plural "Created %(create_count)s new contacts"
+msgstr[0] "Criar grupo de contatos"
+msgstr[1] "Criar grupo de contatos"
 
 #, fuzzy, python-format
-msgid ""
-"\n"
-"                          Updated %(update_count)s contact with an existing phone number\n"
-"                          "
-msgid_plural ""
-"\n"
-"                            Updated %(update_count)s contacts with existing phone numbers\n"
-"\n"
-"                        "
+msgid "Updated %(update_count)s contact with an existing phone number"
+msgid_plural "Updated %(update_count)s contacts with existing phone numbers"
 msgstr[0] ""
 "\n"
 "Contatos %(contacts_count)s importados com sucesso para"
@@ -8304,58 +8343,26 @@ msgstr[1] ""
 "Contatos %(contacts_count)s importados com sucesso para"
 
 #, fuzzy
-msgid ""
-"\n"
-"                        Added all contacts to the new\n"
-"                      "
+msgid "Added all contacts to the new"
+msgstr "%d contatos foram adicionados para o fluxo '%s'"
+
+msgid "Some rows were not imported"
 msgstr ""
-"\n"
-"%(label)s coluna como"
 
 #, fuzzy
-msgid ""
-"\n"
-"                              Some rows were not imported\n"
-"                            "
-msgstr ""
-"\n"
-"%(new_contacts)s Nova Resposta %(new_contact_plr)s"
-
-#, fuzzy
-msgid ""
-"\n"
-"                              Errors description\n"
-"                            "
-msgstr ""
-"\n"
-"%(new_contacts)s Nova Resposta %(new_contact_plr)s"
+#| msgid "Description"
+msgid "Errors description"
+msgstr "Descrição"
 
 #, fuzzy, python-format
-msgid ""
-"\n"
-"                        Failed to import %(error_count)s contact due to missing or invalid phone number\n"
-"                        "
-msgid_plural ""
-"\n"
-"                          Failed to import %(error_count)s contacts due to missing or invalid phone numbers\n"
-"\n"
-"                      "
+msgid "Failed to import %(error_count)s contact due to missing or invalid phone number"
+msgid_plural "Failed to import %(error_count)s contacts due to missing or invalid phone numbers"
 msgstr[0] ""
 "\n"
 "Contatos %(contacts_count)s importados com sucesso para"
 msgstr[1] ""
 "\n"
 "Contatos %(contacts_count)s importados com sucesso para"
-
-#, fuzzy
-msgid ""
-"\n"
-"                            Errors description\n"
-"\n"
-"                          "
-msgstr ""
-"\n"
-"%(new_contacts)s Nova Resposta %(new_contact_plr)s"
 
 #, fuzzy
 #| msgid ""
@@ -8363,22 +8370,19 @@ msgstr ""
 #| "                        No contacts imported, please make sure your file contains \"Name\" and \"Phone\" columns.\n"
 #| "\n"
 #| "                      "
-msgid ""
-"\n"
-"                        No contacts imported, please make sure your have a channel connected.\n"
-"\n"
-"                      "
+msgid "No contacts imported, please make sure your have a channel connected."
 msgstr ""
 "\n"
 "Nenhum contato importado, por favor, verifique se o seu arquivo contém as colunas \"Nome\" e \"Telefone\"."
 
-#, python-format
-msgid ""
-"\n"
-"                  You can download\n"
-"                  <a href='%(STATIC_URL)sexamples/contacts.xls'>this Excel template</a>\n"
-"                  as a sample.\n"
-"                "
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "                  You can download\n"
+#| "                  <a href='%(STATIC_URL)sexamples/contacts.xls'>this Excel template</a>\n"
+#| "                  as a sample.\n"
+#| "                "
+msgid "You can download <a href='%(STATIC_URL)sexamples/contacts.xls'>this Excel template</a> as a sample."
 msgstr ""
 "\n"
 "Você pode fazer o download <a href='%(STATIC_URL)sexamples/contacts.xls'> deste modelo do Excel</a>\n"
@@ -8394,9 +8398,6 @@ msgstr "Criar contatos"
 #, fuzzy
 msgid "Are you sure you want to delete these contacts? This cannot be undone."
 msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
-
-msgid "Import Contacts"
-msgstr "Importar contatos"
 
 #, fuzzy
 #| msgid "Contact Groups"
@@ -9070,10 +9071,6 @@ msgstr ""
 msgid "Back"
 msgstr ""
 
-#, fuzzy
-msgid "Export Flow Results"
-msgstr "Exportar"
-
 msgid "Create Label"
 msgstr "Criar rótulo"
 
@@ -9169,20 +9166,22 @@ msgstr[0] ""
 msgstr[1] ""
 
 #, fuzzy
+#| msgid "Flow to start"
+msgid "No flow starts"
+msgstr "Fluxo para iniciar"
+
+#, fuzzy
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
 
-msgid "cannot be deleted because it is in use. Usage summary:"
+#, python-format
+msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
 msgstr ""
 
 #, fuzzy
 #| msgid "Flows"
 msgid "Flows:"
 msgstr "Fluxos"
-
-#, fuzzy
-msgid "Are you sure you want to delete this global?"
-msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
 
 #, fuzzy
 msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
@@ -9213,8 +9212,15 @@ msgstr "Criar fluxo"
 msgid "Globals"
 msgstr "Gerenciar campos"
 
-msgid "No globals"
-msgstr ""
+#, fuzzy, python-format
+msgid "Found %(results_count)s global matching <i>%(search)s</i>."
+msgid_plural "Found %(results_count)s globals matching <i>%(search)s</i>."
+msgstr[0] ""
+"\n"
+"Contatos %(contacts_count)s importados com sucesso para"
+msgstr[1] ""
+"\n"
+"Contatos %(contacts_count)s importados com sucesso para"
 
 #, fuzzy
 #| msgid "Update Label"
@@ -9226,7 +9232,11 @@ msgstr "Atualizar rótulo"
 msgid "Delete Global"
 msgstr "Criar fluxo"
 
-msgid "Uses"
+#, fuzzy
+msgid "Global Details"
+msgstr "Gerenciar campos"
+
+msgid "No globals"
 msgstr ""
 
 msgid "messages"
@@ -9275,9 +9285,6 @@ msgstr "organizações"
 #, fuzzy
 msgid "end"
 msgstr "Enviar URL"
-
-msgid "logout"
-msgstr "sair"
 
 msgid "sign in"
 msgstr "entrar"
@@ -10101,6 +10108,11 @@ msgid "Manage Workspaces"
 msgstr "Crie sua Organização"
 
 #, fuzzy
+#| msgid "Export"
+msgid "Create Export"
+msgstr "Exportar"
+
+#, fuzzy
 msgid "Show Archived"
 msgstr "Arquivado"
 
@@ -10108,13 +10120,7 @@ msgstr "Arquivado"
 msgid "Hide Archived"
 msgstr "Arquivado"
 
-msgid ""
-"\n"
-"    Select all of the items below that you would like to include in your export. We've grouped them\n"
-"    together based on which flows and campaigns work with each other. Any related triggers will automatically\n"
-"    be included in the export.\n"
-"\n"
-"  "
+msgid "Select all of the items below that you would like to include in your export. We've grouped them together based on which flows and campaigns work with each other. Any related triggers will automatically be included in the export."
 msgstr ""
 
 #, fuzzy
@@ -10165,10 +10171,9 @@ msgstr ""
 msgid "Add guest viewers to"
 msgstr "Adicionar visualizadores convidados a"
 
-msgid "Enter emails of people to invite"
-msgstr "Digite os e-mails das pessoas que deseja convidar"
-
-msgid "You have been invited to join"
+#, fuzzy, python-format
+#| msgid "You have been invited to join"
+msgid "You have been invited to join %(name)s."
 msgstr "Você foi convidado a se juntar"
 
 msgid "Please click Join to accept the invitation."
@@ -10253,6 +10258,20 @@ msgstr ""
 msgid "in the API Settings section."
 msgstr "clicando no menu suspenso Configurações da API."
 
+msgid "You are currently subscribed to TextIt. Thank you for your support!"
+msgstr ""
+
+#, fuzzy
+#| msgid "Reverse Billing"
+msgid "Billing"
+msgstr "Faturamento reverso"
+
+msgid "You are currently on the Trial plan which is limited to 100 contacts."
+msgstr ""
+
+msgid "Upgrade"
+msgstr ""
+
 #, fuzzy
 #| msgid "Connect Twilio"
 msgid "Connect Plivo"
@@ -10317,37 +10336,22 @@ msgstr "fluxos"
 msgid "configured."
 msgstr "configurado"
 
-msgid "We found some problems, please correct them before continuing."
-msgstr "Encontramos alguns problemas, por favor, corrija-os antes de continuar."
+#, fuzzy
+#| msgid "Create new account"
+msgid "Create Account"
+msgstr "Criar nova conta"
 
-msgid "Start by telling us a little about yourself. This will only take a minute."
-msgstr "Comece dizendo-nos um pouco sobre você. Isso vai levar apenas um minuto."
-
-msgid "E-mail address"
-msgstr "Endereço de e-mail"
-
-msgid "Continue"
-msgstr "Continuar"
-
-msgid "Great, just a couple more questions and we are ready to roll."
-msgstr "Ótimo, apenas mais algumas perguntas e estamos prontos para começar."
-
-msgid "Ben"
-msgstr "Ben"
-
-msgid "Haggerty"
-msgstr "Haggerty"
+#, python-format
+msgid "Creating a %(brand)s account is free and only takes a minute. If you alread have an account, you can"
+msgstr ""
 
 #, fuzzy
-#| msgid "What organization is this account for?"
-msgid "Which workspace is this login for?"
-msgstr "Esta conta é para qual Organização?"
+#| msgid "Sign in"
+msgid "Sign In"
+msgstr "Entrar"
 
-msgid "name@domain.com"
-msgstr "name@domain.com"
-
-msgid "Please enter at least 8 characters"
-msgstr "Por favor, insira pelo menos 8 caracteres"
+msgid "instead."
+msgstr "ao invés."
 
 #, fuzzy
 #| msgid "Configuration"
@@ -10636,9 +10640,6 @@ msgid ""
 "          Select an existing field, or type a name to create a new field.\n"
 "        "
 msgstr "Selecione um campo existente ou digite um nome para criar um novo campo."
-
-msgid "Value"
-msgstr "Valor"
 
 #, fuzzy
 msgid ""
@@ -11732,16 +11733,18 @@ msgstr "Fluxo de mensagens"
 
 msgid ""
 "\n"
-"    Please sign in with your email address and password. If you don't remember\n"
-"    your password, you can <a href=\"/users/user/forget/\">reset it</a>.\n"
+"    Please sign in with your email address and password.\n"
 "\n"
 "  "
 msgstr ""
 
+msgid "Don't have an account yet?"
+msgstr ""
+
 #, fuzzy
-#| msgid "Sign in"
-msgid "Sign In"
-msgstr "Entrar"
+#| msgid "Sign Up"
+msgid "Sign up"
+msgstr "Cadastrar-se"
 
 msgid "Login Failure"
 msgstr ""
@@ -12019,261 +12022,91 @@ msgstr "Insira o seu código de requisição"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
-#, fuzzy, python-format
-#~ msgid ""
-#~ "\n"
-#~ "                        %(count_comma)s recipient\n"
-#~ "                        "
-#~ msgid_plural ""
-#~ "\n"
-#~ "                          %(count_comma)s recipients\n"
-#~ "                      "
-#~ msgstr[0] ""
-#~ "\n"
-#~ "Distribuir para %(count_comma)s Contact"
-#~ msgstr[1] ""
-#~ "\n"
-#~ "Distribuir para %(count_comma)s contatos"
+#~ msgid "Logout"
+#~ msgstr "Sair"
+
+#~ msgid "You can import your contacts from an XLS file you create in Excel."
+#~ msgstr "Você pode importar seus contatos de um arquivo XLS criado no Excel."
+
+#, fuzzy
+#~| msgid "Each row should have the phone number (including country code) and the name of the contact if available."
+#~ msgid "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
+#~ msgstr "Cada linha deve ter o número de telefone (incluindo o código do país) e o nome do contato, se disponível."
 
 #, fuzzy, python-format
 #~ msgid ""
 #~ "\n"
-#~ "                        %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
-#~ "                      "
-#~ msgstr ""
+#~ "                          Created %(create_count)s new contact\n"
+#~ "                          "
+#~ msgid_plural ""
+#~ "\n"
+#~ "                            Created %(create_count)s new contacts\n"
+#~ "\n"
+#~ "                        "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "Contatos %(contacts_count)s importados com sucesso para"
+#~ msgstr[1] ""
 #~ "\n"
 #~ "Contatos %(contacts_count)s importados com sucesso para"
 
-#~ msgid "Write the message that will get sent when the scheduled time arrives"
-#~ msgstr "Escrever a mensagem que será enviada quando chegar o momento agendado"
-
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
-#~ "        The message will be sent to\n"
-#~ "        <span class='attn'>\n"
-#~ "          %(count_comma)s recipients\n"
-#~ "        </span>\n"
-#~ "        "
-#~ msgid_plural ""
-#~ "\n"
-#~ "          The message will be sent to\n"
-#~ "          <span class='attn'>\n"
-#~ "            %(count_comma)s recipients\n"
-#~ "          </span>\n"
-#~ "      "
-#~ msgstr[0] ""
-#~ "\n"
-#~ "A mensagem será enviada para \n"
-#~ "<span class='attn'>\n"
-#~ "%(contacts)s\n"
-#~ "contatos %(pluralizer)s\n"
-#~ "</span>"
-#~ msgstr[1] ""
-#~ "\n"
-#~ "A mensagem será enviada para \n"
-#~ "<span class='attn'>\n"
-#~ "%(contacts)s\n"
-#~ "contatos %(pluralizer)s\n"
-#~ "</span>"
-
-#, fuzzy, python-format
-#~ msgid ""
-#~ "\n"
-#~ "        The message will be sent to\n"
-#~ "        <span class='attn'>\n"
-#~ "          %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
-#~ "\n"
-#~ "        </span>\n"
-#~ "      "
+#~ "                        Added all contacts to the new\n"
+#~ "                      "
 #~ msgstr ""
 #~ "\n"
-#~ "A mensagem será enviada para \n"
-#~ "<span class='attn'>\n"
-#~ "%(contacts)s\n"
-#~ "contatos %(pluralizer)s\n"
-#~ "</span>"
-
-#~ msgid "FLOWS"
-#~ msgstr "FLUXOS"
-
-#~ msgid "GET CONNECTED"
-#~ msgstr "Conecte-se"
-
-#~ msgid "CONTACTS"
-#~ msgstr "CONTATOS"
-
-#~ msgid "MESSAGES"
-#~ msgstr "MENSAGENS"
+#~ "%(label)s coluna como"
 
 #, fuzzy
-#~| msgid "Visit your account page to add credits at any time"
-#~ msgid "Visit your workspace page to add credits at any time"
-#~ msgstr "Visite a página de sua conta para adicionar créditos a qualquer momento"
-
-#~ msgid "Add Web Hook"
-#~ msgstr "Adicionar Web Hook"
-
-#, fuzzy
-#~| msgid "Create Schedule"
-#~ msgid "Leave unscheduled"
-#~ msgstr "Criar agendamento"
-
-#, fuzzy
-#~| msgid "Create Schedule"
-#~ msgid "Cancel schedule"
-#~ msgstr "Criar agendamento"
-
-#~ msgid "Tue"
-#~ msgstr "Terça-feira"
-
-#~ msgid "Wed"
-#~ msgstr "Quarta-feira"
-
-#~ msgid "Thu"
-#~ msgstr "Quinta-feira"
-
-#~ msgid "Fri"
-#~ msgstr "Sexta-feira"
-
-#~ msgid "Sat"
-#~ msgstr "Sábado"
-
-#~ msgid "Sun"
-#~ msgstr "Domingo"
-
-#, fuzzy
-#~ msgid "conversation"
-#~ msgstr "Configuração"
-
-#~ msgid "The"
-#~ msgstr "O"
-
-#~ msgid "flow"
-#~ msgstr "fluxo"
-
-#~ msgid "is"
-#~ msgstr "é"
-
-#~ msgid "Select a date"
-#~ msgstr "Selecionar uma data"
-
-#~ msgid "Missed call trigger activated. Change flow that starts on missed call."
-#~ msgstr "Disparador ativado para chamadas perdidas. Mudar o fluxo que se inicia ao identificar uma chamada perdida."
-
-#~ msgid "Catch all trigger activated. Change flow that catches all messages."
-#~ msgstr "Disparador ativado para capturar todas as mensagens. Mudar fluxo que captura todas as mensagens."
-
-#, fuzzy
-#~ msgid "The next time the flow will be started is"
-#~ msgstr "Qual fluxo será iniciado"
-
-#~ msgid "month"
-#~ msgstr "mês"
-
-#, python-format
 #~ msgid ""
 #~ "\n"
-#~ "          on the %(repeat_day_of_month)s\n"
-#~ "\n"
-#~ "        "
+#~ "                              Some rows were not imported\n"
+#~ "                            "
 #~ msgstr ""
 #~ "\n"
-#~ "no %(repeat_day_of_month)s"
+#~ "%(new_contacts)s Nova Resposta %(new_contact_plr)s"
 
-#, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
-#~ "          It will repeat <span class='attn'>%(repeat_period_display)s</span> at around the same time.\n"
-#~ "\n"
-#~ "        "
+#~ "                              Errors description\n"
+#~ "                            "
 #~ msgstr ""
 #~ "\n"
-#~ "Se repetirá <span class='attn'>%(repeat_period_display)s</span> em torno da mesma hora."
+#~ "%(new_contacts)s Nova Resposta %(new_contact_plr)s"
 
+#, fuzzy
 #~ msgid ""
 #~ "\n"
-#~ "        It will <span class='attn'>not repeat</span>.\n"
+#~ "                            Errors description\n"
 #~ "\n"
-#~ "      "
+#~ "                          "
 #~ msgstr ""
 #~ "\n"
-#~ "Não <span class='attn'>repetirá</span>."
+#~ "%(new_contacts)s Nova Resposta %(new_contact_plr)s"
 
 #, fuzzy
-#~| msgid "Disable Voice Calling"
-#~ msgid "Disable Voice Caliing"
-#~ msgstr "Desativar chamada de voz"
+#~ msgid "Are you sure you want to delete this global?"
+#~ msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
+
+#~ msgid "logout"
+#~ msgstr "sair"
 
 #, fuzzy
-#~| msgid "Disable Voice Calling"
-#~ msgid "Remove Voice Calling"
-#~ msgstr "Desativar chamada de voz"
-
-#, fuzzy
-#~| msgid "Enable Bulk Sending"
-#~ msgid "Remove Bulk Sending"
-#~ msgstr "Habilitar envio em massa"
-
-#, fuzzy
-#~| msgid "Resent message"
-#~ msgid "unsent messages"
-#~ msgid_plural "unsent message"
-#~ msgstr[0] "Reenviar a mensagem"
-#~ msgstr[1] "Reenviar a mensagem"
-
-#, fuzzy
-#~ msgid "Remove Channel"
-#~ msgstr "Remover telefone"
-
-#, fuzzy
-#~ msgid "Are you sure you want to remove this channel from your workspace?"
-#~ msgstr "Você tem certeza de que deseja remover este número de sua conta?"
-
-#~ msgid "Add Phone"
-#~ msgstr "Adicionar telefone"
-
-#~ msgid "Flow to start"
-#~ msgstr "Fluxo para iniciar"
-
-#, fuzzy
-#~ msgid "Restrict to channel"
-#~ msgstr "Remover telefone"
-
-#, fuzzy
-#~ msgid "The number or address of this channel"
-#~ msgstr "O nome deste rótulo"
-
-#, fuzzy
-#~| msgid "Are you sure you want to remove this number from your account?"
-#~ msgid "Are you sure you want to remove this number from your workspace?"
-#~ msgstr "Você tem certeza de que deseja remover este número de sua conta?"
-
-#~ msgid "Remove Phone"
-#~ msgstr "Remover telefone"
-
-#~ msgid "Enable Voice"
-#~ msgstr "Ativar voz"
-
-#~ msgid "Are you sure you want to remove bulk sending for this number?"
-#~ msgstr "Você tem certeza que deseja remover envio em massa para este número?"
-
-#~ msgid "Disable Voice Calls"
-#~ msgstr "Desativar chamadas de voz"
-
-#~ msgid "Are you sure you want to remove voice calling for this number?"
-#~ msgstr "Você tem certeza que deseja remover chamadas de voz para este número?"
-
-#~ msgid "Select a Country"
-#~ msgstr "Selecione um país"
-
-#~ msgid "Claim phone number"
-#~ msgstr "Número de telefone de requisição"
+#~| msgid "What organization is this account for?"
+#~ msgid "Which workspace is this login for?"
+#~ msgstr "Esta conta é para qual Organização?"
 
 #, fuzzy
 #~| msgid "Flow to start"
 #~ msgid "Flow starting rules"
 #~ msgstr "Fluxo para iniciar"
+
+#, fuzzy
+#~ msgid "The number or address of this channel"
+#~ msgstr "O nome deste rótulo"
 
 #~ msgid "Add or remove groups this contact belongs to"
 #~ msgstr "Adicionar ou remover os grupos aos quais este contato pertence"
@@ -12281,10 +12114,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "The primary language for editing this flow"
 #~ msgstr "O nome para esse fluxo"
-
-#, fuzzy
-#~ msgid "Add Contacts to Flow"
-#~ msgstr "%d contatos foram adicionados para o fluxo '%s'"
 
 #~ msgid "The name of this label"
 #~ msgstr "O nome deste rótulo"
@@ -12309,12 +12138,48 @@ msgstr ""
 #~ msgid "Only apply this trigger to contacts in these groups. (leave empty to apply to all contacts)"
 #~ msgstr "Apenas aplique este disparador para contatos nestes grupos. (deixe em branco para aplicar a todos os contatos)"
 
-#~ msgid "Update Contact Group"
-#~ msgstr "Atualizar grupo de contato"
+#~ msgid "Claim phone number"
+#~ msgstr "Número de telefone de requisição"
 
 #, fuzzy
-#~ msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
-#~ msgstr "Uma vez que for removido, ele irá desaparecer para sempre. Não há maneira de desfazer esta operação."
+#~| msgid "Are you sure you want to remove this number from your account?"
+#~ msgid "Are you sure you want to remove this number from your workspace?"
+#~ msgstr "Você tem certeza de que deseja remover este número de sua conta?"
+
+#~ msgid "Remove Phone"
+#~ msgstr "Remover telefone"
+
+#~ msgid "Enable Voice"
+#~ msgstr "Ativar voz"
+
+#, fuzzy
+#~| msgid "Resent message"
+#~ msgid "unsent messages"
+#~ msgid_plural "unsent message"
+#~ msgstr[0] "Reenviar a mensagem"
+#~ msgstr[1] "Reenviar a mensagem"
+
+#, fuzzy
+#~ msgid "Are you sure you want to remove this channel from your workspace?"
+#~ msgstr "Você tem certeza de que deseja remover este número de sua conta?"
+
+#~ msgid "Are you sure you want to remove bulk sending for this number?"
+#~ msgstr "Você tem certeza que deseja remover envio em massa para este número?"
+
+#~ msgid "Disable Voice Calls"
+#~ msgstr "Desativar chamadas de voz"
+
+#~ msgid "Are you sure you want to remove voice calling for this number?"
+#~ msgstr "Você tem certeza que deseja remover chamadas de voz para este número?"
+
+#~ msgid "Select a Country"
+#~ msgstr "Selecione um país"
+
+#~ msgid "Add Phone"
+#~ msgstr "Adicionar telefone"
+
+#~ msgid "Update Contact Group"
+#~ msgstr "Atualizar grupo de contato"
 
 #~ msgid "Create Contact Group"
 #~ msgstr "Criar grupo de contatos"
@@ -12322,11 +12187,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "Save Search as Group"
 #~ msgstr "Criar grupos"
-
-#, fuzzy
-#~| msgid "Export"
-#~ msgid "Start Export"
-#~ msgstr "Exportar"
 
 #, fuzzy
 #~ msgid "blocked"
@@ -12434,8 +12294,169 @@ msgstr ""
 #~ "\n"
 #~ "%(new_contacts)s Nova Resposta %(new_contact_plr)s"
 
+#, fuzzy, python-format
+#~ msgid ""
+#~ "\n"
+#~ "                        %(count_comma)s recipient\n"
+#~ "                        "
+#~ msgid_plural ""
+#~ "\n"
+#~ "                          %(count_comma)s recipients\n"
+#~ "                      "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "Distribuir para %(count_comma)s Contact"
+#~ msgstr[1] ""
+#~ "\n"
+#~ "Distribuir para %(count_comma)s contatos"
+
+#, fuzzy, python-format
+#~ msgid ""
+#~ "\n"
+#~ "                        %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
+#~ "                      "
+#~ msgstr ""
+#~ "\n"
+#~ "Contatos %(contacts_count)s importados com sucesso para"
+
+#~ msgid "Write the message that will get sent when the scheduled time arrives"
+#~ msgstr "Escrever a mensagem que será enviada quando chegar o momento agendado"
+
+#, fuzzy, python-format
+#~ msgid ""
+#~ "\n"
+#~ "        The message will be sent to\n"
+#~ "        <span class='attn'>\n"
+#~ "          %(count_comma)s recipients\n"
+#~ "        </span>\n"
+#~ "        "
+#~ msgid_plural ""
+#~ "\n"
+#~ "          The message will be sent to\n"
+#~ "          <span class='attn'>\n"
+#~ "            %(count_comma)s recipients\n"
+#~ "          </span>\n"
+#~ "      "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "A mensagem será enviada para \n"
+#~ "<span class='attn'>\n"
+#~ "%(contacts)s\n"
+#~ "contatos %(pluralizer)s\n"
+#~ "</span>"
+#~ msgstr[1] ""
+#~ "\n"
+#~ "A mensagem será enviada para \n"
+#~ "<span class='attn'>\n"
+#~ "%(contacts)s\n"
+#~ "contatos %(pluralizer)s\n"
+#~ "</span>"
+
+#, fuzzy, python-format
+#~ msgid ""
+#~ "\n"
+#~ "        The message will be sent to\n"
+#~ "        <span class='attn'>\n"
+#~ "          %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
+#~ "\n"
+#~ "        </span>\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "A mensagem será enviada para \n"
+#~ "<span class='attn'>\n"
+#~ "%(contacts)s\n"
+#~ "contatos %(pluralizer)s\n"
+#~ "</span>"
+
 #~ msgid "Unarchive"
 #~ msgstr "Desarquivar"
+
+#~ msgid "We found some problems, please correct them before continuing."
+#~ msgstr "Encontramos alguns problemas, por favor, corrija-os antes de continuar."
+
+#~ msgid "Start by telling us a little about yourself. This will only take a minute."
+#~ msgstr "Comece dizendo-nos um pouco sobre você. Isso vai levar apenas um minuto."
+
+#~ msgid "E-mail address"
+#~ msgstr "Endereço de e-mail"
+
+#~ msgid "Continue"
+#~ msgstr "Continuar"
+
+#~ msgid "Great, just a couple more questions and we are ready to roll."
+#~ msgstr "Ótimo, apenas mais algumas perguntas e estamos prontos para começar."
+
+#~ msgid "Ben"
+#~ msgstr "Ben"
+
+#~ msgid "Haggerty"
+#~ msgstr "Haggerty"
+
+#~ msgid "FLOWS"
+#~ msgstr "FLUXOS"
+
+#~ msgid "GET CONNECTED"
+#~ msgstr "Conecte-se"
+
+#~ msgid "CONTACTS"
+#~ msgstr "CONTATOS"
+
+#~ msgid "MESSAGES"
+#~ msgstr "MENSAGENS"
+
+#, fuzzy
+#~| msgid "Visit your account page to add credits at any time"
+#~ msgid "Visit your workspace page to add credits at any time"
+#~ msgstr "Visite a página de sua conta para adicionar créditos a qualquer momento"
+
+#~ msgid "Add Web Hook"
+#~ msgstr "Adicionar Web Hook"
+
+#, fuzzy
+#~| msgid "Create Schedule"
+#~ msgid "Leave unscheduled"
+#~ msgstr "Criar agendamento"
+
+#, fuzzy
+#~| msgid "Create Schedule"
+#~ msgid "Cancel schedule"
+#~ msgstr "Criar agendamento"
+
+#~ msgid "Tue"
+#~ msgstr "Terça-feira"
+
+#~ msgid "Wed"
+#~ msgstr "Quarta-feira"
+
+#~ msgid "Thu"
+#~ msgstr "Quinta-feira"
+
+#~ msgid "Fri"
+#~ msgstr "Sexta-feira"
+
+#~ msgid "Sat"
+#~ msgstr "Sábado"
+
+#~ msgid "Sun"
+#~ msgstr "Domingo"
+
+#, fuzzy
+#~ msgid "conversation"
+#~ msgstr "Configuração"
+
+#~ msgid "The"
+#~ msgstr "O"
+
+#~ msgid "flow"
+#~ msgstr "fluxo"
+
+#~ msgid "is"
+#~ msgstr "é"
+
+#, fuzzy
+#~ msgid "Restrict to channel"
+#~ msgstr "Remover telefone"
 
 #~ msgid "Group to join"
 #~ msgstr "Grupo para participar"
@@ -12443,9 +12464,62 @@ msgstr ""
 #~ msgid "Add Group: "
 #~ msgstr "Adicionar grupo"
 
+#~ msgid "Select a date"
+#~ msgstr "Selecionar uma data"
+
+#~ msgid "Missed call trigger activated. Change flow that starts on missed call."
+#~ msgstr "Disparador ativado para chamadas perdidas. Mudar o fluxo que se inicia ao identificar uma chamada perdida."
+
+#~ msgid "Catch all trigger activated. Change flow that catches all messages."
+#~ msgstr "Disparador ativado para capturar todas as mensagens. Mudar fluxo que captura todas as mensagens."
+
+#, fuzzy
+#~ msgid "The next time the flow will be started is"
+#~ msgstr "Qual fluxo será iniciado"
+
+#~ msgid "month"
+#~ msgstr "mês"
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "          on the %(repeat_day_of_month)s\n"
+#~ "\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "no %(repeat_day_of_month)s"
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "          It will repeat <span class='attn'>%(repeat_period_display)s</span> at around the same time.\n"
+#~ "\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "Se repetirá <span class='attn'>%(repeat_period_display)s</span> em torno da mesma hora."
+
+#~ msgid ""
+#~ "\n"
+#~ "        It will <span class='attn'>not repeat</span>.\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "Não <span class='attn'>repetirá</span>."
+
 #, fuzzy
 #~ msgid "Facebook Channel"
 #~ msgstr "Remover telefone"
+
+#, fuzzy
+#~ msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
+#~ msgstr "Desculpe, não podemos cancelar seu plano neste momento. Por favor, entre em contato conosco pelo feedback@textit.in."
+
+#, fuzzy
+#~ msgid "Sorry, we were unable to charge your card, please try again later or contact us."
+#~ msgstr "Desculpe, mas não fomos capazes de cobrar em seu cartão, por favor, tente novamente mais tarde ou entre em contato conosco pelo feedback@textit.in"
 
 #~ msgid "Oops, so sorry. Something went wrong!"
 #~ msgstr "Oops, me desculpe. Ocorreu algum erro!"
@@ -12555,11 +12629,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "Accounts"
 #~ msgstr "Conta:"
-
-#, fuzzy
-#~| msgid "Create new account"
-#~ msgid "Create Account"
-#~ msgstr "Criar nova conta"
 
 #~ msgid "ACCOUNT"
 #~ msgstr "CONTA"
@@ -13556,9 +13625,6 @@ msgstr ""
 #~ msgid "Cannot process an outgoing message."
 #~ msgstr "Não é possível processar uma mensagem de saída."
 
-#~ msgid "Webhook Events"
-#~ msgstr "Eventos do Webhook"
-
 #~ msgid "Which type of actions will trigger webhook events."
 #~ msgstr "Quais tipo de ações irão desencadear os eventos de webhook"
 
@@ -13609,11 +13675,6 @@ msgstr ""
 #~| msgid "Webhook"
 #~ msgid "Webhook Docs"
 #~ msgstr "Webhook"
-
-#, fuzzy
-#~| msgid "Channel"
-#~ msgid "USSD Channels"
-#~ msgstr "Transmissor"
 
 #~ msgid ""
 #~ "\n"
@@ -14736,9 +14797,6 @@ msgstr ""
 #~ msgid "Unknown channel type: %(channel)s"
 #~ msgstr "Tipo do transmissor desconhecido: %(channel)s"
 
-#~ msgid "Duration"
-#~ msgstr "Duração"
-
 #, fuzzy
 #~ msgid "Connect Public Viber Channel"
 #~ msgstr "Conecte a um Serviço Externo"
@@ -15460,9 +15518,6 @@ msgstr ""
 
 #~ msgid "different variable"
 #~ msgstr "variável diferente"
-
-#~ msgid "instead."
-#~ msgstr "ao invés."
 
 #~ msgid "If"
 #~ msgstr "Se"

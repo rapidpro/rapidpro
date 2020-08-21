@@ -27,7 +27,7 @@
     .flex
       .summary.card.p-12.overflow-hidden
         .icon-flow.relative.text-gray-100(style="font-size:200px; transform: rotate(-5deg) translate(-120px, -40px);")
-        .relative.-mt-8.mx-20
+        .-mt-8.mx-20
           .title
             %a(href="{% url 'flows.flow_list' %}")
               -trans "Flows"
@@ -44,10 +44,10 @@
             %temba-modax.inline-block.mb-1(endpoint="{% url 'flows.flow_create'%}" header='{{_("Create Flow")|escapejs}}')
               .button-primary.lift.inline-block
                 -trans "Create Flow"
-            .button-light.lift.inline-block.mr-1.mb-1(href="{% url 'flows.flow_list' %}" onclick="goto(event)")
-              -trans "View Sample Flows"
+            .button-light.lift.inline-block.mx-1.mb-1(href="{% url 'flows.flow_list' %}" onclick="goto(event)")
+              -trans "Sample Flows"
             .button-light.lift.inline-block.mb-1(href="{% non_ssl_brand_url 'public.video_list'%}" onclick="goto(event)")
-              -trans "How to Build Flows"
+              -trans "Tutorials"
 
 
 
@@ -55,7 +55,7 @@
     .flex.mt-6
       .summary.card.p-12.overflow-hidden
         .icon-phone.relative.text-gray-100(style="font-size:160px; transform: rotate(25deg) translate(-40px, -10px);")
-        .relative.-mt-8.mx-20
+        .-mt-8.mx-20
           .title
             %a(href="{% url 'channels.channel_claim' %}")
               -trans "Get Connected"
@@ -74,9 +74,9 @@
                 -trans "Add Number"
 
   .flex.mt-6
-    .summary.card.p-12.overflow-hidden
+    .summary.card.p-12
       .icon-contact.relative.text-gray-100(style="font-size:240px; transform: rotate(-5deg) translate(-180px, 0px);")
-      .relative.-mt-8.mx-20
+      .-mt-8.mx-20
         .title
           %a(href="{% url 'contacts.contact_list' %}")
             -trans "Contacts"
@@ -110,7 +110,7 @@
   .flex.mt-6
     .summary.card.p-12.overflow-hidden
       .icon-contact.relative.text-gray-100(style="font-size:240px; transform: rotate(-5deg) translate(-180px, 0px);")
-      .relative.-mt-8.mx-20
+      .-mt-8.mx-20
         .title
           %a(href="{% url 'msgs.msg_inbox' %}")
             -trans "Messages"
@@ -132,7 +132,7 @@
   .flex.mt-6
     .summary.card.p-12.overflow-hidden
       .icon-user.relative.text-gray-100(style="font-size:190px; transform: rotate(-5deg) translate(-100px, 20px);")
-      .relative.-mt-8.mx-20
+      .-mt-8.mx-20
         .title
           %a(href="{% url 'orgs.org_home' %}")
             -trans "Workspace"

@@ -2,7 +2,10 @@
 @tailwind components;
 
 html {
-  background: #f9f9f9
+  background: #f9f9f9;
+  body {
+    @apply text-gray-900;
+  }
 }
 
 .bg-gradient {
@@ -99,11 +102,10 @@ a {
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
       inset 0 0 20px 20px rgba(0, 0, 0, .15) !important;
-
-
   }
 
   &:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -147,6 +149,10 @@ a {
 
 .button-white {
   @apply button text-primary bg-white;
+}
+
+.button-danger {
+  @apply button text-white bg-error;
 }
 
 .button-dark-alpha {
@@ -598,7 +604,7 @@ code {
 }
 
 .card {
-  @apply rounded-lg py-6 px-6 shadow my-4 bg-white overflow-hidden;
+  @apply rounded-lg py-6 px-6 shadow my-4 bg-white overflow-hidden transition duration-200;
 
   .bleed-t {
     @apply -mt-6 pt-6;
@@ -616,6 +622,13 @@ code {
     @apply -my-6 py-6;
   }
 
+  &.link {
+    @apply cursor-pointer;
+
+    &:hover {
+      box-shadow: var(--widget-box-shadow-focused);
+    }
+  }
 }
 
 .shadow-subtle {
@@ -630,12 +643,28 @@ code {
   margin-top: -5px;
 }
 
+.hover-box {
+  &:hover {
+    box-shadow: var(--widget-box-shadow-focused);
+  }
+}
+
 .formax {
   .formax-section {
     @apply border-0 rounded-lg shadow bg-white mb-4 p-0 overflow-hidden flex items-stretch;
 
     &:hover {
       box-shadow: var(--widget-box-shadow-focused);
+    }
+
+    &.action-summary:hover {
+      @apply shadow;
+      .formax-icon {
+        @apply cursor-default;
+      }
+      .formax-summary {
+        @apply cursor-default;
+      }
     }
 
     .formax-icon {

@@ -7,8 +7,7 @@
       
 -block login-content        
   -blocktrans
-    Please sign in with your email address and password. If you don't remember
-    your password, you can <a href="/users/user/forget/">reset it</a>.
+    Please sign in with your email address and password.
 
   %form#login-form(method="POST" action="/users/login/")
     -csrf_token
@@ -26,10 +25,19 @@
 
     .mt-4
       %temba-textinput(name='password' placeholder='{{_("Password")|escapejs}}' password="true")
-      
+    
     -if form.password.errors
       .alert-error.mt-4
         {{form.password.errors}}
+    .mt-2.text-right
+      %a(href="/users/user/forget/")
+        Forgot your password?
 
     .mt-6
       %input.button-primary(type="submit" value='{{_("Sign In")}}')
+
+  .mt-6
+    -blocktrans trimmed
+      Don't have an account yet?
+    %a(href="/org/signup")
+      -trans "Sign up"

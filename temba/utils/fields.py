@@ -28,6 +28,14 @@ class InputWidget(forms.TextInput):
     template_name = "utils/forms/input.haml"
     is_annotated = True
 
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        context["widget"]["type"] = self.input_type
+
+        if attrs.get("hide_label", False) and context.get("label", None):
+            del context["label"]
+        return context
+
 
 def validate_external_url(value):
     parsed = parse.urlparse(value)
@@ -133,6 +141,11 @@ class OmniboxChoice(forms.Widget):
 
 
 class ArbitraryChoiceField(forms.ChoiceField):
+    def valid_value(self, value):
+        return True
+
+
+class ArbitraryJsonChoiceField(forms.ChoiceField):
     """
     ArbitraryChoiceField serializes names and values as json to support
     loading ajax option lists that aren't known ahead of time

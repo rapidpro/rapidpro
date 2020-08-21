@@ -382,7 +382,7 @@ class FlowCRUDL(SmartCRUDL):
                         "searchable": True,
                         "tags": True,
                         "space_select": True,
-                        "placeholder": _("Select keywords to tirgger this flow"),
+                        "placeholder": _("Select keywords to trigger this flow"),
                     }
                 ),
             )
@@ -1903,7 +1903,14 @@ class FlowCRUDL(SmartCRUDL):
             links = []
 
             if self.has_org_perm("flows.flow_update"):
-                links.append(dict(title=_("Download"), href="#", js_class="download-results"))
+                links.append(
+                    dict(
+                        id="download-results",
+                        title=_("Download"),
+                        modax=_("Export Flow Results"),
+                        href=f"{reverse('flows.flow_export_results')}?ids={self.get_object().pk}",
+                    )
+                )
 
             if self.has_org_perm("flows.flow_editor"):
                 links.append(

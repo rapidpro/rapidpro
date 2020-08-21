@@ -1775,8 +1775,7 @@ class ChannelCRUDL(SmartCRUDL):
             for ch_type in list(Channel.get_types()):
                 if ch_type.is_recommended_to(user):
                     recommended_channels.append(ch_type)
-                elif ch_type.category or (ch_type.is_available_to(user) and ch_type.category):
-                    print(ch_type)
+                elif ch_type.is_available_to(user) and ch_type.category:
                     if ch_type.name != "Twitter Legacy":
                         types_by_category[ch_type.category.name].append(ch_type)
 
@@ -2129,6 +2128,32 @@ class ChannelLogCRUDL(SmartCRUDL):
         fields = ("channel", "description", "created_on")
         link_fields = ("channel", "description", "created_on")
         paginate_by = 50
+
+        def get_gear_links(self):
+            channel = self.derive_channel()
+            links = []
+
+            if self.request.GET.get("connections") or self.request.GET.get("others"):
+                links.append(dict(title=_("Messages"), href=reverse("channels.channellog_list", args=[channel.uuid]),))
+
+            if not self.request.GET.get("connections"):
+                if channel.supports_ivr():
+                    links.append(
+                        dict(
+                            title=_("Calls"),
+                            href=f"{reverse('channels.channellog_list', args=[channel.uuid])}?connections=1",
+                        )
+                    )
+
+            if not self.request.GET.get("others"):
+                links.append(
+                    dict(
+                        title=_("Other Interactions"),
+                        href=f"{reverse('channels.channellog_list', args=[channel.uuid])}?others=1",
+                    )
+                )
+
+            return links
 
         @classmethod
         def derive_url_pattern(cls, path, action):

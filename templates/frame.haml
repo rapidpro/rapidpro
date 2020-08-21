@@ -113,8 +113,8 @@
 
 
       -compress css
-        %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/bootstrap-css/css/bootstrap-responsive.css',
-              media:'all and (min-width: 1200px), all and (max-width: 767px), all and (max-width: 480px), all and (min-width: 980px)' }
+        // %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/bootstrap-css/css/bootstrap-responsive.css',
+              // media:'all and (min-width: 1200px), all and (max-width: 767px), all and (max-width: 480px), all and (min-width: 980px)' }
 
       -compress css
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/toastr/toastr.css", media:'all'}
@@ -171,7 +171,7 @@
 
 %body#pageBody.bg-gradient
   -include "components-body.html"
-  .flex.flex-col
+  .flex.flex-col.h-full
     <!-- Header -->
     #header
       &nbsp;
@@ -211,7 +211,7 @@
     <!-- Content -->
     -block page-container
       .flex-grow
-        .page-content.w-full
+        .page-content
           .px-12.py-4
             -block page-top
               .flex.items-start
@@ -235,7 +235,7 @@
             
             -block post-content
 
-    .text-center.py-12.text-gray-400
+    .text-center.py-12.bg-gray-200.text-gray-500
       {{ request.branding.credits|safe }}
 
   -trans 'Delete' as title
@@ -325,10 +325,6 @@
         });
       }
 
-
-    -block modals
-      -include 'modal.haml'
-
     -block extra-script
 
     <script type="text/javascript" src="{{ STATIC_URL }}js/libs/jquery.url.js"></script>
@@ -384,9 +380,15 @@
         });
 
         $(".posterize").click(function(event){
+
+          var ele = event.target;
+          while (ele && !ele.classList.contains("posterize")) {
+            ele = ele.parentElement;
+          }
+
           event.preventDefault();
           event.stopPropagation();
-          handlePosterize(event.target);
+          handlePosterize(ele);
         });
 
 

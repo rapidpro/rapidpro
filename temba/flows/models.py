@@ -2,7 +2,7 @@ import logging
 import time
 from array import array
 from collections import OrderedDict, defaultdict
-from datetime import date, timedelta
+from datetime import timedelta
 from enum import Enum
 from urllib.request import urlopen
 
@@ -2928,30 +2928,18 @@ class ExportFlowResultsTask(BaseExportTask):
             if earliest_created_on is None or flow.created_on < earliest_created_on:
                 earliest_created_on = flow.created_on
 
-        earliest_day = earliest_created_on.date()
-        earliest_month = date(earliest_day.year, earliest_day.month, 1)
-
-        archives = (
-            Archive.objects.filter(org=self.org, archive_type=Archive.TYPE_FLOWRUN, record_count__gt=0, rollup=None)
-            .filter(
-                Q(period=Archive.PERIOD_MONTHLY, start_date__gte=earliest_month)
-                | Q(period=Archive.PERIOD_DAILY, start_date__gte=earliest_day)
-            )
-            .order_by("start_date")
-        )
-
+        records = Archive.iter_all_records(self.org, Archive.TYPE_FLOWRUN, after=earliest_created_on)
         flow_uuids = {str(flow.uuid) for flow in flows}
         seen = set()
 
-        for archive in archives:
-            for record_batch in chunk_list(archive.iter_records(), 1000):
-                matching = []
-                for record in record_batch:
-                    if record["flow"]["uuid"] in flow_uuids and (not responded_only or record["responded"]):
-                        seen.add(record["id"])
-                        matching.append(record)
+        for record_batch in chunk_list(records, 1000):
+            matching = []
+            for record in record_batch:
+                if record["flow"]["uuid"] in flow_uuids and (not responded_only or record["responded"]):
+                    seen.add(record["id"])
+                    matching.append(record)
 
-                yield matching
+            yield matching
 
         # secondly get runs from database
         runs = FlowRun.objects.filter(flow__in=flows).order_by("modified_on")

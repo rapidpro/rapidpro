@@ -1,43 +1,52 @@
 - extends 'smartmin/list.html'
 - load i18n
 
-- block content
+-block title
+  -trans "Policies"
 
-  - block table-controls
-    .buttons.pull-right
-      %a.btn.btn-primary{href:"{% url 'policies.policy_create'%}"}
-        -trans "New Policy"
+-block content
+  .mb-4
+    -blocktrans
+      These are the policies currently in place. In general these should not be modified unless for inconsequential grammar. Consider instead, 
+      introducing a new policy which will archive the current policy for posterity and replace it.
 
-  - for policy in active_policies
-
-    .policy{ onclick:'javascript:view("{{policy.policy_type}}");'}
-      .type
-        {{policy.get_policy_type_display}}
-      .created_on
-        {{policy.created_on|date:"M d, Y"}}
-      .edit
-        %a{href:"{% url 'policies.policy_update' policy.id%}"}
-          -trans "edit"
+  %table.list.lined
+    %thead
+      %th
+      %th
+      %th
+        .text-right
+          -trans "Created"
+    -for policy in active_policies
+      %tr
+        %td
+          %a.name(href="{% url 'policies.policy_history' policy.id%}")
+            {{policy.get_policy_type_display}}
+        
+        %td.link
+          %a{href:"{% url 'policies.policy_update' policy.id%}"}
+            -trans "edit"
+        %td.date.text-right
+          {{policy.created_on|date:"M d, Y"}}
 
 
   -if object_list
-    %hr
-      %h4
-        -trans "Previous Policies"
-      %table
-        %thead
-          %th
-          %th
+    .title.mt-6
+      -trans "Archive"
+
+    %table.list.lined
+      %thead
+        %th
+        %th
+          .text-right
             -trans "Created"
-        -for policy in object_list
-          %tr
-            %td
+      -for policy in object_list
+        %tr
+          %td
+            %a.name(href="{% url 'policies.policy_history' policy.id%}")
               {{policy.get_policy_type_display}}
-            %td.date
-              {{policy.created_on}}
-            %td.link
-              %a{href:"{% url 'policies.policy_history' policy.id%}"}
-                -trans "view"
+          %td.date.text-right
+            {{policy.created_on|date:"M d, Y"}}
 
 - block extra-script
   :javascript
