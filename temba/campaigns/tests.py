@@ -324,7 +324,7 @@ class CampaignTest(TembaTest):
 
         # 'Created On' system field must be selectable in the form
         contact_fields = [field.key for field in response.context["form"].fields["relative_to"].queryset]
-        self.assertEqual(contact_fields, ["created_on", "planting_date"])
+        self.assertEqual(contact_fields, ["created_on", "last_seen_on", "planting_date"])
 
         # promote spanish to our primary language
         self.org.primary_language = spa
@@ -474,7 +474,7 @@ class CampaignTest(TembaTest):
 
         # 'Created On' system field must be selectable in the form
         contact_fields = [field.key for field in response.context["form"].fields["relative_to"].queryset]
-        self.assertEqual(contact_fields, ["created_on", "planting_date"])
+        self.assertEqual(contact_fields, ["created_on", "last_seen_on", "planting_date"])
 
         post_data = dict(
             relative_to=self.planting_date.pk,
@@ -973,7 +973,8 @@ class CampaignTest(TembaTest):
 
     def test_eventfire_get_relative_to_value(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
-        field_created_on = self.org.contactfields.get(key="created_on")
+        created_on = self.org.contactfields.get(key="created_on")
+        last_seen_on = self.org.contactfields.get(key="last_seen_on")
 
         # create a reminder for our first planting event
         event = CampaignEvent.create_flow_event(
@@ -981,25 +982,47 @@ class CampaignTest(TembaTest):
         )
         self.set_contact_field(self.farmer1, "planting_date", self.org.format_datetime(timezone.now()))
 
-        trimDate = timezone.now() - timedelta(days=settings.EVENT_FIRE_TRIM_DAYS + 1)
-        ev = EventFire.objects.create(event=event, contact=self.farmer1, scheduled=trimDate, fired=trimDate)
+        trim_date = timezone.now() - timedelta(days=settings.EVENT_FIRE_TRIM_DAYS + 1)
+        ev = EventFire.objects.create(event=event, contact=self.farmer1, scheduled=trim_date, fired=trim_date)
         self.assertIsNotNone(ev.get_relative_to_value())
 
+        # create event relative to created_on
         event2 = CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, relative_to=field_created_on, offset=3, unit="D", flow=self.reminder_flow
+            self.org, self.admin, campaign, relative_to=created_on, offset=3, unit="D", flow=self.reminder_flow
         )
 
-        trimDate = timezone.now() - timedelta(days=settings.EVENT_FIRE_TRIM_DAYS + 1)
-        ev2 = EventFire.objects.create(event=event2, contact=self.farmer1, scheduled=trimDate, fired=trimDate)
+        trim_date = timezone.now() - timedelta(days=settings.EVENT_FIRE_TRIM_DAYS + 1)
+        ev2 = EventFire.objects.create(event=event2, contact=self.farmer1, scheduled=trim_date, fired=trim_date)
         self.assertIsNotNone(ev2.get_relative_to_value())
 
         # recalculate for created on
         EventFire.update_campaign_events(campaign)
-        self.assertEqual(2, EventFire.objects.filter(event__relative_to=field_created_on, fired=None).count())
+        self.assertEqual(2, EventFire.objects.filter(event__relative_to=created_on, fired=None).count())
+
+        # create event relative to last_seen_on
+        event3 = CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, relative_to=last_seen_on, offset=3, unit="D", flow=self.reminder_flow
+        )
+
+        trim_date = timezone.now() - timedelta(days=settings.EVENT_FIRE_TRIM_DAYS + 1)
+        ev3 = EventFire.objects.create(event=event3, contact=self.farmer1, scheduled=trim_date, fired=trim_date)
+        self.assertIsNone(ev3.get_relative_to_value())
+
+        # give contact a last seen on value
+        self.farmer1.last_seen_on = timezone.now()
+        self.farmer1.save(update_fields=("last_seen_on",), handle_update=False)
+
+        ev4 = EventFire.objects.create(event=event3, contact=self.farmer1, scheduled=trim_date, fired=trim_date)
+        self.assertIsNotNone(ev4.get_relative_to_value())
+
+        # recalculate for created on
+        EventFire.update_campaign_events(campaign)
+        self.assertEqual(1, EventFire.objects.filter(event__relative_to=last_seen_on, fired=None).count())
 
     def test_campaignevent_calculate_scheduled_fire(self):
         planting_date = timezone.now()
-        field_created_on = self.org.contactfields.get(key="created_on")
+        created_on = self.org.contactfields.get(key="created_on")
+        last_seen_on = self.org.contactfields.get(key="last_seen_on")
 
         self.set_contact_field(self.farmer1, "planting_date", self.org.format_datetime(planting_date))
 
@@ -1015,9 +1038,9 @@ class CampaignTest(TembaTest):
         )
         self.assertEqual(event.calculate_scheduled_fire(self.farmer1), expected_result)
 
-        # create a reminder for our first planting event
+        # create a reminder for our first planting event based on created_on
         event = CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, relative_to=field_created_on, offset=5, unit="D", flow=self.reminder_flow
+            self.org, self.admin, campaign, relative_to=created_on, offset=5, unit="D", flow=self.reminder_flow
         )
 
         expected_result = (
@@ -1025,6 +1048,20 @@ class CampaignTest(TembaTest):
             .replace(second=0, microsecond=0)
             .astimezone(self.org.timezone)
         )
+        self.assertEqual(event.calculate_scheduled_fire(self.farmer1), expected_result)
+
+        # create a reminder based on last_seen_on
+        event = CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, relative_to=last_seen_on, offset=5, unit="D", flow=self.reminder_flow
+        )
+        self.assertIsNone(event.calculate_scheduled_fire(self.farmer1))
+
+        # give contact a last seen on value
+        now = timezone.now()
+        self.farmer1.last_seen_on = now
+        self.farmer1.save(update_fields=("last_seen_on",), handle_update=False)
+
+        expected_result = (now + timedelta(days=5)).replace(second=0, microsecond=0).astimezone(self.org.timezone)
         self.assertEqual(event.calculate_scheduled_fire(self.farmer1), expected_result)
 
     def test_import_created_on_event(self):

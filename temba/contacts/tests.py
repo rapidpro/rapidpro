@@ -1047,6 +1047,7 @@ class ContactTest(TembaTest):
         self.assertEqual(joe.org, self.org)
         self.assertEqual(joe.name, "Joe")
         self.assertEqual(joe.language, "fra")
+        self.assertEqual(joe.status, Contact.STATUS_ACTIVE)
 
         # calling again with same URN updates and returns existing contact
         contact = Contact.get_or_create_by_urns(
@@ -3411,6 +3412,24 @@ class ContactTest(TembaTest):
         self.assertEqual(response.context["form"].fields["urn__tel__0"].initial, "+250781111111")
         self.assertEqual(response.context["form"].fields["urn__tel__1"].initial, "+250786666666")
 
+        # try to add joe to a group in another org
+        other_org_group = self.create_group("Nerds", org=self.org2)
+        response = self.client.post(
+            reverse("contacts.contact_update", args=[self.joe.id]),
+            {
+                "name": "Joe Gashyantare",
+                "groups": [other_org_group.id],
+                "urn__tel__0": "+250781111111",
+                "urn__tel__1": "+250786666666",
+            },
+        )
+        self.assertFormError(
+            response,
+            "form",
+            "groups",
+            f"Select a valid choice. {other_org_group.id} is not one of the available choices.",
+        )
+
         # update joe, add him to "Just Joe" group
         post_data = dict(
             name="Joe Gashyantare", groups=[self.just_joe.id], urn__tel__0="+250781111111", urn__tel__1="+250786666666"
@@ -3815,6 +3834,25 @@ class ContactTest(TembaTest):
         self.assertEqual(contact.name, "Bob")
         self.assertEqual([str(u) for u in contact.urns.all()], ["tel:+250788111111"])
         self.assertEqual(contact.created_by, self.admin)
+
+        # if UUID is included it updates an existing contact
+        contact2 = Contact.create_instance(
+            {
+                "uuid": contact.uuid,
+                "org": self.org,
+                "created_by": self.admin,
+                "name": "Bobby",
+                "urn:tel": "+250788111111",
+            },
+        )
+
+        contact.refresh_from_db()
+        self.assertEqual(contact, contact2)
+        self.assertEqual("Bobby", contact.name)
+
+        # but contact has to be in the right org
+        with self.assertRaises(SmartImportRowError):
+            Contact.create_instance({"uuid": contact.uuid, "org": self.org2, "created_by": self.admin2})
 
     def test_create_instance_with_language(self):
         contact = Contact.create_instance(
@@ -5251,13 +5289,8 @@ class ContactTest(TembaTest):
         field_language = self.org.contactfields.get(key="language")
         field_name = self.org.contactfields.get(key="name")
 
-        self.assertEqual(joe.get_field_serialized(field_created_on), joe.created_on)
         self.assertEqual(joe.get_field_display(field_created_on), self.org.format_datetime(joe.created_on))
-
-        self.assertEqual(joe.get_field_serialized(field_language), joe.language)
         self.assertEqual(joe.get_field_display(field_language), "eng")
-
-        self.assertEqual(joe.get_field_serialized(field_name), joe.name)
         self.assertEqual(joe.get_field_display(field_name), "Joe Blow")
 
         # create a system field that is not supported
@@ -5265,7 +5298,7 @@ class ContactTest(TembaTest):
             org_id=self.org.id, key="iban", label="IBAN", created_by_id=self.admin.id, modified_by_id=self.admin.id
         )
 
-        self.assertRaises(ValueError, joe.get_field_serialized, field_iban)
+        self.assertRaises(AssertionError, joe.get_field_serialized, field_iban)
         self.assertRaises(ValueError, joe.get_field_display, field_iban)
 
     def test_set_location_fields(self):
@@ -7203,46 +7236,40 @@ class ESIntegrationTest(TembaNonAtomicTest):
         self.assertEqual(81, EventFire.objects.filter(event=event, fired=None).count())
 
 
-class PopulateLastSeenOnTest(MigrationTest):
+class PopulateContactStatus(MigrationTest):
     app = "contacts"
-    migrate_from = "0109_contact_last_seen_on"
-    migrate_to = "0110_populate_last_seen_on"
+    migrate_from = "0113_contact_status"
+    migrate_to = "0114_populate_contact_status"
 
     def setUpBeforeMigration(self, apps):
-        # contact 1 has multiple incoming messages
-        self.contact1 = self.create_contact("Anne", urn="tel:+1234567891")
-        self.create_incoming_msg(self.contact1, text="Hi", created_on=datetime(2020, 8, 1, 13, 0, 0, 0, pytz.UTC))
-        self.create_incoming_msg(self.contact1, text="Hi", created_on=datetime(2020, 8, 2, 13, 0, 0, 0, pytz.UTC))
+        # active contact
+        self.contact1 = self.create_contact("Ann", urn="twitter:ann")
 
-        # contact 2 has a single incoming message and a channel event
-        self.contact2 = self.create_contact("Bill", urn="tel:+1234567892")
-        self.create_incoming_msg(self.contact1, text="Hi", created_on=datetime(2020, 7, 1, 13, 0, 0, 0, pytz.UTC))
-        ChannelEvent.objects.create(
-            org=self.org,
-            contact=self.contact2,
-            event_type=ChannelEvent.TYPE_CALL_IN_MISSED,
-            channel=self.channel,
-            created_on=datetime(2020, 8, 3, 13, 0, 0, 0, pytz.UTC),
-            occurred_on=datetime(2020, 8, 3, 13, 0, 0, 0, pytz.UTC),
-        )
+        # blocked contact
+        self.contact2 = self.create_contact("Bob", urn="twitter:bob")
+        self.contact2.is_blocked = True
+        self.contact2.save(update_fields=("is_blocked",), handle_update=False)
 
-        # contact 3 only has an outgoing message
-        self.contact3 = self.create_contact("Cate", urn="tel:+1234567893")
-        self.create_outgoing_msg(self.contact3, text="Hi")
+        # stopped contact
+        self.contact3 = self.create_contact("Cat", urn="twitter:cat")
+        self.contact3.is_stopped = True
+        self.contact3.save(update_fields=("is_stopped",), handle_update=False)
 
-        Contact.objects.all().update(last_seen_on=None)
+        Contact.objects.all().update(status=None)
 
-        # contact4 has a value already
-        self.contact4 = self.create_contact("Dave", urn="tel:+1234567894")
-        self.create_incoming_msg(self.contact4, text="Hi", created_on=datetime(2020, 8, 4, 13, 0, 0, 0, pytz.UTC))
-        self.contact4.last_seen_on = datetime(2020, 8, 4, 13, 0, 0, 0, pytz.UTC)
-        self.contact4.save(update_fields=("last_seen_on",), handle_update=False)
+        # contact who already has a status value
+        self.contact4 = self.create_contact("Don", urn="twitter:don")
+        self.contact4.status = "B"
+        self.contact4.is_blocked = True
+        self.contact4.save(update_fields=("status", "is_blocked"), handle_update=False)
 
     def test_migration(self):
-        for c in (self.contact1, self.contact2, self.contact3, self.contact4):
-            c.refresh_from_db()
+        self.contact1.refresh_from_db()
+        self.contact2.refresh_from_db()
+        self.contact3.refresh_from_db()
+        self.contact4.refresh_from_db()
 
-        self.assertEqual(datetime(2020, 8, 2, 13, 0, 0, 0, pytz.UTC), self.contact1.last_seen_on)
-        self.assertEqual(datetime(2020, 8, 3, 13, 0, 0, 0, pytz.UTC), self.contact2.last_seen_on)
-        self.assertEqual(None, self.contact3.last_seen_on)
-        self.assertEqual(datetime(2020, 8, 4, 13, 0, 0, 0, pytz.UTC), self.contact4.last_seen_on)
+        self.assertEqual("A", self.contact1.status)
+        self.assertEqual("B", self.contact2.status)
+        self.assertEqual("S", self.contact3.status)
+        self.assertEqual("B", self.contact4.status)
