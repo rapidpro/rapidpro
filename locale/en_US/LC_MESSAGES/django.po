@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-17 23:36+0000\n"
+"POT-Creation-Date: 2020-08-21 11:58+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2837,7 +2837,7 @@ msgstr ""
 msgid "When a user sends any of these keywords they will begin this flow"
 msgstr ""
 
-msgid "Select keywords to tirgger this flow"
+msgid "Select keywords to trigger this flow"
 msgstr ""
 
 msgid "Type"
@@ -3804,9 +3804,6 @@ msgstr ""
 msgid "The timezone for your workspace"
 msgstr ""
 
-msgid "At least eight characters"
-msgstr ""
-
 msgid "Workspace"
 msgstr ""
 
@@ -4112,6 +4109,9 @@ msgstr ""
 msgid "Add Ticketing Service"
 msgstr ""
 
+msgid "Help"
+msgstr ""
+
 msgid "Sign Out"
 msgstr ""
 
@@ -4201,6 +4201,9 @@ msgid "Summary of policy changes (Markdown permitted)"
 msgstr ""
 
 msgid "Is Consent Required?"
+msgstr ""
+
+msgid "New Policy"
 msgstr ""
 
 msgid "Your Privacy"
@@ -5955,14 +5958,12 @@ msgstr[1] ""
 msgid "Ok"
 msgstr ""
 
-msgid "Hold up!"
-msgstr ""
-
 msgid ""
 "\n"
-"      We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
-"      your contact by selecting them below.\n"
-"    "
+"    We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
+"    your contact by selecting them below.\n"
+"\n"
+"  "
 msgstr ""
 
 msgid "column as"
@@ -6116,7 +6117,7 @@ msgstr ""
 msgid "Import Contacts"
 msgstr ""
 
-msgid "You can import your contacts from an XLS file you create in Excel. Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available. You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
+msgid "You can import your contacts from an XLS file you create in Excel."
 msgstr ""
 
 msgid "URN:Tel"
@@ -6143,7 +6144,10 @@ msgstr ""
 msgid "Advisors"
 msgstr ""
 
-msgid "Supported fields, all other columns are ignored."
+msgid "Supported Fields"
+msgstr ""
+
+msgid "Any columns that do not match the following table will be ignored."
 msgstr ""
 
 msgid "Column Header"
@@ -6389,25 +6393,22 @@ msgid ""
 "You can download your %(brand)s contacts export by clicking on the following link:\n"
 msgstr ""
 
-msgid "Your Contacts"
+#, python-format
+msgid ""
+"\n"
+"    Contacts will automatically be added here as you communicate with them using %(name)s.\n"
+"    From here you can change a contact's name, organize them into groups and see the communication you've had with each.\n"
+"\n"
+"  "
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"      Contacts will automatically be added here as you communicate with them using %(name)s.\n"
-"      From here you can change a contact's name, organize them into groups and see the communication you've had with each.\n"
-"\n"
-"    "
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"      To get started you can\n"
-"        <a href='%(contact_import_url)s'>import contacts</a>\n"
-"      from a file you create in Excel.\n"
-"    "
+"    To get started you can\n"
+"      <a href='%(contact_import_url)s'>import contacts</a>\n"
+"    from a file you create in Excel.\n"
+"  "
 msgstr ""
 
 msgid "Are you sure you want to remove"
@@ -7784,13 +7785,10 @@ msgid "Create Account"
 msgstr ""
 
 #, python-format
-msgid "Creating a %(brand)s account is free and only takes a minute. If you alread have an account, you can"
+msgid "Creating a %(brand)s account is free and only takes a minute."
 msgstr ""
 
 msgid "Sign In"
-msgstr ""
-
-msgid "instead."
 msgstr ""
 
 msgid "Remove SMTP configuration"
@@ -8107,9 +8105,6 @@ msgstr ""
 msgid "Send to all contact addresses"
 msgstr ""
 
-msgid "Help"
-msgstr ""
-
 msgid ""
 "\n"
 "            When somebody arrives at this point in your flow\n"
@@ -8251,19 +8246,21 @@ msgstr ""
 msgid "Add menu:"
 msgstr ""
 
-msgid "New Policy"
+msgid "Policies"
 msgstr ""
 
-msgid "edit"
-msgstr ""
-
-msgid "Previous Policies"
+msgid ""
+"\n"
+"      These are the policies currently in place. In general these should not be modified unless for inconsequential grammar. Consider instead,\n"
+"      introducing a new policy which will archive the current policy for posterity and replace it.\n"
+"\n"
+"    "
 msgstr ""
 
 msgid "Created"
 msgstr ""
 
-msgid "view"
+msgid "edit"
 msgstr ""
 
 #, python-format
@@ -8303,6 +8300,9 @@ msgid "Updated"
 msgstr ""
 
 msgid "Privacy Center"
+msgstr ""
+
+msgid "Update Policy"
 msgstr ""
 
 #, python-format
@@ -8640,10 +8640,10 @@ msgstr ""
 msgid "learning center"
 msgstr ""
 
-msgid "View Sample Flows"
+msgid "Sample Flows"
 msgstr ""
 
-msgid "How to Build Flows"
+msgid "Tutorials"
 msgstr ""
 
 msgid "Get Connected"

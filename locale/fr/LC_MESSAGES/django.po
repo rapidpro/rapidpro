@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-17 23:36+0000\n"
+"POT-Creation-Date: 2020-08-21 11:58+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3158,7 +3158,7 @@ msgstr "Lorsqu'un utilisateur envoie un de ces mots-clés, ils vont commencer ce
 
 #, fuzzy
 #| msgid "Ignore keyword triggers while in this flow"
-msgid "Select keywords to tirgger this flow"
+msgid "Select keywords to trigger this flow"
 msgstr "Ignorer les déclencheurs de mots clés dans ce flux"
 
 #, fuzzy
@@ -4185,11 +4185,6 @@ msgstr "name@domain.com"
 msgid "The timezone for your workspace"
 msgstr "Le fuseau horaire de votre organisation"
 
-#, fuzzy
-#| msgid "Please enter at least 8 characters"
-msgid "At least eight characters"
-msgstr "S'il vous plaît entrer au moins 8 caractères"
-
 msgid "Workspace"
 msgstr ""
 
@@ -4535,6 +4530,9 @@ msgstr "Ajouter un classificateur"
 msgid "Add Ticketing Service"
 msgstr ""
 
+msgid "Help"
+msgstr "Aide"
+
 #, fuzzy
 #| msgid "Sign Up"
 msgid "Sign Out"
@@ -4643,6 +4641,9 @@ msgstr "Résumé des modifications de la politique (Markdown autorisé)"
 
 msgid "Is Consent Required?"
 msgstr "Le consentement est-il requis?"
+
+msgid "New Policy"
+msgstr "Nouvelle politique"
 
 msgid "Your Privacy"
 msgstr "Votre vie privée"
@@ -7140,14 +7141,18 @@ msgstr[1] "Utilisé par %(num_flows)s flux:"
 msgid "Ok"
 msgstr "Ok"
 
-msgid "Hold up!"
-msgstr "Attendez!"
-
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "      We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
+#| "      your contact by selecting them below.\n"
+#| "    "
 msgid ""
 "\n"
-"      We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
-"      your contact by selecting them below.\n"
-"    "
+"    We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
+"    your contact by selecting them below.\n"
+"\n"
+"  "
 msgstr ""
 "\n"
 "      Nous avons remarqué que votre fichier contient des colonnes supplémentaires à importer. Vous pouvez les ajouter en tant que champs personnalisés de\n"
@@ -7338,8 +7343,8 @@ msgstr "archive"
 msgid "Import Contacts"
 msgstr "Importer des contacts"
 
-msgid "You can import your contacts from an XLS file you create in Excel. Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available. You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
-msgstr ""
+msgid "You can import your contacts from an XLS file you create in Excel."
+msgstr "Vous pouvez importer vos contacts à partir d'un fichier XLS que vous créez dans Excel."
 
 msgid "URN:Tel"
 msgstr "URN:Tel"
@@ -7365,8 +7370,13 @@ msgstr "Jane Doe"
 msgid "Advisors"
 msgstr "Conseillers"
 
-msgid "Supported fields, all other columns are ignored."
-msgstr "Champs pris en charge, toutes les autres colonnes sont ignorées."
+#, fuzzy
+#| msgid "Supported"
+msgid "Supported Fields"
+msgstr "Prise en charge"
+
+msgid "Any columns that do not match the following table will be ignored."
+msgstr ""
 
 msgid "Column Header"
 msgstr "En-tête de colonne"
@@ -7714,28 +7724,37 @@ msgstr ""
 "\n"
 "Vous pouvez télécharger votre exportation de contacts %(brand)s en cliquant sur le lien suivant:\n"
 
-msgid "Your Contacts"
-msgstr "Vos contacts"
-
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "      Contacts will automatically be added here as you communicate with them using %(name)s.\n"
+#| "      From here you can change a contact's name, organize them into groups and see the communication you've had with each.\n"
+#| "\n"
+#| "    "
 msgid ""
 "\n"
-"      Contacts will automatically be added here as you communicate with them using %(name)s.\n"
-"      From here you can change a contact's name, organize them into groups and see the communication you've had with each.\n"
+"    Contacts will automatically be added here as you communicate with them using %(name)s.\n"
+"    From here you can change a contact's name, organize them into groups and see the communication you've had with each.\n"
 "\n"
-"    "
+"  "
 msgstr ""
 "\n"
 "Les contacts seront automatiquement rajoutés ici au fur et à mesure que vous communiquez avec eux %(name)s. \n"
 "D'ici vous pouvez changer le nom d'un contact, les organiser en groupe et voir les échanges que vous avez eu avec chacun."
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "      To get started you can\n"
+#| "        <a href='%(contact_import_url)s'>import contacts</a>\n"
+#| "      from a file you create in Excel.\n"
+#| "    "
 msgid ""
 "\n"
-"      To get started you can\n"
-"        <a href='%(contact_import_url)s'>import contacts</a>\n"
-"      from a file you create in Excel.\n"
-"    "
+"    To get started you can\n"
+"      <a href='%(contact_import_url)s'>import contacts</a>\n"
+"    from a file you create in Excel.\n"
+"  "
 msgstr ""
 "\n"
 "      Pour commencer, vous pouvez\n"
@@ -9822,16 +9841,13 @@ msgid "Create Account"
 msgstr "Créer un compte"
 
 #, python-format
-msgid "Creating a %(brand)s account is free and only takes a minute. If you alread have an account, you can"
+msgid "Creating a %(brand)s account is free and only takes a minute."
 msgstr ""
 
 #, fuzzy
 #| msgid "Sign in"
 msgid "Sign In"
 msgstr "Connectez-vous"
-
-msgid "instead."
-msgstr ""
 
 msgid "Remove SMTP configuration"
 msgstr "Supprimer la configuration SMTP"
@@ -10310,9 +10326,6 @@ msgstr ""
 msgid "Send to all contact addresses"
 msgstr "Envoyer à toutes les adresses de contact"
 
-msgid "Help"
-msgstr "Aide"
-
 msgid ""
 "\n"
 "            When somebody arrives at this point in your flow\n"
@@ -10493,20 +10506,24 @@ msgstr "Ajouter du texte:"
 msgid "Add menu:"
 msgstr "Ajouter un menu:"
 
-msgid "New Policy"
-msgstr "Nouvelle politique"
-
-msgid "edit"
-msgstr "modifier"
-
-msgid "Previous Policies"
+#, fuzzy
+#| msgid "Previous Policies"
+msgid "Policies"
 msgstr "Politiques précédentes"
+
+msgid ""
+"\n"
+"      These are the policies currently in place. In general these should not be modified unless for inconsequential grammar. Consider instead,\n"
+"      introducing a new policy which will archive the current policy for posterity and replace it.\n"
+"\n"
+"    "
+msgstr ""
 
 msgid "Created"
 msgstr "Créé"
 
-msgid "view"
-msgstr "voir"
+msgid "edit"
+msgstr "modifier"
 
 #, python-format
 msgid ""
@@ -10561,6 +10578,11 @@ msgstr "Mis à jour"
 
 msgid "Privacy Center"
 msgstr "Centre de confidentialité"
+
+#, fuzzy
+#| msgid "New Policy"
+msgid "Update Policy"
+msgstr "Nouvelle politique"
 
 #, fuzzy, python-format
 #| msgid ""
@@ -11056,11 +11078,15 @@ msgstr "Pour en savoir plus sur les flux, visitez le"
 msgid "learning center"
 msgstr "Centre d'apprentissage"
 
-msgid "View Sample Flows"
+#, fuzzy
+#| msgid "View Sample Flows"
+msgid "Sample Flows"
 msgstr "Voir un exemple de flux"
 
-msgid "How to Build Flows"
-msgstr "Comment construire un flux"
+#, fuzzy
+#| msgid "Trial"
+msgid "Tutorials"
+msgstr "Test"
 
 #, fuzzy
 #| msgid "Connect"
@@ -11649,11 +11675,28 @@ msgstr "Entrez une requête"
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
 
+#, fuzzy
+#~| msgid "Please enter at least 8 characters"
+#~ msgid "At least eight characters"
+#~ msgstr "S'il vous plaît entrer au moins 8 caractères"
+
+#~ msgid "Hold up!"
+#~ msgstr "Attendez!"
+
+#~ msgid "Supported fields, all other columns are ignored."
+#~ msgstr "Champs pris en charge, toutes les autres colonnes sont ignorées."
+
+#~ msgid "Your Contacts"
+#~ msgstr "Vos contacts"
+
+#~ msgid "view"
+#~ msgstr "voir"
+
+#~ msgid "How to Build Flows"
+#~ msgstr "Comment construire un flux"
+
 #~ msgid "Logout"
 #~ msgstr "Déconnexion"
-
-#~ msgid "You can import your contacts from an XLS file you create in Excel."
-#~ msgstr "Vous pouvez importer vos contacts à partir d'un fichier XLS que vous créez dans Excel."
 
 #~ msgid "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
 #~ msgstr "Le numéro de téléphone de chaque ligne doit être <i>URN:tel</i> (indicatif du pays) et le nom du contact, le cas échéant."
@@ -11791,9 +11834,6 @@ msgstr "${count} trouvé pour ${query}"
 
 #~ msgid "Claim phone number"
 #~ msgstr "Réclamer le numéro de téléphone"
-
-#~ msgid "Supported"
-#~ msgstr "Prise en charge"
 
 #, fuzzy
 #~| msgid "Are you sure you want to remove this number from your account?"
@@ -12366,9 +12406,6 @@ msgstr "${count} trouvé pour ${query}"
 
 #~ msgid "Free Plan"
 #~ msgstr "Plan Free"
-
-#~ msgid "Trial"
-#~ msgstr "Test"
 
 #~ msgid "Bronze"
 #~ msgstr "Bronze"
