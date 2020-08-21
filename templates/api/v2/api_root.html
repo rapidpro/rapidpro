@@ -57,17 +57,14 @@
     h3,
     h4,
     h5 {
-      font-family: 'Helvetica Neue', 'RobotoThin', sans-serif;
-      letter-spacing: 1px;
+      color: #444;
       padding: 0;
       text-transform: none;
-      font-weight: 100;
-      color: #666;
       margin-top: 2rem;
       margin-bottom: 0.75rem;
     }
     h1 {
-      font-size: 44px;
+      font-size: 24px;
       line-height: 40px;
     }
     h2 {
@@ -77,8 +74,6 @@
       font-size: 26px;
     }
     h5 {
-      font-weight: 300;
-      color: #999999;
       margin-bottom: 5px;
     }
 
@@ -95,7 +90,7 @@
 
 {% block content %}
     {% block breadcrumbs %}
-    <ul class="breadcrumb">
+    <ul class="breadcrumb -mt-12 mb-12">
         {% for breadcrumb_name, breadcrumb_url in breadcrumblist %}
             <li>
                 <a href="{{ breadcrumb_url }}" {% if forloop.last %}class="active"{% endif %}>{% if forloop.first %}{{ brand.name }} API v2{% else %}{{ breadcrumb_name }}{% endif %}</a> {% if not forloop.last %}<span class="divider">&rsaquo;</span>{% endif %}
@@ -111,7 +106,7 @@
 
     <div id="content">
         <div class="content-main">
-            <div class="page-header"><h1>{% if name == "Root" %}{{ brand.name }} API v2{% else %}{{ name }}{% endif %}</h1></div>
+            <div class="page-title mb-8">{% if name == "Root" %}{{ brand.name }} API v2{% else %}{{ name }}{% endif %}</h1></div>
             {{ description }}
         </div>
     </div>

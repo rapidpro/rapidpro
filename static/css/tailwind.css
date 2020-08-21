@@ -1010,6 +1010,7 @@ a:hover {
   }
 
 .button:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -1048,6 +1049,7 @@ a:hover {
   }
 
 .button-light:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -1099,6 +1101,7 @@ a:hover {
   }
 
 .button-action:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -1149,6 +1152,7 @@ a:hover {
   }
 
 .button-tertiary:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -1187,6 +1191,7 @@ a:hover {
   }
 
 .button-secondary:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -1225,6 +1230,7 @@ a:hover {
   }
 
 .button-primary:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -1263,6 +1269,7 @@ a:hover {
   }
 
 .button-white:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -1301,6 +1308,7 @@ a:hover {
   }
 
 .button-danger:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -1339,6 +1347,7 @@ a:hover {
   }
 
 .button-dark-alpha:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -1385,6 +1394,7 @@ a:hover {
   }
 
 .button-sm:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -2104,6 +2114,10 @@ code {
   margin-left: 4px;
   margin-top: -5px;
 }
+
+.hover-box:hover {
+    box-shadow: var(--widget-box-shadow-focused);
+  }
 
 .formax .formax-section {
     border-width: 0;

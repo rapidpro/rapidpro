@@ -8,7 +8,7 @@
 
 -block content
   -block breadcrumbs
-    %ul.breadcrumb
+    %ul.breadcrumb.-mt-12.mb-12
       %li
         %a{href:"{% url 'api.v2' %}"}
           {{ brand.name }} API v2
@@ -23,77 +23,78 @@
       -else
         %li.pull-right Log in to get your API Token
 
-  .flex.justify-between.items-center.pb-2.mb-6.border-b{ style: "position: relative;" }
+  .flex.justify-between.items-center.pb-1.mb-4{ style: "position: relative;" }
     %h1.page-title.leading-tight API Explorer
-    %span.bg-dark-alpha-100.p-4.border-primary.border.text-primary.font-medium.rounded-lg All operations work against live data
+    .bg-white.px-4.py-2.border-primary.border.text-primary.font-medium.rounded-lg All operations work against live data
 
   - for endpoint in endpoints
-    .flex.items-center.rounded-lg.border.p-4.mt-4.bg-gray-200.endpoint-title{ data-slug: "{{ endpoint.slug }}", data-method: "{{ endpoint.method }}" }
-      .endpoint-method.font-mono.rounded-lg{ class:"method-{{ endpoint.method|lower }}" }= endpoint.method
-      .endpoint-url.flex-grow.font-mono {{ endpoint.url }}.json
-      .endpoint-description
-        {{ endpoint.title }}
+    .card.mt-4.hover-box
+      .flex.bleed-x.bleed-t.bleed-b.items-center.cursor-pointer.endpoint-title{ data-slug: "{{ endpoint.slug }}", data-method: "{{ endpoint.method }}" }
+        .endpoint-method.font-mono.rounded-lg{ class:"method-{{ endpoint.method|lower }}" }= endpoint.method
+        .endpoint-url.flex-grow.font-mono {{ endpoint.url }}.json
+        .endpoint-description
+          {{ endpoint.title }}
 
-    .endpoint.border.rounded-lg.border-t-0.p-2.-mt-4{ class: "endpoint-{{ endpoint.method|lower }}" }
-      -if endpoint.params
-        .field-title.font-bold.text-lg.p-1.mt-2
-          -trans "Query String Parameters"
-        %table.list.lined
-          .tbody
-            -for item in endpoint.params
-              %tr
-                %td.field.text-right.font-medium.text-gray-600{ class:"{% if item.required %}field-required{% endif %}" }= item.name
-                %td.font-light {{ item.help }}
-                  -if item.required
-                    (required)
-                  -else
-                    (optional)
-      -if endpoint.fields
-        .field-title.font-bold.text-lg.p-1
-          -trans "Post Body Fields"
-        %table.list.lined
-          .tbody
-            -for item in endpoint.fields
-              %tr
-                %td.field.text-right.font-medium.text-gray-600{ class:"{% if item.required %}field-required{% endif %}" }= item.name
-                %td.font-light {{ item.help }}
-                  -if item.required
-                    (required)
-                  -else
-                    (optional)
-
-      .request-form.rounded-lg.border.p-4.bg-gray-200.mt-4
-        .request-header.font-mono.mb-4
-          <b class="font-bold">{{ endpoint.method }}</b> {{brand.api_link}}{{ endpoint.url }}.json<span class="query-display"></span><br/>
-          <b class="font-bold">Authorization:</b> Token {{ request.user.api_token }}
-
+      .endpoint.bleed-x.bleed-b.bg-white.border-t.mt-6{ class: "endpoint-{{ endpoint.method|lower }}" }
         -if endpoint.params
-          .form-group.mt-4.flex.items-center
-            %label.control-label.self-start.pt-4.w-56.text-right.pr-6
-              -trans "Query String"
-            .flex-grow
-              %textarea.textinput.p-2.rounded.request-query{ id:"request-query-{{ endpoint.slug }}", rows:"1" }<
-                {{ endpoint.example.query }}
-
+          .title.my-4
+            -trans "Query String Parameters"
+          %table
+            .tbody
+              -for item in endpoint.params
+                %tr
+                  %td.field.text-right.font-medium.text-gray-600.px-4.py-2{ class:"{% if item.required %}field-required{% endif %}" }= item.name
+                  %td.font-light {{ item.help }}
+                    -if item.required
+                      (required)
+                    -else
+                      (optional)
         -if endpoint.fields
-          .form-group.mt-4.flex.items-center
-            %label.control-label.self-start.pt-4.w-56.text-right.pr-6
-              -trans "Post Body"
-            .flex-grow
-              %textarea.textinput.p-2.rounded.request-body{ id:"request-body-{{ endpoint.slug }}", rows:"5" }<
-                {{ endpoint.example.body }}
+          .title.my-4
+            -trans "Post Body Fields"
+          %table
+            .tbody
+              -for item in endpoint.fields
+                %tr
+                  %td.field.text-right.font-medium.text-gray-600.px-4.py-2{ class:"{% if item.required %}field-required{% endif %}" }= item.name
+                  %td.font-light {{ item.help }}
+                    -if item.required
+                      (required)
+                    -else
+                      (optional)
 
-      .request-buttons.flex.justify-between.items-center.mt-4.h-12
-        .pull-left
-          %a{ href: '{{ endpoint.url }}' }
-            -trans "View Full Documentation"
+        .request-form.rounded-lg.border.p-6.bg-gray-100.mt-4
+          .request-header.font-mono.mb-4
+            <b class="font-bold">{{ endpoint.method }}</b> {{brand.api_link}}{{ endpoint.url }}.json<span class="query-display"></span><br/>
+            <b class="font-bold">Authorization:</b> Token {{ request.user.api_token }}
 
-        -if user.api_token
-          .button-primary{ onclick:'javascript:onRequest("{{ endpoint.slug }}", "{{ endpoint.method }}", "{{ endpoint.url }}.json")' }= endpoint.method|upper
-        -else
-          %span Log in to use the Explorer
+          -if endpoint.params
+            .form-group.mt-4.flex.items-center
+              %label.control-label.self-start.pt-4.w-56.text-right.pr-6
+                -trans "Query String"
+              .flex-grow
+                %textarea.textinput.p-2.rounded.request-query{ id:"request-query-{{ endpoint.slug }}", rows:"1" }<
+                  {{ endpoint.example.query }}
 
-      %pre.prettyprint.result.mb-0.mt-4(id="result-{{ endpoint.slug }}" style="margin-bottom:0;" )
+          -if endpoint.fields
+            .form-group.mt-4.flex.items-center
+              %label.control-label.self-start.pt-4.w-56.text-right.pr-6
+                -trans "Post Body"
+              .flex-grow
+                %textarea.textinput.p-2.rounded.request-body{ id:"request-body-{{ endpoint.slug }}", rows:"5" }<
+                  {{ endpoint.example.body }}
+
+        .request-buttons.flex.justify-between.items-center.mt-4.h-12
+          .pull-left
+            %a{ href: '{{ endpoint.url }}' }
+              -trans "View Full Documentation"
+
+          -if user.api_token
+            .button-primary{ onclick:'javascript:onRequest("{{ endpoint.slug }}", "{{ endpoint.method }}", "{{ endpoint.url }}.json")' }= endpoint.method|upper
+          -else
+            %span Log in to use the Explorer
+
+        %pre.prettyprint.result.mb-0.mt-4.p-4(id="result-{{ endpoint.slug }}" style="margin-bottom:0;" )
 
 -block extra-script
   {{ block.super }}
@@ -160,32 +161,32 @@
 
     .method-get {
       background-color: #058C40;
-      color: #eee;
+      color: #fff;
       padding: 3px;
       text-align: center;
       width: 60px;
       display: inline-block;
-      margin-right: 5px;
+      margin-right: 15px;
     }
 
     .method-delete {
       background-color: #952624;
-      color: #eee;
+      color: #fff;
       padding: 3px;
       text-align: center;
       width: 60px;
       display: inline-block;
-      margin-right: 5px;
+      margin-right: 15px;
     }
 
     .method-post {
       background-color: #1793cd;
-      color: #eee;
+      color: #fff;
       width: 60px;
       text-align: center;
       padding: 3px;
       display: inline-block;
-      margin-right: 5px;
+      margin-right: 15px;
     }
 
     table.list tr td:first-child {

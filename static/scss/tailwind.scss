@@ -102,11 +102,10 @@ a {
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
       0 1px 2px 0 rgba(0, 0, 0, 0.06),
       inset 0 0 20px 20px rgba(0, 0, 0, .15) !important;
-
-
   }
 
   &:hover {
+    text-decoration: none;
     cursor: pointer;
     box-shadow:
       0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -642,6 +641,12 @@ code {
   color: var(--color-text-help);
   margin-left: 4px;
   margin-top: -5px;
+}
+
+.hover-box {
+  &:hover {
+    box-shadow: var(--widget-box-shadow-focused);
+  }
 }
 
 .formax {
