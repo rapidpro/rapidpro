@@ -2,53 +2,24 @@
 - load smartmin temba compress
 - load i18n
 
--block page-title
+-block title
+  {{user_org.name|capfirst}}
+-block subtitle
   -trans "Manage Logins"
-  \- {{user_org.name|capfirst}}
-
--block extra-less
-  -compress css inline
-    {% lessblock %}
-      :plain
-
-        tr.invites-title th {
-          border: none
-        }
-
-        .formax-form .table th, .table td {
-          border: 0px;
-        }
-
-        td.permission, th.permission {
-          text-align:center;
-        }
-
-        th.permission {
-          width:80px;
-        }
-
-        td.form {
-          border-top: 1px solid #eee;
-        }
-
-    {% endlessblock %}
-
+  
 -block extra-style
-  {{ block.super }}
+  {{block.super}}
   :css
-    th, td {
-      width: inherit;
-      color: #999999;
+    temba-checkbox {
+      --fa-icon-fill-color: #999;
     }
 
-
-- block fields
-
+-block fields
   -if parent
     %h4
       <a href="{% url 'orgs.org_sub_orgs'%}">{%blocktrans%}Workspaces{%endblocktrans%}</a> &raquo; {{org.name}}
 
-  %table.table.table-condensed{style:"margin-bottom:0px;"}
+  %table.list{style:"margin-bottom:0px;"}
     %thead
       %tr
         %th
@@ -63,6 +34,7 @@
           -trans "Surveyors"
         %th.permission
           -trans "Remove"
+
     %tbody
       %tr#admin-error.hide
         %td.alert.alert-error{colspan: 6}
@@ -76,17 +48,17 @@
           - with group_fields|get:user as row_fields
             - for check_name in row_fields
               %td.check.permission.level-checkbox
-                .flex.justify-center
+                .flex.justify-center.text-gray-900
                   {{form|field:check_name}}
           %td.check.permission.level-checkbox
             .flex.justify-center
               %temba-checkbox(name="")
 
       // pending invites
-      %tr
-      %tr.invites-title
-        %th
-          -trans "Invites"
+      -if invites
+        %tr.invites-title
+          %th(colspan=99)
+            -trans "Pending Invitations"
 
       -for invite in invites
         %tr.invite
@@ -121,17 +93,16 @@
               .flex.justify-center
                 {{form|field:check_name}}
 
-      %tr
-        %td{height:'3px', colspan:6}
 
-      // add a new user
-      %tr
-        %td.form{colspan: 1}
-          .field.formax-vertical
-            {% render_field 'invite_emails' %}
-        %td.form{colspan: 3}
-          .field.formax-vertical
-            {% render_field 'invite_group' %}
+  .card
+    .title.mb-0.pb-0
+      -trans "Invite New Users"
+
+    .flex.w-full.items-end
+      .pr-4.flex-grow
+        {% render_field 'invite_emails' %}
+      .group.w-48
+        {% render_field 'invite_group' %}
 
 -block form-buttons
   .form-actions.mt-4.ml-2

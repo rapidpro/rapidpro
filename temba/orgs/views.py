@@ -1317,15 +1317,13 @@ class OrgCRUDL(SmartCRUDL):
     class ManageAccounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class AccountsForm(forms.ModelForm):
             invite_emails = forms.CharField(
-                label=_("Invite people to your workspace"),
-                required=False,
-                widget=InputWidget(attrs={"placeholder": _("Enter emails of people to invite")}),
+                required=False, widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Email Address")}),
             )
             invite_group = forms.ChoiceField(
-                choices=(("A", _("Administrators")), ("E", _("Editors")), ("V", _("Viewers")), ("S", _("Surveyors"))),
+                choices=(("A", _("Administrator")), ("E", _("Editor")), ("V", _("Viewer")), ("S", _("Surveyor"))),
                 required=True,
                 initial="V",
-                label=_("User group"),
+                label=_("Role"),
                 widget=SelectWidget(),
             )
 
@@ -1392,6 +1390,9 @@ class OrgCRUDL(SmartCRUDL):
         @staticmethod
         def org_group_set(org, group_name):
             return getattr(org, group_name.lower())
+
+        def get_gear_links(self):
+            return [dict(title=_("Settings"), style="button-light", href=reverse("orgs.org_home"),)]
 
         def derive_initial(self):
             initial = super().derive_initial()

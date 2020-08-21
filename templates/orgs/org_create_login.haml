@@ -2,24 +2,10 @@
 -load smartmin
 -load i18n
 
--block page-title
+-block title
   {{title}}
 
--block page-top
-
-
 -block content
-  .lp-frame
-    .right
-      .flex.w-full.mb-4.items-end.flex-wrap.justify-end{style:"min-height:41px"}
-        .flex-grow.ml-1.self-end.items-end
-          .flex.flex-col.pr-12
-            .page-title.leading-tight
-              -block title
-                {{title}}
-              .subtitle
-                -block subtitle
-
   .formax
     .formax-section
       .formax-icon.bg-gray-100.flex.flex-row.items-stretch
@@ -76,8 +62,8 @@
   {{ block.super }}
   :javascript
     $(function() {
-      $(".formax-icon").on('click', function(){
-        $(this).parent(".formax-section").toggleClass('open');
-        $(this).parent(".formax-section").siblings('formax-section').removeClass('open');
+      $(".formax-icon, .formax-summary").on('click', function(){
+        $(this).parents(".formax-section").toggleClass('open');
+        $(this).parents(".formax-section").siblings('formax-section').removeClass('open');
       });
     });
