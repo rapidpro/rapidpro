@@ -97,16 +97,18 @@ form.smartmin-form {
   margin-right: auto;
 }
 
-#menu, .org-header, .ReactModalPortal, #rp-flow-editor {
+#menu, .org-header, .ReactModalPortal, #rp-flow-editor, #legacy-editor, .modal {
   *, ::before, ::after {
     box-sizing: content-box !important;
-    
+  }
+
+  &::before, &::after {
+    box-sizing: content-box !important;
   }
 }
 
 .ReactModalPortal {
   line-height: initial;
-
   p {
     margin-block-end: 14px;
     margin-block-start: 10px;
@@ -114,3 +116,22 @@ form.smartmin-form {
     margin-inline-start: 0px;
   }
 }
+
+#legacy-editor, .modal {
+  color: #333;
+  line-height: 20px;
+  select {
+    padding-left:6px;
+  }
+  p {
+    margin-block-end: 10px;
+    margin-block-start: 0px;
+    margin-inline-end: 0px;
+    margin-inline-start: 0px;
+  }
+
+  .title {
+    margin-bottom: 0px;
+  }
+}
+

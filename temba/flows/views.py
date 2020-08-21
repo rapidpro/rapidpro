@@ -1143,7 +1143,14 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(divider=True))
 
             if self.has_org_perm("flows.flow_update") and not flow.is_archived:
-                links.append(dict(title=_("Edit"), js_class="update-rulesflow", href="#"))
+                links.append(
+                    dict(
+                        id="edit-flow",
+                        title=_("Edit"),
+                        href=f"{reverse('flows.flow_update', args=[self.object.pk])}",
+                        modax=_("Edit Flow"),
+                    )
+                )
 
             if self.has_org_perm("flows.flow_copy"):
                 links.append(dict(title=_("Copy"), posterize=True, href=reverse("flows.flow_copy", args=[flow.id])))
@@ -1156,7 +1163,14 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Revision History"), ngClick="showRevisionHistory()", href="#"))
 
             if self.has_org_perm("flows.flow_delete"):
-                links.append(dict(title=_("Delete"), js_class="delete-flow", href="#"))
+                links.append(
+                    dict(
+                        id="delete-flow",
+                        title=_("Delete"),
+                        href=f"{reverse('flows.flow_delete', args=[self.object.pk])}",
+                        modax=_("Delete Flow"),
+                    )
+                )
 
             links.append(dict(divider=True))
             links.append(dict(title=_("New Editor"), js_class="migrate-flow", href="#"))
@@ -1306,7 +1320,6 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Copy"), posterize=True, href=reverse("flows.flow_copy", args=[flow.id])))
 
             if self.has_org_perm("flows.flow_delete"):
-
                 links.append(
                     dict(
                         id="delete-flow",
@@ -1315,8 +1328,6 @@ class FlowCRUDL(SmartCRUDL):
                         modax=_("Delete Flow"),
                     )
                 )
-
-                # links.append(dict(title=_("Delete"), js_class="delete-flow", href="#"))
 
             links.append(dict(divider=True)),
 

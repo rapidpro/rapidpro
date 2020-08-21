@@ -340,6 +340,7 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
     ,0
 
   setPageHeight: ->
+    # console.log("setting page height")
     $("#flow").each ->
       pageHeight = 0
       $this = $(this)
@@ -348,7 +349,10 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
         bottom = child.offset().top + child.height()
         if bottom > pageHeight
           pageHeight = bottom + 500
-      $this.height(pageHeight)
+      
+      # console.log($this, pageHeight, $this.height())
+      # $this.height(pageHeight)
+      $("#pageBody").height(pageHeight+500)
 
   repaint: (element=null) ->
     if not window.loaded
