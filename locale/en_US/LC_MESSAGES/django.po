@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-19 16:13+0000\n"
+"POT-Creation-Date: 2020-08-21 18:59+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6555,6 +6555,12 @@ msgid ""
 msgstr ""
 
 msgid "Error Contacting Server. Changes may not be saved."
+msgstr ""
+
+msgid "Legacy flows"
+msgstr ""
+
+msgid "This flow is still using the legacy flow editor which will soon be retired. When that happens this flow will be automatically updated to use the new editor. However you can update this flow now and start taking advantage of the powerful new features in the new editor today."
 msgstr ""
 
 msgid "Let's get started"
