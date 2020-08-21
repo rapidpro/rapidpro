@@ -96,3 +96,21 @@ form.smartmin-form {
   margin-left: auto;
   margin-right: auto;
 }
+
+#menu, .org-header, .ReactModalPortal, #rp-flow-editor {
+  *, ::before, ::after {
+    box-sizing: content-box !important;
+    
+  }
+}
+
+.ReactModalPortal {
+  line-height: initial;
+
+  p {
+    margin-block-end: 14px;
+    margin-block-start: 10px;
+    margin-inline-end: 0px;
+    margin-inline-start: 0px;
+  }
+}

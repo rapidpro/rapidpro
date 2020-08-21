@@ -37,12 +37,11 @@
       -ms-user-select: none;
       user-select: none;
       z-index: 0;
-      font-family: 'Helvetica Neue', sans-serif;
     }
 
     .ReactModalPortal {
       --curvature: 4px;
-      --curvature-widget: 4px; 
+      --curvature-widget: 4px;
     }
 
     /* case_list_case is the dnd portal under body */
@@ -137,10 +136,6 @@
       width: 100%;
     }
 
-    #rp-flow-editor *, ::before, ::after {
-      box-sizing: content-box !important;      
-    }
-
     #rp-flow-editor #canvas-container > div {
       box-shadow: inset 0 7px 9px -10px rgba(0,0,0,0.4);
     }
@@ -171,7 +166,7 @@
       margin-bottom: inherit;
     }
 
-    .footerArea {
+    .footer {
       display: none;
     }
 
@@ -291,23 +286,24 @@
 
   %temba-modax#send-message-modal{ header:"Send Message" }
 
-  .flex.flex-col.pt-4
-    .flex.px-8.pb-2
-      .title.flex-grow
-        .flex
-          -if flow.flow_type == 'V'
-            .icon-phone.text-4xl.mt-2.mr-8
-          -elif flow.flow_type == 'S'
-            .icon-mobile.text-4xl.mt-2.mr-8
-          .text-4xl
-            {{title}}
-      .menu
-        -include "gear_links_include.haml"
+  .top-bar.pb-2
+    .flex.flex-col.pt-4
+      .flex.px-6.pb-2
+        .title.flex-grow
+          .flex.page-title
+            -if flow.flow_type == 'V'
+              .icon-phone.mt-2.mr-6
+            -elif flow.flow_type == 'S'
+              .icon-mobile.mt-2.mr-6
+            .ml-0
+              {{title}}
+        .menu
+          -include "gear_links_include.haml"
 
-    -if is_starting
-      .p-3.bg-gray-100.w-full.text-center
-        -blocktrans trimmed
-          This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
+      -if is_starting
+        .p-3.bg-gray-100.w-full.text-center
+          -blocktrans trimmed
+            This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
 
   .hide
     %a#change-language-form.posterize(href='{% url "flows.flow_change_language" object.id %}')
