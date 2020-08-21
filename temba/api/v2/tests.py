@@ -1921,7 +1921,7 @@ class APITest(TembaTest):
         # try to move a blocked contact into a group
         jean.block(self.user)
         response = self.postJSON(url, "uuid=%s" % jean.uuid, {"groups": [group.uuid]})
-        self.assertResponseError(response, "groups", "Blocked or stopped contacts can't be added to groups")
+        self.assertResponseError(response, "groups", "Non-active contacts can't be added to groups")
 
         # try to update a contact by both UUID and URN
         response = self.postJSON(url, "uuid=%s&urn=%s" % (jean.uuid, quote_plus("tel:+250784444444")), {})
@@ -2209,7 +2209,7 @@ class APITest(TembaTest):
 
         # error reporting that the deleted and test contacts are invalid
         self.assertResponseError(
-            response, "non_field_errors", "Blocked or stopped contacts cannot be added to groups: %s" % contact4.uuid
+            response, "non_field_errors", "Non-active contacts cannot be added to groups: %s" % contact4.uuid
         )
 
         # add valid contacts to the group by name
