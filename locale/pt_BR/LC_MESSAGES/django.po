@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-17 23:36+0000\n"
+"POT-Creation-Date: 2020-08-21 15:04+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -1092,6 +1092,63 @@ msgstr ""
 
 msgid "Invalid phone number, please include the country code. ex: +250788123123"
 msgstr "Número de telefone inválido, por favor inclua o código do país. ex:+250788123123"
+
+#, fuzzy, python-format
+msgid "If you are based in Malawi or Ghana you can purchase a number from %(link)s and connect it in a few simple steps."
+msgstr ""
+"\n"
+"Se sua base estiver no Quênia, você pode comprar um número curto da %(link_start)s Africa's Talking %(link_end)s e\n"
+"conectá-lo ao Textit em poucos e simples passos."
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your Hub9 connection you'll need to provide them with the following details.\n"
+#| "\n"
+#| "      "
+msgid "To finish configuring your channel you need to configure Click Mobile to send new messages to the URL below."
+msgstr ""
+"\n"
+"Para finalizar a configuração da sua conexão com o Hub9, você terá que fornece-los com os seguintes detalhes."
+
+#, fuzzy
+#| msgid "The phone number or short code you are connecting with country code. ex: +250788123124"
+msgid "The Click Mobile phone number or short code you are connecting with country code. ex: +250788123124"
+msgstr "Número de telefone ou número curto com o qual você esta se conectando, com o código do país. Ex:+250788123124"
+
+msgid "Ghana"
+msgstr ""
+
+#, fuzzy
+#| msgid "users"
+msgid "User ID"
+msgstr "usuários"
+
+#, fuzzy
+#| msgid "Your username on Africa's Talking"
+msgid "Your user_id on Click Mobile"
+msgstr "O seu nome de usuário do Africa's Talking"
+
+#, fuzzy
+#| msgid "Your short code on Africa's Talking"
+msgid "Your password on Click Mobile"
+msgstr "O seu número curto do Africa's Talking"
+
+msgid "App ID"
+msgstr ""
+
+#, fuzzy
+#| msgid "Your username on Africa's Talking"
+msgid "Your app_id on Click Mobile"
+msgstr "O seu nome de usuário do Africa's Talking"
+
+msgid "Org ID"
+msgstr ""
+
+#, fuzzy
+#| msgid "Your short code on Africa's Talking"
+msgid "Your org_id on Click Mobile"
+msgstr "O seu número curto do Africa's Talking"
 
 #, fuzzy
 #| msgid "Username"
@@ -3196,9 +3253,6 @@ msgstr "Código de requisição inválido, por favor, verifique-o e tente novame
 msgid "The name of your LUIS app"
 msgstr "Nome da sua organização"
 
-msgid "App ID"
-msgstr ""
-
 #, fuzzy
 #| msgid "The name of your organization"
 msgid "The ID for your LUIS app"
@@ -3325,14 +3379,6 @@ msgstr "ID Externo"
 msgid "VK identifier"
 msgstr "ID Externo"
 
-#, fuzzy
-#| msgid "UUID"
-msgid "ID"
-msgstr "UUID"
-
-msgid "Language"
-msgstr "Linguagem"
-
 msgid "Label"
 msgstr "Rótulo"
 
@@ -3347,6 +3393,9 @@ msgstr ""
 
 msgid "The name of this contact"
 msgstr "O nome deste contato"
+
+msgid "Language"
+msgstr "Linguagem"
 
 #, fuzzy
 msgid "The preferred language for this contact"
@@ -3931,7 +3980,7 @@ msgstr "Quando o usuário chegou neste passo do fluxo"
 
 #, fuzzy
 #| msgid "Ignore keyword triggers while in this flow"
-msgid "Select keywords to tirgger this flow"
+msgid "Select keywords to trigger this flow"
 msgstr "Ignorar disparadores por palavra-chave enquanto estiver neste fluxo"
 
 #, fuzzy
@@ -5082,11 +5131,6 @@ msgstr "name@domain.com"
 msgid "The timezone for your workspace"
 msgstr "O fuso horário para"
 
-#, fuzzy
-#| msgid "Please enter at least 8 characters"
-msgid "At least eight characters"
-msgstr "Por favor, insira pelo menos 8 caracteres"
-
 msgid "Workspace"
 msgstr ""
 
@@ -5456,6 +5500,9 @@ msgstr ""
 msgid "Add Ticketing Service"
 msgstr ""
 
+msgid "Help"
+msgstr ""
+
 #, fuzzy
 #| msgid "Sign Up"
 msgid "Sign Out"
@@ -5560,6 +5607,9 @@ msgid "Summary of policy changes (Markdown permitted)"
 msgstr ""
 
 msgid "Is Consent Required?"
+msgstr ""
+
+msgid "New Policy"
 msgstr ""
 
 msgid "Your Privacy"
@@ -8007,9 +8057,6 @@ msgstr[1] ""
 msgid "Ok"
 msgstr ""
 
-msgid "Hold up!"
-msgstr "Segure-se!"
-
 #, fuzzy
 #| msgid ""
 #| "\n"
@@ -8018,9 +8065,10 @@ msgstr "Segure-se!"
 #| "    "
 msgid ""
 "\n"
-"      We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
-"      your contact by selecting them below.\n"
-"    "
+"    We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
+"    your contact by selecting them below.\n"
+"\n"
+"  "
 msgstr ""
 "\n"
 "Percebemos que seu arquivo contém algumas colunas extras, você pode adicioná-las como campos personalizados em seu contato, selecionando-os abaixo."
@@ -8261,8 +8309,8 @@ msgstr "Desarquivar"
 msgid "Import Contacts"
 msgstr "Importar contatos"
 
-msgid "You can import your contacts from an XLS file you create in Excel. Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available. You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
-msgstr ""
+msgid "You can import your contacts from an XLS file you create in Excel."
+msgstr "Você pode importar seus contatos de um arquivo XLS criado no Excel."
 
 msgid "URN:Tel"
 msgstr ""
@@ -8291,7 +8339,11 @@ msgstr "Jane Doe"
 msgid "Advisors"
 msgstr ""
 
-msgid "Supported fields, all other columns are ignored."
+#, fuzzy
+msgid "Supported Fields"
+msgstr "Gerenciar campos"
+
+msgid "Any columns that do not match the following table will be ignored."
 msgstr ""
 
 msgid "Column Header"
@@ -8624,16 +8676,19 @@ msgid ""
 "You can download your %(brand)s contacts export by clicking on the following link:\n"
 msgstr ""
 
-msgid "Your Contacts"
-msgstr "Seus contatos"
-
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "      Contacts will automatically be added here as you communicate with them using %(name)s.\n"
+#| "      From here you can change a contact's name, organize them into groups and see the communication you've had with each.\n"
+#| "\n"
+#| "    "
 msgid ""
 "\n"
-"      Contacts will automatically be added here as you communicate with them using %(name)s.\n"
-"      From here you can change a contact's name, organize them into groups and see the communication you've had with each.\n"
+"    Contacts will automatically be added here as you communicate with them using %(name)s.\n"
+"    From here you can change a contact's name, organize them into groups and see the communication you've had with each.\n"
 "\n"
-"    "
+"  "
 msgstr ""
 "\n"
 "Contatos serão automaticamente adicionados aqui, conforme você se comunica com eles usando %(name)s. A partir daí você pode alterar o nome de um contato, organizá-los em grupos e ver a comunicação que você teve com cada um."
@@ -8648,10 +8703,10 @@ msgstr ""
 #| "    "
 msgid ""
 "\n"
-"      To get started you can\n"
-"        <a href='%(contact_import_url)s'>import contacts</a>\n"
-"      from a file you create in Excel.\n"
-"    "
+"    To get started you can\n"
+"      <a href='%(contact_import_url)s'>import contacts</a>\n"
+"    from a file you create in Excel.\n"
+"  "
 msgstr ""
 "\n"
 "Para começar, você pode  <a href='%(contact_import_url)s'> importar contatos</ a> \n"
@@ -10342,16 +10397,13 @@ msgid "Create Account"
 msgstr "Criar nova conta"
 
 #, python-format
-msgid "Creating a %(brand)s account is free and only takes a minute. If you alread have an account, you can"
+msgid "Creating a %(brand)s account is free and only takes a minute."
 msgstr ""
 
 #, fuzzy
 #| msgid "Sign in"
 msgid "Sign In"
 msgstr "Entrar"
-
-msgid "instead."
-msgstr "ao invés."
 
 #, fuzzy
 #| msgid "Configuration"
@@ -10730,9 +10782,6 @@ msgstr "Neste exemplo @extra.stock_level e example@extra.product podem ser adici
 msgid "Send to all contact addresses"
 msgstr ""
 
-msgid "Help"
-msgstr ""
-
 #, fuzzy
 #| msgid "When the user arrived at this step in the flow"
 msgid ""
@@ -10910,17 +10959,17 @@ msgstr "Adicionar créditos"
 msgid "Add menu:"
 msgstr "Adicionar números"
 
-msgid "New Policy"
-msgstr ""
-
 #, fuzzy
-#| msgid "Credits"
-msgid "edit"
-msgstr "Créditos"
-
-#, fuzzy
-msgid "Previous Policies"
+msgid "Policies"
 msgstr "Nenhum editor"
+
+msgid ""
+"\n"
+"      These are the policies currently in place. In general these should not be modified unless for inconsequential grammar. Consider instead,\n"
+"      introducing a new policy which will archive the current policy for posterity and replace it.\n"
+"\n"
+"    "
+msgstr ""
 
 #, fuzzy
 #| msgid "Create"
@@ -10928,9 +10977,9 @@ msgid "Created"
 msgstr "Criar"
 
 #, fuzzy
-#| msgid "Device"
-msgid "view"
-msgstr "Dispositivo"
+#| msgid "Credits"
+msgid "edit"
+msgstr "Créditos"
 
 #, python-format
 msgid ""
@@ -10974,6 +11023,11 @@ msgstr "Atualizar campos"
 
 msgid "Privacy Center"
 msgstr ""
+
+#, fuzzy
+#| msgid "Update Fields"
+msgid "Update Policy"
+msgstr "Atualizar campos"
 
 #, fuzzy, python-format
 msgid ""
@@ -11439,11 +11493,15 @@ msgstr "Para saber mais sobre fluxos, visite o"
 msgid "learning center"
 msgstr "Centro de aprendizado"
 
-msgid "View Sample Flows"
-msgstr "Visualizar exemplos de fluxos"
+#, fuzzy
+#| msgid "Sample Flow"
+msgid "Sample Flows"
+msgstr "Exemplo de fluxo"
 
-msgid "How to Build Flows"
-msgstr "Como construir fluxos"
+#, fuzzy
+#| msgid "Trial"
+msgid "Tutorials"
+msgstr "Experimental"
 
 #, fuzzy
 msgid "Get Connected"
@@ -12022,11 +12080,38 @@ msgstr "Insira o seu código de requisição"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
+#, fuzzy
+#~| msgid "UUID"
+#~ msgid "ID"
+#~ msgstr "UUID"
+
+#, fuzzy
+#~| msgid "Please enter at least 8 characters"
+#~ msgid "At least eight characters"
+#~ msgstr "Por favor, insira pelo menos 8 caracteres"
+
+#~ msgid "Hold up!"
+#~ msgstr "Segure-se!"
+
+#~ msgid "Your Contacts"
+#~ msgstr "Seus contatos"
+
+#~ msgid "instead."
+#~ msgstr "ao invés."
+
+#, fuzzy
+#~| msgid "Device"
+#~ msgid "view"
+#~ msgstr "Dispositivo"
+
+#~ msgid "View Sample Flows"
+#~ msgstr "Visualizar exemplos de fluxos"
+
+#~ msgid "How to Build Flows"
+#~ msgstr "Como construir fluxos"
+
 #~ msgid "Logout"
 #~ msgstr "Sair"
-
-#~ msgid "You can import your contacts from an XLS file you create in Excel."
-#~ msgstr "Você pode importar seus contatos de um arquivo XLS criado no Excel."
 
 #, fuzzy
 #~| msgid "Each row should have the phone number (including country code) and the name of the contact if available."
@@ -12665,9 +12750,6 @@ msgstr ""
 
 #~ msgid "Free Plan"
 #~ msgstr "Plano grátis"
-
-#~ msgid "Trial"
-#~ msgstr "Experimental"
 
 #~ msgid "Bronze"
 #~ msgstr "Bronze"
@@ -15251,9 +15333,6 @@ msgstr ""
 
 #~ msgid "The duration of this call in seconds, if appropriate"
 #~ msgstr "A duração dessa chamada em segundos, se possível"
-
-#~ msgid "Sample Flow"
-#~ msgstr "Exemplo de fluxo"
 
 #~ msgid "The host this invitation was created on"
 #~ msgstr "O anfitrião deste convite foi criado em"

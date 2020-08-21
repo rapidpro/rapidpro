@@ -1,3 +1,44 @@
+v5.7.14
+----------
+ * Migration to backfill contact status
+
+v5.7.13
+----------
+ * Enable channelback files for Zendesk ticketers
+ * Set status as active for new contacts
+ * Add new status field to contact
+ * Fix legacy editor by putting html-tag block back
+ * Change the label for CM channel claim
+
+v5.7.12
+----------
+ * Fix imports that match by UUID
+ * Fix Nexmo search numbers and claim number
+ * Use Django language code on html tag
+ * Add support for ClickMobile channel type
+
+v5.7.11
+----------
+ * Fix creating of campaign events based on last_seen_on
+ * Tweak msg_console so it can include sent messages which are not replies
+ * Fix mailroom_db command
+ * Expose last_seen_on on contact API endpoint
+
+v5.7.10
+----------
+ * Update floweditor to 1.9.10
+ * Add Last Seen On as a system field so it can be used in campaigns
+ * Tweak search_archives command to allow JSONL output
+
+v5.7.9
+----------
+ * Fix reading of S3 event streams
+ * Migration to populate contact.last_seen_on from msg archives
+
+v5.7.8
+----------
+ * Add plan_end field to Orgs
+
 v5.7.7
 ----------
  * Add search archives management command

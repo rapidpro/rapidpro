@@ -447,15 +447,17 @@ class ContactField(SmartModel):
     KEY_NAME = "name"
     KEY_CREATED_ON = "created_on"
     KEY_LANGUAGE = "language"
+    KEY_LAST_SEEN_ON = "last_seen_on"
 
     # fields that cannot be updated by user
-    IMMUTABLE_FIELDS = (KEY_ID, KEY_CREATED_ON)
+    IMMUTABLE_FIELDS = (KEY_ID, KEY_CREATED_ON, KEY_LAST_SEEN_ON)
 
     SYSTEM_FIELDS = {
-        KEY_ID: dict(label=_("ID"), value_type=Value.TYPE_NUMBER),
-        KEY_NAME: dict(label=_("Name"), value_type=Value.TYPE_TEXT),
-        KEY_CREATED_ON: dict(label=_("Created On"), value_type=Value.TYPE_DATETIME),
-        KEY_LANGUAGE: dict(label=_("Language"), value_type=Value.TYPE_TEXT),
+        KEY_ID: dict(label="ID", value_type=Value.TYPE_NUMBER),
+        KEY_NAME: dict(label="Name", value_type=Value.TYPE_TEXT),
+        KEY_CREATED_ON: dict(label="Created On", value_type=Value.TYPE_DATETIME),
+        KEY_LANGUAGE: dict(label="Language", value_type=Value.TYPE_TEXT),
+        KEY_LAST_SEEN_ON: dict(label="Last Seen On", value_type=Value.TYPE_DATETIME),
     }
 
     EXPORT_KEY = "key"
@@ -494,6 +496,19 @@ class ContactField(SmartModel):
     all_fields = models.Manager()  # this is the default manager
     user_fields = UserContactFieldsManager()
     system_fields = SystemContactFieldsManager()
+
+    @classmethod
+    def create_system_fields(cls, org):
+        for key, spec in ContactField.SYSTEM_FIELDS.items():
+            org.contactfields.create(
+                field_type=ContactField.FIELD_TYPE_SYSTEM,
+                key=key,
+                label=spec["label"],
+                value_type=spec["value_type"],
+                show_in_table=False,
+                created_by=org.created_by,
+                modified_by=org.modified_by,
+            )
 
     @classmethod
     def make_key(cls, label):
@@ -682,6 +697,21 @@ MAX_HISTORY = 50
 
 
 class Contact(RequireUpdateFieldsMixin, TembaModel):
+    """
+    A contact represents an individual with which we can communicate and collect data
+    """
+
+    STATUS_ACTIVE = "A"
+    STATUS_BLOCKED = "B"
+    STATUS_STOPPED = "S"
+    STATUS_ARCHIVED = "V"
+    STATUS_CHOICES = (
+        (STATUS_ACTIVE, "Active"),
+        (STATUS_BLOCKED, "Blocked"),
+        (STATUS_STOPPED, "Stopped"),
+        (STATUS_ARCHIVED, "Archived"),
+    )
+
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contacts")
 
     name = models.CharField(
@@ -704,6 +734,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     # custom field values for this contact, keyed by field UUID
     fields = JSONField(null=True)
+
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_ACTIVE, null=True)
 
     # user that last modified this contact
     modified_by = models.ForeignKey(
@@ -757,10 +789,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     # the import headers which map to contact attributes or URNs rather than custom fields
     ATTRIBUTE_AND_URN_IMPORT_HEADERS = RESERVED_ATTRIBUTES.union(URN.IMPORT_HEADERS)
-
-    STATUS_ACTIVE = "active"
-    STATUS_BLOCKED = "blocked"
-    STATUS_STOPPED = "stopped"
 
     @property
     def anon_identifier(self):
@@ -955,21 +983,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Returns the JSON (as a dict) value for this field, or None if there is no value
         """
-        if field.field_type == ContactField.FIELD_TYPE_USER:
-            return self.fields.get(str(field.uuid)) if self.fields else None
+        assert field.field_type == ContactField.FIELD_TYPE_USER, f"not supported for system field {field.key}"
 
-        elif field.field_type == ContactField.FIELD_TYPE_SYSTEM:
-            if field.key == "created_on":
-                return {Value.KEY_DATETIME: self.created_on}
-            elif field.key == "language":
-                return {Value.KEY_TEXT: self.language}
-            elif field.key == "name":
-                return {Value.KEY_TEXT: self.name}
-            else:
-                raise ValueError(f"System contact field '{field.key}' is not supported")
-
-        else:  # pragma: no cover
-            raise ValueError(f"Unhandled ContactField type '{field.field_type}'.")
+        return self.fields.get(str(field.uuid)) if self.fields else None
 
     def get_field_serialized(self, field):
         """
@@ -1017,6 +1033,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         elif field.field_type == ContactField.FIELD_TYPE_SYSTEM:
             if field.key == "created_on":
                 return self.created_on
+            if field.key == "last_seen_on":
+                return self.last_seen_on
             elif field.key == "language":
                 return self.language
             elif field.key == "name":
@@ -1575,7 +1593,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         # if this is just a UUID import, look up the contact directly
         if uuid and not urns and not language and not name:
-            contact = Contact.objects.filter(uuid=uuid).first()
+            contact = org.contacts.filter(uuid=uuid).first()
             if not contact:
                 raise SmartImportRowError(f"No contact found with uuid: {uuid}")
 
@@ -1959,15 +1977,15 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def apply_action_block(cls, user, contacts):
-        cls.bulk_change_status(user, contacts, Contact.STATUS_BLOCKED)
+        cls.bulk_change_status(user, contacts, modifiers.Status.BLOCKED)
 
     @classmethod
     def apply_action_unblock(cls, user, contacts):
-        cls.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
+        cls.bulk_change_status(user, contacts, modifiers.Status.ACTIVE)
 
     @classmethod
     def apply_action_unstop(cls, user, contacts):
-        cls.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
+        cls.bulk_change_status(user, contacts, modifiers.Status.ACTIVE)
 
     @classmethod
     def apply_action_label(cls, user, contacts, group):
@@ -1987,7 +2005,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Blocks this contact removing it from all non-dynamic groups
         """
 
-        Contact.bulk_change_status(user, [self], Contact.STATUS_BLOCKED)
+        Contact.bulk_change_status(user, [self], modifiers.Status.BLOCKED)
         self.refresh_from_db()
 
     def stop(self, user):
@@ -1995,7 +2013,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Marks this contact has stopped, removing them from all groups.
         """
 
-        Contact.bulk_change_status(user, [self], Contact.STATUS_STOPPED)
+        Contact.bulk_change_status(user, [self], modifiers.Status.STOPPED)
         self.refresh_from_db()
 
     def reactivate(self, user):
@@ -2003,7 +2021,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Reactivates a stopped or blocked contact, re-adding them to any dynamic groups they belong to
         """
 
-        Contact.bulk_change_status(user, [self], Contact.STATUS_ACTIVE)
+        Contact.bulk_change_status(user, [self], modifiers.Status.ACTIVE)
         self.refresh_from_db()
 
     def release(self, user, *, full=True, immediately=False):
@@ -2503,6 +2521,30 @@ class ContactGroup(TembaModel):
     all_groups = models.Manager()
     system_groups = SystemContactGroupManager()
     user_groups = UserContactGroupManager()
+
+    @classmethod
+    def create_system_groups(cls, org):
+        """
+        Creates our system groups for the given organization so that we can keep track of counts etc..
+        """
+        org.all_groups.create(
+            name="All Contacts",
+            group_type=ContactGroup.TYPE_ALL,
+            created_by=org.created_by,
+            modified_by=org.modified_by,
+        )
+        org.all_groups.create(
+            name="Blocked Contacts",
+            group_type=ContactGroup.TYPE_BLOCKED,
+            created_by=org.created_by,
+            modified_by=org.modified_by,
+        )
+        org.all_groups.create(
+            name="Stopped Contacts",
+            group_type=ContactGroup.TYPE_STOPPED,
+            created_by=org.created_by,
+            modified_by=org.modified_by,
+        )
 
     @classmethod
     def get_user_group_by_name(cls, org, name):

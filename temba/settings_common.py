@@ -1073,6 +1073,8 @@ CHANNEL_TYPES = [
     "temba.channels.types.burstsms.BurstSMSType",
     "temba.channels.types.chikka.ChikkaType",
     "temba.channels.types.clickatell.ClickatellType",
+    "temba.channels.types.clickmobile.ClickMobileType",
+    "temba.channels.types.clicksend.ClickSendType",
     "temba.channels.types.dartmedia.DartMediaType",
     "temba.channels.types.dmark.DMarkType",
     "temba.channels.types.external.ExternalType",
@@ -1084,6 +1086,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.highconnection.HighConnectionType",
     "temba.channels.types.hormuud.HormuudType",
     "temba.channels.types.hub9.Hub9Type",
+    "temba.channels.types.i2sms.I2SMSType",
     "temba.channels.types.infobip.InfobipType",
     "temba.channels.types.jasmin.JasminType",
     "temba.channels.types.jiochat.JioChatType",
@@ -1115,8 +1118,6 @@ CHANNEL_TYPES = [
     "temba.channels.types.wechat.WeChatType",
     "temba.channels.types.yo.YoType",
     "temba.channels.types.zenvia.ZenviaType",
-    "temba.channels.types.i2sms.I2SMSType",
-    "temba.channels.types.clicksend.ClickSendType",
     "temba.channels.types.android.AndroidType",
 ]
 

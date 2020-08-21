@@ -13,6 +13,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from temba.utils import json, sizeof_fmt
+from temba.utils.s3 import EventStreamReader
 
 
 class Archive(models.Model):
@@ -184,12 +185,8 @@ class Archive(models.Model):
                 OutputSerialization={"JSON": {"RecordDelimiter": "\n"}},
             )
 
-            for event in response["Payload"]:
-                if "Records" in event:
-                    lines = event["Records"]["Payload"].split(b"\n")
-                    for line in lines:
-                        if line:
-                            yield self._parse_record(line)
+            for record in EventStreamReader(response["Payload"]):
+                yield record
         else:
             s3_obj = s3.get_object(**self.s3_location())
             stream = gzip.GzipFile(fileobj=s3_obj["Body"])
@@ -199,11 +196,7 @@ class Archive(models.Model):
                 if not line:
                     break
 
-                yield self._parse_record(line)
-
-    @staticmethod
-    def _parse_record(line):
-        return json.loads(line.decode("utf-8"))
+                yield json.loads(line.decode("utf-8"))
 
     def release(self):
 

@@ -506,6 +506,7 @@ class ContactReadSerializer(ReadSerializer):
     stopped = serializers.SerializerMethodField()
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    last_seen_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_name(self, obj):
         return obj.name if obj.is_active else None
@@ -554,6 +555,7 @@ class ContactReadSerializer(ReadSerializer):
             "stopped",
             "created_on",
             "modified_on",
+            "last_seen_on",
         )
 
 
@@ -830,9 +832,9 @@ class ContactBulkActionSerializer(WriteSerializer):
         elif action == self.ARCHIVE:
             Msg.archive_all_for_contacts(contacts)
         elif action == self.BLOCK:
-            Contact.bulk_change_status(user, contacts, Contact.STATUS_BLOCKED)
+            Contact.bulk_change_status(user, contacts, modifiers.Status.BLOCKED)
         elif action == self.UNBLOCK:
-            Contact.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
+            Contact.bulk_change_status(user, contacts, modifiers.Status.ACTIVE)
         elif action == self.DELETE:
             for contact in contacts:
                 contact.release(user)
