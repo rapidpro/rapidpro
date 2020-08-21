@@ -4252,7 +4252,8 @@ class MergeFlowsTask(TembaModel):
                 self.target.metadata["results"] = results
 
                 # archive source
-                self.source.archive()
+                self.source.is_archived = True
+                self.source.save(update_fields=["is_archived"])
                 self.merging_metadata.update(backup_metadata)
                 self.save()
 
