@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-21 11:58+0000\n"
+"POT-Creation-Date: 2020-08-21 15:04+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -901,6 +901,61 @@ msgstr "La clé API de votre intégration telle que fournie par Clickatell"
 
 msgid "Invalid phone number, please include the country code. ex: +250788123123"
 msgstr "Numéro de téléphone incorrect, s'il vous plaît inclure le code du pays. ex: +250788123123"
+
+#, fuzzy, python-format
+#| msgid "If you are based in Jamaica, you can purchase a short code from <a href=\"http://www.messangi.com/\">Messangi</a> and connect it in a few simple steps."
+msgid "If you are based in Malawi or Ghana you can purchase a number from %(link)s and connect it in a few simple steps."
+msgstr "Si vous êtes basé en Jamaique, vous pouvez acheter un code court à <a href=\"http://www.messangi.com/\">Messangi</a> et le connecter en quelques simples étapes."
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your DMark channel you need to set DMark to send MO messages to the URL below.\n"
+#| "        "
+msgid "To finish configuring your channel you need to configure Click Mobile to send new messages to the URL below."
+msgstr ""
+"\n"
+"        Pour terminer la configuration de votre canal DMark, vous devez configurer DMark afin qu’il envoie les messages MO à l’URL ci-dessous.\n"
+"        "
+
+#, fuzzy
+#| msgid "The phone number or short code you are connecting with country code. ex: +250788123124"
+msgid "The Click Mobile phone number or short code you are connecting with country code. ex: +250788123124"
+msgstr "Le numéro de téléphone ou code court vous vous connectez avec le code pays. ex: +250788123124"
+
+msgid "Ghana"
+msgstr ""
+
+#, fuzzy
+#| msgid "users"
+msgid "User ID"
+msgstr "utilisateurs"
+
+#, fuzzy
+#| msgid "Your username on DMark Mobile"
+msgid "Your user_id on Click Mobile"
+msgstr "Votre nom d'utilisateur sur DMark Mobile"
+
+#, fuzzy
+#| msgid "Your password on DMark Mobile"
+msgid "Your password on Click Mobile"
+msgstr "Votre mot de passe sur DMark Mobile"
+
+msgid "App ID"
+msgstr "ID d'application"
+
+#, fuzzy
+#| msgid "Your password on DMark Mobile"
+msgid "Your app_id on Click Mobile"
+msgstr "Votre mot de passe sur DMark Mobile"
+
+msgid "Org ID"
+msgstr ""
+
+#, fuzzy
+#| msgid "Your password on DMark Mobile"
+msgid "Your org_id on Click Mobile"
+msgstr "Votre mot de passe sur DMark Mobile"
 
 msgid "API Username"
 msgstr "Nom d'utilisateur de l'API"
@@ -2529,9 +2584,6 @@ msgstr "Impossible d'accéder à bothub avec les informations d'identification, 
 msgid "The name of your LUIS app"
 msgstr "Le nom de votre application LUIS"
 
-msgid "App ID"
-msgstr "ID d'application"
-
 msgid "The ID for your LUIS app"
 msgstr "L'ID de votre application LUIS"
 
@@ -2622,12 +2674,6 @@ msgstr "Identifiant Freshchat"
 msgid "VK identifier"
 msgstr "Identifiant VK"
 
-msgid "ID"
-msgstr "Identifiant"
-
-msgid "Language"
-msgstr "Langue"
-
 msgid "Label"
 msgstr "Etiquette"
 
@@ -2642,6 +2688,9 @@ msgstr "Champ en vedette"
 
 msgid "The name of this contact"
 msgstr "Le nom de ce contact"
+
+msgid "Language"
+msgstr "Langue"
 
 msgid "The preferred language for this contact"
 msgstr "La langue préférée pour ce contact"
@@ -11674,6 +11723,9 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "ID"
+#~ msgstr "Identifiant"
 
 #, fuzzy
 #~| msgid "Please enter at least 8 characters"

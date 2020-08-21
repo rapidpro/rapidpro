@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-21 11:58+0000\n"
+"POT-Creation-Date: 2020-08-21 15:04+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -834,6 +834,40 @@ msgid "The API key for your integration as provided by Clickatell"
 msgstr ""
 
 msgid "Invalid phone number, please include the country code. ex: +250788123123"
+msgstr ""
+
+#, python-format
+msgid "If you are based in Malawi or Ghana you can purchase a number from %(link)s and connect it in a few simple steps."
+msgstr ""
+
+msgid "To finish configuring your channel you need to configure Click Mobile to send new messages to the URL below."
+msgstr ""
+
+msgid "The Click Mobile phone number or short code you are connecting with country code. ex: +250788123124"
+msgstr ""
+
+msgid "Ghana"
+msgstr ""
+
+msgid "User ID"
+msgstr ""
+
+msgid "Your user_id on Click Mobile"
+msgstr ""
+
+msgid "Your password on Click Mobile"
+msgstr ""
+
+msgid "App ID"
+msgstr ""
+
+msgid "Your app_id on Click Mobile"
+msgstr ""
+
+msgid "Org ID"
+msgstr ""
+
+msgid "Your org_id on Click Mobile"
 msgstr ""
 
 msgid "API Username"
@@ -2220,9 +2254,6 @@ msgstr ""
 msgid "The name of your LUIS app"
 msgstr ""
 
-msgid "App ID"
-msgstr ""
-
 msgid "The ID for your LUIS app"
 msgstr ""
 
@@ -2313,12 +2344,6 @@ msgstr ""
 msgid "VK identifier"
 msgstr ""
 
-msgid "ID"
-msgstr ""
-
-msgid "Language"
-msgstr ""
-
 msgid "Label"
 msgstr ""
 
@@ -2332,6 +2357,9 @@ msgid "Featured field"
 msgstr ""
 
 msgid "The name of this contact"
+msgstr ""
+
+msgid "Language"
 msgstr ""
 
 msgid "The preferred language for this contact"

@@ -1094,45 +1094,6 @@ class Org(SmartModel):
             return TopUp.create(self.created_by, price=0, credits=topup_size, org=self)
         return None
 
-    def create_system_groups(self):
-        """
-        Creates our system groups for this organization so that we can keep track of counts etc..
-        """
-        from temba.contacts.models import ContactGroup
-
-        self.all_groups.create(
-            name="All Contacts",
-            group_type=ContactGroup.TYPE_ALL,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
-        self.all_groups.create(
-            name="Blocked Contacts",
-            group_type=ContactGroup.TYPE_BLOCKED,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
-        self.all_groups.create(
-            name="Stopped Contacts",
-            group_type=ContactGroup.TYPE_STOPPED,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
-
-    def create_system_contact_fields(self):
-        from temba.contacts.models import ContactField
-
-        for key, field in ContactField.SYSTEM_FIELDS.items():
-            ContactField.system_fields.create(
-                org_id=self.id,
-                key=key,
-                label=field["label"],
-                value_type=field["value_type"],
-                show_in_table=False,
-                created_by=self.created_by,
-                modified_by=self.modified_by,
-            )
-
     def create_sample_flows(self, api_url):
         # get our sample dir
         filename = os.path.join(settings.STATICFILES_DIRS[0], "examples", "sample_flows.json")
@@ -1731,13 +1692,14 @@ class Org(SmartModel):
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
         from temba.middleware import BrandingMiddleware
+        from temba.contacts.models import ContactField, ContactGroup
 
         with transaction.atomic():
             if not branding:
                 branding = BrandingMiddleware.get_branding_for_host("")
 
-            self.create_system_groups()
-            self.create_system_contact_fields()
+            ContactGroup.create_system_groups(self)
+            ContactField.create_system_fields(self)
             self.create_welcome_topup(topup_size)
             self.update_capabilities()
 

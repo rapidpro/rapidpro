@@ -21,7 +21,7 @@ class Command(BaseCommand):  # pragma: no cover
             action="store",
             dest="expression",
             default="",
-            help="An optional S3 Select expression",
+            help="An optional S3 Select SQL expression",
         )
         parser.add_argument(
             "--limit",
@@ -31,7 +31,7 @@ class Command(BaseCommand):  # pragma: no cover
             default=10,
             help="The maximum number of records to return",
         )
-        parser.add_argument("--raw", action="store_true", help="Don't format records JSON")
+        parser.add_argument("--raw", action="store_true", help="Output unformatted JSONL")
 
     def handle(self, org_id, archive_type, expression, limit, raw, **options):
         org = Org.objects.filter(id=org_id).first()
@@ -52,4 +52,5 @@ class Command(BaseCommand):  # pragma: no cover
 
         time_taken = int((time.perf_counter() - start) * 1000)
 
-        self.stdout.write(f"Fetched {num_records} records in {time_taken} ms")
+        if not raw:
+            self.stdout.write(f"Fetched {num_records} records in {time_taken} ms")

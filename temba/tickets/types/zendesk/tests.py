@@ -138,7 +138,7 @@ class ZendeskTypeTest(TembaTest):
                 "id": "app.rapidpro.io",
                 "author": "Nyaruka",
                 "version": "v0.0.1",
-                "channelback_files": False,
+                "channelback_files": True,
                 "push_client_id": "temba",
                 "urls": {
                     "admin_ui": f"https://app.rapidpro.io/tickets/types/zendesk/admin_ui",
