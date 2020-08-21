@@ -4,54 +4,66 @@
 -block page-title
   {{ title }}
 
+-block page-top
+
 -block content
   #pjax
     -block pjax
-      .row-fluid
-        .span3.sidebox
-          #sidebar-nav
-            %ul.nav.nav-list.level1
-              %li.nav-header
-                -trans "Tickets"
-                %li(class="{% if folder == 'open' %}active{% endif %}")
-                  %a(href="{% url 'tickets.ticket_open' %}")
-                    -trans "Open"
-                %li(class="{% if folder == 'closed' %}active{% endif %}")
-                  %a(href="{% url 'tickets.ticket_closed' %}")
-                    -trans "Closed"
-              %li.nav-header
-                -trans "Services"
-              -for t in ticketers
-                %li(class="{% if ticketer == t %}active{% endif %}")
-                  %a(href="{% url 'tickets.ticket_filter' t.uuid %}")
-                    {{ t.name }}
-        .span9
-          -block buttons
+
+      .lp-frame
+        .left
+          .flex.flex-col
+            .lp-nav.upper
+              .lp-nav-item(class="{% if folder == 'open' %}font-normal{% endif %}")
+                .name(onclick="goto(event)" href="{% url 'tickets.ticket_open' %}")
+                  -trans "Open"
+              .lp-nav-item(class="{% if folder == 'closed' %}font-normal{% endif %}")
+                .name(onclick="goto(event)" href="{% url 'tickets.ticket_closed' %}")
+                  -trans "Closed"
+
+            -if ticketers
+              .lp-nav.lower
+                .font-normal.uppercase.text-xs.text-gray-500.pb-1
+                  -trans "Services"
+                .inner-scroll
+                  -for t in ticketers
+                    .lp-nav-item(class="{% if ticketer == t %}font-normal{% endif %}")
+                      .name(onclick="goto(event)" href="{% url 'tickets.ticket_filter' t.uuid %}}")
+                        {{ t.name }}
+
+        .right
+          .flex.w-full.items-end.mb-4
             -block action-buttons
               -if org_perms.tickets.ticket_update
-                .list-buttons-container
-                  .list-buttons
+                .action-buttons.list-buttons-container.h-full.mr-2.flex-grow
+                  .list-buttons.flex.items-center.-mx-2.h-full
                     -if 'close' in actions
-                      %span.btn-group
-                        %a.object-btn-close(href='#')
-                          %button.btn(data-toggle="tooltip" data-trigger="hover" data-delay="800" data-placement="top" data-original-title="{% trans 'Close' %}")
-                            .glyph.icon-box
-                    -if 'reopen' in actions
-                      %span.btn-group
-                        %a.object-btn-reopen(href='#')
-                          %button.btn(data-toggle="tooltip" data-trigger="hover" data-delay="800" data-placement="top" data-original-title="{% trans 'Reopen' %}")
-                            .glyph.icon-folder-open
+                      .button-action.object-btn-close
+                        .-mt-1.mr-2.glyph.icon-box
+                        -trans "Close"
 
-          %table.list-table.sms_list.object-list.table.table-condensed
+                    -if 'reopen' in actions
+                      .button-action.object-btn-close
+                        .-mt-1.mr-2.glyph.icon-folder-open
+                        -trans "Reopen"
+
+            .flex-grow.ml-2.items-center
+              -block title-text
+                .page-title.leading-tight
+                  {{ title }}
+
+          %table.list.object-list.lined(class='{% if org_perms.tickets.ticket_update %}selectable{% endif %}')
             %tbody
               -for object in object_list
-                %tr.object-row.select-row.ticket(id="id-row-{{object.id}}" class="{% cycle row1 row2 %}" data-object-id="{{ object.id }}" data-contact-uuid="{{ object.contact.uuid }}")
+                %tr.ticket.object-row.select-row{ data-object-id: "{{ obj.id }}"}
                   -if actions and org_perms.tickets.ticket_update
-                    %td.checkbox.object-row-checkbox
-                      .glyph.object-row-checkbox
-                  %td.ticket-contact
-                    %nobr
+                    %td.campaign.checkbox.object-row-checkbox
+                      %temba-checkbox{onclick:"handleRowSelection(this)"}
+
+                  %td.whitespace-no-wrap
+                    .hover-linked(onclick="goto(event)" href="/contact/read/{{object.contact.uuid}}/")
                       {{ object.contact|short_name:user_org }}
+
                   -if not ticketer
                     %td.ticket-ticketer
                       -if object.ticketer.is_active
@@ -60,58 +72,46 @@
                       -else
                         %span.ticketer-inactive
                           {{ object.ticketer.name }}
-                  %td.ticket-subject
+
+                  %td
                     {{ object.subject }}
-                  %td.ticket-body
+                  %td
                     {{ object.body }}
+
                   -if not folder
-                    %td.ticket-status
+                    %td
                       %span.label(class="status-{{object.status}}")
                         {{ object.get_status_display }}
-                  %td.opened_on
-                    %span.time
-                      {% short_datetime object.opened_on %}
+
+                  %td
+                    .flex.w-full.items-end.justify-end.pr-4
+                      .time.whitespace-no-wrap
+                        {% short_datetime object.opened_on %}
 
               -empty
                 %tr.empty
                   %td(colspan=5)
                     -trans "No tickets."
 
-          -block paginator
-            -if object_list.count
-              .paginator
-                -include "smartmin/sidebar_pagination.haml"
-
-
--block extra-script
-  {{ block.super }}
-
-  :javascript
-    $('.select-row').live('mouseover', function(){
-      var contactPageUrl = '/contact/read/' + $(this).data('contact-uuid');
-
-      $(this).find('td').not('.checkbox').each(function(){
-        $(this).on('click', function() {
-          document.location.href = contactPageUrl;
-        });
-      });
-    });
+          .flex.flex-col.mx-4.mt-3.mb-16
+            .flex.flex-wrap
+              .text-gray-700
+                -include "includes/results_count.html"
+              .flex-grow
+                -include "includes/pages.html"
 
 
 -block extra-style
   {{ block.super }}
 
   :css
-    td.opened_on {
-      text-align: right;
-    }
-
     .ticketer-inactive {
       color: #AAA;
     }
 
 
 -block extra-less
+  {{ block.super }}
   -compress css inline
     {% lessblock %}
       :plain
