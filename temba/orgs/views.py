@@ -1392,7 +1392,7 @@ class OrgCRUDL(SmartCRUDL):
             return getattr(org, group_name.lower())
 
         def get_gear_links(self):
-            return [dict(title=_("Settings"), style="button-light", href=reverse("orgs.org_home"),)]
+            return [dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"),)]
 
         def derive_initial(self):
             initial = super().derive_initial()
