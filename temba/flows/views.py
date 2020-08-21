@@ -1665,7 +1665,7 @@ class FlowCRUDL(SmartCRUDL):
                 return cleaned_data
 
         form_class = ExportForm
-        submit_button_name = _("Export")
+        submit_button_name = _("Download Results")
         success_url = "@flows.flow_list"
 
         def get_form_kwargs(self):
@@ -1918,7 +1918,7 @@ class FlowCRUDL(SmartCRUDL):
                     dict(
                         id="download-results",
                         title=_("Download"),
-                        modax=_("Export Flow Results"),
+                        modax=_("Download Flow Results"),
                         href=f"{reverse('flows.flow_export_results')}?ids={self.get_object().pk}",
                     )
                 )

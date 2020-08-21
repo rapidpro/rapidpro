@@ -7,7 +7,7 @@
 -block content
 
   -if org_perms.flows.flow_update
-    %temba-modax#export-results{ header:'{% trans "Export Flow Results" %}' }
+    %temba-modax#export-results{ header:'{% trans "Download Flow Results" %}' }
     %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'flows.flowlabel_create' %}", onloaded: "handleCreateLabelModalLoaded", onsubmitted: "handleCreateLabelModalSubmitted"}
 
   -if not org_has_flows
