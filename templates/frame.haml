@@ -135,7 +135,6 @@
 
         {% lessblock %}
           :plain
-            @import "formax.less";
             @import "style.less";
 
             // any brand styling tweaks
@@ -260,13 +259,17 @@
         {% endif %}
       {% endif %}
 
-      function handlePosterize(ele) {
-        var url = $.url(ele.getAttribute('href'));
+      function posterize(href) {
+        var url = $.url(href);
         $("#posterizer").attr("action", url.attr("path"));
         for (var key in url.param()){
           $("#posterizer").append("<input type='hidden' name='" + key + "' value='" + url.param(key) + "'></input>");
         }
         $("#posterizer").submit();
+      }
+
+      function handlePosterize(ele) {
+        posterize(ele.getAttribute('href'));
       }
 
       function removalConfirmation(removal, buttonName) {

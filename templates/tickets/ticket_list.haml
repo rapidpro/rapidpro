@@ -28,7 +28,7 @@
                 .inner-scroll
                   -for t in ticketers
                     .lp-nav-item(class="{% if ticketer == t %}font-normal{% endif %}")
-                      .name(onclick="goto(event)" href="{% url 'tickets.ticket_filter' t.uuid %}}")
+                      .name(onclick="goto(event)" href="{% url 'tickets.ticket_filter' t.uuid %}")
                         {{ t.name }}
 
         .right

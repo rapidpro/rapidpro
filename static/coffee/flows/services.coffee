@@ -1175,11 +1175,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         if flow._pctTranslated == 100 and flow.base_language != @language.iso_code
           $rootScope.gearLinks = [
             {
-              title: 'Default Language'
+              title: 'Make Default Language'
               id: 'default_language'
-            },
-            {
-              id: 'divider'
             }
           ]
         else

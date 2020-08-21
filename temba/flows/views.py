@@ -1389,7 +1389,7 @@ class FlowCRUDL(SmartCRUDL):
 
             self.object.save_revision(self.get_user(), flow_def)
 
-            return HttpResponseRedirect(self.success_url)
+            return HttpResponseRedirect(self.get_success_url())
 
     class ExportTranslation(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
         class Form(forms.Form):

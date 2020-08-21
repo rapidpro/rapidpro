@@ -197,6 +197,18 @@
       flowType = 'message_offline';
     }
 
+    window.addEventListener("DOMContentLoaded", function() {
+      var confirmation = document.getElementById("confirm-language");
+      confirmation.addEventListener("temba-button-clicked", function(event){
+        var code = confirmation.dataset.code;
+        if(!event.detail.button.secondary) {
+          console.log('{% url "flows.flow_change_language" object.id %}?language=' + code);
+          posterize('{% url "flows.flow_change_language" object.id %}?language=' + code);
+        }
+        confirmation.open = false;
+      });
+    });
+
     function handleEditorLoaded() {
       $('temba-loading').hide();
       $('#rp-flow-editor > div').css('opacity', '1')
@@ -210,7 +222,16 @@
     }
 
     function handleChangeLanguage(code, name) {
-      var form = $('#change-language-form');
+
+      var confirmation = document.getElementById("confirm-language");
+      confirmation.dataset.code = code;
+      
+      var body = confirmation.querySelector('.body');
+      body.innerHTML = body.innerHTML.replace(/%LANG%/g, name);
+      confirmation.open = true;
+      
+
+      /* var form = $('#change-language-form');
       var url = $.url(form.attr("href"));
       var body = form.find('.body').html().replace(/%LANG%/g, name);
 
@@ -220,6 +241,7 @@
       modal.setListeners({onPrimary: function(){ form.click(); }}, false);
       modal.setPrimaryButton('{{ _("Ok")|escapejs }}');
       modal.show();
+      */
     }
 
     const config = {
@@ -305,14 +327,13 @@
           -blocktrans trimmed
             This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
 
-  .hide
-    %a#change-language-form.posterize(href='{% url "flows.flow_change_language" object.id %}')
-      .body
-        -blocktrans trimmed with language="%LANG%"
-          This will change the default language of the flow to <b>{{ language }}</b>. This means that by default the
-          flow will be appear in that language and can be translated into other languages. Also if a contact is
-          in this flow and no translation exists for their language or the default language of the workspace,
-          communication with that contact will default to <b>{{ language }}</b>.
+  %temba-dialog#confirm-language(header='{{_("Change Language")|escapejs}}' primaryButtonName='{{_("Update")|escapejs}}')
+    .p-6.body
+      -blocktrans trimmed with language="%LANG%"
+        This will change the default language of the flow to <b>{{ language }}</b>. This means that by default the
+        flow will be appear in that language and can be translated into other languages. Also if a contact is
+        in this flow and no translation exists for their language or the default language of the workspace,
+        communication with that contact will default to <b>{{ language }}</b>.
 
   #grid.h-full
     <temba-loading units="10" size="8"></temba-loading>

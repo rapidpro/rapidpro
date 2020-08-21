@@ -53,7 +53,7 @@
 
             // If we are inside an angular controller, let it insert options
             %li.dynamic-item.hide{ ng-repeat:'link in $root.gearLinks', ng-class:'{divider:link.id=="divider"}'}
-              %a{href:'javascript:void(0);', ng-click:'clickGearMenuItem(link.id)'}
+              .hover-linked.font-normal{href:'javascript:void(0);', ng-click:'clickGearMenuItem(link.id)'}
                 [[link.title]]
 
             -for link in gear_links
