@@ -1,14 +1,21 @@
 -extends "smartmin/read.html"
 -load smartmin sms compress temba contacts i18n
 
--block page-title
+-block title
+  {{object.name}}
+-block subtitle
   -trans "Results"
-  \- {{object.name}}
+  
 -block extra-less
 
   -compress css inline
     {% lessblock %}
       :plain
+
+        .page-content {
+          align-self: auto;
+          max-width: 100%;
+        }
 
         .archive-note {
           text-align: center;
@@ -77,6 +84,7 @@
           padding: 10px 10px;
           border-top: 1px solid rgb(239, 239, 239);
           min-width: 150px;
+          background: #fff;
 
           &.collapse {
             width:0px;
@@ -234,19 +242,42 @@
 
   :javascript
 
+    function updateColumnSelect() {
+      var select = document.getElementById("select-columns");
+      if (select) {
+        var options = [];
+        for (var col of columns) {
+          if (col.hidden) {
+            options.push({name: col.text, value: col.id});
+          }
+        }
+        select.setOptions(options);
+      }
+    }
+
+    function handleColumnSelection(select) {
+      if (select.values.length > 0) {
+        var option = select.values[0];
+        columns[option.value].hidden = false;
+        select.values = [];
+        updateColumnSelect();
+        updateCols();
+      }
+    }
+
     Intercooler.ready(function() {
       updateCols();
     });
 
     function hideColumn(idx) {
       columns[idx].hidden = true
+      updateColumnSelect();
       updateCols();
     }
 
     function toggleValue(idx) {
       columns[idx].category = !columns[idx].category
       updateCols();
-
     }
 
     function deleteRun(id) {
@@ -268,7 +299,7 @@
       modal.show();
     }
 
-    function updateCols() {
+    function updateCols() {      
       var hidden = false;
       for (var idx=0; idx < columns.length; idx++) {
         var col = columns[idx];
@@ -313,22 +344,6 @@
     ]
 
     $(document).ready(function() {
-      $("#columns").select2({ placeholder:'More Columns', data: columns, minimumResultsForSearch: -1, query: function(q){
-        var results = [];
-        for (var i=0; i < this.data.length; i++) {
-          if (this.data[i].hidden) {
-            results.push(this.data[i]);
-          }
-        }
-        q.callback({results:results, more: false});
-      }});
-
-      $("#columns").on("change", function(e) {
-        columns[e.val].hidden = false;
-        $(this).select2('val', '');
-        updateCols();
-      });
-
       Highcharts.setOptions({
         global: {
           timezoneOffset: -1 * {{utcoffset}}
@@ -582,7 +597,7 @@
         -trans "Analytics"
 
     %li
-      %a{href: '#runs', data-toggle:'tab'}
+      %a{href: '#runs', data-toggle:'tab', onclick:"updateColumnSelect();"}
         -trans "Runs"
 
   .tab-content
@@ -595,7 +610,7 @@
 
     #runs.tab-pane
       .scroll-x
-        .responded-checkbox
+        .responded-checkbox.flex.items-center.py-2.w-full
           .runs-show#show-all-runs{
                                       ic-get-from:"/flow/run_table/{{object.id}}/",
                                       ic-on-beforeSend:'$("#results_run_table").empty();',
@@ -615,29 +630,31 @@
                                       ic-indicator:"#indicator"}
             -trans "Responded"
             
-          .add-columns.select
+          .flex-grow
+          .add-columns.select.flex-grow.pl-12.pr-4
             .selection
-              %input#columns{type:'hidden', style:'width:150px'}
+              %temba-select#select-columns(onchange="handleColumnSelection(this)" placeholder='{{_("More Columns")|escapejs}}')
 
         %table
-          %tr
-            %td.header.started
-              .details
-                .text{style:"margin-left:10px;"}
-                  -trans "Last Activity"
-            %td.header
-              .details
-                .text
-                  -trans "Contact"
-
-            -for result_field in result_fields
+          %thead
+            %tr
+              %td.header.started
+                .details
+                  .text{style:"margin-left:10px;"}
+                    -trans "Last Activity"
               %td.header
-                .details{ onclick: 'toggleValue({{forloop.counter0}});'}
-                  .icons
-                    .icon-flow.category
-                    .icon-bubble-2.text
-                  {{result_field.name}}
-                .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
+                .details
+                  .text
+                    -trans "Contact"
+
+              -for result_field in result_fields
+                %td.header
+                  .details{ onclick: 'toggleValue({{forloop.counter0}});'}
+                    .icons
+                      .icon-flow.category
+                      .icon-bubble-2.text
+                    {{result_field.name}}
+                  .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
 
           %tbody{id:"results_run_table"}
             %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#results_run_table", ic-indicator:"#indicator"}
