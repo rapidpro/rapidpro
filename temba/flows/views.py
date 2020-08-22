@@ -2478,6 +2478,9 @@ class FlowStartCRUDL(SmartCRUDL):
         ordering = ("-created_on",)
         select_related = ("flow", "created_by")
 
+        def get_gear_links(self):
+            return [dict(title=_("Flows"), style="button-light", href=reverse("flows.flow_list"),)]
+
         def derive_queryset(self, *args, **kwargs):
             return (
                 super()

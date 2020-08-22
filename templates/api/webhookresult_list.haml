@@ -2,49 +2,37 @@
 -load i18n temba humanize
 
 -block page-title
-  {{ brand.name }} - WebHook Events
+  {{ brand.name }} - WebHook Calls
 
--block page-top
+-block title
+  -trans "Webhook Calls"
 
 -block content
-  #pjax
-    -block pjax
-      .lp-frame
 
-        .right
-          .flex.w-full.mb-4.items-end.flex-wrap.justify-end.-mt-2{style:"min-height:41px"}
-            .flex-grow.ml-1.self-end.items-end
-              .flex.flex-col.pr-12
-                .page-title.leading-tight
-                  -block title
-                    -trans "Recent Webhook Events"
-                .subtitle
-                  -trans "Webhook events that have been created recently can be found here."
+  %table.list.object-list.lined
+    %thead
+      %tr
+        %th
+          -trans "URL"
+        %th{ style:'width:100px;'}
+          -trans "Status"
+        %th{ style:'width:100px;'}
+          -trans "Elapsed"
+        %th{ style:'width:100px;text-align: right'}
+          -trans "Time"
 
-          %table.list.object-list.lined
-            %thead
-              %tr
-                %th
-                  -trans "URL"
-                %th{ style:'width:100px;'}
-                  -trans "Status"
-                %th{ style:'width:100px;'}
-                  -trans "Elapsed"
-                %th{ style:'width:100px;text-align: right'}
-                  -trans "Time"
-
-            %tbody
-              -for obj in object_list
-                %tr
-                  %td.clickable
-                    %a{ href:'{% url "api.webhookresult_read" obj.pk %}' }
-                      {{ obj.url|truncatechars:128 }}
-                  %td.clickable
-                    %a{ href:'{% url "api.webhookresult_read" obj.pk %}' }= obj.status_code
-                  %td
-                    -if obj.request_time
-                      {{ obj.request_time|intcomma }}ms
-                    -else
-                      {{ "--" }}
-                  %td{ style:'text-align: right', nowrap:'true' }
-                    {% format_datetime obj.created_on %}
+    %tbody
+      -for obj in object_list
+        %tr
+          %td.clickable
+            %a{ href:'{% url "api.webhookresult_read" obj.pk %}' }
+              {{ obj.url|truncatechars:128 }}
+          %td.clickable
+            %a{ href:'{% url "api.webhookresult_read" obj.pk %}' }= obj.status_code
+          %td
+            -if obj.request_time
+              {{ obj.request_time|intcomma }}ms
+            -else
+              {{ "--" }}
+          %td{ style:'text-align: right', nowrap:'true' }
+            {% format_datetime obj.created_on %}

@@ -5,68 +5,60 @@
 -block page-title
   {{ brand.name }} - WebHook Event
 
--block page-top
 
 -block above-bar
   %a.btn.btn-primary{ href: '{% url "api.webhookresult_list" %}' } Back
 
+-block title
+  -trans "Webhook Event"
+
+-block subtitle
+  {% format_datetime object.created_on %}
 
 -block content
-  #pjax
-    -block pjax
-      .lp-frame
 
-        .right
-          .flex.w-full.mb-4.items-end.flex-wrap.justify-end.-mt-2{style:"min-height:41px"}
-            .flex-grow.ml-1.self-end.items-end
-              .flex.flex-col.pr-12
-                .page-title.leading-tight
-                  -block title
-                    -trans "Webhook Event"
-                .subtitle
-                  {% format_datetime object.created_on %}
+  .card.flex.mt-0
+    .inline-flex.mr-8
+      .font-normal.mr-2 URL
+      {{ object.url }}
 
-          .card.flex.mt-0
-            .inline-flex.mr-8
-              .font-bold.mr-2 URL
-              {{ object.url }}
+    .inline-flex.mr-8
+      .font-normal.mr-2 
+        -trans "Request Time"
+      {{ object.request_time|intcomma }}ms
 
-            .inline-flex.mr-8
-              .font-bold.mr-2 
-                -trans "Request Time"
+    .inline-flex.mr-8
+      .font-normal.mr-2 
+        - trans "Contact"
+      %a{href: "{% url 'contacts.contact_read' object.contact.uuid %}"}
+        {{ object.contact|name_or_urn:object.org }}
+
+  %table.list
+    %tbody
+      %tr.border-b
+        %td
+          .font-normal.text-2xl
+            {{ object.status_code }}
+        %td
+          .text-right
+            -if object.request_time
+              -trans "Took"
               {{ object.request_time|intcomma }}ms
 
-            .inline-flex.mr-8
-              .font-bold.mr-2 
-                - trans "Contact"
-              %a{href: "{% url 'contacts.contact_read' object.contact.uuid %}"}
-                {{ object.contact|name_or_urn:object.org }}
+        %td
+          .text-right
+            {% format_datetime object.created_on %}
 
-          %table.list
-            %tbody
-              %tr.border-b
-                %td
-                  {{ object.status_code }}
-                %td
-                  .text-right
-                    -if object.request_time
-                      -trans "Request Time:"
-                      {{ object.request_time|intcomma }}ms
-
-                %td
-                  .text-right
-                    {% format_datetime object.created_on %}
-
-              %tr
-                %td(colspan="3" style="padding:0;")
-                  %pre.prettyprint.request<
-                    :plain
-                      {{ object.request }}
-              %tr
-                %td(colspan="3" style="padding:0;")
-                  %pre.prettyprint.response<
-                    :plain
-                      {{ object.response }}
+      %tr
+        %td(colspan="3" style="padding:0;")
+          %pre.prettyprint.request<
+            :plain
+              {{ object.request }}
+      %tr
+        %td(colspan="3" style="padding:0;")
+          %pre.prettyprint.response<
+            :plain
+              {{ object.response }}
 
 
 -block extra-script
