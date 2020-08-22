@@ -4,9 +4,19 @@
 -block page-title
   -trans "Channel Events"
 
--block page-top
+-block title
+  -if request.GET.connections and channel.supports_ivr
+    -trans "Calls"
+  -elif request.GET.others
+    -trans "Other Interactions"
+  -else
+    -trans "Recent Channel Events"
 
--block buttons
+-block subtitle
+  {{channel.get_channel_type_display}}
+  -trans "Channel: "
+  %a{ href:"{% url 'channels.channel_read' channel.uuid %}" }
+    {{ channel }}
 
 -block content
   #pjax
@@ -18,20 +28,7 @@
             .flex-grow.ml-1.self-end.items-end
               .flex.flex-col.pr-12
                 .page-title.leading-tight
-                  -block title
-                    -if request.GET.connections and channel.supports_ivr
-                      -trans "Calls"
-                    -elif request.GET.others
-                      -trans "Other Interactions"
-                    -else
-                      -trans "Recent Channel Events"
                 .subtitle
-                  {{channel.get_channel_type_display}}
-                  -trans "Channel: "
-                  %a{ href:"{% url 'channels.channel_read' channel.uuid %}" }
-                    {{ channel }}
-            .gear-links
-              -include "gear_links_include.haml"
 
           %table.list.object-list.lined
             %thead

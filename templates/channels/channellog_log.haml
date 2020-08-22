@@ -1,25 +1,25 @@
 -load humanize channels i18n
 
-
 %table.list
   %tbody
     %tr.border-b
       %td(style="width: 30px;")
-        {{ log.response_status }}
+        .font-normal.text-2xl
+          {{ log.response_status }}
 
       %td
-        .font-bold
+        .font-normal.inline.mr-1
           %span.method= log.method
-            {% channellog_url log %}
+        {% channellog_url log %}
 
       %td
-        .text-right
+        .text-right.whitespace-no-wrap
           -if log.request_time
-            -trans "Request time"
+            -trans "Took"
             %span.request-time-value
               {{ log.request_time|default:"0"|intcomma }}ms
       %td
-        .text-right
+        .text-right.whitespace-no-wrap
           {{log.created_on|date:"M j, Y g:i:s a"}}
 
 

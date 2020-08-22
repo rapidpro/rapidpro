@@ -4,42 +4,27 @@
 -block page-title
   -trans "Channel Event"
 
--block page-top
+-block title
+  -if object.is_error
+    -trans "Message Error"
+  -else
+    -if object.connection_type
+      -trans "Call Log"
+    -else
+      -trans "Message Log"
+
+-block subtitle
+  {{ object.channel.get_channel_type_display }}
+
 
 -block above-bar
   %a.btn.btn-secondary{ href: '{% url "channels.channellog_list" object.channel.uuid %}' } Message Log
 
 -block content
-  #pjax
-    -block pjax
-      .lp-frame
-
-        .right
-          .flex.w-full.mb-4.items-end.flex-wrap.justify-end.-mt-2{style:"min-height:41px"}
-            .flex-grow.ml-1.self-end.items-end
-              .flex.flex-col.pr-12
-                .page-title.leading-tight
-                  -block title
-                    -if object.is_error
-                      -trans "Message Error"
-                    -else
-                      -if object.connection_type
-                        -trans "Call Log"
-                      -else
-                        -trans "Message Log"
-
-                    -if request.GET.connections and channel.supports_ivr
-                      -trans "Calls"
-                    -elif request.GET.others
-                      -trans "Other Interactions"
-                    -else
-                      -trans "Recent Channel Events"
-                .subtitle
-                  Provider: {{ object.channel.get_channel_type_display }}
 
   .card.flex.mt-0
     .inline-flex.mr-8
-      .font-bold.mr-2
+      .font-normal.mr-2
         -trans "Recipient"
       -if object.msg
         %a{href:'{% url "contacts.contact_read" object.msg.contact.uuid %}'}
@@ -49,13 +34,13 @@
           {{object.contact_urn.path}}
 
     .inline-flex.mr-8
-      .font-bold.mr-2
+      .font-normal.mr-2
         -trans "Channel"
       %a{href:'{% url "channels.channel_read" object.channel.uuid %}'}
         {{object.channel}}
 
     .inline-flex.mr-8
-      .font-bold.mr-2
+      .font-normal.mr-2
         -trans "Direction"
       -if object.connection_type
         {{object.get_direction_display}}
@@ -63,18 +48,18 @@
         {{object.msg.get_direction_display}}
 
     .inline-flex.mr-8
-      .font-bold.mr-2
+      .font-normal.mr-2
         -trans "Date"
       {{object.created_on|date:"M j, Y g:i:s a"}}
 
     -if object.duration
       .inline-flex.mr-8
-        .font-bold.mr-2
+        .font-normal.mr-2
           -trans "Duration"
         {{object.get_duration|delta}}
 
     .inline-flex.mr-8
-      .font-bold.mr-2
+      .font-normal.mr-2
         -trans "Status"
       -if object.connection_type
         {{object.get_status_display}}

@@ -2205,6 +2205,15 @@ class ChannelLogCRUDL(SmartCRUDL):
     class Read(OrgObjPermsMixin, SmartReadView):
         fields = ("description", "created_on")
 
+        def get_gear_links(self):
+            return [
+                dict(
+                    title=_("Channel Log"),
+                    style="button-light",
+                    href=reverse("channels.channellog_list", args=[self.get_object().channel.uuid]),
+                )
+            ]
+
         def get_object_org(self):
             return self.get_object().channel.org
 
