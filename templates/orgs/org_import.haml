@@ -3,61 +3,48 @@
 -load smartmin
 -load i18n humanize
 
--block page-top
+-block title
+  -trans "Import Flows and Campaigns"
 
 -block content
-  #pjax
-    -block pjax
-      .lp-frame
-        .right
-          .flex.w-full.mb-4.items-end.flex-wrap.justify-end{style:"min-height:41px"}
-            .flex-grow.self-end.items-end
-              .flex
-                .flex-grow.page-title.leading-tight
-                  -block title
-                    -trans "Import Flows and Campaigns"
-                  .subtitle
-                    -block subtitle
+  .mb-2
+    -trans "If you have an export file with flows and or campaigns, select it below to import it into your workspace."
 
-          .flex.w-full.mb-4.items-end.flex-wrap{style:"min-height:41px"}
-            -trans "If you have an export file with flows and or campaigns, select it below to import it into your workspace."
+  -block import-status
+    .flex.w-full.mb-4.items-end.flex-wrap{style:"min-height:41px"}
+      %form#import-form{method:"post", action:"{% url 'orgs.org_import' %}", enctype:"multipart/form-data"}
+        - if form.non_field_errors
+          .text-error
+            {{ form.non_field_errors }}
 
-          - block import-status
-            .flex.w-full.mb-4.items-end.flex-wrap{style:"min-height:41px"}
-              %form#import-form{method:"post", action:"{% url 'orgs.org_import' %}", enctype:"multipart/form-data"}
-                - if form.non_field_errors
-                  .text-error
-                    {{ form.non_field_errors }}
+        -csrf_token
+        -if form.non_field_errors
+          .text-error
+            {{ form.non_field_errors }}
 
-                -csrf_token
-                -if form.non_field_errors
-                  .text-error
-                    {{ form.non_field_errors }}
+        -block fields
+          .mt-4.mb-4.text-error
+            {{ form.import_file.errors }}
+          #file-upload
+            %input{type:"file", name:"import_file", id:"import_file", onchange:'updateFlowImportFile()'}
+          #real_button.flex
+            %input{type:"text", id:"file-field"}
+            .block.button-primary.ml-4(style="margin-top:-1px")
+              -trans "Choose File"
 
-                -block fields
-                  .mt-4.mb-4.text-error
-                    {{ form.import_file.errors }}
-                  #file-upload
-                    %input{type:"file", name:"import_file", id:"import_file", onchange:'updateFlowImportFile()'}
-                  #real_button.flex
-                    %input{type:"text", id:"file-field"}
-                    .block.button-primary.ml-4
-                      -trans "Choose File"
-
-                .my-6.bg-dark-alpha-200.text-dark-alpha-700.p-4
-                  %p.font-bold.text-2xl
-                    -trans "Warning!"
-                  %p
-                    -trans "If you have flows or campaigns with the same names or UUIDs as the ones you are importing they will be replaced and all history for them will be lost."
-                  %p
-                  %b
-                    -trans "Do not proceed unless you are willing to replace your existing flows and campaigns."
+        .my-6.alert-warning
+          .font-normal.text-2xl
+            -trans "Warning!"
+          .mt-2
+            -trans "If you have flows or campaigns with the same names or UUIDs as the ones you are importing they will be replaced and all history for them will be lost."
+          .mt-4.font-normal
+            -trans "Do not proceed unless you are willing to replace your existing flows and campaigns."
 
 
-                .flex
-                  %input.button-primary{type:"submit", value:'{% trans "Import" %}'}
-                  .ml-4.button-light{onclick:"javascript:history.go(-1)"}
-                    -trans "Cancel"
+        .flex
+          %input.button-primary{type:"submit", value:'{% trans "Import" %}'}
+          .ml-4.button-light{onclick:"javascript:history.go(-1)"}
+            -trans "Cancel"
 
 
 {% block extra-style %}

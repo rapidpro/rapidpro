@@ -2,100 +2,86 @@
 
 -load temba compress i18n humanize
 
--block page-top
-
+-block title
+  -trans "Create Export"
 
 -block content
-  #pjax
-    -block pjax
-      .lp-frame
-        .right
-          .flex.w-full.mb-4.items-end.flex-wrap.justify-end{style:"min-height:41px"}
-            .flex-grow.self-end.items-end
-              .flex
-                .flex-grow.page-title.leading-tight
-                  -block title
-                    -trans "Create Export"
-                  .subtitle
-                    -block subtitle
 
-                %div
-                  .float-right
-                    -if not archived
-                      .button-light{onclick:"goto(event)", href:'?archived=1'}
-                        -trans "Show Archived"
+  %div.hidden
+    .float-right
+      -if not archived
+        .button-light{onclick:"goto(event)", href:'?archived=1'}
+          -trans "Show Archived"
 
-                    -else
-                      .button-light{onclick:"goto(event)", href:'?'}
-                        -trans "Hide Archived"
+      -else
+        .button-light{onclick:"goto(event)", href:'?'}
+          -trans "Hide Archived"
 
-          .flex.w-full.mb-4.items-end.flex-wrap.justify-end{style:"min-height:41px"}
-            -blocktrans trimmed
-              Select all of the items below that you would like to include in your export. We've grouped them
-              together based on which flows and campaigns work with each other. Any related triggers will automatically
-              be included in the export.
+  .flex.w-full.mb-4.items-end.flex-wrap.justify-end{style:"min-height:41px"}
+    -blocktrans trimmed
+      Select all of the items below that you would like to include in your export. We've grouped them
+      together based on which flows and campaigns work with each other. Any related triggers will automatically
+      be included in the export.
 
+  .flex.w-full.mb-4.items-end.flex-wrap.justify-end{style:"min-height:41px"}
+    %form.export.w-full{method:'POST'}
+      -csrf_token
+      .flex.flex-col
+        -for bucket in buckets
+          .bucket.card
+            .mb-6.justify-between.bleed-x.bleed-t.bg-gray-100
+              .flex.items-center.p-2
+                .title.-mt-4.flex-grow
+                  -trans "Group"
+                  {{ forloop.counter|apnumber|capfirst }}
+                .button-light.select-section.px-3.py-2.text-base.-mt-6.bg-white
+                  -trans "Select Group"
+                  {{ forloop.counter|apnumber|capfirst }}
 
-          .flex.w-full.mb-4.items-end.flex-wrap.justify-end{style:"min-height:41px"}
-            %form.export.w-full{method:'POST'}
-              -csrf_token
-              .flex.flex-col
-                -for bucket in buckets
-                  .bucket
-                    .pb-2.border-b.flex.items-center.justify-between
-                      .float-left.leading-tight.text-dark-alpha-300.text-2xl
-                        -trans "Group"
-                        {{ forloop.counter|apnumber|capfirst }}
-                      .float-right
-                        .button-light.select-section
-                          -trans "Select Group"
-                          {{ forloop.counter|apnumber|capfirst }}
+            .exportables-grp.px-6
+              -for exportable in bucket
+                -ifchanged exportable|verbose_name_plural|capfirst
+                  %h4.flex
+                    %input.toggle-all(type="checkbox" id="{{forloop.parentloop.counter0}}-{{ exportable|verbose_name_plural}}" style="margin-top: 8px !important;")
+                    .pl-2.leading-loose.font-normal
+                      {{ exportable|verbose_name_plural|capfirst }}
+                .exportable-item.inline-flex.pl-8.mb-2(class="w-2/5 {{forloop.parentloop.counter0}}-{{ exportable|verbose_name_plural }}")
+                  %input(name="{{exportable|verbose_name_plural}}" value="{{exportable.pk}}" id="{{exportable|verbose_name_plural}}-{{exportable.pk}}" type="checkbox")
+                  .pl-2
+                    {{ exportable.name }}
 
-                    .mb-12.exportables-grp
-                      -for exportable in bucket
-                        -ifchanged exportable|verbose_name_plural|capfirst
-                          %h4.flex
-                            %input.toggle-all(type="checkbox" id="{{forloop.parentloop.counter0}}-{{ exportable|verbose_name_plural}}" style="margin-top: 8px !important;")
-                            .pl-2.leading-loose.font-medium.text-dark-alpha-200
-                              {{ exportable|verbose_name_plural|capfirst }}
-                        .exportable-item.inline-flex.pl-8.mb-2(class="w-2/5 {{forloop.parentloop.counter0}}-{{ exportable|verbose_name_plural }}")
-                          %input(name="{{exportable|verbose_name_plural}}" value="{{exportable.pk}}" id="{{exportable|verbose_name_plural}}-{{exportable.pk}}" type="checkbox")
-                          .pl-2
-                            {{ exportable.name }}
+        -if singles
+          .bucket.card
+            .mb-6.justify-between.bleed-x.bleed-t.bg-gray-100
+              .flex.items-center.p-2
+                .title.-mt-4.flex-grow
+                  -if buckets
+                    -trans "Everything Else"
+                  -else
+                    -trans "Flows and Campaigns"
 
-                -if singles
-                  .bucket
-                    .pb-4.border-b.flex.items-center.justify-between
-                      .float-left.leading-tight.text-dark-alpha-300.text-2xl
-                        -if buckets
-                          -trans "Everything Else"
-                        -else
-                          -trans "Flows and Campaigns"
+                -if buckets
+                  .button-light.select-section.px-3.py-2.text-base.-mt-6.bg-white
+                    -trans "Select Everthing Else"
 
-                      -if buckets
-                        .float-right
-                          .button-light.select-section
-                            -trans "Select Everthing Else"
+            .mb-12.exportables-grp
+              -for exportable in singles
+                -ifchanged exportable|verbose_name_plural|capfirst
+                  %h4.flex
+                    %input.toggle-all(type="checkbox" name="selector" id="{{ exportable|verbose_name_plural}}" style="margin-top: 8px !important;")
+                    .pl-2.leading-loose.font-normal
+                      {{ exportable|verbose_name_plural|capfirst }}
+                .exportable-item.inline-flex.pl-8.mb-2(class="w-2/5 {{ exportable|verbose_name_plural }}")
+                  %input{name:'{{exportable|verbose_name_plural}}', value:'{{exportable.pk}}', id:'{{exportable|verbose_name_plural}}_{{exportable.pk}}', type:'checkbox'}
+                  .pl-2
+                    {{ exportable.name }}
 
-                    .mb-12.exportables-grp
-                      -for exportable in singles
-                        -ifchanged exportable|verbose_name_plural|capfirst
-                          %h4.flex
-                            %input.toggle-all(type="checkbox" name="selector" id="{{ exportable|verbose_name_plural}}" style="margin-top: 8px !important;")
-                            .pl-2.leading-loose.font-medium.text-dark-alpha-200
-                              {{ exportable|verbose_name_plural|capfirst }}
-                        .exportable-item.inline-flex.pl-8.mb-2(class="w-2/5 {{ exportable|verbose_name_plural }}")
-                          %input{name:'{{exportable|verbose_name_plural}}', value:'{{exportable.pk}}', id:'{{exportable|verbose_name_plural}}_{{exportable.pk}}', type:'checkbox'}
-                          .pl-2
-                            {{ exportable.name }}
+      .flex.mb-24.mt-6
+        .button-light.select-all
+          -trans "Select All"
 
-              %hr.mb-12
-              .flex.mb-24
-                .button-light.select-all
-                  -trans "Select All"
-
-                .ml-4.button-primary.submit
-                  -trans "Export"
+        .ml-4.button-primary.submit
+          -trans "Export"
 
 
 -block extra-script
