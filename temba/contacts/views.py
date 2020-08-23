@@ -1905,6 +1905,7 @@ class ContactFieldCRUDL(SmartCRUDL):
         form_class = CreateContactFieldForm
         success_message = ""
         submit_button_name = _("Create")
+        field_config = {"show_in_table": {"label": _("Featured")}}
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -1934,7 +1935,7 @@ class ContactFieldCRUDL(SmartCRUDL):
         form_class = UpdateContactFieldForm
         success_message = ""
         submit_button_name = _("Update")
-        field_config = {"show_in_table": {"label": "Featured"}}
+        field_config = {"show_in_table": {"label": _("Featured")}}
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()

@@ -28,7 +28,7 @@ hideSection = (section) ->
     section.find(".formax-form").hide()
   else
     section[0].classList.remove("open")
-
+    section.find(".formax-summary").show()
 
 
 ###

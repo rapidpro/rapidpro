@@ -47,6 +47,12 @@
           -if view.search_fields
             %form#search-form.mb-4{method:"get"}
               %temba-textinput.w-full{onsubmit:'document.querySelector("#search-form").submit();', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
+          -else
+            .title
+              -trans "Featured Fields"
+            .my-4
+              -blocktrans trimmed
+                Featured fields are shown prominently on contact pages. Drag to reorder the fields that you would most like to see at glance.
 
           -block pre-table
 
@@ -61,14 +67,13 @@
                 %tbody#draggable-tbody
                   - for obj in object_list
                     %tr{ data-cfid:'{{ obj.id }}', data-priority:'{{ obj.priority }}', class:'{% if org_perms.contacts.contactfield_update_priority and is_featured_category%}draggable-row{%endif%}'}
-
                       - if org_perms.contacts.contactfield_update_priority and is_featured_category
-                        %td.drag-icon.pl-2
+                        %td.drag-icon.pl-2(style="padding:0px;padding-left:5px;")
                           .drag-handle.icon.icon-menu
                       - else
-                        %td
+                        %td(style="padding:3px")
 
-                      %td
+                      %td(style="{%if org_perms.contacts.contactfield_update_priority and is_featured_category%}padding-left:0px;{%endif%}")
                         .w-full
                           -if org_perms.contacts.contactfield_update
                             .hover-linked.update{onclick:"showUpdateContactFieldModal({{obj.id}})"}
