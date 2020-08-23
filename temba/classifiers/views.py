@@ -71,6 +71,11 @@ class ClassifierCRUDL(SmartCRUDL):
 
         def get_gear_links(self):
             links = []
+
+            links.append(
+                dict(title=_("Log"), href=reverse("request_logs.httplog_classifier", args=[self.object.uuid]))
+            )
+
             if self.has_org_perm("classifiers.classifier_sync"):
                 links.append(
                     dict(
