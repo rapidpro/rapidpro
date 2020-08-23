@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-21 15:04+0000\n"
+"POT-Creation-Date: 2020-08-21 21:43+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6424,19 +6424,19 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"    Contacts will automatically be added here as you communicate with them using %(name)s.\n"
-"    From here you can change a contact's name, organize them into groups and see the communication you've had with each.\n"
+"      Contacts will automatically be added here as you communicate with them using %(name)s.\n"
+"      From here you can change a contact's name, organize them into groups and see the communication you've had with each.\n"
 "\n"
-"  "
+"    "
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"    To get started you can\n"
-"      <a href='%(contact_import_url)s'>import contacts</a>\n"
-"    from a file you create in Excel.\n"
-"  "
+"      To get started you can\n"
+"        <a href='%(contact_import_url)s'>import contacts</a>\n"
+"      from a file you create in Excel.\n"
+"    "
 msgstr ""
 
 msgid "Are you sure you want to remove"
@@ -7032,24 +7032,24 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"        This message pane lets you keep track of everything coming in and out of %(name)s.  As you send and receive messages, they will be listed here.\n"
+"      This message pane lets you keep track of everything coming in and out of %(name)s.  As you send and receive messages, they will be listed here.\n"
 "\n"
-"      "
+"    "
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"        Just like your email, %(name)s lets you view, label and archive messages as you receive them.  %(name)s uses labels to classify responses, so you can view and manage those messages here.  You can also create your own labels to keep track of topical messages as you receive them.\n"
+"      Just like your email, %(name)s lets you view, label and archive messages as you receive them.  %(name)s uses labels to classify responses, so you can view and manage those messages here.  You can also create your own labels to keep track of topical messages as you receive them.\n"
 "\n"
-"      "
+"    "
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"        %(name)s also keeps track of calls that are received on your channel so you can return any calls which may have been made to it.\n"
-"      "
+"      %(name)s also keeps track of calls that are received on your channel so you can return any calls which may have been made to it.\n"
+"    "
 msgstr ""
 
 #, python-format
@@ -7499,6 +7499,9 @@ msgid ""
 "\n"
 "          This will disconnect your Chatbase account. Are you sure you want to proceed?\n"
 "        "
+msgstr ""
+
+msgid "Choose Workspace"
 msgstr ""
 
 msgid "Your login is not associated with any workspace. Please contact your administrator to receive an invitation to a workspace."
@@ -9012,20 +9015,6 @@ msgstr ""
 
 #, python-format
 msgid "Add account for the channel and enter <code>%(secret)s</code> as the secret."
-msgstr ""
-
-msgid "Trigger a Flow"
-msgstr ""
-
-msgid ""
-"\n"
-"        Triggers let users initiate flows by sending in a message. You can configure triggers to start flows based on keywords\n"
-"        users send.  A keyword is the first word in a message, think of it as a command name for the message.\n"
-"\n"
-"      "
-msgstr ""
-
-msgid "You can configure triggers to start flows or add contacts to groups."
 msgstr ""
 
 msgid "Start a flow after receiving a message not handled elsewhere."
