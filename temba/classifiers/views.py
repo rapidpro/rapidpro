@@ -13,11 +13,12 @@ from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.utils.views import ComponentFormMixin
 
 from .models import Classifier
 
 
-class BaseConnectView(OrgPermsMixin, SmartFormView):
+class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
     permission = "classifiers.classifier_connect"
     classifier_type = None
 

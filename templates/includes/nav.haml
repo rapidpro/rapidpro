@@ -243,8 +243,8 @@
             %a(href="{% url 'users.user_logout' %}?next=/users/login")
               .circle
                 .icon-exit
-              .title
-                -trans "logout"
+              .title.whitespace-no-wrap
+                -trans "sign out"
   -else
     -block temba-login
 
