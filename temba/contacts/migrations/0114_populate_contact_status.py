@@ -7,7 +7,7 @@ STATUS_BLOCKED = "B"
 STATUS_STOPPED = "S"
 
 
-def populate_contact_status(apps, schema_editor):
+def populate_contact_status(apps, schema_editor):  # pragma: no cover
     Contact = apps.get_model("contacts", "Contact")
     contacts = Contact.objects.values("id", "status", "is_stopped", "is_blocked")
 
@@ -48,7 +48,7 @@ def populate_contact_status(apps, schema_editor):
         max_id = batch[-1]["id"]
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
