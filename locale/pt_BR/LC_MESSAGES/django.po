@@ -8926,6 +8926,12 @@ msgstr ""
 msgid "Error Contacting Server. Changes may not be saved."
 msgstr "Erro ao Contactar o Servidor. As mudanças podem não ser salvas."
 
+msgid "Legacy flows"
+msgstr ""
+
+msgid "This flow is using a discontinued version of the flow editor. Update it to use the new editor today to start using powerful new features. Starting October 1st, all remaining flows will be updated automatically."
+msgstr ""
+
 msgid "Let's get started"
 msgstr "Vamos começar"
 
