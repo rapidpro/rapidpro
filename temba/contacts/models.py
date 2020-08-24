@@ -2460,12 +2460,14 @@ class ContactGroup(TembaModel):
     TYPE_ALL = "A"
     TYPE_BLOCKED = "B"
     TYPE_STOPPED = "S"
+    TYPE_ARCHIVED = "V"
     TYPE_USER_DEFINED = "U"
 
     TYPE_CHOICES = (
         (TYPE_ALL, "All Contacts"),
         (TYPE_BLOCKED, "Blocked Contacts"),
         (TYPE_STOPPED, "Stopped Contacts"),
+        (TYPE_ARCHIVED, "Archived Contacts"),
         (TYPE_USER_DEFINED, "User Defined Groups"),
     )
 
@@ -2542,6 +2544,12 @@ class ContactGroup(TembaModel):
         org.all_groups.create(
             name="Stopped Contacts",
             group_type=ContactGroup.TYPE_STOPPED,
+            created_by=org.created_by,
+            modified_by=org.modified_by,
+        )
+        org.all_groups.create(
+            name="Archived Contacts",
+            group_type=ContactGroup.TYPE_ARCHIVED,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
