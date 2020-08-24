@@ -9,7 +9,7 @@
     ]
   },
   "dependencies": {
-    "@greatnonprofits-nfp/flow-editor": "1.8.29",
+    "@greatnonprofits-nfp/flow-editor": "1.8.30",
     "coffeescript": "1.12.7",
     "less": "2.7.1",
     "react": "16.3.2",
