@@ -1,4 +1,3 @@
-import time
 from datetime import datetime, timedelta
 
 import pytz
@@ -9,6 +8,7 @@ from django.utils import timezone
 from temba.contacts.omnibox import omnibox_serialize
 from temba.msgs.models import Broadcast
 from temba.tests import TembaTest
+from temba.utils.dates import datetime_to_str
 
 from .models import Schedule
 
@@ -261,14 +261,13 @@ class ScheduleTest(TembaTest):
 
         start = datetime(2045, 9, 19, hour=10, minute=15, second=0, microsecond=0)
         start = pytz.utc.normalize(self.org.timezone.localize(start))
-        start_stamp = time.mktime(start.timetuple())
 
         # update the schedule
         post_data = dict(
             repeat_period=Schedule.REPEAT_WEEKLY,
             repeat_days_of_week="W",
             start="later",
-            start_datetime_value=start_stamp,
+            start_datetime=datetime_to_str(start, "%Y-%m-%d %H:%M", self.org.timezone),
         )
         response = self.client.post(reverse("schedules.schedule_update", args=[broadcast.schedule.pk]), post_data)
 
@@ -320,10 +319,8 @@ class ScheduleTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         now = timezone.now()
-        now_stamp = time.mktime(now.timetuple())
 
         tommorrow = now + timedelta(days=1)
-        tommorrow_stamp = time.mktime(tommorrow.timetuple())
 
         # user in other org can't make changes
         self.login(self.admin2)
@@ -349,7 +346,12 @@ class ScheduleTest(TembaTest):
         self.assertIsNone(schedule.next_fire)
 
         response = self.client.post(
-            update_url, {"start": "now", "repeat_period": "O", "start_datetime_value": "%d" % now_stamp}
+            update_url,
+            {
+                "start": "now",
+                "repeat_period": "O",
+                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
+            },
         )
         self.assertEqual(302, response.status_code)
 
@@ -358,7 +360,12 @@ class ScheduleTest(TembaTest):
         self.assertFalse(schedule.next_fire)
 
         response = self.client.post(
-            update_url, {"repeat_period": "D", "start": "later", "start_datetime_value": "%d" % tommorrow_stamp}
+            update_url,
+            {
+                "repeat_period": "D",
+                "start": "later",
+                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
+            },
         )
         self.assertEqual(302, response.status_code)
 
@@ -366,7 +373,12 @@ class ScheduleTest(TembaTest):
         self.assertEqual(schedule.repeat_period, "D")
 
         response = self.client.post(
-            update_url, {"repeat_period": "D", "start": "later", "start_datetime_value": "%d" % tommorrow_stamp}
+            update_url,
+            {
+                "repeat_period": "D",
+                "start": "later",
+                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
+            },
         )
         self.assertEqual(302, response.status_code)
 
@@ -380,7 +392,7 @@ class ScheduleTest(TembaTest):
                 "repeat_period": "W",
                 "start": "later",
                 "repeat_days_of_week": "",
-                "start_datetime_value": str(now_stamp),
+                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
             },
         )
 
@@ -397,11 +409,13 @@ class ScheduleTest(TembaTest):
                 "repeat_period": "W",
                 "start": "later",
                 "repeat_days_of_week": "X",
-                "start_datetime_value": str(now_stamp),
+                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
             },
         )
 
-        self.assertFormError(response, "form", "repeat_days_of_week", "X is not a valid day of the week")
+        self.assertFormError(
+            response, "form", "repeat_days_of_week", "Select a valid choice. X is not one of the available choices."
+        )
 
         schedule.refresh_from_db()
         self.assertEqual(schedule.repeat_period, "D")  # unchanged
@@ -413,8 +427,8 @@ class ScheduleTest(TembaTest):
             {
                 "repeat_period": "W",
                 "start": "later",
-                "repeat_days_of_week": "MF",
-                "start_datetime_value": str(now_stamp),
+                "repeat_days_of_week": ["M", "F"],
+                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
             },
         )
 
@@ -448,7 +462,7 @@ class ScheduleTest(TembaTest):
         post_data = dict()
         post_data["repeat_period"] = "D"
         post_data["start"] = "later"
-        post_data["start_datetime_value"] = "%d" % time.mktime(start_date.timetuple())
+        post_data["start_datetime"] = (datetime_to_str(start_date, "%Y-%m-%d %H:%M", self.org.timezone),)
         self.client.post(update_url, post_data)
         sched = Schedule.objects.get(pk=sched.pk)
 
@@ -462,7 +476,7 @@ class ScheduleTest(TembaTest):
         post_data = dict()
         post_data["repeat_period"] = "D"
         post_data["start"] = "later"
-        post_data["start_datetime_value"] = "%d" % time.mktime(start_date.timetuple())
+        post_data["start_datetime"] = (datetime_to_str(start_date, "%Y-%m-%d %H:%M", self.org.timezone),)
         self.client.post(update_url, post_data)
         sched = Schedule.objects.get(pk=sched.pk)
 

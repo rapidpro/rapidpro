@@ -1,4 +1,3 @@
-import time
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -13,6 +12,7 @@ from temba.flows.models import Flow
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
 from temba.tests import MockResponse, TembaTest
+from temba.utils.dates import datetime_to_str
 
 from .models import Trigger
 from .views import DefaultTriggerForm, RegisterTriggerForm
@@ -305,10 +305,8 @@ class TriggerTest(TembaTest):
         stromae = self.create_contact("Stromae", "+250788645323")
 
         now = timezone.now()
-        now_stamp = time.mktime(now.timetuple())
 
         tommorrow = now + timedelta(days=1)
-        tommorrow_stamp = time.mktime(tommorrow.timetuple())
 
         omnibox_selection = omnibox_serialize(flow.org, [linkin_park], [stromae], True)
 
@@ -319,7 +317,7 @@ class TriggerTest(TembaTest):
                 "omnibox": omnibox_selection,
                 "repeat_period": "D",
                 "start": "later",
-                "start_datetime_value": str(tommorrow_stamp),
+                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
             },
         )
 
@@ -345,7 +343,12 @@ class TriggerTest(TembaTest):
         # this time provide a flow but leave out omnibox..
         response = self.client.post(
             reverse("triggers.trigger_schedule"),
-            {"flow": flow.id, "repeat_period": "D", "start": "later", "start_datetime_value": str(tommorrow_stamp)},
+            {
+                "flow": flow.id,
+                "repeat_period": "D",
+                "start": "later",
+                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
+            },
         )
         self.assertEqual(list(response.context["form"].errors.keys()), ["omnibox"])
         self.assertFalse(Trigger.objects.all())
@@ -359,7 +362,7 @@ class TriggerTest(TembaTest):
                 "omnibox": omnibox_selection,
                 "repeat_period": "D",
                 "start": "later",
-                "start_datetime_value": str(tommorrow_stamp),
+                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
             },
         )
 
@@ -372,7 +375,7 @@ class TriggerTest(TembaTest):
                 "omnibox": omnibox_selection,
                 "repeat_period": "D",
                 "start": "later",
-                "start_datetime_value": str(tommorrow_stamp),
+                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
             },
         )
 
@@ -394,7 +397,7 @@ class TriggerTest(TembaTest):
                 "omnibox": omnibox_selection,
                 "repeat_period": "O",
                 "start": "later",
-                "start_datetime_value": str(now_stamp),
+                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
             },
         )
 
@@ -408,7 +411,7 @@ class TriggerTest(TembaTest):
                 "omnibox": omnibox_serialize(flow.org, [linkin_park], [shinoda], True),
                 "repeat_period": "D",
                 "start": "later",
-                "start_datetime_value": str(now_stamp),
+                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
             },
         )
 
@@ -428,7 +431,7 @@ class TriggerTest(TembaTest):
                 "omnibox": omnibox_selection,
                 "repeat_period": "W",
                 "start": "later",
-                "start_datetime_value": str(now_stamp),
+                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
             },
         )
 
@@ -443,11 +446,13 @@ class TriggerTest(TembaTest):
                 "repeat_period": "W",
                 "repeat_days_of_week": "X",
                 "start": "later",
-                "start_datetime_value": str(now_stamp),
+                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
             },
         )
 
-        self.assertFormError(response, "form", "repeat_days_of_week", "X is not a valid day of the week")
+        self.assertFormError(
+            response, "form", "repeat_days_of_week", "Select a valid choice. X is not one of the available choices."
+        )
 
     def test_join_group_trigger(self):
         self.login(self.admin)
