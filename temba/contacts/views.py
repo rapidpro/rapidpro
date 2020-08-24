@@ -780,9 +780,6 @@ class ContactCRUDL(SmartCRUDL):
             for column in self.column_controls:
                 if cleaned_data[column["include_field"]]:
                     label = cleaned_data[column["label_field"]]
-                    if label.startswith("[_NEW_]"):
-                        label = label[7:]
-
                     label = label.strip()
                     value_type = cleaned_data[column["type_field"]]
                     org = self.derive_org()

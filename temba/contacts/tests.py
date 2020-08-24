@@ -4610,7 +4610,7 @@ class ContactTest(TembaTest):
             "column_vehicle_include": "on",
             "column_shoes_include": "on",
             "column_email_include": "on",
-            "column_country_label": "[_NEW_]Location",
+            "column_country_label": "Location",
             "column_district_label": "District",
             "column_professional_status_label": "Job and Projects",
             "column_zip_code_label": "Postal Code",
@@ -4755,7 +4755,7 @@ class ContactTest(TembaTest):
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertFormError(response, "form", None, "District should be used once")
 
-        post_data["column_joined_label"] = "[_NEW_]District"
+        post_data["column_joined_label"] = "District"
 
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertFormError(response, "form", None, "District should be used once")
