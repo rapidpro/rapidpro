@@ -1,3 +1,7 @@
+v5.7.15
+----------
+ * Add nag warning to legacy editor
+
 v5.7.14
 ----------
  * Migration to backfill contact status

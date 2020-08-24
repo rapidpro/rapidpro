@@ -12,10 +12,17 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
+<<<<<<< HEAD
 "POT-Creation-Date: 2020-08-21 15:04+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
+=======
+"POT-Creation-Date: 2020-08-21 21:06+0000\n"
+"PO-Revision-Date: 2019-05-13 20:14+0000\n"
+"Last-Translator: Matheus Soares <matheus.soares@ilhasoft.com.br>, 2020\n"
+"Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
+>>>>>>> 9c0cc8e2492b6dcdfdb55decf7c5cb890aa36134
 "Language: pt_BR\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -8921,6 +8928,12 @@ msgstr ""
 
 msgid "Error Contacting Server. Changes may not be saved."
 msgstr "Erro ao Contactar o Servidor. As mudanças podem não ser salvas."
+
+msgid "Legacy flows"
+msgstr ""
+
+msgid "This flow is using a discontinued version of the flow editor. Update it to use the new editor today to start using powerful new features. Starting October 1st, all remaining flows will be updated automatically."
+msgstr ""
 
 msgid "Let's get started"
 msgstr "Vamos começar"

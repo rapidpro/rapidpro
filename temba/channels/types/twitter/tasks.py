@@ -5,7 +5,7 @@ from django.conf import settings
 
 from celery.task import task
 
-from temba.contacts.models import TWITTER_SCHEME, URN, ContactURN
+from temba.contacts.models import TWITTER_SCHEME, URN, Contact, ContactURN
 from temba.utils import chunk_list
 
 
@@ -18,9 +18,9 @@ def resolve_twitter_ids():
 
     with r.lock("resolve_twitter_ids_task", 1800):
         # look up all 'twitter' URNs, limiting to 30k since that's the most our API would allow anyways
-        twitter_urns = ContactURN.objects.filter(
-            scheme=TWITTER_SCHEME, contact__is_stopped=False, contact__is_blocked=False
-        ).exclude(contact=None)
+        twitter_urns = ContactURN.objects.filter(scheme=TWITTER_SCHEME, contact__status=Contact.STATUS_ACTIVE).exclude(
+            contact=None
+        )
         twitter_urns = twitter_urns[:30000].only("id", "org", "contact", "path")
         api_key = settings.TWITTER_API_KEY
         api_secret = settings.TWITTER_API_SECRET

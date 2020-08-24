@@ -22,11 +22,11 @@
 
   .flex.flex-wrap.mt-1
 
-    -if contact.is_blocked
+    -if contact.status == 'B'
       .lbl.mt-2.mr-2.bg-error.text-white.cursor-pointer{onclick:"goto(event)", href:"{% url 'contacts.contact_blocked' %}"}
         -trans "Blocked"
   
-    -elif contact.is_stopped
+    -elif contact.status == 'S'
       .lbl-group.mt-2.mr-2.linked.bg-error.text-white.font-normal{onclick:"goto(event)", href:"{% url 'contacts.contact_stopped' %}"}
         -trans "Stopped"
   
