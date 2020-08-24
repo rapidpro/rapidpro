@@ -5,7 +5,7 @@ from twython import TwythonError
 from django.test import override_settings
 from django.urls import reverse
 
-from temba.contacts.models import URN
+from temba.contacts.models import URN, Contact
 from temba.tests import TembaTest, mock_mailroom
 
 from ...models import Channel
@@ -159,7 +159,7 @@ class TwitterTypeTest(TembaTest):
 
         self.joe.refresh_from_db()
         urn.refresh_from_db()
-        self.assertTrue(self.joe.is_stopped)
+        self.assertEqual(Contact.STATUS_STOPPED, self.joe.status)
         self.assertIsNone(urn.display)
         self.assertEqual("twitter:therealjoe", urn.identity)
         self.assertEqual("therealjoe", urn.path)
@@ -198,14 +198,14 @@ class TwitterTypeTest(TembaTest):
         resolve_twitter_ids()
 
         self.jane.refresh_from_db()
-        self.assertTrue(self.jane.is_stopped)
+        self.assertEqual(Contact.STATUS_STOPPED, self.jane.status)
 
         self.sarah = self.create_contact("sarah", twitter="sarah20")
         mock_lookup_user.side_effect = Exception("Unable to reach API")
         resolve_twitter_ids()
 
         self.sarah.refresh_from_db()
-        self.assertFalse(self.sarah.is_stopped)
+        self.assertEqual(Contact.STATUS_ACTIVE, self.sarah.status)
 
     def test_update(self):
         update_url = reverse("channels.channel_update", args=[self.channel.id])

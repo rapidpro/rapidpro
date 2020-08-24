@@ -620,11 +620,11 @@ class EventFire(Model):
             if field.field_type == ContactField.FIELD_TYPE_USER:
                 field_uuid = str(field.uuid)
 
-                contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False).extra(
+                contacts = event.campaign.group.contacts.filter(is_active=True, status=Contact.STATUS_ACTIVE).extra(
                     where=['%s::text[] <@ (extract_jsonb_keys("contacts_contact"."fields"))'], params=[[field_uuid]]
                 )
             elif field.field_type == ContactField.FIELD_TYPE_SYSTEM:
-                contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False)
+                contacts = event.campaign.group.contacts.filter(is_active=True, status=Contact.STATUS_ACTIVE)
             else:  # pragma: no cover
                 raise ValueError(f"Unhandled ContactField type {field.field_type}.")
 
