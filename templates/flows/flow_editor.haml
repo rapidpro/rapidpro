@@ -46,15 +46,6 @@
     // this must be loaded after angular
     conditionalLoad('lib/angular-file-upload-1.6.12/angular-file-upload.js', null)
 
-  -if org_perms.flows.flow_delete
-    :javascript
-      $(".delete-flow").live('click', function() {    
-        var modal = new Modax('{{ _("Delete Flow")|escapejs }}', '{% url "flows.flow_delete" flow.id %}');
-        modal.addClass("alert");
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      });
-
   -compress js
     %script{type:'text/javascript', src:'{{ STATIC_URL }}bower/jsPlumb/dist/js/dom.jsPlumb-1.7.5.js'}
     %script{type:'text/javascript', src:"{{ STATIC_URL }}bower/jquery-autosize/jquery.autosize.js"}
@@ -122,14 +113,10 @@
     {% endif %}
 
     $(".migrate-flow").live("click", function(){
-      var modal = new ConfirmationModal("Switch to New Editor", "{% trans 'The new editor provides powerful new features and better performance, but please note that this cannot be undone.' %}");
-      modal.addClass('alert');
-      modal.setListeners({
-        onPrimary: function() {document.location.href = "{% url 'flows.flow_editor_next' object.uuid %}?migrate=1";},
-      });
-      modal.show()
+      document.getElementById("confirm-migrate").open = true;
     });
-
+    document.getElementById("confirm-migrate").open = true;
+    
     $(function(){
       // where is our status box now?
       var statusTop = $("#status").offset().top;
@@ -155,12 +142,13 @@
         $("html").scope().is_starting = true;
       {% endif %}
 
-      var modal = new ConfirmationModal($("#migrate-nag .title").html(), $("#migrate-nag .body").html());
-      modal.setListeners({
-        onPrimary: function() {document.location.href = "{% url 'flows.flow_editor_next' object.uuid %}?migrate=1";},
+      var confirmation = document.querySelector("#confirm-migrate");
+      confirmation.addEventListener("temba-button-clicked", function(event){
+        if(!event.detail.button.secondary) {
+          document.location.href = "{% url 'flows.flow_editor_next' object.uuid %}?migrate=1";
+        }
+        confirmation.open = false;
       });
-      modal.setPrimaryButton('{{ _("Update")|escapejs }}');
-      modal.show();
     })
 
 
@@ -195,6 +183,12 @@
 
 
 -block page-container
+
+  %temba-dialog#confirm-migrate(header='{{_("New Editor")|escapejs}}' primaryButtonName='{{_("Update Flow")|escapejs}}')
+    .p-6
+      -blocktrans trimmed
+        This flow is using a discontinued version of the flow editor. Update it to use the new editor today to start
+        using powerful new features. <b>Starting October 1st</b>, all remaining flows will be updated automatically.
 
   -include "msgs/msg_send_modal.html"
   -include "delete_modal_include.html"
@@ -248,7 +242,7 @@
       .actions.pull-right
         -include "gear_links_include.haml"
 
-      %h2
+      .page-title
         -if flow.flow_type == 'V'
           .icon-phone
         -elif flow.flow_type == 'S'
@@ -287,18 +281,8 @@
         .throbber
           %img{ src: "{{ STATIC_URL }}images/loader-bars.gif" }
 
-    #migrate-nag.hide
-      .title
-        -trans "Legacy flows"
-      .body
-        -blocktrans trimmed
-          This flow is using a discontinued version of the flow editor. Update it to use the new editor today to start
-          using powerful new features. Starting October 1st, all remaining flows will be updated automatically.
-
     #workspace{ng-dblclick:'addNote($event); $event.stopPropagation();'}
-
       #flow{ class:'{% if not mutable %}readonly{%endif%}'}
-
         .empty{ng-show:'flow.action_sets.length + flow.rule_sets.length == 0'}
 
           .option
