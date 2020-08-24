@@ -229,7 +229,7 @@ class ScheduleTest(TembaTest):
         self.assertContains(response, "At least one recipient is required")
 
         # missing message
-        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
+        omnibox = omnibox_serialize(self.org, [], [joe], True)
         post_data = dict(text="", omnibox=omnibox, sender=self.channel.pk, schedule=True)
         response = self.client.post(reverse("msgs.broadcast_send"), post_data, follow=True)
         self.assertContains(response, "This field is required")

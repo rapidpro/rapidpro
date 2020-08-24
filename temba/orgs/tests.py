@@ -1616,7 +1616,7 @@ class OrgTest(TembaTest):
         # check our credits
         self.login(self.admin)
         response = self.client.get(reverse("orgs.org_home"))
-        
+
         # We now show org plan
         # self.assertContains(response, "<b>999</b>")
 
