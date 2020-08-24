@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-21 21:43+0000\n"
+"POT-Creation-Date: 2020-08-24 17:51+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -51,6 +51,14 @@ msgstr "Editor"
 
 msgid "Surveyor"
 msgstr ""
+
+#, fuzzy
+#| msgid "Webhook URL"
+msgid "Webhook Log"
+msgstr "URL do Webhook"
+
+msgid "Flows"
+msgstr "Fluxos"
 
 msgid "Relayer Application APK"
 msgstr ""
@@ -3307,6 +3315,11 @@ msgid "Your classifier has been deleted."
 msgstr "Seu número de telefone agora está conectado"
 
 #, fuzzy
+#| msgid "Logout"
+msgid "Log"
+msgstr "Sair"
+
+#, fuzzy
 #| msgid "Synced on"
 msgid "Sync"
 msgstr "Sincronizado em"
@@ -3721,6 +3734,9 @@ msgstr "Gerenciar campos"
 msgid "Manage Contact Fields"
 msgstr "Configurar campo de contatos"
 
+msgid "Featured"
+msgstr ""
+
 #, fuzzy
 #| msgid "Update Fields"
 msgid "Update"
@@ -4020,9 +4036,6 @@ msgstr ""
 msgid "Retries call three times for the chosen interval"
 msgstr ""
 
-msgid "Flows"
-msgstr "Fluxos"
-
 #, python-format
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
 msgstr ""
@@ -4120,6 +4133,10 @@ msgstr "Ação de iniciar o fluxo"
 msgid "Results"
 msgstr "Resultados ao vivo"
 
+#, fuzzy
+msgid "Edit Flow"
+msgstr "(visualizar registro)"
+
 msgid "Copy"
 msgstr ""
 
@@ -4128,17 +4145,13 @@ msgid "Revision History"
 msgstr "Histórico de mensagens"
 
 #, fuzzy
-msgid "New Editor"
-msgstr "Nenhum editor"
-
-#, fuzzy
-msgid "Edit Flow"
-msgstr "(visualizar registro)"
-
-#, fuzzy
 #| msgid "Create Flow"
 msgid "Delete Flow"
 msgstr "Criar fluxo"
+
+#, fuzzy
+msgid "New Editor"
+msgstr "Nenhum editor"
 
 #, fuzzy
 #| msgid "Export Data"
@@ -4224,6 +4237,10 @@ msgstr ""
 msgid "You can only include up to {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} groups for group memberships in your export"
 msgstr ""
 
+#, fuzzy
+msgid "Download Results"
+msgstr "Resultados ao vivo"
+
 msgid "Sunday"
 msgstr ""
 
@@ -4250,8 +4267,8 @@ msgid "Download"
 msgstr "Resultados ao vivo"
 
 #, fuzzy
-msgid "Export Flow Results"
-msgstr "Exportar"
+msgid "Download Flow Results"
+msgstr "Resultados ao vivo"
 
 msgid "Your flow contains an invalid loop. Please refresh your browser."
 msgstr ""
@@ -5370,19 +5387,11 @@ msgstr "Alerta de e-mail"
 msgid "This password is not valid. Choose a new password and try again."
 msgstr ""
 
-#, fuzzy
-#| msgid "Invite people to your organization"
-msgid "Invite people to your workspace"
-msgstr "Convide pessoas para a sua Organização"
-
-msgid "Enter emails of people to invite"
-msgstr "Digite os e-mails das pessoas que deseja convidar"
-
-msgid "User group"
-msgstr "Grupo do usuário"
-
 msgid "One of the emails you entered is invalid."
 msgstr "Um dos e-mails que você digitou é inválido."
+
+msgid "Home"
+msgstr ""
 
 msgid "Enter the code from your authentication application"
 msgstr ""
@@ -5670,6 +5679,11 @@ msgstr "Eventos recentes do transmissor"
 #| msgid "Recent Channel Events"
 msgid "Recent Ticketing Service Events"
 msgstr "Eventos recentes do transmissor"
+
+#, fuzzy
+#| msgid "Channel Event"
+msgid "Classifier Log"
+msgstr "Evento do transmissor"
 
 msgid "Never"
 msgstr "Nunca"
@@ -6137,12 +6151,9 @@ msgid "View Full Documentation"
 msgstr "Documentação da API"
 
 #, fuzzy
-#| msgid "Webhook Events"
-msgid "Recent Webhook Events"
-msgstr "Eventos do Webhook"
-
-msgid "Webhook events that have been created recently can be found here."
-msgstr ""
+#| msgid "Webhook URL"
+msgid "Webhook Calls"
+msgstr "URL do Webhook"
 
 msgid "Elapsed"
 msgstr ""
@@ -6160,10 +6171,8 @@ msgstr "Eventos do Webhook"
 msgid "Request Time"
 msgstr "URL de recebimento"
 
-#, fuzzy
-#| msgid "Receive URL"
-msgid "Request Time:"
-msgstr "URL de recebimento"
+msgid "Took"
+msgstr ""
 
 #, fuzzy
 msgid "Archives"
@@ -6616,11 +6625,6 @@ msgstr "Deletado"
 #| msgid "Android integration"
 msgid "Channel interaction"
 msgstr "Integração com Android"
-
-#, fuzzy
-#| msgid "Receive URL"
-msgid "Request time"
-msgstr "URL de recebimento"
 
 msgid "Channel Event"
 msgstr "Evento do transmissor"
@@ -7996,19 +8000,19 @@ msgstr "Conectar Nexmo."
 
 msgid ""
 "\n"
-"            Classifiers let you interpret words and phrases into intents you can act on. Various services let you\n"
-"            train your own classifier which you can then use in your flows to draw meaning from the unstructured text your\n"
-"            contacts send you.\n"
+"    Classifiers let you interpret words and phrases into intents you can act on. Various services let you\n"
+"    train your own classifier which you can then use in your flows to draw meaning from the unstructured text your\n"
+"    contacts send you.\n"
 "\n"
-"          "
+"  "
 msgstr ""
 
 #, fuzzy
 msgid ""
 "\n"
-"            Select your provider below to get started.\n"
+"      Select your provider below to get started.\n"
 "\n"
-"          "
+"    "
 msgstr ""
 "\n"
 "Instalar o %(name)s app"
@@ -8019,19 +8023,14 @@ msgid "Classifier"
 msgstr "Evento do transmissor"
 
 #, fuzzy
-#| msgid "Channel Event"
-msgid "Classifier Log"
-msgstr "Evento do transmissor"
-
-msgid "Intents are synced automatically every 5 minutes"
-msgstr ""
-
-#, fuzzy
 #| msgid "Activate"
-msgid "Active Intents"
+msgid "Intent"
 msgstr "Ativar"
 
 msgid "No synced intents at this time."
+msgstr ""
+
+msgid "Intents are synced automatically every 5 minutes"
 msgstr ""
 
 #, fuzzy
@@ -8570,6 +8569,14 @@ msgid "Create Field"
 msgstr "Criar fluxo"
 
 #, fuzzy
+#| msgid "Create Flow"
+msgid "Featured Fields"
+msgstr "Criar fluxo"
+
+msgid "Featured fields are shown prominently on contact pages. Drag to reorder the fields that you would most like to see at glance."
+msgstr ""
+
+#, fuzzy
 #| msgid "Update Fields"
 msgid "Update Field"
 msgstr "Atualizar campos"
@@ -8582,9 +8589,6 @@ msgstr "Criar fluxo"
 #, fuzzy
 msgid "Field Details"
 msgstr "Gerenciar campos"
-
-msgid "Featured"
-msgstr ""
 
 #, python-format
 msgid "%(counter)s Use"
@@ -8891,7 +8895,7 @@ msgstr ""
 msgid "Update Flow"
 msgstr "Atualizar campos"
 
-msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
+msgid "This flow is using a discontinued version of the flow editor. Update it to use the new editor today to start using powerful new features. <b>Starting October 1st</b>, all remaining flows will be updated automatically."
 msgstr ""
 
 msgid "To make your next connection,"
@@ -9169,6 +9173,11 @@ msgid "Responded"
 msgstr "Respostas"
 
 #, fuzzy
+#| msgid "More Videos"
+msgid "More Columns"
+msgstr "Mais vídeos"
+
+#, fuzzy
 #| msgid "Most Active"
 msgid "Last Activity"
 msgstr "Mais ativo"
@@ -9340,6 +9349,11 @@ msgstr "organizações"
 #, fuzzy
 msgid "end"
 msgstr "Enviar URL"
+
+#, fuzzy
+#| msgid "Sign Up"
+msgid "sign out"
+msgstr "Cadastrar-se"
 
 msgid "sign in"
 msgstr "entrar"
@@ -10240,6 +10254,9 @@ msgstr ""
 msgid "Add guest viewers to"
 msgstr "Adicionar visualizadores convidados a"
 
+msgid "Enter emails of people to invite"
+msgstr "Digite os e-mails das pessoas que deseja convidar"
+
 #, fuzzy, python-format
 #| msgid "You have been invited to join"
 msgid "You have been invited to join %(name)s."
@@ -10278,7 +10295,12 @@ msgstr "Administradores"
 msgid "You must have at least one administator"
 msgstr "Você deve ter pelo menos um administator"
 
-msgid "Invites"
+#, fuzzy
+#| msgid "Email notifications"
+msgid "Pending Invitations"
+msgstr "Notificações de e-mail"
+
+msgid "Invite New Users"
 msgstr ""
 
 msgid ","
@@ -11734,14 +11756,6 @@ msgstr ""
 msgid "More Videos"
 msgstr "Mais vídeos"
 
-msgid "From"
-msgstr ""
-
-#, fuzzy
-#| msgid "Receive URL"
-msgid "Request time:"
-msgstr "URL de recebimento"
-
 #, fuzzy
 #| msgid "Channel Event"
 msgid "Classifier Event"
@@ -12077,6 +12091,38 @@ msgstr "Insira o seu código de requisição"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
+#, fuzzy
+#~ msgid "Export Flow Results"
+#~ msgstr "Exportar"
+
+#, fuzzy
+#~| msgid "Invite people to your organization"
+#~ msgid "Invite people to your workspace"
+#~ msgstr "Convide pessoas para a sua Organização"
+
+#~ msgid "User group"
+#~ msgstr "Grupo do usuário"
+
+#, fuzzy
+#~| msgid "Webhook Events"
+#~ msgid "Recent Webhook Events"
+#~ msgstr "Eventos do Webhook"
+
+#, fuzzy
+#~| msgid "Receive URL"
+#~ msgid "Request Time:"
+#~ msgstr "URL de recebimento"
+
+#, fuzzy
+#~| msgid "Receive URL"
+#~ msgid "Request time"
+#~ msgstr "URL de recebimento"
+
+#, fuzzy
+#~| msgid "Receive URL"
+#~ msgid "Request time:"
+#~ msgstr "URL de recebimento"
+
 #~ msgid "Trigger a Flow"
 #~ msgstr "Disparar um fluxo"
 
@@ -12123,9 +12169,6 @@ msgstr ""
 
 #~ msgid "How to Build Flows"
 #~ msgstr "Como construir fluxos"
-
-#~ msgid "Logout"
-#~ msgstr "Sair"
 
 #, fuzzy
 #~| msgid "Each row should have the phone number (including country code) and the name of the contact if available."
@@ -12363,10 +12406,6 @@ msgstr ""
 
 #~ msgid "Unlabel"
 #~ msgstr "Remover rótulo"
-
-#, fuzzy
-#~ msgid "Download Results"
-#~ msgstr "Resultados ao vivo"
 
 #, fuzzy, python-format
 #~ msgid ""

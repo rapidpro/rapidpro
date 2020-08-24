@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-21 21:43+0000\n"
+"POT-Creation-Date: 2020-08-24 17:51+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -42,6 +42,12 @@ msgid "Editor"
 msgstr ""
 
 msgid "Surveyor"
+msgstr ""
+
+msgid "Webhook Log"
+msgstr ""
+
+msgid "Flows"
 msgstr ""
 
 msgid "Relayer Application APK"
@@ -2290,6 +2296,9 @@ msgstr ""
 msgid "Your classifier has been deleted."
 msgstr ""
 
+msgid "Log"
+msgstr ""
+
 msgid "Sync"
 msgstr ""
 
@@ -2645,6 +2654,9 @@ msgstr ""
 msgid "Manage Contact Fields"
 msgstr ""
 
+msgid "Featured"
+msgstr ""
+
 msgid "Update"
 msgstr ""
 
@@ -2901,9 +2913,6 @@ msgstr ""
 msgid "Retries call three times for the chosen interval"
 msgstr ""
 
-msgid "Flows"
-msgstr ""
-
 #, python-format
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
 msgstr ""
@@ -2984,19 +2993,19 @@ msgstr ""
 msgid "Results"
 msgstr ""
 
+msgid "Edit Flow"
+msgstr ""
+
 msgid "Copy"
 msgstr ""
 
 msgid "Revision History"
 msgstr ""
 
-msgid "New Editor"
-msgstr ""
-
-msgid "Edit Flow"
-msgstr ""
-
 msgid "Delete Flow"
+msgstr ""
+
+msgid "New Editor"
 msgstr ""
 
 msgid "Export Definition"
@@ -3072,6 +3081,9 @@ msgstr ""
 msgid "You can only include up to {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} groups for group memberships in your export"
 msgstr ""
 
+msgid "Download Results"
+msgstr ""
+
 msgid "Sunday"
 msgstr ""
 
@@ -3096,7 +3108,7 @@ msgstr ""
 msgid "Download"
 msgstr ""
 
-msgid "Export Flow Results"
+msgid "Download Flow Results"
 msgstr ""
 
 msgid "Your flow contains an invalid loop. Please refresh your browser."
@@ -4034,16 +4046,10 @@ msgstr ""
 msgid "This password is not valid. Choose a new password and try again."
 msgstr ""
 
-msgid "Invite people to your workspace"
-msgstr ""
-
-msgid "Enter emails of people to invite"
-msgstr ""
-
-msgid "User group"
-msgstr ""
-
 msgid "One of the emails you entered is invalid."
+msgstr ""
+
+msgid "Home"
 msgstr ""
 
 msgid "Enter the code from your authentication application"
@@ -4283,6 +4289,9 @@ msgid "Recent Classifier Events"
 msgstr ""
 
 msgid "Recent Ticketing Service Events"
+msgstr ""
+
+msgid "Classifier Log"
 msgstr ""
 
 msgid "Never"
@@ -4683,10 +4692,7 @@ msgstr ""
 msgid "View Full Documentation"
 msgstr ""
 
-msgid "Recent Webhook Events"
-msgstr ""
-
-msgid "Webhook events that have been created recently can be found here."
+msgid "Webhook Calls"
 msgstr ""
 
 msgid "Elapsed"
@@ -4701,7 +4707,7 @@ msgstr ""
 msgid "Request Time"
 msgstr ""
 
-msgid "Request Time:"
+msgid "Took"
 msgstr ""
 
 msgid "Archives"
@@ -4976,9 +4982,6 @@ msgid "complete"
 msgstr ""
 
 msgid "Channel interaction"
-msgstr ""
-
-msgid "Request time"
 msgstr ""
 
 msgid "Channel Event"
@@ -5939,33 +5942,30 @@ msgstr ""
 
 msgid ""
 "\n"
-"            Classifiers let you interpret words and phrases into intents you can act on. Various services let you\n"
-"            train your own classifier which you can then use in your flows to draw meaning from the unstructured text your\n"
-"            contacts send you.\n"
+"    Classifiers let you interpret words and phrases into intents you can act on. Various services let you\n"
+"    train your own classifier which you can then use in your flows to draw meaning from the unstructured text your\n"
+"    contacts send you.\n"
 "\n"
-"          "
+"  "
 msgstr ""
 
 msgid ""
 "\n"
-"            Select your provider below to get started.\n"
+"      Select your provider below to get started.\n"
 "\n"
-"          "
+"    "
 msgstr ""
 
 msgid "Classifier"
 msgstr ""
 
-msgid "Classifier Log"
-msgstr ""
-
-msgid "Intents are synced automatically every 5 minutes"
-msgstr ""
-
-msgid "Active Intents"
+msgid "Intent"
 msgstr ""
 
 msgid "No synced intents at this time."
+msgstr ""
+
+msgid "Intents are synced automatically every 5 minutes"
 msgstr ""
 
 msgid "Are you sure you want to remove this classifier from your account?"
@@ -6340,6 +6340,12 @@ msgstr ""
 msgid "Create Field"
 msgstr ""
 
+msgid "Featured Fields"
+msgstr ""
+
+msgid "Featured fields are shown prominently on contact pages. Drag to reorder the fields that you would most like to see at glance."
+msgstr ""
+
 msgid "Update Field"
 msgstr ""
 
@@ -6347,9 +6353,6 @@ msgid "Delete Field"
 msgstr ""
 
 msgid "Field Details"
-msgstr ""
-
-msgid "Featured"
 msgstr ""
 
 #, python-format
@@ -6575,7 +6578,7 @@ msgstr ""
 msgid "Update Flow"
 msgstr ""
 
-msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
+msgid "This flow is using a discontinued version of the flow editor. Update it to use the new editor today to start using powerful new features. <b>Starting October 1st</b>, all remaining flows will be updated automatically."
 msgstr ""
 
 msgid "To make your next connection,"
@@ -6787,6 +6790,9 @@ msgstr ""
 msgid "Responded"
 msgstr ""
 
+msgid "More Columns"
+msgstr ""
+
 msgid "Last Activity"
 msgstr ""
 
@@ -6917,6 +6923,9 @@ msgid "orgs"
 msgstr ""
 
 msgid "end"
+msgstr ""
+
+msgid "sign out"
 msgstr ""
 
 msgid "sign in"
@@ -7672,6 +7681,9 @@ msgstr ""
 msgid "Add guest viewers to"
 msgstr ""
 
+msgid "Enter emails of people to invite"
+msgstr ""
+
 #, python-format
 msgid "You have been invited to join %(name)s."
 msgstr ""
@@ -7705,7 +7717,10 @@ msgstr ""
 msgid "You must have at least one administator"
 msgstr ""
 
-msgid "Invites"
+msgid "Pending Invitations"
+msgstr ""
+
+msgid "Invite New Users"
 msgstr ""
 
 msgid ","
@@ -8814,12 +8829,6 @@ msgid ""
 msgstr ""
 
 msgid "More Videos"
-msgstr ""
-
-msgid "From"
-msgstr ""
-
-msgid "Request time:"
 msgstr ""
 
 msgid "Classifier Event"
