@@ -34,15 +34,7 @@ from temba.mailroom import MailroomException, modifiers
 from temba.msgs.models import Broadcast, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import (
-    AnonymousOrg,
-    CRUDLTestMixin,
-    ESMockWithScroll,
-    MigrationTest,
-    TembaNonAtomicTest,
-    TembaTest,
-    mock_mailroom,
-)
+from temba.tests import AnonymousOrg, CRUDLTestMixin, ESMockWithScroll, TembaNonAtomicTest, TembaTest, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -7225,42 +7217,3 @@ class ESIntegrationTest(TembaNonAtomicTest):
 
         # should now have 81 events instead, these were created by mailroom
         self.assertEqual(81, EventFire.objects.filter(event=event, fired=None).count())
-
-
-class PopulateContactStatus(MigrationTest):
-    app = "contacts"
-    migrate_from = "0113_contact_status"
-    migrate_to = "0114_populate_contact_status"
-
-    def setUpBeforeMigration(self, apps):
-        # active contact
-        self.contact1 = self.create_contact("Ann", urn="twitter:ann")
-
-        # blocked contact
-        self.contact2 = self.create_contact("Bob", urn="twitter:bob")
-        self.contact2.is_blocked = True
-        self.contact2.save(update_fields=("is_blocked",), handle_update=False)
-
-        # stopped contact
-        self.contact3 = self.create_contact("Cat", urn="twitter:cat")
-        self.contact3.is_stopped = True
-        self.contact3.save(update_fields=("is_stopped",), handle_update=False)
-
-        Contact.objects.all().update(status=None)
-
-        # contact who already has a status value
-        self.contact4 = self.create_contact("Don", urn="twitter:don")
-        self.contact4.status = "B"
-        self.contact4.is_blocked = True
-        self.contact4.save(update_fields=("status", "is_blocked"), handle_update=False)
-
-    def test_migration(self):
-        self.contact1.refresh_from_db()
-        self.contact2.refresh_from_db()
-        self.contact3.refresh_from_db()
-        self.contact4.refresh_from_db()
-
-        self.assertEqual("A", self.contact1.status)
-        self.assertEqual("B", self.contact2.status)
-        self.assertEqual("S", self.contact3.status)
-        self.assertEqual("B", self.contact4.status)
