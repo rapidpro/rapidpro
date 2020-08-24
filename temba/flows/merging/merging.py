@@ -1,6 +1,8 @@
 from collections import OrderedDict
 from jellyfish import jaro_distance
 
+from .test_data import get_name_of_flow_step
+
 
 class NodeConflictTypes:
     ROUTER_CONFLICT = "ROUTER_CONFLICT"
@@ -723,13 +725,34 @@ class GraphDifferenceMap:
 
     def get_conflict_solutions(self):
         conflict_solutions = []
+
+        def get_node_label(node, conflict):
+            flow_step_name = (
+                "Flow step (Action)"
+                if conflict["conflict_type"] == NodeConflictTypes.ACTION_CONFLICT
+                else "Flow step (Router)"
+            )
+            flow_step_name = get_name_of_flow_step(node.data, default=flow_step_name) if node else flow_step_name
+            field_name = f"With {' '.join(conflict['field'].lower().split('_'))} set as "
+            field_value = (
+                conflict["left_action"][conflict["field"]]
+                if "left_action" in conflict
+                else conflict["left_router"][conflict["field"]]
+            )
+            return f"{flow_step_name}: {field_name} '{field_value}'"
+
         for uuid, conflicts in self.conflicts.items():
             conflict = conflicts[0]
+            origin_node = (
+                self.diff_nodes_origin_map.get(uuid).left_origin_node
+                or self.diff_nodes_origin_map.get(uuid).right_origin_node
+            )
+
             if conflict["conflict_type"] == NodeConflictTypes.ACTION_CONFLICT:
                 conflict_solutions.append(
                     {
                         "uuid": uuid,
-                        "node_type": f"{getattr(self.diff_nodes_map.get(uuid, {}), 'node_types', [None]).pop()} {conflict['field']}",
+                        "node_label": get_node_label(origin_node, conflict),
                         "solutions": [
                             conflict["left_action"][conflict["field"]],
                             conflict["right_action"][conflict["field"]],
@@ -740,7 +763,7 @@ class GraphDifferenceMap:
                 conflict_solutions.append(
                     {
                         "uuid": uuid,
-                        "node_type": f"{getattr(self.diff_nodes_map.get(uuid, {}), 'node_types', [None]).pop()} {conflict['field']}",
+                        "node_label": get_node_label(origin_node, conflict),
                         "solutions": [
                             conflict["left_router"][conflict["field"]],
                             conflict["right_router"][conflict["field"]],

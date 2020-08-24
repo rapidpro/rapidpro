@@ -1,5 +1,79 @@
 from collections import OrderedDict
 
+actions_names = {
+    "add_contact_groups": {"description": "Add the contact to a group", "name": "Add to Group"},
+    "add_contact_urn": {"description": "Add a URN for the contact", "name": "Add URN"},
+    "add_input": {"description": "Label the incoming message", "name": "Add Labels"},
+    "call_giftcard": {"name": "Call Giftcard"},
+    "call_lookup": {"name": "Call Lookup"},
+    "call_resthook": {"description": "Call Zapier", "name": "Call Zapier"},
+    "call_shorten_url": {"name": "Shorten Trackable Links"},
+    "call_webhook": {"description": "Call a webhook", "name": "Call Webhook"},
+    "enter_flow": {"description": "Enter another flow", "name": "Enter a Flow"},
+    "play_audio": {"description": "Play a contact recording", "name": "Play Recording"},
+    "play_message": {"description": "Play a message", "name": "Play Message"},
+    "remove_contact_groups": {"description": "Remove the contact from a group", "name": "Remove from Group"},
+    "say_msg": {"placeholder": "Send a message to the contact"},
+    "send_broadcast": {
+        "description": "Send somebody else a message",
+        "name": "Send Broadcast",
+        "placeholder": "Send a message to the contact",
+    },
+    "send_email": {"description": "Send an email", "name": "Send Email"},
+    "send_msg": {
+        "description": "Send the contact a message",
+        "name": "Send Message",
+        "placeholder": "Send a message to the contact",
+    },
+    "set_contact_field": {"description": "Update the contact", "name": "Update Contact"},
+    "set_run_result": {"description": "Save a result for this flow", "name": "Save Flow Result"},
+    "split_by_contact_field": {"description": "Split by a contact field", "name": "Split by Contact Field"},
+    "split_by_expression": {"description": "Split by a custom expression", "name": "Split by Expression"},
+    "split_by_groups": {"description": "Split by group membership", "name": "Split by Group Membership"},
+    "split_by_intent": {"description": "Split by intent", "name": "Split by Intent"},
+    "split_by_name": {"name": "Split by Name"},
+    "split_by_random": {"description": "Split by random chance", "name": "Split Randomly"},
+    "split_by_run_result": {"description": "Split by a result in the flow", "name": "Split by Flow Result"},
+    "split_by_scheme": {"description": "Split by URN type", "name": "Split by URN Type"},
+    "start_session": {"description": "Start somebody else in a flow", "name": "Start Somebody Else"},
+    "transfer_airtime": {"description": "Send the contact airtime", "name": "Send Airtime"},
+    "wait_for_audio": {"description": "Wait for an audio recording", "name": "Wait for Audio"},
+    "wait_for_digits": {"description": "Wait for multiple digits", "name": "Wait for Digits"},
+    "wait_for_image": {"description": "Wait for an image", "name": "Wait for Image"},
+    "wait_for_location": {"description": "Wait for location GPS coordinates", "name": "Wait for Location"},
+    "wait_for_menu": {"description": "Wait for menu selection", "name": "Wait for Menu Selection"},
+    "wait_for_response": {"description": "Wait for the contact to respond", "name": "Wait for Response"},
+    "wait_for_video": {"description": "Wait for a video", "name": "Wait for Video"},
+}
+
+
+def get_name_of_flow_step(node, default=""):
+    if "router" not in node:
+        action_type = node["actions"][0]["type"]
+        action_type = "set_contact_field" if "set_contact" in action_type else action_type
+        return actions_names.get(action_type, {}).get("name", default)
+    else:
+        if node["router"]["type"] == "random":
+            return actions_names.get("split_by_random").get("name", default)
+        elif "wait" in node["router"]:
+            return actions_names.get("wait_for_response").get("name", default)
+        elif node["actions"]:
+            action_type = node["actions"][0]["type"]
+            return actions_names.get(action_type, {}).get("name", default)
+        else:
+            if node["router"]["operand"].endswith(".name"):
+                return actions_names.get("split_by_name", {}).get("name", default)
+            elif node["router"]["operand"].endswith(".result"):
+                return actions_names.get("split_by_run_result", {}).get("name", default)
+            elif node["router"]["operand"].endswith(".text"):
+                return actions_names.get("split_by_expression", {}).get("name", default)
+            elif node["router"]["operand"].endswith(".groups"):
+                return actions_names.get("split_by_groups", {}).get("name", default)
+            elif "scheme" in node["router"]["operand"]:
+                return actions_names.get("split_by_scheme", {}).get("name", default)
+    return default
+
+
 serialized_test_data = {
     "left_graph": OrderedDict(
         [
