@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-21 21:43+0000\n"
+"POT-Creation-Date: 2020-08-24 09:52+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -48,6 +48,14 @@ msgstr "Редактор"
 
 msgid "Surveyor"
 msgstr "Наблюдатель"
+
+#, fuzzy
+#| msgid "Webhook URL"
+msgid "Webhook Log"
+msgstr "URL вебхука"
+
+msgid "Flows"
+msgstr "Потоки"
 
 msgid "Relayer Application APK"
 msgstr "APK Приложения Ретранслятора "
@@ -2574,6 +2582,11 @@ msgstr "Удалить Классификатор"
 msgid "Your classifier has been deleted."
 msgstr "Ваш классификатор был удален."
 
+#, fuzzy
+#| msgid "Login"
+msgid "Log"
+msgstr "Логин"
+
 msgid "Sync"
 msgstr "Синхронизировать"
 
@@ -2939,6 +2952,9 @@ msgstr "Поле:Команда"
 msgid "Manage Contact Fields"
 msgstr "Управление Полями Контактов"
 
+msgid "Featured"
+msgstr "Рекомендованный"
+
 msgid "Update"
 msgstr "Обновить"
 
@@ -3199,9 +3215,6 @@ msgstr "Повторить вызов, если не удается подсое
 msgid "Retries call three times for the chosen interval"
 msgstr "Повторяет вызов три раза с заданным интервалом"
 
-msgid "Flows"
-msgstr "Потоки"
-
 #, python-format
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
 msgstr ""
@@ -3284,20 +3297,20 @@ msgstr "Начать поток"
 msgid "Results"
 msgstr "Результаты"
 
+msgid "Edit Flow"
+msgstr "Редактировать Поток"
+
 msgid "Copy"
 msgstr "Копия"
 
 msgid "Revision History"
 msgstr "История редактирования"
 
-msgid "New Editor"
-msgstr "Новый Редактор"
-
-msgid "Edit Flow"
-msgstr "Редактировать Поток"
-
 msgid "Delete Flow"
 msgstr "Удалить Поток"
+
+msgid "New Editor"
+msgstr "Новый Редактор"
 
 msgid "Export Definition"
 msgstr "Экспортировать Определение"
@@ -3378,6 +3391,9 @@ msgstr "В свой экспорт Вы можете включить тольк
 msgid "You can only include up to {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} groups for group memberships in your export"
 msgstr "В свой экспорт Вы можете включить только до {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} групп для членства групп"
 
+msgid "Download Results"
+msgstr "Скачать Результаты"
+
 msgid "Sunday"
 msgstr "Воскресенье"
 
@@ -3402,8 +3418,10 @@ msgstr "Суббота"
 msgid "Download"
 msgstr "Скачать"
 
-msgid "Export Flow Results"
-msgstr "Экспортировать Результаты Потока"
+#, fuzzy
+#| msgid "Download Results"
+msgid "Download Flow Results"
+msgstr "Скачать Результаты"
 
 msgid "Your flow contains an invalid loop. Please refresh your browser."
 msgstr "Ваш поток содержит недействительный цикл. Пожалуйста, обновите Ваш браузер."
@@ -4414,19 +4432,11 @@ msgstr "Проверить SSL"
 msgid "This password is not valid. Choose a new password and try again."
 msgstr "Этот пароль не является допустимым. Выберите новый пароль и повторите попытку."
 
-#, fuzzy
-#| msgid "Invite people to your organization"
-msgid "Invite people to your workspace"
-msgstr "Пригласите людей в свою организацию"
-
-msgid "Enter emails of people to invite"
-msgstr "Введите адреса электронной почты лиц, которые будут приглашаться"
-
-msgid "User group"
-msgstr "Группа пользователей"
-
 msgid "One of the emails you entered is invalid."
 msgstr "Один из адресов электронной почты, который Вы ввели, является недопустимым."
+
+msgid "Home"
+msgstr ""
 
 msgid "Enter the code from your authentication application"
 msgstr "Введите код из Вашего приложения по аутентификации"
@@ -4698,6 +4708,9 @@ msgstr "Последние События Классификатора"
 
 msgid "Recent Ticketing Service Events"
 msgstr ""
+
+msgid "Classifier Log"
+msgstr "Журнал классификатора"
 
 msgid "Never"
 msgstr "Никогда"
@@ -5122,11 +5135,10 @@ msgstr "Тело Post"
 msgid "View Full Documentation"
 msgstr "Просмотреть документацию полностью"
 
-msgid "Recent Webhook Events"
-msgstr "Последние события вебхука"
-
-msgid "Webhook events that have been created recently can be found here."
-msgstr "События вебхука, которые были недавно созданы, расположены здесь."
+#, fuzzy
+#| msgid "Webhook Log"
+msgid "Webhook Calls"
+msgstr "Журнал Вебхука"
 
 msgid "Elapsed"
 msgstr "Прошло"
@@ -5144,10 +5156,8 @@ msgstr "Последние события вебхука"
 msgid "Request Time"
 msgstr "URL Запроса"
 
-#, fuzzy
-#| msgid "Request URL"
-msgid "Request Time:"
-msgstr "URL Запроса"
+msgid "Took"
+msgstr ""
 
 msgid "Archives"
 msgstr "Архивы"
@@ -5464,11 +5474,6 @@ msgstr "завершено"
 
 msgid "Channel interaction"
 msgstr "Взаимодействие Канала"
-
-#, fuzzy
-#| msgid "Request URL"
-msgid "Request time"
-msgstr "URL Запроса"
 
 msgid "Channel Event"
 msgstr "Событие Канала"
@@ -7092,13 +7097,21 @@ msgstr "На данный момент синхронизированные ша
 msgid "Connect a Classifier"
 msgstr "Подключить Классификатор"
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "            Classifiers let you interpret words and phrases into intents you can act on. Various services let you\n"
+#| "            train your own classifier which you can then use in your flows to draw meaning from the unstructured text your\n"
+#| "            contacts send you.\n"
+#| "\n"
+#| "          "
 msgid ""
 "\n"
-"            Classifiers let you interpret words and phrases into intents you can act on. Various services let you\n"
-"            train your own classifier which you can then use in your flows to draw meaning from the unstructured text your\n"
-"            contacts send you.\n"
+"    Classifiers let you interpret words and phrases into intents you can act on. Various services let you\n"
+"    train your own classifier which you can then use in your flows to draw meaning from the unstructured text your\n"
+"    contacts send you.\n"
 "\n"
-"          "
+"  "
 msgstr ""
 "\n"
 "            Классификаторы позволяют Вам переводить слова и фразы в намерения, на основе которых Вы можете предпринимать действия. Различные службы позволят Вам\n"
@@ -7107,11 +7120,17 @@ msgstr ""
 "\n"
 "          "
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "            Select your provider below to get started.\n"
+#| "\n"
+#| "          "
 msgid ""
 "\n"
-"            Select your provider below to get started.\n"
+"      Select your provider below to get started.\n"
 "\n"
-"          "
+"    "
 msgstr ""
 "\n"
 "            Для того, чтобы начать, выберите своего провайдера из списка ниже.\n"
@@ -7121,17 +7140,16 @@ msgstr ""
 msgid "Classifier"
 msgstr "Классификатор"
 
-msgid "Classifier Log"
-msgstr "Журнал классификатора"
-
-msgid "Intents are synced automatically every 5 minutes"
-msgstr "Намерения автоматически синхронизируются каждые 5 минут"
-
-msgid "Active Intents"
-msgstr "Активные Намерения"
+#, fuzzy
+#| msgid "Intents Synced"
+msgid "Intent"
+msgstr "Намерения синхронизированы"
 
 msgid "No synced intents at this time."
 msgstr "На данный момент синхронизированные намерения отсутствуют."
+
+msgid "Intents are synced automatically every 5 minutes"
+msgstr "Намерения автоматически синхронизируются каждые 5 минут"
 
 msgid "Are you sure you want to remove this classifier from your account?"
 msgstr "Вы уверены, что хотите удалить этот классификатор из Вашей учетной записи?"
@@ -7682,6 +7700,14 @@ msgid "Create Field"
 msgstr "Создать Поле"
 
 #, fuzzy
+#| msgid "Featured field"
+msgid "Featured Fields"
+msgstr "Рекомендованное поле"
+
+msgid "Featured fields are shown prominently on contact pages. Drag to reorder the fields that you would most like to see at glance."
+msgstr ""
+
+#, fuzzy
 #| msgid "Update Folder"
 msgid "Update Field"
 msgstr "Обновить Папку"
@@ -7695,9 +7721,6 @@ msgstr "Удалить Поток"
 #| msgid "Details"
 msgid "Field Details"
 msgstr "Детальная информация"
-
-msgid "Featured"
-msgstr "Рекомендованный"
 
 #, python-format
 msgid "%(counter)s Use"
@@ -8093,11 +8116,17 @@ msgstr "Запустить в "
 msgid "Simulator"
 msgstr "Симулятор"
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "            This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.\n"
+#| "\n"
+#| "          "
 msgid ""
 "\n"
-"            This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.\n"
+"              This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.\n"
 "\n"
-"          "
+"            "
 msgstr ""
 "\n"
 "            Этот поток находится в процессе осуществления отправки, это сообщение исчезнет после того, ​​как все контакты будут добавлены в поток.\n"
@@ -8110,12 +8139,19 @@ msgstr "Ошибка связи с Сервером. Изменения не м�
 msgid "Let's get started"
 msgstr "Давайте начнем"
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "                It's a good idea to start your call off by saying something first. You'll probably want to\n"
+#| "                introduce yourself and ask them a question. Just type the message for now, you'll be able to\n"
+#| "                add a voice recording of your message later.\n"
+#| "              "
 msgid ""
 "\n"
-"                It's a good idea to start your call off by saying something first. You'll probably want to\n"
-"                introduce yourself and ask them a question. Just type the message for now, you'll be able to\n"
-"                add a voice recording of your message later.\n"
-"              "
+"                  It's a good idea to start your call off by saying something first. You'll probably want to\n"
+"                  introduce yourself and ask them a question. Just type the message for now, you'll be able to\n"
+"                  add a voice recording of your message later.\n"
+"                "
 msgstr ""
 "\n"
 "                Хорошей идеей будет начать Ваш звонок, сказав что-нибудь для начала. Вы, вероятно, захотите\n"
@@ -8123,24 +8159,38 @@ msgstr ""
 "                добавить голосовую запись Вашего сообщения позже.\n"
 "              "
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "                Welcome to a USSD flow. USSD is a session based communication type. We recommend starting your flow\n"
+#| "                by sending a USSD message. This message will be sent to anybody right after they join the flow.\n"
+#| "                This is your chance to send a single message or menu.\n"
+#| "              "
 msgid ""
 "\n"
-"                Welcome to a USSD flow. USSD is a session based communication type. We recommend starting your flow\n"
-"                by sending a USSD message. This message will be sent to anybody right after they join the flow.\n"
-"                This is your chance to send a single message or menu.\n"
-"              "
+"                  Welcome to a USSD flow. USSD is a session based communication type. We recommend starting your flow\n"
+"                  by sending a USSD message. This message will be sent to anybody right after they join the flow.\n"
+"                  This is your chance to send a single message or menu.\n"
+"                "
 msgstr ""
 "\n"
 "                Добро пожаловать в поток USSD. USSD это тип связи на основе сессии. Мы рекомендуем начать Ваш поток\n"
 "                с отправки сообщения USSD. Это сообщение будет отправлено кому-либо сразу после того, как он присоединится к потоку.\n"
 "                Это Ваш шанс отправить одно сообщение или меню."
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "                We recommend starting your flow by sending a message. This message will be sent to anybody right\n"
+#| "                after they join the flow. This is your chance to send a single message or ask them a question.\n"
+#| "\n"
+#| "              "
 msgid ""
 "\n"
-"                We recommend starting your flow by sending a message. This message will be sent to anybody right\n"
-"                after they join the flow. This is your chance to send a single message or ask them a question.\n"
+"                  We recommend starting your flow by sending a message. This message will be sent to anybody right\n"
+"                  after they join the flow. This is your chance to send a single message or ask them a question.\n"
 "\n"
-"              "
+"                "
 msgstr ""
 "\n"
 "                Мы рекомендуем начать Ваш поток с отправки сообщения. Это сообщение будет отправлено кому-либо сразу \n"
@@ -8149,11 +8199,17 @@ msgstr ""
 msgid "Receive a Message First"
 msgstr "Получить Сначала Сообщение"
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "              A more advanced flow might start by receiving a message first. This lets you do different things\n"
+#| "              based on how the flow was triggered.\n"
+#| "            "
 msgid ""
 "\n"
-"              A more advanced flow might start by receiving a message first. This lets you do different things\n"
-"              based on how the flow was triggered.\n"
-"            "
+"                A more advanced flow might start by receiving a message first. This lets you do different things\n"
+"                based on how the flow was triggered.\n"
+"              "
 msgstr ""
 "\n"
 "              Более продвинутый поток может начинаться с получения сначала сообщения. Это позволяет Вам делать разные вещи,\n"
@@ -8319,6 +8375,11 @@ msgstr "Проходы"
 msgid "Responded"
 msgstr "Отвечено"
 
+#, fuzzy
+#| msgid "More Videos"
+msgid "More Columns"
+msgstr "Больше видеороликов"
+
 msgid "Last Activity"
 msgstr "Последняя активность"
 
@@ -8469,6 +8530,11 @@ msgstr "организации"
 
 msgid "end"
 msgstr ""
+
+#, fuzzy
+#| msgid "Sign Up"
+msgid "sign out"
+msgstr "Зарегистрироваться"
 
 msgid "sign in"
 msgstr "войти"
@@ -9843,6 +9909,9 @@ msgstr "Не продолжайте, если Вы не хотите замен�
 msgid "Add guest viewers to"
 msgstr "Добавить гостевых абонентов в "
 
+msgid "Enter emails of people to invite"
+msgstr "Введите адреса электронной почты лиц, которые будут приглашаться"
+
 #, fuzzy, python-format
 #| msgid "You have been invited to join"
 msgid "You have been invited to join %(name)s."
@@ -9895,7 +9964,14 @@ msgstr "Администраторы"
 msgid "You must have at least one administator"
 msgstr "У Вас должен быть хотя бы один администратор"
 
-msgid "Invites"
+#, fuzzy
+#| msgid "%(name)s Invitation"
+msgid "Pending Invitations"
+msgstr "Приглашение %(name)s"
+
+#, fuzzy
+#| msgid "Invites"
+msgid "Invite New Users"
 msgstr "Приглашения"
 
 msgid ","
@@ -11546,12 +11622,6 @@ msgstr ""
 msgid "More Videos"
 msgstr "Больше видеороликов"
 
-msgid "From"
-msgstr ""
-
-msgid "Request time:"
-msgstr ""
-
 msgid "Classifier Event"
 msgstr "Событие Классификатора"
 
@@ -11870,6 +11940,36 @@ msgstr "Ввести запрос"
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
 
+#~ msgid "Export Flow Results"
+#~ msgstr "Экспортировать Результаты Потока"
+
+#, fuzzy
+#~| msgid "Invite people to your organization"
+#~ msgid "Invite people to your workspace"
+#~ msgstr "Пригласите людей в свою организацию"
+
+#~ msgid "User group"
+#~ msgstr "Группа пользователей"
+
+#~ msgid "Recent Webhook Events"
+#~ msgstr "Последние события вебхука"
+
+#~ msgid "Webhook events that have been created recently can be found here."
+#~ msgstr "События вебхука, которые были недавно созданы, расположены здесь."
+
+#, fuzzy
+#~| msgid "Request URL"
+#~ msgid "Request Time:"
+#~ msgstr "URL Запроса"
+
+#, fuzzy
+#~| msgid "Request URL"
+#~ msgid "Request time"
+#~ msgstr "URL Запроса"
+
+#~ msgid "Active Intents"
+#~ msgstr "Активные Намерения"
+
 #~ msgid "Trigger a Flow"
 #~ msgstr "Запустить Поток"
 
@@ -12166,9 +12266,6 @@ msgstr "Найдено ${count} по ${query}"
 
 #~ msgid "Unlabel"
 #~ msgstr "Снять метку"
-
-#~ msgid "Download Results"
-#~ msgstr "Скачать Результаты"
 
 #~ msgid "No runs"
 #~ msgstr "Нет проходов"
