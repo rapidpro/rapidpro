@@ -7,11 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-<<<<<<< HEAD
-"POT-Creation-Date: 2020-08-21 15:04+0000\n"
-=======
-"POT-Creation-Date: 2020-08-21 21:06+0000\n"
->>>>>>> 9c0cc8e2492b6dcdfdb55decf7c5cb890aa36134
+"POT-Creation-Date: 2020-08-21 21:43+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -9372,10 +9368,10 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"    Contacts will automatically be added here as you communicate with them using %(name)s.\n"
-"    From here you can change a contact's name, organize them into groups and see the communication you've had with each.\n"
+"      Contacts will automatically be added here as you communicate with them using %(name)s.\n"
+"      From here you can change a contact's name, organize them into groups and see the communication you've had with each.\n"
 "\n"
-"  "
+"    "
 msgstr ""
 
 #, fuzzy, python-format
@@ -9388,10 +9384,10 @@ msgstr ""
 #| "    "
 msgid ""
 "\n"
-"    To get started you can\n"
-"      <a href='%(contact_import_url)s'>import contacts</a>\n"
-"    from a file you create in Excel.\n"
-"  "
+"      To get started you can\n"
+"        <a href='%(contact_import_url)s'>import contacts</a>\n"
+"      from a file you create in Excel.\n"
+"    "
 msgstr ""
 "\n"
 "      Para empezar puede\n"
@@ -9615,12 +9611,6 @@ msgstr ""
 
 msgid "Error Contacting Server. Changes may not be saved."
 msgstr "Error al contactar con el servidor. Es probable que no se hayan guardado los cambios."
-
-msgid "Legacy flows"
-msgstr ""
-
-msgid "This flow is using a discontinued version of the flow editor. Update it to use the new editor today to start using powerful new features. Starting October 1st, all remaining flows will be updated automatically."
-msgstr ""
 
 msgid "Let's get started"
 msgstr "Empecemos"
@@ -10226,24 +10216,24 @@ msgstr "Su Hub de mensajes"
 #, python-format
 msgid ""
 "\n"
-"        This message pane lets you keep track of everything coming in and out of %(name)s.  As you send and receive messages, they will be listed here.\n"
+"      This message pane lets you keep track of everything coming in and out of %(name)s.  As you send and receive messages, they will be listed here.\n"
 "\n"
-"      "
+"    "
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"        Just like your email, %(name)s lets you view, label and archive messages as you receive them.  %(name)s uses labels to classify responses, so you can view and manage those messages here.  You can also create your own labels to keep track of topical messages as you receive them.\n"
+"      Just like your email, %(name)s lets you view, label and archive messages as you receive them.  %(name)s uses labels to classify responses, so you can view and manage those messages here.  You can also create your own labels to keep track of topical messages as you receive them.\n"
 "\n"
-"      "
+"    "
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"        %(name)s also keeps track of calls that are received on your channel so you can return any calls which may have been made to it.\n"
-"      "
+"      %(name)s also keeps track of calls that are received on your channel so you can return any calls which may have been made to it.\n"
+"    "
 msgstr ""
 
 #, fuzzy, python-format
@@ -10788,6 +10778,11 @@ msgid ""
 "          This will disconnect your Chatbase account. Are you sure you want to proceed?\n"
 "        "
 msgstr ""
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Choose Workspace"
+msgstr "Elija su Organización"
 
 #, fuzzy
 #| msgid "Your account is not associated to an organization. Please create an organization."
@@ -12912,26 +12907,6 @@ msgstr ""
 msgid "Add account for the channel and enter <code>%(secret)s</code> as the secret."
 msgstr ""
 
-msgid "Trigger a Flow"
-msgstr "Activar un flujo"
-
-#, fuzzy
-msgid ""
-"\n"
-"        Triggers let users initiate flows by sending in a message. You can configure triggers to start flows based on keywords\n"
-"        users send.  A keyword is the first word in a message, think of it as a command name for the message.\n"
-"\n"
-"      "
-msgstr ""
-"\n"
-"        Los activadores permiten que los usuarios inicien los flujos mediante el envío de un mensaje de texto. Puede configurar los activadores para empezar los flujos a partir de las palabras clave\n"
-"        que los usuarios envían a TextIt.  Una palabra clave es la primera palabra en un mensaje de texto, como el nombre de un comando para el mensaje de texto.\n"
-"\n"
-"      "
-
-msgid "You can configure triggers to start flows or add contacts to groups."
-msgstr "Puede configurar los activadores para empezar los flujos o agregar contactos a los grupos."
-
 msgid "Start a flow after receiving a message not handled elsewhere."
 msgstr "Empezar un flujo después de recibir un mensaje que no se haya manejado en ningún otro lugar."
 
@@ -13025,6 +13000,26 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Trigger a Flow"
+#~ msgstr "Activar un flujo"
+
+#, fuzzy
+#~ msgid ""
+#~ "\n"
+#~ "        Triggers let users initiate flows by sending in a message. You can configure triggers to start flows based on keywords\n"
+#~ "        users send.  A keyword is the first word in a message, think of it as a command name for the message.\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "        Los activadores permiten que los usuarios inicien los flujos mediante el envío de un mensaje de texto. Puede configurar los activadores para empezar los flujos a partir de las palabras clave\n"
+#~ "        que los usuarios envían a TextIt.  Una palabra clave es la primera palabra en un mensaje de texto, como el nombre de un comando para el mensaje de texto.\n"
+#~ "\n"
+#~ "      "
+
+#~ msgid "You can configure triggers to start flows or add contacts to groups."
+#~ msgstr "Puede configurar los activadores para empezar los flujos o agregar contactos a los grupos."
 
 #, fuzzy
 #~| msgid "UUID"
