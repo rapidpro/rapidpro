@@ -51,6 +51,9 @@
               -block title-text
                 .page-title.leading-tight
                   {{ title }}
+            .gear-links
+              -include "gear_links_include.haml"
+
 
           %table.list.object-list.lined(class='{% if org_perms.tickets.ticket_update %}selectable{% endif %}')
             %tbody
@@ -94,11 +97,7 @@
                     -trans "No tickets."
 
           .flex.flex-col.mx-4.mt-3.mb-16
-            .flex.flex-wrap
-              .text-gray-700
-                -include "includes/results_count.html"
-              .flex-grow
-                -include "includes/pages.html"
+            -include "includes/pagination.haml"
 
 
 -block extra-style
