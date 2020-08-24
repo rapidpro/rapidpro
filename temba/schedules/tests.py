@@ -254,7 +254,8 @@ class ScheduleTest(TembaTest):
         broadcast = response.context["object"]
 
         # update our message
-        post_data = dict(message="An updated scheduled message", omnibox="c-%s" % joe.uuid)
+        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
+        post_data = dict(message="An updated scheduled message", omnibox=omnibox)
         self.client.post(reverse("msgs.broadcast_update", args=[broadcast.pk]), post_data)
         self.assertEqual(Broadcast.objects.get(id=broadcast.id).text, {"base": "An updated scheduled message"})
 

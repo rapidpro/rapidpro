@@ -2314,7 +2314,8 @@ class BroadcastCRUDLTest(TembaTest):
         self.assertEqual(list(response.context["form"].fields.keys()), ["message", "omnibox", "loc"])
 
         # updates still use select2 omnibox
-        response = self.client.post(url, dict(message="Dinner reminder", omnibox="c-%s" % self.frank.uuid))
+        omnibox = omnibox_serialize(self.org, [], [self.frank], True)
+        response = self.client.post(url, dict(message="Dinner reminder", omnibox=omnibox))
         self.assertEqual(response.status_code, 302)
 
         broadcast = Broadcast.objects.get()
@@ -2360,11 +2361,12 @@ class BroadcastCRUDLTest(TembaTest):
         self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
         broadcast = Broadcast.objects.get()
 
+        omnibox = omnibox_serialize(self.org, [], [], True)
         response = self.client.post(
             reverse("msgs.broadcast_update", args=[broadcast.pk]),
-            dict(omnibox="", message="Empty contacts", schedule=True),
+            dict(omnibox=omnibox, message="Empty contacts", schedule=True),
         )
-        self.assertFormError(response, "form", "omnibox", "This field is required.")
+        self.assertFormError(response, "form", None, "At least one recipient is required")
 
 
 class LabelTest(TembaTest):
