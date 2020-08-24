@@ -4150,7 +4150,13 @@ class MergeFlowsTask(TembaModel):
                 # move runs from source to target
                 runs = self.source.runs.all()
                 backup_metadata["moved_flow_runs"] = [str(uuid) for uuid in runs.values_list("uuid", flat=True)]
-                runs.update(flow=self.target)
+                for run in runs:
+                    run.flow = self.target
+                    run.save(update_fields=["flow"])
+                    if run.session and run.session.current_flow == self.source:
+                        session = run.session
+                        session.current_flow = self.target
+                        session.save(update_fields=["current_flow"])
 
                 for run in self.target.runs.all():
                     for recent_run in run.recent_runs.all():
