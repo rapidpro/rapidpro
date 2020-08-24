@@ -1616,7 +1616,9 @@ class OrgTest(TembaTest):
         # check our credits
         self.login(self.admin)
         response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "<b>999</b>")
+        
+        # We now show org plan
+        # self.assertContains(response, "<b>999</b>")
 
         # view our topups
         response = self.client.get(reverse("orgs.topup_list"))
@@ -3861,7 +3863,7 @@ class BulkExportTest(TembaTest):
         response = self.client.get(reverse("orgs.org_export"))
 
         soup = BeautifulSoup(response.content, "html.parser")
-        group = str(soup.findAll("div", {"class": "exportables bucket"})[0])
+        group = str(soup.findAll("div", {"class": "exportables-grp"})[0])
 
         self.assertIn("Parent Flow", group)
         self.assertIn("Child Flow", group)
