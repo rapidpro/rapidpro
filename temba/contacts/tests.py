@@ -1258,7 +1258,7 @@ class ContactTest(TembaTest):
         Flow.objects.get(id=ivr_flow.id)
 
     @mock_mailroom
-    def test_fail_and_block_and_release(self, mr_mocks):
+    def test_status_changes_and_release(self, mr_mocks):
         msg1 = self.create_incoming_msg(self.joe, "Test 1", msg_type="I")
         msg2 = self.create_incoming_msg(self.joe, "Test 2", msg_type="F")
         msg3 = self.create_incoming_msg(self.joe, "Test 3", msg_type="I", visibility="A")
@@ -1273,9 +1273,8 @@ class ContactTest(TembaTest):
         self.assertEqual(1, msg_counts[SystemLabel.TYPE_FLOWS])
         self.assertEqual(1, msg_counts[SystemLabel.TYPE_ARCHIVED])
 
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
-            contact_counts,
+            ContactGroup.get_system_group_counts(self.org),
             {
                 ContactGroup.TYPE_ALL: 4,
                 ContactGroup.TYPE_BLOCKED: 0,
@@ -1295,9 +1294,8 @@ class ContactTest(TembaTest):
         self.assertTrue(self.joe.is_active)
 
         # and added to stopped group
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
-            contact_counts,
+            ContactGroup.get_system_group_counts(self.org),
             {
                 ContactGroup.TYPE_ALL: 3,
                 ContactGroup.TYPE_BLOCKED: 0,
@@ -1310,14 +1308,13 @@ class ContactTest(TembaTest):
         self.joe.block(self.user)
 
         # check that joe is now blocked instead of stopped
-        self.joe = Contact.objects.get(pk=self.joe.pk)
+        self.joe.refresh_from_db()
         self.assertEqual(Contact.STATUS_BLOCKED, self.joe.status)
         self.assertTrue(self.joe.is_active)
 
         # and that he's been removed from the all and failed groups, and added to the blocked group
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
-            contact_counts,
+            ContactGroup.get_system_group_counts(self.org),
             {
                 ContactGroup.TYPE_ALL: 3,
                 ContactGroup.TYPE_BLOCKED: 1,
@@ -1336,6 +1333,23 @@ class ContactTest(TembaTest):
         self.assertEqual(1, msg_counts[SystemLabel.TYPE_FLOWS])
         self.assertEqual(1, msg_counts[SystemLabel.TYPE_ARCHIVED])
 
+        self.joe.archive(self.admin)
+
+        # check that joe is now archived
+        self.joe.refresh_from_db()
+        self.assertEqual(Contact.STATUS_ARCHIVED, self.joe.status)
+        self.assertTrue(self.joe.is_active)
+
+        self.assertEqual(
+            ContactGroup.get_system_group_counts(self.org),
+            {
+                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_BLOCKED: 0,
+                ContactGroup.TYPE_STOPPED: 0,
+                ContactGroup.TYPE_ARCHIVED: 1,
+            },
+        )
+
         self.joe.reactivate(self.admin)
 
         # check that joe is now neither blocked or stopped
@@ -1344,9 +1358,8 @@ class ContactTest(TembaTest):
         self.assertTrue(self.joe.is_active)
 
         # and that he's been removed from the blocked group, and put back in the all and failed groups
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
-            contact_counts,
+            ContactGroup.get_system_group_counts(self.org),
             {
                 ContactGroup.TYPE_ALL: 4,
                 ContactGroup.TYPE_BLOCKED: 0,
@@ -1362,9 +1375,8 @@ class ContactTest(TembaTest):
         self.assertEqual(Contact.STATUS_ACTIVE, self.joe.status)
         self.assertFalse(self.joe.is_active)
 
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
-            contact_counts,
+            ContactGroup.get_system_group_counts(self.org),
             {
                 ContactGroup.TYPE_ALL: 3,
                 ContactGroup.TYPE_BLOCKED: 0,
@@ -1393,9 +1405,8 @@ class ContactTest(TembaTest):
         self.joe.block(self.user)
         self.joe.stop(self.user)
 
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
-            contact_counts,
+            ContactGroup.get_system_group_counts(self.org),
             {
                 ContactGroup.TYPE_ALL: 3,
                 ContactGroup.TYPE_BLOCKED: 0,
@@ -1409,9 +1420,8 @@ class ContactTest(TembaTest):
         self.joe.save(update_fields=("is_active",), handle_update=False)
 
         # check joe goes into the appropriate groups
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
-            contact_counts,
+            ContactGroup.get_system_group_counts(self.org),
             {
                 ContactGroup.TYPE_ALL: 3,
                 ContactGroup.TYPE_BLOCKED: 0,

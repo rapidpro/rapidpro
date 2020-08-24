@@ -179,6 +179,9 @@ def apply_modifiers(org, user, contacts, modifiers: List):
             elif mod.status == "stopped":
                 fields = dict(status=Contact.STATUS_STOPPED, is_blocked=False, is_stopped=True)
                 clear_groups = True
+            elif mod.status == "archived":
+                fields = dict(status=Contact.STATUS_ARCHIVED, is_blocked=False, is_stopped=False)
+                clear_groups = True
             else:
                 fields = dict(status=Contact.STATUS_ACTIVE, is_blocked=False, is_stopped=False)
 

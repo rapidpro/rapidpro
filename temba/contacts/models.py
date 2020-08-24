@@ -2016,6 +2016,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Contact.bulk_change_status(user, [self], modifiers.Status.STOPPED)
         self.refresh_from_db()
 
+    def archive(self, user):
+        """
+        Blocks this contact removing it from all non-dynamic groups
+        """
+
+        Contact.bulk_change_status(user, [self], modifiers.Status.ARCHIVED)
+        self.refresh_from_db()
+
     def reactivate(self, user):
         """
         Reactivates a stopped or blocked contact, re-adding them to any dynamic groups they belong to
