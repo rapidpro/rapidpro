@@ -492,7 +492,13 @@ class ContactGroupTest(TembaTest):
 
         counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
-            counts, {ContactGroup.TYPE_ALL: 0, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_STOPPED: 0}
+            counts,
+            {
+                ContactGroup.TYPE_ALL: 0,
+                ContactGroup.TYPE_BLOCKED: 0,
+                ContactGroup.TYPE_STOPPED: 0,
+                ContactGroup.TYPE_ARCHIVED: 0,
+            },
         )
 
         self.create_contact("Hannibal", number="0783835001")
@@ -502,7 +508,13 @@ class ContactGroupTest(TembaTest):
 
         counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
-            counts, {ContactGroup.TYPE_ALL: 4, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_STOPPED: 0}
+            counts,
+            {
+                ContactGroup.TYPE_ALL: 4,
+                ContactGroup.TYPE_BLOCKED: 0,
+                ContactGroup.TYPE_STOPPED: 0,
+                ContactGroup.TYPE_ARCHIVED: 0,
+            },
         )
 
         # call methods twice to check counts don't change twice
@@ -514,7 +526,13 @@ class ContactGroupTest(TembaTest):
 
         counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
-            counts, {ContactGroup.TYPE_ALL: 1, ContactGroup.TYPE_BLOCKED: 2, ContactGroup.TYPE_STOPPED: 1}
+            counts,
+            {
+                ContactGroup.TYPE_ALL: 1,
+                ContactGroup.TYPE_BLOCKED: 2,
+                ContactGroup.TYPE_STOPPED: 1,
+                ContactGroup.TYPE_ARCHIVED: 0,
+            },
         )
 
         murdock.release(self.user)
@@ -530,7 +548,13 @@ class ContactGroupTest(TembaTest):
 
         counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
-            counts, {ContactGroup.TYPE_ALL: 3, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_STOPPED: 0}
+            counts,
+            {
+                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_BLOCKED: 0,
+                ContactGroup.TYPE_STOPPED: 0,
+                ContactGroup.TYPE_ARCHIVED: 0,
+            },
         )
 
         # rebuild just our system contact group
@@ -1251,7 +1275,13 @@ class ContactTest(TembaTest):
 
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
-            contact_counts, {ContactGroup.TYPE_ALL: 4, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_STOPPED: 0}
+            contact_counts,
+            {
+                ContactGroup.TYPE_ALL: 4,
+                ContactGroup.TYPE_BLOCKED: 0,
+                ContactGroup.TYPE_STOPPED: 0,
+                ContactGroup.TYPE_ARCHIVED: 0,
+            },
         )
 
         self.assertEqual(set(label.msgs.all()), {msg1, msg2, msg3})
@@ -1267,7 +1297,13 @@ class ContactTest(TembaTest):
         # and added to stopped group
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
-            contact_counts, {ContactGroup.TYPE_ALL: 3, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_STOPPED: 1}
+            contact_counts,
+            {
+                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_BLOCKED: 0,
+                ContactGroup.TYPE_STOPPED: 1,
+                ContactGroup.TYPE_ARCHIVED: 0,
+            },
         )
         self.assertEqual(set(static_group.contacts.all()), set())
 
@@ -1281,7 +1317,13 @@ class ContactTest(TembaTest):
         # and that he's been removed from the all and failed groups, and added to the blocked group
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
-            contact_counts, {ContactGroup.TYPE_ALL: 3, ContactGroup.TYPE_BLOCKED: 1, ContactGroup.TYPE_STOPPED: 0}
+            contact_counts,
+            {
+                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_BLOCKED: 1,
+                ContactGroup.TYPE_STOPPED: 0,
+                ContactGroup.TYPE_ARCHIVED: 0,
+            },
         )
 
         # and removed from all groups
@@ -1304,7 +1346,13 @@ class ContactTest(TembaTest):
         # and that he's been removed from the blocked group, and put back in the all and failed groups
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
-            contact_counts, {ContactGroup.TYPE_ALL: 4, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_STOPPED: 0}
+            contact_counts,
+            {
+                ContactGroup.TYPE_ALL: 4,
+                ContactGroup.TYPE_BLOCKED: 0,
+                ContactGroup.TYPE_STOPPED: 0,
+                ContactGroup.TYPE_ARCHIVED: 0,
+            },
         )
 
         self.joe.release(self.user)
@@ -1316,7 +1364,13 @@ class ContactTest(TembaTest):
 
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
-            contact_counts, {ContactGroup.TYPE_ALL: 3, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_STOPPED: 0}
+            contact_counts,
+            {
+                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_BLOCKED: 0,
+                ContactGroup.TYPE_STOPPED: 0,
+                ContactGroup.TYPE_ARCHIVED: 0,
+            },
         )
 
         # joe's messages should be inactive, blank and have no labels
@@ -1341,7 +1395,13 @@ class ContactTest(TembaTest):
 
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
-            contact_counts, {ContactGroup.TYPE_ALL: 3, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_STOPPED: 0}
+            contact_counts,
+            {
+                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_BLOCKED: 0,
+                ContactGroup.TYPE_STOPPED: 0,
+                ContactGroup.TYPE_ARCHIVED: 0,
+            },
         )
 
         # we don't let users undo releasing a contact... but if we have to do it for some reason
@@ -1351,7 +1411,13 @@ class ContactTest(TembaTest):
         # check joe goes into the appropriate groups
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
-            contact_counts, {ContactGroup.TYPE_ALL: 3, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_STOPPED: 1}
+            contact_counts,
+            {
+                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_BLOCKED: 0,
+                ContactGroup.TYPE_STOPPED: 1,
+                ContactGroup.TYPE_ARCHIVED: 0,
+            },
         )
 
     def test_contact_display(self):
