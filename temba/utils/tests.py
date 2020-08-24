@@ -1160,7 +1160,7 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
         )
 
         # same seed should generate objects with same UUIDs
-        self.assertEqual(ContactGroup.user_groups.order_by("id").first().uuid, "086dde0d-eb11-4413-aa44-6896fef91f7f")
+        self.assertEqual(ContactGroup.user_groups.order_by("id").first().uuid, "86f15ec5-3a37-431c-a891-f9f4ff519987")
 
         # check if contact fields are serialized
         self.assertIsNotNone(Contact.objects.first().fields)
