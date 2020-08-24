@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-24 09:52+0000\n"
+"POT-Creation-Date: 2020-08-24 09:56+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -8100,12 +8100,6 @@ msgstr ""
 
 msgid "Error Contacting Server. Changes may not be saved."
 msgstr "Erreur Contacter Server. Changements ne peuvent pas être enregistrés."
-
-msgid "Legacy flows"
-msgstr ""
-
-msgid "This flow is using a discontinued version of the flow editor. Update it to use the new editor today to start using powerful new features. Starting October 1st, all remaining flows will be updated automatically."
-msgstr ""
 
 msgid "Let's get started"
 msgstr "Commençons"
