@@ -149,11 +149,6 @@
         %td
           .p-4
             %temba-textinput(textarea="true" name="Example" placeholder="Placeholder Text" label="My Textarea" help_text="This is here to help, I hope you can read it okay.")
-
-      %tr
-        %td
-          .p-4
-            %temba-checkbox(label="Check Me Out" help_text="This is here to help, I hope you can read it okay.")
     
       %tr
         %td
@@ -162,6 +157,11 @@
               %temba-option(name="Phish" value="phish")
               %temba-option(name="Prismatic" value="prismatic")
               %temba-option(name="Bicycles" value="bicycles")
+
+  .p-4
+    .mb-2
+      Checkboxes are treated differently inside tables, so this example is outside
+    %temba-checkbox(label="Check Me Out" help_text="This is here to help, I hope you can read it okay.")
     
   .mt-8
 
@@ -171,7 +171,115 @@
       .title
         Cards
       
-      This is a card. Other card ideas to add include full bleed edges, headers, and icons.
+      This is plain card. Optionally, use a combination of bleeds to garner different layouts in a card.
+
+
+    %table.list.lined
+      %tr
+        %td
+          .code.inline.whitespace-no-wrap
+            \.bleed-t
+        %td.w-full
+          Bleed Top
+
+      %tr
+        %td
+          .code.inline.whitespace-no-wrap
+            \.bleed-b
+        %td.w-full
+          Bleed Bottom
+
+      %tr
+        %td
+          .code.inline.whitespace-no-wrap
+            \.bleed-r
+        %td.w-full
+          Bleed Right
+
+      %tr
+        %td
+          .code.inline.whitespace-no-wrap
+            \.bleed-l
+        %td.w-full
+          Bleed Left
+
+      %tr
+        %td
+          .code.inline.whitespace-no-wrap
+            \.bleed-x
+        %td.w-full
+          Bleed Horizontal
+
+      %tr
+        %td
+          .code.inline.whitespace-no-wrap
+            \.bleed-y
+        %td.w-full
+          Bleed Vertical
+
+    .card.flex.flex-col.items-stretch
+      .bleed-t.bleed-x.bg-primary
+        .title.text-white.px-6.py-3
+          Top Bleed
+      .p-2
+        This card uses 
+        %code.mx-2
+          \.bleed-t
+        and
+        %code.mx-2
+          \.bleed-x
+        to create a title bar
+
+    .card
+      .p-2
+        This card uses 
+        %code.mx-2
+          \.bleed-b
+        and
+        %code.mx-2
+          \.bleed-x
+        to create a gutter
+
+      .bleed-b.bleed-x.bg-gray-200
+        .text-gray-500.text-center.p-3
+          This card brought to you by the team at Nyaruka.
+
+    .card
+      .flex.items-stretch
+        .bleed-l.bleed-y.bg-secondary
+          .flex.items-center.h-full
+            .title.text-white.whitespace-no-wrap.p-4
+              Left Bleed
+
+        .flex-grow
+          .flex.items-center.h-full
+            .p-4
+              This card uses 
+              %code.mx-2
+                \.bleed-l
+              and
+              %code.mx-2
+                \.bleed-y
+              to create a left pane.
+              This card also shows a technique for vertically centering using nested flexboxes.
+
+    .card
+      .flex.items-stretch
+        .flex-grow
+          .flex.items-center.h-full
+            .p-4
+              This card uses 
+              %code.mx-2
+                \.bleed-r
+              and
+              %code.mx-2
+                \.bleed-y
+              to create a right pane, an inverted example from the one above.
+        .bleed-r.bleed-y.bg-secondary
+          .flex.items-center.h-full
+            .title.text-white.whitespace-no-wrap.p-4
+              Right Bleed
+
 
   .mt-8
 
@@ -191,9 +299,9 @@
     .mt-8.mb-4
       .title
         List Pages
-
+    
       There are helper classes for laying out a general list page
-    .p-8.rounded-lg.shadow
+    .p-8.rounded-lg.shadow.bg-white
       .lp-frame.mt-0
         .left
           .button-primary
