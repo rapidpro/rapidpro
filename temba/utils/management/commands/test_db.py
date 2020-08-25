@@ -612,8 +612,6 @@ class Command(BaseCommand):
                 name=c["name"],
                 language=c["language"],
                 status=c["status"],
-                is_stopped=c["status"] == Contact.STATUS_STOPPED,
-                is_blocked=c["status"] == Contact.STATUS_BLOCKED,
                 is_active=c["is_active"],
                 created_by=c["user"],
                 created_on=c["created_on"],
