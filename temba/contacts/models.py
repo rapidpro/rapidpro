@@ -447,15 +447,17 @@ class ContactField(SmartModel):
     KEY_NAME = "name"
     KEY_CREATED_ON = "created_on"
     KEY_LANGUAGE = "language"
+    KEY_LAST_SEEN_ON = "last_seen_on"
 
     # fields that cannot be updated by user
-    IMMUTABLE_FIELDS = (KEY_ID, KEY_CREATED_ON)
+    IMMUTABLE_FIELDS = (KEY_ID, KEY_CREATED_ON, KEY_LAST_SEEN_ON)
 
     SYSTEM_FIELDS = {
-        KEY_ID: dict(label=_("ID"), value_type=Value.TYPE_NUMBER),
-        KEY_NAME: dict(label=_("Name"), value_type=Value.TYPE_TEXT),
-        KEY_CREATED_ON: dict(label=_("Created On"), value_type=Value.TYPE_DATETIME),
-        KEY_LANGUAGE: dict(label=_("Language"), value_type=Value.TYPE_TEXT),
+        KEY_ID: dict(label="ID", value_type=Value.TYPE_NUMBER),
+        KEY_NAME: dict(label="Name", value_type=Value.TYPE_TEXT),
+        KEY_CREATED_ON: dict(label="Created On", value_type=Value.TYPE_DATETIME),
+        KEY_LANGUAGE: dict(label="Language", value_type=Value.TYPE_TEXT),
+        KEY_LAST_SEEN_ON: dict(label="Last Seen On", value_type=Value.TYPE_DATETIME),
     }
 
     EXPORT_KEY = "key"
@@ -494,6 +496,19 @@ class ContactField(SmartModel):
     all_fields = models.Manager()  # this is the default manager
     user_fields = UserContactFieldsManager()
     system_fields = SystemContactFieldsManager()
+
+    @classmethod
+    def create_system_fields(cls, org):
+        for key, spec in ContactField.SYSTEM_FIELDS.items():
+            org.contactfields.create(
+                field_type=ContactField.FIELD_TYPE_SYSTEM,
+                key=key,
+                label=spec["label"],
+                value_type=spec["value_type"],
+                show_in_table=False,
+                created_by=org.created_by,
+                modified_by=org.modified_by,
+            )
 
     @classmethod
     def make_key(cls, label):
@@ -717,6 +732,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="%(app_label)s_%(class)s_creations", null=True
     )
+
+    last_seen_on = models.DateTimeField(null=True)
 
     NAME = "name"
     FIRST_NAME = "first_name"
@@ -953,21 +970,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Returns the JSON (as a dict) value for this field, or None if there is no value
         """
-        if field.field_type == ContactField.FIELD_TYPE_USER:
-            return self.fields.get(str(field.uuid)) if self.fields else None
+        assert field.field_type == ContactField.FIELD_TYPE_USER, f"not supported for system field {field.key}"
 
-        elif field.field_type == ContactField.FIELD_TYPE_SYSTEM:
-            if field.key == "created_on":
-                return {Value.KEY_DATETIME: self.created_on}
-            elif field.key == "language":
-                return {Value.KEY_TEXT: self.language}
-            elif field.key == "name":
-                return {Value.KEY_TEXT: self.name}
-            else:
-                raise ValueError(f"System contact field '{field.key}' is not supported")
-
-        else:  # pragma: no cover
-            raise ValueError(f"Unhandled ContactField type '{field.field_type}'.")
+        return self.fields.get(str(field.uuid)) if self.fields else None
 
     def get_field_serialized(self, field):
         """
@@ -1015,6 +1020,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         elif field.field_type == ContactField.FIELD_TYPE_SYSTEM:
             if field.key == "created_on":
                 return self.created_on
+            if field.key == "last_seen_on":
+                return self.last_seen_on
             elif field.key == "language":
                 return self.language
             elif field.key == "name":
@@ -1573,7 +1580,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         # if this is just a UUID import, look up the contact directly
         if uuid and not urns and not language and not name:
-            contact = Contact.objects.filter(uuid=uuid).first()
+            contact = org.contacts.filter(uuid=uuid).first()
             if not contact:
                 raise SmartImportRowError(f"No contact found with uuid: {uuid}")
 
@@ -1946,32 +1953,39 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def bulk_change_status(cls, user, contacts, status):
-        return cls.bulk_modify(user, contacts, [modifiers.Status(status=status)])
+        cls.bulk_modify(user, contacts, [modifiers.Status(status=status)])
+
+    @classmethod
+    def bulk_change_group(cls, user, contacts, group, add: bool):
+        mod = modifiers.Groups(
+            groups=[modifiers.GroupRef(uuid=str(group.uuid), name=group.name)], modification="add" if add else "remove"
+        )
+        cls.bulk_modify(user, contacts, mods=[mod])
 
     @classmethod
     def apply_action_block(cls, user, contacts):
-        return cls.bulk_change_status(user, contacts, Contact.STATUS_BLOCKED)
+        cls.bulk_change_status(user, contacts, Contact.STATUS_BLOCKED)
 
     @classmethod
     def apply_action_unblock(cls, user, contacts):
-        return cls.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
+        cls.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
 
     @classmethod
     def apply_action_unstop(cls, user, contacts):
-        return cls.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
+        cls.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
 
     @classmethod
-    def apply_action_label(cls, user, contacts, group, add):
-        return group.update_contacts(user, contacts, add)
+    def apply_action_label(cls, user, contacts, group):
+        cls.bulk_change_group(user, contacts, group, add=True)
+
+    @classmethod
+    def apply_action_unlabel(cls, user, contacts, group):
+        cls.bulk_change_group(user, contacts, group, add=False)
 
     @classmethod
     def apply_action_delete(cls, user, contacts):
-        changed = []
-
         for contact in contacts:
             contact.release(user)
-            changed.append(contact.pk)
-        return changed
 
     def block(self, user):
         """
@@ -2496,6 +2510,30 @@ class ContactGroup(TembaModel):
     user_groups = UserContactGroupManager()
 
     @classmethod
+    def create_system_groups(cls, org):
+        """
+        Creates our system groups for the given organization so that we can keep track of counts etc..
+        """
+        org.all_groups.create(
+            name="All Contacts",
+            group_type=ContactGroup.TYPE_ALL,
+            created_by=org.created_by,
+            modified_by=org.modified_by,
+        )
+        org.all_groups.create(
+            name="Blocked Contacts",
+            group_type=ContactGroup.TYPE_BLOCKED,
+            created_by=org.created_by,
+            modified_by=org.modified_by,
+        )
+        org.all_groups.create(
+            name="Stopped Contacts",
+            group_type=ContactGroup.TYPE_STOPPED,
+            created_by=org.created_by,
+            modified_by=org.modified_by,
+        )
+
+    @classmethod
     def get_user_group_by_name(cls, org, name):
         """
         Returns the user group with the passed in name
@@ -2599,15 +2637,6 @@ class ContactGroup(TembaModel):
         # first character must be a word char
         return regex.match(r"\w", name[0], flags=regex.UNICODE)
 
-    def update_contacts(self, user, contacts, add):
-        """
-        Manually adds or removes contacts from a static group. Returns contact ids of contacts whose membership changed.
-        """
-        if self.group_type != self.TYPE_USER_DEFINED or self.is_dynamic:  # pragma: no cover
-            raise ValueError("Can't add or remove contacts from system or dynamic groups")
-
-        return self._update_contacts(user, contacts, add)
-
     def remove_contacts(self, user, contacts):
         """
         Forces removal of contacts from this group regardless of whether it is static or dynamic
@@ -2667,7 +2696,7 @@ class ContactGroup(TembaModel):
             if not parsed:
                 parsed = parse_query(self.org_id, query)
 
-            if not parsed.allow_as_group:
+            if not parsed.metadata.allow_as_group:
                 raise ValueError(f"Cannot use query '{query}' as a dynamic group")
 
             self.query = parsed.query
@@ -2677,8 +2706,9 @@ class ContactGroup(TembaModel):
             self.query_fields.clear()
 
             # build our list of the fields we are dependent on
+            field_keys = [f["key"] for f in parsed.metadata.fields]
             field_ids = []
-            for c in ContactField.all_fields.filter(org=self.org, is_active=True, key__in=parsed.fields).only("id"):
+            for c in ContactField.all_fields.filter(org=self.org, is_active=True, key__in=field_keys).only("id"):
                 field_ids.append(c.id)
 
             # and add them as dependencies
@@ -2770,9 +2800,8 @@ class ContactGroup(TembaModel):
                 from .search import parse_query
 
                 parsed_query = parse_query(org.id, group_query)
-                for key in parsed_query.fields:
-                    if key not in ContactField.SYSTEM_FIELDS.keys() and key not in ContactURN.SCHEMES:
-                        ContactField.get_or_create(org, user, key=key)
+                for field_ref in parsed_query.metadata.fields:
+                    ContactField.get_or_create(org, user, key=field_ref["key"])
 
             group = ContactGroup.get_or_create(
                 org, user, group_name, group_query, uuid=group_uuid, parsed_query=parsed_query

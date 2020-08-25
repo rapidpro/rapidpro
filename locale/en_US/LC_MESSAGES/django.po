@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-03 18:23+0000\n"
+"POT-Creation-Date: 2020-08-11 20:41+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -54,9 +54,6 @@ msgid "Message"
 msgstr ""
 
 msgid "Run"
-msgstr ""
-
-msgid "The archive we were rolled up into, if any"
 msgstr ""
 
 msgid "Archive"
@@ -834,6 +831,37 @@ msgid "The API key for your integration as provided by Clickatell"
 msgstr ""
 
 msgid "Invalid phone number, please include the country code. ex: +250788123123"
+msgstr ""
+
+#, python-format
+msgid "If you are based in Malawi or Ghana you can purchase a number from %(link)s and connect it in a few simple steps."
+msgstr ""
+
+msgid "To finish configuring your channel you need to configure Click Mobile to send new messages to the URL below."
+msgstr ""
+
+msgid "The Click Mobile phone number or short code you are connecting with country code. ex: +250788123124"
+msgstr ""
+
+msgid "Ghana"
+msgstr ""
+
+msgid "Your username on Click Mobile"
+msgstr ""
+
+msgid "Your password on Click Mobile"
+msgstr ""
+
+msgid "App ID"
+msgstr ""
+
+msgid "Your app_id on Click Mobile"
+msgstr ""
+
+msgid "Org ID"
+msgstr ""
+
+msgid "Your org_id on Click Mobile"
 msgstr ""
 
 msgid "API Username"
@@ -2199,9 +2227,6 @@ msgstr ""
 msgid "The name of your LUIS app"
 msgstr ""
 
-msgid "App ID"
-msgstr ""
-
 msgid "The ID for your LUIS app"
 msgstr ""
 
@@ -2227,9 +2252,6 @@ msgid "Your app's server access token"
 msgstr ""
 
 msgid "Unable to access wit.ai with credentials, please check and try again"
-msgstr ""
-
-msgid "Unable to get intent entity, make sure you have at least one intent defined"
 msgstr ""
 
 msgid "Connect"
@@ -2298,12 +2320,6 @@ msgstr ""
 msgid "VK identifier"
 msgstr ""
 
-msgid "ID"
-msgstr ""
-
-msgid "Language"
-msgstr ""
-
 msgid "Label"
 msgstr ""
 
@@ -2317,6 +2333,9 @@ msgid "Featured field"
 msgstr ""
 
 msgid "The name of this contact"
+msgstr ""
+
+msgid "Language"
 msgstr ""
 
 msgid "The preferred language for this contact"
@@ -2372,6 +2391,52 @@ msgstr ""
 msgid "The search query"
 msgstr ""
 
+#, python-format
+msgid "Invalid query syntax at '%(token)s'"
+msgstr ""
+
+#, python-format
+msgid "Unable to convert '%(value)s' to a number"
+msgstr ""
+
+#, python-format
+msgid "Unable to convert '%(value)s' to a date"
+msgstr ""
+
+#, python-format
+msgid "'%(value)s' is not a valid language code"
+msgstr ""
+
+#, python-format
+msgid "'%(value)s' is not a valid group name"
+msgstr ""
+
+#, python-format
+msgid "Using ~ with name requires token of at least %(min_token_length)s characters"
+msgstr ""
+
+#, python-format
+msgid "Using ~ with URN requires value of at least %(min_value_length)s characters"
+msgstr ""
+
+msgid "Can only use ~ with name or URN values"
+msgstr ""
+
+#, python-format
+msgid "Can only use %(operator)s with number or date values"
+msgstr ""
+
+#, python-format
+msgid "Can't check whether '%(property)s' is set or not set"
+msgstr ""
+
+#, python-format
+msgid "Can't resolve '%(property)s' to a field or URN scheme"
+msgstr ""
+
+msgid "Can't query on URNs in an anonymous workspace"
+msgstr ""
+
 msgid "day"
 msgstr ""
 
@@ -2413,24 +2478,6 @@ msgid "Blocked"
 msgstr ""
 
 msgid "Stopped"
-msgstr ""
-
-msgid "Add to Group"
-msgstr ""
-
-msgid "Remove from Group"
-msgstr ""
-
-msgid "Unblock Contacts"
-msgstr ""
-
-msgid "Block Contacts"
-msgstr ""
-
-msgid "Delete Contacts"
-msgstr ""
-
-msgid "Unstop Contacts"
 msgstr ""
 
 #, python-brace-format
@@ -2754,23 +2801,6 @@ msgstr ""
 msgid "The keyword \"%s\" is already used for another flow"
 msgstr ""
 
-msgid "Archive Flows"
-msgstr ""
-
-msgid "Label Messages"
-msgstr ""
-
-msgid "Restore Flows"
-msgstr ""
-
-#, python-format
-msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
-msgstr ""
-
-#, python-format
-msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
-msgstr ""
-
 msgid "You don't have permission to edit this flow"
 msgstr ""
 
@@ -2827,6 +2857,10 @@ msgid "Retries call three times for the chosen interval"
 msgstr ""
 
 msgid "Flows"
+msgstr ""
+
+#, python-format
+msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
 msgstr ""
 
 msgid "Contact Name"
@@ -3392,18 +3426,6 @@ msgstr ""
 msgid "You must add a phone number before sending messages"
 msgstr ""
 
-msgid "Archive Messages"
-msgstr ""
-
-msgid "Move to Inbox"
-msgstr ""
-
-msgid "Resend Messages"
-msgstr ""
-
-msgid "Delete Messages"
-msgstr ""
-
 msgid "Which channel will deliver the message"
 msgstr ""
 
@@ -3579,12 +3601,6 @@ msgid "Sorry, your card was declined, please contact your provider or try anothe
 msgstr ""
 
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
-msgstr ""
-
-msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
-msgstr ""
-
-msgid "Sorry, we were unable to charge your card, please try again later or contact us."
 msgstr ""
 
 msgid "Viewer"
@@ -3932,6 +3948,18 @@ msgid "Activate"
 msgstr ""
 
 msgid "Two Factor Authentication"
+msgstr ""
+
+msgid "Workspaces"
+msgstr ""
+
+msgid "Dashboard"
+msgstr ""
+
+msgid "New Workspace"
+msgstr ""
+
+msgid "Transfer Credits"
 msgstr ""
 
 msgid "Select your Workspace"
@@ -4383,12 +4411,6 @@ msgstr ""
 msgid "The referrer id that will trigger us"
 msgstr ""
 
-msgid "Archive Triggers"
-msgstr ""
-
-msgid "Restore Triggers"
-msgstr ""
-
 msgid "Create Trigger"
 msgstr ""
 
@@ -4488,16 +4510,7 @@ msgstr ""
 msgid ", "
 msgstr ""
 
-msgid "Sorry you have no permission for this action."
-msgstr ""
-
-msgid "Must specify a label"
-msgstr ""
-
-msgid "Missing label"
-msgstr ""
-
-msgid "Oops, so sorry. Something went wrong!"
+msgid "An error occurred while making your changes. Please try again."
 msgstr ""
 
 msgid "Date & Time"
@@ -6130,6 +6143,9 @@ msgstr ""
 msgid "Create Group"
 msgstr ""
 
+msgid "Remove from Group"
+msgstr ""
+
 msgid "New Group..."
 msgstr ""
 
@@ -6150,6 +6166,9 @@ msgid "No matching contacts."
 msgstr ""
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
+msgstr ""
+
+msgid "Delete Contacts"
 msgstr ""
 
 msgid "Are you sure you want to delete these contacts?"
@@ -6361,9 +6380,6 @@ msgid ""
 "    "
 msgstr ""
 
-msgid "Dashboard"
-msgstr ""
-
 msgid "Are you sure you want to remove"
 msgstr ""
 
@@ -6505,6 +6521,9 @@ msgid ""
 msgstr ""
 
 msgid "Delete Flow"
+msgstr ""
+
+msgid "Update Flow"
 msgstr ""
 
 msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
@@ -7649,9 +7668,6 @@ msgstr ""
 msgid "Your workspace is configured to use a single language."
 msgstr ""
 
-msgid "Workspaces"
-msgstr ""
-
 msgid "Logins"
 msgstr ""
 
@@ -7828,6 +7844,9 @@ msgid ""
 msgstr ""
 
 msgid "Manage Workspaces"
+msgstr ""
+
+msgid "Add Workspace"
 msgstr ""
 
 #, python-format

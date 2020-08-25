@@ -32,16 +32,29 @@ class NexmoClient:
         return response["numbers"] if int(response.get("count", 0)) else []
 
     def search_numbers(self, country, pattern):
-        response = self.base.get_available_numbers(
-            country_code=country, pattern=pattern, search_pattern=1, features="SMS", country=country
+
+        response = self._with_retry(
+            "get_available_numbers",
+            country_code=country,
+            pattern=pattern,
+            search_pattern=1,
+            features="SMS",
+            country=country,
         )
+
         numbers = []
         if int(response.get("count", 0)):
             numbers += response["numbers"]
 
-        response = self.base.get_available_numbers(
-            country_code=country, pattern=pattern, search_pattern=1, features="VOICE", country=country
+        response = self._with_retry(
+            "get_available_numbers",
+            country_code=country,
+            pattern=pattern,
+            search_pattern=1,
+            features="VOICE",
+            country=country,
         )
+
         if int(response.get("count", 0)):
             numbers += response["numbers"]
 
@@ -54,9 +67,12 @@ class NexmoClient:
 
     def update_number(self, country, number, mo_url, app_id):
         number = number.lstrip("+")
-        params = dict(
-            moHttpUrl=mo_url, msisdn=number, country=country, voiceCallbackType="app", voiceCallbackValue=app_id
-        )
+        params = dict(moHttpUrl=mo_url, msisdn=number, country=country)
+
+        if app_id:
+            params["app_id"] = app_id
+            params["voiceCallbackType"] = "tel"
+            params["voiceCallbackValue"] = number
 
         self._with_retry("update_number", params=params)
 

@@ -104,7 +104,7 @@
 
     {% if org_perms.campaigns.campaign_update %}
       $(document).on('click', '.update-campaign', function(e){
-         var modal = new Modax('Update Campaign', '/campaign/update/' + $(this).data("object-id") + '/');
+         var modal = new Modax('{{_("Update Campaign")|escapejs }}', '/campaign/update/' + $(this).data("object-id") + '/');
          modal.setIcon('icon-feed');
          modal.setRedirectOnSuccess(true);
          modal.show();

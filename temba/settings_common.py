@@ -290,6 +290,12 @@ LOGGING = {
     },
 }
 
+# the name of our topup plan
+TOPUP_PLAN = "topups"
+
+# Default plan for new orgs
+DEFAULT_PLAN = TOPUP_PLAN
+
 # -----------------------------------------------------------------------------------
 # Branding Configuration
 # -----------------------------------------------------------------------------------
@@ -300,6 +306,7 @@ BRANDING = {
         "org": "UNICEF",
         "colors": dict(primary="#0c6596"),
         "styles": ["brands/rapidpro/font/style.css"],
+        "default_plan": TOPUP_PLAN,
         "welcome_topup": 1000,
         "email": "join@rapidpro.io",
         "support_email": "support@rapidpro.io",
@@ -1063,6 +1070,8 @@ CHANNEL_TYPES = [
     "temba.channels.types.burstsms.BurstSMSType",
     "temba.channels.types.chikka.ChikkaType",
     "temba.channels.types.clickatell.ClickatellType",
+    "temba.channels.types.clickmobile.ClickMobileType",
+    "temba.channels.types.clicksend.ClickSendType",
     "temba.channels.types.dartmedia.DartMediaType",
     "temba.channels.types.dmark.DMarkType",
     "temba.channels.types.external.ExternalType",
@@ -1074,6 +1083,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.highconnection.HighConnectionType",
     "temba.channels.types.hormuud.HormuudType",
     "temba.channels.types.hub9.Hub9Type",
+    "temba.channels.types.i2sms.I2SMSType",
     "temba.channels.types.infobip.InfobipType",
     "temba.channels.types.jasmin.JasminType",
     "temba.channels.types.jiochat.JioChatType",
@@ -1105,8 +1115,6 @@ CHANNEL_TYPES = [
     "temba.channels.types.wechat.WeChatType",
     "temba.channels.types.yo.YoType",
     "temba.channels.types.zenvia.ZenviaType",
-    "temba.channels.types.i2sms.I2SMSType",
-    "temba.channels.types.clicksend.ClickSendType",
     "temba.channels.types.android.AndroidType",
 ]
 
@@ -1210,9 +1218,6 @@ MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
 
 # ElasticSearch configuration (URL RFC-1738)
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
-
-# Default plan for new orgs
-DEFAULT_PLAN = "topups"
 
 # Maximum active objects are org can have
 MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255

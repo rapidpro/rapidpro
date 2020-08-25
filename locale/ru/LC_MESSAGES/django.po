@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-03 18:23+0000\n"
+"POT-Creation-Date: 2020-08-11 20:41+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -60,9 +60,6 @@ msgstr "Сообщение"
 
 msgid "Run"
 msgstr "Пуск"
-
-msgid "The archive we were rolled up into, if any"
-msgstr "Архив, в который у нас прошло сворачивание, при наличии"
 
 msgid "Archive"
 msgstr "Архив"
@@ -892,6 +889,62 @@ msgstr "Ключ API для Вашей интеграции, предостав�
 
 msgid "Invalid phone number, please include the country code. ex: +250788123123"
 msgstr "Неверный номер телефона, пожалуйста, укажите код страны, например +250788123123"
+
+#, fuzzy, python-format
+#| msgid ""
+#| "If you are based in Uganda or DRC you can purchase a short\n"
+#| "    code from <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> and connect it\n"
+#| "    in a few simple steps."
+msgid "If you are based in Malawi or Ghana you can purchase a number from %(link)s and connect it in a few simple steps."
+msgstr ""
+"Если Вы находитесь в Уганде или ДР Конго, Вы можете приобрести короткий\n"
+"    код у <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> и подключить его,\n"
+"    выполнив несколько простых шагов."
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your DMark channel you need to set DMark to send MO messages to the URL below.\n"
+#| "        "
+msgid "To finish configuring your channel you need to configure Click Mobile to send new messages to the URL below."
+msgstr ""
+"\n"
+"        Для завершения настройки Вашего канала DMark Вам потребуется настроить DMark на отправку сообщений МО на адрес URL ниже.\n"
+"        "
+
+#, fuzzy
+#| msgid "The phone number or short code you are connecting with country code. ex: +250788123124"
+msgid "The Click Mobile phone number or short code you are connecting with country code. ex: +250788123124"
+msgstr "Номер телефона или короткий код, который Вы подключаете, с кодом страны, например +250788123124"
+
+msgid "Ghana"
+msgstr ""
+
+#, fuzzy
+#| msgid "Your username on DMark Mobile"
+msgid "Your username on Click Mobile"
+msgstr "Ваше имя пользователя у DMark Mobile"
+
+#, fuzzy
+#| msgid "Your password on DMark Mobile"
+msgid "Your password on Click Mobile"
+msgstr "Ваш пароль у DMark Mobile"
+
+msgid "App ID"
+msgstr "ID Приложения"
+
+#, fuzzy
+#| msgid "Your password on DMark Mobile"
+msgid "Your app_id on Click Mobile"
+msgstr "Ваш пароль у DMark Mobile"
+
+msgid "Org ID"
+msgstr ""
+
+#, fuzzy
+#| msgid "Your password on DMark Mobile"
+msgid "Your org_id on Click Mobile"
+msgstr "Ваш пароль у DMark Mobile"
 
 msgid "API Username"
 msgstr "Имя пользователя API"
@@ -2452,9 +2505,6 @@ msgstr "Не удалось получить доступ к bothub, испол�
 msgid "The name of your LUIS app"
 msgstr "Название Вашего приложения LUIS"
 
-msgid "App ID"
-msgstr "ID Приложения"
-
 msgid "The ID for your LUIS app"
 msgstr "ID Вашего приложения LUIS"
 
@@ -2481,9 +2531,6 @@ msgstr "Токен доступа сервера Вашего приложени
 
 msgid "Unable to access wit.ai with credentials, please check and try again"
 msgstr "Не удалось получить доступ к wit.ai, используя идентификационные данные. Пожалуйста, проверьте их и попробуйте снова"
-
-msgid "Unable to get intent entity, make sure you have at least one intent defined"
-msgstr "Не удалось получить объект намерения. Убедитесь, что у Вас имеется хотя бы одно определенное намерение"
 
 msgid "Connect"
 msgstr "Подключить"
@@ -2551,12 +2598,6 @@ msgstr "Идентификатор Freshchat"
 msgid "VK identifier"
 msgstr "Идентификатор VK"
 
-msgid "ID"
-msgstr "ID"
-
-msgid "Language"
-msgstr "Язык"
-
 msgid "Label"
 msgstr "Метка"
 
@@ -2571,6 +2612,9 @@ msgstr "Рекомендованное поле"
 
 msgid "The name of this contact"
 msgstr "Название данного контакта"
+
+msgid "Language"
+msgstr "Язык"
 
 msgid "The preferred language for this contact"
 msgstr "Предпочитаемый язык для этого контакта"
@@ -2625,6 +2669,54 @@ msgstr "Уникальная группа для экспорта"
 msgid "The search query"
 msgstr "Поисковый запрос"
 
+#, python-format
+msgid "Invalid query syntax at '%(token)s'"
+msgstr ""
+
+#, python-format
+msgid "Unable to convert '%(value)s' to a number"
+msgstr ""
+
+#, python-format
+msgid "Unable to convert '%(value)s' to a date"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "%(day)s is not a valid day of the week"
+msgid "'%(value)s' is not a valid language code"
+msgstr "%(day)s не является действительным днем ​​недели"
+
+#, fuzzy, python-format
+#| msgid "f'{val}' isn't a valid number"
+msgid "'%(value)s' is not a valid group name"
+msgstr "f'{val}' не является действительным номером"
+
+#, python-format
+msgid "Using ~ with name requires token of at least %(min_token_length)s characters"
+msgstr ""
+
+#, python-format
+msgid "Using ~ with URN requires value of at least %(min_value_length)s characters"
+msgstr ""
+
+msgid "Can only use ~ with name or URN values"
+msgstr ""
+
+#, python-format
+msgid "Can only use %(operator)s with number or date values"
+msgstr ""
+
+#, python-format
+msgid "Can't check whether '%(property)s' is set or not set"
+msgstr ""
+
+#, python-format
+msgid "Can't resolve '%(property)s' to a field or URN scheme"
+msgstr ""
+
+msgid "Can't query on URNs in an anonymous workspace"
+msgstr ""
+
 msgid "day"
 msgstr "день"
 
@@ -2667,24 +2759,6 @@ msgstr "Заблокировано"
 
 msgid "Stopped"
 msgstr "Остановлено"
-
-msgid "Add to Group"
-msgstr "Добавить в Группу"
-
-msgid "Remove from Group"
-msgstr "Удалить из Группы"
-
-msgid "Unblock Contacts"
-msgstr "Разблокировать Контакты"
-
-msgid "Block Contacts"
-msgstr "Блокировать Контакты"
-
-msgid "Delete Contacts"
-msgstr "Удалить Контакты"
-
-msgid "Unstop Contacts"
-msgstr "Запустить Контакты"
 
 #, python-brace-format
 msgid "{label} for this contact"
@@ -3007,23 +3081,6 @@ msgstr "Ключевые слова \"%s\" уже используются дл�
 msgid "The keyword \"%s\" is already used for another flow"
 msgstr "Ключевое слово \"%s\" уже используется для другого потока"
 
-msgid "Archive Flows"
-msgstr "Архивировать Потоки"
-
-msgid "Label Messages"
-msgstr "Пометить Сообщения"
-
-msgid "Restore Flows"
-msgstr "Восстановить Потоки"
-
-#, python-format
-msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
-msgstr "%s используются внутри кампании. Для их архивации сначала удалите их из Ваших кампаний."
-
-#, python-format
-msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
-msgstr "%s используется внутри кампании. Для его архивации сначала удалите его из Ваших кампаний."
-
 msgid "You don't have permission to edit this flow"
 msgstr "У Вас нет прав для редактирования этого потока"
 
@@ -3081,6 +3138,10 @@ msgstr "Повторяет вызов три раза с заданным инт
 
 msgid "Flows"
 msgstr "Потоки"
+
+#, python-format
+msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
+msgstr ""
 
 msgid "Contact Name"
 msgstr "Название Контакта"
@@ -3657,18 +3718,6 @@ msgstr "Запланированные сообщения"
 msgid "You must add a phone number before sending messages"
 msgstr "Вы должны добавить номер телефона перед тем как отправлять сообщения"
 
-msgid "Archive Messages"
-msgstr "Архивировать Сообщения"
-
-msgid "Move to Inbox"
-msgstr "Переместить во Входящие"
-
-msgid "Resend Messages"
-msgstr "Повторно отправить сообщения"
-
-msgid "Delete Messages"
-msgstr "Удалить сообщения"
-
 msgid "Which channel will deliver the message"
 msgstr "Какой канал будет осуществлять доставку сообщения"
 
@@ -3855,12 +3904,6 @@ msgstr "Извините, Ваша карта была отклонена, по�
 
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
 msgstr "Извините, нам не удалось обработать Ваш платеж, повторите попытку позже или свяжитесь с нами."
-
-msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
-msgstr "Извините, в настоящее время мы не можем отменить Ваш план. Пожалуйста, свяжитесь с нами."
-
-msgid "Sorry, we were unable to charge your card, please try again later or contact us."
-msgstr "Извините, нам не удалось снять средства с Вашей карты, повторите попытку позже или свяжитесь с нами."
 
 msgid "Viewer"
 msgstr "Абонент"
@@ -4228,6 +4271,24 @@ msgstr "Активировать"
 
 msgid "Two Factor Authentication"
 msgstr "Двухфакторная аутентификация"
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Workspaces"
+msgstr "Выберите свою Организацию"
+
+msgid "Dashboard"
+msgstr "Информационная панель"
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "New Workspace"
+msgstr "Выберите свою Организацию"
+
+#, fuzzy
+#| msgid "Purchased Credits"
+msgid "Transfer Credits"
+msgstr "Приобретенные Кредиты"
 
 #, fuzzy
 #| msgid "Select your Organization"
@@ -4698,12 +4759,6 @@ msgstr "Канал, к которому применить этот тригге
 msgid "The referrer id that will trigger us"
 msgstr "Id источника ссылки, который запустит нас"
 
-msgid "Archive Triggers"
-msgstr "Архивные Триггеры"
-
-msgid "Restore Triggers"
-msgstr "Восстановить Триггеры"
-
 msgid "Create Trigger"
 msgstr "Создать Триггер"
 
@@ -4817,17 +4872,10 @@ msgstr "0 секунд"
 msgid ", "
 msgstr ", "
 
-msgid "Sorry you have no permission for this action."
-msgstr "Извините, у Вас нет разрешения на это действие."
-
-msgid "Must specify a label"
-msgstr "Необходимо указать метку"
-
-msgid "Missing label"
-msgstr "Отсутствует метка"
-
-msgid "Oops, so sorry. Something went wrong!"
-msgstr "Ой, простите. Что-то пошло не так!"
+#, fuzzy
+#| msgid "An error occurred updating your contact. Please try again later."
+msgid "An error occurred while making your changes. Please try again."
+msgstr "При обновлении Вашего контакта произошла ошибка. Пожалуйста, попробуйте позже."
 
 msgid "Date & Time"
 msgstr "Дата и Время"
@@ -6925,6 +6973,9 @@ msgstr "Создать Контакт"
 msgid "Create Group"
 msgstr "Создать Группу"
 
+msgid "Remove from Group"
+msgstr "Удалить из Группы"
+
 msgid "New Group..."
 msgstr "Новая Группа..."
 
@@ -6963,6 +7014,9 @@ msgstr "Нет соответствующих контактов."
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr "Просмотр результатов поиска ограничен 10 тысячами результатов. Если Вы хотите просмотреть все результаты, пожалуйста, сохраните этот поиск как группу."
+
+msgid "Delete Contacts"
+msgstr "Удалить Контакты"
 
 msgid "Are you sure you want to delete these contacts?"
 msgstr "Вы действительно хотите удалить эти контакты?"
@@ -7201,9 +7255,6 @@ msgstr ""
 "      из файла, который Вы создали в Excel.\n"
 "    "
 
-msgid "Dashboard"
-msgstr "Информационная панель"
-
 msgid "Are you sure you want to remove"
 msgstr "Вы действительно хотите удалить "
 
@@ -7428,6 +7479,11 @@ msgstr ""
 
 msgid "Delete Flow"
 msgstr "Удалить Поток"
+
+#, fuzzy
+#| msgid "Update Folder"
+msgid "Update Flow"
+msgstr "Обновить Папку"
 
 msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
 msgstr "Новый редактор предоставляет новые эффективные функции и лучшую производительность, но, пожалуйста, имейте ввиду, что это действие нельзя отменить."
@@ -9177,11 +9233,6 @@ msgid "Your workspace is configured to use a single language."
 msgstr "Ваша организация настроена на использование одного языка."
 
 #, fuzzy
-#| msgid "Select your Organization"
-msgid "Workspaces"
-msgstr "Выберите свою Организацию"
-
-#, fuzzy
 #| msgid "Login"
 msgid "Logins"
 msgstr "Логин"
@@ -9390,6 +9441,11 @@ msgstr ""
 #, fuzzy
 #| msgid "Select your Organization"
 msgid "Manage Workspaces"
+msgstr "Выберите свою Организацию"
+
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Add Workspace"
 msgstr "Выберите свою Организацию"
 
 #, fuzzy, python-format
@@ -11114,13 +11170,85 @@ msgstr "Ввести запрос"
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
 
+#~ msgid "ID"
+#~ msgstr "ID"
+
+#~ msgid "Sorry, we are unable to cancel your plan at this time.  Please contact us."
+#~ msgstr "Извините, в настоящее время мы не можем отменить Ваш план. Пожалуйста, свяжитесь с нами."
+
+#~ msgid "Sorry, we were unable to charge your card, please try again later or contact us."
+#~ msgstr "Извините, нам не удалось снять средства с Вашей карты, повторите попытку позже или свяжитесь с нами."
+
+#~ msgid "The archive we were rolled up into, if any"
+#~ msgstr "Архив, в который у нас прошло сворачивание, при наличии"
+
+#, fuzzy, python-format
+#~| msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
+#~ msgid "%(flow)s is used inside a campaign. To archive it, first remove it from your campaigns."
+#~ msgstr "%s используется внутри кампании. Для его архивации сначала удалите его из Ваших кампаний."
+
+#, fuzzy, python-format
+#~| msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
+#~ msgid "%(flows)s are used inside a campaign. To archive them, first remove them from your campaigns."
+#~ msgstr "%s используются внутри кампании. Для их архивации сначала удалите их из Ваших кампаний."
+
+#~ msgid "Oops, so sorry. Something went wrong!"
+#~ msgstr "Ой, простите. Что-то пошло не так!"
+
+#~ msgid "Unable to get intent entity, make sure you have at least one intent defined"
+#~ msgstr "Не удалось получить объект намерения. Убедитесь, что у Вас имеется хотя бы одно определенное намерение"
+
+#~ msgid "Add to Group"
+#~ msgstr "Добавить в Группу"
+
+#~ msgid "Unblock Contacts"
+#~ msgstr "Разблокировать Контакты"
+
+#~ msgid "Block Contacts"
+#~ msgstr "Блокировать Контакты"
+
+#~ msgid "Unstop Contacts"
+#~ msgstr "Запустить Контакты"
+
+#~ msgid "Archive Flows"
+#~ msgstr "Архивировать Потоки"
+
+#~ msgid "Label Messages"
+#~ msgstr "Пометить Сообщения"
+
+#~ msgid "Restore Flows"
+#~ msgstr "Восстановить Потоки"
+
+#~ msgid "Archive Messages"
+#~ msgstr "Архивировать Сообщения"
+
+#~ msgid "Move to Inbox"
+#~ msgstr "Переместить во Входящие"
+
+#~ msgid "Resend Messages"
+#~ msgstr "Повторно отправить сообщения"
+
+#~ msgid "Delete Messages"
+#~ msgstr "Удалить сообщения"
+
+#~ msgid "Sorry you have no permission for this action."
+#~ msgstr "Извините, у Вас нет разрешения на это действие."
+
+#~ msgid "Must specify a label"
+#~ msgstr "Необходимо указать метку"
+
+#~ msgid "Missing label"
+#~ msgstr "Отсутствует метка"
+
+#~ msgid "Archive Triggers"
+#~ msgstr "Архивные Триггеры"
+
+#~ msgid "Restore Triggers"
+#~ msgstr "Восстановить Триггеры"
+
 #, python-brace-format
 #~ msgid "Unrecognized field: '{prop}'"
 #~ msgstr "Нераспознанное поле: '{prop}'"
-
-#, python-brace-format
-#~ msgid "f'{val}' isn't a valid number"
-#~ msgstr "f'{val}' не является действительным номером"
 
 #, python-brace-format
 #~ msgid "Unknown text comparator: '{self.comparator}'"

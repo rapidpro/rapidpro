@@ -1,9 +1,7 @@
 <!DOCTYPE HTML>
 -load humanize
-{% block html-tag %}
-<!--[if lte IE 8]><html class="ie" lang="en">    <![endif]-->
-<!--[if !IE]><!--><html lang="en">              <!--<![endif]-->
-{% endblock %}
+
+%html(lang="{{ LANGUAGE_CODE }}")
   %head
     %title
       {% block page-title %}
@@ -125,7 +123,7 @@
           --color-widget-border: rgb(204,204,204);
          
           /* primary colors, should be dark */
-          --color-selection: rgb(var(--primary-rgb));
+          --color-selection: #f0f6ff;
 
           --widget-box-shadow-focused: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(var(--focus-rgb), 0.6);
           --widget-box-shadow-focused-error: inset 0 1px 1px rgba(var(--error-rgb), 0.075), 0 0 8px rgba(var(--error-rgb), 0.6);
@@ -181,6 +179,10 @@
 
           --button-y: 8px;
           --button-x: 14px;
+
+          --color-nav-unselected: #fff;
+          --color-nav-selected-bg: #fff;
+          --color-nav-selected-text: var(--color-primary-dark);
 
         }
 
@@ -454,5 +456,3 @@
         });
       });
 {% endblock body %}
-
-</html>

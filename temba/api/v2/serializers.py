@@ -506,6 +506,7 @@ class ContactReadSerializer(ReadSerializer):
     stopped = serializers.SerializerMethodField()
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    last_seen_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_name(self, obj):
         return obj.name if obj.is_active else None
@@ -554,6 +555,7 @@ class ContactReadSerializer(ReadSerializer):
             "stopped",
             "created_on",
             "modified_on",
+            "last_seen_on",
         )
 
 
@@ -644,6 +646,10 @@ class ContactWriteSerializer(WriteSerializer):
                 self.instance = Contact.get_or_create_by_urns(
                     self.context["org"], self.context["user"], name, urns=urns, language=language
                 )
+
+                # the above call won't always get the URN order correct so have mailroom fix them
+                if urns:
+                    mods += self.instance.update_urns(urns)
 
             # update our fields
             if custom_fields is not None:
@@ -818,9 +824,9 @@ class ContactBulkActionSerializer(WriteSerializer):
         group = self.validated_data.get("group")
 
         if action == self.ADD:
-            group.update_contacts(user, contacts, add=True)
+            Contact.bulk_change_group(user, contacts, group, add=True)
         elif action == self.REMOVE:
-            group.update_contacts(user, contacts, add=False)
+            Contact.bulk_change_group(user, contacts, group, add=False)
         elif action == self.INTERRUPT:
             mailroom.queue_interrupt(self.context["org"], contacts=contacts)
         elif action == self.ARCHIVE:

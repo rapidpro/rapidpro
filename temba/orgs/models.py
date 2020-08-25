@@ -2,7 +2,7 @@ import itertools
 import logging
 import os
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import timedelta
 from decimal import Decimal
 from enum import Enum
 from urllib.parse import quote, urlencode, urlparse
@@ -35,7 +35,7 @@ from temba import mailroom
 from temba.archives.models import Archive
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.utils import analytics, chunk_list, json, languages
+from temba.utils import chunk_list, json, languages
 from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from temba.utils.currencies import currency_for_country
 from temba.utils.dates import datetime_to_str, str_to_datetime
@@ -129,6 +129,7 @@ class Org(SmartModel):
         default=settings.DEFAULT_PLAN,
         help_text=_("What plan your organization is on"),
     )
+    plan_end = models.DateTimeField(null=True)
 
     stripe_customer = models.CharField(
         verbose_name=_("Stripe Customer"),
@@ -275,6 +276,8 @@ class Org(SmartModel):
             # generate a unique slug
             slug = Org.get_unique_slug(name)
 
+            brand = settings.BRANDING[self.brand]
+
             org = Org.objects.create(
                 name=name,
                 timezone=timezone,
@@ -283,6 +286,7 @@ class Org(SmartModel):
                 slug=slug,
                 created_by=created_by,
                 modified_by=created_by,
+                plan=brand.get("default_plan", settings.DEFAULT_PLAN),
                 is_multi_user=self.is_multi_user,
                 is_multi_org=self.is_multi_org,
             )
@@ -1090,45 +1094,6 @@ class Org(SmartModel):
             return TopUp.create(self.created_by, price=0, credits=topup_size, org=self)
         return None
 
-    def create_system_groups(self):
-        """
-        Creates our system groups for this organization so that we can keep track of counts etc..
-        """
-        from temba.contacts.models import ContactGroup
-
-        self.all_groups.create(
-            name="All Contacts",
-            group_type=ContactGroup.TYPE_ALL,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
-        self.all_groups.create(
-            name="Blocked Contacts",
-            group_type=ContactGroup.TYPE_BLOCKED,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
-        self.all_groups.create(
-            name="Stopped Contacts",
-            group_type=ContactGroup.TYPE_STOPPED,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
-
-    def create_system_contact_fields(self):
-        from temba.contacts.models import ContactField
-
-        for key, field in ContactField.SYSTEM_FIELDS.items():
-            ContactField.system_fields.create(
-                org_id=self.id,
-                key=key,
-                label=field["label"],
-                value_type=field["value_type"],
-                show_in_table=False,
-                created_by=self.created_by,
-                modified_by=self.modified_by,
-            )
-
     def create_sample_flows(self, api_url):
         # get our sample dir
         filename = os.path.join(settings.STATICFILES_DIRS[0], "examples", "sample_flows.json")
@@ -1625,82 +1590,6 @@ class Org(SmartModel):
             paid = 0
         return paid / 100
 
-    def update_plan(self, new_plan, token, user):  # pragma: no cover
-        # We can't test stripe in unit tests since it requires javascript tokens to be generated
-        stripe.api_key = get_stripe_credentials()[1]
-
-        # no plan change?  do nothing
-        if new_plan == self.plan:
-            return None
-
-        # this is our stripe customer id
-        stripe_customer = None
-
-        # our actual customer object
-        customer = self.get_stripe_customer()
-        if customer:
-            stripe_customer = customer.id
-
-        # cancel our plan on our stripe customer
-        if new_plan == Org.PLAN_FREE:
-            if customer:
-                analytics.track(user.username, "temba.plan_cancelled", dict(cancelledPlan=self.plan))
-
-                try:
-                    subscription = customer.cancel_subscription(at_period_end=True)
-                except Exception as e:
-                    logger.error(f"Unable to cancel customer plan: {str(e)}", exc_info=True)
-                    raise ValidationError(
-                        _("Sorry, we are unable to cancel your plan at this time.  Please contact us.")
-                    )
-            else:
-                raise ValidationError(_("Sorry, we are unable to cancel your plan at this time.  Please contact us."))
-
-        else:
-            # we have a customer, try to upgrade them
-            if customer:
-                try:
-                    subscription = customer.update_subscription(plan=new_plan)
-
-                    analytics.track(user.username, "temba.plan_upgraded", dict(previousPlan=self.plan, plan=new_plan))
-
-                except Exception as e:
-                    # can't load it, oh well, we'll try to create one dynamically below
-                    logger.error(f"Unable to update Stripe customer subscription: {str(e)}", exc_info=True)
-                    customer = None
-
-            # if we don't have a customer, go create one
-            if not customer:
-                try:
-                    # then go create a customer object for this user
-                    customer = stripe.Customer.create(
-                        card=token, plan=new_plan, email=user, description="{ org: %d }" % self.pk
-                    )
-
-                    stripe_customer = customer.id
-                    subscription = customer["subscription"]
-
-                    analytics.track(user.username, "temba.plan_upgraded", dict(previousPlan=self.plan, plan=new_plan))
-
-                except Exception as e:
-                    logger.error(f"Unable to create Stripe customer: {str(e)}", exc_info=True)
-                    raise ValidationError(
-                        _("Sorry, we were unable to charge your card, please try again later or contact us.")
-                    )
-
-        # update our org
-        self.stripe_customer = stripe_customer
-
-        if subscription["status"] != "active":
-            self.plan = Org.PLAN_FREE
-        else:
-            self.plan = new_plan
-
-        self.plan_start = datetime.fromtimestamp(subscription["start"])
-        self.save()
-
-        return subscription
-
     def generate_dependency_graph(self, include_campaigns=True, include_triggers=False, include_archived=False):
         """
         Generates a dict of all exportable flows and campaigns for this org with each object's immediate dependencies
@@ -1803,13 +1692,14 @@ class Org(SmartModel):
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
         from temba.middleware import BrandingMiddleware
+        from temba.contacts.models import ContactField, ContactGroup
 
         with transaction.atomic():
             if not branding:
                 branding = BrandingMiddleware.get_branding_for_host("")
 
-            self.create_system_groups()
-            self.create_system_contact_fields()
+            ContactGroup.create_system_groups(self)
+            ContactField.create_system_fields(self)
             self.create_welcome_topup(topup_size)
             self.update_capabilities()
 
