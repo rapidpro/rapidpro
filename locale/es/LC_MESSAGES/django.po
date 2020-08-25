@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-24 17:55+0000\n"
+"POT-Creation-Date: 2020-08-25 19:10+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -11289,11 +11289,6 @@ msgid ""
 "        "
 msgstr ""
 
-#, fuzzy
-#| msgid "Select your Organization"
-msgid "Add Workspace"
-msgstr "Elija su Organización"
-
 #, python-format
 msgid ""
 "\n"
@@ -13017,6 +13012,11 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Select your Organization"
+#~ msgid "Add Workspace"
+#~ msgstr "Elija su Organización"
 
 #, fuzzy
 #~| msgid "Export Flow"

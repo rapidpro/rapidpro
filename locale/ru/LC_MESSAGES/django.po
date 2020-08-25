@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-24 17:55+0000\n"
+"POT-Creation-Date: 2020-08-25 19:10+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -10148,11 +10148,6 @@ msgstr ""
 "          Удаление Ваших настроек SMTP приведет к доставке электронных писем от %(brand)s, на которые невозможно будет ответить. Вы уверены что хотите продолжить?\n"
 "        "
 
-#, fuzzy
-#| msgid "Select your Organization"
-msgid "Add Workspace"
-msgstr "Выберите свою Организацию"
-
 #, fuzzy, python-format
 #| msgid ""
 #| "\n"
@@ -11921,6 +11916,11 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#, fuzzy
+#~| msgid "Select your Organization"
+#~ msgid "Add Workspace"
+#~ msgstr "Выберите свою Организацию"
 
 #, fuzzy
 #~| msgid ""

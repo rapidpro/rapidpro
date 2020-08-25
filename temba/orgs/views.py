@@ -1681,9 +1681,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_credits(self, obj):
             credits = obj.get_credits_remaining()
-            return mark_safe(
-                f'<div class="edit-org"><div class="num-credits">{format(credits, ",d")}</div></div>'
-            )
+            return mark_safe(f'<div class="edit-org"><div class="num-credits">{format(credits, ",d")}</div></div>')
 
         def get_name(self, obj):
             org_type = "child"
@@ -1721,9 +1719,13 @@ class OrgCRUDL(SmartCRUDL):
 
     class CreateSubOrg(NonAtomicMixin, MultiOrgMixin, ModalMixin, InferOrgMixin, SmartCreateView):
         class CreateOrgForm(forms.ModelForm):
-            name = forms.CharField(label=_("Workspace"), help_text=_("The name of your workspace"), widget=InputWidget())
+            name = forms.CharField(
+                label=_("Workspace"), help_text=_("The name of your workspace"), widget=InputWidget()
+            )
 
-            timezone = TimeZoneFormField(help_text=_("The timezone for your workspace"), widget=SelectWidget(attrs={"searchable": True}))
+            timezone = TimeZoneFormField(
+                help_text=_("The timezone for your workspace"), widget=SelectWidget(attrs={"searchable": True})
+            )
 
             class Meta:
                 model = Org
@@ -2796,7 +2798,7 @@ class OrgCRUDL(SmartCRUDL):
                 required=True,
                 label=_("From Workspace"),
                 help_text=_("Select which workspace to take credits from"),
-                widget=SelectWidget(attrs={"searchable": True})
+                widget=SelectWidget(attrs={"searchable": True}),
             )
 
             to_org = OrgChoiceField(
@@ -2804,10 +2806,12 @@ class OrgCRUDL(SmartCRUDL):
                 required=True,
                 label=_("To Workspace"),
                 help_text=_("Select which workspace to receive the credits"),
-                widget=SelectWidget(attrs={"searchable": True})
+                widget=SelectWidget(attrs={"searchable": True}),
             )
 
-            amount = forms.IntegerField(required=True, label=_("Credits"), help_text=_("How many credits to transfer"), widget=InputWidget())
+            amount = forms.IntegerField(
+                required=True, label=_("Credits"), help_text=_("How many credits to transfer"), widget=InputWidget()
+            )
 
             def __init__(self, *args, **kwargs):
                 org = kwargs["org"]
