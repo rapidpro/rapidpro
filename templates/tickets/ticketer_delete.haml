@@ -1,0 +1,9 @@
+-extends 'includes/modax.html'
+-load i18n temba
+
+-block fields
+  -blocktrans trimmed with name=object.name
+    You are about to delete
+    %span.font-normal
+        {{name}}.
+    There is no way to undo this. Are you sure?

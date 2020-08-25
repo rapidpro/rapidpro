@@ -112,12 +112,22 @@ class TicketCRUDL(SmartCRUDL):
 
         def get_gear_links(self):
             links = []
+
             if self.has_org_perm("tickets.ticketer_delete"):
-                links.append(dict(title=_("Delete"), js_class="delete-ticketer", href="#"))
+                links.append(
+                    dict(
+                        id="ticketer-delete",
+                        title=_("Delete"),
+                        modax=_("Delete"),
+                        href=reverse("tickets.ticketer_delete", args=[self.ticketer.uuid]),
+                    )
+                )
+
             if self.has_org_perm("request_logs.httplog_ticketer"):
                 links.append(
                     dict(title=_("HTTP Log"), href=reverse("request_logs.httplog_ticketer", args=[self.ticketer.uuid]))
                 )
+
             return links
 
         def get_object_org(self):
