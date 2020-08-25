@@ -1,3 +1,10 @@
+v5.7.16
+----------
+ * Update to flow editor 1.9.11
+ * Update database triggers to use contact status instead of is_blocked or is_stopped
+ * Make contact.status non-null
+ * Create new archived system group for new orgs
+
 v5.7.15
 ----------
  * Add nag warning to legacy editor

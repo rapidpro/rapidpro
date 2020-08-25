@@ -34,7 +34,15 @@ from temba.mailroom import MailroomException, modifiers
 from temba.msgs.models import Broadcast, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, ESMockWithScroll, TembaNonAtomicTest, TembaTest, mock_mailroom
+from temba.tests import (
+    AnonymousOrg,
+    CRUDLTestMixin,
+    ESMockWithScroll,
+    MigrationTest,
+    TembaNonAtomicTest,
+    TembaTest,
+    mock_mailroom,
+)
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -7293,3 +7301,22 @@ class ESIntegrationTest(TembaNonAtomicTest):
 
         # should now have 81 events instead, these were created by mailroom
         self.assertEqual(81, EventFire.objects.filter(event=event, fired=None).count())
+
+
+class AddArchivedSystemGroup(MigrationTest):
+    app = "contacts"
+    migrate_from = "0117_auto_20200824_2036"
+    migrate_to = "0118_archived_sys_group"
+
+    def setUpBeforeMigration(self, apps):
+        # org 2 already has it
+        self.org2.all_groups.create(
+            name="Archived Contacts",
+            group_type=ContactGroup.TYPE_ARCHIVED,
+            created_by=self.org2.created_by,
+            modified_by=self.org2.modified_by,
+        )
+
+    def test_migration(self):
+        self.assertEqual(1, self.org.all_groups.filter(group_type=ContactGroup.TYPE_ARCHIVED).count())
+        self.assertEqual(1, self.org2.all_groups.filter(group_type=ContactGroup.TYPE_ARCHIVED).count())
