@@ -1,3 +1,7 @@
+v5.7.18
+----------
+ * Update sys group trigger to handle archiving
+
 v5.7.17
 ----------
  * Migration to add Archived sys group to all orgs
