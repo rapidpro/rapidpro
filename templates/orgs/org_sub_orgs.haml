@@ -5,7 +5,7 @@
 -block page-title
   -trans "Manage Workspaces"
   \- {{user_org.name|capfirst}}
-  
+
 -block extra-less
   {{block.super}}
   -compress css
@@ -25,7 +25,7 @@
             }
 
             &.header-manage {
-              visibility: hidden;
+              font-size: 0; 
             }
           }
 
@@ -43,6 +43,7 @@
 
             &.field_manage{
               text-align: right;
+              padding-right: 2rem;
             }
           }
 
@@ -142,20 +143,6 @@
           modal.setRedirectOnSuccess(true);
           modal.show();
         });
-      });
-
-      $(".add-sub-org").live('click', function(){
-        var modal = new Modax('{{_("Add Workspace")|escapejs }}','{% url "orgs.org_create_sub_org" %}');
-        modal.setIcon('icon-office');
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      });
-
-      $(".transfer-credits").live('click', function(){
-        var modal = new Modax('{{_("Transfer Credits")|escapejs }}','{% url "orgs.org_transfer_credits" %}');
-        modal.setIcon('icon-coins');
-        modal.setRedirectOnSuccess(true);
-        modal.show();
       });
 
      });

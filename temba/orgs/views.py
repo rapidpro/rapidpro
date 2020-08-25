@@ -1660,22 +1660,22 @@ class OrgCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Dashboard"), href=reverse("dashboard.dashboard_home")))
 
             if self.has_org_perm("orgs.org_create_sub_org"):
-                links.append(dict(title=_("New Workspace"), js_class="add-sub-org", href="#"))
+                links.append(dict(title=_("New Workspace"), href=reverse("orgs.org_create_sub_org")))
 
             if self.has_org_perm("orgs.org_transfer_credits"):
-                links.append(dict(title=_("Transfer Credits"), js_class="transfer-credits", href="#"))
+                links.append(dict(title=_("Transfer Credits"), href=reverse("orgs.org_transfer_credits")))
 
             return links
 
         def get_manage(self, obj):  # pragma: needs cover
             if obj == self.get_object():
                 return mark_safe(
-                    f'<a href="{reverse("orgs.org_manage_accounts")}"><div class="btn btn-tiny">{_("Manage Logins")}</div></a>'
+                    f'<a href="{reverse("orgs.org_manage_accounts")}"><div class="button-light inline-block">{_("Manage Logins")}</div></a>'
                 )
 
             if obj.parent:
                 return mark_safe(
-                    f'<a href="{reverse("orgs.org_manage_accounts_sub_org")}?org={obj.id}"><div class="btn btn-tiny">{_("Manage Logins")}</div></a>'
+                    f'<a href="{reverse("orgs.org_manage_accounts_sub_org")}?org={obj.id}"><div class="button-light inline-block">{_("Manage Logins")}</div></a>'
                 )
             return ""
 
@@ -1718,13 +1718,14 @@ class OrgCRUDL(SmartCRUDL):
 
     class CreateSubOrg(NonAtomicMixin, MultiOrgMixin, ModalMixin, InferOrgMixin, SmartCreateView):
         class CreateOrgForm(forms.ModelForm):
-            name = forms.CharField(label=_("Workspace"), help_text=_("The name of your workspace"))
+            name = forms.CharField(label=_("Workspace"), help_text=_("The name of your workspace"), widget=InputWidget())
 
-            timezone = TimeZoneFormField(help_text=_("The timezone for your workspace"))
+            timezone = TimeZoneFormField(help_text=_("The timezone for your workspace"), widget=SelectWidget(attrs={"searchable": True}))
 
             class Meta:
                 model = Org
                 fields = "__all__"
+                widgets = {"date_format": SelectWidget()}
 
         fields = ("name", "date_format", "timezone")
         form_class = CreateOrgForm
@@ -2792,6 +2793,7 @@ class OrgCRUDL(SmartCRUDL):
                 required=True,
                 label=_("From Workspace"),
                 help_text=_("Select which workspace to take credits from"),
+                widget=SelectWidget(attrs={"searchable": True})
             )
 
             to_org = OrgChoiceField(
@@ -2799,9 +2801,10 @@ class OrgCRUDL(SmartCRUDL):
                 required=True,
                 label=_("To Workspace"),
                 help_text=_("Select which workspace to receive the credits"),
+                widget=SelectWidget(attrs={"searchable": True})
             )
 
-            amount = forms.IntegerField(required=True, label=_("Credits"), help_text=_("How many credits to transfer"))
+            amount = forms.IntegerField(required=True, label=_("Credits"), help_text=_("How many credits to transfer"), widget=InputWidget())
 
             def __init__(self, *args, **kwargs):
                 org = kwargs["org"]
