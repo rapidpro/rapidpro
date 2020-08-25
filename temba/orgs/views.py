@@ -2495,8 +2495,14 @@ class OrgCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            if self.has_org_perm("orgs.org_plan"):
-                formax.add_section("plan", reverse("orgs.org_plan"), icon="icon-credit", action="summary")
+            # if we are on the topups plan, show our usual credits view
+            if org.plan == settings.TOPUP_PLAN:
+                if self.has_org_perm("orgs.topup_list"):
+                    formax.add_section("topups", reverse("orgs.topup_list"), icon="icon-coins", action="link")
+
+            else:
+                if self.has_org_perm("orgs.org_plan"):
+                    formax.add_section("plan", reverse("orgs.org_plan"), icon="icon-credit", action="summary")
 
             if self.has_org_perm("channels.channel_update"):
                 # get any channel thats not a delegate
