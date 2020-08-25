@@ -1,3 +1,7 @@
+v5.7.21
+----------
+ * Add missing migration from last rev
+
 v5.7.20
 ----------
  * Add missing migration
