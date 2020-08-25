@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-25 19:10+0000\n"
+"POT-Creation-Date: 2020-08-25 20:56+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -11149,18 +11149,7 @@ msgstr ""
 msgid "in the API Settings section."
 msgstr "al hacer clic en el menú de configuraciones de API."
 
-msgid "You are currently subscribed to TextIt. Thank you for your support!"
-msgstr ""
-
-#, fuzzy
-#| msgid "Reverse Billing"
-msgid "Billing"
-msgstr "Cobro revertido"
-
-msgid "You are currently on the Trial plan which is limited to 100 contacts."
-msgstr ""
-
-msgid "Upgrade"
+msgid "You are currently on the {{org.plan}} plan."
 msgstr ""
 
 #, fuzzy
@@ -11416,12 +11405,12 @@ msgid "Your service is interrupted. You have"
 msgstr "Su servicio está interrumpido. Le quedan"
 
 #, fuzzy
-#| msgid "credits and must purchase more to resume your service."
-msgid "credits and must add more to resume your service."
-msgstr "créditos y debe comprar más para restablecer su servicio."
+#| msgid "Credits"
+msgid "credits."
+msgstr "Créditos"
 
-msgid "credits remaining. Top up early to prevent any disruption in your service."
-msgstr "créditos. Recargue a tiempo para evitar interrupciones en su servicio."
+msgid "credits remaining. Your service will be suspended when they are all used."
+msgstr ""
 
 msgid "of"
 msgstr "de"
@@ -11439,6 +11428,14 @@ msgstr "Vence el"
 msgid "Expires on "
 msgstr "Vence el"
 
+#, fuzzy
+#| msgid "Added %s to %s"
+msgid "Added on"
+msgstr "Agregó %s a %s"
+
+msgid " by "
+msgstr "por"
+
 #, fuzzy, python-format
 msgid ""
 "\n"
@@ -11454,17 +11451,8 @@ msgstr ""
 msgid ""
 "\n"
 "              Complementary credits, thanks for trying %(brand)s.\n"
-"\n"
 "            "
 msgstr "Créditos complementarios, gracias por usar TextIt."
-
-#, fuzzy
-#| msgid "Added %s to %s"
-msgid "Added on"
-msgstr "Agregó %s a %s"
-
-msgid " by "
-msgstr "por"
 
 #, fuzzy, python-format
 #| msgid ""
@@ -13014,9 +13002,17 @@ msgid "Found ${count} for ${query}"
 msgstr ""
 
 #, fuzzy
-#~| msgid "Select your Organization"
-#~ msgid "Add Workspace"
-#~ msgstr "Elija su Organización"
+#~| msgid "Reverse Billing"
+#~ msgid "Billing"
+#~ msgstr "Cobro revertido"
+
+#, fuzzy
+#~| msgid "credits and must purchase more to resume your service."
+#~ msgid "credits and must add more to resume your service."
+#~ msgstr "créditos y debe comprar más para restablecer su servicio."
+
+#~ msgid "credits remaining. Top up early to prevent any disruption in your service."
+#~ msgstr "créditos. Recargue a tiempo para evitar interrupciones en su servicio."
 
 #, fuzzy
 #~| msgid "Export Flow"

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-25 19:10+0000\n"
+"POT-Creation-Date: 2020-08-25 20:56+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -9882,18 +9882,7 @@ msgstr "Page des paramètres de Nexmo"
 msgid "in the API Settings section."
 msgstr "dans la section des paramètres de l'API."
 
-msgid "You are currently subscribed to TextIt. Thank you for your support!"
-msgstr ""
-
-#, fuzzy
-#| msgid "Reverse Billing"
-msgid "Billing"
-msgstr "facturation inverse"
-
-msgid "You are currently on the Trial plan which is limited to 100 contacts."
-msgstr ""
-
-msgid "Upgrade"
+msgid "You are currently on the {{org.plan}} plan."
 msgstr ""
 
 msgid "Connect Plivo"
@@ -10203,11 +10192,13 @@ msgstr "Top Ups"
 msgid "Your service is interrupted. You have"
 msgstr "Votre service est interrompu. vous avez"
 
-msgid "credits and must add more to resume your service."
-msgstr "crédits et doit ajouter plus pour reprendre votre service."
+#, fuzzy
+#| msgid "Credits"
+msgid "credits."
+msgstr "Crédits"
 
-msgid "credits remaining. Top up early to prevent any disruption in your service."
-msgstr "crédits restants. Top tôt pour éviter toute perturbation dans votre service."
+msgid "credits remaining. Your service will be suspended when they are all used."
+msgstr ""
 
 msgid "of"
 msgstr "de"
@@ -10221,6 +10212,12 @@ msgstr "A expiré le"
 msgid "Expires on "
 msgstr "Expire le"
 
+msgid "Added on"
+msgstr "Ajouté sur"
+
+msgid " by "
+msgstr "par"
+
 #, python-format
 msgid ""
 "\n"
@@ -10233,23 +10230,21 @@ msgstr ""
 "\n"
 "            "
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "              Complementary credits, thanks for trying %(brand)s.\n"
+#| "\n"
+#| "            "
 msgid ""
 "\n"
 "              Complementary credits, thanks for trying %(brand)s.\n"
-"\n"
 "            "
 msgstr ""
 "\n"
 "              Crédits complémentaires, merci d'essayer %(brand)s.\n"
 "\n"
 "            "
-
-msgid "Added on"
-msgstr "Ajouté sur"
-
-msgid " by "
-msgstr "par"
 
 #, fuzzy, python-format
 #| msgid ""
@@ -11770,9 +11765,15 @@ msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
 
 #, fuzzy
-#~| msgid "Select your Organization"
-#~ msgid "Add Workspace"
-#~ msgstr "Choisissez votre Organisation"
+#~| msgid "Reverse Billing"
+#~ msgid "Billing"
+#~ msgstr "facturation inverse"
+
+#~ msgid "credits and must add more to resume your service."
+#~ msgstr "crédits et doit ajouter plus pour reprendre votre service."
+
+#~ msgid "credits remaining. Top up early to prevent any disruption in your service."
+#~ msgstr "crédits restants. Top tôt pour éviter toute perturbation dans votre service."
 
 #, fuzzy
 #~| msgid ""

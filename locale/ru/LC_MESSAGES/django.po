@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-25 19:10+0000\n"
+"POT-Creation-Date: 2020-08-25 20:56+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -10001,18 +10001,7 @@ msgstr "странице «Настройки» в Nexmo "
 msgid "in the API Settings section."
 msgstr "в разделе «Настройки API»."
 
-msgid "You are currently subscribed to TextIt. Thank you for your support!"
-msgstr ""
-
-#, fuzzy
-#| msgid "Reverse Billing"
-msgid "Billing"
-msgstr "Возвратный биллинг"
-
-msgid "You are currently on the Trial plan which is limited to 100 contacts."
-msgstr ""
-
-msgid "Upgrade"
+msgid "You are currently on the {{org.plan}} plan."
 msgstr ""
 
 msgid "Connect Plivo"
@@ -10318,11 +10307,13 @@ msgstr "Пополнения"
 msgid "Your service is interrupted. You have"
 msgstr "Работа Вашего сервиса прервана. У Вас есть"
 
-msgid "credits and must add more to resume your service."
-msgstr "кредитов и необходимо добавить их еще для возобновления работы Вашего сервиса."
+#, fuzzy
+#| msgid "Credits"
+msgid "credits."
+msgstr "Кредиты"
 
-msgid "credits remaining. Top up early to prevent any disruption in your service."
-msgstr "кредитов в остатке. Пополните их заранее, чтобы избежать перебоев в работе Вашего сервиса."
+msgid "credits remaining. Your service will be suspended when they are all used."
+msgstr ""
 
 msgid "of"
 msgstr "из"
@@ -10336,6 +10327,12 @@ msgstr "Истекло"
 msgid "Expires on "
 msgstr "Истекает"
 
+msgid "Added on"
+msgstr "Добавлено"
+
+msgid " by "
+msgstr " со стороны "
+
 #, python-format
 msgid ""
 "\n"
@@ -10348,23 +10345,21 @@ msgstr ""
 "\n"
 "            "
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "              Complementary credits, thanks for trying %(brand)s.\n"
+#| "\n"
+#| "            "
 msgid ""
 "\n"
 "              Complementary credits, thanks for trying %(brand)s.\n"
-"\n"
 "            "
 msgstr ""
 "\n"
 "              Дополнительные кредиты, спасибо за опробование %(brand)s.\n"
 "\n"
 "            "
-
-msgid "Added on"
-msgstr "Добавлено"
-
-msgid " by "
-msgstr " со стороны "
 
 #, fuzzy, python-format
 #| msgid ""
@@ -11918,9 +11913,15 @@ msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
 
 #, fuzzy
-#~| msgid "Select your Organization"
-#~ msgid "Add Workspace"
-#~ msgstr "Выберите свою Организацию"
+#~| msgid "Reverse Billing"
+#~ msgid "Billing"
+#~ msgstr "Возвратный биллинг"
+
+#~ msgid "credits and must add more to resume your service."
+#~ msgstr "кредитов и необходимо добавить их еще для возобновления работы Вашего сервиса."
+
+#~ msgid "credits remaining. Top up early to prevent any disruption in your service."
+#~ msgstr "кредитов в остатке. Пополните их заранее, чтобы избежать перебоев в работе Вашего сервиса."
 
 #, fuzzy
 #~| msgid ""
