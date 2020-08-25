@@ -1670,28 +1670,31 @@ class OrgCRUDL(SmartCRUDL):
         def get_manage(self, obj):  # pragma: needs cover
             if obj == self.get_object():
                 return mark_safe(
-                    f'<a href="{reverse("orgs.org_manage_accounts")}"><div class="button-light inline-block">{_("Manage Logins")}</div></a>'
+                    f'<a href="{reverse("orgs.org_manage_accounts")}" class="float-right pr-4"><div class="button-light inline-block ">{_("Manage Logins")}</div></a>'
                 )
 
             if obj.parent:
                 return mark_safe(
-                    f'<a href="{reverse("orgs.org_manage_accounts_sub_org")}?org={obj.id}"><div class="button-light inline-block">{_("Manage Logins")}</div></a>'
+                    f'<a href="{reverse("orgs.org_manage_accounts_sub_org")}?org={obj.id}" class="float-right pr-4"><div class="button-light inline-block">{_("Manage Logins")}</div></a>'
                 )
             return ""
 
         def get_credits(self, obj):
             credits = obj.get_credits_remaining()
             return mark_safe(
-                f'<div class="edit-org" data-url="{reverse("orgs.org_edit_sub_org")}?org={obj.id}"><div class="num-credits">{format(credits, ",d")}</div></div>'
+                f'<div class="edit-org"><div class="num-credits">{format(credits, ",d")}</div></div>'
             )
 
         def get_name(self, obj):
             org_type = "child"
             if not obj.parent:
                 org_type = "parent"
-
+            if self.has_org_perm("orgs.org_create_sub_org") and obj.parent:
+                return mark_safe(
+                    f"<temba-modax header={_('Update')} endpoint={reverse('orgs.org_edit_sub_org')}?org={obj.id} ><div class='{org_type}-org-name linked'>{escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div></temba-modax>"
+                )
             return mark_safe(
-                f"<div class='{org_type}-org-name'>{escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div>"
+                f"<div class='org-name'>{escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div>"
             )
 
         def derive_queryset(self, **kwargs):
