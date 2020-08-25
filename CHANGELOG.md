@@ -1,4 +1,8 @@
-v5.7.19 
+v5.7.20
+----------
+ * Add missing migration
+
+v5.7.19
 ----------
  * Make contact.is_stopped and is_blocked nullable and stop writing
 
