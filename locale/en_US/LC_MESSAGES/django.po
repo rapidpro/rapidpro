@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-24 17:55+0000\n"
+"POT-Creation-Date: 2020-08-25 20:56+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -7757,16 +7757,7 @@ msgstr ""
 msgid "in the API Settings section."
 msgstr ""
 
-msgid "You are currently subscribed to TextIt. Thank you for your support!"
-msgstr ""
-
-msgid "Billing"
-msgstr ""
-
-msgid "You are currently on the Trial plan which is limited to 100 contacts."
-msgstr ""
-
-msgid "Upgrade"
+msgid "You are currently on the {{org.plan}} plan."
 msgstr ""
 
 msgid "Connect Plivo"
@@ -7971,10 +7962,10 @@ msgstr ""
 msgid "Your service is interrupted. You have"
 msgstr ""
 
-msgid "credits and must add more to resume your service."
+msgid "credits."
 msgstr ""
 
-msgid "credits remaining. Top up early to prevent any disruption in your service."
+msgid "credits remaining. Your service will be suspended when they are all used."
 msgstr ""
 
 msgid "of"
@@ -7989,6 +7980,12 @@ msgstr ""
 msgid "Expires on "
 msgstr ""
 
+msgid "Added on"
+msgstr ""
+
+msgid " by "
+msgstr ""
+
 #, python-format
 msgid ""
 "\n"
@@ -8001,14 +7998,7 @@ msgstr ""
 msgid ""
 "\n"
 "              Complementary credits, thanks for trying %(brand)s.\n"
-"\n"
 "            "
-msgstr ""
-
-msgid "Added on"
-msgstr ""
-
-msgid " by "
 msgstr ""
 
 #, python-format
