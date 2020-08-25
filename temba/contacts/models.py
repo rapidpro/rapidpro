@@ -727,10 +727,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     )
 
     # whether contact has been blocked by a user
-    is_blocked = models.BooleanField(default=False)
+    is_blocked = models.BooleanField(default=False, null=True)
 
     # whether contact has opted out of receiving messages
-    is_stopped = models.BooleanField(default=False)
+    is_stopped = models.BooleanField(default=False, null=True)
 
     # custom field values for this contact, keyed by field UUID
     fields = JSONField(null=True)
