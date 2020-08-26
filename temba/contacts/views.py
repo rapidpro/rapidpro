@@ -166,7 +166,7 @@ class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
 
     search_error = None
 
-    restore_label = _("Restore")
+    restore_label = _("Activate")
 
     def pre_process(self, request, *args, **kwargs):
         """
@@ -1130,7 +1130,7 @@ class ContactCRUDL(SmartCRUDL):
                 if self.object.status != Contact.STATUS_ACTIVE and self.has_org_perm("contacts.contact_restore"):
                     links.append(
                         dict(
-                            title=_("Restore"),
+                            title=_("Activate"),
                             style="button-primary",
                             js_class="posterize",
                             href=reverse("contacts.contact_restore", args=(self.object.pk,)),
@@ -1328,7 +1328,7 @@ class ContactCRUDL(SmartCRUDL):
         template_name = "contacts/contact_list.haml"
         system_group = ContactGroup.TYPE_BLOCKED
         bulk_actions = ("restore", "archive")
-        restore_label = _("Unblock")
+        restore_label = _("Activate")
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -1340,7 +1340,7 @@ class ContactCRUDL(SmartCRUDL):
         template_name = "contacts/contact_stopped.haml"
         system_group = ContactGroup.TYPE_STOPPED
         bulk_actions = ("restore", "archive")
-        restore_label = _("Unstop")
+        restore_label = _("Activate")
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -1605,7 +1605,7 @@ class ContactCRUDL(SmartCRUDL):
 
         fields = ()
         success_url = "uuid@contacts.contact_read"
-        success_message = _("Contact blocked")
+        success_message = ""
 
         def save(self, obj):
             obj.block(self.request.user)
@@ -1618,7 +1618,7 @@ class ContactCRUDL(SmartCRUDL):
 
         fields = ()
         success_url = "uuid@contacts.contact_read"
-        success_message = _("Contact restored")
+        success_message = ""
 
         def save(self, obj):
             obj.restore(self.request.user)
@@ -1631,7 +1631,7 @@ class ContactCRUDL(SmartCRUDL):
 
         fields = ()
         success_url = "uuid@contacts.contact_read"
-        success_message = _("Contact archived")
+        success_message = ""
 
         def save(self, obj):
             obj.archive(self.request.user)
