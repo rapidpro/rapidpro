@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-21 21:06+0000\n"
+"POT-Creation-Date: 2020-08-26 13:20+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2474,6 +2474,9 @@ msgstr ""
 msgid "You cannot update the query of a group that is evaluating."
 msgstr ""
 
+msgid "Restore"
+msgstr ""
+
 msgid "All Contacts"
 msgstr ""
 
@@ -2481,6 +2484,9 @@ msgid "Blocked"
 msgstr ""
 
 msgid "Stopped"
+msgstr ""
+
+msgid "Archived"
 msgstr ""
 
 #, python-brace-format
@@ -2554,12 +2560,6 @@ msgstr ""
 msgid "Block"
 msgstr ""
 
-msgid "Unblock"
-msgstr ""
-
-msgid "Unstop"
-msgstr ""
-
 msgid "Save as Group"
 msgstr ""
 
@@ -2569,7 +2569,16 @@ msgstr ""
 msgid "Blocked Contacts"
 msgstr ""
 
+msgid "Unblock"
+msgstr ""
+
 msgid "Stopped Contacts"
+msgstr ""
+
+msgid "Unstop"
+msgstr ""
+
+msgid "Archived Contacts"
 msgstr ""
 
 msgid "Edit Group"
@@ -2587,10 +2596,10 @@ msgstr ""
 msgid "Contact blocked"
 msgstr ""
 
-msgid "Contact unblocked"
+msgid "Contact restored"
 msgstr ""
 
-msgid "Contact unstopped"
+msgid "Contact archived"
 msgstr ""
 
 msgid "Must be unique."
@@ -3225,9 +3234,6 @@ msgid "The metadata for messages of this broadcast"
 msgstr ""
 
 msgid "Visible"
-msgstr ""
-
-msgid "Archived"
 msgstr ""
 
 msgid "Deleted"
@@ -5831,6 +5837,9 @@ msgid "Are you sure you want to remove this classifier from your account?"
 msgstr ""
 
 msgid "This classifier cannot be removed because it in use."
+msgstr ""
+
+msgid "These contacts have been removed from all groups and can be deleted permanently."
 msgstr ""
 
 msgid "Hold up!"

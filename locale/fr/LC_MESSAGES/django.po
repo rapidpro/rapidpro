@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-21 21:06+0000\n"
+"POT-Creation-Date: 2020-08-26 13:20+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2782,6 +2782,9 @@ msgstr "Vous ne pouvez pas créer un groupe dynamique basé sur \"id\" ou \"grou
 msgid "You cannot update the query of a group that is evaluating."
 msgstr "Vous ne pouvez pas mettre à jour la requête d'un groupe en cours d'évaluation."
 
+msgid "Restore"
+msgstr ""
+
 msgid "All Contacts"
 msgstr "Tous les contacts"
 
@@ -2790,6 +2793,9 @@ msgstr "Bloqué"
 
 msgid "Stopped"
 msgstr "Stoppé"
+
+msgid "Archived"
+msgstr "Archivé"
 
 #, python-brace-format
 msgid "{label} for this contact"
@@ -2862,12 +2868,6 @@ msgstr "Les champs personnalisés"
 msgid "Block"
 msgstr "Bloquer"
 
-msgid "Unblock"
-msgstr "Débloquer"
-
-msgid "Unstop"
-msgstr "Débloquer"
-
 msgid "Save as Group"
 msgstr "Enregistrer en tant que groupe"
 
@@ -2877,8 +2877,19 @@ msgstr "Gérer les champs"
 msgid "Blocked Contacts"
 msgstr "Contacts Bloqués"
 
+msgid "Unblock"
+msgstr "Débloquer"
+
 msgid "Stopped Contacts"
 msgstr "Contacts arrêtés"
+
+msgid "Unstop"
+msgstr "Débloquer"
+
+#, fuzzy
+#| msgid "Blocked Contacts"
+msgid "Archived Contacts"
+msgstr "Contacts Bloqués"
 
 msgid "Edit Group"
 msgstr "Modifier un group"
@@ -2895,11 +2906,15 @@ msgstr "Une erreur s'est produite lors de la mise à jour de votre contact. Veui
 msgid "Contact blocked"
 msgstr "Contact bloqué"
 
-msgid "Contact unblocked"
-msgstr "Contact débloqué"
-
-msgid "Contact unstopped"
+#, fuzzy
+#| msgid "Contact unstopped"
+msgid "Contact restored"
 msgstr "Contact non arrêté"
+
+#, fuzzy
+#| msgid "Contact Fields"
+msgid "Contact archived"
+msgstr "Champs de contact"
 
 msgid "Must be unique."
 msgstr "Doit être unique."
@@ -3534,9 +3549,6 @@ msgstr "Les métadonnées pour les messages de cette diffusion"
 
 msgid "Visible"
 msgstr "Visible"
-
-msgid "Archived"
-msgstr "Archivé"
 
 msgid "Deleted"
 msgstr "Supprimé"
@@ -6466,6 +6478,9 @@ msgstr "Voulez-vous vraiment supprimer ce classificateur de votre compte?"
 
 msgid "This classifier cannot be removed because it in use."
 msgstr "Ce classificateur ne peut pas être supprimé car il est en cours d'utilisation."
+
+msgid "These contacts have been removed from all groups and can be deleted permanently."
+msgstr ""
 
 msgid "Hold up!"
 msgstr "Attendez!"
@@ -10618,6 +10633,9 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Contact unblocked"
+#~ msgstr "Contact débloqué"
 
 #, fuzzy
 #~| msgid "Your username on DMark Mobile"
