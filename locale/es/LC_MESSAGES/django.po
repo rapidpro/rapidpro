@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-25 20:56+0000\n"
+"POT-Creation-Date: 2020-08-26 07:29+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4711,6 +4711,9 @@ msgstr "Después de 30 minutos"
 msgid "After 4 minutes"
 msgstr "Después de 5 minutos"
 
+msgid "Home"
+msgstr ""
+
 #, fuzzy
 #| msgid "You must select a country for your organization."
 msgid "You must select a country for your workspace."
@@ -5712,9 +5715,6 @@ msgstr "No se pudieron guardar sus cambios. Por favor, actualice la página e in
 msgid "One of the emails you entered is invalid."
 msgstr "Uno de los correos electrónicos que ingresó es inválido."
 
-msgid "Home"
-msgstr ""
-
 msgid "Enter the code from your authentication application"
 msgstr ""
 
@@ -6181,6 +6181,11 @@ msgstr "Abrir TextIt"
 msgid "Closed Tickets"
 msgstr "Elegir archivo"
 
+#, fuzzy
+#| msgid "Connect Kannel Service"
+msgid "Delete Ticket Service"
+msgstr "Conectar con el Servicio Kannel"
+
 msgid "HTTP Log"
 msgstr ""
 
@@ -6270,6 +6275,11 @@ msgstr ""
 msgid "The associated channel"
 msgstr ""
 
+#, fuzzy
+#| msgid "Select All"
+msgid "Select a flow"
+msgstr "Elegir todos"
+
 msgid "Keywords must be a single word containing only letter and numbers"
 msgstr "Las palabras clave deben ser una sola palabra que contenga solo letras y números"
 
@@ -6304,11 +6314,6 @@ msgstr "El mensaje para enviar como respuesta después de unirse al grupo (opcio
 #| msgid "Start Flow"
 msgid "Start Time"
 msgstr "Empezar flujo"
-
-#, fuzzy
-#| msgid "Select All"
-msgid "Select a flow"
-msgstr "Elegir todos"
 
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr "Los grupos y contactos al que se comunicará el flujo"
@@ -9592,7 +9597,7 @@ msgstr ""
 msgid "Update Flow"
 msgstr "Actualizar campos"
 
-msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
+msgid "This flow is using a discontinued version of the flow editor. Update it to use the new editor today to start using powerful new features. Starting <b>October 1st</b>, all remaining flows will be updated automatically."
 msgstr ""
 
 msgid "To make your next connection,"
@@ -9625,18 +9630,18 @@ msgstr "Empecemos"
 
 msgid ""
 "\n"
-"                  It's a good idea to start your call off by saying something first. You'll probably want to\n"
-"                  introduce yourself and ask them a question. Just type the message for now, you'll be able to\n"
-"                  add a voice recording of your message later.\n"
-"                "
+"                It's a good idea to start your call off by saying something first. You'll probably want to\n"
+"                introduce yourself and ask them a question. Just type the message for now, you'll be able to\n"
+"                add a voice recording of your message later.\n"
+"              "
 msgstr ""
 
 msgid ""
 "\n"
-"                  Welcome to a USSD flow. USSD is a session based communication type. We recommend starting your flow\n"
-"                  by sending a USSD message. This message will be sent to anybody right after they join the flow.\n"
-"                  This is your chance to send a single message or menu.\n"
-"                "
+"                Welcome to a USSD flow. USSD is a session based communication type. We recommend starting your flow\n"
+"                by sending a USSD message. This message will be sent to anybody right after they join the flow.\n"
+"                This is your chance to send a single message or menu.\n"
+"              "
 msgstr ""
 
 #, fuzzy
@@ -9652,9 +9657,9 @@ msgstr "Archivar mensajes"
 #| "              "
 msgid ""
 "\n"
-"              A more advanced flow might start by receiving a message first. This lets you do different things\n"
-"              based on how the flow was triggered.\n"
-"            "
+"            A more advanced flow might start by receiving a message first. This lets you do different things\n"
+"            based on how the flow was triggered.\n"
+"          "
 msgstr ""
 "\n"
 "                Ahora podrá dividir su flujo por categorías. Esto le permite hacer\n"
@@ -10100,8 +10105,9 @@ msgstr "Su teléfono no puede enviar mensajes"
 #| "        "
 msgid ""
 "\n"
-"          Aliases for %(name)s\n"
-"        "
+"    Aliases for %(name)s\n"
+"\n"
+"  "
 msgstr ""
 "\n"
 "          Instalar el %(name)s app\n"
@@ -10117,10 +10123,10 @@ msgstr ""
 #| "          "
 msgid ""
 "\n"
-"          Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
-"          regions, aliases.\n"
+"      Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
+"      regions, aliases.\n"
 "\n"
-"        "
+"    "
 msgstr ""
 "\n"
 "            Muchas veces algunas regiones se conocen por más de un nombre. En %(brand)s, a estos nombres alternativos para\n"
@@ -10768,10 +10774,10 @@ msgstr "Conectar la cuenta de Zenvia"
 
 msgid ""
 "\n"
-"      Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences\n"
-"      and better understand your users.\n"
-"      To signup for an account, visit\n"
-"    "
+"        Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences\n"
+"        and better understand your users.\n"
+"        To signup for an account, visit\n"
+"      "
 msgstr ""
 
 #, fuzzy
@@ -11362,7 +11368,7 @@ msgstr ""
 msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
 msgstr ""
 
-msgid "These backup tokens can be used if you lose access to your authentication application, store them in a safe place. Any tokens you may have previously generated are invalid."
+msgid "Any tokens you may have previously generated are invalid."
 msgstr ""
 
 msgid "Generate Backup Tokens"
@@ -12789,6 +12795,19 @@ msgid ""
 "  "
 msgstr ""
 
+msgid "Pick a new password and enter it below. A good password will be at least eight characters long and have a mixture of upper and lower case letters."
+msgstr ""
+
+#, fuzzy
+#| msgid "Password"
+msgid "New password"
+msgstr "Contraseña"
+
+#, fuzzy
+#| msgid "Password"
+msgid "Confirm new password"
+msgstr "Contraseña"
+
 #, fuzzy
 #| msgid "Delete"
 msgid "Delete "
@@ -12826,17 +12845,9 @@ msgid "Ticketing Service"
 msgstr ""
 
 #, fuzzy
-#| msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
-msgid "This will close all tickets that were created with this service. Once it is removed, it will be gone forever. There is no way to undo this operation."
-msgstr "Una vez que la borre, no la podrá recuperar. Esta operación no se puede deshacer."
-
-#, fuzzy
-#| msgid "Warning!"
-msgid "Warning"
-msgstr "¡Atención!"
-
-msgid "Unable to delete service still being used by the following flows"
-msgstr ""
+#| msgid "Recent Channel Events"
+msgid "Ticketing Service over"
+msgstr "Eventos recientes del transmisor"
 
 #, fuzzy
 #| msgid "Device"
@@ -12890,6 +12901,30 @@ msgstr ""
 
 msgid "No ticketing services are available."
 msgstr ""
+
+msgid "Unable to delete service still being used by"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "            Instead of using your Android phone to send messages, you can use your\n"
+#| "            <a class='nexmo-account' href='#'>\n"
+#| "              Nexmo Account\n"
+#| "            </a>\n"
+#| "            to send messages to over 200 countries.\n"
+#| "\n"
+#| "          "
+msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
+msgstr ""
+"\n"
+"            En lugar de usar su teléfono Android para enviar mensajes, puede usar su\n"
+"            <a class='nexmo-account' href='#'>\n"
+"              Cuenta Nexmo\n"
+"            </a>\n"
+"            para enviar mensajes a más de 200 países.\n"
+"\n"
+"          "
 
 #, python-format
 msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
@@ -13010,6 +13045,16 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
+#~ msgid "This will close all tickets that were created with this service. Once it is removed, it will be gone forever. There is no way to undo this operation."
+#~ msgstr "Una vez que la borre, no la podrá recuperar. Esta operación no se puede deshacer."
+
+#, fuzzy
+#~| msgid "Warning!"
+#~ msgid "Warning"
+#~ msgstr "¡Atención!"
 
 #, fuzzy
 #~| msgid "Reverse Billing"

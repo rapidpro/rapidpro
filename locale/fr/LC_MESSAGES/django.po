@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-25 20:56+0000\n"
+"POT-Creation-Date: 2020-08-26 07:29+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3577,6 +3577,9 @@ msgstr "Après  3 minutes"
 msgid "After 4 minutes"
 msgstr "Après 4 minutes"
 
+msgid "Home"
+msgstr ""
+
 #, fuzzy
 #| msgid "You must select a country for your organization."
 msgid "You must select a country for your workspace."
@@ -4481,9 +4484,6 @@ msgstr "Ce mot de passe n'est pas valide. Choisissez un nouveau mot de passe et 
 msgid "One of the emails you entered is invalid."
 msgstr "L'un des e-mails que vous avez inscrits est invalide."
 
-msgid "Home"
-msgstr ""
-
 msgid "Enter the code from your authentication application"
 msgstr "Entrez le code de votre application d'authentification"
 
@@ -4906,6 +4906,11 @@ msgstr ""
 msgid "Closed Tickets"
 msgstr ""
 
+#, fuzzy
+#| msgid "Ticketing Service Called"
+msgid "Delete Ticket Service"
+msgstr "Service de billetterie appelé"
+
 msgid "HTTP Log"
 msgstr ""
 
@@ -4981,6 +4986,9 @@ msgstr "Comment faire correspondre un message avec un mot clé"
 msgid "The associated channel"
 msgstr "Le canal associé"
 
+msgid "Select a flow"
+msgstr "Sélectionnez un flux"
+
 msgid "Keywords must be a single word containing only letter and numbers"
 msgstr "Mots-clés doivent être un seul mot ne contenant que lettres et de chiffres"
 
@@ -5011,9 +5019,6 @@ msgstr "Le message à envoyer en réponse suite à leur entrée dans le groupe (
 #| msgid "Started"
 msgid "Start Time"
 msgstr "Démarré"
-
-msgid "Select a flow"
-msgstr "Sélectionnez un flux"
 
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr "Les groupes et les contacts du flux seront diffusés à"
@@ -8068,8 +8073,8 @@ msgstr ""
 msgid "Update Flow"
 msgstr "Mettre à jour le dossier"
 
-msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
-msgstr "Le nouvel éditeur fournit de nouvelles fonctionnalités puissantes et de meilleures performances, mais veuillez noter que cela ne peut pas être annulé."
+msgid "This flow is using a discontinued version of the flow editor. Update it to use the new editor today to start using powerful new features. Starting <b>October 1st</b>, all remaining flows will be updated automatically."
+msgstr ""
 
 msgid "To make your next connection,"
 msgstr "Pour faire votre prochaine connexion,"
@@ -8118,10 +8123,10 @@ msgstr "Commençons"
 #| "              "
 msgid ""
 "\n"
-"                  It's a good idea to start your call off by saying something first. You'll probably want to\n"
-"                  introduce yourself and ask them a question. Just type the message for now, you'll be able to\n"
-"                  add a voice recording of your message later.\n"
-"                "
+"                It's a good idea to start your call off by saying something first. You'll probably want to\n"
+"                introduce yourself and ask them a question. Just type the message for now, you'll be able to\n"
+"                add a voice recording of your message later.\n"
+"              "
 msgstr ""
 "\n"
 "                C'est une bonne idée de commencer votre appel en disant quelque chose en premier. Vous voudrez probablement vous\n"
@@ -8138,10 +8143,10 @@ msgstr ""
 #| "              "
 msgid ""
 "\n"
-"                  Welcome to a USSD flow. USSD is a session based communication type. We recommend starting your flow\n"
-"                  by sending a USSD message. This message will be sent to anybody right after they join the flow.\n"
-"                  This is your chance to send a single message or menu.\n"
-"                "
+"                Welcome to a USSD flow. USSD is a session based communication type. We recommend starting your flow\n"
+"                by sending a USSD message. This message will be sent to anybody right after they join the flow.\n"
+"                This is your chance to send a single message or menu.\n"
+"              "
 msgstr ""
 "\n"
 "                Bienvenue dans un flux USSD. USSD est un type de communication basé sur une session. Nous vous recommandons de démarrer votre flux\n"
@@ -8160,9 +8165,9 @@ msgstr "Recevoir un message d'abord"
 #| "            "
 msgid ""
 "\n"
-"              A more advanced flow might start by receiving a message first. This lets you do different things\n"
-"              based on how the flow was triggered.\n"
-"            "
+"            A more advanced flow might start by receiving a message first. This lets you do different things\n"
+"            based on how the flow was triggered.\n"
+"          "
 msgstr ""
 "\n"
 "              Un flux plus avancé peut commencer par recevoir un message en premier. Cela vous permet de faire différentes choses\n"
@@ -8501,23 +8506,34 @@ msgstr ""
 msgid "Your phone is having difficulty relaying messages"
 msgstr "Votre téléphone a du mal à channel des messages"
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          Aliases for %(name)s\n"
+#| "        "
 msgid ""
 "\n"
-"          Aliases for %(name)s\n"
-"        "
+"    Aliases for %(name)s\n"
+"\n"
+"  "
 msgstr ""
 "\n"
 "          Alias pour %(name)s\n"
 "        "
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
+#| "          regions, aliases.\n"
+#| "\n"
+#| "        "
 msgid ""
 "\n"
-"          Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
-"          regions, aliases.\n"
+"      Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
+"      regions, aliases.\n"
 "\n"
-"        "
+"    "
 msgstr ""
 "\n"
 "          Souvent, certaines régions sont connues sous plusieurs noms. Au sein de %(brand)s, nous appelons ces noms alternatifs pour\n"
@@ -9474,12 +9490,19 @@ msgstr "Connecté au compte Chatbase"
 msgid "Connect your Chatbase account"
 msgstr "Connectez votre compte Chatbase"
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "      Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences\n"
+#| "      and better understand your users.\n"
+#| "      To signup for an account, visit\n"
+#| "    "
 msgid ""
 "\n"
-"      Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences\n"
-"      and better understand your users.\n"
-"      To signup for an account, visit\n"
-"    "
+"        Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences\n"
+"        and better understand your users.\n"
+"        To signup for an account, visit\n"
+"      "
 msgstr ""
 "\n"
 "      La connexion de votre compte Chatbase vous permettra de surveiller votre bot, de corriger les expériences brisées\n"
@@ -10133,8 +10156,8 @@ msgstr "Pour activer l'authentification à deux facteurs, utilisez une applicati
 msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
 msgstr "Les jetons de sauvegarde peuvent être utilisés si vous n'avez plus accès à l'application d'authentification configurée pour votre compte."
 
-msgid "These backup tokens can be used if you lose access to your authentication application, store them in a safe place. Any tokens you may have previously generated are invalid."
-msgstr "Ces jetons de sauvegarde peuvent être utilisés si vous perdez l'accès à votre application d'authentification, stockez-les en lieu sûr. Tous les jetons que vous avez pu générer précédemment ne sont pas valides."
+msgid "Any tokens you may have previously generated are invalid."
+msgstr ""
 
 msgid "Generate Backup Tokens"
 msgstr "Générer des jetons de sauvegarde"
@@ -11557,6 +11580,19 @@ msgid ""
 "  "
 msgstr ""
 
+msgid "Pick a new password and enter it below. A good password will be at least eight characters long and have a mixture of upper and lower case letters."
+msgstr ""
+
+#, fuzzy
+#| msgid "Password"
+msgid "New password"
+msgstr "Mot de passe"
+
+#, fuzzy
+#| msgid "Password"
+msgid "Confirm new password"
+msgstr "Mot de passe"
+
 msgid "Delete "
 msgstr "Supprimer"
 
@@ -11612,14 +11648,10 @@ msgstr ""
 msgid "Ticketing Service"
 msgstr ""
 
-msgid "This will close all tickets that were created with this service. Once it is removed, it will be gone forever. There is no way to undo this operation."
-msgstr ""
-
-msgid "Warning"
-msgstr ""
-
-msgid "Unable to delete service still being used by the following flows"
-msgstr ""
+#, fuzzy
+#| msgid "Ticketing Service Called"
+msgid "Ticketing Service over"
+msgstr "Service de billetterie appelé"
 
 msgid "Services"
 msgstr ""
@@ -11659,6 +11691,14 @@ msgstr ""
 
 msgid "No ticketing services are available."
 msgstr ""
+
+msgid "Unable to delete service still being used by"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "You are about to delete <span class='group_name'> %(object)s. </span> No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?"
+msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
+msgstr "Vous êtes sur le point de supprimer <span class='group_name'> %(object)s. </span> Aucun contact ne sera supprimé mais le groupe lui-même sera supprimé. Il n'y a aucun moyen d'annuler cela. Êtes-vous sûr?"
 
 #, python-format
 msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
@@ -11773,6 +11813,12 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
+#~ msgstr "Le nouvel éditeur fournit de nouvelles fonctionnalités puissantes et de meilleures performances, mais veuillez noter que cela ne peut pas être annulé."
+
+#~ msgid "These backup tokens can be used if you lose access to your authentication application, store them in a safe place. Any tokens you may have previously generated are invalid."
+#~ msgstr "Ces jetons de sauvegarde peuvent être utilisés si vous perdez l'accès à votre application d'authentification, stockez-les en lieu sûr. Tous les jetons que vous avez pu générer précédemment ne sont pas valides."
 
 #, fuzzy
 #~| msgid "Reverse Billing"

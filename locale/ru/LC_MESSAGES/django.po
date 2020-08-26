@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-25 20:56+0000\n"
+"POT-Creation-Date: 2020-08-26 07:29+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3531,6 +3531,9 @@ msgstr "Через 3 минуты"
 msgid "After 4 minutes"
 msgstr "Через 4 минуты"
 
+msgid "Home"
+msgstr ""
+
 #, fuzzy
 #| msgid "You must select a country for your organization."
 msgid "You must select a country for your workspace."
@@ -4435,9 +4438,6 @@ msgstr "Этот пароль не является допустимым. Выб
 msgid "One of the emails you entered is invalid."
 msgstr "Один из адресов электронной почты, который Вы ввели, является недопустимым."
 
-msgid "Home"
-msgstr ""
-
 msgid "Enter the code from your authentication application"
 msgstr "Введите код из Вашего приложения по аутентификации"
 
@@ -4860,6 +4860,11 @@ msgstr ""
 msgid "Closed Tickets"
 msgstr ""
 
+#, fuzzy
+#| msgid "Ticketing Service Called"
+msgid "Delete Ticket Service"
+msgstr "Служба обработки запросов клиентов вызвана"
+
 msgid "HTTP Log"
 msgstr ""
 
@@ -4935,6 +4940,9 @@ msgstr "Как сопоставить сообщение с ключевым с�
 msgid "The associated channel"
 msgstr "Связанный канал"
 
+msgid "Select a flow"
+msgstr "Выберите поток"
+
 msgid "Keywords must be a single word containing only letter and numbers"
 msgstr "Ключевые слова должны быть одним словом, содержащим только буквы и цифры"
 
@@ -4967,9 +4975,6 @@ msgstr "Ответное сообщение для отправки после �
 #| msgid "Started"
 msgid "Start Time"
 msgstr "Начато"
-
-msgid "Select a flow"
-msgstr "Выберите поток"
 
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr "Группы и контакты, которым поток будет осуществлять рассылку"
@@ -8103,8 +8108,8 @@ msgstr ""
 msgid "Update Flow"
 msgstr "Обновить Папку"
 
-msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
-msgstr "Новый редактор предоставляет новые эффективные функции и лучшую производительность, но, пожалуйста, имейте ввиду, что это действие нельзя отменить."
+msgid "This flow is using a discontinued version of the flow editor. Update it to use the new editor today to start using powerful new features. Starting <b>October 1st</b>, all remaining flows will be updated automatically."
+msgstr ""
 
 msgid "To make your next connection,"
 msgstr "Для создания Вашего следующего подключения"
@@ -8153,10 +8158,10 @@ msgstr "Давайте начнем"
 #| "              "
 msgid ""
 "\n"
-"                  It's a good idea to start your call off by saying something first. You'll probably want to\n"
-"                  introduce yourself and ask them a question. Just type the message for now, you'll be able to\n"
-"                  add a voice recording of your message later.\n"
-"                "
+"                It's a good idea to start your call off by saying something first. You'll probably want to\n"
+"                introduce yourself and ask them a question. Just type the message for now, you'll be able to\n"
+"                add a voice recording of your message later.\n"
+"              "
 msgstr ""
 "\n"
 "                Хорошей идеей будет начать Ваш звонок, сказав что-нибудь для начала. Вы, вероятно, захотите\n"
@@ -8173,10 +8178,10 @@ msgstr ""
 #| "              "
 msgid ""
 "\n"
-"                  Welcome to a USSD flow. USSD is a session based communication type. We recommend starting your flow\n"
-"                  by sending a USSD message. This message will be sent to anybody right after they join the flow.\n"
-"                  This is your chance to send a single message or menu.\n"
-"                "
+"                Welcome to a USSD flow. USSD is a session based communication type. We recommend starting your flow\n"
+"                by sending a USSD message. This message will be sent to anybody right after they join the flow.\n"
+"                This is your chance to send a single message or menu.\n"
+"              "
 msgstr ""
 "\n"
 "                Добро пожаловать в поток USSD. USSD это тип связи на основе сессии. Мы рекомендуем начать Ваш поток\n"
@@ -8194,9 +8199,9 @@ msgstr "Получить Сначала Сообщение"
 #| "            "
 msgid ""
 "\n"
-"              A more advanced flow might start by receiving a message first. This lets you do different things\n"
-"              based on how the flow was triggered.\n"
-"            "
+"            A more advanced flow might start by receiving a message first. This lets you do different things\n"
+"            based on how the flow was triggered.\n"
+"          "
 msgstr ""
 "\n"
 "              Более продвинутый поток может начинаться с получения сначала сообщения. Это позволяет Вам делать разные вещи,\n"
@@ -8543,23 +8548,34 @@ msgstr ""
 msgid "Your phone is having difficulty relaying messages"
 msgstr "Ваш телефон столкнулся с проблемами при ретрансляции сообщений"
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          Aliases for %(name)s\n"
+#| "        "
 msgid ""
 "\n"
-"          Aliases for %(name)s\n"
-"        "
+"    Aliases for %(name)s\n"
+"\n"
+"  "
 msgstr ""
 "\n"
 "          Псевдонимы для %(name)s\n"
 "        "
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
+#| "          regions, aliases.\n"
+#| "\n"
+#| "        "
 msgid ""
 "\n"
-"          Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
-"          regions, aliases.\n"
+"      Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
+"      regions, aliases.\n"
 "\n"
-"        "
+"    "
 msgstr ""
 "\n"
 "          Зачастую определенные регионы известны под несколькими названиями. В %(brand)s мы называем эти альтернативные названия\n"
@@ -9584,12 +9600,19 @@ msgstr "Подключено к учетной записи Chatbase"
 msgid "Connect your Chatbase account"
 msgstr "Подключить Вашу учетную запись Chatbase"
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "      Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences\n"
+#| "      and better understand your users.\n"
+#| "      To signup for an account, visit\n"
+#| "    "
 msgid ""
 "\n"
-"      Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences\n"
-"      and better understand your users.\n"
-"      To signup for an account, visit\n"
-"    "
+"        Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences\n"
+"        and better understand your users.\n"
+"        To signup for an account, visit\n"
+"      "
 msgstr ""
 "\n"
 "      Подключение Вашей учетной записи Chatbase позволит Вам осуществлять мониторинг своего бота, исправлять неудачные впечатления\n"
@@ -10248,8 +10271,8 @@ msgstr "Для включения двухфакторной аутентифи�
 msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
 msgstr "Резервные токены можно использовать, если у Вас больше нет доступа к приложению аутентификации, настроенному для Вашей учетной записи."
 
-msgid "These backup tokens can be used if you lose access to your authentication application, store them in a safe place. Any tokens you may have previously generated are invalid."
-msgstr "Эти резервные токены можно использовать, если Вы потеряете доступ к своему приложению аутентификации. Храните их в надежном месте. Любые токены, которые Вы генерировали ранее, являются недействительными."
+msgid "Any tokens you may have previously generated are invalid."
+msgstr ""
 
 msgid "Generate Backup Tokens"
 msgstr "Генерировать Резервные Токены"
@@ -11707,6 +11730,19 @@ msgid ""
 "  "
 msgstr ""
 
+msgid "Pick a new password and enter it below. A good password will be at least eight characters long and have a mixture of upper and lower case letters."
+msgstr ""
+
+#, fuzzy
+#| msgid "Password"
+msgid "New password"
+msgstr "Пароль"
+
+#, fuzzy
+#| msgid "Password"
+msgid "Confirm new password"
+msgstr "Пароль"
+
 msgid "Delete "
 msgstr "Удалить"
 
@@ -11760,14 +11796,10 @@ msgstr ""
 msgid "Ticketing Service"
 msgstr ""
 
-msgid "This will close all tickets that were created with this service. Once it is removed, it will be gone forever. There is no way to undo this operation."
-msgstr ""
-
-msgid "Warning"
-msgstr ""
-
-msgid "Unable to delete service still being used by the following flows"
-msgstr ""
+#, fuzzy
+#| msgid "Ticketing Service Called"
+msgid "Ticketing Service over"
+msgstr "Служба обработки запросов клиентов вызвана"
 
 msgid "Services"
 msgstr ""
@@ -11807,6 +11839,14 @@ msgstr ""
 
 msgid "No ticketing services are available."
 msgstr ""
+
+msgid "Unable to delete service still being used by"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "You are about to delete <span class='group_name'> %(object)s. </span> No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?"
+msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
+msgstr "Вы собираетесь удалить <span class='group_name'> %(object)s. </span> Контакты не будут удалены, но сама группа будет удалена. Способа отменить это действие нет. Вы уверены?"
 
 #, python-format
 msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
@@ -11921,6 +11961,12 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
+#~ msgstr "Новый редактор предоставляет новые эффективные функции и лучшую производительность, но, пожалуйста, имейте ввиду, что это действие нельзя отменить."
+
+#~ msgid "These backup tokens can be used if you lose access to your authentication application, store them in a safe place. Any tokens you may have previously generated are invalid."
+#~ msgstr "Эти резервные токены можно использовать, если Вы потеряете доступ к своему приложению аутентификации. Храните их в надежном месте. Любые токены, которые Вы генерировали ранее, являются недействительными."
 
 #, fuzzy
 #~| msgid "Reverse Billing"
