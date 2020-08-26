@@ -294,7 +294,7 @@ class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
         counts = ContactGroup.get_system_group_counts(org)
 
         folders = [
-            dict(count=counts[ContactGroup.TYPE_ALL], label=_("All Contacts"), url=reverse("contacts.contact_list")),
+            dict(count=counts[ContactGroup.TYPE_ACTIVE], label=_("Active"), url=reverse("contacts.contact_list")),
             dict(count=counts[ContactGroup.TYPE_BLOCKED], label=_("Blocked"), url=reverse("contacts.contact_blocked")),
             dict(count=counts[ContactGroup.TYPE_STOPPED], label=_("Stopped"), url=reverse("contacts.contact_stopped")),
             dict(
@@ -1214,7 +1214,7 @@ class ContactCRUDL(SmartCRUDL):
                 return JsonResponse({"total": 0, "sample": [], "fields": {}})
 
             try:
-                results = search_contacts(org.id, org.cached_all_contacts_group.uuid, query, "-created_on")
+                results = search_contacts(org.id, org.cached_active_contacts_group.uuid, query, "-created_on")
                 summary = {
                     "total": results.total,
                     "query": results.query,
@@ -1254,7 +1254,7 @@ class ContactCRUDL(SmartCRUDL):
 
     class List(ContactListView):
         title = _("Contacts")
-        system_group = ContactGroup.TYPE_ALL
+        system_group = ContactGroup.TYPE_ACTIVE
         bulk_actions = ("label", "block", "archive")
 
         def get_gear_links(self):

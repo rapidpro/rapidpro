@@ -323,8 +323,8 @@ class Org(SmartModel):
         """
         from temba.contacts.models import ContactGroup
 
-        counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ALL, ContactGroup.TYPE_BLOCKED))
-        return (counts[ContactGroup.TYPE_ALL] + counts[ContactGroup.TYPE_BLOCKED]) > 0
+        counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ACTIVE, ContactGroup.TYPE_BLOCKED))
+        return (counts[ContactGroup.TYPE_ACTIVE] + counts[ContactGroup.TYPE_BLOCKED]) > 0
 
     @cached_property
     def has_ticketer(self):
@@ -513,10 +513,10 @@ class Org(SmartModel):
             return channel
 
     @cached_property
-    def cached_all_contacts_group(self):
+    def cached_active_contacts_group(self):
         from temba.contacts.models import ContactGroup
 
-        return ContactGroup.all_groups.get(org=self, group_type=ContactGroup.TYPE_ALL)
+        return ContactGroup.all_groups.get(org=self, group_type=ContactGroup.TYPE_ACTIVE)
 
     def get_channel_for_role(self, role, scheme=None, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
