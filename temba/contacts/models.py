@@ -701,10 +701,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     A contact represents an individual with which we can communicate and collect data
     """
 
-    STATUS_ACTIVE = "A"
-    STATUS_BLOCKED = "B"
-    STATUS_STOPPED = "S"
-    STATUS_ARCHIVED = "V"
+    STATUS_ACTIVE = "A"  # is active in flows, campaigns etc
+    STATUS_BLOCKED = "B"  # was blocked by a user and their message will always be ignored
+    STATUS_STOPPED = "S"  # opted out and their messages will be ignored until they message in again
+    STATUS_ARCHIVED = "V"  # user intends to delete them
     STATUS_CHOICES = (
         (STATUS_ACTIVE, "Active"),
         (STATUS_BLOCKED, "Blocked"),
@@ -725,12 +725,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         blank=True,
         help_text=_("The preferred language for this contact"),
     )
-
-    # whether contact has been blocked by a user
-    is_blocked = models.BooleanField(default=False, null=True)
-
-    # whether contact has opted out of receiving messages
-    is_stopped = models.BooleanField(default=False, null=True)
 
     # custom field values for this contact, keyed by field UUID
     fields = JSONField(null=True)

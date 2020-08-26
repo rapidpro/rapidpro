@@ -1,3 +1,12 @@
+v5.7.22
+----------
+ * Bump version of mailroom and indexer used for tests
+ * Drop no longer used is_blocked and is_stopped fields
+
+v5.7.21
+----------
+ * Add missing migration from last rev
+
 v5.7.20
 ----------
  * Add missing migration
