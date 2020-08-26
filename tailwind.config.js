@@ -8,12 +8,14 @@ module.exports = {
             black: '#37383c',
             white: '#fff',
             error: 'rgb(var(--error-rgb))',
+            success: 'rgb(var(--success-rgb))',
             primary: 'rgb(var(--primary-rgb))',
             secondary: 'rgb(var(--secondary-rgb))',
             tertiary: 'rgb(var(--tertiary-rgb))',
 
             'dark-alpha': {
                 20: 'rgba(0, 0, 0, .02)',
+                30: 'rgba(0, 0, 0, .03)',
                 50: 'rgba(0, 0, 0, .05)',
                 70: 'rgba(0, 0, 0, .07)',
                 100: 'rgba(0, 0, 0, .1)',
@@ -29,6 +31,7 @@ module.exports = {
 
             'light-alpha': {
                 20: 'rgba(255, 255, 255, .02)',
+                30: 'rgba(255, 255, 255, .03)',
                 50: 'rgba(255, 255, 255, .05)',
                 70: 'rgba(255, 255, 255, .07)',
                 100: 'rgba(255, 255, 255, .1)',

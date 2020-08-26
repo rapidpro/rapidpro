@@ -25,6 +25,15 @@
 
         .nav.nav-tabs > li > a:hover {
           margin-right: 2px;
+          background: transparent;
+          border-color: transparent;
+        }
+
+        .nav.nav-tabs > li.active > a:hover {
+          margin-right: 2px;
+          background: #fff;
+          border-color: inherit;
+          border-bottom: 1px solid #fff;
         }
          
         .after {
@@ -587,77 +596,78 @@
 
 -block content
 
-  %ul.nav.nav-tabs
-    %li.active
-      %a{href: '#overview', data-toggle:'tab'}
-        -trans "Overview"
+  .bg-white.p-4.rounded-lg
+    %ul.nav.nav-tabs.mb-0
+      %li.active
+        %a{href: '#overview', data-toggle:'tab'}
+          -trans "Overview"
 
-    %li
-      %a{href: '#analytics', data-toggle:'tab'}
-        -trans "Analytics"
+      %li
+        %a{href: '#analytics', data-toggle:'tab'}
+          -trans "Analytics"
 
-    %li
-      %a{href: '#runs', data-toggle:'tab', onclick:"updateColumnSelect();"}
-        -trans "Runs"
+      %li
+        %a{href: '#runs', data-toggle:'tab', onclick:"updateColumnSelect();"}
+          -trans "Runs"
 
-  .tab-content
-    #overview.tab-pane.active
-      .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
-        %i.fa.fa-spinner.fa-spin.fa-2x
-    
-    #analytics.tab-pane
-      #category-charts
+    .tab-content
+      #overview.tab-pane.active.py-4
+        .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
+          %i.fa.fa-spinner.fa-spin.fa-2x
+      
+      #analytics.tab-pane
+        #category-charts
 
-    #runs.tab-pane
-      .scroll-x
-        .responded-checkbox.flex.items-center.py-2.w-full
-          .runs-show#show-all-runs{
-                                      ic-get-from:"/flow/run_table/{{object.id}}/",
-                                      ic-on-beforeSend:'$("#results_run_table").empty();',
-                                      ic-on-beforeTrigger: 'localStorage.setItem("responded", "false");',
-                                      ic-trigger-on:"click",
-                                      ic-target:"#results_run_table",
-                                      ic-indicator:"#indicator"}
-            -trans "All"
-          .runs-show-sep
-            |
-          .runs-show.active{
-                                      ic-get-from:"/flow/run_table/{{object.id}}/",
-                                      ic-on-beforeSend:'$("#results_run_table").empty();',
-                                      ic-on-beforeTrigger: 'localStorage.setItem("responded", "true");',
-                                      ic-trigger-on:"click",
-                                      ic-target:"#results_run_table",
-                                      ic-indicator:"#indicator"}
-            -trans "Responded"
-            
-          .flex-grow
-          .add-columns.select.flex-grow.pl-12.pr-4
-            .selection
-              %temba-select#select-columns(onchange="handleColumnSelection(this)" placeholder='{{_("More Columns")|escapejs}}')
+      #runs.tab-pane
+        .scroll-x
+          .responded-checkbox.flex.items-center.py-3.w-full
+            .runs-show#show-all-runs{
+                                        ic-get-from:"/flow/run_table/{{object.id}}/",
+                                        ic-on-beforeSend:'$("#results_run_table").empty();',
+                                        ic-on-beforeTrigger: 'localStorage.setItem("responded", "false");',
+                                        ic-trigger-on:"click",
+                                        ic-target:"#results_run_table",
+                                        ic-indicator:"#indicator"}
+              -trans "All"
+            .runs-show-sep
+              |
+            .runs-show.active{
+                                        ic-get-from:"/flow/run_table/{{object.id}}/",
+                                        ic-on-beforeSend:'$("#results_run_table").empty();',
+                                        ic-on-beforeTrigger: 'localStorage.setItem("responded", "true");',
+                                        ic-trigger-on:"click",
+                                        ic-target:"#results_run_table",
+                                        ic-indicator:"#indicator"}
+              -trans "Responded"
+              
+            .flex-grow
+            .add-columns.select.flex-grow.pl-12.pr-4
+              .selection
+                %temba-select#select-columns(onchange="handleColumnSelection(this)" placeholder='{{_("More Columns")|escapejs}}')
 
-        %table
-          %thead
-            %tr
-              %td.header.started
-                .details
-                  .text{style:"margin-left:10px;"}
-                    -trans "Last Activity"
-              %td.header
-                .details
-                  .text
-                    -trans "Contact"
-
-              -for result_field in result_fields
+          %table
+            %thead
+              %tr
+                %td.header.started
+                  .details
+                    .text{style:"margin-left:10px;"}
+                      -trans "Last Activity"
                 %td.header
-                  .details{ onclick: 'toggleValue({{forloop.counter0}});'}
-                    .icons
-                      .icon-flow.category
-                      .icon-bubble-2.text
-                    {{result_field.name}}
-                  .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
+                  .details
+                    .text
+                      -trans "Contact"
 
-          %tbody{id:"results_run_table"}
-            %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#results_run_table", ic-indicator:"#indicator"}
+                -for result_field in result_fields
+                  %td.header
+                    .details{ onclick: 'toggleValue({{forloop.counter0}});'}
+                      .icons
+                        .icon-flow.category
+                        .icon-bubble-2.text
+                      {{result_field.name}}
+                    .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
+
+            %tbody{id:"results_run_table"}
+              %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#results_run_table", ic-indicator:"#indicator"}
 
   #indicator{style:"display:none"}
     .loader

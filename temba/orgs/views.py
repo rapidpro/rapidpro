@@ -1520,7 +1520,7 @@ class OrgCRUDL(SmartCRUDL):
             org_id = self.request.GET.get("org")
             return "%s?org=%s" % (reverse("orgs.org_manage_accounts_sub_org"), org_id)
 
-    class TwoFactor(InferOrgMixin, OrgPermsMixin, SmartFormView):
+    class TwoFactor(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class TwoFactorForm(forms.Form):
             token = forms.CharField(
                 label=_("Authentication Token"),
@@ -2337,7 +2337,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return context
 
-    class Chatbase(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+    class Chatbase(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class ChatbaseForm(forms.ModelForm):
             agent_name = forms.CharField(
                 max_length=255, label=_("Agent Name"), required=False, help_text="Enter your Chatbase Agent's name"
@@ -2346,8 +2346,7 @@ class OrgCRUDL(SmartCRUDL):
                 max_length=255,
                 label=_("API Key"),
                 required=False,
-                help_text="You can find your Agent's API Key "
-                "<a href='https://chatbase.com/agents/main-page' target='_new'>here</a>",
+                help_text="You can find your Agent's API Key in your chatbase account",
             )
             version = forms.CharField(
                 max_length=10, label=_("Version"), required=False, help_text="Any will do, e.g. 1.0, 1.2.1"
@@ -2495,8 +2494,14 @@ class OrgCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            if self.has_org_perm("orgs.org_plan"):
-                formax.add_section("plan", reverse("orgs.org_plan"), icon="icon-credit", action="summary")
+            # if we are on the topups plan, show our usual credits view
+            if org.plan == settings.TOPUP_PLAN:
+                if self.has_org_perm("orgs.topup_list"):
+                    formax.add_section("topups", reverse("orgs.topup_list"), icon="icon-coins", action="link")
+
+            else:
+                if self.has_org_perm("orgs.org_plan"):
+                    formax.add_section("plan", reverse("orgs.org_plan"), icon="icon-credit", action="summary")
 
             if self.has_org_perm("channels.channel_update"):
                 # get any channel thats not a delegate

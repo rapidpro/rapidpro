@@ -140,7 +140,7 @@
                   {{urn|format_urn:user_org}}      
 
   -if open_tickets
-    %table.list.tickets
+    %table.list.tickets.mt-6
       %thead
         %th(colspan="5")
           -trans "Open Tickets"
@@ -244,6 +244,11 @@
     :css
       .urn-link {
         display: inline-block;
+      }
+
+      .page-content {
+        align-self: auto;
+        max-width: 1024px;
       }
 
     {% lessblock %}

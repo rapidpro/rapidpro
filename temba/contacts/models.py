@@ -727,10 +727,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     )
 
     # whether contact has been blocked by a user
-    is_blocked = models.BooleanField(default=False)
+    is_blocked = models.BooleanField(default=False, null=True)
 
     # whether contact has opted out of receiving messages
-    is_stopped = models.BooleanField(default=False)
+    is_stopped = models.BooleanField(default=False, null=True)
 
     # custom field values for this contact, keyed by field UUID
     fields = JSONField(null=True)
@@ -2014,6 +2014,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
 
         Contact.bulk_change_status(user, [self], modifiers.Status.STOPPED)
+        self.refresh_from_db()
+
+    def archive(self, user):
+        """
+        Blocks this contact removing it from all non-dynamic groups
+        """
+
+        Contact.bulk_change_status(user, [self], modifiers.Status.ARCHIVED)
         self.refresh_from_db()
 
     def reactivate(self, user):

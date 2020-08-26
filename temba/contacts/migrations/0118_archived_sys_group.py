@@ -5,7 +5,7 @@ from django.db import migrations
 GROUP_TYPE_ARCHIVED = "V"
 
 
-def add_archived_sys_group(apps, schema_editor):
+def add_archived_sys_group(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
     for org in Org.objects.all():
         if not org.all_groups.filter(group_type=GROUP_TYPE_ARCHIVED).exists():
@@ -17,7 +17,7 @@ def add_archived_sys_group(apps, schema_editor):
             )
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     ContactGroup = apps.get_model("contacts", "ContactGroup")
     ContactGroup.all_groups.filter(group_type=GROUP_TYPE_ARCHIVED).delete()
 

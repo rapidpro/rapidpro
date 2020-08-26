@@ -14,17 +14,17 @@
         %td(align="right")
           {% trans "Endpoint" %}
         %td
-          .code= prometheus_url
+          .code.whitespace-normal= prometheus_url
       %tr.bottom-pad
         %td(align="right")
           {%trans "Username" %}
         %td
-          .code metrics
+          .code.whitespace-normal metrics
       %tr.bottom-pad
         %td(align="right")
           {% trans "Password" %}
         %td
-          .code= prometheus_token
+          .code.whitespace-normal= prometheus_token
 
 -block form-buttons
   .form-actions

@@ -48,10 +48,10 @@
           - with group_fields|get:user as row_fields
             - for check_name in row_fields
               %td.check.permission.level-checkbox
-                .flex.justify-center.text-gray-900
+                .m-auto(style="width:24px")
                   {{form|field:check_name}}
           %td.check.permission.level-checkbox
-            .flex.justify-center
+            .m-auto(style="width:24px")
               %temba-checkbox(name="")
 
       // pending invites

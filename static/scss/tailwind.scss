@@ -245,18 +245,20 @@ a {
 }
 
 .alert {
-  @apply rounded-lg px-4 py-3;
+  @apply rounded-lg px-4 py-2;
 }
 
 .alert-info {
-  @apply alert bg-gray-100;
+  @apply alert;
+  background-color: #d9edf7;
+  color: #3a87ad;
 }
 
 .alert-warning {
-  @apply alert bg-gray-100;
+  @apply alert bg-gray-100 text-gray-600;
 }
 
-.alert-error {
+.alert-danger, .alert-error {
   @apply alert text-error;
   background: rgba(255, 181, 181, .17);
 }
@@ -558,7 +560,7 @@ table.list {
       }
 
       .inner-scroll {
-        @apply overflow-y-scroll max-h-128 pr-2 -mr-2;
+        @apply overflow-y-auto max-h-128 pr-2 -mr-2;
       }
 
       .lp-nav-item {
@@ -594,32 +596,36 @@ code {
 }
 
 .code {
-  @apply bg-gray-100 rounded-lg px-3 py-2 leading-tight font-normal text-sm font-mono;
+  @apply bg-dark-alpha-30 rounded-lg px-1 py-1 leading-tight text-base font-mono inline-block mx-1 whitespace-no-wrap;
   color: #2980b9;
-}
 
-.code {
-  @apply bg-gray-100 rounded-lg px-3 py-2 leading-tight font-normal text-sm font-mono;
-  color: #2980b9;
 }
 
 .card {
   @apply rounded-lg py-6 px-6 shadow my-4 bg-white overflow-hidden transition duration-200;
 
   .bleed-t {
-    @apply -mt-6 pt-6;
+    @apply -mt-6 mb-6;
+  }
+
+  .bleed-r {
+    @apply -mr-6 ml-6;
+  }
+
+  .bleed-l {
+    @apply -ml-6 mr-6;
   }
 
   .bleed-b {
-    @apply -mb-6 py-6;
+    @apply -mb-6 mt-6;
   }
 
   .bleed-x {
-    @apply -mx-6 px-6;
+    @apply -mx-6;
   }
 
   .bleed-y {
-    @apply -my-6 py-6;
+    @apply -my-6;
   }
 
   &.link {
