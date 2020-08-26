@@ -22,7 +22,7 @@
                   -trans "Closed"
 
             -if ticketers
-              .lp-nav.lower
+              .lp-nav.lower(style="width: 500px;")
                 .font-normal.uppercase.text-xs.text-gray-500.pb-1
                   -trans "Services"
                 .inner-scroll
@@ -31,7 +31,7 @@
                       .name(onclick="goto(event)" href="{% url 'tickets.ticket_filter' t.uuid %}")
                         {{ t.name }}
 
-        .right
+        .right.ml-6
           .flex.w-full.items-end.mb-4
             -block action-buttons
               -if org_perms.tickets.ticket_update

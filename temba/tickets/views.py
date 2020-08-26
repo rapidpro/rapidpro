@@ -118,7 +118,7 @@ class TicketCRUDL(SmartCRUDL):
                     dict(
                         id="ticketer-delete",
                         title=_("Delete"),
-                        modax=_("Delete"),
+                        modax=_("Delete Ticket Service"),
                         href=reverse("tickets.ticketer_delete", args=[self.ticketer.uuid]),
                     )
                 )
@@ -153,7 +153,14 @@ class TicketerCRUDL(SmartCRUDL):
         cancel_url = "uuid@tickets.ticket_filter"
         title = _("Delete Ticketing Service")
         success_message = ""
+        submit_button_name = _("Delete")
         fields = ("uuid",)
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            ticketer = self.get_object()
+            context["used_by_flows"] = ticketer.dependent_flows.all()[:5]
+            return context
 
         def get_success_url(self):
             return reverse("orgs.org_home")
