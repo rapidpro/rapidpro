@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-26 13:20+0000\n"
+"POT-Creation-Date: 2020-08-26 18:54+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2477,7 +2477,7 @@ msgstr ""
 msgid "Restore"
 msgstr ""
 
-msgid "All Contacts"
+msgid "Active"
 msgstr ""
 
 msgid "Blocked"
@@ -4421,9 +4421,6 @@ msgid "The referrer id that will trigger us"
 msgstr ""
 
 msgid "Create Trigger"
-msgstr ""
-
-msgid "Active"
 msgstr ""
 
 msgid "Triggers"

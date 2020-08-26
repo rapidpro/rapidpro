@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-26 13:20+0000\n"
+"POT-Creation-Date: 2020-08-26 18:54+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2785,8 +2785,8 @@ msgstr "Vous ne pouvez pas mettre à jour la requête d'un groupe en cours d'év
 msgid "Restore"
 msgstr ""
 
-msgid "All Contacts"
-msgstr "Tous les contacts"
+msgid "Active"
+msgstr "Actif"
 
 msgid "Blocked"
 msgstr "Bloqué"
@@ -4736,9 +4736,6 @@ msgstr "L'identifiant de référence qui nous déclenchera"
 
 msgid "Create Trigger"
 msgstr "Créer des declencheurs"
-
-msgid "Active"
-msgstr "Actif"
 
 msgid "Triggers"
 msgstr "Déclencheurs"
@@ -10633,6 +10630,9 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "All Contacts"
+#~ msgstr "Tous les contacts"
 
 #~ msgid "Contact unblocked"
 #~ msgstr "Contact débloqué"
