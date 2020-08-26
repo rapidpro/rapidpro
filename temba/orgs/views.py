@@ -1520,7 +1520,7 @@ class OrgCRUDL(SmartCRUDL):
             org_id = self.request.GET.get("org")
             return "%s?org=%s" % (reverse("orgs.org_manage_accounts_sub_org"), org_id)
 
-    class TwoFactor(InferOrgMixin, OrgPermsMixin, SmartFormView):
+    class TwoFactor(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class TwoFactorForm(forms.Form):
             token = forms.CharField(
                 label=_("Authentication Token"),
