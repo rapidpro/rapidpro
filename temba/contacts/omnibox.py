@@ -93,7 +93,7 @@ def omnibox_mixed_search(org, query, types):
 
     if SEARCH_CONTACTS in search_types:
         try:
-            search_results = search_contacts(org.id, org.cached_all_contacts_group.uuid, query, "name")
+            search_results = search_contacts(org.id, org.cached_active_contacts_group.uuid, query, "name")
             contacts = IDSliceQuerySet(Contact, search_results.contact_ids, 0, len(search_results.contact_ids))
             results += list(contacts[:per_type_limit])
             Contact.bulk_cache_initialize(org, contacts=results)
@@ -107,7 +107,7 @@ def omnibox_mixed_search(org, query, types):
                 # build an ORed query of all sendable schemes
                 sendable_schemes = org.get_schemes(Channel.ROLE_SEND)
                 scheme_query = " OR ".join(f"{s} ~ {json.dumps(query)}" for s in sendable_schemes)
-                search_results = search_contacts(org.id, org.cached_all_contacts_group.uuid, scheme_query, "name")
+                search_results = search_contacts(org.id, org.cached_active_contacts_group.uuid, scheme_query, "name")
                 urns = ContactURN.objects.filter(
                     contact_id__in=search_results.contact_ids, scheme__in=sendable_schemes
                 )

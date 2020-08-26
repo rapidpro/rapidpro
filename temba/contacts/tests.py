@@ -527,7 +527,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(
             counts,
             {
-                ContactGroup.TYPE_ALL: 0,
+                ContactGroup.TYPE_ACTIVE: 0,
                 ContactGroup.TYPE_BLOCKED: 0,
                 ContactGroup.TYPE_STOPPED: 0,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -543,7 +543,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(
             counts,
             {
-                ContactGroup.TYPE_ALL: 4,
+                ContactGroup.TYPE_ACTIVE: 4,
                 ContactGroup.TYPE_BLOCKED: 0,
                 ContactGroup.TYPE_STOPPED: 0,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -561,7 +561,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(
             counts,
             {
-                ContactGroup.TYPE_ALL: 1,
+                ContactGroup.TYPE_ACTIVE: 1,
                 ContactGroup.TYPE_BLOCKED: 2,
                 ContactGroup.TYPE_STOPPED: 1,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -583,7 +583,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(
             counts,
             {
-                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_ACTIVE: 3,
                 ContactGroup.TYPE_BLOCKED: 0,
                 ContactGroup.TYPE_STOPPED: 0,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -591,7 +591,7 @@ class ContactGroupTest(TembaTest):
         )
 
         # rebuild just our system contact group
-        all_contacts = ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
+        all_contacts = ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ACTIVE)
         ContactGroupCount.populate_for_group(all_contacts)
 
         # assert our count is correct
@@ -1309,7 +1309,7 @@ class ContactTest(TembaTest):
         self.assertEqual(
             ContactGroup.get_system_group_counts(self.org),
             {
-                ContactGroup.TYPE_ALL: 4,
+                ContactGroup.TYPE_ACTIVE: 4,
                 ContactGroup.TYPE_BLOCKED: 0,
                 ContactGroup.TYPE_STOPPED: 0,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -1330,7 +1330,7 @@ class ContactTest(TembaTest):
         self.assertEqual(
             ContactGroup.get_system_group_counts(self.org),
             {
-                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_ACTIVE: 3,
                 ContactGroup.TYPE_BLOCKED: 0,
                 ContactGroup.TYPE_STOPPED: 1,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -1349,7 +1349,7 @@ class ContactTest(TembaTest):
         self.assertEqual(
             ContactGroup.get_system_group_counts(self.org),
             {
-                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_ACTIVE: 3,
                 ContactGroup.TYPE_BLOCKED: 1,
                 ContactGroup.TYPE_STOPPED: 0,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -1376,7 +1376,7 @@ class ContactTest(TembaTest):
         self.assertEqual(
             ContactGroup.get_system_group_counts(self.org),
             {
-                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_ACTIVE: 3,
                 ContactGroup.TYPE_BLOCKED: 0,
                 ContactGroup.TYPE_STOPPED: 0,
                 ContactGroup.TYPE_ARCHIVED: 1,
@@ -1394,7 +1394,7 @@ class ContactTest(TembaTest):
         self.assertEqual(
             ContactGroup.get_system_group_counts(self.org),
             {
-                ContactGroup.TYPE_ALL: 4,
+                ContactGroup.TYPE_ACTIVE: 4,
                 ContactGroup.TYPE_BLOCKED: 0,
                 ContactGroup.TYPE_STOPPED: 0,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -1411,7 +1411,7 @@ class ContactTest(TembaTest):
         self.assertEqual(
             ContactGroup.get_system_group_counts(self.org),
             {
-                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_ACTIVE: 3,
                 ContactGroup.TYPE_BLOCKED: 0,
                 ContactGroup.TYPE_STOPPED: 0,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -1441,7 +1441,7 @@ class ContactTest(TembaTest):
         self.assertEqual(
             ContactGroup.get_system_group_counts(self.org),
             {
-                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_ACTIVE: 3,
                 ContactGroup.TYPE_BLOCKED: 0,
                 ContactGroup.TYPE_STOPPED: 0,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -1456,7 +1456,7 @@ class ContactTest(TembaTest):
         self.assertEqual(
             ContactGroup.get_system_group_counts(self.org),
             {
-                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_ACTIVE: 3,
                 ContactGroup.TYPE_BLOCKED: 0,
                 ContactGroup.TYPE_STOPPED: 1,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -5801,7 +5801,7 @@ class ContactFieldTest(TembaTest):
 
             self.assertIsNotNone(response.context["task"])
 
-        # no group specified, so will default to 'All Contacts'
+        # no group specified, so will default to 'Active'
         with self.assertNumQueries(49):
             export = request_export()
             self.assertExcelSheet(
@@ -7121,7 +7121,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
             contact = self.create_contact(name=name, number=number, twitter=twitter, fields=fields)
 
         def q(query):
-            results = search_contacts(self.org.id, self.org.cached_all_contacts_group.uuid, query, None)
+            results = search_contacts(self.org.id, self.org.cached_active_contacts_group.uuid, query, None)
             return results.total
 
         db_config = connection.settings_dict

@@ -16,7 +16,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-26 13:20+0000\n"
+"POT-Creation-Date: 2020-08-26 18:54+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Matheus Soares <matheus.soares@ilhasoft.com.br>, 2020\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -2775,8 +2775,8 @@ msgstr "Você não pode atualizar a consulta de um grupo que está avaliando."
 msgid "Restore"
 msgstr ""
 
-msgid "All Contacts"
-msgstr "Todos os contatos"
+msgid "Active"
+msgstr "Ativo"
 
 msgid "Blocked"
 msgstr "Bloqueado"
@@ -4726,9 +4726,6 @@ msgstr "O id do referente que iniciara"
 
 msgid "Create Trigger"
 msgstr "Criar disparador"
-
-msgid "Active"
-msgstr "Ativo"
 
 msgid "Triggers"
 msgstr "Disparadores"
@@ -10587,6 +10584,9 @@ msgstr "Adicione uma dúvida"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Encontrado ${count} para ${query}"
+
+#~ msgid "All Contacts"
+#~ msgstr "Todos os contatos"
 
 #~ msgid "Contact unblocked"
 #~ msgstr "Contato desbloqueado"
