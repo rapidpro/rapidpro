@@ -3,26 +3,10 @@
 
 -block modal
     #fb-guide
-      %h4
-        -trans "You can connect your Facebook page in just a few simple steps."
-      %ol
-        %li
-          -trans "Click on the button below to get started."
+      -trans "You can connect your Facebook page's Messenger account, click below to get started."
 
-        %li
-          -trans "Select the user you want to log in as."
-
-        %li
-          -trans "Select all the pages you want to grant us permissions for."
-
-        %li
-          -trans "Approve the permissions, these are required for us to send and receive messages on your behalf."
-
-        %li
-          -trans "Finally, select the page you want to add as a channel."
-
-    #fb-app-connect
-      .btn.btn-primary.connect-facebook
+    #fb-app-connect.mt-4
+      .button-primary.inline-block.connect-facebook
         -trans "Add Facebook Page"
     
     #throbber(style="display:none;")
@@ -39,8 +23,6 @@
     %input#user-access-token(type="text" name="user_access_token")
     %input#page-id(type="text" name="page_id")
     %input#page-name(type="text" name="page_name")
-
-
 
 -block extra-less
   -compress css inline
