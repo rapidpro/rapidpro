@@ -26,10 +26,13 @@ function gotoLink(href) {
     document.location.href = href;
 }
 
-function setCookie(name, value) {
+function setCookie(name, value, path) {
+    if (!path) {
+        path = '/';
+    }
     var now = new Date();
     now.setTime(now.getTime() + 60 * 1000 * 60 * 24 * 30);
-    document.cookie = `${name}=${value};expires=${now.toUTCString()}`;
+    document.cookie = `${name}=${value};expires=${now.toUTCString()};path=${path}`;
 }
 
 function getCookie(name) {
