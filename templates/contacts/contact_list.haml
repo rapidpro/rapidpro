@@ -84,27 +84,27 @@
                             .-mt-1.mr-2.glyph.icon-user-block
                             -trans "Block"
 
-                        - if 'unblock' in actions
-                          .button-action.object-btn-unblock
-                            .-mt-1.mr-2.glyph.icon-user-block
-                            -trans "Unblock"
+                        -if 'archive' in actions
+                          .button-action.object-btn-archive
+                            .-mt-1.mr-2.glyph.icon-archive
+                            -trans "Archive"
 
-                        - if 'unstop' in actions
-                          .button-action.object-btn-unstop
+                        -if 'restore' in actions
+                          .button-action.object-btn-restore
                             .-mt-1.mr-2.glyph.icon-user
-                            -trans "Unstop"
+                            -trans "Restore"
 
-                        - if 'delete' in actions
+                        -if 'delete' in actions
                           .button-action.contacts-btn-delete
                             .-mt-1.mr-2.glyph.icon-user-delete
                             -trans "Delete"
 
-                        - if 'unlabel' in actions
+                        -if 'unlabel' in actions
                           .button-action{onclick:'unlabelObjectRows({{current_group.pk}});'}
                             .-mt-1.mr-2.glyph.icon-user-remove
                             -trans "Remove From Group"
 
-                        - if 'label' in actions
+                        -if 'label' in actions
                           .btn-group
                             .button-action.dropdown-toggle{data-toggle:"dropdown", data-delay:"800"}
                               .-mt-1.mr-2.glyph.icon-users-2{style:"width:16px"}

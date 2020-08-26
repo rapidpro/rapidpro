@@ -213,10 +213,10 @@ class ContactCRUDLTest(TembaTest):
 
         # try unblocking now
         response = self.client.get(read_url)
-        unblock_url = reverse("contacts.contact_unblock", args=[self.joe.id])
-        self.assertContains(response, unblock_url)
+        restore_url = reverse("contacts.contact_restore", args=[self.joe.id])
+        self.assertContains(response, restore_url)
 
-        self.client.post(unblock_url, dict(id=self.joe.id))
+        self.client.post(restore_url, dict(id=self.joe.id))
         self.assertTrue(Contact.objects.get(pk=self.joe.id, status="A"))
 
         # can't block contacts from other orgs
@@ -227,29 +227,28 @@ class ContactCRUDLTest(TembaTest):
         other_org_contact.refresh_from_db()
         self.assertEqual(Contact.STATUS_ACTIVE, other_org_contact.status)
 
-        # or unblock...
+        # or restore...
         other_org_contact.block(self.admin2)
 
-        response = self.client.post(reverse("contacts.contact_unblock", args=[other_org_contact.id]))
+        response = self.client.post(reverse("contacts.contact_restore", args=[other_org_contact.id]))
         self.assertLoginRedirect(response)
 
         # contact should be unchanged
         other_org_contact.refresh_from_db()
         self.assertEqual(Contact.STATUS_BLOCKED, other_org_contact.status)
 
-        unstop_url = reverse("contacts.contact_unstop", args=[self.joe.id])
         delete_url = reverse("contacts.contact_delete", args=[self.joe.id])
 
         response = self.client.get(read_url)
 
-        self.assertNotContains(response, unstop_url)
+        self.assertNotContains(response, restore_url)
         self.assertContains(response, delete_url)
 
         # unstop option available for stopped contacts
         self.joe.stop(self.user)
         response = self.client.get(read_url)
 
-        self.assertContains(response, unstop_url)
+        self.assertContains(response, restore_url)
         self.assertContains(response, delete_url)
 
         # can't access a deleted contact
@@ -273,35 +272,69 @@ class ContactCRUDLTest(TembaTest):
         self.assertEqual(response.status_code, 404)
 
     @mock_mailroom
-    def test_unstop(self, mr_mocks):
+    def test_archive(self, mr_mocks):
+        contact = self.create_contact("Joe", number="+593979000111")
+        other_org_contact = self.create_contact("Hans", number="+593979123456", org=self.org2)
+
+        archive_url = reverse("contacts.contact_archive", args=[contact.id])
+
+        # can't archive if not logged in
+        response = self.client.post(archive_url, {"id": contact.id})
+        self.assertLoginRedirect(response)
+
+        self.login(self.user)
+
+        # can't archive if just regular user
+        response = self.client.post(archive_url, {"id": contact.id})
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.post(archive_url, {"id": contact.id})
+        self.assertEqual(302, response.status_code)
+
+        contact.refresh_from_db()
+        self.assertEqual(Contact.STATUS_ARCHIVED, contact.status)
+
+        # can't archive contact in other org
+        archive_url = reverse("contacts.contact_restore", args=[other_org_contact.id])
+        response = self.client.post(archive_url, {"id": other_org_contact.id})
+        self.assertLoginRedirect(response)
+
+        # contact should be unchanged
+        other_org_contact.refresh_from_db()
+        self.assertEqual(Contact.STATUS_ACTIVE, other_org_contact.status)
+
+    @mock_mailroom
+    def test_restore(self, mr_mocks):
         contact = self.create_contact("Joe", number="+593979000111")
         contact.stop(self.admin)
         other_org_contact = self.create_contact("Hans", number="+593979123456", org=self.org2)
         other_org_contact.stop(self.admin2)
 
-        unstop_url = reverse("contacts.contact_unstop", args=[contact.id])
+        restore_url = reverse("contacts.contact_restore", args=[contact.id])
 
-        # can't unstop if not logged in
-        response = self.client.post(unstop_url, {"id": contact.id})
+        # can't restore if not logged in
+        response = self.client.post(restore_url, {"id": contact.id})
         self.assertLoginRedirect(response)
 
         self.login(self.user)
 
-        # can't unstop if just regular user
-        response = self.client.post(unstop_url, {"id": contact.id})
+        # can't restore if just regular user
+        response = self.client.post(restore_url, {"id": contact.id})
         self.assertLoginRedirect(response)
 
         self.login(self.admin)
 
-        response = self.client.post(unstop_url, {"id": contact.id})
+        response = self.client.post(restore_url, {"id": contact.id})
         self.assertEqual(302, response.status_code)
 
         contact.refresh_from_db()
         self.assertEqual(Contact.STATUS_ACTIVE, contact.status)
 
-        # can't unstop contact in other org
-        unstop_url = reverse("contacts.contact_unstop", args=[other_org_contact.id])
-        response = self.client.post(unstop_url, {"id": other_org_contact.id})
+        # can't restore contact in other org
+        restore_url = reverse("contacts.contact_restore", args=[other_org_contact.id])
+        response = self.client.post(restore_url, {"id": other_org_contact.id})
         self.assertLoginRedirect(response)
 
         # contact should be unchanged
@@ -493,7 +526,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(
             counts,
             {
-                ContactGroup.TYPE_ALL: 0,
+                ContactGroup.TYPE_ACTIVE: 0,
                 ContactGroup.TYPE_BLOCKED: 0,
                 ContactGroup.TYPE_STOPPED: 0,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -509,7 +542,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(
             counts,
             {
-                ContactGroup.TYPE_ALL: 4,
+                ContactGroup.TYPE_ACTIVE: 4,
                 ContactGroup.TYPE_BLOCKED: 0,
                 ContactGroup.TYPE_STOPPED: 0,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -527,7 +560,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(
             counts,
             {
-                ContactGroup.TYPE_ALL: 1,
+                ContactGroup.TYPE_ACTIVE: 1,
                 ContactGroup.TYPE_BLOCKED: 2,
                 ContactGroup.TYPE_STOPPED: 1,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -536,10 +569,10 @@ class ContactGroupTest(TembaTest):
 
         murdock.release(self.user)
         murdock.release(self.user)
-        face.reactivate(self.user)
-        face.reactivate(self.user)
-        ba.reactivate(self.user)
-        ba.reactivate(self.user)
+        face.restore(self.user)
+        face.restore(self.user)
+        ba.restore(self.user)
+        ba.restore(self.user)
 
         # squash all our counts, this shouldn't affect our overall counts, but we should now only have 3
         squash_contactgroupcounts()
@@ -549,7 +582,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(
             counts,
             {
-                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_ACTIVE: 3,
                 ContactGroup.TYPE_BLOCKED: 0,
                 ContactGroup.TYPE_STOPPED: 0,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -557,7 +590,7 @@ class ContactGroupTest(TembaTest):
         )
 
         # rebuild just our system contact group
-        all_contacts = ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
+        all_contacts = ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ACTIVE)
         ContactGroupCount.populate_for_group(all_contacts)
 
         # assert our count is correct
@@ -1156,7 +1189,7 @@ class ContactTest(TembaTest):
         )
         mock_contact_modify.reset_mock()
 
-        self.joe.reactivate(self.admin)
+        self.joe.restore(self.admin)
 
         mock_contact_modify.assert_called_once_with(
             self.org.id, self.admin.id, [self.joe.id], [modifiers.Status(status="active")]
@@ -1275,7 +1308,7 @@ class ContactTest(TembaTest):
         self.assertEqual(
             ContactGroup.get_system_group_counts(self.org),
             {
-                ContactGroup.TYPE_ALL: 4,
+                ContactGroup.TYPE_ACTIVE: 4,
                 ContactGroup.TYPE_BLOCKED: 0,
                 ContactGroup.TYPE_STOPPED: 0,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -1296,7 +1329,7 @@ class ContactTest(TembaTest):
         self.assertEqual(
             ContactGroup.get_system_group_counts(self.org),
             {
-                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_ACTIVE: 3,
                 ContactGroup.TYPE_BLOCKED: 0,
                 ContactGroup.TYPE_STOPPED: 1,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -1315,7 +1348,7 @@ class ContactTest(TembaTest):
         self.assertEqual(
             ContactGroup.get_system_group_counts(self.org),
             {
-                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_ACTIVE: 3,
                 ContactGroup.TYPE_BLOCKED: 1,
                 ContactGroup.TYPE_STOPPED: 0,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -1342,14 +1375,14 @@ class ContactTest(TembaTest):
         self.assertEqual(
             ContactGroup.get_system_group_counts(self.org),
             {
-                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_ACTIVE: 3,
                 ContactGroup.TYPE_BLOCKED: 0,
                 ContactGroup.TYPE_STOPPED: 0,
                 ContactGroup.TYPE_ARCHIVED: 1,
             },
         )
 
-        self.joe.reactivate(self.admin)
+        self.joe.restore(self.admin)
 
         # check that joe is now neither blocked or stopped
         self.joe = Contact.objects.get(pk=self.joe.pk)
@@ -1360,7 +1393,7 @@ class ContactTest(TembaTest):
         self.assertEqual(
             ContactGroup.get_system_group_counts(self.org),
             {
-                ContactGroup.TYPE_ALL: 4,
+                ContactGroup.TYPE_ACTIVE: 4,
                 ContactGroup.TYPE_BLOCKED: 0,
                 ContactGroup.TYPE_STOPPED: 0,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -1377,7 +1410,7 @@ class ContactTest(TembaTest):
         self.assertEqual(
             ContactGroup.get_system_group_counts(self.org),
             {
-                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_ACTIVE: 3,
                 ContactGroup.TYPE_BLOCKED: 0,
                 ContactGroup.TYPE_STOPPED: 0,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -1407,7 +1440,7 @@ class ContactTest(TembaTest):
         self.assertEqual(
             ContactGroup.get_system_group_counts(self.org),
             {
-                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_ACTIVE: 3,
                 ContactGroup.TYPE_BLOCKED: 0,
                 ContactGroup.TYPE_STOPPED: 0,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -1422,7 +1455,7 @@ class ContactTest(TembaTest):
         self.assertEqual(
             ContactGroup.get_system_group_counts(self.org),
             {
-                ContactGroup.TYPE_ALL: 3,
+                ContactGroup.TYPE_ACTIVE: 3,
                 ContactGroup.TYPE_BLOCKED: 0,
                 ContactGroup.TYPE_STOPPED: 1,
                 ContactGroup.TYPE_ARCHIVED: 0,
@@ -3239,7 +3272,7 @@ class ContactTest(TembaTest):
         self.assertContains(response, "Frank Smith")
         self.assertContains(response, "Billy Nophone")
         self.assertContains(response, "Joe and Frank")
-        self.assertEqual(response.context["actions"], ("label", "block"))
+        self.assertEqual(response.context["actions"], ("label", "block", "archive"))
 
         # make sure Joe's preferred URN is in the list
         self.assertContains(response, "blow80")
@@ -3265,7 +3298,7 @@ class ContactTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(list_url)
         self.assertEqual(list(response.context["object_list"]), [self.voldemort, self.billy, self.frank, self.joe])
-        self.assertEqual(response.context["actions"], ("label", "block"))
+        self.assertEqual(response.context["actions"], ("label", "block", "archive"))
 
         # this just_joe group has one contact and joe_and_frank group has two contacts
         self.assertEqual(len(self.just_joe.contacts.all()), 1)
@@ -3365,7 +3398,7 @@ class ContactTest(TembaTest):
         self.assertEqual(1, response.context["object_list"].count())  # from ContactGroupCount
 
         # have the user unstop them
-        self.client.post(stopped_url, {"action": "unstop", "objects": self.frank.id}, follow=True)
+        self.client.post(stopped_url, {"action": "restore", "objects": self.frank.id}, follow=True)
 
         response = self.client.get(stopped_url)
         self.assertEqual(0, len(response.context["object_list"]))
@@ -3391,13 +3424,13 @@ class ContactTest(TembaTest):
         self.assertEqual(list(response.context["object_list"]), [self.joe])
 
         # can unblock contacts from this page
-        self.client.post(blocked_url, {"action": "unblock", "objects": self.joe.id}, follow=True)
+        self.client.post(blocked_url, {"action": "restore", "objects": self.joe.id}, follow=True)
 
         # and check that Joe is restored to the contact list but the group not restored
         response = self.client.get(list_url)
         self.assertContains(response, "Joe Blow")
         self.assertContains(response, "Frank Smith")
-        self.assertEqual(response.context["actions"], ("label", "block"))
+        self.assertEqual(response.context["actions"], ("label", "block", "archive"))
         self.assertEqual(len(self.just_joe.contacts.all()), 0)
         self.assertEqual(len(self.joe_and_frank.contacts.all()), 1)
 
@@ -3529,7 +3562,7 @@ class ContactTest(TembaTest):
         self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True)
 
         self.joe = Contact.objects.get(pk=self.joe.pk)
-        self.joe.reactivate(self.user)
+        self.joe.restore(self.user)
 
         # add new urn for joe
         self.client.post(
@@ -3642,12 +3675,21 @@ class ContactTest(TembaTest):
 
         self.frank.block(self.admin)
 
-        # try delete action
+        # try archive action
         event = ChannelEvent.create(
             self.channel, str(self.frank.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), {}
         )
 
-        self.client.post(blocked_url, {"action": "delete", "objects": self.frank.id})
+        self.client.post(blocked_url, {"action": "archive", "objects": self.frank.id})
+
+        archived_url = reverse("contacts.contact_archived")
+
+        response = self.client.get(archived_url)
+        self.assertEqual(list(response.context["object_list"]), [self.frank])
+
+        # and from there we can really delete a contact
+        self.client.post(archived_url, {"action": "delete", "objects": self.frank.id})
+
         self.assertFalse(ChannelEvent.objects.filter(contact=self.frank))
         self.assertFalse(ChannelEvent.objects.filter(id=event.id))
 
@@ -4023,7 +4065,7 @@ class ContactTest(TembaTest):
         self.assertEqual(0, eric.user_groups.count())
 
         # ok, unstop eric
-        eric.reactivate(self.admin)
+        eric.restore(self.admin)
 
         # update file changes a name, and adds one more
         records, _ = self.do_import(user, "sample_contacts_update.csv")
@@ -5764,7 +5806,7 @@ class ContactFieldTest(TembaTest):
 
             self.assertIsNotNone(response.context["task"])
 
-        # no group specified, so will default to 'All Contacts'
+        # no group specified, so will default to 'Active'
         with self.assertNumQueries(49):
             export = request_export()
             self.assertExcelSheet(
@@ -7084,7 +7126,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
             contact = self.create_contact(name=name, number=number, twitter=twitter, fields=fields)
 
         def q(query):
-            results = search_contacts(self.org.id, self.org.cached_all_contacts_group.uuid, query, None)
+            results = search_contacts(self.org.id, self.org.cached_active_contacts_group.uuid, query, None)
             return results.total
 
         db_config = connection.settings_dict

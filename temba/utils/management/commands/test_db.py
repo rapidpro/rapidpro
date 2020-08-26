@@ -574,7 +574,7 @@ class Command(BaseCommand):
                     # work out which system groups this contact belongs to
                     if c["is_active"]:
                         if c["status"] == Contact.STATUS_ACTIVE:
-                            c["groups"].append(org.cache["system_groups"][ContactGroup.TYPE_ALL])
+                            c["groups"].append(org.cache["system_groups"][ContactGroup.TYPE_ACTIVE])
                         elif c["status"] == Contact.STATUS_BLOCKED:
                             c["groups"].append(org.cache["system_groups"][ContactGroup.TYPE_BLOCKED])
                         elif c["status"] == Contact.STATUS_STOPPED:

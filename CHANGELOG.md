@@ -1,3 +1,8 @@
+v5.7.23
+----------
+ * Rename All Contacts to Active
+ * Add UI for archiving, restoring and deleting contacts
+
 v5.7.22
 ----------
  * Bump version of mailroom and indexer used for tests

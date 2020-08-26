@@ -1152,11 +1152,11 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
         assertOrgCounts(Contact.objects.all(), [15, 12, 3])
 
-        org_1_all_contacts = ContactGroup.system_groups.get(org=org1, name="All Contacts")
+        org_1_active_contacts = ContactGroup.system_groups.get(org=org1, name="Active")
 
-        self.assertEqual(org_1_all_contacts.contacts.count(), 15)
+        self.assertEqual(org_1_active_contacts.contacts.count(), 15)
         self.assertEqual(
-            list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list("count")), [(15,)]
+            list(ContactGroupCount.objects.filter(group=org_1_active_contacts).values_list("count")), [(15,)]
         )
 
         # same seed should generate objects with same UUIDs
