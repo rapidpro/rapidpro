@@ -1597,9 +1597,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 org, user, name, uuid=uuid, urns=urns, language=language, force_urn_update=True
             )
 
-        # if they exist and are blocked, reactivate them
+        # if they exist and are blocked, restore them
         if contact.status == Contact.STATUS_BLOCKED:
-            contact.reactivate(user)
+            contact.restore(user)
 
         # ignore any reserved fields or URN schemes
         valid_keys = (
@@ -1974,11 +1974,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         cls.bulk_change_status(user, contacts, modifiers.Status.BLOCKED)
 
     @classmethod
-    def apply_action_unblock(cls, user, contacts):
-        cls.bulk_change_status(user, contacts, modifiers.Status.ACTIVE)
+    def apply_action_archive(cls, user, contacts):
+        cls.bulk_change_status(user, contacts, modifiers.Status.ARCHIVED)
 
     @classmethod
-    def apply_action_unstop(cls, user, contacts):
+    def apply_action_restore(cls, user, contacts):
         cls.bulk_change_status(user, contacts, modifiers.Status.ACTIVE)
 
     @classmethod
@@ -2018,9 +2018,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Contact.bulk_change_status(user, [self], modifiers.Status.ARCHIVED)
         self.refresh_from_db()
 
-    def reactivate(self, user):
+    def restore(self, user):
         """
-        Reactivates a stopped or blocked contact, re-adding them to any dynamic groups they belong to
+        Restores a contact to active, re-adding them to any dynamic groups they belong to
         """
 
         Contact.bulk_change_status(user, [self], modifiers.Status.ACTIVE)

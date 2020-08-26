@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-21 21:06+0000\n"
+"POT-Creation-Date: 2020-08-26 13:20+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2756,6 +2756,9 @@ msgstr "Вы не можете создать динамическую груп�
 msgid "You cannot update the query of a group that is evaluating."
 msgstr "Вы не можете обновить запрос для группы, которая проводит оценку."
 
+msgid "Restore"
+msgstr "Восстановить"
+
 msgid "All Contacts"
 msgstr "Все Контакты"
 
@@ -2764,6 +2767,9 @@ msgstr "Заблокировано"
 
 msgid "Stopped"
 msgstr "Остановлено"
+
+msgid "Archived"
+msgstr "Архивировано"
 
 #, python-brace-format
 msgid "{label} for this contact"
@@ -2836,12 +2842,6 @@ msgstr "Настраиваемые Поля"
 msgid "Block"
 msgstr "Блокировать"
 
-msgid "Unblock"
-msgstr "Разблокировать"
-
-msgid "Unstop"
-msgstr "Запустить"
-
 msgid "Save as Group"
 msgstr "Сохранить как Группу"
 
@@ -2851,8 +2851,19 @@ msgstr "Управление Полями"
 msgid "Blocked Contacts"
 msgstr "Заблокированные Контакты"
 
+msgid "Unblock"
+msgstr "Разблокировать"
+
 msgid "Stopped Contacts"
 msgstr "Остановленные Контакты"
+
+msgid "Unstop"
+msgstr "Запустить"
+
+#, fuzzy
+#| msgid "Blocked Contacts"
+msgid "Archived Contacts"
+msgstr "Заблокированные Контакты"
 
 msgid "Edit Group"
 msgstr "Редактировать Группу"
@@ -2869,11 +2880,15 @@ msgstr "При обновлении Вашего контакта произош
 msgid "Contact blocked"
 msgstr "Контакт заблокирован"
 
-msgid "Contact unblocked"
-msgstr "Контакт разблокирован"
-
-msgid "Contact unstopped"
+#, fuzzy
+#| msgid "Contact unstopped"
+msgid "Contact restored"
 msgstr "Контакт запущен"
+
+#, fuzzy
+#| msgid "Contact Fields"
+msgid "Contact archived"
+msgstr "Поля Контактов"
 
 msgid "Must be unique."
 msgstr "Должен быть уникальным."
@@ -3516,9 +3531,6 @@ msgstr "Метаданные для сообщений этой рассылки
 
 msgid "Visible"
 msgstr "Видимо"
-
-msgid "Archived"
-msgstr "Архивировано"
 
 msgid "Deleted"
 msgstr "Удалено"
@@ -6556,6 +6568,9 @@ msgstr "Вы уверены, что хотите удалить этот кла�
 
 msgid "This classifier cannot be removed because it in use."
 msgstr "Этот классификатор не может быть удален, потому что он используется."
+
+msgid "These contacts have been removed from all groups and can be deleted permanently."
+msgstr ""
 
 msgid "Hold up!"
 msgstr "Подождите!"
@@ -11181,6 +11196,9 @@ msgstr "Ввести запрос"
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
 
+#~ msgid "Contact unblocked"
+#~ msgstr "Контакт разблокирован"
+
 #, fuzzy
 #~| msgid "Your username on DMark Mobile"
 #~ msgid "Your username on Click Mobile"
@@ -11390,9 +11408,6 @@ msgstr "Найдено ${count} по ${query}"
 #~| msgid "This organization has been whitelisted against spaminess"
 #~ msgid "This organization has been whitelisted against flagging"
 #~ msgstr "Данная организация была внесена в белый список, чтобы избежать попадания в спам"
-
-#~ msgid "Restore"
-#~ msgstr "Восстановить"
 
 #~ msgid "Suspend"
 #~ msgstr "Приостановить "

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-21 21:06+0000\n"
+"POT-Creation-Date: 2020-08-26 13:20+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3808,6 +3808,11 @@ msgstr ""
 msgid "You cannot update the query of a group that is evaluating."
 msgstr ""
 
+#, fuzzy
+#| msgid "Restore Flows"
+msgid "Restore"
+msgstr "Restaurar flujos"
+
 msgid "All Contacts"
 msgstr "Todos los contactos"
 
@@ -3816,6 +3821,9 @@ msgstr "Bloqueado"
 
 msgid "Stopped"
 msgstr ""
+
+msgid "Archived"
+msgstr "Archivado"
 
 #, fuzzy, python-brace-format
 #| msgid "The name of this contact"
@@ -3900,12 +3908,6 @@ msgstr "Campos para contacto con el cliente"
 msgid "Block"
 msgstr "Bloquear"
 
-msgid "Unblock"
-msgstr "Desbloquear"
-
-msgid "Unstop"
-msgstr ""
-
 msgid "Save as Group"
 msgstr "Guardar como grupo"
 
@@ -3915,10 +3917,21 @@ msgstr "Manejar campos"
 msgid "Blocked Contacts"
 msgstr "Contactos bloqueados"
 
+msgid "Unblock"
+msgstr "Desbloquear"
+
 #, fuzzy
 #| msgid "Show Contacts"
 msgid "Stopped Contacts"
 msgstr "Mostrar Contactos"
+
+msgid "Unstop"
+msgstr ""
+
+#, fuzzy
+#| msgid "Failed Contacts"
+msgid "Archived Contacts"
+msgstr "Contactos falló"
 
 msgid "Edit Group"
 msgstr "Editar grupos"
@@ -3939,12 +3952,13 @@ msgid "Contact blocked"
 msgstr "Teléfono del contacto"
 
 #, fuzzy
-msgid "Contact unblocked"
+msgid "Contact restored"
 msgstr "Teléfono del contacto"
 
 #, fuzzy
-msgid "Contact unstopped"
-msgstr "Teléfono del contacto"
+#| msgid "Manage Contact Fields"
+msgid "Contact archived"
+msgstr "Manejar Campos de Contactos"
 
 #, fuzzy
 #| msgid "Alias names must be unique, try again."
@@ -4699,9 +4713,6 @@ msgstr "El estátus actual para esta comunicación"
 
 msgid "Visible"
 msgstr "Visible"
-
-msgid "Archived"
-msgstr "Archivado"
 
 msgid "Deleted"
 msgstr "Borrado"
@@ -8392,6 +8403,9 @@ msgid "Are you sure you want to remove this classifier from your account?"
 msgstr "¿Está seguro de que desea borrar este número de su cuenta?"
 
 msgid "This classifier cannot be removed because it in use."
+msgstr ""
+
+msgid "These contacts have been removed from all groups and can be deleted permanently."
 msgstr ""
 
 msgid "Hold up!"
@@ -12859,6 +12873,10 @@ msgid "Found ${count} for ${query}"
 msgstr ""
 
 #, fuzzy
+#~ msgid "Contact unblocked"
+#~ msgstr "Teléfono del contacto"
+
+#, fuzzy
 #~| msgid "Your username on Africa's Talking"
 #~ msgid "Your username on Click Mobile"
 #~ msgstr "Su contraseña en Africa's Talking"
@@ -13022,11 +13040,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "This organization has been whitelisted against flagging"
 #~ msgstr "La Organización del usuario."
-
-#, fuzzy
-#~| msgid "Restore Flows"
-#~ msgid "Restore"
-#~ msgstr "Restaurar flujos"
 
 #~ msgid "Free Plan"
 #~ msgstr "Plan libre"
@@ -15744,9 +15757,6 @@ msgstr ""
 
 #~ msgid "%s is a reserved name for contact fields"
 #~ msgstr "%s es un nombre reservado para los campos del contacto"
-
-#~ msgid "Failed Contacts"
-#~ msgstr "Contactos falló"
 
 #~ msgid "The RuleSet that will interpret the response to this action (optional)"
 #~ msgstr "El grupo de reglas que interpretará la respuesta para esta acción (opcional)"
