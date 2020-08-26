@@ -16,12 +16,6 @@
 
 -block content
 
-  -trans 'Delete Contacts' as confirm_title
-  -trans 'Delete' as confirm_button
-  %temba-dialog#delete-confirmation{header:"{{confirm_title|escapejs}}", primaryButtonName:"{{confirm_button|escapejs}}", destructive: "true"}
-    .p-6
-      -trans "Are you sure you want to delete these contacts? This cannot be undone."
-
   #pjax
     -block pjax
       .lp-frame
@@ -268,6 +262,12 @@
           - else
             - include "contacts/empty_include.haml"
 
+  -trans 'Delete Contacts' as confirm_title
+  -trans 'Delete' as confirm_button
+  %temba-dialog#delete-confirmation.hide{header:"{{confirm_title|escapejs}}", primaryButtonName:"{{confirm_button|escapejs}}", destructive: "true"}
+    .p-6
+      -trans "Are you sure you want to delete these contacts? This cannot be undone."
+
 -block extra-style
   {{block.super}}
   :css
@@ -410,6 +410,7 @@
     {% if org_perms.contacts.contact_delete %}
     $(".contacts-btn-delete").live('click', function() {
       var confirm = document.querySelector('#delete-confirmation');
+      confirm.classList.remove("hide");
       confirm.open = true;
     });
     {% endif %}
