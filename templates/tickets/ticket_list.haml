@@ -11,7 +11,7 @@
     -block pjax
 
       .lp-frame
-        .left
+        .left(style="width:20rem")
           .flex.flex-col
             .lp-nav.upper
               .lp-nav-item(class="{% if folder == 'open' %}font-normal{% endif %}")
@@ -22,7 +22,7 @@
                   -trans "Closed"
 
             -if ticketers
-              .lp-nav.lower(style="width: 500px;")
+              .lp-nav.lower(style="width:20rem")
                 .font-normal.uppercase.text-xs.text-gray-500.pb-1
                   -trans "Services"
                 .inner-scroll
@@ -39,7 +39,7 @@
                   .list-buttons.flex.items-center.-mx-2.h-full
                     -if 'close' in actions
                       .button-action.object-btn-close
-                        .-mt-1.mr-2.glyph.icon-box
+                        .mr-3.glyph.text-xl.-mt-1.icon-checkmark
                         -trans "Close"
 
                     -if 'reopen' in actions
@@ -48,8 +48,8 @@
                         -trans "Reopen"
 
             .flex-grow.ml-2.items-center
-              -block title-text
-                .page-title.leading-tight
+              .page-title.leading-tight
+                -block title-text
                   {{ title }}
             .gear-links
               -include "gear_links_include.haml"
@@ -58,14 +58,13 @@
           %table.list.object-list.lined(class='{% if org_perms.tickets.ticket_update %}selectable{% endif %}')
             %tbody
               -for object in object_list
-                %tr.ticket.object-row.select-row{ data-object-id: "{{ obj.id }}"}
+                %tr.ticket.object-row.select-row(data-object-id="{{ object.id }}" onrowclick='handleRowClicked("{{object.contact.uuid}}")')
                   -if actions and org_perms.tickets.ticket_update
                     %td.campaign.checkbox.object-row-checkbox
                       %temba-checkbox{onclick:"handleRowSelection(this)"}
 
                   %td.whitespace-no-wrap
-                    .hover-linked(onclick="goto(event)" href="/contact/read/{{object.contact.uuid}}/")
-                      {{ object.contact|short_name:user_org }}
+                    {{ object.contact|short_name:user_org }}
 
                   -if not ticketer
                     %td.ticket-ticketer
@@ -83,7 +82,7 @@
 
                   -if not folder
                     %td
-                      %span.label(class="status-{{object.status}}")
+                      .lbl(class="status-{{object.status}}")
                         {{ object.get_status_display }}
 
                   %td
@@ -100,6 +99,14 @@
             -include "includes/pagination.haml"
 
 
+-block extra-script
+  {{ block.super }}
+  :javascript
+    function handleRowClicked(uuid) {
+      gotoLink("/contact/read/" + uuid + "/");
+    }
+
+
 -block extra-style
   {{ block.super }}
 
@@ -114,12 +121,12 @@
   -compress css inline
     {% lessblock %}
       :plain
-        .label.status-O {
-          border: 1px solid @flat-mutedgreen - #333;
-          background-color: @flat-mutedgreen - #222;
+        .lbl.status-O {
+          background-color: rgb(var(--success-rgb));
+          color: #fff;
         }
-        .label.status-C {
-          border: 1px solid @flat-darkred - #111;
-          background-color: @flat-darkred;
+        .lbl.status-C {
+          background-color: rgb(var(--error-rgb));
+          color: #fff;
         }
     {% endlessblock %}

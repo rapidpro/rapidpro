@@ -2,24 +2,11 @@
 -load smartmin i18n
 
 -block title-text
-  .title
-    {{ ticketer.get_type.name }}
-    -trans "Ticketing Service"
-    .text-sm
-      {{ ticketer.name }}
-
--block extra-style
-  {{ block.super }}
-
-  :css
-    .ticketer-name {
-      font-size: 16pt;
-    }
-
+  {{ ticketer.get_type.name }}
+  -trans "Ticketing Service"
 
 -block summary
   {{ object.get_type.name }}
-  -trans "Ticketing Service"
-  %span -
-  %strong
+  -trans "Ticketing Service over"
+  %b
     {{ ticketer.name }}

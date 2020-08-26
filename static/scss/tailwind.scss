@@ -560,7 +560,7 @@ table.list {
       }
 
       .inner-scroll {
-        @apply overflow-y-scroll max-h-128 pr-2 -mr-2;
+        @apply overflow-y-auto max-h-128 pr-2 -mr-2;
       }
 
       .lp-nav-item {
