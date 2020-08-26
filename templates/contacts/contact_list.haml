@@ -79,6 +79,12 @@
                   -if org_perms.contacts.contact_update
                     .list-buttons-container.h-full.mr-2.mt-2.flex-grow
                       .list-buttons.flex.items-center.-mx-2.h-full
+
+                        -if 'restore' in actions
+                          .button-action.object-btn-restore
+                            .-mt-1.mr-2.glyph.icon-checkmark
+                            -trans "Activate"
+
                         -if 'block' in actions
                           .button-action.object-btn-block
                             .-mt-1.mr-2.glyph.icon-user-block
@@ -86,13 +92,8 @@
 
                         -if 'archive' in actions
                           .button-action.object-btn-archive
-                            .-mt-1.mr-2.glyph.icon-archive
+                            .-mt-1.mr-2.glyph.icon-box
                             -trans "Archive"
-
-                        -if 'restore' in actions
-                          .button-action.object-btn-restore
-                            .-mt-1.mr-2.glyph.icon-user
-                            -trans "Restore"
 
                         -if 'delete' in actions
                           .button-action.contacts-btn-delete
@@ -415,7 +416,7 @@
     });
     {% endif %}
 
-    {% if org_perms.contacts.contact_unblock %}
+    {% if org_perms.contacts.contact_block %}
       $(".page-content").on('click', ".object-btn-unblock", function() {
 	      runActionOnObjectRows("unblock");
       });
