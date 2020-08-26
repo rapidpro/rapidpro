@@ -1660,10 +1660,24 @@ class OrgCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Dashboard"), href=reverse("dashboard.dashboard_home")))
 
             if self.has_org_perm("orgs.org_create_sub_org"):
-                links.append(dict(title=_("New Workspace"), href=reverse("orgs.org_create_sub_org")))
+                links.append(
+                    dict(
+                        title=_("New Workspace"),
+                        href=reverse("orgs.org_create_sub_org"),
+                        modax=_("New Workspace"),
+                        id="new-workspace",
+                    )
+                )
 
             if self.has_org_perm("orgs.org_transfer_credits"):
-                links.append(dict(title=_("Transfer Credits"), href=reverse("orgs.org_transfer_credits")))
+                links.append(
+                    dict(
+                        title=_("Transfer Credits"),
+                        href=reverse("orgs.org_transfer_credits"),
+                        modax=_("Transfer Credits"),
+                        id="transfer-credits",
+                    )
+                )
 
             return links
 
@@ -2866,9 +2880,6 @@ class OrgCRUDL(SmartCRUDL):
             amount = form.cleaned_data["amount"]
 
             from_org.allocate_credits(from_org.created_by, to_org, amount)
-
-            if "HTTP_X_PJAX" not in self.request.META:
-                return HttpResponseRedirect(self.get_success_url())
 
             response = self.render_to_response(
                 self.get_context_data(
