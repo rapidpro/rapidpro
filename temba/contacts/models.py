@@ -1597,9 +1597,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 org, user, name, uuid=uuid, urns=urns, language=language, force_urn_update=True
             )
 
-        # if they exist and are blocked, reactivate them
+        # if they exist and are blocked, restore them
         if contact.status == Contact.STATUS_BLOCKED:
-            contact.reactivate(user)
+            contact.restore(user)
 
         # ignore any reserved fields or URN schemes
         valid_keys = (
@@ -1974,11 +1974,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         cls.bulk_change_status(user, contacts, modifiers.Status.BLOCKED)
 
     @classmethod
-    def apply_action_unblock(cls, user, contacts):
-        cls.bulk_change_status(user, contacts, modifiers.Status.ACTIVE)
+    def apply_action_archive(cls, user, contacts):
+        cls.bulk_change_status(user, contacts, modifiers.Status.ARCHIVED)
 
     @classmethod
-    def apply_action_unstop(cls, user, contacts):
+    def apply_action_restore(cls, user, contacts):
         cls.bulk_change_status(user, contacts, modifiers.Status.ACTIVE)
 
     @classmethod
@@ -2018,9 +2018,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Contact.bulk_change_status(user, [self], modifiers.Status.ARCHIVED)
         self.refresh_from_db()
 
-    def reactivate(self, user):
+    def restore(self, user):
         """
-        Reactivates a stopped or blocked contact, re-adding them to any dynamic groups they belong to
+        Restores a contact to active, re-adding them to any dynamic groups they belong to
         """
 
         Contact.bulk_change_status(user, [self], modifiers.Status.ACTIVE)
@@ -2459,17 +2459,17 @@ class ContactGroup(TembaModel):
     MAX_NAME_LEN = 64
     MAX_ORG_CONTACTGROUPS = 250
 
-    TYPE_ALL = "A"
+    TYPE_ACTIVE = "A"
     TYPE_BLOCKED = "B"
     TYPE_STOPPED = "S"
     TYPE_ARCHIVED = "V"
     TYPE_USER_DEFINED = "U"
 
     TYPE_CHOICES = (
-        (TYPE_ALL, "All Contacts"),
-        (TYPE_BLOCKED, "Blocked Contacts"),
-        (TYPE_STOPPED, "Stopped Contacts"),
-        (TYPE_ARCHIVED, "Archived Contacts"),
+        (TYPE_ACTIVE, "Active"),
+        (TYPE_BLOCKED, "Blocked"),
+        (TYPE_STOPPED, "Stopped"),
+        (TYPE_ARCHIVED, "Archived"),
         (TYPE_USER_DEFINED, "User Defined Groups"),
     )
 
@@ -2532,25 +2532,22 @@ class ContactGroup(TembaModel):
         Creates our system groups for the given organization so that we can keep track of counts etc..
         """
         org.all_groups.create(
-            name="All Contacts",
-            group_type=ContactGroup.TYPE_ALL,
-            created_by=org.created_by,
-            modified_by=org.modified_by,
+            name="Active", group_type=ContactGroup.TYPE_ACTIVE, created_by=org.created_by, modified_by=org.modified_by,
         )
         org.all_groups.create(
-            name="Blocked Contacts",
+            name="Blocked",
             group_type=ContactGroup.TYPE_BLOCKED,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
         org.all_groups.create(
-            name="Stopped Contacts",
+            name="Stopped",
             group_type=ContactGroup.TYPE_STOPPED,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
         org.all_groups.create(
-            name="Archived Contacts",
+            name="Archived",
             group_type=ContactGroup.TYPE_ARCHIVED,
             created_by=org.created_by,
             modified_by=org.modified_by,
@@ -2980,7 +2977,7 @@ class ExportContactsTask(BaseExportTask):
     def write_export(self):
         fields, scheme_counts, group_fields = self.get_export_fields_and_schemes()
 
-        group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
+        group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ACTIVE)
 
         include_group_memberships = bool(self.group_memberships.exists())
 

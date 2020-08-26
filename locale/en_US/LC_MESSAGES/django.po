@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-25 20:56+0000\n"
+"POT-Creation-Date: 2020-08-26 21:58+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2504,13 +2504,19 @@ msgstr ""
 msgid "You cannot update the query of a group that is evaluating."
 msgstr ""
 
-msgid "All Contacts"
+msgid "Restore"
+msgstr ""
+
+msgid "Active"
 msgstr ""
 
 msgid "Blocked"
 msgstr ""
 
 msgid "Stopped"
+msgstr ""
+
+msgid "Archived"
 msgstr ""
 
 #, python-brace-format
@@ -2590,15 +2596,6 @@ msgstr ""
 msgid "Block"
 msgstr ""
 
-msgid "Unblock"
-msgstr ""
-
-msgid "Unstop"
-msgstr ""
-
-msgid "Delete Contact"
-msgstr ""
-
 msgid "Save as Group"
 msgstr ""
 
@@ -2611,7 +2608,16 @@ msgstr ""
 msgid "Blocked Contacts"
 msgstr ""
 
+msgid "Unblock"
+msgstr ""
+
 msgid "Stopped Contacts"
+msgstr ""
+
+msgid "Unstop"
+msgstr ""
+
+msgid "Archived Contacts"
 msgstr ""
 
 msgid "Edit Group"
@@ -2632,10 +2638,10 @@ msgstr ""
 msgid "Contact blocked"
 msgstr ""
 
-msgid "Contact unblocked"
+msgid "Contact restored"
 msgstr ""
 
-msgid "Contact unstopped"
+msgid "Contact archived"
 msgstr ""
 
 msgid "Must be unique."
@@ -3215,6 +3221,9 @@ msgstr ""
 msgid "After 4 minutes"
 msgstr ""
 
+msgid "Home"
+msgstr ""
+
 msgid "You must select a country for your workspace."
 msgstr ""
 
@@ -3291,9 +3300,6 @@ msgid "The metadata for messages of this broadcast"
 msgstr ""
 
 msgid "Visible"
-msgstr ""
-
-msgid "Archived"
 msgstr ""
 
 msgid "Deleted"
@@ -4049,9 +4055,6 @@ msgstr ""
 msgid "One of the emails you entered is invalid."
 msgstr ""
 
-msgid "Home"
-msgstr ""
-
 msgid "Enter the code from your authentication application"
 msgstr ""
 
@@ -4437,6 +4440,9 @@ msgstr ""
 msgid "Closed Tickets"
 msgstr ""
 
+msgid "Delete Ticket Service"
+msgstr ""
+
 msgid "HTTP Log"
 msgstr ""
 
@@ -4512,6 +4518,9 @@ msgstr ""
 msgid "The associated channel"
 msgstr ""
 
+msgid "Select a flow"
+msgstr ""
+
 msgid "Keywords must be a single word containing only letter and numbers"
 msgstr ""
 
@@ -4541,9 +4550,6 @@ msgstr ""
 msgid "Start Time"
 msgstr ""
 
-msgid "Select a flow"
-msgstr ""
-
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr ""
 
@@ -4557,9 +4563,6 @@ msgid "The referrer id that will trigger us"
 msgstr ""
 
 msgid "Create Trigger"
-msgstr ""
-
-msgid "Active"
 msgstr ""
 
 msgid "Join Keyword"
@@ -4969,10 +4972,7 @@ msgstr ""
 msgid "Channel Events"
 msgstr ""
 
-msgid "Recent Channel Events"
-msgstr ""
-
-msgid "Channel: "
+msgid "Interactions"
 msgstr ""
 
 msgid "phone call"
@@ -5415,22 +5415,7 @@ msgid ""
 "    "
 msgstr ""
 
-msgid "You can connect your Facebook page in just a few simple steps."
-msgstr ""
-
-msgid "Click on the button below to get started."
-msgstr ""
-
-msgid "Select the user you want to log in as."
-msgstr ""
-
-msgid "Select all the pages you want to grant us permissions for."
-msgstr ""
-
-msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
-msgstr ""
-
-msgid "Finally, select the page you want to add as a channel."
+msgid "You can connect your Facebook page's Messenger account, click below to get started."
 msgstr ""
 
 msgid "Add Facebook Page"
@@ -5986,6 +5971,9 @@ msgstr[1] ""
 msgid "Ok"
 msgstr ""
 
+msgid "These contacts have been removed from all groups and can be deleted permanently."
+msgstr ""
+
 msgid ""
 "\n"
 "    We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
@@ -6239,12 +6227,6 @@ msgstr ""
 msgid "Choose File"
 msgstr ""
 
-msgid "Delete Contacts"
-msgstr ""
-
-msgid "Are you sure you want to delete these contacts? This cannot be undone."
-msgstr ""
-
 msgid "Smart Groups"
 msgstr ""
 
@@ -6277,6 +6259,12 @@ msgid "No matching contacts."
 msgstr ""
 
 msgid "To view more than 10,000 search results, save it as a group."
+msgstr ""
+
+msgid "Delete Contacts"
+msgstr ""
+
+msgid "Are you sure you want to delete these contacts? This cannot be undone."
 msgstr ""
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
@@ -6578,7 +6566,7 @@ msgstr ""
 msgid "Update Flow"
 msgstr ""
 
-msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
+msgid "This flow is using a discontinued version of the flow editor. Update it to use the new editor today to start using powerful new features. Starting <b>October 1st</b>, all remaining flows will be updated automatically."
 msgstr ""
 
 msgid "To make your next connection,"
@@ -6611,18 +6599,18 @@ msgstr ""
 
 msgid ""
 "\n"
-"                  It's a good idea to start your call off by saying something first. You'll probably want to\n"
-"                  introduce yourself and ask them a question. Just type the message for now, you'll be able to\n"
-"                  add a voice recording of your message later.\n"
-"                "
+"                It's a good idea to start your call off by saying something first. You'll probably want to\n"
+"                introduce yourself and ask them a question. Just type the message for now, you'll be able to\n"
+"                add a voice recording of your message later.\n"
+"              "
 msgstr ""
 
 msgid ""
 "\n"
-"                  Welcome to a USSD flow. USSD is a session based communication type. We recommend starting your flow\n"
-"                  by sending a USSD message. This message will be sent to anybody right after they join the flow.\n"
-"                  This is your chance to send a single message or menu.\n"
-"                "
+"                Welcome to a USSD flow. USSD is a session based communication type. We recommend starting your flow\n"
+"                by sending a USSD message. This message will be sent to anybody right after they join the flow.\n"
+"                This is your chance to send a single message or menu.\n"
+"              "
 msgstr ""
 
 msgid "Receive a Message First"
@@ -6630,9 +6618,9 @@ msgstr ""
 
 msgid ""
 "\n"
-"              A more advanced flow might start by receiving a message first. This lets you do different things\n"
-"              based on how the flow was triggered.\n"
-"            "
+"            A more advanced flow might start by receiving a message first. This lets you do different things\n"
+"            based on how the flow was triggered.\n"
+"          "
 msgstr ""
 
 msgid "Flow Start"
@@ -6941,17 +6929,18 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"          Aliases for %(name)s\n"
-"        "
+"    Aliases for %(name)s\n"
+"\n"
+"  "
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"          Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
-"          regions, aliases.\n"
+"      Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
+"      regions, aliases.\n"
 "\n"
-"        "
+"    "
 msgstr ""
 
 #, python-format
@@ -7067,9 +7056,6 @@ msgid "Numeric Value:"
 msgstr ""
 
 msgid "Create Folder"
-msgstr ""
-
-msgid "Restore"
 msgstr ""
 
 msgid "Resend"
@@ -7475,10 +7461,10 @@ msgstr ""
 
 msgid ""
 "\n"
-"      Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences\n"
-"      and better understand your users.\n"
-"      To signup for an account, visit\n"
-"    "
+"        Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences\n"
+"        and better understand your users.\n"
+"        To signup for an account, visit\n"
+"      "
 msgstr ""
 
 msgid "Your Chatbase account is connected to the Agent"
@@ -7916,7 +7902,7 @@ msgstr ""
 msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
 msgstr ""
 
-msgid "These backup tokens can be used if you lose access to your authentication application, store them in a safe place. Any tokens you may have previously generated are invalid."
+msgid "Any tokens you may have previously generated are invalid."
 msgstr ""
 
 msgid "Generate Backup Tokens"
@@ -8904,6 +8890,15 @@ msgid ""
 "  "
 msgstr ""
 
+msgid "Pick a new password and enter it below. A good password will be at least eight characters long and have a mixture of upper and lower case letters."
+msgstr ""
+
+msgid "New password"
+msgstr ""
+
+msgid "Confirm new password"
+msgstr ""
+
 msgid "Delete "
 msgstr ""
 
@@ -8934,13 +8929,7 @@ msgstr ""
 msgid "Ticketing Service"
 msgstr ""
 
-msgid "This will close all tickets that were created with this service. Once it is removed, it will be gone forever. There is no way to undo this operation."
-msgstr ""
-
-msgid "Warning"
-msgstr ""
-
-msgid "Unable to delete service still being used by the following flows"
+msgid "Ticketing Service over"
 msgstr ""
 
 msgid "Services"
@@ -8980,6 +8969,13 @@ msgid "Select the ticketing service you want to connect below to get started."
 msgstr ""
 
 msgid "No ticketing services are available."
+msgstr ""
+
+msgid "Unable to delete service still being used by"
+msgstr ""
+
+#, python-format
+msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
 msgstr ""
 
 #, python-format
