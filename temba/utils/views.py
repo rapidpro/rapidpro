@@ -39,8 +39,7 @@ class ComponentFormMixin(View):
             field.widget.choices = field.choices
         elif isinstance(field.widget, (forms.widgets.CheckboxInput,)):
             field.widget = CheckboxWidget()
-        else:
-            print(field.widget)
+
         return field
 
 
