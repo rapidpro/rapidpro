@@ -237,7 +237,7 @@ class ContactCRUDLTest(TembaTest):
         other_org_contact.refresh_from_db()
         self.assertEqual(Contact.STATUS_BLOCKED, other_org_contact.status)
 
-        delete_url = reverse("contacts.contact_delete", args=[self.joe.id])
+        delete_url = reverse("contacts.contact_archive", args=[self.joe.id])
 
         response = self.client.get(read_url)
 
