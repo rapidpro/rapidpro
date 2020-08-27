@@ -1199,7 +1199,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_created_by(self, obj):  # pragma: needs cover
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
-    class Update(SmartUpdateView):
+    class Update(ComponentFormMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             parent = forms.IntegerField(required=False)
             plan_end = forms.DateTimeField(required=False)
@@ -1238,7 +1238,7 @@ class OrgCRUDL(SmartCRUDL):
                 links.append(
                     dict(
                         title=_("Topups"),
-                        style="btn-primary",
+                        style="button-primary",
                         href="%s?org=%d" % (reverse("orgs.topup_manage"), org.pk),
                     )
                 )
@@ -1247,7 +1247,7 @@ class OrgCRUDL(SmartCRUDL):
                     links.append(
                         dict(
                             title=_("Unflag"),
-                            style="btn-secondary",
+                            style="button-secondary",
                             posterize=True,
                             href="%s?action=unflag" % reverse("orgs.org_update", args=[org.pk]),
                         )
@@ -1256,7 +1256,7 @@ class OrgCRUDL(SmartCRUDL):
                     links.append(
                         dict(
                             title=_("Flag"),
-                            style="btn-secondary",
+                            style="button-secondary",
                             posterize=True,
                             href="%s?action=flag" % reverse("orgs.org_update", args=[org.pk]),
                         )
@@ -1266,14 +1266,16 @@ class OrgCRUDL(SmartCRUDL):
                     links.append(
                         dict(
                             title=_("Verify"),
-                            style="btn-secondary",
+                            style="button-secondary",
                             posterize=True,
                             href="%s?action=verify" % reverse("orgs.org_update", args=[org.pk]),
                         )
                     )
 
                 if self.request.user.has_perm("orgs.org_delete"):
-                    links.append(dict(title=_("Delete"), style="btn-primary", js_class="org-delete-button", href="#"))
+                    links.append(
+                        dict(title=_("Delete"), style="button-primary", js_class="org-delete-button", href="#")
+                    )
             return links
 
         def post(self, request, *args, **kwargs):
@@ -3104,7 +3106,7 @@ class TopUpCRUDL(SmartCRUDL):
             else:
                 return super().get_template_names()
 
-    class Create(SmartCreateView):
+    class Create(ComponentFormMixin, SmartCreateView):
         """
         This is only for root to be able to credit accounts.
         """
@@ -3123,7 +3125,7 @@ class TopUpCRUDL(SmartCRUDL):
             apply_topups_task.delay(obj.org.id)
             return obj
 
-    class Update(SmartUpdateView):
+    class Update(ComponentFormMixin, SmartUpdateView):
         fields = ("is_active", "price", "credits", "expires_on")
 
         def get_success_url(self):
