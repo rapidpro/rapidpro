@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-26 21:58+0000\n"
+"POT-Creation-Date: 2020-08-27 13:11+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2794,8 +2794,8 @@ msgstr "Вы не можете создать динамическую груп�
 msgid "You cannot update the query of a group that is evaluating."
 msgstr "Вы не можете обновить запрос для группы, которая проводит оценку."
 
-msgid "Restore"
-msgstr "Восстановить"
+msgid "Activate"
+msgstr "Активировать"
 
 msgid "Active"
 msgstr "Активный"
@@ -2902,14 +2902,8 @@ msgstr "Экспортировать Контакты"
 msgid "Blocked Contacts"
 msgstr "Заблокированные Контакты"
 
-msgid "Unblock"
-msgstr "Разблокировать"
-
 msgid "Stopped Contacts"
 msgstr "Остановленные Контакты"
-
-msgid "Unstop"
-msgstr "Запустить"
 
 #, fuzzy
 #| msgid "Blocked Contacts"
@@ -2932,19 +2926,6 @@ msgstr "При обновлении Вашего контакта произош
 #| msgid "Select a flow to start"
 msgid "Select a field to update"
 msgstr "Выберите поток для запуска"
-
-msgid "Contact blocked"
-msgstr "Контакт заблокирован"
-
-#, fuzzy
-#| msgid "Contact unstopped"
-msgid "Contact restored"
-msgstr "Контакт запущен"
-
-#, fuzzy
-#| msgid "Contact Fields"
-msgid "Contact archived"
-msgstr "Поля Контактов"
 
 msgid "Must be unique."
 msgstr "Должен быть уникальным."
@@ -4452,9 +4433,6 @@ msgstr "Введите код из Вашего приложения по аут
 
 msgid "Invalid MFA token. Please try again."
 msgstr "Неверный токен МФА. Пожалуйста, попробуйте еще раз."
-
-msgid "Activate"
-msgstr "Активировать"
 
 msgid "Two Factor Authentication"
 msgstr "Двухфакторная аутентификация"
@@ -8796,6 +8774,9 @@ msgstr "Числовое значение:"
 msgid "Create Folder"
 msgstr "Создать папку"
 
+msgid "Restore"
+msgstr "Восстановить"
+
 msgid "Resend"
 msgstr "Отправить повторно"
 
@@ -11939,6 +11920,25 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Unblock"
+#~ msgstr "Разблокировать"
+
+#~ msgid "Unstop"
+#~ msgstr "Запустить"
+
+#~ msgid "Contact blocked"
+#~ msgstr "Контакт заблокирован"
+
+#, fuzzy
+#~| msgid "Contact unstopped"
+#~ msgid "Contact restored"
+#~ msgstr "Контакт запущен"
+
+#, fuzzy
+#~| msgid "Contact Fields"
+#~ msgid "Contact archived"
+#~ msgstr "Поля Контактов"
 
 #~ msgid "All Contacts"
 #~ msgstr "Все Контакты"

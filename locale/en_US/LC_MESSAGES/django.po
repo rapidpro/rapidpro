@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-26 21:58+0000\n"
+"POT-Creation-Date: 2020-08-27 13:11+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2504,7 +2504,7 @@ msgstr ""
 msgid "You cannot update the query of a group that is evaluating."
 msgstr ""
 
-msgid "Restore"
+msgid "Activate"
 msgstr ""
 
 msgid "Active"
@@ -2608,13 +2608,7 @@ msgstr ""
 msgid "Blocked Contacts"
 msgstr ""
 
-msgid "Unblock"
-msgstr ""
-
 msgid "Stopped Contacts"
-msgstr ""
-
-msgid "Unstop"
 msgstr ""
 
 msgid "Archived Contacts"
@@ -2633,15 +2627,6 @@ msgid "An error occurred updating your contact. Please try again later."
 msgstr ""
 
 msgid "Select a field to update"
-msgstr ""
-
-msgid "Contact blocked"
-msgstr ""
-
-msgid "Contact restored"
-msgstr ""
-
-msgid "Contact archived"
 msgstr ""
 
 msgid "Must be unique."
@@ -4059,9 +4044,6 @@ msgid "Enter the code from your authentication application"
 msgstr ""
 
 msgid "Invalid MFA token. Please try again."
-msgstr ""
-
-msgid "Activate"
 msgstr ""
 
 msgid "Two Factor Authentication"
@@ -7056,6 +7038,9 @@ msgid "Numeric Value:"
 msgstr ""
 
 msgid "Create Folder"
+msgstr ""
+
+msgid "Restore"
 msgstr ""
 
 msgid "Resend"

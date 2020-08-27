@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-26 21:58+0000\n"
+"POT-Creation-Date: 2020-08-27 13:11+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2840,8 +2840,8 @@ msgstr "Vous ne pouvez pas créer un groupe dynamique basé sur \"id\" ou \"grou
 msgid "You cannot update the query of a group that is evaluating."
 msgstr "Vous ne pouvez pas mettre à jour la requête d'un groupe en cours d'évaluation."
 
-msgid "Restore"
-msgstr "Restaurer"
+msgid "Activate"
+msgstr "activer"
 
 msgid "Active"
 msgstr "Actif"
@@ -2948,14 +2948,8 @@ msgstr "Exporter des contacts"
 msgid "Blocked Contacts"
 msgstr "Contacts Bloqués"
 
-msgid "Unblock"
-msgstr "Débloquer"
-
 msgid "Stopped Contacts"
 msgstr "Contacts arrêtés"
-
-msgid "Unstop"
-msgstr "Débloquer"
 
 #, fuzzy
 #| msgid "Blocked Contacts"
@@ -2978,19 +2972,6 @@ msgstr "Une erreur s'est produite lors de la mise à jour de votre contact. Veui
 #| msgid "Select a flow to start"
 msgid "Select a field to update"
 msgstr "Sélectionnez un flux pour démarrer"
-
-msgid "Contact blocked"
-msgstr "Contact bloqué"
-
-#, fuzzy
-#| msgid "Contact unstopped"
-msgid "Contact restored"
-msgstr "Contact non arrêté"
-
-#, fuzzy
-#| msgid "Contact Fields"
-msgid "Contact archived"
-msgstr "Champs de contact"
 
 msgid "Must be unique."
 msgstr "Doit être unique."
@@ -4498,9 +4479,6 @@ msgstr "Entrez le code de votre application d'authentification"
 
 msgid "Invalid MFA token. Please try again."
 msgstr "Jeton MFA non valide. Veuillez réessayer."
-
-msgid "Activate"
-msgstr "activer"
 
 msgid "Two Factor Authentication"
 msgstr "Authentification à deux facteurs"
@@ -8731,6 +8709,9 @@ msgstr "Valeur numérique:"
 msgid "Create Folder"
 msgstr "Créer le dossier"
 
+msgid "Restore"
+msgstr "Restaurer"
+
 msgid "Resend"
 msgstr "renvoyez"
 
@@ -11789,6 +11770,25 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Unblock"
+#~ msgstr "Débloquer"
+
+#~ msgid "Unstop"
+#~ msgstr "Débloquer"
+
+#~ msgid "Contact blocked"
+#~ msgstr "Contact bloqué"
+
+#, fuzzy
+#~| msgid "Contact unstopped"
+#~ msgid "Contact restored"
+#~ msgstr "Contact non arrêté"
+
+#, fuzzy
+#~| msgid "Contact Fields"
+#~ msgid "Contact archived"
+#~ msgstr "Champs de contact"
 
 #~ msgid "All Contacts"
 #~ msgstr "Tous les contacts"
