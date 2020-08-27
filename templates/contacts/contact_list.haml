@@ -16,12 +16,6 @@
 
 -block content
 
-  -trans 'Delete Contacts' as confirm_title
-  -trans 'Delete' as confirm_button
-  %temba-dialog#delete-confirmation{header:"{{confirm_title|escapejs}}", primaryButtonName:"{{confirm_button|escapejs}}", destructive: "true"}
-    .p-6
-      -trans "Are you sure you want to delete these contacts? This cannot be undone."
-
   #pjax
     -block pjax
       .lp-frame
@@ -85,32 +79,33 @@
                   -if org_perms.contacts.contact_update
                     .list-buttons-container.h-full.mr-2.mt-2.flex-grow
                       .list-buttons.flex.items-center.-mx-2.h-full
+
+                        -if 'restore' in actions
+                          .button-action.object-btn-restore
+                            .-mt-1.mr-2.glyph.icon-checkmark
+                            -trans "Activate"
+
                         -if 'block' in actions
                           .button-action.object-btn-block
                             .-mt-1.mr-2.glyph.icon-user-block
                             -trans "Block"
 
-                        - if 'unblock' in actions
-                          .button-action.object-btn-unblock
-                            .-mt-1.mr-2.glyph.icon-user-block
-                            -trans "Unblock"
+                        -if 'archive' in actions
+                          .button-action.object-btn-archive
+                            .-mt-1.mr-2.glyph.icon-box
+                            -trans "Archive"
 
-                        - if 'unstop' in actions
-                          .button-action.object-btn-unstop
-                            .-mt-1.mr-2.glyph.icon-user
-                            -trans "Unstop"
-
-                        - if 'delete' in actions
+                        -if 'delete' in actions
                           .button-action.contacts-btn-delete
                             .-mt-1.mr-2.glyph.icon-user-delete
                             -trans "Delete"
 
-                        - if 'unlabel' in actions
+                        -if 'unlabel' in actions
                           .button-action{onclick:'unlabelObjectRows({{current_group.pk}});'}
                             .-mt-1.mr-2.glyph.icon-user-remove
                             -trans "Remove From Group"
 
-                        - if 'label' in actions
+                        -if 'label' in actions
                           .btn-group
                             .button-action.dropdown-toggle{data-toggle:"dropdown", data-delay:"800"}
                               .-mt-1.mr-2.glyph.icon-users-2{style:"width:16px"}
@@ -268,6 +263,12 @@
           - else
             - include "contacts/empty_include.haml"
 
+  -trans 'Delete Contacts' as confirm_title
+  -trans 'Delete' as confirm_button
+  %temba-dialog#delete-confirmation.hide{header:"{{confirm_title|escapejs}}", primaryButtonName:"{{confirm_button|escapejs}}", destructive: "true"}
+    .p-6
+      -trans "Are you sure you want to delete these contacts? This cannot be undone."
+
 -block extra-style
   {{block.super}}
   :css
@@ -410,11 +411,12 @@
     {% if org_perms.contacts.contact_delete %}
     $(".contacts-btn-delete").live('click', function() {
       var confirm = document.querySelector('#delete-confirmation');
+      confirm.classList.remove("hide");
       confirm.open = true;
     });
     {% endif %}
 
-    {% if org_perms.contacts.contact_unblock %}
+    {% if org_perms.contacts.contact_block %}
       $(".page-content").on('click', ".object-btn-unblock", function() {
 	      runActionOnObjectRows("unblock");
       });

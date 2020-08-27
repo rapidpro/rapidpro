@@ -23,13 +23,17 @@
   .flex.flex-wrap.mt-1
 
     -if contact.status == 'B'
-      .lbl.mt-2.mr-2.bg-error.text-white.cursor-pointer{onclick:"goto(event)", href:"{% url 'contacts.contact_blocked' %}"}
+      .lbl-group.mt-2.mr-2.bg-secondary.linked.inverted.cursor-pointer{onclick:"goto(event)", href:"{% url 'contacts.contact_blocked' %}"}
         -trans "Blocked"
   
     -elif contact.status == 'S'
-      .lbl-group.mt-2.mr-2.linked.bg-error.text-white.font-normal{onclick:"goto(event)", href:"{% url 'contacts.contact_stopped' %}"}
+      .lbl-group.inverted.linked.mt-2.mr-2.bg-secondary.font-normal{onclick:"goto(event)", href:"{% url 'contacts.contact_stopped' %}"}
         -trans "Stopped"
-  
+
+    -elif contact.status == 'V'
+      .lbl-group.mt-2.mr-2.linked.bg-secondary.inverted.font-normal{onclick:"goto(event)", href:"{% url 'contacts.contact_archived' %}"}
+        -trans "Archived"
+
     -for group in contact_groups
       -if group.is_dynamic
         .lbl-group-dynamic.mt-2.mr-2.linked{onclick:"goto(event)", href:"{% url 'contacts.contact_filter' group.uuid %}"}
@@ -140,7 +144,7 @@
                   {{urn|format_urn:user_org}}      
 
   -if open_tickets
-    %table.list.tickets
+    %table.list.tickets.mt-6
       %thead
         %th(colspan="5")
           -trans "Open Tickets"
@@ -244,6 +248,11 @@
     :css
       .urn-link {
         display: inline-block;
+      }
+
+      .page-content {
+        align-self: auto;
+        max-width: 1024px;
       }
 
     {% lessblock %}

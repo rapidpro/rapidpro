@@ -365,36 +365,6 @@ textarea {
   width: 350px;
 }
 
-select,
-textarea,
-input[type="text"],
-input[type="password"],
-input[type="datetime"],
-input[type="datetime-local"],
-input[type="date"],
-input[type="month"],
-input[type="time"],
-input[type="week"],
-input[type="number"],
-input[type="email"],
-input[type="url"],
-input[type="search"],
-input[type="tel"],
-input[type="color"],
-.uneditable-input {
-  display: inline-block;
-  height: 25px;
-  padding: 4px 6px;
-  margin-bottom: 5px;
-  font-size: 14px;
-  color: #555;
-  .rounded-corners(0);
-}
-
-.uneditable-input {
-  line-height: 25px;
-}
-
 form.form-horizontal textarea,
 form.form-vertical textarea {
   height: auto;
@@ -1509,29 +1479,6 @@ input[type='text'].search-query {
 .control-group.error .help-block,
 .control-group.error .help-inline {
   color: var(--color-error);
-}
-
-.controls {
-
-  input,
-  textarea,
-  select {
-    margin-bottom: 0px !important;
-
-    &:focus {
-      border-color: var(--color-focus) !important;
-      box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(var(--focus-rgb), 0.6) !important;
-    }
-  }
-}
-
-
-input:focus:invalid,
-textarea:focus:invalid,
-select:focus:invalid {
-  color: var(--color-text) !important;
-  border-color: var(--color-focus) !important;
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(var(--focus-rgb), 0.6) !important;
 }
 
 .controls {

@@ -1520,7 +1520,7 @@ class OrgCRUDL(SmartCRUDL):
             org_id = self.request.GET.get("org")
             return "%s?org=%s" % (reverse("orgs.org_manage_accounts_sub_org"), org_id)
 
-    class TwoFactor(InferOrgMixin, OrgPermsMixin, SmartFormView):
+    class TwoFactor(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class TwoFactorForm(forms.Form):
             token = forms.CharField(
                 label=_("Authentication Token"),
@@ -2357,7 +2357,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return context
 
-    class Chatbase(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+    class Chatbase(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class ChatbaseForm(forms.ModelForm):
             agent_name = forms.CharField(
                 max_length=255, label=_("Agent Name"), required=False, help_text="Enter your Chatbase Agent's name"
@@ -2366,8 +2366,7 @@ class OrgCRUDL(SmartCRUDL):
                 max_length=255,
                 label=_("API Key"),
                 required=False,
-                help_text="You can find your Agent's API Key "
-                "<a href='https://chatbase.com/agents/main-page' target='_new'>here</a>",
+                help_text="You can find your Agent's API Key in your chatbase account",
             )
             version = forms.CharField(
                 max_length=10, label=_("Version"), required=False, help_text="Any will do, e.g. 1.0, 1.2.1"

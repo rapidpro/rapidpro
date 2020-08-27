@@ -186,7 +186,7 @@
 
   %temba-dialog#confirm-migrate(header='{{_("New Editor")|escapejs}}' primaryButtonName='{{_("Update Flow")|escapejs}}')
     .p-6
-      -trans "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
+      -trans "This flow is using a discontinued version of the flow editor. Update it to use the new editor today to start using powerful new features. Starting <b>October 1st</b>, all remaining flows will be updated automatically."
 
   #legacy-editor
 
@@ -286,38 +286,38 @@
 
       #workspace{ng-dblclick:'addNote($event); $event.stopPropagation();'}
 
-        #flow{ class:'{% if not mutable %}readonly{%endif%}'}
+      #flow{ class:'{% if not mutable %}readonly{%endif%}'}
 
-          .empty{ng-show:'flow.action_sets.length + flow.rule_sets.length == 0'}
+        .empty{ng-show:'flow.action_sets.length + flow.rule_sets.length == 0'}
 
-            .option
-              %h4
-                -trans "Let's get started"
-              -if flow.flow_type == 'V'
-                -blocktrans
-                  It's a good idea to start your call off by saying something first. You'll probably want to
-                  introduce yourself and ask them a question. Just type the message for now, you'll be able to
-                  add a voice recording of your message later.
-              -elif flow.flow_type == 'U'
-                -blocktrans
-                  Welcome to a USSD flow. USSD is a session based communication type. We recommend starting your flow
-                  by sending a USSD message. This message will be sent to anybody right after they join the flow.
-                  This is your chance to send a single message or menu.
-              -else
-                %a.btn.btn-primary{ng-click:'createFirstAction()'}
-                  Create Message
-
-
-
-          .option.hide
+          .option
             %h4
-              -trans "Receive a Message First"
-            -blocktrans
-              A more advanced flow might start by receiving a message first. This lets you do different things
-              based on how the flow was triggered.
-            .button
-              %a.btn.btn-primary
-                Receive Message First
+              -trans "Let's get started"
+            -if flow.flow_type == 'V'
+              -blocktrans
+                It's a good idea to start your call off by saying something first. You'll probably want to
+                introduce yourself and ask them a question. Just type the message for now, you'll be able to
+                add a voice recording of your message later.
+            -elif flow.flow_type == 'U'
+              -blocktrans
+                Welcome to a USSD flow. USSD is a session based communication type. We recommend starting your flow
+                by sending a USSD message. This message will be sent to anybody right after they join the flow.
+                This is your chance to send a single message or menu.
+            -else
+              %a.btn.btn-primary{ng-click:'createFirstAction()'}
+                Create Message
+
+
+
+        .option.hide
+          %h4
+            -trans "Receive a Message First"
+          -blocktrans
+            A more advanced flow might start by receiving a message first. This lets you do different things
+            based on how the flow was triggered.
+          .button
+            %a.btn.btn-primary
+              Receive Message First
 
         // Our empty action node shown while dragging
         -if object.flow_type == 'V'
@@ -644,6 +644,7 @@
           %textarea.msd-elastic.body.note-input{ng-model:'note.body'}
 
 -block extra-style
+  {{block.super}}
   -compress css
     {% lessblock %}
       :plain

@@ -35,7 +35,12 @@ class BaseTriggerForm(forms.ModelForm):
     Base form for creating different trigger types
     """
 
-    flow = forms.ModelChoiceField(Flow.objects.filter(pk__lt=0), label=_("Flow"), required=True,)
+    flow = forms.ModelChoiceField(
+        Flow.objects.filter(pk__lt=0),
+        label=_("Flow"),
+        required=True,
+        widget=SelectWidget(attrs={"placeholder": _("Select a flow")}),
+    )
 
     def __init__(self, user, flows, *args, **kwargs):
         super().__init__(*args, **kwargs)

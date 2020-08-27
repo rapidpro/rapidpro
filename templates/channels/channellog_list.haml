@@ -5,18 +5,18 @@
   -trans "Channel Events"
 
 -block title
-  -if request.GET.connections and channel.supports_ivr
-    -trans "Calls"
-  -elif request.GET.others
-    -trans "Other Interactions"
-  -else
-    -trans "Recent Channel Events"
+  %a{ href:"{% url 'channels.channel_read' channel.uuid %}" }
+    {{ channel }}
 
 -block subtitle
   {{channel.get_channel_type_display}}
-  -trans "Channel: "
-  %a.inline-block.p-1.mb-2{ href:"{% url 'channels.channel_read' channel.uuid %}" }
-    {{ channel }}
+
+  -if request.GET.connections and channel.supports_ivr
+    -trans "Calls"
+  -elif request.GET.others
+    -trans "Interactions"
+  -else
+    -trans "Recent Events"
 
 -block content
   #pjax

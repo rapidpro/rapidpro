@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-25 20:56+0000\n"
+"POT-Creation-Date: 2020-08-26 21:58+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3556,14 +3556,20 @@ msgid "You cannot update the query of a group that is evaluating."
 msgstr ""
 
 #, fuzzy
-msgid "All Contacts"
-msgstr "Contatos"
+msgid "Restore"
+msgstr "Restaurar"
+
+msgid "Active"
+msgstr "Ativo"
 
 msgid "Blocked"
 msgstr ""
 
 msgid "Stopped"
 msgstr ""
+
+msgid "Archived"
+msgstr "Arquivado"
 
 #, fuzzy, python-brace-format
 #| msgid "The name of this contact"
@@ -3654,16 +3660,6 @@ msgstr "Campos de contato personalizados"
 msgid "Block"
 msgstr ""
 
-msgid "Unblock"
-msgstr ""
-
-msgid "Unstop"
-msgstr ""
-
-#, fuzzy
-msgid "Delete Contact"
-msgstr "Criar contatos"
-
 #, fuzzy
 msgid "Save as Group"
 msgstr "Criar grupos"
@@ -3680,10 +3676,19 @@ msgstr "Importar contatos"
 msgid "Blocked Contacts"
 msgstr "Contatos com falha"
 
+msgid "Unblock"
+msgstr ""
+
 #, fuzzy
 #| msgid "Show Contacts"
 msgid "Stopped Contacts"
 msgstr "Mostrar contatos"
+
+msgid "Unstop"
+msgstr ""
+
+msgid "Archived Contacts"
+msgstr "Contatos arquivados"
 
 msgid "Edit Group"
 msgstr "Editar Grupo"
@@ -3709,12 +3714,13 @@ msgid "Contact blocked"
 msgstr "Telefone do contato"
 
 #, fuzzy
-msgid "Contact unblocked"
+msgid "Contact restored"
 msgstr "Telefone do contato"
 
 #, fuzzy
-msgid "Contact unstopped"
-msgstr "Telefone do contato"
+#| msgid "Manage Contact Fields"
+msgid "Contact archived"
+msgstr "Configurar campo de contatos"
 
 #, fuzzy
 msgid "Must be unique."
@@ -4396,6 +4402,9 @@ msgstr ""
 msgid "After 4 minutes"
 msgstr ""
 
+msgid "Home"
+msgstr ""
+
 #, fuzzy
 msgid "You must select a country for your workspace."
 msgstr "Nosso Id da classe do cliente para sua organização"
@@ -4481,9 +4490,6 @@ msgstr "Estado atual desta divulgação"
 
 msgid "Visible"
 msgstr "Visível"
-
-msgid "Archived"
-msgstr "Arquivado"
 
 msgid "Deleted"
 msgstr "Deletado"
@@ -5390,9 +5396,6 @@ msgstr ""
 msgid "One of the emails you entered is invalid."
 msgstr "Um dos e-mails que você digitou é inválido."
 
-msgid "Home"
-msgstr ""
-
 msgid "Enter the code from your authentication application"
 msgstr ""
 
@@ -5852,6 +5855,10 @@ msgstr "Abrir Textit"
 msgid "Closed Tickets"
 msgstr "Escolher arquivo"
 
+#, fuzzy
+msgid "Delete Ticket Service"
+msgstr "Conecte a um Serviço Externo"
+
 msgid "HTTP Log"
 msgstr ""
 
@@ -5939,6 +5946,10 @@ msgstr ""
 msgid "The associated channel"
 msgstr ""
 
+#, fuzzy
+msgid "Select a flow"
+msgstr "Enviar todas"
+
 msgid "Keywords must be a single word containing only letter and numbers"
 msgstr "Palavra-chave deve ser uma única palavra contendo apenas letras e números"
 
@@ -5973,10 +5984,6 @@ msgstr "A mensagem para enviar em resposta após se juntar ao grupo (opcional)"
 msgid "Start Time"
 msgstr "Ação de iniciar o fluxo"
 
-#, fuzzy
-msgid "Select a flow"
-msgstr "Enviar todas"
-
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr "Os grupos e contatos para os quais o fluxo será distribuído"
 
@@ -5993,9 +6000,6 @@ msgstr "O tipo desse disparo"
 
 msgid "Create Trigger"
 msgstr "Criar disparador"
-
-msgid "Active"
-msgstr "Ativo"
 
 msgid "Join Keyword"
 msgstr "Juntar palavra-chave"
@@ -6603,13 +6607,10 @@ msgstr "Nenhuma chamada correspondente"
 msgid "Channel Events"
 msgstr "Evento do transmissor"
 
-msgid "Recent Channel Events"
-msgstr "Eventos recentes do transmissor"
-
 #, fuzzy
-#| msgid "Channel:"
-msgid "Channel: "
-msgstr "Transmissor:"
+#| msgid "Android integration"
+msgid "Interactions"
+msgstr "Integração com Android"
 
 #, fuzzy
 #| msgid "Phone call flow"
@@ -7290,26 +7291,8 @@ msgstr ""
 "\n"
 "Assim que você solicitar um número, você imediatamente será capaz de enviar e receber mensagens. Os usuários que enviarem mensagens ao seu número serão cobrados de acordo com os planos deles. "
 
-msgid "You can connect your Facebook page in just a few simple steps."
+msgid "You can connect your Facebook page's Messenger account, click below to get started."
 msgstr ""
-
-msgid "Click on the button below to get started."
-msgstr ""
-
-msgid "Select the user you want to log in as."
-msgstr ""
-
-msgid "Select all the pages you want to grant us permissions for."
-msgstr ""
-
-#, fuzzy
-msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
-msgstr "Textit usa o seu telefone Android para enviar e receber mensagens."
-
-#, fuzzy
-#| msgid "Click here to send a message"
-msgid "Finally, select the page you want to add as a channel."
-msgstr "Clique aqui para enviar uma mensagem"
 
 #, fuzzy
 #| msgid "The name of the video"
@@ -8056,6 +8039,9 @@ msgstr[1] ""
 msgid "Ok"
 msgstr ""
 
+msgid "These contacts have been removed from all groups and can be deleted permanently."
+msgstr ""
+
 #, fuzzy
 #| msgid ""
 #| "\n"
@@ -8443,14 +8429,6 @@ msgid "Choose File"
 msgstr "Escolher arquivo"
 
 #, fuzzy
-msgid "Delete Contacts"
-msgstr "Criar contatos"
-
-#, fuzzy
-msgid "Are you sure you want to delete these contacts? This cannot be undone."
-msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
-
-#, fuzzy
 #| msgid "Contact Groups"
 msgid "Smart Groups"
 msgstr "Grupos de contato"
@@ -8493,6 +8471,14 @@ msgstr "Nenhum contato correspondente"
 
 msgid "To view more than 10,000 search results, save it as a group."
 msgstr ""
+
+#, fuzzy
+msgid "Delete Contacts"
+msgstr "Criar contatos"
+
+#, fuzzy
+msgid "Are you sure you want to delete these contacts? This cannot be undone."
+msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr ""
@@ -8895,7 +8881,7 @@ msgstr ""
 msgid "Update Flow"
 msgstr "Atualizar campos"
 
-msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
+msgid "This flow is using a discontinued version of the flow editor. Update it to use the new editor today to start using powerful new features. Starting <b>October 1st</b>, all remaining flows will be updated automatically."
 msgstr ""
 
 msgid "To make your next connection,"
@@ -8931,18 +8917,18 @@ msgstr "Vamos começar"
 
 msgid ""
 "\n"
-"                  It's a good idea to start your call off by saying something first. You'll probably want to\n"
-"                  introduce yourself and ask them a question. Just type the message for now, you'll be able to\n"
-"                  add a voice recording of your message later.\n"
-"                "
+"                It's a good idea to start your call off by saying something first. You'll probably want to\n"
+"                introduce yourself and ask them a question. Just type the message for now, you'll be able to\n"
+"                add a voice recording of your message later.\n"
+"              "
 msgstr ""
 
 msgid ""
 "\n"
-"                  Welcome to a USSD flow. USSD is a session based communication type. We recommend starting your flow\n"
-"                  by sending a USSD message. This message will be sent to anybody right after they join the flow.\n"
-"                  This is your chance to send a single message or menu.\n"
-"                "
+"                Welcome to a USSD flow. USSD is a session based communication type. We recommend starting your flow\n"
+"                by sending a USSD message. This message will be sent to anybody right after they join the flow.\n"
+"                This is your chance to send a single message or menu.\n"
+"              "
 msgstr ""
 
 #, fuzzy
@@ -8958,9 +8944,9 @@ msgstr "Arquivar mensagens"
 #| "              "
 msgid ""
 "\n"
-"              A more advanced flow might start by receiving a message first. This lets you do different things\n"
-"              based on how the flow was triggered.\n"
-"            "
+"            A more advanced flow might start by receiving a message first. This lets you do different things\n"
+"            based on how the flow was triggered.\n"
+"          "
 msgstr ""
 "\n"
 "Agora você terá uma chance de diversificar o seu fluxo por categoria. Isso permite que você pergunte diferentes questões de acompanhamento com base em como eles respondem. "
@@ -9378,8 +9364,9 @@ msgstr ""
 #, fuzzy, python-format
 msgid ""
 "\n"
-"          Aliases for %(name)s\n"
-"        "
+"    Aliases for %(name)s\n"
+"\n"
+"  "
 msgstr ""
 "\n"
 "Instalar o %(name)s app"
@@ -9387,10 +9374,10 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"          Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
-"          regions, aliases.\n"
+"      Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
+"      regions, aliases.\n"
 "\n"
-"        "
+"    "
 msgstr ""
 
 #, fuzzy, python-format
@@ -9551,10 +9538,6 @@ msgstr "Valor numérico:"
 #| msgid "Create Flow"
 msgid "Create Folder"
 msgstr "Criar fluxo"
-
-#, fuzzy
-msgid "Restore"
-msgstr "Restaurar"
 
 msgid "Resend"
 msgstr "Re-enviar"
@@ -10008,10 +9991,10 @@ msgstr "Conecte com uma conta Take.net"
 
 msgid ""
 "\n"
-"      Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences\n"
-"      and better understand your users.\n"
-"      To signup for an account, visit\n"
-"    "
+"        Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences\n"
+"        and better understand your users.\n"
+"        To signup for an account, visit\n"
+"      "
 msgstr ""
 
 #, fuzzy
@@ -10538,7 +10521,7 @@ msgstr ""
 msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
 msgstr ""
 
-msgid "These backup tokens can be used if you lose access to your authentication application, store them in a safe place. Any tokens you may have previously generated are invalid."
+msgid "Any tokens you may have previously generated are invalid."
 msgstr ""
 
 msgid "Generate Backup Tokens"
@@ -11860,6 +11843,19 @@ msgid ""
 "  "
 msgstr ""
 
+msgid "Pick a new password and enter it below. A good password will be at least eight characters long and have a mixture of upper and lower case letters."
+msgstr ""
+
+#, fuzzy
+#| msgid "Password"
+msgid "New password"
+msgstr "Senha"
+
+#, fuzzy
+#| msgid "Password"
+msgid "Confirm new password"
+msgstr "Senha"
+
 #, fuzzy
 #| msgid "Delete"
 msgid "Delete "
@@ -11896,15 +11892,9 @@ msgid "Ticketing Service"
 msgstr ""
 
 #, fuzzy
-#| msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
-msgid "This will close all tickets that were created with this service. Once it is removed, it will be gone forever. There is no way to undo this operation."
-msgstr "Uma vez que for removido, ele irá desaparecer para sempre. Não há maneira de desfazer esta operação."
-
-msgid "Warning"
-msgstr ""
-
-msgid "Unable to delete service still being used by the following flows"
-msgstr ""
+#| msgid "Recent Channel Events"
+msgid "Ticketing Service over"
+msgstr "Eventos recentes do transmissor"
 
 #, fuzzy
 #| msgid "Device"
@@ -11956,6 +11946,28 @@ msgstr ""
 
 msgid "No ticketing services are available."
 msgstr ""
+
+msgid "Unable to delete service still being used by"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "            Instead of using your Android phone to send messages, you can use your\n"
+#| "            <a class='nexmo-account' href='#'>\n"
+#| "              Nexmo Account\n"
+#| "            </a>\n"
+#| "            to send messages to over 200 countries.\n"
+#| "\n"
+#| "          "
+msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
+msgstr ""
+"\n"
+"Em vez de usar o seu telefone Android para enviar mensagens, você pode usar a sua \n"
+"<a class='nexmo-account' href='#'>\n"
+"Conta Nexmo \n"
+"</ a> \n"
+"para enviar mensagens para mais de 200 países."
 
 #, python-format
 msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
@@ -12075,6 +12087,40 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "All Contacts"
+#~ msgstr "Contatos"
+
+#, fuzzy
+#~ msgid "Delete Contact"
+#~ msgstr "Criar contatos"
+
+#, fuzzy
+#~ msgid "Contact unblocked"
+#~ msgstr "Telefone do contato"
+
+#~ msgid "Recent Channel Events"
+#~ msgstr "Eventos recentes do transmissor"
+
+#, fuzzy
+#~| msgid "Channel:"
+#~ msgid "Channel: "
+#~ msgstr "Transmissor:"
+
+#, fuzzy
+#~ msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
+#~ msgstr "Textit usa o seu telefone Android para enviar e receber mensagens."
+
+#, fuzzy
+#~| msgid "Click here to send a message"
+#~ msgid "Finally, select the page you want to add as a channel."
+#~ msgstr "Clique aqui para enviar uma mensagem"
+
+#, fuzzy
+#~| msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
+#~ msgid "This will close all tickets that were created with this service. Once it is removed, it will be gone forever. There is no way to undo this operation."
+#~ msgstr "Uma vez que for removido, ele irá desaparecer para sempre. Não há maneira de desfazer esta operação."
 
 #, fuzzy
 #~| msgid "Reverse Billing"
@@ -12358,11 +12404,6 @@ msgstr ""
 #~| msgid "Create Contact Group"
 #~ msgid "No related contact groups."
 #~ msgstr "Criar grupo de contatos"
-
-#, fuzzy
-#~| msgid "Manage Contact Fields"
-#~ msgid "Contact Fields"
-#~ msgstr "Configurar campo de contatos"
 
 #, fuzzy
 #~ msgid "Create Contact Field"
@@ -16418,9 +16459,6 @@ msgstr ""
 
 #~ msgid "Must specify a group"
 #~ msgstr "Você deve especificar um grupo"
-
-#~ msgid "Archived Contacts"
-#~ msgstr "Contatos arquivados"
 
 #~ msgid "Field %(number)d (@contact.%(key)s)"
 #~ msgstr "Campo %(number)d (@contact.%(key)s)"
