@@ -52,7 +52,7 @@ from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
-from temba.utils import analytics, get_anonymous_user, json, languages
+from temba.utils import analytics, get_anonymous_user, json, languages, str_to_bool
 from temba.utils.email import is_valid_address
 from temba.utils.http import http_headers
 from temba.utils.text import random_string
@@ -1108,6 +1108,18 @@ class OrgCRUDL(SmartCRUDL):
             if brands:
                 queryset = queryset.filter(brand__in=brands)
 
+            anon = self.request.GET.get("anon")
+            if anon:
+                queryset = queryset.filter(is_anon=str_to_bool(anon))
+
+            suspended = self.request.GET.get("suspended")
+            if suspended:
+                queryset = queryset.filter(is_suspended=str_to_bool(suspended))
+
+            flagged = self.request.GET.get("flagged")
+            if flagged:
+                queryset = queryset.filter(is_flagged=str_to_bool(flagged))
+
             queryset = queryset.annotate(credits=Sum("topups__credits"))
             queryset = queryset.annotate(paid=Sum("topups__price"))
 
@@ -1116,6 +1128,9 @@ class OrgCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["searches"] = ["Nyaruka"]
+            context["anon_query"] = str_to_bool(self.request.GET.get("anon"))
+            context["flagged_query"] = str_to_bool(self.request.GET.get("flagged"))
+            context["suspended_query"] = str_to_bool(self.request.GET.get("suspended"))
             return context
 
         def lookup_field_link(self, context, field, obj):
@@ -1130,6 +1145,7 @@ class OrgCRUDL(SmartCRUDL):
     class Update(SmartUpdateView):
         class Form(forms.ModelForm):
             parent = forms.IntegerField(required=False)
+            plan_end = forms.DateTimeField(required=False)
 
             def clean_parent(self):
                 parent = self.cleaned_data.get("parent")
@@ -1140,6 +1156,8 @@ class OrgCRUDL(SmartCRUDL):
                 model = Org
                 fields = (
                     "name",
+                    "plan",
+                    "plan_end",
                     "brand",
                     "parent",
                     "is_anon",
@@ -1560,35 +1578,38 @@ class OrgCRUDL(SmartCRUDL):
 
         fields = ("credits", "name", "manage", "created_on")
         link_fields = ()
-        title = "Workspaces"
+        title = _("Workspaces")
 
         def get_gear_links(self):
             links = []
 
             if self.has_org_perm("orgs.org_dashboard"):
-                links.append(dict(title="Dashboard", href=reverse("dashboard.dashboard_home")))
+                links.append(dict(title=_("Dashboard"), href=reverse("dashboard.dashboard_home")))
 
             if self.has_org_perm("orgs.org_create_sub_org"):
-                links.append(dict(title="New Workspace", js_class="add-sub-org", href="#"))
+                links.append(dict(title=_("New Workspace"), js_class="add-sub-org", href="#"))
 
             if self.has_org_perm("orgs.org_transfer_credits"):
-                links.append(dict(title="Transfer Credits", js_class="transfer-credits", href="#"))
+                links.append(dict(title=_("Transfer Credits"), js_class="transfer-credits", href="#"))
 
             return links
 
-        def get_manage(self, obj):
-            if obj.parent:  # pragma: needs cover
+        def get_manage(self, obj):  # pragma: needs cover
+            if obj == self.get_object():
                 return mark_safe(
-                    '<a href="%s?org=%s"><div class="btn btn-tiny">Manage Logins</div></a>'
-                    % (reverse("orgs.org_manage_accounts_sub_org"), obj.id)
+                    f'<a href="{reverse("orgs.org_manage_accounts")}"><div class="btn btn-tiny">{_("Manage Logins")}</div></a>'
+                )
+
+            if obj.parent:
+                return mark_safe(
+                    f'<a href="{reverse("orgs.org_manage_accounts_sub_org")}?org={obj.id}"><div class="btn btn-tiny">{_("Manage Logins")}</div></a>'
                 )
             return ""
 
         def get_credits(self, obj):
             credits = obj.get_credits_remaining()
             return mark_safe(
-                '<div class="edit-org" data-url="%s?org=%d"><div class="num-credits">%s</div></div>'
-                % (reverse("orgs.org_edit_sub_org"), obj.id, format(credits, ",d"))
+                f'<div class="edit-org" data-url="{reverse("orgs.org_edit_sub_org")}?org={obj.id}"><div class="num-credits">{format(credits, ",d")}</div></div>'
             )
 
         def get_name(self, obj):
@@ -2062,6 +2083,7 @@ class OrgCRUDL(SmartCRUDL):
             slug = Org.get_unique_slug(self.form.cleaned_data["name"])
             obj.slug = slug
             obj.brand = self.request.branding.get("brand", settings.DEFAULT_BRAND)
+            obj.plan = self.request.branding.get("default_plan", settings.DEFAULT_PLAN)
 
             if obj.timezone.zone in pytz.country_timezones("US"):
                 obj.date_format = Org.DATE_FORMAT_MONTH_FIRST

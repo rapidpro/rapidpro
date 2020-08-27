@@ -1,4 +1,148 @@
-v5.5.78
+v5.7.23
+----------
+ * Rename All Contacts to Active
+ * Add UI for archiving, restoring and deleting contacts
+
+v5.7.22
+----------
+ * Bump version of mailroom and indexer used for tests
+ * Drop no longer used is_blocked and is_stopped fields
+
+v5.7.21
+----------
+ * Add missing migration from last rev
+
+v5.7.20
+----------
+ * Add missing migration
+
+v5.7.19
+----------
+ * Make contact.is_stopped and is_blocked nullable and stop writing
+
+v5.7.18
+----------
+ * Update sys group trigger to handle archiving
+
+v5.7.17
+----------
+ * Migration to add Archived sys group to all orgs
+
+v5.7.16
+----------
+ * Update to flow editor 1.9.11
+ * Update database triggers to use contact status instead of is_blocked or is_stopped
+ * Make contact.status non-null
+ * Create new archived system group for new orgs
+
+v5.7.15
+----------
+ * Add nag warning to legacy editor
+
+v5.7.14
+----------
+ * Migration to backfill contact status
+
+v5.7.13
+----------
+ * Enable channelback files for Zendesk ticketers
+ * Set status as active for new contacts
+ * Add new status field to contact
+ * Fix legacy editor by putting html-tag block back
+ * Change the label for CM channel claim
+
+v5.7.12
+----------
+ * Fix imports that match by UUID
+ * Fix Nexmo search numbers and claim number
+ * Use Django language code on html tag
+ * Add support for ClickMobile channel type
+
+v5.7.11
+----------
+ * Fix creating of campaign events based on last_seen_on
+ * Tweak msg_console so it can include sent messages which are not replies
+ * Fix mailroom_db command
+ * Expose last_seen_on on contact API endpoint
+
+v5.7.10
+----------
+ * Update floweditor to 1.9.10
+ * Add Last Seen On as a system field so it can be used in campaigns
+ * Tweak search_archives command to allow JSONL output
+
+v5.7.9
+----------
+ * Fix reading of S3 event streams
+ * Migration to populate contact.last_seen_on from msg archives
+
+v5.7.8
+----------
+ * Add plan_end field to Orgs
+
+v5.7.7
+----------
+ * Add search archives management command
+
+v5.7.6
+----------
+ * Optimizations to migration to backfill last_seen_on
+
+v5.7.5
+----------
+ * Add migration to populate contact.last_seen_on
+ * Update to latest temba-components with support for refresh work
+
+v5.7.4
+----------
+ * Use new metadata field from mailroom searching endpoints
+ * Make sure we have only one active trigger when importing flows
+ * Fix org selector and header text alignment when editor is open
+
+v5.7.3
+----------
+ * Add contact.last_seen_on
+ * Bump floweditor to v1.9.9
+
+v5.7.2
+----------
+ * Add error messages for all error codes from mailroom query parsing
+ * Fix org manage quick searches
+ * Always use mailroom for static group changes
+
+v5.7.1
+----------
+ * Add session history field to flowstarts
+ * Have mailroom reset URNs after contact creation to ensure order is correct
+
+v5.7.0
+----------
+ * Add start_type and created_by to queued flow starts
+ * New mixin for list views with bulk actions
+ * Update some dependencies to work with Python 3.8 and MacOS
+
+v5.6.5
+----------
+ * Set the tps options for Twilio based on country and number type
+ * Fix wit.ai classifiers and double logging of errors on all classifier types
+
+v5.6.3
+----------
+ * Add variables for nav colors
+
+v5.6.2
+----------
+ * Fix failing to manage logins when the we are logged in the same org
+
+v5.6.1
+----------
+ * instead of dates, keep track of seen runs when excluding archived runs from exports
+
+v5.6.0
+----------
+ * 5.6.0 Release Candidate
+
+v5.5.78 
 ----------
  * Improve the visuals and guides on the FBA claim page
  * Block flow starts and broadcasts for suspended orgs

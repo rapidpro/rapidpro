@@ -137,7 +137,7 @@
         var parent = $(this).parents('tr')
         $(parent).find('.edit-org').each(function() {
           var url = $(this).attr('data-url');
-          var modal = new Modax('Update', url);
+          var modal = new Modax('{{_("Update")|escapejs }}', url);
           modal.setIcon('icon-office');
           modal.setRedirectOnSuccess(true);
           modal.show();
@@ -145,14 +145,14 @@
       });
 
       $(".add-sub-org").live('click', function(){
-        var modal = new Modax('Add Workspace','{% url "orgs.org_create_sub_org" %}');
+        var modal = new Modax('{{_("Add Workspace")|escapejs }}','{% url "orgs.org_create_sub_org" %}');
         modal.setIcon('icon-office');
         modal.setRedirectOnSuccess(true);
         modal.show();
       });
 
       $(".transfer-credits").live('click', function(){
-        var modal = new Modax('Transfer Credits','{% url "orgs.org_transfer_credits" %}');
+        var modal = new Modax('{{_("Transfer Credits")|escapejs }}','{% url "orgs.org_transfer_credits" %}');
         modal.setIcon('icon-coins');
         modal.setRedirectOnSuccess(true);
         modal.show();

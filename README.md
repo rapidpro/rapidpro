@@ -7,19 +7,19 @@ To learn more, please visit the project site at http://rapidpro.github.io/rapidp
 
 The set of versions that make up the latest stable release are:
 
- * [RapidPro v5.4.13](https://github.com/rapidpro/rapidpro/releases/tag/v5.4.13)
- * [Mailroom v5.4.4](https://github.com/nyaruka/mailroom/releases/tag/v5.4.4)
- * [Courier v5.4.1](https://github.com/nyaruka/courier/releases/tag/v5.4.1)
- * [Archiver v5.4.0](https://github.com/nyaruka/rp-archiver/releases/tag/v5.4.0)
- * [Indexer v5.4.0](https://github.com/nyaruka/rp-indexer/releases/tag/v5.4.0)
+ * [RapidPro v5.6.5](https://github.com/rapidpro/rapidpro/releases/tag/v5.6.5)
+ * [Mailroom v5.6.1](https://github.com/nyaruka/mailroom/releases/tag/v5.6.1)
+ * [Courier v5.6.0](https://github.com/nyaruka/courier/releases/tag/v5.6.0)
+ * [Archiver v5.6.0](https://github.com/nyaruka/rp-archiver/releases/tag/v5.6.0)
+ * [Indexer v5.6.0](https://github.com/nyaruka/rp-indexer/releases/tag/v5.6.0)
  * [Android Channel v2.0.0](https://github.com/rapidpro/android-channel/releases/tag/v2.0.0)
- * [Android Surveyor v13.4.2](https://github.com/rapidpro/surveyor/releases/tag/v13.4.2)
+ * [Android Surveyor v13.5.0](https://github.com/rapidpro/surveyor/releases/tag/v13.5.0)
 
 ### Versioning in RapidPro
 
-Major releases of RapidPro are made every four months on a set schedule. We target July 1st
-as a major release (`v5.0.0`), then November 1st as the first stable dot release (`v5.2.0`) and March 1st
-as the second stable dot release (`v5.4.0`). The next July would start the next major release `v6.0.0`.
+Major releases of RapidPro are made every four months on a set schedule. We target November 1st
+as a major release (`v6.0.0`), then March 1st as the first stable dot release (`v6.2.0`) and July 1st
+as the second stable dot release (`v6.4.0`). The next November would start the next major release `v7.0.0`.
 
 Unstable releases have odd minor versions, that is versions `v5.1.*` would indicate an unstable or *development*
 version of RapidPro. Generally we recommend staying on stable releases unless you
@@ -36,12 +36,15 @@ chances with an unstable release.
 
 ### Versioning of other Components
 
-RapidPro depends on other components such as Mailroom and Courier. These are versioned to follow the minor releases of RapidPro but may have patch releases made independently of patches to RapidPro. Other optional components such as the Android applications have their own versioning and release schedules. Each stable release of RapidPro details which version of these dependencies you need to run with it.
+RapidPro depends on other components such as Mailroom and Courier. These are versioned to follow the minor releases of 
+RapidPro but may have patch releases made independently of patches to RapidPro. Other optional components such as the 
+Android applications have their own versioning and release schedules. Each stable release of RapidPro details which 
+version of these dependencies you need to run with it.
 
 ## Updating FlowEditor version
 
 ```
-% npm install @nyaruka/flow-editor@whatver-version --save
+% npm install @nyaruka/flow-editor@whatever-version --save
 ```
 
 ### Get Involved
@@ -50,8 +53,12 @@ To run RapidPro for development, follow the Quick Start guide at http://rapidpro
 
 ### License
 
-In late 2014, Nyaruka partnered with UNICEF to expand on the capabilities of TextIt and release the source code as RapidPro under the Affero GPL (AGPL) license.
+In late 2014, Nyaruka partnered with UNICEF to expand on the capabilities of TextIt and release the source code as 
+RapidPro under the Affero GPL (AGPL) license.
 
-In brief, the Affero license states you can use the RapidPro source for any project free of charge, but that any changes you make to the source code must be available to others. Note that unlike the GPL, the AGPL requires these changes to be made public even if you do not redistribute them. If you host a version of RapidPro, you must make the same source you are hosting available for others.
+In brief, the Affero license states you can use the RapidPro source for any project free of charge, but that any changes 
+you make to the source code must be available to others. Note that unlike the GPL, the AGPL requires these changes to be 
+made public even if you do not redistribute them. If you host a version of RapidPro, you must make the same source you 
+are hosting available for others.
 
 The software is provided under AGPL-3.0. Contributions to this project are accepted under the same license.

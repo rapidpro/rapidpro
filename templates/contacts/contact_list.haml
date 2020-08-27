@@ -83,19 +83,19 @@
                               .glyph.icon-user-block
                               -trans "Block"
 
-                      - if 'unblock' in actions
+                      - if 'archive' in actions
                         %span.btn-group
-                          %a.object-btn-unblock{'href':'#'}
+                          %a.object-btn-archive{'href':'#'}
                             %button.btn
-                              .glyph.icon-user
-                              -trans "Unblock"
+                              .glyph.icon-box
+                              -trans "Archive"
 
-                      - if 'unstop' in actions
+                      - if 'restore' in actions
                         %span.btn-group
-                          %a.object-btn-unstop{'href':'#'}
+                          %a.object-btn-restore{'href':'#'}
                             %button.btn
                               .glyph.icon-user
-                              -trans "Unstop"
+                              {{ restore_label }}
 
                       - if 'delete' in actions
                         %span.btn-group

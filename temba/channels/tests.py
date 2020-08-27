@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from unittest.mock import call, patch
 from urllib.parse import quote
 
+import nexmo
 from django_redis import get_redis_connection
 from smartmin.tests import SmartminTest
 
@@ -873,8 +874,9 @@ class ChannelTest(TembaTest):
 
         self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "CT")
         self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "EX")
-        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "IB")
-        self.assertEqual(response.context["channel_types"]["PHONE"][3].code, "JS")
+        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "I2")
+        self.assertEqual(response.context["channel_types"]["PHONE"][3].code, "IB")
+        self.assertEqual(response.context["channel_types"]["PHONE"][4].code, "JS")
 
     def test_register_unsupported_android(self):
         # remove our explicit country so it needs to be derived from channels
@@ -929,6 +931,29 @@ class ChannelTest(TembaTest):
                     '"type":"mobile-lvn","country":"US","msisdn":"13607884540"}] }',
                     headers={"Content-Type": "application/json"},
                 ),
+                MockResponse(
+                    200,
+                    '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
+                    '"type":"mobile-lvn","country":"US","msisdn":"13607884550"}] }',
+                    headers={"Content-Type": "application/json"},
+                ),
+            ]
+
+            post_data = dict(country="US", area_code="360")
+            response = self.client.post(search_nexmo_url, post_data, follow=True)
+
+            self.assertEqual(response.json(), ["+1 360-788-4540", "+1 360-788-4550"])
+
+        with patch("requests.get") as nexmo_get:
+            nexmo_get.side_effect = [
+                nexmo.ClientError("429 Too many requests"),
+                MockResponse(
+                    200,
+                    '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
+                    '"type":"mobile-lvn","country":"US","msisdn":"13607884540"}] }',
+                    headers={"Content-Type": "application/json"},
+                ),
+                nexmo.ClientError("429 Too many requests"),
                 MockResponse(
                     200,
                     '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '

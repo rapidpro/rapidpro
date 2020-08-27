@@ -38,7 +38,7 @@
       -ms-user-select: none;
       user-select: none;
       z-index: 0;
-      position: relative;
+      font-family: 'Helvetica Neue', sans-serif;
     }
 
     .ReactModalPortal {
@@ -86,12 +86,17 @@
       margin: 0;
     }
 
+    #menu {
+      line-height: 20px;
+    }
+
     #toolbar h2 {
       margin-top: -5px;
     }
 
     .org-header {
       z-index: 1000 !important;
+      line-height: 20px;
     }
 
     #top-menu {
@@ -278,7 +283,7 @@
 
     {% if org_perms.flows.flow_update %}
     $(".update-rulesflow").live('click', function(){
-      var modal = new Modax('Update Flow', '{% url "flows.flow_update" object.pk %}');
+      var modal = new Modax('{{_("Update Flow")|escapejs }}', '{% url "flows.flow_update" object.pk %}');
       modal.setIcon('icon-users-2');
       modal.setListeners({
         onSuccess: function(data) {location.reload(); },

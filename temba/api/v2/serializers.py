@@ -506,6 +506,7 @@ class ContactReadSerializer(ReadSerializer):
     stopped = serializers.SerializerMethodField()
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    last_seen_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_name(self, obj):
         return obj.name if obj.is_active else None
@@ -536,10 +537,10 @@ class ContactReadSerializer(ReadSerializer):
         return fields
 
     def get_blocked(self, obj):
-        return obj.is_blocked if obj.is_active else None
+        return obj.status == Contact.STATUS_BLOCKED if obj.is_active else None
 
     def get_stopped(self, obj):
-        return obj.is_stopped if obj.is_active else None
+        return obj.status == Contact.STATUS_STOPPED if obj.is_active else None
 
     class Meta:
         model = Contact
@@ -554,6 +555,7 @@ class ContactReadSerializer(ReadSerializer):
             "stopped",
             "created_on",
             "modified_on",
+            "last_seen_on",
         )
 
 
@@ -568,9 +570,9 @@ class ContactWriteSerializer(WriteSerializer):
         super().__init__(*args, **kwargs)
 
     def validate_groups(self, value):
-        # if contact is blocked, they can't be added to groups
-        if self.instance and (self.instance.is_blocked or self.instance.is_stopped) and value:
-            raise serializers.ValidationError("Blocked or stopped contacts can't be added to groups")
+        # only active contacts can be added to groups
+        if self.instance and (self.instance.status != Contact.STATUS_ACTIVE) and value:
+            raise serializers.ValidationError("Non-active contacts can't be added to groups")
 
         return value
 
@@ -644,6 +646,10 @@ class ContactWriteSerializer(WriteSerializer):
                 self.instance = Contact.get_or_create_by_urns(
                     self.context["org"], self.context["user"], name, urns=urns, language=language
                 )
+
+                # the above call won't always get the URN order correct so have mailroom fix them
+                if urns:
+                    mods += self.instance.update_urns(urns)
 
             # update our fields
             if custom_fields is not None:
@@ -802,11 +808,11 @@ class ContactBulkActionSerializer(WriteSerializer):
             raise serializers.ValidationError('For action "%s" you should not specify a group' % action)
 
         if action == self.ADD:
-            # if adding to a group, check for blocked contacts
-            invalid_uuids = {c.uuid for c in contacts if c.is_blocked or c.is_stopped}
+            # if adding to a group, check for non-active contacts
+            invalid_uuids = {c.uuid for c in contacts if c.status != Contact.STATUS_ACTIVE}
             if invalid_uuids:
                 raise serializers.ValidationError(
-                    "Blocked or stopped contacts cannot be added to groups: %s" % ", ".join(invalid_uuids)
+                    "Non-active contacts cannot be added to groups: %s" % ", ".join(invalid_uuids)
                 )
 
         return data
@@ -818,17 +824,17 @@ class ContactBulkActionSerializer(WriteSerializer):
         group = self.validated_data.get("group")
 
         if action == self.ADD:
-            group.update_contacts(user, contacts, add=True)
+            Contact.bulk_change_group(user, contacts, group, add=True)
         elif action == self.REMOVE:
-            group.update_contacts(user, contacts, add=False)
+            Contact.bulk_change_group(user, contacts, group, add=False)
         elif action == self.INTERRUPT:
             mailroom.queue_interrupt(self.context["org"], contacts=contacts)
         elif action == self.ARCHIVE:
             Msg.archive_all_for_contacts(contacts)
         elif action == self.BLOCK:
-            Contact.bulk_change_status(user, contacts, Contact.STATUS_BLOCKED)
+            Contact.bulk_change_status(user, contacts, modifiers.Status.BLOCKED)
         elif action == self.UNBLOCK:
-            Contact.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
+            Contact.bulk_change_status(user, contacts, modifiers.Status.ACTIVE)
         elif action == self.DELETE:
             for contact in contacts:
                 contact.release(user)

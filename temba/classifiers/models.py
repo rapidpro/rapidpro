@@ -65,7 +65,7 @@ class ClassifierType(metaclass=ABCMeta):
         """
         return url(r"^connect", self.connect_view.as_view(classifier_type=self), name="connect")
 
-    def get_active_intents_from_api(self, classifier, logs):
+    def get_active_intents_from_api(self, classifier):
         """
         Should return current set of available intents for the passed in classifier by checking the provider API
         """

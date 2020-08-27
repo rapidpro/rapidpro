@@ -185,8 +185,6 @@ class Campaign(TembaModel):
         for campaign in campaigns:
             EventFire.update_campaign_events(campaign)
 
-        return [each_campaign.pk for each_campaign in campaigns]
-
     @classmethod
     def apply_action_restore(cls, user, campaigns):
         campaigns.update(is_archived=False, modified_by=user, modified_on=timezone.now())
@@ -195,8 +193,6 @@ class Campaign(TembaModel):
         for campaign in campaigns:
             Campaign.restore_flows(campaign)
             EventFire.update_campaign_events(campaign)
-
-        return [each_campaign.pk for each_campaign in campaigns]
 
     def get_events(self):
         return self.events.filter(is_active=True).order_by("relative_to", "offset")
@@ -624,11 +620,11 @@ class EventFire(Model):
             if field.field_type == ContactField.FIELD_TYPE_USER:
                 field_uuid = str(field.uuid)
 
-                contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False).extra(
+                contacts = event.campaign.group.contacts.filter(is_active=True, status=Contact.STATUS_ACTIVE).extra(
                     where=['%s::text[] <@ (extract_jsonb_keys("contacts_contact"."fields"))'], params=[[field_uuid]]
                 )
             elif field.field_type == ContactField.FIELD_TYPE_SYSTEM:
-                contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False)
+                contacts = event.campaign.group.contacts.filter(is_active=True, status=Contact.STATUS_ACTIVE)
             else:  # pragma: no cover
                 raise ValueError(f"Unhandled ContactField type {field.field_type}.")
 

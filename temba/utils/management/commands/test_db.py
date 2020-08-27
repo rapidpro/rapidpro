@@ -508,6 +508,12 @@ class Command(BaseCommand):
                     location = self.random_choice(locations) if self.probability(CONTACT_HAS_FIELD_PROB) else None
                     created_on = self.timeline_date(c_index / num_contacts)
 
+                    status = Contact.STATUS_ACTIVE
+                    if self.probability(CONTACT_IS_STOPPED_PROB):
+                        status = Contact.STATUS_STOPPED
+                    elif self.probability(CONTACT_IS_BLOCKED_PROB):
+                        status = Contact.STATUS_BLOCKED
+
                     c = {
                         "org": org,
                         "user": org.cache["users"][0],
@@ -524,8 +530,7 @@ class Command(BaseCommand):
                         "district": location[1] if location else None,
                         "state": location[2] if location else None,
                         "language": self.random_choice(CONTACT_LANGS),
-                        "is_stopped": self.probability(CONTACT_IS_STOPPED_PROB),
-                        "is_blocked": self.probability(CONTACT_IS_BLOCKED_PROB),
+                        "status": status,
                         "is_active": self.probability(1 - CONTACT_IS_DELETED_PROB),
                         "created_on": created_on,
                         "modified_on": self.random_date(created_on, self.db_ends_on),
@@ -568,11 +573,11 @@ class Command(BaseCommand):
 
                     # work out which system groups this contact belongs to
                     if c["is_active"]:
-                        if not c["is_blocked"] and not c["is_stopped"]:
-                            c["groups"].append(org.cache["system_groups"][ContactGroup.TYPE_ALL])
-                        if c["is_blocked"]:
+                        if c["status"] == Contact.STATUS_ACTIVE:
+                            c["groups"].append(org.cache["system_groups"][ContactGroup.TYPE_ACTIVE])
+                        elif c["status"] == Contact.STATUS_BLOCKED:
                             c["groups"].append(org.cache["system_groups"][ContactGroup.TYPE_BLOCKED])
-                        if c["is_stopped"]:
+                        elif c["status"] == Contact.STATUS_STOPPED:
                             c["groups"].append(org.cache["system_groups"][ContactGroup.TYPE_STOPPED])
 
                     # let each user group decide if it is taking this contact
@@ -606,8 +611,7 @@ class Command(BaseCommand):
                 org=c["org"],
                 name=c["name"],
                 language=c["language"],
-                is_stopped=c["is_stopped"],
-                is_blocked=c["is_blocked"],
+                status=c["status"],
                 is_active=c["is_active"],
                 created_by=c["user"],
                 created_on=c["created_on"],

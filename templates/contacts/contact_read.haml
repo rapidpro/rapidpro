@@ -9,9 +9,9 @@
   {{contact|name_or_urn:user_org|default:"Contact Details"}}
 
 -block title
-  -if contact.is_blocked
+  -if contact.status == 'B'
     <div class="medium-help icon-user-block" style="float:left" title="{% trans "blocked" %}"></div>
-  -elif contact.is_stopped
+  -elif contact.status == 'S'
     <div class="medium-help icon-user-delete" style="float:left" title="{% trans "stopped" %}"></div>
   -else
     .medium-help.icon-user{style:"float:left"}

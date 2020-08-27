@@ -44,7 +44,7 @@ from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
 from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.text import slugify_with
-from temba.utils.views import BaseActionForm, NonAtomicMixin
+from temba.utils.views import BulkActionMixin, NonAtomicMixin
 from temba.values.constants import Value
 
 from .models import (
@@ -85,7 +85,7 @@ class RemoveFromGroupForm(forms.Form):
         assert not group.is_dynamic, "can't manually add/remove contacts for a dynamic group"
 
         # remove contact from group
-        group.update_contacts(self.user, [contact], add=False)
+        Contact.bulk_change_group(self.user, [contact], group, add=False)
 
         return {"status": "success"}
 
@@ -128,7 +128,7 @@ class ContactGroupForm(forms.ModelForm):
 
         try:
             parsed = parse_query(self.org.id, self.cleaned_data["query"])
-            if not parsed.allow_as_group:
+            if not parsed.metadata.allow_as_group:
                 raise forms.ValidationError(_('You cannot create a dynamic group based on "id" or "group".'))
 
             if (
@@ -148,7 +148,7 @@ class ContactGroupForm(forms.ModelForm):
         model = ContactGroup
 
 
-class ContactListView(OrgPermsMixin, SmartListView):
+class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
     """
     Base class for contact list views with contact folders and groups listed by the side
     """
@@ -164,6 +164,8 @@ class ContactListView(OrgPermsMixin, SmartListView):
     sort_direction = None
 
     search_error = None
+
+    restore_label = _("Restore")
 
     def pre_process(self, request, *args, **kwargs):
         """
@@ -264,7 +266,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
             try:
                 results = search_contacts(org.id, str(group.uuid), search_query, sort_on, offset)
                 self.parsed_query = results.query if len(results.query) > 0 else None
-                self.save_dynamic_search = results.allow_as_group
+                self.save_dynamic_search = results.metadata.allow_as_group
 
                 return IDSliceQuerySet(Contact, results.contact_ids, offset, results.total)
             except SearchException as e:
@@ -282,6 +284,9 @@ class ContactListView(OrgPermsMixin, SmartListView):
             patch_queryset_count(qs, group.get_member_count)
             return qs
 
+    def get_bulk_action_labels(self):
+        return ContactGroup.get_user_groups(org=self.get_user().get_org(), dynamic=False)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
@@ -289,9 +294,12 @@ class ContactListView(OrgPermsMixin, SmartListView):
         counts = ContactGroup.get_system_group_counts(org)
 
         folders = [
-            dict(count=counts[ContactGroup.TYPE_ALL], label=_("All Contacts"), url=reverse("contacts.contact_list")),
+            dict(count=counts[ContactGroup.TYPE_ACTIVE], label=_("Active"), url=reverse("contacts.contact_list")),
             dict(count=counts[ContactGroup.TYPE_BLOCKED], label=_("Blocked"), url=reverse("contacts.contact_blocked")),
             dict(count=counts[ContactGroup.TYPE_STOPPED], label=_("Stopped"), url=reverse("contacts.contact_stopped")),
+            dict(
+                count=counts[ContactGroup.TYPE_ARCHIVED], label=_("Archived"), url=reverse("contacts.contact_archived")
+            ),
         ]
 
         # resolve the paginated object list so we can initialize a cache of URNs and fields
@@ -304,6 +312,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         context["has_contacts"] = contacts or org.has_contacts()
         context["search_error"] = self.search_error
         context["send_form"] = SendMessageForm(self.request.user)
+        context["restore_label"] = self.restore_label
 
         context["sort_direction"] = self.sort_direction
         context["sort_field"] = self.sort_field
@@ -333,41 +342,6 @@ class ContactListView(OrgPermsMixin, SmartListView):
             )
 
         return rendered
-
-
-class ContactActionForm(BaseActionForm):
-    allowed_actions = (
-        ("label", _("Add to Group")),
-        ("unlabel", _("Remove from Group")),
-        ("unblock", _("Unblock Contacts")),
-        ("block", _("Block Contacts")),
-        ("delete", _("Delete Contacts")),
-        ("unstop", _("Unstop Contacts")),
-    )
-
-    model = Contact
-    label_model = ContactGroup
-    label_model_manager = "user_groups"
-    has_is_active = True
-
-    class Meta:
-        fields = ("action", "label", "objects", "add")
-
-
-class ContactActionMixin(SmartListView):
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        user = self.request.user
-        org = user.get_org()
-
-        form = ContactActionForm(self.request.POST, org=org, user=user)
-
-        if form.is_valid():
-            form.execute()
-
-        return self.get(request, *args, **kwargs)
 
 
 class ContactForm(forms.ModelForm):
@@ -521,6 +495,7 @@ class ContactCRUDL(SmartCRUDL):
         "update",
         "search",
         "stopped",
+        "archived",
         "list",
         "import",
         "read",
@@ -532,8 +507,8 @@ class ContactCRUDL(SmartCRUDL):
         "update_fields_input",
         "export",
         "block",
-        "unblock",
-        "unstop",
+        "restore",
+        "archive",
         "delete",
         "history",
     )
@@ -1110,7 +1085,7 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm("msgs.broadcast_send") and not self.object.is_blocked and not self.object.is_stopped:
+            if self.has_org_perm("msgs.broadcast_send") and self.object.status == Contact.STATUS_ACTIVE:
                 links.append(
                     dict(
                         id="send-message",
@@ -1128,7 +1103,17 @@ class ContactCRUDL(SmartCRUDL):
                     dict(title=_("Custom Fields"), style="btn-primary", js_class="update-contact-fields", href="#")
                 )
 
-                if self.has_org_perm("contacts.contact_block") and not self.object.is_blocked:
+                if self.object.status != Contact.STATUS_ACTIVE and self.has_org_perm("contacts.contact_restore"):
+                    links.append(
+                        dict(
+                            title=_("Restore"),
+                            style="btn-primary",
+                            js_class="posterize",
+                            href=reverse("contacts.contact_restore", args=(self.object.pk,)),
+                        )
+                    )
+
+                if self.object.status != Contact.STATUS_BLOCKED and self.has_org_perm("contacts.contact_block"):
                     links.append(
                         dict(
                             title=_("Block"),
@@ -1138,29 +1123,14 @@ class ContactCRUDL(SmartCRUDL):
                         )
                     )
 
-                if self.has_org_perm("contacts.contact_unblock") and self.object.is_blocked:
+                if self.object.status != Contact.STATUS_ARCHIVED and self.has_org_perm("contacts.contact_archive"):
                     links.append(
                         dict(
-                            title=_("Unblock"),
+                            title=_("Archive"),
                             style="btn-primary",
                             js_class="posterize",
-                            href=reverse("contacts.contact_unblock", args=(self.object.pk,)),
+                            href=reverse("contacts.contact_archive", args=(self.object.pk,)),
                         )
-                    )
-
-                if self.has_org_perm("contacts.contact_unstop") and self.object.is_stopped:
-                    links.append(
-                        dict(
-                            title=_("Unstop"),
-                            style="btn-primary",
-                            js_class="posterize",
-                            href=reverse("contacts.contact_unstop", args=(self.object.pk,)),
-                        )
-                    )
-
-                if self.has_org_perm("contacts.contact_delete"):
-                    links.append(
-                        dict(title=_("Delete"), style="btn-primary", js_class="contact-delete-button", href="#")
                     )
 
             user = self.get_user()
@@ -1244,11 +1214,11 @@ class ContactCRUDL(SmartCRUDL):
                 return JsonResponse({"total": 0, "sample": [], "fields": {}})
 
             try:
-                results = search_contacts(org.id, org.cached_all_contacts_group.uuid, query, "-created_on")
+                results = search_contacts(org.id, org.cached_active_contacts_group.uuid, query, "-created_on")
                 summary = {
                     "total": results.total,
                     "query": results.query,
-                    "fields": results.fields,
+                    "fields": results.metadata.fields,
                     "sample": IDSliceQuerySet(Contact, results.contact_ids, 0, results.total)[0:samples],
                 }
             except SearchException as e:
@@ -1275,15 +1245,17 @@ class ContactCRUDL(SmartCRUDL):
             summary["sample"] = json_contacts
 
             # add in our field defs
+            field_keys = [f["key"] for f in summary["fields"]]
             summary["fields"] = {
                 str(f.uuid): {"label": f.label}
-                for f in ContactField.user_fields.filter(org=org, key__in=summary["fields"], is_active=True)
+                for f in ContactField.user_fields.filter(org=org, key__in=field_keys, is_active=True)
             }
             return JsonResponse(summary)
 
-    class List(ContactActionMixin, ContactListView):
+    class List(ContactListView):
         title = _("Contacts")
-        system_group = ContactGroup.TYPE_ALL
+        system_group = ContactGroup.TYPE_ACTIVE
+        bulk_actions = ("label", "block", "archive")
 
         def get_gear_links(self):
             links = []
@@ -1310,36 +1282,51 @@ class ContactCRUDL(SmartCRUDL):
             context = super().get_context_data(*args, **kwargs)
             org = self.request.user.get_org()
 
-            context["actions"] = ("label", "block")
             context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by("-priority", "pk")
             context["export_url"] = self.derive_export_url()
             return context
 
-    class Blocked(ContactActionMixin, ContactListView):
+    class Blocked(ContactListView):
         title = _("Blocked Contacts")
         template_name = "contacts/contact_list.haml"
         system_group = ContactGroup.TYPE_BLOCKED
+        bulk_actions = ("restore", "archive")
+        restore_label = _("Unblock")
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
-            context["actions"] = (
-                ("unblock", "delete") if self.has_org_perm("contacts.contact_delete") else ("unblock",)
-            )
             context["reply_disabled"] = True
             return context
 
-    class Stopped(ContactActionMixin, ContactListView):
+    class Stopped(ContactListView):
         title = _("Stopped Contacts")
         template_name = "contacts/contact_stopped.haml"
         system_group = ContactGroup.TYPE_STOPPED
+        bulk_actions = ("restore", "archive")
+        restore_label = _("Unstop")
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
-            context["actions"] = ["block", "unstop"]
             context["reply_disabled"] = True
             return context
 
-    class Filter(ContactActionMixin, ContactListView, OrgObjPermsMixin):
+    class Archived(ContactListView):
+        title = _("Archived Contacts")
+        template_name = "contacts/contact_archived.haml"
+        system_group = ContactGroup.TYPE_ARCHIVED
+
+        def get_bulk_actions(self):
+            actions = ["restore"]
+            if self.has_org_perm("contacts.contact_delete"):
+                actions.append("delete")
+            return actions
+
+        def get_context_data(self, *args, **kwargs):
+            context = super().get_context_data(*args, **kwargs)
+            context["reply_disabled"] = True
+            return context
+
+    class Filter(ContactListView, OrgObjPermsMixin):
         template_name = "contacts/contact_filter.haml"
 
         def get_gear_links(self):
@@ -1362,18 +1349,15 @@ class ContactCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Delete Group"), js_class="delete-contactgroup", href="#"))
             return links
 
+        def get_bulk_actions(self):
+            return ("block", "archive") if self.derive_group().is_dynamic else ("block", "label", "unlabel")
+
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
 
             group = self.derive_group()
             org = self.request.user.get_org()
 
-            if group.is_dynamic:
-                actions = ("block", "label")
-            else:
-                actions = ("block", "label", "unlabel")
-
-            context["actions"] = actions
             context["current_group"] = group
             context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by("-priority", "pk")
             context["export_url"] = self.derive_export_url()
@@ -1391,19 +1375,6 @@ class ContactCRUDL(SmartCRUDL):
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactForm
-        exclude = (
-            "is_active",
-            "uuid",
-            "language",
-            "org",
-            "fields",
-            "is_blocked",
-            "is_stopped",
-            "created_by",
-            "modified_by",
-            "is_test",
-            "channel",
-        )
         success_message = ""
         submit_button_name = _("Create")
 
@@ -1443,7 +1414,7 @@ class ContactCRUDL(SmartCRUDL):
             if not obj.org.primary_language:
                 exclude.append("language")
 
-            if obj.is_blocked:
+            if obj.status != Contact.STATUS_ACTIVE:
                 exclude.append("groups")
 
             return exclude
@@ -1573,30 +1544,30 @@ class ContactCRUDL(SmartCRUDL):
             obj.block(self.request.user)
             return obj
 
-    class Unblock(OrgObjPermsMixin, SmartUpdateView):
+    class Restore(OrgObjPermsMixin, SmartUpdateView):
         """
-        Unblock this contact
+        Restore this contact
         """
 
         fields = ()
         success_url = "uuid@contacts.contact_read"
-        success_message = _("Contact unblocked")
+        success_message = _("Contact restored")
 
         def save(self, obj):
-            obj.reactivate(self.request.user)
+            obj.restore(self.request.user)
             return obj
 
-    class Unstop(OrgObjPermsMixin, SmartUpdateView):
+    class Archive(OrgObjPermsMixin, SmartUpdateView):
         """
-        Unstops this contact
+        Archive this contact
         """
 
         fields = ()
         success_url = "uuid@contacts.contact_read"
-        success_message = _("Contact unstopped")
+        success_message = _("Contact archived")
 
         def save(self, obj):
-            obj.reactivate(self.request.user)
+            obj.archive(self.request.user)
             return obj
 
     class Delete(OrgObjPermsMixin, SmartUpdateView):
@@ -1638,9 +1609,9 @@ class ContactGroupCRUDL(SmartCRUDL):
 
                 if preselected_contacts:
                     preselected_ids = [int(c_id) for c_id in preselected_contacts.split(",") if c_id.isdigit()]
-                    contacts = Contact.objects.filter(org=org, pk__in=preselected_ids, is_active=True)
+                    contacts = org.contacts.filter(id__in=preselected_ids, is_active=True)
 
-                    self.object.update_contacts(user, contacts, add=True)
+                    on_transaction_commit(lambda: Contact.bulk_change_group(user, contacts, self.object, add=True))
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()

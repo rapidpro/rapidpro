@@ -27,7 +27,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.luis import LuisType
 from temba.classifiers.types.wit import WitType
-from temba.contacts.models import Contact, ContactField, ContactGroup
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import BoundaryAlias
@@ -1599,9 +1599,15 @@ class APITest(TembaTest):
         contact3.release(self.user)
 
         # put some contacts in a group
-        group = ContactGroup.get_or_create(self.org, self.admin, "Customers")
-        group.update_contacts(self.user, [self.joe], add=True)  # add contacts separately for predictable modified_on
-        group.update_contacts(self.user, [contact4], add=True)  # ordering
+        group = self.create_group("Customers", contacts=[self.joe, contact4])
+        other_org_group = self.create_group("Nerds", org=self.org2)
+
+        # tweak modified_on so we get the order we want
+        self.joe.modified_on = timezone.now()
+        self.joe.save(update_fields=("modified_on",), handle_update=False)
+        contact4.modified_on = timezone.now()
+        contact4.last_seen_on = datetime(2020, 8, 12, 13, 30, 45, 123456, pytz.UTC)
+        contact4.save(update_fields=("modified_on", "last_seen_on"), handle_update=False)
 
         contact1.refresh_from_db()
         contact4.refresh_from_db()
@@ -1631,6 +1637,7 @@ class APITest(TembaTest):
                 "stopped": False,
                 "created_on": format_datetime(contact4.created_on),
                 "modified_on": format_datetime(contact4.modified_on),
+                "last_seen_on": "2020-08-12T13:30:45.123456Z",
             },
         )
 
@@ -1682,6 +1689,7 @@ class APITest(TembaTest):
                 "stopped": None,
                 "created_on": format_datetime(contact3.created_on),
                 "modified_on": format_datetime(contact3.modified_on),
+                "last_seen_on": None,
             },
         )
 
@@ -1708,6 +1716,7 @@ class APITest(TembaTest):
                 "stopped": False,
                 "created_on": format_datetime(empty.created_on),
                 "modified_on": format_datetime(empty.modified_on),
+                "last_seen_on": None,
             },
         )
 
@@ -1715,9 +1724,12 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"name": None, "language": None, "urns": [], "groups": [], "fields": {}})
         self.assertEqual(response.status_code, 201)
 
-        jaqen = Contact.objects.filter(name=None, language=None).order_by("-pk").first()
-        self.assertEqual(set(jaqen.urns.all()), set())
-        self.assertEqual(set(jaqen.user_groups.all()), set())
+        jaqen = Contact.objects.order_by("id").last()
+        self.assertIsNone(jaqen.name)
+        self.assertIsNone(jaqen.language)
+        self.assertEqual(Contact.STATUS_ACTIVE, jaqen.status)
+        self.assertEqual(set(), set(jaqen.urns.all()))
+        self.assertEqual(set(), set(jaqen.user_groups.all()))
         self.assertIsNone(jaqen.fields)
 
         # create a dynamic group
@@ -1739,7 +1751,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         resp_json = response.json()
-        self.assertEqual(resp_json["urns"], ["twitter:jean", "tel:+250783333333"])
+        self.assertEqual(resp_json["urns"], ["tel:+250783333333", "twitter:jean"])
 
         # URNs will be normalized
         nickname = ContactField.get_by_key(self.org, "nickname")
@@ -1748,6 +1760,10 @@ class APITest(TembaTest):
         self.assertEqual(set(jean.urns.values_list("identity", flat=True)), {"tel:+250783333333", "twitter:jean"})
         self.assertEqual(set(jean.user_groups.all()), {group})
         self.assertEqual(jean.get_field_value(nickname), "Jado")
+
+        # try to create with group from other org
+        response = self.postJSON(url, None, {"name": "Jim", "groups": [other_org_group.uuid]},)
+        self.assertResponseError(response, "groups", f"No such object: {other_org_group.uuid}")
 
         # try to create with invalid fields
         response = self.postJSON(
@@ -1905,7 +1921,7 @@ class APITest(TembaTest):
         # try to move a blocked contact into a group
         jean.block(self.user)
         response = self.postJSON(url, "uuid=%s" % jean.uuid, {"groups": [group.uuid]})
-        self.assertResponseError(response, "groups", "Blocked or stopped contacts can't be added to groups")
+        self.assertResponseError(response, "groups", "Non-active contacts can't be added to groups")
 
         # try to update a contact by both UUID and URN
         response = self.postJSON(url, "uuid=%s&urn=%s" % (jean.uuid, quote_plus("tel:+250784444444")), {})
@@ -2109,6 +2125,26 @@ class APITest(TembaTest):
             self.assertResponseError(response, None, "URN lookups not allowed for anonymous organizations")
 
     @mock_mailroom
+    def test_contact_create_with_urns(self, mr_mocks):
+        url = reverse("api.v2.contacts")
+        self.assertEndpointAccess(url)
+
+        # one of the URNs will already exist in an orphaned state
+        ContactURN.get_or_create(self.org, None, "tel:+250783333335")
+
+        # test create with a null chars \u0000
+        response = self.postJSON(
+            url, None, {"name": "Jean", "urns": ["tel:+250783333334", "tel:+250783333335", "tel:+250783333336"]},
+        )
+        self.assertEqual(201, response.status_code)
+
+        # check URNs are in the specified order
+        contact = Contact.objects.get(name="Jean")
+        self.assertEqual(
+            ["tel:+250783333334", "tel:+250783333335", "tel:+250783333336"], [u.identity for u in contact.get_urns()]
+        )
+
+    @mock_mailroom
     def test_contact_actions(self, mr_mocks):
         url = reverse("api.v2.contact_actions")
 
@@ -2127,6 +2163,7 @@ class APITest(TembaTest):
         group = self.create_group("Testers")
         self.create_field("isdeveloper", "Is developer")
         self.create_group("Developers", query="isdeveloper = YES")
+        other_org_group = self.create_group("Testers", org=self.org2)
 
         # create some "active" runs for some of the contacts
         flow = self.get_flow("favorites_v13")
@@ -2172,7 +2209,7 @@ class APITest(TembaTest):
 
         # error reporting that the deleted and test contacts are invalid
         self.assertResponseError(
-            response, "non_field_errors", "Blocked or stopped contacts cannot be added to groups: %s" % contact4.uuid
+            response, "non_field_errors", "Non-active contacts cannot be added to groups: %s" % contact4.uuid
         )
 
         # add valid contacts to the group by name
@@ -2199,6 +2236,12 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"contacts": [contact3.uuid], "action": "add", "group": "nope"})
         self.assertResponseError(response, "group", "No such object: nope")
 
+        # try to add to a group in another org
+        response = self.postJSON(
+            url, None, {"contacts": [contact1.uuid], "action": "add", "group": other_org_group.uuid}
+        )
+        self.assertResponseError(response, "group", f"No such object: {other_org_group.uuid}")
+
         # remove contact 2 from group by its name (which is case-insensitive)
         response = self.postJSON(url, None, {"contacts": [contact2.uuid], "action": "remove", "group": "testers"})
         self.assertEqual(response.status_code, 204)
@@ -2220,13 +2263,15 @@ class APITest(TembaTest):
             url, None, {"contacts": [contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid], "action": "block"}
         )
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact1, contact2, contact3, contact4})
+        self.assertEqual(
+            set(Contact.objects.filter(status=Contact.STATUS_BLOCKED)), {contact1, contact2, contact3, contact4}
+        )
 
         # unblock contact 1
         response = self.postJSON(url, None, {"contacts": [contact1.uuid], "action": "unblock"})
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(set(self.org.contacts.filter(is_blocked=False)), {contact1, contact5})
-        self.assertEqual(set(self.org.contacts.filter(is_blocked=True)), {contact2, contact3, contact4})
+        self.assertEqual(set(self.org.contacts.filter(status=Contact.STATUS_ACTIVE)), {contact1, contact5})
+        self.assertEqual(set(self.org.contacts.filter(status=Contact.STATUS_BLOCKED)), {contact2, contact3, contact4})
 
         # interrupt any active runs of contacts 1 and 2
         with patch("temba.mailroom.queue_interrupt") as mock_queue_interrupt:
