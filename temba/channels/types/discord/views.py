@@ -14,7 +14,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         auth_token = forms.CharField(
             label=_("Authentication Token"), help_text=_("The discord bot token")
         )
-        proxy_url = forms.URLField(
+        proxy_url = forms.CharField(
             label=_("Proxy URL"), help_text=_("The URL on which the discord proxy is running")
         )
 
@@ -22,16 +22,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             org = self.request.user.get_org()
             value = self.cleaned_data["auth_token"]
 
-            # does a bot already exist on this account with that auth token
-            # for channel in Channel.objects.filter(org=org, is_active=True, channel_type=self.channel_type.code):
-            #     if channel.config["auth_token"] == value:
-            #         raise ValidationError(_("A telegram channel for this bot already exists on your account."))
-
-            # try:
-            #     bot = telegram.Bot(token=value)
-            #     bot.get_me()
-            # except telegram.TelegramError:
-            #     raise ValidationError(_("Your authentication token is invalid, please check and try again"))
+            does a bot already exist on this account with that auth token
+            for channel in Channel.objects.filter(org=org, is_active=True, channel_type=self.channel_type.code):
+                if channel.config["auth_token"] == value:
+                    raise ValidationError(_("A channel for this bot already exists on your account."))
 
             return value
 
@@ -42,8 +36,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         auth_token = self.form.cleaned_data["auth_token"]
         proxy_url = self.form.cleaned_data["proxy_url"]
 
-        # bot = telegram.Bot(auth_token)
-        # me = bot.get_me()
         channel_config = {
             Channel.CONFIG_AUTH_TOKEN: auth_token,
             Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
