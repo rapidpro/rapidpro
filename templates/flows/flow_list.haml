@@ -170,15 +170,16 @@
 
             -block flow-list
               %table.list.lined{class: '{% if org_perms.flows.flow_update %}selectable{% endif %}'}
-                %thead
-                  %tr
-                    -if org_perms.flows.flow_update
+                -if object_list
+                  %thead
+                    %tr
+                      -if org_perms.flows.flow_update
+                        %th
                       %th
-                    %th
-                    %th
-                    %th.whitespace-no-wrap
-                      Runs / Completion
-                      
+                      %th
+                      %th.whitespace-no-wrap
+                        Runs / Completion
+
                 %tbody
                   -for object in object_list
                     %tr.object-row.select-row{ data-object-uuid: "{{object.uuid}}", data-object-id: "{{ object.id }}",  onrowclick:'gotoLink("{% url "flows.flow_editor" object.uuid%}")'}
@@ -216,8 +217,8 @@
                                 {{object.run_stats.completion}}%
 
                   -empty
-                    %tr
-                      %td
+                    %tr.empty_list
+                      %td{ colspan:'99' }
                         -trans "No matching flows."
 
               - block paginator

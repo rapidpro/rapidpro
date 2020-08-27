@@ -207,8 +207,10 @@
                               {% channel_log_link object %}
 
                   -if not object_list
-                    .text-lg.text-gray-700.px-4
-                      -trans "No messages"
+                    %tr.empty_list
+                      %td{ colspan:'99' }
+                        -trans "No messages"
+
               - block paginator
                 -if object_list.count
                   -block search-details

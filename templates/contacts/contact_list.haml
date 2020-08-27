@@ -162,48 +162,49 @@
                       Found {{ results_count }} contacts matching <i>{{search}}</i>.
 
               %table.list.object-list.lined{class:"{% if org_perms.contacts.contact_update %}selectable{%endif%}"}
-                %tr.contacts
-                  -if org_perms.contacts.contact_update
-                    %th
-                  %th
-                  %th
-                  -for field in contact_fields
-                    -if field.show_in_table
+                - if object_list
+                  %tr.contacts
+                    -if org_perms.contacts.contact_update
                       %th
-                        -if sort_field == field.key
-                          -if sort_direction == 'desc'
-                            %a{href:"?sort_on={{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}"}
-                              %div
-                                {{ field.label }}
-                                %span.sort.icon.icon-arrow-down-2.sort-asc.visible
+                    %th
+                    %th
+                    -for field in contact_fields
+                      -if field.show_in_table
+                        %th
+                          -if sort_field == field.key
+                            -if sort_direction == 'desc'
+                              %a{href:"?sort_on={{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}"}
+                                %div
+                                  {{ field.label }}
+                                  %span.sort.icon.icon-arrow-down-2.sort-asc.visible
+                            -else
+                              %a{href:"?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}"}
+                                %div
+                                  {{ field.label }}
+                                  %span.sort.icon.icon-arrow-up51.sort-desc.visible
                           -else
                             %a{href:"?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}"}
                               %div
                                 {{ field.label }}
+                                %span.sort.icon.icon-arrow-down-2.sort-desc
+                    %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
+                      - if object_list
+                        -if sort_field == 'created_on'
+                          -if sort_direction == 'desc'
+                            %a{href:"?sort_on=created_on{% if search %}&search={{ search|escape }}{% endif %}"}
+                              %div
+                                -trans "Created On"
+                                %span.sort.icon.icon-arrow-down-2.sort-asc.visible
+                          -else
+                            %a{href:"?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}"}
+                              %div
+                                -trans "Created On"
                                 %span.sort.icon.icon-arrow-up51.sort-desc.visible
-                        -else
-                          %a{href:"?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}"}
-                            %div
-                              {{ field.label }}
-                              %span.sort.icon.icon-arrow-down-2.sort-desc
-                  %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
-                    - if object_list
-                      -if sort_field == 'created_on'
-                        -if sort_direction == 'desc'
-                          %a{href:"?sort_on=created_on{% if search %}&search={{ search|escape }}{% endif %}"}
-                            %div
-                              -trans "Created On"
-                              %span.sort.icon.icon-arrow-down-2.sort-asc.visible
                         -else
                           %a{href:"?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}"}
                             %div
                               -trans "Created On"
-                              %span.sort.icon.icon-arrow-up51.sort-desc.visible
-                      -else
-                        %a{href:"?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}"}
-                          %div
-                            -trans "Created On"
-                            %span.sort.icon.icon-arrow-down-2.sort-desc
+                              %span.sort.icon.icon-arrow-down-2.sort-desc
 
                 %tbody
                   - for object in contacts
@@ -241,11 +242,9 @@
                                     {{group.name}}
 
                   -empty
-                    %tr
-                      %td
-                      %td.w-full
-                        .p-6.text-xl.w-full
-                          -trans "No matching contacts."
+                    %tr.empty_list
+                      %td{ colspan:'99' }
+                        -trans "No matching contacts."
 
                       -for field in contact_fields
                         -if field.show_in_table
