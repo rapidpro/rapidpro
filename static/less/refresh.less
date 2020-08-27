@@ -10,6 +10,12 @@ body {
   border-radius: 0.5rem;
 }
 
+
+temba-textinput input:focus {
+  box-shadow: var(--widget-box-shadow-focused), 0 0 0 1px var(--color-focus) !important;
+  border-radius: var(--curvature-widget);
+}
+
 // Smartmin forms
 form.smartmin-form {
 
@@ -97,18 +103,28 @@ form.smartmin-form {
   margin-right: auto;
 }
 
-#menu, .org-header, .ReactModalPortal, #rp-flow-editor, #legacy-editor, .modal {
-  *, ::before, ::after {
+#menu,
+.org-header,
+.ReactModalPortal,
+#rp-flow-editor,
+#legacy-editor,
+.modal {
+
+  *,
+  ::before,
+  ::after {
     box-sizing: content-box !important;
   }
 
-  &::before, &::after {
+  &::before,
+  &::after {
     box-sizing: content-box !important;
   }
 }
 
 .ReactModalPortal {
   line-height: initial;
+
   p {
     margin-block-end: 14px;
     margin-block-start: 10px;
@@ -117,12 +133,15 @@ form.smartmin-form {
   }
 }
 
-#legacy-editor, .modal {
+#legacy-editor,
+.modal {
   color: #333;
   line-height: 20px;
+
   select {
-    padding-left:6px;
+    padding-left: 6px;
   }
+
   p {
     margin-block-end: 10px;
     margin-block-start: 0px;
@@ -134,4 +153,3 @@ form.smartmin-form {
     margin-bottom: 0px;
   }
 }
-

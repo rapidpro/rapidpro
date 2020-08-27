@@ -1968,56 +1968,30 @@ legend+.control-group {
   padding-left: 180px;
 }
 
-table {
-  max-width: 100%;
-  background-color: transparent;
-  border-collapse: collapse;
-  border-spacing: 0;
-}
+table {}
 
-.table {
-  width: 100%;
-  margin-bottom: 20px;
-}
+.table {}
 
 .table th,
-.table td {
-  padding: 8px;
-  line-height: 20px;
-  text-align: left;
-  vertical-align: top;
-  border-top: 1px solid #dddddd;
-}
+.table td {}
 
-.table th {
-  font-weight: bold;
-}
+.table th {}
 
-.table thead th {
-  vertical-align: bottom;
-}
+.table thead th {}
 
 .table caption+thead tr:first-child th,
 .table caption+thead tr:first-child td,
 .table colgroup+thead tr:first-child th,
 .table colgroup+thead tr:first-child td,
 .table thead:first-child tr:first-child th,
-.table thead:first-child tr:first-child td {
-  border-top: 0;
-}
+.table thead:first-child tr:first-child td {}
 
-.table tbody+tbody {
-  border-top: 2px solid #dddddd;
-}
+.table tbody+tbody {}
 
-.table .table {
-  background-color: #ffffff;
-}
+.table .table {}
 
 .table-condensed th,
-.table-condensed td {
-  padding: 4px 5px;
-}
+.table-condensed td {}
 
 .table-bordered {
   border: 1px solid #dddddd;
