@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-26 21:58+0000\n"
+"POT-Creation-Date: 2020-08-27 16:24+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3853,10 +3853,8 @@ msgstr ""
 msgid "You cannot update the query of a group that is evaluating."
 msgstr ""
 
-#, fuzzy
-#| msgid "Restore Flows"
-msgid "Restore"
-msgstr "Restaurar flujos"
+msgid "Activate"
+msgstr "Activar"
 
 msgid "Active"
 msgstr "Activar"
@@ -3977,16 +3975,10 @@ msgstr "Importar contactos"
 msgid "Blocked Contacts"
 msgstr "Contactos bloqueados"
 
-msgid "Unblock"
-msgstr "Desbloquear"
-
 #, fuzzy
 #| msgid "Show Contacts"
 msgid "Stopped Contacts"
 msgstr "Mostrar Contactos"
-
-msgid "Unstop"
-msgstr ""
 
 #, fuzzy
 #| msgid "Failed Contacts"
@@ -4011,19 +4003,6 @@ msgstr "Encontramos un error para retirar su transmisor, por favor, inténtelo n
 #| msgid "Select All"
 msgid "Select a field to update"
 msgstr "Elegir todos"
-
-#, fuzzy
-msgid "Contact blocked"
-msgstr "Teléfono del contacto"
-
-#, fuzzy
-msgid "Contact restored"
-msgstr "Teléfono del contacto"
-
-#, fuzzy
-#| msgid "Manage Contact Fields"
-msgid "Contact archived"
-msgstr "Manejar Campos de Contactos"
 
 #, fuzzy
 #| msgid "Alias names must be unique, try again."
@@ -5730,9 +5709,6 @@ msgstr ""
 #| msgid "Invalid phone number, try again."
 msgid "Invalid MFA token. Please try again."
 msgstr "Número de teléfono inválido, inténtelo nuevamente."
-
-msgid "Activate"
-msgstr "Activar"
 
 msgid "Two Factor Authentication"
 msgstr ""
@@ -10275,6 +10251,11 @@ msgstr "Valor numérico:"
 msgid "Create Folder"
 msgstr "Crear Flujos"
 
+#, fuzzy
+#| msgid "Restore Flows"
+msgid "Restore"
+msgstr "Restaurar flujos"
+
 msgid "Resend"
 msgstr "Reenviar"
 
@@ -13022,6 +13003,22 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Unblock"
+#~ msgstr "Desbloquear"
+
+#, fuzzy
+#~ msgid "Contact blocked"
+#~ msgstr "Teléfono del contacto"
+
+#, fuzzy
+#~ msgid "Contact restored"
+#~ msgstr "Teléfono del contacto"
+
+#, fuzzy
+#~| msgid "Manage Contact Fields"
+#~ msgid "Contact archived"
+#~ msgstr "Manejar Campos de Contactos"
 
 #~ msgid "All Contacts"
 #~ msgstr "Todos los contactos"

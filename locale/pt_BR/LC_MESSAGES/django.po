@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-26 21:58+0000\n"
+"POT-Creation-Date: 2020-08-27 16:24+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3555,9 +3555,8 @@ msgstr ""
 msgid "You cannot update the query of a group that is evaluating."
 msgstr ""
 
-#, fuzzy
-msgid "Restore"
-msgstr "Restaurar"
+msgid "Activate"
+msgstr "Ativar"
 
 msgid "Active"
 msgstr "Ativo"
@@ -3676,16 +3675,10 @@ msgstr "Importar contatos"
 msgid "Blocked Contacts"
 msgstr "Contatos com falha"
 
-msgid "Unblock"
-msgstr ""
-
 #, fuzzy
 #| msgid "Show Contacts"
 msgid "Stopped Contacts"
 msgstr "Mostrar contatos"
-
-msgid "Unstop"
-msgstr ""
 
 msgid "Archived Contacts"
 msgstr "Contatos arquivados"
@@ -3708,19 +3701,6 @@ msgstr "Encontramos um erro ao remover o seu transmissor, por favor, tente novam
 #, fuzzy
 msgid "Select a field to update"
 msgstr "Enviar todas"
-
-#, fuzzy
-msgid "Contact blocked"
-msgstr "Telefone do contato"
-
-#, fuzzy
-msgid "Contact restored"
-msgstr "Telefone do contato"
-
-#, fuzzy
-#| msgid "Manage Contact Fields"
-msgid "Contact archived"
-msgstr "Configurar campo de contatos"
 
 #, fuzzy
 msgid "Must be unique."
@@ -5403,9 +5383,6 @@ msgstr ""
 #| msgid "Invalid phone number, try again."
 msgid "Invalid MFA token. Please try again."
 msgstr "Número de telefone inválido, tente novamente."
-
-msgid "Activate"
-msgstr "Ativar"
 
 msgid "Two Factor Authentication"
 msgstr ""
@@ -9539,6 +9516,10 @@ msgstr "Valor numérico:"
 msgid "Create Folder"
 msgstr "Criar fluxo"
 
+#, fuzzy
+msgid "Restore"
+msgstr "Restaurar"
+
 msgid "Resend"
 msgstr "Re-enviar"
 
@@ -12091,6 +12072,19 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "Contact blocked"
+#~ msgstr "Telefone do contato"
+
+#, fuzzy
+#~ msgid "Contact restored"
+#~ msgstr "Telefone do contato"
+
+#, fuzzy
+#~| msgid "Manage Contact Fields"
+#~ msgid "Contact archived"
+#~ msgstr "Configurar campo de contatos"
 
 #, fuzzy
 #~ msgid "All Contacts"
