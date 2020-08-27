@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-26 07:29+0000\n"
+"POT-Creation-Date: 2020-08-27 18:33+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2794,14 +2794,20 @@ msgstr "Вы не можете создать динамическую груп�
 msgid "You cannot update the query of a group that is evaluating."
 msgstr "Вы не можете обновить запрос для группы, которая проводит оценку."
 
-msgid "All Contacts"
-msgstr "Все Контакты"
+msgid "Activate"
+msgstr "Активировать"
+
+msgid "Active"
+msgstr "Активный"
 
 msgid "Blocked"
 msgstr "Заблокировано"
 
 msgid "Stopped"
 msgstr "Остановлено"
+
+msgid "Archived"
+msgstr "Архивировано"
 
 #, python-brace-format
 msgid "{label} for this contact"
@@ -2884,15 +2890,6 @@ msgstr "Настраиваемые Поля"
 msgid "Block"
 msgstr "Блокировать"
 
-msgid "Unblock"
-msgstr "Разблокировать"
-
-msgid "Unstop"
-msgstr "Запустить"
-
-msgid "Delete Contact"
-msgstr "Удалить Контакт"
-
 msgid "Save as Group"
 msgstr "Сохранить как Группу"
 
@@ -2907,6 +2904,11 @@ msgstr "Заблокированные Контакты"
 
 msgid "Stopped Contacts"
 msgstr "Остановленные Контакты"
+
+#, fuzzy
+#| msgid "Blocked Contacts"
+msgid "Archived Contacts"
+msgstr "Заблокированные Контакты"
 
 msgid "Edit Group"
 msgstr "Редактировать Группу"
@@ -2924,15 +2926,6 @@ msgstr "При обновлении Вашего контакта произош
 #| msgid "Select a flow to start"
 msgid "Select a field to update"
 msgstr "Выберите поток для запуска"
-
-msgid "Contact blocked"
-msgstr "Контакт заблокирован"
-
-msgid "Contact unblocked"
-msgstr "Контакт разблокирован"
-
-msgid "Contact unstopped"
-msgstr "Контакт запущен"
 
 msgid "Must be unique."
 msgstr "Должен быть уникальным."
@@ -3613,9 +3606,6 @@ msgstr "Метаданные для сообщений этой рассылки
 
 msgid "Visible"
 msgstr "Видимо"
-
-msgid "Archived"
-msgstr "Архивировано"
 
 msgid "Deleted"
 msgstr "Удалено"
@@ -4444,9 +4434,6 @@ msgstr "Введите код из Вашего приложения по аут
 msgid "Invalid MFA token. Please try again."
 msgstr "Неверный токен МФА. Пожалуйста, попробуйте еще раз."
 
-msgid "Activate"
-msgstr "Активировать"
-
 msgid "Two Factor Authentication"
 msgstr "Двухфакторная аутентификация"
 
@@ -4991,9 +4978,6 @@ msgstr "Id источника ссылки, который запустит на
 msgid "Create Trigger"
 msgstr "Создать Триггер"
 
-msgid "Active"
-msgstr "Активный"
-
 msgid "Join Keyword"
 msgstr "Присоединить ключевое слово"
 
@@ -5465,11 +5449,10 @@ msgstr "Нет Соответствующих вызовов"
 msgid "Channel Events"
 msgstr "События Канала"
 
-msgid "Recent Channel Events"
-msgstr "Последние События Канала"
-
-msgid "Channel: "
-msgstr "Канал:"
+#, fuzzy
+#| msgid "Other Interactions"
+msgid "Interactions"
+msgstr "Прочие взаимодействия"
 
 msgid "phone call"
 msgstr "телефонный вызов"
@@ -6052,11 +6035,7 @@ msgstr ""
 "    "
 
 #, python-format
-msgid ""
-"\n"
-"      You can connect your Facebook page to %(name)s in just a few simple steps.\n"
-"\n"
-"    "
+msgid "You can connect your Facebook page to %(name)s in just a few simple steps."
 msgstr ""
 
 msgid "Click on the button below to get started."
@@ -7181,6 +7160,9 @@ msgstr[3] "Используется %(num_flows)s потоками:"
 msgid "Ok"
 msgstr "Ok"
 
+msgid "These contacts have been removed from all groups and can be deleted permanently."
+msgstr ""
+
 #, fuzzy
 #| msgid ""
 #| "\n"
@@ -7568,14 +7550,6 @@ msgstr ""
 msgid "Choose File"
 msgstr "Выбрать Файл"
 
-msgid "Delete Contacts"
-msgstr "Удалить Контакты"
-
-#, fuzzy
-#| msgid "Are you sure you want to delete these contacts?"
-msgid "Are you sure you want to delete these contacts? This cannot be undone."
-msgstr "Вы действительно хотите удалить эти контакты?"
-
 #, fuzzy
 #| msgid "Contact Groups"
 msgid "Smart Groups"
@@ -7630,6 +7604,14 @@ msgstr "Нет соответствующих контактов."
 
 msgid "To view more than 10,000 search results, save it as a group."
 msgstr ""
+
+msgid "Delete Contacts"
+msgstr "Удалить Контакты"
+
+#, fuzzy
+#| msgid "Are you sure you want to delete these contacts?"
+msgid "Are you sure you want to delete these contacts? This cannot be undone."
+msgstr "Вы действительно хотите удалить эти контакты?"
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr "Просмотр результатов поиска ограничен 10 тысячами результатов. Если Вы хотите просмотреть все результаты, пожалуйста, сохраните этот поиск как группу."
@@ -10165,11 +10147,6 @@ msgstr ""
 "          Удаление Ваших настроек SMTP приведет к доставке электронных писем от %(brand)s, на которые невозможно будет ответить. Вы уверены что хотите продолжить?\n"
 "        "
 
-#, fuzzy
-#| msgid "Select your Organization"
-msgid "Add Workspace"
-msgstr "Выберите свою Организацию"
-
 #, fuzzy, python-format
 #| msgid ""
 #| "\n"
@@ -11961,6 +11938,38 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "All Contacts"
+#~ msgstr "Все Контакты"
+
+#~ msgid "Unblock"
+#~ msgstr "Разблокировать"
+
+#~ msgid "Unstop"
+#~ msgstr "Запустить"
+
+#~ msgid "Delete Contact"
+#~ msgstr "Удалить Контакт"
+
+#~ msgid "Contact blocked"
+#~ msgstr "Контакт заблокирован"
+
+#~ msgid "Contact unblocked"
+#~ msgstr "Контакт разблокирован"
+
+#~ msgid "Contact unstopped"
+#~ msgstr "Контакт запущен"
+
+#~ msgid "Recent Channel Events"
+#~ msgstr "Последние События Канала"
+
+#~ msgid "Channel: "
+#~ msgstr "Канал:"
+
+#, fuzzy
+#~| msgid "Select your Organization"
+#~ msgid "Add Workspace"
+#~ msgstr "Выберите свою Организацию"
 
 #~ msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
 #~ msgstr "Новый редактор предоставляет новые эффективные функции и лучшую производительность, но, пожалуйста, имейте ввиду, что это действие нельзя отменить."

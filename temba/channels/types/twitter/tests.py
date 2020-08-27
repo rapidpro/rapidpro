@@ -164,7 +164,7 @@ class TwitterTypeTest(TembaTest):
         self.assertEqual("twitter:therealjoe", urn.identity)
         self.assertEqual("therealjoe", urn.path)
 
-        self.joe.reactivate(self.admin)
+        self.joe.restore(self.admin)
 
         # test a real return value
         mock_lookup_user.return_value = [dict(screen_name="TheRealJoe", id="123456")]

@@ -1489,7 +1489,7 @@ a:hover {
   }
 
 .lbl-icon {
-  color: #a0a0a0;
+  color: rgba(0, 0, 0, .3);
   font-size: 11px;
   font-family: 'icons' !important;
   speak: never;
@@ -1534,7 +1534,7 @@ a:hover {
   }
 
 .lbl-group::before {
-    color: #a0a0a0;
+    color: rgba(0, 0, 0, .3);
     font-size: 11px;
     font-family: 'icons';
     speak: never;
@@ -1546,6 +1546,35 @@ a:hover {
     -webkit-font-smoothing: antialiased;
     vertical-align: text-bottom;
     content: "\e03c";
+    margin-bottom: 1px;
+    display: inline-block;
+  }
+
+.lbl.inverted {
+  color: rgba(255, 255, 255, .9);
+}
+
+.lbl.inverted.linked:hover {
+    text-decoration: none;
+    cursor: pointer;
+    color: rgba(255, 255, 255, .9);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(0, 0, 0, .05);
+  }
+
+.lbl-group.inverted {
+  color: rgba(255, 255, 255, .9);
+}
+
+.lbl-group.inverted::before {
+    color: rgba(255, 255, 255, .9);
+    content: "\e03c";
+  }
+
+.lbl-group.inverted.linked:hover {
+    text-decoration: none;
+    cursor: pointer;
+    color: rgba(255, 255, 255, .9);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(0, 0, 0, .05);
   }
 
 .lbl-group-dynamic {
@@ -1580,7 +1609,7 @@ a:hover {
   }
 
 .lbl-group-dynamic::before {
-    color: #a0a0a0;
+    color: rgba(0, 0, 0, .3);
     font-size: 11px;
     font-family: 'icons';
     speak: never;
@@ -1592,6 +1621,8 @@ a:hover {
     -webkit-font-smoothing: antialiased;
     vertical-align: text-bottom;
     content: "\e03c";
+    margin-bottom: 1px;
+    display: inline-block;
   }
 
 .lbl-group-dynamic::before {
@@ -1668,7 +1699,8 @@ a:hover {
   color: #717171;
 }
 
-.alert-danger, .alert-error {
+.alert-danger,
+.alert-error {
   border-radius: 0.5rem;
   padding-left: 1rem;
   padding-right: 1rem;

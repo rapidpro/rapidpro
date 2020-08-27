@@ -3,6 +3,7 @@
 
 html {
   background: #f9f9f9;
+
   body {
     @apply text-gray-900;
   }
@@ -205,7 +206,7 @@ a {
 
 
 .lbl-icon {
-  @apply text-gray-500;
+  @apply text-dark-alpha-300;
   font-size: 11px;
   font-family: 'icons' !important;
   speak: never;
@@ -224,6 +225,31 @@ a {
   &::before {
     @apply lbl-icon;
     content: "\e03c";
+    margin-bottom: 1px;
+    display: inline-block;
+  }
+}
+
+.lbl.inverted {
+  @apply text-light-alpha-900;
+
+  &.linked:hover {
+    @apply no-underline cursor-pointer text-light-alpha-900;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(0, 0, 0, .05);
+  }
+}
+
+.lbl-group.inverted {
+  @apply text-light-alpha-900;
+
+  &::before {
+    @apply text-light-alpha-900;
+    content: "\e03c";
+  }
+
+  &.linked:hover {
+    @apply no-underline cursor-pointer text-light-alpha-900;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 0 20px 20px rgba(0, 0, 0, .05);
   }
 }
 
@@ -258,7 +284,8 @@ a {
   @apply alert bg-gray-100 text-gray-600;
 }
 
-.alert-danger, .alert-error {
+.alert-danger,
+.alert-error {
   @apply alert text-error;
   background: rgba(255, 181, 181, .17);
 }
@@ -665,9 +692,11 @@ code {
 
     &.action-summary:hover {
       @apply shadow;
+
       .formax-icon {
         @apply cursor-default;
       }
+
       .formax-summary {
         @apply cursor-default;
       }

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-26 07:29+0000\n"
+"POT-Creation-Date: 2020-08-27 18:33+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3853,14 +3853,20 @@ msgstr ""
 msgid "You cannot update the query of a group that is evaluating."
 msgstr ""
 
-msgid "All Contacts"
-msgstr "Todos los contactos"
+msgid "Activate"
+msgstr "Activar"
+
+msgid "Active"
+msgstr "Activar"
 
 msgid "Blocked"
 msgstr "Bloqueado"
 
 msgid "Stopped"
 msgstr ""
+
+msgid "Archived"
+msgstr "Archivado"
 
 #, fuzzy, python-brace-format
 #| msgid "The name of this contact"
@@ -3955,15 +3961,6 @@ msgstr "Campos para contacto con el cliente"
 msgid "Block"
 msgstr "Bloquear"
 
-msgid "Unblock"
-msgstr "Desbloquear"
-
-msgid "Unstop"
-msgstr ""
-
-msgid "Delete Contact"
-msgstr "Borrar contacto"
-
 msgid "Save as Group"
 msgstr "Guardar como grupo"
 
@@ -3983,6 +3980,11 @@ msgstr "Contactos bloqueados"
 msgid "Stopped Contacts"
 msgstr "Mostrar Contactos"
 
+#, fuzzy
+#| msgid "Failed Contacts"
+msgid "Archived Contacts"
+msgstr "Contactos falló"
+
 msgid "Edit Group"
 msgstr "Editar grupos"
 
@@ -4001,18 +4003,6 @@ msgstr "Encontramos un error para retirar su transmisor, por favor, inténtelo n
 #| msgid "Select All"
 msgid "Select a field to update"
 msgstr "Elegir todos"
-
-#, fuzzy
-msgid "Contact blocked"
-msgstr "Teléfono del contacto"
-
-#, fuzzy
-msgid "Contact unblocked"
-msgstr "Teléfono del contacto"
-
-#, fuzzy
-msgid "Contact unstopped"
-msgstr "Teléfono del contacto"
 
 #, fuzzy
 #| msgid "Alias names must be unique, try again."
@@ -4803,9 +4793,6 @@ msgstr "El estátus actual para esta comunicación"
 
 msgid "Visible"
 msgstr "Visible"
-
-msgid "Archived"
-msgstr "Archivado"
 
 msgid "Deleted"
 msgstr "Borrado"
@@ -5723,9 +5710,6 @@ msgstr ""
 msgid "Invalid MFA token. Please try again."
 msgstr "Número de teléfono inválido, inténtelo nuevamente."
 
-msgid "Activate"
-msgstr "Activar"
-
 msgid "Two Factor Authentication"
 msgstr ""
 
@@ -6331,9 +6315,6 @@ msgstr "El tipo de este activador"
 
 msgid "Create Trigger"
 msgstr "Crear activadores"
-
-msgid "Active"
-msgstr "Activar"
 
 msgid "Join Keyword"
 msgstr "Palabra clave para participar"
@@ -6983,13 +6964,10 @@ msgstr "Las llamadas no corresponden"
 msgid "Channel Events"
 msgstr "Evento del transmisor"
 
-msgid "Recent Channel Events"
-msgstr "Eventos recientes del transmisor"
-
 #, fuzzy
-#| msgid "Channel:"
-msgid "Channel: "
-msgstr "Transmisor:"
+#| msgid "Android integration"
+msgid "Interactions"
+msgstr "Integración de Android"
 
 #, fuzzy
 #| msgid "Phone call flow"
@@ -7872,11 +7850,7 @@ msgstr ""
 "      "
 
 #, python-format
-msgid ""
-"\n"
-"      You can connect your Facebook page to %(name)s in just a few simple steps.\n"
-"\n"
-"    "
+msgid "You can connect your Facebook page to %(name)s in just a few simple steps."
 msgstr ""
 
 msgid "Click on the button below to get started."
@@ -8697,6 +8671,9 @@ msgstr[1] ""
 msgid "Ok"
 msgstr ""
 
+msgid "These contacts have been removed from all groups and can be deleted permanently."
+msgstr ""
+
 msgid ""
 "\n"
 "    We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
@@ -9132,14 +9109,6 @@ msgstr ""
 msgid "Choose File"
 msgstr "Elegir archivo"
 
-msgid "Delete Contacts"
-msgstr "Borrar Contactos"
-
-#, fuzzy
-#| msgid "Are you sure you want to delete these contacts?"
-msgid "Are you sure you want to delete these contacts? This cannot be undone."
-msgstr "¿Está seguro de que desea borrar estos contactos?"
-
 #, fuzzy
 #| msgid "Contact Groups"
 msgid "Smart Groups"
@@ -9185,6 +9154,14 @@ msgstr "Los contactos no corresponden."
 
 msgid "To view more than 10,000 search results, save it as a group."
 msgstr ""
+
+msgid "Delete Contacts"
+msgstr "Borrar Contactos"
+
+#, fuzzy
+#| msgid "Are you sure you want to delete these contacts?"
+msgid "Are you sure you want to delete these contacts? This cannot be undone."
+msgstr "¿Está seguro de que desea borrar estos contactos?"
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr ""
@@ -11289,11 +11266,6 @@ msgid ""
 "        "
 msgstr ""
 
-#, fuzzy
-#| msgid "Select your Organization"
-msgid "Add Workspace"
-msgstr "Elija su Organización"
-
 #, python-format
 msgid ""
 "\n"
@@ -13045,6 +13017,40 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "All Contacts"
+#~ msgstr "Todos los contactos"
+
+#~ msgid "Unblock"
+#~ msgstr "Desbloquear"
+
+#~ msgid "Delete Contact"
+#~ msgstr "Borrar contacto"
+
+#, fuzzy
+#~ msgid "Contact blocked"
+#~ msgstr "Teléfono del contacto"
+
+#, fuzzy
+#~ msgid "Contact unblocked"
+#~ msgstr "Teléfono del contacto"
+
+#, fuzzy
+#~ msgid "Contact unstopped"
+#~ msgstr "Teléfono del contacto"
+
+#~ msgid "Recent Channel Events"
+#~ msgstr "Eventos recientes del transmisor"
+
+#, fuzzy
+#~| msgid "Channel:"
+#~ msgid "Channel: "
+#~ msgstr "Transmisor:"
+
+#, fuzzy
+#~| msgid "Select your Organization"
+#~ msgid "Add Workspace"
+#~ msgstr "Elija su Organización"
 
 #, fuzzy
 #~| msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
@@ -16507,9 +16513,6 @@ msgstr ""
 
 #~ msgid "%s is a reserved name for contact fields"
 #~ msgstr "%s es un nombre reservado para los campos del contacto"
-
-#~ msgid "Failed Contacts"
-#~ msgstr "Contactos falló"
 
 #~ msgid "The RuleSet that will interpret the response to this action (optional)"
 #~ msgstr "El grupo de reglas que interpretará la respuesta para esta acción (opcional)"

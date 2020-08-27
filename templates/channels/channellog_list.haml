@@ -5,18 +5,18 @@
   -trans "Channel Events"
 
 -block title
-  -if request.GET.connections and channel.supports_ivr
-    -trans "Calls"
-  -elif request.GET.others
-    -trans "Other Interactions"
-  -else
-    -trans "Recent Channel Events"
+  %a{ href:"{% url 'channels.channel_read' channel.uuid %}" }
+    {{ channel }}
 
 -block subtitle
   {{channel.get_channel_type_display}}
-  -trans "Channel: "
-  %a{ href:"{% url 'channels.channel_read' channel.uuid %}" }
-    {{ channel }}
+
+  -if request.GET.connections and channel.supports_ivr
+    -trans "Calls"
+  -elif request.GET.others
+    -trans "Interactions"
+  -else
+    -trans "Recent Events"
 
 -block content
   #pjax
@@ -24,13 +24,7 @@
       .lp-frame
 
         .right
-          .flex.w-full.mb-4.items-end.flex-wrap.justify-end.-mt-2{style:"min-height:41px"}
-            .flex-grow.ml-1.self-end.items-end
-              .flex.flex-col.pr-12
-                .page-title.leading-tight
-                .subtitle
-
-          %table.list.object-list.lined
+          %table.list.object-list.lined.mt-4
             %thead
               %tr
                 %th{ style:'width:120px' }
