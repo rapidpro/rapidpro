@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-26 18:54+0000\n"
+"POT-Creation-Date: 2020-08-27 20:38+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2579,6 +2579,9 @@ msgid "Unstop"
 msgstr ""
 
 msgid "Archived Contacts"
+msgstr ""
+
+msgid "Delete All"
 msgstr ""
 
 msgid "Edit Group"
@@ -5839,6 +5842,22 @@ msgstr ""
 msgid "These contacts have been removed from all groups and can be deleted permanently."
 msgstr ""
 
+msgid "Delete Selected Contacts"
+msgstr ""
+
+msgid "Are you sure you want to delete the selected contacts?"
+msgstr ""
+
+msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
+msgstr ""
+
+msgid "Delete All Contacts"
+msgstr ""
+
+#, python-format
+msgid "Are you sure you want to delete all %(count)s archived contacts?"
+msgstr ""
+
 msgid "Hold up!"
 msgstr ""
 
@@ -6175,15 +6194,6 @@ msgid "No matching contacts."
 msgstr ""
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
-msgstr ""
-
-msgid "Delete Contacts"
-msgstr ""
-
-msgid "Are you sure you want to delete these contacts?"
-msgstr ""
-
-msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
 msgstr ""
 
 msgid "Create Contact Group"

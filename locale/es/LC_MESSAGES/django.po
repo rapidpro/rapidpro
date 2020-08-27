@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-26 18:54+0000\n"
+"POT-Creation-Date: 2020-08-27 20:38+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3932,6 +3932,11 @@ msgstr ""
 #| msgid "Failed Contacts"
 msgid "Archived Contacts"
 msgstr "Contactos falló"
+
+#, fuzzy
+#| msgid "Delete"
+msgid "Delete All"
+msgstr "Borrar"
 
 msgid "Edit Group"
 msgstr "Editar grupos"
@@ -8405,6 +8410,29 @@ msgstr ""
 msgid "These contacts have been removed from all groups and can be deleted permanently."
 msgstr ""
 
+#, fuzzy
+#| msgid "Delete Contacts"
+msgid "Delete Selected Contacts"
+msgstr "Borrar Contactos"
+
+#, fuzzy
+#| msgid "Are you sure you want to delete these contacts?"
+msgid "Are you sure you want to delete the selected contacts?"
+msgstr "¿Está seguro de que desea borrar estos contactos?"
+
+msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
+msgstr "Una vez borrados, no podrá recuperarlos. No puede deshacer esta operación. "
+
+#, fuzzy
+#| msgid "Delete Contacts"
+msgid "Delete All Contacts"
+msgstr "Borrar Contactos"
+
+#, fuzzy, python-format
+#| msgid "Are you sure you want to delete these contacts?"
+msgid "Are you sure you want to delete all %(count)s archived contacts?"
+msgstr "¿Está seguro de que desea borrar estos contactos?"
+
 msgid "Hold up!"
 msgstr "¡Espere!"
 
@@ -8947,15 +8975,6 @@ msgstr "Los contactos no corresponden."
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr ""
-
-msgid "Delete Contacts"
-msgstr "Borrar Contactos"
-
-msgid "Are you sure you want to delete these contacts?"
-msgstr "¿Está seguro de que desea borrar estos contactos?"
-
-msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
-msgstr "Una vez borrados, no podrá recuperarlos. No puede deshacer esta operación. "
 
 msgid "Create Contact Group"
 msgstr "Crear Grupo de Contactos"

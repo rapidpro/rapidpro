@@ -16,7 +16,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-26 18:54+0000\n"
+"POT-Creation-Date: 2020-08-27 20:38+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Matheus Soares <matheus.soares@ilhasoft.com.br>, 2020\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -2880,6 +2880,11 @@ msgstr "Ativar"
 #| msgid "Blocked Contacts"
 msgid "Archived Contacts"
 msgstr "Contatos bloqueados"
+
+#, fuzzy
+#| msgid "Delete "
+msgid "Delete All"
+msgstr "Delete"
 
 msgid "Edit Group"
 msgstr "Editar Grupo"
@@ -6469,6 +6474,29 @@ msgstr "O classificador não pode ser removido pois está em uso."
 msgid "These contacts have been removed from all groups and can be deleted permanently."
 msgstr ""
 
+#, fuzzy
+#| msgid "Delete Contacts"
+msgid "Delete Selected Contacts"
+msgstr "Deletar contatos"
+
+#, fuzzy
+#| msgid "Are you sure you want to delete these contacts?"
+msgid "Are you sure you want to delete the selected contacts?"
+msgstr "Tem certeza de que deseja excluir esses contatos?"
+
+msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
+msgstr "Uma vez que eles forem excluídos, eles se irão para sempre. Não há como desfazer esta operação."
+
+#, fuzzy
+#| msgid "Delete Contacts"
+msgid "Delete All Contacts"
+msgstr "Deletar contatos"
+
+#, fuzzy, python-format
+#| msgid "Are you sure you want to delete these contacts?"
+msgid "Are you sure you want to delete all %(count)s archived contacts?"
+msgstr "Tem certeza de que deseja excluir esses contatos?"
+
 msgid "Hold up!"
 msgstr "Segure-se!"
 
@@ -6891,15 +6919,6 @@ msgstr "Nenhum contato correspondente"
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr "A navegação na pesquisa é limitada a 10 mil resultados. Se você deseja navegar por todos os resultados, salve esta pesquisa como um grupo."
-
-msgid "Delete Contacts"
-msgstr "Deletar contatos"
-
-msgid "Are you sure you want to delete these contacts?"
-msgstr "Tem certeza de que deseja excluir esses contatos?"
-
-msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
-msgstr "Uma vez que eles forem excluídos, eles se irão para sempre. Não há como desfazer esta operação."
 
 msgid "Create Contact Group"
 msgstr "Criar grupo de contatos"
