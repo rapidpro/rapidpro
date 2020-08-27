@@ -10129,11 +10129,6 @@ msgstr ""
 "          Удаление Ваших настроек SMTP приведет к доставке электронных писем от %(brand)s, на которые невозможно будет ответить. Вы уверены что хотите продолжить?\n"
 "        "
 
-#, fuzzy
-#| msgid "Select your Organization"
-msgid "Add Workspace"
-msgstr "Выберите свою Организацию"
-
 #, fuzzy, python-format
 #| msgid ""
 #| "\n"

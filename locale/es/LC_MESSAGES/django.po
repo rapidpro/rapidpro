@@ -11247,11 +11247,6 @@ msgid ""
 "        "
 msgstr ""
 
-#, fuzzy
-#| msgid "Select your Organization"
-msgid "Add Workspace"
-msgstr "Elija su Organización"
-
 #, python-format
 msgid ""
 "\n"

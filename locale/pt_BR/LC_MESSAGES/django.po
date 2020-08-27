@@ -10440,10 +10440,6 @@ msgid ""
 "        "
 msgstr ""
 
-#, fuzzy
-msgid "Add Workspace"
-msgstr "Crie sua Organização"
-
 #, python-format
 msgid ""
 "\n"

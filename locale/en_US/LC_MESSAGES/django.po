@@ -7827,9 +7827,6 @@ msgid ""
 "        "
 msgstr ""
 
-msgid "Add Workspace"
-msgstr ""
-
 #, python-format
 msgid ""
 "\n"
