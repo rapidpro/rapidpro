@@ -313,6 +313,7 @@ class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
         context["search_error"] = self.search_error
         context["send_form"] = SendMessageForm(self.request.user)
         context["restore_label"] = self.restore_label
+        context["folder_count"] = counts[self.system_group] if self.system_group else None
 
         context["sort_direction"] = self.sort_direction
         context["sort_field"] = self.sort_field
@@ -1314,6 +1315,7 @@ class ContactCRUDL(SmartCRUDL):
         title = _("Archived Contacts")
         template_name = "contacts/contact_archived.haml"
         system_group = ContactGroup.TYPE_ARCHIVED
+        bulk_action_permissions = {"delete": "contacts.contact_delete"}
 
         def get_bulk_actions(self):
             actions = ["restore"]
@@ -1325,6 +1327,14 @@ class ContactCRUDL(SmartCRUDL):
             context = super().get_context_data(*args, **kwargs)
             context["reply_disabled"] = True
             return context
+
+        def get_gear_links(self):
+            links = []
+            if self.has_org_perm("contacts.contact_delete"):
+                links.append(
+                    dict(title=_("Delete All"), style="btn-default", js_class="contacts-btn-delete-all", href="#")
+                )
+            return links
 
     class Filter(ContactListView, OrgObjPermsMixin):
         template_name = "contacts/contact_filter.haml"

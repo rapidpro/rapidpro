@@ -42,7 +42,8 @@ class BulkActionMixin:
             super().__init__(*args, **kwargs)
 
             self.fields["action"] = forms.ChoiceField(choices=[(a, a) for a in actions], required=True)
-            self.fields["objects"] = forms.ModelMultipleChoiceField(queryset=queryset, required=True)
+            self.fields["objects"] = forms.ModelMultipleChoiceField(queryset=queryset, required=False)
+            self.fields["all"] = forms.BooleanField(required=False)
 
             if label_queryset:
                 self.fields["label"] = forms.ModelChoiceField(label_queryset, required=False)
@@ -76,10 +77,14 @@ class BulkActionMixin:
         if form.is_valid():
             action = form.cleaned_data["action"]
             objects = form.cleaned_data["objects"]
+            all_objects = form.cleaned_data["all"]
             label = form.cleaned_data.get("label")
 
-            # convert objects queryset to one based only on org + ids
-            objects = self.model._default_manager.filter(org=org, id__in=[o.id for o in objects])
+            if all_objects:
+                objects = self.get_queryset()
+            else:
+                # convert objects queryset to one based only on org + ids
+                objects = self.model._default_manager.filter(org=org, id__in=[o.id for o in objects])
 
             # check we have the required permission for this action
             permission = self.get_bulk_action_permission(action)

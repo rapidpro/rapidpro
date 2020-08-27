@@ -257,17 +257,6 @@
   - if org_perms.msgs.broadcast_send and not reply_disabled
     - include "msgs/msg_send_modal.haml"
 
-  -if org_perms.contacts.contact_delete
-    .contact-deletion.hide
-      .title
-        -trans "Delete Contacts"
-
-      .body
-        %p
-          -trans "Are you sure you want to delete these contacts?"
-        %p
-          -trans "Once they are deleted, they will be gone forever. There is no way to undo this operation."
-
 -block extra-style
   :css
     tr.contacts th a span.icon {
@@ -426,19 +415,6 @@
 
     {% if org_perms.contacts.contact_create %}
     $("#add-contact").live('click', function() { showCreateContactModal(); });
-    {% endif %}
-
-    {% if org_perms.contacts.contact_delete %}
-    $(".contacts-btn-delete").live('click', function() {
-      modal = new ConfirmationModal($('.contact-deletion > .title').html(), $('.contact-deletion > .body').html());
-      modal.addClass('alert');
-      modal.setListeners({onPrimary: function(){
-        runActionOnObjectRows("delete");
-        modal.dismiss();
-      }}, false);
-      modal.setPrimaryButton('{{ _("Delete")|escapejs }}');
-      modal.show();
-    });
     {% endif %}
 
     {% if org_perms.contacts.contact_unblock %}
