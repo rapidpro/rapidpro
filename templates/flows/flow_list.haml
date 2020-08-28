@@ -163,10 +163,10 @@
                 -include "gear_links_include.haml"
 
             -if view.search_fields
-              %form#search-form.mb-4{method:"get"}
-                %temba-textinput{onsubmit:'document.querySelector("#search-form").submit();', type:'text', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
+              %form#search-form.mb-4(method="get")
+                %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="search", value="{{search}}")
                 -if request.REQUEST.status
-                  %input{type:'hidden', name:'status', value:'{{request.REQUEST.status}}'}
+                  %input(type='hidden' name='status' value='{{request.REQUEST.status}}')
 
             -block flow-list
               %table.list.lined{class: '{% if org_perms.flows.flow_update %}selectable{% endif %}'}

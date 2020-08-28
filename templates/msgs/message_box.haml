@@ -167,8 +167,8 @@
               .gear-links
                 -include "gear_links_include.haml"
 
-            %form#search-form.mb-4{method:"get"}
-              %temba-textinput.w-full{onsubmit:'document.querySelector("#search-form").submit();', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
+            %form#search-form.mb-4(method="get")
+              %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
 
             -block message-list
               %table.list.object-list.lined{class: '{% if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send %}selectable{% endif %}'}

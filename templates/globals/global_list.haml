@@ -56,8 +56,8 @@
                 .subtitle
                   -block subtitle
 
-          %form#search-form.mb-4{method:"get"}
-            %temba-textinput.w-full{onsubmit:'document.querySelector("#search-form").submit();', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
+          %form#search-form.mb-4(method="get")
+            %temba-textinput.w-full(placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}")
 
           -if search_error
             .mb-4.ml-2
