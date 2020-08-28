@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-27 19:56+0000\n"
+"POT-Creation-Date: 2020-08-28 17:04+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -7511,6 +7511,15 @@ msgstr ""
 msgid "credits since signing up."
 msgstr ""
 
+msgid "You are about to delete"
+msgstr ""
+
+msgid ""
+"\n"
+"    Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted.\n"
+"  "
+msgstr ""
+
 msgid ""
 "\n"
 "      Your download should start automatically. If it doesn't start in a few seconds, use the button below to download.\n"
@@ -7903,12 +7912,6 @@ msgid "This workspace has been verified"
 msgstr ""
 
 msgid "This workspace has been scheduled for deletion"
-msgstr ""
-
-msgid "Delete Org"
-msgstr ""
-
-msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
 msgstr ""
 
 msgid "Top Ups"

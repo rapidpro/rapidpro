@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-27 19:56+0000\n"
+"POT-Creation-Date: 2020-08-28 17:04+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -9549,6 +9549,17 @@ msgstr "Vous avez utilisé"
 msgid "credits since signing up."
 msgstr "crédits depuis votre inscription."
 
+#, fuzzy
+#| msgid "Are you sure you want to remove"
+msgid "You are about to delete"
+msgstr "Etes-vous sûr que vous voulez supprimer"
+
+msgid ""
+"\n"
+"    Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted.\n"
+"  "
+msgstr ""
+
 msgid ""
 "\n"
 "      Your download should start automatically. If it doesn't start in a few seconds, use the button below to download.\n"
@@ -10141,14 +10152,6 @@ msgstr "Cette organisation a été suspendue"
 #| msgid "This organization has been scheduled for deletion"
 msgid "This workspace has been scheduled for deletion"
 msgstr "La suppression de cette organisation est prévue"
-
-#, fuzzy
-#| msgid "Delete "
-msgid "Delete Org"
-msgstr "Supprimer"
-
-msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
-msgstr ""
 
 msgid "Top Ups"
 msgstr "Top Ups"
@@ -11747,6 +11750,11 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy
+#~| msgid "Delete "
+#~ msgid "Delete Org"
+#~ msgstr "Supprimer"
 
 #, python-format
 #~ msgid ""

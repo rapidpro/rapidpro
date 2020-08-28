@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-27 19:56+0000\n"
+"POT-Creation-Date: 2020-08-28 17:04+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -10818,6 +10818,17 @@ msgstr "Ha usado"
 msgid "credits since signing up."
 msgstr "créditos desde que se registró."
 
+#, fuzzy
+#| msgid "Are you sure you want to remove"
+msgid "You are about to delete"
+msgstr "¿Está seguro de que desea retirarlo?"
+
+msgid ""
+"\n"
+"    Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted.\n"
+"  "
+msgstr ""
+
 msgid ""
 "\n"
 "      Your download should start automatically. If it doesn't start in a few seconds, use the button below to download.\n"
@@ -11347,14 +11358,6 @@ msgstr "La Organización del usuario."
 #| msgid "The organization this trigger belongs to"
 msgid "This workspace has been scheduled for deletion"
 msgstr "La organización a la que pertenece este activador"
-
-#, fuzzy
-#| msgid "Delete"
-msgid "Delete Org"
-msgstr "Borrar"
-
-msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
-msgstr ""
 
 msgid "Top Ups"
 msgstr "Recargas"
@@ -12990,6 +12993,11 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Delete"
+#~ msgid "Delete Org"
+#~ msgstr "Borrar"
 
 #~ msgid "Unblock"
 #~ msgstr "Desbloquear"
