@@ -1381,11 +1381,7 @@ class ContactCRUDL(SmartCRUDL):
             pk = self.derive_group().pk
 
             if self.has_org_perm("contacts.contactfield_list"):
-                links.append(
-                    dict(
-                        title=_("Manage Fields"), js_class="manage-fields", href=reverse("contacts.contactfield_list")
-                    )
-                )
+                links.append(dict(title=_("Manage Fields"), href=reverse("contacts.contactfield_list")))
 
             if self.has_org_perm("contacts.contactgroup_update"):
                 links.append(
