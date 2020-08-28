@@ -554,6 +554,7 @@ class GraphDifferenceMap:
                 parent_node = self.create_diff_node_for_matched_nodes_pair(parents_pair)
                 node = self.create_diff_node_for_matched_nodes_pair(matched_pair)
                 node.set_parent(parent_node)
+                self.create_diff_nodes_edge(parent_node.uuid, node.uuid)
                 self.mark_nodes_as_matched(parents_pair, matched_pairs, ignored_pairs)
                 self.mark_nodes_as_matched(matched_pair, matched_pairs, ignored_pairs)
 
