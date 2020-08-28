@@ -3,10 +3,13 @@
 - load i18n
 
 -block title
-  {{user_org.name|capfirst}}
+  -if parent
+    {{org.name}}
+  -else
+    {{user_org.name|capfirst}}
 -block subtitle
   -trans "Manage Logins"
-  
+
 -block extra-style
   {{block.super}}
   :css
@@ -15,10 +18,6 @@
     }
 
 -block fields
-  -if parent
-    %h4
-      <a href="{% url 'orgs.org_sub_orgs'%}">{%blocktrans%}Workspaces{%endblocktrans%}</a> &raquo; {{org.name}}
-
   %table.list{style:"margin-bottom:0px;"}
     %thead
       %tr
