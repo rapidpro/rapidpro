@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-28 17:04+0000\n"
+"POT-Creation-Date: 2020-08-28 17:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2955,6 +2955,11 @@ msgstr "Contacts arrêtés"
 #| msgid "Blocked Contacts"
 msgid "Archived Contacts"
 msgstr "Contacts Bloqués"
+
+#, fuzzy
+#| msgid "Delete "
+msgid "Delete All"
+msgstr "Supprimer"
 
 msgid "Edit Group"
 msgstr "Modifier un group"
@@ -7181,6 +7186,31 @@ msgid "These contacts have been removed from all groups and can be deleted perma
 msgstr ""
 
 #, fuzzy
+#| msgid "Delete Contacts"
+msgid "Delete Selected Contacts"
+msgstr "Supprimer des contacts"
+
+#, fuzzy
+#| msgid "Are you sure you want to delete this field?"
+msgid "Are you sure you want to delete the selected contacts?"
+msgstr "Êtes-vous sûr de vouloir supprimer ce champ?"
+
+#, fuzzy
+#| msgid "Once deleted, field will be gone forever. There is no way to undo this operation."
+msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
+msgstr "Une fois supprimé, le champ disparaîtra pour toujours. Il n'y a aucun moyen d'annuler cette opération."
+
+#, fuzzy
+#| msgid "Delete Contacts"
+msgid "Delete All Contacts"
+msgstr "Supprimer des contacts"
+
+#, fuzzy, python-format
+#| msgid "Are you sure you want to delete this field?"
+msgid "Are you sure you want to delete all %(count)s archived contacts?"
+msgstr "Êtes-vous sûr de vouloir supprimer ce champ?"
+
+#, fuzzy
 #| msgid ""
 #| "\n"
 #| "      We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
@@ -7545,11 +7575,6 @@ msgstr ""
 msgid "Choose File"
 msgstr "Choisissez Fichier"
 
-#, fuzzy
-#| msgid "Contact Groups"
-msgid "Smart Groups"
-msgstr "Groupes de contact"
-
 msgid "Create Contact"
 msgstr "Créer un contact"
 
@@ -7558,7 +7583,7 @@ msgstr "Créer un groupe"
 
 #, fuzzy
 #| msgid "Remove from Group"
-msgid "Remove From Group"
+msgid "Remove from Group"
 msgstr "Supprimer du groupe"
 
 msgid "New Group..."
@@ -7587,19 +7612,25 @@ msgstr[1] ""
 msgid "No matching contacts."
 msgstr "Pas de contacts correspondants."
 
-msgid "To view more than 10,000 search results, save it as a group."
-msgstr ""
-
-msgid "Delete Contacts"
-msgstr "Supprimer des contacts"
-
-#, fuzzy
-#| msgid "Are you sure you want to delete these contacts?"
-msgid "Are you sure you want to delete these contacts? This cannot be undone."
-msgstr "Êtes-vous sûr de vouloir supprimer ces contacts?"
-
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr "La navigation dans les recherches est limitée à 10 000 résultats. Si vous souhaitez parcourir tous les résultats, veuillez enregistrer cette recherche en tant que groupe."
+
+msgid "Create Contact Group"
+msgstr "Créer un groupe de contact"
+
+msgid "Save Search as Group"
+msgstr "Enregistrer la recherche en tant que groupe"
+
+msgid "Unable to create a dynamic group"
+msgstr "Impossible de créer un groupe dynamique"
+
+msgid "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>."
+msgstr "Vous ne pouvez pas créer un groupe dynamique basé sur <strong>id</strong> ou <strong>group</strong>."
+
+#, fuzzy
+#| msgid "Start Export"
+msgid "Start Export"
+msgstr "Lancer l'exportation"
 
 #, fuzzy
 #| msgid "Contact"
@@ -11752,6 +11783,16 @@ msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
 
 #, fuzzy
+#~| msgid "Contact Groups"
+#~ msgid "Smart Groups"
+#~ msgstr "Groupes de contact"
+
+#, fuzzy
+#~| msgid "Are you sure you want to delete these contacts?"
+#~ msgid "Are you sure you want to delete these contacts? This cannot be undone."
+#~ msgstr "Êtes-vous sûr de vouloir supprimer ces contacts?"
+
+#, fuzzy
 #~| msgid "Delete "
 #~ msgid "Delete Org"
 #~ msgstr "Supprimer"
@@ -12128,18 +12169,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Update Contact Group"
 #~ msgstr "Mise à jour de Groupe de contacts"
 
-#~ msgid "Create Contact Group"
-#~ msgstr "Créer un groupe de contact"
-
-#~ msgid "Save Search as Group"
-#~ msgstr "Enregistrer la recherche en tant que groupe"
-
-#~ msgid "Unable to create a dynamic group"
-#~ msgstr "Impossible de créer un groupe dynamique"
-
-#~ msgid "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>."
-#~ msgstr "Vous ne pouvez pas créer un groupe dynamique basé sur <strong>id</strong> ou <strong>group</strong>."
-
 #~ msgid "blocked"
 #~ msgstr "bloqué"
 
@@ -12151,12 +12180,6 @@ msgstr "${count} trouvé pour ${query}"
 
 #~ msgid "Contact groups:"
 #~ msgstr "Groupes de contact:"
-
-#~ msgid "Are you sure you want to delete this field?"
-#~ msgstr "Êtes-vous sûr de vouloir supprimer ce champ?"
-
-#~ msgid "Once deleted, field will be gone forever. There is no way to undo this operation."
-#~ msgstr "Une fois supprimé, le champ disparaîtra pour toujours. Il n'y a aucun moyen d'annuler cette opération."
 
 #~ msgid "No related campaigns."
 #~ msgstr "Aucune campagne liée."

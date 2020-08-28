@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-28 17:04+0000\n"
+"POT-Creation-Date: 2020-08-28 17:07+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3984,6 +3984,11 @@ msgstr "Mostrar Contactos"
 #| msgid "Failed Contacts"
 msgid "Archived Contacts"
 msgstr "Contactos falló"
+
+#, fuzzy
+#| msgid "Delete"
+msgid "Delete All"
+msgstr "Borrar"
 
 msgid "Edit Group"
 msgstr "Editar grupos"
@@ -8655,6 +8660,31 @@ msgstr ""
 msgid "These contacts have been removed from all groups and can be deleted permanently."
 msgstr ""
 
+#, fuzzy
+#| msgid "Delete Contacts"
+msgid "Delete Selected Contacts"
+msgstr "Borrar Contactos"
+
+#, fuzzy
+#| msgid "Are you sure you want to delete this Contact Group?"
+msgid "Are you sure you want to delete the selected contacts?"
+msgstr "¿Está seguro que de desea borrar este Grupo de Contactos?"
+
+#, fuzzy
+#| msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
+msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
+msgstr "Una vez borrados, no podrá recuperarlos. No puede deshacer esta operación. "
+
+#, fuzzy
+#| msgid "Delete Contacts"
+msgid "Delete All Contacts"
+msgstr "Borrar Contactos"
+
+#, fuzzy, python-format
+#| msgid "Are you sure you want to delete this Contact Group?"
+msgid "Are you sure you want to delete all %(count)s archived contacts?"
+msgstr "¿Está seguro que de desea borrar este Grupo de Contactos?"
+
 msgid ""
 "\n"
 "    We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
@@ -9090,11 +9120,6 @@ msgstr ""
 msgid "Choose File"
 msgstr "Elegir archivo"
 
-#, fuzzy
-#| msgid "Contact Groups"
-msgid "Smart Groups"
-msgstr "Grupos de contactos"
-
 msgid "Create Contact"
 msgstr "Crear Contacto"
 
@@ -9103,7 +9128,7 @@ msgstr "Crear Grupo"
 
 #, fuzzy
 #| msgid "Remove from Group"
-msgid "Remove From Group"
+msgid "Remove from Group"
 msgstr "Retirar del Grupo"
 
 msgid "New Group..."
@@ -9133,19 +9158,25 @@ msgstr[1] ""
 msgid "No matching contacts."
 msgstr "Los contactos no corresponden."
 
-msgid "To view more than 10,000 search results, save it as a group."
-msgstr ""
-
-msgid "Delete Contacts"
-msgstr "Borrar Contactos"
-
-#, fuzzy
-#| msgid "Are you sure you want to delete these contacts?"
-msgid "Are you sure you want to delete these contacts? This cannot be undone."
-msgstr "¿Está seguro de que desea borrar estos contactos?"
-
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr ""
+
+msgid "Create Contact Group"
+msgstr "Crear Grupo de Contactos"
+
+msgid "Save Search as Group"
+msgstr "Guardar Búsqueda como Grupo"
+
+msgid "Unable to create a dynamic group"
+msgstr ""
+
+msgid "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>."
+msgstr ""
+
+#, fuzzy
+#| msgid "Export"
+msgid "Start Export"
+msgstr "Exportar"
 
 #, fuzzy
 #| msgid "Contacts %d"
@@ -12995,6 +13026,16 @@ msgid "Found ${count} for ${query}"
 msgstr ""
 
 #, fuzzy
+#~| msgid "Contact Groups"
+#~ msgid "Smart Groups"
+#~ msgstr "Grupos de contactos"
+
+#, fuzzy
+#~| msgid "Are you sure you want to delete these contacts?"
+#~ msgid "Are you sure you want to delete these contacts? This cannot be undone."
+#~ msgstr "¿Está seguro de que desea borrar estos contactos?"
+
+#, fuzzy
 #~| msgid "Delete"
 #~ msgid "Delete Org"
 #~ msgstr "Borrar"
@@ -13336,12 +13377,6 @@ msgstr ""
 #~ msgid "Update Contact Group"
 #~ msgstr "Actualizar Grupo de Contactos"
 
-#~ msgid "Create Contact Group"
-#~ msgstr "Crear Grupo de Contactos"
-
-#~ msgid "Save Search as Group"
-#~ msgstr "Guardar Búsqueda como Grupo"
-
 #, fuzzy
 #~| msgid "Blocked"
 #~ msgid "blocked"
@@ -13361,11 +13396,6 @@ msgstr ""
 #~| msgid "Are you sure you want to delete this contact?"
 #~ msgid "Are you sure you want to delete this field?"
 #~ msgstr "¿Está seguro de que desea borrar este contacto?"
-
-#, fuzzy
-#~| msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
-#~ msgid "Once deleted, field will be gone forever. There is no way to undo this operation."
-#~ msgstr "Una vez borrados, no podrá recuperarlos. No puede deshacer esta operación. "
 
 #, fuzzy
 #~| msgid "Flows and Campaigns"
@@ -15742,9 +15772,6 @@ msgstr ""
 
 #~ msgid "Delete Contact Group"
 #~ msgstr "Borrar Grupo de Contactos"
-
-#~ msgid "Are you sure you want to delete this Contact Group?"
-#~ msgstr "¿Está seguro que de desea borrar este Grupo de Contactos?"
 
 #~ msgid "No contacts will be deleted. However, once this group is deleted, it will be gone forever. There is no way to undo this operation."
 #~ msgstr "No se borrará ningún contacto. Sin embargo, una vez que se borre este grupo, no se podrá recuperar. No podrá deshacer esta operación."

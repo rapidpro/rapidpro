@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-28 17:04+0000\n"
+"POT-Creation-Date: 2020-08-28 17:07+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2612,6 +2612,9 @@ msgid "Stopped Contacts"
 msgstr ""
 
 msgid "Archived Contacts"
+msgstr ""
+
+msgid "Delete All"
 msgstr ""
 
 msgid "Edit Group"
@@ -5956,6 +5959,22 @@ msgstr ""
 msgid "These contacts have been removed from all groups and can be deleted permanently."
 msgstr ""
 
+msgid "Delete Selected Contacts"
+msgstr ""
+
+msgid "Are you sure you want to delete the selected contacts?"
+msgstr ""
+
+msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
+msgstr ""
+
+msgid "Delete All Contacts"
+msgstr ""
+
+#, python-format
+msgid "Are you sure you want to delete all %(count)s archived contacts?"
+msgstr ""
+
 msgid ""
 "\n"
 "    We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
@@ -6209,16 +6228,13 @@ msgstr ""
 msgid "Choose File"
 msgstr ""
 
-msgid "Smart Groups"
-msgstr ""
-
 msgid "Create Contact"
 msgstr ""
 
 msgid "Create Group"
 msgstr ""
 
-msgid "Remove From Group"
+msgid "Remove from Group"
 msgstr ""
 
 msgid "New Group..."
@@ -6240,16 +6256,22 @@ msgstr[1] ""
 msgid "No matching contacts."
 msgstr ""
 
-msgid "To view more than 10,000 search results, save it as a group."
-msgstr ""
-
-msgid "Delete Contacts"
-msgstr ""
-
-msgid "Are you sure you want to delete these contacts? This cannot be undone."
-msgstr ""
-
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
+msgstr ""
+
+msgid "Create Contact Group"
+msgstr ""
+
+msgid "Save Search as Group"
+msgstr ""
+
+msgid "Unable to create a dynamic group"
+msgstr ""
+
+msgid "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>."
+msgstr ""
+
+msgid "Start Export"
 msgstr ""
 
 msgid "Contact Id"

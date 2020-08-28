@@ -1,3 +1,8 @@
+v5.7.24
+----------
+ * Rename existing 'archive' contact action in API to 'archive_messages'
+ * Allow deleting of all contacts from Archived view
+
 v5.7.23
 ----------
  * Rename All Contacts to Active

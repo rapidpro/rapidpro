@@ -2,7 +2,63 @@
 -load i18n
 
 -block title-text
-  .title.leading-tight
-    -trans "Archived Contacts"
-  .text-base.mt-1
-    -trans "These contacts have been removed from all groups and can be deleted permanently."
+  .title-text
+    %h2
+      -trans "Archived Contacts"
+    %h5
+      -trans "These contacts have been removed from all groups and can be deleted permanently."
+
+
+-block post-content
+  -if org_perms.contacts.contact_delete
+    .contact-delete-selected.hide
+      .title
+        -trans "Delete Selected Contacts"
+      .body
+        %p
+          -trans "Are you sure you want to delete the selected contacts?"
+        %p
+          -trans "Once they are deleted, they will be gone forever. There is no way to undo this operation."
+    .contact-delete-all.hide
+      .title
+        -trans "Delete All Contacts"
+      .body
+        %p
+          -blocktrans trimmed with count=folder_count
+            Are you sure you want to delete all {{ count}} archived contacts?
+        %p
+          -trans "Once they are deleted, they will be gone forever. There is no way to undo this operation."
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    $(".contacts-btn-delete").live('click', function() {
+      modal = new ConfirmationModal($('.contact-delete-selected > .title').html(), $('.contact-delete-selected > .body').html());
+      modal.addClass('alert');
+      modal.setListeners({onPrimary: function(){
+        runActionOnObjectRows("delete");
+        modal.dismiss();
+      }}, false);
+      modal.setPrimaryButton('{{ _("Delete")|escapejs }}');
+      modal.show();
+    });
+
+    $(".contacts-btn-delete-all").live('click', function() {
+      modal = new ConfirmationModal($('.contact-delete-all > .title').html(), $('.contact-delete-all > .body').html());
+      modal.addClass('alert');
+      modal.setListeners({onPrimary: function(){
+        deleteAllContacts();
+        modal.dismiss();
+      }}, false);
+      modal.setPrimaryButton('{{ _("Delete")|escapejs }}');
+      modal.show();
+    });
+
+    function deleteAllContacts() {
+      jQuery.ajaxSettings.traditional = true;
+      fetchPJAXContent('', '#pjax', {
+          postData: { action: "delete", all: 'true', pjax: 'true' },
+          forceReload: true
+      });
+    }
