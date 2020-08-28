@@ -15,6 +15,7 @@ from packaging.version import Version
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
+    SmartDeleteView,
     SmartFormView,
     SmartListView,
     SmartModelActionView,
@@ -1199,7 +1200,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_created_by(self, obj):  # pragma: needs cover
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
-    class Update(SmartUpdateView):
+    class Update(ComponentFormMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             parent = forms.IntegerField(required=False)
             plan_end = forms.DateTimeField(required=False)
@@ -1234,11 +1235,10 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
 
             if org.is_active:
-
                 links.append(
                     dict(
                         title=_("Topups"),
-                        style="btn-primary",
+                        style="button-primary",
                         href="%s?org=%d" % (reverse("orgs.topup_manage"), org.pk),
                     )
                 )
@@ -1247,7 +1247,7 @@ class OrgCRUDL(SmartCRUDL):
                     links.append(
                         dict(
                             title=_("Unflag"),
-                            style="btn-secondary",
+                            style="button-secondary",
                             posterize=True,
                             href="%s?action=unflag" % reverse("orgs.org_update", args=[org.pk]),
                         )
@@ -1256,7 +1256,7 @@ class OrgCRUDL(SmartCRUDL):
                     links.append(
                         dict(
                             title=_("Flag"),
-                            style="btn-secondary",
+                            style="button-secondary",
                             posterize=True,
                             href="%s?action=flag" % reverse("orgs.org_update", args=[org.pk]),
                         )
@@ -1266,14 +1266,21 @@ class OrgCRUDL(SmartCRUDL):
                     links.append(
                         dict(
                             title=_("Verify"),
-                            style="btn-secondary",
+                            style="button-secondary",
                             posterize=True,
                             href="%s?action=verify" % reverse("orgs.org_update", args=[org.pk]),
                         )
                     )
 
                 if self.request.user.has_perm("orgs.org_delete"):
-                    links.append(dict(title=_("Delete"), style="btn-primary", js_class="org-delete-button", href="#"))
+                    links.append(
+                        dict(
+                            id="delete-flow",
+                            title=_("Delete"),
+                            href=reverse("orgs.org_delete", args=[org.pk]),
+                            modax="Delete Org",
+                        )
+                    )
             return links
 
         def post(self, request, *args, **kwargs):
@@ -1285,10 +1292,24 @@ class OrgCRUDL(SmartCRUDL):
                     self.get_object().verify()
                 elif action == "unflag":
                     self.get_object().unflag()
-                elif action == "delete":
-                    self.get_object().release()
                 return HttpResponseRedirect(self.get_success_url())
             return super().post(request, *args, **kwargs)
+
+    class Delete(ModalMixin, SmartDeleteView):
+        cancel_url = "id@orgs.org_update"
+        submit_button_name = _("Delete")
+        fields = ("id",)
+
+        def post(self, request, *args, **kwargs):
+            self.object = self.get_object()
+            self.pre_delete(self.object)
+            redirect_url = self.get_redirect_url()
+            self.object.release()
+
+            return HttpResponseRedirect(redirect_url)
+
+        def get_redirect_url(self, **kwargs):
+            return reverse("orgs.org_update", args=[self.object.pk])
 
     class Accounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class PasswordForm(forms.ModelForm):
@@ -3109,7 +3130,7 @@ class TopUpCRUDL(SmartCRUDL):
             else:
                 return super().get_template_names()
 
-    class Create(SmartCreateView):
+    class Create(ComponentFormMixin, SmartCreateView):
         """
         This is only for root to be able to credit accounts.
         """
@@ -3128,7 +3149,7 @@ class TopUpCRUDL(SmartCRUDL):
             apply_topups_task.delay(obj.org.id)
             return obj
 
-    class Update(SmartUpdateView):
+    class Update(ComponentFormMixin, SmartUpdateView):
         fields = ("is_active", "price", "credits", "expires_on")
 
         def get_success_url(self):

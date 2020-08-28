@@ -881,6 +881,7 @@ class OrgTest(TembaTest):
 
         manage_url = reverse("orgs.org_manage")
         update_url = reverse("orgs.org_update", args=[self.org.pk])
+        delete_url = reverse("orgs.org_delete", args=[self.org.pk])
         login_url = reverse("users.user_login")
 
         # no access to anon
@@ -890,6 +891,9 @@ class OrgTest(TembaTest):
         response = self.client.get(update_url)
         self.assertRedirect(response, login_url)
 
+        response = self.client.get(delete_url)
+        self.assertRedirect(response, login_url)
+
         # or admins
         self.login(self.admin)
 
@@ -897,6 +901,9 @@ class OrgTest(TembaTest):
         self.assertRedirect(response, login_url)
 
         response = self.client.get(update_url)
+        self.assertRedirect(response, login_url)
+
+        response = self.client.get(delete_url)
         self.assertRedirect(response, login_url)
 
         # only superuser
@@ -963,29 +970,30 @@ class OrgTest(TembaTest):
 
         # unflag org
         post_data["action"] = "unflag"
-        response = self.client.post(update_url, post_data)
+        self.client.post(update_url, post_data)
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_flagged)
         self.assertEqual(parent, self.org.parent)
 
         # verify
         post_data["action"] = "verify"
-        response = self.client.post(update_url, post_data)
+        self.client.post(update_url, post_data)
         self.org.refresh_from_db()
         self.assertTrue(self.org.is_verified())
 
         # flag org
         post_data["action"] = "flag"
-        response = self.client.post(update_url, post_data)
+        self.client.post(update_url, post_data)
         self.org.refresh_from_db()
         self.assertTrue(self.org.is_flagged)
 
         # deactivate
-        post_data["action"] = "delete"
-        response = self.client.post(update_url, post_data)
+        self.client.post(delete_url, {"id": self.org.id})
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_active)
+
         response = self.client.get(update_url)
+        self.assertEqual(200, response.status_code)
 
     def test_accounts(self):
         url = reverse("orgs.org_accounts")
