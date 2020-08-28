@@ -1413,7 +1413,12 @@ class OrgCRUDL(SmartCRUDL):
             return getattr(org, group_name.lower())
 
         def get_gear_links(self):
-            return [dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"),)]
+            links = []
+            if self.request.user.get_org().pk != self.get_object().pk:
+                links.append(dict(title=_("Workspaces"), style="button-light", href=reverse("orgs.org_sub_orgs"),))
+
+            links.append(dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"),))
+            return links
 
         def derive_initial(self):
             initial = super().derive_initial()

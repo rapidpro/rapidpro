@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-28 17:07+0000\n"
+"POT-Creation-Date: 2020-08-28 15:37+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -8029,19 +8029,15 @@ msgid "Delete Selected Contacts"
 msgstr "Criar contatos"
 
 #, fuzzy
-msgid "Are you sure you want to delete the selected contacts?"
+msgid "Are you sure you want to delete these contacts? This cannot be undone."
 msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
-
-#, fuzzy
-msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
-msgstr "Uma vez que for removido, ele irá desaparecer para sempre. Não há maneira de desfazer esta operação."
 
 #, fuzzy
 msgid "Delete All Contacts"
 msgstr "Criar contatos"
 
 #, fuzzy, python-format
-msgid "Are you sure you want to delete all %(count)s archived contacts?"
+msgid "Are you sure you want to delete all %(count)s archived contacts? This cannot be undone."
 msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
 
 #, fuzzy
@@ -8431,6 +8427,11 @@ msgid "Choose File"
 msgstr "Escolher arquivo"
 
 #, fuzzy
+#| msgid "Contact Groups"
+msgid "Smart Groups"
+msgstr "Grupos de contato"
+
+#, fuzzy
 msgid "Create Contact"
 msgstr "Criar grupo de contatos"
 
@@ -8440,7 +8441,7 @@ msgstr "Criar grupo de contatos"
 
 #, fuzzy
 #| msgid "Remove from Group"
-msgid "Remove from Group"
+msgid "Remove From Group"
 msgstr "Remover do grupo"
 
 msgid "New Group..."
@@ -8466,26 +8467,11 @@ msgstr[1] ""
 msgid "No matching contacts."
 msgstr "Nenhum contato correspondente"
 
+msgid "To view more than 10,000 search results, save it as a group."
+msgstr ""
+
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr ""
-
-msgid "Create Contact Group"
-msgstr "Criar grupo de contatos"
-
-#, fuzzy
-msgid "Save Search as Group"
-msgstr "Criar grupos"
-
-msgid "Unable to create a dynamic group"
-msgstr ""
-
-msgid "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>."
-msgstr ""
-
-#, fuzzy
-#| msgid "Export"
-msgid "Start Export"
-msgstr "Exportar"
 
 #, fuzzy
 msgid "Contact Id"
@@ -10078,17 +10064,6 @@ msgstr "Você usou"
 msgid "credits since signing up."
 msgstr "créditos desde que você se cadastrou"
 
-#, fuzzy
-#| msgid "Are you sure you want to remove"
-msgid "You are about to delete"
-msgstr "Você tem certeza que deseja excluir"
-
-msgid ""
-"\n"
-"    Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted.\n"
-"  "
-msgstr ""
-
 msgid ""
 "\n"
 "      Your download should start automatically. If it doesn't start in a few seconds, use the button below to download.\n"
@@ -10566,6 +10541,25 @@ msgstr "A organização utilizando esse transmissor"
 #| msgid "The organization this trigger belongs to"
 msgid "This workspace has been scheduled for deletion"
 msgstr "A organização a qual este disparador pertence"
+
+msgid "Whoa, whoa, whoa!"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"        Are you sure you want to delete everything for %(name)s? Everything will be gone and there is no going back.\n"
+"        This includes all flows, contacts, messages, etc.\n"
+"\n"
+"      "
+msgstr ""
+
+msgid ""
+"\n"
+"          Also, any logins will be deleted if they don't belong to another workspace.\n"
+"\n"
+"        "
+msgstr ""
 
 msgid "Top Ups"
 msgstr "Recargas"
@@ -11870,9 +11864,6 @@ msgstr "Crie sua Organização"
 msgid "Delete Login"
 msgstr "Deletar"
 
-msgid "Whoa, whoa, whoa!"
-msgstr ""
-
 msgid "By deleting this login,"
 msgstr ""
 
@@ -12090,20 +12081,6 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
-
-#, fuzzy
-#~| msgid "Contact Groups"
-#~ msgid "Smart Groups"
-#~ msgstr "Grupos de contato"
-
-#, fuzzy
-#~ msgid "Are you sure you want to delete these contacts? This cannot be undone."
-#~ msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
-
-#, fuzzy
-#~| msgid "Delete"
-#~ msgid "Delete Org"
-#~ msgstr "Deletar"
 
 #, fuzzy
 #~ msgid "Contact blocked"
@@ -12397,6 +12374,13 @@ msgstr ""
 #~ msgid "Update Contact Group"
 #~ msgstr "Atualizar grupo de contato"
 
+#~ msgid "Create Contact Group"
+#~ msgstr "Criar grupo de contatos"
+
+#, fuzzy
+#~ msgid "Save Search as Group"
+#~ msgstr "Criar grupos"
+
 #, fuzzy
 #~ msgid "blocked"
 #~ msgstr "Telefone do contato"
@@ -12414,6 +12398,10 @@ msgstr ""
 #, fuzzy
 #~ msgid "Are you sure you want to delete this field?"
 #~ msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
+
+#, fuzzy
+#~ msgid "Once deleted, field will be gone forever. There is no way to undo this operation."
+#~ msgstr "Uma vez que for removido, ele irá desaparecer para sempre. Não há maneira de desfazer esta operação."
 
 #, fuzzy
 #~ msgid "No related campaigns."
@@ -14633,6 +14621,10 @@ msgstr ""
 #, fuzzy
 #~ msgid "Delete Contact Group"
 #~ msgstr "Criar grupo de contatos"
+
+#, fuzzy
+#~ msgid "Are you sure you want to delete this Contact Group?"
+#~ msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
 
 #~ msgid "No contacts will be deleted. However, once this group is deleted, it will be gone forever. There is no way to undo this operation."
 #~ msgstr "Uma vez que for removido, ele irá desaparecer para sempre. Não há maneira de desfazer esta operação."

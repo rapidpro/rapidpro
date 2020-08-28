@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-28 17:07+0000\n"
+"POT-Creation-Date: 2020-08-28 15:37+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -5962,17 +5962,14 @@ msgstr ""
 msgid "Delete Selected Contacts"
 msgstr ""
 
-msgid "Are you sure you want to delete the selected contacts?"
-msgstr ""
-
-msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
+msgid "Are you sure you want to delete these contacts? This cannot be undone."
 msgstr ""
 
 msgid "Delete All Contacts"
 msgstr ""
 
 #, python-format
-msgid "Are you sure you want to delete all %(count)s archived contacts?"
+msgid "Are you sure you want to delete all %(count)s archived contacts? This cannot be undone."
 msgstr ""
 
 msgid ""
@@ -6228,13 +6225,16 @@ msgstr ""
 msgid "Choose File"
 msgstr ""
 
+msgid "Smart Groups"
+msgstr ""
+
 msgid "Create Contact"
 msgstr ""
 
 msgid "Create Group"
 msgstr ""
 
-msgid "Remove from Group"
+msgid "Remove From Group"
 msgstr ""
 
 msgid "New Group..."
@@ -6256,22 +6256,10 @@ msgstr[1] ""
 msgid "No matching contacts."
 msgstr ""
 
+msgid "To view more than 10,000 search results, save it as a group."
+msgstr ""
+
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
-msgstr ""
-
-msgid "Create Contact Group"
-msgstr ""
-
-msgid "Save Search as Group"
-msgstr ""
-
-msgid "Unable to create a dynamic group"
-msgstr ""
-
-msgid "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>."
-msgstr ""
-
-msgid "Start Export"
 msgstr ""
 
 msgid "Contact Id"
@@ -7533,15 +7521,6 @@ msgstr ""
 msgid "credits since signing up."
 msgstr ""
 
-msgid "You are about to delete"
-msgstr ""
-
-msgid ""
-"\n"
-"    Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted.\n"
-"  "
-msgstr ""
-
 msgid ""
 "\n"
 "      Your download should start automatically. If it doesn't start in a few seconds, use the button below to download.\n"
@@ -7934,6 +7913,25 @@ msgid "This workspace has been verified"
 msgstr ""
 
 msgid "This workspace has been scheduled for deletion"
+msgstr ""
+
+msgid "Whoa, whoa, whoa!"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"        Are you sure you want to delete everything for %(name)s? Everything will be gone and there is no going back.\n"
+"        This includes all flows, contacts, messages, etc.\n"
+"\n"
+"      "
+msgstr ""
+
+msgid ""
+"\n"
+"          Also, any logins will be deleted if they don't belong to another workspace.\n"
+"\n"
+"        "
 msgstr ""
 
 msgid "Top Ups"
@@ -8900,9 +8898,6 @@ msgid "Delete Workspace"
 msgstr ""
 
 msgid "Delete Login"
-msgstr ""
-
-msgid "Whoa, whoa, whoa!"
 msgstr ""
 
 msgid "By deleting this login,"

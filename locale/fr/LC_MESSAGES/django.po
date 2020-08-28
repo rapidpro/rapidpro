@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-28 17:07+0000\n"
+"POT-Creation-Date: 2020-08-28 15:37+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -7191,14 +7191,9 @@ msgid "Delete Selected Contacts"
 msgstr "Supprimer des contacts"
 
 #, fuzzy
-#| msgid "Are you sure you want to delete this field?"
-msgid "Are you sure you want to delete the selected contacts?"
-msgstr "Êtes-vous sûr de vouloir supprimer ce champ?"
-
-#, fuzzy
-#| msgid "Once deleted, field will be gone forever. There is no way to undo this operation."
-msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
-msgstr "Une fois supprimé, le champ disparaîtra pour toujours. Il n'y a aucun moyen d'annuler cette opération."
+#| msgid "Are you sure you want to delete these contacts?"
+msgid "Are you sure you want to delete these contacts? This cannot be undone."
+msgstr "Êtes-vous sûr de vouloir supprimer ces contacts?"
 
 #, fuzzy
 #| msgid "Delete Contacts"
@@ -7206,9 +7201,9 @@ msgid "Delete All Contacts"
 msgstr "Supprimer des contacts"
 
 #, fuzzy, python-format
-#| msgid "Are you sure you want to delete this field?"
-msgid "Are you sure you want to delete all %(count)s archived contacts?"
-msgstr "Êtes-vous sûr de vouloir supprimer ce champ?"
+#| msgid "Are you sure you want to delete these contacts?"
+msgid "Are you sure you want to delete all %(count)s archived contacts? This cannot be undone."
+msgstr "Êtes-vous sûr de vouloir supprimer ces contacts?"
 
 #, fuzzy
 #| msgid ""
@@ -7575,6 +7570,11 @@ msgstr ""
 msgid "Choose File"
 msgstr "Choisissez Fichier"
 
+#, fuzzy
+#| msgid "Contact Groups"
+msgid "Smart Groups"
+msgstr "Groupes de contact"
+
 msgid "Create Contact"
 msgstr "Créer un contact"
 
@@ -7583,7 +7583,7 @@ msgstr "Créer un groupe"
 
 #, fuzzy
 #| msgid "Remove from Group"
-msgid "Remove from Group"
+msgid "Remove From Group"
 msgstr "Supprimer du groupe"
 
 msgid "New Group..."
@@ -7612,25 +7612,11 @@ msgstr[1] ""
 msgid "No matching contacts."
 msgstr "Pas de contacts correspondants."
 
+msgid "To view more than 10,000 search results, save it as a group."
+msgstr ""
+
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr "La navigation dans les recherches est limitée à 10 000 résultats. Si vous souhaitez parcourir tous les résultats, veuillez enregistrer cette recherche en tant que groupe."
-
-msgid "Create Contact Group"
-msgstr "Créer un groupe de contact"
-
-msgid "Save Search as Group"
-msgstr "Enregistrer la recherche en tant que groupe"
-
-msgid "Unable to create a dynamic group"
-msgstr "Impossible de créer un groupe dynamique"
-
-msgid "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>."
-msgstr "Vous ne pouvez pas créer un groupe dynamique basé sur <strong>id</strong> ou <strong>group</strong>."
-
-#, fuzzy
-#| msgid "Start Export"
-msgid "Start Export"
-msgstr "Lancer l'exportation"
 
 #, fuzzy
 #| msgid "Contact"
@@ -9580,17 +9566,6 @@ msgstr "Vous avez utilisé"
 msgid "credits since signing up."
 msgstr "crédits depuis votre inscription."
 
-#, fuzzy
-#| msgid "Are you sure you want to remove"
-msgid "You are about to delete"
-msgstr "Etes-vous sûr que vous voulez supprimer"
-
-msgid ""
-"\n"
-"    Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted.\n"
-"  "
-msgstr ""
-
 msgid ""
 "\n"
 "      Your download should start automatically. If it doesn't start in a few seconds, use the button below to download.\n"
@@ -10183,6 +10158,40 @@ msgstr "Cette organisation a été suspendue"
 #| msgid "This organization has been scheduled for deletion"
 msgid "This workspace has been scheduled for deletion"
 msgstr "La suppression de cette organisation est prévue"
+
+msgid "Whoa, whoa, whoa!"
+msgstr "Whoa, whoa, whoa!"
+
+#, python-format
+msgid ""
+"\n"
+"        Are you sure you want to delete everything for %(name)s? Everything will be gone and there is no going back.\n"
+"        This includes all flows, contacts, messages, etc.\n"
+"\n"
+"      "
+msgstr ""
+"\n"
+"        Êtes-vous sûr de vouloir tout supprimer pour %(name)s? Tout sera parti et il n'y a pas de retour en arrière.\n"
+"        Cela inclut tous les flux, contacts, messages, etc.\n"
+"\n"
+"      "
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "          Also, any user accounts will be deleted if they don't belong to another organization.\n"
+#| "\n"
+#| "        "
+msgid ""
+"\n"
+"          Also, any logins will be deleted if they don't belong to another workspace.\n"
+"\n"
+"        "
+msgstr ""
+"\n"
+"          En outre, tous les comptes d'utilisateurs seront supprimés s'ils n'appartiennent pas à une autre organisation.\n"
+"\n"
+"        "
 
 msgid "Top Ups"
 msgstr "Top Ups"
@@ -11571,9 +11580,6 @@ msgstr "Choisissez votre Organisation"
 msgid "Delete Login"
 msgstr "Supprimer"
 
-msgid "Whoa, whoa, whoa!"
-msgstr "Whoa, whoa, whoa!"
-
 #, fuzzy
 #| msgid "By deleting this user,"
 msgid "By deleting this login,"
@@ -11781,52 +11787,6 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
-
-#, fuzzy
-#~| msgid "Contact Groups"
-#~ msgid "Smart Groups"
-#~ msgstr "Groupes de contact"
-
-#, fuzzy
-#~| msgid "Are you sure you want to delete these contacts?"
-#~ msgid "Are you sure you want to delete these contacts? This cannot be undone."
-#~ msgstr "Êtes-vous sûr de vouloir supprimer ces contacts?"
-
-#, fuzzy
-#~| msgid "Delete "
-#~ msgid "Delete Org"
-#~ msgstr "Supprimer"
-
-#, python-format
-#~ msgid ""
-#~ "\n"
-#~ "        Are you sure you want to delete everything for %(name)s? Everything will be gone and there is no going back.\n"
-#~ "        This includes all flows, contacts, messages, etc.\n"
-#~ "\n"
-#~ "      "
-#~ msgstr ""
-#~ "\n"
-#~ "        Êtes-vous sûr de vouloir tout supprimer pour %(name)s? Tout sera parti et il n'y a pas de retour en arrière.\n"
-#~ "        Cela inclut tous les flux, contacts, messages, etc.\n"
-#~ "\n"
-#~ "      "
-
-#, fuzzy
-#~| msgid ""
-#~| "\n"
-#~| "          Also, any user accounts will be deleted if they don't belong to another organization.\n"
-#~| "\n"
-#~| "        "
-#~ msgid ""
-#~ "\n"
-#~ "          Also, any logins will be deleted if they don't belong to another workspace.\n"
-#~ "\n"
-#~ "        "
-#~ msgstr ""
-#~ "\n"
-#~ "          En outre, tous les comptes d'utilisateurs seront supprimés s'ils n'appartiennent pas à une autre organisation.\n"
-#~ "\n"
-#~ "        "
 
 #~ msgid "Unblock"
 #~ msgstr "Débloquer"
@@ -12169,6 +12129,18 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Update Contact Group"
 #~ msgstr "Mise à jour de Groupe de contacts"
 
+#~ msgid "Create Contact Group"
+#~ msgstr "Créer un groupe de contact"
+
+#~ msgid "Save Search as Group"
+#~ msgstr "Enregistrer la recherche en tant que groupe"
+
+#~ msgid "Unable to create a dynamic group"
+#~ msgstr "Impossible de créer un groupe dynamique"
+
+#~ msgid "You cannot create a dynamic group based on <strong>id</strong> or <strong>group</strong>."
+#~ msgstr "Vous ne pouvez pas créer un groupe dynamique basé sur <strong>id</strong> ou <strong>group</strong>."
+
 #~ msgid "blocked"
 #~ msgstr "bloqué"
 
@@ -12180,6 +12152,12 @@ msgstr "${count} trouvé pour ${query}"
 
 #~ msgid "Contact groups:"
 #~ msgstr "Groupes de contact:"
+
+#~ msgid "Are you sure you want to delete this field?"
+#~ msgstr "Êtes-vous sûr de vouloir supprimer ce champ?"
+
+#~ msgid "Once deleted, field will be gone forever. There is no way to undo this operation."
+#~ msgstr "Une fois supprimé, le champ disparaîtra pour toujours. Il n'y a aucun moyen d'annuler cette opération."
 
 #~ msgid "No related campaigns."
 #~ msgstr "Aucune campagne liée."
