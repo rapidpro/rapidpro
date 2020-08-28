@@ -164,7 +164,7 @@
 
             -if view.search_fields
               %form#search-form.mb-4(method="get")
-                %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="search", value="{{search}}")
+                %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="search" value="{{search}}")
                 -if request.REQUEST.status
                   %input(type='hidden' name='status' value='{{request.REQUEST.status}}')
 
