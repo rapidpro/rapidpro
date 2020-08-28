@@ -86,6 +86,9 @@ html {
   --font-size: 14px;
   --button-font-size: 1.125rem;
 
+  --header-bg: var(--color-primary-dark);
+
+
   font-size: var(--font-size);
   font-weight: 300;
   font-family: var(--font-family);
