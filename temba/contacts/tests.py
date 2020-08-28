@@ -3693,6 +3693,45 @@ class ContactTest(TembaTest):
         self.assertFalse(ChannelEvent.objects.filter(contact=self.frank))
         self.assertFalse(ChannelEvent.objects.filter(id=event.id))
 
+    @mock_mailroom
+    def test_archived_view(self, mr_mocks):
+        self.joe.archive(self.admin)
+        self.frank.archive(self.admin)
+        self.billy.archive(self.admin)
+
+        self.login(self.user)
+
+        archived_url = reverse("contacts.contact_archived")
+
+        response = self.client.get(archived_url)
+        self.assertEqual([self.billy, self.frank, self.joe], list(response.context["object_list"]))
+        self.assertEqual(["restore"], response.context["actions"])
+        self.assertNotContains(response, "Delete All")
+
+        self.login(self.admin)
+
+        # admin users see delete option
+        response = self.client.get(archived_url)
+        self.assertEqual(list(response.context["object_list"]), [self.billy, self.frank, self.joe])
+        self.assertEqual(["restore", "delete"], response.context["actions"])
+        self.assertContains(response, "Delete All")
+
+        # try delete bulk action
+        self.client.post(archived_url, {"action": "delete", "objects": self.frank.id})
+
+        response = self.client.get(archived_url)
+        self.assertEqual(list(response.context["object_list"]), [self.billy, self.joe])
+
+        # the archived view also supports deleting all
+        self.client.post(archived_url, {"action": "delete", "all": "true"})
+
+        response = self.client.get(archived_url)
+        self.assertEqual(list(response.context["object_list"]), [])
+
+        # only archived contacts affected
+        self.assertEqual(4, Contact.objects.filter(is_active=False).count())
+        self.assertEqual(2, Contact.objects.filter(is_active=True).count())
+
     @patch("temba.mailroom.client.MailroomClient.contact_modify")
     def test_update_with_mailroom_error(self, mock_modify):
         mock_modify.side_effect = MailroomException("", "", {"error": "Error updating contact"})

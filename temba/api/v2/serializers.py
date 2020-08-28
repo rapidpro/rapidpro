@@ -782,10 +782,11 @@ class ContactBulkActionSerializer(WriteSerializer):
     BLOCK = "block"
     UNBLOCK = "unblock"
     INTERRUPT = "interrupt"
-    ARCHIVE = "archive"
+    ARCHIVE_MESSAGES = "archive_messages"
     DELETE = "delete"
+    ARCHIVE = "archive"  # backward compatibility
 
-    ACTIONS = (ADD, REMOVE, BLOCK, UNBLOCK, INTERRUPT, ARCHIVE, DELETE)
+    ACTIONS = (ADD, REMOVE, BLOCK, UNBLOCK, INTERRUPT, ARCHIVE_MESSAGES, DELETE, ARCHIVE)
     ACTIONS_WITH_GROUP = (ADD, REMOVE)
 
     contacts = fields.ContactField(many=True)
@@ -829,7 +830,7 @@ class ContactBulkActionSerializer(WriteSerializer):
             Contact.bulk_change_group(user, contacts, group, add=False)
         elif action == self.INTERRUPT:
             mailroom.queue_interrupt(self.context["org"], contacts=contacts)
-        elif action == self.ARCHIVE:
+        elif action == self.ARCHIVE_MESSAGES or action == self.ARCHIVE:
             Msg.archive_all_for_contacts(contacts)
         elif action == self.BLOCK:
             Contact.bulk_change_status(user, contacts, modifiers.Status.BLOCKED)

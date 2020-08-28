@@ -6,3 +6,44 @@
     -trans "Archived Contacts"
   .text-base.mt-1
     -trans "These contacts have been removed from all groups and can be deleted permanently."
+
+-block post-content
+  -if org_perms.contacts.contact_delete
+    %temba-dialog#delete-confirmation.hide(header='{{ _("Delete Selected Contacts")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
+      .p-6
+        -trans "Are you sure you want to delete these contacts? This cannot be undone."
+
+    %temba-dialog#delete-all-confirmation.hide(header='{{ _("Delete All Contacts")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
+      .p-6
+        -blocktrans trimmed with count=folder_count
+          Are you sure you want to delete all {{ count}} archived contacts? This cannot be undone.
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    window.addEventListener('DOMContentLoaded', (event) => {
+      var confirm = document.querySelector('#delete-all-confirmation');
+      var deleteButton = document.querySelector(".contacts-btn-delete-all");
+
+      deleteButton.addEventListener("click", function(){
+        confirm.classList.remove("hide");
+        confirm.open = true;
+      });
+
+      confirm.addEventListener("temba-button-clicked", function(event){
+        if (event.detail.button.attributes.destructive){
+          deleteAllContacts();
+        }
+        confirm.classList.add("hide");
+        confirm.open = false;
+      });
+    });
+
+    function deleteAllContacts() {
+      jQuery.ajaxSettings.traditional = true;
+      fetchPJAXContent('', '#pjax', {
+          postData: { action: "delete", all: 'true', pjax: 'true' },
+          forceReload: true
+      });
+    }
