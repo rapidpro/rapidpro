@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-27 16:24+0000\n"
+"POT-Creation-Date: 2020-08-28 15:37+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2612,6 +2612,9 @@ msgid "Stopped Contacts"
 msgstr ""
 
 msgid "Archived Contacts"
+msgstr ""
+
+msgid "Delete All"
 msgstr ""
 
 msgid "Edit Group"
@@ -5956,6 +5959,19 @@ msgstr ""
 msgid "These contacts have been removed from all groups and can be deleted permanently."
 msgstr ""
 
+msgid "Delete Selected Contacts"
+msgstr ""
+
+msgid "Are you sure you want to delete these contacts? This cannot be undone."
+msgstr ""
+
+msgid "Delete All Contacts"
+msgstr ""
+
+#, python-format
+msgid "Are you sure you want to delete all %(count)s archived contacts? This cannot be undone."
+msgstr ""
+
 msgid ""
 "\n"
 "    We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
@@ -6241,12 +6257,6 @@ msgid "No matching contacts."
 msgstr ""
 
 msgid "To view more than 10,000 search results, save it as a group."
-msgstr ""
-
-msgid "Delete Contacts"
-msgstr ""
-
-msgid "Are you sure you want to delete these contacts? This cannot be undone."
 msgstr ""
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."

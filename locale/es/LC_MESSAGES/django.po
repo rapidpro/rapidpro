@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-27 16:24+0000\n"
+"POT-Creation-Date: 2020-08-28 15:37+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3984,6 +3984,11 @@ msgstr "Mostrar Contactos"
 #| msgid "Failed Contacts"
 msgid "Archived Contacts"
 msgstr "Contactos falló"
+
+#, fuzzy
+#| msgid "Delete"
+msgid "Delete All"
+msgstr "Borrar"
 
 msgid "Edit Group"
 msgstr "Editar grupos"
@@ -8655,6 +8660,26 @@ msgstr ""
 msgid "These contacts have been removed from all groups and can be deleted permanently."
 msgstr ""
 
+#, fuzzy
+#| msgid "Delete Contacts"
+msgid "Delete Selected Contacts"
+msgstr "Borrar Contactos"
+
+#, fuzzy
+#| msgid "Are you sure you want to delete these contacts?"
+msgid "Are you sure you want to delete these contacts? This cannot be undone."
+msgstr "¿Está seguro de que desea borrar estos contactos?"
+
+#, fuzzy
+#| msgid "Delete Contacts"
+msgid "Delete All Contacts"
+msgstr "Borrar Contactos"
+
+#, fuzzy, python-format
+#| msgid "Are you sure you want to delete these contacts?"
+msgid "Are you sure you want to delete all %(count)s archived contacts? This cannot be undone."
+msgstr "¿Está seguro de que desea borrar estos contactos?"
+
 msgid ""
 "\n"
 "    We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
@@ -9135,14 +9160,6 @@ msgstr "Los contactos no corresponden."
 
 msgid "To view more than 10,000 search results, save it as a group."
 msgstr ""
-
-msgid "Delete Contacts"
-msgstr "Borrar Contactos"
-
-#, fuzzy
-#| msgid "Are you sure you want to delete these contacts?"
-msgid "Are you sure you want to delete these contacts? This cannot be undone."
-msgstr "¿Está seguro de que desea borrar estos contactos?"
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr ""

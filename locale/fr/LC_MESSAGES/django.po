@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-27 16:24+0000\n"
+"POT-Creation-Date: 2020-08-28 15:37+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2955,6 +2955,11 @@ msgstr "Contacts arrêtés"
 #| msgid "Blocked Contacts"
 msgid "Archived Contacts"
 msgstr "Contacts Bloqués"
+
+#, fuzzy
+#| msgid "Delete "
+msgid "Delete All"
+msgstr "Supprimer"
 
 msgid "Edit Group"
 msgstr "Modifier un group"
@@ -7181,6 +7186,26 @@ msgid "These contacts have been removed from all groups and can be deleted perma
 msgstr ""
 
 #, fuzzy
+#| msgid "Delete Contacts"
+msgid "Delete Selected Contacts"
+msgstr "Supprimer des contacts"
+
+#, fuzzy
+#| msgid "Are you sure you want to delete these contacts?"
+msgid "Are you sure you want to delete these contacts? This cannot be undone."
+msgstr "Êtes-vous sûr de vouloir supprimer ces contacts?"
+
+#, fuzzy
+#| msgid "Delete Contacts"
+msgid "Delete All Contacts"
+msgstr "Supprimer des contacts"
+
+#, fuzzy, python-format
+#| msgid "Are you sure you want to delete these contacts?"
+msgid "Are you sure you want to delete all %(count)s archived contacts? This cannot be undone."
+msgstr "Êtes-vous sûr de vouloir supprimer ces contacts?"
+
+#, fuzzy
 #| msgid ""
 #| "\n"
 #| "      We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
@@ -7589,14 +7614,6 @@ msgstr "Pas de contacts correspondants."
 
 msgid "To view more than 10,000 search results, save it as a group."
 msgstr ""
-
-msgid "Delete Contacts"
-msgstr "Supprimer des contacts"
-
-#, fuzzy
-#| msgid "Are you sure you want to delete these contacts?"
-msgid "Are you sure you want to delete these contacts? This cannot be undone."
-msgstr "Êtes-vous sûr de vouloir supprimer ces contacts?"
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr "La navigation dans les recherches est limitée à 10 000 résultats. Si vous souhaitez parcourir tous les résultats, veuillez enregistrer cette recherche en tant que groupe."

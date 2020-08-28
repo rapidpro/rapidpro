@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-27 16:24+0000\n"
+"POT-Creation-Date: 2020-08-28 15:37+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3682,6 +3682,11 @@ msgstr "Mostrar contatos"
 
 msgid "Archived Contacts"
 msgstr "Contatos arquivados"
+
+#, fuzzy
+#| msgid "Delete"
+msgid "Delete All"
+msgstr "Deletar"
 
 msgid "Edit Group"
 msgstr "Editar Grupo"
@@ -8020,6 +8025,22 @@ msgid "These contacts have been removed from all groups and can be deleted perma
 msgstr ""
 
 #, fuzzy
+msgid "Delete Selected Contacts"
+msgstr "Criar contatos"
+
+#, fuzzy
+msgid "Are you sure you want to delete these contacts? This cannot be undone."
+msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
+
+#, fuzzy
+msgid "Delete All Contacts"
+msgstr "Criar contatos"
+
+#, fuzzy, python-format
+msgid "Are you sure you want to delete all %(count)s archived contacts? This cannot be undone."
+msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
+
+#, fuzzy
 #| msgid ""
 #| "\n"
 #| "      We noticed your file contains some extra columns, you can add these as custom fields on\n"
@@ -8448,14 +8469,6 @@ msgstr "Nenhum contato correspondente"
 
 msgid "To view more than 10,000 search results, save it as a group."
 msgstr ""
-
-#, fuzzy
-msgid "Delete Contacts"
-msgstr "Criar contatos"
-
-#, fuzzy
-msgid "Are you sure you want to delete these contacts? This cannot be undone."
-msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr ""

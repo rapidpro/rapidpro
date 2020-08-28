@@ -2281,7 +2281,7 @@ class APITest(TembaTest):
             mock_queue_interrupt.assert_called_once_with(self.org, contacts=[contact1, contact2])
 
         # archive all messages for contacts 1 and 2
-        response = self.postJSON(url, None, {"contacts": [contact1.uuid, contact2.uuid], "action": "archive"})
+        response = self.postJSON(url, None, {"contacts": [contact1.uuid, contact2.uuid], "action": "archive_messages"})
         self.assertEqual(response.status_code, 204)
         self.assertFalse(Msg.objects.filter(contact__in=[contact1, contact2], direction="I", visibility="V").exists())
         self.assertTrue(Msg.objects.filter(contact=contact3, direction="I", visibility="V").exists())
