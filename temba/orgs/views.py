@@ -15,6 +15,7 @@ from packaging.version import Version
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
+    SmartDeleteView,
     SmartFormView,
     SmartListView,
     SmartModelActionView,
@@ -1234,7 +1235,6 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
 
             if org.is_active:
-
                 links.append(
                     dict(
                         title=_("Topups"),
@@ -1274,7 +1274,12 @@ class OrgCRUDL(SmartCRUDL):
 
                 if self.request.user.has_perm("orgs.org_delete"):
                     links.append(
-                        dict(title=_("Delete"), style="button-primary", js_class="org-delete-button", href="#")
+                        dict(
+                            id="delete-flow",
+                            title=_("Delete"),
+                            href=reverse("orgs.org_delete", args=[org.pk]),
+                            modax="Delete Org",
+                        )
                     )
             return links
 
@@ -1287,10 +1292,24 @@ class OrgCRUDL(SmartCRUDL):
                     self.get_object().verify()
                 elif action == "unflag":
                     self.get_object().unflag()
-                elif action == "delete":
-                    self.get_object().release()
                 return HttpResponseRedirect(self.get_success_url())
             return super().post(request, *args, **kwargs)
+
+    class Delete(ModalMixin, SmartDeleteView):
+        cancel_url = "id@orgs.org_update"
+        submit_button_name = _("Delete")
+        fields = ("id",)
+
+        def post(self, request, *args, **kwargs):
+            self.object = self.get_object()
+            self.pre_delete(self.object)
+            redirect_url = self.get_redirect_url()
+            self.object.release()
+
+            return HttpResponseRedirect(redirect_url)
+
+        def get_redirect_url(self, **kwargs):
+            return reverse("orgs.org_update", args=[self.object.pk])
 
     class Accounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class PasswordForm(forms.ModelForm):
