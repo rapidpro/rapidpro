@@ -1253,7 +1253,9 @@ class ContactCRUDL(SmartCRUDL):
     class List(ContactListView):
         title = _("Contacts")
         system_group = ContactGroup.TYPE_ACTIVE
-        bulk_actions = ("label", "block", "archive")
+
+        def get_bulk_actions(self):
+            return ("label", "block", "archive") if self.has_org_perm("contacts.contact_update") else ()
 
         def get_gear_links(self):
             links = []
