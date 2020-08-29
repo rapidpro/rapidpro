@@ -16,7 +16,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-27 20:38+0000\n"
+"POT-Creation-Date: 2020-08-29 14:00+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Matheus Soares <matheus.soares@ilhasoft.com.br>, 2020\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -2772,9 +2772,6 @@ msgstr "Você não pode cirar um grupo dinâmico baseado em \"id\"ou \"grupo\"."
 msgid "You cannot update the query of a group that is evaluating."
 msgstr "Você não pode atualizar a consulta de um grupo que está avaliando."
 
-msgid "Restore"
-msgstr ""
-
 msgid "Active"
 msgstr "Ativo"
 
@@ -2855,6 +2852,9 @@ msgstr "Enviar mensagem"
 msgid "Custom Fields"
 msgstr "Campos Personalizados"
 
+msgid "Restore"
+msgstr ""
+
 msgid "Block"
 msgstr "Bloquear"
 
@@ -2867,14 +2867,8 @@ msgstr "Gerenciar campos"
 msgid "Blocked Contacts"
 msgstr "Contatos bloqueados"
 
-msgid "Unblock"
-msgstr "Desbloquear"
-
 msgid "Stopped Contacts"
 msgstr "Contatos interrompidos"
-
-msgid "Unstop"
-msgstr "Ativar"
 
 #, fuzzy
 #| msgid "Blocked Contacts"
@@ -10603,6 +10597,12 @@ msgstr "Adicione uma dúvida"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Encontrado ${count} para ${query}"
+
+#~ msgid "Unblock"
+#~ msgstr "Desbloquear"
+
+#~ msgid "Unstop"
+#~ msgstr "Ativar"
 
 #~ msgid "All Contacts"
 #~ msgstr "Todos os contatos"
