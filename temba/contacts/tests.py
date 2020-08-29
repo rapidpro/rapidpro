@@ -309,6 +309,16 @@ class ContactCRUDLTest(TembaTest):
         frank.refresh_from_db()
         self.assertFalse(frank.is_active)
 
+        # the archived view also supports deleting all
+        self.client.post(archived_url, {"action": "delete", "all": "true"})
+
+        response = self.client.get(archived_url)
+        self.assertEqual([], list(response.context["object_list"]))
+
+        # only archived contacts affected
+        self.assertEqual(2, Contact.objects.filter(is_active=False, status=Contact.STATUS_ARCHIVED).count())
+        self.assertEqual(2, Contact.objects.filter(is_active=False).count())
+
     @mock_mailroom
     def test_read(self, mr_mocks):
         self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe")
