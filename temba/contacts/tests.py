@@ -190,6 +190,10 @@ class ContactCRUDLTest(TembaTest):
         self.client.post(list_url, {"action": "label", "objects": frank.id, "label": survey_audience.id})
         self.assertIn(frank, survey_audience.contacts.all())
 
+        # try label bulk action against search results
+        self.client.post(list_url + "?search=Joe", {"action": "label", "objects": joe.id, "label": survey_audience.id})
+        self.assertIn(joe, survey_audience.contacts.all())
+
         # try archive bulk action
         self.client.post(list_url, {"action": "archive", "objects": frank.id})
 
