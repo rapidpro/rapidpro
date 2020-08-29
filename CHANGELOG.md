@@ -1,3 +1,8 @@
+v5.7.25
+----------
+ * Fix bulk actions against querysets from ES searches
+ * Fix bulk action permissions on contact views
+
 v5.7.24
 ----------
  * Rename existing 'archive' contact action in API to 'archive_messages'
