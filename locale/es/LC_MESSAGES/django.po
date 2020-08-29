@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-27 20:38+0000\n"
+"POT-Creation-Date: 2020-08-29 14:00+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3808,11 +3808,6 @@ msgstr ""
 msgid "You cannot update the query of a group that is evaluating."
 msgstr ""
 
-#, fuzzy
-#| msgid "Restore Flows"
-msgid "Restore"
-msgstr "Restaurar flujos"
-
 msgid "Active"
 msgstr "Activar"
 
@@ -3905,6 +3900,11 @@ msgstr "Enviar mensaje"
 msgid "Custom Fields"
 msgstr "Campos para contacto con el cliente"
 
+#, fuzzy
+#| msgid "Restore Flows"
+msgid "Restore"
+msgstr "Restaurar flujos"
+
 msgid "Block"
 msgstr "Bloquear"
 
@@ -3917,16 +3917,10 @@ msgstr "Manejar campos"
 msgid "Blocked Contacts"
 msgstr "Contactos bloqueados"
 
-msgid "Unblock"
-msgstr "Desbloquear"
-
 #, fuzzy
 #| msgid "Show Contacts"
 msgid "Stopped Contacts"
 msgstr "Mostrar Contactos"
-
-msgid "Unstop"
-msgstr ""
 
 #, fuzzy
 #| msgid "Failed Contacts"
@@ -12887,6 +12881,9 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Unblock"
+#~ msgstr "Desbloquear"
 
 #~ msgid "All Contacts"
 #~ msgstr "Todos los contactos"

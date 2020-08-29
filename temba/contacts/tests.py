@@ -77,16 +77,17 @@ class ContactCRUDLTest(TembaTest):
         self.login(self.user)
         list_url = reverse("contacts.contact_list")
 
-        self.joe = self.create_contact("Joe", urn="tel:123", fields={"age": "20", "home": "Kigali"})
-        self.frank = self.create_contact("Frank", urn="tel:124", fields={"age": "18"})
+        joe = self.create_contact("Joe", urn="tel:123", fields={"age": "20", "home": "Kigali"})
+        frank = self.create_contact("Frank", urn="tel:124", fields={"age": "18"})
 
         creating = ContactGroup.create_static(
             self.org, self.user, "Group being created", status=ContactGroup.STATUS_INITIALIZING
         )
 
         response = self.client.get(list_url)
-        self.assertEqual(set(response.context["object_list"]), {self.frank, self.joe})
+        self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertIsNone(response.context["search_error"])
+        self.assertEqual([], list(response.context["actions"]))
 
         survey_audience = ContactGroup.user_groups.get(org=self.org, name="Survey Audience")
         unsatisfied = ContactGroup.user_groups.get(org=self.org, name="Unsatisfied Customers")
@@ -121,16 +122,16 @@ class ContactCRUDLTest(TembaTest):
             ],
         )
 
-        mr_mocks.contact_search("age = 18", contacts=[self.frank], allow_as_group=True)
+        mr_mocks.contact_search("age = 18", contacts=[frank], allow_as_group=True)
 
         response = self.client.get(list_url + "?search=age+%3D+18")
-        self.assertEqual(list(response.context["object_list"]), [self.frank])
+        self.assertEqual(list(response.context["object_list"]), [frank])
         self.assertEqual(response.context["search"], "age = 18")
         self.assertEqual(response.context["save_dynamic_search"], True)
         self.assertIsNone(response.context["search_error"])
         self.assertEqual(list(response.context["contact_fields"].values_list("label", flat=True)), ["Home", "Age"])
 
-        mr_mocks.contact_search("age = 18", contacts=[self.frank], total=10020, allow_as_group=True)
+        mr_mocks.contact_search("age = 18", contacts=[frank], total=10020, allow_as_group=True)
 
         # we return up to 10000 contacts when searching with ES, so last page is 200
         url = f'{reverse("contacts.contact_list")}?{"search=age+%3D+18&page=200"}'
@@ -145,32 +146,30 @@ class ContactCRUDLTest(TembaTest):
         self.assertEqual(response.status_code, 404)
 
         mr_mocks.contact_search(
-            'age > 18 and home = "Kigali"', cleaned='age > 18 AND home = "Kigali"', contacts=[self.joe],
+            'age > 18 and home = "Kigali"', cleaned='age > 18 AND home = "Kigali"', contacts=[joe],
         )
 
         response = self.client.get(list_url + '?search=age+>+18+and+home+%3D+"Kigali"')
-        self.assertEqual(list(response.context["object_list"]), [self.joe])
+        self.assertEqual(list(response.context["object_list"]), [joe])
         self.assertEqual(response.context["search"], 'age > 18 AND home = "Kigali"')
         self.assertEqual(response.context["save_dynamic_search"], True)
         self.assertIsNone(response.context["search_error"])
 
-        mr_mocks.contact_search("Joe", cleaned='name ~ "Joe"', contacts=[self.joe])
+        mr_mocks.contact_search("Joe", cleaned='name ~ "Joe"', contacts=[joe])
 
         response = self.client.get(list_url + "?search=Joe")
-        self.assertEqual(list(response.context["object_list"]), [self.joe])
+        self.assertEqual(list(response.context["object_list"]), [joe])
         self.assertEqual(response.context["search"], 'name ~ "Joe"')
         self.assertEqual(response.context["save_dynamic_search"], True)
         self.assertIsNone(response.context["search_error"])
 
         with AnonymousOrg(self.org):
-            mr_mocks.contact_search(
-                f"{self.joe.id}", cleaned=f"id = {self.joe.id}", contacts=[self.joe], allow_as_group=False
-            )
+            mr_mocks.contact_search(f"{joe.id}", cleaned=f"id = {joe.id}", contacts=[joe], allow_as_group=False)
 
-            response = self.client.get(list_url + f"?search={self.joe.id}")
-            self.assertEqual(list(response.context["object_list"]), [self.joe])
+            response = self.client.get(list_url + f"?search={joe.id}")
+            self.assertEqual(list(response.context["object_list"]), [joe])
             self.assertIsNone(response.context["search_error"])
-            self.assertEqual(response.context["search"], f"id = {self.joe.id}")
+            self.assertEqual(response.context["search"], f"id = {joe.id}")
             self.assertEqual(response.context["save_dynamic_search"], False)
 
         # try with invalid search string
@@ -179,6 +178,165 @@ class ContactCRUDLTest(TembaTest):
         response = self.client.get(list_url + "?search=(((")
         self.assertEqual(list(response.context["object_list"]), [])
         self.assertEqual(response.context["search_error"], "Invalid query syntax at '((('")
+
+        self.login(self.admin)
+
+        # admins can see bulk actions
+        response = self.client.get(list_url)
+        self.assertEqual([frank, joe], list(response.context["object_list"]))
+        self.assertEqual(["label", "block", "archive"], list(response.context["actions"]))
+
+        # try label bulk action
+        self.client.post(list_url, {"action": "label", "objects": frank.id, "label": survey_audience.id})
+        self.assertIn(frank, survey_audience.contacts.all())
+
+        # try archive bulk action
+        self.client.post(list_url, {"action": "archive", "objects": frank.id})
+
+        response = self.client.get(list_url)
+        self.assertEqual([joe], list(response.context["object_list"]))
+
+        frank.refresh_from_db()
+        self.assertEqual(Contact.STATUS_ARCHIVED, frank.status)
+
+    @mock_mailroom
+    def test_blocked(self, mr_mocks):
+        joe = self.create_contact("Joe", urn="twitter:joe")
+        frank = self.create_contact("Frank", urn="twitter:frank")
+        billy = self.create_contact("Billy", urn="twitter:billy")
+        self.create_contact("Mary", urn="twitter:mary")
+
+        joe.block(self.admin)
+        frank.block(self.admin)
+        billy.block(self.admin)
+
+        self.login(self.user)
+
+        blocked_url = reverse("contacts.contact_blocked")
+
+        response = self.client.get(blocked_url)
+        self.assertEqual([billy, frank, joe], list(response.context["object_list"]))
+        self.assertEqual([], list(response.context["actions"]))
+
+        self.login(self.admin)
+
+        # admin users see bulk actions
+        response = self.client.get(blocked_url)
+        self.assertEqual(["restore", "archive"], list(response.context["actions"]))
+
+        # try restore bulk action
+        self.client.post(blocked_url, {"action": "restore", "objects": billy.id})
+
+        response = self.client.get(blocked_url)
+        self.assertEqual([frank, joe], list(response.context["object_list"]))
+
+        billy.refresh_from_db()
+        self.assertEqual(Contact.STATUS_ACTIVE, billy.status)
+
+        # try archive bulk action
+        self.client.post(blocked_url, {"action": "archive", "objects": frank.id})
+
+        response = self.client.get(blocked_url)
+        self.assertEqual([joe], list(response.context["object_list"]))
+
+        frank.refresh_from_db()
+        self.assertEqual(Contact.STATUS_ARCHIVED, frank.status)
+
+    @mock_mailroom
+    def test_stopped(self, mr_mocks):
+        joe = self.create_contact("Joe", urn="twitter:joe")
+        frank = self.create_contact("Frank", urn="twitter:frank")
+        billy = self.create_contact("Billy", urn="twitter:billy")
+        self.create_contact("Mary", urn="twitter:mary")
+
+        joe.stop(self.admin)
+        frank.stop(self.admin)
+        billy.stop(self.admin)
+
+        self.login(self.user)
+
+        stopped_url = reverse("contacts.contact_stopped")
+
+        response = self.client.get(stopped_url)
+        self.assertEqual([billy, frank, joe], list(response.context["object_list"]))
+        self.assertEqual([], list(response.context["actions"]))
+
+        self.login(self.admin)
+
+        # admin users see bulk actions
+        response = self.client.get(stopped_url)
+        self.assertEqual(["restore", "archive"], list(response.context["actions"]))
+
+        # try restore bulk action
+        self.client.post(stopped_url, {"action": "restore", "objects": billy.id})
+
+        response = self.client.get(stopped_url)
+        self.assertEqual([frank, joe], list(response.context["object_list"]))
+
+        billy.refresh_from_db()
+        self.assertEqual(Contact.STATUS_ACTIVE, billy.status)
+
+        # try archive bulk action
+        self.client.post(stopped_url, {"action": "archive", "objects": frank.id})
+
+        response = self.client.get(stopped_url)
+        self.assertEqual([joe], list(response.context["object_list"]))
+
+        frank.refresh_from_db()
+        self.assertEqual(Contact.STATUS_ARCHIVED, frank.status)
+
+    @mock_mailroom
+    def test_archived(self, mr_mocks):
+        joe = self.create_contact("Joe", urn="twitter:joe")
+        frank = self.create_contact("Frank", urn="twitter:frank")
+        billy = self.create_contact("Billy", urn="twitter:billy")
+        self.create_contact("Mary", urn="twitter:mary")
+
+        joe.archive(self.admin)
+        frank.archive(self.admin)
+        billy.archive(self.admin)
+
+        self.login(self.user)
+
+        archived_url = reverse("contacts.contact_archived")
+
+        response = self.client.get(archived_url)
+        self.assertEqual([billy, frank, joe], list(response.context["object_list"]))
+        self.assertEqual([], list(response.context["actions"]))
+
+        self.login(self.admin)
+
+        # admin users see bulk actions
+        response = self.client.get(archived_url)
+        self.assertEqual(["restore", "delete"], list(response.context["actions"]))
+
+        # try restore bulk action
+        self.client.post(archived_url, {"action": "restore", "objects": billy.id})
+
+        response = self.client.get(archived_url)
+        self.assertEqual([frank, joe], list(response.context["object_list"]))
+
+        billy.refresh_from_db()
+        self.assertEqual(Contact.STATUS_ACTIVE, billy.status)
+
+        # try delete bulk action
+        self.client.post(archived_url, {"action": "delete", "objects": frank.id})
+
+        response = self.client.get(archived_url)
+        self.assertEqual([joe], list(response.context["object_list"]))
+
+        frank.refresh_from_db()
+        self.assertFalse(frank.is_active)
+
+        # the archived view also supports deleting all
+        self.client.post(archived_url, {"action": "delete", "all": "true"})
+
+        response = self.client.get(archived_url)
+        self.assertEqual([], list(response.context["object_list"]))
+
+        # only archived contacts affected
+        self.assertEqual(2, Contact.objects.filter(is_active=False, status=Contact.STATUS_ARCHIVED).count())
+        self.assertEqual(2, Contact.objects.filter(is_active=False).count())
 
     @mock_mailroom
     def test_read(self, mr_mocks):
@@ -3273,7 +3431,6 @@ class ContactTest(TembaTest):
         self.assertContains(response, "Frank Smith")
         self.assertContains(response, "Billy Nophone")
         self.assertContains(response, "Joe and Frank")
-        self.assertEqual(response.context["actions"], ("label", "block", "archive"))
 
         # make sure Joe's preferred URN is in the list
         self.assertContains(response, "blow80")
@@ -3687,45 +3844,6 @@ class ContactTest(TembaTest):
 
         self.assertFalse(ChannelEvent.objects.filter(contact=self.frank))
         self.assertFalse(ChannelEvent.objects.filter(id=event.id))
-
-    @mock_mailroom
-    def test_archived_view(self, mr_mocks):
-        self.joe.archive(self.admin)
-        self.frank.archive(self.admin)
-        self.billy.archive(self.admin)
-
-        self.login(self.user)
-
-        archived_url = reverse("contacts.contact_archived")
-
-        response = self.client.get(archived_url)
-        self.assertEqual([self.billy, self.frank, self.joe], list(response.context["object_list"]))
-        self.assertEqual(["restore"], response.context["actions"])
-        self.assertNotContains(response, "Delete All")
-
-        self.login(self.admin)
-
-        # admin users see delete option
-        response = self.client.get(archived_url)
-        self.assertEqual(list(response.context["object_list"]), [self.billy, self.frank, self.joe])
-        self.assertEqual(["restore", "delete"], response.context["actions"])
-        self.assertContains(response, "Delete All")
-
-        # try delete bulk action
-        self.client.post(archived_url, {"action": "delete", "objects": self.frank.id})
-
-        response = self.client.get(archived_url)
-        self.assertEqual(list(response.context["object_list"]), [self.billy, self.joe])
-
-        # the archived view also supports deleting all
-        self.client.post(archived_url, {"action": "delete", "all": "true"})
-
-        response = self.client.get(archived_url)
-        self.assertEqual(list(response.context["object_list"]), [])
-
-        # only archived contacts affected
-        self.assertEqual(4, Contact.objects.filter(is_active=False).count())
-        self.assertEqual(2, Contact.objects.filter(is_active=True).count())
 
     @patch("temba.mailroom.client.MailroomClient.contact_modify")
     def test_update_with_mailroom_error(self, mock_modify):

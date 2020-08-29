@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-27 20:38+0000\n"
+"POT-Creation-Date: 2020-08-29 14:00+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2756,9 +2756,6 @@ msgstr "Вы не можете создать динамическую груп�
 msgid "You cannot update the query of a group that is evaluating."
 msgstr "Вы не можете обновить запрос для группы, которая проводит оценку."
 
-msgid "Restore"
-msgstr "Восстановить"
-
 msgid "Active"
 msgstr "Активный"
 
@@ -2839,6 +2836,9 @@ msgstr "Отправить Сообщение"
 msgid "Custom Fields"
 msgstr "Настраиваемые Поля"
 
+msgid "Restore"
+msgstr "Восстановить"
+
 msgid "Block"
 msgstr "Блокировать"
 
@@ -2851,14 +2851,8 @@ msgstr "Управление Полями"
 msgid "Blocked Contacts"
 msgstr "Заблокированные Контакты"
 
-msgid "Unblock"
-msgstr "Разблокировать"
-
 msgid "Stopped Contacts"
 msgstr "Остановленные Контакты"
-
-msgid "Unstop"
-msgstr "Запустить"
 
 #, fuzzy
 #| msgid "Blocked Contacts"
@@ -11211,6 +11205,12 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Unblock"
+#~ msgstr "Разблокировать"
+
+#~ msgid "Unstop"
+#~ msgstr "Запустить"
 
 #~ msgid "All Contacts"
 #~ msgstr "Все Контакты"
