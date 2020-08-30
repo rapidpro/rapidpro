@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-29 14:00+0000\n"
+"POT-Creation-Date: 2020-08-30 15:45+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -6498,8 +6498,11 @@ msgstr "Supprimer des contacts"
 
 #, fuzzy, python-format
 #| msgid "Are you sure you want to delete these contacts?"
-msgid "Are you sure you want to delete all %(count)s archived contacts?"
+msgid "Are you sure you want to delete all %(count)s archived contacts? This cannot be undone."
 msgstr "Êtes-vous sûr de vouloir supprimer ces contacts?"
+
+msgid "This operation may take a while to complete so don't be alarmed if your contacts don't disappear from this view immediately."
+msgstr ""
 
 msgid "Hold up!"
 msgstr "Attendez!"

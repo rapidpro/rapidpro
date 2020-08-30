@@ -24,10 +24,14 @@
         -trans "Delete All Contacts"
       .body
         %p
-          -blocktrans trimmed with count=folder_count
-            Are you sure you want to delete all {{ count}} archived contacts?
-        %p
-          -trans "Once they are deleted, they will be gone forever. There is no way to undo this operation."
+          -blocktrans trimmed with count=paginator.count
+            Are you sure you want to delete all {{ count }} archived contacts? This cannot be undone.
+
+        -if paginator.count > 50
+          %p
+            -blocktrans trimmed
+              This operation may take a while to complete so don't be alarmed if your contacts don't disappear from this
+              view immediately.
 
 -block extra-script
   {{ block.super }}
