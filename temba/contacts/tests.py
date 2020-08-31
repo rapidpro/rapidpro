@@ -289,6 +289,7 @@ class ContactCRUDLTest(TembaTest):
         frank.refresh_from_db()
         self.assertEqual(Contact.STATUS_ARCHIVED, frank.status)
 
+    @patch("temba.contacts.models.Contact.BULK_RELEASE_IMMEDIATELY_LIMIT", 5)
     @mock_mailroom
     def test_archived(self, mr_mocks):
         joe = self.create_contact("Joe", urn="twitter:joe")
@@ -341,6 +342,19 @@ class ContactCRUDLTest(TembaTest):
         # only archived contacts affected
         self.assertEqual(2, Contact.objects.filter(is_active=False, status=Contact.STATUS_ARCHIVED).count())
         self.assertEqual(2, Contact.objects.filter(is_active=False).count())
+
+        # for larger numbers of contacts, a background task is used
+        for c in range(6):
+            contact = self.create_contact(f"Bob{c}", urn=f"twitter:bob{c}")
+            contact.archive(self.user)
+
+        response = self.client.get(archived_url)
+        self.assertEqual(6, len(response.context["object_list"]))
+
+        self.client.post(archived_url, {"action": "delete", "all": "true"})
+
+        response = self.client.get(archived_url)
+        self.assertEqual(0, len(response.context["object_list"]))
 
     @mock_mailroom
     def test_read(self, mr_mocks):

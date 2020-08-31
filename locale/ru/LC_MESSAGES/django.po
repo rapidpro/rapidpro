@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-29 14:00+0000\n"
+"POT-Creation-Date: 2020-08-31 00:44+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -6588,8 +6588,11 @@ msgstr "Удалить Контакты"
 
 #, fuzzy, python-format
 #| msgid "Are you sure you want to delete these contacts?"
-msgid "Are you sure you want to delete all %(count)s archived contacts?"
+msgid "Are you sure you want to delete all %(count)s archived contacts? This cannot be undone."
 msgstr "Вы действительно хотите удалить эти контакты?"
+
+msgid "This operation can take a while to complete. Contacts may remain in this view during the process."
+msgstr ""
 
 msgid "Hold up!"
 msgstr "Подождите!"
