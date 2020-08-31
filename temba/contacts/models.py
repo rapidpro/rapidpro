@@ -837,6 +837,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             "urns": [urn_as_json(u) for u in self.urns.all()],
             "fields": self.fields if self.fields else {},
             "created_on": self.created_on.isoformat(),
+            "last_seen_on": self.last_seen_on.isoformat() if self.last_seen_on else None,
         }
 
     @classmethod
