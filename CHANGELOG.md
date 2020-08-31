@@ -1,3 +1,7 @@
+v5.7.26
+----------
+ * Handle large deletes of contacts in background task
+
 v5.7.25
 ----------
  * Fix bulk actions against querysets from ES searches
