@@ -1858,6 +1858,56 @@ class ContactTest(TembaTest):
             evaluate_query(self.org, f'created_on <= "{query_created_on}"', contact_json=self.joe.as_search_json())
         )
 
+        # test 'last_seen_on' attribute
+        self.joe.last_seen_on = datetime(2020, 3, 17, 13, 0, 0, 0, pytz.UTC)
+        self.joe.save(update_fields=("last_seen_on",), handle_update=False)
+
+        self.assertRaises(
+            SearchException,
+            evaluate_query,
+            self.org,
+            'last_seen_on = "this-is-not-a-date"',
+            contact_json=self.joe.as_search_json(),
+        )
+        self.assertRaises(
+            SearchException,
+            evaluate_query,
+            self.org,
+            'last_seen_on ~ "2016-01-01"',
+            contact_json=self.joe.as_search_json(),
+        )
+        query_last_seen_on = self.joe.last_seen_on.astimezone(self.org.timezone).date().isoformat()
+        self.assertTrue(
+            evaluate_query(self.org, f'last_seen_on = "{query_last_seen_on}"', contact_json=self.joe.as_search_json())
+        )
+        query_last_seen_on = (
+            (self.joe.last_seen_on - timedelta(days=6)).astimezone(self.org.timezone).date().isoformat()
+        )
+        self.assertTrue(
+            evaluate_query(self.org, f'last_seen_on > "{query_last_seen_on}"', contact_json=self.joe.as_search_json())
+        )
+        self.assertTrue(
+            evaluate_query(self.org, f'last_seen_on >= "{query_last_seen_on}"', contact_json=self.joe.as_search_json())
+        )
+        query_last_seen_on = (
+            (self.joe.last_seen_on + timedelta(days=6)).astimezone(self.org.timezone).date().isoformat()
+        )
+        self.assertTrue(
+            evaluate_query(self.org, f'last_seen_on < "{query_last_seen_on}"', contact_json=self.joe.as_search_json())
+        )
+        self.assertTrue(
+            evaluate_query(self.org, f'last_seen_on <= "{query_last_seen_on}"', contact_json=self.joe.as_search_json())
+        )
+        self.assertTrue(evaluate_query(self.org, f'last_seen_on != ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, f'last_seen_on = ""', contact_json=self.joe.as_search_json()))
+
+        self.joe.last_seen_on = None
+        self.joe.save(update_fields=("last_seen_on",), handle_update=False)
+
+        self.assertFalse(
+            evaluate_query(self.org, f"last_seen_on = 2016-01-01", contact_json=self.joe.as_search_json())
+        )
+
         # test TEXT field type
         self.assertFalse(evaluate_query(self.org, 'gender != ""', contact_json=self.joe.as_search_json()))
         self.assertTrue(evaluate_query(self.org, 'gender = ""', contact_json=self.joe.as_search_json()))
