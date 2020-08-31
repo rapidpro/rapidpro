@@ -724,6 +724,9 @@ class GraphDifferenceMap:
                 localization[key] = value
         self.definition["localization"] = localization
 
+    def get_conflict_pages_count(self):
+        return max([len(node.conflicts) for node in self.diff_nodes_map.values()])
+
     def get_conflict_solutions(self):
         conflict_solutions = []
 
