@@ -1901,6 +1901,13 @@ class ContactTest(TembaTest):
         self.assertTrue(evaluate_query(self.org, f'last_seen_on != ""', contact_json=self.joe.as_search_json()))
         self.assertFalse(evaluate_query(self.org, f'last_seen_on = ""', contact_json=self.joe.as_search_json()))
 
+        self.joe.last_seen_on = None
+        self.joe.save(update_fields=("last_seen_on",), handle_update=False)
+
+        self.assertFalse(
+            evaluate_query(self.org, f"last_seen_on = 2016-01-01", contact_json=self.joe.as_search_json())
+        )
+
         # test TEXT field type
         self.assertFalse(evaluate_query(self.org, 'gender != ""', contact_json=self.joe.as_search_json()))
         self.assertTrue(evaluate_query(self.org, 'gender = ""', contact_json=self.joe.as_search_json()))
