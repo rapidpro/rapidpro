@@ -334,6 +334,34 @@ class Condition(QueryNode):
                 else:
                     raise SearchException(f"Unknown created_on comparator: '{self.comparator}'")
 
+            elif field_key == "last_seen_on":
+                query_value = str_to_date(self.value, field.org.get_dayfirst())
+                if not query_value:
+                    raise SearchException(f"Unable to parse the date '{self.value}'")
+
+                lower_bound, upper_bound = date_to_day_range_utc(query_value, org)
+
+                raw_contact_value = contact_json.get("last_seen_on")
+                if not raw_contact_value:
+                    return False
+
+                # contact last_seen_on is serialized as ISO8601 timestamp in utc time
+                contact_value = str_to_datetime(raw_contact_value, pytz.UTC, field.org.get_dayfirst())
+                contact_value_utc = contact_value.astimezone(pytz.UTC)
+
+                if self.comparator == "=":
+                    return contact_value_utc >= lower_bound and contact_value_utc < upper_bound
+                elif self.comparator == ">":
+                    return contact_value_utc >= upper_bound
+                elif self.comparator == ">=":
+                    return contact_value_utc >= lower_bound
+                elif self.comparator == "<":
+                    return contact_value_utc < lower_bound
+                elif self.comparator == "<=":
+                    return contact_value_utc < upper_bound
+                else:
+                    raise SearchException(f"Unknown last_seen_on comparator: '{self.comparator}'")
+
             elif field_key == "name":
                 query_value = self.value.upper()
                 raw_contact_value = contact_json.get("name")
@@ -569,6 +597,10 @@ class IsSetCondition(Condition):
                     return bool(contact_json["urns"])
                 else:
                     return not bool(contact_json["urns"])
+
+            elif field_key == "last_seen_on":
+                contact_value = contact_json.get("last_seen_on")
+                return bool(contact_value) if is_set else not bool(contact_value)
 
             else:  # pragma: no cover
                 raise SearchException(f"No support for attribute field: '{field}'")
