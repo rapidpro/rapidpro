@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-28 17:20+0000\n"
+"POT-Creation-Date: 2020-08-31 13:07+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2504,9 +2504,6 @@ msgstr ""
 msgid "You cannot update the query of a group that is evaluating."
 msgstr ""
 
-msgid "Activate"
-msgstr ""
-
 msgid "Active"
 msgstr ""
 
@@ -2591,6 +2588,9 @@ msgid "Edit Contact"
 msgstr ""
 
 msgid "Custom Fields"
+msgstr ""
+
+msgid "Activate"
 msgstr ""
 
 msgid "Block"
@@ -5970,6 +5970,9 @@ msgstr ""
 
 #, python-format
 msgid "Are you sure you want to delete all %(count)s archived contacts? This cannot be undone."
+msgstr ""
+
+msgid "This operation can take a while to complete. Contacts may remain in this view during the process."
 msgstr ""
 
 msgid ""

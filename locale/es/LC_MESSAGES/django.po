@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-28 17:20+0000\n"
+"POT-Creation-Date: 2020-08-31 13:07+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3853,9 +3853,6 @@ msgstr ""
 msgid "You cannot update the query of a group that is evaluating."
 msgstr ""
 
-msgid "Activate"
-msgstr "Activar"
-
 msgid "Active"
 msgstr "Activar"
 
@@ -3957,6 +3954,9 @@ msgstr "Actualizar Contacto"
 #| msgid "Custom Contact Fields"
 msgid "Custom Fields"
 msgstr "Campos para contacto con el cliente"
+
+msgid "Activate"
+msgstr "Activar"
 
 msgid "Block"
 msgstr "Bloquear"
@@ -8679,6 +8679,9 @@ msgstr "Borrar Contactos"
 #| msgid "Are you sure you want to delete these contacts?"
 msgid "Are you sure you want to delete all %(count)s archived contacts? This cannot be undone."
 msgstr "¿Está seguro de que desea borrar estos contactos?"
+
+msgid "This operation can take a while to complete. Contacts may remain in this view during the process."
+msgstr ""
 
 msgid ""
 "\n"

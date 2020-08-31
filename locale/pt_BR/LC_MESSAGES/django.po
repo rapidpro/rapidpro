@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-28 17:20+0000\n"
+"POT-Creation-Date: 2020-08-31 13:07+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3555,9 +3555,6 @@ msgstr ""
 msgid "You cannot update the query of a group that is evaluating."
 msgstr ""
 
-msgid "Activate"
-msgstr "Ativar"
-
 msgid "Active"
 msgstr "Ativo"
 
@@ -3655,6 +3652,9 @@ msgstr "Atualizar contato"
 #| msgid "Custom Contact Fields"
 msgid "Custom Fields"
 msgstr "Campos de contato personalizados"
+
+msgid "Activate"
+msgstr "Ativar"
 
 msgid "Block"
 msgstr ""
@@ -8039,6 +8039,9 @@ msgstr "Criar contatos"
 #, fuzzy, python-format
 msgid "Are you sure you want to delete all %(count)s archived contacts? This cannot be undone."
 msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
+
+msgid "This operation can take a while to complete. Contacts may remain in this view during the process."
+msgstr ""
 
 #, fuzzy
 #| msgid ""

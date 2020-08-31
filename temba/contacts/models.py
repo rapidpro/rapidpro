@@ -784,6 +784,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     # the import headers which map to contact attributes or URNs rather than custom fields
     ATTRIBUTE_AND_URN_IMPORT_HEADERS = RESERVED_ATTRIBUTES.union(URN.IMPORT_HEADERS)
 
+    # maximum number of contacts to release without using a background task
+    BULK_RELEASE_IMMEDIATELY_LIMIT = 50
+
     @property
     def anon_identifier(self):
         """
@@ -1991,8 +1994,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def apply_action_delete(cls, user, contacts):
-        for contact in contacts:
-            contact.release(user)
+        if len(contacts) <= cls.BULK_RELEASE_IMMEDIATELY_LIMIT:
+            for contact in contacts:
+                contact.release(user)
+        else:
+            from .tasks import release_contacts
+
+            on_transaction_commit(lambda: release_contacts.delay(user.id, [c.id for c in contacts]))
 
     def block(self, user):
         """
@@ -2054,7 +2062,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             if immediately:
                 self._full_release()
             else:
-                from temba.contacts.tasks import full_release_contact
+                from .tasks import full_release_contact
 
                 full_release_contact.delay(self.id)
 

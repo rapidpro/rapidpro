@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-28 17:20+0000\n"
+"POT-Creation-Date: 2020-08-31 13:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2794,9 +2794,6 @@ msgstr "Вы не можете создать динамическую груп�
 msgid "You cannot update the query of a group that is evaluating."
 msgstr "Вы не можете обновить запрос для группы, которая проводит оценку."
 
-msgid "Activate"
-msgstr "Активировать"
-
 msgid "Active"
 msgstr "Активный"
 
@@ -2886,6 +2883,9 @@ msgstr "Обновить Контакт"
 
 msgid "Custom Fields"
 msgstr "Настраиваемые Поля"
+
+msgid "Activate"
+msgstr "Активировать"
 
 msgid "Block"
 msgstr "Блокировать"
@@ -7169,6 +7169,9 @@ msgstr "Удалить Контакты"
 #| msgid "Are you sure you want to delete these contacts?"
 msgid "Are you sure you want to delete all %(count)s archived contacts? This cannot be undone."
 msgstr "Вы действительно хотите удалить эти контакты?"
+
+msgid "This operation can take a while to complete. Contacts may remain in this view during the process."
+msgstr ""
 
 #, fuzzy
 #| msgid ""
