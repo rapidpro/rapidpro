@@ -1,3 +1,8 @@
+v5.7.27
+----------
+ * Update to flow editor v1.9.14
+ * Add support for last_seen_on in legacy search code
+
 v5.7.26
 ----------
  * Handle large deletes of contacts in background task
