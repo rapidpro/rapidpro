@@ -130,7 +130,7 @@
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/icons/style.css", media:'all'}
         %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/print.less', media:'print'}
-        %link{rel:"stylesheet", href:"{{ STATIC_URL }}css/temba-components.css", type:"text/css"}
+        %link{type:"text/css", rel:"stylesheet", href:"{{ STATIC_URL }}css/temba-components.css"}
 
       -compress css
 
@@ -175,7 +175,7 @@
     #header
       &nbsp;
 
-    %a#big-logo.logo.icon-logo{href:"/", title:"{{brand.name}}", class:"hover:no-underline"}
+    %a#big-logo.logo.icon-logo{href:"{% if user.is_authenticated %}{% url 'msgs.msg_inbox' %}{% else %}/{% endif %}", title:"{{brand.name}}", class:"hover:no-underline"}
       .name
         {{brand.name}}
 
