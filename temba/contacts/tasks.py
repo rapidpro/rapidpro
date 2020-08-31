@@ -18,7 +18,7 @@ from .models import Contact, ContactGroup, ContactGroupCount, ExportContactsTask
 logger = logging.getLogger(__name__)
 
 
-@task(track_started=True, name="export_contacts_task")
+@task(track_started=True)
 def release_contacts(user_id, contact_ids):
     """
     Releases the given contacts
