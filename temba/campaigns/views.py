@@ -94,6 +94,9 @@ class CampaignCRUDL(SmartCRUDL):
             return response
 
     class Read(OrgObjPermsMixin, SmartReadView):
+        def derive_title(self):
+            return self.object.name
+
         def get_gear_links(self):
             links = []
 
@@ -320,7 +323,7 @@ class CampaignEventForm(forms.ModelForm):
             (CampaignEvent.MODE_SKIP, _("Skip this event")),
         ),
         required=False,
-        widget=SelectWidget(attrs={"placeholder": _("Flow starting rules"), "widget_only": True}),
+        widget=SelectWidget(attrs={"widget_only": True}),
     )
 
     message_start_mode = forms.ChoiceField(
@@ -355,7 +358,7 @@ class CampaignEventForm(forms.ModelForm):
         if self.data["event_type"] == CampaignEvent.TYPE_FLOW:
             if "flow_to_start" not in self.data or not self.data["flow_to_start"]:
                 raise ValidationError("Please select a flow")
-        return self.data["flow_to_start"]
+            return self.data["flow_to_start"]
 
     def pre_save(self, request, obj):
         org = self.user.get_org()
@@ -476,7 +479,17 @@ class CampaignEventForm(forms.ModelForm):
         # add our default language, we'll insert it at the front of the list
         if base_language and base_language not in self.fields:
             field = forms.CharField(
-                widget=forms.Textarea, required=False, label=_("Default"), initial=message.get(base_language)
+                widget=CompletionTextarea(
+                    attrs={
+                        "placeholder": _(
+                            "Hi @contact.name! This is just a friendly reminder to apply your fertilizer."
+                        ),
+                        "widget_only": True,
+                    }
+                ),
+                required=False,
+                label=_("Default"),
+                initial=message.get(base_language),
             )
 
             self.fields[base_language] = field
@@ -538,10 +551,10 @@ class CampaignEventCRUDL(SmartCRUDL):
             if self.has_org_perm("campaigns.campaignevent_delete"):
                 links.append(
                     dict(
+                        id="event-delete",
                         title="Delete",
-                        delete=True,
-                        success_url=reverse("campaigns.campaign_read", args=[campaign_event.campaign.pk]),
                         href=reverse("campaigns.campaignevent_delete", args=[campaign_event.id]),
+                        modax=_("Delete Event"),
                     )
                 )
 
@@ -550,6 +563,8 @@ class CampaignEventCRUDL(SmartCRUDL):
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
 
         default_template = "smartmin/delete_confirm.html"
+        submit_button_name = _("Delete")
+        fields = ("uuid",)
 
         def get_object_org(self):
             return self.get_object().campaign.org
@@ -727,6 +742,9 @@ class CampaignEventCRUDL(SmartCRUDL):
             initial["unit"] = "D"
             initial["offset"] = "15"
             initial["direction"] = "A"
+            initial["event_type"] = "M"
+            initial["message_start_mode"] = "I"
+            initial["delivery_hour"] = "-1"
 
             # default to our first date field
             initial["relative_to"] = ContactField.all_fields.filter(

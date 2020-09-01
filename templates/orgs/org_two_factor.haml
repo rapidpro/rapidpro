@@ -1,9 +1,6 @@
 - extends 'smartmin/form.html'
 - load smartmin temba compress i18n
 
--block form-span
-  span8
-
 
 -block pre-form
 
@@ -33,42 +30,40 @@
 
 -block fields
   -if not user_settings.two_factor_enabled
-    -blocktrans trimmed
-      To enable two factor authentication, use a one time password application such as
-    
-    %a{ href: "https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2"}
-      Google Authentication
-    
-    or
+    .mt-4
+      -blocktrans trimmed
+        To enable two factor authentication, use a one time password application such as
+      
+      %a(href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2")<
+        Google Authenticator
+      
+      or
 
-    %a{ href: "https://authy.com/"}
-      Authy
+      %a(href="https://authy.com/")<
+        Authy
 
-    %br
-    
-    {{block.super}}
+      .mt-4
+      
+        {{block.super}}
   -else
     -blocktrans trimmed
       Backup tokens can be used if you no longer have access to the authentication application configured for your account.
 
-    %br
-    %br
+    .mt-4
+      %p#backup_text_help
+        -blocktrans trimmed
+          Any tokens you may have previously generated are invalid.
 
-    %p#backup_text_help
-      -blocktrans trimmed
-        These backup tokens can be used if you lose access to your authentication application, store them in a safe place. Any tokens you may have previously generated are invalid.
+    .mt-4
 
-    %br
+      %div#backup.font-mono
 
-    %div#backup
+    .mt-8
+      %a.button-primary{id:'generate-backup-tokens', style:'margin-top:5px'}
+        -trans "Generate Backup Tokens"
 
-    %br
-
-    %a.btn.btn-primary.btn-tiny{id:'generate-backup-tokens', style:'margin-top:5px'}
-      -trans "Generate Backup Tokens"
-
-    %a.btn.btn-primary.btn-tiny{href:"{% url 'orgs.org_home' %}", id:'disable-two-factor-auth', style:'margin-top:5px'}
-      -trans "Disable Two Factor"
+      %a.button-light.ml-4{href:"{% url 'orgs.org_home' %}", id:'disable-two-factor-auth', style:'margin-top:5px'}
+        -trans "Disable Two Factor"
 
     :javascript
 
@@ -86,10 +81,10 @@
           success: function( backups ) {
             var tokens = '';
             for(token of backups.tokens) {
-                tokens = tokens + `<li>${token}</li>`;
+                tokens = tokens + `<div class="inline-block px-2">${token}</div>`;
             }
 
-            element = `<ul>${tokens}</ul>`
+            element = `<div>${tokens}</div>`
 
             $('#backup').html(element);
           }
@@ -106,11 +101,11 @@
           success: function( backups ) {
             var tokens = '';
             for(token of backups.tokens) {
-                tokens = tokens + `<li>${token}</li>`;
+                tokens = tokens + `<div class="inline-block px-2">${token}</div>`;
             }
 
             element = `
-            <ul>${tokens}</ul>
+            <div>${tokens}</div>
             `
 
             $('#backup').html(element);

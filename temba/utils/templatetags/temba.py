@@ -52,13 +52,13 @@ def oxford(forloop, punctuation=""):
 def icon(o):
 
     if isinstance(o, Campaign):
-        return "icon-instant"
+        return "icon-campaign"
 
     if isinstance(o, Trigger):
         return "icon-feed"
 
     if isinstance(o, Flow):
-        return "icon-tree"
+        return "icon-flow"
 
     return ""
 

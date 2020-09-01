@@ -11,15 +11,15 @@
     <a href="javascript:refreshToken()" class='api-token-refresh'><div class="icon-loop"></div></a>
 
 -block form-buttons
-  %a.btn(href="{% url 'api.v2' %}" style="width: 100px;")
+    
+  .button-light.inline-block(onclick="goto(event)" href="{% url 'api.v2' %}")
     -trans "API Docs"
 
-  %a.btn(href="{% url 'api.v2.explorer' %}" style="width: 100px;")
+  .button-light.ml-3.inline-block(onclick="goto(event)" href="{% url 'api.v2.explorer' %}")
     -trans "API Explorer"
-
 -block summary
   -blocktrans trimmed with token=user.api_token
-    Your API Token is <span class="attn">{{ token }}</span>.
+    Your API Token is <b>{{ token }}</b>.
 
 -block extra-script
   {{block.super}}

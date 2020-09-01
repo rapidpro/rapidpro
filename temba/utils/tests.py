@@ -471,9 +471,9 @@ class TemplateTagTest(TembaTest):
             org=self.org, keyword="trigger", flow=flow, created_by=self.admin, modified_by=self.admin
         )
 
-        self.assertEqual("icon-instant", icon(campaign))
+        self.assertEqual("icon-campaign", icon(campaign))
         self.assertEqual("icon-feed", icon(trigger))
-        self.assertEqual("icon-tree", icon(flow))
+        self.assertEqual("icon-flow", icon(flow))
         self.assertEqual("", icon(None))
 
     def test_format_datetime(self):

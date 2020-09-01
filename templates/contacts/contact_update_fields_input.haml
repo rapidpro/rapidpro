@@ -2,14 +2,16 @@
   {{contact_field.get_value_type_display}} Value
 .controls
 	-if contact_field
-		%input{ name:'field_value', type:'text', value:'{%if value %}{{value}}{%endif%}' }
+		%temba-textinput{ name:'field_value', type:'text', value:'{%if value %}{{value}}{%endif%}' }
 	-else
-		%input{ name:'field_value',	type:'text', disabled:'disabled' }
+		%temba-textinput{ name:'field_value',	type:'text', disabled:'disabled' }
 
 :javascript
 
+  var modaxBody = document.querySelector("#update-custom-fields").shadowRoot.querySelector(".modax-body");
+  
   // aggressively grab focus when we load
-  var ele = $('input[name="field_value"]');
+  var ele = $(modaxBody).find('temba-textinput[name="field_value"]');
   ele.focus();
 
   // bit of a hack here, we want to force our cursor to the end

@@ -361,7 +361,7 @@ class MsgTest(TembaTest):
         with self.assertNumQueries(46):
             response = self.client.get(reverse("msgs.msg_outbox"))
 
-        self.assertContains(response, "Outbox (1)")
+        self.assertEqual(1, response.context_data["folders"][3]["count"])  # Outbox
         self.assertEqual(set(response.context_data["object_list"]), {msg1})
 
         broadcast2 = self.create_broadcast(
@@ -385,7 +385,7 @@ class MsgTest(TembaTest):
         with self.assertNumQueries(43):
             response = self.client.get(reverse("msgs.msg_outbox"))
 
-        self.assertContains(response, "Outbox (5)")
+        self.assertEqual(5, response.context_data["folders"][3]["count"])  # Outbox
         self.assertEqual(list(response.context_data["object_list"]), [msg4, msg3, msg2, msg1])
         self.assertEqual(list(response.context_data["pending_broadcasts"]), [broadcast3])
 
@@ -488,7 +488,7 @@ class MsgTest(TembaTest):
         response = self.client.post(reverse("msgs.label_delete", args=[label1.id]))
         label1.refresh_from_db()
 
-        self.assertEqual(302, response.status_code)
+        self.assertTrue(response.has_header("Temba-Success"))
         self.assertFalse(label1.is_active)
 
         # shouldn't have a remove on the update page
@@ -912,8 +912,8 @@ class MsgTest(TembaTest):
                 "?l=I",
                 {
                     "export_all": 0,
-                    "start_date": msg5.created_on.strftime("%B %d, %Y"),
-                    "end_date": msg7.created_on.strftime("%B %d, %Y"),
+                    "start_date": msg5.created_on.strftime("%Y-%m-%d"),
+                    "end_date": msg7.created_on.strftime("%Y-%m-%d"),
                 },
             )
 
@@ -1513,8 +1513,8 @@ class MsgTest(TembaTest):
         export_data = {
             "export_all": 1,
             "groups": [self.just_joe.id],
-            "start_date": msg5.created_on.strftime("%B %d, %Y"),
-            "end_date": msg7.created_on.strftime("%B %d, %Y"),
+            "start_date": msg5.created_on.strftime("%Y-%m-%d"),
+            "end_date": msg7.created_on.strftime("%Y-%m-%d"),
         }
 
         self.assertExcelSheet(
@@ -1751,7 +1751,7 @@ class MsgCRUDLTest(TembaTest):
         self.login(self.user)
         response = self.client.get(reverse("msgs.msg_filter", args=[label3.uuid]))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["actions"], ("unlabel", "label"))
+        self.assertEqual(response.context["actions"], ("label",))
         self.assertNotContains(response, reverse("msgs.label_update", args=[label3.pk]))  # can't update label
         self.assertNotContains(response, reverse("msgs.label_delete", args=[label3.pk]))  # can't delete label
 
@@ -1761,7 +1761,7 @@ class MsgCRUDLTest(TembaTest):
         # check viewing a folder
         response = self.client.get(reverse("msgs.msg_filter", args=[folder.uuid]))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["actions"], ("unlabel", "label"))
+        self.assertEqual(response.context["actions"], ("label",))
         self.assertNotContains(response, reverse("msgs.label_update", args=[folder.pk]))  # can't update folder
         self.assertNotContains(response, reverse("msgs.label_delete", args=[folder.pk]))  # can't delete folder
 
@@ -2314,7 +2314,8 @@ class BroadcastCRUDLTest(TembaTest):
         self.assertEqual(list(response.context["form"].fields.keys()), ["message", "omnibox", "loc"])
 
         # updates still use select2 omnibox
-        response = self.client.post(url, dict(message="Dinner reminder", omnibox="c-%s" % self.frank.uuid))
+        omnibox = omnibox_serialize(self.org, [], [self.frank], True)
+        response = self.client.post(url, dict(message="Dinner reminder", omnibox=omnibox))
         self.assertEqual(response.status_code, 302)
 
         broadcast = Broadcast.objects.get()
@@ -2360,11 +2361,12 @@ class BroadcastCRUDLTest(TembaTest):
         self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
         broadcast = Broadcast.objects.get()
 
+        omnibox = omnibox_serialize(self.org, [], [], True)
         response = self.client.post(
             reverse("msgs.broadcast_update", args=[broadcast.pk]),
-            dict(omnibox="", message="Empty contacts", schedule=True),
+            dict(omnibox=omnibox, message="Empty contacts", schedule=True),
         )
-        self.assertFormError(response, "form", "omnibox", "This field is required.")
+        self.assertFormError(response, "form", None, "At least one recipient is required")
 
 
 class LabelTest(TembaTest):
@@ -2666,7 +2668,7 @@ class LabelCRUDLTest(TembaTest):
         self.login(self.admin)
         response = self.client.post(delete_url)
 
-        self.assertEqual(302, response.status_code)
+        self.assertTrue(response.has_header("Temba-Success"))
 
         label1.refresh_from_db()
 

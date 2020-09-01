@@ -413,7 +413,7 @@ class ContactCRUDLTest(TembaTest):
         other_org_contact.refresh_from_db()
         self.assertEqual(Contact.STATUS_BLOCKED, other_org_contact.status)
 
-        delete_url = reverse("contacts.contact_delete", args=[self.joe.id])
+        delete_url = reverse("contacts.contact_archive", args=[self.joe.id])
 
         response = self.client.get(read_url)
 
@@ -609,7 +609,6 @@ class ContactGroupTest(TembaTest):
         self.login(self.admin)
         filter_url = reverse("contacts.contact_filter", args=[group.uuid])
         response = self.client.get(filter_url)
-        self.assertNotIn("unlabel", response.context["actions"])
         self.assertEqual(list(response.context["contact_fields"].values_list("key", flat=True)), ["gender", "age"])
         # put group back into evaluation state
         group.status = ContactGroup.STATUS_EVALUATING
@@ -3141,10 +3140,10 @@ class ContactTest(TembaTest):
             self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-right"></span>')
 
         item = {"type": "flow_entered", "obj": run}
-        self.assertEqual(history_icon(item), '<span class="glyph icon-tree-2"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-flow"></span>')
 
         run.run_event_type = "Invalid"
-        self.assertEqual(history_icon(item), '<span class="glyph icon-tree-2"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-flow"></span>')
 
         item = {"type": "flow_exited", "obj": run}
 
@@ -3598,7 +3597,7 @@ class ContactTest(TembaTest):
 
         self.assertEqual(self.joe.user_groups.filter(is_active=True).count(), 2)
 
-        self.client.post(joe_and_frank_filter_url, {"action": "unlabel", "objects": self.joe.id, "add": True})
+        self.client.post(joe_and_frank_filter_url, {"action": "label", "objects": self.joe.id, "add": False})
 
         self.assertEqual(self.joe.user_groups.filter(is_active=True).count(), 2)
 
@@ -3662,10 +3661,10 @@ class ContactTest(TembaTest):
 
         # now let's test removing a contact from a group
         post_data = dict()
-        post_data["action"] = "unlabel"
+        post_data["action"] = "label"
         post_data["label"] = self.joe_and_frank.id
         post_data["objects"] = self.frank.id
-        post_data["add"] = True
+        post_data["add"] = False
         self.client.post(joe_and_frank_filter_url, post_data, follow=True)
         self.assertEqual(len(self.joe_and_frank.contacts.all()), 0)
 
@@ -3813,7 +3812,13 @@ class ContactTest(TembaTest):
         self.joe.save(update_fields=("language",), handle_update=False)
 
         # add some languages to our org, but not french
-        self.client.post(reverse("orgs.org_languages"), dict(primary_lang="hat", languages="arc,spa"))
+        self.client.post(
+            reverse("orgs.org_languages"),
+            dict(
+                primary_lang='{"name":"Haitian", "value":"hat"}',
+                languages=['{"name":"Official Aramaic", "value":"arc"}', '{"name":"Spanish", "value":"spa"}'],
+            ),
+        )
 
         response = self.client.get(reverse("contacts.contact_update", args=[self.joe.id]))
         self.assertContains(response, "French (Missing)")
@@ -4940,7 +4945,7 @@ class ContactTest(TembaTest):
             "column_vehicle_include": "on",
             "column_shoes_include": "on",
             "column_email_include": "on",
-            "column_country_label": "[_NEW_]Location",
+            "column_country_label": "Location",
             "column_district_label": "District",
             "column_professional_status_label": "Job and Projects",
             "column_zip_code_label": "Postal Code",
@@ -5085,7 +5090,7 @@ class ContactTest(TembaTest):
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertFormError(response, "form", None, "District should be used once")
 
-        post_data["column_joined_label"] = "[_NEW_]District"
+        post_data["column_joined_label"] = "District"
 
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertFormError(response, "form", None, "District should be used once")

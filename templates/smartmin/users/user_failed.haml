@@ -1,0 +1,27 @@
+-extends "smartmin/users/login_base.html"
+
+-load smartmin i18n
+
+-block login-title
+  -trans "Login Failure" 
+
+-block login-content
+  -blocktrans
+    Sorry, you cannot log in at this time because we received {{failed_login_limit}} incorrect login attempts.
+
+  -if lockout_timeout >= 0
+    -blocktrans
+      Please wait {{lockout_timeout}} minutes before to try log in again.
+
+  -if allow_email_recovery
+    -trans "Alternatively, you can fill out the form below to have your password reset via e-mail."
+  -else
+    -trans "Please contact the website administrator to have your password reset."
+
+  -if allow_email_recovery
+    %form.mt-8(method="post" action="{% url 'users.user_forget' %}")
+      {% csrf_token %}
+      %temba-textinput(name="email" placeholder='{{_("Email Address")}}')
+      .mt-4
+        %input.button-primary(type="submit" value='{{_("Reset")}}')
+

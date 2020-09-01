@@ -11,6 +11,7 @@
 
   {% block pre-form %}{% endblock %}
 
+  {% block form %}
   <form class="smartmin-form" method="post" enctype="multipart/form-data" {% if action_url  %}action="{{ action_url }}"{% endif %}>
     {% block pre-form-errors %}
     {% endblock pre-form-errors %}
@@ -46,11 +47,12 @@
     {% csrf_token %}
 
     {% block form-buttons %}
-    <div class="form-actions">
-      <input type="submit" class="btn btn-primary" value="{{ submit_button_name }}">
+    <div class="form-actions mt-4">
+      <input type="submit" class="button-primary" value="{{ submit_button_name }}">
     </div>
     {% endblock %}
   </form>
+  {% endblock %}
 
   {% block post-form %}{% endblock post-form %}
   </div>

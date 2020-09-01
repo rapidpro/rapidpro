@@ -48,7 +48,15 @@ from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, on_transaction_commit, str_to_bool
-from temba.utils.fields import ContactSearchWidget, JSONField, OmniboxChoice, SelectWidget
+from temba.utils.fields import (
+    CheckboxWidget,
+    ContactSearchWidget,
+    InputWidget,
+    JSONField,
+    OmniboxChoice,
+    SelectMultipleWidget,
+    SelectWidget,
+)
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
 from temba.utils.uuid import uuid4
@@ -98,15 +106,15 @@ class OrgQuerysetMixin:
 class BaseFlowForm(forms.ModelForm):
     def clean_keyword_triggers(self):
         org = self.user.get_org()
-        value = self.cleaned_data.get("keyword_triggers", "")
+        value = self.data.getlist("keyword_triggers", [])
 
         duplicates = []
         wrong_format = []
         cleaned_keywords = []
 
-        for keyword in value.split(","):
+        for keyword in value:
             keyword = keyword.lower().strip()
-            if not keyword:
+            if not keyword:  # pragma: needs cover
                 continue
 
             if (
@@ -367,16 +375,27 @@ class FlowCRUDL(SmartCRUDL):
                 required=False,
                 label=_("Global keyword triggers"),
                 help_text=_("When a user sends any of these keywords they will begin this flow"),
+                widget=SelectWidget(
+                    attrs={
+                        "widget_only": False,
+                        "multi": True,
+                        "searchable": True,
+                        "tags": True,
+                        "space_select": True,
+                        "placeholder": _("Select keywords to trigger this flow"),
+                    }
+                ),
             )
 
             flow_type = forms.ChoiceField(
-                label=_("Run flow over"),
+                label=_("Type"),
                 help_text=_("Choose the method for your flow"),
                 choices=(
                     (Flow.TYPE_MESSAGE, "Messaging"),
                     (Flow.TYPE_VOICE, "Phone Call"),
                     (Flow.TYPE_SURVEY, "Surveyor"),
                 ),
+                widget=SelectWidget(attrs={"widget_only": False}),
             )
 
             def __init__(self, user, branding, *args, **kwargs):
@@ -396,12 +415,16 @@ class FlowCRUDL(SmartCRUDL):
                 self.fields["flow_type"].choices = choices
 
                 self.fields["base_language"] = forms.ChoiceField(
-                    label=_("Language"), initial=self.user.get_org().primary_language, choices=language_choices
+                    label=_("Language"),
+                    initial=self.user.get_org().primary_language,
+                    choices=language_choices,
+                    widget=SelectWidget(attrs={"widget_only": False}),
                 )
 
             class Meta:
                 model = Flow
                 fields = ("name", "keyword_triggers", "flow_type", "base_language")
+                widgets = {"name": InputWidget()}
 
         form_class = FlowCreateForm
         success_url = "uuid@flows.flow_editor"
@@ -469,6 +492,7 @@ class FlowCRUDL(SmartCRUDL):
         fields = ("id",)
         cancel_url = "uuid@flows.flow_editor"
         success_message = ""
+        submit_button_name = _("Delete")
 
         def get_success_url(self):
             return reverse("flows.flow_list")
@@ -519,17 +543,22 @@ class FlowCRUDL(SmartCRUDL):
                     ]
                     self.fields["base_language"] = forms.ChoiceField(label=_("Language"), choices=choices)
 
+            class Meta:
+                widgets = {"name": InputWidget(), "ignore_triggers": CheckboxWidget()}
+
         class SurveyFlowUpdateForm(BaseUpdateFlowFormMixin, BaseFlowForm):
             expires_after_minutes = forms.ChoiceField(
                 label=_("Expire inactive contacts"),
                 help_text=_("When inactive contacts should be removed from the flow"),
                 initial=str(60 * 24 * 7),
                 choices=EXPIRES_CHOICES,
+                widget=SelectWidget(attrs={"widget_only": False}),
             )
             contact_creation = forms.ChoiceField(
                 label=_("Create a contact "),
                 help_text=_("Whether surveyor logins should be used as the contact for each run"),
                 choices=((Flow.CONTACT_PER_RUN, _("For each run")), (Flow.CONTACT_PER_LOGIN, _("For each login"))),
+                widget=SelectWidget(attrs={"widget_only": False}),
             )
 
             def __init__(self, user, *args, **kwargs):
@@ -544,6 +573,7 @@ class FlowCRUDL(SmartCRUDL):
             class Meta:
                 model = Flow
                 fields = ("name", "contact_creation", "expires_after_minutes")
+                widgets = {"name": InputWidget()}
 
         class IVRFlowUpdateForm(BaseUpdateFlowFormMixin, BaseFlowForm):
             ivr_retry = forms.ChoiceField(
@@ -551,17 +581,22 @@ class FlowCRUDL(SmartCRUDL):
                 help_text=_("Retries call three times for the chosen interval"),
                 initial=60,
                 choices=IVRCall.IVR_RETRY_CHOICES,
+                widget=SelectWidget(attrs={"widget_only": False}),
             )
             expires_after_minutes = forms.ChoiceField(
                 label=_("Expire inactive contacts"),
                 help_text=_("When inactive contacts should be removed from the flow"),
                 initial=5,
                 choices=IVRCall.IVR_EXPIRES_CHOICES,
+                widget=SelectWidget(attrs={"widget_only": False}),
             )
             keyword_triggers = forms.CharField(
                 required=False,
                 label=_("Global keyword triggers"),
                 help_text=_("When a user sends any of these keywords they will begin this flow"),
+                widget=SelectWidget(
+                    attrs={"widget_only": False, "multi": True, "searchable": True, "tags": True, "space_select": True}
+                ),
             )
 
             def __init__(self, user, *args, **kwargs):
@@ -588,12 +623,16 @@ class FlowCRUDL(SmartCRUDL):
             class Meta:
                 model = Flow
                 fields = ("name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "ivr_retry")
+                widgets = {"name": InputWidget(), "ignore_triggers": CheckboxWidget()}
 
         class FlowUpdateForm(BaseUpdateFlowFormMixin, BaseFlowForm):
             keyword_triggers = forms.CharField(
                 required=False,
                 label=_("Global keyword triggers"),
                 help_text=_("When a user sends any of these keywords they will begin this flow"),
+                widget=SelectWidget(
+                    attrs={"widget_only": False, "multi": True, "searchable": True, "tags": True, "space_select": True}
+                ),
             )
 
             expires_after_minutes = forms.ChoiceField(
@@ -601,6 +640,7 @@ class FlowCRUDL(SmartCRUDL):
                 help_text=_("When inactive contacts should be removed from the flow"),
                 initial=str(60 * 24 * 7),
                 choices=EXPIRES_CHOICES,
+                widget=SelectWidget(attrs={"widget_only": False}),
             )
 
             def __init__(self, user, *args, **kwargs):
@@ -616,13 +656,15 @@ class FlowCRUDL(SmartCRUDL):
                 ).order_by("created_on")
 
                 keyword_triggers = self.fields["keyword_triggers"]
-                keyword_triggers.initial = ",".join(t.keyword for t in flow_triggers)
+                keyword_triggers.initial = list([t.keyword for t in flow_triggers])
 
             class Meta:
                 model = Flow
                 fields = ("name", "keyword_triggers", "expires_after_minutes", "ignore_triggers")
+                widgets = {"name": InputWidget(), "ignore_triggers": CheckboxWidget()}
 
         success_message = ""
+        success_url = "uuid@flows.flow_editor"
 
         def get_form_class(self):
             flow_type = self.object.flow_type
@@ -888,13 +930,25 @@ class FlowCRUDL(SmartCRUDL):
 
     class Filter(BaseList, OrgObjPermsMixin):
         add_button = True
-        bulk_actions = ("unlabel", "label")
+        bulk_actions = ("label",)
 
         def get_gear_links(self):
             links = []
 
+            label = FlowLabel.objects.get(pk=self.kwargs["label_id"])
+
             if self.has_org_perm("flows.flow_update"):
-                links.append(dict(title=_("Edit"), href="#", js_class="label-update-btn"))
+                # links.append(dict(title=_("Edit"), href="#", js_class="label-update-btn"))
+
+                links.append(
+                    dict(
+                        id="update-label",
+                        title=_("Edit"),
+                        style="button-primary",
+                        href=f"{reverse('flows.flowlabel_update', args=[label.pk])}",
+                        modax=_("Edit Label"),
+                    )
+                )
 
             if self.has_org_perm("flows.flow_delete"):
                 links.append(dict(title=_("Remove"), href="#", js_class="remove-label"))
@@ -1072,7 +1126,13 @@ class FlowCRUDL(SmartCRUDL):
                 and not flow.is_archived
             ):
                 links.append(
-                    dict(title=_("Start Flow"), style="btn-primary", js_class="broadcast-rulesflow", href="#")
+                    dict(
+                        id="start-flow",
+                        title=_("Start Flow"),
+                        style="button-primary",
+                        href=f"{reverse('flows.flow_broadcast', args=[self.object.pk])}",
+                        modax=_("Start Flow"),
+                    )
                 )
 
             if self.has_org_perm("flows.flow_results"):
@@ -1083,7 +1143,14 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(divider=True))
 
             if self.has_org_perm("flows.flow_update") and not flow.is_archived:
-                links.append(dict(title=_("Edit"), js_class="update-rulesflow", href="#"))
+                links.append(
+                    dict(
+                        id="edit-flow",
+                        title=_("Edit"),
+                        href=f"{reverse('flows.flow_update', args=[self.object.pk])}",
+                        modax=_("Edit Flow"),
+                    )
+                )
 
             if self.has_org_perm("flows.flow_copy"):
                 links.append(dict(title=_("Copy"), posterize=True, href=reverse("flows.flow_copy", args=[flow.id])))
@@ -1096,7 +1163,14 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Revision History"), ngClick="showRevisionHistory()", href="#"))
 
             if self.has_org_perm("flows.flow_delete"):
-                links.append(dict(title=_("Delete"), js_class="delete-flow", href="#"))
+                links.append(
+                    dict(
+                        id="delete-flow",
+                        title=_("Delete"),
+                        href=f"{reverse('flows.flow_delete', args=[self.object.pk])}",
+                        modax=_("Delete Flow"),
+                    )
+                )
 
             links.append(dict(divider=True))
             links.append(dict(title=_("New Editor"), js_class="migrate-flow", href="#"))
@@ -1206,38 +1280,69 @@ class FlowCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
             flow = self.object
-
             if (
                 flow.flow_type != Flow.TYPE_SURVEY
                 and self.has_org_perm("flows.flow_broadcast")
                 and not flow.is_archived
             ):
                 links.append(
-                    dict(title=_("Start Flow"), style="btn-primary", js_class="broadcast-rulesflow", href="#")
+                    dict(
+                        id="start-flow",
+                        title=_("Start Flow"),
+                        style="button-primary",
+                        href=f"{reverse('flows.flow_broadcast', args=[self.object.pk])}",
+                        modax=_("Start Flow"),
+                    )
                 )
 
             if self.has_org_perm("flows.flow_results"):
                 links.append(
-                    dict(title=_("Results"), style="btn-primary", href=reverse("flows.flow_results", args=[flow.uuid]))
+                    dict(
+                        title=_("Results"),
+                        style="button-primary",
+                        href=reverse("flows.flow_results", args=[flow.uuid]),
+                    )
                 )
             if len(links) > 1:
                 links.append(dict(divider=True))
 
             if self.has_org_perm("flows.flow_update") and not flow.is_archived:
-                links.append(dict(title=_("Edit"), js_class="update-rulesflow", href="#"))
+                links.append(
+                    dict(
+                        id="edit-flow",
+                        title=_("Edit"),
+                        href=f"{reverse('flows.flow_update', args=[self.object.pk])}",
+                        modax=_("Edit Flow"),
+                    )
+                )
 
             if self.has_org_perm("flows.flow_copy"):
                 links.append(dict(title=_("Copy"), posterize=True, href=reverse("flows.flow_copy", args=[flow.id])))
 
             if self.has_org_perm("flows.flow_delete"):
-                links.append(dict(title=_("Delete"), js_class="delete-flow", href="#"))
+                links.append(
+                    dict(
+                        id="delete-flow",
+                        title=_("Delete"),
+                        href=f"{reverse('flows.flow_delete', args=[self.object.pk])}",
+                        modax=_("Delete Flow"),
+                    )
+                )
 
             links.append(dict(divider=True)),
 
             if self.has_org_perm("orgs.org_export"):
                 links.append(dict(title=_("Export Definition"), href=f"{reverse('orgs.org_export')}?flow={flow.id}"))
             if self.has_org_perm("flows.flow_export_translation"):
-                links.append(dict(title=_("Export Translation"), js_class="export-translation", href="#"))
+                links.append(
+                    dict(
+                        id="export-translation",
+                        title=_("Export Translation"),
+                        href=f"{reverse('flows.flow_export_translation', args=[self.object.pk])}",
+                        modax=_("Export Translation"),
+                    )
+                )
+
             if self.has_org_perm("flows.flow_import_translation"):
                 links.append(
                     dict(title=_("Import Translation"), href=reverse("flows.flow_import_translation", args=[flow.id]))
@@ -1284,7 +1389,7 @@ class FlowCRUDL(SmartCRUDL):
 
             self.object.save_revision(self.get_user(), flow_def)
 
-            return HttpResponseRedirect(self.success_url)
+            return HttpResponseRedirect(self.get_success_url())
 
     class ExportTranslation(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
         class Form(forms.Form):
@@ -1300,6 +1405,7 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Include Arguments"),
                 initial=True,
                 help_text=_("Include arguments to tests on splits"),
+                widget=CheckboxWidget(),
             )
 
             def __init__(self, user, instance, *args, **kwargs):
@@ -1482,20 +1588,24 @@ class FlowCRUDL(SmartCRUDL):
             group_memberships = forms.ModelMultipleChoiceField(
                 queryset=ContactGroup.user_groups.none(),
                 required=False,
-                label=_("Which group memberships, if any, to include in the export"),
+                label=_("Groups"),
+                widget=SelectMultipleWidget(attrs={"placeholder": _("Optional: Group memberships")}),
             )
 
             contact_fields = forms.ModelMultipleChoiceField(
                 ContactField.user_fields.filter(id__lt=0),
                 required=False,
-                help_text=_("Which contact fields, if any, to include " "in the export"),
+                label=("Fields"),
+                widget=SelectMultipleWidget(attrs={"placeholder": _("Optional: Fields to include")}),
             )
 
             extra_urns = forms.MultipleChoiceField(
                 required=False,
-                label=_("Extra URNs"),
+                label=_("URNs"),
                 choices=ContactURN.EXPORT_SCHEME_HEADERS,
-                help_text=_("Extra URNs to include in the export in addition to " "the URN used in the flow"),
+                widget=SelectMultipleWidget(
+                    attrs={"placeholder": _("Optional: URNs in addition to the one used in the flow")}
+                ),
             )
 
             responded_only = forms.BooleanField(
@@ -1503,11 +1613,13 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Responded Only"),
                 initial=True,
                 help_text=_("Only export results for contacts which responded"),
+                widget=CheckboxWidget(),
             )
             include_msgs = forms.BooleanField(
                 required=False,
                 label=_("Include Messages"),
                 help_text=_("Export all messages sent and received in this flow"),
+                widget=CheckboxWidget(),
             )
 
             def __init__(self, user, *args, **kwargs):
@@ -1553,7 +1665,7 @@ class FlowCRUDL(SmartCRUDL):
                 return cleaned_data
 
         form_class = ExportForm
-        submit_button_name = _("Export")
+        submit_button_name = _("Download Results")
         success_url = "@flows.flow_list"
 
         def get_form_kwargs(self):
@@ -1802,13 +1914,20 @@ class FlowCRUDL(SmartCRUDL):
             links = []
 
             if self.has_org_perm("flows.flow_update"):
-                links.append(dict(title=_("Download"), href="#", js_class="download-results"))
+                links.append(
+                    dict(
+                        id="download-results",
+                        title=_("Download"),
+                        modax=_("Download Flow Results"),
+                        href=f"{reverse('flows.flow_export_results')}?ids={self.get_object().pk}",
+                    )
+                )
 
             if self.has_org_perm("flows.flow_editor"):
                 links.append(
                     dict(
                         title=_("Edit Flow"),
-                        style="btn-primary",
+                        style="button-primary",
                         href=reverse("flows.flow_editor", args=[self.get_object().uuid]),
                     )
                 )
@@ -2026,6 +2145,7 @@ class FlowCRUDL(SmartCRUDL):
                 required=False,
                 initial=False,
                 help_text=_("Restart any contacts already participating in this flow"),
+                widget=CheckboxWidget(),
             )
 
             include_active = forms.BooleanField(
@@ -2033,6 +2153,7 @@ class FlowCRUDL(SmartCRUDL):
                 required=False,
                 initial=False,
                 help_text=_("Include contacts currently active in a flow"),
+                widget=CheckboxWidget(),
             )
 
             recipients_mode = forms.ChoiceField(
@@ -2047,7 +2168,8 @@ class FlowCRUDL(SmartCRUDL):
             )
 
             contact_query = forms.CharField(
-                required=False, widget=ContactSearchWidget(attrs={"placeholder": _("Enter contact query")})
+                required=False,
+                widget=ContactSearchWidget(attrs={"widget_only": True, "placeholder": _("Enter contact query")}),
             )
 
             def clean_contact_query(self):
@@ -2113,7 +2235,7 @@ class FlowCRUDL(SmartCRUDL):
         form_class = BroadcastForm
         fields = ("omnibox", "restart_participants", "include_active", "recipients_mode", "contact_query")
         success_message = ""
-        submit_button_name = _("Add Contacts to Flow")
+        submit_button_name = _("Start Flow")
         success_url = "uuid@flows.flow_editor"
 
         def has_facebook_topic(self, flow):
@@ -2252,8 +2374,13 @@ class PreprocessTest(FormView):  # pragma: no cover
 
 
 class FlowLabelForm(forms.ModelForm):
-    name = forms.CharField(required=True)
-    parent = forms.ModelChoiceField(FlowLabel.objects.all(), required=False, label=_("Parent"))
+    name = forms.CharField(required=True, widget=InputWidget())
+    parent = forms.ModelChoiceField(
+        FlowLabel.objects.all(),
+        required=False,
+        label=_("Parent"),
+        widget=SelectWidget(attrs={"widget_only": True, "placeholder": _("Optional: Select parent label")}),
+    )
     flows = forms.CharField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, *args, **kwargs):
@@ -2305,7 +2432,10 @@ class FlowLabelCRUDL(SmartCRUDL):
             return kwargs
 
         def derive_fields(self):
-            return ("name", "parent")
+            if FlowLabel.objects.filter(parent=self.get_object()):  # pragma: needs cover
+                return ("name",)
+            else:
+                return ("name", "parent")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "parent", "flows")
@@ -2347,6 +2477,9 @@ class FlowStartCRUDL(SmartCRUDL):
         title = _("Flow Start Log")
         ordering = ("-created_on",)
         select_related = ("flow", "created_by")
+
+        def get_gear_links(self):
+            return [dict(title=_("Flows"), style="button-light", href=reverse("flows.flow_list"),)]
 
         def derive_queryset(self, *args, **kwargs):
             return (

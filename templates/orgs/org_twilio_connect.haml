@@ -2,20 +2,13 @@
 
 -load compress temba
 
--block title-icon
-  .title-icon
-    %span.glyph.icon-channel-twilio
-
--block title-text
-  .title-text
-    %h1 Connect Twilio
+-block title
+  Connect Twilio
 
 -block pre-form
-  .connect-help
-    %p
-      To connect your Twilio Account you will need to provide us your Twilio account SID and auth token.
-
-    %p
+  .mb-4
+    To connect your Twilio Account you will need to provide us your Twilio account SID and auth token.
+    .mt-1
       Both values can be found on your <a target="twilio" href="https://www.twilio.com/user/account/settings">Twilio account page</a>.
 
 -block extra-script
@@ -24,18 +17,3 @@
     $(document).ready(function() {
       $("form.smartmin-form").attr('autocomplete', 'off');
     });
-
--block extra-less
-  -compress css inline
-    {% lessblock %}
-      :plain
-        .connect-help {
-          margin-bottom: 25px;
-          width: 600;
-        }
-
-        a:hover {
-          text-decoration: none;
-        }
-
-    {% endlessblock %}

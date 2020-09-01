@@ -3440,9 +3440,11 @@ class TicketersEndpoint(ListAPIMixin, BaseAPIView):
      * **created_on** - when this ticketer was created
 
     Example:
+
         GET /api/v2/ticketers.json
 
     Response:
+
         {
             "next": null,
             "previous": null,

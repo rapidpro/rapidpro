@@ -3,14 +3,3 @@
 
 -block summary
   -trans "Create a message keyword that launches a flow."
-
--block extra-script
-  {{block.super}}
-  %script
-    $(document).ready(function() {
-      $('#id_keyword_match_type').select2({containerCssClass: "select2-temba-field", minimumResultsForSearch: -1});
-      select2div("#id_keyword_flow", "520px", '{{ _("Flow to start")|escapejs }}');
-      $('#id_keyword_groups').select2({
-        containerCssClass: "select2-temba-field"
-      });
-    });

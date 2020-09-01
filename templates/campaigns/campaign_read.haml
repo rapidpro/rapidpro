@@ -1,70 +1,64 @@
 -extends "smartmin/read.html"
 -load smartmin sms temba compress humanize i18n
+
 -block page-title
   {{object.name}}
   -if object.is_archived
     -trans "(Archived)"
 
--block title-icon
-  .title-icon
-    %span.glyph.icon-instant
+-block title
+  {{object.name}}
 
--block title-text
-  .title-text
-    %h1
-      {{object.name}}
-      -if object.is_archived
-        -trans "(Archived)"
-
-    %h5
-      .icon-users-2
+-block subtitle
+  .flex.flex-col
+    .summary
       -if object.group.is_active
-        Events for the
-        %a{href:"{% url 'contacts.contact_filter' object.group.uuid %}"}= object.group.name
-        group
+        .lbl-group.linked(onclick="goto(event)" href="{% url 'contacts.contact_filter' object.group.uuid %}")
+          {{object.group.name}}
       -else
         -trans "No group assigned to this campaign"
 
+-block post-title
+  -if object.is_archived
+    .labels
+      .lbl.linked{onclick:"goto(event)", href:"{%url 'campaigns.campaign_archived' %}"}
+        -trans "Archived"
+
 -block content
   -if not object.events.all
-    %table.table
+    %table.list
       %body
         %tr.empty_list
           %td
             -trans "No events in this campaign yet."
 
   -else
-    %table.events
+    %table.list
       -for event in object.get_sorted_events
         -ifchanged
           %tr
-            %td{colspan:2}
-              %h3
-                {{event.relative_to}}
+            %th{colspan:99}
+              {{event.relative_to}}
 
         %tr.campaign-event{valign:'center', data-event-id:'{{event.pk}}'}
 
-          %td.time-badge
-            .offset
+          %td.whitespace-no-wrap
+            %a{href:"{% url 'campaigns.campaignevent_read' event.pk %}"}
               -if event.offset == 0
                 ON
               -else
                 {{event.abs_offset|intcomma}}
-            .unit
               -if event.offset != 0
-                {{event.single_unit_display|upper}}{{event.abs_offset|pluralize:"S"}}
-                .direction
+                {{event.single_unit_display|lower}}{{event.abs_offset|pluralize:"s"}}
                   -if event.offset < 0
-                    BEFORE
+                    -trans "before"
                   -else
-                    AFTER
-            .date
+                    -trans "after"
               {{ event.relative_to }}
 
-          %td.details
+          %td.w-full
             -if event.event_type == 'M'
               .message
-                .icon-left-quote
                 .text
                   {{event.get_message}}
             -else
@@ -72,142 +66,3 @@
                 Start the
                 %a.href{ href: "{% url 'flows.flow_editor' event.flow.uuid %}" }= event.flow.name
                 flow.
-
-        -if not forloop.last
-          %tr.break
-            %td{colspan:2}
-
--block extra-less
-  -compress css
-    {% lessblock %}
-      :plain
-
-        @row-color: @flat-white;
-        @row-text: #999;
-
-        .events h3 {
-          margin-top:15px;
-          padding-bottom:0px;
-          margin-bottom:10px;
-        }
-
-        .break {
-          height:15px;
-        }
-
-        .events {
-          width: 100%;
-        }
-
-        .campaign-event {
-
-          border: 2px solid @row-color;
-
-          .time-badge {
-            min-width:200px;
-            border: 0px solid green;
-            color: @row-text;
-            padding: 10px;
-            background: @row-color;
-
-            .offset {
-              display: inline-block;
-              border: 0px solid red;
-              font-size: 42px;
-              font-weight:600;
-              line-height: 42px;
-            }
-
-            .unit {
-              border: 0px solid orange;
-              margin-left: 5px;
-              display: inline-block;
-              font-weight:100;
-              letter-spacing: .1em;
-            }
-
-            .direction {
-
-            }
-
-            .date {
-              font-size: 12px;
-              letter-spacing: .1em;
-              color: @row-text;
-            }
-          }
-
-          .details {
-            border: 0px solid green;
-            font-size:15px;
-            line-height:17px;
-            color: #666;
-            padding:15px;
-            width:100%;
-
-            .start-flow {
-              border:0px solid green;
-              margin-top:-5px;
-            }
-
-            .message {
-              border: 0px solid green;
-
-              .text {
-                position:relative;
-                z-index:1;
-                letter-spacing:.1em;
-                top:-10px;
-                left:14px;
-                right:-14px;
-                margin-right:25px;
-              }
-
-              .icon-left-quote {
-                position:relative;
-                z-index:0;
-                top:-5px;
-                font-size:28px;
-                color: #eee;
-                margin-right:4px;
-              }
-
-
-            }
-
-          }
-
-          &:hover {
-            cursor: pointer;
-            border-color: @flat-white - #111;
-            .details {
-              background: #fefefe;
-            }
-
-            .time-badge {
-              background: @flat-white - #111;
-            }
-          }
-
-        }
-    {% endlessblock %}
-
--block extra-script
-  {{ block.super }}
-
-  :javascript
-
-    $(".campaign-event").on('click', function() {
-      var id = $(this).data('event-id');
-      document.location.href = '/campaignevent/read/' + id;
-    });
-
-    {% if org_perms.campaigns.campaignevent_create %}
-      $(".add-event").live('click', function(){
-        var modal = new Modax('{{_("Add Event")|escapejs }}','{% url "campaigns.campaignevent_create" %}?campaign={{ object.id }}');
-        modal.setIcon('icon-instant');
-        modal.setListeners({ onFormLoaded: function() { $('#id_message').focus() }});
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      });
-    {% endif %}

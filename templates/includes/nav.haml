@@ -77,12 +77,10 @@
 
           .title {
             font-size: 12px;
-            font-family: 'Helvetica Neue', sans-serif;
             letter-spacing: 0.05em;
             margin-top: 3px;
             font-weight: 400;
             color: var(--color-nav-unselected);
-
           }
 
           .circle {
@@ -141,21 +139,21 @@
   -if org_perms.contacts.contact_list and not request.user.is_superuser
     %a{href:"{% url 'contacts.contact_list' %}", class:"{% active request 'contact|imports' %}"}
       .circle
-        .icon-vcard
+        .icon-contact
       .title 
         -trans "contacts"
 
   -if org_perms.flows.flow_list and not request.user.is_superuser
     %a{href:"{% url 'flows.flow_list' %}", class:"{% active request '(?<!msg)/flow' %}"}
       .circle
-        .icon-tree-2.icon-3
+        .icon-flow.icon-3
       .title 
         -trans "flows"
 
   -if org_perms.campaigns.campaign_list and not request.user.is_superuser
     %a{href:"{% url 'campaigns.campaign_list' %}", class:"{% active request 'campaign' %}"}
       .circle
-        .icon-instant
+        .icon-campaign
       .title
         -trans "campaigns"
 
@@ -242,12 +240,11 @@
               .title
                 -trans "end"
           -else
-            %a{href:"{% url 'users.user_logout' %}"}
+            %a(href="{% url 'users.user_logout' %}?next=/users/login")
               .circle
                 .icon-exit
-              .title
-                -trans "logout"
-
+              .title.whitespace-no-wrap
+                -trans "sign out"
   -else
     -block temba-login
 

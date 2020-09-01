@@ -1,6 +1,6 @@
 -if log
-  %a{href:"{% url 'channels.channellog_read' log.id %}"}
-    .icon-docs-2
+  .hover-linked{onclick:"goto(event)", href:"{% url 'channels.channellog_read' log.id %}"}
+    .icon-docs-2.pointer-events-none
 -elif connection_id
-  %a{href:"{% url 'channels.channellog_connection' connection_id %}"}
-    .icon-docs-2
+  .hover-linked{onclick:"goto(event)", href:"{% url 'channels.channellog_connection' connection_id %}"}
+    .icon-docs-2.pointer-events-none

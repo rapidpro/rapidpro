@@ -1,0 +1,6 @@
+-extends 'smartmin/modal.html'
+
+-block modal-extra-style
+  {{block.super}}
+  %link{rel:"stylesheet", href:"{{ STATIC_URL }}css/tailwind.css", type:"text/css"}
+  %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}

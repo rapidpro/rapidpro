@@ -8,11 +8,11 @@
     .row#pjax
 
 -block summary
-  %a.btn.btn-primary.org-button.pull-right{ href:"{% url 'internal.internal_purchase' %}" }
+  .button-primary(href="{% url 'internal.internal_purchase' %}")
     -trans "Add Credits"
 
   -trans "You have"
-  %span.attn {{ user_org.get_credits_remaining|intcomma }}
+  %b {{ user_org.get_credits_remaining|intcomma }}
   -trans "credits remaining."
 
   .extra

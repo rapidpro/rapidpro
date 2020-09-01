@@ -2,60 +2,48 @@
 -load i18n
 
 -block title-text
-  .title-text
-    %h2
-      -trans "Archived Contacts"
-    %h5
-      -trans "These contacts have been removed from all groups and can be deleted permanently."
-
+  .title.leading-tight
+    -trans "Archived Contacts"
+  .text-base.mt-1
+    -trans "These contacts have been removed from all groups and can be deleted permanently."
 
 -block post-content
   -if org_perms.contacts.contact_delete
-    .contact-delete-selected.hide
-      .title
-        -trans "Delete Selected Contacts"
-      .body
-        %p
-          -trans "Are you sure you want to delete the selected contacts?"
-        %p
-          -trans "Once they are deleted, they will be gone forever. There is no way to undo this operation."
-    .contact-delete-all.hide
-      .title
-        -trans "Delete All Contacts"
-      .body
-        %p
-          -blocktrans trimmed with count=paginator.count
-            Are you sure you want to delete all {{ count }} archived contacts? This cannot be undone.
+    %temba-dialog#delete-confirmation.hide(header='{{ _("Delete Selected Contacts")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
+      .p-6
+        -trans "Are you sure you want to delete these contacts? This cannot be undone."
+
+    %temba-dialog#delete-all-confirmation.hide(header='{{ _("Delete All Contacts")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
+      .p-6
+        -blocktrans trimmed with count=paginator.count
+          Are you sure you want to delete all {{ count }} archived contacts? This cannot be undone.
 
         -if paginator.count > 50
-          %p
-            -blocktrans trimmed
-              This operation can take a while to complete. Contacts may remain in this view during the process.
+          %br
+          %br
+          -blocktrans trimmed
+            This operation can take a while to complete. Contacts may remain in this view during the process.
 
 -block extra-script
   {{ block.super }}
 
   :javascript
-    $(".contacts-btn-delete").live('click', function() {
-      modal = new ConfirmationModal($('.contact-delete-selected > .title').html(), $('.contact-delete-selected > .body').html());
-      modal.addClass('alert');
-      modal.setListeners({onPrimary: function(){
-        runActionOnObjectRows("delete");
-        modal.dismiss();
-      }}, false);
-      modal.setPrimaryButton('{{ _("Delete")|escapejs }}');
-      modal.show();
-    });
+    window.addEventListener('DOMContentLoaded', (event) => {
+      var confirm = document.querySelector('#delete-all-confirmation');
+      var deleteButton = document.querySelector(".contacts-btn-delete-all");
 
-    $(".contacts-btn-delete-all").live('click', function() {
-      modal = new ConfirmationModal($('.contact-delete-all > .title').html(), $('.contact-delete-all > .body').html());
-      modal.addClass('alert');
-      modal.setListeners({onPrimary: function(){
-        deleteAllContacts();
-        modal.dismiss();
-      }}, false);
-      modal.setPrimaryButton('{{ _("Delete")|escapejs }}');
-      modal.show();
+      deleteButton.addEventListener("click", function(){
+        confirm.classList.remove("hide");
+        confirm.open = true;
+      });
+
+      confirm.addEventListener("temba-button-clicked", function(event){
+        if (event.detail.button.attributes.destructive){
+          deleteAllContacts();
+        }
+        confirm.classList.add("hide");
+        confirm.open = false;
+      });
     });
 
     function deleteAllContacts() {

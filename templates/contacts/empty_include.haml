@@ -1,19 +1,15 @@
 -load i18n
 
-.span3
-  #big-help.glyph.icon-vcard
+.flex.flex-col.p-12
+  .page-title
+    Contacts
 
-.span5
-  %h2
-    -trans "Your Contacts"
-
-  #little-help
-  %p
+  .mt-4
     -blocktrans with name=brand.name
       Contacts will automatically be added here as you communicate with them using {{name}}.
       From here you can change a contact's name, organize them into groups and see the communication you've had with each.
 
-  %p
+  .mt-2
     {% url 'contacts.contact_import' as contact_import_url %}
     -blocktrans
       To get started you can

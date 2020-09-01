@@ -19,6 +19,7 @@ from django.views.generic import View
 from temba.orgs.views import OrgPermsMixin
 from temba.utils import json
 from temba.utils.text import random_string
+from temba.utils.views import ComponentFormMixin
 
 from ...models import Ticketer
 from ...views import BaseConnectView
@@ -114,7 +115,7 @@ class ConnectView(BaseConnectView):
         return HttpResponseRedirect(self.get_success_url())
 
 
-class ConfigureView(OrgPermsMixin, SmartReadView):
+class ConfigureView(ComponentFormMixin, OrgPermsMixin, SmartReadView):
     model = Ticketer
     fields = ()
     permission = "tickets.ticketer_configure"

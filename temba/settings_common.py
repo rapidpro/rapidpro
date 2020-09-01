@@ -144,6 +144,8 @@ COMPRESS_ROOT = os.path.join(PROJECT_DIR, "../sitestatic")
 MEDIA_ROOT = os.path.join(PROJECT_DIR, "../media")
 MEDIA_URL = "/media/"
 
+HELP_URL = None
+
 
 # -----------------------------------------------------------------------------------
 # Templates Configuration
@@ -400,6 +402,7 @@ PERMISSIONS = {
         "manage_accounts_sub_org",
         "nexmo_account",
         "nexmo_connect",
+        "plan",
         "plivo_connect",
         "profile",
         "prometheus",
@@ -620,6 +623,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_manage_accounts_sub_org",
         "orgs.org_nexmo_account",
         "orgs.org_nexmo_connect",
+        "orgs.org_plan",
         "orgs.org_plivo_connect",
         "orgs.org_profile",
         "orgs.org_prometheus",

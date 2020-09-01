@@ -189,4 +189,4 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
 class UpdateForm(UpdateTelChannelForm):
     class Meta(UpdateTelChannelForm.Meta):
-        readonly = ("country",)
+        readonly = ()

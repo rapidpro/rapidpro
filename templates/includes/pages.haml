@@ -1,0 +1,58 @@
+-load humanize
+    - if paginator and paginator.num_pages > 1 
+
+        .flex.w-full.justify-end.text-gray-700.flex-wrap
+          - if page_obj.has_previous 
+            .prev.mr-4
+              %a{href:"{{url_params|safe}}page={{page_obj.previous_page_number}}"}<
+                .icon-arrow-left-8
+              %a{href:"{{url_params|safe}}page={{page_obj.previous_page_number}}"}<
+                Previous
+          - else 
+            .prev.disabled.mr-4.text-gray-300
+              .icon-arrow-left-8
+              Previous
+
+          - for page_num in paginator.page_range 
+            - if page_obj.number < 5 
+              - if page_num < 10 
+                - if not page_num == page_obj.number 
+                  .page-num.mx-3
+                    %a{href:"{{url_params|safe}}page={{page_num}}"}
+                      {{ page_num }}
+                - else
+                  .page-num.active.mx-3.rounded-full.bg-gray-200.px-2
+                    {{ page_num }}
+
+            - elif page_num < page_obj.number|add:"5" and page_num > page_obj.number|add:"-5" 
+              - if not page_num == page_obj.number
+                .page_num.mx-3
+                  %a{href:"{{url_params|safe}}page={{page_num}}"}
+                    {{ page_num }}
+              - else 
+                .page_num.active.mx-3.rounded-full.bg-gray-200.px-2
+                  {{ page_num }}
+
+            - elif page_obj.number > paginator.num_pages|add:"-5"
+              - if page_num > paginator.num_pages|add:"-9"
+                - if not page_num == page_obj.number
+                  .page-num.mx-3
+                    %a{href:"{{url_params|safe}}page={{page_num}}"}
+                      {{ page_num }}
+                - else 
+                  .page-num.active.mx-3.rounded-full.bg-gray-200.px-2
+                    {{ page_num }}
+
+          
+          - if page_obj.has_next 
+            .next.ml-6
+              %a{href:"{{url_params|safe}}page={{page_obj.next_page_number}}"}
+                Next
+                .icon-arrow-right-8
+          - else 
+            .next.disabled.text-gray-300.ml-4
+              Next
+              .icon-arrow-right-8
+
+
+

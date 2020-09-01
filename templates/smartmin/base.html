@@ -24,70 +24,74 @@
 
 
   function fetchPJAXContent(url, container, options) {
-
-      var type = 'GET';
-      var data = undefined;
-      if (options) {
-          if ('postData' in options) {
-              type = 'POST';
-              data = options['postData'];
-          }
+    var type = 'GET';
+    var data = undefined;
+    if (options) {
+      if ('postData' in options) {
+        type = 'POST';
+        data = options['postData'];
       }
+    }
 
-      var headers = { 'X-PJAX': true };
-      if (options && 'headers' in options) {
-          for (key in options['headers']) {
-              headers[key] = options['headers'][key];
-          }
+    var headers = { 'X-PJAX': true };
+    if (options && 'headers' in options) {
+      for (key in options['headers']) {
+        headers[key] = options['headers'][key];
       }
+    }
 
-      var event = new Event("rp-refresh-begin");
-      document.dispatchEvent(event);
+    document.dispatchEvent(new Event("temba-pjax-begin"));
 
-      $.ajax({
-          headers: headers,
-          type: type,
-          url: url,
-          data: data,
-          success: function(data, status, jqXHR) {
+    // see if we should skip our fetch
+    if (options) {
+      if ('shouldIgnore' in options && options['shouldIgnore']()) {
+        if ('onIgnore' in options) {
+          options['onIgnore']();
+        }
+        return;
+      }
+    }
 
-            var toast = jqXHR.getResponseHeader('Temba-Toast');
-            if (toast) {
-              toastr.info(toast, '', {"positionClass": "toast-bottom-full-width"});
+    $.ajax({
+      headers: headers,
+      type: type,
+      url: url,
+      data: data,
+      success: function(response, status, jqXHR) {
+        var toast = jqXHR.getResponseHeader('Temba-Toast');
+        if (toast) {
+          toastr.info(toast, '', {"positionClass": "toast-bottom-full-width"});
+        }
+
+        if ('followRedirects' in options && options['followRedirects'] == true) {
+            var redirect = jqXHR.getResponseHeader('REDIRECT');
+            if (redirect) {
+                window.document.location.href = redirect;
+                return;
+            }
+        }
+
+        // double check before replacing content
+        if (options) {
+          if (('shouldIgnore' in options && options['shouldIgnore'](response))) {
+            if ('onIgnore' in options) {
+                options['onIgnore'](jqXHR);
             }
 
-            if ('followRedirects' in options && options['followRedirects'] == true) {
-                var redirect = jqXHR.getResponseHeader('REDIRECT');
-                if (redirect) {
-                    window.document.location.href = redirect;
-                    return;
-                }
-            }
-
-            var noPJAX = $(container).data('no-pjax');
-            if (options) {
-                if(!('forceReload' in options) || ('forceReload' in options && !options['forceReload'])) {
-
-                    if (noPJAX || ('shouldIgnore' in options && options['shouldIgnore'](data))) {
-                        if ('onIgnore' in options) {
-                           options['onIgnore'](jqXHR);
-                        }
-                        return;
-                    }
-                }
-            }
-            $(container).html(data);
-
-            var event = new Event("rp-refresh-complete");
-            document.dispatchEvent(event);
-
-            if (options) {
-                if ('onSuccess' in options && options['onSuccess']) {
-                    options['onSuccess']();
-                }
-            }
+            return;
           }
-      });
+        }
+
+        $(container).html(response);
+        document.dispatchEvent(new Event("temba-pjax-complete"));
+
+        if (options) {
+          if ('onSuccess' in options) {
+            options['onSuccess']();
+          }
+        }
+      }
+    });
   }
 
 
@@ -105,27 +109,40 @@ function refresh(onSuccess, forceReload){
   {% endif %}
 
   if (url == '') {
-      url = '?';
+    url = '?';
   }
 
   url += '&ts=' + new Date().getTime() + "&refresh=" + refreshTimeout;
 
+  document.dispatchEvent(new Event("temba-refresh-begin"));  
   fetchPJAXContent(url, '#pjax', {
-      forceReload: forceReload,
-      onSuccess: onSuccess,
+      onSuccess: function() {
+        if (onSuccess) {
+          onSuccess();
+        }
+        document.dispatchEvent(new Event("temba-refresh-complete"));
+        refreshTimeout = Math.floor(refreshTimeout * 1.1)
+        scheduleRefresh();
+      },
+      shouldIgnore: function() {
+        if (forceReload) {
+          return false;
+        }
+        return eval(document.querySelector("#pjax").dataset.noPjax);
+      },
       onIgnore: function() {
-          scheduleRefresh();
+        scheduleRefresh();
       }
   });
 }
 
 refreshTimeout = {{ refresh }};
 function scheduleRefresh() {
-    window.setTimeout(refresh, {{ refresh }});
+    window.setTimeout(refresh, refreshTimeout);
 }
 
 $(document).ready(function(){
-    scheduleRefresh();
+  scheduleRefresh();
 });
 </script>
 {% endif %}

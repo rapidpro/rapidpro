@@ -26,7 +26,7 @@ from temba.msgs.models import ERRORED, FAILED
 register = template.Library()
 
 URN_SCHEME_ICONS = {
-    TEL_SCHEME: "icon-mobile-2",
+    TEL_SCHEME: "icon-phone",
     TWITTER_SCHEME: "icon-twitter",
     TWITTERID_SCHEME: "icon-twitter",
     TWILIO_SCHEME: "icon-twilio_original",
@@ -50,13 +50,13 @@ ACTIVITY_ICONS = {
     "contact_field_changed": "icon-pencil",
     "contact_groups_changed": "icon-users",
     "contact_language_changed": "icon-language",
-    "contact_name_changed": "icon-vcard",
+    "contact_name_changed": "icon-contact",
     "contact_urns_changed": "icon-address-book",
     "email_created": "icon-envelop",
     "email_sent": "icon-envelop",
     "error": "icon-warning",
     "failure": "icon-warning",
-    "flow_entered": "icon-tree-2",
+    "flow_entered": "icon-flow",
     "flow_exited:expired": "icon-clock",
     "flow_exited:interrupted": "icon-cancel-circle",
     "flow_exited:completed": "icon-checkmark",
@@ -128,7 +128,7 @@ def urn(contact, org):
 
 
 @register.filter
-def format_contact(contact, org):
+def format_contact(contact, org):  # pragma: needs cover
     return contact.get_display(org=org)
 
 

@@ -791,7 +791,7 @@ class CampaignTest(TembaTest):
 
         # page title and main content title should NOT contain (Archived)
         self.assertContains(response, "Perform the rain dance", count=2)
-        self.assertContains(response, "(Archived)", count=0)
+        self.assertContains(response, "Archived", count=0)
 
         gear_links = response.context["view"].get_gear_links()
         self.assertListEqual([gl["title"] for gl in gear_links], ["Add Event", "Export", "Edit", "Archive"])
@@ -804,7 +804,7 @@ class CampaignTest(TembaTest):
 
         # page title and main content title should contain (Archived)
         self.assertContains(response, "Perform the rain dance", count=2)
-        self.assertContains(response, "(Archived)", count=2)
+        self.assertContains(response, "Archived", count=2)
 
         gear_links = response.context["view"].get_gear_links()
         self.assertListEqual([gl["title"] for gl in gear_links], ["Activate", "Export"])
@@ -853,9 +853,9 @@ class CampaignTest(TembaTest):
 
         response = self.client.get(reverse("campaigns.campaignevent_read", args=[event.pk]))
 
-        # page title and main content title should NOT contain (Archived)
-        self.assertContains(response, "Perform the rain dance", count=2)
-        self.assertContains(response, "(Archived)", count=0)
+        # page title and main content title should NOT contain Archived
+        self.assertContains(response, "Perform the rain dance", count=1)
+        self.assertContains(response, "Archived", count=0)
 
         gear_links = response.context["view"].get_gear_links()
         self.assertListEqual([gl["title"] for gl in gear_links], ["Edit", "Delete"])
@@ -866,9 +866,9 @@ class CampaignTest(TembaTest):
 
         response = self.client.get(reverse("campaigns.campaignevent_read", args=[event.pk]))
 
-        # page title and main content title should contain (Archived)
-        self.assertContains(response, "Perform the rain dance", count=2)
-        self.assertContains(response, "(Archived)", count=1)
+        # page title and main content title should contain Archived
+        self.assertContains(response, "Perform the rain dance", count=1)
+        self.assertContains(response, "Archived", count=1)
 
         gear_links = response.context["view"].get_gear_links()
         self.assertListEqual([gl["title"] for gl in gear_links], ["Delete"])
