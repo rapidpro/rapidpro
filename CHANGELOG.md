@@ -1,3 +1,7 @@
+v5.7.27
+----------
+ * Site refresh of styles using Tailwind.
+
 v5.7.28
 ----------
  * Update to flow editor v1.9.15
