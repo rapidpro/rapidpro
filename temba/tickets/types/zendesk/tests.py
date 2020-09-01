@@ -258,11 +258,11 @@ class ZendeskTypeTest(TembaTest):
 
     def test_file_view(self):
         # save a text file as an attachment to storage
-        path = f"attachments/{self.org}/01c1/1aa4/01c11aa4.txt"
+        path = f"attachments/{self.org.id}/01c1/1aa4/01c11aa4.txt"
         if not default_storage.exists(path):
             default_storage.save(path, ContentFile(b"HELLO"))
 
-        file_url = reverse("tickets.types.zendesk.file_callback", args=["1/01c1/1aa4/01c11aa4.txt"])
+        file_url = reverse("tickets.types.zendesk.file_callback", args=[f"{self.org.id}/01c1/1aa4/01c11aa4.txt"])
         response = self.client.post(file_url)
 
         self.assertEqual(200, response.status_code)
