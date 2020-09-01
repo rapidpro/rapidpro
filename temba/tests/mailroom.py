@@ -1,6 +1,8 @@
+import functools
 import re
+from collections import defaultdict
 from typing import Dict, List
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -17,6 +19,7 @@ from temba.utils import json
 
 class Mocks:
     def __init__(self):
+        self.calls = defaultdict(list)
         self._parse_query = {}
         self._contact_search = {}
         self._errors = []
@@ -81,15 +84,25 @@ class Mocks:
             raise MailroomException(endpoint, None, self._errors.pop(0))
 
 
+def _client_method(func):
+    @functools.wraps(func)
+    def wrap(self, *args, **kwargs):
+        self.mocks.calls[func.__name__].append(call(*args, **kwargs))
+        self.mocks._check_error(func.__name__)
+
+        return func(self, *args, **kwargs)
+
+    return wrap
+
+
 class TestClient(MailroomClient):
     def __init__(self, mocks: Mocks):
         self.mocks = mocks
 
         super().__init__(settings.MAILROOM_URL, settings.MAILROOM_AUTH_TOKEN)
 
+    @_client_method
     def contact_modify(self, org_id, user_id, contact_ids, modifiers: List[Modifier]):
-        self.mocks._check_error("contact_modify")
-
         org = Org.objects.get(id=org_id)
         user = User.objects.get(id=user_id)
         contacts = org.contacts.filter(id__in=contact_ids)
@@ -98,9 +111,8 @@ class TestClient(MailroomClient):
 
         return {c.id: {"contact": {}, "events": []} for c in contacts}
 
+    @_client_method
     def parse_query(self, org_id, query, group_uuid=""):
-        self.mocks._check_error("parse_query")
-
         # if there's a mock for this query we use that
         mock = self.mocks._parse_query.get(query)
         if mock:
@@ -113,26 +125,23 @@ class TestClient(MailroomClient):
 
         return Mocks._parse_query_response(query, {"term": {"is_active": True}}, fields, allow_as_group)
 
-    def contact_search(self, org_id, group_uuid, query, sort, offset=0):
-        self.mocks._check_error("contact_search")
-
+    @_client_method
+    def contact_search(self, org_id, group_uuid, query, sort, offset=0, exclude_ids=()):
         mock = self.mocks._contact_search.get(query or "")
 
         assert mock, f"missing contact_search mock for query '{query}'"
 
         return mock(offset, sort)
 
+    @_client_method
     def ticket_close(self, org_id, ticket_ids):
-        self.mocks._check_error("ticket_close")
-
         tickets = Ticket.objects.filter(org_id=org_id, status=Ticket.STATUS_OPEN, id__in=ticket_ids)
         tickets.update(status=Ticket.STATUS_CLOSED)
 
         return {"changed_ids": [t.id for t in tickets]}
 
+    @_client_method
     def ticket_reopen(self, org_id, ticket_ids):
-        self.mocks._check_error("ticket_reopen")
-
         tickets = Ticket.objects.filter(org_id=org_id, status=Ticket.STATUS_CLOSED, id__in=ticket_ids)
         tickets.update(status=Ticket.STATUS_OPEN)
 

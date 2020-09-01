@@ -131,8 +131,15 @@ class MailroomClient:
 
         return self._request("contact/modify", payload)
 
-    def contact_search(self, org_id, group_uuid, query, sort, offset=0):
-        payload = {"org_id": org_id, "group_uuid": group_uuid, "query": query, "sort": sort, "offset": offset}
+    def contact_search(self, org_id, group_uuid, query, sort, offset=0, exclude_ids=()):
+        payload = {
+            "org_id": org_id,
+            "group_uuid": group_uuid,
+            "exclude_ids": exclude_ids,
+            "query": query,
+            "sort": sort,
+            "offset": offset,
+        }
 
         return self._request("contact/search", payload)
 

@@ -116,8 +116,11 @@ class BulkActionMixin:
             if all_objects:
                 objects = self.get_queryset()
             else:
+                objects_ids = [o.id for o in objects]
+                self.kwargs["bulk_action_ids"] = objects_ids  # include in kwargs so is accessible in get call below
+
                 # convert objects queryset to one based only on org + ids
-                objects = self.model._default_manager.filter(org=org, id__in=[o.id for o in objects])
+                objects = self.model._default_manager.filter(org=org, id__in=objects_ids)
 
             # check we have the required permission for this action
             permission = self.get_bulk_action_permission(action)

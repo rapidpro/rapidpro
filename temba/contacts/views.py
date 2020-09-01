@@ -262,8 +262,19 @@ class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
         self.sort_field = sort_on.lstrip("-")
 
         if search_query or sort_on:
+            # is this request is part of a bulk action, get the ids that were modified so we can check which ones
+            # should no longer appear in this view, even though ES won't have caught up yet
+            bulk_action_ids = self.kwargs.get("bulk_action_ids", [])
+            if bulk_action_ids:
+                reappearing_ids = set(group.contacts.filter(id__in=bulk_action_ids).values_list("id", flat=True))
+                exclude_ids = [i for i in bulk_action_ids if i not in reappearing_ids]
+            else:
+                exclude_ids = []
+
             try:
-                results = search_contacts(org.id, str(group.uuid), search_query, sort_on, offset)
+                results = search_contacts(
+                    org.id, str(group.uuid), search_query, sort_on, offset, exclude_ids=exclude_ids
+                )
                 self.parsed_query = results.query if len(results.query) > 0 else None
                 self.save_dynamic_search = results.metadata.allow_as_group
 
