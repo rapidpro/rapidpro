@@ -1,3 +1,7 @@
+v5.7.30
+----------
+ * Add content guideline policy option, update styling a bit
+
 v5.7.29
 ----------
  * Sitewide refresh of styles using Tailwind
