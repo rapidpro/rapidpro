@@ -1,3 +1,19 @@
+v5.7.31
+----------
+ * Add padding for p tags on policies
+
+v5.7.30
+----------
+ * Add content guideline policy option, update styling a bit
+
+v5.7.29
+----------
+ * Sitewide refresh of styles using Tailwind
+
+v5.7.27
+----------
+ * Site refresh of styles using Tailwind.
+
 v5.7.28
 ----------
  * Update to flow editor v1.9.15
