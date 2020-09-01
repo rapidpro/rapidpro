@@ -478,7 +478,7 @@ class GraphDifferenceNode(Node):
         if l_action["type"] in ("start_session", "enter_flow"):
             if l_action["flow"]["uuid"] != r_action["flow"]["uuid"]:
                 conflict["field"] = "flow"
-                return conflict
+                return [conflict]
 
     def check_difference(self):
         if bool(self.left_origin_node) != bool(self.right_origin_node):
@@ -503,6 +503,11 @@ class GraphDifferenceNode(Node):
                 if action["uuid"] == action_["uuid"]:
                     action = action_
                     already_created = True
+
+            if conflict["field"] == "flow":
+                import json
+
+                value = json.loads(value.replace("'", '"'))
 
             action[conflict["field"]] = value
             if not already_created:

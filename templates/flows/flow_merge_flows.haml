@@ -79,7 +79,7 @@
           containerCssClass: "select2-temba-field",
           data: [
             {% for solution in conflict.solutions %}
-              {id: "{{ solution }}", text: "{{ solution }}"},
+              {id: "{{ solution | escapejs }}", text: "{{ solution | escapejs }}"},
             {% endfor %}
           ]
       });
