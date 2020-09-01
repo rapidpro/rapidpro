@@ -1,3 +1,7 @@
+v5.7.32
+----------
+ * Modal max-height in vh to not obscure buttons
+
 v5.7.31
 ----------
  * Add padding for p tags on policies
