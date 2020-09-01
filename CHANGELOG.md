@@ -1,3 +1,7 @@
+v5.7.31
+----------
+ * Add padding for p tags on policies
+
 v5.7.30
 ----------
  * Add content guideline policy option, update styling a bit
