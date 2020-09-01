@@ -6,7 +6,8 @@ from smartmin.views import SmartFormView, SmartReadView
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.core.files.storage import default_storage
+from django.http import FileResponse, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils import timezone, translation
@@ -293,3 +294,14 @@ class AdminUIView(SmartFormView):
             "metadata": json.dumps({"ticketer": str(ticketer.uuid), "secret": secret}),
         }
         return TemplateResponse(request=self.request, template=self.return_template, context=context)
+
+
+class FileCallbackView(View):
+    """
+    When we use the Zendesk Push API to send attachments, we send relative URLs which Zendesk later POSTs to get the
+    file content.
+    """
+
+    def post(self, request, *args, **kwargs):
+        path = "attachments/" + kwargs["path"]
+        return FileResponse(default_storage.open(path))

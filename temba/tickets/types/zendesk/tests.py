@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.test.utils import override_settings
 from django.urls import reverse
 
@@ -253,3 +255,15 @@ class ZendeskTypeTest(TembaTest):
         self.assertEqual(
             {"ticketer": str(ticketer.uuid), "secret": "SECRET346"}, json.loads(response.context["metadata"])
         )
+
+    def test_file_view(self):
+        # save a text file as an attachment to storage
+        path = f"attachments/{self.org}/01c1/1aa4/01c11aa4.txt"
+        if not default_storage.exists(path):
+            default_storage.save(path, ContentFile(b"HELLO"))
+
+        file_url = reverse("tickets.types.zendesk.file_callback", args=["1/01c1/1aa4/01c11aa4.txt"])
+        response = self.client.post(file_url)
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(b"HELLO", b"".join(response.streaming_content))
