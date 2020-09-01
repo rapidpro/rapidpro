@@ -13,6 +13,10 @@ logger = logging.getLogger(__name__)
 
 
 class ComponentFormMixin(View):
+    """
+    Mixin to replace form field controls with component based widgets
+    """
+
     def customize_form_field(self, name, field):
 
         # don't replace the widget if it is already one of us
@@ -24,7 +28,7 @@ class ComponentFormMixin(View):
         if isinstance(field.widget, (forms.widgets.Textarea,)):
             field.widget = InputWidget(attrs={"textarea": True})
         elif isinstance(field.widget, (forms.widgets.PasswordInput,)):
-            field.widget = InputWidget(attrs={"password": True})
+            field.widget = InputWidget(attrs={"password": True})  # pragma: needs cover
         elif isinstance(
             field.widget,
             (forms.widgets.TextInput, forms.widgets.EmailInput, forms.widgets.URLInput, forms.widgets.NumberInput),
@@ -32,7 +36,7 @@ class ComponentFormMixin(View):
             field.widget = InputWidget()
         elif isinstance(field.widget, (forms.widgets.Select,)):
             if isinstance(field, (forms.models.ModelMultipleChoiceField,)):
-                field.widget = SelectMultipleWidget()
+                field.widget = SelectMultipleWidget()  # pragma: needs cover
             else:
                 field.widget = SelectWidget()
 
