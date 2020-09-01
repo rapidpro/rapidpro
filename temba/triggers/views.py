@@ -464,7 +464,7 @@ class TriggerCRUDL(SmartCRUDL):
                 omnibox = omnibox_serialize(trigger.org, trigger.groups.all(), trigger.contacts.all())
 
                 repeat_days_of_week = []
-                if trigger.schedule.repeat_days_of_week:
+                if trigger.schedule.repeat_days_of_week:  # pragma: needs cover
                     repeat_days_of_week = list(trigger.schedule.repeat_days_of_week)
 
                 return dict(

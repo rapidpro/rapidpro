@@ -156,7 +156,7 @@ class TicketerCRUDL(SmartCRUDL):
         submit_button_name = _("Delete")
         fields = ("uuid",)
 
-        def get_context_data(self, **kwargs):
+        def get_context_data(self, **kwargs):  # pragma: needs cover
             context = super().get_context_data(**kwargs)
             ticketer = self.get_object()
             context["used_by_flows"] = ticketer.dependent_flows.all()[:5]

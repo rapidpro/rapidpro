@@ -1645,11 +1645,11 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_success_url(self):
             channel = self.get_object()
-            if channel.parent:
+            if channel.parent:  # pragma: needs cover
                 return reverse("channels.channel_read", args=[channel.parent.uuid])
             return reverse("orgs.org_home")
 
-        def derive_submit_button_name(self):
+        def derive_submit_button_name(self):  # pragma: needs cover
             channel = self.get_object()
             if channel.is_delegate_caller():
                 return _("Disable Voice Calling")
@@ -1744,7 +1744,7 @@ class ChannelCRUDL(SmartCRUDL):
                     e164_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip(
                         "+"
                     )
-                except Exception:
+                except Exception:  # pragma: needs cover
                     pass
                 for channel in obj.get_delegate_channels():  # pragma: needs cover
                     channel.address = obj.address
@@ -2137,7 +2137,7 @@ class ChannelLogCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Messages"), href=reverse("channels.channellog_list", args=[channel.uuid]),))
 
             if not self.request.GET.get("connections"):
-                if channel.supports_ivr():
+                if channel.supports_ivr():  # pragma: needs cover
                     links.append(
                         dict(
                             title=_("Calls"),

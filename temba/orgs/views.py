@@ -1119,7 +1119,7 @@ class OrgCRUDL(SmartCRUDL):
                 used_class = "used-alert"
             return mark_safe("<div class='used-pct %s'>%d%%</div>" % (used_class, used_pct))
 
-        def get_plan(self, obj):
+        def get_plan(self, obj):  # pragma: needs cover
             if not obj.credits:  # pragma: needs cover
                 obj.credits = 0
 
@@ -1727,7 +1727,7 @@ class OrgCRUDL(SmartCRUDL):
             org_type = "child"
             if not obj.parent:
                 org_type = "parent"
-            if self.has_org_perm("orgs.org_create_sub_org") and obj.parent:
+            if self.has_org_perm("orgs.org_create_sub_org") and obj.parent:  # pragma: needs cover
                 return mark_safe(
                     f"<temba-modax header={_('Update')} endpoint={reverse('orgs.org_edit_sub_org')}?org={obj.id} ><div class='{org_type}-org-name linked'>{escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div></temba-modax>"
                 )
@@ -2481,7 +2481,7 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_import"):
                 links.append(dict(title=_("Import"), href=reverse("orgs.org_import")))
 
-            if settings.HELP_URL:
+            if settings.HELP_URL:  # pragma: needs cover
                 if len(links) > 0:
                     links.append(dict(divider=True))
 
@@ -2546,7 +2546,7 @@ class OrgCRUDL(SmartCRUDL):
                     formax.add_section("topups", reverse("orgs.topup_list"), icon="icon-coins", action="link")
 
             else:
-                if self.has_org_perm("orgs.org_plan"):
+                if self.has_org_perm("orgs.org_plan"):  # pragma: needs cover
                     formax.add_section("plan", reverse("orgs.org_plan"), icon="icon-credit", action="summary")
 
             if self.has_org_perm("channels.channel_update"):
@@ -2556,7 +2556,7 @@ class OrgCRUDL(SmartCRUDL):
                     self.add_channel_section(formax, channel)
 
                 twilio_client = org.get_twilio_client()
-                if twilio_client:
+                if twilio_client:  # pragma: needs cover
                     formax.add_section("twilio", reverse("orgs.org_twilio_account"), icon="icon-channel-twilio")
 
                 nexmo_client = org.get_nexmo_client()

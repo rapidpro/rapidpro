@@ -114,7 +114,7 @@ class BaseFlowForm(forms.ModelForm):
 
         for keyword in value:
             keyword = keyword.lower().strip()
-            if not keyword:
+            if not keyword:  # pragma: needs cover
                 continue
 
             if (
@@ -2432,7 +2432,7 @@ class FlowLabelCRUDL(SmartCRUDL):
             return kwargs
 
         def derive_fields(self):
-            if FlowLabel.objects.filter(parent=self.get_object()):
+            if FlowLabel.objects.filter(parent=self.get_object()):  # pragma: needs cover
                 return ("name",)
             else:
                 return ("name", "parent")

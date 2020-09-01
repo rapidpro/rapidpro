@@ -12,7 +12,7 @@ from .models import Schedule
 
 
 class BaseScheduleForm(object):
-    def clean_repeat_days_of_week(self):
+    def clean_repeat_days_of_week(self):  # pragma: needs cover
         data = self.cleaned_data["repeat_days_of_week"]
 
         # validate days of the week for weekly schedules
