@@ -14,7 +14,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         auth_token = forms.CharField(
             label=_("Authentication Token"), help_text=_("The discord bot token")
         )
-        proxy_url = forms.URLField(
+        proxy_url = forms.CharField(
             label=_("Proxy URL"), help_text=_("The URL on which the discord proxy is running")
         )
 
@@ -48,8 +48,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         auth_token = self.form.cleaned_data["auth_token"]
         proxy_url = self.form.cleaned_data["proxy_url"]
 
-        # bot = telegram.Bot(auth_token)
-        # me = bot.get_me()
         channel_config = {
             Channel.CONFIG_AUTH_TOKEN: auth_token,
             Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
