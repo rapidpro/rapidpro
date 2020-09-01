@@ -420,6 +420,11 @@ function wireTableListeners() {
     }
 }
 
+function stopEvent(event) {
+    event.stopPropagation();
+    event.preventDefault();
+}
+
 document.addEventListener('temba-refresh-complete', function () {
     wireTableListeners();
 });

@@ -9,8 +9,8 @@
     ]
   },
   "dependencies": {
-    "@nyaruka/flow-editor": "1.9.13",
-    "@nyaruka/temba-components": "0.3.6",
+    "@nyaruka/flow-editor": "1.9.15",
+    "@nyaruka/temba-components": "0.3.8",
     "@tailwindcss/ui": "0.2.2",
     "coffeescript": "1.12.7",
     "fa-icons": "0.2.0",
