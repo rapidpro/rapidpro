@@ -304,4 +304,5 @@ class FileCallbackView(View):
 
     def post(self, request, *args, **kwargs):
         path = "attachments/" + kwargs["path"]
+        assert ".." not in kwargs["path"]
         return FileResponse(default_storage.open(path))
