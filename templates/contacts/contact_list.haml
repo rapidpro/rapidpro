@@ -401,14 +401,6 @@
     }
     {% endif %}
 
-    {% if org_perms.contacts.contact_delete %}
-    $(".contacts-btn-delete").live('click', function() {
-      var confirm = document.querySelector('#delete-confirmation');
-      confirm.classList.remove("hide");
-      confirm.open = true;
-    });
-    {% endif %}
-
     {% if org_perms.contacts.contact_block %}
       $(".page-content").on('click', ".object-btn-unblock", function() {
 	      runActionOnObjectRows("unblock");
@@ -422,18 +414,6 @@
       $(".page-content").on('click', ".object-btn-unstop", function() {
 	      runActionOnObjectRows("unstop");
       });
-    {% endif %}
-
-    {% if org_perms.contacts.contact_delete %}
-    window.addEventListener('DOMContentLoaded', (event) => {
-      var confirmation = document.querySelector("#delete-confirmation");
-      confirmation.addEventListener("temba-button-clicked", function(event){
-        if(!event.detail.button.secondary) {
-          runActionOnObjectRows("delete");
-        }
-        confirmation.open = false;
-      })
-    });
     {% endif %}
 
     function handleCreateGroupModalLoaded(event) {

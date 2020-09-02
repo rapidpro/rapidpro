@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-02 03:30+0000\n"
+"POT-Creation-Date: 2020-09-02 14:49+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -8034,7 +8034,7 @@ msgid "Delete Selected Contacts"
 msgstr "Criar contatos"
 
 #, fuzzy
-msgid "Are you sure you want to delete these contacts? This cannot be undone."
+msgid "Are you sure you want to delete the selected contacts? This cannot be undone."
 msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
 
 #, fuzzy
