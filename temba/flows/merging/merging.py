@@ -332,7 +332,6 @@ class GraphDifferenceNode(Node):
     def check_routers(self):
         left = (self.left_origin_node or {}).data.get("router")
         right = (self.right_origin_node or {}).data.get("router")
-        conflict = {"conflict_type": NodeConflictTypes.ROUTER_CONFLICT, "left_router": left, "right_router": right}
 
         if left and right:
             self.data["router"] = left
@@ -475,7 +474,7 @@ class GraphDifferenceNode(Node):
                 subject_conflict["field"] = "subject"
                 conflicts.append(subject_conflict)
             return conflicts
-        
+
         if l_action["type"] == "set_contact_name":
             if l_action["name"] != r_action["name"]:
                 conflict["filed"] = "name"
@@ -497,7 +496,7 @@ class GraphDifferenceNode(Node):
                 field_conflict = dict(conflict)
                 field_conflict["field"] = "field"
                 conflicts.append(field_conflict)
-            
+
             if l_action["value"] != r_action["value"]:
                 value_conflict = dict(conflict)
                 value_conflict["field"] = "value"
@@ -526,14 +525,11 @@ class GraphDifferenceNode(Node):
     def resolve_conflict(self, action_uuid, field_name, value):
         def get_conflict(action_uuid):
             for index, conflict in enumerate(self.conflicts):
-                if field_name == "router":
+                if action_uuid == "router":
                     if "left_router" in conflict and field_name == conflict["field"]:
                         return self.conflicts.pop(index)
                 else:
-                    is_exact_action = (
-                        "left_action" in conflict and
-                        conflict["left_action"]["uuid"] == action_uuid
-                    )
+                    is_exact_action = "left_action" in conflict and conflict["left_action"]["uuid"] == action_uuid
                     if is_exact_action and field_name == conflict["field"]:
                         return self.conflicts.pop(index)
 
@@ -551,6 +547,7 @@ class GraphDifferenceNode(Node):
 
             if conflict["field"] in ("flow", "channel", "field"):
                 import json
+
                 try:
                     value = json.loads(value.replace("'", '"'))
                 except json.decoder.JSONDecodeError:
@@ -562,7 +559,7 @@ class GraphDifferenceNode(Node):
         elif conflict["conflict_type"] == NodeConflictTypes.ROUTER_CONFLICT:
             if conflict["field"] == "type":
                 if conflict["right_router"]["type"] == value:
-                    self.data["router"] = right_router
+                    self.data["router"] = conflict["right_router"]
                     self.correct_uuids()
             else:
                 self.data["router"][conflict["field"]] = value
@@ -775,9 +772,6 @@ class GraphDifferenceMap:
             else:
                 localization[key] = value
         self.definition["localization"] = localization
-
-    def get_conflict_pages_count(self):
-        return max([len(node.conflicts) for node in self.diff_nodes_map.values()])
 
     def get_conflict_solutions(self):
         conflict_solutions = []

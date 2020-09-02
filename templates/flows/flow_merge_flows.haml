@@ -61,12 +61,7 @@
                   =warning
         
           .form-buttons
-            - if conflict_pages and not firts_conflict_page
-              %input.btn.btn-primary{type:"button", value:'{% trans "Back" %}', onclick:"history.go(-1);"}
-            - if conflict_pages > 1
-              %input.btn.btn-primary{type:"submit", value:'{% trans "Next" %}'}
-            - else
-              %input.btn.btn-primary{type:"submit", value:'{% trans "Combine Flows" %}'}
+            %input.btn.btn-primary{type:"submit", value:'{% trans "Combine Flows" %}'}
             %a.btn{onclick:"javascript:history.go(-1)"}
               -trans "Cancel"
 

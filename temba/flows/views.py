@@ -3044,8 +3044,6 @@ class FlowCRUDL(SmartCRUDL):
             context["errors"] = errors
             context["merging_map"] = serialized_difference
             context["conflict_solutions"] = diff_graph.get_conflict_solutions()
-            context["conflict_pages"] = diff_graph.get_conflict_pages_count()
-            context["firts_conflict_page"] = True
 
             if len([node for node in diff_graph.diff_nodes_map.values() if node.parent is None]) > 1:
                 context["warnings"] = [
@@ -3103,7 +3101,6 @@ class FlowCRUDL(SmartCRUDL):
                         "flow_name": request.POST.get("flow_name"),
                         "merging_map": serialize_difference_graph(difference_map, dumps=True),
                         "conflict_solutions": difference_map.get_conflict_solutions(),
-                        "conflict_pages": difference_map.get_conflict_pages_count(),
                         "errors": errors,
                     }
                 )
