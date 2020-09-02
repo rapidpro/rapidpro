@@ -188,7 +188,7 @@ def apply_modifiers(org, user, contacts, modifiers: List):
         elif mod.type == "groups":
             groups = ContactGroup.user_groups.filter(query=None, uuid__in=[g.uuid for g in mod.groups])
             for group in groups:
-                assert not group.is_dynamic, "can't add/remove contacts from dynamic groups"
+                assert not group.is_dynamic, "can't add/remove contacts from smart groups"
                 if mod.modification == "add":
                     group.contacts.add(*contacts)
                 else:
