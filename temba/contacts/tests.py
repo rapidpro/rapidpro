@@ -3,7 +3,7 @@ import time
 import uuid
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from unittest.mock import PropertyMock, patch
+from unittest.mock import PropertyMock, call, patch
 
 import pytz
 from openpyxl import load_workbook
@@ -89,6 +89,7 @@ class ContactCRUDLTest(TembaTest):
         self.assertIsNone(response.context["search_error"])
         self.assertEqual([], list(response.context["actions"]))
 
+        active_contacts = ContactGroup.system_groups.get(org=self.org, group_type="A")
         survey_audience = ContactGroup.user_groups.get(org=self.org, name="Survey Audience")
         unsatisfied = ContactGroup.user_groups.get(org=self.org, name="Unsatisfied Customers")
 
@@ -194,14 +195,25 @@ class ContactCRUDLTest(TembaTest):
         self.client.post(list_url + "?search=Joe", {"action": "label", "objects": joe.id, "label": survey_audience.id})
         self.assertIn(joe, survey_audience.contacts.all())
 
+        self.assertEqual(
+            call(self.org.id, str(active_contacts.uuid), "Joe", "", offset=0, exclude_ids=[]),
+            mr_mocks.calls["contact_search"][-1],
+        )
+
         # try archive bulk action
-        self.client.post(list_url, {"action": "archive", "objects": frank.id})
+        self.client.post(list_url + "?search=Joe", {"action": "archive", "objects": joe.id})
+
+        # we re-run the search for the response, but exclude Joe
+        self.assertEqual(
+            call(self.org.id, str(active_contacts.uuid), "Joe", "", offset=0, exclude_ids=[joe.id]),
+            mr_mocks.calls["contact_search"][-1],
+        )
 
         response = self.client.get(list_url)
-        self.assertEqual([joe], list(response.context["object_list"]))
+        self.assertEqual([frank], list(response.context["object_list"]))
 
-        frank.refresh_from_db()
-        self.assertEqual(Contact.STATUS_ARCHIVED, frank.status)
+        joe.refresh_from_db()
+        self.assertEqual(Contact.STATUS_ARCHIVED, joe.status)
 
     @mock_mailroom
     def test_blocked(self, mr_mocks):
@@ -1088,7 +1100,7 @@ class ContactGroupCRUDLTest(TembaTest):
 
         # dependent on id
         response = self.client.post(url, dict(name="Frank", query="id = 123"))
-        self.assertFormError(response, "form", "query", 'You cannot create a dynamic group based on "id" or "group".')
+        self.assertFormError(response, "form", "query", 'You cannot create a smart group based on "id" or "group".')
 
         response = self.client.post(url, dict(name="Frank", query='twitter = "hola"'))
 

@@ -1,3 +1,11 @@
+v5.7.33
+----------
+ * Fix delete button on archived contacts page
+ * Don't allow saving queries that aren't supported as smart groups
+ * Delete no longer used contacts/fields.py
+ * Fix contacts reppearing in ES searches after being modified by a bulk action
+ * Adjust pjax block for contact import block
+
 v5.7.32
 ----------
  * Modal max-height in vh to not obscure buttons

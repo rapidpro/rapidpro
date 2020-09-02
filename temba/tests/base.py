@@ -212,7 +212,7 @@ class TembaTestMixin:
         return contact
 
     def create_group(self, name, contacts=(), query=None, org=None):
-        assert not (contacts and query), "can't provide contact list for a dynamic group"
+        assert not (contacts and query), "can't provide contact list for a smart group"
 
         if query:
             return ContactGroup.create_dynamic(org or self.org, self.user, name, query=query)

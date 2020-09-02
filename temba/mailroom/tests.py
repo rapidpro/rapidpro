@@ -189,6 +189,7 @@ class MailroomClientTest(TembaTest):
                     "query": "frank",
                     "org_id": 1,
                     "group_uuid": "2752dbbc-723f-4007-8bc5-b3720835d3a9",
+                    "exclude_ids": (),
                     "offset": 0,
                     "sort": "-created_on",
                 },
