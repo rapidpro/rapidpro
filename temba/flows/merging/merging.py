@@ -415,6 +415,7 @@ class GraphDifferenceNode(Node):
         ]
         is_similar.append("labels" in left and "labels" in right)
         is_similar.append("groups" in left and "groups" in right)
+        is_similar.append("set_contact" in left["type"] and "set_contact" in right["type"])
         return any(is_similar)
 
     def check_actions_conflicts(self, l_action, r_action):
@@ -474,6 +475,34 @@ class GraphDifferenceNode(Node):
                 subject_conflict["field"] = "subject"
                 conflicts.append(subject_conflict)
             return conflicts
+        
+        if l_action["type"] == "set_contact_name":
+            if l_action["name"] != r_action["name"]:
+                conflict["filed"] = "name"
+                return [conflict]
+
+        if l_action["type"] == "set_contact_language":
+            if l_action["language"] != r_action["language"]:
+                conflict["filed"] = "language"
+                return [conflict]
+
+        if l_action["type"] == "set_contact_channel":
+            if l_action["channel"]["uuid"] != r_action["channel"]["uuid"]:
+                conflict["filed"] = "channel"
+                return [conflict]
+
+        if l_action["type"] == "set_contact_field":
+            conflicts = []
+            if l_action["field"]["key"] != r_action["field"]["key"]:
+                field_conflict = dict(conflict)
+                field_conflict["field"] = "field"
+                conflicts.append(field_conflict)
+            
+            if l_action["value"] != r_action["value"]:
+                value_conflict = dict(conflict)
+                value_conflict["field"] = "value"
+                conflicts.append(value_conflict)
+            return conflicts
 
         if l_action["type"] in ("start_session", "enter_flow"):
             if l_action["flow"]["uuid"] != r_action["flow"]["uuid"]:
@@ -504,10 +533,12 @@ class GraphDifferenceNode(Node):
                     action = action_
                     already_created = True
 
-            if conflict["field"] == "flow":
+            if conflict["field"] in ("flow", "channel", "field"):
                 import json
-
-                value = json.loads(value.replace("'", '"'))
+                try:
+                    value = json.loads(value.replace("'", '"'))
+                except json.decoder.JSONDecodeError:
+                    pass
 
             action[conflict["field"]] = value
             if not already_created:
