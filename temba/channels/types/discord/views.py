@@ -28,7 +28,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                     raise ValidationError(_("A Discord channel for this bot already exists on your account."))
 
             try:
-                req = requests.get("https://discord.com/api/users/@me", headers={"Authorization": f"Bot {value}"})
+                req = requests.get("https://discord.com/api/users/@me", headers={"Authorization": f"Bot {value}"}, timeout=2)
                 if req.status_code != 200:
                     raise ValidationError(_("Couldn't log in using that bot token. Please check and try again"))
             except requests.RequestException:
