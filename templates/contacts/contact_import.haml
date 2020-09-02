@@ -94,79 +94,85 @@
         #import-status
           #import-message
             - if task
-              - if task.status == "PENDING" or task.status == "RUNNING" or task.status == "STARTED"
-                  Importing..
-                  %temba-loading
+              .card
+                - if task.status == "PENDING" or task.status == "RUNNING" or task.status == "STARTED"                 
+                  .bleed-x.bleed-t.bg-gray-100.px-6.py-4.text-xl
+                    -trans "One moment.."
+                  
+                  %temba-loading(units=8 size=10)
 
-              - else
-                - if task.status == "SUCCESS" and group.contacts.all
-                  - if results.creates
+                - else
+                  - if task.status == "SUCCESS" and group.contacts.all
+                    .bleed-x.bleed-t.bg-gray-100.px-6.py-4.text-xl
+                      -trans "All done!"
+
+                    - if results.creates
+                      .import-result.text-lg.mt-2
+                        .icon-checkmark.text-success.mr-2
+                        -blocktrans trimmed count results.creates as create_count
+                          Created {{ create_count }} new contact
+                          -plural
+                            Created {{ create_count }} new contacts
+
+                    - if results.updates
+                      .import-result.text-lg.mt-2
+                        .icon-checkmark.text-success.mr-2
+                        -blocktrans trimmed count results.updates as update_count
+                          Updated {{ update_count }} contact with an existing phone number
+                          -plural
+                            Updated {{ update_count }} contacts with existing phone numbers
+
                     .import-result.text-lg.mt-2
                       .icon-checkmark.text-success.mr-2
-                      -blocktrans trimmed count results.creates as create_count
-                        Created {{ create_count }} new contact
+                      -blocktrans trimmed with contacts_count=results.records
+                        Added all contacts to the new
+                      %a{href:"{% url 'contacts.contact_filter' group.uuid %}"}= group.name
+                      group
+
+                    - if results.errors
+                      .import-result
+                        .well.well-small
+                          %strong
+                            -blocktrans trimmed
+                              Some rows were not imported
+                          %br
+                          %strong
+                            -blocktrans trimmed
+                              Errors description
+                          %br
+                            -for error_message in results.error_messages
+                              Row {{ error_message.line }}: {{ error_message.error }}
+                              %br
+
+                  -elif results.errors
+                    .import-result.text-lg
+                      .icon-warning.text-error.mr-2
+                      -blocktrans trimmed count results.errors as error_count
+                        Failed to import {{ error_count }} contact due to missing or invalid phone number
                         -plural
-                          Created {{ create_count }} new contacts
+                          Failed to import {{ error_count }} contacts due to missing or invalid phone numbers
 
-                  - if results.updates
-                    .import-result.text-lg.mt-2
-                      .icon-checkmark.text-success.mr-2
-                      -blocktrans trimmed count results.updates as update_count
-                        Updated {{ update_count }} contact with an existing phone number
-                        -plural
-                          Updated {{ update_count }} contacts with existing phone numbers
-
-                  .import-result.text-lg.mt-2
-                    .icon-checkmark.text-success.mr-2
-                    -blocktrans trimmed with contacts_count=results.records
-                      Added all contacts to the new
-                    %a{href:"{% url 'contacts.contact_filter' group.uuid %}"}= group.name
-                    group
-
-                  - if results.errors
                     .import-result
                       .well.well-small
                         %strong
                           -blocktrans trimmed
-                            Some rows were not imported
-                        %br
-                        %strong
-                          -blocktrans trimmed
                             Errors description
+
                         %br
-                          - for error_message in results.error_messages
+                          -for error_message in results.error_messages
                             Row {{ error_message.line }}: {{ error_message.error }}
                             %br
 
-                - elif results.errors
-                  .import-result.text-lg
-                    .icon-warning.text-error.mr-2
-                    -blocktrans trimmed count results.errors as error_count
-                      Failed to import {{ error_count }} contact due to missing or invalid phone number
-                      -plural
-                        Failed to import {{ error_count }} contacts due to missing or invalid phone numbers
+                  -elif task.status == "SUCCESS" and not group.contacts.all
+                    .bleed-x.bleed-t.bg-gray-100.px-6.py-4.text-xl
+                      -trans "Grouping.."
+                    %temba-loading(units=8 size=10)
 
-                  .import-result
-                    .well.well-small
-                      %strong
-                        -blocktrans trimmed
-                          Errors description
+                  -elif not group.contacts.all
+                    -blocktrans trimmed
+                      No contacts imported, please make sure your have a channel connected.
+    
 
-                      %br
-                        -for error_message in results.error_messages
-                          Row {{ error_message.line }}: {{ error_message.error }}
-                          %br
-
-                - elif task.status == "SUCCESS" and not group.contacts.all
-                  Grouping..
-                  %temba-loading
-
-                - elif not group.contacts.all
-                  -blocktrans trimmed
-                    No contacts imported, please make sure your have a channel connected.
-  
-              .mt-4.button-light.inline-block(onclick="goto(event)" href="{% url 'contacts.contact_list'%}")
-                -trans "Contacts"
 
           -if show_form
             -blocktrans trimmed
@@ -175,17 +181,19 @@
               as a sample.
 
             %form#import-form{method:"post", action:"{% url 'contacts.contact_import' %}", enctype:"multipart/form-data"}
-              - if form.non_field_errors
-                .text-error
-                  {{ form.non_field_errors }}
 
               -csrf_token
+
               -if form.non_field_errors
-                .text-error
+                .text-error.py-2
+                  {{ form.non_field_errors }}
+
+              -if form.non_field_errors
+                .text-error.py-2
                   {{ form.non_field_errors }}
 
               -block fields
-                .mt-4.mb-4.text-error
+                .mt-4.mb-6.text-error
                   {{ form.csv_file.errors }}
                 #file-upload
                   %input{type:"file", name:"csv_file", id:"csv_file", onchange:'updateFile()'}
