@@ -2615,7 +2615,7 @@ class ContactGroup(TembaModel):
         Creates a dynamic group with the given query, e.g. gender=M
         """
         if not query:
-            raise ValueError("Query cannot be empty for a dynamic group")
+            raise ValueError("Query cannot be empty for a smart group")
 
         group = cls._create(org, user, name, ContactGroup.STATUS_INITIALIZING, query=query)
         group.update_query(query=query, reevaluate=evaluate, parsed=parsed_query)
@@ -2717,7 +2717,7 @@ class ContactGroup(TembaModel):
         from temba.contacts.search import parse_query, SearchException
 
         if not self.is_dynamic:
-            raise ValueError("Cannot update query on a non-dynamic group")
+            raise ValueError("Cannot update query on a non-smart group")
         if self.status == ContactGroup.STATUS_EVALUATING:
             raise ValueError("Cannot update query on a group which is currently re-evaluating")
 
@@ -2726,7 +2726,7 @@ class ContactGroup(TembaModel):
                 parsed = parse_query(self.org_id, query)
 
             if not parsed.metadata.allow_as_group:
-                raise ValueError(f"Cannot use query '{query}' as a dynamic group")
+                raise ValueError(f"Cannot use query '{query}' as a smart group")
 
             self.query = parsed.query
             self.status = ContactGroup.STATUS_INITIALIZING
