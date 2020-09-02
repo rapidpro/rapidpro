@@ -1455,7 +1455,7 @@ class ContactCRUDL(SmartCRUDL):
         def derive_group(self):
             return ContactGroup.user_groups.get(uuid=self.kwargs["group"], org=self.request.user.get_org())
 
-    class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
+    class Create(NonAtomicMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactForm
         success_message = ""
         submit_button_name = _("Create")
@@ -1480,7 +1480,7 @@ class ContactCRUDL(SmartCRUDL):
                     scheme = field_key.split("__")[1]
                     urns.append(URN.from_parts(scheme, value))
 
-            Contact.get_or_create_by_urns(obj.org, self.request.user, obj.name, urns)
+            Contact.create(obj.org, self.request.user, obj.name, urns)
 
     class Update(NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
