@@ -6,7 +6,6 @@ from smartmin.views import SmartFormView, SmartReadView
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.core.files.storage import default_storage
 from django.http import FileResponse, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.template.response import TemplateResponse
 from django.urls import reverse
@@ -19,6 +18,7 @@ from django.views.generic import View
 
 from temba.orgs.views import OrgPermsMixin
 from temba.utils import json
+from temba.utils.s3 import public_file_storage
 from temba.utils.text import random_string
 from temba.utils.views import ComponentFormMixin
 
@@ -305,4 +305,4 @@ class FileCallbackView(View):
     def post(self, request, *args, **kwargs):
         path = "attachments/" + kwargs["path"]
         assert ".." not in kwargs["path"]
-        return FileResponse(default_storage.open(path))
+        return FileResponse(public_file_storage.open(path))
