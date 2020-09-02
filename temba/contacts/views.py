@@ -1303,7 +1303,7 @@ class ContactCRUDL(SmartCRUDL):
                                 href=f"{reverse('contacts.contactgroup_create')}?search={urlquote_plus(search)}",
                             )
                         )
-                except SearchException:
+                except SearchException:  # pragma: no cover
                     pass
 
             if self.has_org_perm("contacts.contactfield_list"):
