@@ -523,8 +523,24 @@ class GraphDifferenceNode(Node):
         self.check_actions()
         self.correct_uuids()
 
-    def resolve_conflict(self, value):
-        conflict = self.conflicts.pop(0)
+    def resolve_conflict(self, action_uuid, field_name, value):
+        def get_conflict(action_uuid):
+            for index, conflict in enumerate(self.conflicts):
+                if field_name == "router":
+                    if "left_router" in conflict and field_name == conflict["field"]:
+                        return self.conflicts.pop(index)
+                else:
+                    is_exact_action = (
+                        "left_action" in conflict and
+                        conflict["left_action"]["uuid"] == action_uuid
+                    )
+                    if is_exact_action and field_name == conflict["field"]:
+                        return self.conflicts.pop(index)
+
+        conflict = get_conflict(action_uuid)
+        if not conflict:
+            return self.conflicts
+
         if conflict["conflict_type"] == NodeConflictTypes.ACTION_CONFLICT:
             already_created = False
             action = conflict["left_action"]
@@ -782,39 +798,40 @@ class GraphDifferenceMap:
             return f"{flow_step_name}: {field_name} '{field_value}'"
 
         for uuid, conflicts in self.conflicts.items():
-            conflict = conflicts[0]
-            origin_node = (
-                self.diff_nodes_origin_map.get(uuid).left_origin_node
-                or self.diff_nodes_origin_map.get(uuid).right_origin_node
-            )
+            for conflict in conflicts:
+                origin_node = (
+                    self.diff_nodes_origin_map.get(uuid).left_origin_node
+                    or self.diff_nodes_origin_map.get(uuid).right_origin_node
+                )
 
-            if conflict["conflict_type"] == NodeConflictTypes.ACTION_CONFLICT:
-                conflict_solutions.append(
-                    {
-                        "uuid": uuid,
-                        "node_label": get_node_label(origin_node, conflict),
-                        "solutions": [
-                            conflict["left_action"][conflict["field"]],
-                            conflict["right_action"][conflict["field"]],
-                        ],
-                    }
-                )
-            elif conflict["conflict_type"] == NodeConflictTypes.ROUTER_CONFLICT:
-                conflict_solutions.append(
-                    {
-                        "uuid": uuid,
-                        "node_label": get_node_label(origin_node, conflict),
-                        "solutions": [
-                            conflict["left_router"][conflict["field"]],
-                            conflict["right_router"][conflict["field"]],
-                        ],
-                    }
-                )
+                if conflict["conflict_type"] == NodeConflictTypes.ACTION_CONFLICT:
+                    conflict_solutions.append(
+                        {
+                            "uuid": f'{uuid}_{conflict["left_action"]["uuid"]}_{conflict["field"]}',
+                            "node_label": get_node_label(origin_node, conflict),
+                            "solutions": [
+                                conflict["left_action"][conflict["field"]],
+                                conflict["right_action"][conflict["field"]],
+                            ],
+                        }
+                    )
+                elif conflict["conflict_type"] == NodeConflictTypes.ROUTER_CONFLICT:
+                    conflict_solutions.append(
+                        {
+                            "uuid": f'{uuid}_router_{conflict["field"]}',
+                            "node_label": get_node_label(origin_node, conflict),
+                            "solutions": [
+                                conflict["left_router"][conflict["field"]],
+                                conflict["right_router"][conflict["field"]],
+                            ],
+                        }
+                    )
         return conflict_solutions
 
     def apply_conflict_resolving(self, conflict_resolving):
-        for node_uuid, resolving in conflict_resolving.items():
-            updated_conflicts = self.diff_nodes_map.get(node_uuid).resolve_conflict(resolving)
+        for conflict_uuid, resolving in conflict_resolving.items():
+            node_uuid, action_uuid, field_name = conflict_uuid.split("_")
+            updated_conflicts = self.diff_nodes_map.get(node_uuid).resolve_conflict(action_uuid, field_name, resolving)
             if updated_conflicts:
                 self.conflicts[node_uuid] = updated_conflicts
             else:
