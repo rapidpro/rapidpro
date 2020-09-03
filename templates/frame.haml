@@ -1,14 +1,15 @@
 <!DOCTYPE HTML>
 -load humanize
 
-%html(lang="{{ LANGUAGE_CODE }}")
+{% block html-tag %}
+<html lang="{{ LANGUAGE_CODE }}">
+{% endblock %}
   %head
     %title
       {% block page-title %}
         {{ brand.name }} - Visually build interactive SMS Applications
       {% endblock %}
 
-    %link{href:'{{STATIC_URL}}fonts/roboto/stylesheet.css', rel:'stylesheet', type:'text/css'}
     %meta{charset:"utf-8"}
     %meta{name:"viewport", content:"width=device-width, initial-scale=1.0"}
     %meta{name:"description", content:"{% block page-description %}{{brand.name}} lets you visually build interactive SMS applications and launch them anywhere in the world.{% endblock %}"}
@@ -43,7 +44,7 @@
 
     -compress js
       :javascript
-         var static_url = '{{STATIC_URL}}';
+        var static_url = '{{STATIC_URL}}';
 
       %script{src:"{{ STATIC_URL }}bower/toastr/toastr.js"}
       %script{src:"{{ STATIC_URL }}bower/select2/select2.js"}
@@ -104,100 +105,16 @@
     -load i18n
 
     -block styles
-
-      :css
-        html {
-
-          --font-family: Helvetica, Arial, sans-serif;
-          --primary-rgb: 35, 135, 202;
-          --secondary-rgb: 0, 77, 129;
-          --focus-rgb: 82, 168, 236;
-          --error-rgb: 255, 99, 71;
-
-          /* Old style matching, squared off, borded inputs, select2 colors */
-          --curvature: 0px;
-          --curvature-widget: 0px;
-          --color-focus: rgba(var(--focus-rgb), 0.8);
-          --color-widget-bg: #fff;
-          --color-widget-bg-focused: #fff;
-          --color-widget-border: rgb(204,204,204);
-         
-          /* primary colors, should be dark */
-          --color-selection: #f0f6ff;
-
-          --widget-box-shadow-focused: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(var(--focus-rgb), 0.6);
-          --widget-box-shadow-focused-error: inset 0 1px 1px rgba(var(--error-rgb), 0.075), 0 0 8px rgba(var(--error-rgb), 0.6);
-
-          /* page text, borders, widgets */
-          --color-text: #555;
-          --color-widget-text: #555;
-          --color-borders: rgba(0,0,0,.07);
-          --color-placeholder: #ccc;
- 
-          /* light colors, panel backgrounds, selection, etc */
-          --color-primary-light: #eee;
-          --color-secondary-light: #ccc;
-
-          /* dark colors, nav bar, buttons, etc */
-          --color-primary-dark: rgb(var(--primary-rgb));
-          --color-secondary-dark: rgb(var(--secondary-rgb));
-
-          /* light text goes over dark, dark over lights */
-          --color-text-light: rgba(255,255,255,.92);
-          --color-text-dark: rgba(0,0,0,.5);
-          --color-text-dark-secondary: rgba(0,0,0,.25);
-          --color-text-help: rgba(0,0,0,.45);
-
-          /* solid overlays with text */
-          --color-overlay-dark: rgba(0,0,0,.2);
-          --color-overlay-dark-text: rgba(255, 255, 255, .9);
-          --color-overlay-light: rgba(0,0,0,.05);
-          --color-overlay-light-text: rgba(0,0,0, .6);
-
-          /* links, buttons, and label badges */
-          --color-link-primary: rgba(var(--primary-rgb), .8);
-          --color-link-primary-hover: rgba(var(--primary-rgb), .9);
-          --color-link-secondary: rgba(var(--secondary-rgb), .8);
-          --color-link-secondary-hover: rgba(var(--secondary-rgb), .9);
-          --color-button-primary: var(--color-primary-dark);
-          --color-button-primary-text: var(--color-text-light);
-          --color-button-secondary: var(--color-secondary-light);
-          --color-button-secondary-text: var(--color-text-dark);
-          
-          --color-label-primary: var(--color-primary-dark);
-          --color-label-primary-text: var(--color-text-light);        
-          --color-label-secondary: rgba(0,0,0,.2);
-          --color-label-secondary-text: rgba(255, 255, 255, .9);    
-
-          --color-info: #c0d9eb;
-          --color-warning: #fff6c0;
-          --color-error: rgb(var(--error-rgb));
-
-          font-size: 13px;
-          font-weight: 200;
-          font-family: var(--font-family);
-
-          --button-y: 8px;
-          --button-x: 14px;
-
-          --color-nav-unselected: #fff;
-          --color-nav-selected-bg: #fff;
-          --color-nav-selected-text: var(--color-primary-dark);
-
-        }
-
-        temba-select:focus {
-          outline: none;
-          box-shadow: none;
-        }
+      %link{rel:'stylesheet', href:'https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:200,300,400,500'}
 
       -compress css
         %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/bootstrap-css/css/bootstrap.css',  media:'all' }
         %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/animate.css/animate.css',  media:'all' }
 
+
       -compress css
-        %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/bootstrap-css/css/bootstrap-responsive.css',
-              media:'all and (min-width: 1200px), all and (max-width: 767px), all and (max-width: 480px), all and (min-width: 980px)' }
+        // %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/bootstrap-css/css/bootstrap-responsive.css',
+              // media:'all and (min-width: 1200px), all and (max-width: 767px), all and (max-width: 480px), all and (min-width: 980px)' }
 
       -compress css
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/toastr/toastr.css", media:'all'}
@@ -211,13 +128,14 @@
 
       -compress css
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
+        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/icons/style.css", media:'all'}
         %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/print.less', media:'print'}
+        %link{type:"text/css", rel:"stylesheet", href:"{{ STATIC_URL }}css/temba-components.css"}
 
       -compress css
 
         {% lessblock %}
           :plain
-            @import "formax.less";
             @import "style.less";
 
             // any brand styling tweaks
@@ -233,6 +151,10 @@
           -else
             %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}{{style}}", media:'all'}
 
+      -compress css
+        %link{rel:"stylesheet", href:"{{ STATIC_URL }}css/tailwind.css", type:"text/css"}
+        %link{rel:"stylesheet", href:"{{ STATIC_URL }}less/refresh.less", type:"text/less"}
+
       -block extra-less
       -block extra-style
 
@@ -246,18 +168,14 @@
 -load smartmin
 {% block body %}
 
-%body#pageBody
+%body#pageBody.bg-gradient
   -include "components-body.html"
-  .page-wrap
-
+  .flex.flex-col.h-full
     <!-- Header -->
-    #print-header
-      %span.logo.icon-logo
-
     #header
       &nbsp;
 
-    %a#big-logo.logo.icon-logo{href:"/", title:"{{brand.name}}"}
+    %a#big-logo.logo.icon-logo{href:"{% if user.is_authenticated %}{% url 'msgs.msg_inbox' %}{% else %}/{% endif %}", title:"{{brand.name}}", class:"hover:no-underline"}
       .name
         {{brand.name}}
 
@@ -280,48 +198,49 @@
                 %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
                   {{ org.name }}
 
+    -if messages
+      -block messages
+        -if messages
+          -for msg in messages
+            %div{class:"alert alert-{{ message.tags }}"}
+              {{ msg }}
+
+
     -block post-header
     <!-- Content -->
     -block page-container
-      #page-container.container-fluid
+      .flex-grow
         .page-content
-          -block page-top
-            .row-fluid
-              .span9
-                -block title
-                  -block title-icon
-                  -block title-text
-                    .title-text
-                      %h1
-                        {{title}}
+          .px-12.py-4
+            -block page-top
+              .flex.items-start
+                .flex.flex-col.mr-5.leading-tight
+                  .page-title
+                    -block title
+                      
+                  .page-subtitle
+                    -block subtitle
 
-              .span3.top-form
-                .pull-right
-
-                  -block above-bar
+                .flex-grow
+                  .flex.justify-end.w-full
                     -block gear-menu
                       -include "gear_links_include.haml"
-                    -block top-form
 
-            -block top-bar
-              %hr.top-bar
+              -block post-title
 
-          - if messages
-            .row-fluid
-              .span12
-                - block messages
-                  - if messages
-                    -for msg in messages
-                      %div{class:"alert alert-{{ message.tags }}"}
-                        {{ msg }}
 
-          -block content
-          -block post-content
+            .mt-6
+              -block content
+            
+            -block post-content
 
-    #footerInnerSeperator
-    #footerOuterSeparator
+    .footer.text-center.py-12.bg-gray-200.text-gray-500
+      {{ request.branding.credits|safe }}
 
-  -include "includes/frame_bottom.html"
+  -trans 'Delete' as title
+  %temba-dialog#general-delete-confirmation{header:"{{title|escapejs}}", primaryButtonName:"{{title|escapejs}}", destructive: "true"}
+    .p-6.confirmation-body
+      -trans "Are you sure you want to continue? This cannot be undone."
 
   // media associated with any form we are displaying
   -if form
@@ -340,25 +259,53 @@
         {% endif %}
       {% endif %}
 
+      function posterize(href) {
+        var url = $.url(href);
+        $("#posterizer").attr("action", url.attr("path"));
+        for (var key in url.param()){
+          $("#posterizer").append("<input type='hidden' name='" + key + "' value='" + url.param(key) + "'></input>");
+        }
+        $("#posterizer").submit();
+      }
+
+      function handlePosterize(ele) {
+        posterize(ele.getAttribute('href'));
+      }
+
       function removalConfirmation(removal, buttonName) {
-        modal = new ConfirmationModal($('.' + removal + ' > .title').html(), $('.' + removal + ' > .body').html());
-        modal.addClass('alert');
-        modal.setListeners({onPrimary: function(){
-          $('#' + removal + '-form').click();
-        }}, false);
-        modal.setPrimaryButton(buttonName);
-        modal.show();
+  
+        var modal = document.querySelector("#general-delete-confirmation");
+
+        // set modal deets
+        var title = document.querySelector('.' + removal + ' > .title').innerHTML;
+        var body = document.querySelector('.' + removal + ' > .body').innerHTML;
+
+        modal.header = title;
+        modal.querySelector('.confirmation-body').innerHTML = body;
+
+        modal.open = true;
+
+        modal.addEventListener("temba-button-clicked", function(event){
+          if(!event.detail.button.secondary) {
+            var ele = document.querySelector('#' + removal + '-form');
+            handlePosterize(ele);
+          }
+          modal.open = false;
+
+          // clear our listeners
+          modal.outerHTML = modal.outerHTML;
+        });
       }
 
       function formatContact(item) {
         if (item.text.indexOf(" (") > -1) {
-         var name = item.text.split("(")[0];
-         if (name.indexOf(")") == name.length - 1) {
-           name = name.substring(0, name.length - 1);
-         }
-         return name;
-       }
-       return item.text;
+        var name = item.text.split("(")[0];
+        if (name.indexOf(")") == name.length - 1) {
+          name = name.substring(0, name.length - 1);
+        }
+        return name;
+      }
+      return item.text;
       }
 
       function createContactChoice(term, data) {
@@ -381,10 +328,6 @@
         });
       }
 
-
-    -block modals
-      -include 'modal.haml'
-
     -block extra-script
 
     <script type="text/javascript" src="{{ STATIC_URL }}js/libs/jquery.url.js"></script>
@@ -399,7 +342,7 @@
           $("html").addClass("windows");
         }
 
-        initSelect2Fields();
+        // initSelect2Fields();
 
         $(".btn").tooltip();
 
@@ -439,20 +382,20 @@
           timeout:300
         });
 
-        $("a.posterize").click(function(event){
-          event.preventDefault();
-          event.stopPropagation();
+        $(".posterize").click(function(event){
 
-          var href = $(this).attr("href");
-          var url = $.url(href);
-
-          $("#posterizer").attr("action", url.attr("path"));
-
-          for (var key in url.param()){
-            $("#posterizer").append("<input type='hidden' name='" + key + "' value='" + url.param(key) + "'></input>");
+          var ele = event.target;
+          while (ele && !ele.classList.contains("posterize")) {
+            ele = ele.parentElement;
           }
 
-          $("#posterizer").submit();
+          event.preventDefault();
+          event.stopPropagation();
+          handlePosterize(ele);
         });
+
+
       });
 {% endblock body %}
+
+</html>

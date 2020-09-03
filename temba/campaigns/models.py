@@ -603,6 +603,7 @@ class EventFire(Model):
         for event in campaign.get_events():
             if EventFire.objects.filter(event=event).exists():
                 event = event.deactivate_and_copy()
+
             event.schedule_async()
 
     @classmethod

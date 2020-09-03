@@ -5,67 +5,72 @@
   HTTP Log - {{ object.get_log_type_display }}
 
 -block title
-  .medium-help.icon-cloud-upload{ style:'float:left;' }
-  %h2.header-margin
-    -if object.classifier
-      -trans "Classifier Event"
-    -if object.channel
-      -trans "Channel Event"
-  %h5.header-margin
-    {{object.get_log_type_display}}
-
--block above-bar
   -if object.classifier
-    %a.btn.btn-secondary{ href: '{% url "request_logs.httplog_classifier" object.classifier.uuid %}' } Classifier Log
+    -trans "Classifier Event"
+  -if object.channel
+    -trans "Channel Event"
+-block subtitle
+  {{object.get_log_type_display}}
+
 
 -block content
 
-  .log-details
-    .detail.classifier
-      .header
+  .card.flex.mt-0
+    .inline-flex.mr-8
+      .font-normal.mr-2
         -if object.classifier
           Classifier
-          %a{href:'{% url "classifiers.classifier_read" object.classifier.uuid %}'}
-            {{object.classifier.name}}
-        -if object.channel
-          %a{href:'{% url "channels.channel_read" object.channel.uuid %}'}
-            {{object.channel.name}}
+      -if object.classifier
+        %a{href:'{% url "classifiers.classifier_read" object.classifier.uuid %}'}
+          {{object.classifier.name}}
+      -if object.channel
+        %a{href:'{% url "channels.channel_read" object.channel.uuid %}'}
+          {{object.channel.name}}
 
-    %div(style="float:right")
-      .detail.started
-        .header
-          Date
-        {{object.created_on|date:"M j, Y g:i:s a"}}
+    .inline-flex.mr-8
+      .font-normal.mr-2
+        -trans "Date"
+      {{object.created_on|date:"M j, Y g:i:s a"}}
 
-  .log<
-    .summary
-      .time.pull-right
-        {{log.created_on|date:"M j, Y g:i:s a"}}
+  %table.list
+    %tbody
+      %tr.border-b
+        -if object.status_code
+          %td(style="width: 30px;")
+            .font-normal.text-2xl
+              {{ object.status_code }}
 
-      .request-time.pull-right
-        Request time:
-        %span.request-time-value
-          {{ object.request_time|default:"0"|intcomma }}ms
+        %td
+          .font-normal.inline.mr-1
+            %span.method= object.method
+          {{ object.url }}
 
-      -if object.status_code
-        %span.status-code
-          {{ object.status_code }}
-      %span.url
-        %span.method= object.method
-        {{ object.url }}
+        %td
+          .text-right.whitespace-no-wrap
+            {{log.created_on|date:"M j, Y g:i:s a"}}
 
-    .details
-      %pre.prettyprint.request<
-        :plain
-          {{ object.request }}
+        %td
+          .text-right.whitespace-no-wrap.mr-3
+            -trans "Took"
+            {{ object.request_time|default:"0"|intcomma }}ms
+
+      %tr
+        %td(colspan="99" style="padding:0;")
+          %pre.prettyprint.request<
+            :plain
+              {{ object.request.strip }}
 
       -if object.response
-        %pre.prettyprint.response<
-          :plain
-            {{ object.response }}
+        %tr
+          %td(colspan="4" style="padding:0;")
+            %pre.prettyprint.response<
+              :plain
+                {{ object.response }}
       -elif object.is_error
-        %pre.prettyprint.response<
-          -trans "Connection Error"
+        %tr
+          %td(colspan="4" style="padding:0;")
+            %pre.prettyprint.response<
+              -trans "Connection Error"
 
 -block extra-script
   {{ block.super }}
@@ -75,96 +80,39 @@
       prettyPrint();
     });
 
-  :javascript
-    $('document').ready(function(){
-      $('.summary :first').click();
-    });
-
 -block extra-style
   {{ block.super }}
   <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}rest_framework/css/prettify.css"/>
+
+  :css
+    .page-content {
+      max-width: 100%;
+    }
+
 
 -block extra-less
   {{block.super}}
   -compress css inline
     {% lessblock %}
       :plain
-        .result {
-          clear: both;
-          margin-bottom: 10px;
-        }
-
-        .result-status {
-          float: left;
-          margin-top: 10px;
-          font-size: 32px;
-          color: #666;
-        }
-
-        .result .result-summary {
-          margin-left: 70px;
-        }
-
-        .log {
-          padding: 0px;
-          border: 1px solid #f7f7f9 - #111;
-          margin-bottom:10px;
-
-          pre, .prettyprint {
-            border: 0;
-            margin-bottom: 0px;
-          }
-
-          .request-time {
-            margin-right: 50px;
-
-            .request-time-value {
-              font-weight: bold
-            }
-          }
-
-          .status-code {
-            margin-right: 5px;
-          }
-
-          .summary {
-            border: 1px solid #f7f7f9 - #111;
-            padding: 10px;
-            color: @flat-grey;
-            cursor: pointer;
-            word-break: break-all;
-            word-wrap: break-word;
-
-            .method {
-              font-weight: bold;
-            }
-          }
-          .prettyprint {
-            padding: 10px;
-            border-radius: 0;
-
-            &.request {
-              background: #f7f7f9 + 111;
-              border-bottom: 1px solid @flat-white;
+        table.list {
+          tbody {
+            tr:first-child {
+              td {
+                padding: 1.5rem;
+              }
             }
           }
         }
 
-        .log-details {
-          padding: 10px;
-          margin-bottom:10px;
-          border: 1px solid #f7f7f9 - #111;
-          font-size: 80%;
+        pre.prettyprint {
+          margin: 0;
+          border: 0;
+          max-height: none !important;
+          padding: 1.5rem;
 
-          .header {
-            display: inline-block;
-            font-weight: 400;
-            margin-right: 2px;
-          }
-
-          .detail {
-            display: inline-block;
-            margin-right: 16px;
+          &.request {
+            background: #f7f7f9 + 111;
           }
         }
     {% endlessblock %}

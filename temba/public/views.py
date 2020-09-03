@@ -45,6 +45,10 @@ class Deploy(SmartTemplateView):
     template_name = "public/public_deploy.haml"
 
 
+class Style(SmartTemplateView):
+    template_name = "public/public_style.haml"
+
+
 class Android(SmartTemplateView):
     def render_to_response(self, context, **response_kwargs):
         pack = int(self.request.GET.get("pack", 0))

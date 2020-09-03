@@ -14,7 +14,6 @@
   :css
     body {
       line-height: inherit;
-
     }
 
     h2 .icon-phone {
@@ -38,12 +37,11 @@
       -ms-user-select: none;
       user-select: none;
       z-index: 0;
-      font-family: 'Helvetica Neue', sans-serif;
     }
 
     .ReactModalPortal {
       --curvature: 4px;
-      --curvature-widget: 4px; 
+      --curvature-widget: 4px;
     }
 
     /* case_list_case is the dnd portal under body */
@@ -79,7 +77,6 @@
       box-shadow: none;
       outline: none;
       border: none;
-
     }
 
     #header {
@@ -135,7 +132,12 @@
 
     #rp-flow-editor {
       visibility: visible;
-      width: 100%;    
+      width: 100%;
+    }
+
+    #rp-flow-editor h1 {
+      font-weight: 300;
+      font-family: 'Roboto'
     }
 
     #rp-flow-editor #canvas-container > div {
@@ -168,7 +170,7 @@
       margin-bottom: inherit;
     }
 
-    .footerArea {
+    .footer {
       display: none;
     }
 
@@ -199,6 +201,18 @@
       flowType = 'message_offline';
     }
 
+    window.addEventListener("DOMContentLoaded", function() {
+      var confirmation = document.getElementById("confirm-language");
+      confirmation.addEventListener("temba-button-clicked", function(event){
+        var code = confirmation.dataset.code;
+        if(!event.detail.button.secondary) {
+          console.log('{% url "flows.flow_change_language" object.id %}?language=' + code);
+          posterize('{% url "flows.flow_change_language" object.id %}?language=' + code);
+        }
+        confirmation.open = false;
+      });
+    });
+
     function handleEditorLoaded() {
       $('temba-loading').hide();
       $('#rp-flow-editor > div').css('opacity', '1')
@@ -212,7 +226,16 @@
     }
 
     function handleChangeLanguage(code, name) {
-      var form = $('#change-language-form');
+
+      var confirmation = document.getElementById("confirm-language");
+      confirmation.dataset.code = code;
+      
+      var body = confirmation.querySelector('.body');
+      body.innerHTML = body.innerHTML.replace(/%LANG%/g, name);
+      confirmation.open = true;
+      
+
+      /* var form = $('#change-language-form');
       var url = $.url(form.attr("href"));
       var body = form.find('.body').html().replace(/%LANG%/g, name);
 
@@ -222,6 +245,7 @@
       modal.setListeners({onPrimary: function(){ form.click(); }}, false);
       modal.setPrimaryButton('{{ _("Ok")|escapejs }}');
       modal.show();
+      */
     }
 
     const config = {
@@ -281,73 +305,6 @@
 
     showFlowEditor(document.getElementById('rp-flow-editor'), config);
 
-    {% if org_perms.flows.flow_update %}
-    $(".update-rulesflow").live('click', function(){
-      var modal = new Modax('{{_("Update Flow")|escapejs }}', '{% url "flows.flow_update" object.pk %}');
-      modal.setIcon('icon-users-2');
-      modal.setListeners({
-        onSuccess: function(data) {location.reload(); },
-        onFormLoaded: function() {
-          $('#id_label').children("option:first-child").before("<option></option>");
-          $('#id_label').select2({minimumResultsForSearch: -1, placeholder: "No Label Selected"});}
-      });
-      modal.show();
-    });
-    {% endif %}
-
-    // Starting the flow
-    {% if org_perms.msgs.broadcast_send %}
-      $(".broadcast-rulesflow").live('click', function(){
-        var modal = new Modax(gettext('Start Flow'), '{% url "flows.flow_broadcast" object.pk %}');
-        var onActions = {
-          onSuccess: function(data) {
-            // trigger an update right after sending so we have 
-            // and opportunity to show "starting" status
-            window.triggerActivityUpdate();
-          },
-          onFormLoaded: function() {}
-        }
-        // check if there is no channel, change the primary button behavior to redirect to channel creation
-        {% if not can_start or not has_outgoing_channel %}
-          modal.setPrimaryButton(gettext("Add Channel"));
-          onActions['onPrimary'] = function() { document.location.href = '{% url "channels.channel_list" %}' };
-        {% endif %}
-
-        modal.setListeners(onActions);
-        modal.show();
-      });
-    {% endif %}
-
-    $(".export-translation").live('click', function(){
-      var modal = new Modax('{{ _("Export Translation")|escapejs }}', '{% url "flows.flow_export_translation" object.id %}');
-      modal.setIcon('icon-language');
-      modal.setRedirectOnSuccess(true);
-      modal.show();
-    });
-
-    {% if org_perms.flows.flow_delete %}
-      $(".delete-flow").live('click', function() {
-        var modal = new Modax('{{ _("Delete Flow")|escapejs }}', '{% url "flows.flow_delete" flow.id %}');
-        modal.addClass("alert");
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      });
-    {% endif %}
-
-    {% if org_perms.flows.flow_editor %}
-      $(".previous-editor").live('click', function() {
-        var modal = new ConfirmationModal(gettext("Previous Editor"), gettext("When going back to the previous editor, any changes you have made in the new editor will be lost. If you are having difficulty using the new editor, please reach out to support and let us know.<br/><br/>Are you sure you want to go back to using the previous editor?"));
-        modal.addClass("alert");
-        modal.setPrimaryButton("Use Previous Editor")
-
-        modal.setListeners({ onPrimary: ()=>{
-          document.location.href = '{% url "flows.flow_editor" flow.uuid%}?legacy=true'
-        }});
-
-        modal.show();
-      });
-    {% endif %}
-
 -block page-container
 
   -include "msgs/msg_send_modal.html"
@@ -355,31 +312,34 @@
 
   %temba-modax#send-message-modal{ header:"Send Message" }
 
-  #toolbar
-    .actions.pull-right
-      -include "gear_links_include.haml"
-    %h2
-      -if flow.flow_type == 'V'
-        .icon-phone
-      -elif flow.flow_type == 'S'
-        .icon-mobile
-      {{ flow.name }}
-    -if is_starting
-      #pending
-        %div{class:"alert alert-info"}
+  .top-bar.pb-2
+    .flex.flex-col.pt-4
+      .flex.px-6.pb-2
+        .title.flex-grow
+          .flex.page-title
+            -if flow.flow_type == 'V'
+              .icon-phone.mt-2.mr-6
+            -elif flow.flow_type == 'S'
+              .icon-mobile.mt-2.mr-6
+            .ml-0
+              {{title}}
+        .menu
+          -include "gear_links_include.haml"
+
+      -if is_starting
+        .p-3.bg-gray-100.w-full.text-center
           -blocktrans trimmed
             This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
 
-  .hide
-    %a#change-language-form.posterize(href='{% url "flows.flow_change_language" object.id %}')
-      .body
-        -blocktrans trimmed with language="%LANG%"
-          This will change the default language of the flow to <b>{{ language }}</b>. This means that by default the
-          flow will be appear in that language and can be translated into other languages. Also if a contact is
-          in this flow and no translation exists for their language or the default language of the workspace,
-          communication with that contact will default to <b>{{ language }}</b>.
+  %temba-dialog#confirm-language(header='{{_("Change Language")|escapejs}}' primaryButtonName='{{_("Update")|escapejs}}')
+    .p-6.body
+      -blocktrans trimmed with language="%LANG%"
+        This will change the default language of the flow to <b>{{ language }}</b>. This means that by default the
+        flow will be appear in that language and can be translated into other languages. Also if a contact is
+        in this flow and no translation exists for their language or the default language of the workspace,
+        communication with that contact will default to <b>{{ language }}</b>.
 
-  #grid
+  #grid.h-full
     <temba-loading units="10" size="8"></temba-loading>
     #rp-flow-editor
 

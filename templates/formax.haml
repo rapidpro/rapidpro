@@ -1,6 +1,8 @@
-%ul.formax
+.formax
   -for section in formax.sections
-    %li{id:'id-{{section.name}}', data-dependents:'{{section.dependents}}', data-button:'{{section.button}}', data-nobutton:'{% if section.nobutton %}true{% else %}false{% endif %}', data-fetched:'true', data-href:'{{section.url}}', data-action:'{{section.action}}', class:'action-{{section.action}}'}
-      .formax-icon{class:'{{section.icon}}'}
-      .formax-container
+    .formax-section{id:'id-{{section.name}}', data-dependents:'{{section.dependents}}', data-button:'{{section.button}}', data-nobutton:'{% if section.nobutton %}true{% else %}false{% endif %}', data-fetched:'true', data-href:'{{section.url}}', data-action:'{{section.action}}', class:'action-{{section.action}}'}
+      .formax-icon.bg-gray-100.flex.flex-row.items-stretch
+        .margin-wrapper
+          .i-container{class:'{{section.icon}}'}
+      .formax-container.flex-grow
         {{ section.response|safe }}

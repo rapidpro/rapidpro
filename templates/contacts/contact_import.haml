@@ -3,70 +3,63 @@
 -load smartmin
 -load i18n
 
-- block pjax
-  #pjax
-    .row{style:"height:250px;"}
-      .span3
-        #big-help.glyph.icon-address-book
+-block title
+  -trans "Import Contacts"
 
-      .span9
-        %p
+-block content
+  -block pjax
+    #pjax
+      -if show_form
+        .flex.mb-4.flex-col{style:"min-height:41px"}
           -trans "You can import your contacts from an XLS file you create in Excel."
 
-        %p
-          -trans "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
-
-        %p
-          -trans "You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
-
-        %table#example.table
-          %tr
-            %th
-              -trans "URN:Tel"
-            %th
-              -trans "Name"
-            %th
-              -trans "Field:Team"
-          %tr
-            %td
-              -trans "+250788123123"
-            %td
-              -trans "John Doe"
-            %td
-              -trans "Managers"
-          %tr
-            %td
-              -trans "+250788111222"
-            %td
-              -trans "Jane Doe"
-            %td
-              -trans "Advisors"
-       
-        -if show_form
-
-          %p
-            -trans "Supported fields, all other columns are ignored."
-
-          %table#example.table
+          %table#example.list.my-6
             %tr
               %th
-                -trans "Column Header"
+                -trans "URN:Tel"
               %th
-                -trans "Imported as"
-              %th
-                -trans "Details"
-
-            %tr
-              %td
                 -trans "Name"
+              %th
+                -trans "Field:Team"
+            %tr
               %td
+                -trans "+250788123123"
+              %td
+                -trans "John Doe"
+              %td
+                -trans "Managers"
+            %tr
+              %td
+                -trans "+250788111222"
+              %td
+                -trans "Jane Doe"
+              %td
+                -trans "Advisors"
+
+
+          .title
+            -trans "Supported Fields"
+
+          -trans "Any columns that do not match the following table will be ignored."
+
+          %table.list.my-6
+            %tr
+              %th.whitespace-no-wrap
+                -trans "Column Header"
+              %th.whitespace-no-wrap
+                -trans "Imported as"
+              %th.whitespace-no-wrap
+                -trans "Details"
+            %tr
+              %td.whitespace-no-wrap
+                -trans "Name"
+              %td.whitespace-no-wrap
                 -trans "Contact name"
               %td
-
             %tr
-              %td
+              %td.whitespace-no-wrap
                 -trans "Language"
-              %td
+              %td.whitespace-no-wrap
                 -trans "Contact language"
               %td
                 -trans "Only valid ISO639-3 codes supportted"
@@ -80,145 +73,145 @@
                 %td
 
             %tr
-              %td
+              %td.whitespace-no-wrap
                 Field:<i>custom_field</i>
-              %td
+              %td.whitespace-no-wrap
                 <i>custom_field</i>
               %td
-                -blocktrans
+                -blocktrans trimmed
                   You will have the option to choose the columns to import and to which field to import them.
 
             %tr
-              %td
+              %td.whitespace-no-wrap
                 Group:Group Name
-              %td
+              %td.whitespace-no-wrap
                 %i
                   -trans "IGNORED"
               %td
                 Columns starting with the prefix <i>Group:</i> are ignored
 
-        - block import-status
-          #import-status
-            #import-message
-              - if task
-                - if task.status == "PENDING" or task.status == "RUNNING" or task.status == "STARTED"
-                  %p
-                    Importing..
-                    %img{src:"{{ STATIC_URL }}images/loader-circles.gif"}
-                
+      -block import-status
+        #import-status
+          #import-message
+            - if task
+              - if task.status == "PENDING" or task.status == "RUNNING" or task.status == "STARTED"
+                  Importing..
+                  %temba-loading
 
-                - else 
-                  - if task.status == "SUCCESS" and group.contacts.all
-                    - if results.creates
-                      .import-result
-                        .glyph.icon-checkmark.success
-                        -blocktrans count results.creates as create_count
-                          Created {{ create_count }} new contact
-                          -plural
-                            Created {{ create_count }} new contacts
-
-                    - if results.updates
-                      .import-result
-                        .glyph.icon-checkmark.success
-                        -blocktrans count results.updates as update_count
-                          Updated {{ update_count }} contact with an existing phone number
-                          -plural
-                            Updated {{ update_count }} contacts with existing phone numbers
-
-                    .import-result
-                      .glyph.icon-checkmark.success
-                      -blocktrans with contacts_count=results.records
-                        Added all contacts to the new
-                      %a{href:"{% url 'contacts.contact_filter' group.uuid %}"}= group.name
-                      group
-
-                    - if results.errors
-                      .import-result
-                        .well.well-small
-                          %strong
-                            -blocktrans
-                              Some rows were not imported
-                          %br
-                          %strong
-                            -blocktrans
-                              Errors description
-                          %br
-                            - for error_message in results.error_messages
-                              Row {{ error_message.line }}: {{ error_message.error }}
-                              %br
-
-                  - elif results.errors
-                    .import-result
-                      .glyph.icon-warning.warning
-                      -blocktrans count results.errors as error_count
-                        Failed to import {{ error_count }} contact due to missing or invalid phone number
+              - else
+                - if task.status == "SUCCESS" and group.contacts.all
+                  - if results.creates
+                    .import-result.text-lg.mt-2
+                      .icon-checkmark.text-success.mr-2
+                      -blocktrans trimmed count results.creates as create_count
+                        Created {{ create_count }} new contact
                         -plural
-                          Failed to import {{ error_count }} contacts due to missing or invalid phone numbers
+                          Created {{ create_count }} new contacts
 
+                  - if results.updates
+                    .import-result.text-lg.mt-2
+                      .icon-checkmark.text-success.mr-2
+                      -blocktrans trimmed count results.updates as update_count
+                        Updated {{ update_count }} contact with an existing phone number
+                        -plural
+                          Updated {{ update_count }} contacts with existing phone numbers
+
+                  .import-result.text-lg.mt-2
+                    .icon-checkmark.text-success.mr-2
+                    -blocktrans trimmed with contacts_count=results.records
+                      Added all contacts to the new
+                    %a{href:"{% url 'contacts.contact_filter' group.uuid %}"}= group.name
+                    group
+
+                  - if results.errors
                     .import-result
                       .well.well-small
                         %strong
-                          -blocktrans
+                          -blocktrans trimmed
+                            Some rows were not imported
+                        %br
+                        %strong
+                          -blocktrans trimmed
                             Errors description
-
                         %br
                           - for error_message in results.error_messages
                             Row {{ error_message.line }}: {{ error_message.error }}
                             %br
 
-                  - elif task.status == "SUCCESS" and not group.contacts.all
-                    %p
-                      Grouping..
-                      %img{src:"{{ STATIC_URL }}images/loader-circles.gif"}
+                - elif results.errors
+                  .import-result.text-lg
+                    .icon-warning.text-error.mr-2
+                    -blocktrans trimmed count results.errors as error_count
+                      Failed to import {{ error_count }} contact due to missing or invalid phone number
+                      -plural
+                        Failed to import {{ error_count }} contacts due to missing or invalid phone numbers
 
-                  - elif not group.contacts.all
-                    %p
-                      -blocktrans
-                        No contacts imported, please make sure your have a channel connected.
+                  .import-result
+                    .well.well-small
+                      %strong
+                        -blocktrans trimmed
+                          Errors description
 
-            - if show_form
-              %p
-                -blocktrans
-                  You can download
-                  %a{href:"{{STATIC_URL}}examples/contacts.xls"} this Excel template
-                  as a sample.
-              %p
+                      %br
+                        -for error_message in results.error_messages
+                          Row {{ error_message.line }}: {{ error_message.error }}
+                          %br
 
-                %form#import-form.smartmin-form.horizontal-form{method:"post", action:"{% url 'contacts.contact_import' %}", enctype:"multipart/form-data"}
-                  - if form.non_field_errors
-                    %div.alert.alert-error.form-errors
-                      {{ form.non_field_errors }}
-                  
-                  -csrf_token
-                  -if form.non_field_errors
-                    %div.alert.alert-error.form-errors
-                      {{ form.non_field_errors }}
+                - elif task.status == "SUCCESS" and not group.contacts.all
+                  Grouping..
+                  %temba-loading
 
-                  -block fields
-                    %div#csv_file_errors
-                      {{ form.csv_file.errors }}
-                    #file-upload
-                      %input{type:"file", name:"csv_file", id:"csv_file", onchange:'updateFile()'}
-                    #real_button
-                      %input{type:"text", id:"file-field"}
-                      %a.btn.btn-primary
-                        -trans "Choose File"
-                    
-                  .form-buttons
-                    %input.btn.btn-primary{type:"submit", value:'{% trans "Import" %}'}
-                    %a.btn{onclick:"javascript:history.go(-1)"}
-                      -trans "Cancel"
- 
+                - elif not group.contacts.all
+                  -blocktrans trimmed
+                    No contacts imported, please make sure your have a channel connected.
+  
+              .mt-4.button-light.inline-block(onclick="goto(event)" href="{% url 'contacts.contact_list'%}")
+                -trans "Contacts"
+
+          -if show_form
+            -blocktrans trimmed
+              You can download
+              %a{href:"{{STATIC_URL}}examples/contacts.xls"} this Excel template
+              as a sample.
+
+            %form#import-form{method:"post", action:"{% url 'contacts.contact_import' %}", enctype:"multipart/form-data"}
+              - if form.non_field_errors
+                .text-error
+                  {{ form.non_field_errors }}
+
+              -csrf_token
+              -if form.non_field_errors
+                .text-error
+                  {{ form.non_field_errors }}
+
+              -block fields
+                .mt-4.mb-4.text-error
+                  {{ form.csv_file.errors }}
+                #file-upload
+                  %input{type:"file", name:"csv_file", id:"csv_file", onchange:'updateFile()'}
+                #real-button.flex.mb-4
+                  %input{type:"text", id:"file-field"}
+                  .button-primary.ml-4(style="margin-top:-1px")
+                    -trans "Choose File"
+
+              .flex
+                %input.button-primary{type:"submit", value:'{% trans "Import" %}'}
+                .ml-4.button-light{onclick:"javascript:history.go(-1)"}
+                  -trans "Cancel"
+
 
 {% block extra-style %}
 :css
-  .form-buttons {
-    margin-top: 10px;
+
+  input {
+    padding: 9px;
+    cursor: pointer;
+    box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 1px, rgba(0, 0, 0, 0.04) 0px 3px 20px 0px, rgba(0, 0, 0, 0.02) 0px 1px 2px 0px;
   }
 
-  #example {
-    margin-top: 20px;
-    background: #f8f8f8;
+  table.list tr th {
+    text-transform: none;
+    font-size: 0.85rem;
   }
 
   #file-upload {
@@ -230,25 +223,23 @@
   }
 
   #real-button {
-    position: absolute;
+    position: relative;
     top: 0px;
     left: 0px;
     z-index: 1;
-    height:35px;
-    width:340px;
   }
 
   #file-field {
-    width:255px;
-    height:25px;
+    width:300px;
+    height:35px;
     font-size:16px;
-    border:solid 1px #000;
     margin-bottom: 0px;
+    border-radius: 5px;
   }
 
   #csv_file {
     position:absolute;
-    width:340px;
+    width:450px;
     height:35px;
     top: 0px;
     left: 0px;
@@ -257,25 +248,6 @@
     filter:alpha(opacity: 0);
     opacity: 0;
     z-index: 2;
-  }
-
-  #import-message .import-result {
-    padding-bottom: 10px;
-    font-size: 20px;
-  }
-
-  #import-message .import-result .glyph {
-    font-size: 28px;
-    margin: 0px 20px;
-    line-height: 22px;
-  }
-
-  #import-message .import-result .well {
-    font-size: 14px;
-  }
-
-  #import-message .import-result a {
-    text-decoration :none;
   }
 
 {% endblock %}

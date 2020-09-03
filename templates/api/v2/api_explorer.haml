@@ -8,7 +8,7 @@
 
 -block content
   -block breadcrumbs
-    %ul.breadcrumb
+    %ul.breadcrumb.-mt-12.mb-12
       %li
         %a{href:"{% url 'api.v2' %}"}
           {{ brand.name }} API v2
@@ -23,79 +23,78 @@
       -else
         %li.pull-right Log in to get your API Token
 
-  .page-header{ style: "position: relative;" }
-    %h1 API Explorer
-    %span.pull-right.warning All operations work against live data
+  .flex.justify-between.items-center.pb-1.mb-4{ style: "position: relative;" }
+    %h1.page-title.leading-tight API Explorer
+    .bg-white.px-4.py-2.border-primary.border.text-primary.font-medium.rounded-lg All operations work against live data
 
   - for endpoint in endpoints
-    .endpoint-title{ data-slug: "{{ endpoint.slug }}", data-method: "{{ endpoint.method }}" }
-      .pull-right.endpoint-description
-        {{ endpoint.title }}
-      %span.endpoint-method{ class:"method-{{ endpoint.method|lower }}" }= endpoint.method
-      %span.endpoint-url {{ endpoint.url }}.json
+    .card.mt-4.hover-box
+      .flex.bleed-x.bleed-t.bleed-b.items-center.cursor-pointer.endpoint-title{ data-slug: "{{ endpoint.slug }}", data-method: "{{ endpoint.method }}" }
+        .endpoint-method.font-mono.rounded-lg{ class:"method-{{ endpoint.method|lower }}" }= endpoint.method
+        .endpoint-url.flex-grow.font-mono {{ endpoint.url }}.json
+        .endpoint-description
+          {{ endpoint.title }}
 
-    .endpoint{ class: "endpoint-{{ endpoint.method|lower }}" }
-      -if endpoint.params
-        .field-title
-          -trans "Query String Parameters"
-        %table.table
-          .tbody
-            -for item in endpoint.params
-              %tr
-                %td.field{ class:"{% if item.required %}field-required{% endif %}" }= item.name
-                %td {{ item.help }}
-                  -if item.required
-                    (required)
-                  -else
-                    (optional)
-      -if endpoint.fields
-        .field-title
-          -trans "Post Body Fields"
-        %table.table
-          .tbody
-            -for item in endpoint.fields
-              %tr
-                %td.field{ class:"{% if item.required %}field-required{% endif %}" }= item.name
-                %td {{ item.help }}
-                  -if item.required
-                    (required)
-                  -else
-                    (optional)
-
-      .request-form.form-horizontal
-        .request-header
-          <b>{{ endpoint.method }}</b> {{brand.api_link}}{{ endpoint.url }}.json<span class="query-display"></span><br/>
-          <b>Authorization:</b> Token {{ request.user.api_token }}
-
+      .endpoint.bleed-x.bleed-b.bg-white.border-t.mt-6{ class: "endpoint-{{ endpoint.method|lower }}" }
         -if endpoint.params
-          .form-group
-            %label.col-sm-2.control-label
-              -trans "Query String"
-            .col-sm-10
-              %textarea.request-query{ id:"request-query-{{ endpoint.slug }}", rows:"1" }<
-                {{ endpoint.example.query }}
-
+          .title.my-4
+            -trans "Query String Parameters"
+          %table
+            .tbody
+              -for item in endpoint.params
+                %tr
+                  %td.field.text-right.font-medium.text-gray-600.px-4.py-2{ class:"{% if item.required %}field-required{% endif %}" }= item.name
+                  %td.font-light {{ item.help }}
+                    -if item.required
+                      (required)
+                    -else
+                      (optional)
         -if endpoint.fields
-          .form-group
-            %label.col-sm-2.control-label
-              -trans "Post Body"
-            .col-sm-10
-              %textarea.request-body{ id:"request-body-{{ endpoint.slug }}", rows:"5" }<
-                {{ endpoint.example.body }}
+          .title.my-4
+            -trans "Post Body Fields"
+          %table
+            .tbody
+              -for item in endpoint.fields
+                %tr
+                  %td.field.text-right.font-medium.text-gray-600.px-4.py-2{ class:"{% if item.required %}field-required{% endif %}" }= item.name
+                  %td.font-light {{ item.help }}
+                    -if item.required
+                      (required)
+                    -else
+                      (optional)
 
-      .request-buttons
-        .pull-left
-          %a{ href: '{{ endpoint.url }}' }
-            -trans "View Full Documentation"
+        .request-form.rounded-lg.border.p-6.bg-gray-100.mt-4
+          .request-header.font-mono.mb-4
+            <b class="font-bold">{{ endpoint.method }}</b> {{brand.api_link}}{{ endpoint.url }}.json<span class="query-display"></span><br/>
+            <b class="font-bold">Authorization:</b> Token {{ request.user.api_token }}
 
-        -if user.api_token
-          %a.btn.btn-primary.pull-right{ onclick:'javascript:onRequest("{{ endpoint.slug }}", "{{ endpoint.method }}", "{{ endpoint.url }}.json")' }= endpoint.method|upper
-        -else
-          %span.pull-right Log in to use the Explorer
+          -if endpoint.params
+            .form-group.mt-4.flex.items-center
+              %label.control-label.self-start.pt-4.w-56.text-right.pr-6
+                -trans "Query String"
+              .flex-grow
+                %textarea.textinput.p-2.rounded.request-query{ id:"request-query-{{ endpoint.slug }}", rows:"1" }<
+                  {{ endpoint.example.query }}
 
-      .clearfix
+          -if endpoint.fields
+            .form-group.mt-4.flex.items-center
+              %label.control-label.self-start.pt-4.w-56.text-right.pr-6
+                -trans "Post Body"
+              .flex-grow
+                %textarea.textinput.p-2.rounded.request-body{ id:"request-body-{{ endpoint.slug }}", rows:"5" }<
+                  {{ endpoint.example.body }}
 
-      %pre.prettyprint.result{ id: "result-{{ endpoint.slug }}" }
+        .request-buttons.flex.justify-between.items-center.mt-4.h-12
+          .pull-left
+            %a{ href: '{{ endpoint.url }}' }
+              -trans "View Full Documentation"
+
+          -if user.api_token
+            .button-primary{ onclick:'javascript:onRequest("{{ endpoint.slug }}", "{{ endpoint.method }}", "{{ endpoint.url }}.json")' }= endpoint.method|upper
+          -else
+            %span Log in to use the Explorer
+
+        %pre.prettyprint.result.mb-0.mt-4.p-4(id="result-{{ endpoint.slug }}" style="margin-bottom:0;" )
 
 -block extra-script
   {{ block.super }}
@@ -152,130 +151,61 @@
 -block extra-style
   {{ block.super }}
   :css
-    .request-form {
-      background-color: #f7f7f9;
-      border: 1px solid #e1e1e8;
-      padding: 7px;
+    .page-content {
+         max-width: 100%;
     }
 
-    .request-form .form-group {
-      margin: 3px 0;
+    .endpoint {
+      display: none;
     }
 
-    .request-header {
-      font-family: monospace;
-      padding-bottom: 10px;
+    .method-get {
+      background-color: #058C40;
+      color: #fff;
+      padding: 3px;
+      text-align: center;
+      width: 60px;
+      display: inline-block;
+      margin-right: 15px;
+    }
+
+    .method-delete {
+      background-color: #952624;
+      color: #fff;
+      padding: 3px;
+      text-align: center;
+      width: 60px;
+      display: inline-block;
+      margin-right: 15px;
+    }
+
+    .method-post {
+      background-color: #1793cd;
+      color: #fff;
+      width: 60px;
+      text-align: center;
+      padding: 3px;
+      display: inline-block;
+      margin-right: 15px;
+    }
+
+    table.list tr td:first-child {
+      width: 14rem;
+    }
+
+    .result {
+      display: none;
     }
 
     .request-query {
       font-family: monospace;
+      min-height: 40px;
       width: 700px;
     }
 
     .request-body {
       font-family: monospace;
       width: 700px;
+      min-height: 100px;
       height: 110px;
-    }
-
-    .request-buttons {
-      margin-top: 5px;
-      margin-bottom: 5px;
-      height: 35px;
-    }
-
-    .endpoint-title {
-      background-color: #eee;
-      border: 1px solid #ccc;
-      padding: 5px;
-      margin-bottom: 10px;
-      cursor: pointer;
-      -webkit-touch-callout: none;
-      -webkit-user-select: none;
-      -khtml-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
-      user-select: none;
-    }
-
-    .endpoint {
-      margin-bottom: 20px;
-    }
-
-    .endpoint-description {
-      margin-top: 2px;
-    }
-
-    .endpoint table {
-      margin-bottom: 10px;
-    }
-
-    .method-get {
-      background-color: #058C40;
-      color: #eee;
-      padding: 3px;
-      text-align: center;
-      width: 55px;
-      display: inline-block;
-      margin-right: 5px;
-    }
-
-    .method-delete {
-      background-color: #952624;
-      color: #eee;
-      padding: 3px;
-      text-align: center;
-      width: 55px;
-      display: inline-block;
-      margin-right: 5px;
-    }
-
-    .method-post {
-      background-color: #1793cd;
-      color: #eee;
-      width: 55px;
-      text-align: center;
-      padding: 3px;
-      display: inline-block;
-      margin-right: 5px;
-    }
-
-    td.field.field-required {
-      color: black;
-    }
-
-    .result {
-      display: none;
-      border-radius: 0;
-    }
-
-    .endpoint {
-      display: none;
-    }
-
-    .endpoint-url {
-      font-family: monospace;
-    }
-
-    .endpoint-method {
-      font-family: monospace;
-    }
-
-    td.field {
-      width: 100px;
-      text-align: right;
-      font-family: monospace;
-      font-weight: bold;
-      color: #666;
-    }
-
-    .field-title {
-      font-weight: bold;
-    }
-
-    .warning {
-      position: absolute;
-      right: 0px;
-      bottom: 5px;
-      font-weight: bold;
     }

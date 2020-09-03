@@ -7,30 +7,19 @@
 -block fields
 
 -block title
-  .medium-help.float-left{class:'{{object.get_type.icon}}'}
+  {{ object.name }}
 
-  %h2.font_normalize.header-margin.title
-    {{ object.get_type.name }}
+-block subtitle
+  {{ object.get_type.name }}
     -trans "Classifier"
-    %span -
-    {{ object.name }}
-
-
-  .header-margin
-    %a.btn.btn-tiny(href="{% url 'request_logs.httplog_classifier' classifier.uuid %}")
-      -trans "Classifier Log"
 
 -block content
-  %div(style="float:right;line-height:40px")
-    -trans "Intents are synced automatically every 5 minutes"
-  %h3
-    -trans "Active Intents"
 
-  %table.list-table.table.table-bordered.table-striped.table-condensed.message-stats-table
+  %table.list.lined
     %thead
       %tr
         %th
-          -trans "Name"
+          -trans "Intent"
         %th
           -trans "External ID"
         %th
@@ -52,6 +41,8 @@
           %tr.empty
             %td(colspan=3)
               -trans "No synced intents at this time."
+  .text-center.mt-2.text-sm.text-gray-500
+    -trans "Intents are synced automatically every 5 minutes"
 
 -block post-content
   - if org_perms.classifiers.classifier_delete
@@ -133,6 +124,5 @@
 -block summary
   {{ classifier.get_type.name }}
   -trans "Classifier"
-  %span -
-  %strong
+  %b
     {{ classifier.name }}

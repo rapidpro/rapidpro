@@ -46,15 +46,6 @@
     // this must be loaded after angular
     conditionalLoad('lib/angular-file-upload-1.6.12/angular-file-upload.js', null)
 
-  -if org_perms.flows.flow_delete
-    :javascript
-      $(".delete-flow").live('click', function() {    
-        var modal = new Modax('{{ _("Delete Flow")|escapejs }}', '{% url "flows.flow_delete" flow.id %}');
-        modal.addClass("alert");
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      });
-
   -compress js
     %script{type:'text/javascript', src:'{{ STATIC_URL }}bower/jsPlumb/dist/js/dom.jsPlumb-1.7.5.js'}
     %script{type:'text/javascript', src:"{{ STATIC_URL }}bower/jquery-autosize/jquery.autosize.js"}
@@ -122,14 +113,10 @@
     {% endif %}
 
     $(".migrate-flow").live("click", function(){
-      var modal = new ConfirmationModal("Switch to New Editor", "{% trans 'The new editor provides powerful new features and better performance, but please note that this cannot be undone.' %}");
-      modal.addClass('alert');
-      modal.setListeners({
-        onPrimary: function() {document.location.href = "{% url 'flows.flow_editor_next' object.uuid %}?migrate=1";},
-      });
-      modal.show()
+      document.getElementById("confirm-migrate").open = true;
     });
-
+    document.getElementById("confirm-migrate").open = true;
+    
     $(function(){
       // where is our status box now?
       var statusTop = $("#status").offset().top;
@@ -154,6 +141,14 @@
       {% if is_starting %}
         $("html").scope().is_starting = true;
       {% endif %}
+
+      var confirmation = document.querySelector("#confirm-migrate");
+      confirmation.addEventListener("temba-button-clicked", function(event){
+        if(!event.detail.button.secondary) {
+          document.location.href = "{% url 'flows.flow_editor_next' object.uuid %}?migrate=1";
+        }
+        confirmation.open = false;
+      });
     })
 
 
@@ -189,98 +184,107 @@
 
 -block page-container
 
-  -include "msgs/msg_send_modal.html"
-  -include "delete_modal_include.html"
+  %temba-dialog#confirm-migrate(header='{{_("New Editor")|escapejs}}' primaryButtonName='{{_("Update Flow")|escapejs}}')
+    .p-6
+      -trans "This flow is using a discontinued version of the flow editor. Update it to use the new editor today to start using powerful new features. Starting <b>October 1st</b>, all remaining flows will be updated automatically."
 
-  #drag-helper.hide
-    .tail
-    .arrow.icon-arrow-down-2
-    .help-text
-      -trans "To make your next connection,"
-      %span.attn
-        -trans "drag"
-      -trans "the red box."
+  #legacy-editor
 
-  #status{ng-cloak:''}
-    .throbber{ng-show:'saving'}
-      %img{ src: "{{ STATIC_URL }}images/loader-bars.gif" }
-    .error{ng-show:'error'}
-      [[error]]
+    -include "msgs/msg_send_modal.html"
+    -include "delete_modal_include.html"
+
+    #drag-helper.hide
+      .tail
+      .arrow.icon-arrow-down-2
+      .help-text
+        -trans "To make your next connection,"
+        %span.attn
+          -trans "drag"
+        -trans "the red box."
+
+    #status{ng-cloak:''}
+      .throbber{ng-show:'saving'}
+        %img{ src: "{{ STATIC_URL }}images/loader-bars.gif" }
+      .error{ng-show:'error'}
+        [[error]]
 
 
-  -if user_org
-    #show-simulator.btn.btn-primary
-      .icon-mobile
-      .message.hide
-        -trans "Run in"
-        %br
-        -trans "Simulator"
+    -if user_org
+      #show-simulator.btn.btn-primary
+        .icon-mobile
+        .message.hide
+          -trans "Run in"
+          %br
+          -trans "Simulator"
 
-  #revision-mask{ng-show:'showRevisions', ng-cloak:''}
-  #revisions.draggable{ng-controller:'RevisionController', ng-show:'showRevisions', ng-cloak:''}
-    %h4
-      Revision History
-      .close.icon-close{ng-click:'cancel()'}
+    #revision-mask{ng-show:'showRevisions', ng-cloak:''}
+    #revisions.draggable{ng-controller:'RevisionController', ng-show:'showRevisions', ng-cloak:''}
+      %h4
+        Revision History
+        .close.icon-close{ng-click:'cancel()'}
 
-    .choices
-      .revision{ng-repeat:'revision in revisions()', ng-class:'{selected:revision.selected}'}
-        .revert.btn.btn-tiny.btn-primary{ng-click:'apply()', ng-show:'revision.selected'}
-          Revert
+      .choices
+        .revision{ng-repeat:'revision in revisions()', ng-class:'{selected:revision.selected}'}
+          .revert.btn.btn-tiny.btn-primary{ng-click:'apply()', ng-show:'revision.selected'}
+            Revert
 
-        <a ng-click='showRevision(revision)' href='javascript:void(0);'>[[revision.created_on|date:'medium']]</a>
-        .author
-          .name
-            [[revision.user.name]]
-          .email
-            [[revision.user.email]]
+          <a ng-click='showRevision(revision)' href='javascript:void(0);'>[[revision.created_on|date:'medium']]</a>
+          .author
+            .name
+              [[revision.user.name]]
+            .email
+              [[revision.user.email]]
 
-  #ctlr{ng-controller:'FlowController', ng-show:'flow', ng-mousemove:'mouseMove($event)', ng-cloak:'', ng-init:"init()"}
-    -include "flows/simulator.html"
+    #ctlr{ng-controller:'FlowController', ng-show:'flow', ng-mousemove:'mouseMove($event)', ng-cloak:'', ng-init:"init()"}
+      -include "flows/simulator.html"
 
-    #toolbar
-      .actions.pull-right
-        -include "gear_links_include.haml"
+      #toolbar
+        .flex.flex-col.pt-4.-mt-4
+          .flex.px-8.pb-2
+            .title.flex-grow
+              .flex.mt-2
+                -if flow.flow_type == 'V'
+                  .icon-phone.text-4xl.mt-2.mr-8
+                -elif flow.flow_type == 'S'
+                  .icon-mobile.text-4xl.mt-2.mr-8
+                .text-4xl.text-gray-600
+                  {{title}}
+            .menu
+              -include "gear_links_include.haml"
 
-      %h2
-        -if flow.flow_type == 'V'
-          .icon-phone
-        -elif flow.flow_type == 'S'
-          .icon-mobile
-        {{ flow.name }}
+          -if messages
+            #messages
+              -for msg in messages
+                %div{class:"alert alert-{{ message.tags }}"}
+                  {{ msg }}
 
-      -if messages
-        #messages
-          -for msg in messages
-            %div{class:"alert alert-{{ message.tags }}"}
-              {{ msg }}
+        #pending{ng-show:'is_starting'}
+          %div{class:"alert alert-info"}
+            -blocktrans
+              This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
 
-      #pending{ng-show:'is_starting'}
-        %div{class:"alert alert-info"}
-          -blocktrans
-            This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
+        .languages{ng-show:'languages.length > 1 && flow.base_language && (flow.action_sets.length + flow.rule_sets.length) > 0'}
+          <span ng-repeat="lang in languages">
+            <a href="javascript:void(0);" class='language' ng-class='{active:lang.iso_code == language.iso_code}' ng-click="setLanguage(lang)">[[lang.name]]</a>
+            <span ng-hide='$last'>|</span>
+          </span>
 
-      .languages{ng-show:'languages.length > 1 && flow.base_language && (flow.action_sets.length + flow.rule_sets.length) > 0'}
-        <span ng-repeat="lang in languages">
-          <a href="javascript:void(0);" class='language' ng-class='{active:lang.iso_code == language.iso_code}' ng-click="setLanguage(lang)">[[lang.name]]</a>
-          <span ng-hide='$last'>|</span>
-        </span>
+          .translated
+            %span.pct{ng-show:'flow.base_language != language.iso_code'}
+              [[flow._pctTranslated]]% translated
 
-        .translated
-          %span.pct{ng-show:'flow.base_language != language.iso_code'}
-            [[flow._pctTranslated]]% translated
+      #simulator
 
-    #simulator
+      #status.hide
+        #error
+          .glyph.icon-warning
+          -trans "Error Contacting Server. Changes may not be saved."
 
-    #status.hide
-      #error
-        .glyph.icon-warning
-        -trans "Error Contacting Server. Changes may not be saved."
+        #saving
+          .throbber
+            %img{ src: "{{ STATIC_URL }}images/loader-bars.gif" }
 
-      #saving
-        .throbber
-          %img{ src: "{{ STATIC_URL }}images/loader-bars.gif" }
-
-    #workspace{ng-dblclick:'addNote($event); $event.stopPropagation();'}
+      #workspace{ng-dblclick:'addNote($event); $event.stopPropagation();'}
 
       #flow{ class:'{% if not mutable %}readonly{%endif%}'}
 
@@ -300,29 +304,20 @@
                 by sending a USSD message. This message will be sent to anybody right after they join the flow.
                 This is your chance to send a single message or menu.
             -else
-              -blocktrans
-                We recommend starting your flow by sending a message. This message will be sent to anybody right
-                after they join the flow. This is your chance to send a single message or ask them a question.
-
-            .button
-              -if flow.flow_type == 'U'
-                %a.btn.btn-primary{ng-click:'createFirstUssd()'}
-                  Create USSD Message
-              -else
-                %a.btn.btn-primary{ng-click:'createFirstAction()'}
-                  Create Message
+              %a.btn.btn-primary{ng-click:'createFirstAction()'}
+                Create Message
 
 
 
-          .option.hide
-            %h4
-              -trans "Receive a Message First"
-            -blocktrans
-              A more advanced flow might start by receiving a message first. This lets you do different things
-              based on how the flow was triggered.
-            .button
-              %a.btn.btn-primary
-                Receive Message First
+        .option.hide
+          %h4
+            -trans "Receive a Message First"
+          -blocktrans
+            A more advanced flow might start by receiving a message first. This lets you do different things
+            based on how the flow was triggered.
+          .button
+            %a.btn.btn-primary
+              Receive Message First
 
         // Our empty action node shown while dragging
         -if object.flow_type == 'V'
@@ -649,6 +644,7 @@
           %textarea.msd-elastic.body.note-input{ng-model:'note.body'}
 
 -block extra-style
+  {{block.super}}
   -compress css
     {% lessblock %}
       :plain

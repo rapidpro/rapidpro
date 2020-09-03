@@ -1,0 +1,75 @@
+-extends "contacts/contact_list.haml"
+-load i18n
+
+-block title-text
+  .title.leading-tight
+    -trans "Archived Contacts"
+  .text-base.mt-1
+    -trans "These contacts have been removed from all groups and can be deleted permanently."
+
+-block post-content
+  -if org_perms.contacts.contact_delete
+    %temba-dialog#delete-confirmation.hide(header='{{ _("Delete Selected Contacts")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
+      .p-6
+        -trans "Are you sure you want to delete the selected contacts? This cannot be undone."
+
+    %temba-dialog#delete-all-confirmation.hide(header='{{ _("Delete All Contacts")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
+      .p-6
+        -blocktrans trimmed with count=paginator.count
+          Are you sure you want to delete all {{ count }} archived contacts? This cannot be undone.
+
+        -if paginator.count > 50
+          %br
+          %br
+          -blocktrans trimmed
+            This operation can take a while to complete. Contacts may remain in this view during the process.
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    {% if org_perms.contacts.contact_delete %}
+
+    window.addEventListener('DOMContentLoaded', function(event){
+
+      var deleteButton = document.querySelector(".contacts-btn-delete");
+      var deleteConfirmation = document.querySelector("#delete-confirmation");
+
+      deleteButton.addEventListener("click", function(){
+        deleteConfirmation.classList.remove("hide");
+        deleteConfirmation.open = true;
+      });
+
+      deleteConfirmation.addEventListener("temba-button-clicked", function(event){
+        if (!event.detail.button.secondary) {
+          runActionOnObjectRows("delete");
+        }
+        deleteConfirmation.open = false;
+      });
+
+      var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
+      var deleteAllButton = document.querySelector(".contacts-btn-delete-all");
+
+      deleteAllButton.addEventListener("click", function(){
+        deleteAllConfirmation.classList.remove("hide");
+        deleteAllConfirmation.open = true;
+      });
+
+      deleteAllConfirmation.addEventListener("temba-button-clicked", function(event){
+        if (event.detail.button.attributes.destructive){
+          deleteAllContacts();
+        }
+        deleteAllConfirmation.classList.add("hide");
+        deleteAllConfirmation.open = false;
+      });
+    });
+
+    function deleteAllContacts() {
+      jQuery.ajaxSettings.traditional = true;
+      fetchPJAXContent('', '#pjax', {
+          postData: { action: "delete", all: 'true', pjax: 'true' },
+          forceReload: true
+      });
+    }
+
+    {% endif %}

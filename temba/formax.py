@@ -32,6 +32,7 @@ class Formax(object):
         resolver = resolve(url)
         self.request.META["HTTP_X_FORMAX"] = 1
         self.request.META["HTTP_X_PJAX"] = 1
+        self.request.META["HTTP_X_FORMAX_ACTION"] = action
 
         start = time.time()
 

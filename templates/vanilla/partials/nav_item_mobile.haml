@@ -1,0 +1,3 @@
+-load smartmin i18n temba
+.nav-item.text-center.px-2.text-3xl{class:'{{nav_item.tag}}'}
+  %a{href:"{% ssl_brand_url nav_item.href %}", class:"icon-nav-{{nav_item.tag}} {% active request nav_item.active %}"}

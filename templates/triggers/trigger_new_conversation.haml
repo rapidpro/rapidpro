@@ -3,12 +3,3 @@
 
 -block summary
   -trans "Start a flow when a conversation is started by a contact."
-
-
--block extra-script
-  {{block.super}}
-  %script
-    $(document).ready(function() {
-      select2div("#id_new_conversation_channel", "520px", '{{ _("Social media channel")|escapejs }}');
-      select2div("#id_new_conversation_flow", "520px", '{{ _("Flow to start")|escapejs }}');
-    });

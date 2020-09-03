@@ -1,204 +1,58 @@
--extends 'smartmin/create.html'
--load smartmin temba compress
--load i18n
-
--block extra-less
-  -compress css inline
-    {% lessblock %}
-      :plain
-        #sign-up {
-
-          min-height:500px;
-
-          #form-two {
-            opacity: 0;
-            position: absolute;
-            display:none;
-            left: 1000px;
-          }
-
-          #form-one, #form-two {
-
-            width: 100%;
-            float:left;
-            position:absolute;
-            left: 32px;
-            top: 240px;
-
-            input[type=text], input[type=password], input[type=email] {
-              font-size:18px;
-              padding:12px;
-              display:block;
-              width: 50%;
-            }
-
-            .select2-container {
-              width: 53%;
-              .select2-choice {
-                padding: 10px;
-                font-size:16px;
-                .select2-arrow b {
-                  margin-top:8px;
-                }
-              }
-            }
-
-            label {
-              margin-top: 25px;
-              font-weight:200;
-              font-size:19px;
-              color: @flat-darkwhite - #222;
-            }
-
-            input[type=submit], a.btn.btn-primary {
-              margin-top:20px;
-              font-size:22px;
-              padding:10px 20px;
-            }
-          }
-
-          &.failed {
-            #form-one, #form-two {
-              opacity:1;
-              position: relative;
-              display: inline-block;
-              left: 0;
-              float:none;
-              top:0;
-            }
-
-            #form-one-submit {
-              display: none;
-            }
-
-            .instructions {
-              display: none;
-
-              &.failure {
-                display: inline-block;
-              }
-            }
-          }
-        }
-    {% endlessblock %}
+-extends "smartmin/users/login_base.html"
+-load smartmin temba compress i18n
 
 -block page-top
 
--block content
+-block login-title
+  -trans "Create Account"
 
-  #page-top
-    %h1
-      -trans "Let's get started"
+-block login-content
+  -blocktrans trimmed with brand.name as brand
+    Creating a {{brand}} account is free and only takes a minute.
 
-
-  %form#sign-up.smartmin-form.form-horizontal{method:"post", enctype:"multipart/form-data", action:"#"}
+  %form.my-6(method="post")
     -csrf_token
 
-    #form-one
+    {% if form.non_field_errors %}
+      <div class="alert alert-error form-errors">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
 
-      {% if form.non_field_errors %}
-        <div class="alert alert-error form-errors">
-          {{ form.non_field_errors }}
-        </div>
-      {% endif %}
-      %p.instructions.failure.hide
-        -trans "We found some problems, please correct them before continuing."
+    .flex
+      .mr-3
+        -render_field 'first_name'
+      .flex-grow
+        -render_field 'last_name'
 
-      %p.instructions
-        -trans "Start by telling us a little about yourself. This will only take a minute."
-
-      %label
-        -trans "First Name"
-      -with form|field:'first_name' as form_field
-        {{form_field}}
-        -if form_field.errors
-          %span.help-block.field-errors= form_field.errors
-
-      %label
-        -trans "Last Name"
-      -with form|field:'last_name' as form_field
-        {{form_field}}
-        -if form_field.errors
-          %span.help-block.field-errors= form_field.errors
-
-      %label
-        -trans "E-mail address"
-      -with form|field:'email' as form_field
-        {{form_field}}
-        -if form_field.errors
-          %span.help-block.field-errors= form_field.errors
-
-      %label
-        -trans "Password"
-      -with form|field:'password' as form_field
-        {{form_field}}
-        -if form_field.errors
-          %span.help-block.field-errors= form_field.errors
-
-      %a#form-one-submit.btn.btn-primary{href:'#page-two'}
-        -trans "Continue"
-
-    #form-two
-
-      %p.instructions
-        -trans "Great, just a couple more questions and we are ready to roll."
-
-      %label
-        -trans "Workspace"
-      -with form|field:'name' as form_field
-        {{form_field}}
-        -if form_field.errors
-          %span.help-block.field-errors= form_field.errors
-
-      %label
-        -trans "Timezone"
+    -render_field 'email'
+    
+    -render_field 'password'
+    
+    .my-8
+      -render_field 'name'
+    
+    .hidden
       -with form|field:'timezone' as form_field
         {{form_field}}
-        -if form_field.errors
-          %span.help-block.field-errors= form_field.errors
 
-      %br
-      %input#form-two-submit.btn.btn-primary{type:'submit', value:'Save'}
+    .mt-4
+      %input.button-primary{type:'submit', value:'Sign Up'}
 
-  %br.clearfix{clear:'both'}
+    .mt-6
+      Already have an account?
+      %a(href="/users/login/")<
+        -trans "Sign In"
+
 
 -block extra-script
   %script{src:"{{ STATIC_URL }}bower/jsTimezoneDetect/jstz.js"}
   {{ block.super }}
 
   :javascript
-
-    (function($){
-
-      $("#id_first_name").focus()
-
-      $.History.bind('page-two',function(state){
-        $("#form-one").animate({'left':'-400', 'opacity':0}, { queue:false, complete:function(){}});
-        $("#form-two").css('left', 400).show().animate({'left':'32', 'opacity':1}, { queue:false, complete:function(){}}).find('#id_name').focus();
-      });
-
-      $.History.bind('',function(state){
-        $("#form-one").animate({'left':'32', 'opacity':1}, { queue:false, complete:function(){}}).find('#id_first_name').focus();
-        $("#form-two").show().animate({'left':'400', 'opacity':0}, { queue:false, complete:function(){ $(this).css('left', 1000)}});
-      });
-
-      if ($('.field-errors').length > 0) {
-        $("#sign-up").addClass('failed');
-      }
-
-      $("#id_first_name").attr('placeholder','{{ _("Ben")|escapejs }}');
-      $("#id_last_name").attr('placeholder','{{ _("Haggerty")|escapejs }}');
-      $("#id_name").attr('placeholder','{{ _("Which workspace is this login for?")|escapejs }}');
-      $("#id_email").attr('placeholder','{{ _("name@domain.com")|escapejs }}');
-      $("#id_password").attr('placeholder','{{ _("Please enter at least 8 characters")|escapejs }}');
-
-      // Make the timezone select2
-      $('#id_timezone').select2({
-        containerCssClass: 'select2-temba-field',
-      });
-
-      // Preselect based on the user time
+    window.addEventListener("DOMContentLoaded", function (){
       var timezone = jstz.determine().name();
-      $('#id_timezone').select2("val", timezone);
+      document.getElementById("id_timezone").value = timezone;
+    });
 
-    })(jQuery);
+

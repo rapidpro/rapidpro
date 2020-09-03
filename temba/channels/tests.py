@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from unittest.mock import call, patch
 from urllib.parse import quote
 
+import nexmo
 from django_redis import get_redis_connection
 from smartmin.tests import SmartminTest
 
@@ -172,7 +173,7 @@ class ChannelTest(TembaTest):
         # should now have the option to disable
         self.login(self.admin)
         response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
-        self.assertContains(response, "Disable Voice Calls")
+        self.assertContains(response, "Disable Voice Calling")
 
         # try adding a caller for an invalid channel
         response = self.client.post("%s?channel=20000" % reverse("channels.channel_create_caller"))
@@ -185,7 +186,7 @@ class ChannelTest(TembaTest):
 
         # we should lose our caller
         response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
-        self.assertNotContains(response, "Disable Voice Calls")
+        self.assertNotContains(response, "Disable Voice Calling")
 
         # now try and add it back without a twilio connection
         response = self.client.post(reverse("channels.channel_create_caller"), post_data)
@@ -588,11 +589,11 @@ class ChannelTest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], update_url)
 
-        self.client.post(update_url, {"name": "Test Channel Update1", "address": "+250785551313"})
+        self.client.post(update_url, {"name": "Test Channel Update1"})
 
         self.tel_channel.refresh_from_db()
         self.assertEqual("Test Channel Update1", self.tel_channel.name)
-        self.assertEqual("+250785551313", self.tel_channel.address)
+        self.assertEqual("+250785551212", self.tel_channel.address)
         self.assertFalse(self.tel_channel.config.get("allow_international"))
 
         # if we change the channel to a twilio type, shouldn't be able to edit our address
@@ -612,14 +613,12 @@ class ChannelTest(TembaTest):
         self.assertEqual(response.request["PATH_INFO"], update_url)
 
         self.fetch_protected(
-            update_url,
-            self.admin,
-            {"name": "Test Channel Update2", "address": "+250785551414", "allow_international": True},
+            update_url, self.admin, {"name": "Test Channel Update2", "allow_international": True},
         )
 
         self.tel_channel.refresh_from_db()
         self.assertEqual("Test Channel Update2", self.tel_channel.name)
-        self.assertEqual("+250785551414", self.tel_channel.address)
+        self.assertEqual("+250785551212", self.tel_channel.address)
         self.assertTrue(self.tel_channel.config.get("allow_international"))
 
         # visit the channel's update page as superuser
@@ -628,11 +627,11 @@ class ChannelTest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], update_url)
 
-        self.fetch_protected(update_url, self.superuser, {"name": "Test Channel Update3", "address": "+250785551515"})
+        self.fetch_protected(update_url, self.superuser, {"name": "Test Channel Update3"})
 
         self.tel_channel.refresh_from_db()
         self.assertEqual("Test Channel Update3", self.tel_channel.name)
-        self.assertEqual("+250785551515", self.tel_channel.address)
+        self.assertEqual("+250785551212", self.tel_channel.address)
 
         # make sure channel works with alphanumeric numbers
         self.tel_channel.address = "EATRIGHT"
@@ -715,14 +714,14 @@ class ChannelTest(TembaTest):
 
         self.assertTrue(len(response.context["latest_sync_events"]) <= 5)
 
-        response = self.fetch_protected(reverse("orgs.org_home"), self.admin)
+        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin)
         self.assertNotContains(response, "Enable Voice")
 
         # Add twilio credentials to make sure we can add calling for our android channel
         self.org.config.update({Org.CONFIG_TWILIO_SID: "SID", Org.CONFIG_TWILIO_TOKEN: "TOKEN"})
         self.org.save(update_fields=("config",))
 
-        response = self.fetch_protected(reverse("orgs.org_home"), self.admin)
+        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin)
         self.assertTrue(self.org.is_connected_to_twilio())
         self.assertContains(response, "Enable Voice")
 
@@ -873,8 +872,9 @@ class ChannelTest(TembaTest):
 
         self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "CT")
         self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "EX")
-        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "IB")
-        self.assertEqual(response.context["channel_types"]["PHONE"][3].code, "JS")
+        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "I2")
+        self.assertEqual(response.context["channel_types"]["PHONE"][3].code, "IB")
+        self.assertEqual(response.context["channel_types"]["PHONE"][4].code, "JS")
 
     def test_register_unsupported_android(self):
         # remove our explicit country so it needs to be derived from channels
@@ -929,6 +929,29 @@ class ChannelTest(TembaTest):
                     '"type":"mobile-lvn","country":"US","msisdn":"13607884540"}] }',
                     headers={"Content-Type": "application/json"},
                 ),
+                MockResponse(
+                    200,
+                    '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
+                    '"type":"mobile-lvn","country":"US","msisdn":"13607884550"}] }',
+                    headers={"Content-Type": "application/json"},
+                ),
+            ]
+
+            post_data = dict(country="US", area_code="360")
+            response = self.client.post(search_nexmo_url, post_data, follow=True)
+
+            self.assertEqual(response.json(), ["+1 360-788-4540", "+1 360-788-4550"])
+
+        with patch("requests.get") as nexmo_get:
+            nexmo_get.side_effect = [
+                nexmo.ClientError("429 Too many requests"),
+                MockResponse(
+                    200,
+                    '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
+                    '"type":"mobile-lvn","country":"US","msisdn":"13607884540"}] }',
+                    headers={"Content-Type": "application/json"},
+                ),
+                nexmo.ClientError("429 Too many requests"),
                 MockResponse(
                     200,
                     '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '

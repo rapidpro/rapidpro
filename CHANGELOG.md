@@ -1,3 +1,118 @@
+v5.7.34
+----------
+ * Add view to handle file URL callbacks from Zendesk
+
+v5.7.33
+----------
+ * Fix delete button on archived contacts page
+ * Don't allow saving queries that aren't supported as smart groups
+ * Delete no longer used contacts/fields.py
+ * Fix contacts reppearing in ES searches after being modified by a bulk action
+ * Adjust pjax block for contact import block
+
+v5.7.32
+----------
+ * Modal max-height in vh to not obscure buttons
+
+v5.7.31
+----------
+ * Add padding for p tags on policies
+
+v5.7.30
+----------
+ * Add content guideline policy option, update styling a bit
+
+v5.7.29
+----------
+ * Sitewide refresh of styles using Tailwind
+
+v5.7.27
+----------
+ * Site refresh of styles using Tailwind.
+
+v5.7.28
+----------
+ * Update to flow editor v1.9.15
+
+v5.7.27
+----------
+ * Update to flow editor v1.9.14
+ * Add support for last_seen_on in legacy search code
+
+v5.7.26
+----------
+ * Handle large deletes of contacts in background task
+
+v5.7.25
+----------
+ * Fix bulk actions against querysets from ES searches
+ * Fix bulk action permissions on contact views
+
+v5.7.24
+----------
+ * Rename existing 'archive' contact action in API to 'archive_messages'
+ * Allow deleting of all contacts from Archived view
+
+v5.7.23
+----------
+ * Rename All Contacts to Active
+ * Add UI for archiving, restoring and deleting contacts
+
+v5.7.22
+----------
+ * Bump version of mailroom and indexer used for tests
+ * Drop no longer used is_blocked and is_stopped fields
+
+v5.7.21
+----------
+ * Add missing migration from last rev
+
+v5.7.20
+----------
+ * Add missing migration
+
+v5.7.19
+----------
+ * Make contact.is_stopped and is_blocked nullable and stop writing
+
+v5.7.18
+----------
+ * Update sys group trigger to handle archiving
+
+v5.7.17
+----------
+ * Migration to add Archived sys group to all orgs
+
+v5.7.16
+----------
+ * Update to flow editor 1.9.11
+ * Update database triggers to use contact status instead of is_blocked or is_stopped
+ * Make contact.status non-null
+ * Create new archived system group for new orgs
+
+v5.7.15
+----------
+ * Add nag warning to legacy editor
+
+v5.7.14
+----------
+ * Migration to backfill contact status
+
+v5.7.13
+----------
+ * Enable channelback files for Zendesk ticketers
+ * Set status as active for new contacts
+ * Add new status field to contact
+ * Fix legacy editor by putting html-tag block back
+ * Change the label for CM channel claim
+
+v5.7.12
+----------
+ * Fix imports that match by UUID
+ * Fix Nexmo search numbers and claim number
+ * Use Django language code on html tag
+ * Add support for ClickMobile channel type
+
 v5.7.11
 ----------
  * Fix creating of campaign events based on last_seen_on

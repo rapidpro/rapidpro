@@ -1,33 +1,29 @@
 -extends "smartmin/update.html"
 -load i18n
 
--block title
-  .title-icon
-    .glyph.icon-users{style:"float:left;"}
-  .title-text
-    %h1
-      {{title}}
-
 -block content
-  .span7.offset2
-    %p.join-message
-      -trans "You have been invited to join"
-      {{org.name}}.
-      %br
-      -trans "Please click Join to accept the invitation."
-    %form.smartmin-form{method:"post", encrypt:"multipart/form-data"}
-      -csrf_token
-      -block form-buttons
-        .form-actions
-          %input.btn.btn-primary{type:"submit", value:"{{submit_button_name}}"}
 
--block extra-style
-  :css
-    .join-message {
-      font-size: 26px;
-      line-height: normal;
-      color: #333333;
-    }
-    .form-actions > input {
-      margin-left: -20px;
-    }
+  .page-title
+    -trans "Choose Workspace"
+
+  .flex.w-full.mb-4.items-end.flex-wrap.justify-end{style:"min-height:41px"}
+    .flex-grow.ml-1.self-end.items-end
+      .flex.flex-col.pr-12
+        .page-title.leading-tight
+          -block title
+            {{title}}
+          .subtitle
+            -block subtitle
+
+  .flex.w-full.mb-4
+    .flex-grow.ml-1
+      -blocktrans trimmed with name=org.name
+        You have been invited to join {{name}}.
+      </br>
+      -trans "Please click Join to accept the invitation."
+
+  .flex.w-full.mb-4
+    .flex-grow.ml-1
+      %form.mb-4{method:"post", encrypt:"multipart/form-data"}
+        -csrf_token
+        %input.button-primary{type:"submit", value:"{{submit_button_name}}"}

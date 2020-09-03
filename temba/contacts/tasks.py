@@ -5,15 +5,30 @@ import iso8601
 import pytz
 
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.utils import timezone
 
 from celery.task import task
 
+from temba.utils import chunk_list
 from temba.utils.celery import nonoverlapping_task
 
 from .models import Contact, ContactGroup, ContactGroupCount, ExportContactsTask
 
 logger = logging.getLogger(__name__)
+
+
+@task(track_started=True)
+def release_contacts(user_id, contact_ids):
+    """
+    Releases the given contacts
+    """
+    user = User.objects.get(pk=user_id)
+
+    for id_batch in chunk_list(contact_ids, 100):
+        batch = Contact.objects.filter(id__in=id_batch, is_active=True).prefetch_related("urns")
+        for contact in batch:
+            contact.release(user)
 
 
 @task(track_started=True, name="export_contacts_task")

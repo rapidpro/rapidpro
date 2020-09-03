@@ -1,9 +1,6 @@
 // if you are looking for a style that is not here,
 // it might be in the legacy file.
 @import "legacy";
-@import "formax";
-
-
 
 .btn-alert {
   .btn-colored(@color-alert-error, @color-font-white);
@@ -22,12 +19,13 @@
   margin-bottom: -@footer-height;
 }
 
-html, body {
+html,
+body {
   height: 100%;
 
 }
 
-body{
+body {
   @media (max-width: 767px) {
     padding-right: 0px;
     padding-left: 0px;
@@ -93,20 +91,14 @@ body{
   }
 }
 
-#footer, .page-wrap:after {
+#footer,
+.page-wrap:after {
   height: @footer-height;
 }
 
 // a css class to override an elements visibility property
 .visible {
   visibility: visible !important;
-}
-
-// call attention to rows in a table
-tr.warning td {
-  background: rgba(207, 127, 127, 0.28);
-  border-bottom: 1px solid;
-  border-color: rgba(207, 127, 127, 0.35);
 }
 
 // used on message views and contact history page
@@ -132,7 +124,7 @@ tr.warning td {
     }
   }
 
-  a.attachment-preview:hover{
+  a.attachment-preview:hover {
     background-color: #D0D0D0;
     color: #555;
     cursor: pointer;
@@ -174,57 +166,38 @@ td.created_on {
     margin-right: 12px;
   }
 
-  .log-icon {
-    position: absolute;
-    right: 40px;
-    margin-top: -14px;
-    a {
-      color: rgba(0, 0, 0, .3);
-    }
-  }
 }
 
-.show-quick-reply{
-    .row{
-      display: table;
-      width: 100%; 
-      table-layout: fixed; 
-      border-spacing: 10px; 
+.show-quick-reply {
+  .row {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+    border-spacing: 10px;
   }
-  .show-quick-reply-value
-  {
+
+  .show-quick-reply-value {
     width: 100%;
     display: table-cell;
-    span{
+
+    span {
       font-weight: bold;
     }
   }
 }
 
-.warning {
-  .rounded-corners();
-  padding: 15px;
-  margin-top: 5px;
-  border: 1px solid @color-bg-yellow - #111;
-  background: @color-bg-yellow;
-}
-
-.success {
-  .rounded-corners();
-  padding: 15px;
-  margin-top: 5px;
-  border: 1px solid @color-bg-lightgrey - #111;
-  background: #fff;
-}
-
 // Policies
 .policy {
   margin-top: 20px;
-  font-size: 12px;
+  font-size: 14px;
 
-
-  h1, h2, h3, h4, h5, h6 {
-    font-size: 12px;
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-size: 16px;
     font-weight: 400;
     line-height: 16px;
     margin-bottom: 8px;
@@ -233,18 +206,16 @@ td.created_on {
 
   h2 {
     font-size: 20px;
-    font-weight: 300;
+    font-weight: 400;
     margin-bottom: 16px;
-    color: @color-navbar;
+    color: #666;
   }
 
-  h3 {
-
-  }
+  h3 {}
 
   p {
-    letter-spacing: 0.10em;
-    line-height: 17px;
+    line-height: inherit;
+    margin-bottom: 20px;
   }
 
   ul {
@@ -271,13 +242,13 @@ td.created_on {
 
 .recipients {
   .item {
-    display:inline-block;
-    margin-right:6px;
+    display: inline-block;
+    margin-right: 6px;
     font-size: 11px;
     color: #aaa;
 
     .icon {
-      display:inline-block;
+      display: inline-block;
       margin-right: -3px;
     }
   }

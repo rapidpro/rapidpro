@@ -1,126 +1,103 @@
 -extends "smartmin/base.html"
 -load i18n compress temba
 
--block page-top
-  .row
-    .span12
-      %h2
-        -trans "Add a Channel"
-      .instructions
-        %p
-          -blocktrans trimmed with name=brand.name
-            To get started you need to add a channel to your workspace. A channel is a phone number or social network
-            account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
-            Android phone and your own cell phone plan, or we can connect you with a service provider in your country
-            directly.
+-block title
+  -trans "Add a Channel"
 
 -block content
-  .channel-options
-    %h3
+  -blocktrans trimmed with name=brand.name
+    To get started you need to add a channel to your workspace. A channel is a phone number or social network
+    account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
+    Android phone and your own cell phone plan, or we can connect you with a service provider in your country
+    directly.
+
+  .channel-options.mt-8
+    .title
       -trans "Recommendations"
+
     .channel-options-recommended
 
     -if recommended_channels
       -for ch_type in recommended_channels
-        .claim-row.recommended
-          .row
-            .span3
-              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}"}
-                .btn-container
-                  .claim-glyph{class:"{{ ch_type.icon }}"}
-                  %p.claim-text= ch_type.name
-            .span8
-              .claim-description
-                %div
-                  {% include ch_type.get_claim_blurb %}
+        .card.link(href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}" onclick="goto(event, this)")
+          .relative
+            .text-base.absolute.text-gray-100.bg-icon(class="{{ ch_type.icon }}")
+          
+          .flex.flex-col.mx-20.relative
+            .title
+              {{ch_type.name}}
+
+            .mt-2
+              {% include ch_type.get_claim_blurb %}
+
     -else
-      .claim-row.android-channel.recommended
-        .recommendation
-          -blocktrans trimmed
-            We recommend using an Android phone with a local sim card for your country. This phone
-            will send and receive messages for you. You will only need one phone per country depending on
-            message volume. Don't worry! The people you are texting with can still use basic phones.
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.types.android.claim' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-android
-                %p.claim-text
-                  -trans "Android Phone"
+      .card.link(href="{% url 'channels.types.android.claim' %}" onclick="goto(event, this)")
+        .relative
+          .text-base.absolute.text-gray-100.bg-icon.icon-channel-android
+        .flex.flex-col.mx-20.relative
+          .title
+            -trans "Android Phone"
 
-          .span8
-            .claim-description
-              %div
-                -blocktrans trimmed
-                  Works in any country and uses the cell phone plan
-                  you already have. You just need an Android phone
-                  to get started.
+          .mt-2
+            -blocktrans trimmed
+              We recommend using an Android phone with a local sim card for your country. This phone
+              will send and receive messages for you. You will only need one phone per country depending on
+              message volume. Don't worry! The people you are texting with can still use basic phones.
 
-    %h3
-      -trans "Phone Channels"
+    .bg-gray-200.-mx-128.px-128.py-12.mt-16
+      .title.mb-4
+        -trans "Social Network Channels"
 
-    - if recommended_channels
-      .claim-row.android-channel
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.types.android.claim' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-android
-                %p.claim-text
-                  -trans "Android Phone"
+      -for ch_type in channel_types.SOCIAL_MEDIA
+        .card.link(href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}" onclick="goto(event, this)")
+          .relative
+            .text-base.absolute.text-gray-100.bg-icon{class:"{{ ch_type.icon }}"}
+          .flex.flex-col.mx-20.relative
+            .title
+              {{ch_type.name}}
+            .mt-2
+              {% include ch_type.get_claim_blurb %}
 
-          .span8
-            .claim-description
-              %div
-                -blocktrans trimmed
-                  Works in any country and uses the cell phone plan
-                  you already have. You just need an Android phone
-                  to get started.
+      .title.mb-4.mt-8
+        -trans "SMS and Voice Channels"
 
-    -for ch_type in channel_types.PHONE
-      .claim-row
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}"}
-              .btn-container
-                .claim-glyph{class:"{{ ch_type.icon }}"}
-                %p.claim-text= ch_type.name
-          .span8
-            .claim-description
-              %div
-                {% include ch_type.get_claim_blurb %}
+      -if recommended_channels
+        .card.link(href="{% url 'channels.types.android.claim' %}" onclick="goto(event, this)")
+          .relative
+            .text-base.absolute.text-gray-100.bg-icon.icon-channel-android
+          .flex.flex-col.mx-20.relative
+            .title
+              -trans "Android Phone"
 
-    %h3
-      -trans "Social Network Channels"
+            .mt-2
+              -blocktrans trimmed
+                Works in any country and uses the cell phone plan
+                you already have. You just need an Android phone
+                to get started.
 
-    -for ch_type in channel_types.SOCIAL_MEDIA
-      .claim-row
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}"}
-              .btn-container
-                .claim-glyph{class:"{{ ch_type.icon }}"}
-                %p.claim-text= ch_type.name
-          .span8
-            .claim-description
-              %div
-                {% include ch_type.get_claim_blurb %}
+      -for ch_type in channel_types.PHONE
+        .card.link(href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}" onclick="goto(event, this)")
+          .relative
+            .text-base.absolute.text-gray-100.bg-icon{class:"{{ ch_type.icon }}"}
+          .flex.flex-col.mx-20.relative
+            .title
+              {{ch_type.name}}
+            .mt-2
+              {% include ch_type.get_claim_blurb %}
 
-    %h3
-      -trans "API Channels"
 
-    -for ch_type in channel_types.API
-      .claim-row
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}"}
-              .btn-container
-                .claim-glyph{class:"{{ ch_type.icon }}"}
-                %p.claim-text= ch_type.name
-          .span8
-            .claim-description
-              %div
-                {% include ch_type.get_claim_blurb %}
+      .title.mt-8
+        -trans "API Channels"
+
+      -for ch_type in channel_types.API
+        .card.link(href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}" onclick="goto(event, this)")
+          .relative
+            .text-base.absolute.text-gray-100.bg-icon{class:"{{ ch_type.icon }}"}
+          .flex.flex-col.mx-20.relative
+            .title
+              {{ch_type.name}}
+            .mt-2
+              {% include ch_type.get_claim_blurb %}
 
 -block form-buttons
 
@@ -188,6 +165,55 @@
 -block extra-style
   :css
 
+    .card:hover .bg-icon { 
+      color: rgb(var(--focus-rgb), .3);
+    }
+    
+
+    .bg-icon {
+      transform: translate(-65px, -35px) rotate(0deg); 
+      font-size:120px;
+    }
+
+    .bg-icon.icon-channel-kannel {
+      transform: translate(-35px, -45px) rotate(15deg) scale(1.5); 
+      font-size:100px;
+    }
+
+    .bg-icon.icon-channel-plivo {
+      transform: translate(-55px, -45px) rotate(15deg) scale(1.5); 
+      font-size:100px;
+    }
+
+    .bg-icon.icon-facebook-official {
+      transform: translate(-115px, -45px) rotate(0deg) scale(2); 
+      font-size:100px;
+    }
+
+    .bg-icon.icon-power-cord {
+      transform: translate(-45px, -15px) rotate(0deg); 
+      font-size:100px;
+    }
+
+    .bg-icon.icon-fcm {
+      transform: translate(-20px, -45px) rotate(35deg); 
+      font-size:160px;
+    }
+
+    .bg-icon.icon-freshchat {
+      transform: translate(-55px, -22px) rotate(0deg); 
+      font-size:110px;
+    }
+
+    .bg-icon.icon-junebug {
+      transform: translate(-25px, -10px) rotate(0deg); 
+      font-size: 70px;
+    }
+
+    .bg-icon.icon-channel-android {
+      transform: translate(-35px, -25px) rotate(15deg); 
+      font-size:100px;
+    }
 
     .horizontal-channel {
       margin-top: 30px;
@@ -215,14 +241,6 @@
 
     .external {
       text-align: center;
-    }
-
-    .claim-glyph {
-      line-height: 40px;
-      text-decoration: none;
-      font-size: 40px;
-      display: inline;
-      padding-bottom: 10px;
     }
 
     .btn-claim {

@@ -1,0 +1,404 @@
+-extends "frame.haml"
+
+-block title
+  Style Guide
+
+-block subtitle
+  Canonical record for how things should look
+
+
+-block content
+  
+  %table.list.lined
+    %thead
+      %tr
+        %th(colspan=2)
+          Titles / Headers
+
+    %tbody
+      %tr
+        %td.text-base
+          .code
+            \.page-title
+        %td.w-full
+          .page-title
+            Page Title
+
+      %tr
+        %td
+          .code
+            \.page-subtitle
+        %td
+          .page-subtitle
+            Page Subtitle
+
+      %tr
+        %td
+          .code
+            \.title
+        %td
+          .title
+            Internal Title
+
+      %tr
+        %td
+          .code
+            \.cap-label
+        %td
+          .cap-label
+            Column Header
+
+
+  %table.list.lined.mt-8
+    %thead
+      %tr
+        %th(colspan=2)
+          Buttons
+        %th
+          Usage
+
+    %tbody
+      %tr
+        %td
+          .code
+            \.button-primary
+        %td
+          .button-primary
+            Primary Button
+        %td
+            Primary action to be taken on a given page. There should only be one primary button on a page at a time.
+      %tr
+        %td
+          .code
+            \.button-light
+        %td
+          .button-light
+            Light Button
+        %td
+          Most buttons are light buttons, non-primary actions to take on all pages
+
+      %tr
+        %td
+          .code
+            \.button-secondary
+        %td
+          .button-secondary
+            Secondary Button
+        %td
+          Button with the secondary color. Contrasting option, extra call to action, only one per page.
+
+      %tr
+        %td
+          .code
+            \.button-tertiary
+        %td
+          .button-tertiary
+            Tertiary Button
+        %td
+          Button with the tertiary color. Contrasting option, extra call to action, only one per page.
+
+  .title.mt-8
+    Alerts
+  .card.bg-white.mt-3
+    .code.mb-2
+      \.alert-warning
+    .alert-warning
+      This is your last warning
+
+    .code.mb-2.mt-6
+      \.alert-info
+    .alert-info
+      Just wanted to share some info with you
+
+    .mb-2.mt-6
+      .code
+        \.alert-danger
+      .code
+        \.alert-error
+    .alert-danger
+      Thar be dragons, danger!
+
+  .title.mt-8
+    Tables
+
+  %table.list.lined.mt-3
+    %thead
+      %tr
+        %th(colspan=2)
+          Table Options
+    
+    %tr
+      %td
+        .code
+          \.lined
+      %td.w-full
+        Add lines between rows
+    %tr
+      %td
+        .code
+          \.toggle
+      %td.w-full
+        Adds hide/show functionality. 
+    %tr
+      %td
+        .code
+          \.stateful
+      %td.w-full
+        Remember toggle state on page reload.
+
+
+  %table.list.toggle.stateful.lined.mt-3
+    
+    %thead
+      %tr
+        %th(colspan=2)
+          Expandable Table    
+    
+    %tbody
+      %tr
+        %td
+          .name
+            Joe Exotic
+        %td
+          .number
+            +1 (206) 555-1212
+      %tr
+        %td
+          .name
+            Carol Baskin
+        %td
+          .number
+            +1 (360) 555-1010
+
+  .title.mt-8
+    Forms
+
+  %table.list.lined.mt-3
+    %thead
+      %tr
+        %th
+          Form Elements
+
+    %tbody
+      %tr
+        %td
+          .p-4
+            %temba-textinput(name="Example" placeholder="Placeholder Text" label="My Text Input" help_text="This is here to help, I hope you can read it okay.")
+      %tr
+        %td
+          .p-4
+            %temba-textinput(textarea="true" name="Example" placeholder="Placeholder Text" label="My Textarea" help_text="This is here to help, I hope you can read it okay.")
+    
+      %tr
+        %td
+          .p-4
+            %temba-select(name="select" label="My Favorite Things" placeholder="Select something alerady")
+              %temba-option(name="Phish" value="phish")
+              %temba-option(name="Prismatic" value="prismatic")
+              %temba-option(name="Bicycles" value="bicycles")
+
+  .p-4
+    .mb-2
+      Checkboxes are treated differently inside tables, so this example is outside
+    %temba-checkbox(label="Check Me Out" help_text="This is here to help, I hope you can read it okay.")
+    
+  .mt-8
+
+    .title
+      Cards
+
+    .card.mt-3    
+      Use <div class="code">.card</div> to create a card. Optionally, use a combination of bleeds to garner different layouts.
+
+    %table.list.lined
+      %tr
+        %td
+          .code.whitespace-no-wrap
+            \.bleed-t
+        %td.w-full
+          Bleed Top
+
+      %tr
+        %td
+          .code.whitespace-no-wrap
+            \.bleed-b
+        %td.w-full
+          Bleed Bottom
+
+      %tr
+        %td
+          .code.whitespace-no-wrap
+            \.bleed-r
+        %td.w-full
+          Bleed Right
+
+      %tr
+        %td
+          .code.whitespace-no-wrap
+            \.bleed-l
+        %td.w-full
+          Bleed Left
+
+      %tr
+        %td
+          .code.whitespace-no-wrap
+            \.bleed-x
+        %td.w-full
+          Bleed Horizontal
+
+      %tr
+        %td
+          .code.whitespace-no-wrap
+            \.bleed-y
+        %td.w-full
+          Bleed Vertical
+
+    .card
+      .bleed-t.bleed-x.bg-primary
+        .title.text-white.px-6.py-3
+          Top Bleed
+      .p-2
+        This card uses 
+        .code
+          \.bleed-t
+        and
+        .code
+          \.bleed-x
+        to create a title bar
+
+    .card
+      .p-2
+        This card uses 
+        .code
+          \.bleed-b
+        and
+        .code
+          \.bleed-x
+        to create a gutter
+
+      .bleed-b.bleed-x.bg-gray-200
+        .text-gray-500.text-center.p-3
+          This card brought to you by the team at Nyaruka.
+
+    .card.flex.items-stretch
+      .bleed-l.bleed-y.bg-secondary
+        .flex.items-center.h-full
+          .title.text-white.whitespace-no-wrap.p-4
+            Left Bleed
+
+      .flex-grow
+        .flex.items-center.h-full
+          .p-4
+            This card uses 
+            .code
+              \.bleed-l
+            and
+            .code
+              \.bleed-y
+            to create a left pane.
+            This card also shows a technique for vertically centering using nested flexboxes.
+
+    .card.flex.items-stretch
+      .flex-grow
+        .flex.items-center.h-full
+          .p-4
+            This card uses 
+            .code
+              \.bleed-r
+            and
+            .code
+              \.bleed-y
+            to create a right pane, an inverted example from the one above.
+      .bleed-r.bleed-y.bg-secondary
+        .flex.items-center.h-full
+          .title.text-white.whitespace-no-wrap.p-4
+            Right Bleed
+
+  .mt-8
+    .title
+      Lift
+
+    Any component can be lifted on hover using <div class="code">.lift</div>, but looks best when applied to things with a shadow.
+
+    .mt-2
+      .button-primary.lift.inline-block
+        Lifted Button
+    
+    .mt-2
+      .card.w-128.lift.cursor-pointer
+        .bleed-t.bleed-x.bg-primary
+          .px-6.py-2.title.text-white
+            Lifted Card
+        Even complex things like cards with titles and gutters can be lifted.
+        .bleed-b.bleed-x.bg-gray-100.text-gray-500
+          .py-2.text-xs.text-center
+            Brought to you by your pals at Nyaruka.
+          
+
+
+  .mt-8
+    .title
+      Layout
+    
+    Where possible use flexbox for layouts. We have classes for laying things out quickly. The most common pattern
+    is a flex box with a left and right column but with te right side growing to fill avaliable space. To accomplish this,
+    use the <div class="code">.flex-grow</div> class.
+
+    .flex.items-center.border.mt-4.bg-white.card
+      .p-4.border-r
+        This is the left side
+      .p-4.flex-grow
+        This is the right side, but it is greedy.
+
+    .mt-8.mb-4
+      .title
+        List Pages
+    
+      There are helper classes for laying out a general list page
+    .p-8.rounded-lg.shadow.bg-white
+      .lp-frame.mt-0
+        .left
+          .button-primary
+            Primary Action
+          .lp-nav.upper
+            .lp-nav-item
+              .name
+                Some item
+              .count
+                123
+          .lp-nav.lower
+            .lp-nav-item
+              .name
+                Another item
+              .count
+                123
+        .right
+          Main content view
+
+  .mt-8
+    .title
+        Language
+    
+    Baseline rules for how we talk about things with users.
+
+    .card
+      Do not capitalize (except with title case) or hyphenate email.
+      .mt-3
+        Users "Sign In" and "Sign Out".
+      .mt-3
+        Account passwords are reset, not recovered.
+
+      .mt-3
+        For contacts, we have Groups and Smart Groups.
+    
+      .mt-3
+        Capitalize Flows, Contacts, Campaigns, Groups, Smart Groups, Triggers
+      
+      .mt-3
+        Users "Select" instead of "Choose", <i>Select the Flow to start</i>
+
+      .mt-3
+        Users "Connect" numbers to their account when adding a channel.
+
+
+        

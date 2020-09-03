@@ -11,7 +11,7 @@ from django.utils import timezone
 from celery.task import task
 
 from temba.channels.models import Channel
-from temba.contacts.models import WHATSAPP_SCHEME, ContactURN
+from temba.contacts.models import WHATSAPP_SCHEME, Contact, ContactURN
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
 from temba.utils import chunk_list
@@ -36,7 +36,7 @@ def refresh_whatsapp_contacts(channel_id):
         # look up all whatsapp URNs for this channel
         wa_urns = (
             ContactURN.objects.filter(
-                org_id=channel.org_id, scheme=WHATSAPP_SCHEME, contact__is_stopped=False, contact__is_blocked=False
+                org_id=channel.org_id, scheme=WHATSAPP_SCHEME, contact__status=Contact.STATUS_ACTIVE
             )
             .exclude(contact=None)
             .only("id", "path")
