@@ -166,14 +166,14 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_contact_create(self, mock_post):
-        mock_post.return_value = MockResponse(200, '{"contact": {"name": "Bob"}}')
+        mock_post.return_value = MockResponse(200, '{"contact": {"id": 1234, "name": "", "language": ""}}')
 
         # try with empty contact spec
         response = get_client().contact_create(
             self.org.id, self.admin.id, ContactSpec(name="", language="", urns=[], fields={}, groups=[])
         )
 
-        self.assertEqual({"name": "Bob"}, response["contact"])
+        self.assertEqual({"id": 1234, "name": "", "language": ""}, response["contact"])
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/contact/create",
             headers={"User-Agent": "Temba"},
@@ -183,7 +183,9 @@ class MailroomClientTest(TembaTest):
                 "contact": {"name": "", "language": "", "urns": [], "fields": {}, "groups": []},
             },
         )
+
         mock_post.reset_mock()
+        mock_post.return_value = MockResponse(200, '{"contact": {"id": 1234, "name": "Bob", "language": "eng"}}')
 
         response = get_client().contact_create(
             self.org.id,
@@ -197,7 +199,7 @@ class MailroomClientTest(TembaTest):
             ),
         )
 
-        self.assertEqual({"name": "Bob"}, response["contact"])
+        self.assertEqual({"id": 1234, "name": "Bob", "language": "eng"}, response["contact"])
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/contact/create",
             headers={"User-Agent": "Temba"},
