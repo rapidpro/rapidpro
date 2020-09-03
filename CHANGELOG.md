@@ -1,3 +1,8 @@
+v5.7.35
+----------
+ * Zendesk file view needs to be csrf exempt
+ * Use mailroom to create contacts from UI
+
 v5.7.34
 ----------
  * Add view to handle file URL callbacks from Zendesk
