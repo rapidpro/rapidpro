@@ -45,16 +45,11 @@
                         %i {{ conflict.node_label }}
                     %td.field-form-label
                       %input.resolving-select{
+                        id: "conflict-{{ conflict.uuid }}"
                         type: "text",
                         name: "conflicts[{{ conflict.uuid }}]",
-                        list: "conflicts-{{ forloop.counter }}",
-                        placeholder: '{% trans "Choose solution or provide your own..." %}'
-                        required
+                        placeholder: '{% trans "Choose solution..." %}'
                       }
-                      %datalist{id: "conflicts-{{ forloop.counter }}"}
-                        - for solution in conflict.solutions
-                          %option{value: "{{solution}}"}
-                            = solution
           
           - if warnings
             .warning
@@ -72,12 +67,41 @@
 
 - block extra-script
   :javascript
-    $(".resolving-select").select2({
-        tags: true,
-        minimumResultsForSearch: -1,
-        placeholder: gettext("Choose solution or provide your own..."),
-        containerCssClass: "select2-temba-field",
-        data: 
+    {% for conflict in conflict_solutions %}
+      $("#conflict-{{ conflict.uuid }}").select2({
+          minimumResultsForSearch: -1,
+          placeholder: gettext("Choose solution..."),
+          containerCssClass: "select2-temba-field",
+          data: [
+            {% for solution in conflict.solutions %}
+              {id: "{{ solution | escapejs }}", text: "{{ solution | escapejs }}"},
+            {% endfor %}
+          ]
+      });
+    {% endfor %}
+
+    $(document).ready(function(){
+      setTimeout(function(){
+        $("input.resolving-select").trigger('change.select2');
+      }, 1000);
+
+      $("input.resolving-select").on("change", function (e) {
+        $(this).parent().removeClass("required");
+      });
+
+      $("form").submit(function(e) {
+        let errors = 0;
+        $("input.resolving-select").each(function () {
+          if ($(this).val() === "") {
+            $(this).parent().addClass("required");
+            errors++;
+          }
+        });
+  
+        if (errors > 0) {
+          e.preventDefault();
+        }
+      });
     });
     
 
@@ -172,4 +196,9 @@
 
     .select2-container {
       max-width: 350px;
+    }
+
+    .required > .select2-container > .select2-choice {
+      border: 1px solid tomato;
+      box-shadow: 0px 0px 2px tomato;
     }
