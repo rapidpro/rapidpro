@@ -1,3 +1,7 @@
+v5.7.34
+----------
+ * Add view to handle file URL callbacks from Zendesk
+
 v5.7.33
 ----------
  * Fix delete button on archived contacts page
