@@ -20,6 +20,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
 from temba.templates.models import Template, TemplateTranslation
+from temba.triggers.models import Trigger
 from temba.utils import extract_constants, json, on_transaction_commit
 from temba.values.constants import Value
 
@@ -1365,3 +1366,9 @@ class TemplateReadSerializer(ReadSerializer):
 
 class UrlAttachmentValidationSerializer(serializers.Serializer):
     attachment_url = serializers.URLField(required=True)
+
+class KeywordTriggerReadSerializer(ReadSerializer):
+    flow = fields.FlowField()
+    class Meta:
+        model = Trigger
+        fields = ("id", "keyword", "flow")
