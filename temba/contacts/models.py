@@ -788,9 +788,16 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     BULK_RELEASE_IMMEDIATELY_LIMIT = 50
 
     @classmethod
-    def create(cls, org, user, name: str, urns: List[str]):
+    def create(
+        cls, org, user, name: str, language: str, urns: List[str], fields: Dict[ContactField, str], groups: List
+    ):
+        fields_by_key = {f.key: v for f, v in fields.items()}
+        group_uuids = [g.uuid for g in groups]
+
         response = mailroom.get_client().contact_create(
-            org.id, user.id, ContactSpec(name=name, language="", urns=urns, fields={}, groups=[]),
+            org.id,
+            user.id,
+            ContactSpec(name=name, language=language, urns=urns, fields=fields_by_key, groups=group_uuids),
         )
         return Contact.objects.get(id=response["contact"]["id"])
 
