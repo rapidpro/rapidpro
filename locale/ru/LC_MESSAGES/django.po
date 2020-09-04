@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-15 18:45+0000\n"
+"POT-Creation-Date: 2020-09-04 01:09+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -21,6 +21,11 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || (n%100>=11 && n%100<=14)? 2 : 3);\n"
+
+#, fuzzy, python-format
+#| msgid "Join %(name)s"
+msgid "Logged in as %(name)s"
+msgstr "Присоединиться к %(name)s"
 
 msgid "Recent Airtime Transfers"
 msgstr "Последние переводы эфирного времени"
@@ -967,6 +972,36 @@ msgstr ""
 "                Эта конечная точка должна вызываться Dart Media при доставке сообщения конечному получателю. (Отчеты о доставке)\n"
 "                Вы можете настроить адрес URL обратного вызова по доставке в своей учетной записи Dart Media, связавшись с Вашим торговым агентом."
 
+msgid "A channel type that allows you to use the Discord proxy TODO link"
+msgstr ""
+
+msgid "Authentication Token"
+msgstr "Токен Аутентификации"
+
+msgid "The discord bot token"
+msgstr ""
+
+msgid "Proxy URL"
+msgstr ""
+
+msgid "The URL on which the discord proxy is running"
+msgstr ""
+
+#, fuzzy
+#| msgid "A telegram channel for this bot already exists on your account."
+msgid "A Discord channel for this bot already exists on your account."
+msgstr "Канал Telegram для этого бота существует в Вашей учетной записи."
+
+#, fuzzy
+#| msgid "Your authentication token is invalid, please check and try again"
+msgid "Couldn't log in using that bot token. Please check and try again"
+msgstr "Ваш токен аутентификации недействителен, пожалуйста, проверьте и попробуйте снова"
+
+#, fuzzy
+#| msgid "An error occurred updating your contact. Please try again later."
+msgid "An error occurred accessing the Discord API. Please try again"
+msgstr "При обновлении Вашего контакта произошла ошибка. Пожалуйста, попробуйте позже."
+
 msgid ""
 "If you are based in Uganda or DRC you can purchase a short\n"
 "    code from <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> and connect it\n"
@@ -1843,9 +1878,6 @@ msgstr ""
 "                Вашим пользователям потребуется устройство Android, Windows или iOS и учетная запись Telegram для отправки и получения\n"
 "    сообщений."
 
-msgid "Authentication Token"
-msgstr "Токен Аутентификации"
-
 msgid "The Authentication token for your Telegram Bot"
 msgstr "Токен аутентификации для Вашего бота Telegram "
 
@@ -2547,6 +2579,11 @@ msgstr "Идентификатор Freshchat"
 
 msgid "VK identifier"
 msgstr "Идентификатор VK"
+
+#, fuzzy
+#| msgid "Viber identifier"
+msgid "Discord identifier"
+msgstr "Идентификатор Viber"
 
 msgid "ID"
 msgstr "ID"
@@ -11134,63 +11171,48 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Unable to get intent entity, make sure you have at least one intent defined"
 #~ msgstr "Не удалось получить объект намерения. Убедитесь, что у Вас имеется хотя бы одно определенное намерение"
 
-#, python-brace-format
 #~ msgid "Unrecognized field: '{prop}'"
 #~ msgstr "Нераспознанное поле: '{prop}'"
 
-#, python-brace-format
 #~ msgid "f'{val}' isn't a valid number"
 #~ msgstr "f'{val}' не является действительным номером"
 
-#, python-brace-format
 #~ msgid "Unknown text comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор текста: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown number comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор номера: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unable to parse the date '{self.value}'"
 #~ msgstr "Невозможно разобрать дату '{self.value}'"
 
-#, python-brace-format
 #~ msgid "Unknown datetime comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор даты и времени: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown location type: '{field.value_type}'"
 #~ msgstr "Неизвестный тип местоположения: '{field.value_type}'"
 
-#, python-brace-format
 #~ msgid "Unsupported comparator '{self.comparator}' for location field"
 #~ msgstr "Неподдерживаемый компаратор '{self.comparator}' для поля местоположения"
 
-#, python-brace-format
 #~ msgid "Unrecognized contact field type '{field.value_type}'"
 #~ msgstr "Нераспознаваемый тип поля контактов '{field.value_type}'"
 
-#, python-brace-format
 #~ msgid "Unknown urn scheme comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор схемы urn: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown language comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор языка: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown created_on comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор created_on: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown name comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор названия: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "No support for attribute field: '{field}'"
 #~ msgstr "Не поддерживается поле атрибутов: '{field}'"
 
-#, python-brace-format
 #~ msgid "Unrecognized contact field type '{prop_type}'"
 #~ msgstr "Нераспознаваемый тип поля контактов '{prop_type}'"
 
@@ -11330,7 +11352,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Channel Alarms (low battery, loss of connectivity)"
 #~ msgstr "Оповещения Канала (низкий заряд батареи, потеря связи)"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"

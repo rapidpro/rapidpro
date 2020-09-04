@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-15 18:45+0000\n"
+"POT-Creation-Date: 2020-09-04 01:09+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -21,6 +21,10 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#, fuzzy, python-format
+msgid "Logged in as %(name)s"
+msgstr "Junte-se a %(name)s"
 
 msgid "Recent Airtime Transfers"
 msgstr ""
@@ -1205,6 +1209,36 @@ msgid ""
 msgstr ""
 "\n"
 "Esse terminal deve ser chamado pelo Hub9 quando uma mensagem foi para o destinatário final. (relatórios de entrega) Você pode definir a URL de entrega de retorno de chamada na sua conta Infobip entrando em contato com o seu agente de vendas."
+
+msgid "A channel type that allows you to use the Discord proxy TODO link"
+msgstr ""
+
+msgid "Authentication Token"
+msgstr ""
+
+msgid "The discord bot token"
+msgstr ""
+
+#, fuzzy
+#| msgid "API Log"
+msgid "Proxy URL"
+msgstr "Registro da API"
+
+msgid "The URL on which the discord proxy is running"
+msgstr ""
+
+msgid "A Discord channel for this bot already exists on your account."
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Couldn't log in using that bot token. Please check and try again"
+msgstr "Código de requisição inválido, por favor, verifique-o e tente novamente."
+
+#, fuzzy
+#| msgid "We encountered an error removing your channel, please try again later."
+msgid "An error occurred accessing the Discord API. Please try again"
+msgstr "Encontramos um erro ao remover o seu transmissor, por favor, tente novamente mais tarde."
 
 #, fuzzy
 msgid ""
@@ -2395,9 +2429,6 @@ msgid ""
 "    messages."
 msgstr ""
 
-msgid "Authentication Token"
-msgstr ""
-
 msgid "The Authentication token for your Telegram Bot"
 msgstr ""
 
@@ -3294,6 +3325,11 @@ msgstr "ID Externo"
 #, fuzzy
 #| msgid "External ID"
 msgid "VK identifier"
+msgstr "ID Externo"
+
+#, fuzzy
+#| msgid "External ID"
+msgid "Discord identifier"
 msgstr "ID Externo"
 
 #, fuzzy
@@ -11889,17 +11925,17 @@ msgstr ""
 #~ msgid "Empty user access token!"
 #~ msgstr "Seu Token API é"
 
-#, fuzzy, python-brace-format
+#, fuzzy
 #~| msgid "Using a Local Number"
 #~ msgid "f'{val}' isn't a valid number"
 #~ msgstr "Use um número local"
 
-#, fuzzy, python-brace-format
+#, fuzzy
 #~| msgid "Invalid group or contact id"
 #~ msgid "Unable to parse the date '{self.value}'"
 #~ msgstr "Grupo ou id do contato inválido"
 
-#, fuzzy, python-brace-format
+#, fuzzy
 #~| msgid "Unknown alert type: %(alert)s"
 #~ msgid "Unknown location type: '{field.value_type}'"
 #~ msgstr "Tipo de alerta desconhecido: %(alert)s"
@@ -12044,7 +12080,7 @@ msgstr ""
 #~ msgid "Channel Alarms (low battery, loss of connectivity)"
 #~ msgstr "Alarmes do Transmissor (bateria fraca, perda de conexão)"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
@@ -12150,7 +12186,7 @@ msgstr ""
 #~ "\n"
 #~ "%(sms_sent)s Enviadas"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        You can connect your <a href=\"http://infobip.com\">Infobip</a> number by entering your number, username and password\n"
@@ -13356,11 +13392,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "Conversation Key"
 #~ msgstr "Configuração"
-
-#, fuzzy
-#~| msgid "API Log"
-#~ msgid "API URL"
-#~ msgstr "Registro da API"
 
 #, fuzzy
 #~ msgid "Connect Vumi"
@@ -15579,10 +15610,6 @@ msgstr ""
 
 #~ msgid "Get started today, no credit card required!"
 #~ msgstr "Comece hoje, nenhum cartão de crédito será necessário!"
-
-#, fuzzy
-#~ msgid "Logged in as %(name)s"
-#~ msgstr "Junte-se a %(name)s"
 
 #~ msgid "phone"
 #~ msgstr "telefone"

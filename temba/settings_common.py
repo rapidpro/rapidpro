@@ -1107,7 +1107,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.i2sms.I2SMSType",
     "temba.channels.types.clicksend.ClickSendType",
     "temba.channels.types.android.AndroidType",
-    "temba.channels.types.discord.DiscordType"
+    "temba.channels.types.discord.DiscordType",
 ]
 
 # -----------------------------------------------------------------------------------

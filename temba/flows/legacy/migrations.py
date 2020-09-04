@@ -608,7 +608,7 @@ def migrate_to_version_11_2(json_flow, flow=None):
 
 def migrate_export_to_version_11_2(exported_json, org, same_site=True):
     """
-        Migrates base_language in flow exports from iso639-2 to iso639-3
+    Migrates base_language in flow exports from iso639-2 to iso639-3
     """
     country_code = org.get_country_code()
 
@@ -680,7 +680,7 @@ def migrate_to_version_11_1(json_flow, flow=None):
 
 def migrate_export_to_version_11_1(exported_json, org, same_site=True):
     """
-        Migrates translation language codes in flow exports from iso639-2 to iso639-3
+    Migrates translation language codes in flow exports from iso639-2 to iso639-3
     """
     country_code = org.get_country_code()
 

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-15 18:45+0000\n"
+"POT-Creation-Date: 2020-09-04 01:09+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,10 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+
+#, python-format
+msgid "Logged in as %(name)s"
+msgstr ""
 
 msgid "Recent Airtime Transfers"
 msgstr ""
@@ -896,6 +900,30 @@ msgid ""
 "                "
 msgstr ""
 
+msgid "A channel type that allows you to use the Discord proxy TODO link"
+msgstr ""
+
+msgid "Authentication Token"
+msgstr ""
+
+msgid "The discord bot token"
+msgstr ""
+
+msgid "Proxy URL"
+msgstr ""
+
+msgid "The URL on which the discord proxy is running"
+msgstr ""
+
+msgid "A Discord channel for this bot already exists on your account."
+msgstr ""
+
+msgid "Couldn't log in using that bot token. Please check and try again"
+msgstr ""
+
+msgid "An error occurred accessing the Discord API. Please try again"
+msgstr ""
+
 msgid ""
 "If you are based in Uganda or DRC you can purchase a short\n"
 "    code from <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> and connect it\n"
@@ -1650,9 +1678,6 @@ msgid ""
 "    messages."
 msgstr ""
 
-msgid "Authentication Token"
-msgstr ""
-
 msgid "The Authentication token for your Telegram Bot"
 msgstr ""
 
@@ -2293,6 +2318,9 @@ msgid "Freshchat identifier"
 msgstr ""
 
 msgid "VK identifier"
+msgstr ""
+
+msgid "Discord identifier"
 msgstr ""
 
 msgid "ID"
