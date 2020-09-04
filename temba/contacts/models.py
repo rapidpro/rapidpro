@@ -146,10 +146,6 @@ class URN(object):
 
         if parsed.scheme not in cls.VALID_SCHEMES and parsed.scheme != DELETED_SCHEME:
             raise ValueError("URN contains an invalid scheme component: '%s'" % parsed.scheme)
-        print("Printing parsed URN to_parts")
-        print(parsed)
-        print(f"Fragment: {parsed.fragment}")
-
         return parsed.scheme, parsed.path, parsed.query or None, parsed.fragment or None
 
     @classmethod

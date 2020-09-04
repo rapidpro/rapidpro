@@ -95,3 +95,5 @@ class DiscordTypeTest(TembaTest):
         send_channel = response.context["send_channel"]
         self.assertIsNotNone(send_channel)
         self.assertEqual(send_channel.channel_type, "DS")
+        # Release the channel. We don't test it separately, so this gives us full coverage
+        channel.release()
