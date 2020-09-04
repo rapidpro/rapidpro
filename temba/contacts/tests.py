@@ -6884,6 +6884,8 @@ class URNTest(TembaTest):
 
     def test_discord_urn(self):
         self.assertEqual("discord:750841288886321253", URN.from_discord("750841288886321253"))
+        self.assertTrue(URN.validate(URN.from_discord("750841288886321253")))
+        self.assertFalse(URN.validate(URN.from_discord("not-a-discord-id")))
 
     def test_whatsapp_urn(self):
         self.assertEqual("whatsapp:12065551212", URN.from_whatsapp("12065551212"))

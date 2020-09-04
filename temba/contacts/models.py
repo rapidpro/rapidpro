@@ -242,7 +242,6 @@ class URN(object):
         # Discord IDs are snowflakes, which are int64s internally
         elif scheme == DISCORD_SCHEME:
             try:
-                print(path)
                 int(path)
                 return True
             except ValueError:
