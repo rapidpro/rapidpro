@@ -83,7 +83,7 @@ URN_SCHEME_CONFIG = (
     (WHATSAPP_SCHEME, _("WhatsApp identifier"), WHATSAPP_SCHEME),
     (FRESHCHAT_SCHEME, _("Freshchat identifier"), FRESHCHAT_SCHEME),
     (VK_SCHEME, _("VK identifier"), VK_SCHEME),
-    (DISCORD_SCHEME, _("Discord identifier"), DISCORD_SCHEME)
+    (DISCORD_SCHEME, _("Discord identifier"), DISCORD_SCHEME),
 )
 
 
@@ -243,11 +243,11 @@ class URN(object):
                 path,
                 regex.V0,
             )
-        # Discord IDs are snowflakes, which are int64s internally 
+        # Discord IDs are snowflakes, which are int64s internally
         elif scheme == DISCORD_SCHEME:
             try:
                 print(path)
-                int(path) 
+                int(path)
                 return True
             except ValueError:
                 return False
@@ -397,6 +397,7 @@ class URN(object):
     @classmethod
     def from_wechat(cls, path):
         return cls.from_parts(WECHAT_SCHEME, path)
+
     @classmethod
     def from_discord(cls, path):
         return cls.from_parts(DISCORD_SCHEME, path)
@@ -2258,7 +2259,7 @@ class ContactURN(models.Model):
         VIBER_SCHEME: 90,
         FCM_SCHEME: 90,
         FRESHCHAT_SCHEME: 90,
-        DISCORD_SCHEME: 90
+        DISCORD_SCHEME: 90,
     }
 
     ANON_MASK = "*" * 8  # Returned instead of URN values for anon orgs

@@ -1,96 +1,97 @@
-# from unittest.mock import patch
+from unittest.mock import patch
 
-# import telegram
+import requests
 
-# from django.test import override_settings
-# from django.urls import reverse
+from django.test import override_settings
+from django.urls import reverse
 
-# from temba.contacts.models import URN
-# from temba.tests import TembaTest
+from temba.contacts.models import URN
+from temba.tests import TembaTest
 
-# from ...models import Channel
+from ...models import Channel
 
 
-# class TelegramTypeTest(TembaTest):
-#     def setUp(self):
-#         super().setUp()
+def mocked_requests_get(*args, **kwargs):
+    class MockedResponse:
+        def __init__(self, data, status_code):
+            self.data = data
+            self.status_code = status_code
 
-#         self.channel = Channel.create(
-#             self.org,
-#             self.user,
-#             None,
-#             "TG",
-#             name="Telegram",
-#             address="12345",
-#             role="SR",
-#             schemes=["telegram"],
-#             config={"auth_token": "123456789:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8"},
-#         )
+        def json(self):
+            return self.data
 
-#     @override_settings(IS_PROD=True)
-#     @patch("telegram.Bot.get_me")
-#     @patch("telegram.Bot.set_webhook")
-#     def test_claim(self, mock_set_webhook, mock_get_me):
-#         url = reverse("channels.types.telegram.claim")
+    headers = kwargs["headers"]
+    if not ("Authorization" in headers):
+        return MockedResponse({}, 401)
+    elif headers["Authorization"] == "Bot fake-valid-token":
+        return MockedResponse({"username": "Rapidpro-Test-Bot-Do-Not-Use"}, 200)
+    elif headers["Authorization"] == "Bot fake-network-error":
+        raise requests.ConnectTimeout()
+    else:
+        return MockedResponse({}, 401)
 
-#         self.login(self.admin)
 
-#         # check that claim page URL appears on claim list page
-#         response = self.client.get(reverse("channels.channel_claim"))
-#         self.assertContains(response, url)
+class DiscordTypeTest(TembaTest):
+    def setUp(self):
+        super().setUp()
 
-#         # can fetch the claim page
-#         response = self.client.get(url)
-#         self.assertContains(response, "Connect Telegram")
+    @patch("requests.get", side_effect=mocked_requests_get)
+    @override_settings(IS_PROD=True)
+    def test_claim(self, mocked):
+        url = reverse("channels.types.discord.claim")
 
-#         # claim with an invalid token
-#         mock_get_me.side_effect = telegram.TelegramError("Boom")
-#         response = self.client.post(url, {"auth_token": "invalid"})
-#         self.assertEqual(200, response.status_code)
-#         self.assertEqual(
-#             "Your authentication token is invalid, please check and try again",
-#             response.context["form"].errors["auth_token"][0],
-#         )
+        self.login(self.admin)
 
-#         user = telegram.User(123, "Rapid", True)
-#         user.last_name = "Bot"
-#         user.username = "rapidbot"
+        # check that claim page URL appears on claim list page
+        response = self.client.get(reverse("channels.channel_claim"))
+        self.assertContains(response, url)
 
-#         mock_get_me.side_effect = None
-#         mock_get_me.return_value = user
-#         mock_set_webhook.return_value = ""
+        # can fetch the claim page
+        response = self.client.get(url)
+        self.assertContains(response, "Connect Discord")
 
-#         response = self.client.post(url, {"auth_token": "184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8"})
-#         channel = Channel.objects.get(address="rapidbot")
-#         self.assertEqual(channel.channel_type, "TG")
-#         self.assertEqual(
-#             channel.config,
-#             {
-#                 "auth_token": "184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8",
-#                 "callback_domain": channel.callback_domain,
-#             },
-#         )
+        # claim with an invalid token
+        response = self.client.post(url, {"auth_token": "invalid", "proxy_url": "http://foo.bar"})
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(
+            "Couldn't log in using that bot token. Please check and try again",
+            response.context["form"].errors["auth_token"][0],
+        )
 
-#         self.assertRedirect(response, reverse("channels.channel_read", args=[channel.uuid]))
-#         self.assertEqual(302, response.status_code)
+        # Test what happens if discord is unreachable
+        response = self.client.post(url, {"auth_token": "fake-network-error", "proxy_url": "http://foo.bar"})
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(
+            "An error occurred accessing the Discord API. Please try again",
+            response.context["form"].errors["auth_token"][0],
+        )
 
-#         response = self.client.post(url, {"auth_token": "184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8"})
-#         self.assertEqual(
-#             "A telegram channel for this bot already exists on your account.",
-#             response.context["form"].errors["auth_token"][0],
-#         )
+        # Claim with a (fake) valid token
+        response = self.client.post(url, {"auth_token": "fake-valid-token", "proxy_url": "http://foo.bar"})
+        channel = Channel.objects.get(name="Rapidpro-Test-Bot-Do-Not-Use")
+        self.assertEqual(channel.channel_type, "DS")
+        self.assertEqual(
+            channel.config,
+            {
+                "auth_token": "fake-valid-token",
+                "send_url": "http://foo.bar/discord/rp/send",
+                "callback_domain": channel.callback_domain,
+            },
+        )
 
-#         contact = self.create_contact("Telegram User", urn=URN.from_telegram("1234"))
+        self.assertRedirect(response, reverse("channels.channel_read", args=[channel.uuid]))
+        self.assertEqual(302, response.status_code)
 
-#         # make sure we our telegram channel satisfies as a send channel
-#         response = self.client.get(reverse("contacts.contact_read", args=[contact.uuid]))
-#         send_channel = response.context["send_channel"]
-#         self.assertIsNotNone(send_channel)
-#         self.assertEqual(send_channel.channel_type, "TG")
+        response = self.client.post(url, {"auth_token": "fake-valid-token", "proxy_url": "http://foo.bar"})
+        self.assertEqual(
+            "A Discord channel for this bot already exists on your account.",
+            response.context["form"].errors["auth_token"][0],
+        )
 
-#     @override_settings(IS_PROD=True)
-#     @patch("telegram.Bot.delete_webhook")
-#     def test_release(self, mock_delete_webhook):
-#         self.channel.release()
+        contact = self.create_contact("Discord User", urn=URN.from_discord("750841288886321253"))
 
-#         mock_delete_webhook.assert_called_once_with()
+        # make sure we our telegram channel satisfies as a send channel
+        response = self.client.get(reverse("contacts.contact_read", args=[contact.uuid]))
+        send_channel = response.context["send_channel"]
+        self.assertIsNotNone(send_channel)
+        self.assertEqual(send_channel.channel_type, "DS")

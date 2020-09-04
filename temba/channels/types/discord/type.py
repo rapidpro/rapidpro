@@ -21,9 +21,7 @@ class DiscordType(ChannelType):
     show_config_page = False
 
     # TODO
-    claim_blurb = _(
-        """A channel type that allows you to use the Discord proxy TODO link"""
-    )
+    claim_blurb = _("""A channel type that allows you to use the Discord proxy TODO link""")
     claim_view = ClaimView
 
     schemes = [DISCORD_SCHEME]
