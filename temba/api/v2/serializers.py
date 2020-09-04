@@ -1369,6 +1369,9 @@ class UrlAttachmentValidationSerializer(serializers.Serializer):
 
 class KeywordTriggerReadSerializer(ReadSerializer):
     flow = fields.FlowField()
+    # To prefetch data on FlowEditor side, we need `uuid` and `name`
+    uuid = serializers.IntegerField(source="id", read_only=True)
+    name = serializers.CharField(source="keyword", read_only=True)
     class Meta:
         model = Trigger
-        fields = ("id", "keyword", "flow")
+        fields = ("id", "uuid", "name", "keyword", "flow")
