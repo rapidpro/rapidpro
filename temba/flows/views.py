@@ -27,7 +27,7 @@ from django.core.exceptions import ValidationError, PermissionDenied
 from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Lower
 from django.db import transaction
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse, Http404
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
@@ -3022,6 +3022,10 @@ class FlowCRUDL(SmartCRUDL):
             queryset = Flow.objects.filter(org=self.org, is_active=True, is_archived=False, is_system=False)
             source = queryset.filter(uuid=self.request.GET.get("source")).first()
             target = queryset.filter(uuid=self.request.GET.get("target")).first()
+
+            if not all((source, target)):
+                raise Http404()
+
             context["source"] = source.as_json()
             context["target"] = target.as_json()
 
@@ -3059,6 +3063,9 @@ class FlowCRUDL(SmartCRUDL):
             source = queryset.filter(uuid=self.request.GET.get("source")).first()
             target = queryset.filter(uuid=self.request.GET.get("target")).first()
             definition = {}
+
+            if not all((source, target)):
+                raise Http404()
 
             # return error message if there are some conflicts
             errors = []

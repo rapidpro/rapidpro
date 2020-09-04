@@ -824,7 +824,8 @@ class GraphDifferenceMap:
 
     def apply_conflict_resolving(self, conflict_resolving):
         for conflict_uuid, resolving in conflict_resolving.items():
-            node_uuid, action_uuid, field_name = conflict_uuid.split("_")
+            node_uuid, action_uuid, *field_name = conflict_uuid.split("_")
+            field_name = "_".join(field_name)
             updated_conflicts = self.diff_nodes_map.get(node_uuid).resolve_conflict(action_uuid, field_name, resolving)
             if updated_conflicts:
                 self.conflicts[node_uuid] = updated_conflicts
