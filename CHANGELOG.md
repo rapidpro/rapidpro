@@ -1,3 +1,7 @@
+v5.7.36
+----------
+ * Fix deleting ticketers
+
 v5.7.35
 ----------
  * Zendesk file view needs to be csrf exempt
