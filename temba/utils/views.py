@@ -13,6 +13,10 @@ logger = logging.getLogger(__name__)
 
 
 class ComponentFormMixin(View):
+    """
+    Mixin to replace form field controls with component based widgets
+    """
+
     def customize_form_field(self, name, field):
 
         # don't replace the widget if it is already one of us
@@ -24,7 +28,7 @@ class ComponentFormMixin(View):
         if isinstance(field.widget, (forms.widgets.Textarea,)):
             field.widget = InputWidget(attrs={"textarea": True})
         elif isinstance(field.widget, (forms.widgets.PasswordInput,)):
-            field.widget = InputWidget(attrs={"password": True})
+            field.widget = InputWidget(attrs={"password": True})  # pragma: needs cover
         elif isinstance(
             field.widget,
             (forms.widgets.TextInput, forms.widgets.EmailInput, forms.widgets.URLInput, forms.widgets.NumberInput),
@@ -32,7 +36,7 @@ class ComponentFormMixin(View):
             field.widget = InputWidget()
         elif isinstance(field.widget, (forms.widgets.Select,)):
             if isinstance(field, (forms.models.ModelMultipleChoiceField,)):
-                field.widget = SelectMultipleWidget()
+                field.widget = SelectMultipleWidget()  # pragma: needs cover
             else:
                 field.widget = SelectWidget()
 
@@ -116,8 +120,11 @@ class BulkActionMixin:
             if all_objects:
                 objects = self.get_queryset()
             else:
+                objects_ids = [o.id for o in objects]
+                self.kwargs["bulk_action_ids"] = objects_ids  # include in kwargs so is accessible in get call below
+
                 # convert objects queryset to one based only on org + ids
-                objects = self.model._default_manager.filter(org=org, id__in=[o.id for o in objects])
+                objects = self.model._default_manager.filter(org=org, id__in=objects_ids)
 
             # check we have the required permission for this action
             permission = self.get_bulk_action_permission(action)

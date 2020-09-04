@@ -7,197 +7,197 @@
   -trans "Import Contacts"
 
 -block content
-  #pjax
-    -block pjax
-    -if show_form
-      .flex.mb-4.flex-col{style:"min-height:41px"}
-        -trans "You can import your contacts from an XLS file you create in Excel."
-        
-        %table#example.list.my-6
-          %tr
-            %th
-              -trans "URN:Tel"
-            %th
-              -trans "Name"
-            %th
-              -trans "Field:Team"
-          %tr
-            %td
-              -trans "+250788123123"
-            %td
-              -trans "John Doe"
-            %td
-              -trans "Managers"
-          %tr
-            %td
-              -trans "+250788111222"
-            %td
-              -trans "Jane Doe"
-            %td
-              -trans "Advisors"
+  -block pjax
+    #pjax
+      -if show_form
+        .flex.mb-4.flex-col{style:"min-height:41px"}
+          -trans "You can import your contacts from an XLS file you create in Excel."
 
-
-        .title
-          -trans "Supported Fields"
-
-        -trans "Any columns that do not match the following table will be ignored."
-
-        %table.list.my-6
-          %tr
-            %th.whitespace-no-wrap
-              -trans "Column Header"
-            %th.whitespace-no-wrap
-              -trans "Imported as"
-            %th.whitespace-no-wrap
-              -trans "Details"
-          %tr
-            %td.whitespace-no-wrap
-              -trans "Name"
-            %td.whitespace-no-wrap
-              -trans "Contact name"
-            %td
-          %tr
-            %td.whitespace-no-wrap
-              -trans "Language"
-            %td.whitespace-no-wrap
-              -trans "Contact language"
-            %td
-              -trans "Only valid ISO639-3 codes supportted"
-
-          -for conf in urn_scheme_config
+          %table#example.list.my-6
+            %tr
+              %th
+                -trans "URN:Tel"
+              %th
+                -trans "Name"
+              %th
+                -trans "Field:Team"
             %tr
               %td
-                URN:{{conf.0}}
+                -trans "+250788123123"
               %td
-                {{conf.1}}
+                -trans "John Doe"
               %td
+                -trans "Managers"
+            %tr
+              %td
+                -trans "+250788111222"
+              %td
+                -trans "Jane Doe"
+              %td
+                -trans "Advisors"
 
-          %tr
-            %td.whitespace-no-wrap
-              Field:<i>custom_field</i>
-            %td.whitespace-no-wrap
-              <i>custom_field</i>
-            %td
-              -blocktrans trimmed
-                You will have the option to choose the columns to import and to which field to import them.
 
-          %tr
-            %td.whitespace-no-wrap
-              Group:Group Name
-            %td.whitespace-no-wrap
-              %i
-                -trans "IGNORED"
-            %td
-              Columns starting with the prefix <i>Group:</i> are ignored
+          .title
+            -trans "Supported Fields"
 
-    -block import-status
-      #import-status
-        #import-message
-          - if task
-            - if task.status == "PENDING" or task.status == "RUNNING" or task.status == "STARTED"
-                Importing..
-                %temba-loading
+          -trans "Any columns that do not match the following table will be ignored."
 
-            - else
-              - if task.status == "SUCCESS" and group.contacts.all
-                - if results.creates
+          %table.list.my-6
+            %tr
+              %th.whitespace-no-wrap
+                -trans "Column Header"
+              %th.whitespace-no-wrap
+                -trans "Imported as"
+              %th.whitespace-no-wrap
+                -trans "Details"
+            %tr
+              %td.whitespace-no-wrap
+                -trans "Name"
+              %td.whitespace-no-wrap
+                -trans "Contact name"
+              %td
+            %tr
+              %td.whitespace-no-wrap
+                -trans "Language"
+              %td.whitespace-no-wrap
+                -trans "Contact language"
+              %td
+                -trans "Only valid ISO639-3 codes supportted"
+
+            -for conf in urn_scheme_config
+              %tr
+                %td
+                  URN:{{conf.0}}
+                %td
+                  {{conf.1}}
+                %td
+
+            %tr
+              %td.whitespace-no-wrap
+                Field:<i>custom_field</i>
+              %td.whitespace-no-wrap
+                <i>custom_field</i>
+              %td
+                -blocktrans trimmed
+                  You will have the option to choose the columns to import and to which field to import them.
+
+            %tr
+              %td.whitespace-no-wrap
+                Group:Group Name
+              %td.whitespace-no-wrap
+                %i
+                  -trans "IGNORED"
+              %td
+                Columns starting with the prefix <i>Group:</i> are ignored
+
+      -block import-status
+        #import-status
+          #import-message
+            - if task
+              - if task.status == "PENDING" or task.status == "RUNNING" or task.status == "STARTED"
+                  Importing..
+                  %temba-loading
+
+              - else
+                - if task.status == "SUCCESS" and group.contacts.all
+                  - if results.creates
+                    .import-result.text-lg.mt-2
+                      .icon-checkmark.text-success.mr-2
+                      -blocktrans trimmed count results.creates as create_count
+                        Created {{ create_count }} new contact
+                        -plural
+                          Created {{ create_count }} new contacts
+
+                  - if results.updates
+                    .import-result.text-lg.mt-2
+                      .icon-checkmark.text-success.mr-2
+                      -blocktrans trimmed count results.updates as update_count
+                        Updated {{ update_count }} contact with an existing phone number
+                        -plural
+                          Updated {{ update_count }} contacts with existing phone numbers
+
                   .import-result.text-lg.mt-2
                     .icon-checkmark.text-success.mr-2
-                    -blocktrans trimmed count results.creates as create_count
-                      Created {{ create_count }} new contact
+                    -blocktrans trimmed with contacts_count=results.records
+                      Added all contacts to the new
+                    %a{href:"{% url 'contacts.contact_filter' group.uuid %}"}= group.name
+                    group
+
+                  - if results.errors
+                    .import-result
+                      .well.well-small
+                        %strong
+                          -blocktrans trimmed
+                            Some rows were not imported
+                        %br
+                        %strong
+                          -blocktrans trimmed
+                            Errors description
+                        %br
+                          - for error_message in results.error_messages
+                            Row {{ error_message.line }}: {{ error_message.error }}
+                            %br
+
+                - elif results.errors
+                  .import-result.text-lg
+                    .icon-warning.text-error.mr-2
+                    -blocktrans trimmed count results.errors as error_count
+                      Failed to import {{ error_count }} contact due to missing or invalid phone number
                       -plural
-                        Created {{ create_count }} new contacts
+                        Failed to import {{ error_count }} contacts due to missing or invalid phone numbers
 
-                - if results.updates
-                  .import-result.text-lg.mt-2
-                    .icon-checkmark.text-success.mr-2
-                    -blocktrans trimmed count results.updates as update_count
-                      Updated {{ update_count }} contact with an existing phone number
-                      -plural
-                        Updated {{ update_count }} contacts with existing phone numbers
-
-                .import-result.text-lg.mt-2
-                  .icon-checkmark.text-success.mr-2
-                  -blocktrans trimmed with contacts_count=results.records
-                    Added all contacts to the new
-                  %a{href:"{% url 'contacts.contact_filter' group.uuid %}"}= group.name
-                  group
-
-                - if results.errors
                   .import-result
                     .well.well-small
                       %strong
                         -blocktrans trimmed
-                          Some rows were not imported
-                      %br
-                      %strong
-                        -blocktrans trimmed
                           Errors description
+
                       %br
-                        - for error_message in results.error_messages
+                        -for error_message in results.error_messages
                           Row {{ error_message.line }}: {{ error_message.error }}
                           %br
 
-              - elif results.errors
-                .import-result.text-lg
-                  .icon-warning.text-error.mr-2
-                  -blocktrans trimmed count results.errors as error_count
-                    Failed to import {{ error_count }} contact due to missing or invalid phone number
-                    -plural
-                      Failed to import {{ error_count }} contacts due to missing or invalid phone numbers
+                - elif task.status == "SUCCESS" and not group.contacts.all
+                  Grouping..
+                  %temba-loading
 
-                .import-result
-                  .well.well-small
-                    %strong
-                      -blocktrans trimmed
-                        Errors description
+                - elif not group.contacts.all
+                  -blocktrans trimmed
+                    No contacts imported, please make sure your have a channel connected.
+  
+              .mt-4.button-light.inline-block(onclick="goto(event)" href="{% url 'contacts.contact_list'%}")
+                -trans "Contacts"
 
-                    %br
-                      -for error_message in results.error_messages
-                        Row {{ error_message.line }}: {{ error_message.error }}
-                        %br
+          -if show_form
+            -blocktrans trimmed
+              You can download
+              %a{href:"{{STATIC_URL}}examples/contacts.xls"} this Excel template
+              as a sample.
 
-              - elif task.status == "SUCCESS" and not group.contacts.all
-                Grouping..
-                %temba-loading
+            %form#import-form{method:"post", action:"{% url 'contacts.contact_import' %}", enctype:"multipart/form-data"}
+              - if form.non_field_errors
+                .text-error
+                  {{ form.non_field_errors }}
 
-              - elif not group.contacts.all
-                -blocktrans trimmed
-                  No contacts imported, please make sure your have a channel connected.
+              -csrf_token
+              -if form.non_field_errors
+                .text-error
+                  {{ form.non_field_errors }}
 
-            .mt-4.button-light.inline-block(onclick="goto(event)" href="{% url 'contacts.contact_list'%}")
-              -trans "Contacts"
+              -block fields
+                .mt-4.mb-4.text-error
+                  {{ form.csv_file.errors }}
+                #file-upload
+                  %input{type:"file", name:"csv_file", id:"csv_file", onchange:'updateFile()'}
+                #real-button.flex.mb-4
+                  %input{type:"text", id:"file-field"}
+                  .button-primary.ml-4(style="margin-top:-1px")
+                    -trans "Choose File"
 
-        -if show_form
-          -blocktrans trimmed
-            You can download
-            %a{href:"{{STATIC_URL}}examples/contacts.xls"} this Excel template
-            as a sample.
-
-          %form#import-form{method:"post", action:"{% url 'contacts.contact_import' %}", enctype:"multipart/form-data"}
-            - if form.non_field_errors
-              .text-error
-                {{ form.non_field_errors }}
-
-            -csrf_token
-            -if form.non_field_errors
-              .text-error
-                {{ form.non_field_errors }}
-
-            -block fields
-              .mt-4.mb-4.text-error
-                {{ form.csv_file.errors }}
-              #file-upload
-                %input{type:"file", name:"csv_file", id:"csv_file", onchange:'updateFile()'}
-              #real-button.flex.mb-4
-                %input{type:"text", id:"file-field"}
-                .button-primary.ml-4(style="margin-top:-1px")
-                  -trans "Choose File"
-
-            .flex
-              %input.button-primary{type:"submit", value:'{% trans "Import" %}'}
-              .ml-4.button-light{onclick:"javascript:history.go(-1)"}
-                -trans "Cancel"
+              .flex
+                %input.button-primary{type:"submit", value:'{% trans "Import" %}'}
+                .ml-4.button-light{onclick:"javascript:history.go(-1)"}
+                  -trans "Cancel"
 
 
 {% block extra-style %}

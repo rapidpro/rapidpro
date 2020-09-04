@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-01 16:27+0000\n"
+"POT-Creation-Date: 2020-09-02 14:49+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2834,7 +2834,9 @@ msgstr "Le nom du groupe ne doit pas être vide ou commencer par + ou -"
 msgid "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you can create new ones."
 msgstr "Cette organisation a %(count)d groupes et la limite est %(limit)d. Vous devez supprimer les existants avant de pouvoir en créer de nouveaux."
 
-msgid "You cannot create a dynamic group based on \"id\" or \"group\"."
+#, fuzzy
+#| msgid "You cannot create a dynamic group based on \"id\" or \"group\"."
+msgid "You cannot create a smart group based on \"id\" or \"group\"."
 msgstr "Vous ne pouvez pas créer un groupe dynamique basé sur \"id\" ou \"groupe\"."
 
 msgid "You cannot update the query of a group that is evaluating."
@@ -7197,7 +7199,7 @@ msgstr "Supprimer des contacts"
 
 #, fuzzy
 #| msgid "Are you sure you want to delete these contacts?"
-msgid "Are you sure you want to delete these contacts? This cannot be undone."
+msgid "Are you sure you want to delete the selected contacts? This cannot be undone."
 msgstr "Êtes-vous sûr de vouloir supprimer ces contacts?"
 
 #, fuzzy

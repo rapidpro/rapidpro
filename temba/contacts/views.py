@@ -44,7 +44,7 @@ from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import ArbitraryChoiceField, CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.text import slugify_with
-from temba.utils.views import BulkActionMixin, NonAtomicMixin
+from temba.utils.views import BulkActionMixin, ComponentFormMixin, NonAtomicMixin
 from temba.values.constants import Value
 
 from .models import (
@@ -129,7 +129,7 @@ class ContactGroupForm(forms.ModelForm):
         try:
             parsed = parse_query(self.org.id, self.cleaned_data["query"])
             if not parsed.metadata.allow_as_group:
-                raise forms.ValidationError(_('You cannot create a dynamic group based on "id" or "group".'))
+                raise forms.ValidationError(_('You cannot create a smart group based on "id" or "group".'))
 
             if (
                 self.instance
@@ -146,7 +146,6 @@ class ContactGroupForm(forms.ModelForm):
     class Meta:
         fields = ("name", "query")
         model = ContactGroup
-        widgets = {"name": InputWidget(), "query": InputWidget}
 
 
 class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
@@ -262,8 +261,19 @@ class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
         self.sort_field = sort_on.lstrip("-")
 
         if search_query or sort_on:
+            # is this request is part of a bulk action, get the ids that were modified so we can check which ones
+            # should no longer appear in this view, even though ES won't have caught up yet
+            bulk_action_ids = self.kwargs.get("bulk_action_ids", [])
+            if bulk_action_ids:
+                reappearing_ids = set(group.contacts.filter(id__in=bulk_action_ids).values_list("id", flat=True))
+                exclude_ids = [i for i in bulk_action_ids if i not in reappearing_ids]
+            else:
+                exclude_ids = []
+
             try:
-                results = search_contacts(org.id, str(group.uuid), search_query, sort_on, offset)
+                results = search_contacts(
+                    org.id, str(group.uuid), search_query, sort_on, offset, exclude_ids=exclude_ids
+                )
                 self.parsed_query = results.query if len(results.query) > 0 else None
                 self.save_dynamic_search = results.metadata.allow_as_group
 
@@ -1291,16 +1301,21 @@ class ContactCRUDL(SmartCRUDL):
             has_contactgroup_create_perm = self.has_org_perm("contacts.contactgroup_create")
 
             if has_contactgroup_create_perm and valid_search_condition:
-                # links.append(dict(title=_("Save as Group"), js_class="add-dynamic-group", href="#"))
+                from temba.contacts.search import parse_query, SearchException
 
-                links.append(
-                    dict(
-                        id="create-dynamic",
-                        title=_("Save as Group"),
-                        modax=_("Save as Group"),
-                        href=f"{reverse('contacts.contactgroup_create')}?search={search}",
-                    )
-                )
+                try:
+                    parsed = parse_query(self.org.id, search)
+                    if parsed.metadata.allow_as_group:
+                        links.append(
+                            dict(
+                                id="create-smartgroup",
+                                title=_("Save as Group"),
+                                modax=_("Save as Group"),
+                                href=f"{reverse('contacts.contactgroup_create')}?search={urlquote_plus(search)}",
+                            )
+                        )
+                except SearchException:  # pragma: no cover
+                    pass
 
             if self.has_org_perm("contacts.contactfield_list"):
                 links.append(dict(title=_("Manage Fields"), href=reverse("contacts.contactfield_list")))
@@ -1440,7 +1455,7 @@ class ContactCRUDL(SmartCRUDL):
         def derive_group(self):
             return ContactGroup.user_groups.get(uuid=self.kwargs["group"], org=self.request.user.get_org())
 
-    class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
+    class Create(NonAtomicMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactForm
         success_message = ""
         submit_button_name = _("Create")
@@ -1465,7 +1480,7 @@ class ContactCRUDL(SmartCRUDL):
                     scheme = field_key.split("__")[1]
                     urns.append(URN.from_parts(scheme, value))
 
-            Contact.get_or_create_by_urns(obj.org, self.request.user, obj.name, urns)
+            Contact.create(obj.org, self.request.user, obj.name, urns)
 
     class Update(NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
@@ -1665,7 +1680,7 @@ class ContactGroupCRUDL(SmartCRUDL):
     model = ContactGroup
     actions = ("create", "update", "delete")
 
-    class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
+    class Create(ComponentFormMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactGroupForm
         fields = ("name", "preselected_contacts", "group_query")
         success_url = "uuid@contacts.contact_filter"
@@ -1700,7 +1715,7 @@ class ContactGroupCRUDL(SmartCRUDL):
             kwargs["user"] = self.request.user
             return kwargs
 
-    class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(ComponentFormMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = ContactGroupForm
         fields = ("name",)
         success_url = "uuid@contacts.contact_filter"

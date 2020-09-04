@@ -825,10 +825,10 @@ class SearchResults(NamedTuple):
     metadata: Metadata = Metadata()
 
 
-def search_contacts(org_id, group_uuid, query, sort=None, offset=None):
+def search_contacts(org_id, group_uuid, query, sort=None, offset=None, exclude_ids=()):
     try:
         client = mailroom.get_client()
-        response = client.contact_search(org_id, str(group_uuid), query, sort, offset=offset)
+        response = client.contact_search(org_id, str(group_uuid), query, sort, offset=offset, exclude_ids=exclude_ids)
         return SearchResults(
             response["total"], response["query"], response["contact_ids"], Metadata(**response.get("metadata", {})),
         )
