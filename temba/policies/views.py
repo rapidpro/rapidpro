@@ -94,6 +94,8 @@ class PolicyCRUDL(SmartCRUDL):
                         Max("created_on")
                     )["created_on__max"]
 
+            context["next"] = self.request.GET.get("next", None)
+
             return context
 
     class GiveConsent(OrgPermsMixin, SmartFormView):
@@ -130,4 +132,8 @@ class PolicyCRUDL(SmartCRUDL):
                 # forget we were ever friends
                 analytics.change_consent(self.request.user.email, False)
 
-            return HttpResponseRedirect(reverse("policies.policy_list"))
+            redirect = self.request.POST.get("next")
+            if not redirect:
+                redirect = reverse("policies.policy_list")
+
+            return HttpResponseRedirect(redirect)
