@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-02 14:49+0000\n"
+"POT-Creation-Date: 2020-09-06 22:47+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -7486,6 +7486,12 @@ msgstr ""
 msgid "IGNORED"
 msgstr "IGNORÉ"
 
+msgid "One moment.."
+msgstr ""
+
+msgid "All done!"
+msgstr ""
+
 #, fuzzy, python-format
 #| msgid "Create a contact "
 msgid "Created %(create_count)s new contact"
@@ -7549,6 +7555,11 @@ msgstr[1] ""
 "                          Échec de l'importation de %(error_count)s contacts en raison de numéros de téléphone manquants ou invalides\n"
 "\n"
 "                      "
+
+#, fuzzy
+#| msgid "Group"
+msgid "Grouping.."
+msgstr "Groupe"
 
 #, fuzzy
 #| msgid ""
