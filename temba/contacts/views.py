@@ -1565,7 +1565,9 @@ class ContactCRUDL(SmartCRUDL):
         class Form(forms.Form):
             contact_field = forms.ModelChoiceField(
                 ContactField.user_fields.all(),
-                widget=SelectWidget(attrs={"widget_only": True, "placeholder": _("Select a field to update")}),
+                widget=SelectWidget(
+                    attrs={"widget_only": True, "searchable": True, "placeholder": _("Select a field to update")}
+                ),
             )
             field_value = forms.CharField(required=False)
 
