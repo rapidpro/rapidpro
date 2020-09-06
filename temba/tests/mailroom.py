@@ -10,7 +10,7 @@ from django.db import connection
 from django.utils import timezone
 
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
-from temba.mailroom.client import MailroomClient, MailroomException
+from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException
 from temba.mailroom.modifiers import Modifier
 from temba.orgs.models import Org
 from temba.tickets.models import Ticket
@@ -100,6 +100,17 @@ class TestClient(MailroomClient):
         self.mocks = mocks
 
         super().__init__(settings.MAILROOM_URL, settings.MAILROOM_AUTH_TOKEN)
+
+    @_client_method
+    def contact_create(self, org_id: int, user_id: int, contact: ContactSpec):
+        org = Org.objects.get(id=org_id)
+        user = User.objects.get(id=user_id)
+
+        obj = create_contact_locally(
+            org, user, contact.name, contact.language, contact.urns, contact.fields, contact.groups
+        )
+
+        return {"contact": {"id": obj.id, "uuid": str(obj.uuid), "name": obj.name}}
 
     @_client_method
     def contact_modify(self, org_id, user_id, contact_ids, modifiers: List[Modifier]):
@@ -195,13 +206,9 @@ def apply_modifiers(org, user, contacts, modifiers: List):
                 fields = dict(status=Contact.STATUS_ACTIVE)
 
         elif mod.type == "groups":
-            groups = ContactGroup.user_groups.filter(query=None, uuid__in=[g.uuid for g in mod.groups])
-            for group in groups:
-                assert not group.is_dynamic, "can't add/remove contacts from smart groups"
-                if mod.modification == "add":
-                    group.contacts.add(*contacts)
-                else:
-                    group.contacts.remove(*contacts)
+            add = mod.modification == "add"
+            for contact in contacts:
+                update_groups_locally(contact, [g.uuid for g in mod.groups], add=add)
 
         elif mod.type == "urns":
             assert len(contacts) == 1, "should never be trying to bulk update contact URNs"
@@ -213,6 +220,26 @@ def apply_modifiers(org, user, contacts, modifiers: List):
         if clear_groups:
             for c in contacts:
                 Contact.objects.get(id=c.id).clear_all_groups(user)
+
+
+def create_contact_locally(org, user, name, language, urns, fields, group_uuids):
+    orphaned_urns = {}
+
+    for urn in urns:
+        existing = ContactURN.lookup(org, urn)
+        if existing:
+            if existing.contact_id:
+                raise MailroomException("contact/create", None, {"error": "URNs in use by other contacts"})
+            else:
+                orphaned_urns[urn] = existing
+
+    contact = Contact.objects.create(
+        org=org, name=name, language=language, created_by=user, modified_by=user, created_on=timezone.now(),
+    )
+    update_urns_locally(contact, urns)
+    update_fields_locally(user, contact, fields)
+    update_groups_locally(contact, group_uuids, add=True)
+    return contact
 
 
 def update_fields_locally(user, contact, fields):
@@ -287,3 +314,13 @@ def update_urns_locally(contact, urns: List[str]):
     urn_ids = [u.pk for u in (urns_created + urns_attached + urns_retained)]
     urns_detached = ContactURN.objects.filter(contact=contact).exclude(id__in=urn_ids)
     urns_detached.update(contact=None)
+
+
+def update_groups_locally(contact, group_uuids, add: bool):
+    groups = ContactGroup.user_groups.filter(uuid__in=group_uuids)
+    for group in groups:
+        assert not group.is_dynamic, "can't add/remove contacts from smart groups"
+        if add:
+            group.contacts.add(contact)
+        else:
+            group.contacts.remove(contact)

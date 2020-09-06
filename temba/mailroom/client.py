@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import Dict, List, NamedTuple
 
 import requests
 
@@ -38,6 +38,18 @@ class FlowValidationException(MailroomException):
 
     def __str__(self):
         return self.message
+
+
+class ContactSpec(NamedTuple):
+    """
+    Describes a contact to be created
+    """
+
+    name: str
+    language: str
+    urns: List[str]
+    fields: Dict[str, str]
+    groups: List[str]
 
 
 class MailroomClient:
@@ -120,6 +132,15 @@ class MailroomClient:
 
     def sim_resume(self, payload):
         return self._request("sim/resume", payload)
+
+    def contact_create(self, org_id: int, user_id: int, contact: ContactSpec):
+        payload = {
+            "org_id": org_id,
+            "user_id": user_id,
+            "contact": contact._asdict(),
+        }
+
+        return self._request("contact/create", payload)
 
     def contact_modify(self, org_id, user_id, contact_ids, modifiers: List[Modifier]):
         payload = {

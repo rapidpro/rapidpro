@@ -26,7 +26,7 @@ from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
-from temba.mailroom import modifiers, queue_populate_dynamic_group
+from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, chunk_list, es, format_number, get_anonymous_user, json, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
@@ -786,6 +786,20 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     # maximum number of contacts to release without using a background task
     BULK_RELEASE_IMMEDIATELY_LIMIT = 50
+
+    @classmethod
+    def create(
+        cls, org, user, name: str, language: str, urns: List[str], fields: Dict[ContactField, str], groups: List
+    ):
+        fields_by_key = {f.key: v for f, v in fields.items()}
+        group_uuids = [g.uuid for g in groups]
+
+        response = mailroom.get_client().contact_create(
+            org.id,
+            user.id,
+            ContactSpec(name=name, language=language, urns=urns, fields=fields_by_key, groups=group_uuids),
+        )
+        return Contact.objects.get(id=response["contact"]["id"])
 
     @property
     def anon_identifier(self):

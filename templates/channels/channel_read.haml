@@ -23,10 +23,15 @@
               {{object.get_channel_type_display}}
               -trans "Channel"
 
+  -if object.name != object.get_address_display
+    .text-gray-500.text-base
+      {{object.get_address_display}}
+
   -if object.get_country_display
-    .country
-      .country.text-gray-500.text-base
-        {{ object.get_country_display }}
+    .text-gray-500.text-base
+      {{ object.get_country_display }}
+
+  
 
 
   -with object.get_delegate_channels as delegates

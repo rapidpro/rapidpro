@@ -1,3 +1,20 @@
+v5.7.37
+----------
+ * add topup button to topup manage page
+
+v5.7.36
+----------
+ * Fix deleting ticketers
+
+v5.7.35
+----------
+ * Zendesk file view needs to be csrf exempt
+ * Use mailroom to create contacts from UI
+
+v5.7.34
+----------
+ * Add view to handle file URL callbacks from Zendesk
+
 v5.7.33
 ----------
  * Fix delete button on archived contacts page

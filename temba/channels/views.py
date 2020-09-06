@@ -1318,7 +1318,6 @@ class ChannelCRUDL(SmartCRUDL):
                 sender = channel.get_sender()
                 caller = channel.get_caller()
 
-                print(sender, caller)
                 if sender:
                     links.append(
                         dict(title=_("Channel Log"), href=reverse("channels.channellog_list", args=[sender.uuid]))

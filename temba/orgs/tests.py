@@ -3474,7 +3474,8 @@ class OrgCRUDLTest(TembaTest):
         self.assertIn("form", response.context)
         self.assertTrue(response.context["form"].errors)
 
-    def test_org_service(self):
+    @mock_mailroom
+    def test_org_service(self, mr_mocks):
         # create a customer service user
         self.csrep = self.create_user("csrep")
         self.csrep.groups.add(Group.objects.get(name="Customer Support"))

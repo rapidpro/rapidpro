@@ -1329,7 +1329,8 @@ class ContactTest(TembaTest):
         )
         self.assertEqual(1, jimmy.urns.all().count())
 
-    def test_contact_create(self):
+    @mock_mailroom
+    def test_contact_create(self, mr_mocks):
         self.login(self.admin)
 
         # try creating a contact with a number that belongs to another contact

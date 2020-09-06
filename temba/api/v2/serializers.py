@@ -7,7 +7,6 @@ import regex
 from rest_framework import serializers
 
 from django.conf import settings
-from django.db import transaction
 
 from temba import mailroom
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
@@ -632,24 +631,16 @@ class ContactWriteSerializer(WriteSerializer):
 
         mods = []
 
-        with transaction.atomic():
-            if self.instance:
-                # update our name and language
-                if "name" in self.validated_data and name != self.instance.name:
-                    mods.append(modifiers.Name(name=name))
-                if "language" in self.validated_data and language != self.instance.language:
-                    mods.append(modifiers.Language(language=language))
+        # update an existing contact
+        if self.instance:
+            # update our name and language
+            if "name" in self.validated_data and name != self.instance.name:
+                mods.append(modifiers.Name(name=name))
+            if "language" in self.validated_data and language != self.instance.language:
+                mods.append(modifiers.Language(language=language))
 
-                if "urns" in self.validated_data and urns is not None:
-                    mods += self.instance.update_urns(urns)
-            else:
-                self.instance = Contact.get_or_create_by_urns(
-                    self.context["org"], self.context["user"], name, urns=urns, language=language
-                )
-
-                # the above call won't always get the URN order correct so have mailroom fix them
-                if urns:
-                    mods += self.instance.update_urns(urns)
+            if "urns" in self.validated_data and urns is not None:
+                mods += self.instance.update_urns(urns)
 
             # update our fields
             if custom_fields is not None:
@@ -659,8 +650,20 @@ class ContactWriteSerializer(WriteSerializer):
             if groups is not None:
                 mods += self.instance.update_static_groups(groups)
 
-        if mods:
-            self.instance.modify(self.context["user"], mods)
+            if mods:
+                self.instance.modify(self.context["user"], mods)
+
+        # create new contact
+        else:
+            self.instance = Contact.create(
+                self.context["org"],
+                self.context["user"],
+                name,
+                language,
+                urns or [],
+                custom_fields or {},
+                groups or [],
+            )
 
         return self.instance
 
