@@ -872,6 +872,9 @@ class ContactCRUDL(SmartCRUDL):
         fields = ("csv_file",)
         success_message = ""
 
+        def get_gear_links(self):
+            return [dict(title=_("Contacts"), style="button-light", href=reverse("contacts.contact_list"))]
+
         def pre_save(self, task):
             super().pre_save(task)
 
