@@ -350,7 +350,14 @@
           "category": {{result_field.has_categories}}
         },
       {% endfor %}
-    ]
+    ];
+
+    // alpha sort our result names
+    columns.sort(function(a, b){
+      a = a.text.toLowerCase();
+      b = b.text.toLowerCase();
+      return (a < b) ? -1 : a > b ? 1 : 0;
+    });
 
     $(document).ready(function() {
       Highcharts.setOptions({
@@ -643,7 +650,7 @@
             .flex-grow
             .add-columns.select.flex-grow.pl-12.pr-4
               .selection
-                %temba-select#select-columns(onchange="handleColumnSelection(this)" placeholder='{{_("More Columns")|escapejs}}')
+                %temba-select#select-columns(searchable="true" onchange="handleColumnSelection(this)" placeholder='{{_("More Columns")|escapejs}}')
 
           %table
             %thead

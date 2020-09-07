@@ -1596,7 +1596,9 @@ class FlowCRUDL(SmartCRUDL):
                 ContactField.user_fields.filter(id__lt=0),
                 required=False,
                 label=("Fields"),
-                widget=SelectMultipleWidget(attrs={"placeholder": _("Optional: Fields to include")}),
+                widget=SelectMultipleWidget(
+                    attrs={"placeholder": _("Optional: Fields to include"), "searchable": True}
+                ),
             )
 
             extra_urns = forms.MultipleChoiceField(
