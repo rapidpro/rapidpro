@@ -1629,7 +1629,7 @@ class FlowCRUDL(SmartCRUDL):
                 self.user = user
                 self.fields[ExportFlowResultsTask.CONTACT_FIELDS].queryset = ContactField.user_fields.active_for_org(
                     org=self.user.get_org()
-                )
+                ).order_by(Lower("label"))
 
                 self.fields[ExportFlowResultsTask.GROUP_MEMBERSHIPS].queryset = ContactGroup.user_groups.filter(
                     org=self.user.get_org(), is_active=True, status=ContactGroup.STATUS_READY
