@@ -1,3 +1,8 @@
+v5.7.39
+----------
+ * Update widget focus and borders on legacy editor
+ * Show global form errors and pre-form on modax template
+
 v5.7.38
 ----------
  * Add alpha sort and search to results view
