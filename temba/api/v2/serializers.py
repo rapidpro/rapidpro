@@ -1367,11 +1367,13 @@ class TemplateReadSerializer(ReadSerializer):
 class UrlAttachmentValidationSerializer(serializers.Serializer):
     attachment_url = serializers.URLField(required=True)
 
+
 class KeywordTriggerReadSerializer(ReadSerializer):
     flow = fields.FlowField()
     # To prefetch data on FlowEditor side, we need `uuid` and `name`
     uuid = serializers.IntegerField(source="id", read_only=True)
     name = serializers.CharField(source="keyword", read_only=True)
+
     class Meta:
         model = Trigger
         fields = ("id", "uuid", "name", "keyword", "flow")

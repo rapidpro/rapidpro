@@ -332,7 +332,6 @@ class GraphDifferenceNode(Node):
     def check_routers(self):
         left = (self.left_origin_node or {}).data.get("router")
         right = (self.right_origin_node or {}).data.get("router")
-        conflict = {"conflict_type": NodeConflictTypes.ROUTER_CONFLICT, "left_router": left, "right_router": right}
 
         if left and right:
             self.data["router"] = left
@@ -510,7 +509,7 @@ class GraphDifferenceNode(Node):
         elif conflict["conflict_type"] == NodeConflictTypes.ROUTER_CONFLICT:
             if conflict["field"] == "type":
                 if conflict["right_router"]["type"] == value:
-                    self.data["router"] = right_router
+                    self.data["router"] = conflict["right_router"]
                     self.correct_uuids()
             else:
                 self.data["router"][conflict["field"]] = value

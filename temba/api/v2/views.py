@@ -3625,7 +3625,9 @@ class KeywordTriggersEndpoint(ListAPIMixin, BaseAPIView):
     pagination_class = CreatedOnCursorPagination
 
     def filter_queryset(self, queryset):
-        queryset = queryset.filter(org=self.request.user.get_org(), trigger_type=Trigger.TYPE_KEYWORD, is_archived=False)
+        queryset = queryset.filter(
+            org=self.request.user.get_org(), trigger_type=Trigger.TYPE_KEYWORD, is_archived=False
+        )
         return queryset
 
     @classmethod
