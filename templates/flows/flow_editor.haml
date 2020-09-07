@@ -12,6 +12,20 @@
   -compress css
     {% lessblock %}
       :plain
+
+        input {
+          padding: 3px 6px;
+        }
+
+        textarea, input {
+          box-shadow: 0 0 0 1px var(--color-widget-border) !important;
+        }
+
+        textarea:focus, input:focus {
+          outline: none;
+          box-shadow: var(--widget-box-shadow-focused), 0 0 0 1px var(--color-focus) !important;
+        }
+
         .empty {
           margin-left: 30px;
 
