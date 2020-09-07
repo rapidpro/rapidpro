@@ -4254,14 +4254,10 @@ class MergeFlowsTask(TembaModel):
                 self.target.metadata["results"] = results
 
                 # archive source
-                active_runs_exists = (
-                    FlowRun.objects
-                    .filter(
-                        Q(uuid__in=backup_metadata["moved_flow_runs"]) | Q(flow=self.source),
-                        status__in=[FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING]
-                    )
-                    .exists()
-                )
+                active_runs_exists = FlowRun.objects.filter(
+                    Q(uuid__in=backup_metadata["moved_flow_runs"]) | Q(flow=self.source),
+                    status__in=[FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING],
+                ).exists()
                 if not active_runs_exists:
                     self.source.is_archived = True
                     self.source.save(update_fields=["is_archived"])
