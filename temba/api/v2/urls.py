@@ -34,6 +34,7 @@ from .views import (
     TemplatesEndpoint,
     ValidateUrlAttachmentEndpoint,
 )
+from temba.api.v2.views import KeywordTriggersEndpoint
 
 urlpatterns = [
     url(r"^$", RootView.as_view(), name="api.v2"),
@@ -56,6 +57,7 @@ urlpatterns = [
     url(r"^flows$", FlowsEndpoint.as_view(), name="api.v2.flows"),
     url(r"^globals$", GlobalsEndpoint.as_view(), name="api.v2.globals"),
     url(r"^groups$", GroupsEndpoint.as_view(), name="api.v2.groups"),
+    url(r"^keyword_triggers$", KeywordTriggersEndpoint.as_view(), name="api.v2.keyword_triggers"),
     url(r"^labels$", LabelsEndpoint.as_view(), name="api.v2.labels"),
     url(r"^media$", MediaEndpoint.as_view(), name="api.v2.media"),
     url(r"^messages$", MessagesEndpoint.as_view(), name="api.v2.messages"),

@@ -39,6 +39,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
 from temba.templates.models import Template, TemplateTranslation
+from temba.triggers.models import Trigger
 from temba.utils import on_transaction_commit, splitting_getlist, str_to_bool
 
 from ..models import SSLPermission
@@ -68,6 +69,7 @@ from .serializers import (
     FlowStartWriteSerializer,
     GlobalReadSerializer,
     GlobalWriteSerializer,
+    KeywordTriggerReadSerializer,
     LabelReadSerializer,
     LabelWriteSerializer,
     MsgBulkActionSerializer,
@@ -3573,3 +3575,67 @@ class ValidateUrlAttachmentEndpoint(BaseAPIView):
             validation_data.update({"valid": False, "error": _("Url of attachment is not valid.")})
 
         return Response(validation_data, status=status_code)
+
+
+class KeywordTriggersEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to fetch the keyword triggers.
+
+    ## Listing Keyword Triggers
+
+    A `GET` request returns the triggers for your organization.
+
+    Each trigger has the following attributes:
+
+     * **id** - an id of keyword in the database
+     * **keyword** - an actual keyword
+     * **flow** - a flow which triggers by current trigger
+
+     Each flow contains the following attributes:
+
+     * **uuid** - an unique identifier of flow
+     * **name** - a name of the flow
+
+    Example:
+
+        GET /api/v2/keyword_triggers.json
+
+    Response is the list of triggers for your organization:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+                {
+                    "id": 47,
+                    "keyword": "Test Keyword",
+                    "flow": {
+                        "uuid": "49c55d47-44ab-412c-a602-e58f2070955f",
+                        "name": "Test Flow"
+                    }
+                },
+                ...
+            ]
+        }
+    """
+
+    permission = "templates.template_api"
+    model = Trigger
+    serializer_class = KeywordTriggerReadSerializer
+    pagination_class = CreatedOnCursorPagination
+
+    def filter_queryset(self, queryset):
+        queryset = queryset.filter(
+            org=self.request.user.get_org(), trigger_type=Trigger.TYPE_KEYWORD, is_archived=False
+        )
+        return queryset
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            "method": "GET",
+            "title": "List Keyword Triggers",
+            "url": reverse("api.v2.keyword_triggers"),
+            "slug": "keyword-trigger-list",
+            "params": [],
+        }
