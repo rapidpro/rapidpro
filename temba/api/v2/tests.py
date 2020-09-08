@@ -1771,13 +1771,13 @@ class APITest(TembaTest):
             None,
             {
                 "name": "Jim",
-                "language": "xyz",
+                "language": "english",
                 "urns": ["1234556789"],
                 "groups": ["59686b4e-14bc-4160-9376-b649b218c806"],
                 "fields": {"hmmm": "X"},
             },
         )
-        self.assertResponseError(response, "language", "Not a valid ISO639-3 language code.")
+        self.assertResponseError(response, "language", "Ensure this field has no more than 3 characters.")
         self.assertResponseError(response, "groups", "No such object: 59686b4e-14bc-4160-9376-b649b218c806")
         self.assertResponseError(response, "fields", "Invalid contact field key: hmmm")
 
@@ -1832,6 +1832,13 @@ class APITest(TembaTest):
         self.assertEqual(set(jean.urns.values_list("identity", flat=True)), {"tel:+250784444444"})
         self.assertEqual(set(jean.user_groups.all()), set())
         self.assertEqual(jean.get_field_value(nickname), "Žan")
+
+        # invalid language values are ignored
+        response = self.postJSON(url, "uuid=%s" % jean.uuid, {"language": "xyz"})
+        self.assertEqual(response.status_code, 200)
+        jean.refresh_from_db()
+        self.assertEqual(jean.name, "Jean II")
+        self.assertIsNone(jean.language)
 
         # update by uuid and remove all fields
         response = self.postJSON(
