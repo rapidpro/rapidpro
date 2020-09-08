@@ -1,3 +1,7 @@
+v5.7.40
+----------
+ * Invalid language codes passed to contact API endpoint should be ignored and logged for now
+
 v5.7.39
 ----------
  * Update widget focus and borders on legacy editor
