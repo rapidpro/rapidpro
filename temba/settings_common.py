@@ -744,6 +744,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_import",
         "orgs.org_profile",
         "orgs.org_resthooks",
+        "orgs.org_token",
         "orgs.topup_list",
         "orgs.topup_read",
         "orgs.usersettings_phone",

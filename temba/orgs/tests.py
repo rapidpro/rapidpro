@@ -1072,6 +1072,12 @@ class OrgTest(TembaTest):
         response = self.client.post(reverse("api.apitoken_refresh"))
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
+        # but can see it as an editor
+        self.login(self.editor)
+        response = self.client.get(url)
+        token = APIToken.objects.get(user=self.editor)
+        self.assertContains(response, token.key)
+
     @override_settings(SEND_EMAILS=True)
     def test_manage_accounts(self):
         url = reverse("orgs.org_manage_accounts")
