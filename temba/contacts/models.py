@@ -2877,6 +2877,13 @@ class ContactGroupCount(SquashableModel):
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="counts", db_index=True)
     count = models.IntegerField(default=0)
 
+    COUNTED_TYPES = [
+        ContactGroup.TYPE_ACTIVE,
+        ContactGroup.TYPE_BLOCKED,
+        ContactGroup.TYPE_STOPPED,
+        ContactGroup.TYPE_ARCHIVED,
+    ]
+
     @classmethod
     def get_squash_query(cls, distinct_set):
         sql = """
@@ -2890,6 +2897,13 @@ class ContactGroupCount(SquashableModel):
         }
 
         return sql, (distinct_set.group_id,) * 2
+
+    @classmethod
+    def total_for_org(cls, org):
+        count = cls.objects.filter(group__org=org, group__group_type__in=ContactGroupCount.COUNTED_TYPES).aggregate(
+            count=Sum("count")
+        )
+        return count["count"] if count["count"] else 0
 
     @classmethod
     def get_totals(cls, groups):
