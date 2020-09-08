@@ -2,6 +2,7 @@ import numbers
 from collections import OrderedDict
 
 import iso8601
+import pycountry
 import pytz
 import regex
 from rest_framework import serializers
@@ -567,6 +568,11 @@ class ContactWriteSerializer(WriteSerializer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+    def validate_language(self, value):
+        if value and not pycountry.languages.get(alpha_3=value):
+            raise serializers.ValidationError("Not a valid ISO639-3 language code.")
+        return value
 
     def validate_groups(self, value):
         # only active contacts can be added to groups
