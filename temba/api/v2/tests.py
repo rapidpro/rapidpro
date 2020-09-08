@@ -1833,6 +1833,13 @@ class APITest(TembaTest):
         self.assertEqual(set(jean.user_groups.all()), set())
         self.assertEqual(jean.get_field_value(nickname), "Žan")
 
+        # invalid language values are ignored
+        response = self.postJSON(url, "uuid=%s" % jean.uuid, {"language": "xyz"})
+        self.assertEqual(response.status_code, 200)
+        jean.refresh_from_db()
+        self.assertEqual(jean.name, "Jean II")
+        self.assertIsNone(jean.language)
+
         # update by uuid and remove all fields
         response = self.postJSON(
             url,
