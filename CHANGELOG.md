@@ -1,3 +1,7 @@
+v5.7.43
+----------
+ * Fix migration
+
 v5.7.42
 ----------
  * Bump smartmin to 2.2.3
