@@ -106,10 +106,10 @@ class DiffGraphSerializer(serializers.Serializer):
             if node_serializer.is_valid():
                 node_obj = node_serializer.save()
                 node_obj.left_origin_node = self.get_origin_node(
-                    node.get("left_origin_node", {}).get("uuid", None), diff_graph.left_graph
+                    (node.get("left_origin_node") or {}).get("uuid", None), diff_graph.left_graph
                 )
                 node_obj.right_origin_node = self.get_origin_node(
-                    node.get("right_origin_node", {}).get("uuid", None), diff_graph.right_graph
+                    (node.get("right_origin_node") or {}).get("uuid", None), diff_graph.right_graph
                 )
                 nodes_map[node_obj.uuid] = node_obj
 
