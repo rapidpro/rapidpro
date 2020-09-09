@@ -2797,6 +2797,16 @@ class OrgTest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "Workspaces")
 
+        # and add topups
+        self.assertContains(response, reverse("orgs.org_transfer_credits"))
+
+        # but not if we don't use topups
+        Org.objects.filter(id=self.org.id).update(uses_topups=False)
+        response = self.client.get(reverse("orgs.org_sub_orgs"))
+        self.assertNotContains(response, reverse("orgs.org_transfer_credits"))
+
+        Org.objects.filter(id=self.org.id).update(uses_topups=True)
+
         # add a sub org
         response = self.client.post(reverse("orgs.org_create_sub_org"), new_org)
         self.assertRedirect(response, reverse("orgs.org_sub_orgs"))
