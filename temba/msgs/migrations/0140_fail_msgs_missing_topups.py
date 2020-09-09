@@ -21,7 +21,8 @@ def fail_msg_without_topup(apps, schema_editor):  # pragma: no cover
         if not batch:
             break
 
-        batch.update(status="F")
+        batch_ids = [elt.id for elt in batch]
+        Msg.objects.filter(id__in=batch_ids).update(status="F")
 
         num_updated += len(batch)
         print(f" > Updated {num_updated} msgs")
