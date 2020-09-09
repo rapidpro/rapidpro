@@ -1,3 +1,44 @@
+v5.7.42
+----------
+ * Bump smartmin to 2.2.3
+ * Fix attachment download and pdf links
+
+v5.7.41
+----------
+ * Fix messages to send without topup, and migrations
+ * No topup transfers on suborgs, show contacts, not credits
+
+v5.7.40
+----------
+ * Invalid language codes passed to contact API endpoint should be ignored and logged for now
+
+v5.7.39
+----------
+ * Update widget focus and borders on legacy editor
+ * Show global form errors and pre-form on modax template
+
+v5.7.38
+----------
+ * Add alpha sort and search to results view
+ * Searchable contact fields and wired listeners after group changes
+ * Force policy redirect on welcome page, honor follow-on navigation redirect
+ * Use mailroom for contact creation in API and mailroom_db command
+ * Adjust styling for contact import scenarios
+ * Show address when it doesn't match channel name
+
+v5.7.37
+----------
+ * add topup button to topup manage page
+
+v5.7.36
+----------
+ * Fix deleting ticketers
+
+v5.7.35
+----------
+ * Zendesk file view needs to be csrf exempt
+ * Use mailroom to create contacts from UI
+
 v5.7.34
 ----------
  * Add view to handle file URL callbacks from Zendesk

@@ -55,7 +55,7 @@
 
   -if needs_consent
     .give-consent
-      .button-primary.inline-block.posterize.lift{href:'{% url "policies.policy_give_consent" %}?consent=true'}
+      .button-primary.inline-block.posterize.lift{href:'{% url "policies.policy_give_consent" %}?consent=true{% if next %}&next={{next}}{%endif%}'}
         -trans "I agree to the above policies"
 
 -block extra-script

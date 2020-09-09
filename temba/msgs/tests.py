@@ -22,6 +22,7 @@ from temba.msgs.models import (
     HANDLED,
     INBOX,
     INCOMING,
+    INITIALIZING,
     OUTGOING,
     PENDING,
     QUEUED,
@@ -39,7 +40,7 @@ from temba.msgs.models import (
 )
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, TembaTest
+from temba.tests import AnonymousOrg, MigrationTest, TembaTest
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.utils import json
@@ -2975,3 +2976,96 @@ class TagsTest(TembaTest):
         # exception if tag not used correctly
         self.assertRaises(ValueError, self.render_template, "{% load sms %}{% render with bob %}{% endrender %}")
         self.assertRaises(ValueError, self.render_template, "{% load sms %}{% render as %}{% endrender %}")
+
+
+class MsgsFailWithoutTopup(MigrationTest):
+    app = "msgs"
+    migrate_from = "0139_auto_20200727_1723"
+    migrate_to = "0140_fail_msgs_missing_topups"
+
+    def setUpBeforeMigration(self, apps):
+        contact = self.create_contact("Ben Haggerty", "+250700000003")
+
+        now = timezone.now()
+        two_days_ago = now - timedelta(hours=48)
+
+        # no change for not QUEUED or ERRORED
+        self.msg1 = self.create_outgoing_msg(contact, "outgoing msg 1", status=INITIALIZING, created_on=two_days_ago)
+        self.msg2 = self.create_outgoing_msg(contact, "outgoing msg 2", status=PENDING, created_on=two_days_ago)
+        self.msg3 = self.create_outgoing_msg(contact, "outgoing msg 3", status=WIRED, created_on=two_days_ago)
+        self.msg4 = self.create_outgoing_msg(contact, "outgoing msg 4", status=SENT, created_on=two_days_ago)
+        self.msg5 = self.create_outgoing_msg(contact, "outgoing msg 5", status=DELIVERED, created_on=two_days_ago)
+        self.msg6 = self.create_outgoing_msg(contact, "outgoing msg 6", status=FAILED, created_on=two_days_ago)
+
+        # change as missing topup and older than 24 hours
+        self.msg7 = self.create_outgoing_msg(contact, "outgoing msg 7", status=ERRORED, created_on=two_days_ago)
+        self.msg8 = self.create_outgoing_msg(contact, "outgoing msg 8", status=QUEUED, created_on=two_days_ago)
+
+        # no change as they have topup
+        self.msg9 = self.create_outgoing_msg(contact, "outgoing msg 9", status=ERRORED)
+        self.msg10 = self.create_outgoing_msg(contact, "outgoing msg 10", status=QUEUED)
+
+        # no change as they are newer that 24 hours
+        self.msg11 = self.create_outgoing_msg(contact, "outgoing msg 9", status=ERRORED)
+        self.msg12 = self.create_outgoing_msg(contact, "outgoing msg 10", status=QUEUED)
+
+        # no channge for incoming
+        self.msg13 = self.create_incoming_msg(contact, "Incoming", created_on=two_days_ago)
+        self.msg14 = self.create_incoming_msg(contact, "Incoming", created_on=two_days_ago)
+
+        Msg.objects.filter(
+            id__in=[
+                self.msg1.id,
+                self.msg2.id,
+                self.msg3.id,
+                self.msg4.id,
+                self.msg5.id,
+                self.msg6.id,
+                self.msg7.id,
+                self.msg8.id,
+                self.msg11.id,
+                self.msg12.id,
+                self.msg13.id,
+                self.msg14.id,
+            ]
+        ).update(topup=None)
+
+    def test_migration(self):
+        self.msg1.refresh_from_db()
+        self.msg2.refresh_from_db()
+        self.msg3.refresh_from_db()
+        self.msg4.refresh_from_db()
+        self.msg5.refresh_from_db()
+        self.msg6.refresh_from_db()
+        self.msg7.refresh_from_db()
+        self.msg8.refresh_from_db()
+        self.msg9.refresh_from_db()
+        self.msg10.refresh_from_db()
+        self.msg11.refresh_from_db()
+        self.msg12.refresh_from_db()
+        self.msg13.refresh_from_db()
+        self.msg14.refresh_from_db()
+
+        # no change for not QUEUED or ERRORED
+        self.assertEqual(INITIALIZING, self.msg1.status)
+        self.assertEqual(PENDING, self.msg2.status)
+        self.assertEqual(WIRED, self.msg3.status)
+        self.assertEqual(SENT, self.msg4.status)
+        self.assertEqual(DELIVERED, self.msg5.status)
+        self.assertEqual(FAILED, self.msg6.status)
+
+        # change as missing topup and older than 24 hours
+        self.assertEqual(FAILED, self.msg7.status)
+        self.assertEqual(FAILED, self.msg8.status)
+
+        # no change as they have topup
+        self.assertEqual(ERRORED, self.msg9.status)
+        self.assertEqual(QUEUED, self.msg10.status)
+
+        # no change as they are newer that 24 hours
+        self.assertEqual(ERRORED, self.msg11.status)
+        self.assertEqual(QUEUED, self.msg12.status)
+
+        # no channge for incoming
+        self.assertEqual(HANDLED, self.msg13.status)
+        self.assertEqual(HANDLED, self.msg14.status)

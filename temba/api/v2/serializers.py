@@ -1,13 +1,14 @@
+import logging
 import numbers
 from collections import OrderedDict
 
 import iso8601
+import pycountry
 import pytz
 import regex
 from rest_framework import serializers
 
 from django.conf import settings
-from django.db import transaction
 
 from temba import mailroom
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
@@ -30,6 +31,8 @@ from . import fields
 from .validators import UniqueForOrgValidator
 
 INVALID_EXTRA_KEY_CHARS = regex.compile(r"[^a-zA-Z0-9_]")
+
+logger = logging.getLogger(__name__)
 
 
 def format_datetime(value):
@@ -569,6 +572,17 @@ class ContactWriteSerializer(WriteSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    def validate_language(self, value):
+        if value and not pycountry.languages.get(alpha_3=value):
+            # for backward compatibility we log and ignore junk values for now but eventually this should be an error
+            # raise serializers.ValidationError("Not a valid ISO639-3 language code.")
+            extra = {"org_id": self.context["org"].id, "org_name": self.context["org"].name, "value": value}
+            logger.error(f"API endpoint passed invalid language code", extra=extra)
+
+            value = None
+
+        return value
+
     def validate_groups(self, value):
         # only active contacts can be added to groups
         if self.instance and (self.instance.status != Contact.STATUS_ACTIVE) and value:
@@ -632,24 +646,16 @@ class ContactWriteSerializer(WriteSerializer):
 
         mods = []
 
-        with transaction.atomic():
-            if self.instance:
-                # update our name and language
-                if "name" in self.validated_data and name != self.instance.name:
-                    mods.append(modifiers.Name(name=name))
-                if "language" in self.validated_data and language != self.instance.language:
-                    mods.append(modifiers.Language(language=language))
+        # update an existing contact
+        if self.instance:
+            # update our name and language
+            if "name" in self.validated_data and name != self.instance.name:
+                mods.append(modifiers.Name(name=name))
+            if "language" in self.validated_data and language != self.instance.language:
+                mods.append(modifiers.Language(language=language))
 
-                if "urns" in self.validated_data and urns is not None:
-                    mods += self.instance.update_urns(urns)
-            else:
-                self.instance = Contact.get_or_create_by_urns(
-                    self.context["org"], self.context["user"], name, urns=urns, language=language
-                )
-
-                # the above call won't always get the URN order correct so have mailroom fix them
-                if urns:
-                    mods += self.instance.update_urns(urns)
+            if "urns" in self.validated_data and urns is not None:
+                mods += self.instance.update_urns(urns)
 
             # update our fields
             if custom_fields is not None:
@@ -659,8 +665,20 @@ class ContactWriteSerializer(WriteSerializer):
             if groups is not None:
                 mods += self.instance.update_static_groups(groups)
 
-        if mods:
-            self.instance.modify(self.context["user"], mods)
+            if mods:
+                self.instance.modify(self.context["user"], mods)
+
+        # create new contact
+        else:
+            self.instance = Contact.create(
+                self.context["org"],
+                self.context["user"],
+                name,
+                language,
+                urns or [],
+                custom_fields or {},
+                groups or [],
+            )
 
         return self.instance
 

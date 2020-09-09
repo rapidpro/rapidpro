@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-02 14:49+0000\n"
+"POT-Creation-Date: 2020-09-06 22:47+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6194,6 +6194,12 @@ msgstr ""
 msgid "IGNORED"
 msgstr ""
 
+msgid "One moment.."
+msgstr ""
+
+msgid "All done!"
+msgstr ""
+
 #, python-format
 msgid "Created %(create_count)s new contact"
 msgid_plural "Created %(create_count)s new contacts"
@@ -6220,6 +6226,9 @@ msgid "Failed to import %(error_count)s contact due to missing or invalid phone 
 msgid_plural "Failed to import %(error_count)s contacts due to missing or invalid phone numbers"
 msgstr[0] ""
 msgstr[1] ""
+
+msgid "Grouping.."
+msgstr ""
 
 msgid "No contacts imported, please make sure your have a channel connected."
 msgstr ""

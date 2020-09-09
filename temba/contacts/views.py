@@ -872,6 +872,9 @@ class ContactCRUDL(SmartCRUDL):
         fields = ("csv_file",)
         success_message = ""
 
+        def get_gear_links(self):
+            return [dict(title=_("Contacts"), style="button-light", href=reverse("contacts.contact_list"))]
+
         def pre_save(self, task):
             super().pre_save(task)
 
@@ -1480,7 +1483,7 @@ class ContactCRUDL(SmartCRUDL):
                     scheme = field_key.split("__")[1]
                     urns.append(URN.from_parts(scheme, value))
 
-            Contact.create(obj.org, self.request.user, obj.name, urns)
+            Contact.create(obj.org, self.request.user, obj.name, language="", urns=urns, fields={}, groups=[])
 
     class Update(NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
@@ -1565,7 +1568,9 @@ class ContactCRUDL(SmartCRUDL):
         class Form(forms.Form):
             contact_field = forms.ModelChoiceField(
                 ContactField.user_fields.all(),
-                widget=SelectWidget(attrs={"widget_only": True, "placeholder": _("Select a field to update")}),
+                widget=SelectWidget(
+                    attrs={"widget_only": True, "searchable": True, "placeholder": _("Select a field to update")}
+                ),
             )
             field_value = forms.CharField(required=False)
 

@@ -690,9 +690,7 @@ def get_commands(channel, commands, sync_event=None):
     """
     Generates sync commands for all queued messages on the given channel
     """
-    msgs = Msg.objects.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel, direction=OUTGOING).exclude(
-        topup=None
-    )
+    msgs = Msg.objects.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel, direction=OUTGOING)
 
     if sync_event:
         pending_msgs = sync_event.get_pending_messages()
@@ -1318,7 +1316,6 @@ class ChannelCRUDL(SmartCRUDL):
                 sender = channel.get_sender()
                 caller = channel.get_caller()
 
-                print(sender, caller)
                 if sender:
                     links.append(
                         dict(title=_("Channel Log"), href=reverse("channels.channellog_list", args=[sender.uuid]))

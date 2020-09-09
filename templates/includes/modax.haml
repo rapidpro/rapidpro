@@ -2,6 +2,12 @@
 -load i18n temba smartmin
 
 -block modal
+  -block pre-form
+
+  -for field, errors in form.errors.items
+    -if field == '__all__'
+      {{ errors }}  
+
   %form(method="POST")
     -block fields
       -for field in form.fields
