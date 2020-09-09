@@ -1,3 +1,8 @@
+v5.7.42
+----------
+ * Bump smartmin to 2.2.3
+ * Fix attachment download and pdf links
+
 v5.7.41
 ----------
  * Fix messages to send without topup, and migrations
