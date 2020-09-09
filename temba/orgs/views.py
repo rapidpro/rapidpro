@@ -51,6 +51,7 @@ from django.views.generic import View
 from temba.api.models import APIToken
 from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
+from temba.contacts.models import ContactGroupCount
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, get_anonymous_user, json, languages, str_to_bool
@@ -1674,10 +1675,14 @@ class OrgCRUDL(SmartCRUDL):
             return HttpResponseRedirect(reverse("orgs.org_manage"))
 
     class SubOrgs(MultiOrgMixin, InferOrgMixin, SmartListView):
-
-        fields = ("credits", "name", "manage", "created_on")
         link_fields = ()
         title = _("Workspaces")
+
+        def derive_fields(self):
+            if self.get_object().uses_topups:
+                return "credits", "name", "manage", "created_on"
+            else:
+                return "name", "contacts", "manage", "created_on"
 
         def get_gear_links(self):
             links = []
@@ -1695,7 +1700,7 @@ class OrgCRUDL(SmartCRUDL):
                     )
                 )
 
-            if self.has_org_perm("orgs.org_transfer_credits"):
+            if self.has_org_perm("orgs.org_transfer_credits") and self.get_object().uses_topups:
                 links.append(
                     dict(
                         title=_("Transfer Credits"),
@@ -1718,6 +1723,9 @@ class OrgCRUDL(SmartCRUDL):
                     f'<a href="{reverse("orgs.org_manage_accounts_sub_org")}?org={obj.id}" class="float-right pr-4"><div class="button-light inline-block">{_("Manage Logins")}</div></a>'
                 )
             return ""
+
+        def get_contacts(self, obj):
+            return ContactGroupCount.total_for_org(obj)
 
         def get_credits(self, obj):
             credits = obj.get_credits_remaining()
