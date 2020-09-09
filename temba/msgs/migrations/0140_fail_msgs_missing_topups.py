@@ -6,7 +6,7 @@ from django.db import migrations
 from django.utils import timezone
 
 
-def fail_msg_without_topup(apps, schema_editor):  # pragma: no cover
+def fail_msg_without_topup(apps, schema_editor):
     Msg = apps.get_model("msgs", "Msg")
 
     now = timezone.now()
@@ -17,17 +17,16 @@ def fail_msg_without_topup(apps, schema_editor):  # pragma: no cover
     num_updated = 0
     max_id = -1
     while True:
-        batch = list(msgs.filter(id__gt=max_id).order_by("id")[:5000])
+        batch = list(msgs.filter(id__gt=max_id).order_by("id")[:5000].values_list("id", flat=True))
         if not batch:
             break
 
-        batch_ids = [elt.id for elt in batch]
-        Msg.objects.filter(id__in=batch_ids).update(status="F")
+        Msg.objects.filter(id__in=batch).update(status="F")
 
         num_updated += len(batch)
         print(f" > Updated {num_updated} msgs")
 
-        max_id = batch[-1].id
+        max_id = batch[-1]
 
 
 def reverse(apps, schema_editor):  # pragma: no cover
