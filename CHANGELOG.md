@@ -1,3 +1,8 @@
+v5.7.41
+----------
+ * Fix messages to send without topup, and migrations
+ * No topup transfers on suborgs, show contacts, not credits
+
 v5.7.40
 ----------
  * Invalid language codes passed to contact API endpoint should be ignored and logged for now
