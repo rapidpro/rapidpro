@@ -2,4 +2,5 @@ from ...models import ChannelType
 
 
 class RocketChatType(ChannelType):
-    pass
+    code = "RC"
+    category = ChannelType.Category.SOCIAL_MEDIA
