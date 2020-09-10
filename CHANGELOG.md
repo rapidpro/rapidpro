@@ -1,3 +1,7 @@
+v5.7.46
+----------
+ * Use mailroom task for scheduling of campaign events
+
 v5.7.45
 ----------
  * Make sure form._errors is a list
