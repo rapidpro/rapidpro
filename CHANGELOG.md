@@ -1,3 +1,7 @@
+v5.7.45
+----------
+ * Make sure form._errors is a list
+
 v5.7.44
 ----------
  * Add index to enforce uniqueness for event fires
