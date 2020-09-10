@@ -3279,7 +3279,6 @@ class ContactTest(TembaTest):
 
         now = timezone.now()
         self.set_contact_field(self.joe, "planting_date", (now + timedelta(days=1)).isoformat(), legacy_handle=True)
-        EventFire.update_campaign_events(self.campaign)
 
         # should have seven fires, one for each campaign event
         self.assertEqual(7, EventFire.objects.filter(event__is_active=True).count())
@@ -5215,33 +5214,6 @@ class ContactTest(TembaTest):
         country_label_two = ContactField.user_fields.get(key="country_label_two")
         self.assertEqual(country_label_two.label, "Country Label Two")
 
-    def test_campaign_eventfires_on_systemfields_for_new_contacts(self):
-        self.login(self.admin)
-        self.create_campaign()
-
-        contact = self.create_contact("Joe", urn="tel:123")
-        ballers = self.create_group("Ballers", contacts=[contact])
-
-        self.campaign.group = ballers
-        self.campaign.save()
-
-        field_created_on = self.org.contactfields.get(key="created_on")
-
-        created_on_event = CampaignEvent.create_flow_event(
-            self.org,
-            self.admin,
-            self.campaign,
-            relative_to=field_created_on,
-            offset=5,
-            unit="M",
-            flow=self.reminder_flow,
-        )
-
-        EventFire.create_eventfires_for_event(created_on_event)
-
-        event_fires = EventFire.objects.filter(event=created_on_event)
-        self.assertEqual(event_fires.count(), 1)
-
     @mock_mailroom
     def test_contact_import_handle_update_contact(self, mr_mocks):
         self.login(self.admin)
@@ -5747,9 +5719,6 @@ class ContactTest(TembaTest):
             men_group = self.create_group("Boys", query='gender = "male" AND age >= 18')
             women_group = self.create_group("Girls", query='gender = "female" AND age >= 18')
 
-            for c in [self.frank, self.joe, self.mary]:
-                c.handle_update(is_new=True)
-
             joe_flow = self.create_flow()
             joes_campaign = Campaign.create(self.org, self.admin, "Joe Reminders", joes_group)
             joes_event = CampaignEvent.create_flow_event(
@@ -5762,7 +5731,9 @@ class ContactTest(TembaTest):
                 flow=joe_flow,
                 delivery_hour=17,
             )
-            EventFire.update_campaign_events(joes_campaign)
+
+            for c in [self.frank, self.joe, self.mary]:
+                c.handle_update(is_new=True)
 
             # check initial group members added correctly
             self.assertEqual([self.frank, self.joe, self.mary], list(mtn_group.contacts.order_by("name")))
@@ -7561,8 +7532,9 @@ class ESIntegrationTest(TembaNonAtomicTest):
         event = CampaignEvent.create_message_event(
             self.org, self.admin, campaign, relative_to=created_on, offset=12, unit="M", message="Happy One Year!"
         )
-        # rapidpro creation of events
-        EventFire.create_eventfires_for_event(event)
+
+        # mailroom creation of event fires
+        event.schedule_async()
 
         # should have 69 events
         EventFire.objects.filter(event=event, fired=None).count()
@@ -7575,6 +7547,3 @@ class ESIntegrationTest(TembaNonAtomicTest):
 
         # should have updated count
         self.assertEqual(81, adults.get_member_count())
-
-        # should now have 81 events instead, these were created by mailroom
-        self.assertEqual(81, EventFire.objects.filter(event=event, fired=None).count())

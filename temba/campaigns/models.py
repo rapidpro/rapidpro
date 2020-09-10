@@ -5,6 +5,7 @@ from django.db.models import Model
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
+from temba import mailroom
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow
 from temba.msgs.models import Msg
@@ -445,6 +446,9 @@ class CampaignEvent(TembaModel):
 
         return offset
 
+    def schedule_async(self):
+        on_transaction_commit(lambda: mailroom.queue_schedule_campaign_event(self))
+
     def calculate_scheduled_fire_for_value(self, date_value, now):
         tz = self.campaign.org.timezone
 
@@ -483,7 +487,7 @@ class CampaignEvent(TembaModel):
                 scheduled = scheduled.replace(hour=self.delivery_hour, minute=0, second=0, microsecond=0)
 
             # if we've changed utcoffset (DST shift), tweak accordingly (this keeps us at the same hour of the day)
-            elif str(tz) != "UTC" and date_value.utcoffset() != scheduled.utcoffset():
+            elif str(tz) != "UTC" and date_value.utcoffset() != scheduled.utcoffset():  # pragma: needs cover
                 scheduled = tz.normalize(date_value.utcoffset() - scheduled.utcoffset() + scheduled)
 
             # ignore anything in the past
@@ -599,49 +603,8 @@ class EventFire(Model):
         for event in campaign.get_events():
             if EventFire.objects.filter(event=event).exists():
                 event = event.deactivate_and_copy()
-            EventFire.create_eventfires_for_event(event)
 
-    @classmethod
-    def create_eventfires_for_event(cls, event):
-        from temba.campaigns.tasks import create_event_fires
-
-        on_transaction_commit(lambda: create_event_fires.delay(event.pk))
-
-    @classmethod
-    def do_create_eventfires_for_event(cls, event):
-
-        if EventFire.objects.filter(event=event).exists():
-            return
-
-        if event.is_active and not event.campaign.is_archived:
-
-            # create fires for our event
-            field = event.relative_to
-            if field.field_type == ContactField.FIELD_TYPE_USER:
-                field_uuid = str(field.uuid)
-
-                contacts = event.campaign.group.contacts.filter(is_active=True, status=Contact.STATUS_ACTIVE).extra(
-                    where=['%s::text[] <@ (extract_jsonb_keys("contacts_contact"."fields"))'], params=[[field_uuid]]
-                )
-            elif field.field_type == ContactField.FIELD_TYPE_SYSTEM:
-                contacts = event.campaign.group.contacts.filter(is_active=True, status=Contact.STATUS_ACTIVE)
-            else:  # pragma: no cover
-                raise ValueError(f"Unhandled ContactField type {field.field_type}.")
-
-            now = timezone.now()
-            events = []
-
-            org = event.campaign.org
-            for contact in contacts:
-                contact.org = org
-                scheduled = event.calculate_scheduled_fire_for_value(contact.get_field_value(field), now)
-
-                # and if we have a date, then schedule it
-                if scheduled:
-                    events.append(EventFire(event=event, contact=contact, scheduled=scheduled))
-
-            # bulk create our event fires
-            EventFire.objects.bulk_create(events)
+            event.schedule_async()
 
     @classmethod
     def update_events_for_contact_groups(cls, contact, groups):
