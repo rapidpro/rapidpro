@@ -1,3 +1,7 @@
+v5.7.44
+----------
+ * Add index to enforce uniqueness for event fires
+
 v5.7.43
 ----------
  * Fix migration
