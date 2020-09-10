@@ -49,7 +49,7 @@ from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
 from temba.flows.tasks import export_flow_results_task, download_flow_images_task
 from temba.ivr.models import IVRCall
-from temba.links.models import LinkContacts
+from temba.links.models import Link, LinkContacts
 from temba.mailroom import FlowValidationException
 from temba.orgs.models import Org, LOOKUPS, GIFTCARDS
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
@@ -642,7 +642,9 @@ class FlowCRUDL(SmartCRUDL):
 
                 # get our metadata
                 flow_info = mailroom.get_client().flow_inspect(flow.org_id, definition)
-                return JsonResponse(dict(definition=definition, metadata=Flow.get_metadata(flow_info)))
+                metadata = Flow.get_metadata(flow_info)
+                metadata["issues"] = [*metadata.get("issues", []), *Link.check_misstyped_links(definition)]
+                return JsonResponse(dict(definition=definition, metadata=metadata))
 
             # get a list of all revisions, these should be reasonably pruned already
             revisions = []
@@ -697,12 +699,14 @@ class FlowCRUDL(SmartCRUDL):
             try:
                 flow = self.get_object(self.get_queryset())
                 revision = flow.save_revision(self.request.user, definition)
+                metadata = flow.metadata
+                metadata["issues"] = [*metadata.get("issues", []), *Link.check_misstyped_links(definition)]
                 return JsonResponse(
                     {
                         "status": "success",
                         "saved_on": json.encode_datetime(flow.saved_on, micros=True),
                         "revision": revision.as_json(),
-                        "metadata": flow.metadata,
+                        "metadata": metadata,
                     }
                 )
 

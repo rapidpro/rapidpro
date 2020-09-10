@@ -1,3 +1,4 @@
+import re
 import time
 
 from itertools import chain
@@ -7,6 +8,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.urls import reverse
 from django.conf import settings
 
+from jellyfish import jaro_distance
 from smartmin.models import SmartModel
 
 from temba.assets.models import register_asset_store
@@ -141,6 +143,35 @@ class Link(TembaModel):
                     name=name, destination=destination, org=org, uuid=uuid, created_by=user, modified_by=user
                 )
                 Link.objects.create(**dict_args)
+
+    @classmethod
+    def check_misstyped_links(cls, definition):
+        links = cls.objects.filter(is_archived=False)
+        issues = []
+        action_list = []
+        pattern = r"\b(?P<url>(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+)\b"
+        for node in definition["nodes"]:
+            for action in node["actions"]:
+                if action["type"] == "send_msg":
+                    for match in re.finditer(pattern, action["text"], re.IGNORECASE):
+                        action_list.append({
+                            "node_uuid": node["uuid"],
+                            "action_uuid": action["uuid"],
+                            "url": match.groupdict().get("url"),
+                        })
+
+        for action in action_list:
+            for link in links:
+                if jaro_distance(action["url"], link.destination) >= 0.9 and action["url"] != link.destination:
+                    issues.append({
+                        "type": "invalid_link",
+                        "node_uuid": action["node_uuid"],
+                        "action_uuid": action["action_uuid"],
+                        "actual_link": action["url"],
+                        "expected_link": link.destination,
+                    })
+                    break
+        return issues
 
     def __str__(self):
         return self.name
