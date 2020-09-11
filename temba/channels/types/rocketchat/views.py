@@ -16,4 +16,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             # montar callback_url: "https://" + channel.callback_domain + reverse("courier.rc", args=[channel.uuid])
             # fazer request put na <base_url>/settings, passando bot_username e callback_url
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['token'] = random_string(32)  # testando
+        return context
+        
     form_class = Form
