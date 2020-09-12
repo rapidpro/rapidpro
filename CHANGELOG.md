@@ -1,3 +1,15 @@
+v5.7.46
+----------
+ * Use mailroom task for scheduling of campaign events
+
+v5.7.45
+----------
+ * Make sure form._errors is a list
+
+v5.7.44
+----------
+ * Add index to enforce uniqueness for event fires
+
 v5.7.43
 ----------
  * Fix migration
