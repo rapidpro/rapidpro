@@ -1200,7 +1200,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(str(planting_reminder), 'Event[relative_to=planting_date, offset=0, flow="Reminder Flow"]')
 
         # schedule our reminders
-        EventFire.update_campaign_events(campaign)
+        campaign.schedule_events_async()
 
         # we should have queued a scheduling task to mailroom
         self.assertEqual(
@@ -1218,7 +1218,7 @@ class CampaignTest(TembaTest):
         # if any event fires already exist, scheduling will trigger cloning the event
         EventFire.objects.create(event=planting_reminder, contact=self.farmer1, scheduled=timezone.now(), fired=None)
 
-        EventFire.update_campaign_events(campaign)
+        campaign.schedule_events_async()
 
         planting_reminder.refresh_from_db()
         self.assertFalse(planting_reminder.is_active)

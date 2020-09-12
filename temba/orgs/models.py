@@ -415,8 +415,12 @@ class Org(SmartModel):
             new_flows = Flow.import_flows(self, user, export_json, dependency_mapping, same_site)
 
             # these depend on flows so are imported last
-            Campaign.import_campaigns(self, user, export_campaigns, same_site)
+            new_campaigns = Campaign.import_campaigns(self, user, export_campaigns, same_site)
             Trigger.import_triggers(self, user, export_triggers, same_site)
+
+        # queue mailroom tasks to schedule campaign events
+        for campaign in new_campaigns:
+            campaign.schedule_events_async()
 
         # with all the flows and dependencies committed, we can now have mailroom do full validation
         for flow in new_flows:
