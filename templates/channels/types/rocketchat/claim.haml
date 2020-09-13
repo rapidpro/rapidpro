@@ -1,7 +1,39 @@
 -extends "channels/channel_claim_form.html"
 -load i18n compress temba
 
-
 -block pre-form
-  -blocktrans with token as token
-    Testing {{token}}
+  %h4.form_blurb
+    {{ form_blurb }}
+
+  -blocktrans trimmed with brand=brand.name
+    You will need to enable Omnichannel and setup a {{ brand }} Channel app on your RocketChat. To do so:
+
+  %ol.instructions
+    %li
+      -blocktrans trimmed
+        On your RocketChat, go to <b>Administration > Omnichannel</b> and enable the Omnichannel.
+    %li
+      -blocktrans trimmed with brand=brand.name
+        Install your {{ brand }} Channel app from marketplace.
+    %li
+      -blocktrans trimmed
+        Open the app details, at <b>Administration > Apps > app</b>, and in its settings section put the following token on the <b>App's Secret</b> field:
+
+    %p
+      -blocktrans trimmed
+        Your new secret: <code>{{ secret }}</code>.
+    %li
+      -blocktrans trimmed with brand=brand.name
+        Save the changes, copy the app's URL and back to {{ brand }} by pasting that URL on field below, so try connect.
+
+-block extra-style
+  {{ block.super }}
+
+  :css
+    ol.instructions {
+    padding-top: 1em;
+    }
+    ol.instructions li {
+    list-style-type: decimal;
+    margin-top: 0.3em;
+    }
