@@ -21,7 +21,7 @@ class RocketChatMixin(TembaTest):
         super().setUp()
         self.claim_url = reverse("channels.types.rocketchat.claim")
         self.app_id = f"{uuid.uuid4()}"
-        self.bot_username = 'test-bot'
+        self.bot_username = "test-bot"
         self.secret = random_string(SECRET_LENGTH)
         self.secret2 = random_string(SECRET_LENGTH)
 
@@ -99,3 +99,9 @@ class RocketChatTypeTest(RocketChatMixin):
                 RocketChatType.callback_url(channel), f"{scheme}{domain}{reverse('courier.rc', args=[channel.uuid])}"
             )
 
+    @patch("temba.orgs.models.Org.get_brand_domain")
+    def test_calllback_url_exception(self, mock_brand_domain):
+        mock_brand_domain.return_value = ""
+        channel = self.new_channel()
+        with self.assertRaises(ValueError):
+            RocketChatType.callback_url(channel)
