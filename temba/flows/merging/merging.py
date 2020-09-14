@@ -451,7 +451,7 @@ class GraphDifferenceNode(Node):
                 return [conflict]
 
         if l_action["type"] == "remove_contact_groups":
-            if any((l_action["all_groups"], r_action["all_groups"])):
+            if any((l_action.get("all_groups", False), r_action.get("all_groups", False))):
                 l_action["all_groups"] = True
                 l_action["groups"] = []
             else:
@@ -477,17 +477,17 @@ class GraphDifferenceNode(Node):
 
         if l_action["type"] == "set_contact_name":
             if l_action["name"] != r_action["name"]:
-                conflict["filed"] = "name"
+                conflict["field"] = "name"
                 return [conflict]
 
         if l_action["type"] == "set_contact_language":
             if l_action["language"] != r_action["language"]:
-                conflict["filed"] = "language"
+                conflict["field"] = "language"
                 return [conflict]
 
         if l_action["type"] == "set_contact_channel":
             if l_action["channel"]["uuid"] != r_action["channel"]["uuid"]:
-                conflict["filed"] = "channel"
+                conflict["field"] = "channel"
                 return [conflict]
 
         if l_action["type"] == "set_contact_field":
