@@ -105,3 +105,149 @@ class RocketChatTypeTest(RocketChatMixin):
         channel = self.new_channel()
         with self.assertRaises(ValueError):
             RocketChatType.callback_url(channel)
+
+
+class RocketChatViewTest(RocketChatMixin):
+    def check_exceptions(self, mock_choices, mock_request, timeout_msg, exception_msg):
+        mock_choices.side_effect = lambda letters: next(choices)
+
+        self.client.force_login(self.admin)
+        check = [(Timeout(), timeout_msg), (Exception(), exception_msg)]
+        for err, msg in check:
+
+            def side_effect(*args, **kwargs):
+                raise err
+
+            mock_request.side_effect = side_effect
+            choices = (c for c in self.secret)
+            data = {
+                "secret": self.secret,
+                "base_url": self.new_url("valid.com", path=f"/{self.app_id}"),
+                "bot_username": self.bot_username,
+            }
+
+            response = self.client.post(self.claim_url, data=data)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response.context["messages"], 1))
+            self.assertEqual([f"{m}" for m in response.context["messages"]][0], msg)
+
+    @patch("random.choice")
+    def test_session_key(self, mock_choices):
+        choices = (c for c in self.secret)
+        mock_choices.side_effect = lambda letters: next(choices)
+        self.client.force_login(self.admin)
+        response = self.client.get(self.claim_url)
+        self.assertEqual(response.wsgi_request.session.get(ClaimView.SESSION_KEY), self.secret)
+        response.wsgi_request.session.pop(ClaimView.SESSION_KEY, None)
+
+    @patch("random.choice")
+    def test_form_initial(self, mock_choices):
+        def configure():
+            choices = (c for c in self.secret)
+            mock_choices.side_effect = lambda letters: next(choices)
+
+        configure()
+        self.client.force_login(self.admin)
+        response = self.client.get(self.claim_url)
+        self.assertEqual(
+            response.context_data["form"].initial.gt("secret"), self.secret,
+        )
+
+        configure()
+        with patch("temba.channels.types.rocketchat.views.ClaimView.derive_initial") as mock_initial:
+            mock_initial.return_value = {"secret": self.secret2}
+            response = self.client.get(self.claim_url)
+        self.assertEqual(
+            response.context_data["form"].initial.get("secret"), self.secret2,
+        )
+
+    @patch("temba.channels.types.rocketchat.client.Client.settings")
+    @patch("socket.gethostbyname")
+    @patch("random.choice")
+    def test_form_valid(self, mock_choices, mock_socket, mock_settings):
+        def settings_effect(domain, channel):
+            nonlocal _channel
+            _channel = channel
+
+        choices = (c for c in self.secret)
+        mock_choices.side_effect = lambda letters: next(choices)
+        mock_settings.side_effect = settings_effect
+        mock_socket.return_value = "192.168.123.45"
+
+        self.client.force_login(self.admin)
+        toggle = True
+        max_length = Channel._meta.get_field("name").max_length
+        for p in ["/{}", "/{}/", "/{}/path", "/path/{}/"]:
+            path = p.format(self.app_id)
+            for scheme in ["", "http", "https"]:
+                _channel: Channel = None
+                choices = (c for c in self.secret)
+                data = {
+                    "secret": self.secret,
+                    "base_url": self.new_url("valid.com", path=path, scheme=scheme),
+                    "bot_username": self.bot_username,
+                }
+
+                if toggle:
+                    toggle = not toggle
+                    domain = data["base_url"].replace("http://", "").replace("https://", "").split("/")[0]
+                    data["base_url"] = f"{'x' * (max_length-len(domain))}-{data['base_url']}"
+                response = self.form_submit self.client.post(self.claim_url, data=data)
+                self.assertIsInstance(_channel, Channel, msg=f"Data: {data}")
+                self.assertEqual(_channel.channel_type, RocketChatType.code)
+                self.assertRedirect(response, reverse("channels.channel_filter", args=[_channel.uuid]))
+
+                domain = data["base_url"].replace("http://", "").replace("https://", "").split("/")[0]
+                expected = f"{RocketChatType.name}: {domain}"
+                if len(expected) > max_length:
+                    expected = f"{expected[:max_length-3]}..."
+                self.assertEqual(_channel.name, expected, f"\nExpected: {expected}\nGot: {_channel.name}")
+                self.assertFalse(_channel.config[RocketChatType.CONFIG_BASE_URL].endswith("/"))
+
+    @patch("temba.channels.types.rocketchat.client.Client.settings")
+    @patch("socket.gethostbyname")
+    @patch("random.choice")
+    def test_form_invalid_url(self, mock_choices, mock_socket, mock_settings):
+        mock_choices.side_effect = lambda letters: next(choices)
+        mock_socket.return_value = "192.168.123.45"
+        invalid_payloads = [
+            {
+                "secret": self.secret,
+                "base_url": self.new_url("valid.com", path=path, scheme=scheme),
+                "bot_username": self.bot_username,
+            }
+        ]
+
+        self.client.force_login(self.admin)
+
+        choices = (c for c in self.secret)
+        response = self.client.post(self.claim_url, {"base_url": self.secure_url})
+        self.assertFormError(response, "form", None, "Invalid secret code.")  # Hidden field
+
+        choices = (c for c in self.secret)
+        response = self.client.post(self.claim_url, {"secret": "", "base_url": self.secure_url})
+        self.assertFormError(response, "form", None, "Invalid secret code.")  # Hidden field
+
+        choices = (c for c in self.secret)
+        response = self.client.post(self.claim_url, {"secret": self.secret2, "base_url": self.secure_url})
+        self.assertFormError(response, "form", None, "Secret code change detected.")  # Hidden field
+
+        choices = (c for c in self.secret)
+        response = self.client.post(self.claim_url, {"secret": self.secret})
+        self.assertFormError(response, "form", "base_url", "This field is required.")
+
+        choices = (c for c in self.secret)
+        response = self.client.post(self.claim_url, {"secret": self.secret, "base_url": ""})
+        self.assertFormError(response, "form", "base_url", "This field is required.")
+
+    @patch("socket.gethostbyname")
+    @patch("random.choice")
+    @patch("requests.put")
+    def test_settings_exception(self, mock_request, mock_choices, mock_socket):
+        mock_socket.return_value = "192.168.123.45"  # Fake IP
+        self.check_exceptions(
+            mock_choices,
+            mock_request,
+            "Unable to configure. Connection to RocketChat is taking too long.",
+            "Configuration has failed",
+        )
