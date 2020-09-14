@@ -1,3 +1,8 @@
+v5.7.47
+----------
+ * Queue mailroom task to schedule campaign events outside of import transaction
+ * Fix margin on fields warning alert
+
 v5.7.46
 ----------
  * Use mailroom task for scheduling of campaign events
