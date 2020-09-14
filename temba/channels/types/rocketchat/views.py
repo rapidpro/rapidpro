@@ -1,4 +1,5 @@
 import re
+
 from smartmin.views import SmartFormView
 
 from django import forms

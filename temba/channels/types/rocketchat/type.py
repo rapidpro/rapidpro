@@ -1,9 +1,10 @@
-from django.urls import reverse
-from ...models import ChannelType
-
-from .views import ClaimView
-from django.utils.translation import ugettext_lazy as _
 import re
+
+from django.urls import reverse
+from django.utils.translation import ugettext_lazy as _
+
+from ...models import ChannelType
+from .views import ClaimView
 
 RE_HOST = re.compile(r"(?:(?P<scheme>https?)://)?(?P<domain>[^ \"'/]+)")
 
