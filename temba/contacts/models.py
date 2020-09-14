@@ -62,6 +62,7 @@ FCM_SCHEME = "fcm"
 WHATSAPP_SCHEME = "whatsapp"
 WECHAT_SCHEME = "wechat"
 FRESHCHAT_SCHEME = "freshchat"
+ROCKETCHAT_SCHEME = "rocketchat"
 
 FACEBOOK_PATH_REF_PREFIX = "ref:"
 
