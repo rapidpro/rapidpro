@@ -3,10 +3,11 @@ import time
 
 from itertools import chain
 
+from django.conf import settings
 from django.db import models
+from django.db.models.functions import Length
 from django.utils.translation import ugettext_lazy as _
 from django.urls import reverse
-from django.conf import settings
 
 from jellyfish import jaro_distance
 from smartmin.models import SmartModel
@@ -146,12 +147,12 @@ class Link(TembaModel):
 
     @classmethod
     def check_misstyped_links(cls, definition):
-        links = cls.objects.filter(is_archived=False)
+        links = cls.objects.filter(is_archived=False).order_by(Length("destination").asc())
         issues = []
         action_list = []
         pattern = r"\b(?P<url>(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+)(\s|$)"
-        for node in definition["nodes"]:
-            for action in node["actions"]:
+        for node in definition.get("nodes", []):
+            for action in node.get("actions", []):
                 if action["type"] == "send_msg":
                     for match in re.finditer(pattern, action["text"], re.IGNORECASE):
                         action_list.append({
@@ -161,6 +162,9 @@ class Link(TembaModel):
                         })
 
         for action in action_list:
+            if cls.objects.filter(destination=action["url"]).exists():
+                continue
+
             for link in links:
                 if jaro_distance(action["url"], link.destination) >= 0.9 and action["url"] != link.destination:
                     issues.append({
