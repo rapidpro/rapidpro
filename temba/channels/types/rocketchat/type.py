@@ -3,6 +3,8 @@ import re
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
+from temba.contacts.models import ROCKETCHAT_SCHEME
+
 from ...models import ChannelType
 from .views import ClaimView
 
@@ -31,6 +33,7 @@ class RocketChatType(ChannelType):
         """Add a <a href="https://rocket.chat/">Rocket.Chat</a> bot to send and receive messages to Rocket.Chat users for free. """
     )
     claim_view = ClaimView
+    schemes = [ROCKETCHAT_SCHEME]
 
     @staticmethod
     def callback_url(channel, domain=None):
@@ -41,4 +44,4 @@ class RocketChatType(ChannelType):
         if not search:
             raise ValueError("Could not identify the hostname.")
         scheme, domain = search.groups()
-        return f"{scheme or 'https'}://{domain}/{reverse('courier.rc', args=[channel.uuid])}"
+        return f"{scheme or 'https'}://{domain}{reverse('courier.rc', args=[channel.uuid])}"

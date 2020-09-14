@@ -42,7 +42,7 @@ class Client:
 
         payload = {
             "webhook": {"url": RocketChatType.callback_url(channel, domain)},
-            "bot": {"username": self.bot_username},
+            "bot": {"username": channel.config["bot_username"]},
         }
 
         response = self.put(

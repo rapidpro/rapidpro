@@ -64,8 +64,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
             base_url_exists = org.channels.filter(
                 is_active=True,
-                channel_type=RocketChatType.slug,
-                **{f"config__{RocketChatType.CONFIG_BASE_URL}": base_url},
+                channel_type=RocketChatType.code,
+                **{f"config__contains": base_url},
             ).exists()
             if base_url_exists:
                 raise forms.ValidationError(_("There is already a channel configured for this URL."))
@@ -102,7 +102,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         self.object = Channel(
             uuid=uuid4(),
             org=self.org,
-            channel_type=RocketChatType.slug,
+            channel_type=RocketChatType.code,
             config=config,
             name=truncate(
                 f"{RocketChatType.name}: {RE_HOST.search(base_url).group('domain')}",
