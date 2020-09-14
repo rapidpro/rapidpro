@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-06 22:47+0000\n"
+"POT-Creation-Date: 2020-09-14 13:13+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1604,6 +1604,49 @@ msgid "There was a problem updating that number, please try again."
 msgstr ""
 
 msgid "Easily add a two way number you have configured with <a href=\"http://www.redrabbitsms.com/\">Red Rabbit</a> using their APIs."
+msgstr ""
+
+msgid "Connection to RocketChat is taking too long."
+msgstr ""
+
+msgid "Unable to configure. Connection to RocketChat is taking too long."
+msgstr ""
+
+msgid "Add a <a href=\"https://rocket.chat/\">Rocket.Chat</a> bot to send and receive messages to Rocket.Chat users for free. "
+msgstr ""
+
+msgid "Setup your RocketChat first to be able to integrate."
+msgstr ""
+
+msgid "Ex.: http://my.rocket.chat/29542a4b-5a89-4f27-872b-5f8091899f7b"
+msgstr ""
+
+msgid "The URL for your RocketChat Channnel app"
+msgstr ""
+
+msgid "Bot username"
+msgstr ""
+
+msgid "The username of your RocketChat app"
+msgstr ""
+
+msgid "Secret to be passed to RocketChat"
+msgstr ""
+
+msgid "Invalid secret code"
+msgstr ""
+
+msgid "Secret code change detected."
+msgstr ""
+
+#, python-format
+msgid "Invalid URL %(base_url)s"
+msgstr ""
+
+msgid "There is already a channel configured for this URL."
+msgstr ""
+
+msgid "Configuration has failed"
 msgstr ""
 
 msgid ""
@@ -5718,6 +5761,28 @@ msgid ""
 "\n"
 "      Use this Token as Authorization when sending incoming messages\n"
 "    "
+msgstr ""
+
+#, python-format
+msgid "You will need to enable Omnichannel and setup a %(brand)s Channel app on your RocketChat. To do so:"
+msgstr ""
+
+msgid "On your RocketChat, go to <b>Administration > Omnichannel</b> and enable the Omnichannel."
+msgstr ""
+
+#, python-format
+msgid "Install your %(brand)s Channel app from marketplace."
+msgstr ""
+
+msgid "Open the app details, at <b>Administration > Apps > app</b>, and in its settings section put the following token on the <b>App's Secret</b> field:"
+msgstr ""
+
+#, python-format
+msgid "Your new secret: <code>%(secret)s</code>."
+msgstr ""
+
+#, python-format
+msgid "Save the changes, copy the app's URL and back to %(brand)s by pasting that URL on field below, so try connect."
 msgstr ""
 
 #, python-format
