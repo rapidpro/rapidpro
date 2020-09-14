@@ -149,7 +149,7 @@ class Link(TembaModel):
         links = cls.objects.filter(is_archived=False)
         issues = []
         action_list = []
-        pattern = r"\b(?P<url>(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+)\b"
+        pattern = r"\b(?P<url>(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+)(\s|$)"
         for node in definition["nodes"]:
             for action in node["actions"]:
                 if action["type"] == "send_msg":
