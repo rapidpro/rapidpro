@@ -2,6 +2,7 @@ import re
 from smartmin.views import SmartFormView
 
 from django import forms
+from django.contrib import messages
 from django.utils.translation import ugettext_lazy as _
 
 from temba.utils.fields import ExternalURLField
@@ -29,22 +30,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         base_url = ExternalURLField(
             label=_("URL"),
             widget=forms.URLInput(
-                attrs={
-                    "placeholder": _(
-                        "Ex.: http://my.rocket.chat/29542a4b-5a89-4f27-872b"
-                        "-5f8091899f7b"
-                    )
-                }
+                attrs={"placeholder": _("Ex.: http://my.rocket.chat/29542a4b-5a89-4f27-872b" "-5f8091899f7b")}
             ),
             help_text=_("The URL for your RocketChat Channnel app"),
         )
-        bot_username = forms.CharField(
-            label=_("Bot username"), help_text=_("The username of your RocketChat app")
-        )
+        bot_username = forms.CharField(label=_("Bot username"), help_text=_("The username of your RocketChat app"))
         secret = forms.CharField(
-            label=_("Secret"),
-            widget=forms.HiddenInput(),
-            help_text=_("Secret to be passed to RocketChat"),
+            label=_("Secret"), widget=forms.HiddenInput(), help_text=_("Secret to be passed to RocketChat"),
         )
 
         def clean(self):
@@ -67,9 +59,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             if base_url:
                 base_url = base_url.group()
             else:
-                raise forms.ValidationError(
-                    _("Invalid URL %(base_url)s") % self.cleaned_data
-                )
+                raise forms.ValidationError(_("Invalid URL %(base_url)s") % self.cleaned_data)
 
             base_url_exists = org.channels.filter(
                 is_active=True,
@@ -77,9 +67,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 **{f"config__{RocketChatType.CONFIG_BASE_URL}": base_url},
             ).exists()
             if base_url_exists:
-                raise forms.ValidationError(
-                    _("There is already a channel configured for this URL.")
-                )
+                raise forms.ValidationError(_("There is already a channel configured for this URL."))
 
             return base_url
 
@@ -89,9 +77,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         self._secret = self.request.session.get(self.SESSION_KEY)
         if not self._secret or self.request.method.lower() != "post":
-            self.request.session[self.SESSION_KEY] = self._secret = random_string(
-                SECRET_LENGTH
-            )
+            self.request.session[self.SESSION_KEY] = self._secret = random_string(SECRET_LENGTH)
 
         return self._secret
 
@@ -118,7 +104,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             channel_type=RocketChatType.slug,
             config=config,
             name=truncate(
-                f"{RocketChatType.name}: {RE_HOST.search(url).group('domain')}",
+                f"{RocketChatType.name}: {RE_HOST.search(base_url).group('domain')}",
                 Channel._meta.get_field("name").max_length,
             ),
             created_by=self.request.user,
@@ -129,9 +115,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             client = Client(**config)
             client.settings(self.request.build_absolute_uri("/"), self.object)
         except ClientError as err:
-            messages.error(
-                self.request, err.msg if err.msg else _("Configuration has failed")
-            )
+            messages.error(self.request, err.msg if err.msg else _("Configuration has failed"))
             return super().get(self.request, *self.args, **self.kwargs)
         else:
             self.request.session.pop(self.SESSION_KEY, None)

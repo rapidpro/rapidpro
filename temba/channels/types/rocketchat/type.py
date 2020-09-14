@@ -1,7 +1,4 @@
-"""
-https://hackmd.io/CIroptOAT12u0zUDoI2SpA
-https://github.com/nyaruka/rapidpro/pull/2909/files?file-filters%5B%5D=.eot&file-filters%5B%5D=.mo&file-filters%5B%5D=.py
-"""
+from django.urls import reverse
 from ...models import ChannelType
 
 from .views import ClaimView
