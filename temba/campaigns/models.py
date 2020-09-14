@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import List
 
 from django.db import models
 from django.db.models import Model
@@ -61,11 +62,24 @@ class Campaign(TembaModel):
 
         return name
 
+    def schedule_events_async(self):
+        """
+        Updates all the scheduled events for each contact for this campaign.
+        Should be called anytime a campaign changes.
+        """
+        for event in self.get_events():
+            if EventFire.objects.filter(event=event).exists():
+                event = event.deactivate_and_copy()
+
+            event.schedule_async()
+
     @classmethod
-    def import_campaigns(cls, org, user, campaign_defs, same_site=False):
+    def import_campaigns(cls, org, user, campaign_defs, same_site=False) -> List:
         """
         Import campaigns from a list of exported campaigns
         """
+
+        imported = []
 
         for campaign_def in campaign_defs:
             name = campaign_def[Campaign.EXPORT_NAME]
@@ -165,8 +179,9 @@ class Campaign(TembaModel):
                             start_mode=start_mode,
                         )
 
-            # update our scheduled events for this campaign
-            EventFire.update_campaign_events(campaign)
+            imported.append(campaign)
+
+        return imported
 
     @classmethod
     def restore_flows(cls, campaign):
@@ -184,7 +199,7 @@ class Campaign(TembaModel):
 
         # update the events for each campaign
         for campaign in campaigns:
-            EventFire.update_campaign_events(campaign)
+            campaign.schedule_events_async()
 
     @classmethod
     def apply_action_restore(cls, user, campaigns):
@@ -193,7 +208,7 @@ class Campaign(TembaModel):
         # update the events for each campaign
         for campaign in campaigns:
             Campaign.restore_flows(campaign)
-            EventFire.update_campaign_events(campaign)
+            campaign.schedule_events_async()
 
     def get_events(self):
         return self.events.filter(is_active=True).order_by("relative_to", "offset")
@@ -593,18 +608,6 @@ class EventFire(Model):
     def get_relative_to_value(self):
         value = self.contact.get_field_value(self.event.relative_to)
         return value.replace(second=0, microsecond=0) if value else None
-
-    @classmethod
-    def update_campaign_events(cls, campaign):
-        """
-        Updates all the scheduled events for each user for the passed in campaign.
-        Should be called anytime a campaign changes.
-        """
-        for event in campaign.get_events():
-            if EventFire.objects.filter(event=event).exists():
-                event = event.deactivate_and_copy()
-
-            event.schedule_async()
 
     @classmethod
     def update_events_for_contact_groups(cls, contact, groups):
