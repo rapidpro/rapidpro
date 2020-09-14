@@ -1,3 +1,9 @@
+v5.7.48
+----------
+ * Fix button style for channel extra links
+ * Skip components missing text for WA templates sync
+ * Editors should have API tokens
+
 v5.7.47
 ----------
  * Queue mailroom task to schedule campaign events outside of import transaction
