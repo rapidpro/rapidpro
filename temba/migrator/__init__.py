@@ -260,10 +260,10 @@ class Migrator(object):
         )
 
     def get_org_msg_broadcasts(self) -> (list, int):
-        count = self.get_count("msgs_broadcast", condition=f"org_id = {self.org_id}")
+        count = self.get_count("msgs_broadcast", condition=f"org_id = {self.org_id} AND status not in ('Q', 'I')")
         return (
             self.get_results_paginated(
-                query_string=f"SELECT * FROM public.msgs_broadcast WHERE org_id = {self.org_id} ORDER BY id ASC",
+                query_string=f"SELECT * FROM public.msgs_broadcast WHERE org_id = {self.org_id} AND status not in ('Q', 'I') ORDER BY id ASC",
                 count=count,
             ),
             count,
