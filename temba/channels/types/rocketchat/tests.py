@@ -128,8 +128,32 @@ class RocketChatViewTest(RocketChatMixin):
 
             response = self.client.post(self.claim_url, data=data)
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(len(response.context["messages"], 1))
+            self.assertEqual(len(response.context["messages"]), 1)
             self.assertEqual([f"{m}" for m in response.context["messages"]][0], msg)
+
+    def new_form_data(self, path=None, scheme=None) -> dict:
+        if path or scheme:
+            base_url = self.new_url("valid.com", path=path, scheme=scheme)
+        else:
+            base_url = self.secure_url
+
+        return {
+            "secret": self.secret,
+            "base_url": base_url,
+            "bot_username": self.bot_username,
+        }
+
+    @patch("socket.gethostbyname")
+    @patch("random.choice")
+    def submit_form(self, data, mock_choices, mock_socket):
+
+        choices = (c for c in self.secret)
+        mock_choices.side_effect = lambda letters: next(choices)
+        mock_socket.return_value = "192.168.123.45"  # Fake IP
+
+        self.client.force_login(self.admin)
+
+        return self.client.post(self.claim_url, data=data)
 
     @patch("random.choice")
     def test_session_key(self, mock_choices):
@@ -150,7 +174,7 @@ class RocketChatViewTest(RocketChatMixin):
         self.client.force_login(self.admin)
         response = self.client.get(self.claim_url)
         self.assertEqual(
-            response.context_data["form"].initial.gt("secret"), self.secret,
+            response.context_data["form"].initial.get("secret"), self.secret,
         )
 
         configure()
@@ -162,40 +186,31 @@ class RocketChatViewTest(RocketChatMixin):
         )
 
     @patch("temba.channels.types.rocketchat.client.Client.settings")
-    @patch("socket.gethostbyname")
-    @patch("random.choice")
-    def test_form_valid(self, mock_choices, mock_socket, mock_settings):
+    def test_form_valid(self, mock_settings):
         def settings_effect(domain, channel):
             nonlocal _channel
             _channel = channel
 
-        choices = (c for c in self.secret)
-        mock_choices.side_effect = lambda letters: next(choices)
         mock_settings.side_effect = settings_effect
-        mock_socket.return_value = "192.168.123.45"
 
-        self.client.force_login(self.admin)
         toggle = True
         max_length = Channel._meta.get_field("name").max_length
         for p in ["/{}", "/{}/", "/{}/path", "/path/{}/"]:
             path = p.format(self.app_id)
             for scheme in ["", "http", "https"]:
                 _channel: Channel = None
-                choices = (c for c in self.secret)
-                data = {
-                    "secret": self.secret,
-                    "base_url": self.new_url("valid.com", path=path, scheme=scheme),
-                    "bot_username": self.bot_username,
-                }
+                data = self.new_form_data(path, scheme)
 
                 if toggle:
                     toggle = not toggle
                     domain = data["base_url"].replace("http://", "").replace("https://", "").split("/")[0]
                     data["base_url"] = f"{'x' * (max_length-len(domain))}-{data['base_url']}"
-                response = self.form_submit self.client.post(self.claim_url, data=data)
+                response = self.submit_form(data)
+
+                self.assertEqual(response.status_code, 302)
                 self.assertIsInstance(_channel, Channel, msg=f"Data: {data}")
                 self.assertEqual(_channel.channel_type, RocketChatType.code)
-                self.assertRedirect(response, reverse("channels.channel_filter", args=[_channel.uuid]))
+                self.assertRedirect(response, reverse("channels.channel_configuration", args=[_channel.uuid]))
 
                 domain = data["base_url"].replace("http://", "").replace("https://", "").split("/")[0]
                 expected = f"{RocketChatType.name}: {domain}"
@@ -204,41 +219,38 @@ class RocketChatViewTest(RocketChatMixin):
                 self.assertEqual(_channel.name, expected, f"\nExpected: {expected}\nGot: {_channel.name}")
                 self.assertFalse(_channel.config[RocketChatType.CONFIG_BASE_URL].endswith("/"))
 
-    @patch("temba.channels.types.rocketchat.client.Client.settings")
-    @patch("socket.gethostbyname")
-    @patch("random.choice")
-    def test_form_invalid_url(self, mock_choices, mock_socket, mock_settings):
-        mock_choices.side_effect = lambda letters: next(choices)
-        mock_socket.return_value = "192.168.123.45"
-        invalid_payloads = [
-            {
-                "secret": self.secret,
-                "base_url": self.new_url("valid.com", path=path, scheme=scheme),
-                "bot_username": self.bot_username,
-            }
-        ]
+    def test_form_invalid_base_url(self):
+        data = self.new_form_data()
 
-        self.client.force_login(self.admin)
-
-        choices = (c for c in self.secret)
-        response = self.client.post(self.claim_url, {"base_url": self.secure_url})
-        self.assertFormError(response, "form", None, "Invalid secret code.")  # Hidden field
-
-        choices = (c for c in self.secret)
-        response = self.client.post(self.claim_url, {"secret": "", "base_url": self.secure_url})
-        self.assertFormError(response, "form", None, "Invalid secret code.")  # Hidden field
-
-        choices = (c for c in self.secret)
-        response = self.client.post(self.claim_url, {"secret": self.secret2, "base_url": self.secure_url})
-        self.assertFormError(response, "form", None, "Secret code change detected.")  # Hidden field
-
-        choices = (c for c in self.secret)
-        response = self.client.post(self.claim_url, {"secret": self.secret})
+        data.pop("base_url")
+        response = self.submit_form(data)
         self.assertFormError(response, "form", "base_url", "This field is required.")
 
-        choices = (c for c in self.secret)
-        response = self.client.post(self.claim_url, {"secret": self.secret, "base_url": ""})
+        data["base_url"] = ""
+        response = self.submit_form(data)
         self.assertFormError(response, "form", "base_url", "This field is required.")
+
+        data["base_url"] = "domain"
+        response = self.submit_form(data)
+        self.assertFormError(response, "form", "base_url", "Enter a valid URL.")
+
+        data["base_url"] = "domain.com"
+        response = self.submit_form(data)
+        self.assertFormError(response, "form", "base_url", "Invalid URL http://domain.com")
+
+    def test_form_invalid_secret(self):
+        data = self.new_form_data()
+        data.pop("secret")
+        response = self.submit_form(data)
+        self.assertFormError(response, "form", None, "Invalid secret code.")
+
+        data["secret"] = ""
+        response = self.submit_form(data)
+        self.assertFormError(response, "form", None, "Invalid secret code.")
+
+        data["secret"] = self.secret2
+        response = self.submit_form(data)
+        self.assertFormError(response, "form", None, "Secret code change detected.")
 
     @patch("socket.gethostbyname")
     @patch("random.choice")
