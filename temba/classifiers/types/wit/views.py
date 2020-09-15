@@ -26,8 +26,7 @@ class ConnectView(BaseConnectView):
             try:
                 Client(cleaned["access_token"]).get_intents()
             except Exception:
-                raise forms.ValidationError(
-                    _("Unable to access wit.ai with credentials, please check and try again"))
+                raise forms.ValidationError(_("Unable to access wit.ai with credentials, please check and try again"))
 
             return cleaned
 

@@ -155,11 +155,13 @@ class Link(TembaModel):
             for action in node.get("actions", []):
                 if action["type"] == "send_msg":
                     for match in re.finditer(pattern, action["text"], re.IGNORECASE):
-                        action_list.append({
-                            "node_uuid": node["uuid"],
-                            "action_uuid": action["uuid"],
-                            "url": match.groupdict().get("url"),
-                        })
+                        action_list.append(
+                            {
+                                "node_uuid": node["uuid"],
+                                "action_uuid": action["uuid"],
+                                "url": match.groupdict().get("url"),
+                            }
+                        )
 
         for action in action_list:
             if cls.objects.filter(destination=action["url"]).exists():
@@ -167,13 +169,15 @@ class Link(TembaModel):
 
             for link in links:
                 if jaro_distance(action["url"], link.destination) >= 0.9 and action["url"] != link.destination:
-                    issues.append({
-                        "type": "invalid_link",
-                        "node_uuid": action["node_uuid"],
-                        "action_uuid": action["action_uuid"],
-                        "actual_link": action["url"],
-                        "expected_link": link.destination,
-                    })
+                    issues.append(
+                        {
+                            "type": "invalid_link",
+                            "node_uuid": action["node_uuid"],
+                            "action_uuid": action["action_uuid"],
+                            "actual_link": action["url"],
+                            "expected_link": link.destination,
+                        }
+                    )
                     break
         return issues
 
