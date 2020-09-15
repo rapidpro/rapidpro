@@ -864,6 +864,10 @@ class OrgTest(TembaTest):
             status_code=400,
         )
 
+        # check our inbox page
+        response = self.client.get(reverse("msgs.msg_inbox"))
+        self.assertContains(response, "Your account is suspended")
+
         # still no messages or flow starts
         self.assertEqual(Msg.objects.all().count(), 0)
         mock_async_start.assert_not_called()
