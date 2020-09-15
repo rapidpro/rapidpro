@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from smartmin.csv_imports.models import ImportTask
 
+from django.conf import settings
 from django.utils import timezone
 
 from celery.task import task
@@ -97,3 +98,14 @@ def resume_failed_tasks():
 def update_org_activity(now=None):
     now = now if now else timezone.now()
     OrgActivity.update_day(now)
+
+
+@nonoverlapping_task(
+    track_started=True, name="suspend_topup_orgs_task", lock_key="suspend_topup_orgs_task", lock_timeout=7200
+)
+def suspend_topup_orgs_task():
+    # for every org on a topup plan that isn't suspended, check they have credits, if not, suspend them
+    for org in Org.objects.filter(plan=settings.TOPUP_PLAN, is_active=True, is_suspended=False):
+        if org.get_credits_remaining() <= 0:
+            org.is_suspended = True
+            org.save(update_fields=["is_suspended"])
