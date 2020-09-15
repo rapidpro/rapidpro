@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-15 20:30+0000\n"
+"POT-Creation-Date: 2020-09-15 21:00+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4321,10 +4321,10 @@ msgstr ""
 msgid "This flow is already being started, please wait until that process is complete before starting more contacts."
 msgstr ""
 
-msgid "Sorry, your account is currently suspended. To enable starting flows, please contact support."
+msgid "Sorry, your workspace is currently suspended. To enable starting flows, please contact support."
 msgstr ""
 
-msgid "Sorry, your account is currently flagged. To enable starting flows, please contact support."
+msgid "Sorry, your workspace is currently flagged. To enable starting flows, please contact support."
 msgstr ""
 
 msgid "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who have not sent an incoming message in the last 24 hours may not receive it."
@@ -4689,10 +4689,10 @@ msgstr "Disparador agendamento"
 msgid "At least one recipient is required"
 msgstr "Pelo menos um destinatário é necessário"
 
-msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgid "Sorry, your workspace is currently suspended. To enable sending messages, please contact support."
 msgstr ""
 
-msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
+msgid "Sorry, your workspace is currently flagged. To enable sending messages, please contact support."
 msgstr ""
 
 msgid "Inbox"
@@ -9669,7 +9669,7 @@ msgstr "Quando o usuário saiu neste passo no fluxo"
 msgid "Sending.."
 msgstr "Enviando.."
 
-msgid "Your account is suspended and no longer processing messages."
+msgid "Your workspace is suspended and no longer processing messages."
 msgstr ""
 
 #, python-format

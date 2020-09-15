@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-15 20:30+0000\n"
+"POT-Creation-Date: 2020-09-15 21:00+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3470,12 +3470,12 @@ msgstr "Данный поток уже был запущен, пожалуйст
 
 #, fuzzy
 #| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
-msgid "Sorry, your account is currently suspended. To enable starting flows, please contact support."
+msgid "Sorry, your workspace is currently suspended. To enable starting flows, please contact support."
 msgstr "Извините, Ваша учетная запись в настоящее время заблокирована. Чтобы получить возможность отправки сообщений, обратитесь в службу поддержки."
 
 #, fuzzy
 #| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
-msgid "Sorry, your account is currently flagged. To enable starting flows, please contact support."
+msgid "Sorry, your workspace is currently flagged. To enable starting flows, please contact support."
 msgstr "Извините, Ваша учетная запись в настоящее время заблокирована. Чтобы получить возможность отправки сообщений, обратитесь в службу поддержки."
 
 msgid "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who have not sent an incoming message in the last 24 hours may not receive it."
@@ -3790,12 +3790,12 @@ msgstr "Требуется хотя бы один получатель"
 
 #, fuzzy
 #| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
-msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgid "Sorry, your workspace is currently suspended. To enable sending messages, please contact support."
 msgstr "Извините, Ваша учетная запись в настоящее время заблокирована. Чтобы получить возможность отправки сообщений, обратитесь в службу поддержки."
 
 #, fuzzy
 #| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
-msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
+msgid "Sorry, your workspace is currently flagged. To enable sending messages, please contact support."
 msgstr "Извините, Ваша учетная запись в настоящее время заблокирована. Чтобы получить возможность отправки сообщений, обратитесь в службу поддержки."
 
 msgid "Inbox"
@@ -8952,8 +8952,10 @@ msgstr "получателей в данный момент в потоке"
 msgid "Sending.."
 msgstr "Отправка..."
 
-msgid "Your account is suspended and no longer processing messages."
-msgstr ""
+#, fuzzy
+#| msgid "Your organization is configured to use a single language."
+msgid "Your workspace is suspended and no longer processing messages."
+msgstr "Ваша организация настроена на использование одного языка."
 
 #, python-format
 msgid ""

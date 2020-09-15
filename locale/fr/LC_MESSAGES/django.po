@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-15 20:30+0000\n"
+"POT-Creation-Date: 2020-09-15 21:00+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3516,12 +3516,12 @@ msgstr "Ce flux est déjà en cours de démarrage. Veuillez patienter jusqu'à l
 
 #, fuzzy
 #| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
-msgid "Sorry, your account is currently suspended. To enable starting flows, please contact support."
+msgid "Sorry, your workspace is currently suspended. To enable starting flows, please contact support."
 msgstr "Désolé, votre compte est actuellement suspendu. Pour activer l'envoi de messages, veuillez contacter le support."
 
 #, fuzzy
 #| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
-msgid "Sorry, your account is currently flagged. To enable starting flows, please contact support."
+msgid "Sorry, your workspace is currently flagged. To enable starting flows, please contact support."
 msgstr "Désolé, votre compte est actuellement suspendu. Pour activer l'envoi de messages, veuillez contacter le support."
 
 msgid "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who have not sent an incoming message in the last 24 hours may not receive it."
@@ -3836,12 +3836,12 @@ msgstr "Au moins un bénéficiaire est requis"
 
 #, fuzzy
 #| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
-msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgid "Sorry, your workspace is currently suspended. To enable sending messages, please contact support."
 msgstr "Désolé, votre compte est actuellement suspendu. Pour activer l'envoi de messages, veuillez contacter le support."
 
 #, fuzzy
 #| msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
-msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
+msgid "Sorry, your workspace is currently flagged. To enable sending messages, please contact support."
 msgstr "Désolé, votre compte est actuellement suspendu. Pour activer l'envoi de messages, veuillez contacter le support."
 
 msgid "Inbox"
@@ -8871,8 +8871,10 @@ msgstr "destinataires à ce stade du flux"
 msgid "Sending.."
 msgstr "Envoi .."
 
-msgid "Your account is suspended and no longer processing messages."
-msgstr ""
+#, fuzzy
+#| msgid "Your organization is configured to use a single language."
+msgid "Your workspace is suspended and no longer processing messages."
+msgstr "Votre organisation est configurée pour utiliser une seule langue."
 
 #, python-format
 msgid ""
