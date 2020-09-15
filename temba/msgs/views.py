@@ -132,11 +132,11 @@ class SendMessageForm(Form):
 
         if org.is_suspended:
             raise ValidationError(
-                _("Sorry, your account is currently suspended. To enable sending messages, please contact support.")
+                _("Sorry, your workspace is currently suspended. To enable sending messages, please contact support.")
             )
         if org.is_flagged:
             raise ValidationError(
-                _("Sorry, your account is currently flagged. To enable sending messages, please contact support.")
+                _("Sorry, your workspace is currently flagged. To enable sending messages, please contact support.")
             )
         return cleaned
 
