@@ -43,7 +43,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         def clean(self):
             secret = self.cleaned_data.get("secret")
             if not secret:
-                raise forms.ValidationError(_("Invalid secret code"))
+                raise forms.ValidationError(_("Invalid secret code."))
 
             initial = self.initial.get("secret")
             if secret != initial:
