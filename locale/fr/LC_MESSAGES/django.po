@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-06 22:47+0000\n"
+"POT-Creation-Date: 2020-09-15 20:26+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -8870,6 +8870,12 @@ msgstr "destinataires à ce stade du flux"
 
 msgid "Sending.."
 msgstr "Envoi .."
+
+msgid ""
+"\n"
+"    Your account is suspended and no longer processing messages.\n"
+"  "
+msgstr ""
 
 #, python-format
 msgid ""
