@@ -22,6 +22,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
+from django.core.validators import FileExtensionValidator
 from django.db import transaction
 from django.db.models import Count
 from django.db.models.functions import Lower, Upper
@@ -2135,10 +2136,12 @@ class ContactFieldCRUDL(SmartCRUDL):
 
 class ContactImportCRUDL(SmartCRUDL):
     model = ContactImport
-    actions = ("create", "customize", "read")
+    actions = ("create", "preview", "read")
 
     class Create(OrgPermsMixin, SmartCreateView):
-        class ImportForm(forms.ModelForm):
+        class Form(forms.ModelForm):
+            file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=("xls", "xlsx", "csv"))])
+
             def __init__(self, *args, org, **kwargs):
                 self.org = org
                 super().__init__(*args, **kwargs)
@@ -2147,12 +2150,11 @@ class ContactImportCRUDL(SmartCRUDL):
                 file = self.cleaned_data["file"]
                 if not regex.match(r"^[A-Za-z0-9_.\-*() ]+$", file.name, regex.V0):
                     raise forms.ValidationError(
-                        "Please make sure the file name only contains "
-                        "alphanumeric characters [0-9a-zA-Z] and "
+                        "Please make sure the file name only contains alphanumeric characters and "
                         "special characters in -, _, ., (, )"
                     )
 
-                ContactImport.extract_mappings(self.org, file)
+                self.mappings = ContactImport.validate_file(self.org, file.file, file.name)
                 return file
 
             def clean(self):
@@ -2172,9 +2174,9 @@ class ContactImportCRUDL(SmartCRUDL):
                 model = ContactImport
                 fields = ("file",)
 
-        form_class = ImportForm
+        form_class = Form
         success_message = ""
-        success_url = "id@contacts.contactimport_customize"
+        success_url = "id@contacts.contactimport_preview"
 
         def get_gear_links(self):
             return [dict(title=_("Contacts"), style="button-light", href=reverse("contacts.contact_list"))]
@@ -2197,11 +2199,68 @@ class ContactImportCRUDL(SmartCRUDL):
         def pre_save(self, obj):
             obj = super().pre_save(obj)
             obj.org = self.get_user().get_org()
-            obj.mappings = ContactImport.extract_mappings(self.org, obj.file)
+            obj.mappings = self.form.mappings
             return obj
 
-    class Customize(OrgObjPermsMixin, SmartUpdateView):
-        fields = ("mappings",)
+    class Preview(OrgObjPermsMixin, SmartUpdateView):
+        class Form(forms.ModelForm):
+            def __init__(self, *args, org, **kwargs):
+                self.org = org
+                super().__init__(*args, **kwargs)
+
+                org_fields = ContactField.user_fields.active_for_org(org=org).order_by("label")
+                name_choices = [(f.label, f.label) for f in org_fields]
+
+                self.columns = []
+                for header in self.instance.extract_headers():
+                    mapping = self.instance.mappings[header]
+                    column = {"header": header, "mapping": mapping}
+
+                    if mapping["type"] == "new_field":
+                        field_name = header.split(":", maxsplit=1)[1]
+                        field_key = slugify_with(field_name)
+                        field_obj = ContactField.get_by_key(org, field_key)
+
+                        include_field = forms.BooleanField(
+                            label=" ", required=False, initial=True, widget=CheckboxWidget(attrs={"widget_only": True})
+                        )
+                        name_field = ArbitraryChoiceField(
+                            initial=field_obj.label if field_obj else field_name,
+                            choices=name_choices,
+                            required=False,
+                            widget=SelectWidget(attrs={"widget_only": True, "searchable": True, "tags": True}),
+                        )
+                        type_field = forms.ChoiceField(
+                            label=" ",
+                            choices=Value.TYPE_CHOICES,
+                            required=True,
+                            initial=field_obj.value_type if field_obj else Value.TYPE_TEXT,
+                            widget=SelectWidget(attrs={"widget_only": True}),
+                        )
+
+                        column_controls = OrderedDict(
+                            [
+                                (f"column_{field_key}_include", include_field),
+                                (f"column_{field_key}_name", name_field),
+                                (f"column_{field_key}_type", type_field),
+                            ]
+                        )
+                        self.fields.update(column_controls)
+
+                        column["controls"] = list(column_controls.keys())
+
+                    self.columns.append(column)
+
+            class Meta:
+                model = ContactImport
+                fields = ("mappings",)
+
+        form_class = Form
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.derive_org()
+            return kwargs
 
     class Read(OrgObjPermsMixin, SmartReadView):
         pass

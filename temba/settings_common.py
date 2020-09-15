@@ -373,7 +373,7 @@ PERMISSIONS = {
     ),
     "contacts.contactfield": ("api", "json", "update_priority", "featured", "filter_by_type", "detail"),
     "contacts.contactgroup": ("api",),
-    "contacts.contactimport": ("customize",),
+    "contacts.contactimport": ("preview",),
     "ivr.ivrcall": ("start",),
     "archives.archive": ("api", "run", "message"),
     "globals.global": ("api", "unused", "detail"),

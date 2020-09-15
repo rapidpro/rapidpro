@@ -6,7 +6,8 @@ import uuid
 from collections import OrderedDict
 from decimal import Decimal
 from itertools import chain
-from typing import Dict, List
+from pathlib import Path
+from typing import Dict, List, Tuple
 
 import iso8601
 import phonenumbers
@@ -3124,6 +3125,7 @@ def get_import_upload_path(instance, filename):
 
 
 class ContactImport(SmartModel):
+    MAX_ROWS = 25_000
     BATCH_SIZE = 100
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contact_imports")
@@ -3133,78 +3135,128 @@ class ContactImport(SmartModel):
     mappings = JSONField()
 
     @classmethod
-    def extract_mappings(cls, org, file):
+    def validate_file(cls, org, file, filename) -> Dict:
         """
-        Extracts header mappings from the given in-memory import file. Raises a ValidationError if there's a problem.
+        Validates the given file, returning header mappings if it is valid, otherwise raising a ValidationError.
         """
-        sheet_data = pyexcel.get_array(file_stream=file.file, file_type="xlsx")
-        header_row = sheet_data[0]
 
+        file_type = Path(filename).suffix[1:].lower()
+        data = pyexcel.iget_array(file_stream=file, file_type=file_type)
+        try:
+            headers = next(data)
+        except StopIteration:
+            raise ValidationError(_("Import file appears to be empty"))
+
+        num_rows = 0
+        for row in data:
+            num_rows += 1
+
+        if num_rows > ContactImport.MAX_ROWS:
+            raise ValidationError(
+                _("Import files can contain a maximum of %(max)d records"), params={"max": ContactImport.MAX_ROWS}
+            )
+
+        file.seek(0)  # seek back to beginning so subsequent reads work
+        return cls.extract_mappings_from_headers(org, headers)
+
+    @classmethod
+    def extract_mappings_from_headers(cls, org, headers: List[str]) -> Dict:
         valid_schemes = {c[0] for c in URN_SCHEME_CONFIG}
         valid_fields = {f.key: f for f in org.contactfields.filter(is_active=True)}
 
         mappings = OrderedDict()
-        for header in header_row:
-            header = header.lower()
-            parts = header.split(":", maxsplit=1)
-            header_prefix, header_name = (parts[0], parts[1]) if len(parts) >= 2 else ("", parts[0])
+
+        for header in headers:
+            header_prefix, header_name = cls.parse_header(header)
+            if header in mappings:
+                raise ValidationError(_("Import header %(header)s occurs more than once"), params={"header": header})
 
             if header_prefix == "" and header_name == "name":
-                mapped = {"type": "attribute", "name": "name"}
+                mapping = {"type": "attribute", "name": "name"}
             elif header_prefix == "" and header_name == "language":
-                mapped = {"type": "attribute", "name": "language"}
+                mapping = {"type": "attribute", "name": "language"}
             elif header_prefix == "urn" and header_name:
                 if header_name in valid_schemes:
-                    mapped = {"type": "scheme", "name": header_name}
+                    mapping = {"type": "scheme", "scheme": header_name}
                 else:
                     raise ValidationError(_("%(scheme)s is not a valid URN scheme"), params={"scheme": header_name})
             elif header_prefix == "field" and header_name:
                 field_key = ContactField.make_key(header_name)
                 if field_key in valid_fields:
-                    mapped = {"type": "field", "key": field_key, "name": header_name}
+                    mapping = {"type": "field", "key": field_key, "name": header_name}
                 else:
-                    mapped = None  # can be created or selected in next step
+                    if ContactField.is_valid_key(field_key):
+                        # can be created or selected in next step
+                        mapping = {"type": "new_field", "key": field_key, "name": header_name, "value_type": "T"}
+                    else:
+                        raise ValidationError(_("%(name)s is not a valid field name"), params={"name": header_name})
             else:
-                mapped = {"type": "ignore"}
+                mapping = {"type": "ignore"}
 
-            mappings[header] = mapped
+            mappings[header] = mapping
 
-        file.file.seek(0)
         return mappings
 
-    def start(self):
-        sheet_data = pyexcel.iget_array(file_stream=self.file)
-        header = next(sheet_data)
-        header = [h.strip().lower() for h in header]
+    @staticmethod
+    def parse_header(header: str) -> Tuple[str, str]:
+        """
+        Parses a header like "Field: Foo" into ("field", "foo")
+        """
+        parts = header.lower().split(":", maxsplit=1)
+        parts = [p.strip() for p in parts]
+        prefix, name = (parts[0], parts[1]) if len(parts) >= 2 else ("", parts[0])
+        return prefix, name
 
-        row_num = 0
-        for row_batch in chunk_list(sheet_data, ContactImport.BATCH_SIZE):
+    def extract_headers(self):
+        return pyexcel.get_array(file_stream=self.file, file_type=self._get_file_type(), start_row=0, row_limit=1)[0]
+
+    def start(self):
+        # TODO create new fields
+
+        data = pyexcel.iget_array(file_stream=self.file, file_type=self._get_file_type())
+        headers = next(data)
+
+        record_num = 1
+        for row_batch in chunk_list(data, ContactImport.BATCH_SIZE):
             batch_specs = []
-            batch_row_start = row_num
+            batch_start = record_num
 
             for row in row_batch:
-                as_dict = dict(zip(header, row))
-                batch_specs.append(self._parse_row(as_dict))
-                row_num += 1
+                record = dict(zip(headers, row))
+                batch_specs.append(self._parse_spec(record))
+                record_num += 1
 
-            batch_row_end = row_num
-
-            self.batches.create(
-                specs=json.dumps(batch_specs), line_start=batch_row_start, line_end=batch_row_end,
-            )
+            self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num)
 
     def is_started(self) -> bool:
         return self.batches.exists()
 
-    def _parse_row(self, row) -> mailroom.ContactSpec:
-        return mailroom.ContactSpec(
-            uuid=row.get("contact uuid", ""),
-            name=row.get("name", ""),
-            language=row.get("language", ""),
-            urns=[],
-            fields={},
-            groups=[],
-        )
+    def _get_file_type(self):
+        """
+        Returns one of xlxs, xls, or csv
+        """
+        return Path(self.file.name).suffix[1:].lower()
+
+    def _parse_spec(self, record) -> Dict:
+        spec = {
+            "uuid": "",
+            "name": "",
+            "language": "",
+            "urns": [],
+            "fields": {},
+            "groups": [],
+        }
+
+        for header, value in record.items():
+            mapping = self.mappings[header]
+            if mapping["type"] == "attribute":
+                spec[mapping["name"]] = value
+            elif mapping["type"] == "scheme":
+                spec["urns"].append(URN.from_parts(mapping["scheme"], value))
+            elif mapping["type"] == "field":
+                spec["fields"][mapping["key"]] = value
+
+        return spec
 
 
 class ContactImportBatch(models.Model):
@@ -3223,16 +3275,16 @@ class ContactImportBatch(models.Model):
 
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
 
-    specs = models.TextField()
+    specs = JSONField()
 
-    row_start = models.IntegerField()
+    # the range of records from the entire import contained in this batch
+    record_start = models.IntegerField()
+    record_end = models.IntegerField()
 
-    row_end = models.IntegerField()
-
+    # results written by mailroom after processing this batch
     num_created = models.IntegerField(default=0)
-
     num_updated = models.IntegerField(default=0)
-
+    time_taken = models.IntegerField(null=True)  # how long this batch took to insert in milliseconds
     errors = JSONField(null=True)
 
 

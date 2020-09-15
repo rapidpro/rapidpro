@@ -12,6 +12,7 @@ from smartmin.models import SmartImportRowError
 
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.db.models import Value as DbValue
 from django.db.models.functions import Concat, Substr
@@ -50,6 +51,7 @@ from .models import (
     ContactField,
     ContactGroup,
     ContactGroupCount,
+    ContactImport,
     ContactURN,
     ExportContactsTask,
 )
@@ -7547,3 +7549,63 @@ class ESIntegrationTest(TembaNonAtomicTest):
 
         # should have updated count
         self.assertEqual(81, adults.get_member_count())
+
+
+class ContactImportTest(TembaTest):
+    def create_import(self, path):
+        with open(path, "rb") as f:
+            mappings = ContactImport.validate_file(self.org, f, path)
+            return ContactImport.objects.create(
+                org=self.org,
+                file=SimpleUploadedFile(f.name, f.read()),
+                mappings=mappings,
+                created_by=self.admin,
+                modified_by=self.admin,
+            )
+
+    def test_start(self):
+        imp = self.create_import("media/test_imports/sample_contacts.xlsx")
+        imp.refresh_from_db()
+        self.assertFalse(imp.is_started())
+        self.assertEqual(["URN:Tel", "name"], imp.extract_headers())
+        self.assertEqual(
+            {"URN:Tel": {"type": "scheme", "scheme": "tel"}, "name": {"type": "attribute", "name": "name"}},
+            imp.mappings,
+        )
+
+        imp.start()
+        batches = list(imp.batches.order_by("id"))
+
+        self.assertTrue(imp.is_started())
+        self.assertEqual(1, len(batches))
+        self.assertEqual(1, batches[0].record_start)
+        self.assertEqual(4, batches[0].record_end)
+        self.assertEqual(
+            [
+                {
+                    "uuid": "",
+                    "name": "Eric Newcomer",
+                    "language": "",
+                    "urns": ["tel:250788382382"],
+                    "fields": {},
+                    "groups": [],
+                },
+                {
+                    "uuid": "",
+                    "name": "NIC POTTIER",
+                    "language": "",
+                    "urns": ["tel:250(78) 8 383 383"],
+                    "fields": {},
+                    "groups": [],
+                },
+                {
+                    "uuid": "",
+                    "name": "jen newcomer",
+                    "language": "",
+                    "urns": ["tel:250788383385"],
+                    "fields": {},
+                    "groups": [],
+                },
+            ],
+            batches[0].specs,
+        )

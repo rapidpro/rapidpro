@@ -1,0 +1,83 @@
+-extends "smartmin/base.html"
+-load smartmin temba i18n
+
+-block title
+  -trans "Preview Contact Import"
+
+-block content
+  -blocktrans
+    We noticed your file contains some extra columns to import, you can add these as custom fields on
+    your contact by selecting them below.
+
+  .card.w-full
+    %form.smartmin-form.horizontal-form(method="post" enctype="multipart/form-data")
+      -csrf_token
+      -if form.non_field_errors
+        %div.alert.alert-error.form-errors
+          {{ form.non_field_errors }}
+
+      -block fields
+        %fieldset
+          %table
+            -for column in form.columns
+              %tr.custom-field.flex.w-full.items-center
+                %td.field-include-checkbox.mt-2.flex-none
+                  -if column.controls
+                    {% render_field column.controls.0 %}
+                  -else
+                    %fa-icon.far.fa-check-square(size="16px" path-prefix="/sitestatic")
+                  &nbsp;
+                %td.field-form-label.flex-grow
+                  %div.pr-4
+                    <b>{{ column.header|title }}</b>
+                    -trans "column as"
+                %td.field-as-name.pt-3
+                  -if column.controls
+                    {% render_field column.controls.1 %}
+                  -else
+                    {{ column.mapping.name }}
+                %td.field-form-label.for-type.flex-none
+                  %div.px-4
+                    -blocktrans
+                      of type
+                %td.field-as-type.for-type.flex-none.pt-3
+                  -if column.controls
+                    {% render_field column.controls.2 %}
+
+      .flex.mt-4
+        %input.button-primary(type="submit" value='{% trans "Import" %}')
+        .ml-4.button-light(onclick="javascript:history.go(-1)")
+          -trans "Cancel"
+
+
+-block extra-style
+  :css
+    #customize-info {
+      font-weight: bold;
+    }
+
+    .field-as-type {
+      width: 120px;
+    }
+
+    .field-form-label div {
+    }
+    .field-as-name  {
+      width: 200px;
+    }
+
+    .field-as-type {
+       width: 120px;
+    }
+
+    .field-as-type, .field-as-name {
+
+    }
+
+    .field-form-label {
+
+    }
+
+    .for-type {
+
+    }
