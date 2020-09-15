@@ -256,7 +256,9 @@ class ExportLinksTask(BaseExportTask):
                 for col in range(len(fields)):
                     field = fields[col]
 
-                    if field["key"] == Contact.NAME:
+                    if field["key"] == Contact.ID:
+                        field_value = str(contact.contact.id)
+                    elif field["key"] == Contact.NAME:
                         field_value = contact.contact.get_display()
                     elif field["key"] == Contact.UUID:
                         field_value = contact.contact.uuid
@@ -266,8 +268,10 @@ class ExportLinksTask(BaseExportTask):
                         )
                     elif field["key"] == "destination":
                         field_value = contact.link.destination
-                    else:
+                    elif field["field"] is not None:
                         field_value = contact.contact.get_field_display(field["field"])
+                    else:
+                        field_value = ""
 
                     if field_value is None:
                         field_value = ""
