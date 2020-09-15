@@ -1221,9 +1221,13 @@ class BaseClaimNumberMixin(ClaimViewMixin):
             if message:
                 error_message = form.error_class([message])
             else:
-                error_message = _(
-                    "An error occurred connecting your Twilio number, try removing your "
-                    "Twilio account, reconnecting it and trying again."
+                error_message = form.error_class(
+                    [
+                        _(
+                            "An error occurred connecting your Twilio number, try removing your "
+                            "Twilio account, reconnecting it and trying again."
+                        )
+                    ]
                 )
 
         if error_message is not None:

@@ -22,7 +22,7 @@ from django.utils import timezone
 
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from temba.archives.models import Archive
-from temba.campaigns.models import Campaign, CampaignEvent, EventFire
+from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.luis import LuisType
@@ -1003,7 +1003,8 @@ class APITest(TembaTest):
         )
         self.assertEqual(response.status_code, 404)
 
-    def test_campaign_events(self):
+    @mock_mailroom
+    def test_campaign_events(self, mr_mocks):
         url = reverse("api.v2.campaign_events")
 
         self.assertEndpointAccess(url)
@@ -1261,8 +1262,16 @@ class APITest(TembaTest):
         self.assertEqual(event2.message, None)
         self.assertEqual(event2.flow, flow)
 
-        # make sure some event fires were created for the contact
-        self.assertEqual(1, EventFire.objects.filter(contact=contact, event=event2).count())
+        # make sure we queued a mailroom task to schedule this event
+        self.assertEqual(
+            {
+                "org_id": self.org.id,
+                "type": "schedule_campaign_event",
+                "queued_on": matchers.Datetime(),
+                "task": {"campaign_event_id": event2.id, "org_id": self.org.id},
+            },
+            mr_mocks.queued_batch_tasks[-1],
+        )
 
         # update the message event to be a flow event
         response = self.postJSON(
@@ -1347,9 +1356,6 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 204)
 
         self.assertFalse(CampaignEvent.objects.filter(id=event1.id, is_active=True).exists())
-
-        # should no longer have any events
-        self.assertEqual(1, EventFire.objects.filter(contact=contact, event=event2).count())
 
     def test_campaignevents_cant_modify_on_inactive_campaign(self):
         url = reverse("api.v2.campaign_events")

@@ -187,6 +187,10 @@ def refresh_whatsapp_templates():
                             logger.error(f"unknown component type: {component}")
                             continue
 
+                        if "text" not in component:
+                            logger.error(f"component missing text: {component}")
+                            continue
+
                         if component["type"] in ["HEADER", "FOOTER"] and _calculate_variable_count(component["text"]):
                             logger.error(f"unsupported component type wih variables: {component}")
                             all_supported = False
