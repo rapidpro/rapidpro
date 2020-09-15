@@ -240,6 +240,7 @@ class RocketChatViewTest(RocketChatMixin):
 
     def test_form_invalid_secret(self):
         data = self.new_form_data()
+
         data.pop("secret")
         response = self.submit_form(data)
         self.assertFormError(response, "form", None, "Invalid secret code.")
@@ -251,6 +252,17 @@ class RocketChatViewTest(RocketChatMixin):
         data["secret"] = self.secret2
         response = self.submit_form(data)
         self.assertFormError(response, "form", None, "Secret code change detected.")
+
+    def test_form_invalid_bot_username(self):
+        data = self.new_form_data()
+
+        data.pop("bot_username")
+        response = self.submit_form(data)
+        self.assertFormError(response, "form", "bot_username", "This field is required.")
+
+        data["bot_username"] = ""
+        response = self.submit_form(data)
+        self.assertFormError(response, "form", "bot_username", "This field is required.")
 
     @patch("socket.gethostbyname")
     @patch("random.choice")
