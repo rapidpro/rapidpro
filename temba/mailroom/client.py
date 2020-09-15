@@ -42,14 +42,18 @@ class FlowValidationException(MailroomException):
 
 class ContactSpec(NamedTuple):
     """
-    Describes a contact to be created
+    Describes a contact to be created or updated
     """
 
+    uuid: str
     name: str
     language: str
     urns: List[str]
     fields: Dict[str, str]
     groups: List[str]
+
+    def as_dict(self):
+        return self._asdict()
 
 
 class MailroomClient:
@@ -137,7 +141,7 @@ class MailroomClient:
         payload = {
             "org_id": org_id,
             "user_id": user_id,
-            "contact": contact._asdict(),
+            "contact": contact.as_dict(),
         }
 
         return self._request("contact/create", payload)

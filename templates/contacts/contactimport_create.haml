@@ -1,0 +1,174 @@
+-extends "smartmin/form.html"
+
+-load smartmin
+-load i18n
+
+-block title
+  -trans "Import Contacts"
+
+-block content
+  .flex.mb-4.flex-col(style="min-height:41px")
+    -trans "You can import your contacts from an XLSX file you create in Excel."
+
+    %table#example.list.my-6
+      %tr
+        %th
+          -trans "URN:Tel"
+        %th
+          -trans "Name"
+        %th
+          -trans "Field:Team"
+      %tr
+        %td
+          -trans "+250788123123"
+        %td
+          -trans "John Doe"
+        %td
+          -trans "Managers"
+      %tr
+        %td
+          -trans "+250788111222"
+        %td
+          -trans "Jane Doe"
+        %td
+          -trans "Advisors"
+
+    .title
+      -trans "Supported Fields"
+
+    -trans "Any columns that do not match the following table will be ignored."
+
+    %table.list.my-6
+      %tr
+        %th.whitespace-no-wrap
+          -trans "Column Header"
+        %th.whitespace-no-wrap
+          -trans "Imported as"
+        %th.whitespace-no-wrap
+          -trans "Details"
+      %tr
+        %td.whitespace-no-wrap
+          -trans "Name"
+        %td.whitespace-no-wrap
+          -trans "Contact name"
+        %td
+      %tr
+        %td.whitespace-no-wrap
+          -trans "Language"
+        %td.whitespace-no-wrap
+          -trans "Contact language"
+        %td
+          -trans "Only valid ISO639-3 codes supportted"
+
+      -for conf in urn_scheme_config
+        %tr
+          %td
+            URN:{{conf.0}}
+          %td
+            {{conf.1}}
+          %td
+
+      %tr
+        %td.whitespace-no-wrap
+          Field:<i>custom_field</i>
+        %td.whitespace-no-wrap
+          <i>custom_field</i>
+        %td
+          -blocktrans trimmed
+            You will have the option to choose the columns to import and to which field to import them.
+
+      %tr
+        %td.whitespace-no-wrap
+          Group:Group Name
+        %td.whitespace-no-wrap
+          %i
+            -trans "IGNORED"
+        %td
+          -trans "Columns starting with the prefix <i>Group:</i> are ignored"
+
+    %p
+      -blocktrans trimmed with sample_url=STATIC_URL|add:"examples/contacts.xls"
+        You can download <a href="{{ sample_url }}">this Excel template</a> as a sample.
+
+    %form#import-form(method="post" enctype="multipart/form-data")
+      -csrf_token
+
+      -if form.non_field_errors
+        .text-error.py-2
+          {{ form.non_field_errors }}
+
+      -block fields
+        .mt-4.mb-6.text-error
+          {{ form.file.errors }}
+        #file-upload
+          %input(type="file" name="file" id="import-file" onchange='onFileChange()')
+        #real-button.flex.mb-4
+          %input(type="text" id="file-field")
+          .button-light.ml-4(style="margin-top:-1px")
+            -trans "Choose File"
+
+      .flex
+        %input.button-primary(type="submit" value='{% trans "Import" %}')
+        .ml-4.button-light(onclick="javascript:history.go(-1)")
+          -trans "Cancel"
+
+-block extra-script
+  {{ block.super }}
+  :javascript
+    function onFileChange() {
+      var file = $('#import-file').val();
+      while (file.indexOf('\\') >= 0) {
+        file = file.substring(file.indexOf('\\') + 1, file.length);
+      }
+      $('#file-field').val(file);
+    }
+
+
+-block extra-style
+  :css
+    input {
+      padding: 9px;
+      cursor: pointer;
+      box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 1px, rgba(0, 0, 0, 0.04) 0px 3px 20px 0px, rgba(0, 0, 0, 0.02) 0px 1px 2px 0px;
+    }
+
+    table.list tr th {
+      text-transform: none;
+      font-size: 0.85rem;
+    }
+
+    #file-upload {
+      position: relative;
+    }
+
+    #file_errors {
+      font-size: 20px;
+    }
+
+    #real-button {
+      position: relative;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    #file-field {
+      width: 300px;
+      height: 35px;
+      font-size: 16px;
+      margin-bottom: 0px;
+      border-radius: 5px;
+    }
+
+    #import-file {
+      position: absolute;
+      width: 450px;
+      height: 35px;
+      top: 0;
+      left: 0;
+      text-align: right;
+      -moz-opacity:0 ;
+      filter: alpha(opacity: 0);
+      opacity: 0;
+      z-index: 2;
+    }

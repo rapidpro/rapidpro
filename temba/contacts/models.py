@@ -3,18 +3,21 @@ import logging
 import os
 import time
 import uuid
+from collections import OrderedDict
 from decimal import Decimal
 from itertools import chain
 from typing import Dict, List
 
 import iso8601
 import phonenumbers
+import pyexcel
 import pytz
 import regex
 from smartmin.csv_imports.models import ImportTask
 from smartmin.models import SmartImportRowError, SmartModel
 
 from django.conf import settings
+from django.contrib.postgres.fields import JSONField
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, connection, models, transaction
@@ -31,7 +34,7 @@ from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, chunk_list, es, format_number, get_anonymous_user, json, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.languages import _get_language_name_iso6393
-from temba.utils.models import JSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
+from temba.utils.models import JSONField as TembaJSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
 from temba.utils.text import truncate, unsnakify
 from temba.utils.urns import ParsedURN, parse_urn
 from temba.utils.uuid import uuid4
@@ -727,7 +730,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     )
 
     # custom field values for this contact, keyed by field UUID
-    fields = JSONField(null=True)
+    fields = TembaJSONField(null=True)
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
 
@@ -3114,6 +3117,123 @@ class ExportContactsTask(BaseExportTask):
                     self.save(update_fields=["modified_on"])
 
         return exporter.save_file()
+
+
+def get_import_upload_path(instance, filename):
+    return f"contact_imports/{instance.org_id}/{filename}"
+
+
+class ContactImport(SmartModel):
+    BATCH_SIZE = 100
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contact_imports")
+
+    file = models.FileField(upload_to=get_import_upload_path)
+
+    mappings = JSONField()
+
+    @classmethod
+    def extract_mappings(cls, org, file):
+        """
+        Extracts header mappings from the given in-memory import file. Raises a ValidationError if there's a problem.
+        """
+        sheet_data = pyexcel.get_array(file_stream=file.file, file_type="xlsx")
+        header_row = sheet_data[0]
+
+        valid_schemes = {c[0] for c in URN_SCHEME_CONFIG}
+        valid_fields = {f.key: f for f in org.contactfields.filter(is_active=True)}
+
+        mappings = OrderedDict()
+        for header in header_row:
+            header = header.lower()
+            parts = header.split(":", maxsplit=1)
+            header_prefix, header_name = (parts[0], parts[1]) if len(parts) >= 2 else ("", parts[0])
+
+            if header_prefix == "" and header_name == "name":
+                mapped = {"type": "attribute", "name": "name"}
+            elif header_prefix == "" and header_name == "language":
+                mapped = {"type": "attribute", "name": "language"}
+            elif header_prefix == "urn" and header_name:
+                if header_name in valid_schemes:
+                    mapped = {"type": "scheme", "name": header_name}
+                else:
+                    raise ValidationError(_("%(scheme)s is not a valid URN scheme"), params={"scheme": header_name})
+            elif header_prefix == "field" and header_name:
+                field_key = ContactField.make_key(header_name)
+                if field_key in valid_fields:
+                    mapped = {"type": "field", "key": field_key, "name": header_name}
+                else:
+                    mapped = None  # can be created or selected in next step
+            else:
+                mapped = {"type": "ignore"}
+
+            mappings[header] = mapped
+
+        file.file.seek(0)
+        return mappings
+
+    def start(self):
+        sheet_data = pyexcel.iget_array(file_stream=self.file)
+        header = next(sheet_data)
+        header = [h.strip().lower() for h in header]
+
+        row_num = 0
+        for row_batch in chunk_list(sheet_data, ContactImport.BATCH_SIZE):
+            batch_specs = []
+            batch_row_start = row_num
+
+            for row in row_batch:
+                as_dict = dict(zip(header, row))
+                batch_specs.append(self._parse_row(as_dict))
+                row_num += 1
+
+            batch_row_end = row_num
+
+            self.batches.create(
+                specs=json.dumps(batch_specs), line_start=batch_row_start, line_end=batch_row_end,
+            )
+
+    def is_started(self) -> bool:
+        return self.batches.exists()
+
+    def _parse_row(self, row) -> mailroom.ContactSpec:
+        return mailroom.ContactSpec(
+            uuid=row.get("contact uuid", ""),
+            name=row.get("name", ""),
+            language=row.get("language", ""),
+            urns=[],
+            fields={},
+            groups=[],
+        )
+
+
+class ContactImportBatch(models.Model):
+    STATUS_PENDING = "P"
+    STATUS_PROCESSING = "O"
+    STATUS_COMPLETE = "C"
+    STATUS_FAILED = "F"
+    STATUS_CHOICES = (
+        (STATUS_PENDING, "Pending"),
+        (STATUS_PROCESSING, "Processing"),
+        (STATUS_COMPLETE, "Complete"),
+        (STATUS_FAILED, "Failed"),
+    )
+
+    contact_import = models.ForeignKey(ContactImport, on_delete=models.PROTECT, related_name="batches")
+
+    status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
+
+    specs = models.TextField()
+
+    row_start = models.IntegerField()
+
+    row_end = models.IntegerField()
+
+    num_created = models.IntegerField(default=0)
+
+    num_updated = models.IntegerField(default=0)
+
+    errors = JSONField(null=True)
 
 
 @register_asset_store

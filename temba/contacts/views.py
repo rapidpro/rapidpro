@@ -55,6 +55,7 @@ from .models import (
     ContactField,
     ContactGroup,
     ContactGroupCount,
+    ContactImport,
     ContactURN,
     ExportContactsTask,
 )
@@ -2130,3 +2131,77 @@ class ContactFieldCRUDL(SmartCRUDL):
             sorted_results.insert(0, dict(key="name", label="Full name"))
 
             return HttpResponse(json.dumps(sorted_results), content_type="application/json")
+
+
+class ContactImportCRUDL(SmartCRUDL):
+    model = ContactImport
+    actions = ("create", "customize", "read")
+
+    class Create(OrgPermsMixin, SmartCreateView):
+        class ImportForm(forms.ModelForm):
+            def __init__(self, *args, org, **kwargs):
+                self.org = org
+                super().__init__(*args, **kwargs)
+
+            def clean_file(self):
+                file = self.cleaned_data["file"]
+                if not regex.match(r"^[A-Za-z0-9_.\-*() ]+$", file.name, regex.V0):
+                    raise forms.ValidationError(
+                        "Please make sure the file name only contains "
+                        "alphanumeric characters [0-9a-zA-Z] and "
+                        "special characters in -, _, ., (, )"
+                    )
+
+                ContactImport.extract_mappings(self.org, file)
+                return file
+
+            def clean(self):
+                groups_count = ContactGroup.user_groups.filter(org=self.org).count()
+                if groups_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+                    raise forms.ValidationError(
+                        _(
+                            "This org has %(count)d groups and the limit is %(limit)d. "
+                            "You must delete existing ones before you can "
+                            "create new ones." % dict(count=groups_count, limit=ContactGroup.MAX_ORG_CONTACTGROUPS)
+                        )
+                    )
+
+                return self.cleaned_data
+
+            class Meta:
+                model = ContactImport
+                fields = ("file",)
+
+        form_class = ImportForm
+        success_message = ""
+        success_url = "id@contacts.contactimport_customize"
+
+        def get_gear_links(self):
+            return [dict(title=_("Contacts"), style="button-light", href=reverse("contacts.contact_list"))]
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.derive_org()
+            return kwargs
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            org = self.derive_org()
+            schemes = org.get_schemes(role=Channel.ROLE_SEND)
+            schemes.add(TEL_SCHEME)  # always show tel
+            context["urn_scheme_config"] = [conf for conf in URN_SCHEME_CONFIG if conf[0] in schemes]
+
+            return context
+
+        def pre_save(self, obj):
+            obj = super().pre_save(obj)
+            obj.org = self.get_user().get_org()
+            obj.mappings = ContactImport.extract_mappings(self.org, obj.file)
+            return obj
+
+    class Customize(OrgObjPermsMixin, SmartUpdateView):
+        fields = ("mappings",)
+
+    class Read(OrgObjPermsMixin, SmartReadView):
+        pass
