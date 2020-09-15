@@ -211,6 +211,12 @@
     -block page-container
       .flex-grow
         .page-content
+          -block suspension
+            {% if user_org.is_suspended %}
+              .px-12.-mt-4
+                -include "org_suspended_include.haml"
+            {% endif %}
+
           .px-12.py-4
             -block page-top
               .flex.items-start
