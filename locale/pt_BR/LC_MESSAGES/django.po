@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-14 13:13+0000\n"
+"POT-Creation-Date: 2020-09-15 18:33+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -2344,7 +2344,7 @@ msgstr ""
 
 #, fuzzy
 #| msgid "The Zenvia short code"
-msgid "Invalid secret code"
+msgid "Invalid secret code."
 msgstr "O número curto da Take.net"
 
 msgid "Secret code change detected."

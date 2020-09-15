@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-14 13:13+0000\n"
+"POT-Creation-Date: 2020-09-15 18:33+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -2556,7 +2556,7 @@ msgstr ""
 
 #, fuzzy
 #| msgid "The Zenvia short code"
-msgid "Invalid secret code"
+msgid "Invalid secret code."
 msgstr "El código abreviado de Zenvia"
 
 msgid "Secret code change detected."

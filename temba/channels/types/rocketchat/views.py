@@ -63,9 +63,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 raise forms.ValidationError(_("Invalid URL %(base_url)s") % self.cleaned_data)
 
             base_url_exists = org.channels.filter(
-                is_active=True,
-                channel_type=RocketChatType.code,
-                **{f"config__contains": base_url},
+                is_active=True, channel_type=RocketChatType.code, **{f"config__contains": base_url},
             ).exists()
             if base_url_exists:
                 raise forms.ValidationError(_("There is already a channel configured for this URL."))
