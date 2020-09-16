@@ -1432,6 +1432,11 @@ class Org(SmartModel):
         # any time we've reapplied topups, lets invalidate our credit cache too
         self.clear_credit_cache()
 
+        # if we our suspended and have credits now, unsuspend ourselves
+        if self.is_suspended and self.get_credits_remaining() > 0:
+            self.is_suspended = False
+            self.save(update_fields=["is_suspended"])
+
         # update our capabilities based on topups
         self.update_capabilities()
 
