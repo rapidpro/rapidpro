@@ -12,10 +12,10 @@ class Select2Field(forms.Field):
     default_error_messages = {}
     widget = widgets.TextInput(attrs={"class": "select2_field", "style": "width:520px"})
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs):  # pragma: needs cover
         super().__init__(**kwargs)
 
-    def to_python(self, value):
+    def to_python(self, value):  # pragma: needs cover
         return value
 
 
@@ -32,7 +32,7 @@ class InputWidget(forms.TextInput):
         context = super().get_context(name, value, attrs)
         context["widget"]["type"] = self.input_type
 
-        if attrs.get("hide_label", False) and context.get("label", None):
+        if attrs.get("hide_label", False) and context.get("label", None):  # pragma: needs cover
             del context["label"]
         return context
 
@@ -145,7 +145,7 @@ class ArbitraryChoiceField(forms.ChoiceField):
         return True
 
 
-class ArbitraryJsonChoiceField(forms.ChoiceField):
+class ArbitraryJsonChoiceField(forms.ChoiceField):  # pragma: needs cover
     """
     ArbitraryChoiceField serializes names and values as json to support
     loading ajax option lists that aren't known ahead of time

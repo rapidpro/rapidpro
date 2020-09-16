@@ -23,10 +23,15 @@
               {{object.get_channel_type_display}}
               -trans "Channel"
 
+  -if object.name != object.get_address_display
+    .text-gray-500.text-base
+      {{object.get_address_display}}
+
   -if object.get_country_display
-    .country
-      .country.text-gray-500.text-base
-        {{ object.get_country_display }}
+    .text-gray-500.text-base
+      {{ object.get_country_display }}
+
+  
 
 
   -with object.get_delegate_channels as delegates
@@ -45,8 +50,7 @@
 
 
     -for link in object.get_type.extra_links
-      <a class="button-light mt-2 mr-2 text-sm inline-block" href="{% url link.name object.uuid %}">{{ link.link }}</a>
-
+      <a class="inline-block button-light px-4 py-2 mr-2" href="{% url link.name object.uuid %}">{{ link.link }}</a>
 
     .my-4.text-base
       -if delayed_sync_event or unsent_msgs_count

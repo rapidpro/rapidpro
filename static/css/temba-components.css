@@ -28,7 +28,7 @@ html {
   --color-selection: #f0f6ff;
 
   --widget-box-shadow-focused: 0 0 0 3px rgba(164, 202, 254, .45);
-  --widget-box-shadow-focused-error: 0 0 0 3px rgba(var(--error-rgb), 0.075);
+  --widget-box-shadow-focused-error: 0 0 0 3px rgba(var(--error-rgb), 0.3);
 
   /* page text, borders, widgets */
   --color-text: #555;
@@ -85,6 +85,9 @@ html {
   --color-error: rgb(var(--error-rgb));
   --font-size: 14px;
   --button-font-size: 1.125rem;
+
+  --header-bg: var(--color-primary-dark);
+
 
   font-size: var(--font-size);
   font-weight: 300;

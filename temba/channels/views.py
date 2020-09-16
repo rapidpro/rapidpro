@@ -690,9 +690,7 @@ def get_commands(channel, commands, sync_event=None):
     """
     Generates sync commands for all queued messages on the given channel
     """
-    msgs = Msg.objects.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel, direction=OUTGOING).exclude(
-        topup=None
-    )
+    msgs = Msg.objects.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel, direction=OUTGOING)
 
     if sync_event:
         pending_msgs = sync_event.get_pending_messages()
@@ -1223,9 +1221,13 @@ class BaseClaimNumberMixin(ClaimViewMixin):
             if message:
                 error_message = form.error_class([message])
             else:
-                error_message = _(
-                    "An error occurred connecting your Twilio number, try removing your "
-                    "Twilio account, reconnecting it and trying again."
+                error_message = form.error_class(
+                    [
+                        _(
+                            "An error occurred connecting your Twilio number, try removing your "
+                            "Twilio account, reconnecting it and trying again."
+                        )
+                    ]
                 )
 
         if error_message is not None:
@@ -1318,7 +1320,6 @@ class ChannelCRUDL(SmartCRUDL):
                 sender = channel.get_sender()
                 caller = channel.get_caller()
 
-                print(sender, caller)
                 if sender:
                     links.append(
                         dict(title=_("Channel Log"), href=reverse("channels.channellog_list", args=[sender.uuid]))
@@ -1645,11 +1646,11 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_success_url(self):
             channel = self.get_object()
-            if channel.parent:
+            if channel.parent:  # pragma: needs cover
                 return reverse("channels.channel_read", args=[channel.parent.uuid])
             return reverse("orgs.org_home")
 
-        def derive_submit_button_name(self):
+        def derive_submit_button_name(self):  # pragma: needs cover
             channel = self.get_object()
             if channel.is_delegate_caller():
                 return _("Disable Voice Calling")
@@ -1744,7 +1745,7 @@ class ChannelCRUDL(SmartCRUDL):
                     e164_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip(
                         "+"
                     )
-                except Exception:
+                except Exception:  # pragma: needs cover
                     pass
                 for channel in obj.get_delegate_channels():  # pragma: needs cover
                     channel.address = obj.address
@@ -2137,7 +2138,7 @@ class ChannelLogCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Messages"), href=reverse("channels.channellog_list", args=[channel.uuid]),))
 
             if not self.request.GET.get("connections"):
-                if channel.supports_ivr():
+                if channel.supports_ivr():  # pragma: needs cover
                     links.append(
                         dict(
                             title=_("Calls"),

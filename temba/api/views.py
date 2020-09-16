@@ -29,7 +29,7 @@ class WebHookResultCRUDL(SmartCRUDL):
     class Read(OrgObjPermsMixin, SmartReadView):
         fields = ("url", "status_code", "request_time", "created_on")
 
-        def get_gear_links(self):
+        def get_gear_links(self):  # pragma: needs cover
             return [dict(title=_("Webhook Log"), style="button-light", href=reverse("api.webhookresult_list"),)]
 
     class List(OrgPermsMixin, SmartListView):

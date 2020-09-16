@@ -15,7 +15,7 @@ from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget
 from temba.utils.views import BulkActionMixin
 from temba.values.constants import Value
 
-from .models import Campaign, CampaignEvent, EventFire
+from .models import Campaign, CampaignEvent
 
 
 class UpdateCampaignForm(forms.ModelForm):
@@ -83,7 +83,7 @@ class CampaignCRUDL(SmartCRUDL):
 
             # if our group changed, create our new fires
             if new_group != previous_group:
-                EventFire.update_campaign_events(self.object)
+                self.object.schedule_events_async()
 
             response = self.render_to_response(
                 self.get_context_data(
@@ -679,7 +679,7 @@ class CampaignEventCRUDL(SmartCRUDL):
                 or prev.start_mode != obj.start_mode
             ):
                 obj = obj.deactivate_and_copy()
-                EventFire.create_eventfires_for_event(obj)
+                obj.schedule_async()
 
             return obj
 
@@ -756,7 +756,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         def post_save(self, obj):
             obj = super().post_save(obj)
             obj.update_flow_name()
-            EventFire.create_eventfires_for_event(obj)
+            obj.schedule_async()
             return obj
 
         def pre_save(self, obj):

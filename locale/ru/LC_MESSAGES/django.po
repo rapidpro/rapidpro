@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-27 18:33+0000\n"
+"POT-Creation-Date: 2020-09-16 14:52+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2788,14 +2788,13 @@ msgstr "Название группы не должно быть пустым и
 msgid "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you can create new ones."
 msgstr "Эта организация имеет %(count)d групп и предел составляет %(limit)d. Вы должны удалить существующие группы, прежде чем сможете создавать новые."
 
-msgid "You cannot create a dynamic group based on \"id\" or \"group\"."
+#, fuzzy
+#| msgid "You cannot create a dynamic group based on \"id\" or \"group\"."
+msgid "You cannot create a smart group based on \"id\" or \"group\"."
 msgstr "Вы не можете создать динамическую группу на основе \"id\" или \"группа\"."
 
 msgid "You cannot update the query of a group that is evaluating."
 msgstr "Вы не можете обновить запрос для группы, которая проводит оценку."
-
-msgid "Activate"
-msgstr "Активировать"
 
 msgid "Active"
 msgstr "Активный"
@@ -2887,6 +2886,9 @@ msgstr "Обновить Контакт"
 msgid "Custom Fields"
 msgstr "Настраиваемые Поля"
 
+msgid "Activate"
+msgstr "Активировать"
+
 msgid "Block"
 msgstr "Блокировать"
 
@@ -2909,6 +2911,11 @@ msgstr "Остановленные Контакты"
 #| msgid "Blocked Contacts"
 msgid "Archived Contacts"
 msgstr "Заблокированные Контакты"
+
+#, fuzzy
+#| msgid "Delete "
+msgid "Delete All"
+msgstr "Удалить"
 
 msgid "Edit Group"
 msgstr "Редактировать Группу"
@@ -4623,6 +4630,11 @@ msgstr "Очищен %(name)s кэш для этой организации (%(c
 
 msgid "Privacy Policy"
 msgstr "Политика конфиденциальности"
+
+#, fuzzy
+#| msgid "Contact Fields"
+msgid "Content Guidelines"
+msgstr "Поля Контактов"
 
 msgid "Terms of Service"
 msgstr "Условия оказания услуг"
@@ -7164,6 +7176,29 @@ msgid "These contacts have been removed from all groups and can be deleted perma
 msgstr ""
 
 #, fuzzy
+#| msgid "Delete Contacts"
+msgid "Delete Selected Contacts"
+msgstr "Удалить Контакты"
+
+#, fuzzy
+#| msgid "Are you sure you want to delete these contacts?"
+msgid "Are you sure you want to delete the selected contacts? This cannot be undone."
+msgstr "Вы действительно хотите удалить эти контакты?"
+
+#, fuzzy
+#| msgid "Delete Contacts"
+msgid "Delete All Contacts"
+msgstr "Удалить Контакты"
+
+#, fuzzy, python-format
+#| msgid "Are you sure you want to delete these contacts?"
+msgid "Are you sure you want to delete all %(count)s archived contacts? This cannot be undone."
+msgstr "Вы действительно хотите удалить эти контакты?"
+
+msgid "This operation can take a while to complete. Contacts may remain in this view during the process."
+msgstr ""
+
+#, fuzzy
 #| msgid ""
 #| "\n"
 #| "      We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
@@ -7433,6 +7468,12 @@ msgstr ""
 msgid "IGNORED"
 msgstr "ИГНОРИРОВАНО"
 
+msgid "One moment.."
+msgstr ""
+
+msgid "All done!"
+msgstr ""
+
 #, fuzzy, python-format
 #| msgid "Create a contact "
 msgid "Created %(create_count)s new contact"
@@ -7520,6 +7561,11 @@ msgstr[3] ""
 "                      "
 
 #, fuzzy
+#| msgid "Group"
+msgid "Grouping.."
+msgstr "Группа"
+
+#, fuzzy
 #| msgid ""
 #| "\n"
 #| "                        No contacts imported, please make sure your have a channel connected.\n"
@@ -7604,14 +7650,6 @@ msgstr "Нет соответствующих контактов."
 
 msgid "To view more than 10,000 search results, save it as a group."
 msgstr ""
-
-msgid "Delete Contacts"
-msgstr "Удалить Контакты"
-
-#, fuzzy
-#| msgid "Are you sure you want to delete these contacts?"
-msgid "Are you sure you want to delete these contacts? This cannot be undone."
-msgstr "Вы действительно хотите удалить эти контакты?"
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr "Просмотр результатов поиска ограничен 10 тысячами результатов. Если Вы хотите просмотреть все результаты, пожалуйста, сохраните этот поиск как группу."
@@ -9679,6 +9717,17 @@ msgstr "Вы использовали"
 msgid "credits since signing up."
 msgstr "кредитов с момента регистрации."
 
+#, fuzzy
+#| msgid "Are you sure you want to remove"
+msgid "You are about to delete"
+msgstr "Вы действительно хотите удалить "
+
+msgid ""
+"\n"
+"    Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted.\n"
+"  "
+msgstr ""
+
 msgid ""
 "\n"
 "      Your download should start automatically. If it doesn't start in a few seconds, use the button below to download.\n"
@@ -10276,40 +10325,6 @@ msgstr "Данная организация была заблокирована.
 #| msgid "This organization has been scheduled for deletion"
 msgid "This workspace has been scheduled for deletion"
 msgstr "Данная организация была намечена к удалению"
-
-msgid "Whoa, whoa, whoa!"
-msgstr "Постойте!"
-
-#, python-format
-msgid ""
-"\n"
-"        Are you sure you want to delete everything for %(name)s? Everything will be gone and there is no going back.\n"
-"        This includes all flows, contacts, messages, etc.\n"
-"\n"
-"      "
-msgstr ""
-"\n"
-"        Вы уверены, что хотите удалить все для %(name)s? Все исчезнет, ​​и способа вернуть все назад уже не будет.\n"
-"        Это включает все потоки, контакты, сообщения и т.д.\n"
-"\n"
-"      "
-
-#, fuzzy
-#| msgid ""
-#| "\n"
-#| "          Also, any user accounts will be deleted if they don't belong to another organization.\n"
-#| "\n"
-#| "        "
-msgid ""
-"\n"
-"          Also, any logins will be deleted if they don't belong to another workspace.\n"
-"\n"
-"        "
-msgstr ""
-"\n"
-"          Также, любые учетные записи пользователей будут удалены, если они не принадлежат другой организации.\n"
-"\n"
-"        "
 
 msgid "Top Ups"
 msgstr "Пополнения"
@@ -11733,6 +11748,9 @@ msgstr "Выберите свою Организацию"
 msgid "Delete Login"
 msgstr "Удалить"
 
+msgid "Whoa, whoa, whoa!"
+msgstr "Постойте!"
+
 #, fuzzy
 #| msgid "By deleting this user,"
 msgid "By deleting this login,"
@@ -11938,6 +11956,37 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "        Are you sure you want to delete everything for %(name)s? Everything will be gone and there is no going back.\n"
+#~ "        This includes all flows, contacts, messages, etc.\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "        Вы уверены, что хотите удалить все для %(name)s? Все исчезнет, ​​и способа вернуть все назад уже не будет.\n"
+#~ "        Это включает все потоки, контакты, сообщения и т.д.\n"
+#~ "\n"
+#~ "      "
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "          Also, any user accounts will be deleted if they don't belong to another organization.\n"
+#~| "\n"
+#~| "        "
+#~ msgid ""
+#~ "\n"
+#~ "          Also, any logins will be deleted if they don't belong to another workspace.\n"
+#~ "\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "          Также, любые учетные записи пользователей будут удалены, если они не принадлежат другой организации.\n"
+#~ "\n"
+#~ "        "
 
 #~ msgid "All Contacts"
 #~ msgstr "Все Контакты"
@@ -12311,9 +12360,6 @@ msgstr "Найдено ${count} по ${query}"
 
 #~ msgid "No related contact groups."
 #~ msgstr "Нет связанных групп контактов."
-
-#~ msgid "Contact Fields"
-#~ msgstr "Поля Контактов"
 
 #~ msgid "Create Contact Field"
 #~ msgstr "Создать Поле Контактов"

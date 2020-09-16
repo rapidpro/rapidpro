@@ -34,7 +34,7 @@ urlpatterns = [
     url(r"^demo/coupon/$", csrf_exempt(GenerateCoupon.as_view()), {}, "demo.generate_coupon"),
 ]
 
-if DEBUG:
+if DEBUG:  # pragma: needs cover
     urlpatterns.append(url(r"^style/$", Style.as_view(), {}, "public.public_style")),
 
 

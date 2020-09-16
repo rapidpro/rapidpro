@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-27 18:33+0000\n"
+"POT-Creation-Date: 2020-09-16 14:52+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2834,14 +2834,13 @@ msgstr "Le nom du groupe ne doit pas être vide ou commencer par + ou -"
 msgid "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you can create new ones."
 msgstr "Cette organisation a %(count)d groupes et la limite est %(limit)d. Vous devez supprimer les existants avant de pouvoir en créer de nouveaux."
 
-msgid "You cannot create a dynamic group based on \"id\" or \"group\"."
+#, fuzzy
+#| msgid "You cannot create a dynamic group based on \"id\" or \"group\"."
+msgid "You cannot create a smart group based on \"id\" or \"group\"."
 msgstr "Vous ne pouvez pas créer un groupe dynamique basé sur \"id\" ou \"groupe\"."
 
 msgid "You cannot update the query of a group that is evaluating."
 msgstr "Vous ne pouvez pas mettre à jour la requête d'un groupe en cours d'évaluation."
-
-msgid "Activate"
-msgstr "activer"
 
 msgid "Active"
 msgstr "Actif"
@@ -2933,6 +2932,9 @@ msgstr "Mise à jour contacts"
 msgid "Custom Fields"
 msgstr "Les champs personnalisés"
 
+msgid "Activate"
+msgstr "activer"
+
 msgid "Block"
 msgstr "Bloquer"
 
@@ -2955,6 +2957,11 @@ msgstr "Contacts arrêtés"
 #| msgid "Blocked Contacts"
 msgid "Archived Contacts"
 msgstr "Contacts Bloqués"
+
+#, fuzzy
+#| msgid "Delete "
+msgid "Delete All"
+msgstr "Supprimer"
 
 msgid "Edit Group"
 msgstr "Modifier un group"
@@ -4669,6 +4676,11 @@ msgstr "Cache %(name)s effacé pour cette organisation (%(count)d clés)"
 
 msgid "Privacy Policy"
 msgstr "Politique de confidentialité"
+
+#, fuzzy
+#| msgid "Contact Fields"
+msgid "Content Guidelines"
+msgstr "Champs de contact"
 
 msgid "Terms of Service"
 msgstr "Conditions d'utilisation"
@@ -7201,6 +7213,29 @@ msgid "These contacts have been removed from all groups and can be deleted perma
 msgstr ""
 
 #, fuzzy
+#| msgid "Delete Contacts"
+msgid "Delete Selected Contacts"
+msgstr "Supprimer des contacts"
+
+#, fuzzy
+#| msgid "Are you sure you want to delete these contacts?"
+msgid "Are you sure you want to delete the selected contacts? This cannot be undone."
+msgstr "Êtes-vous sûr de vouloir supprimer ces contacts?"
+
+#, fuzzy
+#| msgid "Delete Contacts"
+msgid "Delete All Contacts"
+msgstr "Supprimer des contacts"
+
+#, fuzzy, python-format
+#| msgid "Are you sure you want to delete these contacts?"
+msgid "Are you sure you want to delete all %(count)s archived contacts? This cannot be undone."
+msgstr "Êtes-vous sûr de vouloir supprimer ces contacts?"
+
+msgid "This operation can take a while to complete. Contacts may remain in this view during the process."
+msgstr ""
+
+#, fuzzy
 #| msgid ""
 #| "\n"
 #| "      We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
@@ -7471,6 +7506,12 @@ msgstr ""
 msgid "IGNORED"
 msgstr "IGNORÉ"
 
+msgid "One moment.."
+msgstr ""
+
+msgid "All done!"
+msgstr ""
+
 #, fuzzy, python-format
 #| msgid "Create a contact "
 msgid "Created %(create_count)s new contact"
@@ -7534,6 +7575,11 @@ msgstr[1] ""
 "                          Échec de l'importation de %(error_count)s contacts en raison de numéros de téléphone manquants ou invalides\n"
 "\n"
 "                      "
+
+#, fuzzy
+#| msgid "Group"
+msgid "Grouping.."
+msgstr "Groupe"
 
 #, fuzzy
 #| msgid ""
@@ -7609,14 +7655,6 @@ msgstr "Pas de contacts correspondants."
 
 msgid "To view more than 10,000 search results, save it as a group."
 msgstr ""
-
-msgid "Delete Contacts"
-msgstr "Supprimer des contacts"
-
-#, fuzzy
-#| msgid "Are you sure you want to delete these contacts?"
-msgid "Are you sure you want to delete these contacts? This cannot be undone."
-msgstr "Êtes-vous sûr de vouloir supprimer ces contacts?"
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr "La navigation dans les recherches est limitée à 10 000 résultats. Si vous souhaitez parcourir tous les résultats, veuillez enregistrer cette recherche en tant que groupe."
@@ -9569,6 +9607,17 @@ msgstr "Vous avez utilisé"
 msgid "credits since signing up."
 msgstr "crédits depuis votre inscription."
 
+#, fuzzy
+#| msgid "Are you sure you want to remove"
+msgid "You are about to delete"
+msgstr "Etes-vous sûr que vous voulez supprimer"
+
+msgid ""
+"\n"
+"    Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted.\n"
+"  "
+msgstr ""
+
 msgid ""
 "\n"
 "      Your download should start automatically. If it doesn't start in a few seconds, use the button below to download.\n"
@@ -10161,40 +10210,6 @@ msgstr "Cette organisation a été suspendue"
 #| msgid "This organization has been scheduled for deletion"
 msgid "This workspace has been scheduled for deletion"
 msgstr "La suppression de cette organisation est prévue"
-
-msgid "Whoa, whoa, whoa!"
-msgstr "Whoa, whoa, whoa!"
-
-#, python-format
-msgid ""
-"\n"
-"        Are you sure you want to delete everything for %(name)s? Everything will be gone and there is no going back.\n"
-"        This includes all flows, contacts, messages, etc.\n"
-"\n"
-"      "
-msgstr ""
-"\n"
-"        Êtes-vous sûr de vouloir tout supprimer pour %(name)s? Tout sera parti et il n'y a pas de retour en arrière.\n"
-"        Cela inclut tous les flux, contacts, messages, etc.\n"
-"\n"
-"      "
-
-#, fuzzy
-#| msgid ""
-#| "\n"
-#| "          Also, any user accounts will be deleted if they don't belong to another organization.\n"
-#| "\n"
-#| "        "
-msgid ""
-"\n"
-"          Also, any logins will be deleted if they don't belong to another workspace.\n"
-"\n"
-"        "
-msgstr ""
-"\n"
-"          En outre, tous les comptes d'utilisateurs seront supprimés s'ils n'appartiennent pas à une autre organisation.\n"
-"\n"
-"        "
 
 msgid "Top Ups"
 msgstr "Top Ups"
@@ -11583,6 +11598,9 @@ msgstr "Choisissez votre Organisation"
 msgid "Delete Login"
 msgstr "Supprimer"
 
+msgid "Whoa, whoa, whoa!"
+msgstr "Whoa, whoa, whoa!"
+
 #, fuzzy
 #| msgid "By deleting this user,"
 msgid "By deleting this login,"
@@ -11790,6 +11808,37 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "        Are you sure you want to delete everything for %(name)s? Everything will be gone and there is no going back.\n"
+#~ "        This includes all flows, contacts, messages, etc.\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "        Êtes-vous sûr de vouloir tout supprimer pour %(name)s? Tout sera parti et il n'y a pas de retour en arrière.\n"
+#~ "        Cela inclut tous les flux, contacts, messages, etc.\n"
+#~ "\n"
+#~ "      "
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "          Also, any user accounts will be deleted if they don't belong to another organization.\n"
+#~| "\n"
+#~| "        "
+#~ msgid ""
+#~ "\n"
+#~ "          Also, any logins will be deleted if they don't belong to another workspace.\n"
+#~ "\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "          En outre, tous les comptes d'utilisateurs seront supprimés s'ils n'appartiennent pas à une autre organisation.\n"
+#~ "\n"
+#~ "        "
 
 #~ msgid "All Contacts"
 #~ msgstr "Tous les contacts"
@@ -12155,9 +12204,6 @@ msgstr "${count} trouvé pour ${query}"
 
 #~ msgid "No related contact groups."
 #~ msgstr "Aucun groupe de contact associé."
-
-#~ msgid "Contact Fields"
-#~ msgstr "Champs de contact"
 
 #~ msgid "Create Contact Field"
 #~ msgstr "Créer un champ de contact"

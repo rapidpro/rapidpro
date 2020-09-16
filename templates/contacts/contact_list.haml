@@ -147,8 +147,8 @@
                   .gear-links
                     -include "gear_links_include.haml"
 
-              %form#search-form.mb-4{method:"get"}
-                %temba-textinput.w-full{onsubmit:'document.querySelector("#search-form").submit();', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
+              %form#search-form.mb-4(method="get")
+                %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
 
               -if search_error
                 .mb-4.ml-2
@@ -261,12 +261,6 @@
                 
           - else
             - include "contacts/empty_include.haml"
-
-  -trans 'Delete Contacts' as confirm_title
-  -trans 'Delete' as confirm_button
-  %temba-dialog#delete-confirmation.hide{header:"{{confirm_title|escapejs}}", primaryButtonName:"{{confirm_button|escapejs}}", destructive: "true"}
-    .p-6
-      -trans "Are you sure you want to delete these contacts? This cannot be undone."
 
 -block extra-style
   {{block.super}}
@@ -403,16 +397,9 @@
         addGroup = false;
       }
       jQuery.ajaxSettings.traditional = true;
-      fetchPJAXContent("", "#pjax", { postData: {objects: contactIds, label: groupId, add: addGroup, action: 'label', pjax: 'true'}, forceReload: true});
-    }
-    {% endif %}
 
-    {% if org_perms.contacts.contact_delete %}
-    $(".contacts-btn-delete").live('click', function() {
-      var confirm = document.querySelector('#delete-confirmation');
-      confirm.classList.remove("hide");
-      confirm.open = true;
-    });
+      fetchPJAXContent("", "#pjax", { postData: {objects: contactIds, label: groupId, add: addGroup, action: 'label', pjax: 'true'}, forceReload: true, onSuccess: wireTableListeners});
+    }
     {% endif %}
 
     {% if org_perms.contacts.contact_block %}
@@ -428,18 +415,6 @@
       $(".page-content").on('click', ".object-btn-unstop", function() {
 	      runActionOnObjectRows("unstop");
       });
-    {% endif %}
-
-    {% if org_perms.contacts.contact_delete %}
-    window.addEventListener('DOMContentLoaded', (event) => {
-      var confirmation = document.querySelector("#delete-confirmation");
-      confirmation.addEventListener("temba-button-clicked", function(event){
-        if(!event.detail.button.secondary) {
-          runActionOnObjectRows("delete");
-        }
-        confirmation.open = false;
-      })
-    });
     {% endif %}
 
     function handleCreateGroupModalLoaded(event) {

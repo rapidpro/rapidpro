@@ -60,10 +60,10 @@
               .gear-links
                 -include "gear_links_include.haml"
 
-            %form#search-form.mb-4{method:"get"}
-              %temba-textinput{onsubmit:'document.querySelector("#search-form").submit();', type:'text', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
+            %form#search-form.mb-4(method="get")
+              %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="search" value="{{search}}")
               -if request.REQUEST.status
-                %input{type:'hidden', name:'status', value:'{{request.REQUEST.status}}'}
+                %input(type='hidden' name='status' value='{{request.REQUEST.status}}')
 
             -block trigger-list
                 %table.list.trigger-list.lined{class: '{% if org_perms.flows.flow_update %}selectable{% endif %}'}

@@ -79,4 +79,4 @@
     .search-box.flex-grow
       %form#search-form(method='get')
         {% csrf_token %}
-        %temba-textinput(name='search' onsubmit='document.querySelector("#search-form").submit();' value='{{search}}')
+        %temba-textinput(name='search' value='{{search}}')

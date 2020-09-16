@@ -42,20 +42,20 @@
             Updated {{policy.created_on|date:"M d, Y"}}
 
         -if policy.summary and not policy|has_consent:user
-          .preview.mt-6.bleed-x.bleed-b.bg-gray-100
+          .preview.bleed-x.bleed-b.bg-gray-100.p-6.-mb-20
             {{ policy.get_rendered_summary }}
             .more-link.pull-right
               See all changes
               %span.icon-arrow-down
         .body.mt-6.bleed-x.border-t
-          .py-6.px-2
+          .py-6.px-6
             {{policy.get_rendered_body}}
-
-          - include "policies/addendum.haml"
+          .px-6
+            -include "policies/addendum.haml"
 
   -if needs_consent
     .give-consent
-      .button-primary.inline-block.posterize.lift{href:'{% url "policies.policy_give_consent" %}?consent=true'}
+      .button-primary.inline-block.posterize.lift{href:'{% url "policies.policy_give_consent" %}?consent=true{% if next %}&next={{next}}{%endif%}'}
         -trans "I agree to the above policies"
 
 -block extra-script
@@ -76,6 +76,7 @@
       display:none;
       margin-top: -20px;
       color: #999;
+      font-size: 12px;
     }
 
     .collapsed .more-link {
@@ -84,7 +85,8 @@
 
     .icon-arrow-down {
       padding-left:3px;
-      padding-top:1px;
+      padding-top:3px;
+      font-size: 8px;
 
     }
     .revoke {
@@ -98,13 +100,6 @@
 
     .policies {
       margin-top: 20px;
-    }
-
-    .preview {
-      border-top: 1px solid #e6e6e6;
-      padding: 10px 20px;
-      padding-top: 26px;
-      border-radius: 0;
     }
 
     .collapsed .body {

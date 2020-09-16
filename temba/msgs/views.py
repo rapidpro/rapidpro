@@ -953,7 +953,7 @@ class LabelCRUDL(SmartCRUDL):
                 response = HttpResponse()
                 response["Temba-Success"] = self.get_success_url()
                 return response
-            except ValueError as e:
+            except ValueError as e:  # pragma: needs cover
                 context = self.get_context_data(error=str(e))
                 del context["form"]
                 return self.render_to_response(context)

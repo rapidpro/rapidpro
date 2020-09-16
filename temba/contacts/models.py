@@ -26,7 +26,7 @@ from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
-from temba.mailroom import modifiers, queue_populate_dynamic_group
+from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, chunk_list, es, format_number, get_anonymous_user, json, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
@@ -784,6 +784,23 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     # the import headers which map to contact attributes or URNs rather than custom fields
     ATTRIBUTE_AND_URN_IMPORT_HEADERS = RESERVED_ATTRIBUTES.union(URN.IMPORT_HEADERS)
 
+    # maximum number of contacts to release without using a background task
+    BULK_RELEASE_IMMEDIATELY_LIMIT = 50
+
+    @classmethod
+    def create(
+        cls, org, user, name: str, language: str, urns: List[str], fields: Dict[ContactField, str], groups: List
+    ):
+        fields_by_key = {f.key: v for f, v in fields.items()}
+        group_uuids = [g.uuid for g in groups]
+
+        response = mailroom.get_client().contact_create(
+            org.id,
+            user.id,
+            ContactSpec(name=name, language=language, urns=urns, fields=fields_by_key, groups=group_uuids),
+        )
+        return Contact.objects.get(id=response["contact"]["id"])
+
     @property
     def anon_identifier(self):
         """
@@ -834,6 +851,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             "urns": [urn_as_json(u) for u in self.urns.all()],
             "fields": self.fields if self.fields else {},
             "created_on": self.created_on.isoformat(),
+            "last_seen_on": self.last_seen_on.isoformat() if self.last_seen_on else None,
         }
 
     @classmethod
@@ -1991,8 +2009,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def apply_action_delete(cls, user, contacts):
-        for contact in contacts:
-            contact.release(user)
+        if len(contacts) <= cls.BULK_RELEASE_IMMEDIATELY_LIMIT:
+            for contact in contacts:
+                contact.release(user)
+        else:
+            from .tasks import release_contacts
+
+            on_transaction_commit(lambda: release_contacts.delay(user.id, [c.id for c in contacts]))
 
     def block(self, user):
         """
@@ -2054,7 +2077,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             if immediately:
                 self._full_release()
             else:
-                from temba.contacts.tasks import full_release_contact
+                from .tasks import full_release_contact
 
                 full_release_contact.delay(self.id)
 
@@ -2606,7 +2629,7 @@ class ContactGroup(TembaModel):
         Creates a dynamic group with the given query, e.g. gender=M
         """
         if not query:
-            raise ValueError("Query cannot be empty for a dynamic group")
+            raise ValueError("Query cannot be empty for a smart group")
 
         group = cls._create(org, user, name, ContactGroup.STATUS_INITIALIZING, query=query)
         group.update_query(query=query, reevaluate=evaluate, parsed=parsed_query)
@@ -2708,7 +2731,7 @@ class ContactGroup(TembaModel):
         from temba.contacts.search import parse_query, SearchException
 
         if not self.is_dynamic:
-            raise ValueError("Cannot update query on a non-dynamic group")
+            raise ValueError("Cannot update query on a non-smart group")
         if self.status == ContactGroup.STATUS_EVALUATING:
             raise ValueError("Cannot update query on a group which is currently re-evaluating")
 
@@ -2717,7 +2740,7 @@ class ContactGroup(TembaModel):
                 parsed = parse_query(self.org_id, query)
 
             if not parsed.metadata.allow_as_group:
-                raise ValueError(f"Cannot use query '{query}' as a dynamic group")
+                raise ValueError(f"Cannot use query '{query}' as a smart group")
 
             self.query = parsed.query
             self.status = ContactGroup.STATUS_INITIALIZING
@@ -2854,6 +2877,13 @@ class ContactGroupCount(SquashableModel):
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="counts", db_index=True)
     count = models.IntegerField(default=0)
 
+    COUNTED_TYPES = [
+        ContactGroup.TYPE_ACTIVE,
+        ContactGroup.TYPE_BLOCKED,
+        ContactGroup.TYPE_STOPPED,
+        ContactGroup.TYPE_ARCHIVED,
+    ]
+
     @classmethod
     def get_squash_query(cls, distinct_set):
         sql = """
@@ -2867,6 +2897,13 @@ class ContactGroupCount(SquashableModel):
         }
 
         return sql, (distinct_set.group_id,) * 2
+
+    @classmethod
+    def total_for_org(cls, org):
+        count = cls.objects.filter(group__org=org, group__group_type__in=ContactGroupCount.COUNTED_TYPES).aggregate(
+            count=Sum("count")
+        )
+        return count["count"] if count["count"] else 0
 
     @classmethod
     def get_totals(cls, groups):

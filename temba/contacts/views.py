@@ -44,7 +44,7 @@ from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import ArbitraryChoiceField, CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.text import slugify_with
-from temba.utils.views import BulkActionMixin, NonAtomicMixin
+from temba.utils.views import BulkActionMixin, ComponentFormMixin, NonAtomicMixin
 from temba.values.constants import Value
 
 from .models import (
@@ -129,7 +129,7 @@ class ContactGroupForm(forms.ModelForm):
         try:
             parsed = parse_query(self.org.id, self.cleaned_data["query"])
             if not parsed.metadata.allow_as_group:
-                raise forms.ValidationError(_('You cannot create a dynamic group based on "id" or "group".'))
+                raise forms.ValidationError(_('You cannot create a smart group based on "id" or "group".'))
 
             if (
                 self.instance
@@ -146,7 +146,6 @@ class ContactGroupForm(forms.ModelForm):
     class Meta:
         fields = ("name", "query")
         model = ContactGroup
-        widgets = {"name": InputWidget(), "query": InputWidget}
 
 
 class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
@@ -165,8 +164,6 @@ class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
     sort_direction = None
 
     search_error = None
-
-    restore_label = _("Activate")
 
     def pre_process(self, request, *args, **kwargs):
         """
@@ -264,8 +261,19 @@ class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
         self.sort_field = sort_on.lstrip("-")
 
         if search_query or sort_on:
+            # is this request is part of a bulk action, get the ids that were modified so we can check which ones
+            # should no longer appear in this view, even though ES won't have caught up yet
+            bulk_action_ids = self.kwargs.get("bulk_action_ids", [])
+            if bulk_action_ids:
+                reappearing_ids = set(group.contacts.filter(id__in=bulk_action_ids).values_list("id", flat=True))
+                exclude_ids = [i for i in bulk_action_ids if i not in reappearing_ids]
+            else:
+                exclude_ids = []
+
             try:
-                results = search_contacts(org.id, str(group.uuid), search_query, sort_on, offset)
+                results = search_contacts(
+                    org.id, str(group.uuid), search_query, sort_on, offset, exclude_ids=exclude_ids
+                )
                 self.parsed_query = results.query if len(results.query) > 0 else None
                 self.save_dynamic_search = results.metadata.allow_as_group
 
@@ -313,7 +321,7 @@ class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
         context["has_contacts"] = contacts or org.has_contacts()
         context["search_error"] = self.search_error
         context["send_form"] = SendMessageForm(self.request.user)
-        context["restore_label"] = self.restore_label
+        context["folder_count"] = counts[self.system_group] if self.system_group else None
 
         context["sort_direction"] = self.sort_direction
         context["sort_field"] = self.sort_field
@@ -404,20 +412,20 @@ class ContactForm(forms.ModelForm):
                 existing_urn = ContactURN.lookup(self.org, normalized, normalize=False)
 
                 if existing_urn and existing_urn.contact and existing_urn.contact != self.instance:
-                    self._errors[key] = _("Used by another contact")
+                    self._errors[key] = self.error_class([_("Used by another contact")])
                     return False
                 # validate but not with country as users are allowed to enter numbers before adding a channel
                 elif not URN.validate(normalized):
                     if scheme == TEL_SCHEME:  # pragma: needs cover
-                        self._errors[key] = _(
-                            "Invalid number. Ensure number includes country code, e.g. +1-541-754-3010"
+                        self._errors[key] = self.error_class(
+                            [_("Invalid number. Ensure number includes country code, e.g. +1-541-754-3010")]
                         )
                     else:
-                        self._errors[key] = _("Invalid format")
+                        self._errors[key] = self.error_class([_("Invalid format")])
                     return False
                 return True
             except ValueError:
-                self._errors[key] = _("Invalid input")
+                self._errors[key] = self.error_class([_("Invalid input")])
                 return False
 
         # validate URN fields
@@ -864,6 +872,9 @@ class ContactCRUDL(SmartCRUDL):
         fields = ("csv_file",)
         success_message = ""
 
+        def get_gear_links(self):
+            return [dict(title=_("Contacts"), style="button-light", href=reverse("contacts.contact_list"))]
+
         def pre_save(self, task):
             super().pre_save(task)
 
@@ -1279,7 +1290,9 @@ class ContactCRUDL(SmartCRUDL):
     class List(ContactListView):
         title = _("Contacts")
         system_group = ContactGroup.TYPE_ACTIVE
-        bulk_actions = ("label", "block", "archive")
+
+        def get_bulk_actions(self):
+            return ("label", "block", "archive") if self.has_org_perm("contacts.contact_update") else ()
 
         def get_gear_links(self):
             links = []
@@ -1291,16 +1304,21 @@ class ContactCRUDL(SmartCRUDL):
             has_contactgroup_create_perm = self.has_org_perm("contacts.contactgroup_create")
 
             if has_contactgroup_create_perm and valid_search_condition:
-                # links.append(dict(title=_("Save as Group"), js_class="add-dynamic-group", href="#"))
+                from temba.contacts.search import parse_query, SearchException
 
-                links.append(
-                    dict(
-                        id="create-dynamic",
-                        title=_("Save as Group"),
-                        modax=_("Save as Group"),
-                        href=f"{reverse('contacts.contactgroup_create')}?search={search}",
-                    )
-                )
+                try:
+                    parsed = parse_query(self.org.id, search)
+                    if parsed.metadata.allow_as_group:
+                        links.append(
+                            dict(
+                                id="create-smartgroup",
+                                title=_("Save as Group"),
+                                modax=_("Save as Group"),
+                                href=f"{reverse('contacts.contactgroup_create')}?search={urlquote_plus(search)}",
+                            )
+                        )
+                except SearchException:  # pragma: no cover
+                    pass
 
             if self.has_org_perm("contacts.contactfield_list"):
                 links.append(dict(title=_("Manage Fields"), href=reverse("contacts.contactfield_list")))
@@ -1327,8 +1345,9 @@ class ContactCRUDL(SmartCRUDL):
         title = _("Blocked Contacts")
         template_name = "contacts/contact_list.haml"
         system_group = ContactGroup.TYPE_BLOCKED
-        bulk_actions = ("restore", "archive")
-        restore_label = _("Activate")
+
+        def get_bulk_actions(self):
+            return ("restore", "archive") if self.has_org_perm("contacts.contact_update") else ()
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -1339,8 +1358,9 @@ class ContactCRUDL(SmartCRUDL):
         title = _("Stopped Contacts")
         template_name = "contacts/contact_stopped.haml"
         system_group = ContactGroup.TYPE_STOPPED
-        bulk_actions = ("restore", "archive")
-        restore_label = _("Activate")
+
+        def get_bulk_actions(self):
+            return ("restore", "archive") if self.has_org_perm("contacts.contact_update") else ()
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -1351,9 +1371,12 @@ class ContactCRUDL(SmartCRUDL):
         title = _("Archived Contacts")
         template_name = "contacts/contact_archived.haml"
         system_group = ContactGroup.TYPE_ARCHIVED
+        bulk_action_permissions = {"delete": "contacts.contact_delete"}
 
         def get_bulk_actions(self):
-            actions = ["restore"]
+            actions = []
+            if self.has_org_perm("contacts.contact_update"):
+                actions.append("restore")
             if self.has_org_perm("contacts.contact_delete"):
                 actions.append("delete")
             return actions
@@ -1363,6 +1386,14 @@ class ContactCRUDL(SmartCRUDL):
             context["reply_disabled"] = True
             return context
 
+        def get_gear_links(self):
+            links = []
+            if self.has_org_perm("contacts.contact_delete"):
+                links.append(
+                    dict(title=_("Delete All"), style="btn-default", js_class="contacts-btn-delete-all", href="#")
+                )
+            return links
+
     class Filter(ContactListView, OrgObjPermsMixin):
         template_name = "contacts/contact_filter.haml"
 
@@ -1371,11 +1402,7 @@ class ContactCRUDL(SmartCRUDL):
             pk = self.derive_group().pk
 
             if self.has_org_perm("contacts.contactfield_list"):
-                links.append(
-                    dict(
-                        title=_("Manage Fields"), js_class="manage-fields", href=reverse("contacts.contactfield_list")
-                    )
-                )
+                links.append(dict(title=_("Manage Fields"), href=reverse("contacts.contactfield_list")))
 
             if self.has_org_perm("contacts.contactgroup_update"):
                 links.append(
@@ -1431,7 +1458,7 @@ class ContactCRUDL(SmartCRUDL):
         def derive_group(self):
             return ContactGroup.user_groups.get(uuid=self.kwargs["group"], org=self.request.user.get_org())
 
-    class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
+    class Create(NonAtomicMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactForm
         success_message = ""
         submit_button_name = _("Create")
@@ -1456,7 +1483,7 @@ class ContactCRUDL(SmartCRUDL):
                     scheme = field_key.split("__")[1]
                     urns.append(URN.from_parts(scheme, value))
 
-            Contact.get_or_create_by_urns(obj.org, self.request.user, obj.name, urns)
+            Contact.create(obj.org, self.request.user, obj.name, language="", urns=urns, fields={}, groups=[])
 
     class Update(NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
@@ -1541,7 +1568,9 @@ class ContactCRUDL(SmartCRUDL):
         class Form(forms.Form):
             contact_field = forms.ModelChoiceField(
                 ContactField.user_fields.all(),
-                widget=SelectWidget(attrs={"widget_only": True, "placeholder": _("Select a field to update")}),
+                widget=SelectWidget(
+                    attrs={"widget_only": True, "searchable": True, "placeholder": _("Select a field to update")}
+                ),
             )
             field_value = forms.CharField(required=False)
 
@@ -1656,7 +1685,7 @@ class ContactGroupCRUDL(SmartCRUDL):
     model = ContactGroup
     actions = ("create", "update", "delete")
 
-    class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
+    class Create(ComponentFormMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactGroupForm
         fields = ("name", "preselected_contacts", "group_query")
         success_url = "uuid@contacts.contact_filter"
@@ -1691,7 +1720,7 @@ class ContactGroupCRUDL(SmartCRUDL):
             kwargs["user"] = self.request.user
             return kwargs
 
-    class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(ComponentFormMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = ContactGroupForm
         fields = ("name",)
         success_url = "uuid@contacts.contact_filter"

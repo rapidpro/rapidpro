@@ -114,7 +114,7 @@ class BaseFlowForm(forms.ModelForm):
 
         for keyword in value:
             keyword = keyword.lower().strip()
-            if not keyword:
+            if not keyword:  # pragma: needs cover
                 continue
 
             if (
@@ -1596,7 +1596,9 @@ class FlowCRUDL(SmartCRUDL):
                 ContactField.user_fields.filter(id__lt=0),
                 required=False,
                 label=("Fields"),
-                widget=SelectMultipleWidget(attrs={"placeholder": _("Optional: Fields to include")}),
+                widget=SelectMultipleWidget(
+                    attrs={"placeholder": _("Optional: Fields to include"), "searchable": True}
+                ),
             )
 
             extra_urns = forms.MultipleChoiceField(
@@ -1627,7 +1629,7 @@ class FlowCRUDL(SmartCRUDL):
                 self.user = user
                 self.fields[ExportFlowResultsTask.CONTACT_FIELDS].queryset = ContactField.user_fields.active_for_org(
                     org=self.user.get_org()
-                )
+                ).order_by(Lower("label"))
 
                 self.fields[ExportFlowResultsTask.GROUP_MEMBERSHIPS].queryset = ContactGroup.user_groups.filter(
                     org=self.user.get_org(), is_active=True, status=ContactGroup.STATUS_READY
@@ -2432,7 +2434,7 @@ class FlowLabelCRUDL(SmartCRUDL):
             return kwargs
 
         def derive_fields(self):
-            if FlowLabel.objects.filter(parent=self.get_object()):
+            if FlowLabel.objects.filter(parent=self.get_object()):  # pragma: needs cover
                 return ("name",)
             else:
                 return ("name", "parent")

@@ -1524,7 +1524,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
         * _block_ - Block the contacts
         * _unblock_ - Un-block the contacts
         * _interrupt_ - Interrupt and end any of the contacts' active flow runs
-        * _archive_ - Archive all of the contacts' messages
+        * _archive_messages_ - Archive all of the contacts' messages
         * _delete_ - Permanently delete the contacts
 
     * **group** - the UUID or name of a contact group (string, optional)

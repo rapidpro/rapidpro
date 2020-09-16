@@ -598,19 +598,12 @@ class Command(BaseCommand):
         fields_by_key = {f.key: f for f in ContactField.user_fields.all()}
 
         for c in spec["contacts"]:
-            contact = Contact.get_or_create_by_urns(org, user, c["name"], c["urns"])
+            values = {fields_by_key[key]: val for key, val in c.get("fields", {}).items()}
+            groups = list(ContactGroup.user_groups.filter(org=org, name__in=c.get("groups", [])))
+
+            contact = Contact.create(org, user, c["name"], language="", urns=c["urns"], fields=values, groups=groups)
             contact.uuid = c["uuid"]
             contact.save(update_fields=["uuid"], handle_update=False)
-
-            # add to any groups we belong to
-            groups = list(ContactGroup.user_groups.filter(org=org, name__in=c.get("groups", [])))
-            mods = contact.update_static_groups(groups)
-
-            # set any fields we have
-            values = {fields_by_key[key]: val for key, val in c.get("fields", {}).items()}
-            mods += contact.update_fields(values)
-
-            contact.modify(user, mods)
 
         self._log(self.style.SUCCESS("OK") + "\n")
 

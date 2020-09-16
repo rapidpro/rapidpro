@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-27 18:33+0000\n"
+"POT-Creation-Date: 2020-09-16 14:52+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3847,14 +3847,11 @@ msgstr ""
 msgid "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you can create new ones."
 msgstr ""
 
-msgid "You cannot create a dynamic group based on \"id\" or \"group\"."
+msgid "You cannot create a smart group based on \"id\" or \"group\"."
 msgstr ""
 
 msgid "You cannot update the query of a group that is evaluating."
 msgstr ""
-
-msgid "Activate"
-msgstr "Activar"
 
 msgid "Active"
 msgstr "Activar"
@@ -3958,6 +3955,9 @@ msgstr "Actualizar Contacto"
 msgid "Custom Fields"
 msgstr "Campos para contacto con el cliente"
 
+msgid "Activate"
+msgstr "Activar"
+
 msgid "Block"
 msgstr "Bloquear"
 
@@ -3984,6 +3984,11 @@ msgstr "Mostrar Contactos"
 #| msgid "Failed Contacts"
 msgid "Archived Contacts"
 msgstr "Contactos falló"
+
+#, fuzzy
+#| msgid "Delete"
+msgid "Delete All"
+msgstr "Borrar"
 
 msgid "Edit Group"
 msgstr "Editar grupos"
@@ -5910,6 +5915,11 @@ msgstr ""
 
 msgid "Privacy Policy"
 msgstr "Política de privacidad"
+
+#, fuzzy
+#| msgid "Manage Contact Fields"
+msgid "Content Guidelines"
+msgstr "Manejar Campos de Contactos"
 
 msgid "Terms of Service"
 msgstr ""
@@ -8674,6 +8684,29 @@ msgstr ""
 msgid "These contacts have been removed from all groups and can be deleted permanently."
 msgstr ""
 
+#, fuzzy
+#| msgid "Delete Contacts"
+msgid "Delete Selected Contacts"
+msgstr "Borrar Contactos"
+
+#, fuzzy
+#| msgid "Are you sure you want to delete these contacts?"
+msgid "Are you sure you want to delete the selected contacts? This cannot be undone."
+msgstr "¿Está seguro de que desea borrar estos contactos?"
+
+#, fuzzy
+#| msgid "Delete Contacts"
+msgid "Delete All Contacts"
+msgstr "Borrar Contactos"
+
+#, fuzzy, python-format
+#| msgid "Are you sure you want to delete these contacts?"
+msgid "Are you sure you want to delete all %(count)s archived contacts? This cannot be undone."
+msgstr "¿Está seguro de que desea borrar estos contactos?"
+
+msgid "This operation can take a while to complete. Contacts may remain in this view during the process."
+msgstr ""
+
 msgid ""
 "\n"
 "    We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
@@ -9039,6 +9072,12 @@ msgstr ""
 msgid "IGNORED"
 msgstr ""
 
+msgid "One moment.."
+msgstr ""
+
+msgid "All done!"
+msgstr ""
+
 #, fuzzy, python-format
 #| msgid "Create Contact"
 msgid "Created %(create_count)s new contact"
@@ -9090,6 +9129,11 @@ msgstr[1] ""
 "\n"
 "                              %(completed_percentage)s%% completion\n"
 "                            "
+
+#, fuzzy
+#| msgid "Group"
+msgid "Grouping.."
+msgstr "Grupo"
 
 #, fuzzy
 #| msgid ""
@@ -9154,14 +9198,6 @@ msgstr "Los contactos no corresponden."
 
 msgid "To view more than 10,000 search results, save it as a group."
 msgstr ""
-
-msgid "Delete Contacts"
-msgstr "Borrar Contactos"
-
-#, fuzzy
-#| msgid "Are you sure you want to delete these contacts?"
-msgid "Are you sure you want to delete these contacts? This cannot be undone."
-msgstr "¿Está seguro de que desea borrar estos contactos?"
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
 msgstr ""
@@ -10837,6 +10873,17 @@ msgstr "Ha usado"
 msgid "credits since signing up."
 msgstr "créditos desde que se registró."
 
+#, fuzzy
+#| msgid "Are you sure you want to remove"
+msgid "You are about to delete"
+msgstr "¿Está seguro de que desea retirarlo?"
+
+msgid ""
+"\n"
+"    Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted.\n"
+"  "
+msgstr ""
+
 msgid ""
 "\n"
 "      Your download should start automatically. If it doesn't start in a few seconds, use the button below to download.\n"
@@ -11366,25 +11413,6 @@ msgstr "La Organización del usuario."
 #| msgid "The organization this trigger belongs to"
 msgid "This workspace has been scheduled for deletion"
 msgstr "La organización a la que pertenece este activador"
-
-msgid "Whoa, whoa, whoa!"
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"        Are you sure you want to delete everything for %(name)s? Everything will be gone and there is no going back.\n"
-"        This includes all flows, contacts, messages, etc.\n"
-"\n"
-"      "
-msgstr ""
-
-msgid ""
-"\n"
-"          Also, any logins will be deleted if they don't belong to another workspace.\n"
-"\n"
-"        "
-msgstr ""
 
 msgid "Top Ups"
 msgstr "Recargas"
@@ -12795,6 +12823,9 @@ msgstr "Elija su Organización"
 msgid "Delete Login"
 msgstr "Borrar"
 
+msgid "Whoa, whoa, whoa!"
+msgstr ""
+
 msgid "By deleting this login,"
 msgstr ""
 
@@ -13386,11 +13417,6 @@ msgstr ""
 #~| msgid "Create Contact Group"
 #~ msgid "No related contact groups."
 #~ msgstr "Crear Grupo de Contactos"
-
-#, fuzzy
-#~| msgid "Manage Contact Fields"
-#~ msgid "Contact Fields"
-#~ msgstr "Manejar Campos de Contactos"
 
 #, fuzzy
 #~| msgid "Create Contact"

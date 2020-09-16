@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-27 18:33+0000\n"
+"POT-Creation-Date: 2020-09-16 14:52+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2498,13 +2498,10 @@ msgstr ""
 msgid "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you can create new ones."
 msgstr ""
 
-msgid "You cannot create a dynamic group based on \"id\" or \"group\"."
+msgid "You cannot create a smart group based on \"id\" or \"group\"."
 msgstr ""
 
 msgid "You cannot update the query of a group that is evaluating."
-msgstr ""
-
-msgid "Activate"
 msgstr ""
 
 msgid "Active"
@@ -2593,6 +2590,9 @@ msgstr ""
 msgid "Custom Fields"
 msgstr ""
 
+msgid "Activate"
+msgstr ""
+
 msgid "Block"
 msgstr ""
 
@@ -2612,6 +2612,9 @@ msgid "Stopped Contacts"
 msgstr ""
 
 msgid "Archived Contacts"
+msgstr ""
+
+msgid "Delete All"
 msgstr ""
 
 msgid "Edit Group"
@@ -4202,6 +4205,9 @@ msgid "Cleared %(name)s cache for this workspace (%(count)d keys)"
 msgstr ""
 
 msgid "Privacy Policy"
+msgstr ""
+
+msgid "Content Guidelines"
 msgstr ""
 
 msgid "Terms of Service"
@@ -5972,6 +5978,22 @@ msgstr ""
 msgid "These contacts have been removed from all groups and can be deleted permanently."
 msgstr ""
 
+msgid "Delete Selected Contacts"
+msgstr ""
+
+msgid "Are you sure you want to delete the selected contacts? This cannot be undone."
+msgstr ""
+
+msgid "Delete All Contacts"
+msgstr ""
+
+#, python-format
+msgid "Are you sure you want to delete all %(count)s archived contacts? This cannot be undone."
+msgstr ""
+
+msgid "This operation can take a while to complete. Contacts may remain in this view during the process."
+msgstr ""
+
 msgid ""
 "\n"
 "    We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
@@ -6188,6 +6210,12 @@ msgstr ""
 msgid "IGNORED"
 msgstr ""
 
+msgid "One moment.."
+msgstr ""
+
+msgid "All done!"
+msgstr ""
+
 #, python-format
 msgid "Created %(create_count)s new contact"
 msgid_plural "Created %(create_count)s new contacts"
@@ -6214,6 +6242,9 @@ msgid "Failed to import %(error_count)s contact due to missing or invalid phone 
 msgid_plural "Failed to import %(error_count)s contacts due to missing or invalid phone numbers"
 msgstr[0] ""
 msgstr[1] ""
+
+msgid "Grouping.."
+msgstr ""
 
 msgid "No contacts imported, please make sure your have a channel connected."
 msgstr ""
@@ -6257,12 +6288,6 @@ msgid "No matching contacts."
 msgstr ""
 
 msgid "To view more than 10,000 search results, save it as a group."
-msgstr ""
-
-msgid "Delete Contacts"
-msgstr ""
-
-msgid "Are you sure you want to delete these contacts? This cannot be undone."
 msgstr ""
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
@@ -7527,6 +7552,15 @@ msgstr ""
 msgid "credits since signing up."
 msgstr ""
 
+msgid "You are about to delete"
+msgstr ""
+
+msgid ""
+"\n"
+"    Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted.\n"
+"  "
+msgstr ""
+
 msgid ""
 "\n"
 "      Your download should start automatically. If it doesn't start in a few seconds, use the button below to download.\n"
@@ -7919,25 +7953,6 @@ msgid "This workspace has been verified"
 msgstr ""
 
 msgid "This workspace has been scheduled for deletion"
-msgstr ""
-
-msgid "Whoa, whoa, whoa!"
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"        Are you sure you want to delete everything for %(name)s? Everything will be gone and there is no going back.\n"
-"        This includes all flows, contacts, messages, etc.\n"
-"\n"
-"      "
-msgstr ""
-
-msgid ""
-"\n"
-"          Also, any logins will be deleted if they don't belong to another workspace.\n"
-"\n"
-"        "
 msgstr ""
 
 msgid "Top Ups"
@@ -8904,6 +8919,9 @@ msgid "Delete Workspace"
 msgstr ""
 
 msgid "Delete Login"
+msgstr ""
+
+msgid "Whoa, whoa, whoa!"
 msgstr ""
 
 msgid "By deleting this login,"

@@ -8,17 +8,17 @@
   #pjax
     -block pjax
       -if total_count >= total_limit
-        .(style="margin-bottom: 10px")
+        .mb-4
           %temba-alert(level="warning")
             -blocktrans trimmed with limit=total_limit
               You have reached the limit of {{ limit }} fields per workspace. Please remove fields that you are no longer using.
       -elif total_count >= total_limit|add:-10
-        .(style="margin-bottom: 10px")
+        .mb-4
           %temba-alert(level="warning")
             -blocktrans trimmed with limit=total_limit
               You are approaching the limit of {{ limit }} fields per workspace. You should remove fields that you are no longer using.
 
-      .lp-frame
+      .lp-frame.mt-0
         .left
             .flex.flex-col
               -if org_perms.contacts.contactfield_create
@@ -45,8 +45,8 @@
 
         .right
           -if view.search_fields
-            %form#search-form.mb-4{method:"get"}
-              %temba-textinput.w-full{onsubmit:'document.querySelector("#search-form").submit();', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
+            %form#search-form.mb-4(method="get")
+              %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
           -else
             .title
               -trans "Featured Fields"
@@ -80,19 +80,19 @@
                               {{ obj.label }}                          
                               .key{ style:"font-family: monospace; font-size: 12px;" }
                                 @fields.{{ obj.key }}
+                              -if obj.show_in_table
+                                .inline.text-xs.py-1.px-2.font-medium.tracking-wide.p-1.bg-gray-200.rounded-lg
+                                  -trans "Featured"
                           -else
                             {{ obj.label }}                          
                             .key{ style:"font-family: monospace; font-size: 12px;" }
                               @fields.{{ obj.key }}
 
+                            -if obj.show_in_table
+                              .inline.text-xs.py-1.px-2.font-medium.tracking-wide.p-1.bg-gray-200.rounded-lg
+                                -trans "Featured"
 
-                      %td
-                        .text-center
-                          -if obj.show_in_table
-                            .lbl
-                              -trans "Featured"
-
-                      %td
+                      %td.w-12
                         .flex.text-center
                           -if obj.flow_count or obj.campaign_count or obj.contactgroup_count
                             .uses{onclick:"event.stopPropagation(); showDetailContactFieldModal({{ obj.id }}, \"{{ obj.label }}\");"}
@@ -102,7 +102,7 @@
                                 {% plural %}
                                   {{counter}} Uses
                                 {% endblocktrans %}
-                      %td
+                      %td.w-32
                         .text-right
                           {{ obj.get_value_type_display }}
                       

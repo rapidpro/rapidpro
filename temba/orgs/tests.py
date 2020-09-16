@@ -881,6 +881,7 @@ class OrgTest(TembaTest):
 
         manage_url = reverse("orgs.org_manage")
         update_url = reverse("orgs.org_update", args=[self.org.pk])
+        delete_url = reverse("orgs.org_delete", args=[self.org.pk])
         login_url = reverse("users.user_login")
 
         # no access to anon
@@ -890,6 +891,9 @@ class OrgTest(TembaTest):
         response = self.client.get(update_url)
         self.assertRedirect(response, login_url)
 
+        response = self.client.get(delete_url)
+        self.assertRedirect(response, login_url)
+
         # or admins
         self.login(self.admin)
 
@@ -897,6 +901,9 @@ class OrgTest(TembaTest):
         self.assertRedirect(response, login_url)
 
         response = self.client.get(update_url)
+        self.assertRedirect(response, login_url)
+
+        response = self.client.get(delete_url)
         self.assertRedirect(response, login_url)
 
         # only superuser
@@ -963,29 +970,30 @@ class OrgTest(TembaTest):
 
         # unflag org
         post_data["action"] = "unflag"
-        response = self.client.post(update_url, post_data)
+        self.client.post(update_url, post_data)
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_flagged)
         self.assertEqual(parent, self.org.parent)
 
         # verify
         post_data["action"] = "verify"
-        response = self.client.post(update_url, post_data)
+        self.client.post(update_url, post_data)
         self.org.refresh_from_db()
         self.assertTrue(self.org.is_verified())
 
         # flag org
         post_data["action"] = "flag"
-        response = self.client.post(update_url, post_data)
+        self.client.post(update_url, post_data)
         self.org.refresh_from_db()
         self.assertTrue(self.org.is_flagged)
 
         # deactivate
-        post_data["action"] = "delete"
-        response = self.client.post(update_url, post_data)
+        self.client.post(delete_url, {"id": self.org.id})
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_active)
+
         response = self.client.get(update_url)
+        self.assertEqual(200, response.status_code)
 
     def test_accounts(self):
         url = reverse("orgs.org_accounts")
@@ -1063,6 +1071,12 @@ class OrgTest(TembaTest):
         self.login(self.non_org_user)
         response = self.client.post(reverse("api.apitoken_refresh"))
         self.assertRedirect(response, reverse("orgs.org_choose"))
+
+        # but can see it as an editor
+        self.login(self.editor)
+        response = self.client.get(url)
+        token = APIToken.objects.get(user=self.editor)
+        self.assertContains(response, token.key)
 
     @override_settings(SEND_EMAILS=True)
     def test_manage_accounts(self):
@@ -2789,6 +2803,16 @@ class OrgTest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "Workspaces")
 
+        # and add topups
+        self.assertContains(response, reverse("orgs.org_transfer_credits"))
+
+        # but not if we don't use topups
+        Org.objects.filter(id=self.org.id).update(uses_topups=False)
+        response = self.client.get(reverse("orgs.org_sub_orgs"))
+        self.assertNotContains(response, reverse("orgs.org_transfer_credits"))
+
+        Org.objects.filter(id=self.org.id).update(uses_topups=True)
+
         # add a sub org
         response = self.client.post(reverse("orgs.org_create_sub_org"), new_org)
         self.assertRedirect(response, reverse("orgs.org_sub_orgs"))
@@ -3466,7 +3490,8 @@ class OrgCRUDLTest(TembaTest):
         self.assertIn("form", response.context)
         self.assertTrue(response.context["form"].errors)
 
-    def test_org_service(self):
+    @mock_mailroom
+    def test_org_service(self, mr_mocks):
         # create a customer service user
         self.csrep = self.create_user("csrep")
         self.csrep.groups.add(Group.objects.get(name="Customer Support"))

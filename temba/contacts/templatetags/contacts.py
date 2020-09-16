@@ -128,7 +128,7 @@ def urn(contact, org):
 
 
 @register.filter
-def format_contact(contact, org):
+def format_contact(contact, org):  # pragma: needs cover
     return contact.get_display(org=org)
 
 

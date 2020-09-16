@@ -15,6 +15,7 @@ from packaging.version import Version
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
+    SmartDeleteView,
     SmartFormView,
     SmartListView,
     SmartModelActionView,
@@ -50,6 +51,7 @@ from django.views.generic import View
 from temba.api.models import APIToken
 from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
+from temba.contacts.models import ContactGroupCount
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, get_anonymous_user, json, languages, str_to_bool
@@ -1118,7 +1120,7 @@ class OrgCRUDL(SmartCRUDL):
                 used_class = "used-alert"
             return mark_safe("<div class='used-pct %s'>%d%%</div>" % (used_class, used_pct))
 
-        def get_plan(self, obj):
+        def get_plan(self, obj):  # pragma: needs cover
             if not obj.credits:  # pragma: needs cover
                 obj.credits = 0
 
@@ -1199,7 +1201,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_created_by(self, obj):  # pragma: needs cover
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
-    class Update(SmartUpdateView):
+    class Update(ComponentFormMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             parent = forms.IntegerField(required=False)
             plan_end = forms.DateTimeField(required=False)
@@ -1234,11 +1236,10 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
 
             if org.is_active:
-
                 links.append(
                     dict(
                         title=_("Topups"),
-                        style="btn-primary",
+                        style="button-primary",
                         href="%s?org=%d" % (reverse("orgs.topup_manage"), org.pk),
                     )
                 )
@@ -1247,7 +1248,7 @@ class OrgCRUDL(SmartCRUDL):
                     links.append(
                         dict(
                             title=_("Unflag"),
-                            style="btn-secondary",
+                            style="button-secondary",
                             posterize=True,
                             href="%s?action=unflag" % reverse("orgs.org_update", args=[org.pk]),
                         )
@@ -1256,7 +1257,7 @@ class OrgCRUDL(SmartCRUDL):
                     links.append(
                         dict(
                             title=_("Flag"),
-                            style="btn-secondary",
+                            style="button-secondary",
                             posterize=True,
                             href="%s?action=flag" % reverse("orgs.org_update", args=[org.pk]),
                         )
@@ -1266,14 +1267,21 @@ class OrgCRUDL(SmartCRUDL):
                     links.append(
                         dict(
                             title=_("Verify"),
-                            style="btn-secondary",
+                            style="button-secondary",
                             posterize=True,
                             href="%s?action=verify" % reverse("orgs.org_update", args=[org.pk]),
                         )
                     )
 
                 if self.request.user.has_perm("orgs.org_delete"):
-                    links.append(dict(title=_("Delete"), style="btn-primary", js_class="org-delete-button", href="#"))
+                    links.append(
+                        dict(
+                            id="delete-flow",
+                            title=_("Delete"),
+                            href=reverse("orgs.org_delete", args=[org.pk]),
+                            modax="Delete Org",
+                        )
+                    )
             return links
 
         def post(self, request, *args, **kwargs):
@@ -1285,10 +1293,24 @@ class OrgCRUDL(SmartCRUDL):
                     self.get_object().verify()
                 elif action == "unflag":
                     self.get_object().unflag()
-                elif action == "delete":
-                    self.get_object().release()
                 return HttpResponseRedirect(self.get_success_url())
             return super().post(request, *args, **kwargs)
+
+    class Delete(ModalMixin, SmartDeleteView):
+        cancel_url = "id@orgs.org_update"
+        submit_button_name = _("Delete")
+        fields = ("id",)
+
+        def post(self, request, *args, **kwargs):
+            self.object = self.get_object()
+            self.pre_delete(self.object)
+            redirect_url = self.get_redirect_url()
+            self.object.release()
+
+            return HttpResponseRedirect(redirect_url)
+
+        def get_redirect_url(self, **kwargs):
+            return reverse("orgs.org_update", args=[self.object.pk])
 
     class Accounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class PasswordForm(forms.ModelForm):
@@ -1392,7 +1414,12 @@ class OrgCRUDL(SmartCRUDL):
             return getattr(org, group_name.lower())
 
         def get_gear_links(self):
-            return [dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"),)]
+            links = []
+            if self.request.user.get_org().pk != self.get_object().pk:
+                links.append(dict(title=_("Workspaces"), style="button-light", href=reverse("orgs.org_sub_orgs"),))
+
+            links.append(dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"),))
+            return links
 
         def derive_initial(self):
             initial = super().derive_initial()
@@ -1648,10 +1675,14 @@ class OrgCRUDL(SmartCRUDL):
             return HttpResponseRedirect(reverse("orgs.org_manage"))
 
     class SubOrgs(MultiOrgMixin, InferOrgMixin, SmartListView):
-
-        fields = ("credits", "name", "manage", "created_on")
         link_fields = ()
         title = _("Workspaces")
+
+        def derive_fields(self):
+            if self.get_object().uses_topups:
+                return "credits", "name", "manage", "created_on"
+            else:
+                return "name", "contacts", "manage", "created_on"
 
         def get_gear_links(self):
             links = []
@@ -1669,7 +1700,7 @@ class OrgCRUDL(SmartCRUDL):
                     )
                 )
 
-            if self.has_org_perm("orgs.org_transfer_credits"):
+            if self.has_org_perm("orgs.org_transfer_credits") and self.get_object().uses_topups:
                 links.append(
                     dict(
                         title=_("Transfer Credits"),
@@ -1693,6 +1724,9 @@ class OrgCRUDL(SmartCRUDL):
                 )
             return ""
 
+        def get_contacts(self, obj):
+            return ContactGroupCount.total_for_org(obj)
+
         def get_credits(self, obj):
             credits = obj.get_credits_remaining()
             return mark_safe(f'<div class="edit-org"><div class="num-credits">{format(credits, ",d")}</div></div>')
@@ -1701,7 +1735,7 @@ class OrgCRUDL(SmartCRUDL):
             org_type = "child"
             if not obj.parent:
                 org_type = "parent"
-            if self.has_org_perm("orgs.org_create_sub_org") and obj.parent:
+            if self.has_org_perm("orgs.org_create_sub_org") and obj.parent:  # pragma: needs cover
                 return mark_safe(
                     f"<temba-modax header={_('Update')} endpoint={reverse('orgs.org_edit_sub_org')}?org={obj.id} ><div class='{org_type}-org-name linked'>{escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div></temba-modax>"
                 )
@@ -2455,7 +2489,7 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_import"):
                 links.append(dict(title=_("Import"), href=reverse("orgs.org_import")))
 
-            if settings.HELP_URL:
+            if settings.HELP_URL:  # pragma: needs cover
                 if len(links) > 0:
                     links.append(dict(divider=True))
 
@@ -2520,7 +2554,7 @@ class OrgCRUDL(SmartCRUDL):
                     formax.add_section("topups", reverse("orgs.topup_list"), icon="icon-coins", action="link")
 
             else:
-                if self.has_org_perm("orgs.org_plan"):
+                if self.has_org_perm("orgs.org_plan"):  # pragma: needs cover
                     formax.add_section("plan", reverse("orgs.org_plan"), icon="icon-credit", action="summary")
 
             if self.has_org_perm("channels.channel_update"):
@@ -2530,7 +2564,7 @@ class OrgCRUDL(SmartCRUDL):
                     self.add_channel_section(formax, channel)
 
                 twilio_client = org.get_twilio_client()
-                if twilio_client:
+                if twilio_client:  # pragma: needs cover
                     formax.add_section("twilio", reverse("orgs.org_twilio_account"), icon="icon-channel-twilio")
 
                 nexmo_client = org.get_nexmo_client()
@@ -3104,7 +3138,7 @@ class TopUpCRUDL(SmartCRUDL):
             else:
                 return super().get_template_names()
 
-    class Create(SmartCreateView):
+    class Create(ComponentFormMixin, SmartCreateView):
         """
         This is only for root to be able to credit accounts.
         """
@@ -3123,7 +3157,7 @@ class TopUpCRUDL(SmartCRUDL):
             apply_topups_task.delay(obj.org.id)
             return obj
 
-    class Update(SmartUpdateView):
+    class Update(ComponentFormMixin, SmartUpdateView):
         fields = ("is_active", "price", "credits", "expires_on")
 
         def get_success_url(self):
