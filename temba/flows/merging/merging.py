@@ -1,3 +1,5 @@
+import itertools
+
 from collections import OrderedDict
 from jellyfish import jaro_distance
 
@@ -230,7 +232,11 @@ class GraphDifferenceNode(Node):
         right_categories = get_category_exits_dict(self.right_origin_node.data)
         all_categories = set({*left_categories.keys(), *right_categories.keys()})
 
-        if "All Responses" in all_categories and len(all_categories) > 1:
+        conditions_to_alter_all_responses_category = (
+            "All Responses" in all_categories and "No Response" in all_categories and len(all_categories) > 2,
+            "All Responses" in all_categories and "No Response" not in all_categories and len(all_categories) > 1,
+        )
+        if any(conditions_to_alter_all_responses_category):
             all_categories.remove("All Responses")
             for categories_dict in (left, right, left_categories, right_categories):
                 if "All Responses" in categories_dict:
@@ -327,6 +333,10 @@ class GraphDifferenceNode(Node):
             for uuid, data in exits_data.items():
                 self.origin_exits_map[uuid] = uuid
                 merged_exits.append({"uuid": uuid, "destination_uuid": data.get("destination")})
+
+        # delete exits duplications
+        merged_exits = [list(group)[0] for _, group in itertools.groupby(merged_exits, lambda x: x["uuid"])]
+
         self.data["exits"] = merged_exits
 
     def check_routers(self):

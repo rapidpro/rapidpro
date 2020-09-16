@@ -3058,7 +3058,9 @@ class FlowCRUDL(SmartCRUDL):
             if len([node for node in diff_graph.diff_nodes_map.values() if node.parent is None]) > 1:
                 context["warnings"] = [
                     _(
-                        "Some of the flow steps are not matched and can break the flow logic. After merging you will need to check all flow steps and resolve issues manually on the flow editor page."
+                        "Some of the flow steps are not matched and can break the flow logic. "
+                        "After merging you will need to check all flow steps and resolve issues "
+                        "manually on the flow editor page."
                     )
                 ]
 
