@@ -1,3 +1,30 @@
+v5.7.49
+----------
+ * Update plan_end when suspending topup orgs
+ * Suspend topup orgs that have no active credits
+ * Show suspension header when an org is suspended
+ * Tweak external channel config styling
+ * Fix styles for button on WA config page
+
+v5.7.48
+----------
+ * Fix button style for channel extra links
+ * Skip components missing text for WA templates sync
+ * Editors should have API tokens
+
+v5.7.47
+----------
+ * Queue mailroom task to schedule campaign events outside of import transaction
+ * Fix margin on fields warning alert
+
+v5.7.46
+----------
+ * Use mailroom task for scheduling of campaign events
+
+v5.7.45
+----------
+ * Make sure form._errors is a list
+
 v5.7.44
 ----------
  * Add index to enforce uniqueness for event fires

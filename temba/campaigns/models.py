@@ -1,10 +1,12 @@
 from datetime import timedelta
+from typing import List
 
 from django.db import models
 from django.db.models import Model
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
+from temba import mailroom
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow
 from temba.msgs.models import Msg
@@ -60,11 +62,24 @@ class Campaign(TembaModel):
 
         return name
 
+    def schedule_events_async(self):
+        """
+        Updates all the scheduled events for each contact for this campaign.
+        Should be called anytime a campaign changes.
+        """
+        for event in self.get_events():
+            if EventFire.objects.filter(event=event).exists():
+                event = event.deactivate_and_copy()
+
+            event.schedule_async()
+
     @classmethod
-    def import_campaigns(cls, org, user, campaign_defs, same_site=False):
+    def import_campaigns(cls, org, user, campaign_defs, same_site=False) -> List:
         """
         Import campaigns from a list of exported campaigns
         """
+
+        imported = []
 
         for campaign_def in campaign_defs:
             name = campaign_def[Campaign.EXPORT_NAME]
@@ -164,8 +179,9 @@ class Campaign(TembaModel):
                             start_mode=start_mode,
                         )
 
-            # update our scheduled events for this campaign
-            EventFire.update_campaign_events(campaign)
+            imported.append(campaign)
+
+        return imported
 
     @classmethod
     def restore_flows(cls, campaign):
@@ -183,7 +199,7 @@ class Campaign(TembaModel):
 
         # update the events for each campaign
         for campaign in campaigns:
-            EventFire.update_campaign_events(campaign)
+            campaign.schedule_events_async()
 
     @classmethod
     def apply_action_restore(cls, user, campaigns):
@@ -192,7 +208,7 @@ class Campaign(TembaModel):
         # update the events for each campaign
         for campaign in campaigns:
             Campaign.restore_flows(campaign)
-            EventFire.update_campaign_events(campaign)
+            campaign.schedule_events_async()
 
     def get_events(self):
         return self.events.filter(is_active=True).order_by("relative_to", "offset")
@@ -445,6 +461,9 @@ class CampaignEvent(TembaModel):
 
         return offset
 
+    def schedule_async(self):
+        on_transaction_commit(lambda: mailroom.queue_schedule_campaign_event(self))
+
     def calculate_scheduled_fire_for_value(self, date_value, now):
         tz = self.campaign.org.timezone
 
@@ -483,7 +502,7 @@ class CampaignEvent(TembaModel):
                 scheduled = scheduled.replace(hour=self.delivery_hour, minute=0, second=0, microsecond=0)
 
             # if we've changed utcoffset (DST shift), tweak accordingly (this keeps us at the same hour of the day)
-            elif str(tz) != "UTC" and date_value.utcoffset() != scheduled.utcoffset():
+            elif str(tz) != "UTC" and date_value.utcoffset() != scheduled.utcoffset():  # pragma: needs cover
                 scheduled = tz.normalize(date_value.utcoffset() - scheduled.utcoffset() + scheduled)
 
             # ignore anything in the past
@@ -589,59 +608,6 @@ class EventFire(Model):
     def get_relative_to_value(self):
         value = self.contact.get_field_value(self.event.relative_to)
         return value.replace(second=0, microsecond=0) if value else None
-
-    @classmethod
-    def update_campaign_events(cls, campaign):
-        """
-        Updates all the scheduled events for each user for the passed in campaign.
-        Should be called anytime a campaign changes.
-        """
-        for event in campaign.get_events():
-            if EventFire.objects.filter(event=event).exists():
-                event = event.deactivate_and_copy()
-            EventFire.create_eventfires_for_event(event)
-
-    @classmethod
-    def create_eventfires_for_event(cls, event):
-        from temba.campaigns.tasks import create_event_fires
-
-        on_transaction_commit(lambda: create_event_fires.delay(event.pk))
-
-    @classmethod
-    def do_create_eventfires_for_event(cls, event):
-
-        if EventFire.objects.filter(event=event).exists():
-            return
-
-        if event.is_active and not event.campaign.is_archived:
-
-            # create fires for our event
-            field = event.relative_to
-            if field.field_type == ContactField.FIELD_TYPE_USER:
-                field_uuid = str(field.uuid)
-
-                contacts = event.campaign.group.contacts.filter(is_active=True, status=Contact.STATUS_ACTIVE).extra(
-                    where=['%s::text[] <@ (extract_jsonb_keys("contacts_contact"."fields"))'], params=[[field_uuid]]
-                )
-            elif field.field_type == ContactField.FIELD_TYPE_SYSTEM:
-                contacts = event.campaign.group.contacts.filter(is_active=True, status=Contact.STATUS_ACTIVE)
-            else:  # pragma: no cover
-                raise ValueError(f"Unhandled ContactField type {field.field_type}.")
-
-            now = timezone.now()
-            events = []
-
-            org = event.campaign.org
-            for contact in contacts:
-                contact.org = org
-                scheduled = event.calculate_scheduled_fire_for_value(contact.get_field_value(field), now)
-
-                # and if we have a date, then schedule it
-                if scheduled:
-                    events.append(EventFire(event=event, contact=contact, scheduled=scheduled))
-
-            # bulk create our event fires
-            EventFire.objects.bulk_create(events)
 
     @classmethod
     def update_events_for_contact_groups(cls, contact, groups):

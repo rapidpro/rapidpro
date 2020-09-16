@@ -48,6 +48,7 @@ from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
 from temba.orgs.models import BackupToken, Debit, OrgActivity, UserSettings
+from temba.orgs.tasks import suspend_topup_orgs_task
 from temba.request_logs.models import HTTPLog
 from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
@@ -802,7 +803,7 @@ class OrgTest(TembaTest):
             response,
             "form",
             "__all__",
-            "Sorry, your account is currently flagged. To enable sending messages, please contact support.",
+            "Sorry, your workspace is currently flagged. To enable sending messages, please contact support.",
         )
 
         # we also can't start flows
@@ -811,20 +812,20 @@ class OrgTest(TembaTest):
             response,
             "form",
             "__all__",
-            "Sorry, your account is currently flagged. To enable starting flows, please contact support.",
+            "Sorry, your workspace is currently flagged. To enable starting flows, please contact support.",
         )
 
         response = send_broadcast_via_api()
         self.assertContains(
             response,
-            "Sorry, your account is currently flagged. To enable sending messages, please contact support.",
+            "Sorry, your workspace is currently flagged. To enable sending messages, please contact support.",
             status_code=400,
         )
 
         response = start_flow_via_api()
         self.assertContains(
             response,
-            "Sorry, your account is currently flagged. To enable sending messages, please contact support.",
+            "Sorry, your workspace is currently flagged. To enable sending messages, please contact support.",
             status_code=400,
         )
 
@@ -838,7 +839,7 @@ class OrgTest(TembaTest):
             response,
             "form",
             "__all__",
-            "Sorry, your account is currently suspended. To enable sending messages, please contact support.",
+            "Sorry, your workspace is currently suspended. To enable sending messages, please contact support.",
         )
 
         # we also can't start flows
@@ -847,22 +848,26 @@ class OrgTest(TembaTest):
             response,
             "form",
             "__all__",
-            "Sorry, your account is currently suspended. To enable starting flows, please contact support.",
+            "Sorry, your workspace is currently suspended. To enable starting flows, please contact support.",
         )
 
         response = send_broadcast_via_api()
         self.assertContains(
             response,
-            "Sorry, your account is currently suspended. To enable sending messages, please contact support.",
+            "Sorry, your workspace is currently suspended. To enable sending messages, please contact support.",
             status_code=400,
         )
 
         response = start_flow_via_api()
         self.assertContains(
             response,
-            "Sorry, your account is currently suspended. To enable sending messages, please contact support.",
+            "Sorry, your workspace is currently suspended. To enable sending messages, please contact support.",
             status_code=400,
         )
+
+        # check our inbox page
+        response = self.client.get(reverse("msgs.msg_inbox"))
+        self.assertContains(response, "Your workspace is suspended")
 
         # still no messages or flow starts
         self.assertEqual(Msg.objects.all().count(), 0)
@@ -1071,6 +1076,12 @@ class OrgTest(TembaTest):
         self.login(self.non_org_user)
         response = self.client.post(reverse("api.apitoken_refresh"))
         self.assertRedirect(response, reverse("orgs.org_choose"))
+
+        # but can see it as an editor
+        self.login(self.editor)
+        response = self.client.get(url)
+        token = APIToken.objects.get(user=self.editor)
+        self.assertContains(response, token.key)
 
     @override_settings(SEND_EMAILS=True)
     def test_manage_accounts(self):
@@ -1718,6 +1729,12 @@ class OrgTest(TembaTest):
 
         self.assertEqual(15, TopUp.objects.get(pk=welcome_topup.pk).get_used())
 
+        # run our check on topups, this should suspend our org
+        suspend_topup_orgs_task()
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.is_suspended)
+        self.assertTrue(timezone.now() - self.org.plan_end < timedelta(seconds=10))
+
         # raise our topup to take 20 and create another for 5
         TopUp.objects.filter(pk=welcome_topup.pk).update(credits=20)
         new_topup = TopUp.create(self.admin, price=0, credits=5)
@@ -1732,6 +1749,7 @@ class OrgTest(TembaTest):
         self.assertEqual(25, self.org.get_credits_total())
         self.assertEqual(30, self.org.get_credits_used())
         self.assertEqual(-5, self.org.get_credits_remaining())
+        self.assertTrue(self.org.is_suspended)
 
         # test special status
         self.assertFalse(self.org.is_multi_user)
@@ -1752,6 +1770,7 @@ class OrgTest(TembaTest):
         self.assertEqual(100_025, self.org.get_credits_total())
         self.assertEqual(99995, self.org.get_credits_remaining())
         self.assertEqual(30, self.org.get_credits_used())
+        self.assertFalse(self.org.is_suspended)
 
         # and new messages use the mega topup
         msg = self.create_incoming_msg(contact, "Test")

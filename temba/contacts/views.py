@@ -412,20 +412,20 @@ class ContactForm(forms.ModelForm):
                 existing_urn = ContactURN.lookup(self.org, normalized, normalize=False)
 
                 if existing_urn and existing_urn.contact and existing_urn.contact != self.instance:
-                    self._errors[key] = _("Used by another contact")
+                    self._errors[key] = self.error_class([_("Used by another contact")])
                     return False
                 # validate but not with country as users are allowed to enter numbers before adding a channel
                 elif not URN.validate(normalized):
                     if scheme == TEL_SCHEME:  # pragma: needs cover
-                        self._errors[key] = _(
-                            "Invalid number. Ensure number includes country code, e.g. +1-541-754-3010"
+                        self._errors[key] = self.error_class(
+                            [_("Invalid number. Ensure number includes country code, e.g. +1-541-754-3010")]
                         )
                     else:
-                        self._errors[key] = _("Invalid format")
+                        self._errors[key] = self.error_class([_("Invalid format")])
                     return False
                 return True
             except ValueError:
-                self._errors[key] = _("Invalid input")
+                self._errors[key] = self.error_class([_("Invalid input")])
                 return False
 
         # validate URN fields

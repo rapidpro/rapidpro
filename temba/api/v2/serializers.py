@@ -13,7 +13,7 @@ from django.conf import settings
 from temba import mailroom
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.archives.models import Archive
-from temba.campaigns.models import Campaign, CampaignEvent, EventFire
+from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup
@@ -117,7 +117,7 @@ class WriteSerializer(serializers.Serializer):
 
         if self.context["org"].is_flagged or self.context["org"].is_suspended:
             state = "flagged" if self.context["org"].is_flagged else "suspended"
-            msg = f"Sorry, your account is currently {state}. To enable sending messages, please contact support."
+            msg = f"Sorry, your workspace is currently {state}. To enable sending messages, please contact support."
             raise serializers.ValidationError(detail={"non_field_errors": [msg]})
 
         return super().run_validation(data)
@@ -452,7 +452,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
             self.instance.update_flow_name()
 
         # create our event fires for this event in the background
-        EventFire.create_eventfires_for_event(self.instance)
+        self.instance.schedule_async()
 
         return self.instance
 
