@@ -226,3 +226,5 @@ DB_MIGRATION = os.environ.get("MIGRATION_CONNECTION_NAME", "live_server")
 DATABASES[DB_MIGRATION] = _ccl_v1_direct_database_config
 
 MIGRATION_FROM_URL = os.environ.get("MIGRATION_SERVER_URL", "https://live.communityconnectlabs.com")
+
+GOOGLE_FONT_API_KEY = os.environ.get("GOOGLE_FONT_API_KEY", "")

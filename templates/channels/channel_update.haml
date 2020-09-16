@@ -119,6 +119,14 @@
 
     useFontCheckbox("#id_allow_international");
 
+    $('#id_google_font').select2({
+      width: '370px',
+      containerCssClass: 'select2-temba-field',
+      placeholder: "{% trans 'Select a Google Font' %}",
+      allowClear: true,
+      minimumInputLength: 2
+    });
+
     $('#id_theme').select2({
       width: '370px',
       containerCssClass: 'select2-temba-field',

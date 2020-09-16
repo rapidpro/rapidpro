@@ -1255,3 +1255,5 @@ AUTHY_MAGIC_PASS = os.environ.get("AUTHY_MAGIC_PASS", "")
 
 # Credits expiration config
 CREDITS_EXPIRATION = False
+
+GOOGLE_FONT_API_KEY = os.environ.get("GOOGLE_FONT_API_KEY", "")

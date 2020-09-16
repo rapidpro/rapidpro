@@ -1320,6 +1320,18 @@ class UpdateWebChatForm(UpdateChannelForm):
 
             self.fields["inputtext_placeholder_default"].initial = config.get("inputtext_placeholder_default", "")
 
+            response_fonts = (
+                requests.get(f"https://www.googleapis.com/webfonts/v1/webfonts?key={settings.GOOGLE_FONT_API_KEY}")
+            )
+
+            if response_fonts.status_code == 200:
+                font_list_json = response_fonts.json()
+                self.fields["google_font"].choices = [("", "")] + [
+                    (item.get("family"), item.get("family")) for item in font_list_json.get("items", [])
+                ]
+
+            self.fields["google_font"].initial = config.get("google_font", "")
+
             languages = self.object.org.languages.all().order_by("orgs")
 
             for lang in languages:
@@ -1465,6 +1477,8 @@ class UpdateWebChatForm(UpdateChannelForm):
                 ),
                 "",
             )
+
+        self.add_config_field("google_font", forms.ChoiceField(label=_("Google Font"), required=False), None)
 
         self.add_config_field("theme", forms.ChoiceField(label=_("Theme"), required=False), None)
 
