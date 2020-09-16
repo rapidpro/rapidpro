@@ -82,7 +82,7 @@ class Node:
                     for other_action in other.data.get("actions", []):
                         if self_action["type"] == other_action["type"] and self_action["type"] == "enter_flow":
                             if self_action["flow"]["uuid"] == other_action["flow"]["uuid"]:
-                                if self_router["result_name"] == other_router["result_name"]:
+                                if self_router.get("result_name") == other_router.get("result_name"):
                                     return True
                 return False
             return True
@@ -423,7 +423,7 @@ class GraphDifferenceNode(Node):
 
     def check_actions_pair(self, left, right):
         def custom_checks():
-            if  left["type"] == "set_contact_name":
+            if left["type"] == "set_contact_name":
                 return jaro_distance(left.get("name", ""), right.get("name", "")) >= 0.8
             elif left["type"] == "set_contact_language":
                 return jaro_distance(left.get("language", ""), right.get("language", "")) >= 0.8
@@ -748,7 +748,8 @@ class GraphDifferenceMap:
 
         ignored_pairs.extend(need_to_remove_from_matched_pairs)
         for item in set(need_to_remove_from_matched_pairs):
-            matched_pairs.remove(item)
+            if item in matched_pairs:
+                matched_pairs.remove(item)
 
     def find_matching_nodes(self, ignore=None):
         pairs = []
