@@ -818,6 +818,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_stopped",
         "contacts.contactfield_api",
         "contacts.contactgroup_api",
+        "contacts.contactimport_read",
         "globals.global_api",
         "locations.adminboundary_boundaries",
         "locations.adminboundary_geometry",

@@ -2144,6 +2144,10 @@ class ContactImportCRUDL(SmartCRUDL):
 
             def __init__(self, *args, org, **kwargs):
                 self.org = org
+                self.headers = None
+                self.mappings = None
+                self.num_records = None
+
                 super().__init__(*args, **kwargs)
 
             def clean_file(self):
@@ -2154,7 +2158,12 @@ class ContactImportCRUDL(SmartCRUDL):
                         "special characters in -, _, ., (, )"
                     )
 
-                self.mappings = ContactImport.validate_file(self.org, file.file, file.name)
+                # try to parse the file saving the headers and mappings so we don't have to repeat parsing when
+                # saving the import
+                self.headers, self.mappings, self.num_records = ContactImport.try_to_parse(
+                    self.org, file.file, file.name
+                )
+
                 return file
 
             def clean(self):
@@ -2199,7 +2208,9 @@ class ContactImportCRUDL(SmartCRUDL):
         def pre_save(self, obj):
             obj = super().pre_save(obj)
             obj.org = self.get_user().get_org()
+            obj.headers = self.form.headers
             obj.mappings = self.form.mappings
+            obj.num_records = self.form.num_records
             return obj
 
     class Preview(OrgObjPermsMixin, SmartUpdateView):
@@ -2212,37 +2223,35 @@ class ContactImportCRUDL(SmartCRUDL):
                 name_choices = [(f.label, f.label) for f in org_fields]
 
                 self.columns = []
-                for header in self.instance.extract_headers():
+                for i, header in enumerate(self.instance.headers):
                     mapping = self.instance.mappings[header]
                     column = {"header": header, "mapping": mapping}
 
                     if mapping["type"] == "new_field":
-                        field_name = header.split(":", maxsplit=1)[1]
-                        field_key = slugify_with(field_name)
-                        field_obj = ContactField.get_by_key(org, field_key)
+                        field_name = ContactImport.parse_header(header)[1].title()
 
                         include_field = forms.BooleanField(
                             label=" ", required=False, initial=True, widget=CheckboxWidget(attrs={"widget_only": True})
                         )
                         name_field = ArbitraryChoiceField(
-                            initial=field_obj.label if field_obj else field_name,
+                            initial=field_name,
                             choices=name_choices,
                             required=False,
                             widget=SelectWidget(attrs={"widget_only": True, "searchable": True, "tags": True}),
                         )
-                        type_field = forms.ChoiceField(
+                        value_type_field = forms.ChoiceField(
                             label=" ",
                             choices=Value.TYPE_CHOICES,
                             required=True,
-                            initial=field_obj.value_type if field_obj else Value.TYPE_TEXT,
+                            initial=Value.TYPE_TEXT,
                             widget=SelectWidget(attrs={"widget_only": True}),
                         )
 
                         column_controls = OrderedDict(
                             [
-                                (f"column_{field_key}_include", include_field),
-                                (f"column_{field_key}_name", name_field),
-                                (f"column_{field_key}_type", type_field),
+                                (f"column_{i}_include", include_field),
+                                (f"column_{i}_name", name_field),
+                                (f"column_{i}_value_type", value_type_field),
                             ]
                         )
                         self.fields.update(column_controls)
@@ -2251,16 +2260,85 @@ class ContactImportCRUDL(SmartCRUDL):
 
                     self.columns.append(column)
 
+            def clean(self):
+                used_names = set()
+                re_col_name_field = regex.compile(r"column_\d+_name$", regex.V0)
+                for key, value in self.data.items():
+                    if re_col_name_field.match(key):
+                        name = value.strip()
+                        self.cleaned_data[key] = self.clean_field_name(name)
+
+                        if name in used_names:
+                            raise forms.ValidationError(_("%(name)s should be used once") % {"name": name})
+
+                        self.fields[key].choices.append((name, name))
+                        used_names.add(name)
+
+                return self.cleaned_data
+
+            def clean_field_name(self, name):
+                field_key = ContactField.make_key(name)
+
+                if not ContactField.is_valid_label(name) or not ContactField.is_valid_key(field_key):
+                    raise forms.ValidationError(
+                        _(
+                            "%(name)s is an invalid name or is a reserved name for contact "
+                            "fields, field names should start with a letter."
+                        ),
+                        params={"name": name},
+                    )
+
+                return name
+
             class Meta:
                 model = ContactImport
-                fields = ("mappings",)
+                fields = ("id",)
 
         form_class = Form
+        success_url = "id@contacts.contactimport_read"
+        success_message = _("Your import has been started")
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["org"] = self.derive_org()
             return kwargs
 
+        def pre_process(self, request, *args, **kwargs):
+            obj = self.get_object()
+
+            # can't preview an import which has already started
+            if obj.started_on:
+                return HttpResponseRedirect(reverse("contacts.contactimport_read", args=[obj.id]))
+
+        def pre_save(self, obj):
+            # rewrite mappings using values from form
+            for i, header in enumerate(obj.headers):
+                mapping = obj.mappings[header]
+                column_include = self.form.cleaned_data.get(f"column_{i}_include", True)
+                column_name = self.form.cleaned_data.get(f"column_{i}_name", "")
+                column_value_type = self.form.cleaned_data.get(f"column_{i}_value_type", Value.TYPE_TEXT)
+
+                if not column_include:
+                    mapping = ContactImport.MAPPING_IGNORE
+                else:
+                    if mapping["type"] == "new_field":
+                        mapping["key"] = ContactField.make_key(column_name)
+                        mapping["name"] = column_name
+                        mapping["value_type"] = column_value_type
+
+                obj.mappings[header] = mapping
+            return obj
+
+        def post_save(self, obj):
+            obj.start_async()
+            return obj
+
     class Read(OrgObjPermsMixin, SmartReadView):
-        pass
+        refresh = 3000
+
+        def pre_process(self, request, *args, **kwargs):
+            obj = self.get_object()
+
+            # can't view an import which hasn't yet started
+            if not obj.started_on:
+                return HttpResponseRedirect(reverse("contacts.contactimport_preview", args=[obj.id]))

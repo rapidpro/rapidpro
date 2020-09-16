@@ -3,11 +3,10 @@ import logging
 import os
 import time
 import uuid
-from collections import OrderedDict
 from decimal import Decimal
 from itertools import chain
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Set, Tuple
 
 import iso8601
 import phonenumbers
@@ -18,7 +17,7 @@ from smartmin.csv_imports.models import ImportTask
 from smartmin.models import SmartImportRowError, SmartModel
 
 from django.conf import settings
-from django.contrib.postgres.fields import JSONField
+from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, connection, models, transaction
@@ -3125,19 +3124,28 @@ def get_import_upload_path(instance, filename):
 
 
 class ContactImport(SmartModel):
-    MAX_ROWS = 25_000
+    MAX_RECORDS = 25_000
     BATCH_SIZE = 100
 
+    STATUS_PENDING = "P"
+    STATUS_PROCESSING = "O"
+    STATUS_COMPLETE = "C"
+    STATUS_FAILED = "F"
+
+    MAPPING_IGNORE = {"type": "ignore"}
+
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contact_imports")
-
     file = models.FileField(upload_to=get_import_upload_path)
-
+    headers = ArrayField(models.CharField(max_length=255))  # raw header values as ordered list
     mappings = JSONField()
+    num_records = models.IntegerField()
+    started_on = models.DateTimeField(null=True)
 
     @classmethod
-    def validate_file(cls, org, file, filename) -> Dict:
+    def try_to_parse(cls, org, file, filename) -> Tuple[List, Dict, int]:
         """
-        Validates the given file, returning header mappings if it is valid, otherwise raising a ValidationError.
+        Tries to parse the given file stream as an import. If successful it returns the raw headers and the automatic
+        mappings. Otherwise raises a ValidationError.
         """
 
         file_type = Path(filename).suffix[1:].lower()
@@ -3147,24 +3155,32 @@ class ContactImport(SmartModel):
         except StopIteration:
             raise ValidationError(_("Import file appears to be empty"))
 
-        num_rows = 0
-        for row in data:
-            num_rows += 1
+        if any([h.strip() == "" for h in headers]):
+            raise ValidationError(_("Import file contains an empty header"))
 
-        if num_rows > ContactImport.MAX_ROWS:
-            raise ValidationError(
-                _("Import files can contain a maximum of %(max)d records"), params={"max": ContactImport.MAX_ROWS}
-            )
+        # iterate over rest of the rows to check if we exceed record limit
+        num_records = 0
+        for row in data:
+            num_records += 1
+            if num_records > ContactImport.MAX_RECORDS:
+                raise ValidationError(
+                    _("Import files can contain a maximum of %(max)d records"),
+                    params={"max": ContactImport.MAX_RECORDS},
+                )
+
+        if num_records == 0:
+            raise ValidationError(_("Import file doesn't contain any records"))
 
         file.seek(0)  # seek back to beginning so subsequent reads work
-        return cls.extract_mappings_from_headers(org, headers)
+
+        return headers, cls.extract_mappings_from_headers(org, headers), num_records
 
     @classmethod
     def extract_mappings_from_headers(cls, org, headers: List[str]) -> Dict:
         valid_schemes = {c[0] for c in URN_SCHEME_CONFIG}
         valid_fields = {f.key: f for f in org.contactfields.filter(is_active=True)}
 
-        mappings = OrderedDict()
+        mappings = {}
 
         for header in headers:
             header_prefix, header_name = cls.parse_header(header)
@@ -3191,7 +3207,7 @@ class ContactImport(SmartModel):
                     else:
                         raise ValidationError(_("%(name)s is not a valid field name"), params={"name": header_name})
             else:
-                mapping = {"type": "ignore"}
+                mapping = ContactImport.MAPPING_IGNORE
 
             mappings[header] = mapping
 
@@ -3207,29 +3223,93 @@ class ContactImport(SmartModel):
         prefix, name = (parts[0], parts[1]) if len(parts) >= 2 else ("", parts[0])
         return prefix, name
 
-    def extract_headers(self):
-        return pyexcel.get_array(file_stream=self.file, file_type=self._get_file_type(), start_row=0, row_limit=1)[0]
+    def start_async(self):
+        from .tasks import import_contacts_task
+
+        on_transaction_commit(lambda: import_contacts_task.delay(self.id))
 
     def start(self):
-        # TODO create new fields
+        assert self.started_on is None, "trying to start an already started import"
 
-        data = pyexcel.iget_array(file_stream=self.file, file_type=self._get_file_type())
-        headers = next(data)
+        # mark us as started to prevent double starting
+        self.started_on = timezone.now()
+        self.save(update_fields=("started_on",))
 
-        record_num = 1
+        # create new contact fields as necessary
+        for mapping in self.mappings.values():
+            if mapping["type"] == "new_field":
+                ContactField.get_or_create(
+                    self.org, self.created_by, mapping["key"], label=mapping["name"], value_type=mapping["value_type"],
+                )
+
+        # parse each row, creating batch tasks for mailroom
+        data = pyexcel.iget_array(file_stream=self.file, file_type=self._get_file_type(), start_row=1)
+
+        record_num = 0
         for row_batch in chunk_list(data, ContactImport.BATCH_SIZE):
             batch_specs = []
             batch_start = record_num
 
             for row in row_batch:
-                record = dict(zip(headers, row))
+                record = dict(zip(self.headers, row))
                 batch_specs.append(self._parse_spec(record))
                 record_num += 1
 
             self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num)
 
-    def is_started(self) -> bool:
-        return self.batches.exists()
+    def get_status(self):
+        assert self.started_on is not None, "trying to get status of an import which hasn't been started"
+
+        statuses = set()
+        num_created = 0
+        num_updated = 0
+        errors = []
+        oldest_finished_on = None
+
+        for batch in self.batches.defer("specs"):
+            statuses.add(batch.status)
+            num_created += batch.num_created
+            num_updated += batch.num_updated
+            errors.extend(batch.errors)
+
+            if batch.finished_on and (oldest_finished_on is None or batch.finished_on > oldest_finished_on):
+                oldest_finished_on = batch.finished_on
+
+        status = self._get_overall_status(statuses)
+
+        # sort errors by record #
+        errors = sorted(errors, key=lambda e: e["record"])
+
+        if status in (ContactImport.STATUS_COMPLETE, ContactImport.STATUS_FAILED):
+            time_taken = oldest_finished_on - self.started_on
+        else:
+            time_taken = timezone.now() - self.started_on
+
+        return {
+            "status": status,
+            "num_created": num_created,
+            "num_updated": num_updated,
+            "errors": errors,
+            "time_taken": int(time_taken.total_seconds()),
+        }
+
+    def _get_overall_status(self, statuses: Set) -> str:
+        """
+        Merges the statues from the import's batches into a single status value
+        """
+        # if there's only one status then we're that
+        if len(statuses) == 1:
+            return list(statuses)[0]
+
+        # if any batches haven't finished, we're processing
+        if ContactImport.STATUS_PENDING in statuses or ContactImport.STATUS_PROCESSING in statuses:
+            return ContactImport.STATUS_PROCESSING
+
+        # all batches have finished - if any batch failed (shouldn't happen), we failed
+        if ContactImport.STATUS_FAILED in statuses:
+            return ContactImport.STATUS_FAILED
+
+        return ContactImport.STATUS_COMPLETE
 
     def _get_file_type(self):
         """
@@ -3260,21 +3340,19 @@ class ContactImport(SmartModel):
 
 
 class ContactImportBatch(models.Model):
-    STATUS_PENDING = "P"
-    STATUS_PROCESSING = "O"
-    STATUS_COMPLETE = "C"
-    STATUS_FAILED = "F"
+    """
+    A batch of contact records to be handled by mailroom
+    """
+
     STATUS_CHOICES = (
-        (STATUS_PENDING, "Pending"),
-        (STATUS_PROCESSING, "Processing"),
-        (STATUS_COMPLETE, "Complete"),
-        (STATUS_FAILED, "Failed"),
+        (ContactImport.STATUS_PENDING, "Pending"),
+        (ContactImport.STATUS_PROCESSING, "Processing"),
+        (ContactImport.STATUS_COMPLETE, "Complete"),
+        (ContactImport.STATUS_FAILED, "Failed"),
     )
 
     contact_import = models.ForeignKey(ContactImport, on_delete=models.PROTECT, related_name="batches")
-
-    status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
-
+    status = models.CharField(max_length=1, default=ContactImport.STATUS_PENDING, choices=STATUS_CHOICES)
     specs = JSONField()
 
     # the range of records from the entire import contained in this batch
@@ -3284,8 +3362,8 @@ class ContactImportBatch(models.Model):
     # results written by mailroom after processing this batch
     num_created = models.IntegerField(default=0)
     num_updated = models.IntegerField(default=0)
-    time_taken = models.IntegerField(null=True)  # how long this batch took to insert in milliseconds
-    errors = JSONField(null=True)
+    errors = JSONField(default=list)
+    finished_on = models.DateTimeField(null=True)
 
 
 @register_asset_store

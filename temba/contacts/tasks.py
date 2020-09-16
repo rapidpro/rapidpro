@@ -13,7 +13,7 @@ from celery.task import task
 from temba.utils import chunk_list
 from temba.utils.celery import nonoverlapping_task
 
-from .models import Contact, ContactGroup, ContactGroupCount, ExportContactsTask
+from .models import Contact, ContactGroup, ContactGroupCount, ContactImport, ExportContactsTask
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,14 @@ def release_contacts(user_id, contact_ids):
         batch = Contact.objects.filter(id__in=id_batch, is_active=True).prefetch_related("urns")
         for contact in batch:
             contact.release(user)
+
+
+@task(track_started=True)
+def import_contacts_task(import_id):
+    """
+    Import contacts from a spreadsheet
+    """
+    ContactImport.objects.get(id=import_id).start()
 
 
 @task(track_started=True, name="export_contacts_task")

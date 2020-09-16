@@ -3,6 +3,7 @@ import time
 import uuid
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from io import StringIO
 from unittest.mock import PropertyMock, call, patch
 
 import pytz
@@ -11,6 +12,7 @@ from smartmin.csv_imports.models import ImportTask
 from smartmin.models import SmartImportRowError
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
@@ -35,7 +37,15 @@ from temba.mailroom import MailroomException, modifiers
 from temba.msgs.models import Broadcast, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, ESMockWithScroll, TembaNonAtomicTest, TembaTest, mock_mailroom
+from temba.tests import (
+    AnonymousOrg,
+    CRUDLTestMixin,
+    ESMockWithScroll,
+    TembaNonAtomicTest,
+    TembaTest,
+    matchers,
+    mock_mailroom,
+)
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -7554,32 +7564,76 @@ class ESIntegrationTest(TembaNonAtomicTest):
 class ContactImportTest(TembaTest):
     def create_import(self, path):
         with open(path, "rb") as f:
-            mappings = ContactImport.validate_file(self.org, f, path)
+            headers, mappings, num_records = ContactImport.try_to_parse(self.org, f, path)
             return ContactImport.objects.create(
                 org=self.org,
                 file=SimpleUploadedFile(f.name, f.read()),
+                headers=headers,
                 mappings=mappings,
+                num_records=num_records,
                 created_by=self.admin,
                 modified_by=self.admin,
             )
 
-    def test_start(self):
+    @patch("temba.contacts.models.ContactImport.MAX_RECORDS", 2)
+    def test_parse_errors(self):
+        # try to open an import that is completely empty
+        with self.assertRaisesRegexp(ValidationError, "Import file appears to be empty"):
+            ContactImport.try_to_parse(self.org, StringIO(""), "foo.csv")
+
+        # try to open an import that contains headers but no records
+        with open("media/test_imports/empty.csv", "r") as f:
+            with self.assertRaisesRegexp(ValidationError, "Import file doesn't contain any records"):
+                ContactImport.try_to_parse(self.org, f, "empty.csv")
+
+        def try_to_parse_excel(path):
+            with open(path, "rb") as f:
+                ContactImport.try_to_parse(self.org, f, path)
+
+        # try to open an import that exceeds the record limit
+        with self.assertRaisesRegexp(ValidationError, "Import files can contain a maximum of 2 records"):
+            try_to_parse_excel("media/test_imports/sample_contacts.xlsx")
+
+        # try to open an Excel file with an empty header
+        with self.assertRaisesRegexp(ValidationError, "Import file contains an empty header"):
+            try_to_parse_excel("media/test_imports/sample_contacts_missing_phone_header.xls")
+
+    def test_extract_mappings(self):
         imp = self.create_import("media/test_imports/sample_contacts.xlsx")
-        imp.refresh_from_db()
-        self.assertFalse(imp.is_started())
-        self.assertEqual(["URN:Tel", "name"], imp.extract_headers())
+        self.assertEqual(3, imp.num_records)
+        self.assertEqual(["URN:Tel", "name"], imp.headers)
         self.assertEqual(
             {"URN:Tel": {"type": "scheme", "scheme": "tel"}, "name": {"type": "attribute", "name": "name"}},
             imp.mappings,
         )
 
+        imp = self.create_import("media/test_imports/sample_contacts_twitter_and_phone.xls")
+        self.assertEqual(["URN:Tel", "name", "URN:Twitter"], imp.headers)
+        self.assertEqual(
+            {
+                "URN:Tel": {"type": "scheme", "scheme": "tel"},
+                "name": {"type": "attribute", "name": "name"},
+                "URN:Twitter": {"type": "scheme", "scheme": "twitter"},
+            },
+            imp.mappings,
+        )
+
+        imp = self.create_import("media/test_imports/sample_contacts_missing_name_header.xls")
+        self.assertEqual(["URN:Tel"], imp.headers)
+        self.assertEqual({"URN:Tel": {"type": "scheme", "scheme": "tel"}}, imp.mappings)
+
+    def test_batches(self):
+        imp = self.create_import("media/test_imports/sample_contacts.xlsx")
+        self.assertEqual(3, imp.num_records)
+        self.assertIsNone(imp.started_on)
+
         imp.start()
         batches = list(imp.batches.order_by("id"))
 
-        self.assertTrue(imp.is_started())
+        self.assertIsNotNone(imp.started_on)
         self.assertEqual(1, len(batches))
-        self.assertEqual(1, batches[0].record_start)
-        self.assertEqual(4, batches[0].record_end)
+        self.assertEqual(0, batches[0].record_start)
+        self.assertEqual(3, batches[0].record_end)
         self.assertEqual(
             [
                 {
@@ -7609,3 +7663,155 @@ class ContactImportTest(TembaTest):
             ],
             batches[0].specs,
         )
+
+        # records are batched if they exceed batch size
+        with patch("temba.contacts.models.ContactImport.BATCH_SIZE", 2):
+            imp = self.create_import("media/test_imports/sample_contacts.xlsx")
+            imp.start()
+
+        batches = list(imp.batches.order_by("id"))
+        self.assertEqual(2, len(batches))
+        self.assertEqual(0, batches[0].record_start)
+        self.assertEqual(2, batches[0].record_end)
+        self.assertEqual(2, batches[1].record_start)
+        self.assertEqual(3, batches[1].record_end)
+
+        # status is calculated across all batches
+        self.assertEqual(
+            {"status": "P", "num_created": 0, "num_updated": 0, "errors": [], "time_taken": matchers.Int()},
+            imp.get_status(),
+        )
+
+        # simulate mailroom starting to process first batch
+        imp.batches.filter(id=batches[0].id).update(
+            status="O", num_created=2, num_updated=1, errors=[{"record": 1, "message": "that's wrong"}]
+        )
+
+        self.assertEqual(
+            {
+                "status": "O",
+                "num_created": 2,
+                "num_updated": 1,
+                "errors": [{"record": 1, "message": "that's wrong"}],
+                "time_taken": matchers.Int(),
+            },
+            imp.get_status(),
+        )
+
+        # simulate mailroom completing first batch, starting second
+        imp.batches.filter(id=batches[0].id).update(status="C", finished_on=timezone.now())
+        imp.batches.filter(id=batches[1].id).update(
+            status="O", num_created=3, num_updated=5, errors=[{"record": 3, "message": "that's not right"}]
+        )
+
+        self.assertEqual(
+            {
+                "status": "O",
+                "num_created": 5,
+                "num_updated": 6,
+                "errors": [{"record": 1, "message": "that's wrong"}, {"record": 3, "message": "that's not right"}],
+                "time_taken": matchers.Int(),
+            },
+            imp.get_status(),
+        )
+
+        # simulate mailroom completing second batch
+        imp.batches.filter(id=batches[1].id).update(status="C", finished_on=timezone.now())
+
+        self.assertEqual(
+            {
+                "status": "C",
+                "num_created": 5,
+                "num_updated": 6,
+                "errors": [{"record": 1, "message": "that's wrong"}, {"record": 3, "message": "that's not right"}],
+                "time_taken": matchers.Int(),
+            },
+            imp.get_status(),
+        )
+
+        # if a batch failed.. we all failed
+        imp.batches.filter(id=batches[1].id).update(status="F")
+
+        self.assertEqual("F", imp.get_status()["status"])
+
+
+class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
+    def create_import(self, path):
+        with open(path, "rb") as f:
+            headers, mappings, num_records = ContactImport.try_to_parse(self.org, f, path)
+            return ContactImport.objects.create(
+                org=self.org,
+                file=SimpleUploadedFile(f.name, f.read()),
+                headers=headers,
+                mappings=mappings,
+                num_records=num_records,
+                created_by=self.admin,
+                modified_by=self.admin,
+            )
+
+    def test_create_and_preview(self):
+        create_url = reverse("contacts.contactimport_create")
+
+        # can't access as viewer
+        self.login(self.user)
+        self.assertLoginRedirect(self.client.get(create_url))
+
+        # can as editor
+        self.login(self.editor)
+        response = self.client.get(create_url)
+        self.assertEqual(["file", "loc"], list(response.context["form"].fields.keys()))
+
+        # try posting with nothing
+        response = self.client.post(create_url, {})
+        self.assertFormError(response, "form", "file", "This field is required.")
+
+        def upload(path):
+            with open(path, "rb") as f:
+                return SimpleUploadedFile(path, content=f.read())
+
+        # try uploading an empty CSV file
+        response = self.client.post(create_url, {"file": upload("media/test_imports/empty.csv")})
+        self.assertFormError(response, "form", "file", "Import file doesn't contain any records")
+
+        # try uploading a valid XLSX file
+        response = self.client.post(create_url, {"file": upload("media/test_imports/sample_contacts.xlsx")})
+        self.assertEqual(302, response.status_code)
+
+        imp = ContactImport.objects.get()
+        self.assertEqual(3, imp.num_records)
+        self.assertIsNone(imp.started_on)
+
+        preview_url = reverse("contacts.contactimport_preview", args=[imp.id])
+        read_url = reverse("contacts.contactimport_read", args=[imp.id])
+
+        self.assertEqual(preview_url, response.url)
+
+        # can't access read URL yet.. will be redirected back to preview
+        response = self.client.get(read_url)
+        self.assertEqual(302, response.status_code)
+        self.assertEqual(preview_url, response.url)
+
+        response = self.client.get(preview_url)
+        self.assertContains(response, "URN:Tel")
+        self.assertContains(response, "name")
+
+        response = self.client.post(preview_url, {})
+        self.assertEqual(302, response.status_code)
+        self.assertEqual(read_url, response.url)
+
+        imp.refresh_from_db()
+        self.assertIsNotNone(imp.started_on)
+
+        # can no longer access preview URL.. will be redirected to read
+        response = self.client.get(preview_url)
+        self.assertEqual(302, response.status_code)
+        self.assertEqual(read_url, response.url)
+
+    @patch("temba.contacts.models.ContactImport.BATCH_SIZE", 2)
+    def test_read(self):
+        imp = self.create_import("media/test_imports/sample_contacts.xlsx")
+        imp.start()
+
+        read_url = reverse("contacts.contactimport_read", args=[imp.id])
+
+        self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=imp)
