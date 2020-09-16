@@ -108,4 +108,5 @@ def suspend_topup_orgs_task():
     for org in Org.objects.filter(plan=settings.TOPUP_PLAN, is_active=True, is_suspended=False):
         if org.get_credits_remaining() <= 0:
             org.is_suspended = True
-            org.save(update_fields=["is_suspended"])
+            org.plan_end = timezone.now()
+            org.save(update_fields=["is_suspended", "plan_end"])

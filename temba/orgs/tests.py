@@ -1729,6 +1729,7 @@ class OrgTest(TembaTest):
         suspend_topup_orgs_task()
         self.org.refresh_from_db()
         self.assertTrue(self.org.is_suspended)
+        self.assertTrue(timezone.now() - self.org.plan_end < timedelta(seconds=10))
 
         # raise our topup to take 20 and create another for 5
         TopUp.objects.filter(pk=welcome_topup.pk).update(credits=20)
