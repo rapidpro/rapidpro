@@ -7,7 +7,7 @@
   .title
     -trans "Send URL"
 
-  .code.inline-block.mt-3
+  .code.inline-block.m-0
     {{ channel.config.send_url }}
 
   .my-4
@@ -17,17 +17,16 @@
     -blocktrans trimmed
       to this URL with the parameters 'text', 'to', 'from', 'channel' and 'id'
 
-  .bleed-x.bleed-b.text-white.bg-black
-    .cap-label.-mt-2.mb-2.text-gray-600
+  .bleed-x.bleed-b.text-white.bg-black.p-6
+    .cap-label.mb-2.text-gray-600
       -trans "Example"
 
-    .code.p-0.break-all.text-white.bg-black<
-      %b
-        {{ channel.config.method }}
+    .code.break-all.text-white.bg-black.p-0.m-0.whitespace-normal<
+      {{ channel.config.method }}
       {{ example_url }}
 
       -if channel.config.method == "POST"
-        .mt-3.text-gray-400
+        .mt-2.text-gray-400
           {{ example_body }}
 
 
@@ -35,7 +34,7 @@
   .card.mt-6
     .title
       -trans "Received URL"
-    .code.inline-block.mt-3
+    .code.inline-block.m-0
       https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'receive' %}
 
     .my-4
@@ -44,22 +43,20 @@
         the following parameters: 'from' and 'text'. Callers can optionally also send a 'date' parameter in ISO-8601
         (ex: 2012-04-23T18:25:43.511Z) format to specify the time the message was received.
 
-    .bleed-x.bleed-b.text-white.bg-black
-      .cap-label.-mt-2.mb-2.text-gray-600
+    .bleed-x.bleed-b.text-white.bg-black.p-6
+      .cap-label.mb-2.text-gray-600
         -trans "Example"
 
-      .code.p-0.break-all.bg-black.text-white<
-        %b    
-          POST 
-        https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'receive' %}
+      .code.break-all.bg-black.text-white.p-0.m-0.whitespace-normal<
+        POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'receive' %}
       
-        .mt-3.text-gray-400
+        .mt-2.text-gray-400.break-all
           from=%2B250788123123&text=Love+is+patient.+Love+is+kind.&date=2012-04-23T18:25:43.511Z
 
   .card.mt-6
     .title
       -trans "Sent URL"
-    .code.inline-block.mt-3
+    .code.inline-block.m-0
       https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'sent' %}
 
     .my-4
@@ -67,23 +64,21 @@
         When your service successfully sends a message, it should notify us with a POST to the following URL, passing
         the id of the message as the parameter 'id' (reporting sent messages is optional)
 
-    .cap-label
-      -trans "Example"
+    .bleed-x.bleed-b.text-white.bg-black.p-6
+      .cap-label.mb-2.text-gray-600
+        -trans "Example"
 
-    .bleed-x.bleed-b.text-white.bg-black
-      .code.p-0.break-all.bg-black.text-white<
-        %b    
-          POST
-        https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'sent' %}
+      .code.break-all.bg-black.text-white.p-0.m-0.whitespace-normal<
+        POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'sent' %}
         
-        .mt-3.text-gray-400
+        .mt-2.text-gray-400
           id=2599235
 
 
   .card.mt-6
     .title
       -trans "Delivered URL"
-    .code.inline-block.mt-3
+    .code.inline-block.m-0
       https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'delivered' %}
 
     .my-4
@@ -91,19 +86,20 @@
         When your service successfully delivers a message, it should notify us with a POST to the following URL, passing
         the id of the message as the parameter 'id' (reporting deliveries is optional)
 
-    .bleed-x.bleed-b.text-white.bg-black
-      .code.p-0.break-all.bg-black.text-white<
-        %b    
-          POST 
-        https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'delivered' %}
+    .bleed-x.bleed-b.text-white.bg-black.p-6
+      .cap-label.mb-2.text-gray-600
+        -trans "Example"
+
+      .code.break-all.bg-black.text-white.p-0.m-0.whitespace-normal<
+        POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'delivered' %}
     
-        .mt-3.text-gray-400  
+        .mt-2.text-gray-400
           id=2599235
 
   .card.mt-6
     .title
       -trans "Failed URL"
-    .code.inline-block.mt-3
+    .code.inline-block.m-0
       https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'failed' %}
 
     .my-4
@@ -111,20 +107,21 @@
         If your service fails to send an outgoing message, it should notify us with a POST to the following URL, passing
         the id of the message as the parameter 'id' (reporting failed sends is optional)
 
-    .bleed-x.bleed-b.text-white.bg-black
-      .code.p-0.break-all.bg-black.text-white<
-        %b    
-          POST 
-        https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'failed' %}
+    .bleed-x.bleed-b.text-white.bg-black.p-6
+      .cap-label.mb-2.text-gray-600
+        -trans "Example"
 
-        .mt-3.text-gray-400
+      .code.break-all.bg-black.text-white.p-0.m-0.whitespace-normal<
+        POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'failed' %}
+
+        .mt-2.text-gray-400
           id=2599235
 
   .card.mt-6
     .title
       -trans "Contact Opt out/Stopped URL"
   
-    .code.inline-block.mt-3
+    .code.inline-block.m-0
       https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'stopped' %}
 
     .my-4
@@ -132,11 +129,12 @@
         If this channel provides a way for contacts to opt out and stop receiving messages,
         the service should notify us with a POST to the following URL, passing the phone number as the parameter "from"
 
-    .bleed-x.bleed-b.text-white.bg-black
-      .code.p-0.break-all.bg-black.text-white<
-        %b    
-          POST 
-        https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'stopped' %}
+    .bleed-x.bleed-b.text-white.bg-black.p-6
+      .cap-label.mb-2.text-gray-600
+        -trans "Example"
+
+      .code.break-all.bg-black.text-white.p-0.m-0.whitespace-normal<
+        POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'stopped' %}
     
-        .mt-3.text-gray-400
+        .mt-2.text-gray-400
           from=%2B250788123123
