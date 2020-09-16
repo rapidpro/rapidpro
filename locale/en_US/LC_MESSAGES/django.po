@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-06 22:47+0000\n"
+"POT-Creation-Date: 2020-09-15 21:00+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3150,10 +3150,10 @@ msgstr ""
 msgid "This flow is already being started, please wait until that process is complete before starting more contacts."
 msgstr ""
 
-msgid "Sorry, your account is currently suspended. To enable starting flows, please contact support."
+msgid "Sorry, your workspace is currently suspended. To enable starting flows, please contact support."
 msgstr ""
 
-msgid "Sorry, your account is currently flagged. To enable starting flows, please contact support."
+msgid "Sorry, your workspace is currently flagged. To enable starting flows, please contact support."
 msgstr ""
 
 msgid "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who have not sent an incoming message in the last 24 hours may not receive it."
@@ -3462,10 +3462,10 @@ msgstr ""
 msgid "At least one recipient is required"
 msgstr ""
 
-msgid "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+msgid "Sorry, your workspace is currently suspended. To enable sending messages, please contact support."
 msgstr ""
 
-msgid "Sorry, your account is currently flagged. To enable sending messages, please contact support."
+msgid "Sorry, your workspace is currently flagged. To enable sending messages, please contact support."
 msgstr ""
 
 msgid "Inbox"
@@ -7154,6 +7154,9 @@ msgid "recipients at this point in the flow"
 msgstr ""
 
 msgid "Sending.."
+msgstr ""
+
+msgid "Your workspace is suspended and no longer processing messages."
 msgstr ""
 
 #, python-format

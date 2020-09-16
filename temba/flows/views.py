@@ -2217,14 +2217,14 @@ class FlowCRUDL(SmartCRUDL):
                 if self.flow.org.is_suspended:
                     raise ValidationError(
                         _(
-                            "Sorry, your account is currently suspended. "
+                            "Sorry, your workspace is currently suspended. "
                             "To enable starting flows, please contact support."
                         )
                     )
                 if self.flow.org.is_flagged:
                     raise ValidationError(
                         _(
-                            "Sorry, your account is currently flagged. To enable starting flows, please contact support."
+                            "Sorry, your workspace is currently flagged. To enable starting flows, please contact support."
                         )
                     )
 

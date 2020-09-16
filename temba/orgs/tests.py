@@ -802,7 +802,7 @@ class OrgTest(TembaTest):
             response,
             "form",
             "__all__",
-            "Sorry, your account is currently flagged. To enable sending messages, please contact support.",
+            "Sorry, your workspace is currently flagged. To enable sending messages, please contact support.",
         )
 
         # we also can't start flows
@@ -811,20 +811,20 @@ class OrgTest(TembaTest):
             response,
             "form",
             "__all__",
-            "Sorry, your account is currently flagged. To enable starting flows, please contact support.",
+            "Sorry, your workspace is currently flagged. To enable starting flows, please contact support.",
         )
 
         response = send_broadcast_via_api()
         self.assertContains(
             response,
-            "Sorry, your account is currently flagged. To enable sending messages, please contact support.",
+            "Sorry, your workspace is currently flagged. To enable sending messages, please contact support.",
             status_code=400,
         )
 
         response = start_flow_via_api()
         self.assertContains(
             response,
-            "Sorry, your account is currently flagged. To enable sending messages, please contact support.",
+            "Sorry, your workspace is currently flagged. To enable sending messages, please contact support.",
             status_code=400,
         )
 
@@ -838,7 +838,7 @@ class OrgTest(TembaTest):
             response,
             "form",
             "__all__",
-            "Sorry, your account is currently suspended. To enable sending messages, please contact support.",
+            "Sorry, your workspace is currently suspended. To enable sending messages, please contact support.",
         )
 
         # we also can't start flows
@@ -847,22 +847,26 @@ class OrgTest(TembaTest):
             response,
             "form",
             "__all__",
-            "Sorry, your account is currently suspended. To enable starting flows, please contact support.",
+            "Sorry, your workspace is currently suspended. To enable starting flows, please contact support.",
         )
 
         response = send_broadcast_via_api()
         self.assertContains(
             response,
-            "Sorry, your account is currently suspended. To enable sending messages, please contact support.",
+            "Sorry, your workspace is currently suspended. To enable sending messages, please contact support.",
             status_code=400,
         )
 
         response = start_flow_via_api()
         self.assertContains(
             response,
-            "Sorry, your account is currently suspended. To enable sending messages, please contact support.",
+            "Sorry, your workspace is currently suspended. To enable sending messages, please contact support.",
             status_code=400,
         )
+
+        # check our inbox page
+        response = self.client.get(reverse("msgs.msg_inbox"))
+        self.assertContains(response, "Your workspace is suspended")
 
         # still no messages or flow starts
         self.assertEqual(Msg.objects.all().count(), 0)
