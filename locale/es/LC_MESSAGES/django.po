@@ -6341,6 +6341,14 @@ msgstr "Crear activadores"
 msgid "Create Schedule"
 msgstr "Crear cronograma"
 
+#, fuzzy
+#| msgid "Account Key"
+msgid "Backup Token"
+msgstr "Clave de la cuenta"
+
+msgid "Enter one of the tokens generated when activating the two-factor login"
+msgstr ""
+
 msgid "Processing"
 msgstr ""
 
@@ -13025,6 +13033,11 @@ msgstr "Crear una palabra clave de mensaje de texto para que las personas puedan
 
 msgid "Start a flow in the future or on a schedule."
 msgstr "Empezar un flujo en el futuro o en un horario."
+
+#, fuzzy
+#| msgid "Account Key"
+msgid "Backup Tokens"
+msgstr "Clave de la cuenta"
 
 #, fuzzy
 #| msgid "Enter Claim Code"

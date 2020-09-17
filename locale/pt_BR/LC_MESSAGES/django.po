@@ -6003,6 +6003,13 @@ msgstr "Criar disparador"
 msgid "Create Schedule"
 msgstr "Criar agendamento"
 
+#, fuzzy
+msgid "Backup Token"
+msgstr "Contas"
+
+msgid "Enter one of the tokens generated when activating the two-factor login"
+msgstr ""
+
 msgid "Processing"
 msgstr ""
 

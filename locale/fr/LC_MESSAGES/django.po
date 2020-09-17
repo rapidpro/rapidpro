@@ -5046,6 +5046,14 @@ msgstr "Créer un déclencheur de référence"
 msgid "Create Schedule"
 msgstr "Créer un planning"
 
+#, fuzzy
+#| msgid "Account Token"
+msgid "Backup Token"
+msgstr "Jeton de compte"
+
+msgid "Enter one of the tokens generated when activating the two-factor login"
+msgstr ""
+
 msgid "Processing"
 msgstr "En traitement"
 
@@ -11786,6 +11794,11 @@ msgstr "Créez un mot-clé de message permettant aux personnes de rejoindre un g
 
 msgid "Start a flow in the future or on a schedule."
 msgstr "Démarrer ultérieurement un flux ou de manière programmée."
+
+#, fuzzy
+#| msgid "Account Token"
+msgid "Backup Tokens"
+msgstr "Jeton de compte"
 
 msgid "Enter a query"
 msgstr "Entrez une requête"

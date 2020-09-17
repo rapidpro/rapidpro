@@ -1,0 +1,10 @@
+- extends 'smartmin/form.html'
+- load smartmin temba compress i18n
+
+-block form-span
+  span8
+
+- block form-buttons
+    {{block.super}}
+    %a.btn.btn-primary{href: '{% url "two_factor.token" %}'}
+        -trans "Back"

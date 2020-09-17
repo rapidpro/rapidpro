@@ -4565,6 +4565,12 @@ msgstr ""
 msgid "Create Schedule"
 msgstr ""
 
+msgid "Backup Token"
+msgstr ""
+
+msgid "Enter one of the tokens generated when activating the two-factor login"
+msgstr ""
+
 msgid "Processing"
 msgstr ""
 
@@ -9068,6 +9074,9 @@ msgid "Create a message keyword that allows people to join a group."
 msgstr ""
 
 msgid "Start a flow in the future or on a schedule."
+msgstr ""
+
+msgid "Backup Tokens"
 msgstr ""
 
 msgid "Enter a query"
