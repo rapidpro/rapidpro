@@ -30,6 +30,7 @@ from django.forms import Form
 from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.http import is_safe_url, urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from django.views import View
@@ -2296,7 +2297,7 @@ class ContactImportCRUDL(SmartCRUDL):
 
         form_class = Form
         success_url = "id@contacts.contactimport_read"
-        success_message = _("Your import has been started")
+        success_message = ""
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -2334,11 +2335,21 @@ class ContactImportCRUDL(SmartCRUDL):
             return obj
 
     class Read(OrgObjPermsMixin, SmartReadView):
-        refresh = 3000
+        def get_gear_links(self):
+            return [dict(title=_("Contacts"), style="button-light", href=reverse("contacts.contact_list"))]
 
-        def pre_process(self, request, *args, **kwargs):
-            obj = self.get_object()
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["info"] = self.import_info
+            context["is_finished"] = self.is_import_finished()
+            return context
 
-            # can't view an import which hasn't yet started
-            if not obj.started_on:
-                return HttpResponseRedirect(reverse("contacts.contactimport_preview", args=[obj.id]))
+        @cached_property
+        def import_info(self):
+            return self.get_object().get_info()
+
+        def is_import_finished(self):
+            return self.import_info["status"] in (ContactImport.STATUS_COMPLETE, ContactImport.STATUS_FAILED)
+
+        def derive_refresh(self):
+            return 0 if self.is_import_finished() else 3000

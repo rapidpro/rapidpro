@@ -9,6 +9,47 @@
     #pjax
       .card
         .bleed-x.bleed-t.bg-gray-100.px-6.py-4.text-xl
-          -trans "One moment.."
+          -if is_finished
+            -trans "All done!"
+          -else
+            -trans "One moment.."
 
-          %temba-loading(units=8 size=10)
+        .import-result.text-lg.mt-2
+          -if is_finished
+            .icon-checkmark.text-success.mr-2
+          -else
+            .icon-spinner.mr-2
+
+          -blocktrans trimmed count info.num_created as count
+            Created {{ count }} new contact
+            -plural
+              Created {{ count }} new contacts
+
+        .import-result.text-lg.mt-2
+          -if is_finished
+            .icon-checkmark.text-success.mr-2
+          -else
+            .icon-spinner.mr-2
+
+          -blocktrans trimmed count info.num_updated as count
+            Updated {{ count }} existing contact
+            -plural
+              Updated {{ count }} existing contacts
+
+        -if info.num_errored
+          .import-result.text-lg.mt-2
+            .icon-warning.text-error.mr-2
+            -blocktrans trimmed count info.num_errored as count
+              Ignored {{ count }} record because of errors
+              -plural
+                Ignored {{ count }} records because of errors
+
+        -if info.errors
+          .import-result.text-lg.mt-6
+            %strong
+              -trans "Errors"
+            .well.well-small.mb-0.mt-4
+              -for error in info.errors
+                .import-error
+                  -blocktrans trimmed with row=error.record|add:"2" message=error.message
+                    Row {{ row }}: {{ message }}

@@ -7676,10 +7676,17 @@ class ContactImportTest(TembaTest):
         self.assertEqual(2, batches[1].record_start)
         self.assertEqual(3, batches[1].record_end)
 
-        # status is calculated across all batches
+        # info is calculated across all batches
         self.assertEqual(
-            {"status": "P", "num_created": 0, "num_updated": 0, "errors": [], "time_taken": matchers.Int()},
-            imp.get_status(),
+            {
+                "status": "P",
+                "num_created": 0,
+                "num_updated": 0,
+                "num_errored": 0,
+                "errors": [],
+                "time_taken": matchers.Int(),
+            },
+            imp.get_info(),
         )
 
         # simulate mailroom starting to process first batch
@@ -7692,10 +7699,11 @@ class ContactImportTest(TembaTest):
                 "status": "O",
                 "num_created": 2,
                 "num_updated": 1,
+                "num_errored": 0,
                 "errors": [{"record": 1, "message": "that's wrong"}],
                 "time_taken": matchers.Int(),
             },
-            imp.get_status(),
+            imp.get_info(),
         )
 
         # simulate mailroom completing first batch, starting second
@@ -7709,10 +7717,11 @@ class ContactImportTest(TembaTest):
                 "status": "O",
                 "num_created": 5,
                 "num_updated": 6,
+                "num_errored": 0,
                 "errors": [{"record": 1, "message": "that's wrong"}, {"record": 3, "message": "that's not right"}],
                 "time_taken": matchers.Int(),
             },
-            imp.get_status(),
+            imp.get_info(),
         )
 
         # simulate mailroom completing second batch
@@ -7723,16 +7732,17 @@ class ContactImportTest(TembaTest):
                 "status": "C",
                 "num_created": 5,
                 "num_updated": 6,
+                "num_errored": 0,
                 "errors": [{"record": 1, "message": "that's wrong"}, {"record": 3, "message": "that's not right"}],
                 "time_taken": matchers.Int(),
             },
-            imp.get_status(),
+            imp.get_info(),
         )
 
         # if a batch failed.. we all failed
         imp.batches.filter(id=batches[1].id).update(status="F")
 
-        self.assertEqual("F", imp.get_status()["status"])
+        self.assertEqual("F", imp.get_info()["status"])
 
 
 class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -7784,11 +7794,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         preview_url = reverse("contacts.contactimport_preview", args=[imp.id])
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
 
-        self.assertEqual(preview_url, response.url)
-
-        # can't access read URL yet.. will be redirected back to preview
-        response = self.client.get(read_url)
-        self.assertEqual(302, response.status_code)
+        # will have been redirected to the preview view for the new import
         self.assertEqual(preview_url, response.url)
 
         response = self.client.get(preview_url)

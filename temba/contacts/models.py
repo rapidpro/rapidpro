@@ -3,6 +3,7 @@ import logging
 import os
 import time
 import uuid
+from datetime import timedelta
 from decimal import Decimal
 from itertools import chain
 from pathlib import Path
@@ -3257,12 +3258,11 @@ class ContactImport(SmartModel):
 
             self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num)
 
-    def get_status(self):
-        assert self.started_on is not None, "trying to get status of an import which hasn't been started"
-
+    def get_info(self):
         statuses = set()
         num_created = 0
         num_updated = 0
+        num_errored = 0
         errors = []
         oldest_finished_on = None
 
@@ -3270,6 +3270,7 @@ class ContactImport(SmartModel):
             statuses.add(batch.status)
             num_created += batch.num_created
             num_updated += batch.num_updated
+            num_errored += batch.num_errored
             errors.extend(batch.errors)
 
             if batch.finished_on and (oldest_finished_on is None or batch.finished_on > oldest_finished_on):
@@ -3282,13 +3283,16 @@ class ContactImport(SmartModel):
 
         if status in (ContactImport.STATUS_COMPLETE, ContactImport.STATUS_FAILED):
             time_taken = oldest_finished_on - self.started_on
-        else:
+        elif self.started_on:
             time_taken = timezone.now() - self.started_on
+        else:
+            time_taken = timedelta(seconds=0)
 
         return {
             "status": status,
             "num_created": num_created,
             "num_updated": num_updated,
+            "num_errored": num_errored,
             "errors": errors,
             "time_taken": int(time_taken.total_seconds()),
         }
@@ -3297,8 +3301,9 @@ class ContactImport(SmartModel):
         """
         Merges the statues from the import's batches into a single status value
         """
-        # if there's only one status then we're that
-        if len(statuses) == 1:
+        if not statuses:
+            return ContactImport.STATUS_PENDING
+        elif len(statuses) == 1:  # if there's only one status then we're that
             return list(statuses)[0]
 
         # if any batches haven't finished, we're processing
@@ -3362,6 +3367,7 @@ class ContactImportBatch(models.Model):
     # results written by mailroom after processing this batch
     num_created = models.IntegerField(default=0)
     num_updated = models.IntegerField(default=0)
+    num_errored = models.IntegerField(default=0)
     errors = JSONField(default=list)
     finished_on = models.DateTimeField(null=True)
 
