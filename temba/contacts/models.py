@@ -3188,13 +3188,16 @@ class ContactImport(SmartModel):
             if header in mappings:
                 raise ValidationError(_("Import header %(header)s occurs more than once"), params={"header": header})
 
-            if header_prefix == "" and header_name == "name":
-                mapping = {"type": "attribute", "name": "name"}
-            elif header_prefix == "" and header_name == "language":
-                mapping = {"type": "attribute", "name": "language"}
+            mapping = ContactImport.MAPPING_IGNORE
+
+            if header_prefix == "":
+                attribute = header_name.lower()
+                if attribute in ("name", "language"):
+                    mapping = {"type": "attribute", "name": attribute}
             elif header_prefix == "urn" and header_name:
-                if header_name in valid_schemes:
-                    mapping = {"type": "scheme", "scheme": header_name}
+                scheme = header_name.lower()
+                if scheme in valid_schemes:
+                    mapping = {"type": "scheme", "scheme": scheme}
                 else:
                     raise ValidationError(_("%(scheme)s is not a valid URN scheme"), params={"scheme": header_name})
             elif header_prefix == "field" and header_name:
@@ -3207,8 +3210,6 @@ class ContactImport(SmartModel):
                         mapping = {"type": "new_field", "key": field_key, "name": header_name, "value_type": "T"}
                     else:
                         raise ValidationError(_("%(name)s is not a valid field name"), params={"name": header_name})
-            else:
-                mapping = ContactImport.MAPPING_IGNORE
 
             mappings[header] = mapping
 
@@ -3217,12 +3218,12 @@ class ContactImport(SmartModel):
     @staticmethod
     def parse_header(header: str) -> Tuple[str, str]:
         """
-        Parses a header like "Field: Foo" into ("field", "foo")
+        Parses a header like "Field: Foo" into ("field", "Foo")
         """
-        parts = header.lower().split(":", maxsplit=1)
+        parts = header.split(":", maxsplit=1)
         parts = [p.strip() for p in parts]
         prefix, name = (parts[0], parts[1]) if len(parts) >= 2 else ("", parts[0])
-        return prefix, name
+        return prefix.lower(), name
 
     def start_async(self):
         from .tasks import import_contacts_task

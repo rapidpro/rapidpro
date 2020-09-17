@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-06 22:47+0000\n"
+"POT-Creation-Date: 2020-09-17 21:58+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2712,6 +2712,33 @@ msgstr "Уникальная группа для экспорта"
 msgid "The search query"
 msgstr "Поисковый запрос"
 
+msgid "Import file appears to be empty"
+msgstr ""
+
+msgid "Import file contains an empty header"
+msgstr ""
+
+#, python-format
+msgid "Import files can contain a maximum of %(max)d records"
+msgstr ""
+
+msgid "Import file doesn't contain any records"
+msgstr ""
+
+#, python-format
+msgid "Import header %(header)s occurs more than once"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "f'{val}' isn't a valid number"
+msgid "%(scheme)s is not a valid URN scheme"
+msgstr "f'{val}' не является действительным номером"
+
+#, fuzzy, python-format
+#| msgid "f'{val}' isn't a valid number"
+msgid "%(name)s is not a valid field name"
+msgstr "f'{val}' не является действительным номером"
+
 #, python-format
 msgid "Invalid query syntax at '%(token)s'"
 msgstr ""
@@ -2960,6 +2987,22 @@ msgstr "Обновить"
 
 msgid "Contact field uses"
 msgstr "Использование поля контактов"
+
+#, python-format
+msgid "Field name for '%(header)s' can't be empty."
+msgstr ""
+
+#, python-format
+msgid "Field name for '%(header)s' matches an existing field."
+msgstr ""
+
+#, python-format
+msgid "Field name for '%(header)s' is invalid or a reserved word."
+msgstr ""
+
+#, python-format
+msgid "Field name '%(name)s' is repeated."
+msgstr ""
 
 msgid "Message flow"
 msgstr "Поток сообщений"
@@ -7796,6 +7839,108 @@ msgstr "Вы собираетесь удалить <span class='group_name'> %(o
 msgid "Show Contacts"
 msgstr "Показать Контакты"
 
+#, fuzzy
+#| msgid "You can import your contacts from an XLS file you create in Excel."
+msgid "You can import your contacts from an XLSX file you create in Excel."
+msgstr "Вы можете импортировать свои контакты из XLS файла, который Вы создадите в Excel."
+
+msgid "Columns starting with the prefix <i>Group:</i> are ignored"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "                  You can download\n"
+#| "                  <a href='%(STATIC_URL)sexamples/contacts.xls'>this Excel template</a>\n"
+#| "                  as a sample.\n"
+#| "                "
+msgid "You can download <a href=\"%(sample_url)s\">this Excel template</a> as a sample."
+msgstr ""
+"\n"
+"                  Вы можете скачать\n"
+"                  <a href='%(STATIC_URL)sexamples/contacts.xls'>этот шаблон Excel</a>\n"
+"                  в качестве образца.\n"
+"                "
+
+#, fuzzy
+#| msgid "view"
+msgid "Preview"
+msgstr "вид"
+
+#, fuzzy
+#| msgid "Create Contact Group"
+msgid "Preview Contact Import"
+msgstr "Создать Группу Контактов"
+
+#, python-format
+msgid "This import file contains <strong>%(count)s</strong> records. Headers that didn't match existing fields can be ignored or added as new custom fields by editing them below."
+msgstr ""
+
+msgid "will be ignored"
+msgstr ""
+
+#, fuzzy
+#| msgid "has"
+msgid "as"
+msgstr "содержит"
+
+#, fuzzy
+#| msgid "No fields"
+msgid "new field"
+msgstr "Нет полей"
+
+msgid "of type"
+msgstr ""
+
+#, fuzzy
+#| msgid "field in"
+msgid "field"
+msgstr "поле в"
+
+#, python-format
+msgid "a <strong>%(scheme)s</strong> URN"
+msgstr ""
+
+#, fuzzy
+#| msgid "Contact"
+msgid "Contact Import"
+msgstr "Контакт"
+
+#, fuzzy, python-format
+#| msgid "Create a contact "
+msgid "Created %(count)s new contact"
+msgid_plural "Created %(count)s new contacts"
+msgstr[0] "Создать контакт"
+msgstr[1] "Создать контакт"
+msgstr[2] "Создать контакт"
+msgstr[3] "Создать контакт"
+
+#, fuzzy, python-format
+#| msgid "Create a contact "
+msgid "Updated %(count)s existing contact"
+msgid_plural "Updated %(count)s existing contacts"
+msgstr[0] "Создать контакт"
+msgstr[1] "Создать контакт"
+msgstr[2] "Создать контакт"
+msgstr[3] "Создать контакт"
+
+#, python-format
+msgid "Ignored %(count)s record because of errors"
+msgid_plural "Ignored %(count)s records because of errors"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+msgstr[3] ""
+
+#, fuzzy
+#| msgid "Error"
+msgid "Errors"
+msgstr "Ошибка "
+
+#, python-format
+msgid "Row %(row)s: %(message)s"
+msgstr ""
+
 msgid "Hi there!"
 msgstr "Приветствую!"
 
@@ -12110,9 +12255,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Your Contacts"
 #~ msgstr "Ваши Контакты"
 
-#~ msgid "view"
-#~ msgstr "вид"
-
 #~ msgid "How to Build Flows"
 #~ msgstr "Как создавать потоки"
 
@@ -12313,9 +12455,6 @@ msgstr "Найдено ${count} по ${query}"
 
 #~ msgid "Update Contact Group"
 #~ msgstr "Обновить Группу Контактов"
-
-#~ msgid "Create Contact Group"
-#~ msgstr "Создать Группу Контактов"
 
 #~ msgid "Save Search as Group"
 #~ msgstr "Сохранить Поиск как Группу"

@@ -2220,9 +2220,6 @@ class ContactImportCRUDL(SmartCRUDL):
                 self.org = org
                 super().__init__(*args, **kwargs)
 
-                org_fields = ContactField.user_fields.active_for_org(org=org).order_by("label")
-                name_choices = [(f.label, f.label) for f in org_fields]
-
                 self.columns = []
                 for i, header in enumerate(self.instance.headers):
                     mapping = self.instance.mappings[header]
@@ -2234,11 +2231,8 @@ class ContactImportCRUDL(SmartCRUDL):
                         include_field = forms.BooleanField(
                             label=" ", required=False, initial=True, widget=CheckboxWidget(attrs={"widget_only": True})
                         )
-                        name_field = ArbitraryChoiceField(
-                            initial=field_name,
-                            choices=name_choices,
-                            required=False,
-                            widget=SelectWidget(attrs={"widget_only": True, "searchable": True, "tags": True}),
+                        name_field = forms.CharField(
+                            label=" ", initial=field_name, required=False, widget=InputWidget(),
                         )
                         value_type_field = forms.ChoiceField(
                             label=" ",
@@ -2261,35 +2255,54 @@ class ContactImportCRUDL(SmartCRUDL):
 
                     self.columns.append(column)
 
+            def get_data_by_header(self):
+                """
+                Gather form data into a map organized by header
+                """
+                data = {}
+                for i, header in enumerate(self.instance.headers):
+                    data[header] = {
+                        "include": self.cleaned_data.get(f"column_{i}_include", True),
+                        "name": self.cleaned_data.get(f"column_{i}_name", "").strip(),
+                        "value_type": self.cleaned_data.get(f"column_{i}_value_type", Value.TYPE_TEXT),
+                    }
+                return data
+
             def clean(self):
-                used_names = set()
-                re_col_name_field = regex.compile(r"column_\d+_name$", regex.V0)
-                for key, value in self.data.items():
-                    if re_col_name_field.match(key):
-                        name = value.strip()
-                        self.cleaned_data[key] = self.clean_field_name(name)
+                existing_field_keys = {f.key for f in self.org.contactfields.filter(is_active=True)}
+                used_field_keys = set()
+                data_by_header = self.get_data_by_header()
+                for header, data in data_by_header.items():
+                    mapping = self.instance.mappings[header]
 
-                        if name in used_names:
-                            raise forms.ValidationError(_("%(name)s should be used once") % {"name": name})
+                    if mapping["type"] == "new_field" and data["include"]:
+                        field_name = data["name"]
+                        if not field_name:
+                            raise ValidationError(
+                                _("Field name for '%(header)s' can't be empty.") % {"header": header}
+                            )
+                        else:
+                            field_key = ContactField.make_key(field_name)
+                            if field_key in existing_field_keys:
+                                raise forms.ValidationError(
+                                    _("Field name for '%(header)s' matches an existing field."),
+                                    params={"header": header},
+                                )
 
-                        self.fields[key].choices.append((name, name))
-                        used_names.add(name)
+                            if not ContactField.is_valid_label(field_name) or not ContactField.is_valid_key(field_key):
+                                raise forms.ValidationError(
+                                    _("Field name for '%(header)s' is invalid or a reserved word."),
+                                    params={"header": header},
+                                )
+
+                            if field_key in used_field_keys:
+                                raise forms.ValidationError(
+                                    _("Field name '%(name)s' is repeated.") % {"name": field_name}
+                                )
+
+                            used_field_keys.add(field_key)
 
                 return self.cleaned_data
-
-            def clean_field_name(self, name):
-                field_key = ContactField.make_key(name)
-
-                if not ContactField.is_valid_label(name) or not ContactField.is_valid_key(field_key):
-                    raise forms.ValidationError(
-                        _(
-                            "%(name)s is an invalid name or is a reserved name for contact "
-                            "fields, field names should start with a letter."
-                        ),
-                        params={"name": name},
-                    )
-
-                return name
 
             class Meta:
                 model = ContactImport
@@ -2311,21 +2324,26 @@ class ContactImportCRUDL(SmartCRUDL):
             if obj.started_on:
                 return HttpResponseRedirect(reverse("contacts.contactimport_read", args=[obj.id]))
 
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["num_records"] = self.get_object().num_records
+            return context
+
         def pre_save(self, obj):
+            data_by_header = self.form.get_data_by_header()
+
             # rewrite mappings using values from form
             for i, header in enumerate(obj.headers):
+                data = data_by_header[header]
                 mapping = obj.mappings[header]
-                column_include = self.form.cleaned_data.get(f"column_{i}_include", True)
-                column_name = self.form.cleaned_data.get(f"column_{i}_name", "")
-                column_value_type = self.form.cleaned_data.get(f"column_{i}_value_type", Value.TYPE_TEXT)
 
-                if not column_include:
+                if not data["include"]:
                     mapping = ContactImport.MAPPING_IGNORE
                 else:
                     if mapping["type"] == "new_field":
-                        mapping["key"] = ContactField.make_key(column_name)
-                        mapping["name"] = column_name
-                        mapping["value_type"] = column_value_type
+                        mapping["key"] = ContactField.make_key(data["name"])
+                        mapping["name"] = data["name"]
+                        mapping["value_type"] = data["value_type"]
 
                 obj.mappings[header] = mapping
             return obj

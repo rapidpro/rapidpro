@@ -7622,6 +7622,24 @@ class ContactImportTest(TembaTest):
         self.assertEqual(["URN:Tel"], imp.headers)
         self.assertEqual({"URN:Tel": {"type": "scheme", "scheme": "tel"}}, imp.mappings)
 
+        self.create_field("goats", "Goats", Value.TYPE_NUMBER)
+
+        imp = self.create_import("media/test_imports/with_extra_fields_and_group.xlsx")
+        self.assertEqual(
+            ["URN:Tel", "Name", "Created On", "field: goats ", "Field:Sheep", "Group:Testers"], imp.headers,
+        )
+        self.assertEqual(
+            {
+                "URN:Tel": {"type": "scheme", "scheme": "tel"},
+                "Name": {"type": "attribute", "name": "name"},
+                "Created On": {"type": "ignore"},
+                "field: goats ": {"type": "field", "key": "goats", "name": "goats"},
+                "Field:Sheep": {"type": "new_field", "key": "sheep", "name": "Sheep", "value_type": "T"},
+                "Group:Testers": {"type": "ignore"},
+            },
+            imp.mappings,
+        )
+
     def test_batches(self):
         imp = self.create_import("media/test_imports/sample_contacts.xlsx")
         self.assertEqual(3, imp.num_records)
@@ -7762,14 +7780,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create_and_preview(self):
         create_url = reverse("contacts.contactimport_create")
 
-        # can't access as viewer
-        self.login(self.user)
-        self.assertLoginRedirect(self.client.get(create_url))
-
-        # can as editor
-        self.login(self.editor)
-        response = self.client.get(create_url)
-        self.assertEqual(["file", "loc"], list(response.context["form"].fields.keys()))
+        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=["file"])
 
         # try posting with nothing
         response = self.client.post(create_url, {})
@@ -7812,6 +7823,117 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(preview_url)
         self.assertEqual(302, response.status_code)
         self.assertEqual(read_url, response.url)
+
+    def test_preview_with_mappings(self):
+        self.create_field("age", "Age", Value.TYPE_NUMBER)
+
+        imp = self.create_import("media/test_imports/with_extra_fields_and_group.xlsx")
+        preview_url = reverse("contacts.contactimport_preview", args=[imp.id])
+
+        # column 4 is a non-existent field so will have controls to create a new one
+        self.assertUpdateFetch(
+            preview_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields=[
+                "column_3_include",
+                "column_3_name",
+                "column_3_value_type",
+                "column_4_include",
+                "column_4_name",
+                "column_4_value_type",
+            ],
+        )
+
+        # if including a new fields, can't use existing field name
+        response = self.client.post(
+            preview_url,
+            {
+                "column_3_include": True,
+                "column_3_name": "Goats",
+                "column_3_value_type": "N",
+                "column_4_include": True,
+                "column_4_name": "age",
+                "column_4_value_type": "N",
+            },
+        )
+        self.assertEqual(1, len(response.context["form"].errors))
+        self.assertFormError(response, "form", "__all__", "Field name for 'Field:Sheep' matches an existing field.")
+
+        # if including a new fields, can't repeat names
+        response = self.client.post(
+            preview_url,
+            {
+                "column_3_include": True,
+                "column_3_name": "Goats",
+                "column_3_value_type": "N",
+                "column_4_include": True,
+                "column_4_name": "goats",
+                "column_4_value_type": "N",
+            },
+        )
+        self.assertEqual(1, len(response.context["form"].errors))
+        self.assertFormError(response, "form", "__all__", "Field name 'goats' is repeated.")
+
+        # if including a new field, name can't be invalid
+        response = self.client.post(
+            preview_url,
+            {
+                "column_3_include": True,
+                "column_3_name": "Goats",
+                "column_3_value_type": "N",
+                "column_4_include": True,
+                "column_4_name": "#$%^@",
+                "column_4_value_type": "N",
+            },
+        )
+        self.assertEqual(1, len(response.context["form"].errors))
+        self.assertFormError(
+            response, "form", "__all__", "Field name for 'Field:Sheep' is invalid or a reserved word."
+        )
+
+        # or empty
+        response = self.client.post(
+            preview_url,
+            {
+                "column_3_include": True,
+                "column_3_name": "Goats",
+                "column_3_value_type": "N",
+                "column_4_include": True,
+                "column_4_name": "",
+                "column_4_value_type": "T",
+            },
+        )
+        self.assertEqual(1, len(response.context["form"].errors))
+        self.assertFormError(response, "form", "__all__", "Field name for 'Field:Sheep' can't be empty.")
+
+        # unless you're ignoring it
+        response = self.client.post(
+            preview_url,
+            {
+                "column_3_include": True,
+                "column_3_name": "Goats",
+                "column_3_value_type": "N",
+                "column_4_include": False,
+                "column_4_name": "",
+                "column_4_value_type": "T",
+            },
+        )
+        self.assertEqual(302, response.status_code)
+
+        # mappings will have been updated
+        imp.refresh_from_db()
+        self.assertEqual(
+            {
+                "URN:Tel": {"type": "scheme", "scheme": "tel"},
+                "Name": {"type": "attribute", "name": "name"},
+                "Created On": {"type": "ignore"},
+                "field: goats ": {"type": "new_field", "key": "goats", "name": "Goats", "value_type": "N"},
+                "Field:Sheep": {"type": "ignore"},
+                "Group:Testers": {"type": "ignore"},
+            },
+            imp.mappings,
+        )
 
     @patch("temba.contacts.models.ContactImport.BATCH_SIZE", 2)
     def test_read(self):

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-06 22:47+0000\n"
+"POT-Creation-Date: 2020-09-17 21:58+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3766,6 +3766,33 @@ msgstr "El grupo único para exportar"
 msgid "The search query"
 msgstr ""
 
+msgid "Import file appears to be empty"
+msgstr ""
+
+msgid "Import file contains an empty header"
+msgstr ""
+
+#, python-format
+msgid "Import files can contain a maximum of %(max)d records"
+msgstr ""
+
+msgid "Import file doesn't contain any records"
+msgstr ""
+
+#, python-format
+msgid "Import header %(header)s occurs more than once"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "Using a Local Number"
+msgid "%(scheme)s is not a valid URN scheme"
+msgstr "Con un número local"
+
+#, fuzzy, python-format
+#| msgid "Using a Local Number"
+msgid "%(name)s is not a valid field name"
+msgstr "Con un número local"
+
 #, python-format
 msgid "Invalid query syntax at '%(token)s'"
 msgstr ""
@@ -4043,6 +4070,22 @@ msgstr "Actualizar campos"
 #| msgid "Contact Field: %(label)s"
 msgid "Contact field uses"
 msgstr "Campo de contacto: %(label)s"
+
+#, python-format
+msgid "Field name for '%(header)s' can't be empty."
+msgstr ""
+
+#, python-format
+msgid "Field name for '%(header)s' matches an existing field."
+msgstr ""
+
+#, python-format
+msgid "Field name for '%(header)s' is invalid or a reserved word."
+msgstr ""
+
+#, python-format
+msgid "Field name '%(name)s' is repeated."
+msgstr ""
 
 #, fuzzy
 msgid "Message flow"
@@ -9351,6 +9394,89 @@ msgstr ""
 msgid "Show Contacts"
 msgstr "Mostrar Contactos"
 
+#, fuzzy
+#| msgid "You can import your contacts from an XLS file you create in Excel."
+msgid "You can import your contacts from an XLSX file you create in Excel."
+msgstr "Puede importar sus contactos de un archivo XLS que haya creado en Excel. "
+
+msgid "Columns starting with the prefix <i>Group:</i> are ignored"
+msgstr ""
+
+#, python-format
+msgid "You can download <a href=\"%(sample_url)s\">this Excel template</a> as a sample."
+msgstr ""
+
+#, fuzzy
+#| msgid "Device"
+msgid "Preview"
+msgstr "Dispositivo"
+
+#, fuzzy
+msgid "Preview Contact Import"
+msgstr "1 Contacto"
+
+#, python-format
+msgid "This import file contains <strong>%(count)s</strong> records. Headers that didn't match existing fields can be ignored or added as new custom fields by editing them below."
+msgstr ""
+
+msgid "will be ignored"
+msgstr ""
+
+#, fuzzy
+#| msgid "has"
+msgid "as"
+msgstr "tiene"
+
+#, fuzzy
+#| msgid "1 field"
+msgid "new field"
+msgstr "1 campo"
+
+msgid "of type"
+msgstr ""
+
+#, fuzzy
+#| msgid "1 field"
+msgid "field"
+msgstr "1 campo"
+
+#, python-format
+msgid "a <strong>%(scheme)s</strong> URN"
+msgstr ""
+
+#, fuzzy
+#| msgid "Contacts %d"
+msgid "Contact Import"
+msgstr "Contactos %d"
+
+#, fuzzy, python-format
+#| msgid "Create Contact"
+msgid "Created %(count)s new contact"
+msgid_plural "Created %(count)s new contacts"
+msgstr[0] "Crear Contacto"
+msgstr[1] "Crear Contacto"
+
+#, fuzzy, python-format
+#| msgid "Create Contact"
+msgid "Updated %(count)s existing contact"
+msgid_plural "Updated %(count)s existing contacts"
+msgstr[0] "Crear Contacto"
+msgstr[1] "Crear Contacto"
+
+#, python-format
+msgid "Ignored %(count)s record because of errors"
+msgid_plural "Ignored %(count)s records because of errors"
+msgstr[0] ""
+msgstr[1] ""
+
+#, fuzzy
+msgid "Errors"
+msgstr "Conteo de errores"
+
+#, python-format
+msgid "Row %(row)s: %(message)s"
+msgstr ""
+
 msgid "Hi there!"
 msgstr "¡Hola!"
 
@@ -13168,11 +13294,6 @@ msgstr ""
 #~ msgid "instead."
 #~ msgstr "en lugar de esa."
 
-#, fuzzy
-#~| msgid "Device"
-#~ msgid "view"
-#~ msgstr "Dispositivo"
-
 #~ msgid "View Sample Flows"
 #~ msgstr "Ver Flujos de Muestra"
 
@@ -15150,9 +15271,6 @@ msgstr ""
 #~ msgid "run"
 #~ msgstr "Domingo"
 
-#~ msgid "1 field"
-#~ msgstr "1 campo"
-
 #~ msgid "{} fields"
 #~ msgstr "{} campos"
 
@@ -16356,10 +16474,6 @@ msgstr ""
 
 #~ msgid "Restart any of the above contacts already participating in this flow"
 #~ msgstr "Reiniciar cualquiera de los contactos anteriores que ya están participando en este flujo"
-
-#, fuzzy
-#~ msgid "View Contact"
-#~ msgstr "1 Contacto"
 
 #, fuzzy
 #~ msgid ""
