@@ -174,7 +174,6 @@ def refresh_whatsapp_templates():
                 for template in response.json()["data"]:
                     # if this is a status we don't know about
                     if template["status"] not in STATUS_MAPPING:
-                        logger.error(f"unknown whatsapp status: {template['status']}")
                         continue
 
                     status = STATUS_MAPPING[template["status"]]
@@ -184,15 +183,12 @@ def refresh_whatsapp_templates():
                     all_supported = True
                     for component in template["components"]:
                         if component["type"] not in ["HEADER", "BODY", "FOOTER"]:
-                            logger.error(f"unknown component type: {component}")
                             continue
 
                         if "text" not in component:
-                            logger.error(f"component missing text: {component}")
                             continue
 
                         if component["type"] in ["HEADER", "FOOTER"] and _calculate_variable_count(component["text"]):
-                            logger.error(f"unsupported component type wih variables: {component}")
                             all_supported = False
 
                         content_parts.append(component["text"])

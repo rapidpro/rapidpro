@@ -1,3 +1,11 @@
+v5.7.49
+----------
+ * Update plan_end when suspending topup orgs
+ * Suspend topup orgs that have no active credits
+ * Show suspension header when an org is suspended
+ * Tweak external channel config styling
+ * Fix styles for button on WA config page
+
 v5.7.48
 ----------
  * Fix button style for channel extra links
