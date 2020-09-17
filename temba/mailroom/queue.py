@@ -34,6 +34,7 @@ class BatchTask(Enum):
     INTERRUPT_SESSIONS = "interrupt_sessions"
     POPULATE_DYNAMIC_GROUP = "populate_dynamic_group"
     SCHEDULE_CAMPAIGN_EVENT = "schedule_campaign_event"
+    IMPORT_CONTACT_BATCH = "import_contact_batch"
 
 
 def queue_msg_handling(msg):
@@ -140,6 +141,16 @@ def queue_flow_start(start):
     }
 
     _queue_batch_task(org_id, BatchTask.START_FLOW, task, HIGH_PRIORITY)
+
+
+def queue_contact_import_batch(batch):
+    """
+    Queues a task to import a batch of contacts
+    """
+
+    task = {"contact_import_batch_id": batch.id}
+
+    _queue_batch_task(batch.contact_import.org.id, BatchTask.IMPORT_CONTACT_BATCH, task, HIGH_PRIORITY)
 
 
 def queue_interrupt(org, *, contacts=None, channel=None, flow=None, session=None):

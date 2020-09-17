@@ -466,6 +466,21 @@ class MailroomQueueTest(TembaTest):
             },
         )
 
+    def test_queue_contact_import_batch(self):
+        imp = self.create_contact_import("media/test_imports/sample_contacts.xlsx")
+        imp.start()
+
+        self.assert_org_queued(self.org, "batch")
+        self.assert_queued_batch_task(
+            self.org,
+            {
+                "type": "import_contact_batch",
+                "org_id": self.org.id,
+                "task": {"contact_import_batch_id": imp.batches.get().id},
+                "queued_on": matchers.ISODate(),
+            },
+        )
+
     def test_queue_interrupt_by_contacts(self):
         jim = self.create_contact("Jim", "+12065551212")
         bob = self.create_contact("Bob", "+12065551313")

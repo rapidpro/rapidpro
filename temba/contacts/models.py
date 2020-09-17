@@ -3257,7 +3257,8 @@ class ContactImport(SmartModel):
                 batch_specs.append(self._parse_spec(record))
                 record_num += 1
 
-            self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num)
+            batch = self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num)
+            batch.import_async()
 
     def get_info(self):
         statuses = set()
@@ -3371,6 +3372,9 @@ class ContactImportBatch(models.Model):
     num_errored = models.IntegerField(default=0)
     errors = JSONField(default=list)
     finished_on = models.DateTimeField(null=True)
+
+    def import_async(self):
+        mailroom.queue_contact_import_batch(self)
 
 
 @register_asset_store

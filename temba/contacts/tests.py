@@ -7562,19 +7562,6 @@ class ESIntegrationTest(TembaNonAtomicTest):
 
 
 class ContactImportTest(TembaTest):
-    def create_import(self, path):
-        with open(path, "rb") as f:
-            headers, mappings, num_records = ContactImport.try_to_parse(self.org, f, path)
-            return ContactImport.objects.create(
-                org=self.org,
-                file=SimpleUploadedFile(f.name, f.read()),
-                headers=headers,
-                mappings=mappings,
-                num_records=num_records,
-                created_by=self.admin,
-                modified_by=self.admin,
-            )
-
     @patch("temba.contacts.models.ContactImport.MAX_RECORDS", 2)
     def test_parse_errors(self):
         # try to open an import that is completely empty
@@ -7599,7 +7586,7 @@ class ContactImportTest(TembaTest):
             try_to_parse_excel("media/test_imports/sample_contacts_missing_phone_header.xls")
 
     def test_extract_mappings(self):
-        imp = self.create_import("media/test_imports/sample_contacts.xlsx")
+        imp = self.create_contact_import("media/test_imports/sample_contacts.xlsx")
         self.assertEqual(3, imp.num_records)
         self.assertEqual(["URN:Tel", "name"], imp.headers)
         self.assertEqual(
@@ -7607,7 +7594,7 @@ class ContactImportTest(TembaTest):
             imp.mappings,
         )
 
-        imp = self.create_import("media/test_imports/sample_contacts_twitter_and_phone.xls")
+        imp = self.create_contact_import("media/test_imports/sample_contacts_twitter_and_phone.xls")
         self.assertEqual(["URN:Tel", "name", "URN:Twitter"], imp.headers)
         self.assertEqual(
             {
@@ -7618,13 +7605,13 @@ class ContactImportTest(TembaTest):
             imp.mappings,
         )
 
-        imp = self.create_import("media/test_imports/sample_contacts_missing_name_header.xls")
+        imp = self.create_contact_import("media/test_imports/sample_contacts_missing_name_header.xls")
         self.assertEqual(["URN:Tel"], imp.headers)
         self.assertEqual({"URN:Tel": {"type": "scheme", "scheme": "tel"}}, imp.mappings)
 
         self.create_field("goats", "Goats", Value.TYPE_NUMBER)
 
-        imp = self.create_import("media/test_imports/with_extra_fields_and_group.xlsx")
+        imp = self.create_contact_import("media/test_imports/with_extra_fields_and_group.xlsx")
         self.assertEqual(
             ["URN:Tel", "Name", "Created On", "field: goats ", "Field:Sheep", "Group:Testers"], imp.headers,
         )
@@ -7640,8 +7627,9 @@ class ContactImportTest(TembaTest):
             imp.mappings,
         )
 
-    def test_batches(self):
-        imp = self.create_import("media/test_imports/sample_contacts.xlsx")
+    @mock_mailroom
+    def test_batches(self, mr_mocks):
+        imp = self.create_contact_import("media/test_imports/sample_contacts.xlsx")
         self.assertEqual(3, imp.num_records)
         self.assertIsNone(imp.started_on)
 
@@ -7682,9 +7670,22 @@ class ContactImportTest(TembaTest):
             batches[0].specs,
         )
 
+        # check batch was queued for import by mailroom
+        self.assertEqual(
+            [
+                {
+                    "type": "import_contact_batch",
+                    "org_id": self.org.id,
+                    "task": {"contact_import_batch_id": batches[0].id},
+                    "queued_on": matchers.Datetime(),
+                },
+            ],
+            mr_mocks.queued_batch_tasks,
+        )
+
         # records are batched if they exceed batch size
         with patch("temba.contacts.models.ContactImport.BATCH_SIZE", 2):
-            imp = self.create_import("media/test_imports/sample_contacts.xlsx")
+            imp = self.create_contact_import("media/test_imports/sample_contacts.xlsx")
             imp.start()
 
         batches = list(imp.batches.order_by("id"))
@@ -7764,19 +7765,6 @@ class ContactImportTest(TembaTest):
 
 
 class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
-    def create_import(self, path):
-        with open(path, "rb") as f:
-            headers, mappings, num_records = ContactImport.try_to_parse(self.org, f, path)
-            return ContactImport.objects.create(
-                org=self.org,
-                file=SimpleUploadedFile(f.name, f.read()),
-                headers=headers,
-                mappings=mappings,
-                num_records=num_records,
-                created_by=self.admin,
-                modified_by=self.admin,
-            )
-
     def test_create_and_preview(self):
         create_url = reverse("contacts.contactimport_create")
 
@@ -7827,7 +7815,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_preview_with_mappings(self):
         self.create_field("age", "Age", Value.TYPE_NUMBER)
 
-        imp = self.create_import("media/test_imports/with_extra_fields_and_group.xlsx")
+        imp = self.create_contact_import("media/test_imports/with_extra_fields_and_group.xlsx")
         preview_url = reverse("contacts.contactimport_preview", args=[imp.id])
 
         # column 4 is a non-existent field so will have controls to create a new one
@@ -7937,7 +7925,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @patch("temba.contacts.models.ContactImport.BATCH_SIZE", 2)
     def test_read(self):
-        imp = self.create_import("media/test_imports/sample_contacts.xlsx")
+        imp = self.create_contact_import("media/test_imports/sample_contacts.xlsx")
         imp.start()
 
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
