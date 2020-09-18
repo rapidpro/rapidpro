@@ -73,6 +73,7 @@
     var sidePadding = parseInt($("#id_side_padding").val());
     var bottomPadding = parseInt($("#id_bottom_padding").val());
     var sideOfScreen = $("#id_side_of_screen").val();
+    var googleFont = $("#id_google_font").val();
 
     window.renderSurveyor({
       socketUrl: '{{ websocket_url }}',
@@ -97,7 +98,8 @@
         chatButtonHeight: chatButtonHeight,
         sidePadding: sidePadding,
         bottomPadding: bottomPadding,
-        sideOfScreen: sideOfScreen
+        sideOfScreen: sideOfScreen,
+        googleFont: googleFont
       },
       meta: {
         icon: {
@@ -177,6 +179,10 @@
       });
 
       $("#id_logo_style").change(function() {
+        buildWebChat();
+      });
+
+      $("#id_google_font").change(function() {
         buildWebChat();
       });
 
