@@ -1,14 +1,13 @@
-import datetime
 import io
 import logging
 import os
 import time
 import uuid
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
-from itertools import chain
+from itertools import chain, zip_longest
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import Any, Dict, List, Set, Tuple
 
 import iso8601
 import phonenumbers
@@ -1636,7 +1635,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             value = field_dict[key]
 
             # date values need converted to localized strings
-            if isinstance(value, datetime.date):
+            if isinstance(value, date):
                 # make naive datetime timezone-aware, ignoring date
                 if getattr(value, "tzinfo", "ignore") is None:
                     value = org.timezone.localize(value) if org.timezone else pytz.utc.localize(value)
@@ -1823,7 +1822,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             row_data = []
             for cell in row:
                 cell_value = cls.normalize_value(cell)
-                if not isinstance(cell_value, datetime.date) and not isinstance(cell_value, datetime.datetime):
+                if not isinstance(cell_value, date) and not isinstance(cell_value, datetime):
                     cell_value = str(cell_value)
                 row_data.append(cell_value)
 
@@ -3128,6 +3127,7 @@ def get_import_upload_path(instance, filename):
 class ContactImport(SmartModel):
     MAX_RECORDS = 25_000
     BATCH_SIZE = 100
+    EXPLICIT_CLEAR = "--"
 
     STATUS_PENDING = "P"
     STATUS_PROCESSING = "O"
@@ -3165,7 +3165,7 @@ class ContactImport(SmartModel):
         if any([h.strip() == "" for h in headers]):
             raise ValidationError(_("Import file contains an empty header."))
 
-        mappings = cls.extract_mappings_from_headers(org, headers)
+        mappings = cls._auto_mappings(org, headers)
 
         # iterate over rest of the rows to check if we exceed record limit
         num_records = 0
@@ -3185,7 +3185,10 @@ class ContactImport(SmartModel):
         return headers, mappings, num_records
 
     @classmethod
-    def extract_mappings_from_headers(cls, org, headers: List[str]) -> Dict:
+    def _auto_mappings(cls, org, headers: List[str]) -> Dict:
+        """
+        Automatic mappings for the given list of headers - users can customize these later
+        """
         existing_fields = {f.key: f for f in org.contactfields.filter(is_active=True)}
 
         mappings = {}
@@ -3196,6 +3199,9 @@ class ContactImport(SmartModel):
 
             if header_prefix == "":
                 attribute = header_name.lower()
+                if attribute.startswith("contact "):  # header "Contact UUID" -> uuid etc
+                    attribute = attribute[8:]
+
                 if attribute in ("name", "language"):
                     mapping = {"type": "attribute", "name": attribute}
             elif header_prefix == "urn" and header_name:
@@ -3210,11 +3216,11 @@ class ContactImport(SmartModel):
 
             mappings[header] = mapping
 
-        cls.validate_mappings(mappings)
+        cls._validate_mappings(mappings)
         return mappings
 
     @staticmethod
-    def validate_mappings(mappings: Dict):
+    def _validate_mappings(mappings: Dict):
         valid_schemes = {c[0] for c in URN_SCHEME_CONFIG}
         seen_mappings = []
 
@@ -3273,8 +3279,10 @@ class ContactImport(SmartModel):
             batch_start = record_num
 
             for row in row_batch:
-                record = dict(zip(self.headers, row))
-                batch_specs.append(self._parse_spec(record))
+                row = row[: len(self.headers)]  # ignore any columns beyond our headers
+
+                record = dict(zip_longest(self.headers, row, fillvalue=""))
+                batch_specs.append(self._parse_record(record))
                 record_num += 1
 
             batch = self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num)
@@ -3358,28 +3366,49 @@ class ContactImport(SmartModel):
         prefix, name = (parts[0], parts[1]) if len(parts) >= 2 else ("", parts[0])
         return prefix.lower(), name
 
-    def _parse_spec(self, record) -> Dict:
-        spec = {
-            "uuid": "",
-            "name": "",
-            "language": "",
-            "urns": [],
-            "fields": {},
-            "groups": [],
-        }
+    def _parse_record(self, record: Dict) -> Dict:
+        spec = {}
 
-        for header, value in record.items():
+        for header, raw_value in record.items():
             mapping = self.mappings[header]
-            if mapping["type"] == "attribute":
-                spec[mapping["name"]] = value
-            elif mapping["type"] == "scheme":
-                spec["urns"].append(URN.from_parts(mapping["scheme"], value))
-            elif mapping["type"] in ("field", "new_field"):
-                # TODO date fields
+            value = self._parse_value(raw_value)
 
-                spec["fields"][mapping["key"]] = str(value)
+            if not value:  # blank values interpreted as leaving values unchanged
+                continue
+            if value == ContactImport.EXPLICIT_CLEAR:
+                value = ""
+
+            if mapping["type"] == "attribute":
+                attribute = mapping["name"]
+                spec[attribute] = value
+            elif mapping["type"] == "scheme":
+                scheme = mapping["scheme"]
+                if "urns" not in spec:
+                    spec["urns"] = []
+                spec["urns"].append(URN.from_parts(scheme, value))
+            elif mapping["type"] in ("field", "new_field"):
+                if "fields" not in spec:
+                    spec["fields"] = {}
+                key = mapping["key"]
+                spec["fields"][key] = value
 
         return spec
+
+    def _parse_value(self, value: Any) -> str:
+        """
+        Parses a record value into a string that can be serialized and understood by mailroom
+        """
+
+        if isinstance(value, datetime):
+            # make naive datetime timezone-aware
+            if not value.tzinfo:
+                value = self.org.timezone.localize(value) if self.org.timezone else pytz.utc.localize(value)
+
+            return value.isoformat()
+        elif isinstance(value, date):
+            return value.isoformat()
+        else:
+            return str(value).strip()
 
 
 class ContactImportBatch(models.Model):

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-17 22:29+0000\n"
+"POT-Creation-Date: 2020-09-18 21:22+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2424,29 +2424,32 @@ msgstr ""
 msgid "The search query"
 msgstr ""
 
-msgid "Import file appears to be empty"
+msgid "Import file appears to be empty."
 msgstr ""
 
-msgid "Import file contains an empty header"
-msgstr ""
-
-#, python-format
-msgid "Import files can contain a maximum of %(max)d records"
-msgstr ""
-
-msgid "Import file doesn't contain any records"
+msgid "Import file contains an empty header."
 msgstr ""
 
 #, python-format
-msgid "Import header %(header)s occurs more than once"
+msgid "Import files can contain a maximum of %(max)d records."
+msgstr ""
+
+msgid "Import file doesn't contain any records."
 msgstr ""
 
 #, python-format
-msgid "%(scheme)s is not a valid URN scheme"
+msgid "Header '%(header)s' is not a valid URN type."
 msgstr ""
 
 #, python-format
-msgid "%(name)s is not a valid field name"
+msgid "Header '%(header)s' is not a valid field name."
+msgstr ""
+
+#, python-format
+msgid "Header '%(header)s' is duplicated."
+msgstr ""
+
+msgid "Import files must contain either UUID or a URN header."
 msgstr ""
 
 #, python-format
@@ -6439,14 +6442,11 @@ msgstr ""
 msgid "Show Contacts"
 msgstr ""
 
-msgid "You can import your contacts from an XLSX file you create in Excel."
-msgstr ""
-
-msgid "Columns starting with the prefix <i>Group:</i> are ignored"
+msgid "You can import contacts from an Excel spreadsheet or comma separated values file."
 msgstr ""
 
 #, python-format
-msgid "You can download <a href=\"%(sample_url)s\">this Excel template</a> as a sample."
+msgid "You can download <a href=\"%(sample_url)s\">this Excel template</a> as a sample. Note that blank values will be ignored. If you want to explicitly clear values use <code>%(code)s</code>."
 msgstr ""
 
 msgid "Preview"

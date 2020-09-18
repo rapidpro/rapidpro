@@ -2203,6 +2203,7 @@ class ContactImportCRUDL(SmartCRUDL):
             schemes = org.get_schemes(role=Channel.ROLE_SEND)
             schemes.add(TEL_SCHEME)  # always show tel
             context["urn_scheme_config"] = [conf for conf in URN_SCHEME_CONFIG if conf[0] in schemes]
+            context["explicit_clear"] = ContactImport.EXPLICIT_CLEAR
 
             return context
 

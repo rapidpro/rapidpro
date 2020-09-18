@@ -7659,30 +7659,9 @@ class ContactImportTest(TembaTest):
         self.assertEqual(3, batches[0].record_end)
         self.assertEqual(
             [
-                {
-                    "uuid": "",
-                    "name": "Eric Newcomer",
-                    "language": "",
-                    "urns": ["tel:250788382382"],
-                    "fields": {},
-                    "groups": [],
-                },
-                {
-                    "uuid": "",
-                    "name": "NIC POTTIER",
-                    "language": "",
-                    "urns": ["tel:250(78) 8 383 383"],
-                    "fields": {},
-                    "groups": [],
-                },
-                {
-                    "uuid": "",
-                    "name": "jen newcomer",
-                    "language": "",
-                    "urns": ["tel:250788383385"],
-                    "fields": {},
-                    "groups": [],
-                },
+                {"name": "Eric Newcomer", "urns": ["tel:250788382382"]},
+                {"name": "NIC POTTIER", "urns": ["tel:250(78) 8 383 383"]},
+                {"name": "jen newcomer", "urns": ["tel:250788383385"]},
             ],
             batches[0].specs,
         )
@@ -7788,37 +7767,50 @@ class ContactImportTest(TembaTest):
         imp.start()
         batch = imp.batches.get()  # single batch
 
-        # print(json.dumps(batch.specs, indent=2))
-
         self.assertEqual(
             [
                 {
-                    "uuid": "",
                     "name": "John Doe",
                     "language": "eng",
                     "urns": ["tel:+250788123123"],
                     "fields": {"goats": "1", "sheep": "0"},
-                    "groups": [],
                 },
                 {
-                    "uuid": "",
                     "name": "Mary Smith",
                     "language": "spa",
                     "urns": ["tel:+250788456456"],
                     "fields": {"goats": "3", "sheep": "5"},
-                    "groups": [],
                 },
-                {
-                    "uuid": "",
-                    "name": "",
-                    "language": "",
-                    "urns": ["tel:+250788456678"],
-                    "fields": {"goats": "", "sheep": ""},
-                    "groups": [],
-                },
+                {"urns": ["tel:+250788456678"]},  # blank values ignored
             ],
             batch.specs,
         )
+
+        # cells with -- mean explicit clearing of those values
+        imp = self.create_contact_import("media/test_imports/with_explicit_clearing.xlsx")
+        imp.start()
+        batch = imp.batches.get()  # single batch
+
+        self.assertEqual(
+            {"name": "", "language": "", "urns": ["tel:+250788456678"], "fields": {"goats": "", "sheep": ""}},
+            batch.specs[2],
+        )
+
+    def test_parse_value(self):
+        imp = self.create_contact_import("media/test_imports/simple.xlsx")
+        kgl = pytz.timezone("Africa/Kigali")
+
+        tests = [
+            ("", ""),
+            (" Yes ", "Yes"),
+            (1234, "1234"),
+            (123.456, "123.456"),
+            (date(2020, 9, 18), "2020-09-18"),
+            (datetime(2020, 9, 18, 15, 45, 30, 0), "2020-09-18T15:45:30+02:00"),
+            (kgl.localize(datetime(2020, 9, 18, 15, 45, 30, 0)), "2020-09-18T15:45:30+02:00"),
+        ]
+        for test in tests:
+            self.assertEqual(test[1], imp._parse_value(test[0]))
 
 
 class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):

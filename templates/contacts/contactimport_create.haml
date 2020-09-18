@@ -8,7 +8,8 @@
 
 -block content
   .flex.mb-4.flex-col(style="min-height:41px")
-    -trans "You can import your contacts from an XLSX file you create in Excel."
+    -blocktrans trimmed
+      You can import contacts from an Excel spreadsheet or comma separated values file.
 
     %table#example.list.my-6
       %tr
@@ -77,18 +78,10 @@
           -blocktrans trimmed
             You will have the option to choose the columns to import and to which field to import them.
 
-      %tr
-        %td.whitespace-no-wrap
-          Group:Group Name
-        %td.whitespace-no-wrap
-          %i
-            -trans "IGNORED"
-        %td
-          -trans "Columns starting with the prefix <i>Group:</i> are ignored"
-
     %p
-      -blocktrans trimmed with sample_url=STATIC_URL|add:"examples/contacts.xls"
-        You can download <a href="{{ sample_url }}">this Excel template</a> as a sample.
+      -blocktrans trimmed with sample_url=STATIC_URL|add:"examples/contacts.xls" code=explicit_clear
+        You can download <a href="{{ sample_url }}">this Excel template</a> as a sample. Note that blank values will be
+        ignored. If you want to explicitly clear values use <code>{{ code }}</code>.
 
     %form#import-form(method="post" enctype="multipart/form-data")
       -csrf_token

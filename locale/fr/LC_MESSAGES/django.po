@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-17 22:29+0000\n"
+"POT-Creation-Date: 2020-09-18 21:22+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2758,32 +2758,35 @@ msgstr "Le groupe unique à exporter"
 msgid "The search query"
 msgstr "La requête de recherche"
 
-msgid "Import file appears to be empty"
+msgid "Import file appears to be empty."
 msgstr ""
 
-msgid "Import file contains an empty header"
-msgstr ""
-
-#, python-format
-msgid "Import files can contain a maximum of %(max)d records"
-msgstr ""
-
-msgid "Import file doesn't contain any records"
+msgid "Import file contains an empty header."
 msgstr ""
 
 #, python-format
-msgid "Import header %(header)s occurs more than once"
+msgid "Import files can contain a maximum of %(max)d records."
+msgstr ""
+
+msgid "Import file doesn't contain any records."
 msgstr ""
 
 #, fuzzy, python-format
 #| msgid "f'{val}' isn't a valid number"
-msgid "%(scheme)s is not a valid URN scheme"
+msgid "Header '%(header)s' is not a valid URN type."
 msgstr "f'{val}' n'est pas un numéro valide"
 
 #, fuzzy, python-format
 #| msgid "f'{val}' isn't a valid number"
-msgid "%(name)s is not a valid field name"
+msgid "Header '%(header)s' is not a valid field name."
 msgstr "f'{val}' n'est pas un numéro valide"
+
+#, python-format
+msgid "Header '%(header)s' is duplicated."
+msgstr ""
+
+msgid "Import files must contain either UUID or a URN header."
+msgstr ""
 
 #, python-format
 msgid "Invalid query syntax at '%(token)s'"
@@ -7826,25 +7829,12 @@ msgstr "Afficher les contacts"
 
 #, fuzzy
 #| msgid "You can import your contacts from an XLS file you create in Excel."
-msgid "You can import your contacts from an XLSX file you create in Excel."
+msgid "You can import contacts from an Excel spreadsheet or comma separated values file."
 msgstr "Vous pouvez importer vos contacts à partir d'un fichier XLS que vous créez dans Excel."
 
-msgid "Columns starting with the prefix <i>Group:</i> are ignored"
+#, python-format
+msgid "You can download <a href=\"%(sample_url)s\">this Excel template</a> as a sample. Note that blank values will be ignored. If you want to explicitly clear values use <code>%(code)s</code>."
 msgstr ""
-
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "                  You can download\n"
-#| "                  <a href='%(STATIC_URL)sexamples/contacts.xls'>this Excel template</a>\n"
-#| "                  as a sample.\n"
-#| "                "
-msgid "You can download <a href=\"%(sample_url)s\">this Excel template</a> as a sample."
-msgstr ""
-"\n"
-"Vous pouvez télécharge\n"
-"<a href='%(STATIC_URL)sexamples/contacts.xls'> Ce model de fichier excel</a>\n"
-"comme un echantillon"
 
 #, fuzzy
 #| msgid "view"
@@ -11931,6 +11921,25 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy
+#~| msgid "You can import your contacts from an XLS file you create in Excel."
+#~ msgid "You can import your contacts from an XLSX file you create in Excel."
+#~ msgstr "Vous pouvez importer vos contacts à partir d'un fichier XLS que vous créez dans Excel."
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "                  You can download\n"
+#~| "                  <a href='%(STATIC_URL)sexamples/contacts.xls'>this Excel template</a>\n"
+#~| "                  as a sample.\n"
+#~| "                "
+#~ msgid "You can download <a href=\"%(sample_url)s\">this Excel template</a> as a sample."
+#~ msgstr ""
+#~ "\n"
+#~ "Vous pouvez télécharge\n"
+#~ "<a href='%(STATIC_URL)sexamples/contacts.xls'> Ce model de fichier excel</a>\n"
+#~ "comme un echantillon"
 
 #, python-format
 #~ msgid ""
