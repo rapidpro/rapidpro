@@ -1,5 +1,3 @@
-import requests
-
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 
@@ -26,8 +24,7 @@ class ConnectView(BaseConnectView):
             try:
                 Client(cleaned["access_token"]).get_intents()
             except Exception:
-                raise forms.ValidationError(
-                    _("Unable to access wit.ai with credentials, please check and try again"))
+                raise forms.ValidationError(_("Unable to access wit.ai with credentials, please check and try again"))
 
             return cleaned
 

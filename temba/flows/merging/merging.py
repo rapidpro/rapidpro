@@ -1,3 +1,5 @@
+import itertools
+
 from collections import OrderedDict
 from jellyfish import jaro_distance
 
@@ -59,6 +61,9 @@ class Node:
                     if self_router["type"] == "switch":
                         if jaro_distance(self_router["operand"], other_router["operand"]) < 0.9:
                             return False
+                        if "result_name" in self_router:
+                            if jaro_distance(self_router["result_name"], other_router.get("result_name", "")) < 0.95:
+                                return False
                 else:
                     return False
 
@@ -71,6 +76,14 @@ class Node:
                         if self_action["type"] == other_action["type"] and self_action["type"] == "send_msg":
                             if jaro_distance(self_action["text"], other_action["text"]) >= 0.8:
                                 return True
+                return False
+            elif "enter_flow" in common_types:
+                for self_action in self.data.get("actions", []):
+                    for other_action in other.data.get("actions", []):
+                        if self_action["type"] == other_action["type"] and self_action["type"] == "enter_flow":
+                            if self_action["flow"]["uuid"] == other_action["flow"]["uuid"]:
+                                if self_router.get("result_name") == other_router.get("result_name"):
+                                    return True
                 return False
             return True
 
@@ -230,7 +243,11 @@ class GraphDifferenceNode(Node):
         right_categories = get_category_exits_dict(self.right_origin_node.data)
         all_categories = set({*left_categories.keys(), *right_categories.keys()})
 
-        if "All Responses" in all_categories and len(all_categories) > 1:
+        conditions_to_alter_all_responses_category = (
+            "All Responses" in all_categories and "No Response" in all_categories and len(all_categories) > 2,
+            "All Responses" in all_categories and "No Response" not in all_categories and len(all_categories) > 1,
+        )
+        if any(conditions_to_alter_all_responses_category):
             all_categories.remove("All Responses")
             for categories_dict in (left, right, left_categories, right_categories):
                 if "All Responses" in categories_dict:
@@ -327,6 +344,10 @@ class GraphDifferenceNode(Node):
             for uuid, data in exits_data.items():
                 self.origin_exits_map[uuid] = uuid
                 merged_exits.append({"uuid": uuid, "destination_uuid": data.get("destination")})
+
+        # delete exits duplications
+        merged_exits = [list(group)[0] for _, group in itertools.groupby(merged_exits, lambda x: x["uuid"])]
+
         self.data["exits"] = merged_exits
 
     def check_routers(self):
@@ -401,6 +422,18 @@ class GraphDifferenceNode(Node):
         self.data["actions"] = actions
 
     def check_actions_pair(self, left, right):
+        def custom_checks():
+            if left["type"] == "set_contact_name":
+                return jaro_distance(left.get("name", ""), right.get("name", "")) >= 0.8
+            elif left["type"] == "set_contact_language":
+                return jaro_distance(left.get("language", ""), right.get("language", "")) >= 0.8
+            elif left["type"] == "set_contact_field":
+                return left["field"]["key"] == right["field"]["key"]
+            elif left["type"] == "enter_flow":
+                return left["flow"]["uuid"] == right["flow"]["uuid"]
+            elif left["type"] in ("set_contact_channel", "remove_contact_groups"):
+                return True
+
         if left["type"] != right["type"]:
             return
 
@@ -414,7 +447,7 @@ class GraphDifferenceNode(Node):
         ]
         is_similar.append("labels" in left and "labels" in right)
         is_similar.append("groups" in left and "groups" in right)
-        is_similar.append("set_contact" in left["type"] and "set_contact" in right["type"])
+        is_similar.append(custom_checks())
         return any(is_similar)
 
     def check_actions_conflicts(self, l_action, r_action):
@@ -715,7 +748,8 @@ class GraphDifferenceMap:
 
         ignored_pairs.extend(need_to_remove_from_matched_pairs)
         for item in set(need_to_remove_from_matched_pairs):
-            matched_pairs.remove(item)
+            if item in matched_pairs:
+                matched_pairs.remove(item)
 
     def find_matching_nodes(self, ignore=None):
         pairs = []
