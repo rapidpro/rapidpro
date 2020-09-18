@@ -1,9 +1,9 @@
+import io
 import subprocess
 import time
 import uuid
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from io import StringIO
 from unittest.mock import PropertyMock, call, patch
 
 import pytz
@@ -7562,39 +7562,48 @@ class ESIntegrationTest(TembaNonAtomicTest):
 
 
 class ContactImportTest(TembaTest):
-    @patch("temba.contacts.models.ContactImport.MAX_RECORDS", 2)
     def test_parse_errors(self):
         # try to open an import that is completely empty
-        with self.assertRaisesRegexp(ValidationError, "Import file appears to be empty"):
-            ContactImport.try_to_parse(self.org, StringIO(""), "foo.csv")
+        with self.assertRaisesRegexp(ValidationError, "Import file appears to be empty."):
+            ContactImport.try_to_parse(self.org, io.BytesIO(b""), "foo.csv")
 
-        # try to open an import that contains headers but no records
-        with open("media/test_imports/empty.csv", "r") as f:
-            with self.assertRaisesRegexp(ValidationError, "Import file doesn't contain any records"):
-                ContactImport.try_to_parse(self.org, f, "empty.csv")
-
-        def try_to_parse_excel(path):
+        def try_to_parse(name):
+            path = f"media/test_imports/{name}"
             with open(path, "rb") as f:
                 ContactImport.try_to_parse(self.org, f, path)
 
         # try to open an import that exceeds the record limit
-        with self.assertRaisesRegexp(ValidationError, "Import files can contain a maximum of 2 records"):
-            try_to_parse_excel("media/test_imports/sample_contacts.xlsx")
+        with patch("temba.contacts.models.ContactImport.MAX_RECORDS", 2):
+            with self.assertRaisesRegexp(ValidationError, r"Import files can contain a maximum of 2 records\."):
+                try_to_parse("simple.xlsx")
 
-        # try to open an Excel file with an empty header
-        with self.assertRaisesRegexp(ValidationError, "Import file contains an empty header"):
-            try_to_parse_excel("media/test_imports/sample_contacts_missing_phone_header.xls")
+        bad_files = [
+            ("empty.csv", "Import file doesn't contain any records."),
+            ("with_empty_header.xls", "Import file contains an empty header."),
+            ("with_duplicate_header.xlsx", "Header 'name' is duplicated."),
+            ("with_invalid_scheme.xlsx", "Header 'URN:XXX' is not a valid URN type."),
+            ("with_invalid_field_key.xlsx", "Header 'Field: #$^%' is not a valid field name."),
+            ("with_no_urn_or_uuid.xlsx", "Import files must contain either UUID or a URN header."),
+        ]
+
+        for bad_file in bad_files:
+            with self.assertRaises(ValidationError) as e:
+                try_to_parse(bad_file[0])
+            self.assertEqual(bad_file[1], e.exception.messages[0])
 
     def test_extract_mappings(self):
-        imp = self.create_contact_import("media/test_imports/sample_contacts.xlsx")
-        self.assertEqual(3, imp.num_records)
-        self.assertEqual(["URN:Tel", "name"], imp.headers)
-        self.assertEqual(
-            {"URN:Tel": {"type": "scheme", "scheme": "tel"}, "name": {"type": "attribute", "name": "name"}},
-            imp.mappings,
-        )
+        # try simple import in different formats
+        for ext in ("csv", "xls", "xlsx"):
+            imp = self.create_contact_import(f"media/test_imports/simple.{ext}")
+            self.assertEqual(3, imp.num_records)
+            self.assertEqual(["URN:Tel", "name"], imp.headers)
+            self.assertEqual(
+                {"URN:Tel": {"type": "scheme", "scheme": "tel"}, "name": {"type": "attribute", "name": "name"}},
+                imp.mappings,
+            )
 
-        imp = self.create_contact_import("media/test_imports/sample_contacts_twitter_and_phone.xls")
+        # try import with 2 URN types
+        imp = self.create_contact_import("media/test_imports/with_twitter_and_phone.xls")
         self.assertEqual(["URN:Tel", "name", "URN:Twitter"], imp.headers)
         self.assertEqual(
             {
@@ -7605,7 +7614,7 @@ class ContactImportTest(TembaTest):
             imp.mappings,
         )
 
-        imp = self.create_contact_import("media/test_imports/sample_contacts_missing_name_header.xls")
+        imp = self.create_contact_import("media/test_imports/with_missing_name_header.xls")
         self.assertEqual(["URN:Tel"], imp.headers)
         self.assertEqual({"URN:Tel": {"type": "scheme", "scheme": "tel"}}, imp.mappings)
 
@@ -7613,12 +7622,14 @@ class ContactImportTest(TembaTest):
 
         imp = self.create_contact_import("media/test_imports/with_extra_fields_and_group.xlsx")
         self.assertEqual(
-            ["URN:Tel", "Name", "Created On", "field: goats ", "Field:Sheep", "Group:Testers"], imp.headers,
+            ["URN:Tel", "Name", "language", "Created On", "field: goats ", "Field:Sheep", "Group:Testers"],
+            imp.headers,
         )
         self.assertEqual(
             {
                 "URN:Tel": {"type": "scheme", "scheme": "tel"},
                 "Name": {"type": "attribute", "name": "name"},
+                "language": {"type": "attribute", "name": "language"},
                 "Created On": {"type": "ignore"},
                 "field: goats ": {"type": "field", "key": "goats", "name": "goats"},
                 "Field:Sheep": {"type": "new_field", "key": "sheep", "name": "Sheep", "value_type": "T"},
@@ -7629,9 +7640,15 @@ class ContactImportTest(TembaTest):
 
     @mock_mailroom
     def test_batches(self, mr_mocks):
-        imp = self.create_contact_import("media/test_imports/sample_contacts.xlsx")
+        imp = self.create_contact_import("media/test_imports/simple.xlsx")
         self.assertEqual(3, imp.num_records)
         self.assertIsNone(imp.started_on)
+
+        # info can be fetched but it's empty
+        self.assertEqual(
+            {"status": "P", "num_created": 0, "num_updated": 0, "num_errored": 0, "errors": [], "time_taken": 0},
+            imp.get_info(),
+        )
 
         imp.start()
         batches = list(imp.batches.order_by("id"))
@@ -7685,7 +7702,7 @@ class ContactImportTest(TembaTest):
 
         # records are batched if they exceed batch size
         with patch("temba.contacts.models.ContactImport.BATCH_SIZE", 2):
-            imp = self.create_contact_import("media/test_imports/sample_contacts.xlsx")
+            imp = self.create_contact_import("media/test_imports/simple.xlsx")
             imp.start()
 
         batches = list(imp.batches.order_by("id"))
@@ -7763,6 +7780,46 @@ class ContactImportTest(TembaTest):
 
         self.assertEqual("F", imp.get_info()["status"])
 
+    @mock_mailroom
+    def test_batches_with_fields(self, mr_mocks):
+        self.create_field("goats", "Goats", Value.TYPE_NUMBER)
+
+        imp = self.create_contact_import("media/test_imports/with_extra_fields_and_group.xlsx")
+        imp.start()
+        batch = imp.batches.get()  # single batch
+
+        # print(json.dumps(batch.specs, indent=2))
+
+        self.assertEqual(
+            [
+                {
+                    "uuid": "",
+                    "name": "John Doe",
+                    "language": "eng",
+                    "urns": ["tel:+250788123123"],
+                    "fields": {"goats": "1", "sheep": "0"},
+                    "groups": [],
+                },
+                {
+                    "uuid": "",
+                    "name": "Mary Smith",
+                    "language": "spa",
+                    "urns": ["tel:+250788456456"],
+                    "fields": {"goats": "3", "sheep": "5"},
+                    "groups": [],
+                },
+                {
+                    "uuid": "",
+                    "name": "",
+                    "language": "",
+                    "urns": ["tel:+250788456678"],
+                    "fields": {"goats": "", "sheep": ""},
+                    "groups": [],
+                },
+            ],
+            batch.specs,
+        )
+
 
 class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create_and_preview(self):
@@ -7780,10 +7837,10 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # try uploading an empty CSV file
         response = self.client.post(create_url, {"file": upload("media/test_imports/empty.csv")})
-        self.assertFormError(response, "form", "file", "Import file doesn't contain any records")
+        self.assertFormError(response, "form", "file", "Import file doesn't contain any records.")
 
         # try uploading a valid XLSX file
-        response = self.client.post(create_url, {"file": upload("media/test_imports/sample_contacts.xlsx")})
+        response = self.client.post(create_url, {"file": upload("media/test_imports/simple.xlsx")})
         self.assertEqual(302, response.status_code)
 
         imp = ContactImport.objects.get()
@@ -7818,18 +7875,18 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         imp = self.create_contact_import("media/test_imports/with_extra_fields_and_group.xlsx")
         preview_url = reverse("contacts.contactimport_preview", args=[imp.id])
 
-        # column 4 is a non-existent field so will have controls to create a new one
+        # columns 4 and 5 are a non-existent field so will have controls to create a new one
         self.assertUpdateFetch(
             preview_url,
             allow_viewers=False,
             allow_editors=True,
             form_fields=[
-                "column_3_include",
-                "column_3_name",
-                "column_3_value_type",
                 "column_4_include",
                 "column_4_name",
                 "column_4_value_type",
+                "column_5_include",
+                "column_5_name",
+                "column_5_value_type",
             ],
         )
 
@@ -7837,12 +7894,12 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(
             preview_url,
             {
-                "column_3_include": True,
-                "column_3_name": "Goats",
-                "column_3_value_type": "N",
                 "column_4_include": True,
-                "column_4_name": "age",
+                "column_4_name": "Goats",
                 "column_4_value_type": "N",
+                "column_5_include": True,
+                "column_5_name": "age",
+                "column_5_value_type": "N",
             },
         )
         self.assertEqual(1, len(response.context["form"].errors))
@@ -7852,12 +7909,12 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(
             preview_url,
             {
-                "column_3_include": True,
-                "column_3_name": "Goats",
-                "column_3_value_type": "N",
                 "column_4_include": True,
-                "column_4_name": "goats",
+                "column_4_name": "Goats",
                 "column_4_value_type": "N",
+                "column_5_include": True,
+                "column_5_name": "goats",
+                "column_5_value_type": "N",
             },
         )
         self.assertEqual(1, len(response.context["form"].errors))
@@ -7867,12 +7924,12 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(
             preview_url,
             {
-                "column_3_include": True,
-                "column_3_name": "Goats",
-                "column_3_value_type": "N",
                 "column_4_include": True,
-                "column_4_name": "#$%^@",
+                "column_4_name": "Goats",
                 "column_4_value_type": "N",
+                "column_5_include": True,
+                "column_5_name": "#$%^@",
+                "column_5_value_type": "N",
             },
         )
         self.assertEqual(1, len(response.context["form"].errors))
@@ -7884,12 +7941,12 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(
             preview_url,
             {
-                "column_3_include": True,
-                "column_3_name": "Goats",
-                "column_3_value_type": "N",
                 "column_4_include": True,
-                "column_4_name": "",
-                "column_4_value_type": "T",
+                "column_4_name": "Goats",
+                "column_4_value_type": "N",
+                "column_5_include": True,
+                "column_5_name": "",
+                "column_5_value_type": "T",
             },
         )
         self.assertEqual(1, len(response.context["form"].errors))
@@ -7899,12 +7956,12 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(
             preview_url,
             {
-                "column_3_include": True,
-                "column_3_name": "Goats",
-                "column_3_value_type": "N",
-                "column_4_include": False,
-                "column_4_name": "",
-                "column_4_value_type": "T",
+                "column_4_include": True,
+                "column_4_name": "Goats",
+                "column_4_value_type": "N",
+                "column_5_include": False,
+                "column_5_name": "",
+                "column_5_value_type": "T",
             },
         )
         self.assertEqual(302, response.status_code)
@@ -7915,6 +7972,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
             {
                 "URN:Tel": {"type": "scheme", "scheme": "tel"},
                 "Name": {"type": "attribute", "name": "name"},
+                "language": {"type": "attribute", "name": "language"},
                 "Created On": {"type": "ignore"},
                 "field: goats ": {"type": "new_field", "key": "goats", "name": "Goats", "value_type": "N"},
                 "Field:Sheep": {"type": "ignore"},
@@ -7925,7 +7983,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @patch("temba.contacts.models.ContactImport.BATCH_SIZE", 2)
     def test_read(self):
-        imp = self.create_contact_import("media/test_imports/sample_contacts.xlsx")
+        imp = self.create_contact_import("media/test_imports/simple.xlsx")
         imp.start()
 
         read_url = reverse("contacts.contactimport_read", args=[imp.id])

@@ -2226,13 +2226,11 @@ class ContactImportCRUDL(SmartCRUDL):
                     column = {"header": header, "mapping": mapping}
 
                     if mapping["type"] == "new_field":
-                        field_name = ContactImport.parse_header(header)[1].title()
-
                         include_field = forms.BooleanField(
                             label=" ", required=False, initial=True, widget=CheckboxWidget(attrs={"widget_only": True})
                         )
                         name_field = forms.CharField(
-                            label=" ", initial=field_name, required=False, widget=InputWidget(),
+                            label=" ", initial=mapping["name"], required=False, widget=InputWidget(),
                         )
                         value_type_field = forms.ChoiceField(
                             label=" ",
@@ -2257,7 +2255,7 @@ class ContactImportCRUDL(SmartCRUDL):
 
             def get_data_by_header(self):
                 """
-                Gather form data into a map organized by header
+                Gather form data into a map organized by import header
                 """
                 data = {}
                 for i, header in enumerate(self.instance.headers):

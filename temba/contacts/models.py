@@ -1,4 +1,5 @@
 import datetime
+import io
 import logging
 import os
 import time
@@ -3150,14 +3151,21 @@ class ContactImport(SmartModel):
         """
 
         file_type = Path(filename).suffix[1:].lower()
+
+        # CSV reader expects str stream so wrap file
+        if file_type == "csv":
+            file = io.TextIOWrapper(file)
+
         data = pyexcel.iget_array(file_stream=file, file_type=file_type)
         try:
             headers = next(data)
         except StopIteration:
-            raise ValidationError(_("Import file appears to be empty"))
+            raise ValidationError(_("Import file appears to be empty."))
 
         if any([h.strip() == "" for h in headers]):
-            raise ValidationError(_("Import file contains an empty header"))
+            raise ValidationError(_("Import file contains an empty header."))
+
+        mappings = cls.extract_mappings_from_headers(org, headers)
 
         # iterate over rest of the rows to check if we exceed record limit
         num_records = 0
@@ -3165,29 +3173,25 @@ class ContactImport(SmartModel):
             num_records += 1
             if num_records > ContactImport.MAX_RECORDS:
                 raise ValidationError(
-                    _("Import files can contain a maximum of %(max)d records"),
+                    _("Import files can contain a maximum of %(max)d records."),
                     params={"max": ContactImport.MAX_RECORDS},
                 )
 
         if num_records == 0:
-            raise ValidationError(_("Import file doesn't contain any records"))
+            raise ValidationError(_("Import file doesn't contain any records."))
 
         file.seek(0)  # seek back to beginning so subsequent reads work
 
-        return headers, cls.extract_mappings_from_headers(org, headers), num_records
+        return headers, mappings, num_records
 
     @classmethod
     def extract_mappings_from_headers(cls, org, headers: List[str]) -> Dict:
-        valid_schemes = {c[0] for c in URN_SCHEME_CONFIG}
-        valid_fields = {f.key: f for f in org.contactfields.filter(is_active=True)}
+        existing_fields = {f.key: f for f in org.contactfields.filter(is_active=True)}
 
         mappings = {}
 
         for header in headers:
-            header_prefix, header_name = cls.parse_header(header)
-            if header in mappings:
-                raise ValidationError(_("Import header %(header)s occurs more than once"), params={"header": header})
-
+            header_prefix, header_name = cls._parse_header(header)
             mapping = ContactImport.MAPPING_IGNORE
 
             if header_prefix == "":
@@ -3195,35 +3199,47 @@ class ContactImport(SmartModel):
                 if attribute in ("name", "language"):
                     mapping = {"type": "attribute", "name": attribute}
             elif header_prefix == "urn" and header_name:
-                scheme = header_name.lower()
-                if scheme in valid_schemes:
-                    mapping = {"type": "scheme", "scheme": scheme}
-                else:
-                    raise ValidationError(_("%(scheme)s is not a valid URN scheme"), params={"scheme": header_name})
+                mapping = {"type": "scheme", "scheme": header_name.lower()}
             elif header_prefix == "field" and header_name:
                 field_key = ContactField.make_key(header_name)
-                if field_key in valid_fields:
+                if field_key in existing_fields:
                     mapping = {"type": "field", "key": field_key, "name": header_name}
                 else:
-                    if ContactField.is_valid_key(field_key):
-                        # can be created or selected in next step
-                        mapping = {"type": "new_field", "key": field_key, "name": header_name, "value_type": "T"}
-                    else:
-                        raise ValidationError(_("%(name)s is not a valid field name"), params={"name": header_name})
+                    # can be created or selected in next step
+                    mapping = {"type": "new_field", "key": field_key, "name": header_name, "value_type": "T"}
 
             mappings[header] = mapping
 
+        cls.validate_mappings(mappings)
         return mappings
 
     @staticmethod
-    def parse_header(header: str) -> Tuple[str, str]:
-        """
-        Parses a header like "Field: Foo" into ("field", "Foo")
-        """
-        parts = header.split(":", maxsplit=1)
-        parts = [p.strip() for p in parts]
-        prefix, name = (parts[0], parts[1]) if len(parts) >= 2 else ("", parts[0])
-        return prefix.lower(), name
+    def validate_mappings(mappings: Dict):
+        valid_schemes = {c[0] for c in URN_SCHEME_CONFIG}
+        seen_mappings = []
+
+        has_uuid, has_urn = False, False
+        for header, mapping in mappings.items():
+            if mapping["type"] == "attribute" and mapping["name"] == "uuid":
+                has_uuid = True
+            elif mapping["type"] == "scheme":
+                has_urn = True
+                if mapping["scheme"] not in valid_schemes:
+                    raise ValidationError(_("Header '%(header)s' is not a valid URN type."), params={"header": header})
+            elif mapping["type"] == "new_field":
+                if not ContactField.is_valid_key(mapping["key"]):
+                    raise ValidationError(
+                        _("Header '%(header)s' is not a valid field name."), params={"header": header}
+                    )
+
+            # if we're not ignoring this column, then it needs to mapped to something unique
+            if mapping != ContactImport.MAPPING_IGNORE and mapping in seen_mappings:
+                raise ValidationError(_("Header '%(header)s' is duplicated."), params={"header": header})
+
+            seen_mappings.append(mapping)
+
+        if not (has_uuid or has_urn):
+            raise ValidationError(_("Import files must contain either UUID or a URN header."))
 
     def start_async(self):
         from .tasks import import_contacts_task
@@ -3231,6 +3247,10 @@ class ContactImport(SmartModel):
         on_transaction_commit(lambda: import_contacts_task.delay(self.id))
 
     def start(self):
+        """
+        Starts this import, creating batches to be handled by mailroom
+        """
+
         assert self.started_on is None, "trying to start an already started import"
 
         # mark us as started to prevent double starting
@@ -3261,6 +3281,10 @@ class ContactImport(SmartModel):
             batch.import_async()
 
     def get_info(self):
+        """
+        Gets info about this import by merging info from its batches
+        """
+
         statuses = set()
         num_created = 0
         num_updated = 0
@@ -3324,6 +3348,16 @@ class ContactImport(SmartModel):
         """
         return Path(self.file.name).suffix[1:].lower()
 
+    @staticmethod
+    def _parse_header(header: str) -> Tuple[str, str]:
+        """
+        Parses a header like "Field: Foo" into ("field", "Foo")
+        """
+        parts = header.split(":", maxsplit=1)
+        parts = [p.strip() for p in parts]
+        prefix, name = (parts[0], parts[1]) if len(parts) >= 2 else ("", parts[0])
+        return prefix.lower(), name
+
     def _parse_spec(self, record) -> Dict:
         spec = {
             "uuid": "",
@@ -3340,8 +3374,10 @@ class ContactImport(SmartModel):
                 spec[mapping["name"]] = value
             elif mapping["type"] == "scheme":
                 spec["urns"].append(URN.from_parts(mapping["scheme"], value))
-            elif mapping["type"] == "field":
-                spec["fields"][mapping["key"]] = value
+            elif mapping["type"] in ("field", "new_field"):
+                # TODO date fields
+
+                spec["fields"][mapping["key"]] = str(value)
 
         return spec
 
