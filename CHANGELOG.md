@@ -1,3 +1,7 @@
+v5.7.50
+----------
+ * Optimizations for orgs with many contact fields
+
 v5.7.49
 ----------
  * Update plan_end when suspending topup orgs
