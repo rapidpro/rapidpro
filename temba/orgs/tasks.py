@@ -172,7 +172,9 @@ def import_data_to_parse(
                     elif isinstance(field_value, bool):
                         pass
                     else:
-                        field_value = None if str(field_value).strip() in ["nan", "NaN", "None"] else str(field_value).strip()
+                        field_value = (
+                            None if str(field_value).strip() in ["nan", "NaN", "None"] else str(field_value).strip()
+                        )
 
                     payload[fields_map[item].get("name")] = field_value
 

@@ -387,7 +387,11 @@ class UserContactFieldsQuerySet(models.QuerySet):
     def collect_usage(self):
         return (
             self.annotate(
-                flow_count=Count("dependent_flows", distinct=True, filter=Q(dependent_flows__is_active=True))
+                flow_count=Count(
+                    "dependent_flows",
+                    distinct=True,
+                    filter=(Q(dependent_flows__is_active=True) & Q(dependent_flows__is_system=False)),
+                )
             )
             .annotate(
                 campaign_count=Count("campaign_events", distinct=True, filter=Q(campaign_events__is_active=True))

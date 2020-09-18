@@ -1436,7 +1436,7 @@ class UpdateWebChatForm(UpdateChannelForm):
                 forms.CharField(
                     label=_(f"Welcome Message {lang.name}"),
                     required=False,
-                    widget=forms.Textarea(attrs={"style": "height: 110px"})
+                    widget=forms.Textarea(attrs={"style": "height: 110px"}),
                 ),
                 "",
             )
@@ -1445,7 +1445,7 @@ class UpdateWebChatForm(UpdateChannelForm):
             "inputtext_placeholder_default",
             forms.CharField(
                 label=_("Input Text Placeholder"),
-                widget=forms.Textarea(attrs={"style": "height: 110px", "required": ""})
+                widget=forms.Textarea(attrs={"style": "height: 110px", "required": ""}),
             ),
             None,
         )
@@ -1461,7 +1461,7 @@ class UpdateWebChatForm(UpdateChannelForm):
                 forms.CharField(
                     label=_(f"Input Text Placeholder {lang.name}"),
                     required=False,
-                    widget=forms.Textarea(attrs={"style": "height: 110px"})
+                    widget=forms.Textarea(attrs={"style": "height: 110px"}),
                 ),
                 "",
             )
