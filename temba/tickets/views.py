@@ -9,7 +9,7 @@ from django.utils.html import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils.views import BaseActionForm
+from temba.utils.views import BulkActionMixin
 
 from .models import Ticket, Ticketer
 
@@ -56,44 +56,18 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
         return context
 
 
-class TicketActionForm(BaseActionForm):
-    allowed_actions = (("close", "Close Tickets"), ("reopen", "Reopen Tickets"))
-
-    model = Ticket
-    has_is_active = False
-
-    class Meta:
-        fields = ("action", "objects")
-
-
-class TicketActionMixin(SmartListView):
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        user = self.request.user
-        org = user.get_org()
-
-        form = TicketActionForm(self.request.POST, org=org, user=user)
-        if form.is_valid():
-            form.execute()
-
-        return self.get(request, *args, **kwargs)
-
-
-class TicketListView(OrgPermsMixin, TicketActionMixin, SmartListView):
+class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
     folder = None
-    actions = ()
     fields = ("contact", "subject", "body", "opened_on")
     select_related = ("ticketer", "contact")
     default_order = ("-opened_on",)
+    bulk_actions = ()
 
     def get_context_data(self, **kwargs):
         org = self.get_user().get_org()
 
         context = super().get_context_data(**kwargs)
         context["folder"] = self.folder
-        context["actions"] = self.actions
         context["ticketers"] = org.ticketers.filter(is_active=True).order_by("created_on")
         return context
 
@@ -105,7 +79,7 @@ class TicketCRUDL(SmartCRUDL):
     class Open(TicketListView):
         title = _("Open Tickets")
         folder = "open"
-        actions = ("close",)
+        bulk_actions = ("close",)
 
         def get_queryset(self, **kwargs):
             org = self.get_user().get_org()
@@ -114,14 +88,14 @@ class TicketCRUDL(SmartCRUDL):
     class Closed(TicketListView):
         title = _("Closed Tickets")
         folder = "closed"
-        actions = ("reopen",)
+        bulk_actions = ("reopen",)
 
         def get_queryset(self, **kwargs):
             org = self.get_user().get_org()
             return super().get_queryset(**kwargs).filter(org=org, status=Ticket.STATUS_CLOSED)
 
     class Filter(OrgObjPermsMixin, TicketListView):
-        actions = ("close", "reopen")
+        bulk_actions = ("close", "reopen")
 
         @classmethod
         def derive_url_pattern(cls, path, action):

@@ -89,19 +89,39 @@
 -block pre-table
   .quick-searches
     -if search == ""
-      %span{class:'quick'}
+      %span.quick
         All
     -else
-      %a{class:'quick', href:'?search='} All
+      %a.quick(href='?search=')
+        All
     |&nbsp;
-    %a{class:'quick', href:'?search="STATUS": "suspended"'}><
-      Suspended
+    -if anon_query
+      %span.quick
+        Anonymous
+    -else
+      %a.quick(href='?anon=1')
+        Anonymous
+    |&nbsp;
+    -if flagged_query
+      %span.quick
+        Flagged
+    -else
+      %a.quick(href='?flagged=1')
+        Flagged
+    |&nbsp;
+    -if suspended_query
+      %span.quick
+        Suspended
+    -else
+      %a.quick(href='?suspended=1')
+        Suspended
 
     -for s in searches
       |
       -if search == s
-        %span{class:'quick'}
+        %span.quick
           {{ s }}
       -else
-        %a{class:'quick', href:'?search={{s}}'}= s
+        %a.quick(href='?search={{s}}')
+          {{ s }}
 

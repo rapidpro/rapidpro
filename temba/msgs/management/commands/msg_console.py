@@ -1,5 +1,3 @@
-import threading
-
 import requests
 from colorama import Fore, init as colorama_init
 from requests.exceptions import ConnectionError
@@ -58,6 +56,8 @@ class Command(BaseCommand):  # pragma: no cover
         db_url = f"postgres://{db['USER']}:{db['PASSWORD']}@{db['HOST']}:{db['PORT']}/{db['NAME']}?sslmode=disable"
         redis_url = settings.CACHES["default"]["LOCATION"]
 
+        self.prompt = f"📱 {Fore.CYAN}{path}{Fore.RESET}> "
+
         try:
             print(
                 f"✅ Mailroom version {mailroom.get_client().version()} running at️ {Fore.CYAN}{settings.MAILROOM_URL}{Fore.RESET}"
@@ -74,35 +74,30 @@ class Command(BaseCommand):  # pragma: no cover
             raise CommandError(f"Unable to connect to courier. Please launch it with...\n\n{launch}")
 
         try:
-            channel = TestChannel.create(
+            self.channel = TestChannel.create(
                 org, org.administrators.first(), COURIER_URL, callback=self.response_callback, scheme=scheme
             )
-            print(f"✅ Testing channel started at️ {Fore.CYAN}{channel.server.base_url}{Fore.RESET}")
+            print(f"✅ Testing channel started at️ {Fore.CYAN}{self.channel.server.base_url}{Fore.RESET}")
         except Exception as e:
             raise CommandError(f"Unable to start test channel: {str(e)}")
 
         print(
-            f"\nSending messages to {Fore.CYAN}{org.name}{Fore.RESET} as {Fore.CYAN}{scheme}:{path}{Fore.RESET}. Use Ctrl+C to quit."
+            f"\nSending messages to {Fore.CYAN}{org.name}{Fore.RESET} as {Fore.CYAN}{scheme}:{path}{Fore.RESET}. "
+            "Use Ctrl+C to quit."
         )
 
-        self.responses_wait = None
         try:
             while True:
-                line = input(f"📱 {Fore.CYAN}{path}{Fore.RESET}> ")
+                line = input(self.prompt)
                 if not line:
                     continue
 
-                msg_in = channel.incoming(path, line)
-
-                # we wait up to 2 seconds for a response from courier
-                self.responses_wait = threading.Event()
-                self.responses_wait.wait(timeout=2)
-
-                for response in org.msgs.filter(direction="O", id__gt=msg_in.id).order_by("id"):
-                    print(f"💬 {Fore.GREEN}{response.channel.address}{Fore.RESET}> {response.text}")
+                self.channel.incoming(path, line)
 
         except KeyboardInterrupt:
             pass
 
     def response_callback(self, data):
-        self.responses_wait.set()
+        print("\033[2K\033[1G", end="")  # erase current line and move cursor to start of line
+        print(f"📠 {Fore.GREEN}{self.channel.db_channel.address}{Fore.RESET}> {data['text']}")
+        print(self.prompt, end="", flush=True)

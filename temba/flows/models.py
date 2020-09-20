@@ -2,7 +2,7 @@ import logging
 import time
 from array import array
 from collections import OrderedDict, defaultdict
-from datetime import date, timedelta
+from datetime import timedelta
 from enum import Enum
 from urllib.request import urlopen
 
@@ -526,36 +526,33 @@ class Flow(TembaModel):
         return name
 
     @classmethod
-    def apply_action_label(cls, user, flows, label, add):  # pragma: needs cover
-        return label.toggle_label(flows, add)
+    def apply_action_label(cls, user, flows, label):
+        label.toggle_label(flows, add=True)
+
+    @classmethod
+    def apply_action_unlabel(cls, user, flows, label):
+        label.toggle_label(flows, add=False)
 
     @classmethod
     def apply_action_archive(cls, user, flows):
-        changed = []
-
         for flow in flows:
-
             # don't archive flows that belong to campaigns
             from temba.campaigns.models import CampaignEvent
 
-            if not CampaignEvent.objects.filter(
+            has_events = CampaignEvent.objects.filter(
                 is_active=True, flow=flow, campaign__org=user.get_org(), campaign__is_archived=False
-            ).exists():
-                flow.archive()
-                changed.append(flow.pk)
+            ).exists()
 
-        return changed
+            if not has_events:
+                flow.archive()
 
     @classmethod
     def apply_action_restore(cls, user, flows):
-        changed = []
         for flow in flows:
             try:
                 flow.restore()
-                changed.append(flow.pk)
             except FlowException:  # pragma: no cover
                 pass
-        return changed
 
     def as_select2(self):
         return dict(id=self.uuid, text=self.name)
@@ -2927,30 +2924,18 @@ class ExportFlowResultsTask(BaseExportTask):
             if earliest_created_on is None or flow.created_on < earliest_created_on:
                 earliest_created_on = flow.created_on
 
-        earliest_day = earliest_created_on.date()
-        earliest_month = date(earliest_day.year, earliest_day.month, 1)
-
-        archives = (
-            Archive.objects.filter(org=self.org, archive_type=Archive.TYPE_FLOWRUN, record_count__gt=0, rollup=None)
-            .filter(
-                Q(period=Archive.PERIOD_MONTHLY, start_date__gte=earliest_month)
-                | Q(period=Archive.PERIOD_DAILY, start_date__gte=earliest_day)
-            )
-            .order_by("start_date")
-        )
-
+        records = Archive.iter_all_records(self.org, Archive.TYPE_FLOWRUN, after=earliest_created_on)
         flow_uuids = {str(flow.uuid) for flow in flows}
         seen = set()
 
-        for archive in archives:
-            for record_batch in chunk_list(archive.iter_records(), 1000):
-                matching = []
-                for record in record_batch:
-                    if record["flow"]["uuid"] in flow_uuids and (not responded_only or record["responded"]):
-                        seen.add(record["id"])
-                        matching.append(record)
+        for record_batch in chunk_list(records, 1000):
+            matching = []
+            for record in record_batch:
+                if record["flow"]["uuid"] in flow_uuids and (not responded_only or record["responded"]):
+                    seen.add(record["id"])
+                    matching.append(record)
 
-                yield matching
+            yield matching
 
         # secondly get runs from database
         runs = FlowRun.objects.filter(flow__in=flows).order_by("modified_on")
@@ -3173,8 +3158,11 @@ class FlowStart(models.Model):
     # any extra parameters that should be passed as trigger params for this flow start
     extra = JSONAsTextField(null=True, default=dict)
 
-    # the parent flow's summary if there is one
+    # the parent run's summary if there is one
     parent_summary = JSONField(null=True)
+
+    # the session history if there is some
+    session_history = JSONField(null=True)
 
     # who created this flow start
     created_by = models.ForeignKey(

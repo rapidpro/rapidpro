@@ -48,7 +48,7 @@ install:
   - ./elasticsearch-${ES_VERSION}/bin/elasticsearch &
 
   # install mailroom
-  - MAILROOM_VERSION=5.5.26
+  - MAILROOM_VERSION=5.7.3
   - wget https://github.com/nyaruka/mailroom/releases/download/v${MAILROOM_VERSION}/mailroom_${MAILROOM_VERSION}_linux_amd64.tar.gz
   - tar -xvf mailroom_${MAILROOM_VERSION}_linux_amd64.tar.gz mailroom
 

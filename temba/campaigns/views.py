@@ -12,34 +12,10 @@ from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget
-from temba.utils.views import BaseActionForm
+from temba.utils.views import BulkActionMixin
 from temba.values.constants import Value
 
 from .models import Campaign, CampaignEvent, EventFire
-
-
-class CampaignActionForm(BaseActionForm):
-    allowed_actions = (("archive", "Archive Campaigns"), ("restore", "Restore Campaigns"))
-
-    model = Campaign
-    has_is_active = True
-
-    class Meta:
-        fields = ("action", "objects")
-
-
-class CampaignActionMixin(SmartListView):
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        user = self.request.user
-        form = CampaignActionForm(self.request.POST, org=user.get_org(), user=user)
-
-        if form.is_valid():
-            form.execute()
-
-        return self.get(request, *args, **kwargs)
 
 
 class UpdateCampaignForm(forms.ModelForm):
@@ -222,7 +198,7 @@ class CampaignCRUDL(SmartCRUDL):
             kwargs["user"] = self.request.user
             return kwargs
 
-    class BaseList(CampaignActionMixin, OrgMixin, OrgPermsMixin, SmartListView):
+    class BaseList(OrgMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         fields = ("name", "group")
         default_template = "campaigns/campaign_list.html"
         default_order = ("-modified_on",)
@@ -232,7 +208,6 @@ class CampaignCRUDL(SmartCRUDL):
             context["org_has_campaigns"] = Campaign.objects.filter(org=self.request.user.get_org()).count()
             context["folders"] = self.get_folders()
             context["request_url"] = self.request.path
-            context["actions"] = self.actions
             return context
 
         def get_folders(self):
@@ -256,7 +231,7 @@ class CampaignCRUDL(SmartCRUDL):
 
     class List(BaseList):
         fields = ("name", "group")
-        actions = ("archive",)
+        bulk_actions = ("archive",)
         search_fields = ("name__icontains", "group__name__icontains")
 
         def get_queryset(self, *args, **kwargs):
@@ -266,7 +241,7 @@ class CampaignCRUDL(SmartCRUDL):
 
     class Archived(BaseList):
         fields = ("name",)
-        actions = ("restore",)
+        bulk_actions = ("restore",)
 
         def get_queryset(self, *args, **kwargs):
             qs = super().get_queryset(*args, **kwargs)

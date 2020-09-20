@@ -226,19 +226,22 @@ class Trigger(SmartModel):
             flow = Flow.objects.get(org=org, uuid=trigger_def[Trigger.EXPORT_FLOW]["uuid"], is_active=True)
 
             # see if that trigger already exists
-            trigger = Trigger.objects.filter(org=org, trigger_type=trigger_def[Trigger.EXPORT_TYPE])
+            existing_triggers = Trigger.objects.filter(org=org, trigger_type=trigger_def[Trigger.EXPORT_TYPE])
 
             if trigger_def[Trigger.EXPORT_KEYWORD]:
-                trigger = trigger.filter(keyword__iexact=trigger_def[Trigger.EXPORT_KEYWORD])
+                existing_triggers = existing_triggers.filter(keyword__iexact=trigger_def[Trigger.EXPORT_KEYWORD])
 
             if groups:
-                trigger = trigger.filter(groups__in=groups)
+                existing_triggers = existing_triggers.filter(groups__in=groups)
 
-            trigger = trigger.first()
-            if trigger:
-                trigger.is_archived = False
-                trigger.flow = flow
-                trigger.save()
+            exact_flow_trigger = existing_triggers.filter(flow=flow).order_by("-created_on").first()
+            for tr in existing_triggers:
+                if not tr.is_archived and tr != exact_flow_trigger:
+                    tr.archive(user)
+
+            if exact_flow_trigger:
+                if exact_flow_trigger.is_archived:
+                    exact_flow_trigger.restore(user)
             else:
 
                 # if we have a channel resolve it
@@ -264,8 +267,6 @@ class Trigger(SmartModel):
         for trigger in triggers:
             trigger.archive(user)
 
-        return [each_trigger.pk for each_trigger in triggers]
-
     @classmethod
     def apply_action_restore(cls, user, triggers):
         restore_priority = triggers.order_by("-modified_on")
@@ -279,8 +280,6 @@ class Trigger(SmartModel):
             if not trigger_scopes.intersection(trigger_scope):
                 trigger.restore(user)
                 trigger_scopes = trigger_scopes | trigger_scope
-
-        return [t.pk for t in triggers]
 
     def as_export_def(self):
         """

@@ -114,7 +114,9 @@ def queue_flow_start(start):
 
     task = {
         "start_id": start.id,
+        "start_type": start.start_type,
         "org_id": org_id,
+        "created_by": start.created_by.username,
         "flow_id": start.flow_id,
         "flow_type": start.flow.flow_type,
         "contact_ids": list(start.contacts.values_list("id", flat=True)),

@@ -1,7 +1,7 @@
 import logging
 import time
 from array import array
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 import iso8601
 import pytz
@@ -13,7 +13,7 @@ from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
-from django.db.models import Prefetch, Q, Sum
+from django.db.models import Prefetch, Sum
 from django.db.models.functions import Upper
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -1033,47 +1033,32 @@ class Msg(models.Model):
         self.delete()
 
     @classmethod
-    def apply_action_label(cls, user, msgs, label, add):
-        return label.toggle_label(msgs, add)
+    def apply_action_label(cls, user, msgs, label):
+        label.toggle_label(msgs, add=True)
+
+    @classmethod
+    def apply_action_unlabel(cls, user, msgs, label):
+        label.toggle_label(msgs, add=False)
 
     @classmethod
     def apply_action_archive(cls, user, msgs):
-        changed = []
-
         for msg in msgs:
             msg.archive()
-            changed.append(msg.pk)
-
-        return changed
 
     @classmethod
     def apply_action_restore(cls, user, msgs):
-        changed = []
-
         for msg in msgs:
             msg.restore()
-            changed.append(msg.pk)
-
-        return changed
 
     @classmethod
     def apply_action_delete(cls, user, msgs):
-        changed = []
-
         for msg in msgs:
             msg.release()
-            changed.append(msg.pk)
-
-        return changed
 
     @classmethod
     def apply_action_resend(cls, user, msgs):
-        changed = []
-
         for msg in msgs:
             msg.resend()
-            changed.append(msg.pk)
-        return changed
 
 
 class BroadcastMsgCount(SquashableModel):
@@ -1622,63 +1607,45 @@ class ExportMessagesTask(BaseExportTask):
     def _get_msg_batches(self, system_label, label, start_date, end_date, group_contacts):
         logger.info(f"Msgs export #{self.id} for org #{self.org.id}: fetching msgs from archives to export...")
 
-        # firstly get runs from archives
+        # firstly get msgs from archives
         from temba.archives.models import Archive
 
-        earliest_day = start_date.date()
-        earliest_month = date(earliest_day.year, earliest_day.month, 1)
-
-        latest_day = end_date.date()
-        latest_month_start = date(latest_day.year, latest_day.month, 1)
-
-        archives = (
-            Archive.objects.filter(org=self.org, archive_type=Archive.TYPE_MSG, record_count__gt=0, rollup=None)
-            .filter(
-                Q(period=Archive.PERIOD_MONTHLY, start_date__gte=earliest_month, start_date__lte=latest_month_start)
-                | Q(period=Archive.PERIOD_DAILY, start_date__gte=earliest_day, start_date__lte=latest_day)
-            )
-            .order_by("start_date")
-        )
-
+        records = Archive.iter_all_records(self.org, Archive.TYPE_MSG, start_date, end_date)
         last_created_on = None
 
-        for archive in archives:
-            for record_batch in chunk_list(archive.iter_records(), 1000):
-                matching = []
-                for record in record_batch:
-                    created_on = iso8601.parse_date(record["created_on"])
-                    if last_created_on is None or last_created_on < created_on:
-                        last_created_on = created_on
+        for record_batch in chunk_list(records, 1000):
+            matching = []
+            for record in record_batch:
+                created_on = iso8601.parse_date(record["created_on"])
+                if last_created_on is None or last_created_on < created_on:
+                    last_created_on = created_on
 
-                    if created_on < start_date or created_on > end_date:  # pragma: can't cover
+                if group_contacts and record["contact"]["uuid"] not in group_contacts:
+                    continue
+
+                visibility = "visible"
+                if system_label:
+                    visibility, direction, msg_type, statuses = SystemLabel.get_archive_attributes(system_label)
+
+                    if record["direction"] != direction:
                         continue
 
-                    if group_contacts and record["contact"]["uuid"] not in group_contacts:
+                    if msg_type and record["type"] != msg_type:
                         continue
 
-                    visibility = "visible"
-                    if system_label:
-                        visibility, direction, msg_type, statuses = SystemLabel.get_archive_attributes(system_label)
-
-                        if record["direction"] != direction:
-                            continue
-
-                        if msg_type and record["type"] != msg_type:
-                            continue
-
-                        if statuses and record["status"] not in statuses:
-                            continue
-
-                    elif label:
-                        record_labels = [l["uuid"] for l in record["labels"]]
-                        if label and label.uuid not in record_labels:
-                            continue
-
-                    if record["visibility"] != visibility:
+                    if statuses and record["status"] not in statuses:
                         continue
 
-                    matching.append(record)
-                yield matching
+                elif label:
+                    record_labels = [l["uuid"] for l in record["labels"]]
+                    if label and label.uuid not in record_labels:
+                        continue
+
+                if record["visibility"] != visibility:
+                    continue
+
+                matching.append(record)
+            yield matching
 
         if system_label:
             messages = SystemLabel.get_queryset(self.org, system_label)

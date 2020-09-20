@@ -32,7 +32,7 @@ from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, on_transaction_commit
 from temba.utils.fields import CheckboxWidget, CompletionTextarea, JSONField, OmniboxChoice
 from temba.utils.models import patch_queryset_count
-from temba.utils.views import BaseActionForm
+from temba.utils.views import BulkActionMixin
 
 from .models import INITIALIZING, QUEUED, Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
 from .tasks import export_messages_task
@@ -134,7 +134,7 @@ class SendMessageForm(Form):
         return cleaned
 
 
-class InboxView(OrgPermsMixin, SmartListView):
+class InboxView(OrgPermsMixin, BulkActionMixin, SmartListView):
     """
     Base class for inbox views with message folders and labels listed by the side
     """
@@ -145,9 +145,10 @@ class InboxView(OrgPermsMixin, SmartListView):
     fields = ("from", "message", "received")
     search_fields = ("text__icontains", "contact__name__icontains", "contact__urns__path__icontains")
     paginate_by = 100
-    actions = ()
     allow_export = False
     show_channel_logs = False
+    bulk_actions = ()
+    bulk_action_permissions = {"resend": "msgs.broadcast_send", "delete": "msgs.msg_update"}
 
     def derive_label(self):
         return self.system_label
@@ -172,6 +173,9 @@ class InboxView(OrgPermsMixin, SmartListView):
             queryset = queryset.filter(created_on__gte=last_90)
 
         return queryset.order_by("-created_on", "-id").distinct("created_on", "id")
+
+    def get_bulk_action_labels(self):
+        return self.get_user().get_org().msgs_labels.all()
 
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()
@@ -210,7 +214,6 @@ class InboxView(OrgPermsMixin, SmartListView):
             any(counts.values()) or Archive.objects.filter(org=org, archive_type=Archive.TYPE_MSG).exists()
         )
         context["send_form"] = SendMessageForm(self.request.user)
-        context["actions"] = self.actions
         context["current_label"] = label
         context["export_url"] = self.derive_export_url()
         context["show_channel_logs"] = self.show_channel_logs
@@ -450,44 +453,6 @@ class BroadcastCRUDL(SmartCRUDL):
             return kwargs
 
 
-class MsgActionForm(BaseActionForm):
-    allowed_actions = (
-        ("label", _("Label Messages")),
-        ("archive", _("Archive Messages")),
-        ("restore", _("Move to Inbox")),
-        ("resend", _("Resend Messages")),
-        ("delete", _("Delete Messages")),
-    )
-
-    model = Msg
-    label_model = Label
-    label_model_manager = "label_objects"
-    has_is_active = False
-
-    class Meta:
-        fields = ("action", "label", "objects", "add", "number")
-
-
-class MsgActionMixin(SmartListView):
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        user = self.request.user
-        org = user.get_org()
-
-        form = MsgActionForm(self.request.POST, org=org, user=user)
-
-        if form.is_valid():
-            response = form.execute()
-
-            # shouldn't get in here in normal operation
-            if response and "error" in response:  # pragma: no cover
-                return HttpResponse(json.dumps(response), content_type="application/json", status=400)
-
-        return self.get(request, *args, **kwargs)
-
-
 class TestMessageForm(forms.Form):
     channel = forms.ModelChoiceField(
         Channel.objects.filter(id__lt=0), help_text=_("Which channel will deliver the message")
@@ -652,44 +617,44 @@ class MsgCRUDL(SmartCRUDL):
             kwargs["label"] = self.derive_label()[1]
             return kwargs
 
-    class Inbox(MsgActionMixin, InboxView):
+    class Inbox(InboxView):
         title = _("Inbox")
         template_name = "msgs/message_box.haml"
         system_label = SystemLabel.TYPE_INBOX
-        actions = ["archive", "label"]
+        bulk_actions = ("archive", "label")
         allow_export = True
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
             return qs.prefetch_related("labels").select_related("contact")
 
-    class Flow(MsgActionMixin, InboxView):
+    class Flow(InboxView):
         title = _("Flow Messages")
         template_name = "msgs/message_box.haml"
         system_label = SystemLabel.TYPE_FLOWS
-        actions = ["label"]
+        bulk_actions = ("label",)
         allow_export = True
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
             return qs.prefetch_related("labels").select_related("contact")
 
-    class Archived(MsgActionMixin, InboxView):
+    class Archived(InboxView):
         title = _("Archived")
         template_name = "msgs/msg_archived.haml"
         system_label = SystemLabel.TYPE_ARCHIVED
-        actions = ["restore", "label", "delete"]
+        bulk_actions = ("restore", "label", "delete")
         allow_export = True
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
             return qs.prefetch_related("labels").select_related("contact")
 
-    class Outbox(MsgActionMixin, InboxView):
+    class Outbox(InboxView):
         title = _("Outbox Messages")
         template_name = "msgs/msg_outbox.haml"
         system_label = SystemLabel.TYPE_OUTBOX
-        actions = ()
+        bulk_actions = ()
         allow_export = True
         show_channel_logs = True
 
@@ -710,11 +675,11 @@ class MsgCRUDL(SmartCRUDL):
             qs = super().get_queryset(**kwargs)
             return qs.prefetch_related("channel_logs").select_related("contact")
 
-    class Sent(MsgActionMixin, InboxView):
+    class Sent(InboxView):
         title = _("Sent Messages")
         template_name = "msgs/msg_sent.haml"
         system_label = SystemLabel.TYPE_SENT
-        actions = ()
+        bulk_actions = ()
         allow_export = True
         show_channel_logs = True
 
@@ -722,12 +687,12 @@ class MsgCRUDL(SmartCRUDL):
             qs = super().get_queryset(**kwargs)
             return qs.prefetch_related("channel_logs").select_related("contact")
 
-    class Failed(MsgActionMixin, InboxView):
+    class Failed(InboxView):
         title = _("Failed Outgoing Messages")
         template_name = "msgs/msg_failed.haml"
         success_message = ""
         system_label = SystemLabel.TYPE_FAILED
-        actions = ["resend"]
+        bulk_actions = ("resend",)
         allow_export = True
         show_channel_logs = True
 
@@ -735,9 +700,9 @@ class MsgCRUDL(SmartCRUDL):
             qs = super().get_queryset(**kwargs)
             return qs.prefetch_related("channel_logs").select_related("contact")
 
-    class Filter(MsgActionMixin, InboxView):
+    class Filter(InboxView):
         template_name = "msgs/msg_filter.haml"
-        actions = ["unlabel", "label"]
+        bulk_actions = ("unlabel", "label")
 
         def derive_title(self, *args, **kwargs):
             return self.derive_label().name

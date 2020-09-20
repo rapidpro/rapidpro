@@ -374,8 +374,8 @@ class Command(BaseCommand):
             created_by=superuser,
             modified_by=superuser,
         )
-        org.create_system_groups()
-        org.create_system_contact_fields()
+        ContactGroup.create_system_groups(org)
+        ContactField.create_system_fields(org)
         org.create_welcome_topup(100_000)
 
         # set our sequences to make ids stable across orgs
@@ -628,7 +628,7 @@ class Command(BaseCommand):
                     contact, _ = Contact.get_or_create(org, urn, user=user)
                     contacts.append(contact)
 
-                group.update_contacts(user, contacts, True)
+                Contact.bulk_change_group(user, contacts, group, add=True)
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
