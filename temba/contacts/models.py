@@ -3138,9 +3138,11 @@ class ContactImport(SmartModel):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contact_imports")
     file = models.FileField(upload_to=get_import_upload_path)
+    original_filename = models.TextField()
     headers = ArrayField(models.CharField(max_length=255))  # raw header values as ordered list
     mappings = JSONField()
     num_records = models.IntegerField()
+    group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, null=True, related_name="imports")
     started_on = models.DateTimeField(null=True)
 
     @classmethod
@@ -3270,6 +3272,10 @@ class ContactImport(SmartModel):
                     self.org, self.created_by, mapping["key"], label=mapping["name"], value_type=mapping["value_type"],
                 )
 
+        # create the destination group
+        self.group = ContactGroup.create_static(self.org, self.created_by, self._default_group_name())
+        self.save(update_fields=("group",))
+
         # parse each row, creating batch tasks for mailroom
         data = pyexcel.iget_array(file_stream=self.file, file_type=self._get_file_type(), start_row=1)
 
@@ -3294,7 +3300,7 @@ class ContactImport(SmartModel):
             batch.import_async()
 
         # flag org if the set of imported URNs looks suspicious
-        if self._detect_spamminess(urns):
+        if not self.org.is_verified() and self._detect_spamminess(urns):
             self.org.flag()
 
     def get_info(self):
@@ -3376,7 +3382,7 @@ class ContactImport(SmartModel):
         return prefix.lower(), name
 
     def _parse_record(self, record: Dict) -> Dict:
-        spec = {}
+        spec = {"groups": [str(self.group.uuid)]}
 
         for header, raw_value in record.items():
             mapping = self.mappings[header]
@@ -3449,6 +3455,18 @@ class ContactImport(SmartModel):
                 return True
 
         return False
+
+    def _default_group_name(self):
+        name = Path(self.original_filename).stem.title()
+        name = name.replace("_", " ").replace("-", " ").strip()  # convert _- to spaces
+        name = regex.sub(r"[^\w\s]", "", name)  # remove any non-word or non-space chars
+
+        if len(name) >= ContactGroup.MAX_NAME_LEN - 10:  # truncate
+            name = name[: ContactGroup.MAX_NAME_LEN - 10]
+        elif len(name) < 4:  # default if too short
+            name = "Import"
+
+        return name
 
 
 class ContactImportBatch(models.Model):

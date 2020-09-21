@@ -2210,6 +2210,7 @@ class ContactImportCRUDL(SmartCRUDL):
         def pre_save(self, obj):
             obj = super().pre_save(obj)
             obj.org = self.get_user().get_org()
+            obj.original_filename = self.form.cleaned_data["file"].name
             obj.headers = self.form.headers
             obj.mappings = self.form.mappings
             obj.num_records = self.form.num_records

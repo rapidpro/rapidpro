@@ -7659,9 +7659,9 @@ class ContactImportTest(TembaTest):
         self.assertEqual(3, batches[0].record_end)
         self.assertEqual(
             [
-                {"name": "Eric Newcomer", "urns": ["tel:250788382382"]},
-                {"name": "NIC POTTIER", "urns": ["tel:250(78) 8 383 383"]},
-                {"name": "jen newcomer", "urns": ["tel:250788383385"]},
+                {"name": "Eric Newcomer", "urns": ["tel:250788382382"], "groups": [str(imp.group.uuid)]},
+                {"name": "NIC POTTIER", "urns": ["tel:250(78) 8 383 383"], "groups": [str(imp.group.uuid)]},
+                {"name": "jen newcomer", "urns": ["tel:250788383385"], "groups": [str(imp.group.uuid)]},
             ],
             batches[0].specs,
         )
@@ -7774,14 +7774,16 @@ class ContactImportTest(TembaTest):
                     "language": "eng",
                     "urns": ["tel:+250788123123"],
                     "fields": {"goats": "1", "sheep": "0"},
+                    "groups": [str(imp.group.uuid)],
                 },
                 {
                     "name": "Mary Smith",
                     "language": "spa",
                     "urns": ["tel:+250788456456"],
                     "fields": {"goats": "3", "sheep": "5"},
+                    "groups": [str(imp.group.uuid)],
                 },
-                {"urns": ["tel:+250788456678"]},  # blank values ignored
+                {"urns": ["tel:+250788456678"], "groups": [str(imp.group.uuid)]},  # blank values ignored
             ],
             batch.specs,
         )
@@ -7792,7 +7794,13 @@ class ContactImportTest(TembaTest):
         batch = imp.batches.get()  # single batch
 
         self.assertEqual(
-            {"name": "", "language": "", "urns": ["tel:+250788456678"], "fields": {"goats": "", "sheep": ""}},
+            {
+                "name": "",
+                "language": "",
+                "urns": ["tel:+250788456678"],
+                "fields": {"goats": "", "sheep": ""},
+                "groups": [str(imp.group.uuid)],
+            },
             batch.specs[2],
         )
 
@@ -7828,6 +7836,17 @@ class ContactImportTest(TembaTest):
                 )
             )
 
+    @mock_mailroom
+    def test_detect_spamminess_verified_org(self, mr_mocks):
+        # if an org is verified, no flagging occurs
+        self.org.verify()
+
+        imp = self.create_contact_import("media/test_imports/sequential_tels.xls")
+        imp.start()
+
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_flagged)
+
     def test_parse_value(self):
         imp = self.create_contact_import("media/test_imports/simple.xlsx")
         kgl = pytz.timezone("Africa/Kigali")
@@ -7843,6 +7862,16 @@ class ContactImportTest(TembaTest):
         ]
         for test in tests:
             self.assertEqual(test[1], imp._parse_value(test[0]))
+
+    def test_default_group_name(self):
+        tests = [
+            ("simple.csv", "Simple"),
+            ("contact-imports.csv", "Contact Imports"),
+            ("abc_@@é.csv", "Abc É"),
+            ("a_@@é.csv", "Import"),  # would be too short
+        ]
+        for test in tests:
+            self.assertEqual(test[1], ContactImport(original_filename=test[0])._default_group_name())
 
 
 class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -7868,8 +7897,12 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(302, response.status_code)
 
         imp = ContactImport.objects.get()
+        self.assertEqual(self.org, imp.org)
         self.assertEqual(3, imp.num_records)
+        self.assertEqual(f"contact_imports/{self.org.id}/simple.xlsx", imp.file.name)
+        self.assertEqual("simple.xlsx", imp.original_filename)
         self.assertIsNone(imp.started_on)
+        self.assertIsNone(imp.group)
 
         preview_url = reverse("contacts.contactimport_preview", args=[imp.id])
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
