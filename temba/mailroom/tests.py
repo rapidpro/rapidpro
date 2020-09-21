@@ -467,7 +467,7 @@ class MailroomQueueTest(TembaTest):
         )
 
     def test_queue_contact_import_batch(self):
-        imp = self.create_contact_import("media/test_imports/sample_contacts.xlsx")
+        imp = self.create_contact_import("media/test_imports/simple.xlsx")
         imp.start()
 
         self.assert_org_queued(self.org, "batch")

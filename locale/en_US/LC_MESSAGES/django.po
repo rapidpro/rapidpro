@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-18 21:22+0000\n"
+"POT-Creation-Date: 2020-09-22 14:50+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2377,17 +2377,6 @@ msgstr ""
 msgid "Provided URNs belong to different existing contacts"
 msgstr ""
 
-#, python-brace-format
-msgid "The provided file has unrecognized headers. Columns \"{joined_unsupported_headers}\" should be removed or prepended with the prefix \"Field:\"."
-msgstr ""
-
-#, python-brace-format
-msgid "The file you provided is missing a required header. At least one of \"{joined_possible_headers}\" or \"Contact UUID\" should be included."
-msgstr ""
-
-msgid "The file you provided is missing a required header called \"Name\"."
-msgstr ""
-
 msgid "Any authentication information needed by this URN"
 msgstr ""
 
@@ -2450,6 +2439,9 @@ msgid "Header '%(header)s' is duplicated."
 msgstr ""
 
 msgid "Import files must contain either UUID or a URN header."
+msgstr ""
+
+msgid "Import files must contain columns besides UUID."
 msgstr ""
 
 #, python-format
@@ -2594,21 +2586,6 @@ msgstr ""
 msgid "Export complete, you can find it here: %s (production users will get an email)"
 msgstr ""
 
-msgid "Can only contain letters, numbers and hypens."
-msgstr ""
-
-#, python-format
-msgid "%s is an invalid name or is a reserved name for contact fields, field names should start with a letter."
-msgstr ""
-
-#, python-format
-msgid "%s should be used once"
-msgstr ""
-
-#, python-format
-msgid "'%(label)s' contact field has '%(key)s' key which is reserved name. Column cannot be imported"
-msgstr ""
-
 msgid "Send Message"
 msgstr ""
 
@@ -2658,6 +2635,9 @@ msgid "An error occurred updating your contact. Please try again later."
 msgstr ""
 
 msgid "Select a field to update"
+msgstr ""
+
+msgid "Can only contain letters, numbers and hypens."
 msgstr ""
 
 msgid "Must be unique."
@@ -6022,23 +6002,6 @@ msgstr ""
 msgid "This operation can take a while to complete. Contacts may remain in this view during the process."
 msgstr ""
 
-msgid ""
-"\n"
-"    We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
-"    your contact by selecting them below.\n"
-"\n"
-"  "
-msgstr ""
-
-msgid "column as"
-msgstr ""
-
-msgid ""
-"\n"
-"                      of type\n"
-"                    "
-msgstr ""
-
 #, python-format
 msgid "You are about to delete <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
 msgstr ""
@@ -6181,109 +6144,6 @@ msgstr ""
 msgid "Import Contacts"
 msgstr ""
 
-msgid "You can import your contacts from an XLS file you create in Excel."
-msgstr ""
-
-msgid "URN:Tel"
-msgstr ""
-
-msgid "Field:Team"
-msgstr ""
-
-msgid "+250788123123"
-msgstr ""
-
-msgid "John Doe"
-msgstr ""
-
-msgid "Managers"
-msgstr ""
-
-msgid "+250788111222"
-msgstr ""
-
-msgid "Jane Doe"
-msgstr ""
-
-msgid "Advisors"
-msgstr ""
-
-msgid "Supported Fields"
-msgstr ""
-
-msgid "Any columns that do not match the following table will be ignored."
-msgstr ""
-
-msgid "Column Header"
-msgstr ""
-
-msgid "Imported as"
-msgstr ""
-
-msgid "Details"
-msgstr ""
-
-msgid "Contact name"
-msgstr ""
-
-msgid "Contact language"
-msgstr ""
-
-msgid "Only valid ISO639-3 codes supportted"
-msgstr ""
-
-msgid "You will have the option to choose the columns to import and to which field to import them."
-msgstr ""
-
-msgid "IGNORED"
-msgstr ""
-
-msgid "One moment.."
-msgstr ""
-
-msgid "All done!"
-msgstr ""
-
-#, python-format
-msgid "Created %(create_count)s new contact"
-msgid_plural "Created %(create_count)s new contacts"
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid "Updated %(update_count)s contact with an existing phone number"
-msgid_plural "Updated %(update_count)s contacts with existing phone numbers"
-msgstr[0] ""
-msgstr[1] ""
-
-msgid "Added all contacts to the new"
-msgstr ""
-
-msgid "Some rows were not imported"
-msgstr ""
-
-msgid "Errors description"
-msgstr ""
-
-#, python-format
-msgid "Failed to import %(error_count)s contact due to missing or invalid phone number"
-msgid_plural "Failed to import %(error_count)s contacts due to missing or invalid phone numbers"
-msgstr[0] ""
-msgstr[1] ""
-
-msgid "Grouping.."
-msgstr ""
-
-msgid "No contacts imported, please make sure your have a channel connected."
-msgstr ""
-
-#, python-format
-msgid "You can download <a href='%(STATIC_URL)sexamples/contacts.xls'>this Excel template</a> as a sample."
-msgstr ""
-
-msgid "Choose File"
-msgstr ""
-
 msgid "Smart Groups"
 msgstr ""
 
@@ -6319,6 +6179,9 @@ msgid "To view more than 10,000 search results, save it as a group."
 msgstr ""
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
+msgstr ""
+
+msgid "Details"
 msgstr ""
 
 msgid "Contact Id"
@@ -6445,8 +6308,59 @@ msgstr ""
 msgid "You can import contacts from an Excel spreadsheet or comma separated values file."
 msgstr ""
 
+msgid "URN:Tel"
+msgstr ""
+
+msgid "Field:Team"
+msgstr ""
+
+msgid "+250788123123"
+msgstr ""
+
+msgid "John Doe"
+msgstr ""
+
+msgid "Managers"
+msgstr ""
+
+msgid "+250788111222"
+msgstr ""
+
+msgid "Jane Doe"
+msgstr ""
+
+msgid "Advisors"
+msgstr ""
+
+msgid "Supported Fields"
+msgstr ""
+
+msgid "Any columns that do not match the following table will be ignored."
+msgstr ""
+
+msgid "Column Header"
+msgstr ""
+
+msgid "Imported as"
+msgstr ""
+
+msgid "Contact name"
+msgstr ""
+
+msgid "Contact language"
+msgstr ""
+
+msgid "Only valid ISO639-3 codes supportted"
+msgstr ""
+
+msgid "You will have the option to choose the columns to import and to which field to import them."
+msgstr ""
+
 #, python-format
 msgid "You can download <a href=\"%(sample_url)s\">this Excel template</a> as a sample. Note that blank values will be ignored. If you want to explicitly clear values use <code>%(code)s</code>."
+msgstr ""
+
+msgid "Choose File"
 msgstr ""
 
 msgid "Preview"
@@ -6479,6 +6393,12 @@ msgid "a <strong>%(scheme)s</strong> URN"
 msgstr ""
 
 msgid "Contact Import"
+msgstr ""
+
+msgid "All done!"
+msgstr ""
+
+msgid "One moment.."
 msgstr ""
 
 #, python-format
@@ -6528,21 +6448,11 @@ msgid ""
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"      Contacts will automatically be added here as you communicate with them using %(name)s.\n"
-"      From here you can change a contact's name, organize them into groups and see the communication you've had with each.\n"
-"\n"
-"    "
+msgid "Contacts will automatically be added here as you communicate with them using %(name)s. From here you can change a contact's name, organize them into groups and see the communication you've had with each."
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"      To get started you can\n"
-"        <a href='%(contact_import_url)s'>import contacts</a>\n"
-"      from a file you create in Excel.\n"
-"    "
+msgid "To get started you can %%a{href:'%(contact_import_url)s'} import contacts from a file you create in Excel."
 msgstr ""
 
 msgid "Are you sure you want to remove"

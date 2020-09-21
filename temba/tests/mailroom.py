@@ -10,11 +10,13 @@ from django.db import connection
 from django.utils import timezone
 
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
+from temba.locations.models import AdminBoundary
 from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException
 from temba.mailroom.modifiers import Modifier
 from temba.orgs.models import Org
 from temba.tickets.models import Ticket
-from temba.utils import json
+from temba.utils import format_number, json
+from temba.values.constants import Value
 
 
 class Mocks:
@@ -272,7 +274,7 @@ def update_field_locally(user, contact, key, value, label=None):
             del contact.fields[field_uuid]
 
     else:
-        field_dict = contact.serialize_field(field, value)
+        field_dict = serialize_field_value(contact, field, value)
 
         if contact.fields.get(field_uuid) != field_dict:
             contact.fields[field_uuid] = field_dict
@@ -336,3 +338,63 @@ def update_groups_locally(contact, group_uuids, add: bool):
             group.contacts.add(contact)
         else:
             group.contacts.remove(contact)
+
+
+def serialize_field_value(contact, field, value):
+    org = contact.org
+
+    # parse as all value data types
+    str_value = str(value)[: Value.MAX_VALUE_LEN]
+    dt_value = org.parse_datetime(value)
+    num_value = org.parse_number(value)
+    loc_value = None
+
+    # for locations, if it has a '>' then it is explicit, look it up that way
+    if AdminBoundary.PATH_SEPARATOR in str_value:
+        loc_value = contact.org.parse_location_path(str_value)
+
+    # otherwise, try to parse it as a name at the appropriate level
+    else:
+        if field.value_type == Value.TYPE_WARD:
+            district_field = ContactField.get_location_field(org, Value.TYPE_DISTRICT)
+            district_value = contact.get_field_value(district_field)
+            if district_value:
+                loc_value = org.parse_location(str_value, AdminBoundary.LEVEL_WARD, district_value)
+
+        elif field.value_type == Value.TYPE_DISTRICT:
+            state_field = ContactField.get_location_field(org, Value.TYPE_STATE)
+            if state_field:
+                state_value = contact.get_field_value(state_field)
+                if state_value:
+                    loc_value = org.parse_location(str_value, AdminBoundary.LEVEL_DISTRICT, state_value)
+
+        elif field.value_type == Value.TYPE_STATE:
+            loc_value = org.parse_location(str_value, AdminBoundary.LEVEL_STATE)
+
+        if loc_value is not None and len(loc_value) > 0:
+            loc_value = loc_value[0]
+        else:
+            loc_value = None
+
+    # all fields have a text value
+    field_dict = {Value.KEY_TEXT: str_value}
+
+    # set all the other fields that have a non-zero value
+    if dt_value is not None:
+        field_dict[Value.KEY_DATETIME] = timezone.localtime(dt_value, org.timezone).isoformat()
+
+    if num_value is not None:
+        field_dict[Value.KEY_NUMBER] = format_number(num_value)
+
+    if loc_value:
+        if loc_value.level == AdminBoundary.LEVEL_STATE:
+            field_dict[Value.KEY_STATE] = loc_value.path
+        elif loc_value.level == AdminBoundary.LEVEL_DISTRICT:
+            field_dict[Value.KEY_DISTRICT] = loc_value.path
+            field_dict[Value.KEY_STATE] = AdminBoundary.strip_last_path(loc_value.path)
+        elif loc_value.level == AdminBoundary.LEVEL_WARD:
+            field_dict[Value.KEY_WARD] = loc_value.path
+            field_dict[Value.KEY_DISTRICT] = AdminBoundary.strip_last_path(loc_value.path)
+            field_dict[Value.KEY_STATE] = AdminBoundary.strip_last_path(field_dict[Value.KEY_DISTRICT])
+
+    return field_dict
