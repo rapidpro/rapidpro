@@ -7796,6 +7796,38 @@ class ContactImportTest(TembaTest):
             batch.specs[2],
         )
 
+    @mock_mailroom
+    def test_detect_spamminess(self, mr_mocks):
+        imp = self.create_contact_import("media/test_imports/sequential_tels.xls")
+        imp.start()
+
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.is_flagged)
+
+        with patch("temba.contacts.models.ContactImport.SEQUENTIAL_URNS_THRESHOLD", 3):
+            self.assertFalse(ContactImport._detect_spamminess(["tel:+593979000001", "tel:+593979000002"]))
+            self.assertFalse(
+                ContactImport._detect_spamminess(
+                    ["tel:+593979000001", "tel:+593979000003", "tel:+593979000005", "tel:+593979000007"]
+                )
+            )
+
+            self.assertTrue(
+                ContactImport._detect_spamminess(["tel:+593979000001", "tel:+593979000002", "tel:+593979000003"])
+            )
+
+            # order not important
+            self.assertTrue(
+                ContactImport._detect_spamminess(["tel:+593979000003", "tel:+593979000001", "tel:+593979000002"])
+            )
+
+            # non-numeric paths ignored
+            self.assertTrue(
+                ContactImport._detect_spamminess(
+                    ["tel:+593979000001", "tel:ABC", "tel:+593979000002", "tel:+593979000003"]
+                )
+            )
+
     def test_parse_value(self):
         imp = self.create_contact_import("media/test_imports/simple.xlsx")
         kgl = pytz.timezone("Africa/Kigali")

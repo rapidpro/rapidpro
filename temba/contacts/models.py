@@ -46,9 +46,6 @@ logger = logging.getLogger(__name__)
 # phone number for every org's test contact
 OLD_TEST_CONTACT_TEL = "12065551212"
 
-# how many sequential contacts on import triggers suspension
-SEQUENTIAL_CONTACTS_THRESHOLD = 250
-
 DELETED_SCHEME = "deleted"
 EMAIL_SCHEME = "mailto"
 EXTERNAL_SCHEME = "ext"
@@ -1965,7 +1962,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                             sequential += 1
                     last_path = path
 
-                    if sequential > SEQUENTIAL_CONTACTS_THRESHOLD:
+                    if sequential > ContactImport.SEQUENTIAL_URNS_THRESHOLD:
                         group_org.flag()
                         break
 
@@ -3129,6 +3126,9 @@ class ContactImport(SmartModel):
     BATCH_SIZE = 100
     EXPLICIT_CLEAR = "--"
 
+    # how many sequential URNs triggers flagging
+    SEQUENTIAL_URNS_THRESHOLD = 250
+
     STATUS_PENDING = "P"
     STATUS_PROCESSING = "O"
     STATUS_COMPLETE = "C"
@@ -3273,6 +3273,8 @@ class ContactImport(SmartModel):
         # parse each row, creating batch tasks for mailroom
         data = pyexcel.iget_array(file_stream=self.file, file_type=self._get_file_type(), start_row=1)
 
+        urns = []
+
         record_num = 0
         for row_batch in chunk_list(data, ContactImport.BATCH_SIZE):
             batch_specs = []
@@ -3282,11 +3284,18 @@ class ContactImport(SmartModel):
                 row = row[: len(self.headers)]  # ignore any columns beyond our headers
 
                 record = dict(zip_longest(self.headers, row, fillvalue=""))
-                batch_specs.append(self._parse_record(record))
+                spec = self._parse_record(record)
+                batch_specs.append(spec)
                 record_num += 1
+
+                urns.extend(spec.get("urns", []))
 
             batch = self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num)
             batch.import_async()
+
+        # flag org if the set of imported URNs looks suspicious
+        if self._detect_spamminess(urns):
+            self.org.flag()
 
     def get_info(self):
         """
@@ -3409,6 +3418,37 @@ class ContactImport(SmartModel):
             return value.isoformat()
         else:
             return str(value).strip()
+
+    @classmethod
+    def _detect_spamminess(cls, urns: List[str]) -> bool:
+        """
+        Takes the list of URNs that have been imported and trie to detect spamming
+        """
+
+        # extract all numerical URN paths
+        numerical_paths = []
+        for urn in urns:
+            scheme, path, query, display = URN.to_parts(urn)
+            try:
+                numerical_paths.append(int(path))
+            except ValueError:
+                pass
+
+        if len(numerical_paths) < cls.SEQUENTIAL_URNS_THRESHOLD:
+            return False
+
+        numerical_paths = sorted(numerical_paths)
+        last_path = numerical_paths[0]
+        num_sequential = 1
+        for path in numerical_paths[1:]:
+            if path == last_path + 1:
+                num_sequential += 1
+            last_path = path
+
+            if num_sequential >= cls.SEQUENTIAL_URNS_THRESHOLD:
+                return True
+
+        return False
 
 
 class ContactImportBatch(models.Model):
