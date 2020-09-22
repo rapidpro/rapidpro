@@ -284,8 +284,8 @@ class OrgDeleteTest(TembaNonAtomicTest):
         # now allocate some credits to our child org
         self.org.allocate_credits(self.admin, self.child_org, 300)
 
-        parent_contact = self.create_contact("Parent Contact", "+2345123", org=self.parent_org)
-        child_contact = self.create_contact("Child Contact", "+3456123", org=self.child_org)
+        parent_contact = self.create_contact("Parent Contact", phone="+2345123", org=self.parent_org)
+        child_contact = self.create_contact("Child Contact", phone="+3456123", org=self.child_org)
 
         # add some fields
         parent_field = self.create_field("age", "Parent Age", org=self.parent_org)
@@ -761,7 +761,7 @@ class OrgTest(TembaTest):
     def test_org_flagging_and_suspending(self, mock_async_start):
         self.login(self.admin)
 
-        mark = self.create_contact("Mark", number="+12065551212")
+        mark = self.create_contact("Mark", phone="+12065551212")
         flow = self.create_flow()
 
         def send_broadcast():
@@ -1588,7 +1588,7 @@ class OrgTest(TembaTest):
 
     def test_topup_expiration(self):
 
-        contact = self.create_contact("Usain Bolt", "+250788123123")
+        contact = self.create_contact("Usain Bolt", phone="+250788123123")
         welcome_topup = self.org.topups.get()
 
         # send some messages with a valid topup
@@ -1615,7 +1615,7 @@ class OrgTest(TembaTest):
         self.assertEqual(15, self.org.get_credits_used())
 
     def test_low_credits_threshold(self):
-        contact = self.create_contact("Usain Bolt", "+250788123123")
+        contact = self.create_contact("Usain Bolt", phone="+250788123123")
 
         # add some more unexpire topup credits
         TopUp.create(self.admin, price=0, credits=1000)
@@ -1628,7 +1628,7 @@ class OrgTest(TembaTest):
         self.assertEqual(300, self.org.get_low_credits_threshold())
 
     def test_topup_decrementing(self):
-        self.contact = self.create_contact("Joe", "+250788123123")
+        self.contact = self.create_contact("Joe", phone="+250788123123")
 
         self.create_incoming_msg(self.contact, "Orange")
 
@@ -1663,7 +1663,7 @@ class OrgTest(TembaTest):
         self.org.is_multi_user = False
         self.org.save(update_fields=["is_multi_user", "is_multi_org"])
 
-        contact = self.create_contact("Michael Shumaucker", "+250788123123")
+        contact = self.create_contact("Michael Shumaucker", phone="+250788123123")
         welcome_topup = self.org.topups.get()
 
         self.create_incoming_msgs(contact, 10)
@@ -1973,7 +1973,7 @@ class OrgTest(TembaTest):
     def test_has_airtime_transfers(self):
         AirtimeTransfer.objects.filter(org=self.org).delete()
         self.assertFalse(self.org.has_airtime_transfers())
-        contact = self.create_contact("Bob", number="+250788123123")
+        contact = self.create_contact("Bob", phone="+250788123123")
 
         AirtimeTransfer.objects.create(
             org=self.org,
@@ -2705,7 +2705,7 @@ class OrgTest(TembaTest):
             secret="12355",
             config={Channel.CONFIG_FCM_ID: "145"},
         )
-        contact = self.create_contact("Joe", "+250788383444", org=sub_org)
+        contact = self.create_contact("Joe", phone="+250788383444", org=sub_org)
         msg = self.create_outgoing_msg(contact, "How is it going?")
 
         # there is no topup on suborg, and this msg won't be credited
@@ -2992,7 +2992,7 @@ class AnonOrgTest(TembaTest):
 
     def test_contacts(self):
         # are there real phone numbers on the contact list page?
-        contact = self.create_contact(None, "+250788123123")
+        contact = self.create_contact(None, phone="+250788123123")
         self.login(self.admin)
 
         masked = "%010d" % contact.pk
@@ -3397,7 +3397,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual(self.org.timezone, pytz.timezone("Africa/Kigali"))
         self.assertEqual(("%d-%m-%Y", "%d-%m-%Y %H:%M"), self.org.get_datetime_formats())
 
-        contact = self.create_contact("Bob", number="+250788382382")
+        contact = self.create_contact("Bob", phone="+250788382382")
         self.create_incoming_msg(contact, "My name is Frank")
 
         self.login(self.admin)
@@ -3842,7 +3842,7 @@ class BulkExportTest(TembaTest):
     def test_get_dependencies(self):
 
         # import a flow that triggers another flow
-        contact1 = self.create_contact("Marshawn", "+14255551212")
+        contact1 = self.create_contact("Marshawn", phone="+14255551212")
         substitutions = dict(contact_id=contact1.id)
         flow = self.get_flow("triggered", substitutions, legacy=True)
 
@@ -4037,7 +4037,7 @@ class BulkExportTest(TembaTest):
         event = campaign.events.filter(is_active=True).last()
 
         # create a contact and place her into our campaign
-        sally = self.create_contact("Sally", urn="tel:+12345", fields={"survey_start": "10-05-2025 12:30:10"})
+        sally = self.create_contact("Sally", phone="+12345", fields={"survey_start": "10-05-2025 12:30:10"})
         campaign.group.contacts.add(sally)
 
         # importing it again shouldn't result in failures
@@ -4634,7 +4634,7 @@ class CreditAlertTest(TembaTest):
             self.assertEqual(len(mail.outbox), 0)
 
     def test_check_org_credits(self):
-        self.joe = self.create_contact("Joe Blow", "123")
+        self.joe = self.create_contact("Joe Blow", phone="123")
         self.create_outgoing_msg(self.joe, "Hello")
         with self.settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True):
             with patch("temba.orgs.models.Org.get_credits_remaining") as mock_get_credits_remaining:
@@ -5001,8 +5001,8 @@ class OrgActivityTest(TembaTest):
         now = timezone.now()
 
         # create a few contacts
-        self.create_contact("Marshawn", "+14255551212")
-        russell = self.create_contact("Marshawn", "+14255551313")
+        self.create_contact("Marshawn", phone="+14255551212")
+        russell = self.create_contact("Marshawn", phone="+14255551313")
 
         # create some messages for russel
         self.create_incoming_msg(russell, "hut")

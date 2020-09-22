@@ -207,9 +207,9 @@ class ChannelTest(TembaTest):
         self.tel_channel.country = "RW"
         self.tel_channel.save()
 
-        contact1 = self.create_contact("contact1", "0788111222")
-        contact2 = self.create_contact("contact2", "+250788333444")
-        contact3 = self.create_contact("contact3", "+18006927753")
+        contact1 = self.create_contact("contact1", phone="0788111222")
+        contact2 = self.create_contact("contact2", phone="+250788333444")
+        contact3 = self.create_contact("contact3", phone="+18006927753")
 
         self.org.normalize_contact_tels()
 
@@ -501,7 +501,7 @@ class ChannelTest(TembaTest):
         self.assertIn("delayed_syncevents", response.context)
         self.assertNotIn("unsent_msgs", response.context, msg="Found unsent_msgs in context")
 
-        contact = self.create_contact("Bob", number="+250788123123")
+        contact = self.create_contact("Bob", phone="+250788123123")
 
         # add a message, just sent so shouldn't have delayed
         msg = self.create_outgoing_msg(contact, "test", channel=channel)
@@ -736,7 +736,7 @@ class ChannelTest(TembaTest):
             sync.created_on = two_hours_ago
             sync.save()
 
-        bob = self.create_contact("Bob", number="+250785551212")
+        bob = self.create_contact("Bob", phone="+250785551212")
 
         # add a message, just sent so shouldn't be delayed
         with patch("django.utils.timezone.now", return_value=two_hours_ago):
@@ -751,7 +751,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # now that we can access the channel, which messages do we display in the chart?
-        joe = self.create_contact("Joe", "+2501234567890")
+        joe = self.create_contact("Joe", phone="+2501234567890")
 
         # should have two series, one for incoming one for outgoing
         self.assertEqual(2, len(response.context["message_stats"]))
@@ -1185,8 +1185,8 @@ class ChannelTest(TembaTest):
             config={Channel.CONFIG_FCM_ID: "456"},
         )
 
-        contact1 = self.create_contact("John Doe", "250788382382")
-        contact2 = self.create_contact("John Doe", "250788383383")
+        contact1 = self.create_contact("John Doe", phone="250788382382")
+        contact2 = self.create_contact("John Doe", phone="250788383383")
 
         contact1_urn = contact1.get_urn()
         contact1_urn.channel = self.tel_channel
@@ -1227,7 +1227,7 @@ class ChannelTest(TembaTest):
         date = timezone.now()
         date = int(time.mktime(date.timetuple())) * 1000
 
-        contact = self.create_contact("Bob", number="+250788382382")
+        contact = self.create_contact("Bob", phone="+250788382382")
 
         # create a payload from the client
         bcast = self.send_message(["250788382382", "250788383383"], "How is it going?")
@@ -1867,7 +1867,7 @@ class ChannelClaimTest(TembaTest):
 
     @override_settings(SEND_EMAILS=True)
     def test_sms_alert(self):
-        contact = self.create_contact("John Doe", "123")
+        contact = self.create_contact("John Doe", phone="123")
 
         # create a message from two hours ago
         one_hour_ago = timezone.now() - timedelta(hours=1)
@@ -1902,7 +1902,7 @@ class ChannelClaimTest(TembaTest):
         alert.ended_on = six_hours_ago
         alert.save()
 
-        dany = self.create_contact("Dany Craig", "765")
+        dany = self.create_contact("Dany Craig", phone="765")
 
         # let have a recent sent message
         sent_msg = self.create_outgoing_msg(
@@ -1990,7 +1990,7 @@ class ChannelCountTest(TembaTest):
         self.assertFalse(ChannelCount.objects.all())
 
         # contact without a channel
-        contact = self.create_contact("Joe", number="+250788111222")
+        contact = self.create_contact("Joe", phone="+250788111222")
         self.create_incoming_msg(contact, "Test Message", surveyor=True)
 
         # still no channel counts
@@ -2079,7 +2079,7 @@ class ChannelLogTest(TembaTest):
             config={"send_url": "http://send.com"},
         )
 
-        contact = self.create_contact("Fred Jones", "+12067799191")
+        contact = self.create_contact("Fred Jones", phone="+12067799191")
 
         # create unrelated incoming message
         self.create_incoming_msg(contact, "incoming msg")
@@ -2109,7 +2109,7 @@ class ChannelLogTest(TembaTest):
         self.create_incoming_call(ivr_flow, contact, status=IVRCall.FAILED)
 
         # create log for other org
-        other_org_contact = self.create_contact("Hans", number="+593979123456")
+        other_org_contact = self.create_contact("Hans", phone="+593979123456")
         other_org_msg = self.create_outgoing_msg(other_org_contact, "hi", status="D")
         other_org_log = ChannelLog.objects.create(
             channel=other_org_channel, msg=other_org_msg, description="Successfully Sent", is_error=False
@@ -2225,7 +2225,7 @@ class ChannelLogTest(TembaTest):
 
     def test_redaction_for_telegram(self):
         urn = "telegram:3527065"
-        contact = self.create_contact("Fred Jones", urn)
+        contact = self.create_contact("Fred Jones", urns=[urn])
         channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
@@ -2296,7 +2296,7 @@ class ChannelLogTest(TembaTest):
 
     def test_redaction_for_telegram_with_invalid_json(self):
         urn = "telegram:3527065"
-        contact = self.create_contact("Fred Jones", urn)
+        contact = self.create_contact("Fred Jones", urns=[urn])
         channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
@@ -2348,7 +2348,7 @@ class ChannelLogTest(TembaTest):
 
     def test_redaction_for_telegram_when_no_match(self):
         urn = "telegram:3527065"
-        contact = self.create_contact("Fred Jones", urn)
+        contact = self.create_contact("Fred Jones", urns=[urn])
         channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
@@ -2399,7 +2399,7 @@ class ChannelLogTest(TembaTest):
 
     def test_redaction_for_twitter(self):
         urn = "twitterid:767659860"
-        contact = self.create_contact("Fred Jones", urn)
+        contact = self.create_contact("Fred Jones", urns=[urn])
         channel = Channel.create(self.org, self.user, None, "TWT", name="Test TWT Channel")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
@@ -2467,7 +2467,7 @@ class ChannelLogTest(TembaTest):
 
     def test_redaction_for_twitter_when_no_match(self):
         urn = "twitterid:767659860"
-        contact = self.create_contact("Fred Jones", urn)
+        contact = self.create_contact("Fred Jones", urns=[urn])
         channel = Channel.create(self.org, self.user, None, "TWT", name="Test TWT Channel")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
@@ -2518,7 +2518,7 @@ class ChannelLogTest(TembaTest):
 
     def test_redaction_for_facebook(self):
         urn = "facebook:2150393045080607"
-        contact = self.create_contact("Fred Jones", urn)
+        contact = self.create_contact("Fred Jones", urns=[urn])
         channel = Channel.create(self.org, self.user, None, "FB", name="Test FB Channel")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
@@ -2589,7 +2589,7 @@ class ChannelLogTest(TembaTest):
     def test_redaction_for_facebook_when_no_match(self):
         # in this case we are paranoid and mask everything
         urn = "facebook:2150393045080607"
-        contact = self.create_contact("Fred Jones", urn)
+        contact = self.create_contact("Fred Jones", urns=[urn])
         channel = Channel.create(self.org, self.user, None, "FB", name="Test FB Channel")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
@@ -2651,7 +2651,7 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
     def test_redaction_for_twilio(self):
-        contact = self.create_contact("Fred Jones", number="+593979099111")
+        contact = self.create_contact("Fred Jones", phone="+593979099111")
         channel = Channel.create(self.org, self.user, None, "T", name="Twilio")
         msg = self.create_outgoing_msg(contact, "Hi")
 
@@ -2829,10 +2829,10 @@ class CourierTest(TembaTest):
         self.channel.channel_type = "T"
         self.channel.save()
 
-        bob = self.create_contact("Bob", urn="tel:+12065551111")
-        cat = self.create_contact("Cat", urn="tel:+12065552222")
-        dan = self.create_contact("Dan", urn="tel:+12065553333")
-        eve = self.create_contact("eve", urn="tel:+12065554444")
+        bob = self.create_contact("Bob", urns=["tel:+12065551111"])
+        cat = self.create_contact("Cat", urns=["tel:+12065552222"])
+        dan = self.create_contact("Dan", urns=["tel:+12065553333"])
+        eve = self.create_contact("eve", urns=["tel:+12065554444"])
         incoming = self.create_incoming_msg(bob, "Hello", external_id="external-id")
 
         # create some outgoing messages for our channel

@@ -54,7 +54,7 @@ class WeChatTypeTest(TembaTest):
         self.assertContains(response, "10.10.10.10")
         self.assertContains(response, "172.16.20.30")
 
-        contact = self.create_contact("WeChat User", urn=URN.from_wechat("1234"))
+        contact = self.create_contact("WeChat User", urns=[URN.from_wechat("1234")])
 
         # make sure we our jiochat channel satisfies as a send channel
         response = self.client.get(reverse("contacts.contact_read", args=[contact.uuid]))
