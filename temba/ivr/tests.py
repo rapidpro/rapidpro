@@ -8,7 +8,7 @@ from temba.tests import TembaTest
 class IVRCallTest(TembaTest):
     def test_release(self):
         flow = self.get_flow("ivr")
-        contact = self.create_contact("Jose", "+12065552000")
+        contact = self.create_contact("Jose", phone="+12065552000")
 
         call1 = self.create_incoming_call(flow, contact)
         call2 = self.create_incoming_call(flow, contact)

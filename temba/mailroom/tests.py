@@ -387,8 +387,8 @@ class MailroomQueueTest(TembaTest):
         )
 
     def test_queue_broadcast(self):
-        jim = self.create_contact("Jim", "+12065551212")
-        bobs = self.create_group("Bobs", [self.create_contact("Bob", "+12065551313")])
+        jim = self.create_contact("Jim", phone="+12065551212")
+        bobs = self.create_group("Bobs", [self.create_contact("Bob", phone="+12065551313")])
 
         bcast = Broadcast.create(
             self.org,
@@ -427,8 +427,8 @@ class MailroomQueueTest(TembaTest):
 
     def test_queue_flow_start(self):
         flow = self.get_flow("favorites")
-        jim = self.create_contact("Jim", "+12065551212")
-        bobs = self.create_group("Bobs", [self.create_contact("Bob", "+12065551313")])
+        jim = self.create_contact("Jim", phone="+12065551212")
+        bobs = self.create_group("Bobs", [self.create_contact("Bob", phone="+12065551313")])
 
         start = FlowStart.create(
             flow,
@@ -467,8 +467,8 @@ class MailroomQueueTest(TembaTest):
         )
 
     def test_queue_interrupt_by_contacts(self):
-        jim = self.create_contact("Jim", "+12065551212")
-        bob = self.create_contact("Bob", "+12065551313")
+        jim = self.create_contact("Jim", phone="+12065551212")
+        bob = self.create_contact("Bob", phone="+12065551313")
 
         queue_interrupt(self.org, contacts=[jim, bob])
 
@@ -513,7 +513,7 @@ class MailroomQueueTest(TembaTest):
         )
 
     def test_queue_interrupt_by_session(self):
-        jim = self.create_contact("Jim", "+12065551212")
+        jim = self.create_contact("Jim", phone="+12065551212")
 
         flow = self.get_flow("favorites")
         flow_nodes = flow.as_json()["nodes"]

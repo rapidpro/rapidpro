@@ -54,11 +54,11 @@ class MsgTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.joe = self.create_contact("Joe Blow", "123")
+        self.joe = self.create_contact("Joe Blow", phone="123")
         ContactURN.create(self.org, self.joe, "tel:789")
 
-        self.frank = self.create_contact("Frank Blow", "321")
-        self.kevin = self.create_contact("Kevin Durant", "987")
+        self.frank = self.create_contact("Frank Blow", phone="321")
+        self.kevin = self.create_contact("Kevin Durant", phone="987")
 
         self.just_joe = self.create_group("Just Joe", [self.joe])
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
@@ -315,8 +315,8 @@ class MsgTest(TembaTest):
 
     def test_broadcast_metadata(self):
         Channel.create(self.org, self.admin, None, channel_type="TT")
-        contact1 = self.create_contact("Stephen", "+12078778899", language="fra")
-        contact2 = self.create_contact("Maaaarcos", number="+12078778888", twitter="marky65")
+        contact1 = self.create_contact("Stephen", phone="+12078778899", language="fra")
+        contact2 = self.create_contact("Maaaarcos", urns=["tel:+12078778888", "twitter:marky65"])
 
         # can't create quick replies if you don't include base translation
         with self.assertRaises(ValueError):
@@ -1719,9 +1719,9 @@ class MsgCRUDLTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.joe = self.create_contact("Joe Blow", "+250788000001")
-        self.frank = self.create_contact("Frank Blow", "250788000002")
-        self.billy = self.create_contact("Billy Bob", twitter="billy_bob")
+        self.joe = self.create_contact("Joe Blow", phone="+250788000001")
+        self.frank = self.create_contact("Frank Blow", phone="250788000002")
+        self.billy = self.create_contact("Billy Bob", urns=["twitter:billy_bob"])
 
     def test_filter(self):
         # create some folders and labels
@@ -1792,15 +1792,15 @@ class BroadcastTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.joe = self.create_contact("Joe Blow", "123")
-        self.frank = self.create_contact("Frank Blow", "321")
+        self.joe = self.create_contact("Joe Blow", phone="123")
+        self.frank = self.create_contact("Frank Blow", phone="321")
 
         self.just_joe = self.create_group("Just Joe", [self.joe])
 
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
-        self.kevin = self.create_contact(name="Kevin Durant", number="987")
-        self.lucy = self.create_contact(name="Lucy M", twitter="lucy")
+        self.kevin = self.create_contact(name="Kevin Durant", phone="987")
+        self.lucy = self.create_contact(name="Lucy M", urns=["twitter:lucy"])
 
         # a Twitter channel
         self.twitter = Channel.create(self.org, self.user, None, "TT")
@@ -2225,7 +2225,7 @@ class BroadcastTest(TembaTest):
         self.assertIn(self.joe, broadcast.contacts.all())
 
     def test_message_parts(self):
-        contact = self.create_contact("Matt", "+12067778811")
+        contact = self.create_contact("Matt", phone="+12067778811")
 
         sms = self.create_outgoing_msg(contact, "Text")
 
@@ -2374,8 +2374,8 @@ class LabelTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.joe = self.create_contact("Joe Blow", number="073835001")
-        self.frank = self.create_contact("Frank", number="073835002")
+        self.joe = self.create_contact("Joe Blow", phone="073835001")
+        self.frank = self.create_contact("Frank", phone="073835002")
 
     def test_get_or_create(self):
         label1 = Label.get_or_create(self.org, self.user, "Spam")
@@ -2750,8 +2750,8 @@ class SystemLabelTest(TembaTest):
             },
         )
 
-        contact1 = self.create_contact("Bob", number="0783835001")
-        contact2 = self.create_contact("Jim", number="0783835002")
+        contact1 = self.create_contact("Bob", phone="0783835001")
+        contact2 = self.create_contact("Jim", phone="0783835002")
         msg1 = self.create_incoming_msg(contact1, "Message 1")
         self.create_incoming_msg(contact1, "Message 2")
         msg3 = self.create_incoming_msg(contact1, "Message 3")
@@ -2915,7 +2915,7 @@ class TagsTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.joe = self.create_contact("Joe Blow", number="+250788382382")
+        self.joe = self.create_contact("Joe Blow", phone="+250788382382")
 
     def render_template(self, string, context=None):
         from django.template import Context, Template
@@ -2984,7 +2984,7 @@ class MsgsFailWithoutTopup(MigrationTest):
     migrate_to = "0140_fail_msgs_missing_topups"
 
     def setUpBeforeMigration(self, apps):
-        contact = self.create_contact("Ben Haggerty", "+250700000003")
+        contact = self.create_contact("Ben Haggerty", phone="+250700000003")
 
         now = timezone.now()
         two_days_ago = now - timedelta(hours=48)
